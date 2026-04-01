@@ -1,0 +1,49 @@
+name: tests
+
+on:
+  push:
+    branches:
+      - main
+      - "codex/**"
+  pull_request:
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out Media Studio
+        uses: actions/checkout@v4
+
+      - name: Check out KIE API dependency
+        uses: actions/checkout@v4
+        with:
+          repository: gateway/kie-api
+          path: kie-api
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install shared Python environment
+        run: |
+          python -m venv kie-api/.venv
+          kie-api/.venv/bin/pip install --upgrade pip
+          kie-api/.venv/bin/pip install -e ./kie-api
+          kie-api/.venv/bin/pip install -e ./apps/api[dev]
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Run quality gates
+        env:
+          MEDIA_STUDIO_KIE_API_REPO_PATH: ${{ github.workspace }}/kie-api
+        run: ./scripts/run-quality-gates

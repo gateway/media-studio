@@ -4,6 +4,10 @@ Media Studio is an open-source build-your-own AI image and video studio.
 
 It pairs a local Next.js + FastAPI app with the shared Python `kie-api` layer so you can run your own generation workspace instead of relying on another closed monthly creative tool.
 
+If you want the fastest friend-friendly setup path first:
+
+- [START_HERE.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/START_HERE.md)
+
 ## Why this exists
 
 - build your own branded image and video workflow instead of renting a generic hosted UI

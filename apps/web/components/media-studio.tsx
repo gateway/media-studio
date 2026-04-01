@@ -667,7 +667,7 @@ const STUDIO_PICKER_WIDTHS: Record<string, string> = {
   model: "w-full sm:w-[232px]",
   preset: "w-full sm:w-[186px]",
   "output-count": "w-[calc(50%-0.25rem)] sm:w-[95px]",
-  duration: "w-[calc(50%-0.25rem)] sm:w-[104px]",
+  duration: "w-[calc(50%-0.25rem)] sm:w-[110px]",
   aspect_ratio: "w-[calc(50%-0.25rem)] sm:w-[104px]",
   sound: "w-[calc(50%-0.25rem)] sm:w-[114px]",
   audio: "w-[calc(50%-0.25rem)] sm:w-[114px]",
@@ -4389,7 +4389,7 @@ export function MediaStudio({
                       );
                     })}
 
-                    <div className="flex w-full items-center gap-2">
+                    <div className="flex w-full items-center gap-2 sm:w-auto sm:ml-auto">
                       <div className="shrink-0 md:hidden">
                         {studioSettingsButton}
                       </div>
