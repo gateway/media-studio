@@ -29,4 +29,6 @@ data/backups/
 output/
 apps/api/.mypy_cache/
 apps/api/.ruff_cache/
+apps/api/*.egg-info/
 apps/web/.turbo/
+apps/web/tsconfig.tsbuildinfo
