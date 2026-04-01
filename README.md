@@ -34,6 +34,7 @@ The dashboard pricing flow is built around three layers:
 - submit gate: `POST /media/validate` and job submission both carry the same pricing summary so the number shown in the Studio stays aligned with the server-side calculation
 
 In the Studio UI, the `Generate` button now displays the current estimated total. If a model option changes pricing, the button label updates with it.
+The admin UI also exposes a dedicated `/pricing` page and shows the saved estimate snapshot for each batch on `/jobs`.
 
 ## Structure
 

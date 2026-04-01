@@ -45,6 +45,53 @@ function batchAssetForJob(job: MediaJob, assets: MediaAsset[]) {
   return assets.find((asset) => asset.job_id === job.job_id) ?? null;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function asNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function formatUsd(value: unknown) {
+  const amount = asNumber(value);
+  if (amount == null) {
+    return "n/a";
+  }
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: amount < 1 ? 2 : 0,
+    maximumFractionDigits: amount < 1 ? 2 : 2,
+  }).format(amount);
+}
+
+function formatCredits(value: unknown) {
+  const amount = asNumber(value);
+  if (amount == null) {
+    return "n/a";
+  }
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: amount % 1 === 0 ? 0 : 1 }).format(amount);
+}
+
+function batchPricingSummary(batch: MediaBatch) {
+  const requestSummary = asRecord(batch.request_summary);
+  const requestPricing = asRecord(requestSummary?.pricing_summary);
+  if (requestPricing) {
+    return requestPricing;
+  }
+
+  for (const job of batch.jobs ?? []) {
+    const preflight = asRecord(job.preflight);
+    const pricing = asRecord(preflight?.pricing_summary);
+    if (pricing) {
+      return pricing;
+    }
+  }
+
+  return null;
+}
+
 export default async function JobsPage({
   searchParams,
 }: {
@@ -141,7 +188,7 @@ export default async function JobsPage({
       section="jobs"
       eyebrow="Studio Admin"
       title="Jobs"
-      description="Follow queued runs, retries, and completed outputs in the same Studio admin theme used by the settings and model catalog."
+      description="Follow queued runs, retries, completed outputs, and the saved estimate snapshot captured when each batch was submitted."
     >
       <div className={adminThemeClassName}>
       <Panel>
@@ -277,6 +324,10 @@ export default async function JobsPage({
             {visibleBatches.length ? (
               visibleBatches.map((batch) => {
                 const jobs = [...(batch.jobs ?? [])].sort((left, right) => (left.batch_index ?? 1) - (right.batch_index ?? 1));
+                const pricingSummary = batchPricingSummary(batch);
+                const totalPricing = asRecord(pricingSummary?.total);
+                const perOutputPricing = asRecord(pricingSummary?.per_output);
+                const savedOutputCount = asNumber(pricingSummary?.output_count);
 
                 return (
                   <div
@@ -315,6 +366,42 @@ export default async function JobsPage({
                             <span>{batch.running_count} processing</span>
                             <span>{batch.failed_count} failed</span>
                           </div>
+                          {pricingSummary ? (
+                            <div className={`${adminInsetClassName} grid gap-3 lg:grid-cols-4`}>
+                              <div className="grid gap-1">
+                                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
+                                  Estimated total
+                                </span>
+                                <span className="text-[var(--foreground)]">
+                                  {formatUsd(totalPricing?.estimated_cost_usd)}{" "}
+                                  <span className="text-[var(--muted-strong)]">/ {formatCredits(totalPricing?.estimated_credits)} credits</span>
+                                </span>
+                              </div>
+                              <div className="grid gap-1">
+                                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
+                                  Per output
+                                </span>
+                                <span className="text-[var(--foreground)]">
+                                  {formatUsd(perOutputPricing?.estimated_cost_usd)}{" "}
+                                  <span className="text-[var(--muted-strong)]">/ {formatCredits(perOutputPricing?.estimated_credits)} credits</span>
+                                </span>
+                              </div>
+                              <div className="grid gap-1">
+                                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
+                                  Outputs
+                                </span>
+                                <span className="text-[var(--foreground)]">{savedOutputCount ?? batch.requested_outputs}</span>
+                              </div>
+                              <div className="grid gap-1">
+                                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
+                                  Pricing source
+                                </span>
+                                <span className="text-[var(--foreground)]">
+                                  {String(pricingSummary.pricing_source_kind ?? pricingSummary.pricing_status ?? "saved snapshot").replaceAll("_", " ")}
+                                </span>
+                              </div>
+                            </div>
+                          ) : null}
                           <div className="flex flex-wrap gap-3 pt-2">
                             {jobs.map((job) => {
                               const childPreview = jobPreviewUrl(job, assets);
