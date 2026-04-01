@@ -14,21 +14,21 @@ jobs:
 
     steps:
       - name: Check out Media Studio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Check out KIE API dependency
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: gateway/kie-api
           path: kie-api
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
           cache: npm
