@@ -1,0 +1,15 @@
+[Unit]
+Description=Media Studio API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__MEDIA_STUDIO_ROOT__
+ExecStart=__MEDIA_STUDIO_ROOT__/scripts/start_api.sh
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=MEDIA_STUDIO_SUPERVISOR=systemd
+
+[Install]
+WantedBy=multi-user.target

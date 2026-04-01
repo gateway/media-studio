@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  --ms-surface-primary: rgba(12, 15, 14, 0.94);
+  --ms-surface-secondary: rgba(17, 20, 19, 0.9);
+  --ms-surface-tertiary: rgba(24, 28, 26, 0.96);
+  --ms-surface-soft: rgba(255, 255, 255, 0.04);
+  --ms-surface-soft-strong: rgba(255, 255, 255, 0.06);
+  --ms-border: rgba(255, 255, 255, 0.08);
+  --ms-border-strong: rgba(255, 255, 255, 0.1);
+  --ms-text-primary: #f7f6f0;
+  --ms-text-muted: rgba(247, 246, 240, 0.68);
+  --ms-text-dim: rgba(247, 246, 240, 0.48);
+  --ms-accent: rgba(208, 255, 72, 0.94);
+  --ms-accent-surface: rgba(208, 255, 72, 0.12);
+  --ms-accent-border: rgba(208, 255, 72, 0.24);
+  --ms-danger: #ffb5a6;
+  --ms-warning: rgba(216, 141, 67, 0.92);
+  --ms-radius-card: 30px;
+  --ms-radius-panel: 24px;
+  --ms-radius-pill: 999px;
+  --ms-shadow-soft: 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top, rgba(208, 255, 72, 0.08), transparent 22%),
+    linear-gradient(180deg, #090b0b 0%, #111514 100%);
+  color: var(--ms-text-primary);
+  font-family: var(--font-sans), "SF Pro Display", "Neue Haas Grotesk Text", "Inter", sans-serif;
+}
+
+body {
+  min-height: 100vh;
+}
+
+code,
+pre {
+  font-family: var(--font-mono), monospace;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(208, 255, 72, 0.18);
+}

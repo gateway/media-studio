@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: media-studio-api
+Version: 0.1.0
+Summary: FastAPI backend for the standalone Media Studio product.
+Requires-Python: >=3.9
+Requires-Dist: fastapi<1.0,>=0.115
+Requires-Dist: uvicorn[standard]<1.0,>=0.30
+Requires-Dist: pydantic<3.0,>=2.7
+Requires-Dist: python-multipart<1.0,>=0.0.9
+Requires-Dist: httpx<1.0,>=0.27
+Provides-Extra: dev
+Requires-Dist: pytest<9.0,>=8.0; extra == "dev"
+Requires-Dist: pytest-asyncio<1.0,>=0.23; extra == "dev"

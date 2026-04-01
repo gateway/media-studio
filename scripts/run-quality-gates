@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="${MEDIA_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+KIE_ROOT="${KIE_ROOT:-${MEDIA_STUDIO_KIE_API_REPO_PATH:-$ROOT/../kie-ai/kie_codex_bootstrap}}"
+VENV_PY="$KIE_ROOT/.venv/bin/python"
+
+MEDIA_STUDIO_DB_PATH="${MEDIA_STUDIO_DB_PATH:-$ROOT/data/media-studio.db}" \
+MEDIA_STUDIO_DATA_ROOT="${MEDIA_STUDIO_DATA_ROOT:-$ROOT/data}" \
+MEDIA_STUDIO_KIE_API_REPO_PATH="${MEDIA_STUDIO_KIE_API_REPO_PATH:-$KIE_ROOT}" \
+"$VENV_PY" -m pytest -q "$ROOT/apps/api/tests"
+
+cd "$ROOT"
+npm --workspace apps/web run typecheck
+npm --workspace apps/web run build

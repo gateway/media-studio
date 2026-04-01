@@ -1,0 +1,21 @@
+{
+  "name": "media-studio",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "setup:shared-env": "./scripts/setup_shared_env.sh",
+    "quality": "./scripts/run-quality-gates",
+    "start:api": "./scripts/start_api.sh",
+    "dev:api": "./scripts/dev_api.sh",
+    "dev:web": "npm --workspace apps/web run dev",
+    "start:web": "npm --workspace apps/web run start",
+    "build": "npm run build:web",
+    "dev": "npm run dev:web",
+    "build:web": "npm --workspace apps/web run build",
+    "lint:web": "npm --workspace apps/web run lint",
+    "typecheck:web": "npm --workspace apps/web run typecheck"
+  }
+}

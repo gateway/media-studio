@@ -1,0 +1,16 @@
+[Unit]
+Description=Media Studio Web
+After=network.target media-studio-api.service
+
+[Service]
+Type=simple
+WorkingDirectory=__MEDIA_STUDIO_ROOT__
+ExecStart=/usr/bin/env npm run start:web
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=MEDIA_STUDIO_SUPERVISOR=systemd
+
+[Install]
+WantedBy=multi-user.target
