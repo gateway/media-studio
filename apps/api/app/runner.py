@@ -12,6 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 class MediaRunner:
+    display_name = "Media Studio Runner"
+    thread_name = "media-studio-runner"
+    mode = "embedded"
+    attached_to = "Media Studio API"
+
     def __init__(self) -> None:
         self._thread = None
         self._stop = threading.Event()
@@ -23,7 +28,7 @@ class MediaRunner:
             return
         self.reconcile()
         self._stop.clear()
-        self._thread = threading.Thread(target=self._loop, name="media-studio-runner", daemon=True)
+        self._thread = threading.Thread(target=self._loop, name=self.thread_name, daemon=True)
         self._thread.start()
 
     def stop(self) -> None:

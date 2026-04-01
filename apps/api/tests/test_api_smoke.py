@@ -4,6 +4,26 @@ def test_health_endpoint(client) -> None:
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["queue_enabled"] is True
+    assert payload["runner_name"] == "Media Studio Runner"
+    assert payload["runner_mode"] == "embedded"
+    assert payload["runner_attached_to"] == "Media Studio API"
+    assert payload["runner_process_name"] == "media-studio-runner"
+    assert payload["runner_launch_mode"] == "manual"
+    assert payload["runner_active"] is False
+    assert payload["runner_health"] == "needs_attention"
+    assert isinstance(payload["heartbeat_max_age_seconds"], int)
+
+
+def test_health_endpoint_reports_paused_when_queue_disabled(client) -> None:
+    update = client.patch("/media/queue/settings", json={"queue_enabled": False})
+    assert update.status_code == 200, update.text
+
+    response = client.get("/health")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["queue_enabled"] is False
+    assert payload["runner_health"] == "paused"
+    assert payload["issues"] == []
 
 
 def test_models_endpoint(client) -> None:

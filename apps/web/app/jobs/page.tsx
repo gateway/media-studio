@@ -3,7 +3,7 @@ import { Clapperboard, Coins, LoaderCircle, SlidersHorizontal } from "lucide-rea
 
 import { MediaBatchActions } from "@/app/jobs/media-batch-actions";
 import { RuntimeControls } from "@/app/jobs/runtime-controls";
-import { adminDashedCardClassName, adminInsetCardClassName } from "@/components/admin-controls";
+import { adminButtonClassName, adminDashedCardClassName, adminInsetCardClassName } from "@/components/admin-controls";
 import { AdminNavButton } from "@/components/admin-nav-button";
 import { Panel } from "@/components/panel";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
@@ -56,6 +56,15 @@ export default async function JobsPage() {
   const healthData = snapshot.status.data as
     | {
         supervisor?: string | null;
+        runner_name?: string | null;
+        runner_mode?: string | null;
+        runner_attached_to?: string | null;
+        runner_process_name?: string | null;
+        runner_launch_mode?: string | null;
+        runner_active?: boolean;
+        runner_health?: string | null;
+        heartbeat_age_seconds?: number | null;
+        heartbeat_max_age_seconds?: number | null;
         queue_enabled?: boolean;
         queued_jobs?: number;
         running_jobs?: number;
@@ -63,7 +72,8 @@ export default async function JobsPage() {
         issues?: string[];
       }
     | undefined;
-  const runnerHealthy = snapshot.status.ok && Boolean(healthData?.queue_enabled) && !healthData?.issues?.length;
+  const runnerHealth = healthData?.runner_health ?? (healthData?.queue_enabled ? "needs_attention" : "paused");
+  const runnerHealthy = runnerHealth === "healthy";
   const adminThemeClassName =
     "grid min-w-0 gap-6 [--surface:rgba(17,20,19,0.9)] [--surface-muted:rgba(255,255,255,0.05)] [--surface-border:rgba(255,255,255,0.10)] [--surface-border-soft:rgba(255,255,255,0.08)] [--foreground:#f7f6f0] [--muted-strong:rgba(247,246,240,0.68)] [--accent-strong:rgba(208,255,72,0.94)] [--success:#bff36b] [--danger:#ffb5a6] [--shadow-soft:0_24px_60px_rgba(0,0,0,0.26)]";
   const mutedCardClassName = adminInsetCardClassName;
@@ -85,7 +95,7 @@ export default async function JobsPage() {
           </p>
           <div>
             <h2 className="text-[1.35rem] font-semibold tracking-[-0.03em] text-[var(--foreground)]">
-              Job Runner
+              {healthData?.runner_name ?? "Media Studio Runner"}
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--muted-strong)]">
               This is the background Media Studio runner attached to the API. It owns queue pickup, provider polling, and final asset publishing.
@@ -102,17 +112,29 @@ export default async function JobsPage() {
               <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
                 <span>Runner status</span>
                 <span className={`font-medium ${runnerHealthy ? "text-[var(--accent-strong)]" : "text-[var(--danger)]"}`}>
-                  {healthData?.queue_enabled ? (runnerHealthy ? "Healthy" : "Needs attention") : "Paused"}
+                  {runnerHealth === "healthy" ? "Healthy" : runnerHealth === "paused" ? "Paused" : "Needs attention"}
                 </span>
               </div>
-              <div className="grid gap-2 sm:grid-cols-4">
+              <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
                 <div className={adminInsetClassName}>
                   <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Attached to</div>
-                  <div className="mt-1 text-[var(--foreground)]">Media Studio API</div>
+                  <div className="mt-1 text-[var(--foreground)]">{healthData?.runner_attached_to ?? "Media Studio API"}</div>
                 </div>
                 <div className={adminInsetClassName}>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Supervisor</div>
-                  <div className="mt-1 text-[var(--foreground)]">{healthData?.supervisor ?? "Manual"}</div>
+                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Mode</div>
+                  <div className="mt-1 text-[var(--foreground)] capitalize">{healthData?.runner_mode ?? "embedded"}</div>
+                </div>
+                <div className={adminInsetClassName}>
+                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Launch</div>
+                  <div className="mt-1 text-[var(--foreground)]">
+                    {healthData?.runner_launch_mode === "supervised"
+                      ? (healthData?.supervisor ?? "Supervised")
+                      : "Manual"}
+                  </div>
+                </div>
+                <div className={adminInsetClassName}>
+                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Process</div>
+                  <div className="mt-1 font-mono text-[var(--foreground)]">{healthData?.runner_process_name ?? "media-studio-runner"}</div>
                 </div>
                 <div className={adminInsetClassName}>
                   <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Running</div>
@@ -135,15 +157,33 @@ export default async function JobsPage() {
                   <span className="font-medium text-[var(--foreground)]">{Math.max(1, queueSettings?.max_concurrent_jobs ?? 10)}</span>
                 </div>
                 <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
-                  <span>Retry limit</span>
-                  <span className="font-medium text-[var(--foreground)]">{Math.max(1, queueSettings?.max_retry_attempts ?? 3)}</span>
+                  <span>Heartbeat age</span>
+                  <span className="font-medium text-[var(--foreground)]">
+                    {healthData?.heartbeat_age_seconds != null
+                      ? `${healthData.heartbeat_age_seconds}s / ${healthData?.heartbeat_max_age_seconds ?? "?"}s`
+                      : "Waiting"}
+                  </span>
                 </div>
+              </div>
+              <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
+                <span>Retry limit</span>
+                <span className="font-medium text-[var(--foreground)]">{Math.max(1, queueSettings?.max_retry_attempts ?? 3)}</span>
               </div>
               {healthData?.issues?.length ? (
                 <div className="rounded-[16px] border border-[rgba(175,79,64,0.18)] bg-[rgba(175,79,64,0.08)] px-3 py-3 text-sm text-[var(--danger)]">
                   {healthData.issues[0]}
                 </div>
               ) : null}
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href="https://github.com/gateway/media-studio/blob/main/docs/runtime-and-supervision.md"
+                  target="_blank"
+                  rel="noreferrer"
+                  className={adminButtonClassName({ variant: "subtle", size: "compact" })}
+                >
+                  Runtime setup docs
+                </Link>
+              </div>
               <RuntimeControls />
               {availableCredits != null ? (
                 <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>

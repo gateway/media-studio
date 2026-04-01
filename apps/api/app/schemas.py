@@ -10,6 +10,15 @@ class HealthResponse(BaseModel):
     status: str
     app: str
     supervisor: Optional[str] = None
+    runner_name: str = "Media Studio Runner"
+    runner_mode: str = "embedded"
+    runner_attached_to: str = "Media Studio API"
+    runner_process_name: Optional[str] = None
+    runner_launch_mode: str = "manual"
+    runner_active: bool = False
+    runner_health: str = "needs_attention"
+    heartbeat_age_seconds: Optional[int] = None
+    heartbeat_max_age_seconds: Optional[int] = None
     queue_enabled: bool = True
     queued_jobs: int = 0
     running_jobs: int = 0
