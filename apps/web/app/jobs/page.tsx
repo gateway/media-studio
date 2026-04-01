@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Clapperboard, Coins, LoaderCircle, SlidersHorizontal } from "lucide-react";
 
 import { MediaBatchActions } from "@/app/jobs/media-batch-actions";
+import { RuntimeControls } from "@/app/jobs/runtime-controls";
 import { adminDashedCardClassName, adminInsetCardClassName } from "@/components/admin-controls";
 import { AdminNavButton } from "@/components/admin-nav-button";
 import { Panel } from "@/components/panel";
@@ -111,7 +112,7 @@ export default async function JobsPage() {
                 </div>
                 <div className={adminInsetClassName}>
                   <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Supervisor</div>
-                  <div className="mt-1 text-[var(--foreground)]">{healthData?.supervisor ?? "Unknown"}</div>
+                  <div className="mt-1 text-[var(--foreground)]">{healthData?.supervisor ?? "Manual"}</div>
                 </div>
                 <div className={adminInsetClassName}>
                   <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Running</div>
@@ -143,6 +144,7 @@ export default async function JobsPage() {
                   {healthData.issues[0]}
                 </div>
               ) : null}
+              <RuntimeControls />
               {availableCredits != null ? (
                 <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
                   <span className="inline-flex items-center gap-2 text-[var(--foreground)]">

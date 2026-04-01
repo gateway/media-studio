@@ -6,10 +6,8 @@
     <string>com.media-studio.web</string>
     <key>ProgramArguments</key>
     <array>
-      <string>/usr/bin/env</string>
-      <string>npm</string>
-      <string>run</string>
-      <string>start:web</string>
+      <string>/bin/bash</string>
+      <string>__MEDIA_STUDIO_ROOT__/scripts/start_web.sh</string>
     </array>
     <key>WorkingDirectory</key>
     <string>__MEDIA_STUDIO_ROOT__</string>
@@ -21,6 +19,8 @@
       <string>3000</string>
       <key>MEDIA_STUDIO_SUPERVISOR</key>
       <string>launchd</string>
+      <key>PATH</key>
+      <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>

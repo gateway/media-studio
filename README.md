@@ -21,13 +21,36 @@ docs/
 
 ## Local development
 
-This repo is intended to work alongside a sibling local `kie-ai` checkout, usually:
+This repo is intended to work alongside a sibling local `kie-api` checkout, usually:
 
-`../kie-ai/kie_codex_bootstrap`
+`../kie-api`
 
 The API uses the shared `kie-api` virtualenv. No second Python venv is required.
 
-## Setup
+Upstream KIE repository:
+
+- [gateway/kie-api](https://github.com/gateway/kie-api)
+
+## One-command local bootstrap
+
+```bash
+cd /absolute/path/to/media-studio
+./scripts/bootstrap_local.sh
+```
+
+That script will:
+
+- clone `https://github.com/gateway/kie-api.git` into `../kie-api` if it is missing
+- create the shared KIE virtualenv if it does not exist
+- install both `kie-api` and the Media Studio API into that venv
+- install web dependencies
+- create local data folders
+- create `.env` if it is missing
+- bootstrap an empty SQLite schema
+
+The database starts empty. The schema is created automatically, but no user jobs/assets are preloaded.
+
+## Existing local setup
 
 ```bash
 cd /absolute/path/to/media-studio
@@ -109,3 +132,14 @@ Standalone Media Studio is bootstrapped with:
 - KIE adapter boundary
 - Next.js Studio, Models, and Jobs routes
 - same-origin `/api/control/*` proxy routes
+
+## Fresh database
+
+For a clean local reset:
+
+```bash
+rm -f data/media-studio.db data/media-studio.sqlite
+./scripts/bootstrap_local.sh
+```
+
+That recreates an empty schema without carrying over old local jobs/assets.

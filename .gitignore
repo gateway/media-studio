@@ -5,6 +5,7 @@
 .env.local
 .env.*.local
 .venv/
+.python-version
 node_modules/
 .next/
 dist/

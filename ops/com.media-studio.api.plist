@@ -6,6 +6,7 @@
     <string>com.media-studio.api</string>
     <key>ProgramArguments</key>
     <array>
+      <string>/bin/bash</string>
       <string>__MEDIA_STUDIO_ROOT__/scripts/start_api.sh</string>
     </array>
     <key>WorkingDirectory</key>
@@ -14,6 +15,8 @@
     <dict>
       <key>MEDIA_STUDIO_SUPERVISOR</key>
       <string>launchd</string>
+      <key>PATH</key>
+      <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>

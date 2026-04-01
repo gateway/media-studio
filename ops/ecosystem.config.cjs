@@ -17,8 +17,7 @@ module.exports = {
     {
       name: "media-studio-web",
       cwd,
-      script: "npm",
-      args: "run start:web",
+      script: "./scripts/start_web.sh",
       autorestart: true,
       max_restarts: 10,
       restart_delay: 4000,

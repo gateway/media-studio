@@ -174,6 +174,13 @@ Expected result:
 - `http://127.0.0.1:8000/health` returns `status: ok`
 - `http://127.0.0.1:3000` responds and redirects to `/studio`
 
+If launchd reports the labels as loaded but they never start, check the log files in `/tmp/` first.
+
+Known macOS caveat:
+
+- a repo launched from protected folders like `Documents` can fail under `launchd` with `Operation not permitted`
+- if that happens, either move the repo to a less restricted location, grant the relevant shell/tooling full disk access, or use `pm2`/manual dev mode instead
+
 If you do not want Media Studio running after logout or reboot, unload the jobs and remove the plist files from `~/Library/LaunchAgents`.
 
 ## supervisord

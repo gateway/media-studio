@@ -5,7 +5,7 @@ After=network.target media-studio-api.service
 [Service]
 Type=simple
 WorkingDirectory=__MEDIA_STUDIO_ROOT__
-ExecStart=/usr/bin/env npm run start:web
+ExecStart=__MEDIA_STUDIO_ROOT__/scripts/start_web.sh
 Restart=always
 RestartSec=5
 Environment=NODE_ENV=production
