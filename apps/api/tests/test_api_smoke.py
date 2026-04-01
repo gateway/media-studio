@@ -3,6 +3,10 @@ def test_health_endpoint(client) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "ok"
+    assert payload["kie_api_repo_connected"] is True
+    assert payload["kie_api_key_configured"] is False
+    assert payload["live_submit_enabled"] is False
+    assert payload["openrouter_api_key_configured"] is False
     assert payload["queue_enabled"] is True
     assert payload["runner_name"] == "Media Studio Runner"
     assert payload["runner_mode"] == "embedded"

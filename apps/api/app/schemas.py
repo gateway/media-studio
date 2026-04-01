@@ -10,6 +10,10 @@ class HealthResponse(BaseModel):
     status: str
     app: str
     supervisor: Optional[str] = None
+    kie_api_repo_connected: bool = False
+    kie_api_key_configured: bool = False
+    live_submit_enabled: bool = False
+    openrouter_api_key_configured: bool = False
     runner_name: str = "Media Studio Runner"
     runner_mode: str = "embedded"
     runner_attached_to: str = "Media Studio API"
@@ -412,6 +416,7 @@ class BatchRecord(BaseModel):
     resolved_preset_key: Optional[str] = None
     preset_source: Optional[str] = None
     request_summary_json: Dict[str, Any] = Field(default_factory=dict)
+    jobs: List[JobRecord] = Field(default_factory=list)
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -468,6 +473,9 @@ class JobEventsResponse(BaseModel):
 
 class BatchesListResponse(BaseModel):
     items: List[BatchRecord] = Field(default_factory=list)
+    total: int = 0
+    limit: int = 0
+    offset: int = 0
 
 
 class SubmitResponse(BaseModel):

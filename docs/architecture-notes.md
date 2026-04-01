@@ -6,9 +6,11 @@ This repository is standalone and intended for its own GitHub remote.
 
 ## Local KIE dependency
 
-During local development, the API app depends on the sibling `kie-ai` checkout, typically:
+During local development, the API app depends on a sibling `kie-api` checkout, typically:
 
-`../kie-ai/kie_codex_bootstrap`
+`../kie-api`
+
+The older `../kie-ai/kie_codex_bootstrap` layout can still exist in local workspaces, but new setup flows should target the standalone `kie-api` repo.
 
 The API should load that repo through configuration instead of hardcoding imports everywhere. All application code should depend on the internal adapter seam first.
 

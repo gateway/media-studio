@@ -12,6 +12,8 @@ else
 fi
 VENV_PY="$KIE_ROOT/.venv/bin/python"
 
+"$VENV_PY" "$ROOT/scripts/check_repo_hygiene.py"
+
 MEDIA_STUDIO_DB_PATH="${MEDIA_STUDIO_DB_PATH:-$ROOT/data/media-studio.db}" \
 MEDIA_STUDIO_DATA_ROOT="${MEDIA_STUDIO_DATA_ROOT:-$ROOT/data}" \
 MEDIA_STUDIO_KIE_API_REPO_PATH="${MEDIA_STUDIO_KIE_API_REPO_PATH:-$KIE_ROOT}" \

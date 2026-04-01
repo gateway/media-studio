@@ -129,8 +129,9 @@ These areas are the current baseline:
 - `Models > System Prompt`
 - `Models > Structured Presets`
 - `Models > Preset create/edit`
-- `Jobs > Job Runner`
+- `Jobs > Media Studio Runner`
 - `Jobs > Recent Jobs`
+- `Setup > Current Readiness`
 
 New admin work should match those patterns rather than inventing new ones.
 

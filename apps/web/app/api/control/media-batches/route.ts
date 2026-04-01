@@ -7,8 +7,12 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const params = new URLSearchParams();
   const limit = url.searchParams.get("limit");
+  const offset = url.searchParams.get("offset");
   if (limit) {
     params.set("limit", limit);
+  }
+  if (offset) {
+    params.set("offset", offset);
   }
   const endpoint = params.size ? `/media/batches?${params.toString()}` : "/media/batches";
   const result = await getControlApiJson<MediaBatchesResponse>(endpoint, "read");
@@ -25,6 +29,9 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    batches: result.data.batches ?? [],
+    batches: (result.data as { items?: unknown[] }).items ?? result.data.batches ?? [],
+    total: result.data.total ?? ((result.data as { items?: unknown[] }).items ?? result.data.batches ?? []).length,
+    limit: result.data.limit ?? null,
+    offset: result.data.offset ?? 0,
   });
 }

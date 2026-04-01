@@ -98,6 +98,10 @@ def health() -> HealthResponse:
         status="ok",
         app=settings.app_name,
         supervisor=settings.media_studio_supervisor,
+        kie_api_repo_connected=bool(settings.kie_api_repo_path and settings.kie_api_repo_path.exists()),
+        kie_api_key_configured=bool(settings.kie_api_key),
+        live_submit_enabled=settings.media_enable_live_submit,
+        openrouter_api_key_configured=bool(settings.openrouter_api_key),
         runner_name=runner.display_name,
         runner_mode=runner.mode,
         runner_attached_to=runner.attached_to,
@@ -380,8 +384,21 @@ def dismiss_job(job_id: str):
 
 
 @app.get("/media/batches", response_model=BatchesListResponse)
-def list_batches(limit: int = Query(default=100, le=500)):
-    return BatchesListResponse(items=[BatchRecord(**item) for item in store.list_batches(limit=limit)])
+def list_batches(limit: int = Query(default=100, le=500), offset: int = Query(default=0, ge=0)):
+    items = store.list_batches(limit=limit, offset=offset)
+    batch_ids = [str(item.get("batch_id")) for item in items if item.get("batch_id")]
+    jobs_by_batch: dict[str, list[dict]] = {}
+    for job in store.list_jobs_for_batches(batch_ids):
+        batch_id = str(job.get("batch_id") or "")
+        if not batch_id:
+            continue
+        jobs_by_batch.setdefault(batch_id, []).append(job)
+    return BatchesListResponse(
+        items=[BatchRecord(**{**item, "jobs": jobs_by_batch.get(str(item.get("batch_id")), [])}) for item in items],
+        total=store.count_batches(),
+        limit=limit,
+        offset=offset,
+    )
 
 
 @app.get("/media/batches/{batch_id}", response_model=BatchRecord)

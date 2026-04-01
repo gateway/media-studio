@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type StudioAdminShellProps = {
-  section: "studio" | "settings" | "models" | "jobs";
+  section: "setup" | "studio" | "settings" | "models" | "jobs";
   title: string;
   description: string;
   eyebrow?: string;
@@ -17,6 +17,7 @@ const navItems = [
   { key: "settings", label: "Settings", href: "/settings" },
   { key: "models", label: "Models", href: "/models" },
   { key: "jobs", label: "Jobs", href: "/jobs" },
+  { key: "setup", label: "Setup", href: "/setup" },
 ] as const;
 
 export function StudioAdminShell({

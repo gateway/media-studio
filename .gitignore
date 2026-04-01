@@ -1,9 +1,16 @@
 .DS_Store
+
+# Local environment and developer overrides
 .env
 .env.*
 !.env.example
 .env.local
 .env.*.local
+.envrc
+.direnv/
+*.local
+
+# Python / Node build output
 .venv/
 .python-version
 node_modules/
@@ -17,17 +24,40 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Runtime databases and sidecar files
 data/*.db
 data/*.sqlite
 data/*.sqlite3
+data/*.db-wal
+data/*.db-shm
+data/*.sqlite-wal
+data/*.sqlite-shm
 data/uploads/
 data/downloads/
 data/outputs/
 data/preset-thumbnails/
 data/*.jsonl
 data/backups/
+
+# Local artifacts, temp files, and process output
 .playwright-cli/
+artifacts/
+logs/
+tmp/
+temp/
 output/
+*.log
+*.pid
+*.pid.lock
+
+# Local credentials and certificates
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+
 apps/api/.mypy_cache/
 apps/api/.ruff_cache/
 apps/api/*.egg-info/

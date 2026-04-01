@@ -954,6 +954,9 @@ export type MediaBatchResponse = {
 export type MediaBatchesResponse = {
   ok?: boolean;
   batches?: MediaBatch[];
+  total?: number;
+  limit?: number;
+  offset?: number;
 };
 
 export type MediaQueueSettingsResponse = {

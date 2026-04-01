@@ -31,6 +31,58 @@ Upstream KIE repository:
 
 - [gateway/kie-api](https://github.com/gateway/kie-api)
 
+KIE API key sign-up link:
+
+- [kie.ai referral](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
+
+## Quickstart for macOS
+
+```bash
+cd /absolute/path/to/media-studio
+./scripts/onboard_mac.sh
+```
+
+That onboarding path:
+
+- bootstraps the local repo and shared `kie-api` dependency
+- creates `.env` and a clean local database
+- prompts for `KIE_API_KEY`
+- prompts for optional `OPENROUTER_API_KEY`
+- offers to open the API and web processes in Terminal
+
+Required for live generation:
+
+- `KIE_API_KEY`
+
+Optional:
+
+- `OPENROUTER_API_KEY`
+- `MEDIA_LOCAL_OPENAI_BASE_URL`
+- `MEDIA_LOCAL_OPENAI_API_KEY`
+
+Detailed guide:
+
+- [docs/getting-started-mac.md](docs/getting-started-mac.md)
+
+## Quickstart for Windows
+
+```powershell
+cd C:\absolute\path\to\media-studio
+powershell -ExecutionPolicy Bypass -File .\scripts\onboard_windows.ps1
+```
+
+That onboarding path:
+
+- bootstraps the local repo and shared `kie-api` dependency
+- creates `.env` and a clean local database
+- prompts for `KIE_API_KEY`
+- prompts for optional `OPENROUTER_API_KEY`
+- offers to open the API and web processes in PowerShell
+
+Detailed guide:
+
+- [docs/getting-started-windows.md](docs/getting-started-windows.md)
+
 ## One-command local bootstrap
 
 ```bash
@@ -82,6 +134,10 @@ export KIE_API_KEY=...
 export MEDIA_ENABLE_LIVE_SUBMIT=true
 ```
 
+Get a KIE API key here:
+
+- [kie.ai referral](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
+
 Then restart the API process.
 
 If you want prompt enhancement through hosted or local external models, set:
@@ -122,6 +178,20 @@ npm run start:api
 ./scripts/run-quality-gates
 ```
 
+This now includes a repo hygiene check that fails if tracked files include local `.env`
+files, runtime databases, logs, certificates, or local artifact folders that should stay
+developer-only.
+
+## Repository hygiene
+
+Keep the repo public-safe:
+
+- commit code, docs, schema, migrations, and example config like `.env.example`
+- do not commit live API keys, local `.env` files, runtime SQLite files, uploaded media,
+  downloads, outputs, or local logs
+- keep local runtime state under `data/`, `output/`, `tmp/`, or other ignored paths
+- if a new tool writes local artifacts, add that path to `.gitignore` before pushing
+
 ## Current status
 
 Standalone Media Studio is bootstrapped with:
@@ -143,3 +213,25 @@ rm -f data/media-studio.db data/media-studio.sqlite
 ```
 
 That recreates an empty schema without carrying over old local jobs/assets.
+
+## Backups and clean databases
+
+The repo should not carry a committed SQLite database. The source of truth for schema and
+default seed data is the API bootstrap code in `apps/api/app/store.py`, and tests use temporary databases.
+
+Before resetting local state, make an ignored backup copy:
+
+```bash
+./scripts/backup_db.sh
+```
+
+That writes a timestamped backup under `data/backups/`.
+
+If you need a clean database file with schema and default rows only, generate one explicitly:
+
+```bash
+./scripts/create_clean_db.sh --output ./data/backups/media-studio-clean.sqlite --overwrite
+```
+
+That clean DB contains schema, queue defaults, and seeded shared presets, but no local jobs,
+assets, downloads, or test/runtime history.

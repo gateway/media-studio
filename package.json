@@ -6,8 +6,12 @@
     "apps/web"
   ],
   "scripts": {
+    "setup:mac": "./scripts/onboard_mac.sh",
+    "setup:windows": "powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1",
     "setup:shared-env": "./scripts/setup_shared_env.sh",
     "quality": "./scripts/run-quality-gates",
+    "db:backup": "./scripts/backup_db.sh",
+    "db:clean": "./scripts/create_clean_db.sh --output ./data/backups/media-studio-clean.sqlite --overwrite",
     "start:api": "./scripts/start_api.sh",
     "dev:api": "./scripts/dev_api.sh",
     "dev:web": "npm --workspace apps/web run dev",

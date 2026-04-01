@@ -663,16 +663,32 @@ function optionIcon(optionKey: string) {
   return Monitor;
 }
 
-function optionWidth(optionKey: string) {
-  if (optionKey.includes("model")) return "w-full sm:w-[232px]";
-  if (optionKey.includes("preset")) return "w-full sm:w-[186px]";
-  if (optionKey.includes("duration")) return "w-[calc(50%-0.25rem)] sm:w-[158px]";
-  if (optionKey.includes("sound") || optionKey.includes("audio")) return "w-[calc(50%-0.25rem)] sm:w-[138px]";
-  if (optionKey.includes("google_search") || optionKey.includes("web")) return "w-[calc(50%-0.25rem)] sm:w-[132px]";
-  if (optionKey.includes("ratio")) return "w-[calc(50%-0.25rem)] sm:w-[146px]";
-  if (optionKey.includes("resolution") || optionKey.includes("size")) return "w-[calc(50%-0.25rem)] sm:w-[154px]";
-  if (optionKey.includes("format")) return "w-[calc(50%-0.25rem)] sm:w-[142px]";
-  return "w-[calc(50%-0.25rem)] sm:w-[148px]";
+const STUDIO_PICKER_WIDTHS: Record<string, string> = {
+  model: "w-full sm:w-[232px]",
+  preset: "w-full sm:w-[186px]",
+  "output-count": "w-[calc(50%-0.25rem)] sm:w-[95px]",
+  duration: "w-[calc(50%-0.25rem)] sm:w-[104px]",
+  aspect_ratio: "w-[calc(50%-0.25rem)] sm:w-[104px]",
+  sound: "w-[calc(50%-0.25rem)] sm:w-[114px]",
+  audio: "w-[calc(50%-0.25rem)] sm:w-[114px]",
+  resolution: "w-[calc(50%-0.25rem)] sm:w-[108px]",
+  output_format: "w-[calc(50%-0.25rem)] sm:w-[120px]",
+  mode: "w-[calc(50%-0.25rem)] sm:w-[120px]",
+  google_search: "w-[calc(50%-0.25rem)] sm:w-[132px]",
+};
+
+function pickerWidth(pickerId: string) {
+  const exact = STUDIO_PICKER_WIDTHS[pickerId];
+  if (exact) {
+    return exact;
+  }
+  if (pickerId.includes("audio")) return STUDIO_PICKER_WIDTHS.audio;
+  if (pickerId.includes("duration")) return STUDIO_PICKER_WIDTHS.duration;
+  if (pickerId.includes("ratio")) return STUDIO_PICKER_WIDTHS.aspect_ratio;
+  if (pickerId.includes("resolution") || pickerId.includes("size")) return STUDIO_PICKER_WIDTHS.resolution;
+  if (pickerId.includes("format")) return STUDIO_PICKER_WIDTHS.output_format;
+  if (pickerId.includes("web")) return STUDIO_PICKER_WIDTHS.google_search;
+  return "w-[calc(50%-0.25rem)] sm:w-[132px]";
 }
 
 function optionChoices(schema: Record<string, unknown>, currentValue: unknown) {
@@ -1193,7 +1209,12 @@ function StudioPillSelect({
   }, [isOpen]);
 
   return (
-    <div ref={containerRef} data-studio-picker className={cn("relative", widthClass, isOpen ? "z-40" : "z-10")}>
+    <div
+      ref={containerRef}
+      data-studio-picker
+      data-picker-id={pickerId}
+      className={cn("relative", widthClass, isOpen ? "z-40" : "z-10")}
+    >
       <button
         type="button"
         onClick={() => setOpenPicker(isOpen ? null : pickerId)}
@@ -4226,7 +4247,7 @@ export function MediaStudio({
                       pickerId="model"
                       openPicker={openPicker}
                       setOpenPicker={setOpenPicker}
-                      widthClass={optionWidth("model")}
+                      widthClass={pickerWidth("model")}
                       icon={Clapperboard}
                       label={currentModel?.label ?? "Model"}
                       choices={models.map((model) => ({
@@ -4248,7 +4269,7 @@ export function MediaStudio({
                       pickerId="preset"
                       openPicker={openPicker}
                       setOpenPicker={setOpenPicker}
-                      widthClass={optionWidth("preset")}
+                      widthClass={pickerWidth("preset")}
                       icon={Sparkles}
                       label={
                         modelPresets.find((preset) => preset.preset_id === selectedPresetId)?.label ??
@@ -4302,7 +4323,7 @@ export function MediaStudio({
                         pickerId="output-count"
                         openPicker={openPicker}
                         setOpenPicker={setOpenPicker}
-                        widthClass="w-[calc(50%-0.25rem)] sm:w-[128px]"
+                        widthClass={pickerWidth("output-count")}
                         icon={Copy}
                         label={`${outputCount}`}
                         choices={Array.from({ length: modelMaxOutputs }, (_, index) => ({
@@ -4330,7 +4351,7 @@ export function MediaStudio({
                           pickerId={optionKey}
                           openPicker={openPicker}
                           setOpenPicker={setOpenPicker}
-                          widthClass={optionWidth(optionKey)}
+                          widthClass={pickerWidth(optionKey)}
                           icon={Icon}
                           label={resolvedLabel}
                           choices={
