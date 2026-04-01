@@ -34,6 +34,7 @@ from .schemas import (
     PresetRecord,
     PresetUpsertRequest,
     PricingResponse,
+    PricingEstimateResponse,
     PromptContextRequest,
     PromptContextResponse,
     QueueSettingsResponse,
@@ -78,20 +79,39 @@ def health() -> HealthResponse:
     pricing = kie_adapter.pricing_snapshot()
     queue_settings = store.get_queue_settings()
     issues: List[str] = []
-    if queue_settings["queue_enabled"] and not runner.is_running():
+    runner_active = runner.is_running()
+    max_age_seconds = max(10, settings.media_poll_seconds * 3)
+    heartbeat_age_seconds: Optional[int] = None
+    if queue_settings["queue_enabled"] and not runner_active:
         issues.append("Runner is not active while queue processing is enabled.")
     if runner.last_tick:
         try:
             last_tick = datetime.fromisoformat(runner.last_tick)
-            max_age_seconds = max(10, settings.media_poll_seconds * 3)
-            if datetime.now(timezone.utc) - last_tick > timedelta(seconds=max_age_seconds):
+            heartbeat_age_seconds = max(0, int((datetime.now(timezone.utc) - last_tick).total_seconds()))
+            if heartbeat_age_seconds > max_age_seconds:
                 issues.append("Runner heartbeat is stale.")
         except ValueError:
             issues.append("Runner heartbeat timestamp is invalid.")
+    runner_health = "paused"
+    if queue_settings["queue_enabled"]:
+        runner_health = "healthy" if runner_active and not issues else "needs_attention"
     return HealthResponse(
         status="ok",
         app=settings.app_name,
         supervisor=settings.media_studio_supervisor,
+        kie_api_repo_connected=bool(settings.kie_api_repo_path and settings.kie_api_repo_path.exists()),
+        kie_api_key_configured=bool(settings.kie_api_key),
+        live_submit_enabled=settings.media_enable_live_submit,
+        openrouter_api_key_configured=bool(settings.openrouter_api_key),
+        runner_name=runner.display_name,
+        runner_mode=runner.mode,
+        runner_attached_to=runner.attached_to,
+        runner_process_name=runner.thread_name,
+        runner_launch_mode="supervised" if settings.media_studio_supervisor else "manual",
+        runner_active=runner_active,
+        runner_health=runner_health,
+        heartbeat_age_seconds=heartbeat_age_seconds,
+        heartbeat_max_age_seconds=max_age_seconds,
         queue_enabled=queue_settings["queue_enabled"],
         queued_jobs=store.queued_job_count(),
         running_jobs=store.running_job_count(),
@@ -122,6 +142,23 @@ def get_pricing():
 @app.post("/media/pricing/refresh", response_model=PricingResponse)
 def refresh_pricing():
     return PricingResponse(**kie_adapter.refresh_pricing_snapshot())
+
+
+@app.post("/media/pricing/estimate", response_model=PricingEstimateResponse)
+def estimate_pricing(payload: ValidateRequest):
+    try:
+        bundle = service.build_validation_bundle(payload)
+        return PricingEstimateResponse(
+            prompt_context=bundle["prompt_context"],
+            validation=bundle["validation"],
+            preflight=bundle["preflight"],
+            pricing_summary=bundle["pricing_summary"],
+            final_prompt=bundle["final_prompt"],
+            resolved_options=bundle["resolved_options"],
+            warnings=bundle["preflight"].get("warnings") or [],
+        )
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
 
 
 @app.get("/media/credits", response_model=CreditsResponse)
@@ -284,8 +321,10 @@ def validate_request(payload: ValidateRequest):
             prompt_context=bundle["prompt_context"],
             validation=bundle["validation"],
             preflight=bundle["preflight"],
+            pricing_summary=bundle["pricing_summary"],
             final_prompt=bundle["final_prompt"],
             resolved_options=bundle["resolved_options"],
+            warnings=bundle["preflight"].get("warnings") or [],
         )
     except service.ServiceError as exc:
         raise _bad_request(str(exc))
@@ -365,8 +404,21 @@ def dismiss_job(job_id: str):
 
 
 @app.get("/media/batches", response_model=BatchesListResponse)
-def list_batches(limit: int = Query(default=100, le=500)):
-    return BatchesListResponse(items=[BatchRecord(**item) for item in store.list_batches(limit=limit)])
+def list_batches(limit: int = Query(default=100, le=500), offset: int = Query(default=0, ge=0)):
+    items = store.list_batches(limit=limit, offset=offset)
+    batch_ids = [str(item.get("batch_id")) for item in items if item.get("batch_id")]
+    jobs_by_batch: dict[str, list[dict]] = {}
+    for job in store.list_jobs_for_batches(batch_ids):
+        batch_id = str(job.get("batch_id") or "")
+        if not batch_id:
+            continue
+        jobs_by_batch.setdefault(batch_id, []).append(job)
+    return BatchesListResponse(
+        items=[BatchRecord(**{**item, "jobs": jobs_by_batch.get(str(item.get("batch_id")), [])}) for item in items],
+        total=store.count_batches(),
+        limit=limit,
+        offset=offset,
+    )
 
 
 @app.get("/media/batches/{batch_id}", response_model=BatchRecord)

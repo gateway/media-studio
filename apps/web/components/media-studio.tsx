@@ -663,16 +663,32 @@ function optionIcon(optionKey: string) {
   return Monitor;
 }
 
-function optionWidth(optionKey: string) {
-  if (optionKey.includes("model")) return "w-full sm:w-[232px]";
-  if (optionKey.includes("preset")) return "w-full sm:w-[186px]";
-  if (optionKey.includes("duration")) return "w-[calc(50%-0.25rem)] sm:w-[158px]";
-  if (optionKey.includes("sound") || optionKey.includes("audio")) return "w-[calc(50%-0.25rem)] sm:w-[138px]";
-  if (optionKey.includes("google_search") || optionKey.includes("web")) return "w-[calc(50%-0.25rem)] sm:w-[132px]";
-  if (optionKey.includes("ratio")) return "w-[calc(50%-0.25rem)] sm:w-[146px]";
-  if (optionKey.includes("resolution") || optionKey.includes("size")) return "w-[calc(50%-0.25rem)] sm:w-[154px]";
-  if (optionKey.includes("format")) return "w-[calc(50%-0.25rem)] sm:w-[142px]";
-  return "w-[calc(50%-0.25rem)] sm:w-[148px]";
+const STUDIO_PICKER_WIDTHS: Record<string, string> = {
+  model: "w-full sm:w-[232px]",
+  preset: "w-full sm:w-[186px]",
+  "output-count": "w-[calc(50%-0.25rem)] sm:w-[95px]",
+  duration: "w-[calc(50%-0.25rem)] sm:w-[110px]",
+  aspect_ratio: "w-[calc(50%-0.25rem)] sm:w-[104px]",
+  sound: "w-[calc(50%-0.25rem)] sm:w-[114px]",
+  audio: "w-[calc(50%-0.25rem)] sm:w-[114px]",
+  resolution: "w-[calc(50%-0.25rem)] sm:w-[108px]",
+  output_format: "w-[calc(50%-0.25rem)] sm:w-[120px]",
+  mode: "w-[calc(50%-0.25rem)] sm:w-[120px]",
+  google_search: "w-[calc(50%-0.25rem)] sm:w-[132px]",
+};
+
+function pickerWidth(pickerId: string) {
+  const exact = STUDIO_PICKER_WIDTHS[pickerId];
+  if (exact) {
+    return exact;
+  }
+  if (pickerId.includes("audio")) return STUDIO_PICKER_WIDTHS.audio;
+  if (pickerId.includes("duration")) return STUDIO_PICKER_WIDTHS.duration;
+  if (pickerId.includes("ratio")) return STUDIO_PICKER_WIDTHS.aspect_ratio;
+  if (pickerId.includes("resolution") || pickerId.includes("size")) return STUDIO_PICKER_WIDTHS.resolution;
+  if (pickerId.includes("format")) return STUDIO_PICKER_WIDTHS.output_format;
+  if (pickerId.includes("web")) return STUDIO_PICKER_WIDTHS.google_search;
+  return "w-[calc(50%-0.25rem)] sm:w-[132px]";
 }
 
 function optionChoices(schema: Record<string, unknown>, currentValue: unknown) {
@@ -936,6 +952,7 @@ function estimateFromPricingSnapshot(
   pricingSnapshot: Record<string, unknown> | null | undefined,
   modelKey: string | null | undefined,
   options: Record<string, unknown>,
+  outputCount: number,
 ) {
   if (!modelKey || !isRecord(pricingSnapshot) || !Array.isArray(pricingSnapshot.rules)) {
     return { estimatedCredits: null, estimatedCostUsd: null };
@@ -996,7 +1013,13 @@ function estimateFromPricingSnapshot(
     }
   }
 
-  return { estimatedCredits, estimatedCostUsd };
+  const resolvedOutputCount = Math.max(1, outputCount || 1);
+  return {
+    estimatedCredits:
+      estimatedCredits != null ? estimatedCredits * resolvedOutputCount : null,
+    estimatedCostUsd:
+      estimatedCostUsd != null ? estimatedCostUsd * resolvedOutputCount : null,
+  };
 }
 
 function optionBooleanValue(value: unknown) {
@@ -1193,7 +1216,12 @@ function StudioPillSelect({
   }, [isOpen]);
 
   return (
-    <div ref={containerRef} data-studio-picker className={cn("relative", widthClass, isOpen ? "z-40" : "z-10")}>
+    <div
+      ref={containerRef}
+      data-studio-picker
+      data-picker-id={pickerId}
+      className={cn("relative", widthClass, isOpen ? "z-40" : "z-10")}
+    >
       <button
         type="button"
         onClick={() => setOpenPicker(isOpen ? null : pickerId)}
@@ -1845,17 +1873,27 @@ export function MediaStudio({
     [attachments],
   );
   const localPricingEstimate = useMemo(
-    () => estimateFromPricingSnapshot(pricingSnapshot, modelKey, pricingOptions),
-    [modelKey, pricingOptions, pricingSnapshot],
+    () => estimateFromPricingSnapshot(pricingSnapshot, modelKey, pricingOptions, outputCount),
+    [modelKey, outputCount, pricingOptions, pricingSnapshot],
   );
+  const validationPricingSummary = isRecord(validation?.pricing_summary)
+    ? (validation.pricing_summary as Record<string, unknown>)
+    : isRecord(validation?.preflight?.pricing_summary)
+      ? (validation.preflight.pricing_summary as Record<string, unknown>)
+      : null;
+  const validationPricingTotal = isRecord(validationPricingSummary?.total)
+    ? (validationPricingSummary.total as Record<string, unknown>)
+    : null;
   const preflightEstimatedCost = isRecord(validation?.preflight?.estimated_cost)
     ? (validation.preflight.estimated_cost as Record<string, unknown>)
     : null;
   const estimatedCreditsValue =
+    validationPricingTotal?.["estimated_credits"] ??
     localPricingEstimate.estimatedCredits ??
     validation?.preflight?.estimated_cost_credits ??
     preflightEstimatedCost?.["estimated_credits"];
   const estimatedCostUsdValue =
+    validationPricingTotal?.["estimated_cost_usd"] ??
     localPricingEstimate.estimatedCostUsd ??
     preflightEstimatedCost?.["estimated_cost_usd"];
   const estimatedCredits =
@@ -1874,6 +1912,9 @@ export function MediaStudio({
     typeof remainingCredits === "number"
       ? `${remainingCredits.toFixed(remainingCredits % 1 === 0 ? 0 : 1)}`
       : null;
+  const generatePriceLabel = estimatedCostUsd ?? (estimatedCredits ? `${estimatedCredits} credits` : null);
+  const generateButtonLabel =
+    busyState === "submit" ? "Generating..." : generatePriceLabel ? `Generate · ${generatePriceLabel}` : "Generate";
 
   useEffect(() => {
     setSelectedMediaLightboxOpen(false);
@@ -4226,7 +4267,7 @@ export function MediaStudio({
                       pickerId="model"
                       openPicker={openPicker}
                       setOpenPicker={setOpenPicker}
-                      widthClass={optionWidth("model")}
+                      widthClass={pickerWidth("model")}
                       icon={Clapperboard}
                       label={currentModel?.label ?? "Model"}
                       choices={models.map((model) => ({
@@ -4248,7 +4289,7 @@ export function MediaStudio({
                       pickerId="preset"
                       openPicker={openPicker}
                       setOpenPicker={setOpenPicker}
-                      widthClass={optionWidth("preset")}
+                      widthClass={pickerWidth("preset")}
                       icon={Sparkles}
                       label={
                         modelPresets.find((preset) => preset.preset_id === selectedPresetId)?.label ??
@@ -4302,7 +4343,7 @@ export function MediaStudio({
                         pickerId="output-count"
                         openPicker={openPicker}
                         setOpenPicker={setOpenPicker}
-                        widthClass="w-[calc(50%-0.25rem)] sm:w-[128px]"
+                        widthClass={pickerWidth("output-count")}
                         icon={Copy}
                         label={`${outputCount}`}
                         choices={Array.from({ length: modelMaxOutputs }, (_, index) => ({
@@ -4330,7 +4371,7 @@ export function MediaStudio({
                           pickerId={optionKey}
                           openPicker={openPicker}
                           setOpenPicker={setOpenPicker}
-                          widthClass={optionWidth(optionKey)}
+                          widthClass={pickerWidth(optionKey)}
                           icon={Icon}
                           label={resolvedLabel}
                           choices={
@@ -4348,7 +4389,7 @@ export function MediaStudio({
                       );
                     })}
 
-                    <div className="flex w-full items-center gap-2">
+                    <div className="flex w-full items-center gap-2 sm:w-auto sm:ml-auto">
                       <div className="shrink-0 md:hidden">
                         {studioSettingsButton}
                       </div>
@@ -4366,7 +4407,7 @@ export function MediaStudio({
                         disabled={!canSubmit}
                         className="inline-flex h-12 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 text-[0.76rem] font-semibold text-[#172200] shadow-[0_18px_38px_rgba(176,235,44,0.2)] transition hover:-translate-y-0.5 disabled:opacity-60"
                       >
-                        {busyState === "submit" ? "Generating..." : "Generate"}
+                        {generateButtonLabel}
                       </button>
                       </div>
                     </div>

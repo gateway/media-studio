@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from PIL import Image, ImageDraw
 
 from . import enhancement_provider, kie_adapter, store
+from .pricing import attach_pricing_summary
 from .settings import settings
 from .schemas import (
     EnhancePreviewRequest,
@@ -271,12 +272,21 @@ def build_validation_bundle(request: ValidateRequest) -> Dict[str, Any]:
                 "notes": [],
             },
         }
+    estimated_cost = preflight.get("estimated_cost") if isinstance(preflight.get("estimated_cost"), dict) else None
+    has_numeric_estimate = bool(estimated_cost and estimated_cost.get("has_numeric_estimate"))
+    if not has_numeric_estimate:
+        try:
+            preflight["estimated_cost"] = kie_adapter.estimate_request_cost(raw_request)
+        except Exception:
+            pass
+    preflight = attach_pricing_summary(preflight, output_count=request.output_count)
     return {
         "preset": preset,
         "raw_request": raw_request,
         "prompt_context": prompt_context,
         "validation": validation,
         "preflight": preflight,
+        "pricing_summary": preflight.get("pricing_summary") or {},
         "final_prompt": final_prompt or request.prompt,
         "resolved_options": request.options,
         "selected_prompts": selected_prompts,
@@ -454,10 +464,11 @@ def submit_jobs(request: ValidateRequest) -> Tuple[Dict[str, Any], List[Dict[str
         "preset_source": "media_preset" if preset else None,
         "request_summary_json": {
             "prompt": bundle["final_prompt"],
-            "options": request.options,
+            "options": bundle["resolved_options"],
             "output_count": request.output_count,
             "preset_text_values": bundle["text_values"],
             "preset_image_slots": bundle["image_slot_values"],
+            "pricing_summary": bundle["pricing_summary"],
         },
     }
     jobs_payload = []
@@ -476,7 +487,7 @@ def submit_jobs(request: ValidateRequest) -> Tuple[Dict[str, Any], List[Dict[str
                 "selected_system_prompt_ids_json": request.selected_system_prompt_ids,
                 "selected_system_prompts_json": bundle["selected_prompts"],
                 "resolved_system_prompt_json": bundle["prompt_context"],
-                "resolved_options_json": request.options,
+                "resolved_options_json": bundle["resolved_options"],
                 "normalized_request_json": bundle["validation"].get("normalized_request") or {},
                 "prompt_context_json": bundle["prompt_context"],
                 "validation_json": bundle["validation"],

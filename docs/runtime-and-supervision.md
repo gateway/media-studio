@@ -6,12 +6,12 @@ This document describes how to run Media Studio in a restartable way without for
 
 Media Studio has two long-running processes:
 
-- API: FastAPI backend, queue store, embedded runner, filesystem artifact publish
+- API: FastAPI backend, queue store, embedded Media Studio Runner, filesystem artifact publish
 - Web: Next.js app
 
 Important:
 
-- the queue runner lives inside the API process
+- the queue runner lives inside the API process as the Media Studio Runner
 - if the API process stops, the runner stops with it
 - when the API starts again, the runner reconciles queued and active jobs from the database
 
@@ -172,7 +172,7 @@ Expected result:
 
 - `launchctl list` shows both `com.media-studio.api` and `com.media-studio.web`
 - `http://127.0.0.1:8000/health` returns `status: ok`
-- `http://127.0.0.1:3000` responds and redirects to `/studio`
+- `http://127.0.0.1:3000` responds and redirects to `/setup`
 
 If launchd reports the labels as loaded but they never start, check the log files in `/tmp/` first.
 

@@ -3,13 +3,19 @@ import { Clapperboard, Coins, LoaderCircle, SlidersHorizontal } from "lucide-rea
 
 import { MediaBatchActions } from "@/app/jobs/media-batch-actions";
 import { RuntimeControls } from "@/app/jobs/runtime-controls";
-import { adminDashedCardClassName, adminInsetCardClassName } from "@/components/admin-controls";
+import {
+  adminDashedCardClassName,
+  adminInsetCardClassName,
+  adminInsetPanelClassName,
+} from "@/components/admin-controls";
 import { AdminNavButton } from "@/components/admin-nav-button";
-import { Panel } from "@/components/panel";
+import { Panel, PanelHeader } from "@/components/panel";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { getMediaDashboardSnapshot, toControlApiProxyPath } from "@/lib/control-api";
 import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
 import { formatDateTime, truncate } from "@/lib/utils";
+
+const JOBS_PER_PAGE_OPTIONS = [20, 50, 100] as const;
 
 function jobPreviewUrl(job: MediaJob, assets: MediaAsset[]) {
   const matchedAsset = assets.find((asset) => asset.job_id === job.job_id) ?? null;
@@ -39,8 +45,73 @@ function batchAssetForJob(job: MediaJob, assets: MediaAsset[]) {
   return assets.find((asset) => asset.job_id === job.job_id) ?? null;
 }
 
-export default async function JobsPage() {
-  const snapshot = await getMediaDashboardSnapshot();
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function asNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function formatUsd(value: unknown) {
+  const amount = asNumber(value);
+  if (amount == null) {
+    return "n/a";
+  }
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: amount < 1 ? 2 : 0,
+    maximumFractionDigits: amount < 1 ? 2 : 2,
+  }).format(amount);
+}
+
+function formatCredits(value: unknown) {
+  const amount = asNumber(value);
+  if (amount == null) {
+    return "n/a";
+  }
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: amount % 1 === 0 ? 0 : 1 }).format(amount);
+}
+
+function batchPricingSummary(batch: MediaBatch) {
+  const requestSummary = asRecord(batch.request_summary);
+  const requestPricing = asRecord(requestSummary?.pricing_summary);
+  if (requestPricing) {
+    return requestPricing;
+  }
+
+  for (const job of batch.jobs ?? []) {
+    const preflight = asRecord(job.preflight);
+    const pricing = asRecord(preflight?.pricing_summary);
+    if (pricing) {
+      return pricing;
+    }
+  }
+
+  return null;
+}
+
+export default async function JobsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ page?: string; perPage?: string }>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const requestedPerPage = resolvedSearchParams.perPage?.trim().toLowerCase();
+  const perPage =
+    requestedPerPage === "all"
+      ? "all"
+      : JOBS_PER_PAGE_OPTIONS.includes(Number(resolvedSearchParams.perPage) as (typeof JOBS_PER_PAGE_OPTIONS)[number])
+        ? (Number(resolvedSearchParams.perPage) as (typeof JOBS_PER_PAGE_OPTIONS)[number])
+        : 20;
+  const requestedPage = Number(resolvedSearchParams.page ?? "1");
+  const currentPage = perPage === "all" ? 1 : Number.isFinite(requestedPage) ? Math.max(1, requestedPage) : 1;
+  const pageStart = perPage === "all" ? 0 : (currentPage - 1) * perPage;
+  const snapshot = await getMediaDashboardSnapshot({
+    batchesLimit: perPage === "all" ? 500 : perPage,
+    batchesOffset: pageStart,
+  });
   const batches = (snapshot.batches.data?.batches ?? []).filter((batch) => batch.status !== "cancelled");
   const assets = (snapshot.assets.data?.assets ?? []).filter((asset) => !asset.hidden_from_dashboard && !asset.dismissed_at);
   const queueSettings = snapshot.queueSettings.data?.settings ?? null;
@@ -56,6 +127,15 @@ export default async function JobsPage() {
   const healthData = snapshot.status.data as
     | {
         supervisor?: string | null;
+        runner_name?: string | null;
+        runner_mode?: string | null;
+        runner_attached_to?: string | null;
+        runner_process_name?: string | null;
+        runner_launch_mode?: string | null;
+        runner_active?: boolean;
+        runner_health?: string | null;
+        heartbeat_age_seconds?: number | null;
+        heartbeat_max_age_seconds?: number | null;
         queue_enabled?: boolean;
         queued_jobs?: number;
         running_jobs?: number;
@@ -63,35 +143,60 @@ export default async function JobsPage() {
         issues?: string[];
       }
     | undefined;
-  const runnerHealthy = snapshot.status.ok && Boolean(healthData?.queue_enabled) && !healthData?.issues?.length;
+  const runnerHealth = healthData?.runner_health ?? (healthData?.queue_enabled ? "needs_attention" : "paused");
+  const runnerHealthy = runnerHealth === "healthy";
+  const totalBatches = Number(snapshot.batches.data?.total ?? batches.length);
+  const totalPages = perPage === "all" ? 1 : Math.max(1, Math.ceil(totalBatches / perPage));
+  const normalizedPage = perPage === "all" ? 1 : Math.min(currentPage, totalPages);
+  const normalizedPageStart = perPage === "all" ? 0 : (normalizedPage - 1) * perPage;
+  const visibleBatches = batches;
+  const pageWindowStart = Math.max(1, normalizedPage - 2);
+  const pageWindowEnd = Math.min(totalPages, normalizedPage + 2);
+  const visiblePageNumbers = Array.from(
+    { length: Math.max(0, pageWindowEnd - pageWindowStart + 1) },
+    (_, index) => pageWindowStart + index,
+  );
   const adminThemeClassName =
     "grid min-w-0 gap-6 [--surface:rgba(17,20,19,0.9)] [--surface-muted:rgba(255,255,255,0.05)] [--surface-border:rgba(255,255,255,0.10)] [--surface-border-soft:rgba(255,255,255,0.08)] [--foreground:#f7f6f0] [--muted-strong:rgba(247,246,240,0.68)] [--accent-strong:rgba(208,255,72,0.94)] [--success:#bff36b] [--danger:#ffb5a6] [--shadow-soft:0_24px_60px_rgba(0,0,0,0.26)]";
-  const mutedCardClassName = adminInsetCardClassName;
+  const mutedCardClassName = adminInsetPanelClassName;
   const adminInsetClassName =
     "rounded-[16px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-3 py-3";
+  const buildJobsHref = ({
+    page,
+    perPageOverride,
+  }: {
+    page?: number;
+    perPageOverride?: typeof perPage;
+  }) => {
+    const params = new URLSearchParams();
+    const nextPerPage = perPageOverride ?? perPage;
+    if (nextPerPage === "all") {
+      params.set("perPage", "all");
+    } else if (nextPerPage !== 20) {
+      params.set("perPage", String(nextPerPage));
+    }
+    const nextPage = nextPerPage === "all" ? 1 : Math.max(1, page ?? normalizedPage);
+    if (nextPage > 1) {
+      params.set("page", String(nextPage));
+    }
+    const query = params.toString();
+    return query ? `/jobs?${query}` : "/jobs";
+  };
 
   return (
     <StudioAdminShell
       section="jobs"
       eyebrow="Studio Admin"
       title="Jobs"
-      description="Follow queued runs, retries, and completed outputs in the same Studio admin theme used by the settings and model catalog."
+      description="Follow queued runs, retries, completed outputs, and the saved estimate snapshot captured when each batch was submitted."
     >
       <div className={adminThemeClassName}>
       <Panel>
-        <div className="space-y-2">
-          <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-            Queue Health
-          </p>
-          <div>
-            <h2 className="text-[1.35rem] font-semibold tracking-[-0.03em] text-[var(--foreground)]">
-              Job Runner
-            </h2>
-            <p className="mt-2 text-sm leading-7 text-[var(--muted-strong)]">
-              This is the background Media Studio runner attached to the API. It owns queue pickup, provider polling, and final asset publishing.
-            </p>
-          </div>
-        </div>
+        <PanelHeader
+          eyebrow="Queue Health"
+          title={healthData?.runner_name ?? "Media Studio Runner"}
+          description="This is the background Media Studio runner attached to the API. It owns queue pickup, provider polling, and final asset publishing."
+        />
         <div className="mt-5">
           <div className={mutedCardClassName}>
             <div className="mb-3 flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
@@ -99,20 +204,44 @@ export default async function JobsPage() {
               Media Studio runner
             </div>
             <div className="grid gap-2 text-sm text-[var(--muted-strong)]">
-              <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
-                <span>Runner status</span>
-                <span className={`font-medium ${runnerHealthy ? "text-[var(--accent-strong)]" : "text-[var(--danger)]"}`}>
-                  {healthData?.queue_enabled ? (runnerHealthy ? "Healthy" : "Needs attention") : "Paused"}
-                </span>
+              <div className={`grid gap-2 sm:grid-cols-2 ${adminInsetClassName}`}>
+                <div className="grid gap-1">
+                  <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
+                    Last heartbeat
+                  </span>
+                  <span className="font-medium text-[var(--foreground)]">
+                    {healthData?.last_scheduler_tick ? formatDateTime(healthData.last_scheduler_tick) : "Waiting"}
+                  </span>
+                </div>
+                <div className="grid justify-items-end gap-1 text-right">
+                  <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
+                    Runner status
+                  </span>
+                  <span className={`font-medium ${runnerHealthy ? "text-[var(--accent-strong)]" : "text-[var(--danger)]"}`}>
+                    {runnerHealth === "healthy" ? "Healthy" : runnerHealth === "paused" ? "Paused" : "Needs attention"}
+                  </span>
+                </div>
               </div>
-              <div className="grid gap-2 sm:grid-cols-4">
+              <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
                 <div className={adminInsetClassName}>
                   <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Attached to</div>
-                  <div className="mt-1 text-[var(--foreground)]">Media Studio API</div>
+                  <div className="mt-1 text-[var(--foreground)]">{healthData?.runner_attached_to ?? "Media Studio API"}</div>
                 </div>
                 <div className={adminInsetClassName}>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Supervisor</div>
-                  <div className="mt-1 text-[var(--foreground)]">{healthData?.supervisor ?? "Manual"}</div>
+                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Mode</div>
+                  <div className="mt-1 text-[var(--foreground)] capitalize">{healthData?.runner_mode ?? "embedded"}</div>
+                </div>
+                <div className={adminInsetClassName}>
+                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Launch</div>
+                  <div className="mt-1 text-[var(--foreground)]">
+                    {healthData?.runner_launch_mode === "supervised"
+                      ? (healthData?.supervisor ?? "Supervised")
+                      : "Manual"}
+                  </div>
+                </div>
+                <div className={adminInsetClassName}>
+                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Process</div>
+                  <div className="mt-1 font-mono text-[var(--foreground)]">{healthData?.runner_process_name ?? "media-studio-runner"}</div>
                 </div>
                 <div className={adminInsetClassName}>
                   <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Running</div>
@@ -122,14 +251,8 @@ export default async function JobsPage() {
                   <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Queued</div>
                   <div className="mt-1 text-[var(--foreground)]">{healthData?.queued_jobs ?? recentQueuedCount}</div>
                 </div>
-                <div className={adminInsetClassName}>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Last heartbeat</div>
-                  <div className="mt-1 text-[var(--foreground)]">
-                    {healthData?.last_scheduler_tick ? formatDateTime(healthData.last_scheduler_tick) : "Waiting"}
-                  </div>
-                </div>
               </div>
-              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="grid gap-2 sm:grid-cols-3">
                 <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
                   <span>Jobs running at once</span>
                   <span className="font-medium text-[var(--foreground)]">{Math.max(1, queueSettings?.max_concurrent_jobs ?? 10)}</span>
@@ -138,12 +261,30 @@ export default async function JobsPage() {
                   <span>Retry limit</span>
                   <span className="font-medium text-[var(--foreground)]">{Math.max(1, queueSettings?.max_retry_attempts ?? 3)}</span>
                 </div>
+                <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
+                  <span>Heartbeat</span>
+                  <span className="font-medium text-[var(--foreground)]">
+                    {healthData?.heartbeat_age_seconds != null
+                      ? `${healthData.heartbeat_age_seconds}s / ${healthData?.heartbeat_max_age_seconds ?? "?"}s`
+                      : "Waiting"}
+                  </span>
+                </div>
               </div>
               {healthData?.issues?.length ? (
                 <div className="rounded-[16px] border border-[rgba(175,79,64,0.18)] bg-[rgba(175,79,64,0.08)] px-3 py-3 text-sm text-[var(--danger)]">
                   {healthData.issues[0]}
                 </div>
               ) : null}
+              <div className="flex flex-wrap items-center gap-3">
+                <AdminNavButton
+                  href="https://github.com/gateway/media-studio/blob/main/docs/runtime-and-supervision.md"
+                  external
+                  variant="primary"
+                  size="compact"
+                >
+                  Runtime setup docs
+                </AdminNavButton>
+              </div>
               <RuntimeControls />
               {availableCredits != null ? (
                 <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
@@ -161,36 +302,37 @@ export default async function JobsPage() {
 
       <section id="recent-runs">
         <Panel>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-                Queue
-              </p>
-              <div>
-                <h2 className="text-[1.35rem] font-semibold tracking-[-0.03em] text-[var(--foreground)]">
-                  Recent Jobs
-                </h2>
-                <p className="mt-2 text-sm leading-7 text-[var(--muted-strong)]">
-                  Open a batch to inspect outputs, progress, prompt summary, and any failures tied to that run.
-                </p>
-              </div>
-            </div>
-            <div className="shrink-0">
-              <AdminNavButton href="/models">
-                Open Models
-              </AdminNavButton>
-            </div>
-          </div>
+          <PanelHeader
+            eyebrow="Queue"
+            title="Recent Jobs"
+            description="Open a batch to inspect outputs, progress, prompt summary, and any failures tied to that run."
+            action={<AdminNavButton href="/models">Open Models</AdminNavButton>}
+          />
 
           <div className="mt-5 grid gap-4">
-            {batches.length ? (
-              batches.map((batch) => {
+            <div className={`${adminInsetClassName} text-sm leading-6 text-[var(--muted-strong)]`}>
+              <div>
+                Showing{" "}
+                <span className="font-medium text-[var(--foreground)]">
+                  {totalBatches === 0 ? 0 : pageStart + 1}
+                  {perPage === "all" ? "" : `-${Math.min(totalBatches, normalizedPageStart + perPage)}`}
+                </span>{" "}
+                of <span className="font-medium text-[var(--foreground)]">{totalBatches}</span> jobs.
+              </div>
+            </div>
+
+            {visibleBatches.length ? (
+              visibleBatches.map((batch) => {
                 const jobs = [...(batch.jobs ?? [])].sort((left, right) => (left.batch_index ?? 1) - (right.batch_index ?? 1));
+                const pricingSummary = batchPricingSummary(batch);
+                const totalPricing = asRecord(pricingSummary?.total);
+                const perOutputPricing = asRecord(pricingSummary?.per_output);
+                const savedOutputCount = asNumber(pricingSummary?.output_count);
 
                 return (
                   <div
                     key={batch.batch_id}
-                    className="rounded-[24px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-4 py-4 shadow-[0_24px_60px_rgba(0,0,0,0.18)]"
+                    className={adminInsetPanelClassName}
                   >
                     <div className="grid gap-4">
                       <div className="flex flex-col gap-2">
@@ -224,6 +366,42 @@ export default async function JobsPage() {
                             <span>{batch.running_count} processing</span>
                             <span>{batch.failed_count} failed</span>
                           </div>
+                          {pricingSummary ? (
+                            <div className={`${adminInsetClassName} grid gap-3 lg:grid-cols-4`}>
+                              <div className="grid gap-1">
+                                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
+                                  Estimated total
+                                </span>
+                                <span className="text-[var(--foreground)]">
+                                  {formatUsd(totalPricing?.estimated_cost_usd)}{" "}
+                                  <span className="text-[var(--muted-strong)]">/ {formatCredits(totalPricing?.estimated_credits)} credits</span>
+                                </span>
+                              </div>
+                              <div className="grid gap-1">
+                                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
+                                  Per output
+                                </span>
+                                <span className="text-[var(--foreground)]">
+                                  {formatUsd(perOutputPricing?.estimated_cost_usd)}{" "}
+                                  <span className="text-[var(--muted-strong)]">/ {formatCredits(perOutputPricing?.estimated_credits)} credits</span>
+                                </span>
+                              </div>
+                              <div className="grid gap-1">
+                                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
+                                  Outputs
+                                </span>
+                                <span className="text-[var(--foreground)]">{savedOutputCount ?? batch.requested_outputs}</span>
+                              </div>
+                              <div className="grid gap-1">
+                                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
+                                  Pricing source
+                                </span>
+                                <span className="text-[var(--foreground)]">
+                                  {String(pricingSummary.pricing_source_kind ?? pricingSummary.pricing_status ?? "saved snapshot").replaceAll("_", " ")}
+                                </span>
+                              </div>
+                            </div>
+                          ) : null}
                           <div className="flex flex-wrap gap-3 pt-2">
                             {jobs.map((job) => {
                               const childPreview = jobPreviewUrl(job, assets);
@@ -284,6 +462,70 @@ export default async function JobsPage() {
                 No media batches are published to the dashboard yet.
               </div>
             )}
+
+            {totalBatches > 0 ? (
+              <div className={`${adminInsetClassName} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
+                    Show
+                  </span>
+                  {JOBS_PER_PAGE_OPTIONS.map((option) => (
+                    <AdminNavButton
+                      key={option}
+                      href={buildJobsHref({ page: 1, perPageOverride: option })}
+                      variant={perPage === option ? "primary" : "subtle"}
+                      size="compact"
+                    >
+                      {option}
+                    </AdminNavButton>
+                  ))}
+                  <AdminNavButton
+                    href={buildJobsHref({ page: 1, perPageOverride: "all" })}
+                    variant={perPage === "all" ? "primary" : "subtle"}
+                    size="compact"
+                  >
+                    All
+                  </AdminNavButton>
+                </div>
+
+                {perPage !== "all" && totalPages > 1 ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="mr-1 text-sm text-[var(--muted-strong)]">
+                      Page <span className="font-medium text-[var(--foreground)]">{normalizedPage}</span> of{" "}
+                      <span className="font-medium text-[var(--foreground)]">{totalPages}</span>
+                    </span>
+                    <AdminNavButton
+                      href={buildJobsHref({ page: Math.max(1, normalizedPage - 1) })}
+                      variant="subtle"
+                      size="compact"
+                    >
+                      Previous
+                    </AdminNavButton>
+                    {visiblePageNumbers.map((pageNumber) => (
+                      <AdminNavButton
+                        key={pageNumber}
+                        href={buildJobsHref({ page: pageNumber })}
+                        variant={pageNumber === normalizedPage ? "primary" : "subtle"}
+                        size="compact"
+                      >
+                        {pageNumber}
+                      </AdminNavButton>
+                    ))}
+                    <AdminNavButton
+                      href={buildJobsHref({ page: Math.min(totalPages, normalizedPage + 1) })}
+                      variant="subtle"
+                      size="compact"
+                    >
+                      Next
+                    </AdminNavButton>
+                  </div>
+                ) : (
+                  <div className="text-sm text-[var(--muted-strong)]">
+                    Showing all <span className="font-medium text-[var(--foreground)]">{totalBatches}</span> jobs.
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         </Panel>
       </section>

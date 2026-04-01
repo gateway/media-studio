@@ -4,6 +4,7 @@ import json
 import sqlite3
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .db import get_connection
@@ -94,10 +95,16 @@ def _decode_row(row: sqlite3.Row) -> Dict[str, Any]:
     return payload
 
 
-def bootstrap_schema() -> None:
-    with get_connection() as connection:
-        connection.executescript(
-            """
+def _connect_path(db_path: Path) -> sqlite3.Connection:
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def _bootstrap_schema(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """
             CREATE TABLE IF NOT EXISTS media_system_prompts (
                 prompt_id TEXT PRIMARY KEY,
                 key TEXT NOT NULL UNIQUE,
@@ -287,41 +294,55 @@ def bootstrap_schema() -> None:
             CREATE INDEX IF NOT EXISTS idx_media_jobs_provider_task_id ON media_jobs(provider_task_id);
             CREATE INDEX IF NOT EXISTS idx_media_batches_status_created ON media_batches(status, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_media_assets_created ON media_assets(created_at DESC);
-            """
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO media_queue_settings (
+            setting_id, max_concurrent_jobs, queue_enabled, default_poll_seconds, max_retry_attempts
         )
-        connection.execute(
-            """
-            INSERT INTO media_queue_settings (
-                setting_id, max_concurrent_jobs, queue_enabled, default_poll_seconds, max_retry_attempts
-            )
-            VALUES (1, 2, 1, 6, 3)
-            ON CONFLICT(setting_id) DO NOTHING
-            """
-        )
-        _ensure_column(connection, "media_jobs", "dismissed", "INTEGER NOT NULL DEFAULT 0")
-        _ensure_column(connection, "media_assets", "dismissed", "INTEGER NOT NULL DEFAULT 0")
-        _ensure_column(connection, "media_presets", "source_kind", "TEXT NOT NULL DEFAULT 'custom'")
-        _ensure_column(connection, "media_presets", "base_builtin_key", "TEXT")
-        _ensure_column(connection, "media_presets", "applies_to_models_json", "TEXT NOT NULL DEFAULT '[]'")
-        _ensure_column(connection, "media_presets", "applies_to_task_modes_json", "TEXT NOT NULL DEFAULT '[]'")
-        _ensure_column(connection, "media_presets", "applies_to_input_patterns_json", "TEXT NOT NULL DEFAULT '[]'")
-        _ensure_column(connection, "media_presets", "system_prompt_template", "TEXT NOT NULL DEFAULT ''")
-        _ensure_column(connection, "media_presets", "system_prompt_ids_json", "TEXT NOT NULL DEFAULT '[]'")
-        _ensure_column(connection, "media_presets", "rules_json", "TEXT NOT NULL DEFAULT '{}'")
-        _ensure_column(connection, "media_presets", "notes", "TEXT")
-        _ensure_column(connection, "media_presets", "version", "TEXT NOT NULL DEFAULT 'v1'")
-        _ensure_column(connection, "media_presets", "priority", "INTEGER NOT NULL DEFAULT 100")
-        _ensure_column(connection, "media_enhancement_configs", "provider_kind", "TEXT NOT NULL DEFAULT 'builtin'")
-        _ensure_column(connection, "media_enhancement_configs", "provider_label", "TEXT")
-        _ensure_column(connection, "media_enhancement_configs", "provider_model_id", "TEXT")
-        _ensure_column(connection, "media_enhancement_configs", "provider_api_key", "TEXT")
-        _ensure_column(connection, "media_enhancement_configs", "provider_base_url", "TEXT")
-        _ensure_column(connection, "media_enhancement_configs", "provider_supports_images", "INTEGER NOT NULL DEFAULT 0")
-        _ensure_column(connection, "media_enhancement_configs", "provider_status", "TEXT")
-        _ensure_column(connection, "media_enhancement_configs", "provider_last_tested_at", "TEXT")
-        _ensure_column(connection, "media_enhancement_configs", "provider_capabilities_json", "TEXT NOT NULL DEFAULT '{}'")
-        _migrate_multi_model_seed_presets(connection)
-        _seed_default_presets(connection)
+        VALUES (1, 2, 1, 6, 3)
+        ON CONFLICT(setting_id) DO NOTHING
+        """
+    )
+    _ensure_column(connection, "media_jobs", "dismissed", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(connection, "media_assets", "dismissed", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(connection, "media_presets", "source_kind", "TEXT NOT NULL DEFAULT 'custom'")
+    _ensure_column(connection, "media_presets", "base_builtin_key", "TEXT")
+    _ensure_column(connection, "media_presets", "applies_to_models_json", "TEXT NOT NULL DEFAULT '[]'")
+    _ensure_column(connection, "media_presets", "applies_to_task_modes_json", "TEXT NOT NULL DEFAULT '[]'")
+    _ensure_column(connection, "media_presets", "applies_to_input_patterns_json", "TEXT NOT NULL DEFAULT '[]'")
+    _ensure_column(connection, "media_presets", "system_prompt_template", "TEXT NOT NULL DEFAULT ''")
+    _ensure_column(connection, "media_presets", "system_prompt_ids_json", "TEXT NOT NULL DEFAULT '[]'")
+    _ensure_column(connection, "media_presets", "rules_json", "TEXT NOT NULL DEFAULT '{}'")
+    _ensure_column(connection, "media_presets", "notes", "TEXT")
+    _ensure_column(connection, "media_presets", "version", "TEXT NOT NULL DEFAULT 'v1'")
+    _ensure_column(connection, "media_presets", "priority", "INTEGER NOT NULL DEFAULT 100")
+    _ensure_column(connection, "media_enhancement_configs", "provider_kind", "TEXT NOT NULL DEFAULT 'builtin'")
+    _ensure_column(connection, "media_enhancement_configs", "provider_label", "TEXT")
+    _ensure_column(connection, "media_enhancement_configs", "provider_model_id", "TEXT")
+    _ensure_column(connection, "media_enhancement_configs", "provider_api_key", "TEXT")
+    _ensure_column(connection, "media_enhancement_configs", "provider_base_url", "TEXT")
+    _ensure_column(connection, "media_enhancement_configs", "provider_supports_images", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(connection, "media_enhancement_configs", "provider_status", "TEXT")
+    _ensure_column(connection, "media_enhancement_configs", "provider_last_tested_at", "TEXT")
+    _ensure_column(connection, "media_enhancement_configs", "provider_capabilities_json", "TEXT NOT NULL DEFAULT '{}'")
+    _migrate_multi_model_seed_presets(connection)
+    _seed_default_presets(connection)
+
+
+def bootstrap_schema(db_path: Optional[Path] = None) -> None:
+    if db_path is None:
+        with get_connection() as connection:
+            _bootstrap_schema(connection)
+        return
+
+    connection = _connect_path(Path(db_path))
+    try:
+        _bootstrap_schema(connection)
+        connection.commit()
+    finally:
+        connection.close()
 
 
 def _ensure_column(connection: sqlite3.Connection, table_name: str, column_name: str, definition: str) -> None:
@@ -727,9 +748,32 @@ def get_batch(batch_id: str) -> Optional[Dict[str, Any]]:
     return _get_table("media_batches", "batch_id", batch_id)
 
 
-def list_batches(limit: int = 100) -> List[Dict[str, Any]]:
+def count_batches() -> int:
     with get_connection() as connection:
-        rows = connection.execute("SELECT * FROM media_batches ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        row = connection.execute("SELECT COUNT(*) AS total FROM media_batches").fetchone()
+    return int(row["total"] if row else 0)
+
+
+def list_batches(limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            "SELECT * FROM media_batches ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ).fetchall()
+    return [_decode_row(row) for row in rows]
+
+
+def list_jobs_for_batches(batch_ids: List[str], include_dismissed: bool = True) -> List[Dict[str, Any]]:
+    if not batch_ids:
+        return []
+    placeholders = ",".join("?" for _ in batch_ids)
+    clauses = [f"batch_id IN ({placeholders})"]
+    params: List[Any] = list(batch_ids)
+    if not include_dismissed:
+        clauses.append("dismissed = 0")
+    query = f"SELECT * FROM media_jobs WHERE {' AND '.join(clauses)} ORDER BY created_at DESC"
+    with get_connection() as connection:
+        rows = connection.execute(query, params).fetchall()
     return [_decode_row(row) for row in rows]
 
 

@@ -17,6 +17,8 @@ def app_modules(tmp_path: Path):
         "MEDIA_STUDIO_KIE_API_REPO_PATH",
         str(default_kie_root),
     )
+    os.environ["KIE_API_KEY"] = ""
+    os.environ["OPENROUTER_API_KEY"] = ""
     os.environ["MEDIA_ENABLE_LIVE_SUBMIT"] = "0"
     os.environ["MEDIA_BACKGROUND_POLL_ENABLED"] = "0"
 
@@ -27,11 +29,13 @@ def app_modules(tmp_path: Path):
     store = importlib.import_module("app.store")
     runner = importlib.import_module("app.runner")
     service = importlib.import_module("app.service")
+    db_admin = importlib.import_module("app.db_admin")
     yield {
         "main": main,
         "store": store,
         "runner": runner,
         "service": service,
+        "db_admin": db_admin,
     }
 
 

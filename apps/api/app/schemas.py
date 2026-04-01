@@ -10,6 +10,19 @@ class HealthResponse(BaseModel):
     status: str
     app: str
     supervisor: Optional[str] = None
+    kie_api_repo_connected: bool = False
+    kie_api_key_configured: bool = False
+    live_submit_enabled: bool = False
+    openrouter_api_key_configured: bool = False
+    runner_name: str = "Media Studio Runner"
+    runner_mode: str = "embedded"
+    runner_attached_to: str = "Media Studio API"
+    runner_process_name: Optional[str] = None
+    runner_launch_mode: str = "manual"
+    runner_active: bool = False
+    runner_health: str = "needs_attention"
+    heartbeat_age_seconds: Optional[int] = None
+    heartbeat_max_age_seconds: Optional[int] = None
     queue_enabled: bool = True
     queued_jobs: int = 0
     running_jobs: int = 0
@@ -62,9 +75,30 @@ class ModelSummary(BaseModel):
 
 
 class PricingResponse(BaseModel):
+    version: Optional[str] = None
+    label: Optional[str] = None
+    released_on: Optional[str] = None
     refreshed_at: Optional[str] = None
     source: str = "unavailable"
-    entries: List[Dict[str, Any]] = Field(default_factory=list)
+    source_kind: Optional[str] = None
+    source_url: Optional[str] = None
+    currency: str = "USD"
+    notes: List[str] = Field(default_factory=list)
+    rules: List[Dict[str, Any]] = Field(default_factory=list)
+    cache_status: Optional[str] = None
+    refresh_error: Optional[str] = None
+    is_authoritative: bool = False
+    pricing_status: Optional[str] = None
+
+
+class PricingEstimateResponse(BaseModel):
+    prompt_context: Dict[str, Any]
+    validation: Dict[str, Any]
+    preflight: Dict[str, Any]
+    pricing_summary: Dict[str, Any]
+    final_prompt: Optional[str] = None
+    resolved_options: Dict[str, Any] = Field(default_factory=dict)
+    warnings: List[str] = Field(default_factory=list)
 
 
 class CreditsResponse(BaseModel):
@@ -319,6 +353,7 @@ class ValidateResponse(BaseModel):
     prompt_context: Dict[str, Any]
     validation: Dict[str, Any]
     preflight: Dict[str, Any]
+    pricing_summary: Dict[str, Any] = Field(default_factory=dict)
     final_prompt: Optional[str] = None
     resolved_options: Dict[str, Any] = Field(default_factory=dict)
     warnings: List[str] = Field(default_factory=list)
@@ -403,6 +438,7 @@ class BatchRecord(BaseModel):
     resolved_preset_key: Optional[str] = None
     preset_source: Optional[str] = None
     request_summary_json: Dict[str, Any] = Field(default_factory=dict)
+    jobs: List[JobRecord] = Field(default_factory=list)
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -459,6 +495,9 @@ class JobEventsResponse(BaseModel):
 
 class BatchesListResponse(BaseModel):
     items: List[BatchRecord] = Field(default_factory=list)
+    total: int = 0
+    limit: int = 0
+    offset: int = 0
 
 
 class SubmitResponse(BaseModel):
