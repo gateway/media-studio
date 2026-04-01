@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import importlib
 import sys
-from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
+from .pricing import normalize_pricing_snapshot
 from .settings import settings
+
+
+_pricing_snapshot_cache: Optional[Dict[str, Any]] = None
+_pricing_snapshot_cache_expires_at: Optional[datetime] = None
 
 
 def _maybe_add_kie_repo_to_path() -> None:
@@ -78,26 +84,70 @@ def get_model(model_key: str) -> Dict[str, Any]:
     }
 
 
-def pricing_snapshot() -> Dict[str, Any]:
+def pricing_snapshot(*, force_refresh: bool = False) -> Dict[str, Any]:
+    global _pricing_snapshot_cache
+    global _pricing_snapshot_cache_expires_at
+
+    if (
+        not force_refresh
+        and _pricing_snapshot_cache is not None
+        and _pricing_snapshot_cache_expires_at is not None
+        and datetime.now(timezone.utc) < _pricing_snapshot_cache_expires_at
+    ):
+        return dict(_pricing_snapshot_cache)
+
     try:
         payload = _dump(get_kie_module().registry.loader.load_latest_pricing_snapshot())
-        return {
-            "refreshed_at": payload.get("released_on") or payload.get("refreshed_at"),
-            "source": payload.get("source_kind", "registry_snapshot"),
-            "entries": payload.get("rules") or [],
-        }
+        normalized = normalize_pricing_snapshot(payload, cache_status="resource_snapshot")
+        _pricing_snapshot_cache = normalized
+        _pricing_snapshot_cache_expires_at = _next_pricing_cache_expiry()
+        return dict(normalized)
     except Exception:
-        return {"refreshed_at": None, "source": "unavailable", "entries": []}
+        return normalize_pricing_snapshot(
+            {"refreshed_at": None, "source_kind": "unavailable", "rules": []},
+            cache_status="unavailable",
+        )
 
 
 def refresh_pricing_snapshot() -> Dict[str, Any]:
-    return pricing_snapshot()
+    global _pricing_snapshot_cache
+    global _pricing_snapshot_cache_expires_at
+
+    try:
+        pricing_refresh = importlib.import_module("kie_api.services.pricing_refresh")
+        capture = pricing_refresh.fetch_site_pricing_catalog()
+        snapshot = pricing_refresh.build_supported_model_snapshot(capture)
+        normalized = normalize_pricing_snapshot(
+            _dump(snapshot),
+            cache_status="refreshed_live",
+        )
+        _pricing_snapshot_cache = normalized
+        _pricing_snapshot_cache_expires_at = _next_pricing_cache_expiry()
+        return dict(normalized)
+    except Exception as exc:
+        fallback = pricing_snapshot(force_refresh=False)
+        fallback["refresh_error"] = str(exc)
+        fallback["cache_status"] = fallback.get("cache_status") or "resource_snapshot"
+        notes = [str(note) for note in fallback.get("notes") or []]
+        notes.append(f"Pricing refresh failed: {exc}")
+        fallback["notes"] = notes
+        return fallback
 
 
 def get_credit_balance() -> Dict[str, Any]:
     if not settings.kie_api_key:
         return {"available_credits": None, "reason": "KIE_API_KEY not configured"}
     return _dump(get_kie_module().get_credit_balance())
+
+
+def estimate_request_cost(raw_request: Dict[str, Any]) -> Dict[str, Any]:
+    kie_api = get_kie_module()
+    return _dump(
+        kie_api.estimate_request_cost(
+            kie_api.RawUserRequest(**raw_request),
+            get_registry(),
+        )
+    )
 
 
 def resolve_prompt_context(raw_request: Dict[str, Any]) -> Dict[str, Any]:
@@ -153,3 +203,9 @@ def create_run_artifact(request_payload: Dict[str, Any]) -> Dict[str, Any]:
     request = kie_api.RunArtifactCreateRequest(**request_payload)
     artifact = kie_api.create_run_artifact(request, output_root=settings.outputs_dir)
     return _dump(artifact)
+
+
+def _next_pricing_cache_expiry() -> datetime:
+    return datetime.now(timezone.utc) + timedelta(
+        hours=max(1, settings.media_pricing_cache_hours)
+    )

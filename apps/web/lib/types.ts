@@ -916,13 +916,34 @@ export type MediaCreditsResponse = {
 
 export type MediaPricingResponse = {
   ok?: boolean;
-  snapshot?: Record<string, unknown>;
+  version?: string | null;
+  label?: string | null;
+  released_on?: string | null;
   refreshed_at?: string | null;
+  source?: string;
+  source_kind?: string | null;
+  source_url?: string | null;
+  currency?: string;
+  notes?: string[];
+  rules?: Record<string, unknown>[];
   cache_status?: string | null;
   is_stale?: boolean;
-  error?: string | null;
+  refresh_error?: string | null;
   is_authoritative?: boolean;
-  pricing_status?: string;
+  pricing_status?: string | null;
+  snapshot?: Record<string, unknown> | null;
+};
+
+export type MediaPricingEstimateResponse = {
+  ok?: boolean;
+  prompt_context?: Record<string, unknown>;
+  validation?: Record<string, unknown> | null;
+  preflight?: Record<string, unknown>;
+  pricing_summary?: Record<string, unknown>;
+  refreshed_at?: string | null;
+  final_prompt?: string | null;
+  resolved_options?: Record<string, unknown>;
+  warnings?: string[];
 };
 
 export type MediaModelsResponse = {
@@ -1113,6 +1134,7 @@ export type MediaValidationResponse = {
   compatibility?: Record<string, unknown>;
   validation?: Record<string, unknown>;
   preflight?: Record<string, unknown>;
+  pricing_summary?: Record<string, unknown>;
   warnings?: string[];
 };
 

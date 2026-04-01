@@ -34,6 +34,7 @@ from .schemas import (
     PresetRecord,
     PresetUpsertRequest,
     PricingResponse,
+    PricingEstimateResponse,
     PromptContextRequest,
     PromptContextResponse,
     QueueSettingsResponse,
@@ -141,6 +142,23 @@ def get_pricing():
 @app.post("/media/pricing/refresh", response_model=PricingResponse)
 def refresh_pricing():
     return PricingResponse(**kie_adapter.refresh_pricing_snapshot())
+
+
+@app.post("/media/pricing/estimate", response_model=PricingEstimateResponse)
+def estimate_pricing(payload: ValidateRequest):
+    try:
+        bundle = service.build_validation_bundle(payload)
+        return PricingEstimateResponse(
+            prompt_context=bundle["prompt_context"],
+            validation=bundle["validation"],
+            preflight=bundle["preflight"],
+            pricing_summary=bundle["pricing_summary"],
+            final_prompt=bundle["final_prompt"],
+            resolved_options=bundle["resolved_options"],
+            warnings=bundle["preflight"].get("warnings") or [],
+        )
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
 
 
 @app.get("/media/credits", response_model=CreditsResponse)
@@ -303,8 +321,10 @@ def validate_request(payload: ValidateRequest):
             prompt_context=bundle["prompt_context"],
             validation=bundle["validation"],
             preflight=bundle["preflight"],
+            pricing_summary=bundle["pricing_summary"],
             final_prompt=bundle["final_prompt"],
             resolved_options=bundle["resolved_options"],
+            warnings=bundle["preflight"].get("warnings") or [],
         )
     except service.ServiceError as exc:
         raise _bad_request(str(exc))

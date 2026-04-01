@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_health_endpoint(client) -> None:
     response = client.get("/health")
     assert response.status_code == 200
@@ -36,6 +39,38 @@ def test_models_endpoint(client) -> None:
     items = response.json()
     assert items
     assert any(item["key"] == "nano-banana-2" for item in items)
+
+
+def test_pricing_endpoint_returns_normalized_snapshot(client) -> None:
+    response = client.get("/media/pricing")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source"] == "site_pricing_page_api"
+    assert payload["source_url"] == "https://kie.ai/pricing"
+    assert payload["rules"]
+    assert any(rule["model_key"] == "nano-banana-2" for rule in payload["rules"])
+    assert payload["is_authoritative"] is False
+
+
+def test_pricing_estimate_applies_output_count_and_option_multipliers(client) -> None:
+    response = client.post(
+        "/media/pricing/estimate",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "A neon storefront portrait in the rain.",
+            "options": {"resolution": "2k"},
+            "output_count": 3,
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    summary = payload["pricing_summary"]
+    assert summary["output_count"] == 3
+    assert summary["per_output"]["estimated_credits"] == pytest.approx(12.0)
+    assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(0.06)
+    assert summary["total"]["estimated_credits"] == pytest.approx(36.0)
+    assert summary["total"]["estimated_cost_usd"] == pytest.approx(0.18)
 
 
 def test_create_and_list_preset(client) -> None:
@@ -129,6 +164,27 @@ def test_validate_and_submit_job(client) -> None:
     payload = submit_response.json()
     assert payload["batch"]["requested_outputs"] == 2
     assert len(payload["jobs"]) == 2
+
+
+def test_validate_response_includes_total_pricing_summary(client) -> None:
+    response = client.post(
+        "/media/validate",
+        json={
+            "model_key": "kling-3.0-i2v",
+            "task_mode": "image_to_video",
+            "prompt": "A cinematic alleyway shot with rain and neon haze.",
+            "images": [{"path": "/tmp/ref.png"}],
+            "options": {"duration": 5, "sound": True, "mode": "std"},
+            "output_count": 2,
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    summary = payload["pricing_summary"]
+    assert summary["output_count"] == 2
+    assert summary["per_output"]["estimated_credits"] == pytest.approx(100.0, rel=1e-6)
+    assert summary["total"]["estimated_credits"] == pytest.approx(200.0, rel=1e-6)
+    assert summary["total"]["estimated_cost_usd"] == pytest.approx(1.0, rel=1e-6)
 
 
 def test_queue_settings_update(client) -> None:

@@ -75,9 +75,30 @@ class ModelSummary(BaseModel):
 
 
 class PricingResponse(BaseModel):
+    version: Optional[str] = None
+    label: Optional[str] = None
+    released_on: Optional[str] = None
     refreshed_at: Optional[str] = None
     source: str = "unavailable"
-    entries: List[Dict[str, Any]] = Field(default_factory=list)
+    source_kind: Optional[str] = None
+    source_url: Optional[str] = None
+    currency: str = "USD"
+    notes: List[str] = Field(default_factory=list)
+    rules: List[Dict[str, Any]] = Field(default_factory=list)
+    cache_status: Optional[str] = None
+    refresh_error: Optional[str] = None
+    is_authoritative: bool = False
+    pricing_status: Optional[str] = None
+
+
+class PricingEstimateResponse(BaseModel):
+    prompt_context: Dict[str, Any]
+    validation: Dict[str, Any]
+    preflight: Dict[str, Any]
+    pricing_summary: Dict[str, Any]
+    final_prompt: Optional[str] = None
+    resolved_options: Dict[str, Any] = Field(default_factory=dict)
+    warnings: List[str] = Field(default_factory=list)
 
 
 class CreditsResponse(BaseModel):
@@ -332,6 +353,7 @@ class ValidateResponse(BaseModel):
     prompt_context: Dict[str, Any]
     validation: Dict[str, Any]
     preflight: Dict[str, Any]
+    pricing_summary: Dict[str, Any] = Field(default_factory=dict)
     final_prompt: Optional[str] = None
     resolved_options: Dict[str, Any] = Field(default_factory=dict)
     warnings: List[str] = Field(default_factory=list)

@@ -23,6 +23,7 @@ import type {
   MediaPreset,
   MediaPresetsResponse,
   MediaPricingResponse,
+  MediaPricingEstimateResponse,
   MediaPromptContextResponse,
   MediaQueuePoliciesResponse,
   MediaQueuePolicyResponse,
@@ -390,7 +391,29 @@ export function mapValidationResponseRecord(payload: Record<string, any>): Media
     compatibility: {},
     validation: payload.validation ?? null,
     preflight: payload.preflight ?? null,
+    pricing_summary: payload.pricing_summary ?? payload.preflight?.pricing_summary ?? null,
     warnings: payload.warnings ?? payload.preflight?.warnings ?? [],
+  };
+}
+
+export function mapPricingResponseRecord(payload: Record<string, any>): MediaPricingResponse {
+  return {
+    ok: true,
+    version: payload.version ?? null,
+    label: payload.label ?? null,
+    released_on: payload.released_on ?? null,
+    refreshed_at: payload.refreshed_at ?? null,
+    source: payload.source ?? "unavailable",
+    source_kind: payload.source_kind ?? payload.source ?? null,
+    source_url: payload.source_url ?? null,
+    currency: payload.currency ?? "USD",
+    notes: payload.notes ?? [],
+    rules: payload.rules ?? [],
+    cache_status: payload.cache_status ?? null,
+    refresh_error: payload.refresh_error ?? null,
+    is_authoritative: Boolean(payload.is_authoritative),
+    pricing_status: payload.pricing_status ?? null,
+    snapshot: payload,
   };
 }
 
@@ -477,7 +500,12 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
         },
       },
     },
-    pricing: { ok: pricing.ok, data: { snapshot: pricing.data ?? null } },
+    pricing: {
+      ok: pricing.ok,
+      data: pricing.data
+        ? mapPricingResponseRecord(pricing.data)
+        : ({ snapshot: null, rules: [] } as MediaPricingResponse),
+    },
     models: { ok: modelsRaw.ok, data: { models } as MediaModelsResponse },
     presets: { ok: presetsRaw.ok, data: { presets } as MediaPresetsResponse },
     prompts: { ok: promptsRaw.ok, data: { prompts } as MediaSystemPromptsResponse },
@@ -569,6 +597,10 @@ export async function getMediaPromptsSnapshot() {
 
 export async function validateMediaRequest(payload: Record<string, unknown>) {
   return postControlApiJson<MediaValidationResponse>("/media/validate", payload);
+}
+
+export async function estimateMediaPricing(payload: Record<string, unknown>) {
+  return postControlApiJson<MediaPricingEstimateResponse>("/media/pricing/estimate", payload);
 }
 
 export async function getMediaPromptContext(payload: Record<string, unknown>) {

@@ -27,6 +27,14 @@ Always use the current KIE pricing page before making cost promises:
 
 - [KIE API key and pricing via our referral link](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
 
+The dashboard pricing flow is built around three layers:
+
+- pricing catalog: `GET /media/pricing` returns the normalized KIE pricing snapshot used by the dashboard
+- request estimate: `POST /media/pricing/estimate` returns the resolved prompt, options, and total estimated credits/USD for the exact request
+- submit gate: `POST /media/validate` and job submission both carry the same pricing summary so the number shown in the Studio stays aligned with the server-side calculation
+
+In the Studio UI, the `Generate` button now displays the current estimated total. If a model option changes pricing, the button label updates with it.
+
 ## Structure
 
 ```text

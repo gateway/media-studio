@@ -952,6 +952,7 @@ function estimateFromPricingSnapshot(
   pricingSnapshot: Record<string, unknown> | null | undefined,
   modelKey: string | null | undefined,
   options: Record<string, unknown>,
+  outputCount: number,
 ) {
   if (!modelKey || !isRecord(pricingSnapshot) || !Array.isArray(pricingSnapshot.rules)) {
     return { estimatedCredits: null, estimatedCostUsd: null };
@@ -1012,7 +1013,13 @@ function estimateFromPricingSnapshot(
     }
   }
 
-  return { estimatedCredits, estimatedCostUsd };
+  const resolvedOutputCount = Math.max(1, outputCount || 1);
+  return {
+    estimatedCredits:
+      estimatedCredits != null ? estimatedCredits * resolvedOutputCount : null,
+    estimatedCostUsd:
+      estimatedCostUsd != null ? estimatedCostUsd * resolvedOutputCount : null,
+  };
 }
 
 function optionBooleanValue(value: unknown) {
@@ -1866,17 +1873,27 @@ export function MediaStudio({
     [attachments],
   );
   const localPricingEstimate = useMemo(
-    () => estimateFromPricingSnapshot(pricingSnapshot, modelKey, pricingOptions),
-    [modelKey, pricingOptions, pricingSnapshot],
+    () => estimateFromPricingSnapshot(pricingSnapshot, modelKey, pricingOptions, outputCount),
+    [modelKey, outputCount, pricingOptions, pricingSnapshot],
   );
+  const validationPricingSummary = isRecord(validation?.pricing_summary)
+    ? (validation.pricing_summary as Record<string, unknown>)
+    : isRecord(validation?.preflight?.pricing_summary)
+      ? (validation.preflight.pricing_summary as Record<string, unknown>)
+      : null;
+  const validationPricingTotal = isRecord(validationPricingSummary?.total)
+    ? (validationPricingSummary.total as Record<string, unknown>)
+    : null;
   const preflightEstimatedCost = isRecord(validation?.preflight?.estimated_cost)
     ? (validation.preflight.estimated_cost as Record<string, unknown>)
     : null;
   const estimatedCreditsValue =
+    validationPricingTotal?.["estimated_credits"] ??
     localPricingEstimate.estimatedCredits ??
     validation?.preflight?.estimated_cost_credits ??
     preflightEstimatedCost?.["estimated_credits"];
   const estimatedCostUsdValue =
+    validationPricingTotal?.["estimated_cost_usd"] ??
     localPricingEstimate.estimatedCostUsd ??
     preflightEstimatedCost?.["estimated_cost_usd"];
   const estimatedCredits =
@@ -1895,6 +1912,9 @@ export function MediaStudio({
     typeof remainingCredits === "number"
       ? `${remainingCredits.toFixed(remainingCredits % 1 === 0 ? 0 : 1)}`
       : null;
+  const generatePriceLabel = estimatedCostUsd ?? (estimatedCredits ? `${estimatedCredits} credits` : null);
+  const generateButtonLabel =
+    busyState === "submit" ? "Generating..." : generatePriceLabel ? `Generate · ${generatePriceLabel}` : "Generate";
 
   useEffect(() => {
     setSelectedMediaLightboxOpen(false);
@@ -4387,7 +4407,7 @@ export function MediaStudio({
                         disabled={!canSubmit}
                         className="inline-flex h-12 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 text-[0.76rem] font-semibold text-[#172200] shadow-[0_18px_38px_rgba(176,235,44,0.2)] transition hover:-translate-y-0.5 disabled:opacity-60"
                       >
-                        {busyState === "submit" ? "Generating..." : "Generate"}
+                        {generateButtonLabel}
                       </button>
                       </div>
                     </div>
