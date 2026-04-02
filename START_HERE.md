@@ -4,6 +4,12 @@ This is the fastest way to get `media-studio` running for the first time.
 
 Media Studio is a local Next.js + FastAPI app that sits on top of the shared Python `kie-api` layer. It gives you your own image and video generation dashboard instead of another closed hosted UI, and it uses KIE for pay-as-you-go generation.
 
+The shortest way to think about it:
+- local dashboard
+- shared Python generation backend
+- your own prompts, presets, queue, and outputs
+- pay-as-you-go model usage through KIE
+
 ## What you need
 
 - `git`
@@ -17,7 +23,7 @@ Get a KIE API key here:
 
 ## Fastest setup
 
-Clone the repo, run one setup script, add your KIE key, and start creating.
+Clone the repo, run one setup script, add your KIE key, and you can start generating right away.
 
 macOS:
 
