@@ -274,8 +274,9 @@ class EnhancementConfigRecord(BaseModel):
     provider_kind: str = "builtin"
     provider_label: Optional[str] = None
     provider_model_id: Optional[str] = None
-    provider_api_key: Optional[str] = None
-    provider_base_url: Optional[str] = None
+    provider_api_key_configured: bool = False
+    provider_base_url_configured: bool = False
+    provider_credential_source: Optional[str] = None
     provider_supports_images: bool = False
     provider_status: Optional[str] = None
     provider_last_tested_at: Optional[str] = None
@@ -299,6 +300,7 @@ class EnhancementProviderModel(BaseModel):
 
 class EnhancementProviderProbeRequest(BaseModel):
     provider_kind: str
+    model_key: Optional[str] = None
     api_key: Optional[str] = None
     base_url: Optional[str] = None
     selected_model_id: Optional[str] = None

@@ -97,6 +97,8 @@ Optional:
 - `OPENROUTER_API_KEY`
 - `MEDIA_LOCAL_OPENAI_BASE_URL`
 - `MEDIA_LOCAL_OPENAI_API_KEY`
+- `MEDIA_STUDIO_ADMIN_USERNAME` and `MEDIA_STUDIO_ADMIN_PASSWORD`
+  Recommended if you want browser access beyond localhost.
 
 Detailed guide:
 

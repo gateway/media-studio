@@ -4,10 +4,12 @@ from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import kie_adapter, service, store
+from .control_auth import validate_control_request
 from .runner import runner
 from .schemas import (
     AssetListResponse,
@@ -72,6 +74,14 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 settings.data_root.mkdir(parents=True, exist_ok=True)
 app.mount("/media/files", StaticFiles(directory=settings.data_root, check_dir=False), name="media-files")
+
+
+@app.middleware("http")
+async def enforce_control_access(request: Request, call_next):
+    blocked = validate_control_request(request)
+    if blocked is not None:
+        return blocked
+    return await call_next(request)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -260,7 +270,7 @@ def delete_system_prompt(prompt_id: str):
 
 @app.get("/media/enhancement-configs", response_model=List[EnhancementConfigRecord])  # type: ignore[name-defined]
 def list_enhancement_configs():
-    return [EnhancementConfigRecord(**item) for item in store.list_enhancement_configs()]
+    return [EnhancementConfigRecord(**service.public_enhancement_config(item)) for item in store.list_enhancement_configs()]
 
 
 @app.get("/media/enhancement-configs/{model_key}", response_model=EnhancementConfigRecord)
@@ -268,17 +278,19 @@ def get_enhancement_config(model_key: str):
     record = store.get_enhancement_config(model_key)
     if not record:
         raise _not_found("enhancement config")
-    return EnhancementConfigRecord(**record)
+    return EnhancementConfigRecord(**service.public_enhancement_config(record))
 
 
 @app.post("/media/enhancement-configs", response_model=EnhancementConfigRecord)
 def create_enhancement_config(payload: EnhancementConfigUpsertRequest):
-    return EnhancementConfigRecord(**service.upsert_enhancement_config(payload.model_dump()))
+    record = service.upsert_enhancement_config(payload.model_dump())
+    return EnhancementConfigRecord(**service.public_enhancement_config(record))
 
 
 @app.patch("/media/enhancement-configs/{model_key}", response_model=EnhancementConfigRecord)
 def update_enhancement_config(model_key: str, payload: EnhancementConfigUpsertRequest):
-    return EnhancementConfigRecord(**service.upsert_enhancement_config(payload.model_dump(), model_key))
+    record = service.upsert_enhancement_config(payload.model_dump(), model_key)
+    return EnhancementConfigRecord(**service.public_enhancement_config(record))
 
 
 @app.delete("/media/enhancement-configs/{model_key}")

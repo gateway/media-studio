@@ -1056,8 +1056,9 @@ export type MediaEnhancementConfig = {
   provider_kind?: string;
   provider_label?: string | null;
   provider_model_id?: string | null;
-  provider_api_key?: string | null;
-  provider_base_url?: string | null;
+  provider_api_key_configured?: boolean;
+  provider_base_url_configured?: boolean;
+  provider_credential_source?: string | null;
   provider_supports_images?: boolean;
   provider_status?: string | null;
   provider_last_tested_at?: string | null;

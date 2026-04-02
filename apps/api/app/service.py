@@ -103,11 +103,35 @@ def upsert_enhancement_config(payload: Dict[str, Any], model_key: Optional[str] 
     return store.create_or_update_enhancement_config(record)
 
 
+def public_enhancement_config(record: Dict[str, Any]) -> Dict[str, Any]:
+    provider_kind = str(record.get("provider_kind") or "builtin").strip()
+    stored_api_key = str(record.get("provider_api_key") or "").strip()
+    stored_base_url = str(record.get("provider_base_url") or "").strip()
+
+    credential_source: str | None = None
+    if stored_api_key:
+        credential_source = "stored"
+    elif provider_kind == "openrouter" and settings.openrouter_api_key:
+        credential_source = "env"
+    elif provider_kind == "local_openai" and settings.local_openai_api_key:
+        credential_source = "env"
+
+    payload = record.copy()
+    payload.pop("provider_api_key", None)
+    payload.pop("provider_base_url", None)
+    payload["provider_api_key_configured"] = bool(stored_api_key)
+    payload["provider_base_url_configured"] = bool(stored_base_url)
+    payload["provider_credential_source"] = credential_source
+    return EnhancementConfigRecord(**payload).model_dump()
+
+
 def probe_enhancement_provider(payload: Dict[str, Any]) -> Dict[str, Any]:
     provider_kind = str(payload.get("provider_kind") or "").strip()
     require_images = bool(payload.get("require_images"))
-    api_key = payload.get("api_key")
-    base_url = payload.get("base_url")
+    model_key = str(payload.get("model_key") or "").strip()
+    current_config = store.get_enhancement_config(model_key) if model_key else None
+    api_key = payload.get("api_key") or (current_config or {}).get("provider_api_key")
+    base_url = payload.get("base_url") or (current_config or {}).get("provider_base_url")
     selected_model_id = payload.get("selected_model_id")
     if provider_kind == "openrouter":
         return enhancement_provider.test_openrouter_connection(
@@ -304,7 +328,7 @@ def _resolved_enhancement_config(model_key: str) -> Dict[str, Any]:
     ) else {}
     engine_config = global_config or legacy_provider_config
     if global_config or model_config:
-        return EnhancementConfigRecord(
+        result = EnhancementConfigRecord(
             config_id=str(model_config.get("config_id") or global_config.get("config_id") or f"cfg-{model_key}"),
             model_key=model_key,
             label=str(model_config.get("label") or f"{model_key} enhancement"),
@@ -312,8 +336,9 @@ def _resolved_enhancement_config(model_key: str) -> Dict[str, Any]:
             provider_kind=str(engine_config.get("provider_kind") or "builtin"),
             provider_label=engine_config.get("provider_label"),
             provider_model_id=engine_config.get("provider_model_id"),
-            provider_api_key=engine_config.get("provider_api_key"),
-            provider_base_url=engine_config.get("provider_base_url"),
+            provider_api_key_configured=bool(engine_config.get("provider_api_key")),
+            provider_base_url_configured=bool(engine_config.get("provider_base_url")),
+            provider_credential_source="stored" if engine_config.get("provider_api_key") else None,
             provider_supports_images=bool(engine_config.get("provider_supports_images")),
             provider_status=engine_config.get("provider_status"),
             provider_last_tested_at=engine_config.get("provider_last_tested_at"),
@@ -333,12 +358,17 @@ def _resolved_enhancement_config(model_key: str) -> Dict[str, Any]:
             notes=model_config.get("notes") or global_config.get("notes"),
             status=str(model_config.get("status") or global_config.get("status") or "active"),
         ).model_dump()
+        result["provider_api_key"] = engine_config.get("provider_api_key")
+        result["provider_base_url"] = engine_config.get("provider_base_url")
+        return result
     return EnhancementConfigRecord(
         config_id=f"cfg-{GLOBAL_ENHANCEMENT_CONFIG_KEY}",
         model_key=GLOBAL_ENHANCEMENT_CONFIG_KEY,
         label="Studio enhancement",
         helper_profile="midctx-64k-no-thinking-q3-prefill",
         provider_kind="builtin",
+        provider_api_key_configured=False,
+        provider_base_url_configured=False,
         supports_text_enhancement=True,
         supports_image_analysis=False,
     ).model_dump()

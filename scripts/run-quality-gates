@@ -20,5 +20,6 @@ MEDIA_STUDIO_KIE_API_REPO_PATH="${MEDIA_STUDIO_KIE_API_REPO_PATH:-$KIE_ROOT}" \
 "$VENV_PY" -m pytest -q "$ROOT/apps/api/tests"
 
 cd "$ROOT"
+npm --workspace apps/web run test
 npm --workspace apps/web run typecheck
 npm --workspace apps/web run build

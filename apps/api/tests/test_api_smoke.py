@@ -1,6 +1,12 @@
 import pytest
 
 
+def test_media_routes_require_internal_control_token(unauthenticated_client) -> None:
+    response = unauthenticated_client.get("/media/pricing")
+    assert response.status_code == 403
+    assert "control API token" in response.text
+
+
 def test_health_endpoint(client) -> None:
     response = client.get("/health")
     assert response.status_code == 200
@@ -71,6 +77,61 @@ def test_pricing_estimate_applies_output_count_and_option_multipliers(client) ->
     assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(0.06)
     assert summary["total"]["estimated_credits"] == pytest.approx(36.0)
     assert summary["total"]["estimated_cost_usd"] == pytest.approx(0.18)
+
+
+def test_submit_requires_admin_access_mode(app_modules) -> None:
+    app = app_modules["main"].app
+    from fastapi.testclient import TestClient
+
+    with TestClient(
+        app,
+        headers={
+            "x-media-studio-control-token": "test-control-token",
+            "x-media-studio-access-mode": "read",
+        },
+    ) as client:
+        response = client.post(
+            "/media/jobs",
+            json={
+                "model_key": "nano-banana-2",
+                "task_mode": "text_to_image",
+                "prompt": "Studio portrait.",
+                "output_count": 1,
+            },
+        )
+    assert response.status_code == 403
+    assert "Admin access" in response.text
+
+
+def test_enhancement_config_responses_redact_provider_credentials(client) -> None:
+    create_response = client.post(
+        "/media/enhancement-configs",
+        json={
+            "model_key": "__studio_enhancement__",
+            "label": "Studio enhancement",
+            "provider_kind": "openrouter",
+            "provider_label": "OpenRouter.ai",
+            "provider_model_id": "openrouter/model",
+            "provider_api_key": "secret-key",
+            "provider_base_url": "https://internal.example/v1",
+            "supports_text_enhancement": True,
+            "supports_image_analysis": False,
+        },
+    )
+    assert create_response.status_code == 200, create_response.text
+    created = create_response.json()
+    assert created["provider_api_key_configured"] is True
+    assert created["provider_base_url_configured"] is True
+    assert "provider_api_key" not in created
+    assert "provider_base_url" not in created
+
+    list_response = client.get("/media/enhancement-configs")
+    assert list_response.status_code == 200, list_response.text
+    listed = next(item for item in list_response.json() if item["model_key"] == "__studio_enhancement__")
+    assert listed["provider_api_key_configured"] is True
+    assert listed["provider_base_url_configured"] is True
+    assert "provider_api_key" not in listed
+    assert "provider_base_url" not in listed
 
 
 def test_create_and_list_preset(client) -> None:
