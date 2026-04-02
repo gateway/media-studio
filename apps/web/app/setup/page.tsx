@@ -92,8 +92,8 @@ export default async function SetupPage() {
     typeof credits.data?.raw?.reason === "string" ? credits.data.raw.reason : "Credit balance becomes visible after you add a KIE API key.";
   const runnerReady = Boolean(health.runner_active) || !queueEnabled;
   const hasLocalEnhancementBase = enhancementConfigs.some((config) =>
-    typeof config.provider_base_url === "string" &&
-    (config.provider_base_url.includes("127.0.0.1") || config.provider_base_url.includes("localhost")),
+    config.provider_kind === "local_openai" &&
+    Boolean(config.provider_base_url_configured),
   );
 
   return (

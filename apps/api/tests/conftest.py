@@ -7,6 +7,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+CONTROL_HEADERS = {
+    "x-media-studio-control-token": "test-control-token",
+    "x-media-studio-access-mode": "admin",
+}
+
+
 @pytest.fixture()
 def app_modules(tmp_path: Path):
     repo_root = Path(__file__).resolve().parents[3]
@@ -21,6 +27,7 @@ def app_modules(tmp_path: Path):
     os.environ["OPENROUTER_API_KEY"] = ""
     os.environ["MEDIA_ENABLE_LIVE_SUBMIT"] = "0"
     os.environ["MEDIA_BACKGROUND_POLL_ENABLED"] = "0"
+    os.environ["MEDIA_STUDIO_CONTROL_API_TOKEN"] = CONTROL_HEADERS["x-media-studio-control-token"]
 
     for name in sorted([key for key in sys.modules.keys() if key == "app" or key.startswith("app.")], reverse=True):
         sys.modules.pop(name, None)
@@ -41,6 +48,14 @@ def app_modules(tmp_path: Path):
 
 @pytest.fixture()
 def client(app_modules):
+    app = app_modules["main"].app
+
+    with TestClient(app, headers=CONTROL_HEADERS) as test_client:
+        yield test_client
+
+
+@pytest.fixture()
+def unauthenticated_client(app_modules):
     app = app_modules["main"].app
 
     with TestClient(app) as test_client:

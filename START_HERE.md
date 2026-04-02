@@ -81,6 +81,8 @@ Then open:
   For a local OpenAI-compatible endpoint.
 - `MEDIA_LOCAL_OPENAI_API_KEY`
   Only if that local endpoint requires auth.
+- `MEDIA_STUDIO_ADMIN_USERNAME` and `MEDIA_STUDIO_ADMIN_PASSWORD`
+  Add these if you want browser auth instead of localhost-only access.
 
 ## If you want more detail
 

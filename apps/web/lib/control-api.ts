@@ -1,3 +1,5 @@
+import "server-only";
+
 import type {
   ControlApiStatus,
   LlmPresetsResponse,
@@ -36,10 +38,23 @@ import type {
 } from "@/lib/types";
 
 export const CONTROL_API_BASE_URL =
-  process.env.NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL || "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL ||
+  process.env.MEDIA_STUDIO_CONTROL_API_BASE_URL ||
+  "http://127.0.0.1:8000";
+const CONTROL_API_TOKEN = process.env.MEDIA_STUDIO_CONTROL_API_TOKEN || "media-studio-local-control-token";
 
 function withBase(path: string) {
   return `${CONTROL_API_BASE_URL}${path}`;
+}
+
+export function buildControlApiHeaders(
+  authMode: "read" | "admin" = "read",
+  headers?: HeadersInit,
+) {
+  const resolved = new Headers(headers);
+  resolved.set("x-media-studio-control-token", CONTROL_API_TOKEN);
+  resolved.set("x-media-studio-access-mode", authMode);
+  return resolved;
 }
 
 export function toControlApiProxyPath(pathValue: string | null | undefined) {
@@ -57,10 +72,15 @@ export function toControlApiDataProxyPath(filePath: string | null | undefined) {
   return `/api/control/files/${normalized}`;
 }
 
-async function fetchControlApiResponse(endpoint: string, init?: RequestInit) {
+async function fetchControlApiResponse(
+  endpoint: string,
+  init?: RequestInit,
+  authMode: "read" | "admin" = "read",
+) {
   try {
     const response = await fetch(withBase(endpoint), {
       ...init,
+      headers: buildControlApiHeaders(authMode, init?.headers),
       cache: "no-store",
       next: { revalidate: 0 },
     });
@@ -84,16 +104,16 @@ async function fetchControlApiResponse(endpoint: string, init?: RequestInit) {
   }
 }
 
-async function fetchControlApiJson<T>(endpoint: string) {
-  const result = await fetchControlApiResponse(endpoint);
+async function fetchControlApiJson<T>(endpoint: string, authMode: "read" | "admin" = "read") {
+  const result = await fetchControlApiResponse(endpoint, undefined, authMode);
   if (!result.ok || !result.response) {
     return { ok: false as const, data: null, error: result.error };
   }
   return { ok: true as const, data: (await result.response.json()) as T, error: null };
 }
 
-export async function getControlApiJson<T>(endpoint: string, _authMode?: "read" | "admin") {
-  return fetchControlApiJson<T>(endpoint);
+export async function getControlApiJson<T>(endpoint: string, authMode: "read" | "admin" = "read") {
+  return fetchControlApiJson<T>(endpoint, authMode);
 }
 
 export async function sendControlApiJson<T>(
@@ -101,18 +121,22 @@ export async function sendControlApiJson<T>(
   {
     method = "POST",
     payload = null,
-    authMode: _authMode,
+    authMode = "admin",
   }: {
     method?: "POST" | "PATCH" | "DELETE";
     payload?: Record<string, unknown> | null;
     authMode?: "read" | "admin";
   } = {},
 ) {
-  const result = await fetchControlApiResponse(endpoint, {
-    method,
-    headers: payload ? { "Content-Type": "application/json" } : undefined,
-    body: payload ? JSON.stringify(payload) : undefined,
-  });
+  const result = await fetchControlApiResponse(
+    endpoint,
+    {
+      method,
+      headers: payload ? { "Content-Type": "application/json" } : undefined,
+      body: payload ? JSON.stringify(payload) : undefined,
+    },
+    authMode,
+  );
   if (!result.ok || !result.response) {
     return { ok: false as const, data: null, error: result.error };
   }
@@ -126,13 +150,13 @@ export async function sendControlApiJson<T>(
 export async function postControlApiJson<T>(
   endpoint: string,
   payload: Record<string, unknown> | null,
-  _authMode?: "read" | "admin",
+  authMode: "read" | "admin" = "admin",
 ) {
-  return sendControlApiJson<T>(endpoint, { method: "POST", payload });
+  return sendControlApiJson<T>(endpoint, { method: "POST", payload, authMode });
 }
 
 export async function getControlApiFile(pathSegments: string[]) {
-  return fetchControlApiResponse(`/media/files/${pathSegments.join("/")}`);
+  return fetchControlApiResponse(`/media/files/${pathSegments.join("/")}`, undefined, "read");
 }
 
 function deriveInputPatterns(model: Record<string, any>): string[] {
@@ -241,8 +265,9 @@ export function mapEnhancementConfigRecord(config: Record<string, any>): MediaEn
     provider_kind: String(config.provider_kind ?? "builtin"),
     provider_label: config.provider_label ?? null,
     provider_model_id: config.provider_model_id ?? null,
-    provider_api_key: config.provider_api_key ?? null,
-    provider_base_url: config.provider_base_url ?? null,
+    provider_api_key_configured: Boolean(config.provider_api_key_configured),
+    provider_base_url_configured: Boolean(config.provider_base_url_configured),
+    provider_credential_source: config.provider_credential_source ?? null,
     provider_supports_images: Boolean(config.provider_supports_images),
     provider_status: config.provider_status ?? null,
     provider_last_tested_at: config.provider_last_tested_at ?? null,

@@ -34,6 +34,22 @@ import { CollapsibleSubsection } from "@/components/collapsible-sections";
 import { MediaModelsConsole } from "@/components/media-models-console";
 import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
+import {
+  buildGalleryTiles,
+  createOptimisticBatch,
+  findMediaAssetById,
+  mediaAssetPrompt,
+  mergeAssetCollections,
+  presetRequirementMessage,
+  reconcileAssetCollections,
+  selectedPromptObjects,
+  structuredPresetInputValues,
+  structuredPresetInputValuesFromAsset,
+  structuredPresetSlotValues,
+  structuredPresetSlotValuesFromAsset,
+  type GalleryTile,
+  upsertBatchCollection,
+} from "@/lib/studio-gallery";
 import type {
   LlmPreset,
   MediaAsset,
@@ -48,6 +64,7 @@ import type {
   MediaSystemPrompt,
   MediaValidationResponse,
 } from "@/lib/types";
+import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import { cn, formatDateTime, truncate } from "@/lib/utils";
 
 type MediaStudioProps = {
@@ -82,13 +99,6 @@ type AttachmentRecord = {
 };
 
 type GalleryKindFilter = "all" | "image" | "video";
-
-type GalleryTile = {
-  asset: MediaAsset | null;
-  label: string;
-  batch: MediaBatch | null;
-  job: MediaJob | null;
-};
 
 type AssetPagePayload = {
   ok?: boolean;
@@ -287,62 +297,6 @@ function mediaPreviewUrl(asset?: MediaAsset | null) {
   return mediaDisplayUrl(asset);
 }
 
-function mergeAssetCollections(collection: MediaAsset[], additions: MediaAsset[]) {
-  if (!additions.length) {
-    return collection;
-  }
-  const merged = [...collection];
-  const seen = new Map<string, number>();
-  for (const [index, asset] of merged.entries()) {
-    seen.set(String(asset.asset_id), index);
-  }
-  for (const asset of additions) {
-    const existingIndex = seen.get(String(asset.asset_id));
-    if (existingIndex == null) {
-      seen.set(String(asset.asset_id), merged.length);
-      merged.push(asset);
-      continue;
-    }
-    merged[existingIndex] = asset;
-  }
-  return merged;
-}
-
-function reconcileAssetCollections(primary: MediaAsset[], existing: MediaAsset[]) {
-  if (!primary.length) {
-    return existing;
-  }
-  const merged = [...primary];
-  const seen = new Set(primary.map((asset) => asset.asset_id));
-  for (const asset of existing) {
-    if (seen.has(asset.asset_id)) {
-      continue;
-    }
-    merged.push(asset);
-  }
-  return merged;
-}
-
-function upsertBatchCollection(collection: MediaBatch[], batch: MediaBatch) {
-  const next = collection.filter((entry) => entry.batch_id !== batch.batch_id);
-  next.unshift(batch);
-  return next.slice(0, 12);
-}
-
-function findMediaAssetById(assetId: string | number | null, ...collections: Array<MediaAsset[] | null | undefined>) {
-  if (assetId == null) {
-    return null;
-  }
-  const normalizedAssetId = String(assetId);
-  for (const collection of collections) {
-    const asset = collection?.find((entry) => String(entry.asset_id) === normalizedAssetId) ?? null;
-    if (asset) {
-      return asset;
-    }
-  }
-  return null;
-}
-
 function prefetchAssetThumbs(assets: MediaAsset[], seenThumbUrls: Set<string>) {
   if (typeof window === "undefined") {
     return;
@@ -407,90 +361,6 @@ function mediaInlineUrl(asset?: MediaAsset | null) {
   const inlineUrl = new URL(originalUrl, "http://dashboard.local");
   inlineUrl.searchParams.set("inline", "1");
   return `${inlineUrl.pathname}${inlineUrl.search}`;
-}
-
-function mediaAssetPrompt(asset?: MediaAsset | null, job?: MediaJob | null) {
-  return (
-    job?.final_prompt_used ??
-    job?.enhanced_prompt ??
-    job?.raw_prompt ??
-    asset?.prompt_summary ??
-    null
-  );
-}
-
-function structuredPresetInputValues(job?: MediaJob | null) {
-  const metadataPrepared = isRecord(job?.prepared?.metadata) ? (job?.prepared?.metadata as Record<string, unknown>) : null;
-  const metadataNormalized = isRecord(job?.normalized_request?.metadata)
-    ? (job?.normalized_request?.metadata as Record<string, unknown>)
-    : null;
-  const preparedInputs = isRecord(job?.prepared?.preset_inputs_json) ? (job?.prepared?.preset_inputs_json as Record<string, unknown>) : null;
-  const metadataInputs = isRecord(metadataPrepared?.preset_inputs)
-    ? (metadataPrepared?.preset_inputs as Record<string, unknown>)
-    : isRecord(metadataNormalized?.preset_inputs)
-      ? (metadataNormalized?.preset_inputs as Record<string, unknown>)
-      : null;
-  const source = metadataInputs ?? preparedInputs;
-  if (!source) {
-    return {} as Record<string, string>;
-  }
-  return Object.fromEntries(
-    Object.entries(source).map(([key, value]) => [key, String(value ?? "").trim()]),
-  );
-}
-
-function structuredPresetInputValuesFromAsset(asset?: MediaAsset | null) {
-  const payload = isRecord(asset?.payload) ? (asset?.payload as Record<string, unknown>) : null;
-  const source = isRecord(payload?.preset_inputs) ? (payload?.preset_inputs as Record<string, unknown>) : null;
-  if (!source) {
-    return {} as Record<string, string>;
-  }
-  return Object.fromEntries(
-    Object.entries(source).map(([key, value]) => [key, String(value ?? "").trim()]),
-  );
-}
-
-function structuredPresetSlotValues(job?: MediaJob | null) {
-  if (isRecord(job?.prepared?.preset_slot_values_json)) {
-    return job?.prepared?.preset_slot_values_json as Record<string, unknown>;
-  }
-  if (isRecord(job?.normalized_request?.preset_slot_values_json)) {
-    return job?.normalized_request?.preset_slot_values_json as Record<string, unknown>;
-  }
-  const normalizedRequest = isRecord(job?.normalized_request) ? (job?.normalized_request as Record<string, unknown>) : null;
-  const metadata = isRecord(normalizedRequest?.metadata) ? (normalizedRequest?.metadata as Record<string, unknown>) : null;
-  const slotKeys = Array.isArray(metadata?.preset_slot_keys)
-    ? (metadata?.preset_slot_keys as unknown[]).map((value) => String(value ?? "").trim()).filter(Boolean)
-    : [];
-  const images = Array.isArray(normalizedRequest?.images) ? (normalizedRequest?.images as unknown[]) : [];
-  if (slotKeys.length && images.length) {
-    const inferred = Object.fromEntries(
-      slotKeys.map((slotKey, index) => {
-        const image = images[index];
-        return [
-          slotKey,
-          isRecord(image)
-            ? [
-                {
-                  path: typeof image.path === "string" ? image.path : null,
-                  url: typeof image.url === "string" ? image.url : null,
-                },
-              ]
-            : [],
-        ];
-      }),
-    );
-    return inferred as Record<string, unknown>;
-  }
-  return {} as Record<string, unknown>;
-}
-
-function structuredPresetSlotValuesFromAsset(asset?: MediaAsset | null) {
-  const payload = isRecord(asset?.payload) ? (asset?.payload as Record<string, unknown>) : null;
-  if (isRecord(payload?.preset_slot_values)) {
-    return payload?.preset_slot_values as Record<string, unknown>;
-  }
-  return {} as Record<string, unknown>;
 }
 
 function structuredPresetSlotPreviewUrl(
@@ -925,103 +795,6 @@ function inferBlobMimeType(asset: MediaAsset | null | undefined, blob: Blob) {
   return "application/octet-stream";
 }
 
-function pricingOptionValue(value: unknown) {
-  if (value == null) {
-    return "__missing__";
-  }
-  if (typeof value === "boolean") {
-    return value ? "true" : "false";
-  }
-  return String(value).toLowerCase();
-}
-
-function pricingNumber(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-  return null;
-}
-
-function estimateFromPricingSnapshot(
-  pricingSnapshot: Record<string, unknown> | null | undefined,
-  modelKey: string | null | undefined,
-  options: Record<string, unknown>,
-  outputCount: number,
-) {
-  if (!modelKey || !isRecord(pricingSnapshot) || !Array.isArray(pricingSnapshot.rules)) {
-    return { estimatedCredits: null, estimatedCostUsd: null };
-  }
-
-  const rule = pricingSnapshot.rules.find((entry) => isRecord(entry) && entry.model_key === modelKey);
-  if (!isRecord(rule)) {
-    return { estimatedCredits: null, estimatedCostUsd: null };
-  }
-
-  let estimatedCredits = pricingNumber(rule.base_credits);
-  let estimatedCostUsd = pricingNumber(rule.base_cost_usd);
-
-  const multipliers = isRecord(rule.multipliers) ? rule.multipliers : null;
-  if (multipliers) {
-    for (const [optionKey, valueMap] of Object.entries(multipliers)) {
-      if (!isRecord(valueMap)) {
-        continue;
-      }
-      const multiplier = pricingNumber(valueMap[pricingOptionValue(options[optionKey])]);
-      if (multiplier == null) {
-        continue;
-      }
-      if (estimatedCredits != null) {
-        estimatedCredits *= multiplier;
-      }
-      if (estimatedCostUsd != null) {
-        estimatedCostUsd *= multiplier;
-      }
-    }
-  }
-
-  const addersCredits = isRecord(rule.adders_credits) ? rule.adders_credits : null;
-  if (addersCredits) {
-    for (const [optionKey, valueMap] of Object.entries(addersCredits)) {
-      if (!isRecord(valueMap)) {
-        continue;
-      }
-      const creditAdder = pricingNumber(valueMap[pricingOptionValue(options[optionKey])]);
-      if (creditAdder == null) {
-        continue;
-      }
-      estimatedCredits = (estimatedCredits ?? 0) + creditAdder;
-    }
-  }
-
-  const addersCostUsd = isRecord(rule.adders_cost_usd) ? rule.adders_cost_usd : null;
-  if (addersCostUsd) {
-    for (const [optionKey, valueMap] of Object.entries(addersCostUsd)) {
-      if (!isRecord(valueMap)) {
-        continue;
-      }
-      const costAdder = pricingNumber(valueMap[pricingOptionValue(options[optionKey])]);
-      if (costAdder == null) {
-        continue;
-      }
-      estimatedCostUsd = (estimatedCostUsd ?? 0) + costAdder;
-    }
-  }
-
-  const resolvedOutputCount = Math.max(1, outputCount || 1);
-  return {
-    estimatedCredits:
-      estimatedCredits != null ? estimatedCredits * resolvedOutputCount : null,
-    estimatedCostUsd:
-      estimatedCostUsd != null ? estimatedCostUsd * resolvedOutputCount : null,
-  };
-}
-
 function optionBooleanValue(value: unknown) {
   if (typeof value === "boolean") {
     return value;
@@ -1311,18 +1084,6 @@ function studioValidationReady(validation: MediaValidationResponse | null) {
   return READY_MEDIA_VALIDATION_STATES.has(validation.state.toLowerCase());
 }
 
-function backgroundLabel(index: number) {
-  const labels = [
-    "Recent still",
-    "Library frame",
-    "Queued render",
-    "Source image",
-    "Video poster",
-    "Artifact preview",
-  ];
-  return labels[index % labels.length] ?? "Media tile";
-}
-
 function prettifyModelLabel(modelKey: string | null | undefined) {
   if (!modelKey) {
     return "Media";
@@ -1380,170 +1141,6 @@ function batchPhaseMessage(batch: MediaBatch | null | undefined) {
   }
   if (batch.queued_count > 0) {
     return "This batch is queued and waiting for runner capacity.";
-  }
-  return null;
-}
-
-function buildGalleryTiles(
-  assets: MediaAsset[],
-  latestAsset: MediaAsset | null,
-  batches: MediaBatch[],
-  allAssets: MediaAsset[],
-  hasMoreAssets: boolean,
-  allowLatestFallback: boolean,
-): GalleryTile[] {
-  const source = assets.length ? assets : allowLatestFallback && latestAsset ? [latestAsset] : [];
-  const tiles: GalleryTile[] = [];
-
-  for (const batch of batches.slice(0, 3)) {
-    const pendingJobs = (batch.jobs ?? []).filter((job) => ["queued", "submitted", "running", "processing"].includes(job.status));
-    for (const job of pendingJobs) {
-      const previewAsset = allAssets.find((asset) => asset.job_id === job.job_id) ?? null;
-      const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
-      tiles.push({
-        asset: previewAsset,
-        label:
-          job.status === "queued"
-            ? "Queued output"
-            : finalState === "succeeded"
-              ? "Publishing output"
-              : "Processing output",
-        batch,
-        job,
-      });
-    }
-  }
-
-  if (!source.length) {
-    while (tiles.length < 12) {
-      const index = tiles.length;
-      tiles.push({
-        asset: null,
-        label: backgroundLabel(index),
-        batch: null,
-        job: null,
-      });
-    }
-    return tiles;
-  }
-
-  for (const asset of source) {
-    tiles.push({
-      asset,
-      label: backgroundLabel(tiles.length),
-      batch: null,
-      job: null,
-    });
-  }
-
-  while (!hasMoreAssets && tiles.length < 12) {
-    const index = tiles.length;
-    tiles.push({
-      asset: null,
-      label: backgroundLabel(index),
-      batch: null,
-      job: null,
-    });
-  }
-
-  return tiles;
-}
-
-function createOptimisticBatch({
-  modelKey,
-  taskMode,
-  requestedOutputs,
-  sourceAssetId,
-  requestedPresetKey,
-  promptSummary,
-  runningSlotsAvailable,
-}: {
-  modelKey: string;
-  taskMode: string | null;
-  requestedOutputs: number;
-  sourceAssetId: string | number | null;
-  requestedPresetKey: string | null;
-  promptSummary: string;
-  runningSlotsAvailable: number;
-}): MediaBatch {
-  const createdAt = new Date().toISOString();
-  const batchId = `optimistic-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
-  const runningCount = Math.min(Math.max(0, runningSlotsAvailable), requestedOutputs);
-  const queuedCount = Math.max(0, requestedOutputs - runningCount);
-  const jobs: MediaJob[] = Array.from({ length: requestedOutputs }, (_, index) => {
-    const isRunning = index < runningCount;
-    return {
-      job_id: `${batchId}-job-${index + 1}`,
-      batch_id: batchId,
-      batch_index: index + 1,
-      requested_outputs: requestedOutputs,
-      status: isRunning ? "processing" : "queued",
-      queued_at: createdAt,
-      started_at: isRunning ? createdAt : null,
-      finished_at: null,
-      scheduler_attempts: 0,
-      last_polled_at: null,
-      queue_position: isRunning ? null : index - runningCount + 1,
-      model_key: modelKey,
-      task_mode: taskMode,
-      source_asset_id: sourceAssetId,
-      created_at: createdAt,
-      updated_at: createdAt,
-      requested_preset_key: requestedPresetKey,
-    };
-  });
-
-  return {
-    batch_id: batchId,
-    status: runningCount > 0 ? "processing" : "queued",
-    model_key: modelKey,
-    task_mode: taskMode,
-    requested_outputs: requestedOutputs,
-    queued_count: queuedCount,
-    running_count: runningCount,
-    completed_count: 0,
-    failed_count: 0,
-    cancelled_count: 0,
-    source_asset_id: sourceAssetId,
-    requested_preset_key: requestedPresetKey,
-    resolved_preset_key: requestedPresetKey,
-    preset_source: requestedPresetKey ? "db_custom" : null,
-    request_summary: {
-      prompt_summary: promptSummary,
-      output_count: requestedOutputs,
-      optimistic: true,
-    },
-    jobs,
-    created_at: createdAt,
-    updated_at: createdAt,
-    finished_at: null,
-  };
-}
-
-function selectedPromptObjects(selectedPromptIds: string[], prompts: MediaSystemPrompt[]) {
-  const selected = new Set(selectedPromptIds);
-  return prompts.filter((prompt) => selected.has(prompt.prompt_id));
-}
-
-function presetRequirementMessage(
-  preset: MediaPreset | null,
-  attachments: AttachmentRecord[],
-  sourceAsset: MediaAsset | null,
-) {
-  if (!preset) {
-    return null;
-  }
-  const hasImage = Boolean(sourceAsset) || attachments.some((attachment) => attachment.kind === "images");
-  const hasVideo = attachments.some((attachment) => attachment.kind === "videos");
-  const hasAudio = attachments.some((attachment) => attachment.kind === "audios");
-  if (preset.requires_image && !hasImage) {
-    return `The preset ${preset.label} requires at least one image.`;
-  }
-  if (preset.requires_video && !hasVideo) {
-    return `The preset ${preset.label} requires at least one video.`;
-  }
-  if (preset.requires_audio && !hasAudio) {
-    return `The preset ${preset.label} requires at least one audio file.`;
   }
   return null;
 }
@@ -1876,43 +1473,14 @@ export function MediaStudio({
     () => estimateFromPricingSnapshot(pricingSnapshot, modelKey, pricingOptions, outputCount),
     [modelKey, outputCount, pricingOptions, pricingSnapshot],
   );
-  const validationPricingSummary = isRecord(validation?.pricing_summary)
-    ? (validation.pricing_summary as Record<string, unknown>)
-    : isRecord(validation?.preflight?.pricing_summary)
-      ? (validation.preflight.pricing_summary as Record<string, unknown>)
-      : null;
-  const validationPricingTotal = isRecord(validationPricingSummary?.total)
-    ? (validationPricingSummary.total as Record<string, unknown>)
-    : null;
-  const preflightEstimatedCost = isRecord(validation?.preflight?.estimated_cost)
-    ? (validation.preflight.estimated_cost as Record<string, unknown>)
-    : null;
-  const estimatedCreditsValue =
-    validationPricingTotal?.["estimated_credits"] ??
-    localPricingEstimate.estimatedCredits ??
-    validation?.preflight?.estimated_cost_credits ??
-    preflightEstimatedCost?.["estimated_credits"];
-  const estimatedCostUsdValue =
-    validationPricingTotal?.["estimated_cost_usd"] ??
-    localPricingEstimate.estimatedCostUsd ??
-    preflightEstimatedCost?.["estimated_cost_usd"];
-  const estimatedCredits =
-    typeof estimatedCreditsValue === "number"
-      ? `${estimatedCreditsValue.toFixed(estimatedCreditsValue % 1 === 0 ? 0 : 1)}`
-      : typeof estimatedCreditsValue === "string" && estimatedCreditsValue
-        ? estimatedCreditsValue
-        : null;
-  const estimatedCostUsd =
-    typeof estimatedCostUsdValue === "number"
-      ? `$${estimatedCostUsdValue.toFixed(2)}`
-      : typeof estimatedCostUsdValue === "string" && estimatedCostUsdValue
-        ? `$${estimatedCostUsdValue}`
-        : null;
+  const { estimatedCredits, estimatedCostUsd, generatePriceLabel } = useMemo(
+    () => resolveStudioPricingDisplay(validation, localPricingEstimate),
+    [validation, localPricingEstimate],
+  );
   const formattedRemainingCredits =
     typeof remainingCredits === "number"
       ? `${remainingCredits.toFixed(remainingCredits % 1 === 0 ? 0 : 1)}`
       : null;
-  const generatePriceLabel = estimatedCostUsd ?? (estimatedCredits ? `${estimatedCredits} credits` : null);
   const generateButtonLabel =
     busyState === "submit" ? "Generating..." : generatePriceLabel ? `Generate · ${generatePriceLabel}` : "Generate";
 

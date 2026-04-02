@@ -75,7 +75,11 @@ type EnhancementFormState = {
   providerLabel: string;
   providerModelId: string;
   providerApiKey: string;
+  providerApiKeyConfigured: boolean;
+  providerApiKeyTouched: boolean;
   providerBaseUrl: string;
+  providerBaseUrlConfigured: boolean;
+  providerBaseUrlTouched: boolean;
   providerSupportsImages: boolean;
   providerStatus: string;
   providerLastTestedAt: string;
@@ -107,7 +111,11 @@ function emptyEnhancementForm(modelKey: string): EnhancementFormState {
     providerLabel: "",
     providerModelId: "",
     providerApiKey: "",
+    providerApiKeyConfigured: false,
+    providerApiKeyTouched: false,
     providerBaseUrl: "",
+    providerBaseUrlConfigured: false,
+    providerBaseUrlTouched: false,
     providerSupportsImages: false,
     providerStatus: "",
     providerLastTestedAt: "",
@@ -562,13 +570,17 @@ export function MediaModelsConsole({
         providerKind: (globalEnhancementConfig.provider_kind as EnhancementFormState["providerKind"]) ?? "builtin",
         providerLabel: globalEnhancementConfig.provider_label ?? "",
         providerModelId: globalEnhancementConfig.provider_model_id ?? "",
-        providerApiKey: globalEnhancementConfig.provider_api_key ?? "",
-        providerBaseUrl: globalEnhancementConfig.provider_base_url ?? "",
+        providerApiKey: "",
+        providerApiKeyConfigured: Boolean(globalEnhancementConfig.provider_api_key_configured),
+        providerApiKeyTouched: false,
+        providerBaseUrl: "",
+        providerBaseUrlConfigured: Boolean(globalEnhancementConfig.provider_base_url_configured),
+        providerBaseUrlTouched: false,
         providerSupportsImages: globalEnhancementConfig.provider_supports_images ?? false,
         providerStatus: globalEnhancementConfig.provider_status ?? "",
         providerLastTestedAt: globalEnhancementConfig.provider_last_tested_at ?? "",
         providerCapabilities: globalEnhancementConfig.provider_capabilities_json ?? {},
-        providerCredentialSource: "",
+        providerCredentialSource: globalEnhancementConfig.provider_credential_source ?? "",
         systemPrompt: globalEnhancementConfig.system_prompt,
         imageAnalysisPrompt: globalEnhancementConfig.image_analysis_prompt ?? "",
         supportsTextEnhancement: globalEnhancementConfig.supports_text_enhancement,
@@ -623,7 +635,7 @@ export function MediaModelsConsole({
 
   async function saveEnhancementConfig() {
     setIsSaving(true);
-    const payload = {
+    const payload: Record<string, unknown> = {
       model_key: GLOBAL_ENHANCEMENT_CONFIG_KEY,
       label: enhancementForm.label,
       status: enhancementForm.status,
@@ -631,8 +643,6 @@ export function MediaModelsConsole({
       provider_kind: enhancementForm.providerKind,
       provider_label: enhancementForm.providerLabel || null,
       provider_model_id: enhancementForm.providerModelId || null,
-      provider_api_key: enhancementForm.providerApiKey || null,
-      provider_base_url: enhancementForm.providerBaseUrl || null,
       provider_supports_images: enhancementForm.providerSupportsImages,
       provider_status: enhancementForm.providerStatus || null,
       provider_last_tested_at: enhancementForm.providerLastTestedAt || null,
@@ -643,6 +653,12 @@ export function MediaModelsConsole({
       supports_image_analysis: enhancementForm.supportsImageAnalysis,
       notes: enhancementForm.notes || null,
     };
+    if (enhancementForm.providerApiKeyTouched) {
+      payload.provider_api_key = enhancementForm.providerApiKey || null;
+    }
+    if (enhancementForm.providerBaseUrlTouched) {
+      payload.provider_base_url = enhancementForm.providerBaseUrl || null;
+    }
     const endpoint = globalEnhancementConfig
       ? `/api/control/media-enhancement-configs/${GLOBAL_ENHANCEMENT_CONFIG_KEY}`
       : "/api/control/media-enhancement-configs";
@@ -677,8 +693,6 @@ export function MediaModelsConsole({
       provider_kind: existingConfig?.provider_kind ?? "builtin",
       provider_label: existingConfig?.provider_label ?? null,
       provider_model_id: existingConfig?.provider_model_id ?? null,
-      provider_api_key: existingConfig?.provider_api_key ?? null,
-      provider_base_url: existingConfig?.provider_base_url ?? null,
       provider_supports_images: existingConfig?.provider_supports_images ?? false,
       provider_status: existingConfig?.provider_status ?? null,
       provider_last_tested_at: existingConfig?.provider_last_tested_at ?? null,
@@ -716,6 +730,7 @@ export function MediaModelsConsole({
     }
     const payload = {
       provider_kind: providerKind,
+      model_key: GLOBAL_ENHANCEMENT_CONFIG_KEY,
       api_key: enhancementForm.providerApiKey || null,
       base_url:
         providerKind === "local_openai"
@@ -765,6 +780,8 @@ export function MediaModelsConsole({
       providerLastTestedAt: new Date().toISOString(),
       providerCapabilities: recommendedModel?.raw ?? {},
       providerCredentialSource: result.credential_source ?? "",
+      providerApiKeyConfigured: current.providerApiKeyConfigured || Boolean(result.credential_source),
+      providerBaseUrlConfigured: current.providerBaseUrlConfigured || Boolean(current.providerBaseUrl),
     }));
     if (!silent) {
       setMessage({
@@ -1061,17 +1078,32 @@ export function MediaModelsConsole({
                     <div className="max-w-[760px] text-sm leading-6 text-[var(--muted-strong)]">
                       {enhancementForm.providerCredentialSource === "env"
                         ? "Using OPENROUTER_API_KEY from .env."
-                        : "Add an OpenRouter API key here or in .env."}
+                        : enhancementForm.providerCredentialSource === "stored"
+                          ? "Using the saved provider key on the server."
+                          : "Add an OpenRouter API key here or in .env."}
                       {enhancementForm.providerModelId ? ` Selected model: ${enhancementForm.providerModelId}.` : ""}
                     </div>
+                    {enhancementForm.providerApiKeyConfigured ? (
+                      <div className="max-w-[760px] text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-strong)]">
+                        A provider key is already stored. Leave the field blank to keep it, or enter a new key to replace it.
+                      </div>
+                    ) : null}
                     <div className="grid max-w-[760px] gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
                       <AdminInput
                         value={enhancementForm.providerApiKey}
-                        onChange={(event) => setEnhancementForm((current) => ({ ...current, providerApiKey: event.target.value }))}
+                        onChange={(event) =>
+                          setEnhancementForm((current) => ({
+                            ...current,
+                            providerApiKey: event.target.value,
+                            providerApiKeyTouched: true,
+                          }))
+                        }
                         placeholder={
                           enhancementForm.providerCredentialSource === "env"
                             ? "Using OPENROUTER_API_KEY from .env"
-                            : "OpenRouter API key"
+                            : enhancementForm.providerApiKeyConfigured
+                              ? "Stored on the server. Enter a new key to replace it."
+                              : "OpenRouter API key"
                         }
                         className=""
                         type="password"
@@ -1089,8 +1121,18 @@ export function MediaModelsConsole({
                     <div className="grid max-w-[760px] gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                       <AdminInput
                         value={enhancementForm.providerBaseUrl}
-                        onChange={(event) => setEnhancementForm((current) => ({ ...current, providerBaseUrl: event.target.value }))}
-                        placeholder="https://openrouter.ai/api/v1"
+                        onChange={(event) =>
+                          setEnhancementForm((current) => ({
+                            ...current,
+                            providerBaseUrl: event.target.value,
+                            providerBaseUrlTouched: true,
+                          }))
+                        }
+                        placeholder={
+                          enhancementForm.providerBaseUrlConfigured
+                            ? "Stored on the server. Enter a new base URL to replace it."
+                            : "https://openrouter.ai/api/v1"
+                        }
                         className=""
                       />
                       <AdminInput
@@ -1137,14 +1179,34 @@ export function MediaModelsConsole({
                     <div className="grid max-w-[760px] gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
                       <AdminInput
                         value={enhancementForm.providerBaseUrl}
-                        onChange={(event) => setEnhancementForm((current) => ({ ...current, providerBaseUrl: event.target.value }))}
-                        placeholder="http://127.0.0.1:8080/v1"
+                        onChange={(event) =>
+                          setEnhancementForm((current) => ({
+                            ...current,
+                            providerBaseUrl: event.target.value,
+                            providerBaseUrlTouched: true,
+                          }))
+                        }
+                        placeholder={
+                          enhancementForm.providerBaseUrlConfigured
+                            ? "Stored on the server. Enter a new base URL to replace it."
+                            : "http://127.0.0.1:8080/v1"
+                        }
                         className=""
                       />
                       <AdminInput
                         value={enhancementForm.providerApiKey}
-                        onChange={(event) => setEnhancementForm((current) => ({ ...current, providerApiKey: event.target.value }))}
-                        placeholder="Optional API key"
+                        onChange={(event) =>
+                          setEnhancementForm((current) => ({
+                            ...current,
+                            providerApiKey: event.target.value,
+                            providerApiKeyTouched: true,
+                          }))
+                        }
+                        placeholder={
+                          enhancementForm.providerApiKeyConfigured
+                            ? "Stored on the server. Enter a new key to replace it."
+                            : "Optional API key"
+                        }
                         className=""
                       />
                       <AdminButton

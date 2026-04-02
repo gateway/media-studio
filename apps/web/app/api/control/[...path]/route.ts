@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { CONTROL_API_BASE_URL } from "@/lib/control-api";
+import { CONTROL_API_BASE_URL, buildControlApiHeaders } from "@/lib/control-api";
 
 async function proxy(request: NextRequest, params: { path?: string[] }) {
   const segments = params.path || [];
@@ -17,9 +17,10 @@ async function proxy(request: NextRequest, params: { path?: string[] }) {
         ? JSON.stringify(await request.json())
         : await request.text();
 
+  const authMode = request.method === "GET" || request.method === "HEAD" ? "read" : "admin";
   const response = await fetch(target.toString(), {
     method: request.method,
-    headers: contentType ? { "content-type": contentType } : undefined,
+    headers: buildControlApiHeaders(authMode, contentType ? { "content-type": contentType } : undefined),
     body,
     cache: "no-store",
   });

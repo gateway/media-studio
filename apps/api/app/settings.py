@@ -34,6 +34,7 @@ class AppSettings(BaseModel):
     media_poll_seconds: int = 6
     media_pricing_cache_hours: int = 6
     media_studio_supervisor: Optional[str] = None
+    control_api_token: str = "media-studio-local-control-token"
     kie_api_key: Optional[str] = None
     openrouter_api_key: Optional[str] = None
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
@@ -68,6 +69,7 @@ settings = AppSettings(
     media_poll_seconds=int(os.getenv("MEDIA_POLL_SECONDS", "6")),
     media_pricing_cache_hours=int(os.getenv("MEDIA_PRICING_CACHE_HOURS", "6")),
     media_studio_supervisor=os.getenv("MEDIA_STUDIO_SUPERVISOR"),
+    control_api_token=os.getenv("MEDIA_STUDIO_CONTROL_API_TOKEN", "media-studio-local-control-token"),
     kie_api_key=os.getenv("KIE_API_KEY"),
     openrouter_api_key=os.getenv("OPENROUTER_API_KEY"),
     openrouter_base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),

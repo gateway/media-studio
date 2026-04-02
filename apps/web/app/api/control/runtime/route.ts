@@ -3,6 +3,8 @@ import { promisify } from "node:util";
 
 import { NextResponse } from "next/server";
 
+import { isTrustedLocalRequest } from "@/lib/admin-access";
+
 const execFileAsync = promisify(execFile);
 
 type RuntimeService = "api" | "web";
@@ -123,12 +125,20 @@ function scheduleLaunchdRestart(service: RuntimeService) {
   child.unref();
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  if (!isTrustedLocalRequest(url, request.headers)) {
+    return NextResponse.json({ ok: false, error: "Runtime controls require a local operator request." }, { status: 403 });
+  }
   const [api, web] = await Promise.all([detectService("api"), detectService("web")]);
   return NextResponse.json({ ok: true, services: { api, web } });
 }
 
 export async function POST(request: Request) {
+  const url = new URL(request.url);
+  if (!isTrustedLocalRequest(url, request.headers)) {
+    return NextResponse.json({ ok: false, error: "Runtime controls require a local operator request." }, { status: 403 });
+  }
   try {
     const payload = (await request.json()) as { service?: RuntimeService; action?: "restart" };
     const service = payload.service;
