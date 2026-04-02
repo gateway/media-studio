@@ -1,8 +1,8 @@
 # Media Studio
 
-Media Studio is an open-source build-your-own AI image and video studio.
+Media Studio is an open-source AI image and video studio you can run yourself.
 
-It pairs a local Next.js + FastAPI app with the shared Python `kie-api` layer so you can run your own generation workspace instead of relying on another closed monthly creative tool.
+It pairs a local Next.js + FastAPI app with the shared Python `kie-api` layer so you can launch your own generation workspace, keep the product layer under your control, and use KIE's pay-as-you-go model pricing instead of being locked into another hosted monthly tool.
 
 If you want the fastest friend-friendly setup path first:
 
@@ -11,8 +11,8 @@ If you want the fastest friend-friendly setup path first:
 ## Why this exists
 
 - build your own branded image and video workflow instead of renting a generic hosted UI
-- keep the product layer local and flexible while the Python backend handles queueing, jobs, artifacts, and provider integration
-- use KIE for pay-as-you-go generation instead of forcing users into another monthly subscription just to get started
+- keep the app layer local and flexible while the Python backend handles queueing, jobs, artifacts, and provider integration
+- use KIE for highly competitive pay-as-you-go generation instead of forcing users into another monthly subscription just to get started
 - support both image and video creation from one admin and studio surface
 
 In practice, Media Studio is best thought of as your own image/video product shell on top of a real Python generation layer.
