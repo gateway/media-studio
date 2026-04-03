@@ -2,7 +2,9 @@
 
 Media Studio is a local AI artist studio for images and videos.
 
-It gives you a gallery, prompt box, source-image slot, model picker, presets, and local output history in one place. You run the app locally, keep your prompts and outputs on your own machine, and connect it to Kie AI for pay-as-you-go model access.
+It gives you a gallery, prompt box, source-image slot, model picker, presets, and local output history in one place. You run the app locally, keep your prompts and outputs on your own machine, and connect it to [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) for pay-as-you-go model access.
+
+[Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42), pronounced "key AI," is the external AI model marketplace and API platform behind Media Studio. It gives developers access to image, video, music, speech, and LLM models through one provider, and its public pages describe a credit-based pay-as-you-go system instead of a monthly subscription. Current Kie AI pages say entry-level purchases start at $5, and some model pages describe 1,000 credits for $5, with each model consuming its own amount of credits.
 
 ![Media Studio gallery and prompt workspace](docs/images/media-studio.jpg)
 
@@ -12,7 +14,7 @@ If you want the fastest path first:
 
 ## What Is This About?
 
-This repo is for people who want their own image and video studio instead of another closed hosted tool.
+This repo is for people who want their own image and video studio instead of another subscription-hosted tool website.
 
 You run the dashboard locally, connect your own Kie AI key, and get:
 
