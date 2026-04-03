@@ -178,15 +178,15 @@ export default async function SetupPage() {
                 Use one command for your platform.
               </h2>
               <p className="max-w-3xl text-sm leading-7 text-[var(--muted-strong)]">
-                The setup script clones the required KIE API repo, installs the shared Python runtime, creates `.env`,
-                bootstraps the local database, and prompts for required and optional keys.
+                The setup script reuses a supported sibling KIE checkout when present, otherwise it clones the required KIE API repo,
+                installs the shared Python runtime, creates `.env`, bootstraps the local database, and prompts for required and optional keys.
               </p>
             </div>
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
               <div className="rounded-[20px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 p-4">
                 <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">macOS</div>
                 <pre className="mt-3 overflow-x-auto rounded-[16px] border border-[var(--surface-border-soft)] bg-[#0b0e0d] p-4 text-sm leading-7 text-[var(--foreground)]">
-{`git clone <your-media-studio-repo>
+{`git clone https://github.com/gateway/media-studio.git
 cd media-studio
 ./scripts/onboard_mac.sh`}
                 </pre>
@@ -194,7 +194,7 @@ cd media-studio
               <div className="rounded-[20px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 p-4">
                 <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">Windows</div>
                 <pre className="mt-3 overflow-x-auto rounded-[16px] border border-[var(--surface-border-soft)] bg-[#0b0e0d] p-4 text-sm leading-7 text-[var(--foreground)]">
-{`git clone <your-media-studio-repo>
+{`git clone https://github.com/gateway/media-studio.git
 cd media-studio
 powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
                 </pre>
@@ -268,7 +268,7 @@ powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
             <div className="mt-4 space-y-3 text-sm leading-7 text-[var(--muted-strong)]">
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" />
-                <span>Clones `gateway/kie-api` if it is missing.</span>
+                <span>Reuses a sibling KIE checkout or clones `gateway/kie-api` when none exists.</span>
               </div>
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" />

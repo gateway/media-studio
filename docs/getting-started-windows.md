@@ -13,7 +13,7 @@ Make sure these are available in PowerShell:
 ## 2. Clone Media Studio
 
 ```powershell
-git clone <your-media-studio-repo>
+git clone https://github.com/gateway/media-studio.git
 cd media-studio
 ```
 
@@ -25,7 +25,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\onboard_windows.ps1
 
 The script will:
 
-- clone `gateway/kie-api` beside this repo if it is missing
+- reuse an existing sibling `../kie-api` or `../kie-ai/kie_codex_bootstrap` checkout when present
+- clone `gateway/kie-api` beside this repo if no supported sibling checkout exists
 - create or reuse the shared Python virtualenv
 - install Python and web dependencies
 - create `.env` if it does not exist

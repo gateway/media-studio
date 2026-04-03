@@ -43,7 +43,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\onboard_windows.ps1
 
 Those scripts will:
 
-- clone the required `gateway/kie-api` repo if needed
+- reuse an existing sibling `../kie-api` or `../kie-ai/kie_codex_bootstrap` checkout when present
+- clone the required `gateway/kie-api` repo if no supported sibling checkout exists
 - create the shared Python virtualenv
 - install API and web dependencies
 - create `.env`
@@ -92,7 +93,7 @@ Then open:
 
 ## If you want more detail
 
-- [README.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/README.md)
-- [docs/getting-started-mac.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/getting-started-mac.md)
-- [docs/getting-started-windows.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/getting-started-windows.md)
-- [docs/runtime-and-supervision.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/runtime-and-supervision.md)
+- [README.md](README.md)
+- [docs/getting-started-mac.md](docs/getting-started-mac.md)
+- [docs/getting-started-windows.md](docs/getting-started-windows.md)
+- [docs/runtime-and-supervision.md](docs/runtime-and-supervision.md)

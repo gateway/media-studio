@@ -4,14 +4,22 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MEDIA_ROOT="${MEDIA_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 KIE_REPO_URL="${KIE_REPO_URL:-https://github.com/gateway/kie-api.git}"
-KIE_ROOT="${KIE_ROOT:-${MEDIA_STUDIO_KIE_API_REPO_PATH:-$MEDIA_ROOT/../kie-api}}"
+DEFAULT_KIE_ROOT="$MEDIA_ROOT/../kie-api"
+LEGACY_KIE_ROOT="$MEDIA_ROOT/../kie-ai/kie_codex_bootstrap"
+if [[ -d "$DEFAULT_KIE_ROOT" ]]; then
+  KIE_ROOT="${KIE_ROOT:-${MEDIA_STUDIO_KIE_API_REPO_PATH:-$DEFAULT_KIE_ROOT}}"
+elif [[ -d "$LEGACY_KIE_ROOT" ]]; then
+  KIE_ROOT="${KIE_ROOT:-${MEDIA_STUDIO_KIE_API_REPO_PATH:-$LEGACY_KIE_ROOT}}"
+else
+  KIE_ROOT="${KIE_ROOT:-${MEDIA_STUDIO_KIE_API_REPO_PATH:-$DEFAULT_KIE_ROOT}}"
+fi
 VENV_PY="$KIE_ROOT/.venv/bin/python"
 VENV_PIP="$KIE_ROOT/.venv/bin/pip"
 
 echo "Media Studio root: $MEDIA_ROOT"
 echo "KIE repo path: $KIE_ROOT"
 
-if [[ ! -d "$KIE_ROOT/.git" ]]; then
+if [[ ! -d "$KIE_ROOT/.git" && ! -f "$KIE_ROOT/pyproject.toml" ]]; then
   echo "Cloning KIE API repo from $KIE_REPO_URL ..."
   git clone "$KIE_REPO_URL" "$KIE_ROOT"
 fi
@@ -36,6 +44,9 @@ if [[ ! -f "$MEDIA_ROOT/.env" ]]; then
   cat > "$MEDIA_ROOT/.env" <<EOF
 NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL=http://127.0.0.1:8000
 MEDIA_STUDIO_CONTROL_API_BASE_URL=http://127.0.0.1:8000
+MEDIA_STUDIO_CONTROL_API_TOKEN=media-studio-local-control-token
+MEDIA_STUDIO_ADMIN_USERNAME=
+MEDIA_STUDIO_ADMIN_PASSWORD=
 MEDIA_STUDIO_API_HOST=127.0.0.1
 MEDIA_STUDIO_API_PORT=8000
 MEDIA_STUDIO_DB_PATH=$MEDIA_ROOT/data/media-studio.db

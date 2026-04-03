@@ -227,6 +227,44 @@ def test_validate_and_submit_job(client) -> None:
     assert len(payload["jobs"]) == 2
 
 
+def test_single_batch_endpoint_includes_jobs(client) -> None:
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "Batch detail contract check.",
+            "output_count": 2,
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    payload = submit_response.json()
+    batch_id = payload["batch"]["batch_id"]
+
+    detail_response = client.get(f"/media/batches/{batch_id}")
+    assert detail_response.status_code == 200, detail_response.text
+    detail = detail_response.json()
+    assert detail["batch_id"] == batch_id
+    assert len(detail["jobs"]) == 2
+    assert {job["job_id"] for job in detail["jobs"]} == {job["job_id"] for job in payload["jobs"]}
+
+
+def test_publish_artifact_normalizes_image_extension(app_modules, tmp_path) -> None:
+    service = app_modules["service"]
+    image_path = tmp_path / "output.bin"
+    image_path.write_bytes(b"\xff\xd8\xff\xe0" + b"test-image-payload")
+
+    normalized = service._normalized_output_source_path(  # type: ignore[attr-defined]
+        {"model_key": "nano-banana-2", "task_mode": "text_to_image"},
+        image_path,
+        None,
+    )
+
+    assert normalized.suffix == ".jpg"
+    assert normalized.exists()
+    assert not image_path.exists()
+
+
 def test_validate_response_includes_total_pricing_summary(client) -> None:
     response = client.post(
         "/media/validate",

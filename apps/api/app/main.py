@@ -438,7 +438,8 @@ def get_batch(batch_id: str):
     batch = store.get_batch(batch_id)
     if not batch:
         raise _not_found("batch")
-    return BatchRecord(**batch)
+    jobs = store.list_jobs_for_batches([batch_id])
+    return BatchRecord(**{**batch, "jobs": jobs})
 
 
 @app.post("/media/batches/{batch_id}/cancel", response_model=BatchRecord)

@@ -14,7 +14,7 @@ This repo is designed first for a strong localhost workflow, not for dropping a 
 
 If you want the fastest friend-friendly setup path first:
 
-- [START_HERE.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/START_HERE.md)
+- [START_HERE.md](START_HERE.md)
 
 ## Why this exists
 
@@ -67,9 +67,10 @@ docs/
 
 ## Local development
 
-This repo is intended to work alongside a sibling local `kie-api` checkout, usually:
+This repo is intended to work alongside a sibling local KIE checkout, usually:
 
-`../kie-api`
+- `../kie-api`
+- `../kie-ai/kie_codex_bootstrap` for existing legacy workspaces
 
 The API uses the shared `kie-api` virtualenv. No second Python venv is required.
 
@@ -140,7 +141,8 @@ cd /absolute/path/to/media-studio
 
 That script will:
 
-- clone `https://github.com/gateway/kie-api.git` into `../kie-api` if it is missing
+- reuse an existing sibling `../kie-api` or `../kie-ai/kie_codex_bootstrap` checkout when present
+- clone `https://github.com/gateway/kie-api.git` into `../kie-api` when no supported sibling checkout exists
 - create the shared KIE virtualenv if it does not exist
 - install both `kie-api` and the Media Studio API into that venv
 - install web dependencies
@@ -174,6 +176,10 @@ npm run dev:web
 
 Web defaults to `http://127.0.0.1:3000`.
 API defaults to `http://127.0.0.1:8000`.
+
+Direct programmatic requests to `/media/*` require the internal control token header.
+Write operations also require `x-media-studio-access-mode: admin`.
+The browser routes set those automatically for normal localhost use.
 
 If you want live provider submit/poll behavior, export:
 
@@ -230,15 +236,6 @@ This now includes a repo hygiene check that fails if tracked files include local
 files, runtime databases, logs, certificates, or local artifact folders that should stay
 developer-only.
 
-## Repository hygiene
-
-Keep the repo public-safe:
-
-- commit code, docs, schema, migrations, and example config like `.env.example`
-- do not commit live API keys, local `.env` files, runtime SQLite files, uploaded media,
-  downloads, outputs, or local logs
-- keep local runtime state under `data/`, `output/`, `tmp/`, or other ignored paths
-- if a new tool writes local artifacts, add that path to `.gitignore` before pushing
 
 ## Current status
 

@@ -37,9 +37,12 @@ function Ensure-EnvFile {
     return
   }
 
-  $envTemplate = @"
+$envTemplate = @"
 NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL=http://127.0.0.1:8000
 MEDIA_STUDIO_CONTROL_API_BASE_URL=http://127.0.0.1:8000
+MEDIA_STUDIO_CONTROL_API_TOKEN=media-studio-local-control-token
+MEDIA_STUDIO_ADMIN_USERNAME=
+MEDIA_STUDIO_ADMIN_PASSWORD=
 MEDIA_STUDIO_API_HOST=127.0.0.1
 MEDIA_STUDIO_API_PORT=8000
 MEDIA_STUDIO_DB_PATH=$(Join-Path $MediaRoot "data\media-studio.db")
@@ -147,7 +150,7 @@ Write-Host " - create .env and a clean local database"
 Write-Host " - prompt for your KIE API key and optional enhancement providers"
 Write-Host ""
 
-if (-not (Test-Path (Join-Path $KieRoot ".git"))) {
+if ((-not (Test-Path (Join-Path $KieRoot ".git"))) -and (-not (Test-Path (Join-Path $KieRoot "pyproject.toml")))) {
   Write-Host "Cloning KIE API repo from $KieRepoUrl ..."
   git clone $KieRepoUrl $KieRoot
 }

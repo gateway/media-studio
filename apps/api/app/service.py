@@ -595,6 +595,22 @@ def _normalized_output_source_path(job: Dict[str, Any], output_path: Path, remot
         if not normalized.exists():
             output_path.replace(normalized)
         return normalized
+    if output_kind == "image" and output_path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
+        extension = ".jpg"
+        try:
+            header = output_path.read_bytes()[:32]
+        except OSError:
+            header = b""
+        if header.startswith(b"\x89PNG\r\n\x1a\n"):
+            extension = ".png"
+        elif header.startswith(b"RIFF") and b"WEBP" in header[:16]:
+            extension = ".webp"
+        elif header.startswith((b"GIF87a", b"GIF89a")):
+            extension = ".gif"
+        normalized = output_path.with_suffix(extension)
+        if not normalized.exists():
+            output_path.replace(normalized)
+        return normalized
     return output_path
 
 
