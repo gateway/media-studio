@@ -4,7 +4,7 @@ Media Studio is a local AI artist studio for images and videos.
 
 It gives you a gallery, prompt box, source-image slot, model picker, presets, and local output history in one place. You run the app locally, keep your prompts and outputs on your own machine, and connect it to Kie AI for pay-as-you-go model access.
 
-![Media Studio gallery and prompt workspace](docs/images/studio-gallery.png)
+![Media Studio gallery and prompt workspace](docs/images/media-studio.jpg)
 
 If you want the fastest path first:
 
