@@ -1,282 +1,276 @@
 # Media Studio
 
-Media Studio is an open-source AI image and video studio you can run yourself.
+Media Studio is a local AI artist studio for images and videos.
 
-It pairs a local Next.js + FastAPI dashboard with the shared Python `kie-api` layer so you can launch your own generation workspace, keep the product layer under your control, and use KIE's pay-as-you-go model pricing instead of being locked into another hosted monthly tool.
+It gives you a gallery, prompt box, source-image slot, model picker, presets, and local output history in one place. You run the app locally, keep your prompts and outputs on your own machine, and connect it to Kie AI for pay-as-you-go model access.
 
-Think of it as a build-your-own image and video product shell:
-- your own local dashboard
-- your own presets, prompts, queue, and job history
-- a real Python generation layer underneath
-- pay-as-you-go model access through KIE
+![Media Studio gallery and prompt workspace](docs/images/studio-gallery.png)
 
-This repo is designed first for a strong localhost workflow, not for dropping a generic public website on a server.
-
-If you want the fastest friend-friendly setup path first:
+If you want the fastest path first:
 
 - [START_HERE.md](START_HERE.md)
 
-## Why this exists
+## What Is This About?
 
-- build your own branded image and video workflow instead of renting a generic hosted UI
-- keep the app layer local and flexible while the Python backend handles queueing, jobs, artifacts, and provider integration
-- use KIE for highly competitive pay-as-you-go generation instead of forcing users into another monthly subscription just to get started
-- support both image and video creation from one admin and studio surface
+This repo is for people who want their own image and video studio instead of another closed hosted tool.
 
-In practice, Media Studio is best thought of as your own local image/video control room on top of a real Python generation layer.
+You run the dashboard locally, connect your own Kie AI key, and get:
 
-## Pricing model
+- your own gallery-style studio UI
+- your own presets and prompt workflows
+- your own queue, jobs, and output history
+- your own local files and artifacts
 
-Media Studio itself is the local product layer. For live generation, it connects to KIE through the shared Python/backend integration.
+It is local-first by design. It is not trying to be a one-click hosted SaaS template.
 
-Why that matters:
+Important: the dashboard and queue run locally, but the image and video models do not run on your machine. Media Studio sends generation jobs to Kie AI, which is the external model marketplace and provider used for live generation.
 
-- KIE documents a credit-based model with no required subscription
-- KIE's getting-started docs say pricing is typically lower than official APIs, while the exact numbers can change over time
-- many creator-facing tools still lead with monthly plans, so Media Studio gives you a cleaner pay-as-you-go path if you want your own stack
+## Why Was It Built?
 
-Always use the current KIE pricing page before making cost promises:
+Most AI media tools make you rent the whole product just to access the models.
 
-- [KIE API key and pricing via our referral link](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
+Media Studio was built to make that layer yours instead:
 
-The dashboard pricing flow is built around three layers:
+- the app and workflow stay under your control
+- the backend is real Python, not a toy mock layer
+- the pricing stays usage-based through Kie AI
+- image and video generation live in one place
 
-- pricing catalog: `GET /media/pricing` returns the normalized KIE pricing snapshot used by the dashboard
-- request estimate: `POST /media/pricing/estimate` returns the resolved prompt, options, and total estimated credits/USD for the exact request
-- submit gate: `POST /media/validate` and job submission both carry the same pricing summary so the number shown in the Studio stays aligned with the server-side calculation
+## What Does It Use Under the Hood?
 
-In the Studio UI, the `Generate` button now displays the current estimated total. If a model option changes pricing, the button label updates with it.
-The admin UI also exposes a dedicated `/pricing` page and shows the saved estimate snapshot for each batch on `/jobs`.
+- `Next.js` for the dashboard and browser-facing routes
+- `FastAPI` for the local control API
+- `SQLite` for jobs, batches, presets, queue state, and local metadata
+- `kie-api` for model registry, request validation, pricing, submit, polling, and artifacts
+- local filesystem storage for uploads, downloads, and generated outputs
 
-## Structure
+The main repo layout is:
 
 ```text
 apps/
-  api/   FastAPI backend, SQLite queue, filesystem artifacts, KIE adapter
-  web/   Next.js frontend and browser proxy routes
+  api/   FastAPI backend
+  web/   Next.js frontend
 packages/
-  provider-adapter/  shared notes and future adapter extraction seam
-  shared-types/      shared contract space for web/api types
-data/
-  uploads/
-  downloads/
-  outputs/
+  provider-adapter/
+  shared-types/
 scripts/
 docs/
+data/
 ```
 
-## Local development
+## What Provider Are We Using?
 
-This repo is intended to work alongside a sibling local KIE checkout, usually:
+Right now the live generation path is Kie AI, pronounced "key AI."
 
-- `../kie-api`
-- `../kie-ai/kie_codex_bootstrap` for existing legacy workspaces
+That means:
 
-The API uses the shared `kie-api` virtualenv. No second Python venv is required.
+- you bring your own `KIE_API_KEY`
+- Media Studio uses the shared `kie-api` layer to talk to Kie AI
+- pricing, validation, and request normalization are driven from the Kie AI-backed registry
+- the models are executed remotely through Kie AI, not locally on your Mac, Linux box, or Windows machine
 
-Upstream KIE repository:
+Kie AI is the model marketplace behind the app. It uses a credit-based, pay-as-you-go system instead of a monthly subscription.
 
-- [gateway/kie-api](https://github.com/gateway/kie-api)
+As of April 3, 2026, Kie AI pages describe entry-level credit purchases starting at $5, and some current model pages cite 1,000 credits for $5. Different models consume different amounts of credits, so image and video jobs do not all cost the same. Check the provider site before making pricing promises, because Kie AI can change packs and pricing over time.
 
-KIE API key sign-up link:
+Get your Kie AI key here:
 
-- [kie.ai referral](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
+- [kie.ai](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
 
-## Quickstart for macOS
+## How Does The System Work?
+
+At a high level, the system works like this:
+
+- you browse the gallery and open the Studio composer
+- you choose a model, add a prompt, and optionally attach a source image
+- you can use a preset to fill in a repeatable workflow instead of starting from scratch
+- the local app validates and stores the job
+- Kie AI runs the model remotely and sends back the result
+- the finished output lands back in your gallery and local files
+
+That is the main idea: local studio experience, remote model execution, local history.
+
+## What Models Are In The Studio Right Now?
+
+Current image models:
+
+- `nano-banana-2`
+  General image generation and image editing. This is the default image model in the Studio.
+- `nano-banana-pro`
+  Higher-end Nano Banana variant for image generation and image editing.
+
+Current video models:
+
+- `kling-2.6-t2v`
+  Text-to-video generation from a prompt only.
+- `kling-2.6-i2v`
+  Image-to-video generation from a single starting image.
+- `kling-3.0-t2v`
+  Newer Kling text-to-video flow.
+- `kling-3.0-i2v`
+  Newer Kling image-to-video flow, including first/last-frame style input handling in the Studio.
+- `kling-3.0-motion`
+  Motion-control workflow for guiding video movement from source media.
+
+The exact pricing and request rules can change over time, so the app also exposes:
+
+- `/pricing` in the dashboard
+- `GET /media/pricing` in the control API
+
+## Nano Banana And Presets
+
+Nano Banana is the core image workflow in the Studio right now.
+
+The app currently ships with:
+
+- `nano-banana-2` as the default image model
+- `nano-banana-pro` as the higher-end image variant
+- shared built-in Nano Banana presets to show how guided image workflows work out of the box
+
+The preset system is one of the best parts of the product.
+
+A preset is not just a saved prompt. A preset can define:
+
+- which models it applies to
+- a reusable prompt template
+- structured text inputs like names, characters, scenes, or style fields
+- required image slots such as a portrait or reference image
+- default options that should be applied automatically
+- thumbnails, notes, and model-specific guidance
+
+That means you can build repeatable workflows instead of rewriting the same prompt every time.
+
+In practice, presets make the studio feel more like a small creative tool than a raw API front end.
+
+Examples already seeded into the app:
+
+- `3D Caricature Style`
+  Upload a portrait and turn it into a stylized 3D caricature.
+- `Selfie with Movie Character`
+  Upload your photo, add an actor and movie name, and generate a guided selfie-style composition.
+
+## How Do I Set This Up Quickly?
+
+Minimum requirements:
+
+- `git`
+- `python3`
+- `npm`
+- `KIE_API_KEY` from Kie AI
+
+### macOS
 
 ```bash
-cd /absolute/path/to/media-studio
+git clone https://github.com/gateway/media-studio.git
+cd media-studio
 ./scripts/onboard_mac.sh
 ```
 
-That onboarding path:
+That script:
 
-- bootstraps the local repo and shared `kie-api` dependency
-- creates `.env` and a clean local database
+- clones or reuses the shared `kie-api` repo
+- creates the shared Python virtualenv
+- installs Python and web dependencies
+- creates `.env`
+- creates a clean local database
 - prompts for `KIE_API_KEY`
-- prompts for optional `OPENROUTER_API_KEY`
-- offers to open the API and web processes in Terminal
 
-Required for live generation:
-
-- `KIE_API_KEY`
-
-Optional:
-
-- `OPENROUTER_API_KEY`
-- `MEDIA_LOCAL_OPENAI_BASE_URL`
-- `MEDIA_LOCAL_OPENAI_API_KEY`
-- `MEDIA_STUDIO_ADMIN_USERNAME` and `MEDIA_STUDIO_ADMIN_PASSWORD`
-  Recommended if you want browser access beyond localhost.
-
-Detailed guide:
-
-- [docs/getting-started-mac.md](docs/getting-started-mac.md)
-
-## Quickstart for Windows
-
-```powershell
-cd C:\absolute\path\to\media-studio
-powershell -ExecutionPolicy Bypass -File .\scripts\onboard_windows.ps1
-```
-
-That onboarding path:
-
-- bootstraps the local repo and shared `kie-api` dependency
-- creates `.env` and a clean local database
-- prompts for `KIE_API_KEY`
-- prompts for optional `OPENROUTER_API_KEY`
-- offers to open the API and web processes in PowerShell
-
-Detailed guide:
-
-- [docs/getting-started-windows.md](docs/getting-started-windows.md)
-
-## One-command local bootstrap
-
-```bash
-cd /absolute/path/to/media-studio
-./scripts/bootstrap_local.sh
-```
-
-That script will:
-
-- reuse an existing sibling `../kie-api` or `../kie-ai/kie_codex_bootstrap` checkout when present
-- clone `https://github.com/gateway/kie-api.git` into `../kie-api` when no supported sibling checkout exists
-- create the shared KIE virtualenv if it does not exist
-- install both `kie-api` and the Media Studio API into that venv
-- install web dependencies
-- create local data folders
-- create `.env` if it is missing
-- bootstrap an empty SQLite schema
-
-The database starts empty. The schema is created automatically, but no user jobs/assets are preloaded.
-
-## Existing local setup
-
-```bash
-cd /absolute/path/to/media-studio
-./scripts/setup_shared_env.sh
-npm install
-```
-
-## Run
-
-API:
+Then run:
 
 ```bash
 npm run dev:api
-```
-
-Web:
-
-```bash
 npm run dev:web
 ```
 
-Web defaults to `http://127.0.0.1:3000`.
-API defaults to `http://127.0.0.1:8000`.
+Open:
 
-Direct programmatic requests to `/media/*` require the internal control token header.
-Write operations also require `x-media-studio-access-mode: admin`.
-The browser routes set those automatically for normal localhost use.
+- `http://127.0.0.1:3000/setup`
+- `http://127.0.0.1:3000/studio`
 
-If you want live provider submit/poll behavior, export:
+The first real step to use the models is simple:
 
-```bash
-export KIE_API_KEY=...
-export MEDIA_ENABLE_LIVE_SUBMIT=true
-```
+- create a Kie AI account and get your `KIE_API_KEY`
+- add that key during setup
+- start the API and web app
+- open `/studio`
+- choose a model or preset
+- submit your first job
 
-Get a KIE API key here:
+The shortest version is:
 
-- [kie.ai referral](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
+1. Get a Kie AI key.
+2. Run the setup script.
+3. Open the Studio.
+4. Pick a model.
+5. Prompt and generate.
 
-Then restart the API process.
+### Linux
 
-If you want prompt enhancement through hosted or local external models, set:
-
-```bash
-export OPENROUTER_API_KEY=...
-export OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-export MEDIA_LOCAL_OPENAI_BASE_URL=http://127.0.0.1:8080/v1
-export MEDIA_LOCAL_OPENAI_API_KEY=
-```
-
-`OpenRouter.ai` and `Local OpenAI-Compatible` are configured from the Settings page under Prompt Enhancement.
-
-## Supervised Runtime
-
-For restartable runtime outside active coding sessions, use a supervisor instead of leaving terminal commands running forever.
-
-Supported examples are documented in:
-
-- [`docs/runtime-and-supervision.md`](docs/runtime-and-supervision.md)
-
-Included example configs:
-
-- `pm2`
-- `systemd`
-- `launchd`
-- `supervisord`
-
-Production-style API startup without `--reload`:
+The macOS installer is macOS-only. For Linux, use the shared bootstrap directly:
 
 ```bash
-npm run start:api
-```
-
-## Quality gates
-
-```bash
-./scripts/run-quality-gates
-```
-
-This now includes a repo hygiene check that fails if tracked files include local `.env`
-files, runtime databases, logs, certificates, or local artifact folders that should stay
-developer-only.
-
-
-## Current status
-
-Standalone Media Studio is bootstrapped with:
-
-- FastAPI backend
-- SQLite queue/job/asset store
-- in-process runner with recovery and offline completion mode
-- KIE adapter boundary
-- Next.js Studio, Models, and Jobs routes
-- same-origin `/api/control/*` proxy routes
-
-## Fresh database
-
-For a clean local reset:
-
-```bash
-rm -f data/media-studio.db data/media-studio.sqlite
+git clone https://github.com/gateway/media-studio.git
+cd media-studio
 ./scripts/bootstrap_local.sh
 ```
 
-That recreates an empty schema without carrying over old local jobs/assets.
-
-## Backups and clean databases
-
-The repo should not carry a committed SQLite database. The source of truth for schema and
-default seed data is the API bootstrap code in `apps/api/app/store.py`, and tests use temporary databases.
-
-Before resetting local state, make an ignored backup copy:
+Then add your `KIE_API_KEY` to `.env` and run:
 
 ```bash
-./scripts/backup_db.sh
+npm run dev:api
+npm run dev:web
 ```
 
-That writes a timestamped backup under `data/backups/`.
+### Windows
 
-If you need a clean database file with schema and default rows only, generate one explicitly:
-
-```bash
-./scripts/create_clean_db.sh --output ./data/backups/media-studio-clean.sqlite --overwrite
+```powershell
+git clone https://github.com/gateway/media-studio.git
+cd media-studio
+powershell -ExecutionPolicy Bypass -File .\scripts\onboard_windows.ps1
 ```
 
-That clean DB contains schema, queue defaults, and seeded shared presets, but no local jobs,
-assets, downloads, or test/runtime history.
+Detailed setup docs:
+
+- [docs/getting-started-mac.md](docs/getting-started-mac.md)
+- [docs/getting-started-windows.md](docs/getting-started-windows.md)
+
+## Prompt Enhancement
+
+Prompt enhancement is optional.
+
+You can use Media Studio with only `KIE_API_KEY` and nothing else.
+
+If you want prompt rewriting or enhancement before generation, you can also configure:
+
+- `OPENROUTER_API_KEY` for hosted prompt enhancement
+- `MEDIA_LOCAL_OPENAI_BASE_URL` for a local OpenAI-compatible endpoint
+- `MEDIA_LOCAL_OPENAI_API_KEY` if that local endpoint requires auth
+
+By default, the OpenRouter enhancement path is wired to `qwen/qwen3.5-35b-a3b`, and the enhancement layer can also work with supported multimodal models when you want image-aware prompt help.
+
+These are helpers for prompt quality. They are not required for the core image or video generation flow.
+
+## Miscellaneous Things To Know
+
+- The app is local-first and works best as a localhost studio.
+- The shared Python runtime lives in the sibling `kie-api` checkout, so Media Studio does not need its own separate Python venv.
+- The setup flow supports both `../kie-api` and legacy `../kie-ai/kie_codex_bootstrap` layouts.
+- If you skip `KIE_API_KEY` during setup, the app still installs, but live generation stays off until you add the key.
+- The local app stores prompts, jobs, and output files on your machine, but the actual model generation happens through Kie AI.
+- Runtime files such as databases, downloads, uploads, and outputs stay local and should not be committed.
+
+For deeper runtime details:
+
+- [docs/runtime-and-supervision.md](docs/runtime-and-supervision.md)
+
+## Start Here
+
+If you are a person setting this up for the first time:
+
+- [START_HERE.md](START_HERE.md)
+
+If you are pointing an LLM or another helper at the project and want the fastest onboarding context:
+
+- [START_HERE.md](START_HERE.md)
+- [docs/getting-started-mac.md](docs/getting-started-mac.md)
+- [docs/runtime-and-supervision.md](docs/runtime-and-supervision.md)

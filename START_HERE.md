@@ -2,24 +2,28 @@
 
 This is the fastest way to get `media-studio` running for the first time.
 
-Media Studio is a local Next.js + FastAPI app that sits on top of the shared Python `kie-api` layer. It gives you your own image and video generation dashboard instead of another closed hosted UI, and it uses KIE for pay-as-you-go generation.
+Media Studio is a local Next.js + FastAPI app that sits on top of the shared Python `kie-api` layer. It gives you your own image and video generation dashboard instead of another closed hosted UI, and it uses Kie AI for pay-as-you-go generation.
 
 The shortest way to think about it:
 - local dashboard
 - shared Python generation backend
 - your own prompts, presets, queue, and outputs
-- pay-as-you-go model usage through KIE
+- pay-as-you-go model usage through Kie AI
 
 ## What you need
 
 - `git`
 - `python`
 - `npm`
-- a `KIE_API_KEY` for live generation
+- a `KIE_API_KEY` for live generation through Kie AI
 
-Get a KIE API key here:
+Kie AI, pronounced "key AI," is the external model marketplace and provider used by Media Studio. The models do not run on your machine. The app runs locally, but live image and video jobs are sent to Kie AI.
 
-- [kie.ai via our referral link](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
+Kie AI uses a credit-based pay-as-you-go system. As of April 3, 2026, Kie AI pages describe entry-level credit purchases starting at $5, and some current model pages cite 1,000 credits for $5. Each model has its own credit usage, so different image and video jobs cost different amounts.
+
+Get a Kie AI key here:
+
+- [kie.ai](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
 
 ## Fastest setup
 
@@ -53,6 +57,12 @@ Those scripts will:
 - optionally prompt for OpenRouter or a local OpenAI-compatible endpoint
 
 If you skip the KIE key during setup, Media Studio still installs cleanly, but live generation stays off until you add it.
+
+## First step to use the models
+
+The first real step is to get and add a valid `KIE_API_KEY`.
+
+Without that key, the app can install and open, but it will stay in offline-safe mode and will not submit live image or video jobs.
 
 ## After setup
 
