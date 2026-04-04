@@ -52,6 +52,8 @@ MEDIA_STUDIO_ADMIN_USERNAME=
 MEDIA_STUDIO_ADMIN_PASSWORD=
 MEDIA_STUDIO_API_HOST=127.0.0.1
 MEDIA_STUDIO_API_PORT=8000
+MEDIA_STUDIO_WEB_HOST=127.0.0.1
+MEDIA_STUDIO_WEB_PORT=3000
 MEDIA_STUDIO_DB_PATH=$MEDIA_ROOT/data/media-studio.db
 MEDIA_STUDIO_DATA_ROOT=$MEDIA_ROOT/data
 MEDIA_STUDIO_KIE_API_REPO_PATH=$KIE_ROOT
@@ -91,4 +93,4 @@ PY
 echo
 echo "Bootstrap complete."
 echo "Run the API with:  npm run dev:api"
-echo "Run the web with:  npm run dev:web"
+echo "Run the web with:  ./scripts/dev_web.sh"

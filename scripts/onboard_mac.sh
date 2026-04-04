@@ -11,6 +11,16 @@ ENV_FILE="$MEDIA_ROOT/.env"
 require_command() {
   local cmd="$1"
   if ! command -v "$cmd" >/dev/null 2>&1; then
+    if [[ "$cmd" == "npm" ]]; then
+      echo "Missing required command: npm" >&2
+      echo "Install Node.js LTS from https://nodejs.org, then reopen Terminal and rerun this script." >&2
+      exit 1
+    fi
+    if [[ "$cmd" == "git" ]]; then
+      echo "Missing required command: git" >&2
+      echo "On macOS, run: xcode-select --install" >&2
+      exit 1
+    fi
     echo "Missing required command: $cmd" >&2
     exit 1
   fi
@@ -84,6 +94,16 @@ end tell
 OSA
 }
 
+web_port() {
+  local value
+  value="$(env_value MEDIA_STUDIO_WEB_PORT)"
+  if [[ -n "$value" ]]; then
+    echo "$value"
+  else
+    echo "3000"
+  fi
+}
+
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "This onboarding flow is tuned for macOS. Use ./scripts/bootstrap_local.sh on other platforms." >&2
   exit 1
@@ -96,6 +116,10 @@ require_command npm
 echo
 echo "Media Studio macOS onboarding"
 echo "Workspace: $MEDIA_ROOT"
+echo
+echo "Prerequisites:"
+echo " - Git"
+echo " - Node.js LTS (includes npm)"
 echo
 echo "This script will:"
 echo " - bootstrap the shared KIE API dependency"
@@ -148,13 +172,13 @@ echo " - Local OpenAI base URL: $(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
 echo
 echo "Next commands"
 echo " - API: npm run dev:api"
-echo " - Web: npm run dev:web"
-echo " - Setup page: http://127.0.0.1:3000/setup"
+echo " - Web: ./scripts/dev_web.sh"
+echo " - App: http://127.0.0.1:$(web_port)/"
 echo
 
 read -r -p "Open the API and web commands in new Terminal windows now? [y/N]: " launch_now
 if [[ "$launch_now" =~ ^[Yy]$ ]]; then
   open_terminal_command "npm run dev:api"
-  open_terminal_command "npm run dev:web"
+  open_terminal_command "./scripts/dev_web.sh"
   echo "Opening Terminal windows for the API and web app."
 fi

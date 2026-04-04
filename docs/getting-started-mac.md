@@ -2,6 +2,23 @@
 
 Use this path if you want a clean first-run setup with the required KIE API dependency and local database created for you.
 
+## Prerequisites
+
+Before you start, make sure this Mac has:
+
+- Git
+- Node.js **LTS**
+
+If Git is missing, run:
+
+```bash
+xcode-select --install
+```
+
+If Node.js is missing, install the **LTS** release from:
+
+- [nodejs.org](https://nodejs.org)
+
 ## 1. Clone Media Studio
 
 ```bash
@@ -51,13 +68,22 @@ Manual start commands:
 
 ```bash
 npm run dev:api
-npm run dev:web
+./scripts/dev_web.sh
 ```
+
+Or use the Finder-friendly launchers from the repo root:
+
+- `Start Media Studio.command`
+- `Stop Media Studio.command`
 
 Then open:
 
-- `http://127.0.0.1:3000/setup`
-- `http://127.0.0.1:3000/studio`
+- `http://127.0.0.1:3000/`
+
+Media Studio will route you automatically:
+
+- to `/setup` if this machine still needs configuration
+- to `/studio` once the API, models, and live key are ready
 
 ## 6. Back up or rebuild local state
 

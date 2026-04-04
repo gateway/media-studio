@@ -11,6 +11,8 @@ import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { getControlApiJson, getMediaDashboardSnapshot } from "@/lib/control-api";
 import { DEFAULT_LOCAL_OPENAI_BASE_URL, KIE_AFFILIATE_URL } from "@/lib/onboarding";
 
+const WEB_PORT = process.env.MEDIA_STUDIO_WEB_PORT || "3000";
+
 function boolTone(value: boolean) {
   return value ? "healthy" : "warning";
 }
@@ -293,14 +295,15 @@ powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
             </div>
             <pre className="mt-3 overflow-x-auto rounded-[16px] border border-[var(--surface-border-soft)] bg-[#0b0e0d] p-4 text-sm leading-7 text-[var(--foreground)]">
 {`npm run dev:api
-npm run dev:web`}
+./scripts/dev_web.sh`}
             </pre>
             <div className="mt-4 text-sm leading-7 text-[var(--muted-strong)]">
               Then open:
             </div>
             <div className="mt-3 space-y-2 text-sm leading-7 text-[var(--foreground)]">
-              <div>`http://127.0.0.1:3000/setup`</div>
-              <div>`http://127.0.0.1:3000/studio`</div>
+              <div>`http://127.0.0.1:${WEB_PORT}/`</div>
+              <div>`http://127.0.0.1:${WEB_PORT}/setup`</div>
+              <div>`http://127.0.0.1:${WEB_PORT}/studio`</div>
             </div>
           </div>
         </section>

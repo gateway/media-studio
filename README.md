@@ -159,10 +159,20 @@ Minimum requirements:
 
 - `git`
 - `python3`
-- `npm`
+- `Node.js LTS` (includes `npm`)
 - `KIE_API_KEY` from Kie AI
 
 ### macOS
+
+If Git is missing, install Apple Command Line Tools first:
+
+```bash
+xcode-select --install
+```
+
+If Node.js is missing, install the current **LTS** release from:
+
+- [nodejs.org](https://nodejs.org)
 
 ```bash
 git clone https://github.com/gateway/media-studio.git
@@ -178,25 +188,35 @@ That script:
 - creates `.env`
 - creates a clean local database
 - prompts for `KIE_API_KEY`
+- can open the API and web app for you immediately when setup finishes
 
-Then run:
+After setup, the easiest way to reopen the app later is to double-click:
+
+- [`Start Media Studio.command`](Start%20Media%20Studio.command)
+- [`Stop Media Studio.command`](Stop%20Media%20Studio.command)
+
+If you prefer Terminal, run:
 
 ```bash
 npm run dev:api
-npm run dev:web
+./scripts/dev_web.sh
 ```
 
 Open:
 
-- `http://127.0.0.1:3000/setup`
-- `http://127.0.0.1:3000/studio`
+- `http://127.0.0.1:3000/`
+
+Media Studio now chooses the right first page for you:
+
+- first run or incomplete setup -> `/setup`
+- ready system with models loaded -> `/studio`
 
 The first real step to use the models is simple:
 
 - create a Kie AI account and get your `KIE_API_KEY`
 - add that key during setup
 - start the API and web app
-- open `/studio`
+- open `/`
 - choose a model or preset
 - submit your first job
 
@@ -222,7 +242,7 @@ Then add your `KIE_API_KEY` to `.env` and run:
 
 ```bash
 npm run dev:api
-npm run dev:web
+./scripts/dev_web.sh
 ```
 
 ### Windows
@@ -267,7 +287,7 @@ For deeper runtime details:
 
 - [docs/runtime-and-supervision.md](docs/runtime-and-supervision.md)
 
-## Start Here
+## More Docs
 
 If you are a person setting this up for the first time:
 
