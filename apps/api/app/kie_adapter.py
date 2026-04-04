@@ -4,7 +4,9 @@ import importlib
 import sys
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
+
+from urllib.parse import urlparse
 
 from .pricing import normalize_pricing_snapshot
 from .settings import settings
@@ -213,16 +215,82 @@ def verify_callback_request(payload: Dict[str, Any], headers: Dict[str, Any]) ->
     secret = str(getattr(kie_settings, "webhook_secret", "") or "").strip()
     if not secret:
         raise RuntimeError("KIE callback verification is not configured.")
-    event = callbacks.verify_callback_request(
+    verify_request = getattr(callbacks, "verify_callback_request", None)
+    if callable(verify_request):
+        event = verify_request(
+            payload,
+            headers,
+            secret=secret,
+            settings=kie_settings,
+        )
+        return _dump(event)
+
+    verify_signature = getattr(callbacks, "verify_callback_signature", None)
+    parse_event = getattr(callbacks, "parse_callback_event", None)
+    if not callable(verify_signature) or not callable(parse_event):
+        raise RuntimeError("KIE callback verification helpers are unavailable.")
+
+    max_age_seconds = int(
+        getattr(kie_settings, "callback_max_age_seconds", None)
+        or getattr(settings, "kie_callback_max_age_seconds", 300)
+        or 300
+    )
+    signature_ok = verify_signature(
         payload,
         headers,
         secret=secret,
-        settings=kie_settings,
+        max_age_seconds=max_age_seconds,
     )
-    return _dump(event)
+    if not signature_ok:
+        raise RuntimeError("Callback signature validation failed.")
+
+    event = parse_event(payload)
+    event_payload = _dump(event)
+    task_id = str(event_payload.get("task_id") or "").strip()
+    if not task_id:
+        raise RuntimeError("Callback payload does not contain a usable task id.")
+
+    for url in _trusted_callback_output_urls(event_payload.get("output_urls")):
+        if not _is_trusted_callback_output_url(kie_settings, url):
+            raise RuntimeError(f"Callback output URL host is not trusted: {url!r}")
+    return event_payload
 
 
 def _next_pricing_cache_expiry() -> datetime:
     return datetime.now(timezone.utc) + timedelta(
         hours=max(1, settings.media_pricing_cache_hours)
+    )
+
+
+def _trusted_callback_output_urls(value: Any) -> Iterable[str]:
+    if isinstance(value, str):
+        return [value]
+    if not isinstance(value, (list, tuple)):
+        return []
+    return [item for item in value if isinstance(item, str) and item.strip()]
+
+
+def _is_trusted_callback_output_url(kie_settings: Any, value: str) -> bool:
+    explicit = getattr(kie_settings, "is_trusted_callback_output_url", None)
+    if callable(explicit):
+        return bool(explicit(value))
+
+    uploaded = getattr(kie_settings, "is_trusted_uploaded_url", None)
+    if callable(uploaded) and uploaded(value):
+        return True
+
+    host = urlparse(value).hostname
+    if not host:
+        return False
+    trusted_hosts = getattr(kie_settings, "callback_trusted_output_hosts", None)
+    if not trusted_hosts:
+        trusted_hosts = (
+            "tempfile.redpandaai.co",
+            "kieai.redpandaai.co",
+            "tempfile.aiquickdraw.com",
+        )
+    return any(
+        host == str(trusted_host) or host.endswith(f".{trusted_host}")
+        for trusted_host in trusted_hosts
+        if str(trusted_host).strip()
     )
