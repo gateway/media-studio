@@ -1,5 +1,6 @@
 import { Coins, ExternalLink, RefreshCcw, Sparkles } from "lucide-react";
 
+import { adminThemeLayoutClassName } from "@/components/admin-theme";
 import {
   adminInsetCardClassName,
   adminInsetPanelClassName,
@@ -9,54 +10,22 @@ import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { getMediaDashboardSnapshot } from "@/lib/control-api";
-import { formatDateTime } from "@/lib/utils";
-
-const pricingSurfaceClassName =
-  "grid min-w-0 gap-6 [--surface:rgba(17,20,19,0.9)] [--surface-muted:rgba(255,255,255,0.05)] [--surface-border:rgba(255,255,255,0.10)] [--surface-border-soft:rgba(255,255,255,0.08)] [--foreground:#f7f6f0] [--muted-strong:rgba(247,246,240,0.68)] [--accent-strong:rgba(208,255,72,0.94)] [--success:#bff36b] [--danger:#ffb5a6] [--warning:#f1b86a] [--shadow-soft:0_24px_60px_rgba(0,0,0,0.26)]";
-
-function asNumber(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-}
-
-function formatUsd(value: unknown) {
-  const amount = asNumber(value);
-  if (amount == null) {
-    return "n/a";
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: amount < 1 ? 2 : 0,
-    maximumFractionDigits: amount < 1 ? 2 : 2,
-  }).format(amount);
-}
-
-function formatCredits(value: unknown) {
-  const amount = asNumber(value);
-  if (amount == null) {
-    return "n/a";
-  }
-  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: amount % 1 === 0 ? 0 : 1 }).format(amount)} credits`;
-}
+import { formatCreditsAmount, formatDateTime, formatUsdAmount, isRecord, toFiniteNumber } from "@/lib/utils";
 
 function formatAdjustmentMap(
   label: string,
   value: unknown,
   formatter: (entry: unknown) => string,
 ) {
-  const record = asRecord(value);
+  const record = isRecord(value) ? value : null;
   if (!record) {
     return [];
   }
 
   return Object.entries(record)
-    .filter(([, optionMap]) => asRecord(optionMap))
+    .filter(([, optionMap]) => isRecord(optionMap))
     .map(([optionKey, optionMap]) => {
-      const normalized = asRecord(optionMap) ?? {};
+      const normalized = (isRecord(optionMap) ? optionMap : {}) as Record<string, unknown>;
       const parts = Object.entries(normalized).map(([choice, entryValue]) => `${choice}: ${formatter(entryValue)}`);
       return `${label} ${optionKey.replaceAll("_", " ")} -> ${parts.join(", ")}`;
     })
@@ -95,7 +64,7 @@ export default async function PricingPage() {
       title="Pricing"
       description="Review the current KIE-backed pricing catalog, see how the Studio calculates request totals, and verify the same estimate snapshot that gets saved with submitted jobs."
     >
-      <div className={pricingSurfaceClassName}>
+      <div className={adminThemeLayoutClassName}>
         <Panel>
           <PanelHeader
             eyebrow="Current Catalog"
@@ -189,13 +158,21 @@ export default async function PricingPage() {
           />
           <div className="mt-5 grid gap-4 xl:grid-cols-2">
             {rules.map((rule, index) => {
-              const record = asRecord(rule) ?? {};
+              const record = (isRecord(rule) ? rule : {}) as Record<string, unknown>;
               const multiplierRows = formatAdjustmentMap("Multiplier", record.multipliers, (value) => {
-                const amount = asNumber(value);
+                const amount = toFiniteNumber(value);
                 return amount == null ? "n/a" : `${amount}x`;
               });
-              const creditAdders = formatAdjustmentMap("Credit add", record.adders_credits, (value) => formatCredits(value));
-              const usdAdders = formatAdjustmentMap("USD add", record.adders_cost_usd, (value) => formatUsd(value));
+              const creditAdders = formatAdjustmentMap(
+                "Credit add",
+                record.adders_credits,
+                (value) => formatCreditsAmount(value, { suffix: " credits" }) ?? "n/a",
+              );
+              const usdAdders = formatAdjustmentMap(
+                "USD add",
+                record.adders_cost_usd,
+                (value) => formatUsdAmount(value) ?? "n/a",
+              );
               const notes = Array.isArray(record.notes) ? record.notes.filter((value) => typeof value === "string") : [];
 
               return (
@@ -218,11 +195,11 @@ export default async function PricingPage() {
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <div className={adminInsetCardClassName}>
                       <div className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--muted-strong)]">Base credits</div>
-                      <div className="mt-2 text-xl font-semibold text-[var(--foreground)]">{formatCredits(record.base_credits)}</div>
+                      <div className="mt-2 text-xl font-semibold text-[var(--foreground)]">{formatCreditsAmount(record.base_credits, { suffix: " credits" })}</div>
                     </div>
                     <div className={adminInsetCardClassName}>
                       <div className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--muted-strong)]">Base USD</div>
-                      <div className="mt-2 text-xl font-semibold text-[var(--foreground)]">{formatUsd(record.base_cost_usd)}</div>
+                      <div className="mt-2 text-xl font-semibold text-[var(--foreground)]">{formatUsdAmount(record.base_cost_usd)}</div>
                     </div>
                   </div>
 

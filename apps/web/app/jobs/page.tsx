@@ -4,6 +4,10 @@ import { Clapperboard, Coins, LoaderCircle, SlidersHorizontal } from "lucide-rea
 import { MediaBatchActions } from "@/app/jobs/media-batch-actions";
 import { RuntimeControls } from "@/app/jobs/runtime-controls";
 import {
+  adminInsetCompactClassName,
+  adminThemeLayoutClassName,
+} from "@/components/admin-theme";
+import {
   adminDashedCardClassName,
   adminInsetCardClassName,
   adminInsetPanelClassName,
@@ -13,7 +17,7 @@ import { Panel, PanelHeader } from "@/components/panel";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { getMediaDashboardSnapshot, toControlApiProxyPath } from "@/lib/control-api";
 import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
-import { formatDateTime, truncate } from "@/lib/utils";
+import { formatCreditsAmount, formatDateTime, formatUsdAmount, isRecord, toFiniteNumber, truncate } from "@/lib/utils";
 
 const JOBS_PER_PAGE_OPTIONS = [20, 50, 100] as const;
 
@@ -45,45 +49,16 @@ function batchAssetForJob(job: MediaJob, assets: MediaAsset[]) {
   return assets.find((asset) => asset.job_id === job.job_id) ?? null;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-}
-
-function asNumber(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function formatUsd(value: unknown) {
-  const amount = asNumber(value);
-  if (amount == null) {
-    return "n/a";
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: amount < 1 ? 2 : 0,
-    maximumFractionDigits: amount < 1 ? 2 : 2,
-  }).format(amount);
-}
-
-function formatCredits(value: unknown) {
-  const amount = asNumber(value);
-  if (amount == null) {
-    return "n/a";
-  }
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: amount % 1 === 0 ? 0 : 1 }).format(amount);
-}
-
 function batchPricingSummary(batch: MediaBatch) {
-  const requestSummary = asRecord(batch.request_summary);
-  const requestPricing = asRecord(requestSummary?.pricing_summary);
+  const requestSummary = isRecord(batch.request_summary) ? batch.request_summary : null;
+  const requestPricing = isRecord(requestSummary?.pricing_summary) ? requestSummary.pricing_summary : null;
   if (requestPricing) {
     return requestPricing;
   }
 
   for (const job of batch.jobs ?? []) {
-    const preflight = asRecord(job.preflight);
-    const pricing = asRecord(preflight?.pricing_summary);
+    const preflight = isRecord(job.preflight) ? job.preflight : null;
+    const pricing = isRecord(preflight?.pricing_summary) ? preflight.pricing_summary : null;
     if (pricing) {
       return pricing;
     }
@@ -156,11 +131,8 @@ export default async function JobsPage({
     { length: Math.max(0, pageWindowEnd - pageWindowStart + 1) },
     (_, index) => pageWindowStart + index,
   );
-  const adminThemeClassName =
-    "grid min-w-0 gap-6 [--surface:rgba(17,20,19,0.9)] [--surface-muted:rgba(255,255,255,0.05)] [--surface-border:rgba(255,255,255,0.10)] [--surface-border-soft:rgba(255,255,255,0.08)] [--foreground:#f7f6f0] [--muted-strong:rgba(247,246,240,0.68)] [--accent-strong:rgba(208,255,72,0.94)] [--success:#bff36b] [--danger:#ffb5a6] [--shadow-soft:0_24px_60px_rgba(0,0,0,0.26)]";
   const mutedCardClassName = adminInsetPanelClassName;
-  const adminInsetClassName =
-    "rounded-[16px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-3 py-3";
+  const adminInsetClassName = adminInsetCompactClassName;
   const buildJobsHref = ({
     page,
     perPageOverride,
@@ -190,7 +162,7 @@ export default async function JobsPage({
       title="Jobs"
       description="Follow queued runs, retries, completed outputs, and the saved estimate snapshot captured when each batch was submitted."
     >
-      <div className={adminThemeClassName}>
+      <div className={adminThemeLayoutClassName}>
       <Panel>
         <PanelHeader
           eyebrow="Queue Health"
@@ -325,9 +297,9 @@ export default async function JobsPage({
               visibleBatches.map((batch) => {
                 const jobs = [...(batch.jobs ?? [])].sort((left, right) => (left.batch_index ?? 1) - (right.batch_index ?? 1));
                 const pricingSummary = batchPricingSummary(batch);
-                const totalPricing = asRecord(pricingSummary?.total);
-                const perOutputPricing = asRecord(pricingSummary?.per_output);
-                const savedOutputCount = asNumber(pricingSummary?.output_count);
+                const totalPricing = isRecord(pricingSummary?.total) ? pricingSummary.total : null;
+                const perOutputPricing = isRecord(pricingSummary?.per_output) ? pricingSummary.per_output : null;
+                const savedOutputCount = toFiniteNumber(pricingSummary?.output_count);
 
                 return (
                   <div
@@ -373,8 +345,8 @@ export default async function JobsPage({
                                   Estimated total
                                 </span>
                                 <span className="text-[var(--foreground)]">
-                                  {formatUsd(totalPricing?.estimated_cost_usd)}{" "}
-                                  <span className="text-[var(--muted-strong)]">/ {formatCredits(totalPricing?.estimated_credits)} credits</span>
+                                  {formatUsdAmount(totalPricing?.estimated_cost_usd)}{" "}
+                                  <span className="text-[var(--muted-strong)]">/ {formatCreditsAmount(totalPricing?.estimated_credits)} credits</span>
                                 </span>
                               </div>
                               <div className="grid gap-1">
@@ -382,8 +354,8 @@ export default async function JobsPage({
                                   Per output
                                 </span>
                                 <span className="text-[var(--foreground)]">
-                                  {formatUsd(perOutputPricing?.estimated_cost_usd)}{" "}
-                                  <span className="text-[var(--muted-strong)]">/ {formatCredits(perOutputPricing?.estimated_credits)} credits</span>
+                                  {formatUsdAmount(perOutputPricing?.estimated_cost_usd)}{" "}
+                                  <span className="text-[var(--muted-strong)]">/ {formatCreditsAmount(perOutputPricing?.estimated_credits)} credits</span>
                                 </span>
                               </div>
                               <div className="grid gap-1">

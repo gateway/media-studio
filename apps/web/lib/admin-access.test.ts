@@ -17,6 +17,8 @@ describe("admin-access", () => {
   it("recognizes loopback hosts", () => {
     expect(isLoopbackHostname("127.0.0.1")).toBe(true);
     expect(isLoopbackHostname("[::1]")).toBe(true);
+    expect(isLoopbackHostname("::1")).toBe(true);
+    expect(isLoopbackHostname("::ffff:127.0.0.1")).toBe(true);
     expect(isLoopbackHostname("localhost:3000")).toBe(true);
     expect(isLoopbackHostname("192.168.1.5")).toBe(false);
   });
@@ -27,6 +29,18 @@ describe("admin-access", () => {
       isTrustedLocalRequest(
         new URL("http://localhost:3000/studio"),
         new Headers({ "x-forwarded-for": "127.0.0.1" }),
+      ),
+    ).toBe(true);
+    expect(
+      isTrustedLocalRequest(
+        new URL("http://127.0.0.1:3000/studio"),
+        new Headers({ "x-forwarded-for": "::1" }),
+      ),
+    ).toBe(true);
+    expect(
+      isTrustedLocalRequest(
+        new URL("http://127.0.0.1:3000/studio"),
+        new Headers({ "x-forwarded-for": "::ffff:127.0.0.1" }),
       ),
     ).toBe(true);
     expect(

@@ -2,14 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="${MEDIA_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-DEFAULT_KIE_ROOT="$ROOT/../kie-api"
-LEGACY_KIE_ROOT="$ROOT/../kie-ai/kie_codex_bootstrap"
-if [[ -d "$DEFAULT_KIE_ROOT" ]]; then
-  KIE_ROOT="${KIE_ROOT:-${MEDIA_STUDIO_KIE_API_REPO_PATH:-$DEFAULT_KIE_ROOT}}"
-else
-  KIE_ROOT="${KIE_ROOT:-${MEDIA_STUDIO_KIE_API_REPO_PATH:-$LEGACY_KIE_ROOT}}"
-fi
+# shellcheck source=scripts/shared_env.sh
+. "$SCRIPT_DIR/shared_env.sh"
+ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
+load_media_env "$ROOT"
+KIE_ROOT="$(resolve_kie_root "$ROOT")"
 VENV_PY="$KIE_ROOT/.venv/bin/python"
 
 "$VENV_PY" "$ROOT/scripts/check_repo_hygiene.py"
@@ -21,5 +18,6 @@ MEDIA_STUDIO_KIE_API_REPO_PATH="${MEDIA_STUDIO_KIE_API_REPO_PATH:-$KIE_ROOT}" \
 
 cd "$ROOT"
 npm --workspace apps/web run test
+npm --workspace apps/web run lint
 npm --workspace apps/web run typecheck
 npm --workspace apps/web run build

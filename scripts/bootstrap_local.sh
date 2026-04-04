@@ -2,19 +2,20 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MEDIA_ROOT="${MEDIA_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+# shellcheck source=scripts/shared_env.sh
+. "$SCRIPT_DIR/shared_env.sh"
+MEDIA_ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
 KIE_REPO_URL="${KIE_REPO_URL:-https://github.com/gateway/kie-api.git}"
-DEFAULT_KIE_ROOT="$MEDIA_ROOT/../kie-api"
-LEGACY_KIE_ROOT="$MEDIA_ROOT/../kie-ai/kie_codex_bootstrap"
-if [[ -d "$DEFAULT_KIE_ROOT" ]]; then
-  KIE_ROOT="${KIE_ROOT:-${MEDIA_STUDIO_KIE_API_REPO_PATH:-$DEFAULT_KIE_ROOT}}"
-elif [[ -d "$LEGACY_KIE_ROOT" ]]; then
-  KIE_ROOT="${KIE_ROOT:-${MEDIA_STUDIO_KIE_API_REPO_PATH:-$LEGACY_KIE_ROOT}}"
-else
-  KIE_ROOT="${KIE_ROOT:-${MEDIA_STUDIO_KIE_API_REPO_PATH:-$DEFAULT_KIE_ROOT}}"
-fi
+KIE_ROOT="$(resolve_kie_root "$MEDIA_ROOT")"
 VENV_PY="$KIE_ROOT/.venv/bin/python"
 VENV_PIP="$KIE_ROOT/.venv/bin/pip"
+
+generate_local_control_token() {
+  python3 - <<'PY'
+import secrets
+print(f"media-studio-{secrets.token_hex(24)}")
+PY
+}
 
 echo "Media Studio root: $MEDIA_ROOT"
 echo "KIE repo path: $KIE_ROOT"
@@ -41,10 +42,12 @@ echo "Installing web dependencies ..."
 mkdir -p "$MEDIA_ROOT/data/uploads" "$MEDIA_ROOT/data/downloads" "$MEDIA_ROOT/data/outputs" "$MEDIA_ROOT/data/preset-thumbnails"
 
 if [[ ! -f "$MEDIA_ROOT/.env" ]]; then
+  LOCAL_CONTROL_TOKEN="$(generate_local_control_token)"
   cat > "$MEDIA_ROOT/.env" <<EOF
+MEDIA_STUDIO_APP_ENV=development
 NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL=http://127.0.0.1:8000
 MEDIA_STUDIO_CONTROL_API_BASE_URL=http://127.0.0.1:8000
-MEDIA_STUDIO_CONTROL_API_TOKEN=media-studio-local-control-token
+MEDIA_STUDIO_CONTROL_API_TOKEN=$LOCAL_CONTROL_TOKEN
 MEDIA_STUDIO_ADMIN_USERNAME=
 MEDIA_STUDIO_ADMIN_PASSWORD=
 MEDIA_STUDIO_API_HOST=127.0.0.1
@@ -63,7 +66,7 @@ OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 MEDIA_LOCAL_OPENAI_BASE_URL=http://127.0.0.1:8080/v1
 MEDIA_LOCAL_OPENAI_API_KEY=
 EOF
-  echo "Created .env with local defaults."
+  echo "Created .env with local defaults and a unique control token."
 fi
 
 echo "Bootstrapping empty Media Studio schema ..."

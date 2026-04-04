@@ -2,15 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MEDIA_ROOT="${MEDIA_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-DEFAULT_KIE_ROOT="$MEDIA_ROOT/../kie-api"
-LEGACY_KIE_ROOT="$MEDIA_ROOT/../kie-ai/kie_codex_bootstrap"
-
-if [[ -d "$DEFAULT_KIE_ROOT" ]]; then
-  KIE_ROOT="${KIE_ROOT:-${MEDIA_STUDIO_KIE_API_REPO_PATH:-$DEFAULT_KIE_ROOT}}"
-else
-  KIE_ROOT="${KIE_ROOT:-${MEDIA_STUDIO_KIE_API_REPO_PATH:-$LEGACY_KIE_ROOT}}"
-fi
+# shellcheck source=scripts/shared_env.sh
+. "$SCRIPT_DIR/shared_env.sh"
+MEDIA_ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
+load_media_env "$MEDIA_ROOT"
+KIE_ROOT="$(resolve_kie_root "$MEDIA_ROOT")"
 
 VENV_PY="$KIE_ROOT/.venv/bin/python"
 

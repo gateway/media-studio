@@ -413,10 +413,15 @@ def _run_external_enhancement(config: Dict[str, Any], request: EnhancePreviewReq
         else:
             raise ServiceError("Choose an enhancement model before running enhancement.")
     image_paths = _candidate_enhancement_image_paths(request, bundle)
-    wants_image_analysis = bool(config.get("supports_image_analysis"))
-    if wants_image_analysis and not image_paths:
-        raise ServiceError("Stage an image before running image-aware enhancement.")
-    if wants_image_analysis and not bool(config.get("provider_supports_images")):
+    prompt_text = str(bundle.get("final_prompt") or request.prompt or "").strip()
+    supports_text_enhancement = bool(config.get("supports_text_enhancement"))
+    supports_image_analysis = bool(config.get("supports_image_analysis"))
+    using_image_analysis = supports_image_analysis and bool(image_paths)
+    if not prompt_text and not image_paths:
+        raise ServiceError("Add a prompt or source media before enhancing.")
+    if not supports_text_enhancement and not using_image_analysis:
+        raise ServiceError("The selected enhancement model requires an image input.")
+    if using_image_analysis and not bool(config.get("provider_supports_images")):
         raise ServiceError("The selected enhancement model does not support image input.")
     provider_api_key = config.get("provider_api_key") or None
     provider_base_url = config.get("provider_base_url") or None
@@ -426,12 +431,12 @@ def _run_external_enhancement(config: Dict[str, Any], request: EnhancePreviewReq
             base_url=str(provider_base_url or settings.openrouter_base_url),
             api_key=str(provider_api_key or settings.openrouter_api_key or ""),
             model_id=provider_model_id,
-            prompt=bundle["final_prompt"] or "",
+            prompt=prompt_text,
             media_model_key=request.model_key,
             task_mode=request.task_mode,
             system_prompt=config.get("system_prompt"),
             image_analysis_prompt=config.get("image_analysis_prompt"),
-            image_paths=image_paths[:1] if wants_image_analysis else [],
+            image_paths=image_paths[:1] if using_image_analysis else [],
         )
     if provider_kind == "local_openai":
         return enhancement_provider.run_openai_compatible_enhancement(
@@ -439,12 +444,12 @@ def _run_external_enhancement(config: Dict[str, Any], request: EnhancePreviewReq
             base_url=str(provider_base_url or settings.local_openai_base_url),
             api_key=str(provider_api_key or settings.local_openai_api_key or ""),
             model_id=provider_model_id,
-            prompt=bundle["final_prompt"] or "",
+            prompt=prompt_text,
             media_model_key=request.model_key,
             task_mode=request.task_mode,
             system_prompt=config.get("system_prompt"),
             image_analysis_prompt=config.get("image_analysis_prompt"),
-            image_paths=image_paths[:1] if wants_image_analysis else [],
+            image_paths=image_paths[:1] if using_image_analysis else [],
         )
     raise ServiceError("Unsupported enhancement provider.")
 
@@ -615,6 +620,7 @@ def _normalized_output_source_path(job: Dict[str, Any], output_path: Path, remot
 
 
 def publish_job_artifact(job: Dict[str, Any], output_path: Path, remote_output_url: Optional[str] = None) -> Dict[str, Any]:
+    existing_asset = store.get_asset_by_job_id(job["job_id"])
     normalized_output_path = _normalized_output_source_path(job, output_path, remote_output_url)
     output_kind = _infer_output_kind(job, normalized_output_path, remote_output_url)
     payload = job["submit_response_json"]
@@ -668,6 +674,8 @@ def publish_job_artifact(job: Dict[str, Any], output_path: Path, remote_output_u
         "payload_json": artifact,
         "tags_json": ["offline"] if not remote_output_url else [],
     }
+    if existing_asset:
+        asset_payload["asset_id"] = existing_asset["asset_id"]
     asset = store.create_or_update_asset(asset_payload)
     store.update_job(job["job_id"], {"artifact_json": artifact})
     return asset

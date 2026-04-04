@@ -3,6 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  adminThemeLayoutClassName,
+  adminThemeLayoutOverflowClassName,
+} from "@/components/admin-theme";
+import {
   AdminButton,
   AdminField,
   AdminInput,
@@ -32,6 +36,7 @@ import {
 import { CollapsibleSubsection } from "@/components/collapsible-sections";
 import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
+import { presetThumbnailVisual } from "@/lib/media-studio-helpers";
 import type {
   LlmPreset,
   MediaEnhancementConfig,
@@ -143,15 +148,6 @@ function emptyEnhancementProfileForm(modelKey: string): EnhancementProfileFormSt
 
 function capabilityTone(enabled: boolean) {
   return enabled ? "healthy" : "warning";
-}
-
-function slugifyPresetKey(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
 }
 
 function isNanoBananaModel(modelKey: string | null | undefined) {
@@ -382,16 +378,6 @@ function modelParameterRows(model: MediaModelSummary | null) {
   return rows;
 }
 
-function presetThumbnailVisual(preset: MediaPreset | null | undefined) {
-  if (!preset?.thumbnail_url) {
-    return null;
-  }
-  if (preset.thumbnail_url.startsWith("/files/")) {
-    return `/api/control/files${preset.thumbnail_url.slice("/files".length)}`;
-  }
-  return preset.thumbnail_url;
-}
-
 function upsertEnhancementConfigEntry(list: MediaEnhancementConfig[], config: MediaEnhancementConfig) {
   const next = list.filter((item) => item.model_key !== config.model_key);
   next.push(config);
@@ -498,30 +484,16 @@ export function MediaModelsConsole({
   const acceptedInputs = useMemo(() => modelInputPills(selectedModel), [selectedModel]);
   const parameterRows = useMemo(() => modelParameterRows(selectedModel), [selectedModel]);
   const optionBadges = useMemo(() => modelOptionPills(selectedModel), [selectedModel]);
-  const rootClassName = isStudio
-    ? "grid min-w-0 gap-6 overflow-x-hidden [--surface:rgba(17,20,19,0.9)] [--surface-muted:rgba(255,255,255,0.05)] [--surface-border:rgba(255,255,255,0.10)] [--surface-border-soft:rgba(255,255,255,0.08)] [--foreground:#f7f6f0] [--muted-strong:rgba(247,246,240,0.68)] [--accent-strong:rgba(208,255,72,0.94)] [--success:#bff36b] [--danger:#ffb5a6] [--shadow-soft:0_24px_60px_rgba(0,0,0,0.26)]"
-    : "grid min-w-0 gap-6 [--surface:rgba(17,20,19,0.9)] [--surface-muted:rgba(255,255,255,0.05)] [--surface-border:rgba(255,255,255,0.10)] [--surface-border-soft:rgba(255,255,255,0.08)] [--foreground:#f7f6f0] [--muted-strong:rgba(247,246,240,0.68)] [--accent-strong:rgba(208,255,72,0.94)] [--success:#bff36b] [--danger:#ffb5a6] [--shadow-soft:0_24px_60px_rgba(0,0,0,0.26)]";
-  const modelPanelClassName = isStudio
-    ? "border-white/10 bg-[linear-gradient(180deg,rgba(24,28,26,0.96),rgba(14,17,16,0.98))]"
-    : "border-white/10 bg-[linear-gradient(180deg,rgba(24,28,26,0.96),rgba(14,17,16,0.98))]";
-  const surfaceCardClassName = isStudio
-    ? "rounded-[22px] border border-white/8 bg-[rgba(11,14,13,0.92)] p-5"
-    : "rounded-[22px] border border-white/8 bg-[rgba(11,14,13,0.92)] p-5";
-  const accentCardClassName = isStudio
-    ? "rounded-[24px] border border-white/10 bg-[rgba(11,14,13,0.94)] p-5"
-    : "rounded-[24px] border border-white/10 bg-[rgba(11,14,13,0.94)] p-5";
-  const softAccentCardClassName = isStudio
-    ? "rounded-[22px] border border-white/10 bg-[rgba(255,255,255,0.05)] px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]"
-    : "rounded-[22px] border border-white/10 bg-[rgba(255,255,255,0.05)] px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]";
-  const inputClassName = isStudio
-    ? "rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.88)] px-3 py-3 text-sm text-white outline-none placeholder:text-white/36"
-    : "rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.88)] px-3 py-3 text-sm text-white outline-none placeholder:text-white/36";
-  const toggleOffClassName = isStudio
-    ? "border-white/10 bg-[rgba(255,255,255,0.04)] text-white/68"
-    : "border-white/10 bg-[rgba(255,255,255,0.04)] text-white/68";
-  const toggleOnClassName = isStudio
-    ? "border-[rgba(208,255,72,0.28)] bg-[rgba(208,255,72,0.12)] text-[rgba(208,255,72,0.94)]"
-    : "border-[rgba(208,255,72,0.28)] bg-[rgba(208,255,72,0.12)] text-[rgba(208,255,72,0.94)]";
+  const rootClassName = isStudio ? adminThemeLayoutOverflowClassName : adminThemeLayoutClassName;
+  const modelPanelClassName = "border-white/10 bg-[linear-gradient(180deg,rgba(24,28,26,0.96),rgba(14,17,16,0.98))]";
+  const surfaceCardClassName = "rounded-[22px] border border-white/8 bg-[rgba(11,14,13,0.92)] p-5";
+  const accentCardClassName = "rounded-[24px] border border-white/10 bg-[rgba(11,14,13,0.94)] p-5";
+  const softAccentCardClassName =
+    "rounded-[22px] border border-white/10 bg-[rgba(255,255,255,0.05)] px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]";
+  const inputClassName =
+    "rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.88)] px-3 py-3 text-sm text-white outline-none placeholder:text-white/36";
+  const toggleOffClassName = "border-white/10 bg-[rgba(255,255,255,0.04)] text-white/68";
+  const toggleOnClassName = "border-[rgba(208,255,72,0.28)] bg-[rgba(208,255,72,0.12)] text-[rgba(208,255,72,0.94)]";
 
   useEffect(() => {
     if (!initialSelectedModelKey) {

@@ -6,12 +6,10 @@ import { useRouter } from "next/navigation";
 import {
   CircleDollarSign,
   ChevronDown,
-  Clapperboard,
-  Clock3,
   Coins,
+  Clapperboard,
   Copy,
   Download,
-  Globe2,
   Heart,
   Image as ImageIcon,
   ImagePlus,
@@ -19,12 +17,9 @@ import {
   Monitor,
   Play,
   Plus,
-  RectangleHorizontal,
-  SlidersHorizontal,
   Sparkles,
   Settings2,
   Trash2,
-  Volume2,
   Wand2,
   X,
 } from "lucide-react";
@@ -34,685 +29,94 @@ import { CollapsibleSubsection } from "@/components/collapsible-sections";
 import { MediaModelsConsole } from "@/components/media-models-console";
 import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
+import { StudioGallery } from "@/components/studio/studio-gallery";
+import { StudioHeaderChrome } from "@/components/studio/studio-header-chrome";
+import { StudioLightbox } from "@/components/studio/studio-lightbox";
+import { StudioComposer } from "@/components/studio/studio-composer";
+import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
+import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
+import { useStudioPolling } from "@/hooks/studio/use-studio-polling";
+import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
 import {
-  buildGalleryTiles,
+  type AssetPagePayload,
+  type AttachmentRecord,
+  FLOATING_COMPOSER_STATUS_FADE_MS,
+  FLOATING_COMPOSER_STATUS_MS,
+  type ComposerStatusMessage,
+  type FloatingComposerStatus,
+  type GalleryKindFilter,
+  INITIAL_ASSET_PAGE_SIZE,
+  type MediaStudioProps,
+} from "@/lib/media-studio-contract";
+import {
   createOptimisticBatch,
   findMediaAssetById,
-  mediaAssetPrompt,
-  mergeAssetCollections,
   presetRequirementMessage,
-  reconcileAssetCollections,
   selectedPromptObjects,
-  structuredPresetInputValues,
-  structuredPresetInputValuesFromAsset,
-  structuredPresetSlotValues,
-  structuredPresetSlotValuesFromAsset,
-  type GalleryTile,
-  upsertBatchCollection,
 } from "@/lib/studio-gallery";
-import type {
-  LlmPreset,
-  MediaAsset,
-  MediaBatch,
-  MediaEnhancementConfig,
-  MediaJob,
-  MediaModelQueuePolicy,
-  MediaModelSummary,
-  MediaEnhancePreviewResponse,
-  MediaPreset,
-  MediaQueueSettings,
-  MediaSystemPrompt,
-  MediaValidationResponse,
-} from "@/lib/types";
+import {
+  batchPhaseMessage,
+  buildChoiceList,
+  buildNormalizedStudioOptions,
+  classifyFile,
+  displayChoiceLabel,
+  formatOptionValue,
+  getMobileShareBlob,
+  HIDDEN_STUDIO_OPTION_KEYS,
+  inferBlobMimeType,
+  inferInputPattern,
+  isCoarsePointerDevice,
+  isImageMimeType,
+  isLikelyMobileSaveDevice,
+  isMobileDownloadDevice,
+  isNanoPresetModel,
+  isRecord,
+  jobPreviewUrl,
+  mediaDisplayUrl,
+  mediaDownloadName,
+  mediaDownloadUrl,
+  mediaInlineUrl,
+  mediaPlaybackUrl,
+  mediaPreviewUrl,
+  mediaThumbnailUrl,
+  mediaVariantUrl,
+  mobileSaveActionLabel,
+  modelInputLimit,
+  MULTI_SHOT_MODEL_KEYS,
+  normalizeStructuredPresetImageSlots,
+  normalizeStructuredPresetTextFields,
+  optionBooleanValue,
+  optionChoices,
+  optionEntries,
+  optionIcon,
+  optionShortLabel,
+  parseMultiShotScript,
+  parseOptionChoice,
+  pickerWidth,
+  prefetchAssetThumbs,
+  PresetSlotState,
+  presetThumbnailVisual,
+  prettifyModelLabel,
+  renderStructuredPresetPrompt,
+  replaceFileExtension,
+  sanitizeStudioOptions,
+  serializeOptionChoice,
+  studioValidationReady,
+  StructuredPresetImageSlot,
+  StructuredPresetTextField,
+  structuredPresetSlotPreviewUrl,
+  StudioChoice,
+  studioOptionChoices,
+  stripUnsupportedStudioOptions,
+  toWholeNumber,
+  toneForStatus,
+  jobStatusLabel,
+  jobPhaseMessage,
+  type MultiShotParseResult,
+} from "@/lib/media-studio-helpers";
+import type { MediaAsset, MediaBatch, MediaEnhancePreviewResponse, MediaJob, MediaValidationResponse } from "@/lib/types";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import { cn, formatDateTime, truncate } from "@/lib/utils";
-
-type MediaStudioProps = {
-  apiHealthy: boolean;
-  models: MediaModelSummary[];
-  presets: MediaPreset[];
-  prompts: MediaSystemPrompt[];
-  enhancementConfigs: MediaEnhancementConfig[];
-  llmPresets: LlmPreset[];
-  queueSettings: MediaQueueSettings | null;
-  queuePolicies: MediaModelQueuePolicy[];
-  batches: MediaBatch[];
-  jobs: MediaJob[];
-  assets: MediaAsset[];
-  initialAssetLimit?: number;
-  initialAssetOffset?: number;
-  initialAssetsHasMore?: boolean;
-  initialAssetsNextOffset?: number | null;
-  latestAsset: MediaAsset | null;
-  remainingCredits?: number | null;
-  pricingSnapshot?: Record<string, unknown> | null;
-  initialSelectedAssetId?: string | null;
-  immersive?: boolean;
-  closeHref?: string;
-};
-
-type AttachmentRecord = {
-  id: string;
-  file: File;
-  kind: "images" | "videos" | "audios";
-  previewUrl: string | null;
-};
-
-type GalleryKindFilter = "all" | "image" | "video";
-
-type AssetPagePayload = {
-  ok?: boolean;
-  error?: string;
-  assets?: MediaAsset[];
-  limit?: number | null;
-  offset?: number | null;
-  has_more?: boolean;
-  next_offset?: number | null;
-};
-
-type StudioChoice = {
-  value: string;
-  label: string;
-};
-
-type StructuredPresetTextField = {
-  key: string;
-  label: string;
-  placeholder: string;
-  defaultValue: string;
-  required: boolean;
-};
-
-type StructuredPresetImageSlot = {
-  key: string;
-  label: string;
-  helpText: string;
-  required: boolean;
-  maxFiles: number;
-};
-
-type PresetSlotState = {
-  assetId: string | number | null;
-  file: File | null;
-  previewUrl: string | null;
-};
-
-type MultiShotParseResult = {
-  shots: Array<{ prompt: string; duration: number }>;
-  errors: string[];
-  totalDuration: number;
-};
-
-const INITIAL_ASSET_PAGE_SIZE = 12;
-const ASSET_APPEND_BATCH_SIZE = 4;
-
-function isNanoPresetModel(modelKey: string | null | undefined) {
-  return modelKey === "nano-banana-2" || modelKey === "nano-banana-pro";
-}
-
-function normalizeStructuredPresetTextFields(preset: MediaPreset | null): StructuredPresetTextField[] {
-  return ((preset?.input_schema_json as Array<Record<string, unknown>> | undefined) ?? [])
-    .map((field) => ({
-      key: String(field.key ?? "").trim(),
-      label: String(field.label ?? "").trim() || String(field.key ?? "").trim(),
-      placeholder: String(field.placeholder ?? "").trim(),
-      defaultValue: String(field.default_value ?? "").trim(),
-      required: Boolean(field.required ?? true),
-    }))
-    .filter((field) => field.key);
-}
-
-function normalizeStructuredPresetImageSlots(preset: MediaPreset | null): StructuredPresetImageSlot[] {
-  return ((preset?.input_slots_json as Array<Record<string, unknown>> | undefined) ?? [])
-    .map((slot) => ({
-      key: String(slot.key ?? slot.slot ?? "").trim(),
-      label: String(slot.label ?? "").trim() || String(slot.key ?? slot.slot ?? "").trim(),
-      helpText: String(slot.help_text ?? "").trim(),
-      required: Boolean(slot.required ?? true),
-      maxFiles: Math.max(1, Number(slot.max_files ?? 1) || 1),
-    }))
-    .filter((slot) => slot.key);
-}
-
-function renderStructuredPresetPrompt(
-  template: string,
-  inputValues: Record<string, string>,
-  slotStates: Record<string, PresetSlotState>,
-  imageSlots: StructuredPresetImageSlot[],
-) {
-  let rendered = template;
-  for (const [key, value] of Object.entries(inputValues)) {
-    rendered = rendered.replaceAll(`{{${key}}}`, value.trim());
-  }
-  let imageIndex = 0;
-  for (const slot of imageSlots) {
-    const slotState = slotStates[slot.key];
-    if (slotState?.assetId || slotState?.file) {
-      imageIndex += 1;
-      rendered = rendered.replaceAll(`[[${slot.key}]]`, `[image reference ${imageIndex}]`);
-      continue;
-    }
-    rendered = rendered.replaceAll(`[[${slot.key}]]`, `[[${slot.key}]]`);
-  }
-  return rendered.trim();
-}
-
-const gallerySpanClasses = [
-  "sm:row-span-2",
-  "",
-  "",
-  "sm:row-span-2",
-  "",
-  "",
-  "sm:row-span-2",
-  "",
-  "",
-  "sm:row-span-2",
-  "",
-  "",
-];
-
-const HIDDEN_STUDIO_OPTION_KEYS = new Set<string>();
-const MULTI_SHOT_MODEL_KEYS = new Set(["kling-3.0-t2v", "kling-3.0-i2v"]);
-
-function toneForStatus(status?: string | null) {
-  if (status === "completed" || status === "succeeded") return "healthy";
-  if (status === "failed") return "danger";
-  if (status === "running" || status === "submitted") return "warning";
-  return "neutral";
-}
-
-function toControlApiProxyPath(pathValue: string | null | undefined) {
-  if (!pathValue || !pathValue.startsWith("/files/")) {
-    return null;
-  }
-  return `/api/control/files${pathValue.slice("/files".length)}`;
-}
-
-function toControlApiDataPreviewPath(pathValue: string | null | undefined) {
-  if (!pathValue) {
-    return null;
-  }
-  const marker = "/runtime/control-api/data/";
-  const markerIndex = pathValue.indexOf(marker);
-  if (markerIndex === -1) {
-    return null;
-  }
-  const relative = pathValue.slice(markerIndex + marker.length).replaceAll("\\", "/");
-  if (!relative || relative.startsWith("../")) {
-    return null;
-  }
-  return `/api/control/files/${relative}`;
-}
-
-function mediaVariantUrl(
-  asset: MediaAsset | null | undefined,
-  variant: "original" | "web" | "thumb" | "poster",
-) {
-  if (!asset) {
-    return null;
-  }
-
-  if (variant === "original") {
-    return toControlApiProxyPath(asset.hero_original_url) ?? toControlApiDataPreviewPath(asset.hero_original_path);
-  }
-  if (variant === "web") {
-    return toControlApiProxyPath(asset.hero_web_url) ?? toControlApiDataPreviewPath(asset.hero_web_path);
-  }
-  if (variant === "thumb") {
-    return toControlApiProxyPath(asset.hero_thumb_url) ?? toControlApiDataPreviewPath(asset.hero_thumb_path);
-  }
-  return toControlApiProxyPath(asset.hero_poster_url) ?? toControlApiDataPreviewPath(asset.hero_poster_path);
-}
-
-function mediaThumbnailUrl(asset?: MediaAsset | null) {
-  if (asset?.generation_kind === "video") {
-    return mediaVariantUrl(asset, "poster") ?? mediaVariantUrl(asset, "thumb");
-  }
-
-  return mediaVariantUrl(asset, "thumb") ?? mediaVariantUrl(asset, "web") ?? mediaVariantUrl(asset, "poster");
-}
-
-function mediaDisplayUrl(asset?: MediaAsset | null) {
-  if (asset?.generation_kind === "video") {
-    return mediaThumbnailUrl(asset);
-  }
-
-  return mediaVariantUrl(asset, "web") ?? mediaVariantUrl(asset, "thumb") ?? mediaVariantUrl(asset, "poster");
-}
-
-function mediaPlaybackUrl(asset?: MediaAsset | null) {
-  if (asset?.generation_kind !== "video") {
-    return null;
-  }
-
-  return (
-    mediaVariantUrl(asset, "web") ??
-    asset.remote_output_url ??
-    mediaVariantUrl(asset, "original")
-  );
-}
-
-function mediaPreviewUrl(asset?: MediaAsset | null) {
-  return mediaDisplayUrl(asset);
-}
-
-function prefetchAssetThumbs(assets: MediaAsset[], seenThumbUrls: Set<string>) {
-  if (typeof window === "undefined") {
-    return;
-  }
-  for (const asset of assets) {
-    const thumbUrl = mediaThumbnailUrl(asset);
-    if (!thumbUrl || seenThumbUrls.has(thumbUrl)) {
-      continue;
-    }
-    seenThumbUrls.add(thumbUrl);
-    const image = new Image();
-    image.decoding = "async";
-    image.loading = "eager";
-    image.src = thumbUrl;
-  }
-}
-
-function mediaDownloadName(asset?: MediaAsset | null) {
-  const candidate =
-    asset?.hero_original_path ??
-    asset?.hero_web_path ??
-    asset?.hero_original_url ??
-    asset?.hero_web_url ??
-    asset?.hero_poster_url ??
-    asset?.hero_thumb_url;
-
-  if (!candidate) {
-    return asset?.asset_id ? `media-asset-${asset.asset_id}` : "media-asset";
-  }
-
-  const normalized = candidate.split("?")[0]?.split("#")[0] ?? candidate;
-  const segments = normalized.split("/").filter(Boolean);
-  return segments.at(-1) ?? (asset?.asset_id ? `media-asset-${asset.asset_id}` : "media-asset");
-}
-
-function mediaDownloadUrl(asset?: MediaAsset | null) {
-  const originalUrl =
-    toControlApiProxyPath(asset?.hero_original_url) ??
-    toControlApiDataPreviewPath(asset?.hero_original_path) ??
-    mediaPreviewUrl(asset);
-
-  if (!originalUrl) {
-    return null;
-  }
-
-  const downloadUrl = new URL(originalUrl, "http://dashboard.local");
-  downloadUrl.searchParams.set("download", "1");
-  downloadUrl.searchParams.set("filename", mediaDownloadName(asset));
-  return `${downloadUrl.pathname}${downloadUrl.search}`;
-}
-
-function mediaInlineUrl(asset?: MediaAsset | null) {
-  const originalUrl =
-    toControlApiProxyPath(asset?.hero_original_url) ??
-    toControlApiDataPreviewPath(asset?.hero_original_path) ??
-    mediaPreviewUrl(asset);
-
-  if (!originalUrl) {
-    return null;
-  }
-
-  const inlineUrl = new URL(originalUrl, "http://dashboard.local");
-  inlineUrl.searchParams.set("inline", "1");
-  return `${inlineUrl.pathname}${inlineUrl.search}`;
-}
-
-function structuredPresetSlotPreviewUrl(
-  slotItem: unknown,
-  localAssets: MediaAsset[],
-  favoriteAssets: MediaAsset[] | null,
-) {
-  if (!isRecord(slotItem)) {
-    return null;
-  }
-  const assetId =
-    typeof slotItem.asset_id === "string" || typeof slotItem.asset_id === "number" ? slotItem.asset_id : null;
-  if (assetId != null) {
-    const asset = findMediaAssetById(assetId, localAssets, favoriteAssets) ?? null;
-    return {
-      url: mediaDisplayUrl(asset) ?? mediaThumbnailUrl(asset),
-      label: asset?.prompt_summary ?? `Image asset ${assetId}`,
-    };
-  }
-  const pathValue = typeof slotItem.path === "string" ? slotItem.path : null;
-  const urlValue = typeof slotItem.url === "string" ? slotItem.url : null;
-  const url = urlValue ?? toControlApiDataPreviewPath(pathValue);
-  if (!url) {
-    return null;
-  }
-  return {
-    url,
-    label: pathValue?.split("/").at(-1) ?? "Preset image",
-  };
-}
-
-function jobPreviewUrl(job?: MediaJob | null) {
-  if (!job) {
-    return null;
-  }
-  const preparedRequest = isRecord(job.prepared) && isRecord(job.prepared["normalized_request"])
-    ? (job.prepared["normalized_request"] as Record<string, unknown>)
-    : null;
-  const normalizedRequest = isRecord(job.normalized_request) ? job.normalized_request : null;
-  const preparedImages = preparedRequest && Array.isArray(preparedRequest["images"])
-    ? (preparedRequest["images"] as Array<Record<string, unknown>>)
-    : [];
-  const normalizedImages = normalizedRequest && Array.isArray(normalizedRequest["images"])
-    ? (normalizedRequest["images"] as Array<Record<string, unknown>>)
-    : [];
-  const image = preparedImages[0] ?? normalizedImages[0];
-  if (!isRecord(image)) {
-    return null;
-  }
-  const uploadedUrl = typeof image.url === "string" ? image.url : null;
-  const localPath = typeof image.path === "string" ? image.path : null;
-  return uploadedUrl ?? toControlApiDataPreviewPath(localPath);
-}
-
-function classifyFile(file: File) {
-  if (file.type.startsWith("video/")) return "videos" as const;
-  if (file.type.startsWith("audio/")) return "audios" as const;
-  return "images" as const;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function modelInputLimit(
-  model: MediaModelSummary | null,
-  inputKey: "image_inputs" | "video_inputs" | "audio_inputs",
-) {
-  const raw = isRecord(model?.[inputKey]) ? model?.[inputKey].required_max : null;
-  const parsed = typeof raw === "number" ? raw : Number(raw);
-  if (!Number.isFinite(parsed)) {
-    return 0;
-  }
-  return Math.max(0, Math.trunc(parsed));
-}
-
-function optionEntries(model: MediaModelSummary | null) {
-  if (!model?.options || !isRecord(model.options)) {
-    return [] as Array<[string, Record<string, unknown>]>;
-  }
-  return Object.entries(model.options).filter(
-    (entry): entry is [string, Record<string, unknown>] =>
-      !HIDDEN_STUDIO_OPTION_KEYS.has(entry[0]) && isRecord(entry[1]),
-  );
-}
-
-function sanitizeStudioOptions(options: Record<string, unknown>) {
-  return Object.fromEntries(
-    Object.entries(options).filter(([key]) => !HIDDEN_STUDIO_OPTION_KEYS.has(key)),
-  );
-}
-
-function hasUsableOptionValue(value: unknown) {
-  if (value == null) {
-    return false;
-  }
-  if (typeof value === "boolean") {
-    return true;
-  }
-  if (typeof value === "string") {
-    return value.trim().length > 0;
-  }
-  return true;
-}
-
-function buildNormalizedStudioOptions(
-  model: MediaModelSummary | null,
-  currentOptions: Record<string, unknown>,
-  presetDefaults?: Record<string, unknown> | null,
-) {
-  const seededOptions: Record<string, unknown> = {
-    ...(isRecord(model?.defaults) ? model.defaults : {}),
-    ...(isRecord(presetDefaults) ? presetDefaults : {}),
-    ...currentOptions,
-  };
-  for (const [optionKey, schema] of optionEntries(model)) {
-    if (optionKey === "sound" && !hasUsableOptionValue(currentOptions[optionKey])) {
-      seededOptions[optionKey] = false;
-      continue;
-    }
-    if (hasUsableOptionValue(seededOptions[optionKey])) {
-      continue;
-    }
-    if (hasUsableOptionValue(schema.default)) {
-      seededOptions[optionKey] = schema.default;
-      continue;
-    }
-    const choices = optionChoices(schema, seededOptions[optionKey]);
-    if (choices.length) {
-      seededOptions[optionKey] = choices[0];
-    }
-  }
-  return sanitizeStudioOptions(seededOptions);
-}
-
-function stripUnsupportedStudioOptions(
-  modelKey: string,
-  inputPattern: string,
-  options: Record<string, unknown>,
-) {
-  const sanitized = { ...options };
-  if (modelKey === "kling-3.0-i2v" && inputPattern === "first_last_frames") {
-    delete sanitized.aspect_ratio;
-  }
-  return sanitized;
-}
-
-function optionIcon(optionKey: string) {
-  if (optionKey.includes("sound") || optionKey.includes("audio")) {
-    return Volume2;
-  }
-  if (optionKey.includes("google_search") || optionKey.includes("web")) {
-    return Globe2;
-  }
-  if (optionKey.includes("duration")) {
-    return Clock3;
-  }
-  if (optionKey.includes("ratio") || optionKey.includes("resolution") || optionKey.includes("size")) {
-    return RectangleHorizontal;
-  }
-  if (optionKey.includes("preset")) {
-    return Sparkles;
-  }
-  if (optionKey.includes("model")) {
-    return Clapperboard;
-  }
-  if (optionKey.includes("orientation") || optionKey.includes("mode")) {
-    return SlidersHorizontal;
-  }
-  return Monitor;
-}
-
-const STUDIO_PICKER_WIDTHS: Record<string, string> = {
-  model: "w-full sm:w-[232px]",
-  preset: "w-full sm:w-[186px]",
-  "output-count": "w-[calc(50%-0.25rem)] sm:w-[95px]",
-  duration: "w-[calc(50%-0.25rem)] sm:w-[110px]",
-  aspect_ratio: "w-[calc(50%-0.25rem)] sm:w-[104px]",
-  sound: "w-[calc(50%-0.25rem)] sm:w-[114px]",
-  audio: "w-[calc(50%-0.25rem)] sm:w-[114px]",
-  resolution: "w-[calc(50%-0.25rem)] sm:w-[108px]",
-  output_format: "w-[calc(50%-0.25rem)] sm:w-[120px]",
-  mode: "w-[calc(50%-0.25rem)] sm:w-[120px]",
-  google_search: "w-[calc(50%-0.25rem)] sm:w-[132px]",
-};
-
-function pickerWidth(pickerId: string) {
-  const exact = STUDIO_PICKER_WIDTHS[pickerId];
-  if (exact) {
-    return exact;
-  }
-  if (pickerId.includes("audio")) return STUDIO_PICKER_WIDTHS.audio;
-  if (pickerId.includes("duration")) return STUDIO_PICKER_WIDTHS.duration;
-  if (pickerId.includes("ratio")) return STUDIO_PICKER_WIDTHS.aspect_ratio;
-  if (pickerId.includes("resolution") || pickerId.includes("size")) return STUDIO_PICKER_WIDTHS.resolution;
-  if (pickerId.includes("format")) return STUDIO_PICKER_WIDTHS.output_format;
-  if (pickerId.includes("web")) return STUDIO_PICKER_WIDTHS.google_search;
-  return "w-[calc(50%-0.25rem)] sm:w-[132px]";
-}
-
-function optionChoices(schema: Record<string, unknown>, currentValue: unknown) {
-  if (Array.isArray(schema.allowed)) {
-    return schema.allowed as unknown[];
-  }
-  if (Array.isArray(schema.enum)) {
-    return schema.enum as unknown[];
-  }
-  if (Array.isArray(schema.allowed_values)) {
-    return schema.allowed_values as unknown[];
-  }
-  if (Array.isArray(schema.choices)) {
-    return schema.choices as unknown[];
-  }
-  if (schema.type === "bool" || schema.type === "boolean" || typeof currentValue === "boolean" || typeof schema.default === "boolean") {
-    return [true, false] as unknown[];
-  }
-  if (
-    (schema.type === "int_range" || schema.type === "float_range" || schema.type === "number_range") &&
-    typeof schema.min === "number" &&
-    typeof schema.max === "number"
-  ) {
-    const min = Number(schema.min);
-    const max = Number(schema.max);
-    if (Number.isFinite(min) && Number.isFinite(max) && max >= min && max - min <= 20) {
-      return Array.from({ length: max - min + 1 }, (_, index) => min + index);
-    }
-  }
-  return [] as unknown[];
-}
-
-function serializeOptionChoice(value: unknown) {
-  if (typeof value === "boolean") {
-    return value ? "true" : "false";
-  }
-  return String(value ?? "");
-}
-
-function parseOptionChoice(schema: Record<string, unknown>, value: string) {
-  if (schema.type === "bool" || schema.type === "boolean" || typeof schema.default === "boolean") {
-    return value === "true";
-  }
-  if (schema.type === "number" || schema.type === "int_range" || schema.type === "float_range" || schema.type === "number_range") {
-    const parsed = Number(value);
-    return Number.isNaN(parsed) ? value : parsed;
-  }
-  return value;
-}
-
-function optionShortLabel(optionKey: string) {
-  if (optionKey === "aspect_ratio") return "Aspect";
-  if (optionKey === "resolution") return "Resolution";
-  if (optionKey === "output_format") return "Format";
-  if (optionKey === "duration") return "Duration";
-  if (optionKey === "sound") return "Audio";
-  if (optionKey === "google_search") return "Web";
-  if (optionKey === "multi_shots") return "Multi View";
-  if (optionKey === "mode") return "Mode";
-  return optionKey.replaceAll("_", " ");
-}
-
-function isCoarsePointerDevice() {
-  if (typeof window === "undefined") {
-    return false;
-  }
-  return window.matchMedia?.("(pointer: coarse)").matches ?? false;
-}
-
-function isMobileDownloadDevice() {
-  if (typeof navigator === "undefined") {
-    return false;
-  }
-  return (
-    isCoarsePointerDevice() ||
-    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "")
-  );
-}
-
-function isLikelyMobileSaveDevice() {
-  if (typeof navigator === "undefined") {
-    return false;
-  }
-  const userAgent = navigator.userAgent || "";
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) || (userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1);
-}
-
-function mobileSaveActionLabel() {
-  return isLikelyMobileSaveDevice() ? "Save" : "Download";
-}
-
-function isImageMimeType(value: string | null | undefined) {
-  return (value ?? "").toLowerCase().startsWith("image/");
-}
-
-function replaceFileExtension(fileName: string, nextExtension: string) {
-  const normalized = fileName.trim() || `output.${nextExtension}`;
-  const index = normalized.lastIndexOf(".");
-  if (index <= 0) {
-    return `${normalized}.${nextExtension}`;
-  }
-  return `${normalized.slice(0, index)}.${nextExtension}`;
-}
-
-async function blobToImageElement(blob: Blob) {
-  const objectUrl = URL.createObjectURL(blob);
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const element = new Image();
-      element.onload = () => resolve(element);
-      element.onerror = () => reject(new Error("Failed to decode image"));
-      element.src = objectUrl;
-    });
-    return image;
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
-
-async function convertImageBlobToJpeg(blob: Blob) {
-  if (typeof document === "undefined") {
-    return blob;
-  }
-
-  const image = await blobToImageElement(blob);
-  const canvas = document.createElement("canvas");
-  canvas.width = image.naturalWidth || image.width;
-  canvas.height = image.naturalHeight || image.height;
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    return blob;
-  }
-
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(image, 0, 0);
-
-  const converted = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob((value) => resolve(value), "image/jpeg", 0.92);
-  });
-
-  return converted ?? blob;
-}
-
-async function getMobileShareBlob(blob: Blob) {
-  if (!isImageMimeType(blob.type)) {
-    return blob;
-  }
-  if (blob.type === "image/png" || blob.type === "image/jpeg") {
-    return blob;
-  }
-  return convertImageBlobToJpeg(blob);
-}
 
 function StudioMetricPill({
   icon: Icon,
@@ -780,151 +184,6 @@ function StudioActionIconButton({
       <Icon className="size-4" />
     </button>
   );
-}
-
-function inferBlobMimeType(asset: MediaAsset | null | undefined, blob: Blob) {
-  if (blob.type) {
-    return blob.type;
-  }
-  const filename = mediaDownloadName(asset).toLowerCase();
-  if (filename.endsWith(".png")) return "image/png";
-  if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) return "image/jpeg";
-  if (filename.endsWith(".webp")) return "image/webp";
-  if (filename.endsWith(".mp4")) return "video/mp4";
-  if (filename.endsWith(".mov")) return "video/quicktime";
-  return "application/octet-stream";
-}
-
-function optionBooleanValue(value: unknown) {
-  if (typeof value === "boolean") {
-    return value;
-  }
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (["true", "1", "yes", "on"].includes(normalized)) {
-      return true;
-    }
-    if (["false", "0", "no", "off"].includes(normalized)) {
-      return false;
-    }
-  }
-  return false;
-}
-
-function toWholeNumber(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.trunc(value);
-  }
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return Math.trunc(parsed);
-    }
-  }
-  return null;
-}
-
-function parseMultiShotScript(script: string, selectedDuration: unknown): MultiShotParseResult {
-  const trimmed = script.trim();
-  if (!trimmed) {
-    return {
-      shots: [],
-      errors: ["Add one shot per line in the format `seconds | prompt`."],
-      totalDuration: 0,
-    };
-  }
-
-  const errors: string[] = [];
-  const shots = trimmed
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line, index) => {
-      const separatorIndex = line.indexOf("|");
-      if (separatorIndex === -1) {
-        errors.push(`Line ${index + 1} must use \`seconds | prompt\`.`);
-        return [];
-      }
-
-      const durationText = line.slice(0, separatorIndex).trim();
-      const promptText = line.slice(separatorIndex + 1).trim();
-      const duration = Number(durationText);
-
-      if (!Number.isInteger(duration) || duration <= 0) {
-        errors.push(`Line ${index + 1} needs a whole-number duration before the pipe.`);
-        return [];
-      }
-
-      if (duration < 1 || duration > 12) {
-        errors.push(`Line ${index + 1} duration must stay between 1 and 12 seconds.`);
-        return [];
-      }
-
-      if (!promptText) {
-        errors.push(`Line ${index + 1} needs prompt text after the pipe.`);
-        return [];
-      }
-
-      return [{ duration, prompt: promptText }];
-    });
-
-  const totalDuration = shots.reduce((sum, shot) => sum + shot.duration, 0);
-  const expectedDuration = toWholeNumber(selectedDuration);
-  if (expectedDuration != null && shots.length && totalDuration !== expectedDuration) {
-    errors.push(`Shot durations total ${totalDuration}s, but the selected duration is ${expectedDuration}s.`);
-  }
-
-  return { shots, errors, totalDuration };
-}
-
-function displayChoiceLabel(optionKey: string, _schema: Record<string, unknown>, value: unknown) {
-  if (value == null || value === "") {
-    return "Select";
-  }
-  if (optionKey === "mode" && typeof value === "string") {
-    if (value === "std" || value === "720p") return "Standard";
-    if (value === "pro" || value === "1080p") return "High";
-  }
-  if (optionKey === "duration") {
-    const duration = toWholeNumber(value);
-    return duration != null ? `${duration}s` : String(value);
-  }
-  if (optionKey === "output_format" && typeof value === "string") {
-    return value.toUpperCase();
-  }
-  if ((optionKey === "resolution" || optionKey === "size") && typeof value === "string") {
-    return value.replaceAll("_", " ").toUpperCase();
-  }
-  if (typeof value === "boolean") {
-    if (optionKey === "google_search") return value ? "On" : "Off";
-    if (optionKey === "sound") return value ? "On" : "Off";
-    return value ? "On" : "Off";
-  }
-  if (typeof value === "string") {
-    return value.replaceAll("_", " ");
-  }
-  return String(value);
-}
-
-function studioOptionChoices(
-  modelKey: string | null | undefined,
-  optionKey: string,
-  schema: Record<string, unknown>,
-  currentValue: unknown,
-) {
-  return optionChoices(schema, currentValue);
-}
-
-function buildChoiceList(
-  modelKey: string | null | undefined,
-  optionKey: string,
-  schema: Record<string, unknown>,
-  currentValue: unknown,
-): StudioChoice[] {
-  return studioOptionChoices(modelKey, optionKey, schema, currentValue).map((choice) => ({
-    value: serializeOptionChoice(choice),
-    label: displayChoiceLabel(optionKey, schema, choice),
-  }));
 }
 
 function StudioPillSelect({
@@ -997,6 +256,7 @@ function StudioPillSelect({
     >
       <button
         type="button"
+        data-testid={`studio-picker-${pickerId}`}
         onClick={() => setOpenPicker(isOpen ? null : pickerId)}
         className="flex h-12 w-full items-center gap-3 rounded-[18px] border border-white/8 bg-white/[0.04] pl-3.5 pr-3.5 text-left text-[0.82rem] font-semibold text-white transition hover:border-[rgba(216,141,67,0.22)]"
       >
@@ -1018,6 +278,7 @@ function StudioPillSelect({
               <button
                 key={`${pickerId}:${choice.value}`}
                 type="button"
+                data-testid={`studio-picker-option-${pickerId}-${choice.value || "empty"}`}
                 onClick={() => {
                   onSelect(choice.value);
                   setOpenPicker(null);
@@ -1032,117 +293,6 @@ function StudioPillSelect({
       ) : null}
     </div>
   );
-}
-
-function inferInputPattern(
-  model: MediaModelSummary | null,
-  attachments: AttachmentRecord[],
-  sourceAsset: MediaAsset | null,
-) {
-  const imageCount =
-    attachments.filter((attachment) => attachment.kind === "images").length +
-    (sourceAsset?.generation_kind === "image" ? 1 : 0);
-  const videoCount =
-    attachments.filter((attachment) => attachment.kind === "videos").length +
-    (sourceAsset?.generation_kind === "video" ? 1 : 0);
-  const patterns = new Set(model?.input_patterns ?? []);
-
-  if (patterns.has("motion_control") && imageCount >= 1 && videoCount >= 1) {
-    return "motion_control";
-  }
-  if (patterns.has("first_last_frames") && imageCount >= 2) {
-    return "first_last_frames";
-  }
-  if (patterns.has("image_edit") && imageCount >= 1) {
-    return "image_edit";
-  }
-  if (patterns.has("single_image") && imageCount >= 1) {
-    return "single_image";
-  }
-  return "prompt_only";
-}
-
-function formatOptionValue(value: unknown) {
-  if (typeof value === "boolean") {
-    return value ? "On" : "Off";
-  }
-  if (Array.isArray(value)) {
-    return value.join(", ");
-  }
-  if (value == null || value === "") {
-    return "Not set";
-  }
-  return String(value);
-}
-
-const READY_MEDIA_VALIDATION_STATES = new Set(["ready", "ready_with_defaults", "ready_with_warning"]);
-
-function studioValidationReady(validation: MediaValidationResponse | null) {
-  if (!validation?.state) {
-    return false;
-  }
-  return READY_MEDIA_VALIDATION_STATES.has(validation.state.toLowerCase());
-}
-
-function prettifyModelLabel(modelKey: string | null | undefined) {
-  if (!modelKey) {
-    return "Media";
-  }
-  return modelKey.replaceAll("-", " ");
-}
-
-function presetThumbnailVisual(preset: MediaPreset | null | undefined) {
-  if (!preset?.thumbnail_url) {
-    return null;
-  }
-  if (preset.thumbnail_url.startsWith("/files/")) {
-    return `/api/control/files${preset.thumbnail_url.slice("/files".length)}`;
-  }
-  return preset.thumbnail_url;
-}
-
-function jobStatusLabel(status: string | null | undefined) {
-  if (status === "queued") return "Queued";
-  if (status === "submitted" || status === "running" || status === "processing") return "Processing";
-  if (status === "completed") return "Complete";
-  return "Failed";
-}
-
-function jobPhaseMessage(job: MediaJob | null | undefined) {
-  if (!job) {
-    return null;
-  }
-  const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
-  if ((job.status === "running" || job.status === "processing") && finalState === "succeeded") {
-    return "Final output received. Publishing it into Studio.";
-  }
-  if (job.status === "submitted" || job.status === "running" || job.status === "processing") {
-    return "Waiting for the provider to finish the generation.";
-  }
-  if (job.status === "queued") {
-    return "The job is queued and waiting for an open runner slot.";
-  }
-  return null;
-}
-
-function batchPhaseMessage(batch: MediaBatch | null | undefined) {
-  if (!batch) {
-    return null;
-  }
-  const publishingJob = (batch.jobs ?? []).find((job) => {
-    const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
-    return (job.status === "running" || job.status === "processing") && finalState === "succeeded";
-  });
-  if (publishingJob) {
-    return "Final output received. Publishing it into Studio.";
-  }
-  if (batch.running_count > 0) {
-    return "Studio is polling the provider for this batch right now.";
-  }
-  if (batch.queued_count > 0) {
-    return "This batch is queued and waiting for runner capacity.";
-  }
-  return null;
 }
 
 export function MediaStudio({
@@ -1170,372 +320,250 @@ export function MediaStudio({
 }: MediaStudioProps) {
   const router = useRouter();
   const { showActivity } = useGlobalActivity();
-  const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const lightboxVideoRef = useRef<HTMLVideoElement | null>(null);
-  const galleryLoadMoreRef = useRef<HTMLDivElement | null>(null);
-  const loadMoreAssetsRef = useRef<() => void>(() => undefined);
-  const prefetchedThumbUrlsRef = useRef(new Set<string>());
-  const autoValidateTimerRef = useRef<number | null>(null);
-  const validationRequestIdRef = useRef(0);
   const [isRefreshing, startRefresh] = useTransition();
-  const [modelKey, setModelKey] = useState(models[0]?.key ?? "nano-banana-2");
-  const [selectedPresetId, setSelectedPresetId] = useState("");
-  const [selectedPromptIds, setSelectedPromptIds] = useState<string[]>([]);
-  const [prompt, setPrompt] = useState("");
-  const [presetInputValues, setPresetInputValues] = useState<Record<string, string>>({});
-  const [presetSlotStates, setPresetSlotStates] = useState<Record<string, PresetSlotState>>({});
-  const [optionValues, setOptionValues] = useState<Record<string, unknown>>({});
-  const [enhanceDialogOpen, setEnhanceDialogOpen] = useState(false);
-  const [enhanceBusy, setEnhanceBusy] = useState(false);
-  const [enhancePreview, setEnhancePreview] = useState<MediaEnhancePreviewResponse | null>(null);
-  const [enhanceError, setEnhanceError] = useState<string | null>(null);
-  const [attachments, setAttachments] = useState<AttachmentRecord[]>([]);
-  const [isDragActive, setIsDragActive] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
   const [studioSettingsOpen, setStudioSettingsOpen] = useState(false);
-  const [validation, setValidation] = useState<MediaValidationResponse | null>(null);
-  const [busyState, setBusyState] = useState<"idle" | "validate" | "submit">("idle");
-  const [formMessage, setFormMessage] = useState<{ tone: "healthy" | "warning" | "danger"; text: string } | null>(null);
-  const [galleryModelFilter, setGalleryModelFilter] = useState("all");
-  const [galleryKindFilter, setGalleryKindFilter] = useState<GalleryKindFilter>("all");
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [favoriteAssets, setFavoriteAssets] = useState<MediaAsset[] | null>(null);
-  const [favoritesLoading, setFavoritesLoading] = useState(false);
-  const [favoriteAssetFeedHasMore, setFavoriteAssetFeedHasMore] = useState(false);
-  const [favoriteAssetFeedNextOffset, setFavoriteAssetFeedNextOffset] = useState<number | null>(null);
-  const [loadingMoreFavoriteAssets, setLoadingMoreFavoriteAssets] = useState(false);
-  const [prefetchingFavoriteAssetPage, setPrefetchingFavoriteAssetPage] = useState(false);
-  const [prefetchedFavoriteAssetPage, setPrefetchedFavoriteAssetPage] = useState<AssetPagePayload | null>(null);
-  const [favoriteAssetIdBusy, setFavoriteAssetIdBusy] = useState<string | number | null>(null);
-  const [galleryScrollArmed, setGalleryScrollArmed] = useState(false);
-  const [mobileComposerCollapsed, setMobileComposerCollapsed] = useState(true);
-  const [mobileInspectorPromptOpen, setMobileInspectorPromptOpen] = useState(false);
-  const [mobileInspectorInfoOpen, setMobileInspectorInfoOpen] = useState(false);
-  const [selectedAssetId, setSelectedAssetId] = useState<string | number | null>(initialSelectedAssetId);
-  const [selectedAssetHydratedJob, setSelectedAssetHydratedJob] = useState<MediaJob | null>(null);
-  const [selectedMediaLightboxOpen, setSelectedMediaLightboxOpen] = useState(false);
+  const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(null);
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
-  const [outputCount, setOutputCount] = useState(1);
-  const [localBatches, setLocalBatches] = useState<MediaBatch[]>(batches);
-  const [optimisticBatches, setOptimisticBatches] = useState<MediaBatch[]>([]);
-  const [localJobs, setLocalJobs] = useState<MediaJob[]>(jobs);
-  const [localAssets, setLocalAssets] = useState<MediaAsset[]>(assets);
-  const [assetPageLimit, setAssetPageLimit] = useState(Math.max(initialAssetLimit, INITIAL_ASSET_PAGE_SIZE));
-  const [assetFeedHasMore, setAssetFeedHasMore] = useState(initialAssetsHasMore);
-  const [assetFeedNextOffset, setAssetFeedNextOffset] = useState<number | null>(initialAssetsNextOffset);
-  const [loadingMoreAssets, setLoadingMoreAssets] = useState(false);
-  const [prefetchingAssetPage, setPrefetchingAssetPage] = useState(false);
-  const [prefetchedAssetPage, setPrefetchedAssetPage] = useState<AssetPagePayload | null>(null);
-  const [localLatestAsset, setLocalLatestAsset] = useState<MediaAsset | null>(latestAsset);
-  const [openPicker, setOpenPicker] = useState<string | null>(null);
-
-  const currentModel = models.find((model) => model.key === modelKey) ?? null;
-  const globalEnhancementConfig =
-    enhancementConfigs.find((config) => config.model_key === "__studio_enhancement__") ??
-    enhancementConfigs.find(
-      (config) => Boolean(config.provider_model_id || (config.provider_kind && config.provider_kind !== "builtin")),
-    ) ??
-    null;
-  const currentModelEnhancementConfig =
-    enhancementConfigs.find((config) => config.model_key === modelKey) ?? null;
-  const enhanceEnabledForModel = Boolean(currentModelEnhancementConfig?.supports_text_enhancement);
-  const currentQueuePolicy = queuePolicies.find((policy) => policy.model_key === modelKey) ?? null;
-  const maxConcurrentJobs = Math.max(1, queueSettings?.max_concurrent_jobs ?? 10);
-  const modelMaxOutputs = Math.max(
-    1,
-    Math.min(
-      maxConcurrentJobs,
-      currentQueuePolicy?.max_outputs_per_run ?? (isNanoPresetModel(modelKey) ? 3 : 1),
-    ),
-  );
-  const currentSourceAsset = findMediaAssetById(sourceAssetId, localAssets, favoriteAssets) ?? null;
-  const maxImageInputs = modelInputLimit(currentModel, "image_inputs");
-  const maxVideoInputs = modelInputLimit(currentModel, "video_inputs");
-  const maxAudioInputs = modelInputLimit(currentModel, "audio_inputs");
-  const imageAttachments = attachments.filter((attachment) => attachment.kind === "images");
-  const videoAttachments = attachments.filter((attachment) => attachment.kind === "videos");
-  const audioAttachments = attachments.filter((attachment) => attachment.kind === "audios");
-  const sourceAssetIsImage = currentSourceAsset?.generation_kind === "image";
-  const sourceAssetIsVideo = currentSourceAsset?.generation_kind === "video";
-  const stagedImageCount = imageAttachments.length + (sourceAssetIsImage ? 1 : 0);
-  const stagedVideoCount = videoAttachments.length + (sourceAssetIsVideo ? 1 : 0);
-  const stagedAudioCount = audioAttachments.length;
-  const currentPreset =
-    presets.find((preset) => preset.preset_id === selectedPresetId || preset.key === selectedPresetId) ?? null;
-  const enhanceProviderLabel =
-    enhancePreview?.provider_label ??
-    globalEnhancementConfig?.provider_label ??
-    (globalEnhancementConfig?.provider_kind === "openrouter"
-      ? "OpenRouter.ai"
-      : globalEnhancementConfig?.provider_kind === "local_openai"
-        ? "Local OpenAI-Compatible"
-        : "Built-in helper");
-  const enhanceProviderModelId =
-    enhancePreview?.provider_model_id ??
-    globalEnhancementConfig?.provider_model_id ??
-      (globalEnhancementConfig?.provider_kind === "openrouter" ? "qwen/qwen3.5-35b-a3b" : null);
-  const enhanceImageAnalysisText = enhancePreview?.image_analysis
-    ? typeof enhancePreview.image_analysis === "string"
-      ? enhancePreview.image_analysis
-      : String(
-          (enhancePreview.image_analysis as Record<string, unknown>).analysis ??
-            (enhancePreview.image_analysis as Record<string, unknown>).warning ??
-            "No image analysis output returned.",
-        )
-    : null;
-  const enhanceImageAnalysisStatus = enhancePreview?.image_analysis
-    ? typeof enhancePreview.image_analysis === "string"
-      ? "available"
-      : String((enhancePreview.image_analysis as Record<string, unknown>).status ?? "available")
-    : "Not checked";
-  const structuredPresetTextFields = useMemo(() => normalizeStructuredPresetTextFields(currentPreset), [currentPreset]);
-  const structuredPresetImageSlots = useMemo(() => normalizeStructuredPresetImageSlots(currentPreset), [currentPreset]);
-  const structuredPresetActive =
-    isNanoPresetModel(modelKey) && Boolean(currentPreset) && (structuredPresetTextFields.length > 0 || structuredPresetImageSlots.length > 0);
-  const inputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
-  const explicitVideoImageSlots =
-    !structuredPresetActive &&
-    currentModel?.generation_kind === "video" &&
-    maxImageInputs > 0 &&
-    maxImageInputs <= 2 &&
-    maxVideoInputs === 0 &&
-    maxAudioInputs === 0;
-  const orderedImageInputs = useMemo(() => {
-    const items: Array<
-      | { source: "asset"; asset: MediaAsset }
-      | { source: "attachment"; attachment: AttachmentRecord }
-    > = [];
-    if (sourceAssetIsImage && currentSourceAsset) {
-      items.push({ source: "asset", asset: currentSourceAsset });
-    }
-    for (const attachment of imageAttachments) {
-      items.push({ source: "attachment", attachment });
-    }
-    return items;
-  }, [currentSourceAsset, imageAttachments, sourceAssetIsImage]);
-  const multiShotsEnabled =
-    MULTI_SHOT_MODEL_KEYS.has(modelKey) && optionBooleanValue(optionValues["multi_shots"]);
-  const multiShotScript = useMemo(
-    () => parseMultiShotScript(prompt, optionValues["duration"]),
-    [optionValues, prompt],
-  );
-  const multiShotScriptError = multiShotsEnabled ? multiShotScript.errors[0] ?? null : null;
-  const selectedPromptList = selectedPromptObjects(selectedPromptIds, prompts);
-  const modelPresets = isNanoPresetModel(modelKey) ? presets.filter((preset) => {
-    if (preset.source_kind === "builtin") {
-      return false;
-    }
-    const scopedModels = preset.applies_to_models?.length ? preset.applies_to_models : (preset.model_key ? [preset.model_key] : []);
-    return !scopedModels.length || scopedModels.includes(modelKey);
-  }) : [];
-  const baseGalleryAssets = favoritesOnly ? favoriteAssets ?? [] : localAssets;
-  const visibleAssets = baseGalleryAssets.filter((asset) => {
-    if (galleryModelFilter !== "all" && asset.model_key !== galleryModelFilter) {
-      return false;
-    }
-    if (galleryKindFilter !== "all" && asset.generation_kind !== galleryKindFilter) {
-      return false;
-    }
-    return true;
+  const pollJobProxyRef = useRef<(jobId: string) => Promise<void>>(async () => {});
+  const pollBatchProxyRef = useRef<(batchId: string) => Promise<void>>(async () => {});
+  const refreshStudioDataWithSettleDelay = () => {
+    startRefresh(() => router.refresh());
+    window.setTimeout(() => {
+      startRefresh(() => router.refresh());
+    }, 1400);
+  };
+  const gallery = useStudioGalleryFeed({
+    batches,
+    jobs,
+    assets,
+    initialAssetLimit,
+    initialAssetsHasMore,
+    initialAssetsNextOffset,
+    latestAsset,
+    onMessage: setFormMessage,
   });
-  const allowLatestGalleryFallback = !favoritesOnly && galleryModelFilter === "all" && galleryKindFilter === "all";
-  const openBatches = localBatches.filter((batch) => ["queued", "processing", "failed", "partial_failure"].includes(batch.status));
-  const openOptimisticBatches = optimisticBatches.filter((batch) => ["queued", "processing"].includes(batch.status));
-  const activeGalleryHasMore = favoritesOnly ? favoriteAssetFeedHasMore : assetFeedHasMore;
-  const activeGalleryLoadingMore = favoritesOnly ? loadingMoreFavoriteAssets : loadingMoreAssets;
-  const galleryTiles = useMemo(
-    () =>
-      buildGalleryTiles(
-        visibleAssets,
-        localLatestAsset,
-        [...openOptimisticBatches, ...openBatches],
-        localAssets,
-        activeGalleryHasMore,
-        allowLatestGalleryFallback,
-      ),
-    [visibleAssets, localLatestAsset, openOptimisticBatches, openBatches, localAssets, activeGalleryHasMore, allowLatestGalleryFallback],
-  );
-  const selectedAsset = findMediaAssetById(selectedAssetId, localAssets, favoriteAssets) ?? null;
-  const selectedAssetCachedJob = useMemo(() => {
-    if (!selectedAsset) {
-      return null;
-    }
-    return (
-      localJobs.find((job) => {
-        if (selectedAsset.job_id && job.job_id === selectedAsset.job_id) {
-          return true;
-        }
-        if (selectedAsset.provider_task_id && job.provider_task_id === selectedAsset.provider_task_id) {
-          return true;
-        }
-        if (selectedAsset.run_id && job.artifact?.run_id === selectedAsset.run_id) {
-          return true;
-        }
-        return false;
-      }) ?? null
-    );
-  }, [localJobs, selectedAsset]);
-  const selectedAssetJob =
-    selectedAssetHydratedJob && selectedAssetHydratedJob.job_id === selectedAsset?.job_id
-      ? selectedAssetHydratedJob
-      : selectedAssetCachedJob;
-  const selectedAssetPrompt = mediaAssetPrompt(selectedAsset, selectedAssetJob);
-  const selectedAssetPreset = useMemo(
-    () => presets.find((preset) => preset.key === selectedAsset?.preset_key) ?? null,
-    [presets, selectedAsset?.preset_key],
-  );
-  const selectedAssetPresetFields = useMemo(
-    () => normalizeStructuredPresetTextFields(selectedAssetPreset),
-    [selectedAssetPreset],
-  );
-  const selectedAssetPresetSlots = useMemo(
-    () => normalizeStructuredPresetImageSlots(selectedAssetPreset),
-    [selectedAssetPreset],
-  );
-  const selectedAssetPresetInputValues = useMemo(
-    () => {
-      const fromJob = structuredPresetInputValues(selectedAssetJob);
-      if (Object.keys(fromJob).length > 0) {
-        return fromJob;
-      }
-      return structuredPresetInputValuesFromAsset(selectedAsset);
+  const selection = useStudioSelection({
+    initialSelectedAssetId,
+    localAssets: gallery.state.localAssets,
+    favoriteAssets: gallery.state.favoriteAssets,
+    localJobs: gallery.state.localJobs,
+    presets,
+    onHydratedJob: (job) => {
+      gallery.actions.setLocalJobs((current) =>
+        [job, ...current.filter((entry) => entry.job_id !== job.job_id)].slice(0, 24),
+      );
     },
-    [selectedAsset, selectedAssetJob],
-  );
-  const selectedAssetPresetSlotValues = useMemo(
-    () => {
-      const fromJob = structuredPresetSlotValues(selectedAssetJob);
-      if (Object.keys(fromJob).length > 0) {
-        return fromJob;
-      }
-      return structuredPresetSlotValuesFromAsset(selectedAsset);
-    },
-    [selectedAsset, selectedAssetJob],
-  );
-  const selectedAssetStructuredPresetActive =
-    Boolean(selectedAssetPreset) && (selectedAssetPresetFields.length > 0 || selectedAssetPresetSlots.length > 0);
-  const structuredPresetPromptPreview = structuredPresetActive
-    ? renderStructuredPresetPrompt(currentPreset?.prompt_template ?? "", presetInputValues, presetSlotStates, structuredPresetImageSlots)
-    : "";
-  const presetRequirementError = structuredPresetActive
-    ? (() => {
-        for (const field of structuredPresetTextFields) {
-          const value = String(presetInputValues[field.key] ?? field.defaultValue ?? "").trim();
-          if (field.required && !value) {
-            return `The preset ${currentPreset?.label} requires the text field ${field.label}.`;
-          }
-        }
-        for (const slot of structuredPresetImageSlots) {
-          const slotState = presetSlotStates[slot.key];
-          const slotFilled = Boolean(slotState?.assetId || slotState?.file);
-          if (slot.required && !slotFilled) {
-            return `The preset ${currentPreset?.label} requires the image slot ${slot.label}.`;
-          }
-        }
-        return null;
-      })()
-    : presetRequirementMessage(currentPreset, attachments, currentSourceAsset);
-  const firstPresetSlotPreview = structuredPresetImageSlots
-    .map((slot) => presetSlotStates[slot.key]?.previewUrl)
-    .find((value) => Boolean(value)) ?? null;
-  const enhancementPreviewVisual = structuredPresetActive
-    ? firstPresetSlotPreview
-    : currentSourceAsset
-      ? mediaDisplayUrl(currentSourceAsset)
-      : attachments.find((attachment) => attachment.kind === "images")?.previewUrl ?? null;
-  const selectedAssetDisplayVisual = mediaDisplayUrl(selectedAsset);
-  const selectedAssetPlaybackVisual = mediaPlaybackUrl(selectedAsset);
-  const selectedAssetLightboxVisual =
-    (selectedAsset?.generation_kind === "video"
-      ? selectedAssetPlaybackVisual ?? selectedAssetDisplayVisual
-      : mediaVariantUrl(selectedAsset, "web") ??
-        mediaVariantUrl(selectedAsset, "original") ??
-        selectedAssetDisplayVisual) ?? null;
+  });
+
+  const {
+    localBatches,
+    optimisticBatches,
+    localJobs,
+    localAssets,
+    localLatestAsset,
+    galleryModelFilter,
+    galleryKindFilter,
+    favoritesOnly,
+    favoriteAssets,
+  } = gallery.state;
+  const { activeGalleryHasMore, activeGalleryLoadingMore, galleryTiles } = gallery.derived;
+  const { galleryLoadMoreRef } = gallery.refs;
+  const {
+    setLocalJobs,
+    setOptimisticBatches,
+    setLocalAssets,
+    setLocalLatestAsset,
+    setGalleryModelFilter,
+    setFavoriteAssets,
+    applyFavoriteAssetUpdate,
+    activateGalleryKindFilter,
+    toggleFavoritesFilter,
+    loadMoreActiveGalleryAssets,
+    refreshActiveGalleryAssets,
+    upsertBatch,
+  } = gallery.actions;
+  const {
+    selectedAssetId,
+    selectedMediaLightboxOpen,
+    mobileInspectorPromptOpen,
+    mobileInspectorInfoOpen,
+  } = selection.state;
+  const {
+    selectedAsset,
+    selectedAssetJob,
+    selectedAssetPrompt,
+    selectedAssetPreset,
+    selectedAssetPresetFields,
+    selectedAssetPresetSlots,
+    selectedAssetPresetInputValues,
+    selectedAssetPresetSlotValues,
+    selectedAssetStructuredPresetActive,
+    selectedAssetDisplayVisual,
+    selectedAssetPlaybackVisual,
+    selectedAssetLightboxVisual,
+  } = selection.derived;
+  const { lightboxVideoRef } = selection.refs;
+  const {
+    setSelectedAssetId,
+    setSelectedMediaLightboxOpen,
+    setMobileInspectorPromptOpen,
+    setMobileInspectorInfoOpen,
+    resetInspector,
+    openSelectedMediaLightbox,
+    closeSelectedMediaLightbox,
+  } = selection.actions;
+  const composer = useStudioComposer({
+    models,
+    presets,
+    prompts,
+    enhancementConfigs,
+    queueSettings,
+    queuePolicies,
+    pricingSnapshot,
+    remainingCredits,
+    localBatches: gallery.state.localBatches,
+    localAssets: gallery.state.localAssets,
+    favoriteAssets: gallery.state.favoriteAssets,
+    sourceAssetId,
+    setSourceAssetId,
+    setOptimisticBatches,
+    setLocalJobs,
+    upsertBatch,
+    pollJob: (jobId) => pollJobProxyRef.current(jobId),
+    pollBatch: (batchId) => pollBatchProxyRef.current(batchId),
+    formMessage,
+    setFormMessage,
+    showActivity,
+  });
+  const {
+    modelKey,
+    selectedPresetId,
+    selectedPromptIds,
+    prompt,
+    presetInputValues,
+    presetSlotStates,
+    optionValues,
+    enhanceDialogOpen,
+    enhanceBusy,
+    enhancePreview,
+    enhanceError,
+    attachments,
+    isDragActive,
+    validation,
+    busyState,
+    floatingComposerStatus,
+    mobileComposerCollapsed,
+    outputCount,
+    openPicker,
+  } = composer.state;
+  const {
+    currentModel,
+    currentPreset,
+    currentSourceAsset,
+    enhanceEnabledForModel,
+    enhanceProviderLabel,
+    enhanceProviderModelId,
+    enhanceImageAnalysisText,
+    enhanceImageAnalysisStatus,
+    structuredPresetTextFields,
+    structuredPresetImageSlots,
+    structuredPresetActive,
+    explicitVideoImageSlots,
+    orderedImageInputs,
+    multiShotsEnabled,
+    multiShotScript,
+    multiShotScriptError,
+    selectedPromptList,
+    modelPresets,
+    structuredPresetPromptPreview,
+    presetRequirementError,
+    enhancementPreviewVisual,
+    compactOptionEntries,
+    estimatedCredits,
+    estimatedCostUsd,
+    formattedRemainingCredits,
+    generateButtonLabel,
+    modelMaxOutputs,
+    validationReady,
+    inferredInputPattern,
+    canSubmit,
+    composerStatusMessage,
+    imageSlotLabels,
+    imageLimitLabel,
+    canAddMoreImages,
+    canAddMoreVideos,
+    canAddMoreAudios,
+    maxImageInputs,
+    maxVideoInputs,
+    maxAudioInputs,
+    stagedImageCount,
+    stagedVideoCount,
+    stagedAudioCount,
+  } = composer.derived;
+  const {
+    promptInputRef,
+  } = composer.refs;
+  const {
+    setModelKey,
+    setSelectedPresetId,
+    setSelectedPromptIds,
+    setPrompt,
+    setPresetInputValues,
+    setPresetSlotStates,
+    setOptionValues,
+    setEnhanceDialogOpen,
+    setEnhancePreview,
+    setEnhanceError,
+    setAttachments,
+    setIsDragActive,
+    setValidation,
+    setBusyState,
+    setMobileComposerCollapsed,
+    setOutputCount,
+    setOpenPicker,
+    updateOption,
+    addFiles,
+    addGalleryAssetAsAttachment,
+    assignPresetSlotFile,
+    assignPresetSlotAsset,
+    clearPresetSlot,
+    removeAttachment,
+    clearComposer,
+    togglePrompt,
+    requestEnhancementPreview,
+    openEnhanceDialog,
+    showFloatingComposerBanner,
+    submitMedia,
+    pickerWidth,
+    buildChoiceList,
+    displayChoiceLabel,
+    parseOptionChoice,
+    serializeOptionChoice,
+  } = composer.actions;
+  const polling = useStudioPolling({
+    showActivity,
+    showFloatingComposerBanner,
+    setFormMessage,
+    refreshStudioDataWithSettleDelay,
+    refreshActiveGalleryAssets,
+    setLocalJobs,
+    upsertBatch,
+    setLocalAssets,
+    setFavoriteAssets,
+    setLocalLatestAsset,
+    applyFavoriteAssetUpdate,
+    selectedAssetId,
+    sourceAssetId,
+    setSelectedAssetId,
+    setSourceAssetId,
+    startRefresh,
+    refreshRoute: () => router.refresh(),
+  });
+  const { favoriteAssetIdBusy } = polling.state;
+  const { pollJob, pollBatch, retryJob, dismissJob, dismissAsset, toggleAssetFavorite } = polling.actions;
+  const downloadActionLabel = hasMounted ? mobileSaveActionLabel() : "Download";
   const mobileComposerExpanded = !mobileComposerCollapsed;
-  const compactOptionEntries = optionEntries(currentModel);
-  const showImmersiveTopChrome = !immersive;
-  const showImmersiveExit = immersive;
-  const optionSignature = useMemo(() => JSON.stringify(optionValues), [optionValues]);
-  const pricingOptions = useMemo(
-    () =>
-      buildNormalizedStudioOptions(
-        currentModel,
-        optionValues,
-        isRecord(currentPreset?.default_options_json) ? currentPreset.default_options_json : null,
-      ),
-    [currentModel, currentPreset?.default_options_json, optionValues],
-  );
-  const selectedPromptSignature = useMemo(() => selectedPromptIds.join("|"), [selectedPromptIds]);
-  const attachmentSignature = useMemo(
-    () => attachments.map((attachment) => `${attachment.id}:${attachment.file.name}:${attachment.file.size}`).join("|"),
-    [attachments],
-  );
-  const localPricingEstimate = useMemo(
-    () => estimateFromPricingSnapshot(pricingSnapshot, modelKey, pricingOptions, outputCount),
-    [modelKey, outputCount, pricingOptions, pricingSnapshot],
-  );
-  const { estimatedCredits, estimatedCostUsd, generatePriceLabel } = useMemo(
-    () => resolveStudioPricingDisplay(validation, localPricingEstimate),
-    [validation, localPricingEstimate],
-  );
-  const formattedRemainingCredits =
-    typeof remainingCredits === "number"
-      ? `${remainingCredits.toFixed(remainingCredits % 1 === 0 ? 0 : 1)}`
-      : null;
-  const generateButtonLabel =
-    busyState === "submit" ? "Generating..." : generatePriceLabel ? `Generate · ${generatePriceLabel}` : "Generate";
-
-  useEffect(() => {
-    setSelectedMediaLightboxOpen(false);
-  }, [selectedAssetId]);
-
-  useEffect(() => {
-    if (!initialSelectedAssetId) {
-      return;
-    }
-    const matchedAsset = findMediaAssetById(initialSelectedAssetId, localAssets, favoriteAssets);
-    if (matchedAsset) {
-      setSelectedAssetId(matchedAsset.asset_id);
-    }
-  }, [initialSelectedAssetId, localAssets, favoriteAssets]);
-
-  useEffect(() => {
-    if (!selectedMediaLightboxOpen || selectedAsset?.generation_kind !== "video") {
-      return;
-    }
-    const video = lightboxVideoRef.current;
-    if (!video) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      void video.play().catch(() => undefined);
-      const webkitVideo = video as HTMLVideoElement & { webkitEnterFullscreen?: () => void };
-      if (typeof video.requestFullscreen === "function") {
-        void video.requestFullscreen().catch(() => {
-          webkitVideo.webkitEnterFullscreen?.();
-        });
-        return;
-      }
-      webkitVideo.webkitEnterFullscreen?.();
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [selectedAsset?.asset_id, selectedAsset?.generation_kind, selectedMediaLightboxOpen]);
-  const validationReady = studioValidationReady(validation);
-  const inferredInputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
-  const composerHasSubmittableInput = structuredPresetActive
-    ? Boolean(structuredPresetPromptPreview)
-    : (multiShotsEnabled ? multiShotScript.shots.length > 0 && !multiShotScriptError : Boolean(prompt.trim()));
-  const canSubmit =
-    busyState === "idle" &&
-    !presetRequirementError &&
-    composerHasSubmittableInput;
-  const composerStatusMessage =
-    busyState === "validate"
-      ? { tone: "warning" as const, text: "Validating request and checking estimated cost." }
-      : busyState === "submit"
-        ? { tone: "warning" as const, text: "Preparing the job and sending it to the runner." }
-        : formMessage;
   const studioSettingsButton = (
     <button
       type="button"
@@ -1547,14 +575,10 @@ export function MediaStudio({
       <Settings2 className="size-4" />
     </button>
   );
-  const imageSlotLabels =
-    explicitVideoImageSlots && currentModel?.input_patterns?.includes("first_last_frames")
-      ? ["Start frame", "End frame"]
-      : ["Source image"];
-  const imageLimitLabel = maxImageInputs > 0 ? `${stagedImageCount} / ${maxImageInputs} images` : null;
-  const canAddMoreImages = maxImageInputs <= 0 ? false : stagedImageCount < maxImageInputs;
-  const canAddMoreVideos = maxVideoInputs <= 0 ? false : stagedVideoCount < maxVideoInputs;
-  const canAddMoreAudios = maxAudioInputs <= 0 ? false : stagedAudioCount < maxAudioInputs;
+  useEffect(() => {
+    pollJobProxyRef.current = pollJob;
+    pollBatchProxyRef.current = pollBatch;
+  }, [pollBatch, pollJob]);
   const sourceAttachmentStrip = !structuredPresetActive ? (
     <div className="flex flex-wrap gap-3">
       {explicitVideoImageSlots ? (
@@ -1722,287 +746,13 @@ export function MediaStudio({
     </div>
   ) : null;
 
-  async function fetchAssetPage({
-    offset,
-    favorited,
-    limitOverride,
-    silent = false,
-  }: {
-    offset: number;
-    favorited?: boolean;
-    limitOverride?: number;
-    silent?: boolean;
-  }): Promise<AssetPagePayload | null> {
-    const requestLimit = Math.max(1, limitOverride ?? assetPageLimit);
-    const params = new URLSearchParams({
-      limit: String(requestLimit),
-      offset: String(Math.max(0, offset)),
-    });
-    if (favorited) {
-      params.set("favorited", "true");
-    }
-    if (galleryKindFilter !== "all") {
-      params.set("generation_kind", galleryKindFilter);
-    }
-    if (galleryModelFilter !== "all") {
-      params.set("model_key", galleryModelFilter);
-    }
-
-    try {
-      const response = await fetch(`/api/control/media-assets?${params.toString()}`, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      });
-      const payload = (await response.json()) as AssetPagePayload;
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error ?? "Unable to load media assets from the dashboard.");
-      }
-      return payload;
-    } catch (error) {
-      if (!silent) {
-        setFormMessage({
-          tone: "danger",
-          text: error instanceof Error ? error.message : "The dashboard could not load more media assets.",
-        });
-      }
-      return null;
-    }
-  }
-
-  function applyLoadedAssetPage(page: AssetPagePayload) {
-    const pageAssets = page.assets ?? [];
-    setLocalAssets((current) => mergeAssetCollections(current, pageAssets));
-    setAssetFeedHasMore(Boolean(page.has_more));
-    setAssetFeedNextOffset(page.next_offset ?? null);
-    setPrefetchedAssetPage(null);
-  }
-
-  function applyLoadedFavoriteAssetPage(page: AssetPagePayload) {
-    const pageAssets = page.assets ?? [];
-    setFavoriteAssets((current) => mergeAssetCollections(current ?? [], pageAssets));
-    setFavoriteAssetFeedHasMore(Boolean(page.has_more));
-    setFavoriteAssetFeedNextOffset(page.next_offset ?? null);
-    setPrefetchedFavoriteAssetPage(null);
-  }
-
-  async function loadMoreGalleryAssets() {
-    if (favoritesOnly || loadingMoreAssets || !assetFeedHasMore || assetFeedNextOffset == null) {
-      return;
-    }
-    setLoadingMoreAssets(true);
-    try {
-      if (prefetchedAssetPage && prefetchedAssetPage.offset === assetFeedNextOffset) {
-        applyLoadedAssetPage(prefetchedAssetPage);
-        return;
-      }
-      const page = await fetchAssetPage({ offset: assetFeedNextOffset, limitOverride: ASSET_APPEND_BATCH_SIZE });
-      if (!page) {
-        return;
-      }
-      applyLoadedAssetPage(page);
-    } finally {
-      setLoadingMoreAssets(false);
-    }
-  }
-
-  async function loadMoreFavoriteGalleryAssets() {
-    if (
-      !favoritesOnly ||
-      loadingMoreFavoriteAssets ||
-      !favoriteAssetFeedHasMore ||
-      favoriteAssetFeedNextOffset == null
-    ) {
-      return;
-    }
-    setLoadingMoreFavoriteAssets(true);
-    try {
-      if (prefetchedFavoriteAssetPage && prefetchedFavoriteAssetPage.offset === favoriteAssetFeedNextOffset) {
-        applyLoadedFavoriteAssetPage(prefetchedFavoriteAssetPage);
-        return;
-      }
-      const page = await fetchAssetPage({
-        offset: favoriteAssetFeedNextOffset,
-        favorited: true,
-        limitOverride: ASSET_APPEND_BATCH_SIZE,
-      });
-      if (!page) {
-        return;
-      }
-      applyLoadedFavoriteAssetPage(page);
-    } finally {
-      setLoadingMoreFavoriteAssets(false);
-    }
-  }
-
-  loadMoreAssetsRef.current = () => {
-    if (favoritesOnly) {
-      void loadMoreFavoriteGalleryAssets();
-      return;
-    }
-    void loadMoreGalleryAssets();
-  };
-
   useEffect(() => {
-    setLocalJobs(jobs);
-  }, [jobs]);
-
-  useEffect(() => {
-    setLocalBatches(batches);
-  }, [batches]);
+    setHasMounted(true);
+  }, []);
 
   useEffect(() => {
     setOutputCount((current) => Math.min(Math.max(1, current), modelMaxOutputs));
   }, [modelMaxOutputs]);
-
-  useEffect(() => {
-    setLocalAssets((current) => reconcileAssetCollections(assets, current));
-    setAssetPageLimit(Math.max(initialAssetLimit, INITIAL_ASSET_PAGE_SIZE));
-    setAssetFeedHasMore((current) => current || initialAssetsHasMore);
-    setAssetFeedNextOffset((current) => {
-      if (current == null) {
-        return initialAssetsNextOffset;
-      }
-      if (initialAssetsNextOffset == null) {
-        return current;
-      }
-      return Math.max(current, initialAssetsNextOffset);
-    });
-    setPrefetchedAssetPage(null);
-    setFavoriteAssetFeedHasMore(false);
-    setFavoriteAssetFeedNextOffset(null);
-    setPrefetchedFavoriteAssetPage(null);
-  }, [assets, initialAssetLimit, initialAssetsHasMore, initialAssetsNextOffset]);
-
-  useEffect(() => {
-    if (favoritesOnly) {
-      return;
-    }
-    let cancelled = false;
-    setPrefetchedAssetPage(null);
-    void fetchAssetPage({ offset: 0, limitOverride: INITIAL_ASSET_PAGE_SIZE, silent: true })
-      .then((payload) => {
-        if (cancelled || !payload) {
-          return;
-        }
-        setLocalAssets(payload.assets ?? []);
-        setAssetFeedHasMore(Boolean(payload.has_more));
-        setAssetFeedNextOffset(payload.next_offset ?? null);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [favoritesOnly, galleryKindFilter, galleryModelFilter]);
-
-  useEffect(() => {
-    setLocalLatestAsset(latestAsset);
-  }, [latestAsset]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 16) {
-        setGalleryScrollArmed(true);
-      }
-    };
-    const armFromGesture = () => {
-      setGalleryScrollArmed(true);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("touchmove", armFromGesture, { passive: true });
-    window.addEventListener("wheel", armFromGesture, { passive: true });
-    handleScroll();
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("touchmove", armFromGesture);
-      window.removeEventListener("wheel", armFromGesture);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (
-      !activeGalleryHasMore ||
-      !galleryScrollArmed ||
-      activeGalleryLoadingMore ||
-      !galleryLoadMoreRef.current
-    ) {
-      return;
-    }
-    const target = galleryLoadMoreRef.current;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          loadMoreAssetsRef.current();
-        }
-      },
-      { rootMargin: "360px 0px 360px 0px" },
-    );
-    observer.observe(target);
-    const maybeLoadMore = () => {
-      const scrollBottom = window.innerHeight + window.scrollY;
-      const documentHeight = Math.max(
-        document.body.scrollHeight,
-        document.documentElement.scrollHeight,
-      );
-      if (documentHeight - scrollBottom <= 520) {
-        loadMoreAssetsRef.current();
-      }
-    };
-    window.setTimeout(maybeLoadMore, 0);
-    return () => observer.disconnect();
-  }, [
-    activeGalleryHasMore,
-    favoritesOnly,
-    galleryScrollArmed,
-    activeGalleryLoadingMore,
-    prefetchingAssetPage,
-    prefetchingFavoriteAssetPage,
-    assetFeedNextOffset,
-    favoriteAssetFeedNextOffset,
-    prefetchedAssetPage,
-    prefetchedFavoriteAssetPage,
-    galleryTiles.length,
-  ]);
-
-  useEffect(() => {
-    if (!selectedAssetId) {
-      setSelectedAssetHydratedJob(null);
-      setMobileInspectorPromptOpen(false);
-      setMobileInspectorInfoOpen(false);
-      return;
-    }
-    setMobileInspectorPromptOpen(true);
-    setMobileInspectorInfoOpen(false);
-  }, [selectedAssetId]);
-
-  useEffect(() => {
-    if (!selectedAsset?.job_id) {
-      setSelectedAssetHydratedJob(null);
-      return;
-    }
-    if (selectedAssetCachedJob?.job_id === selectedAsset.job_id) {
-      setSelectedAssetHydratedJob(null);
-      return;
-    }
-    let cancelled = false;
-    void fetch(`/api/control/media-jobs/${selectedAsset.job_id}`, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    })
-      .then(async (response) => {
-        const payload = (await response.json()) as { ok?: boolean; job?: MediaJob | null };
-        if (!response.ok || !payload.ok || !payload.job || cancelled) {
-          return;
-        }
-        setSelectedAssetHydratedJob(payload.job);
-        setLocalJobs((current) => [payload.job as MediaJob, ...current.filter((job) => job.job_id !== payload.job?.job_id)].slice(0, 24));
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedAsset?.asset_id, selectedAsset?.job_id, selectedAssetCachedJob?.job_id]);
 
   const lockingOverlayOpen = Boolean(selectedAssetId) || studioSettingsOpen || selectedMediaLightboxOpen;
 
@@ -2039,438 +789,6 @@ export function MediaStudio({
       window.scrollTo(0, scrollY);
     };
   }, [lockingOverlayOpen]);
-
-  useEffect(() => {
-    if (!favoritesOnly) {
-      setFavoriteAssets(null);
-      setFavoriteAssetFeedHasMore(false);
-      setFavoriteAssetFeedNextOffset(null);
-      setPrefetchedFavoriteAssetPage(null);
-      return;
-    }
-    let cancelled = false;
-    setFavoritesLoading(true);
-    void fetchAssetPage({ offset: 0, favorited: true, limitOverride: INITIAL_ASSET_PAGE_SIZE })
-      .then((payload) => {
-        if (cancelled) {
-          return;
-        }
-        if (!payload) {
-          return;
-        }
-        setFavoriteAssets(payload.assets ?? []);
-        setFavoriteAssetFeedHasMore(Boolean(payload.has_more));
-        setFavoriteAssetFeedNextOffset(payload.next_offset ?? null);
-        setPrefetchedFavoriteAssetPage(null);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setFavoritesLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [favoritesOnly, galleryKindFilter, galleryModelFilter]);
-
-  useEffect(() => {
-    if (favoritesOnly || !assetFeedHasMore || assetFeedNextOffset == null || loadingMoreAssets || prefetchingAssetPage || prefetchedAssetPage) {
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      setPrefetchingAssetPage(true);
-      void fetchAssetPage({ offset: assetFeedNextOffset, limitOverride: ASSET_APPEND_BATCH_SIZE, silent: true })
-        .then((page) => {
-          if (cancelled || !page) {
-            return;
-          }
-          prefetchAssetThumbs(page.assets ?? [], prefetchedThumbUrlsRef.current);
-          const scrollBottom = window.innerHeight + window.scrollY;
-          const documentHeight = Math.max(
-            document.body.scrollHeight,
-            document.documentElement.scrollHeight,
-          );
-          if (documentHeight - scrollBottom <= 520) {
-            applyLoadedAssetPage(page);
-            return;
-          }
-          setPrefetchedAssetPage(page);
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setPrefetchingAssetPage(false);
-          }
-        });
-    }, 220);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [assetFeedHasMore, assetFeedNextOffset, favoritesOnly, loadingMoreAssets, prefetchingAssetPage, prefetchedAssetPage, assetPageLimit]);
-
-  useEffect(() => {
-    if (
-      !favoritesOnly ||
-      !favoriteAssetFeedHasMore ||
-      favoriteAssetFeedNextOffset == null ||
-      loadingMoreFavoriteAssets ||
-      prefetchingFavoriteAssetPage ||
-      prefetchedFavoriteAssetPage
-    ) {
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      setPrefetchingFavoriteAssetPage(true);
-      void fetchAssetPage({
-        offset: favoriteAssetFeedNextOffset,
-        favorited: true,
-        limitOverride: ASSET_APPEND_BATCH_SIZE,
-        silent: true,
-      })
-        .then((page) => {
-          if (cancelled || !page) {
-            return;
-          }
-          prefetchAssetThumbs(page.assets ?? [], prefetchedThumbUrlsRef.current);
-          const scrollBottom = window.innerHeight + window.scrollY;
-          const documentHeight = Math.max(
-            document.body.scrollHeight,
-            document.documentElement.scrollHeight,
-          );
-          if (documentHeight - scrollBottom <= 520) {
-            applyLoadedFavoriteAssetPage(page);
-            return;
-          }
-          setPrefetchedFavoriteAssetPage(page);
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setPrefetchingFavoriteAssetPage(false);
-          }
-        });
-    }, 220);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [
-    favoritesOnly,
-    favoriteAssetFeedHasMore,
-    favoriteAssetFeedNextOffset,
-    loadingMoreFavoriteAssets,
-    prefetchingFavoriteAssetPage,
-    prefetchedFavoriteAssetPage,
-    galleryKindFilter,
-    galleryModelFilter,
-  ]);
-
-  useEffect(() => {
-    setOptionValues(
-      buildNormalizedStudioOptions(currentModel, {}, isRecord(currentPreset?.default_options_json) ? currentPreset.default_options_json : null),
-    );
-  }, [currentModel, currentPreset]);
-
-  useEffect(() => {
-    const nextValues: Record<string, string> = {};
-    for (const field of structuredPresetTextFields) {
-      nextValues[field.key] = field.defaultValue ?? "";
-    }
-    setPresetInputValues(nextValues);
-    setPresetSlotStates((current) => {
-      for (const state of Object.values(current)) {
-        if (state?.previewUrl) {
-          URL.revokeObjectURL(state.previewUrl);
-        }
-      }
-      return {};
-    });
-  }, [currentPreset?.preset_id, structuredPresetTextFields]);
-
-  useEffect(() => {
-    return () => {
-      for (const attachment of attachments) {
-        if (attachment.previewUrl) {
-          URL.revokeObjectURL(attachment.previewUrl);
-        }
-      }
-      for (const state of Object.values(presetSlotStates)) {
-        if (state?.previewUrl) {
-          URL.revokeObjectURL(state.previewUrl);
-        }
-      }
-    };
-  }, [attachments, presetSlotStates]);
-
-  useEffect(() => {
-    function closePicker(event: MouseEvent) {
-      const target = event.target;
-      if (target instanceof HTMLElement && target.closest("[data-studio-picker]")) {
-        return;
-      }
-      setOpenPicker(null);
-    }
-
-    window.addEventListener("mousedown", closePicker);
-    return () => window.removeEventListener("mousedown", closePicker);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (autoValidateTimerRef.current) {
-        window.clearTimeout(autoValidateTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    setOutputCount((current) => Math.min(Math.max(1, current), modelMaxOutputs));
-  }, [modelMaxOutputs]);
-
-  useEffect(() => {
-    const sourceKind = currentSourceAsset?.generation_kind ?? null;
-    if ((sourceKind === "image" && maxImageInputs <= 0) || (sourceKind === "video" && maxVideoInputs <= 0)) {
-      setSourceAssetId(null);
-    }
-
-    setAttachments((current) => {
-      let remainingImages = Math.max(
-        0,
-        maxImageInputs - (sourceKind === "image" && maxImageInputs > 0 ? 1 : 0),
-      );
-      let remainingVideos = Math.max(
-        0,
-        maxVideoInputs - (sourceKind === "video" && maxVideoInputs > 0 ? 1 : 0),
-      );
-      let remainingAudios = Math.max(0, maxAudioInputs);
-      let changed = false;
-      const next: AttachmentRecord[] = [];
-
-      for (const attachment of current) {
-        if (attachment.kind === "images") {
-          if (remainingImages <= 0) {
-            changed = true;
-            if (attachment.previewUrl) {
-              URL.revokeObjectURL(attachment.previewUrl);
-            }
-            continue;
-          }
-          remainingImages -= 1;
-        } else if (attachment.kind === "videos") {
-          if (remainingVideos <= 0) {
-            changed = true;
-            if (attachment.previewUrl) {
-              URL.revokeObjectURL(attachment.previewUrl);
-            }
-            continue;
-          }
-          remainingVideos -= 1;
-        } else {
-          if (remainingAudios <= 0) {
-            changed = true;
-            continue;
-          }
-          remainingAudios -= 1;
-        }
-        next.push(attachment);
-      }
-
-      return changed ? next : current;
-    });
-  }, [currentSourceAsset, maxAudioInputs, maxImageInputs, maxVideoInputs]);
-
-  function updateOption(optionKey: string, value: unknown) {
-    setOptionValues((current) => ({ ...current, [optionKey]: value }));
-  }
-
-  function refreshStudioDataWithSettleDelay() {
-    startRefresh(() => router.refresh());
-    window.setTimeout(() => {
-      startRefresh(() => router.refresh());
-    }, 1400);
-  }
-
-  function addFiles(fileList: FileList | File[] | null) {
-    const incomingFiles = Array.from(fileList ?? []);
-    if (!incomingFiles.length) {
-      return;
-    }
-
-    let remainingImageCapacity = Math.max(0, maxImageInputs - stagedImageCount);
-    let remainingVideoCapacity = Math.max(0, maxVideoInputs - stagedVideoCount);
-    let remainingAudioCapacity = Math.max(0, maxAudioInputs - stagedAudioCount);
-    const acceptedFiles: File[] = [];
-    const rejectedKinds = new Set<string>();
-
-    for (const file of incomingFiles) {
-      const kind = classifyFile(file);
-      if (kind === "images") {
-        if (remainingImageCapacity <= 0) {
-          rejectedKinds.add("images");
-          continue;
-        }
-        remainingImageCapacity -= 1;
-        acceptedFiles.push(file);
-        continue;
-      }
-      if (kind === "videos") {
-        if (remainingVideoCapacity <= 0) {
-          rejectedKinds.add("videos");
-          continue;
-        }
-        remainingVideoCapacity -= 1;
-        acceptedFiles.push(file);
-        continue;
-      }
-      if (remainingAudioCapacity <= 0) {
-        rejectedKinds.add("audios");
-        continue;
-      }
-      remainingAudioCapacity -= 1;
-      acceptedFiles.push(file);
-    }
-
-    if (!acceptedFiles.length) {
-      if (rejectedKinds.size) {
-        setFormMessage({
-          tone: "warning",
-          text: `This model cannot accept more ${Array.from(rejectedKinds).join(", ")} right now.`,
-        });
-      }
-      return;
-    }
-
-    const nextAttachments = acceptedFiles.map((file) => ({
-      id: `${file.name}-${file.size}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
-      file,
-      kind: classifyFile(file),
-      previewUrl: file.type.startsWith("image/") || file.type.startsWith("video/") ? URL.createObjectURL(file) : null,
-    }));
-
-    setAttachments((current) => [...current, ...nextAttachments]);
-
-    const existingImageCount = imageAttachments.length + (sourceAssetIsImage ? 1 : 0);
-    const imageReferenceTokens = nextAttachments
-      .filter((attachment) => attachment.kind === "images")
-      .map((_, index) => `[image reference ${existingImageCount + index + 1}]`);
-
-    if (imageReferenceTokens.length && isNanoPresetModel(modelKey)) {
-      insertPromptSnippet(imageReferenceTokens.join(" "));
-    }
-
-    if (rejectedKinds.size) {
-      setFormMessage({
-        tone: "warning",
-        text: `Accepted what fit and skipped extra ${Array.from(rejectedKinds).join(", ")} beyond this model's limit.`,
-      });
-    }
-  }
-
-  async function addGalleryAssetAsAttachment(asset: MediaAsset | null) {
-    if (!asset || asset.generation_kind !== "image") {
-      setFormMessage({ tone: "danger", text: "Only image cards can be staged in image slots." });
-      return;
-    }
-    const assetUrl = mediaInlineUrl(asset) ?? mediaDownloadUrl(asset);
-    if (!assetUrl) {
-      setFormMessage({ tone: "danger", text: "The selected gallery image could not be loaded." });
-      return;
-    }
-    try {
-      const response = await fetch(assetUrl, { credentials: "same-origin" });
-      if (!response.ok) {
-        throw new Error("Unable to fetch gallery image.");
-      }
-      const blob = await response.blob();
-      const file = new File([blob], mediaDownloadName(asset), {
-        type: blob.type || "image/png",
-      });
-      addFiles([file]);
-    } catch {
-      setFormMessage({ tone: "danger", text: "The selected gallery image could not be staged in that slot." });
-    }
-  }
-
-  function assignPresetSlotFile(slotKey: string, file: File | null) {
-    setPresetSlotStates((current) => {
-      const previous = current[slotKey];
-      if (previous?.previewUrl) {
-        URL.revokeObjectURL(previous.previewUrl);
-      }
-      if (!file) {
-        return { ...current, [slotKey]: { assetId: null, file: null, previewUrl: null } };
-      }
-      return {
-        ...current,
-        [slotKey]: {
-          assetId: null,
-          file,
-          previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
-        },
-      };
-    });
-  }
-
-  function assignPresetSlotAsset(slotKey: string, asset: MediaAsset | null) {
-    if (!asset) {
-      return;
-    }
-    if (asset.generation_kind !== "image") {
-      setFormMessage({ tone: "danger", text: "Structured Nano Banana presets only accept image assets in image slots." });
-      return;
-    }
-    setPresetSlotStates((current) => {
-      const previous = current[slotKey];
-      if (previous?.previewUrl) {
-        URL.revokeObjectURL(previous.previewUrl);
-      }
-      return {
-        ...current,
-        [slotKey]: {
-          assetId: asset.asset_id,
-          file: null,
-          previewUrl: mediaThumbnailUrl(asset) ?? mediaDisplayUrl(asset),
-        },
-      };
-    });
-  }
-
-  function clearPresetSlot(slotKey: string) {
-    setPresetSlotStates((current) => {
-      const previous = current[slotKey];
-      if (previous?.previewUrl && previous.file) {
-        URL.revokeObjectURL(previous.previewUrl);
-      }
-      return {
-        ...current,
-        [slotKey]: { assetId: null, file: null, previewUrl: null },
-      };
-    });
-  }
-
-  function insertPromptSnippet(snippet: string) {
-    const input = promptInputRef.current;
-
-    if (!input) {
-      setPrompt((current) => `${current}${current.trim() ? " " : ""}${snippet}`);
-      return;
-    }
-
-    const start = input.selectionStart ?? prompt.length;
-    const end = input.selectionEnd ?? prompt.length;
-    const spacerBefore = start > 0 && !/\s$/.test(prompt.slice(0, start)) ? " " : "";
-    const spacerAfter = end < prompt.length && !/^\s/.test(prompt.slice(end)) ? " " : "";
-    const insertion = `${spacerBefore}${snippet}${spacerAfter}`;
-    const nextPrompt = `${prompt.slice(0, start)}${insertion}${prompt.slice(end)}`;
-    setPrompt(nextPrompt);
-
-    window.setTimeout(() => {
-      input.focus();
-      const cursor = start + insertion.length;
-      input.setSelectionRange(cursor, cursor);
-    }, 0);
-  }
 
   function handleSourceTileDrop(event: React.DragEvent<HTMLLabelElement>, slotIndex = 0) {
     event.preventDefault();
@@ -2540,713 +858,6 @@ export function MediaStudio({
     }
   }
 
-  function removeAttachment(attachmentId: string) {
-    setAttachments((current) => {
-      const match = current.find((attachment) => attachment.id === attachmentId);
-      if (match?.previewUrl) {
-        URL.revokeObjectURL(match.previewUrl);
-      }
-      return current.filter((attachment) => attachment.id !== attachmentId);
-    });
-  }
-
-  function clearComposer() {
-    for (const attachment of attachments) {
-      if (attachment.previewUrl) {
-        URL.revokeObjectURL(attachment.previewUrl);
-      }
-    }
-    setAttachments([]);
-    setPresetSlotStates((current) => {
-      for (const state of Object.values(current)) {
-        if (state?.previewUrl && state.file) {
-          URL.revokeObjectURL(state.previewUrl);
-        }
-      }
-      return {};
-    });
-    setPresetInputValues({});
-    setSourceAssetId(null);
-    setPrompt("");
-    setSelectedPresetId("");
-    setSelectedPromptIds([]);
-    setModelKey(models[0]?.key ?? "nano-banana-2");
-    setOutputCount(1);
-    setValidation(null);
-    setFormMessage(null);
-    setEnhanceDialogOpen(false);
-    setEnhancePreview(null);
-    setEnhanceError(null);
-    setOpenPicker(null);
-  }
-
-  function togglePrompt(promptId: string) {
-    setSelectedPromptIds((current) =>
-      current.includes(promptId) ? current.filter((value) => value !== promptId) : [...current, promptId],
-    );
-  }
-
-  function buildMediaFormData(intent: "validate" | "submit" | "enhance") {
-    const formData = new FormData();
-    const normalizedOptions = buildNormalizedStudioOptions(
-      currentModel,
-      optionValues,
-      isRecord(currentPreset?.default_options_json) ? currentPreset.default_options_json : null,
-    );
-    const sanitizedOptions = stripUnsupportedStudioOptions(modelKey, inferredInputPattern, normalizedOptions);
-    const effectivePrompt = structuredPresetActive ? structuredPresetPromptPreview : prompt;
-    formData.set("intent", intent);
-    formData.set("model_key", modelKey);
-    formData.set("prompt", effectivePrompt);
-    formData.set("output_count", String(outputCount));
-    formData.set("enhance", intent === "enhance" ? "true" : "false");
-    formData.set("options", JSON.stringify(sanitizedOptions));
-    formData.set("system_prompt_ids", JSON.stringify(selectedPromptIds));
-    if (multiShotsEnabled && multiShotScript.shots.length) {
-      formData.set("multi_prompt", JSON.stringify(multiShotScript.shots));
-    }
-    if (selectedPresetId) {
-      const selectedPreset = presets.find((preset) => preset.preset_id === selectedPresetId || preset.key === selectedPresetId);
-      if (selectedPreset?.source_kind === "builtin") {
-        formData.set("preset_key", selectedPreset.key);
-      } else {
-        formData.set("preset_id", selectedPresetId);
-      }
-    }
-    if (structuredPresetActive) {
-      formData.set("preset_inputs_json", JSON.stringify(presetInputValues));
-      const presetSlotValues: Record<string, Array<Record<string, unknown>>> = {};
-      for (const slot of structuredPresetImageSlots) {
-        const slotState = presetSlotStates[slot.key];
-        if (!slotState) {
-          continue;
-        }
-        if (slotState.assetId) {
-          presetSlotValues[slot.key] = [{ asset_id: slotState.assetId }];
-          formData.set(`preset_slot_asset:${slot.key}`, String(slotState.assetId));
-        }
-        if (slotState.file) {
-          formData.append(`preset_slot_file:${slot.key}`, slotState.file);
-        }
-      }
-      formData.set("preset_slot_values_json", JSON.stringify(presetSlotValues));
-    }
-    if (!structuredPresetActive && sourceAssetId) {
-      formData.set("source_asset_id", String(sourceAssetId));
-    }
-    if (!structuredPresetActive) {
-      for (const attachment of attachments) {
-        formData.append("attachments", attachment.file);
-      }
-    }
-    return formData;
-  }
-
-  async function requestEnhancementPreview() {
-    if (
-      !modelKey ||
-      (!structuredPresetActive && !prompt.trim() && !attachments.length && !sourceAssetId) ||
-      (structuredPresetActive && !structuredPresetPromptPreview.trim())
-    ) {
-      setEnhanceDialogOpen(true);
-      setEnhancePreview(null);
-      setEnhanceError("Add a prompt or source media before enhancing.");
-      return;
-    }
-
-    if (multiShotScriptError) {
-      setEnhanceDialogOpen(true);
-      setEnhancePreview(null);
-      setEnhanceError(multiShotScriptError);
-      return;
-    }
-
-    if (presetRequirementError) {
-      setEnhanceDialogOpen(true);
-      setEnhancePreview(null);
-      setEnhanceError(presetRequirementError);
-      return;
-    }
-
-    setEnhanceDialogOpen(true);
-    setEnhanceBusy(true);
-    setEnhanceError(null);
-    showActivity({
-      tone: "warning",
-      message: "Loading the enhancement preview.",
-      spinning: true,
-    });
-
-    try {
-      const response = await fetch("/api/control/media-enhance", {
-        method: "POST",
-        body: buildMediaFormData("enhance"),
-      });
-      const payload = (await response.json()) as
-        | { ok: false; error?: string }
-        | { ok: true; preview?: MediaEnhancePreviewResponse };
-
-      if (!response.ok || !payload.ok) {
-        const errorMessage =
-          "error" in payload ? payload.error ?? "Unable to enhance the prompt." : "Unable to enhance the prompt.";
-        setEnhancePreview(null);
-        setEnhanceError(errorMessage);
-        showActivity({ tone: "danger", message: errorMessage }, { autoHideMs: 4200 });
-        return;
-      }
-
-      setEnhancePreview(payload.preview ?? null);
-      showActivity({ tone: "healthy", message: "Enhancement preview ready." }, { autoHideMs: 2200 });
-    } catch {
-      setEnhancePreview(null);
-      const errorMessage = "The dashboard could not reach the enhance preview route.";
-      setEnhanceError(errorMessage);
-      showActivity({ tone: "danger", message: errorMessage }, { autoHideMs: 4200 });
-    } finally {
-      setEnhanceBusy(false);
-    }
-  }
-
-  function openEnhanceDialog() {
-    setEnhanceDialogOpen(true);
-    setEnhanceError(null);
-    setEnhancePreview(null);
-  }
-
-  async function requestValidation({ silent = false }: { silent?: boolean } = {}) {
-    if (autoValidateTimerRef.current) {
-      window.clearTimeout(autoValidateTimerRef.current);
-      autoValidateTimerRef.current = null;
-    }
-    if (
-      !modelKey ||
-      (!structuredPresetActive && !prompt.trim() && !attachments.length && !sourceAssetId) ||
-      (structuredPresetActive && !structuredPresetPromptPreview.trim())
-    ) {
-      setValidation(null);
-      return null;
-    }
-
-    if (multiShotScriptError) {
-      setValidation(null);
-      if (!silent) {
-        setFormMessage({ tone: "danger", text: multiShotScriptError });
-      }
-      return null;
-    }
-
-    if (presetRequirementError) {
-      setValidation(null);
-      if (!silent) {
-        setFormMessage({ tone: "danger", text: presetRequirementError });
-      }
-      return null;
-    }
-
-    const requestId = validationRequestIdRef.current + 1;
-    validationRequestIdRef.current = requestId;
-
-    if (!silent) {
-      setBusyState("validate");
-      setFormMessage(null);
-    }
-
-    try {
-      const response = await fetch("/api/control/media", {
-        method: "POST",
-        body: buildMediaFormData("validate"),
-      });
-      const payload = (await response.json()) as
-        | { ok: false; error?: string }
-        | { ok: true; validation?: MediaValidationResponse; success?: string; jobId?: string | null; batchId?: string | null; job?: MediaJob | null; batch?: MediaBatch | null };
-
-      if (requestId !== validationRequestIdRef.current) {
-        return null;
-      }
-
-      if (!response.ok || !payload.ok) {
-        if (!silent) {
-          setFormMessage({
-            tone: "danger",
-            text: "error" in payload ? payload.error ?? "Media request failed." : "Media request failed.",
-          });
-        }
-        return null;
-      }
-
-      setValidation(payload.validation ?? null);
-      if (!silent) {
-        setFormMessage({ tone: "healthy", text: payload.success ?? "Preflight looks good." });
-      }
-      return payload.validation ?? null;
-    } catch {
-      if (!silent) {
-        setFormMessage({ tone: "danger", text: "The dashboard could not reach the media route." });
-      }
-      return null;
-    } finally {
-      if (!silent) {
-        setBusyState("idle");
-      }
-    }
-  }
-
-  async function submitMedia(intent: "validate" | "submit") {
-    if (intent === "validate") {
-      await requestValidation({ silent: false });
-      return;
-    }
-
-    showActivity(
-      {
-        tone: "warning",
-        message: validationReady ? "Submitting the media job." : "Checking the media request.",
-        spinning: true,
-      },
-      { autoHideMs: 2200 },
-    );
-
-    if (!validationReady) {
-      const nextValidation = await requestValidation({ silent: false });
-      if (!studioValidationReady(nextValidation)) {
-        return;
-      }
-    }
-
-    if (multiShotScriptError) {
-      setFormMessage({ tone: "danger", text: multiShotScriptError });
-      return;
-    }
-
-    if (presetRequirementError) {
-      setFormMessage({ tone: "danger", text: presetRequirementError });
-      return;
-    }
-
-    const optimisticBatch =
-      intent === "submit"
-        ? createOptimisticBatch({
-            modelKey,
-            taskMode: typeof currentModel?.task_modes?.[0] === "string" ? currentModel.task_modes[0] : null,
-            requestedOutputs: Math.max(1, outputCount),
-            sourceAssetId,
-            requestedPresetKey: currentPreset?.key ?? null,
-            promptSummary: ((structuredPresetActive ? structuredPresetPromptPreview : prompt).trim() || "Preparing media generation.").slice(0, 240),
-            runningSlotsAvailable: Math.max(
-              0,
-              maxConcurrentJobs -
-                localBatches.reduce(
-                  (sum, batch) =>
-                    sum +
-                    (batch.jobs ?? []).filter((job) => ["submitted", "running", "processing"].includes(job.status)).length,
-                  0,
-                ),
-            ),
-          })
-        : null;
-    if (optimisticBatch) {
-      setOptimisticBatches((current) => [optimisticBatch, ...current].slice(0, 6));
-      showActivity({ tone: "warning", message: "Submitting the media job.", spinning: true });
-    }
-
-    setBusyState(intent);
-    setFormMessage(null);
-
-    try {
-      const response = await fetch("/api/control/media", {
-        method: "POST",
-        body: buildMediaFormData(intent),
-      });
-      const payload = (await response.json()) as
-        | { ok: false; error?: string }
-        | {
-            ok: true;
-            validation?: MediaValidationResponse;
-            success?: string;
-            jobId?: string | null;
-            batchId?: string | null;
-            job?: MediaJob | null;
-            batch?: MediaBatch | null;
-          };
-
-      if (!response.ok || !payload.ok) {
-        if (optimisticBatch) {
-          setOptimisticBatches((current) => current.filter((batch) => batch.batch_id !== optimisticBatch.batch_id));
-        }
-        setFormMessage({
-          tone: "danger",
-          text: "error" in payload ? payload.error ?? "Media request failed." : "Media request failed.",
-        });
-        showActivity(
-          {
-            tone: "danger",
-            message: "error" in payload ? payload.error ?? "Media request failed." : "Media request failed.",
-          },
-          { autoHideMs: 3200 },
-        );
-        return;
-      }
-
-      setValidation(null);
-      if (optimisticBatch) {
-        setOptimisticBatches((current) => current.filter((batch) => batch.batch_id !== optimisticBatch.batch_id));
-      }
-      if (payload.job) {
-        setLocalJobs((current) => [payload.job as MediaJob, ...current.filter((job) => job.job_id !== payload.job?.job_id)].slice(0, 12));
-      }
-      if (payload.batch) {
-        const batch = payload.batch as MediaBatch;
-        setLocalBatches((current) => upsertBatchCollection(current, batch));
-        if (Array.isArray(batch.jobs) && batch.jobs.length) {
-          setLocalJobs((current) => {
-            const byId = new Map(current.map((job) => [job.job_id, job]));
-            for (const job of batch.jobs ?? []) {
-              byId.set(job.job_id, job);
-            }
-            return Array.from(byId.values()).sort((left, right) => right.created_at.localeCompare(left.created_at)).slice(0, 24);
-          });
-        }
-      }
-      setFormMessage({ tone: "warning", text: payload.success ?? "Media job queued." });
-      showActivity({ tone: "healthy", message: payload.success ?? "Media job queued." }, { autoHideMs: 2200 });
-      if (payload.batchId) {
-        void pollBatch(payload.batchId);
-      } else if (payload.jobId) {
-        void pollJob(payload.jobId);
-      }
-    } catch {
-      if (optimisticBatch) {
-        setOptimisticBatches((current) => current.filter((batch) => batch.batch_id !== optimisticBatch.batch_id));
-      }
-      setFormMessage({ tone: "danger", text: "The dashboard could not reach the media route." });
-      showActivity({ tone: "danger", message: "The dashboard could not reach the media route." }, { autoHideMs: 3200 });
-    } finally {
-      setBusyState("idle");
-    }
-  }
-
-  useEffect(() => {
-    if (busyState !== "idle") {
-      return;
-    }
-    setValidation(null);
-    if (autoValidateTimerRef.current) {
-      window.clearTimeout(autoValidateTimerRef.current);
-    }
-    autoValidateTimerRef.current = window.setTimeout(() => {
-      void requestValidation({ silent: true });
-    }, 180);
-    return () => {
-      if (autoValidateTimerRef.current) {
-        window.clearTimeout(autoValidateTimerRef.current);
-      }
-    };
-  }, [
-    modelKey,
-    prompt,
-    optionSignature,
-    selectedPresetId,
-    selectedPromptSignature,
-    sourceAssetId,
-    attachmentSignature,
-    structuredPresetActive,
-    structuredPresetPromptPreview,
-    JSON.stringify(presetInputValues),
-    JSON.stringify(
-      Object.fromEntries(
-        Object.entries(presetSlotStates).map(([key, value]) => [key, value.assetId ?? value.file?.name ?? ""]),
-      ),
-    ),
-  ]);
-
-  async function pollJob(jobId: string) {
-    try {
-      const response = await fetch(`/api/control/media-jobs/${jobId}`, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      });
-      const payload = (await response.json()) as { ok?: boolean; error?: string; job?: MediaJob; batch?: MediaBatch | null };
-      if (!response.ok || !payload.ok || !payload.job) {
-        setFormMessage({ tone: "danger", text: payload.error ?? "Unable to read the current media job state." });
-        return;
-      }
-
-      setLocalJobs((current) => [payload.job as MediaJob, ...current.filter((job) => job.job_id !== payload.job?.job_id)].slice(0, 12));
-      if (payload.batch) {
-        setLocalBatches((current) => upsertBatchCollection(current, payload.batch as MediaBatch));
-      }
-
-      const inFlightMessage = jobPhaseMessage(payload.job);
-      if (inFlightMessage) {
-        setFormMessage({ tone: "warning", text: inFlightMessage });
-      }
-
-      if (payload.job.status === "completed" || payload.job.status === "failed") {
-        refreshStudioDataWithSettleDelay();
-        setFormMessage({
-          tone: payload.job.status === "completed" ? "healthy" : "danger",
-          text:
-            payload.job.status === "completed"
-              ? "Media job completed and the reel is refreshing."
-              : payload.job.error ?? "Media job failed.",
-        });
-        return;
-      }
-
-      window.setTimeout(() => {
-        void pollJob(jobId);
-      }, 1800);
-    } catch {
-      setFormMessage({ tone: "danger", text: "The dashboard lost contact with the media job poller." });
-    }
-  }
-
-  async function pollBatch(batchId: string) {
-    try {
-      const response = await fetch(`/api/control/media-batches/${batchId}`, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      });
-      const payload = (await response.json()) as { ok?: boolean; error?: string; batch?: MediaBatch | null };
-      if (!response.ok || !payload.ok || !payload.batch) {
-        setFormMessage({ tone: "danger", text: payload.error ?? "Unable to read the current media batch state." });
-        return;
-      }
-
-      const batch = payload.batch as MediaBatch;
-      setLocalBatches((current) => upsertBatchCollection(current, batch));
-      if (Array.isArray(batch.jobs) && batch.jobs.length) {
-        setLocalJobs((current) => {
-          const byId = new Map(current.map((job) => [job.job_id, job]));
-          for (const job of batch.jobs ?? []) {
-            byId.set(job.job_id, job);
-          }
-          return Array.from(byId.values()).sort((left, right) => right.created_at.localeCompare(left.created_at)).slice(0, 24);
-        });
-      }
-
-      const inFlightMessage = batchPhaseMessage(batch);
-      if (inFlightMessage) {
-        setFormMessage({ tone: "warning", text: inFlightMessage });
-      }
-
-      if (["completed", "failed", "partial_failure", "cancelled"].includes(payload.batch.status)) {
-        const failedJob = (batch.jobs ?? []).find((job) => job.status === "failed" && job.error);
-        const batchFailureMessage =
-          failedJob?.error ??
-          (payload.batch.status === "cancelled" ? "Media batch was cancelled." : "Media batch finished with issues.");
-        refreshStudioDataWithSettleDelay();
-        setFormMessage({
-          tone: payload.batch.status === "completed" ? "healthy" : "danger",
-          text:
-            payload.batch.status === "completed"
-              ? "Media batch completed and the reel is refreshing."
-              : batchFailureMessage,
-        });
-        return;
-      }
-
-      window.setTimeout(() => {
-        void pollBatch(batchId);
-      }, 1800);
-    } catch {
-      setFormMessage({ tone: "danger", text: "The dashboard lost contact with the media queue watcher." });
-    }
-  }
-
-  async function retryJob(jobId: string) {
-    setFormMessage(null);
-    setBusyState("submit");
-
-    try {
-      const response = await fetch(`/api/control/media-jobs/${jobId}`, {
-        method: "POST",
-        headers: { Accept: "application/json" },
-      });
-      const payload = (await response.json()) as { ok?: boolean; error?: string; job?: MediaJob | null; batch?: MediaBatch | null };
-
-      if (!response.ok || !payload.ok || !payload.job) {
-        setFormMessage({
-          tone: "danger",
-          text: payload.error ?? "Unable to retry the selected media job.",
-        });
-        return;
-      }
-
-      setLocalJobs((current) => [payload.job as MediaJob, ...current.filter((job) => job.job_id !== payload.job?.job_id)].slice(0, 12));
-      if (payload.batch) {
-        setLocalBatches((current) => upsertBatchCollection(current, payload.batch as MediaBatch));
-      }
-      setFormMessage({
-        tone: "warning",
-        text: "Retry queued through the Control API.",
-      });
-      if (payload.batch?.batch_id) {
-        void pollBatch(payload.batch.batch_id);
-      } else {
-        void pollJob(payload.job.job_id);
-      }
-    } catch {
-      setFormMessage({ tone: "danger", text: "The dashboard could not reach the retry route." });
-    } finally {
-      setBusyState("idle");
-    }
-  }
-
-  async function dismissJob(jobId: string) {
-    setFormMessage(null);
-    try {
-      const response = await fetch(`/api/control/media-jobs/${jobId}`, {
-        method: "DELETE",
-        headers: { Accept: "application/json" },
-      });
-      const payload = (await response.json()) as { ok?: boolean; error?: string; job?: MediaJob | null };
-
-      if (!response.ok || !payload.ok) {
-        setFormMessage({
-          tone: "danger",
-          text: payload.error ?? "Unable to remove the selected media job from the dashboard.",
-        });
-        return;
-      }
-
-      setLocalJobs((current) => current.filter((job) => job.job_id !== jobId));
-      setFormMessage({
-        tone: "healthy",
-        text: "Removed the failed media card from the dashboard.",
-      });
-      startRefresh(() => router.refresh());
-    } catch {
-      setFormMessage({ tone: "danger", text: "The dashboard could not reach the media remove route." });
-    }
-  }
-
-  async function dismissAsset(assetId: string | number) {
-    setFormMessage(null);
-    try {
-      const response = await fetch(`/api/control/media-assets/${assetId}`, {
-        method: "DELETE",
-        headers: { Accept: "application/json" },
-      });
-      const payload = (await response.json()) as { ok?: boolean; error?: string; asset?: MediaAsset | null };
-
-      if (!response.ok || !payload.ok) {
-        setFormMessage({
-          tone: "danger",
-          text: payload.error ?? "Unable to remove the selected media asset from the dashboard.",
-        });
-        return;
-      }
-
-      setLocalAssets((current) => {
-        const nextAssets = current.filter((asset) => asset.asset_id !== assetId);
-        setFavoriteAssets((currentFavorites) =>
-          currentFavorites ? currentFavorites.filter((asset) => asset.asset_id !== assetId) : currentFavorites,
-        );
-        setLocalLatestAsset((currentLatest) => {
-          if (currentLatest?.asset_id === assetId) {
-            return nextAssets[0] ?? null;
-          }
-          return currentLatest;
-        });
-        return nextAssets;
-      });
-      if (selectedAssetId === assetId) {
-        setSelectedAssetId(null);
-      }
-      if (sourceAssetId === assetId) {
-        setSourceAssetId(null);
-      }
-      setFormMessage({
-        tone: "healthy",
-        text: "Removed the media card from the dashboard.",
-      });
-      startRefresh(() => router.refresh());
-    } catch {
-      setFormMessage({ tone: "danger", text: "The dashboard could not reach the media asset remove route." });
-    }
-  }
-
-  function mergeAssetIntoCollection(collection: MediaAsset[], updatedAsset: MediaAsset) {
-    const existingIndex = collection.findIndex((asset) => asset.asset_id === updatedAsset.asset_id);
-    if (existingIndex === -1) {
-      return [updatedAsset, ...collection];
-    }
-    const nextCollection = [...collection];
-    nextCollection[existingIndex] = updatedAsset;
-    return nextCollection;
-  }
-
-  function applyFavoriteAssetUpdate(updatedAsset: MediaAsset) {
-    setLocalAssets((current) => mergeAssetIntoCollection(current, updatedAsset));
-    setLocalLatestAsset((currentLatest) =>
-      currentLatest?.asset_id === updatedAsset.asset_id ? updatedAsset : currentLatest,
-    );
-    setFavoriteAssets((currentFavorites) => {
-      if (!currentFavorites) {
-        return currentFavorites;
-      }
-      if (updatedAsset.favorited) {
-        return mergeAssetIntoCollection(currentFavorites, updatedAsset);
-      }
-      return currentFavorites.filter((asset) => asset.asset_id !== updatedAsset.asset_id);
-    });
-  }
-
-  async function toggleAssetFavorite(asset: MediaAsset | null) {
-    if (!asset || favoriteAssetIdBusy != null) {
-      return;
-    }
-    setFavoriteAssetIdBusy(asset.asset_id);
-    setFormMessage(null);
-
-    try {
-      const response = await fetch(`/api/control/media-assets/${asset.asset_id}`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ favorited: !asset.favorited }),
-      });
-      const payload = (await response.json()) as { ok?: boolean; error?: string; asset?: MediaAsset | null };
-
-      if (!response.ok || !payload.ok || !payload.asset) {
-        setFormMessage({
-          tone: "danger",
-          text: payload.error ?? "Unable to update the favorite state for the selected media asset.",
-        });
-        return;
-      }
-
-      applyFavoriteAssetUpdate(payload.asset);
-      setFormMessage({
-        tone: "healthy",
-        text: payload.asset.favorited ? "Saved the media asset to favorites." : "Removed the media asset from favorites.",
-      });
-    } catch {
-      setFormMessage({ tone: "danger", text: "The dashboard could not reach the favorite route." });
-    } finally {
-      setFavoriteAssetIdBusy(null);
-    }
-  }
-
-  function activateGalleryKindFilter(nextKind: GalleryKindFilter) {
-    setFavoritesOnly(false);
-    setGalleryKindFilter(nextKind);
-  }
-
-  function toggleFavoritesFilter() {
-    setFavoritesOnly((current) => {
-      const next = !current;
-      if (next) {
-        setGalleryKindFilter("all");
-      }
-      return next;
-    });
-  }
 
   async function copyPromptFromAsset(promptText: string | null) {
     if (!promptText || !navigator.clipboard) {
@@ -3294,24 +905,6 @@ export function MediaStudio({
         ? "The selected image is now staged for the animate flow."
         : "The selected asset is now attached as a source reference.",
     });
-  }
-
-  async function closeSelectedMediaLightbox() {
-    if (typeof document !== "undefined" && document.fullscreenElement && typeof document.exitFullscreen === "function") {
-      try {
-        await document.exitFullscreen();
-      } catch {
-        // ignore exit failures so the lightbox can still close
-      }
-    }
-    setSelectedMediaLightboxOpen(false);
-  }
-
-  function openSelectedMediaLightbox() {
-    if (!selectedAssetLightboxVisual) {
-      return;
-    }
-    setSelectedMediaLightboxOpen(true);
   }
 
   async function handleAssetDownload(asset: MediaAsset | null) {
@@ -3423,11 +1016,6 @@ export function MediaStudio({
     anchor.remove();
   }
 
-  function resetInspector() {
-    setSelectedMediaLightboxOpen(false);
-    setSelectedAssetId(null);
-  }
-
   return (
     <div className={immersive ? "min-h-dvh" : "space-y-7"}>
       <div
@@ -3443,292 +1031,57 @@ export function MediaStudio({
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(216,141,67,0.16),transparent_24%),radial-gradient(circle_at_top_right,rgba(82,110,106,0.2),transparent_28%),linear-gradient(180deg,#181c1a,#111412_52%,#171917)]" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,9,8,0.12),rgba(7,9,8,0.52)),radial-gradient(circle_at_center,transparent_40%,rgba(4,4,4,0.42)_100%)]" />
 
-          {showImmersiveTopChrome ? (
-            <div className="absolute left-4 right-4 top-4 z-10 flex items-center justify-end gap-3 md:left-6 md:right-6 md:top-6">
-              <div className="flex items-center gap-2 rounded-full bg-black/26 px-3 py-2 backdrop-blur-xl">
-                <StatusPill label={apiHealthy ? "api live" : "api down"} tone={apiHealthy ? "healthy" : "danger"} />
-                <select
-                  value={galleryModelFilter}
-                  onChange={(event) => setGalleryModelFilter(event.target.value)}
-                  className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-white outline-none"
-                >
-                  <option value="all">All models</option>
-                  {models.map((model) => (
-                    <option key={model.key} value={model.key}>
-                      {model.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          ) : null}
+          <StudioHeaderChrome
+            immersive={immersive}
+            apiHealthy={apiHealthy}
+            galleryModelFilter={galleryModelFilter}
+            models={models}
+            favoritesOnly={favoritesOnly}
+            galleryKindFilter={galleryKindFilter}
+            metrics={
+              !selectedAsset ? (
+                <div className="hidden items-center gap-2 md:flex">
+                  {formattedRemainingCredits ? <StudioMetricPill icon={Coins} value={formattedRemainingCredits} /> : null}
+                  {estimatedCredits ? <StudioMetricPill icon={Coins} value={estimatedCredits} accent="highlight" /> : null}
+                  {estimatedCostUsd ? <StudioMetricPill icon={CircleDollarSign} value={estimatedCostUsd} accent="highlight" /> : null}
+                </div>
+              ) : null
+            }
+            onGalleryModelFilterChange={setGalleryModelFilter}
+            onActivateGalleryKindFilter={activateGalleryKindFilter}
+            onToggleFavoritesFilter={toggleFavoritesFilter}
+          />
 
-          {showImmersiveExit ? (
-            <>
-              <div className="pointer-events-none fixed left-5 right-5 top-5 z-30 flex flex-col gap-2 md:left-7 md:right-7 md:top-7 md:flex-row md:items-start md:justify-between">
-                <div className="pointer-events-auto flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => activateGalleryKindFilter("all")}
-                    className={cn(
-                      "inline-flex h-11 w-11 items-center justify-center rounded-full border text-white/82 shadow-[0_16px_38px_rgba(0,0,0,0.34)] backdrop-blur-xl transition hover:text-white",
-                      !favoritesOnly && galleryKindFilter === "all"
-                        ? "border-[rgba(216,141,67,0.36)] bg-[rgba(216,141,67,0.16)]"
-                        : "border-white/12 bg-[rgba(10,12,11,0.72)]",
-                    )}
-                    aria-label="All media"
-                  >
-                    <Monitor className="size-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => activateGalleryKindFilter("image")}
-                    className={cn(
-                      "inline-flex h-11 w-11 items-center justify-center rounded-full border text-white/82 shadow-[0_16px_38px_rgba(0,0,0,0.34)] backdrop-blur-xl transition hover:text-white",
-                      !favoritesOnly && galleryKindFilter === "image"
-                        ? "border-[rgba(216,141,67,0.36)] bg-[rgba(216,141,67,0.16)]"
-                        : "border-white/12 bg-[rgba(10,12,11,0.72)]",
-                    )}
-                    aria-label="Images"
-                  >
-                    <ImageIcon className="size-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => activateGalleryKindFilter("video")}
-                    className={cn(
-                      "inline-flex h-11 w-11 items-center justify-center rounded-full border text-white/82 shadow-[0_16px_38px_rgba(0,0,0,0.34)] backdrop-blur-xl transition hover:text-white",
-                      !favoritesOnly && galleryKindFilter === "video"
-                        ? "border-[rgba(216,141,67,0.36)] bg-[rgba(216,141,67,0.16)]"
-                        : "border-white/12 bg-[rgba(10,12,11,0.72)]",
-                    )}
-                    aria-label="Videos"
-                  >
-                    <Clapperboard className="size-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleFavoritesFilter()}
-                    className={cn(
-                      "inline-flex h-11 w-11 items-center justify-center rounded-full border text-white/82 shadow-[0_16px_38px_rgba(0,0,0,0.34)] backdrop-blur-xl transition hover:text-white",
-                      favoritesOnly
-                        ? "border-[rgba(255,126,166,0.42)] bg-[rgba(255,126,166,0.16)] text-[#ff8db3]"
-                        : "border-white/12 bg-[rgba(10,12,11,0.72)]",
-                    )}
-                    aria-label="Favorites only"
-                  >
-                    <Heart className={cn("size-4", favoritesOnly ? "fill-current" : "")} />
-                  </button>
-                </div>
-                <div className="pointer-events-auto flex items-center justify-end gap-2 md:max-w-[calc(100vw-3.5rem)]">
-                  {!selectedAsset ? (
-                    <div className="hidden items-center gap-2 md:flex">
-                      {formattedRemainingCredits ? <StudioMetricPill icon={Coins} value={formattedRemainingCredits} /> : null}
-                      {estimatedCredits ? <StudioMetricPill icon={Coins} value={estimatedCredits} accent="highlight" /> : null}
-                      {estimatedCostUsd ? <StudioMetricPill icon={CircleDollarSign} value={estimatedCostUsd} accent="highlight" /> : null}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </>
-          ) : null}
-
-          <div
-            className={cn(
-              "relative z-[1] grid grid-cols-2 gap-px bg-white/6 p-px sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6",
-              immersive ? "min-h-dvh pb-[270px] pt-0 md:pb-[290px]" : "min-h-[920px] pt-20",
-            )}
-          >
-            {galleryTiles.map((tile, index) => {
-              const preview = mediaThumbnailUrl(tile.asset);
-              const batchTile = tile.batch;
-              const batchJob = tile.job;
-              const jobPreview = batchTile ? preview : preview;
-              const eagerTile = index < 4;
-              const selected = tile.asset?.asset_id != null && tile.asset.asset_id === selectedAssetId && !batchTile;
-              return (
-                <div
-                  key={
-                    tile.job?.job_id
-                      ? `job-${tile.job.job_id}`
-                      : tile.asset?.asset_id != null
-                        ? `asset-${tile.asset.asset_id}`
-                        : `placeholder-${index}-${tile.label}`
-                  }
-                  draggable={Boolean(tile.asset?.asset_id != null && tile.asset?.generation_kind === "image" && !batchTile)}
-                  onDragStart={(event) => handleGalleryAssetDragStart(event, tile.asset)}
-                  className={cn(
-                    "group relative min-h-[190px] overflow-hidden bg-[#171b18] text-left sm:min-h-[250px]",
-                    gallerySpanClasses[index] ?? "",
-                    selected ? "ring-2 ring-[rgba(216,141,67,0.58)] ring-inset" : "",
-                    tile.asset?.asset_id != null && !batchTile ? "cursor-pointer" : "",
-                    tile.asset?.generation_kind === "image" && !batchTile ? "cursor-grab active:cursor-grabbing" : "",
-                  )}
-                  onClick={() => tile.asset?.asset_id != null && !batchTile && setSelectedAssetId(tile.asset.asset_id)}
-                >
-                  {jobPreview ? (
-                    <img
-                      src={jobPreview}
-                      alt={tile.asset?.prompt_summary ?? tile.label}
-                      loading={eagerTile ? "eager" : "lazy"}
-                      fetchPriority={eagerTile ? "high" : "auto"}
-                      decoding="async"
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-                    />
-                  ) : (
-                    <div className="h-full w-full bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_45%),linear-gradient(180deg,#28302d,#1a1d1c)]" />
-                  )}
-                  <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_20%,rgba(0,0,0,0.34)_76%,rgba(0,0,0,0.58)_100%)]" />
-                  {tile.asset?.generation_kind === "video" && !batchTile ? (
-                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                      <span className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/12 bg-[rgba(10,12,11,0.62)] text-white/88 shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
-                        <Play className="ml-0.5 size-5" />
-                      </span>
-                    </div>
-                  ) : null}
-                  {batchTile ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-[rgba(6,8,7,0.36)] p-4">
-                      <div className="flex flex-col items-center gap-4 text-center">
-                        <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/14 bg-[rgba(18,22,19,0.92)] shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
-                          {batchJob?.status === "queued" ? (
-                            <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/84">Queued</div>
-                          ) : (
-                            <LoaderCircle className="size-6 animate-spin text-[#d8ff2e]" />
-                          )}
-                        </div>
-                        <div className="text-[0.88rem] font-semibold uppercase tracking-[0.18em] text-white/68">
-                          {prettifyModelLabel(batchJob?.model_key ?? batchTile.model_key)}
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                  {!batchTile ? (
-                    <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/72">
-                          {prettifyModelLabel(tile.asset?.model_key)}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {tile.asset?.asset_id != null ? (
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void toggleAssetFavorite(tile.asset ?? null);
-                              }}
-                              disabled={favoriteAssetIdBusy === tile.asset.asset_id}
-                              className={cn(
-                                "inline-flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-xl transition",
-                                tile.asset?.favorited
-                                  ? "border-[rgba(255,126,166,0.38)] bg-[rgba(255,126,166,0.16)] text-[#ff8db3]"
-                                  : "border-white/10 bg-[rgba(10,12,11,0.56)] text-white/76 hover:border-[rgba(255,126,166,0.28)] hover:text-[#ffd6e3]",
-                                favoriteAssetIdBusy === tile.asset.asset_id ? "opacity-60" : "",
-                              )}
-                              aria-label={tile.asset?.favorited ? "Unfavorite media asset" : "Favorite media asset"}
-                            >
-                              <Heart className={cn("size-3.5", tile.asset?.favorited ? "fill-current" : "")} />
-                            </button>
-                          ) : null}
-                          <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[rgba(10,12,11,0.56)] text-white/82 backdrop-blur-xl">
-                            {tile.asset?.generation_kind === "video" ? (
-                              <Clapperboard className="size-3.5" />
-                            ) : (
-                              <ImageIcon className="size-3.5" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-            {activeGalleryHasMore || activeGalleryLoadingMore ? (
-              <div
-                ref={galleryLoadMoreRef}
-                className="col-span-full flex min-h-16 items-center justify-center border-t border-white/6 bg-[rgba(10,12,11,0.72)] px-4 py-4 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-white/46"
-              >
-                {activeGalleryLoadingMore ? (
-                  "Loading more gallery items"
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => loadMoreAssetsRef.current()}
-                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/12 bg-[rgba(18,22,19,0.92)] px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-white/72 transition hover:border-[rgba(216,141,67,0.28)] hover:text-white"
-                  >
-                    Scroll or tap to load more
-                  </button>
-                )}
-              </div>
-            ) : null}
-          </div>
+          <StudioGallery
+            immersive={immersive}
+            galleryTiles={galleryTiles}
+            activeGalleryHasMore={activeGalleryHasMore}
+            activeGalleryLoadingMore={activeGalleryLoadingMore}
+            selectedAssetId={selectedAssetId}
+            favoriteAssetIdBusy={favoriteAssetIdBusy}
+            galleryLoadMoreRef={galleryLoadMoreRef}
+            onLoadMore={loadMoreActiveGalleryAssets}
+            onSelectAsset={setSelectedAssetId}
+            onDragAsset={handleGalleryAssetDragStart}
+            onToggleFavorite={(asset) => void toggleAssetFavorite(asset)}
+          />
 
           {!selectedAsset ? (
-            <div
-              className={cn(
-                mobileComposerExpanded
-                  ? "fixed inset-0 z-[110] flex items-end overflow-y-auto bg-[rgba(6,8,7,0.84)] p-3 pb-6 [webkit-overflow-scrolling:touch] md:inset-auto md:block md:overflow-visible md:bg-transparent md:p-0"
-                  : immersive
-                    ? "fixed bottom-4 left-4 right-4 z-[70] md:bottom-6 md:left-6 md:right-6"
-                    : "absolute bottom-4 left-4 right-4 z-20 md:bottom-6 md:left-6 md:right-6",
-              )}
+            <StudioComposer
+              immersive={immersive}
+              mobileComposerCollapsed={mobileComposerCollapsed}
+              mobileComposerExpanded={mobileComposerExpanded}
+              currentModelLabel={currentModel?.label ?? "Select a model"}
+              formattedRemainingCredits={formattedRemainingCredits}
+              estimatedCredits={estimatedCredits}
+              estimatedCostUsd={estimatedCostUsd}
+              structuredPresetActive={structuredPresetActive}
+              presetLabel={currentPreset?.label ?? null}
+              sourceAttachmentStrip={sourceAttachmentStrip}
+              studioSettingsButton={studioSettingsButton}
+              floatingComposerStatus={floatingComposerStatus}
+              onToggleCollapsed={() => setMobileComposerCollapsed((current) => !current)}
             >
-            <div
-              className={cn(
-                "mx-auto w-full border border-white/10 bg-[rgba(21,24,23,0.9)] shadow-[0_28px_70px_rgba(0,0,0,0.42)] backdrop-blur-2xl",
-                mobileComposerExpanded
-                  ? "mt-auto flex min-h-[calc(100dvh-1.5rem)] flex-col justify-end rounded-[30px] px-4 pb-6 pt-8 md:min-h-0 md:rounded-[34px] md:px-4 md:py-4"
-                  : "rounded-[34px] px-4 py-4",
-                immersive ? "max-w-[1480px]" : "max-w-[1240px]",
-              )}
-            >
-              <div className="mb-4 flex items-start justify-between gap-3 md:hidden">
-                <div className="min-w-0 flex-1">
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/46">
-                    Prompt composer
-                  </div>
-                  <div className="mt-2 text-[0.95rem] font-semibold tracking-[-0.03em] text-white/92">
-                    {currentModel?.label ?? "Select a model"}
-                  </div>
-                  {mobileComposerExpanded ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {formattedRemainingCredits ? <StudioMetricPill icon={Coins} value={formattedRemainingCredits} /> : null}
-                      {estimatedCredits ? <StudioMetricPill icon={Coins} value={estimatedCredits} accent="highlight" /> : null}
-                      {estimatedCostUsd ? <StudioMetricPill icon={CircleDollarSign} value={estimatedCostUsd} accent="highlight" /> : null}
-                    </div>
-                  ) : null}
-                  {!structuredPresetActive ? (
-                    <div className="mt-4 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/46">
-                      Source images
-                    </div>
-                  ) : (
-                    <div className="mt-4 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/46">
-                      {currentPreset?.label ?? "Preset mode"}
-                    </div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setMobileComposerCollapsed((current) => !current)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/76 transition hover:border-[rgba(216,141,67,0.28)] hover:text-white"
-                  aria-label={mobileComposerCollapsed ? "Expand prompt composer" : "Collapse prompt composer"}
-                >
-                  <ChevronDown className={cn("size-4 transition-transform", mobileComposerCollapsed ? "" : "rotate-180")} />
-                </button>
-              </div>
-              <div className={cn(mobileComposerCollapsed ? "hidden md:block" : "block")}>
-              <div className="mb-4 md:hidden">
-                {sourceAttachmentStrip}
-              </div>
-              <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-stretch">
-                <div className="relative hidden md:flex md:items-end md:justify-between md:gap-3 lg:order-none lg:grid lg:min-h-full lg:content-start lg:justify-stretch lg:gap-3">
-                  {sourceAttachmentStrip}
-                  <div className="absolute bottom-0 left-0">
-                    {studioSettingsButton}
-                  </div>
-                </div>
-
-                <div className="grid gap-3">
                   {structuredPresetActive ? (
                     <div className="relative grid gap-3 rounded-[26px] border border-white/8 bg-white/[0.04] px-4 py-4">
                       <div className={cn("grid gap-3", structuredPresetImageSlots.length ? "lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] lg:items-start" : "")}>
@@ -3806,6 +1159,7 @@ export function MediaStudio({
                   ) : (
                     <div className="relative">
                       <textarea
+                        data-testid="studio-prompt-input"
                         ref={promptInputRef}
                         value={prompt}
                         onChange={(event) => setPrompt(event.target.value)}
@@ -3829,7 +1183,6 @@ export function MediaStudio({
                       ) : null}
                     </div>
                   )}
-
                   <div className="relative z-30 flex flex-wrap items-center gap-2 pb-1 text-[0.77rem]">
                     <StudioPillSelect
                       pickerId="model"
@@ -3971,6 +1324,7 @@ export function MediaStudio({
                       </button>
                       <button
                         type="button"
+                        data-testid="studio-generate-button"
                         onClick={() => void submitMedia("submit")}
                         disabled={!canSubmit}
                         className="inline-flex h-12 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 text-[0.76rem] font-semibold text-[#172200] shadow-[0_18px_38px_rgba(176,235,44,0.2)] transition hover:-translate-y-0.5 disabled:opacity-60"
@@ -3980,10 +1334,7 @@ export function MediaStudio({
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
-
-              {(composerStatusMessage || selectedPromptList.length || multiShotsEnabled) ? (
+	              {(composerStatusMessage || selectedPromptList.length || multiShotsEnabled) ? (
                 <div className="mt-4 grid gap-3 border-t border-white/8 pt-4">
                   <div className="grid gap-2">
                     {multiShotsEnabled ? (
@@ -4032,9 +1383,7 @@ export function MediaStudio({
                   </div>
                 </div>
               ) : null}
-              </div>
-            </div>
-            </div>
+            </StudioComposer>
           ) : null}
         </div>
       </div>
@@ -4205,7 +1554,7 @@ export function MediaStudio({
       ) : null}
 
       {selectedAsset ? (
-        <div className="fixed inset-0 z-[120] overflow-y-auto overscroll-contain bg-[rgba(6,8,7,0.86)] backdrop-blur-md [webkit-overflow-scrolling:touch]">
+        <div data-testid="studio-inspector" className="fixed inset-0 z-[120] overflow-y-auto overscroll-contain bg-[rgba(6,8,7,0.86)] backdrop-blur-md [webkit-overflow-scrolling:touch]">
           <div className="min-h-dvh p-0 lg:p-6">
             <div className="grid min-h-dvh content-start gap-4 bg-[linear-gradient(180deg,rgba(16,20,18,0.98),rgba(10,13,12,0.98))] px-3 pb-6 pt-3 shadow-[0_40px_100px_rgba(0,0,0,0.5)] [touch-action:pan-y] lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:max-h-[calc(100dvh-3rem)] lg:grid-cols-[minmax(0,1fr)_360px] lg:overflow-hidden lg:rounded-[34px] lg:border lg:border-white/8 lg:px-6 lg:pb-6 lg:pt-6">
               <div className="grid min-h-0 content-start gap-4 lg:grid-rows-[minmax(0,1fr)_auto]">
@@ -4222,6 +1571,7 @@ export function MediaStudio({
                       selectedAsset.generation_kind === "video" ? (
                         <button
                           type="button"
+                          data-testid="studio-open-lightbox"
                           onClick={openSelectedMediaLightbox}
                           className="relative cursor-zoom-in"
                           aria-label="Open selected video"
@@ -4245,6 +1595,7 @@ export function MediaStudio({
                       ) : (
                         <button
                           type="button"
+                          data-testid="studio-open-lightbox"
                           onClick={openSelectedMediaLightbox}
                           className="cursor-zoom-in"
                           aria-label="Open selected image"
@@ -4266,7 +1617,7 @@ export function MediaStudio({
                       {mediaDownloadUrl(selectedAsset) ? (
                         <StudioActionIconButton
                           icon={Download}
-                          label={mobileSaveActionLabel()}
+                          label={downloadActionLabel}
                           onClick={() => void handleAssetDownload(selectedAsset)}
                           className="h-11 w-11 rounded-full border-white/12 bg-[rgba(8,10,9,0.72)] text-white/82 shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-xl"
                         />
@@ -4628,42 +1979,14 @@ export function MediaStudio({
       ) : null}
 
       {selectedAsset && selectedMediaLightboxOpen ? (
-        <div
-          className="fixed inset-0 z-[140] bg-[rgba(4,6,5,0.96)]"
-          onClick={() => void closeSelectedMediaLightbox()}
-        >
-          <button
-            type="button"
-            onClick={() => void closeSelectedMediaLightbox()}
-            className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-black/24 text-white/82 transition hover:text-white md:right-6 md:top-6"
-            aria-label="Close media lightbox"
-          >
-            <X className="size-5" />
-          </button>
-          <div className="flex h-full w-full items-center justify-center p-4 md:p-8" onClick={(event) => event.stopPropagation()}>
-            {selectedAsset.generation_kind === "video" && selectedAssetPlaybackVisual ? (
-              <video
-                ref={lightboxVideoRef}
-                src={selectedAssetPlaybackVisual}
-                controls
-                autoPlay
-                playsInline
-                preload="metadata"
-                poster={selectedAssetDisplayVisual ?? undefined}
-                className="max-h-full w-auto max-w-full rounded-[28px] object-contain shadow-[0_28px_90px_rgba(0,0,0,0.48)]"
-              />
-            ) : selectedAssetLightboxVisual ? (
-              <img
-                src={selectedAssetLightboxVisual}
-                alt={selectedAsset.prompt_summary ?? "Selected media artifact"}
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
-                className="max-h-full w-auto max-w-full rounded-[28px] object-contain shadow-[0_28px_90px_rgba(0,0,0,0.48)]"
-              />
-            ) : null}
-          </div>
-        </div>
+        <StudioLightbox
+          selectedAsset={selectedAsset}
+          selectedAssetDisplayVisual={selectedAssetDisplayVisual}
+          selectedAssetPlaybackVisual={selectedAssetPlaybackVisual}
+          selectedAssetLightboxVisual={selectedAssetLightboxVisual}
+          lightboxVideoRef={lightboxVideoRef}
+          onClose={closeSelectedMediaLightbox}
+        />
       ) : null}
 
       {!immersive ? (

@@ -147,7 +147,7 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
     enhance,
     options,
     metadata,
-    system_prompt_ids: systemPromptIds,
+    selected_system_prompt_ids: systemPromptIds,
   };
 
   if (multiPrompt.length) {
@@ -171,7 +171,7 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
     payload.prompt_preset_key = presetKey;
   }
   if (Object.keys(presetInputs).length) {
-    payload.preset_inputs_json = presetInputs;
+    payload.preset_text_values = presetInputs;
   }
 
   const normalizedSlotValues: Record<string, Array<Record<string, unknown>>> = {};
@@ -232,7 +232,7 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
   }
 
   if (Object.keys(normalizedSlotValues).length) {
-    payload.preset_slot_values_json = normalizedSlotValues;
+    payload.preset_image_slots = normalizedSlotValues;
   }
   if (images.length) payload.images = images;
   if (videos.length) payload.videos = videos;

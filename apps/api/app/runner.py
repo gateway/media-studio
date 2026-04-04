@@ -48,6 +48,7 @@ class MediaRunner:
             self._stop.wait(max(1, settings.media_poll_seconds))
 
     def reconcile(self) -> None:
+        store.deduplicate_assets_by_job_id()
         store.repair_queue_positions()
         store.reset_invalid_active_jobs()
         for job in store.active_jobs():
@@ -92,14 +93,15 @@ class MediaRunner:
             store.update_job(updated["job_id"], {"status": "running", "last_polled_at": store.utcnow_iso()})
             self._complete_offline_job(updated)
             return
+        prepared: Optional[Dict[str, Any]] = None
         try:
             prepared = kie_adapter.prepare_request_for_submission(updated["normalized_request_json"])
+            updated = store.update_job(updated["job_id"], {"prepared_json": prepared})
             submission = kie_adapter.submit_request(prepared)
             updated = store.update_job(
                 updated["job_id"],
                 {
                     "status": "running",
-                    "prepared_json": prepared,
                     "submit_response_json": submission,
                     "provider_task_id": submission.get("task_id"),
                     "last_polled_at": store.utcnow_iso(),
@@ -160,6 +162,15 @@ class MediaRunner:
         updated = store.update_job(job["job_id"], {"last_polled_at": store.utcnow_iso(), "final_status_json": status})
         state = str(status.get("state") or "").lower()
         if state in {"succeeded", "completed"}:
+            if job.get("status") == "completed" and job.get("artifact_json"):
+                return store.update_job(
+                    job["job_id"],
+                    {
+                        "status": "completed",
+                        "finished_at": job.get("finished_at") or store.utcnow_iso(),
+                        "error": None,
+                    },
+                )
             output_urls = status.get("output_urls") or []
             if output_urls:
                 source_url = output_urls[0]

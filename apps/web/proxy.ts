@@ -47,7 +47,8 @@ export function proxy(request: NextRequest) {
   return NextResponse.json(
     {
       ok: false,
-      error: "Media Studio is restricted to loopback access until admin credentials are configured.",
+      error:
+        "Media Studio is only available on localhost until admin credentials are configured. Open http://127.0.0.1:3000/studio or http://localhost:3000/studio on this machine, or set MEDIA_STUDIO_ADMIN_USERNAME and MEDIA_STUDIO_ADMIN_PASSWORD for non-local access.",
     },
     { status: 403 },
   );

@@ -1,0 +1,431 @@
+{
+  "counts": {
+    "admin": 20,
+    "public": 6,
+    "read": 25
+  },
+  "endpoint_count": 51,
+  "endpoints": [
+    {
+      "control_access_mode": null,
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/openapi.json"
+    },
+    {
+      "control_access_mode": null,
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/docs"
+    },
+    {
+      "control_access_mode": null,
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/docs/oauth2-redirect"
+    },
+    {
+      "control_access_mode": null,
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/redoc"
+    },
+    {
+      "control_access_mode": null,
+      "is_control_route_exception": true,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [
+        "control exception"
+      ],
+      "path": "/health"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/models"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/models/{model_key}"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/pricing"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [],
+      "path": "/media/pricing/refresh"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": true,
+      "method": "POST",
+      "notes": [
+        "read exception"
+      ],
+      "path": "/media/pricing/estimate"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/credits"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/queue/settings"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "PATCH",
+      "notes": [],
+      "path": "/media/queue/settings"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/queue/policies"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "PATCH",
+      "notes": [],
+      "path": "/media/queue/policies/{model_key}"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/presets"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/presets/{preset_id}"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [],
+      "path": "/media/presets"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "PATCH",
+      "notes": [],
+      "path": "/media/presets/{preset_id}"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "DELETE",
+      "notes": [],
+      "path": "/media/presets/{preset_id}"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/system-prompts"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/system-prompts/lookup"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/system-prompts/{prompt_id}"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [],
+      "path": "/media/system-prompts"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "PATCH",
+      "notes": [],
+      "path": "/media/system-prompts/{prompt_id}"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "DELETE",
+      "notes": [],
+      "path": "/media/system-prompts/{prompt_id}"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/enhancement-configs"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/enhancement-configs/{model_key}"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [],
+      "path": "/media/enhancement-configs"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "PATCH",
+      "notes": [],
+      "path": "/media/enhancement-configs/{model_key}"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "DELETE",
+      "notes": [],
+      "path": "/media/enhancement-configs/{model_key}"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [],
+      "path": "/media/enhancement/providers/probe"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": true,
+      "method": "POST",
+      "notes": [
+        "read exception"
+      ],
+      "path": "/media/prompt-context"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": true,
+      "method": "POST",
+      "notes": [
+        "read exception"
+      ],
+      "path": "/media/validate"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": true,
+      "method": "POST",
+      "notes": [
+        "read exception"
+      ],
+      "path": "/media/enhance/preview"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [],
+      "path": "/media/jobs"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/jobs"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/jobs/{job_id}"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/jobs/{job_id}/events"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [],
+      "path": "/media/jobs/{job_id}/poll"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [],
+      "path": "/media/jobs/{job_id}/retry"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [],
+      "path": "/media/jobs/{job_id}/dismiss"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/batches"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/batches/{batch_id}"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [],
+      "path": "/media/batches/{batch_id}/cancel"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/assets"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/assets/latest"
+    },
+    {
+      "control_access_mode": "read",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "GET",
+      "notes": [],
+      "path": "/media/assets/{asset_id}"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [],
+      "path": "/media/assets/{asset_id}/dismiss"
+    },
+    {
+      "control_access_mode": "admin",
+      "is_control_route_exception": false,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [],
+      "path": "/media/assets/{asset_id}/favorite"
+    },
+    {
+      "control_access_mode": null,
+      "is_control_route_exception": true,
+      "is_read_access_exception": false,
+      "method": "POST",
+      "notes": [
+        "control exception",
+        "verified callback"
+      ],
+      "path": "/media/providers/kie/callback"
+    }
+  ]
+}

@@ -350,6 +350,20 @@ class ValidateRequest(BaseModel):
     prompt_profile_key: Optional[str] = None
     system_prompt_override: Optional[str] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_legacy_web_payload_fields(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        merged = dict(data)
+        if not merged.get("preset_text_values") and isinstance(merged.get("preset_inputs_json"), dict):
+            merged["preset_text_values"] = merged["preset_inputs_json"]
+        if not merged.get("preset_image_slots") and isinstance(merged.get("preset_slot_values_json"), dict):
+            merged["preset_image_slots"] = merged["preset_slot_values_json"]
+        if not merged.get("selected_system_prompt_ids") and isinstance(merged.get("system_prompt_ids"), list):
+            merged["selected_system_prompt_ids"] = merged["system_prompt_ids"]
+        return merged
+
 
 class ValidateResponse(BaseModel):
     prompt_context: Dict[str, Any]
@@ -383,6 +397,10 @@ class EnhancePreviewResponse(BaseModel):
 
 class JobSubmitRequest(ValidateRequest):
     pass
+
+
+class FavoriteAssetRequest(BaseModel):
+    favorited: bool = True
 
 
 class JobRecord(BaseModel):

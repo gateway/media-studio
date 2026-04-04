@@ -27,6 +27,8 @@ It is local-first by design. It is not trying to be a one-click hosted SaaS temp
 
 Important: the dashboard and queue run locally, but the image and video models do not run on your machine. Media Studio sends generation jobs to Kie AI, which is the external model marketplace and provider used for live generation.
 
+The local control API is intentionally private by default. The setup scripts generate a unique local control token and keep the Studio locked to localhost unless you explicitly configure browser credentials.
+
 ## Why Was It Built?
 
 Most AI media tools make you rent the whole product just to access the models.

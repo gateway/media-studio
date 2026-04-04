@@ -5,7 +5,15 @@ function normalizeHostname(value: string | null | undefined) {
   if (raw.startsWith("[") && raw.includes("]")) {
     return raw.slice(1, raw.indexOf("]"));
   }
-  return raw.split(":")[0];
+  if (raw.startsWith("::ffff:")) {
+    return raw.slice("::ffff:".length);
+  }
+  const firstColon = raw.indexOf(":");
+  const lastColon = raw.lastIndexOf(":");
+  if (firstColon >= 0 && firstColon !== lastColon) {
+    return raw;
+  }
+  return firstColon >= 0 ? raw.slice(0, firstColon) : raw;
 }
 
 export function isLoopbackHostname(value: string | null | undefined) {

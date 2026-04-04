@@ -36,12 +36,36 @@ import type {
   MediaSystemPromptsResponse,
   MediaValidationResponse,
 } from "@/lib/types";
+import { toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-paths";
+export { toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-paths";
 
 export const CONTROL_API_BASE_URL =
   process.env.NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL ||
   process.env.MEDIA_STUDIO_CONTROL_API_BASE_URL ||
   "http://127.0.0.1:8000";
-const CONTROL_API_TOKEN = process.env.MEDIA_STUDIO_CONTROL_API_TOKEN || "media-studio-local-control-token";
+const DEFAULT_LOCAL_CONTROL_API_TOKEN = "media-studio-local-control-token";
+const DEFAULT_CONTROL_API_TOKEN_PLACEHOLDER = "replace_with_a_unique_control_token";
+
+function resolveControlApiToken() {
+  const configured = process.env.MEDIA_STUDIO_CONTROL_API_TOKEN?.trim();
+  if (configured) {
+    if (process.env.NODE_ENV === "production" && configured === DEFAULT_CONTROL_API_TOKEN_PLACEHOLDER) {
+      throw new Error("MEDIA_STUDIO_CONTROL_API_TOKEN must be replaced with a unique production value.");
+    }
+    return configured;
+  }
+  const isProductionBuild =
+    process.env.NODE_ENV === "production" && process.env.NEXT_PHASE === "phase-production-build";
+  if (isProductionBuild) {
+    return DEFAULT_LOCAL_CONTROL_API_TOKEN;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    return DEFAULT_LOCAL_CONTROL_API_TOKEN;
+  }
+  throw new Error("MEDIA_STUDIO_CONTROL_API_TOKEN must be configured for production web control API access.");
+}
+
+const CONTROL_API_TOKEN = resolveControlApiToken();
 
 function withBase(path: string) {
   return `${CONTROL_API_BASE_URL}${path}`;
@@ -55,21 +79,6 @@ export function buildControlApiHeaders(
   resolved.set("x-media-studio-control-token", CONTROL_API_TOKEN);
   resolved.set("x-media-studio-access-mode", authMode);
   return resolved;
-}
-
-export function toControlApiProxyPath(pathValue: string | null | undefined) {
-  if (!pathValue || !pathValue.startsWith("/files/")) {
-    return null;
-  }
-  return `/api/control/files${pathValue.slice("/files".length)}`;
-}
-
-export function toControlApiDataProxyPath(filePath: string | null | undefined) {
-  if (!filePath) {
-    return null;
-  }
-  const normalized = filePath.replace(/\\/g, "/").replace(/^\/+/, "");
-  return `/api/control/files/${normalized}`;
 }
 
 async function fetchControlApiResponse(
@@ -334,6 +343,7 @@ export function mapJobRecord(job: Record<string, any>): MediaJob {
     validation: job.validation_json ?? null,
     preflight: job.preflight_json ?? null,
     prepared: job.prepared_json ?? null,
+    error: job.error ?? null,
     artifact,
     final_status: job.final_status_json ?? null,
   };
@@ -377,7 +387,7 @@ export function mapBatchRecord(batch: Record<string, any>, jobs: MediaJob[]): Me
     jobs: jobs.filter((job) => job.batch_id === batch.batch_id),
     created_at: String(batch.created_at),
     updated_at: String(batch.updated_at),
-    finished_at: null,
+    finished_at: batch.finished_at ?? null,
   };
 }
 
@@ -507,6 +517,9 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
   const enhancementConfigs = (enhancementRaw.data ?? []).map(mapEnhancementConfigRecord);
   const jobs = ((jobsRaw.data?.items ?? []) as Record<string, any>[]).map(mapJobRecord);
   const assets = ((assetsRaw.data?.items ?? []) as Record<string, any>[]).map(mapAssetRecord);
+  const latestAssetRecord = Array.isArray(latestAssetRaw.data?.items)
+    ? latestAssetRaw.data.items[0] ?? null
+    : latestAssetRaw.data?.item ?? latestAssetRaw.data ?? null;
   const batches = ((batchesRaw.data?.items ?? []) as Record<string, any>[]).map((batch) =>
     mapBatchRecord(
       batch,
@@ -555,12 +568,12 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
         limit: 12,
         offset: 0,
         has_more: Boolean(assetsRaw.data?.next_cursor),
-        next_offset: null,
+        next_offset: assets.length > 0 && assetsRaw.data?.next_cursor ? assets.length : null,
       } as MediaAssetsResponse,
     },
     latestAsset: {
       ok: latestAssetRaw.ok,
-      data: { asset: latestAssetRaw.data ? mapAssetRecord(latestAssetRaw.data) : null } as MediaAssetResponse,
+      data: { asset: latestAssetRecord ? mapAssetRecord(latestAssetRecord) : null } as MediaAssetResponse,
     },
   };
 }

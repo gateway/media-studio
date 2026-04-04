@@ -9,7 +9,12 @@
     "setup:mac": "./scripts/onboard_mac.sh",
     "setup:windows": "powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1",
     "setup:shared-env": "./scripts/setup_shared_env.sh",
+    "review:scaffold": "./scripts/scaffold_review_outputs.sh",
+    "generate:api-specs": "./scripts/with_shared_python.sh ./scripts/generate_api_specs.py",
+    "audit:api-security": "./scripts/with_shared_python.sh ./scripts/audit_api_security.py",
     "quality": "./scripts/run-quality-gates",
+    "release:verify": "./scripts/run-release-gates",
+    "smoke:studio-browser": "node ./scripts/studio_browser_smoke.mjs",
     "db:backup": "./scripts/backup_db.sh",
     "db:clean": "./scripts/create_clean_db.sh --output ./data/backups/media-studio-clean.sqlite --overwrite",
     "start:api": "./scripts/start_api.sh",
@@ -21,5 +26,8 @@
     "build:web": "npm --workspace apps/web run build",
     "lint:web": "npm --workspace apps/web run lint",
     "typecheck:web": "npm --workspace apps/web run typecheck"
+  },
+  "devDependencies": {
+    "playwright": "^1.59.1"
   }
 }

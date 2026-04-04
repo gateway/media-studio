@@ -1,16 +1,15 @@
 import { CheckCircle2, KeyRound, PlayCircle, Sparkles, TerminalSquare } from "lucide-react";
 import type { ReactNode } from "react";
 
+import {
+  adminStatCardClassName,
+  adminSurfaceCardClassName,
+  adminThemeLayoutClassName,
+} from "@/components/admin-theme";
 import { StatusPill } from "@/components/status-pill";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { getControlApiJson, getMediaDashboardSnapshot } from "@/lib/control-api";
 import { DEFAULT_LOCAL_OPENAI_BASE_URL, KIE_AFFILIATE_URL } from "@/lib/onboarding";
-
-const setupSurfaceClassName =
-  "grid min-w-0 gap-6 [--surface:rgba(17,20,19,0.9)] [--surface-muted:rgba(255,255,255,0.05)] [--surface-border:rgba(255,255,255,0.10)] [--surface-border-soft:rgba(255,255,255,0.08)] [--foreground:#f7f6f0] [--muted-strong:rgba(247,246,240,0.68)] [--accent-strong:rgba(208,255,72,0.94)] [--success:#bff36b] [--danger:#ffb5a6] [--shadow-soft:0_24px_60px_rgba(0,0,0,0.26)]";
-
-const cardClassName =
-  "rounded-[26px] border border-[var(--surface-border-soft)] bg-[color:var(--surface)]/92 p-5 shadow-[var(--shadow-soft)]";
 
 function boolTone(value: boolean) {
   return value ? "healthy" : "warning";
@@ -30,7 +29,7 @@ function StepCard({
   icon: ReactNode;
 }) {
   return (
-    <div className={cardClassName}>
+    <div className={adminSurfaceCardClassName}>
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-3">
           <div className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
@@ -103,8 +102,8 @@ export default async function SetupPage() {
       title="Set Up Media Studio"
       description="Follow the steps below. Run one setup script, add your KIE API key, and start the API and web app."
     >
-      <div className={setupSurfaceClassName}>
-        <section className={cardClassName}>
+      <div className={adminThemeLayoutClassName}>
+        <section className={adminSurfaceCardClassName}>
           <div className="flex items-center justify-between gap-4">
             <div>
               <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
@@ -146,21 +145,21 @@ export default async function SetupPage() {
             />
           </div>
           <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div className="rounded-[18px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-4 py-4">
+            <div className={adminStatCardClassName}>
               <div className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--muted-strong)]">Models</div>
               <div className="mt-2 text-2xl font-semibold text-[var(--foreground)]">{modelsCount}</div>
             </div>
-            <div className="rounded-[18px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-4 py-4">
+            <div className={adminStatCardClassName}>
               <div className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--muted-strong)]">Presets</div>
               <div className="mt-2 text-2xl font-semibold text-[var(--foreground)]">{presetsCount}</div>
             </div>
-            <div className="rounded-[18px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-4 py-4">
+            <div className={adminStatCardClassName}>
               <div className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--muted-strong)]">Credits</div>
               <div className="mt-2 text-2xl font-semibold text-[var(--foreground)]">
                 {availableCredits !== null ? availableCredits.toFixed(1) : "n/a"}
               </div>
             </div>
-            <div className="rounded-[18px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-4 py-4">
+            <div className={adminStatCardClassName}>
               <div className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--muted-strong)]">Runner</div>
               <div className="mt-2 text-2xl font-semibold text-[var(--foreground)]">{runnerReady ? "ready" : "check"}</div>
             </div>
@@ -168,7 +167,7 @@ export default async function SetupPage() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-3">
-          <div className={`${cardClassName} lg:col-span-2`}>
+          <div className={`${adminSurfaceCardClassName} lg:col-span-2`}>
             <div className="inline-flex items-center gap-2 rounded-full border border-[var(--surface-border-soft)] bg-[rgba(208,255,72,0.08)] px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
               <Sparkles className="size-4" />
               Quick Start
@@ -202,7 +201,7 @@ powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
             </div>
           </div>
 
-          <div className={cardClassName}>
+          <div className={adminSurfaceCardClassName}>
             <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
               Required and Optional
             </div>
@@ -261,7 +260,7 @@ powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className={cardClassName}>
+          <div className={adminSurfaceCardClassName}>
             <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
               What the script covers
             </div>
@@ -285,7 +284,7 @@ powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
             </div>
           </div>
 
-          <div className={cardClassName}>
+          <div className={adminSurfaceCardClassName}>
             <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
               After setup
             </div>

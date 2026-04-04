@@ -24,6 +24,7 @@ from .schemas import (
     EnhancementProviderProbeRequest,
     EnhancementProviderProbeResponse,
     EnhancementConfigUpsertRequest,
+    FavoriteAssetRequest,
     HealthResponse,
     JobRecord,
     JobEventRecord,
@@ -460,8 +461,19 @@ def list_assets(
     cursor: Optional[str] = None,
     favorites: bool = False,
     media_type: Optional[str] = Query(default=None, pattern="^(image|video)?$"),
+    model_key: Optional[str] = None,
+    status: Optional[str] = None,
+    preset_key: Optional[str] = None,
 ):
-    rows = store.list_assets(limit=limit + 1, cursor=cursor, favorites_only=favorites, media_type=media_type)
+    rows = store.list_assets(
+        limit=limit + 1,
+        cursor=cursor,
+        favorites_only=favorites,
+        media_type=media_type,
+        model_key=model_key,
+        status=status,
+        preset_key=preset_key,
+    )
     has_more = len(rows) > limit
     rows = rows[:limit]
     items = [AssetRecord(**item) for item in rows]
@@ -469,9 +481,12 @@ def list_assets(
     return AssetListResponse(items=items, next_cursor=next_cursor)
 
 
-@app.get("/media/assets/latest")
+@app.get("/media/assets/latest", response_model=Optional[AssetRecord])
 def latest_assets():
-    return {"items": store.list_assets(limit=12)}
+    latest = store.list_assets(limit=1)
+    if not latest:
+        return None
+    return AssetRecord(**latest[0])
 
 
 @app.get("/media/assets/{asset_id}", response_model=AssetRecord)
@@ -488,18 +503,33 @@ def dismiss_asset(asset_id: str):
 
 
 @app.post("/media/assets/{asset_id}/favorite", response_model=AssetRecord)
-def favorite_asset(asset_id: str, favorited: bool = True):
-    return AssetRecord(**store.mark_asset_favorite(asset_id, favorited))
+def favorite_asset(asset_id: str, payload: Optional[FavoriteAssetRequest] = None, favorited: Optional[bool] = Query(default=None)):
+    resolved_favorited = payload.favorited if payload is not None else (favorited if favorited is not None else True)
+    return AssetRecord(**store.mark_asset_favorite(asset_id, resolved_favorited))
 
 
 @app.post("/media/providers/kie/callback")
-def kie_callback(payload: dict):
-    task_id = payload.get("task_id") or payload.get("taskId")
+def kie_callback(request: Request, payload: dict):
+    try:
+        event = kie_adapter.verify_callback_request(payload, dict(request.headers))
+    except Exception as exc:
+        return JSONResponse(
+            {"ok": False, "reason": str(exc) or "callback verification failed"},
+            status_code=403,
+        )
+    task_id = event.get("task_id")
     if not task_id:
-        return {"ok": False, "reason": "missing task_id"}
+        return JSONResponse({"ok": False, "reason": "missing task_id"}, status_code=400)
+    normalized_payload = dict(payload)
+    if event.get("status") and not normalized_payload.get("state"):
+        normalized_payload["state"] = event["status"]
+    if event.get("task_id") and not normalized_payload.get("task_id"):
+        normalized_payload["task_id"] = event["task_id"]
+    if event.get("output_urls") and not normalized_payload.get("output_urls"):
+        normalized_payload["output_urls"] = event["output_urls"]
     for job in store.list_jobs(include_dismissed=True):
         if job.get("provider_task_id") == task_id:
-            store.update_job(job["job_id"], {"final_status_json": payload})
-            store.append_job_event(job["job_id"], "provider_callback", payload)
+            store.update_job(job["job_id"], {"final_status_json": normalized_payload})
+            store.append_job_event(job["job_id"], "provider_callback", normalized_payload)
             return {"ok": True}
     return {"ok": False, "reason": "unknown task_id"}

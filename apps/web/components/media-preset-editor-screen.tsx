@@ -14,6 +14,7 @@ import { AdminActionNotice } from "@/components/admin-action-notice";
 import { CollapsibleSubsection } from "@/components/collapsible-sections";
 import { Panel } from "@/components/panel";
 import type { MediaModelSummary, MediaPreset } from "@/lib/types";
+import { slugifyKey } from "@/lib/utils";
 
 type PresetFieldInput = {
   id: string;
@@ -98,15 +99,6 @@ function presetFieldKeyToken(key: string) {
 
 function presetSlotKeyToken(key: string) {
   return `[[${key}]]`;
-}
-
-function slugifyPresetKey(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
 }
 
 function emptyPresetForm(defaultModelKey: string | null | undefined): PresetFormState {
@@ -243,7 +235,7 @@ export function MediaPresetEditorScreen({
   const presetNameInputRef = useRef<HTMLInputElement | null>(null);
   const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
 
-  const generatedPresetKey = presetForm.key || slugifyPresetKey(presetForm.label);
+  const generatedPresetKey = presetForm.key || slugifyKey(presetForm.label);
   const selectedNanoModels = models.filter(
     (model) => model.key === "nano-banana-2" || model.key === "nano-banana-pro",
   );

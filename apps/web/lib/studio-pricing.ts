@@ -1,8 +1,5 @@
 import type { MediaValidationResponse } from "@/lib/types";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+import { formatCreditsAmount, formatUsdAmount, isRecord } from "@/lib/utils";
 
 function pricingOptionValue(value: unknown) {
   if (value == null) {
@@ -23,26 +20,6 @@ function pricingNumber(value: unknown) {
     if (Number.isFinite(parsed)) {
       return parsed;
     }
-  }
-  return null;
-}
-
-function formatCredits(value: unknown) {
-  if (typeof value === "number") {
-    return value.toFixed(value % 1 === 0 ? 0 : 1);
-  }
-  if (typeof value === "string" && value) {
-    return value;
-  }
-  return null;
-}
-
-function formatUsd(value: unknown) {
-  if (typeof value === "number") {
-    return `$${value.toFixed(2)}`;
-  }
-  if (typeof value === "string" && value) {
-    return `$${value}`;
   }
   return null;
 }
@@ -143,8 +120,11 @@ export function resolveStudioPricingDisplay(
     validationPricingTotal?.estimated_cost_usd ??
     localPricingEstimate.estimatedCostUsd ??
     preflightEstimatedCost?.estimated_cost_usd;
-  const estimatedCredits = formatCredits(estimatedCreditsValue);
-  const estimatedCostUsd = formatUsd(estimatedCostUsdValue);
+  const estimatedCredits = formatCreditsAmount(estimatedCreditsValue, { fallback: null });
+  const estimatedCostUsd = formatUsdAmount(estimatedCostUsdValue, null, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   return {
     estimatedCredits,
     estimatedCostUsd,

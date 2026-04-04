@@ -49,6 +49,73 @@ describe("studio-gallery", () => {
     expect(tiles.every((tile) => tile.asset === null)).toBe(true);
   });
 
+  it("does not duplicate an asset that is already being shown as a pending batch preview", () => {
+    const sharedAsset = {
+      asset_id: "asset-1",
+      job_id: "job-1",
+      created_at: "2026-04-03T00:00:00Z",
+    } as never;
+
+    const tiles = buildGalleryTiles(
+      [sharedAsset],
+      null,
+      [
+        {
+          batch_id: "batch-1",
+          status: "processing",
+          requested_outputs: 1,
+          queued_count: 0,
+          running_count: 1,
+          completed_count: 0,
+          failed_count: 0,
+          cancelled_count: 0,
+          created_at: "2026-04-03T00:00:00Z",
+          updated_at: "2026-04-03T00:00:00Z",
+          jobs: [{ job_id: "job-1", status: "running" }],
+        } as never,
+      ],
+      [sharedAsset],
+      false,
+      false,
+    );
+
+    expect(tiles.filter((tile) => tile.asset?.asset_id === "asset-1")).toHaveLength(1);
+  });
+
+  it("keeps a publishing tile visible after a batch completes until the asset is available", () => {
+    const tiles = buildGalleryTiles(
+      [],
+      null,
+      [
+        {
+          batch_id: "batch-1",
+          status: "completed",
+          requested_outputs: 1,
+          queued_count: 0,
+          running_count: 0,
+          completed_count: 1,
+          failed_count: 0,
+          cancelled_count: 0,
+          created_at: "2026-04-04T00:00:00Z",
+          updated_at: "2026-04-04T00:00:00Z",
+          jobs: [
+            {
+              job_id: "job-2",
+              status: "completed",
+              final_status: { state: "succeeded" },
+            },
+          ],
+        } as never,
+      ],
+      [],
+      false,
+      false,
+    );
+
+    expect(tiles[0]?.job?.job_id).toBe("job-2");
+    expect(tiles[0]?.label).toBe("Publishing output");
+  });
+
   it("reports missing preset attachments by media kind", () => {
     expect(
       presetRequirementMessage(

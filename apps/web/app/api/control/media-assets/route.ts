@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { getControlApiJson, mapAssetRecord } from "@/lib/control-api";
 import type { MediaAssetsResponse } from "@/lib/types";
 
+const CONTROL_ASSET_PAGE_LIMIT = 100;
+const CONTROL_ASSET_MAX_LIMIT = 200;
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const limit = Math.max(1, Number(url.searchParams.get("limit") ?? "12") || 12);
@@ -13,47 +16,83 @@ export async function GET(request: Request) {
   const presetKey = url.searchParams.get("preset_key");
   const favorited = url.searchParams.get("favorited");
   const mediaType = generationKind === "video" || generationKind === "image" ? generationKind : null;
-
-  const endpointParams = new URLSearchParams();
-  endpointParams.set("limit", String(Math.max(offset + limit + 24, 100)));
+  const baseParams = new URLSearchParams();
   if (mediaType) {
-    endpointParams.set("media_type", mediaType);
+    baseParams.set("media_type", mediaType);
+  }
+  if (modelKey) {
+    baseParams.set("model_key", modelKey);
+  }
+  if (status) {
+    baseParams.set("status", status);
+  }
+  if (presetKey) {
+    baseParams.set("preset_key", presetKey);
   }
   if (favorited === "true") {
-    endpointParams.set("favorites", "true");
+    baseParams.set("favorites", "true");
   }
 
-  const result = await getControlApiJson<{ items?: Record<string, unknown>[]; next_cursor?: string | null }>(
-    `/media/assets?${endpointParams.toString()}`,
-    "read",
-  );
+  let remainingOffset = offset;
+  const page: ReturnType<typeof mapAssetRecord>[] = [];
+  let nextCursor: string | null = null;
+  let firstRequest = true;
+  let hasMore = false;
 
-  if (!result.ok || !result.data?.items) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: result.error ?? "Unable to load media assets from the Control API.",
-      },
-      { status: 502 },
+  while (page.length < limit) {
+    const endpointParams = new URLSearchParams(baseParams);
+    endpointParams.set(
+      "limit",
+      String(
+        Math.min(
+          CONTROL_ASSET_MAX_LIMIT,
+          Math.max(CONTROL_ASSET_PAGE_LIMIT, limit - page.length + Math.min(remainingOffset, CONTROL_ASSET_PAGE_LIMIT)),
+        ),
+      ),
     );
-  }
+    if (!firstRequest && nextCursor) {
+      endpointParams.set("cursor", nextCursor);
+    }
 
-  const assets = result.data.items.map(mapAssetRecord).filter((asset) => {
-    if (modelKey && asset.model_key !== modelKey) return false;
-    if (status && asset.status !== status) return false;
-    if (generationKind && asset.generation_kind !== generationKind) return false;
-    if (presetKey && asset.preset_key !== presetKey) return false;
-    if (favorited === "true" && !asset.favorited) return false;
-    return !asset.dismissed_at;
-  });
-  const page = assets.slice(offset, offset + limit);
+    const result = await getControlApiJson<{ items?: Record<string, unknown>[]; next_cursor?: string | null }>(
+      `/media/assets?${endpointParams.toString()}`,
+      "read",
+    );
+
+    if (!result.ok || !result.data?.items) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: result.error ?? "Unable to load media assets from the Control API.",
+        },
+        { status: 502 },
+      );
+    }
+
+    const assets = result.data.items.map(mapAssetRecord);
+    const startIndex = Math.min(remainingOffset, assets.length);
+    if (startIndex < assets.length) {
+      const taken = assets.slice(startIndex, startIndex + (limit - page.length));
+      page.push(...taken);
+      if (startIndex + taken.length < assets.length) {
+        hasMore = true;
+      }
+    }
+    remainingOffset = Math.max(0, remainingOffset - assets.length);
+    nextCursor = result.data.next_cursor ?? null;
+    firstRequest = false;
+
+    if (!nextCursor || assets.length === 0) {
+      break;
+    }
+  }
 
   return NextResponse.json({
     ok: true,
     assets: page,
     limit,
     offset,
-    has_more: offset + page.length < assets.length || Boolean(result.data.next_cursor),
-    next_offset: offset + page.length < assets.length || Boolean(result.data.next_cursor) ? offset + page.length : null,
+    has_more: hasMore || Boolean(nextCursor),
+    next_offset: hasMore || nextCursor ? offset + page.length : null,
   } as MediaAssetsResponse);
 }

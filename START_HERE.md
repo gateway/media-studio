@@ -2,7 +2,7 @@
 
 This is the fastest way to get `media-studio` running for the first time.
 
-Media Studio is a local Next.js + FastAPI app that sits on top of the shared Python `kie-api` layer. It gives you your own image and video generation dashboard instead of another closed hosted UI, and it uses Kie AI for pay-as-you-go generation.
+Media Studio is a local Next.js + FastAPI app that sits on top of the shared Python `kie-api` layer. It gives you your own image and video generation dashboard instead of another subscription-hosted tool website, and it uses Kie AI for pay-as-you-go generation.
 
 The shortest way to think about it:
 - local dashboard
@@ -52,6 +52,7 @@ Those scripts will:
 - create the shared Python virtualenv
 - install API and web dependencies
 - create `.env`
+- generate a unique local control token for the dashboard and API
 - create a clean local database
 - prompt for `KIE_API_KEY`
 - optionally prompt for OpenRouter or a local OpenAI-compatible endpoint

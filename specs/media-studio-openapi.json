@@ -1,0 +1,5081 @@
+{
+  "components": {
+    "schemas": {
+      "AssetListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AssetRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "title": "AssetListResponse",
+        "type": "object"
+      },
+      "AssetRecord": {
+        "properties": {
+          "artifact_run_dir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Run Dir"
+          },
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "dismissed": {
+            "default": false,
+            "title": "Dismissed",
+            "type": "boolean"
+          },
+          "favorited": {
+            "default": false,
+            "title": "Favorited",
+            "type": "boolean"
+          },
+          "favorited_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Favorited At"
+          },
+          "generation_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation Kind"
+          },
+          "hero_original_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hero Original Path"
+          },
+          "hero_poster_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hero Poster Path"
+          },
+          "hero_thumb_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hero Thumb Path"
+          },
+          "hero_web_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hero Web Path"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "manifest_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manifest Path"
+          },
+          "model_key": {
+            "title": "Model Key",
+            "type": "string"
+          },
+          "payload_json": {
+            "additionalProperties": true,
+            "title": "Payload Json",
+            "type": "object"
+          },
+          "preset_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Key"
+          },
+          "preset_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Source"
+          },
+          "prompt_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Summary"
+          },
+          "provider_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Task Id"
+          },
+          "remote_output_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Output Url"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "run_json_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Json Path"
+          },
+          "source_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Asset Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "tags_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags Json",
+            "type": "array"
+          },
+          "task_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Mode"
+          }
+        },
+        "required": [
+          "asset_id",
+          "job_id",
+          "model_key",
+          "status"
+        ],
+        "title": "AssetRecord",
+        "type": "object"
+      },
+      "BatchRecord": {
+        "properties": {
+          "batch_id": {
+            "title": "Batch Id",
+            "type": "string"
+          },
+          "cancelled_count": {
+            "default": 0,
+            "title": "Cancelled Count",
+            "type": "integer"
+          },
+          "completed_count": {
+            "default": 0,
+            "title": "Completed Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "failed_count": {
+            "default": 0,
+            "title": "Failed Count",
+            "type": "integer"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobRecord"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "model_key": {
+            "title": "Model Key",
+            "type": "string"
+          },
+          "preset_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Source"
+          },
+          "queued_count": {
+            "default": 0,
+            "title": "Queued Count",
+            "type": "integer"
+          },
+          "request_summary_json": {
+            "additionalProperties": true,
+            "title": "Request Summary Json",
+            "type": "object"
+          },
+          "requested_outputs": {
+            "title": "Requested Outputs",
+            "type": "integer"
+          },
+          "requested_preset_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Preset Key"
+          },
+          "resolved_preset_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Preset Key"
+          },
+          "running_count": {
+            "default": 0,
+            "title": "Running Count",
+            "type": "integer"
+          },
+          "source_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Asset Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "task_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Mode"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "batch_id",
+          "status",
+          "model_key",
+          "requested_outputs"
+        ],
+        "title": "BatchRecord",
+        "type": "object"
+      },
+      "BatchesListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BatchRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "default": 0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "title": "BatchesListResponse",
+        "type": "object"
+      },
+      "CreditsResponse": {
+        "properties": {
+          "available_credits": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Credits"
+          },
+          "raw": {
+            "additionalProperties": true,
+            "title": "Raw",
+            "type": "object"
+          }
+        },
+        "title": "CreditsResponse",
+        "type": "object"
+      },
+      "EnhancePreviewRequest": {
+        "properties": {
+          "audios": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefInput"
+            },
+            "title": "Audios",
+            "type": "array"
+          },
+          "enhance": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enhance"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefInput"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "model_key": {
+            "title": "Model Key",
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          },
+          "output_count": {
+            "default": 1,
+            "title": "Output Count",
+            "type": "integer"
+          },
+          "preset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Id"
+          },
+          "preset_image_slots": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/MediaRefInput"
+              },
+              "type": "array"
+            },
+            "title": "Preset Image Slots",
+            "type": "object"
+          },
+          "preset_text_values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Preset Text Values",
+            "type": "object"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt"
+          },
+          "prompt_policy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Policy"
+          },
+          "prompt_profile_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Profile Key"
+          },
+          "selected_system_prompt_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Selected System Prompt Ids",
+            "type": "array"
+          },
+          "source_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Asset Id"
+          },
+          "system_prompt_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Prompt Override"
+          },
+          "task_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Mode"
+          },
+          "videos": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefInput"
+            },
+            "title": "Videos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "model_key"
+        ],
+        "title": "EnhancePreviewRequest",
+        "type": "object"
+      },
+      "EnhancePreviewResponse": {
+        "properties": {
+          "enhanced_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enhanced Prompt"
+          },
+          "enhancement": {
+            "additionalProperties": true,
+            "title": "Enhancement",
+            "type": "object"
+          },
+          "enhancement_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnhancementConfigRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "final_prompt_used": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Prompt Used"
+          },
+          "image_analysis": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Analysis"
+          },
+          "prompt_context": {
+            "additionalProperties": true,
+            "title": "Prompt Context",
+            "type": "object"
+          },
+          "provider_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Kind"
+          },
+          "provider_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Label"
+          },
+          "provider_model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Model Id"
+          },
+          "raw_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Prompt"
+          },
+          "resolved_options": {
+            "additionalProperties": true,
+            "title": "Resolved Options",
+            "type": "object"
+          },
+          "validation": {
+            "additionalProperties": true,
+            "title": "Validation",
+            "type": "object"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "prompt_context",
+          "enhancement",
+          "validation"
+        ],
+        "title": "EnhancePreviewResponse",
+        "type": "object"
+      },
+      "EnhancementConfigRecord": {
+        "properties": {
+          "config_id": {
+            "title": "Config Id",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "helper_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Helper Profile"
+          },
+          "image_analysis_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Analysis Prompt"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "model_key": {
+            "title": "Model Key",
+            "type": "string"
+          },
+          "provider_api_key_configured": {
+            "default": false,
+            "title": "Provider Api Key Configured",
+            "type": "boolean"
+          },
+          "provider_base_url_configured": {
+            "default": false,
+            "title": "Provider Base Url Configured",
+            "type": "boolean"
+          },
+          "provider_capabilities_json": {
+            "additionalProperties": true,
+            "title": "Provider Capabilities Json",
+            "type": "object"
+          },
+          "provider_credential_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Credential Source"
+          },
+          "provider_kind": {
+            "default": "builtin",
+            "title": "Provider Kind",
+            "type": "string"
+          },
+          "provider_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Label"
+          },
+          "provider_last_tested_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Last Tested At"
+          },
+          "provider_model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Model Id"
+          },
+          "provider_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Status"
+          },
+          "provider_supports_images": {
+            "default": false,
+            "title": "Provider Supports Images",
+            "type": "boolean"
+          },
+          "supports_image_analysis": {
+            "default": false,
+            "title": "Supports Image Analysis",
+            "type": "boolean"
+          },
+          "supports_text_enhancement": {
+            "default": true,
+            "title": "Supports Text Enhancement",
+            "type": "boolean"
+          },
+          "system_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Prompt"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "config_id",
+          "model_key",
+          "label"
+        ],
+        "title": "EnhancementConfigRecord",
+        "type": "object"
+      },
+      "EnhancementConfigUpsertRequest": {
+        "properties": {
+          "helper_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Helper Profile"
+          },
+          "image_analysis_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Analysis Prompt"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "model_key": {
+            "title": "Model Key",
+            "type": "string"
+          },
+          "provider_api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Api Key"
+          },
+          "provider_base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Base Url"
+          },
+          "provider_capabilities_json": {
+            "additionalProperties": true,
+            "title": "Provider Capabilities Json",
+            "type": "object"
+          },
+          "provider_kind": {
+            "default": "builtin",
+            "title": "Provider Kind",
+            "type": "string"
+          },
+          "provider_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Label"
+          },
+          "provider_last_tested_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Last Tested At"
+          },
+          "provider_model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Model Id"
+          },
+          "provider_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Status"
+          },
+          "provider_supports_images": {
+            "default": false,
+            "title": "Provider Supports Images",
+            "type": "boolean"
+          },
+          "supports_image_analysis": {
+            "default": false,
+            "title": "Supports Image Analysis",
+            "type": "boolean"
+          },
+          "supports_text_enhancement": {
+            "default": true,
+            "title": "Supports Text Enhancement",
+            "type": "boolean"
+          },
+          "system_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Prompt"
+          }
+        },
+        "required": [
+          "model_key",
+          "label"
+        ],
+        "title": "EnhancementConfigUpsertRequest",
+        "type": "object"
+      },
+      "EnhancementProviderModel": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "input_modalities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Input Modalities",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "raw": {
+            "additionalProperties": true,
+            "title": "Raw",
+            "type": "object"
+          },
+          "supports_images": {
+            "default": false,
+            "title": "Supports Images",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "provider"
+        ],
+        "title": "EnhancementProviderModel",
+        "type": "object"
+      },
+      "EnhancementProviderProbeRequest": {
+        "properties": {
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          },
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "model_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Key"
+          },
+          "provider_kind": {
+            "title": "Provider Kind",
+            "type": "string"
+          },
+          "require_images": {
+            "default": false,
+            "title": "Require Images",
+            "type": "boolean"
+          },
+          "selected_model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Model Id"
+          }
+        },
+        "required": [
+          "provider_kind"
+        ],
+        "title": "EnhancementProviderProbeRequest",
+        "type": "object"
+      },
+      "EnhancementProviderProbeResponse": {
+        "properties": {
+          "available_models": {
+            "items": {
+              "$ref": "#/components/schemas/EnhancementProviderModel"
+            },
+            "title": "Available Models",
+            "type": "array"
+          },
+          "credential_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credential Source"
+          },
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "selected_model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnhancementProviderModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "title": "EnhancementProviderProbeResponse",
+        "type": "object"
+      },
+      "FavoriteAssetRequest": {
+        "properties": {
+          "favorited": {
+            "default": true,
+            "title": "Favorited",
+            "type": "boolean"
+          }
+        },
+        "title": "FavoriteAssetRequest",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "app": {
+            "title": "App",
+            "type": "string"
+          },
+          "heartbeat_age_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heartbeat Age Seconds"
+          },
+          "heartbeat_max_age_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heartbeat Max Age Seconds"
+          },
+          "issues": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "kie_api_key_configured": {
+            "default": false,
+            "title": "Kie Api Key Configured",
+            "type": "boolean"
+          },
+          "kie_api_repo_connected": {
+            "default": false,
+            "title": "Kie Api Repo Connected",
+            "type": "boolean"
+          },
+          "last_scheduler_tick": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Scheduler Tick"
+          },
+          "live_submit_enabled": {
+            "default": false,
+            "title": "Live Submit Enabled",
+            "type": "boolean"
+          },
+          "openrouter_api_key_configured": {
+            "default": false,
+            "title": "Openrouter Api Key Configured",
+            "type": "boolean"
+          },
+          "pricing_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricing Source"
+          },
+          "queue_enabled": {
+            "default": true,
+            "title": "Queue Enabled",
+            "type": "boolean"
+          },
+          "queued_jobs": {
+            "default": 0,
+            "title": "Queued Jobs",
+            "type": "integer"
+          },
+          "runner_active": {
+            "default": false,
+            "title": "Runner Active",
+            "type": "boolean"
+          },
+          "runner_attached_to": {
+            "default": "Media Studio API",
+            "title": "Runner Attached To",
+            "type": "string"
+          },
+          "runner_health": {
+            "default": "needs_attention",
+            "title": "Runner Health",
+            "type": "string"
+          },
+          "runner_launch_mode": {
+            "default": "manual",
+            "title": "Runner Launch Mode",
+            "type": "string"
+          },
+          "runner_mode": {
+            "default": "embedded",
+            "title": "Runner Mode",
+            "type": "string"
+          },
+          "runner_name": {
+            "default": "Media Studio Runner",
+            "title": "Runner Name",
+            "type": "string"
+          },
+          "runner_process_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runner Process Name"
+          },
+          "running_jobs": {
+            "default": 0,
+            "title": "Running Jobs",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "supervisor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supervisor"
+          }
+        },
+        "required": [
+          "status",
+          "app"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "JobEventRecord": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "payload_json": {
+            "additionalProperties": true,
+            "title": "Payload Json",
+            "type": "object"
+          }
+        },
+        "required": [
+          "event_id",
+          "job_id",
+          "event_type"
+        ],
+        "title": "JobEventRecord",
+        "type": "object"
+      },
+      "JobEventsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/JobEventRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "JobEventsResponse",
+        "type": "object"
+      },
+      "JobRecord": {
+        "properties": {
+          "artifact_json": {
+            "additionalProperties": true,
+            "title": "Artifact Json",
+            "type": "object"
+          },
+          "batch_id": {
+            "title": "Batch Id",
+            "type": "string"
+          },
+          "batch_index": {
+            "title": "Batch Index",
+            "type": "integer"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "dismissed": {
+            "default": false,
+            "title": "Dismissed",
+            "type": "boolean"
+          },
+          "enhanced_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enhanced Prompt"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "final_prompt_used": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Prompt Used"
+          },
+          "final_status_json": {
+            "additionalProperties": true,
+            "title": "Final Status Json",
+            "type": "object"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "last_polled_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Polled At"
+          },
+          "model_key": {
+            "title": "Model Key",
+            "type": "string"
+          },
+          "normalized_request_json": {
+            "additionalProperties": true,
+            "title": "Normalized Request Json",
+            "type": "object"
+          },
+          "preflight_json": {
+            "additionalProperties": true,
+            "title": "Preflight Json",
+            "type": "object"
+          },
+          "prepared_json": {
+            "additionalProperties": true,
+            "title": "Prepared Json",
+            "type": "object"
+          },
+          "preset_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Source"
+          },
+          "prompt_context_json": {
+            "additionalProperties": true,
+            "title": "Prompt Context Json",
+            "type": "object"
+          },
+          "provider_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Task Id"
+          },
+          "queue_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Position"
+          },
+          "queued_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queued At"
+          },
+          "raw_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Prompt"
+          },
+          "requested_preset_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Preset Key"
+          },
+          "resolved_options_json": {
+            "additionalProperties": true,
+            "title": "Resolved Options Json",
+            "type": "object"
+          },
+          "resolved_preset_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Preset Key"
+          },
+          "resolved_system_prompt_json": {
+            "additionalProperties": true,
+            "title": "Resolved System Prompt Json",
+            "type": "object"
+          },
+          "scheduler_attempts": {
+            "default": 0,
+            "title": "Scheduler Attempts",
+            "type": "integer"
+          },
+          "selected_system_prompt_ids_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Selected System Prompt Ids Json",
+            "type": "array"
+          },
+          "selected_system_prompts_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Selected System Prompts Json",
+            "type": "array"
+          },
+          "source_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Asset Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "submit_response_json": {
+            "additionalProperties": true,
+            "title": "Submit Response Json",
+            "type": "object"
+          },
+          "task_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Mode"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "validation_json": {
+            "additionalProperties": true,
+            "title": "Validation Json",
+            "type": "object"
+          }
+        },
+        "required": [
+          "job_id",
+          "batch_id",
+          "batch_index",
+          "status",
+          "model_key"
+        ],
+        "title": "JobRecord",
+        "type": "object"
+      },
+      "JobSubmitRequest": {
+        "properties": {
+          "audios": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefInput"
+            },
+            "title": "Audios",
+            "type": "array"
+          },
+          "enhance": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enhance"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefInput"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "model_key": {
+            "title": "Model Key",
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          },
+          "output_count": {
+            "default": 1,
+            "title": "Output Count",
+            "type": "integer"
+          },
+          "preset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Id"
+          },
+          "preset_image_slots": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/MediaRefInput"
+              },
+              "type": "array"
+            },
+            "title": "Preset Image Slots",
+            "type": "object"
+          },
+          "preset_text_values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Preset Text Values",
+            "type": "object"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt"
+          },
+          "prompt_policy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Policy"
+          },
+          "prompt_profile_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Profile Key"
+          },
+          "selected_system_prompt_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Selected System Prompt Ids",
+            "type": "array"
+          },
+          "source_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Asset Id"
+          },
+          "system_prompt_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Prompt Override"
+          },
+          "task_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Mode"
+          },
+          "videos": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefInput"
+            },
+            "title": "Videos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "model_key"
+        ],
+        "title": "JobSubmitRequest",
+        "type": "object"
+      },
+      "JobsListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/JobRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "JobsListResponse",
+        "type": "object"
+      },
+      "MediaRefInput": {
+        "properties": {
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "title": "MediaRefInput",
+        "type": "object"
+      },
+      "ModelQueuePolicyResponse": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "max_outputs_per_run": {
+            "title": "Max Outputs Per Run",
+            "type": "integer"
+          },
+          "model_key": {
+            "title": "Model Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model_key",
+          "enabled",
+          "max_outputs_per_run"
+        ],
+        "title": "ModelQueuePolicyResponse",
+        "type": "object"
+      },
+      "ModelQueuePolicyUpdate": {
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "max_outputs_per_run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Outputs Per Run"
+          }
+        },
+        "title": "ModelQueuePolicyUpdate",
+        "type": "object"
+      },
+      "ModelSummary": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "media_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Media Types",
+            "type": "array"
+          },
+          "provider_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Model"
+          },
+          "raw": {
+            "additionalProperties": true,
+            "title": "Raw",
+            "type": "object"
+          },
+          "supports_output_count": {
+            "default": true,
+            "title": "Supports Output Count",
+            "type": "boolean"
+          },
+          "task_modes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Task Modes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "ModelSummary",
+        "type": "object"
+      },
+      "PresetRecord": {
+        "properties": {
+          "applies_to_input_patterns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Input Patterns",
+            "type": "array"
+          },
+          "applies_to_input_patterns_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Input Patterns Json",
+            "type": "array"
+          },
+          "applies_to_models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Models",
+            "type": "array"
+          },
+          "applies_to_models_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Models Json",
+            "type": "array"
+          },
+          "applies_to_task_modes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Task Modes",
+            "type": "array"
+          },
+          "applies_to_task_modes_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Task Modes Json",
+            "type": "array"
+          },
+          "base_builtin_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Builtin Key"
+          },
+          "choice_groups_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Choice Groups Json",
+            "type": "array"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "default_options_json": {
+            "additionalProperties": true,
+            "title": "Default Options Json",
+            "type": "object"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "input_schema_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Input Schema Json",
+            "type": "array"
+          },
+          "input_slots_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Input Slots Json",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "model_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Key"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "preset_id": {
+            "title": "Preset Id",
+            "type": "string"
+          },
+          "priority": {
+            "default": 100,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "prompt_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Template"
+          },
+          "requires_audio": {
+            "default": false,
+            "title": "Requires Audio",
+            "type": "boolean"
+          },
+          "requires_image": {
+            "default": false,
+            "title": "Requires Image",
+            "type": "boolean"
+          },
+          "requires_video": {
+            "default": false,
+            "title": "Requires Video",
+            "type": "boolean"
+          },
+          "rules_json": {
+            "additionalProperties": true,
+            "title": "Rules Json",
+            "type": "object"
+          },
+          "source_kind": {
+            "default": "custom",
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "status": {
+            "default": "active",
+            "title": "Status",
+            "type": "string"
+          },
+          "system_prompt_ids_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "System Prompt Ids Json",
+            "type": "array"
+          },
+          "system_prompt_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Prompt Template"
+          },
+          "thumbnail_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Path"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "preset_id",
+          "key",
+          "label"
+        ],
+        "title": "PresetRecord",
+        "type": "object"
+      },
+      "PresetUpsertRequest": {
+        "properties": {
+          "applies_to_input_patterns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Input Patterns",
+            "type": "array"
+          },
+          "applies_to_input_patterns_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Input Patterns Json",
+            "type": "array"
+          },
+          "applies_to_models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Models",
+            "type": "array"
+          },
+          "applies_to_models_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Models Json",
+            "type": "array"
+          },
+          "applies_to_task_modes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Task Modes",
+            "type": "array"
+          },
+          "applies_to_task_modes_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Task Modes Json",
+            "type": "array"
+          },
+          "base_builtin_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Builtin Key"
+          },
+          "choice_groups_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Choice Groups Json",
+            "type": "array"
+          },
+          "default_options_json": {
+            "additionalProperties": true,
+            "title": "Default Options Json",
+            "type": "object"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "input_schema_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Input Schema Json",
+            "type": "array"
+          },
+          "input_slots_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Input Slots Json",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "model_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Key"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "priority": {
+            "default": 100,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "prompt_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Template"
+          },
+          "requires_audio": {
+            "default": false,
+            "title": "Requires Audio",
+            "type": "boolean"
+          },
+          "requires_image": {
+            "default": false,
+            "title": "Requires Image",
+            "type": "boolean"
+          },
+          "requires_video": {
+            "default": false,
+            "title": "Requires Video",
+            "type": "boolean"
+          },
+          "rules_json": {
+            "additionalProperties": true,
+            "title": "Rules Json",
+            "type": "object"
+          },
+          "source_kind": {
+            "default": "custom",
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "status": {
+            "default": "active",
+            "title": "Status",
+            "type": "string"
+          },
+          "system_prompt_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "System Prompt Ids",
+            "type": "array"
+          },
+          "system_prompt_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Prompt Template"
+          },
+          "thumbnail_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Path"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "version": {
+            "default": "v1",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "PresetUpsertRequest",
+        "type": "object"
+      },
+      "PricingEstimateResponse": {
+        "properties": {
+          "final_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Prompt"
+          },
+          "preflight": {
+            "additionalProperties": true,
+            "title": "Preflight",
+            "type": "object"
+          },
+          "pricing_summary": {
+            "additionalProperties": true,
+            "title": "Pricing Summary",
+            "type": "object"
+          },
+          "prompt_context": {
+            "additionalProperties": true,
+            "title": "Prompt Context",
+            "type": "object"
+          },
+          "resolved_options": {
+            "additionalProperties": true,
+            "title": "Resolved Options",
+            "type": "object"
+          },
+          "validation": {
+            "additionalProperties": true,
+            "title": "Validation",
+            "type": "object"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "prompt_context",
+          "validation",
+          "preflight",
+          "pricing_summary"
+        ],
+        "title": "PricingEstimateResponse",
+        "type": "object"
+      },
+      "PricingResponse": {
+        "properties": {
+          "cache_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Status"
+          },
+          "currency": {
+            "default": "USD",
+            "title": "Currency",
+            "type": "string"
+          },
+          "is_authoritative": {
+            "default": false,
+            "title": "Is Authoritative",
+            "type": "boolean"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "pricing_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricing Status"
+          },
+          "refresh_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Error"
+          },
+          "refreshed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refreshed At"
+          },
+          "released_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released On"
+          },
+          "rules": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "source": {
+            "default": "unavailable",
+            "title": "Source",
+            "type": "string"
+          },
+          "source_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Kind"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "title": "PricingResponse",
+        "type": "object"
+      },
+      "PromptContextRequest": {
+        "properties": {
+          "audios": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefInput"
+            },
+            "title": "Audios",
+            "type": "array"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefInput"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "model_key": {
+            "title": "Model Key",
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt"
+          },
+          "prompt_profile_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Profile Key"
+          },
+          "system_prompt_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Prompt Override"
+          },
+          "task_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Mode"
+          },
+          "videos": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefInput"
+            },
+            "title": "Videos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "model_key"
+        ],
+        "title": "PromptContextRequest",
+        "type": "object"
+      },
+      "PromptContextResponse": {
+        "properties": {
+          "prompt_context": {
+            "additionalProperties": true,
+            "title": "Prompt Context",
+            "type": "object"
+          }
+        },
+        "required": [
+          "prompt_context"
+        ],
+        "title": "PromptContextResponse",
+        "type": "object"
+      },
+      "QueueSettingsResponse": {
+        "properties": {
+          "default_poll_seconds": {
+            "title": "Default Poll Seconds",
+            "type": "integer"
+          },
+          "max_concurrent_jobs": {
+            "title": "Max Concurrent Jobs",
+            "type": "integer"
+          },
+          "max_retry_attempts": {
+            "title": "Max Retry Attempts",
+            "type": "integer"
+          },
+          "queue_enabled": {
+            "title": "Queue Enabled",
+            "type": "boolean"
+          },
+          "setting_id": {
+            "default": 1,
+            "title": "Setting Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_concurrent_jobs",
+          "queue_enabled",
+          "default_poll_seconds",
+          "max_retry_attempts"
+        ],
+        "title": "QueueSettingsResponse",
+        "type": "object"
+      },
+      "QueueSettingsUpdate": {
+        "properties": {
+          "default_poll_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Poll Seconds"
+          },
+          "max_concurrent_jobs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Concurrent Jobs"
+          },
+          "max_retry_attempts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Retry Attempts"
+          },
+          "queue_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Enabled"
+          }
+        },
+        "title": "QueueSettingsUpdate",
+        "type": "object"
+      },
+      "SubmitResponse": {
+        "properties": {
+          "batch": {
+            "$ref": "#/components/schemas/BatchRecord"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobRecord"
+            },
+            "title": "Jobs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "batch",
+          "jobs"
+        ],
+        "title": "SubmitResponse",
+        "type": "object"
+      },
+      "SystemPromptRecord": {
+        "properties": {
+          "applies_to_input_patterns_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Input Patterns Json",
+            "type": "array"
+          },
+          "applies_to_models_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Models Json",
+            "type": "array"
+          },
+          "applies_to_task_modes_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Task Modes Json",
+            "type": "array"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "prompt_id": {
+            "title": "Prompt Id",
+            "type": "string"
+          },
+          "role_tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Tag"
+          },
+          "status": {
+            "default": "active",
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "prompt_id",
+          "key",
+          "label",
+          "content"
+        ],
+        "title": "SystemPromptRecord",
+        "type": "object"
+      },
+      "SystemPromptUpsertRequest": {
+        "properties": {
+          "applies_to_input_patterns_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Input Patterns Json",
+            "type": "array"
+          },
+          "applies_to_models_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Models Json",
+            "type": "array"
+          },
+          "applies_to_task_modes_json": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applies To Task Modes Json",
+            "type": "array"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "role_tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Tag"
+          },
+          "status": {
+            "default": "active",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "content"
+        ],
+        "title": "SystemPromptUpsertRequest",
+        "type": "object"
+      },
+      "ValidateRequest": {
+        "properties": {
+          "audios": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefInput"
+            },
+            "title": "Audios",
+            "type": "array"
+          },
+          "enhance": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enhance"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefInput"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "model_key": {
+            "title": "Model Key",
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          },
+          "output_count": {
+            "default": 1,
+            "title": "Output Count",
+            "type": "integer"
+          },
+          "preset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Id"
+          },
+          "preset_image_slots": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/MediaRefInput"
+              },
+              "type": "array"
+            },
+            "title": "Preset Image Slots",
+            "type": "object"
+          },
+          "preset_text_values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Preset Text Values",
+            "type": "object"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt"
+          },
+          "prompt_policy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Policy"
+          },
+          "prompt_profile_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Profile Key"
+          },
+          "selected_system_prompt_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Selected System Prompt Ids",
+            "type": "array"
+          },
+          "source_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Asset Id"
+          },
+          "system_prompt_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Prompt Override"
+          },
+          "task_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Mode"
+          },
+          "videos": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRefInput"
+            },
+            "title": "Videos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "model_key"
+        ],
+        "title": "ValidateRequest",
+        "type": "object"
+      },
+      "ValidateResponse": {
+        "properties": {
+          "final_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Prompt"
+          },
+          "preflight": {
+            "additionalProperties": true,
+            "title": "Preflight",
+            "type": "object"
+          },
+          "pricing_summary": {
+            "additionalProperties": true,
+            "title": "Pricing Summary",
+            "type": "object"
+          },
+          "prompt_context": {
+            "additionalProperties": true,
+            "title": "Prompt Context",
+            "type": "object"
+          },
+          "resolved_options": {
+            "additionalProperties": true,
+            "title": "Resolved Options",
+            "type": "object"
+          },
+          "validation": {
+            "additionalProperties": true,
+            "title": "Validation",
+            "type": "object"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "prompt_context",
+          "validation",
+          "preflight"
+        ],
+        "title": "ValidateResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Media Studio API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/media/assets": {
+      "get": {
+        "operationId": "list_assets_media_assets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "favorites",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Favorites",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "media_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(image|video)?$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Media Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "model_key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Model Key"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "preset_key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Preset Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Assets"
+      }
+    },
+    "/media/assets/latest": {
+      "get": {
+        "operationId": "latest_assets_media_assets_latest_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AssetRecord"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Latest Assets Media Assets Latest Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Latest Assets"
+      }
+    },
+    "/media/assets/{asset_id}": {
+      "get": {
+        "operationId": "get_asset_media_assets__asset_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Asset"
+      }
+    },
+    "/media/assets/{asset_id}/dismiss": {
+      "post": {
+        "operationId": "dismiss_asset_media_assets__asset_id__dismiss_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss Asset"
+      }
+    },
+    "/media/assets/{asset_id}/favorite": {
+      "post": {
+        "operationId": "favorite_asset_media_assets__asset_id__favorite_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "favorited",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Favorited"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/FavoriteAssetRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Favorite Asset"
+      }
+    },
+    "/media/batches": {
+      "get": {
+        "operationId": "list_batches_media_batches_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchesListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Batches"
+      }
+    },
+    "/media/batches/{batch_id}": {
+      "get": {
+        "operationId": "get_batch_media_batches__batch_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "title": "Batch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Batch"
+      }
+    },
+    "/media/batches/{batch_id}/cancel": {
+      "post": {
+        "operationId": "cancel_batch_media_batches__batch_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "title": "Batch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Batch"
+      }
+    },
+    "/media/credits": {
+      "get": {
+        "operationId": "get_credits_media_credits_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Credits"
+      }
+    },
+    "/media/enhance/preview": {
+      "post": {
+        "operationId": "enhance_preview_media_enhance_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnhancePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnhancePreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enhance Preview"
+      }
+    },
+    "/media/enhancement-configs": {
+      "get": {
+        "operationId": "list_enhancement_configs_media_enhancement_configs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EnhancementConfigRecord"
+                  },
+                  "title": "Response List Enhancement Configs Media Enhancement Configs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Enhancement Configs"
+      },
+      "post": {
+        "operationId": "create_enhancement_config_media_enhancement_configs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnhancementConfigUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnhancementConfigRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Enhancement Config"
+      }
+    },
+    "/media/enhancement-configs/{model_key}": {
+      "delete": {
+        "operationId": "delete_enhancement_config_media_enhancement_configs__model_key__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_key",
+            "required": true,
+            "schema": {
+              "title": "Model Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Enhancement Config"
+      },
+      "get": {
+        "operationId": "get_enhancement_config_media_enhancement_configs__model_key__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_key",
+            "required": true,
+            "schema": {
+              "title": "Model Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnhancementConfigRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Enhancement Config"
+      },
+      "patch": {
+        "operationId": "update_enhancement_config_media_enhancement_configs__model_key__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_key",
+            "required": true,
+            "schema": {
+              "title": "Model Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnhancementConfigUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnhancementConfigRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Enhancement Config"
+      }
+    },
+    "/media/enhancement/providers/probe": {
+      "post": {
+        "operationId": "probe_enhancement_provider_media_enhancement_providers_probe_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnhancementProviderProbeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnhancementProviderProbeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Probe Enhancement Provider"
+      }
+    },
+    "/media/jobs": {
+      "get": {
+        "operationId": "list_jobs_media_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 500,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Jobs"
+      },
+      "post": {
+        "operationId": "submit_jobs_media_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobSubmitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Jobs"
+      }
+    },
+    "/media/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_job_media_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job"
+      }
+    },
+    "/media/jobs/{job_id}/dismiss": {
+      "post": {
+        "operationId": "dismiss_job_media_jobs__job_id__dismiss_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss Job"
+      }
+    },
+    "/media/jobs/{job_id}/events": {
+      "get": {
+        "operationId": "get_job_events_media_jobs__job_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobEventsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job Events"
+      }
+    },
+    "/media/jobs/{job_id}/poll": {
+      "post": {
+        "operationId": "poll_job_media_jobs__job_id__poll_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Poll Job"
+      }
+    },
+    "/media/jobs/{job_id}/retry": {
+      "post": {
+        "operationId": "retry_job_media_jobs__job_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Job"
+      }
+    },
+    "/media/models": {
+      "get": {
+        "operationId": "list_models_media_models_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelSummary"
+                  },
+                  "title": "Response List Models Media Models Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Models"
+      }
+    },
+    "/media/models/{model_key}": {
+      "get": {
+        "operationId": "get_model_media_models__model_key__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_key",
+            "required": true,
+            "schema": {
+              "title": "Model Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Model"
+      }
+    },
+    "/media/presets": {
+      "get": {
+        "operationId": "list_presets_media_presets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresetRecord"
+                  },
+                  "title": "Response List Presets Media Presets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Presets"
+      },
+      "post": {
+        "operationId": "create_preset_media_presets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresetUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Preset"
+      }
+    },
+    "/media/presets/{preset_id}": {
+      "delete": {
+        "operationId": "delete_preset_media_presets__preset_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preset_id",
+            "required": true,
+            "schema": {
+              "title": "Preset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Preset"
+      },
+      "get": {
+        "operationId": "get_preset_media_presets__preset_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preset_id",
+            "required": true,
+            "schema": {
+              "title": "Preset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Preset"
+      },
+      "patch": {
+        "operationId": "update_preset_media_presets__preset_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preset_id",
+            "required": true,
+            "schema": {
+              "title": "Preset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresetUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Preset"
+      }
+    },
+    "/media/pricing": {
+      "get": {
+        "operationId": "get_pricing_media_pricing_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Pricing"
+      }
+    },
+    "/media/pricing/estimate": {
+      "post": {
+        "operationId": "estimate_pricing_media_pricing_estimate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingEstimateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Estimate Pricing"
+      }
+    },
+    "/media/pricing/refresh": {
+      "post": {
+        "operationId": "refresh_pricing_media_pricing_refresh_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Refresh Pricing"
+      }
+    },
+    "/media/prompt-context": {
+      "post": {
+        "operationId": "get_prompt_context_media_prompt_context_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptContextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptContextResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Prompt Context"
+      }
+    },
+    "/media/providers/kie/callback": {
+      "post": {
+        "operationId": "kie_callback_media_providers_kie_callback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Payload",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Kie Callback"
+      }
+    },
+    "/media/queue/policies": {
+      "get": {
+        "operationId": "list_queue_policies_media_queue_policies_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelQueuePolicyResponse"
+                  },
+                  "title": "Response List Queue Policies Media Queue Policies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Queue Policies"
+      }
+    },
+    "/media/queue/policies/{model_key}": {
+      "patch": {
+        "operationId": "patch_queue_policy_media_queue_policies__model_key__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_key",
+            "required": true,
+            "schema": {
+              "title": "Model Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelQueuePolicyUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelQueuePolicyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Queue Policy"
+      }
+    },
+    "/media/queue/settings": {
+      "get": {
+        "operationId": "get_queue_settings_media_queue_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Queue Settings"
+      },
+      "patch": {
+        "operationId": "patch_queue_settings_media_queue_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Queue Settings"
+      }
+    },
+    "/media/system-prompts": {
+      "get": {
+        "operationId": "list_system_prompts_media_system_prompts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SystemPromptRecord"
+                  },
+                  "title": "Response List System Prompts Media System Prompts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List System Prompts"
+      },
+      "post": {
+        "operationId": "create_system_prompt_media_system_prompts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemPromptUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemPromptRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create System Prompt"
+      }
+    },
+    "/media/system-prompts/lookup": {
+      "get": {
+        "operationId": "system_prompt_lookup_media_system_prompts_lookup_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "System Prompt Lookup"
+      }
+    },
+    "/media/system-prompts/{prompt_id}": {
+      "delete": {
+        "operationId": "delete_system_prompt_media_system_prompts__prompt_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "prompt_id",
+            "required": true,
+            "schema": {
+              "title": "Prompt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete System Prompt"
+      },
+      "get": {
+        "operationId": "get_system_prompt_media_system_prompts__prompt_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "prompt_id",
+            "required": true,
+            "schema": {
+              "title": "Prompt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemPromptRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get System Prompt"
+      },
+      "patch": {
+        "operationId": "update_system_prompt_media_system_prompts__prompt_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "prompt_id",
+            "required": true,
+            "schema": {
+              "title": "Prompt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemPromptUpsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemPromptRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update System Prompt"
+      }
+    },
+    "/media/validate": {
+      "post": {
+        "operationId": "validate_request_media_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Request"
+      }
+    }
+  }
+}

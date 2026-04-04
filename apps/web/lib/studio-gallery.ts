@@ -1,4 +1,5 @@
 import type { MediaAsset, MediaBatch, MediaJob, MediaPreset, MediaSystemPrompt } from "@/lib/types";
+import { isRecord } from "@/lib/utils";
 
 export type GalleryTile = {
   asset: MediaAsset | null;
@@ -10,10 +11,6 @@ export type GalleryTile = {
 type AttachmentKindCarrier = {
   kind: "images" | "videos" | "audios";
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 export function mergeAssetCollections(collection: MediaAsset[], additions: MediaAsset[]) {
   if (!additions.length) {
@@ -157,6 +154,10 @@ export function backgroundLabel(index: number) {
   return labels[index % labels.length] ?? "Media tile";
 }
 
+function jobHasPublishedAsset(job: MediaJob, assets: MediaAsset[]) {
+  return assets.some((asset) => asset.job_id === job.job_id);
+}
+
 export function buildGalleryTiles(
   assets: MediaAsset[],
   latestAsset: MediaAsset | null,
@@ -167,18 +168,33 @@ export function buildGalleryTiles(
 ): GalleryTile[] {
   const source = assets.length ? assets : allowLatestFallback && latestAsset ? [latestAsset] : [];
   const tiles: GalleryTile[] = [];
+  const seenJobIds = new Set<string>();
+  const seenAssetIds = new Set<string>();
 
   for (const batch of batches.slice(0, 3)) {
-    const pendingJobs = (batch.jobs ?? []).filter((job) => ["queued", "submitted", "running", "processing"].includes(job.status));
+    const pendingJobs = (batch.jobs ?? []).filter((job) => {
+      if (["queued", "submitted", "running", "processing"].includes(job.status)) {
+        return true;
+      }
+      const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
+      return finalState === "succeeded" && !jobHasPublishedAsset(job, allAssets);
+    });
     for (const job of pendingJobs) {
+      if (seenJobIds.has(job.job_id)) {
+        continue;
+      }
+      seenJobIds.add(job.job_id);
       const previewAsset = allAssets.find((asset) => asset.job_id === job.job_id) ?? null;
+      if (previewAsset?.asset_id != null) {
+        seenAssetIds.add(String(previewAsset.asset_id));
+      }
       const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
       tiles.push({
         asset: previewAsset,
         label:
           job.status === "queued"
             ? "Queued output"
-            : finalState === "succeeded"
+            : finalState === "succeeded" || job.status === "completed"
               ? "Publishing output"
               : "Processing output",
         batch,
@@ -201,6 +217,10 @@ export function buildGalleryTiles(
   }
 
   for (const asset of source) {
+    if (seenAssetIds.has(String(asset.asset_id))) {
+      continue;
+    }
+    seenAssetIds.add(String(asset.asset_id));
     tiles.push({
       asset,
       label: backgroundLabel(tiles.length),

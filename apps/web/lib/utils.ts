@@ -2,6 +2,14 @@ export function cn(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
 }
 
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function toFiniteNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 export function formatDateTime(value?: string | null) {
   if (!value) {
     return "Unknown";
@@ -96,11 +104,55 @@ export function stripMarkdown(text: string) {
 }
 
 export function slugify(text: string) {
+  return slugifyKey(text, 48);
+}
+
+export function slugifyKey(text: string, max = 80) {
   return text
+    .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
+    .slice(0, max);
+}
+
+export function formatUsdAmount(
+  value: unknown,
+  fallback: string | null = "n/a",
+  {
+    minimumFractionDigits,
+    maximumFractionDigits,
+  }: {
+    minimumFractionDigits?: number;
+    maximumFractionDigits?: number;
+  } = {},
+) {
+  const amount = toFiniteNumber(value);
+  if (amount == null) {
+    return fallback;
+  }
+  const resolvedMinimumFractionDigits = minimumFractionDigits ?? (amount < 1 ? 2 : 0);
+  const resolvedMaximumFractionDigits = maximumFractionDigits ?? (amount < 1 ? 2 : 2);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: resolvedMinimumFractionDigits,
+    maximumFractionDigits: resolvedMaximumFractionDigits,
+  }).format(amount);
+}
+
+export function formatCreditsAmount(
+  value: unknown,
+  { fallback = "n/a", suffix = "" }: { fallback?: string | null; suffix?: string } = {},
+) {
+  const amount = toFiniteNumber(value);
+  if (amount == null) {
+    return fallback;
+  }
+  const formatted = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: amount % 1 === 0 ? 0 : 1,
+  }).format(amount);
+  return suffix ? `${formatted}${suffix}` : formatted;
 }
 
 export function splitSummary(text: string) {

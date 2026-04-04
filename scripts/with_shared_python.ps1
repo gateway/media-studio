@@ -1,20 +1,9 @@
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$MediaRoot = (Resolve-Path (Join-Path $ScriptDir "..")).Path
-$ParentRoot = Split-Path $MediaRoot -Parent
-$DefaultKieRoot = Join-Path $ParentRoot "kie-api"
-$LegacyKieRoot = Join-Path (Join-Path $ParentRoot "kie-ai") "kie_codex_bootstrap"
-
-if ($env:KIE_ROOT) {
-  $KieRoot = $env:KIE_ROOT
-} elseif ($env:MEDIA_STUDIO_KIE_API_REPO_PATH) {
-  $KieRoot = $env:MEDIA_STUDIO_KIE_API_REPO_PATH
-} elseif (Test-Path $DefaultKieRoot) {
-  $KieRoot = $DefaultKieRoot
-} else {
-  $KieRoot = $LegacyKieRoot
-}
+$null = . (Join-Path $ScriptDir "shared_env.ps1")
+$MediaRoot = Get-MediaRootFromScript $MyInvocation.MyCommand.Path
+$KieRoot = Get-KieRoot $MediaRoot
 
 $VenvPy = Join-Path $KieRoot ".venv\Scripts\python.exe"
 

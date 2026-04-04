@@ -205,6 +205,23 @@ def create_run_artifact(request_payload: Dict[str, Any]) -> Dict[str, Any]:
     return _dump(artifact)
 
 
+def verify_callback_request(payload: Dict[str, Any], headers: Dict[str, Any]) -> Dict[str, Any]:
+    _maybe_add_kie_repo_to_path()
+    callbacks = importlib.import_module("kie_api.clients.callbacks")
+    config = importlib.import_module("kie_api.config")
+    kie_settings = config.KieSettings()
+    secret = str(getattr(kie_settings, "webhook_secret", "") or "").strip()
+    if not secret:
+        raise RuntimeError("KIE callback verification is not configured.")
+    event = callbacks.verify_callback_request(
+        payload,
+        headers,
+        secret=secret,
+        settings=kie_settings,
+    )
+    return _dump(event)
+
+
 def _next_pricing_cache_expiry() -> datetime:
     return datetime.now(timezone.utc) + timedelta(
         hours=max(1, settings.media_pricing_cache_hours)

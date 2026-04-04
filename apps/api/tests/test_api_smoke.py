@@ -1,4 +1,5 @@
 import pytest
+import time
 
 
 def test_media_routes_require_internal_control_token(unauthenticated_client) -> None:
@@ -249,6 +250,116 @@ def test_single_batch_endpoint_includes_jobs(client) -> None:
     assert {job["job_id"] for job in detail["jobs"]} == {job["job_id"] for job in payload["jobs"]}
 
 
+def test_assets_endpoint_applies_server_side_filters(client, app_modules) -> None:
+    store = app_modules["store"]
+    store.create_or_update_asset(
+        {
+            "asset_id": "asset-image-1",
+            "job_id": "job-image-1",
+            "provider_task_id": "provider-image-1",
+            "model_key": "nano-banana-2",
+            "status": "completed",
+            "generation_kind": "image",
+            "preset_key": "preset-a",
+            "favorited": True,
+            "hero_thumb_path": "outputs/thumb-a.jpg",
+            "created_at": "2026-04-04T01:00:00+00:00",
+        }
+    )
+    store.create_or_update_asset(
+        {
+            "asset_id": "asset-video-1",
+            "job_id": "job-video-1",
+            "provider_task_id": "provider-video-1",
+            "model_key": "kling-3.0-i2v",
+            "status": "completed",
+            "generation_kind": "video",
+            "preset_key": "preset-b",
+            "favorited": False,
+            "hero_poster_path": "outputs/poster-a.jpg",
+            "created_at": "2026-04-04T02:00:00+00:00",
+        }
+    )
+
+    response = client.get(
+        "/media/assets",
+        params={
+            "favorites": "true",
+            "media_type": "image",
+            "model_key": "nano-banana-2",
+            "status": "completed",
+            "preset_key": "preset-a",
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert [item["asset_id"] for item in payload["items"]] == ["asset-image-1"]
+
+
+def test_kie_callback_rejects_unsigned_requests(client, unauthenticated_client, app_modules) -> None:
+    store = app_modules["store"]
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "Unsigned callback hardening check.",
+            "output_count": 1,
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    job_id = submit_response.json()["jobs"][0]["job_id"]
+    store.update_job(job_id, {"provider_task_id": "callback-task-unsigned"})
+
+    response = unauthenticated_client.post(
+        "/media/providers/kie/callback",
+        json={"task_id": "callback-task-unsigned", "state": "succeeded", "output_urls": ["https://tempfile.aiquickdraw.com/out.jpeg"]},
+    )
+    assert response.status_code == 403
+    assert "verification" in response.text.lower()
+
+
+def test_kie_callback_accepts_valid_signed_requests(monkeypatch, client, app_modules) -> None:
+    monkeypatch.setenv("KIE_WEBHOOK_SECRET", "test-webhook-secret")
+    store = app_modules["store"]
+    kie_adapter = app_modules["main"].kie_adapter
+    callbacks = kie_adapter.importlib.import_module("kie_api.clients.callbacks")
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "Signed callback hardening check.",
+            "output_count": 1,
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    job_id = submit_response.json()["jobs"][0]["job_id"]
+    store.update_job(job_id, {"provider_task_id": "callback-task-signed"})
+
+    timestamp = str(int(time.time()))
+    signature = callbacks.build_callback_signature("callback-task-signed", timestamp, "test-webhook-secret")
+    callback_response = client.post(
+        "/media/providers/kie/callback",
+        headers={
+            "X-Webhook-Timestamp": timestamp,
+            "X-Webhook-Signature": signature,
+        },
+        json={
+            "task_id": "callback-task-signed",
+            "status": "succeeded",
+            "output_urls": ["https://tempfile.aiquickdraw.com/out.jpeg"],
+        },
+    )
+    assert callback_response.status_code == 200, callback_response.text
+    assert callback_response.json()["ok"] is True
+
+    updated_job = store.get_job(job_id)
+    assert updated_job is not None
+    assert updated_job["final_status_json"]["state"] == "succeeded"
+    assert updated_job["final_status_json"]["output_urls"] == ["https://tempfile.aiquickdraw.com/out.jpeg"]
+
+
 def test_publish_artifact_normalizes_image_extension(app_modules, tmp_path) -> None:
     service = app_modules["service"]
     image_path = tmp_path / "output.bin"
@@ -290,6 +401,51 @@ def test_queue_settings_update(client) -> None:
     response = client.patch("/media/queue/settings", json={"max_concurrent_jobs": 1})
     assert response.status_code == 200
     assert response.json()["max_concurrent_jobs"] == 1
+
+
+def test_latest_asset_endpoint_returns_one_asset_record(client, app_modules) -> None:
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+          "model_key": "nano-banana-2",
+          "task_mode": "text_to_image",
+          "prompt": "A cinematic sci-fi portrait in shallow depth of field.",
+          "output_count": 1,
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    app_modules["runner"].runner.tick()
+
+    latest_response = client.get("/media/assets/latest")
+    assert latest_response.status_code == 200, latest_response.text
+    payload = latest_response.json()
+    assert payload["asset_id"]
+    assert payload["job_id"]
+
+
+def test_favorite_asset_accepts_json_body_false(client, app_modules) -> None:
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+          "model_key": "nano-banana-2",
+          "task_mode": "text_to_image",
+          "prompt": "A cinematic western portrait with warm sunset haze.",
+          "output_count": 1,
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    app_modules["runner"].runner.tick()
+    latest_response = client.get("/media/assets/latest")
+    assert latest_response.status_code == 200, latest_response.text
+    asset = latest_response.json()
+
+    favorite_on_response = client.post(f"/media/assets/{asset['asset_id']}/favorite", json={"favorited": True})
+    assert favorite_on_response.status_code == 200, favorite_on_response.text
+    assert favorite_on_response.json()["favorited"] is True
+
+    favorite_off_response = client.post(f"/media/assets/{asset['asset_id']}/favorite", json={"favorited": False})
+    assert favorite_off_response.status_code == 200, favorite_off_response.text
+    assert favorite_off_response.json()["favorited"] is False
 
 
 def test_create_fails_when_no_nano_model_scope_selected(client) -> None:
@@ -337,6 +493,39 @@ def test_validate_fails_when_preset_scope_excludes_selected_model(client) -> Non
     )
     assert response.status_code == 400
     assert "not available for the selected model" in response.text
+
+
+def test_validate_accepts_legacy_web_preset_field_names(client) -> None:
+    preset = client.post(
+        "/media/presets",
+        json={
+            "key": "legacy-web-preset",
+            "label": "Legacy Web Preset",
+            "model_key": "nano-banana-2",
+            "source_kind": "custom",
+            "applies_to_models": ["nano-banana-2"],
+            "prompt_template": "Portrait of [[subject]] with {{style}} lighting",
+            "input_schema_json": [{"key": "style", "label": "Style", "required": True}],
+            "input_slots_json": [{"key": "subject", "label": "Subject", "required": True}],
+        },
+    ).json()
+
+    response = client.post(
+        "/media/validate",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "image_edit",
+            "preset_id": preset["preset_id"],
+            "preset_inputs_json": {"style": "studio"},
+            "preset_slot_values_json": {"subject": [{"path": "/tmp/ref.png"}]},
+            "system_prompt_ids": ["prompt-1"],
+            "output_count": 1,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["final_prompt"] == "Portrait of [1 image(s)] with studio lighting"
 
 
 def test_delete_preset_archives_instead_of_hard_delete(client) -> None:
@@ -523,6 +712,107 @@ def test_enhance_preview_uses_saved_openrouter_config(client, app_modules, monke
     assert payload["provider_kind"] == "openrouter"
     assert payload["provider_model_id"] == "qwen/qwen3.5-35b-a3b"
     assert payload["enhanced_prompt"] == "enhanced neon portrait prompt"
+    assert payload["image_analysis"] == "reference image detected"
+
+
+def test_enhance_preview_allows_prompt_only_when_text_and_image_support_are_enabled(client, app_modules, monkeypatch) -> None:
+    client.post(
+        "/media/enhancement-configs",
+        json={
+            "model_key": "nano-banana-2",
+            "label": "nano enhancement",
+            "provider_kind": "openrouter",
+            "provider_label": "OpenRouter.ai",
+            "provider_model_id": "qwen/qwen3.5-35b-a3b",
+            "provider_supports_images": True,
+            "supports_text_enhancement": True,
+            "supports_image_analysis": True,
+            "system_prompt": "Rewrite the prompt.",
+            "image_analysis_prompt": "Analyze the reference image.",
+        },
+    )
+
+    def fake_enhancement(**kwargs):
+        assert kwargs["prompt"] == "portrait in neon rain"
+        assert kwargs["image_paths"] == []
+        return {
+            "provider_kind": "openrouter",
+            "provider_model_id": "qwen/qwen3.5-35b-a3b",
+            "enhanced_prompt": "enhanced prompt-only portrait",
+            "final_prompt_used": "enhanced prompt-only portrait",
+            "image_analysis": None,
+            "warnings": [],
+        }
+
+    monkeypatch.setattr(
+        app_modules["service"].enhancement_provider,
+        "run_openai_compatible_enhancement",
+        fake_enhancement,
+    )
+
+    response = client.post(
+        "/media/enhance/preview",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "image_edit",
+            "prompt": "portrait in neon rain",
+            "enhance": True,
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["enhanced_prompt"] == "enhanced prompt-only portrait"
+    assert payload["image_analysis"] is None
+
+
+def test_enhance_preview_allows_image_only_when_image_support_is_enabled(client, app_modules, monkeypatch) -> None:
+    client.post(
+        "/media/enhancement-configs",
+        json={
+            "model_key": "nano-banana-2",
+            "label": "nano enhancement",
+            "provider_kind": "openrouter",
+            "provider_label": "OpenRouter.ai",
+            "provider_model_id": "qwen/qwen3.5-35b-a3b",
+            "provider_supports_images": True,
+            "supports_text_enhancement": False,
+            "supports_image_analysis": True,
+            "system_prompt": "Rewrite the prompt.",
+            "image_analysis_prompt": "Analyze the reference image.",
+        },
+    )
+
+    def fake_enhancement(**kwargs):
+        assert kwargs["prompt"] == ""
+        assert kwargs["image_paths"] == ["/tmp/ref.png"]
+        return {
+            "provider_kind": "openrouter",
+            "provider_model_id": "qwen/qwen3.5-35b-a3b",
+            "enhanced_prompt": "image-driven prompt",
+            "final_prompt_used": "image-driven prompt",
+            "image_analysis": "reference image detected",
+            "warnings": [],
+        }
+
+    monkeypatch.setattr(
+        app_modules["service"].enhancement_provider,
+        "run_openai_compatible_enhancement",
+        fake_enhancement,
+    )
+
+    response = client.post(
+        "/media/enhance/preview",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "image_edit",
+            "prompt": "",
+            "images": [{"path": "/tmp/ref.png"}],
+            "enhance": True,
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["enhanced_prompt"] == "image-driven prompt"
     assert payload["image_analysis"] == "reference image detected"
 
 

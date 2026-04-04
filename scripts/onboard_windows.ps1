@@ -5,21 +5,10 @@ $DefaultLocalOpenAiBaseUrl = "http://127.0.0.1:8080/v1"
 $KieRepoUrl = "https://github.com/gateway/kie-api.git"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$MediaRoot = (Resolve-Path (Join-Path $ScriptDir "..")).Path
+$null = . (Join-Path $ScriptDir "shared_env.ps1")
+$MediaRoot = Get-MediaRootFromScript $MyInvocation.MyCommand.Path
 $EnvFile = Join-Path $MediaRoot ".env"
-$ParentRoot = Split-Path $MediaRoot -Parent
-$DefaultKieRoot = Join-Path $ParentRoot "kie-api"
-$LegacyKieRoot = Join-Path (Join-Path $ParentRoot "kie-ai") "kie_codex_bootstrap"
-
-if ($env:KIE_ROOT) {
-  $KieRoot = $env:KIE_ROOT
-} elseif ($env:MEDIA_STUDIO_KIE_API_REPO_PATH) {
-  $KieRoot = $env:MEDIA_STUDIO_KIE_API_REPO_PATH
-} elseif (Test-Path $DefaultKieRoot) {
-  $KieRoot = $DefaultKieRoot
-} else {
-  $KieRoot = $DefaultKieRoot
-}
+$KieRoot = Get-KieRoot $MediaRoot
 
 $VenvPy = Join-Path $KieRoot ".venv\Scripts\python.exe"
 $VenvPip = Join-Path $KieRoot ".venv\Scripts\pip.exe"
@@ -37,10 +26,12 @@ function Ensure-EnvFile {
     return
   }
 
+$localControlToken = "media-studio-$([guid]::NewGuid().ToString('N'))"
 $envTemplate = @"
+MEDIA_STUDIO_APP_ENV=development
 NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL=http://127.0.0.1:8000
 MEDIA_STUDIO_CONTROL_API_BASE_URL=http://127.0.0.1:8000
-MEDIA_STUDIO_CONTROL_API_TOKEN=media-studio-local-control-token
+MEDIA_STUDIO_CONTROL_API_TOKEN=$localControlToken
 MEDIA_STUDIO_ADMIN_USERNAME=
 MEDIA_STUDIO_ADMIN_PASSWORD=
 MEDIA_STUDIO_API_HOST=127.0.0.1
@@ -60,7 +51,7 @@ MEDIA_LOCAL_OPENAI_BASE_URL=$DefaultLocalOpenAiBaseUrl
 MEDIA_LOCAL_OPENAI_API_KEY=
 "@
   Set-Content -Path $EnvFile -Value $envTemplate
-  Write-Host "Created .env with local defaults."
+  Write-Host "Created .env with local defaults and a unique control token."
 }
 
 function Get-EnvValue {

@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/shared_env.sh
+. "$SCRIPT_DIR/shared_env.sh"
+ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
+load_media_env "$ROOT"
+
+"$ROOT/scripts/run-quality-gates"
+
+TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/media-studio-release.XXXXXX")"
+API_LOG="$TMP_DIR/api.log"
+WEB_LOG="$TMP_DIR/web.log"
+TEMP_DB="$TMP_DIR/media-studio.sqlite"
+API_PORT="${MEDIA_STUDIO_RELEASE_API_PORT:-18080}"
+WEB_PORT="${MEDIA_STUDIO_RELEASE_WEB_PORT:-13080}"
+CONTROL_TOKEN="${MEDIA_STUDIO_RELEASE_CONTROL_API_TOKEN:-media-studio-local-control-token}"
+API_PID=""
+WEB_PID=""
+
+cleanup() {
+  if [[ -n "$WEB_PID" ]]; then
+    kill "$WEB_PID" >/dev/null 2>&1 || true
+    wait "$WEB_PID" 2>/dev/null || true
+  fi
+  if [[ -n "$API_PID" ]]; then
+    kill "$API_PID" >/dev/null 2>&1 || true
+    wait "$API_PID" 2>/dev/null || true
+  fi
+  rm -rf "$TMP_DIR"
+}
+
+trap cleanup EXIT
+
+wait_for_url() {
+  local url="${1:?url required}"
+  local label="${2:?label required}"
+  local log_path="${3:-}"
+  local attempt
+  for attempt in $(seq 1 60); do
+    if curl -fsS "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  if [[ -n "$log_path" && -f "$log_path" ]]; then
+    printf '\n%s failed to start. Recent log output:\n' "$label" >&2
+    tail -n 80 "$log_path" >&2 || true
+  fi
+  return 1
+}
+
+if [[ -f "$ROOT/data/media-studio.db" ]]; then
+  cp "$ROOT/data/media-studio.db" "$TEMP_DB"
+else
+  "$ROOT/scripts/create_clean_db.sh" --output "$TEMP_DB" --overwrite >/dev/null
+fi
+
+env \
+  MEDIA_ENABLE_LIVE_SUBMIT=0 \
+  MEDIA_BACKGROUND_POLL_ENABLED=0 \
+  MEDIA_STUDIO_DB_PATH="$TEMP_DB" \
+  MEDIA_STUDIO_DATA_ROOT="$ROOT/data" \
+  MEDIA_STUDIO_API_HOST=127.0.0.1 \
+  MEDIA_STUDIO_API_PORT="$API_PORT" \
+  MEDIA_STUDIO_CONTROL_API_TOKEN="$CONTROL_TOKEN" \
+  MEDIA_STUDIO_SUPERVISOR=manual \
+  "$ROOT/scripts/start_api.sh" >"$API_LOG" 2>&1 &
+API_PID="$!"
+
+wait_for_url "http://127.0.0.1:${API_PORT}/health" "Media Studio API" "$API_LOG"
+
+env \
+  MEDIA_STUDIO_CONTROL_API_BASE_URL="http://127.0.0.1:${API_PORT}" \
+  NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL="http://127.0.0.1:${API_PORT}" \
+  MEDIA_STUDIO_CONTROL_API_TOKEN="$CONTROL_TOKEN" \
+  PORT="$WEB_PORT" \
+  npm --workspace apps/web run start >"$WEB_LOG" 2>&1 &
+WEB_PID="$!"
+
+wait_for_url "http://127.0.0.1:${WEB_PORT}/studio" "Media Studio Web" "$WEB_LOG"
+
+STUDIO_BASE_URL="http://127.0.0.1:${WEB_PORT}" npm run smoke:studio-browser
