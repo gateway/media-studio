@@ -44,3 +44,11 @@ Further extraction should keep these unchanged:
 - polling cadence
 - gallery ordering
 - visible button text
+
+## Verification
+
+See [docs/studio-testing.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/studio-testing.md) for the current Studio gates:
+
+- fast quality gates
+- release verification with browser smoke coverage
+- provider-backed live smoke for real Nano/Kling runs

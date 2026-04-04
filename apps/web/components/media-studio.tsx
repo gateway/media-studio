@@ -9,8 +9,6 @@ import {
   Coins,
   Clapperboard,
   Copy,
-  Download,
-  Heart,
   Image as ImageIcon,
   ImagePlus,
   LoaderCircle,
@@ -20,7 +18,6 @@ import {
   Sparkles,
   Settings2,
   Trash2,
-  Wand2,
   X,
 } from "lucide-react";
 
@@ -31,12 +28,14 @@ import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
 import { StudioGallery } from "@/components/studio/studio-gallery";
 import { StudioHeaderChrome } from "@/components/studio/studio-header-chrome";
+import { StudioInspectorInfo } from "@/components/studio/studio-inspector-info";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
 import { StudioComposer } from "@/components/studio/studio-composer";
 import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
 import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
 import { useStudioPolling } from "@/hooks/studio/use-studio-polling";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
+import { StudioInspectorActions } from "@/components/studio/studio-inspector-actions";
 import {
   type AssetPagePayload,
   type AttachmentRecord,
@@ -60,7 +59,6 @@ import {
   buildNormalizedStudioOptions,
   classifyFile,
   displayChoiceLabel,
-  formatOptionValue,
   getMobileShareBlob,
   HIDDEN_STUDIO_OPTION_KEYS,
   inferBlobMimeType,
@@ -89,7 +87,6 @@ import {
   optionChoices,
   optionEntries,
   optionIcon,
-  optionShortLabel,
   parseMultiShotScript,
   parseOptionChoice,
   pickerWidth,
@@ -117,6 +114,18 @@ import {
 import type { MediaAsset, MediaBatch, MediaEnhancePreviewResponse, MediaJob, MediaValidationResponse } from "@/lib/types";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import { cn, formatDateTime, truncate } from "@/lib/utils";
+
+declare global {
+  interface Window {
+    __mediaStudioTest?: {
+      enhancement?: {
+        openDialog: () => void;
+        requestPreview: () => Promise<void>;
+        usePrompt: () => boolean;
+      };
+    };
+  }
+}
 
 function StudioMetricPill({
   icon: Icon,
@@ -146,43 +155,6 @@ function StudioMetricPill({
       </span>
       <span>{value}</span>
     </div>
-  );
-}
-
-function StudioActionIconButton({
-  icon: Icon,
-  label,
-  onClick,
-  disabled = false,
-  tone = "secondary",
-  className,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  tone?: "primary" | "secondary" | "danger";
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className={cn(
-        "inline-flex h-10 w-10 items-center justify-center rounded-[16px] border transition disabled:cursor-not-allowed disabled:opacity-60",
-        tone === "primary"
-          ? "border-[rgba(216,255,46,0.24)] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] text-[#172200] shadow-[0_16px_28px_rgba(176,235,44,0.18)] hover:-translate-y-0.5"
-          : tone === "danger"
-            ? "border-[rgba(201,102,82,0.22)] bg-[rgba(201,102,82,0.08)] text-[#ffb5a6] hover:border-[rgba(201,102,82,0.34)] hover:bg-[rgba(201,102,82,0.12)]"
-            : "border-white/10 bg-white/[0.06] text-white/78 hover:border-[rgba(216,141,67,0.32)] hover:bg-[rgba(216,141,67,0.14)] hover:text-white",
-        className,
-      )}
-    >
-      <Icon className="size-4" />
-    </button>
   );
 }
 
@@ -327,6 +299,9 @@ export function MediaStudio({
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
   const pollJobProxyRef = useRef<(jobId: string) => Promise<void>>(async () => {});
   const pollBatchProxyRef = useRef<(batchId: string) => Promise<void>>(async () => {});
+  const openEnhanceDialogProxyRef = useRef<() => void>(() => undefined);
+  const requestEnhancementPreviewProxyRef = useRef<() => Promise<void>>(async () => undefined);
+  const applyEnhancementPromptProxyRef = useRef<() => boolean>(() => false);
   const refreshStudioDataWithSettleDelay = () => {
     startRefresh(() => router.refresh());
     window.setTimeout(() => {
@@ -564,6 +539,21 @@ export function MediaStudio({
   const { pollJob, pollBatch, retryJob, dismissJob, dismissAsset, toggleAssetFavorite } = polling.actions;
   const downloadActionLabel = hasMounted ? mobileSaveActionLabel() : "Download";
   const mobileComposerExpanded = !mobileComposerCollapsed;
+
+  function applyEnhancementPrompt() {
+    const nextPrompt = enhancePreview?.final_prompt_used || enhancePreview?.enhanced_prompt;
+    if (!nextPrompt) {
+      return false;
+    }
+    setPrompt(nextPrompt);
+    setEnhanceDialogOpen(false);
+    setFormMessage({ tone: "healthy", text: "Loaded the enhanced prompt into the composer." });
+    return true;
+  }
+  openEnhanceDialogProxyRef.current = openEnhanceDialog;
+  requestEnhancementPreviewProxyRef.current = requestEnhancementPreview;
+  applyEnhancementPromptProxyRef.current = applyEnhancementPrompt;
+
   const studioSettingsButton = (
     <button
       type="button"
@@ -575,6 +565,28 @@ export function MediaStudio({
       <Settings2 className="size-4" />
     </button>
   );
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.navigator.webdriver) {
+      return;
+    }
+    window.__mediaStudioTest = {
+      ...(window.__mediaStudioTest ?? {}),
+      enhancement: {
+        openDialog: () => openEnhanceDialogProxyRef.current(),
+        requestPreview: () => requestEnhancementPreviewProxyRef.current(),
+        usePrompt: () => applyEnhancementPromptProxyRef.current(),
+      },
+    };
+    return () => {
+      if (!window.__mediaStudioTest) {
+        return;
+      }
+      delete window.__mediaStudioTest.enhancement;
+      if (Object.keys(window.__mediaStudioTest).length === 0) {
+        delete window.__mediaStudioTest;
+      }
+    };
+  }, []);
   useEffect(() => {
     pollJobProxyRef.current = pollJob;
     pollBatchProxyRef.current = pollBatch;
@@ -638,6 +650,7 @@ export function MediaStudio({
                       <input
                         type="file"
                         accept="image/*"
+                        data-testid={`studio-source-slot-input-${slotIndex + 1}`}
                         className="hidden"
                         onChange={(event) => {
                           if (slotIndex > orderedImageInputs.length) {
@@ -719,6 +732,7 @@ export function MediaStudio({
               type="file"
               multiple
               accept="image/*,video/*,audio/*"
+              data-testid="studio-source-input"
               className="hidden"
               disabled={!canAddMoreImages && !canAddMoreVideos && !canAddMoreAudios}
               onChange={(event) => addFiles(event.target.files)}
@@ -1100,7 +1114,11 @@ export function MediaStudio({
                                 ? mediaThumbnailUrl(findMediaAssetById(slotState.assetId, localAssets, favoriteAssets) ?? null) ?? slotState.previewUrl
                                 : slotState?.previewUrl;
                               return (
-                                <div key={slot.key} className="rounded-[20px] border border-white/8 bg-[rgba(255,255,255,0.03)] p-3">
+                                <div
+                                  key={slot.key}
+                                  data-testid={`studio-preset-slot-${slot.key}`}
+                                  className="rounded-[20px] border border-white/8 bg-[rgba(255,255,255,0.03)] p-3"
+                                >
                                   <div className="flex items-start justify-between gap-3">
                                     <div>
                                       <div className="text-sm font-semibold text-white/88">{slot.label}</div>
@@ -1115,7 +1133,13 @@ export function MediaStudio({
                                         className="relative flex h-full w-full cursor-pointer items-center justify-center overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.05] text-white/74"
                                       >
                                         {slotPreview ? <img src={slotPreview} alt={slot.label} className="h-full w-full object-cover" /> : <ImagePlus className="size-5" />}
-                                        <input type="file" accept="image/*" className="hidden" onChange={(event) => assignPresetSlotFile(slot.key, event.target.files?.[0] ?? null)} />
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          data-testid={`studio-preset-slot-input-${slot.key}`}
+                                          className="hidden"
+                                          onChange={(event) => assignPresetSlotFile(slot.key, event.target.files?.[0] ?? null)}
+                                        />
                                       </label>
                                       {slotState?.assetId || slotState?.file ? (
                                         <button
@@ -1173,6 +1197,7 @@ export function MediaStudio({
                       {enhanceEnabledForModel ? (
                         <button
                           type="button"
+                          data-testid="studio-open-enhance-dialog"
                           onClick={openEnhanceDialog}
                           aria-label="Open enhance dialog"
                           title="Open enhance dialog"
@@ -1389,7 +1414,7 @@ export function MediaStudio({
       </div>
 
       {enhanceDialogOpen ? (
-        <div className="fixed inset-0 z-[125] bg-[rgba(6,8,7,0.7)] backdrop-blur-md">
+        <div data-testid="studio-enhance-dialog" className="fixed inset-0 z-[125] bg-[rgba(6,8,7,0.7)] backdrop-blur-md">
           <div className="absolute inset-0 p-3 md:p-6">
             <div className="grid h-full gap-4 rounded-[34px] border border-white/8 bg-[linear-gradient(180deg,rgba(16,20,18,0.96),rgba(10,13,12,0.96))] p-4 shadow-[0_40px_100px_rgba(0,0,0,0.5)] lg:grid-cols-[minmax(0,1fr)_320px] lg:p-6">
               <div className="grid min-h-0 gap-4 overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_55%),linear-gradient(180deg,#111514,#181d1b)] p-4 lg:p-6">
@@ -1418,7 +1443,7 @@ export function MediaStudio({
                   </div>
                   <div className="rounded-[22px] border border-[rgba(216,141,67,0.14)] bg-[rgba(216,141,67,0.05)] p-4">
                     <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[#ffd7af]">Enhanced prompt</div>
-                    <pre className="mt-3 whitespace-pre-wrap text-sm leading-7 text-white/88">
+                    <pre data-testid="studio-enhance-preview-text" className="mt-3 whitespace-pre-wrap text-sm leading-7 text-white/88">
                       {enhancePreview?.final_prompt_used || enhancePreview?.enhanced_prompt || (enhanceBusy ? "Enhancing prompt..." : "Run enhance to preview the rewritten prompt.")}
                     </pre>
                   </div>
@@ -1486,20 +1511,15 @@ export function MediaStudio({
                 ) : null}
 
                 <div className="grid gap-3">
-                  <button type="button" onClick={() => void requestEnhancementPreview()} disabled={enhanceBusy} className="inline-flex w-full items-center justify-center gap-3 rounded-[22px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 py-4 text-[0.98rem] font-semibold text-[#162300] shadow-[0_18px_34px_rgba(156,204,33,0.22)] disabled:opacity-60">
+                  <button type="button" data-testid="studio-enhance-run-button" onClick={() => void requestEnhancementPreview()} disabled={enhanceBusy} className="inline-flex w-full items-center justify-center gap-3 rounded-[22px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 py-4 text-[0.98rem] font-semibold text-[#162300] shadow-[0_18px_34px_rgba(156,204,33,0.22)] disabled:opacity-60">
                     {enhanceBusy ? <LoaderCircle className="size-4.5 animate-spin" /> : <Sparkles className="size-4.5" />}
                     {enhanceBusy ? "Enhancing..." : "Enhance"}
                   </button>
                   <button
                     type="button"
+                    data-testid="studio-enhance-use-prompt-button"
                     onClick={() => {
-                      const nextPrompt = enhancePreview?.final_prompt_used || enhancePreview?.enhanced_prompt;
-                      if (!nextPrompt) {
-                        return;
-                      }
-                      setPrompt(nextPrompt);
-                      setEnhanceDialogOpen(false);
-                      setFormMessage({ tone: "healthy", text: "Loaded the enhanced prompt into the composer." });
+                      applyEnhancementPrompt();
                     }}
                     disabled={!enhancePreview?.final_prompt_used && !enhancePreview?.enhanced_prompt}
                     className="inline-flex w-full items-center justify-center gap-3 rounded-[20px] border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-semibold text-white/86 disabled:opacity-60"
@@ -1612,27 +1632,15 @@ export function MediaStudio({
                       )
                     ) : null}
                   </div>
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4">
-                    <div className="pointer-events-auto flex items-center gap-2">
-                      {mediaDownloadUrl(selectedAsset) ? (
-                        <StudioActionIconButton
-                          icon={Download}
-                          label={downloadActionLabel}
-                          onClick={() => void handleAssetDownload(selectedAsset)}
-                          className="h-11 w-11 rounded-full border-white/12 bg-[rgba(8,10,9,0.72)] text-white/82 shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-xl"
-                        />
-                      ) : null}
-                    </div>
-                    <div className="pointer-events-auto flex items-center gap-2">
-                      <StudioActionIconButton
-                        icon={Trash2}
-                        label="Remove"
-                        onClick={() => void dismissAsset(selectedAsset.asset_id)}
-                        tone="danger"
-                        className="h-11 w-11 rounded-full border-[rgba(201,102,82,0.28)] bg-[rgba(40,16,14,0.76)] text-[#ffb5a6] shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-xl"
-                      />
-                    </div>
-                  </div>
+                  <StudioInspectorActions
+                    canDownload={Boolean(mediaDownloadUrl(selectedAsset))}
+                    downloadActionLabel={downloadActionLabel}
+                    showImageActions={selectedAsset.generation_kind === "image"}
+                    onDownload={() => void handleAssetDownload(selectedAsset)}
+                    onDismiss={() => void dismissAsset(selectedAsset.asset_id)}
+                    onAnimate={() => useAssetAsSource(selectedAsset, true)}
+                    onUseImage={() => useAssetAsSource(selectedAsset, false)}
+                  />
 
                 </div>
 
@@ -1804,29 +1812,6 @@ export function MediaStudio({
                   </div>
                 </div>
 
-                <div className="grid gap-3 rounded-[24px] border border-white/10 bg-[rgba(16,19,18,0.98)] p-3 shadow-[0_18px_38px_rgba(0,0,0,0.22)] lg:hidden">
-                  {selectedAsset.generation_kind === "image" ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => useAssetAsSource(selectedAsset, true)}
-                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-4 text-[0.82rem] font-semibold text-[#172200] shadow-[0_18px_38px_rgba(176,235,44,0.2)] transition hover:-translate-y-0.5"
-                      >
-                        <Wand2 className="size-4" />
-                        Animate
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => useAssetAsSource(selectedAsset, false)}
-                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.06] px-4 text-[0.82rem] font-semibold text-white/84 transition hover:border-[rgba(216,141,67,0.3)] hover:bg-[rgba(216,141,67,0.12)] hover:text-white"
-                      >
-                        <ImagePlus className="size-4" />
-                        Use image
-                      </button>
-                    </>
-                  ) : null}
-                </div>
-
                 <div className="hidden min-h-0 gap-4 rounded-[28px] bg-[rgba(255,255,255,0.04)] p-4 text-white lg:grid lg:overflow-y-auto lg:p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1840,74 +1825,21 @@ export function MediaStudio({
                   <StatusPill label={selectedAsset.status ?? "stored"} tone={toneForStatus(selectedAsset.status)} />
                 </div>
 
-                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
-                    Information
-                  </div>
-                  <div className="mt-3 grid gap-2">
-                    <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                      <span className="text-sm text-white/56">Model</span>
-                      <span className="text-sm font-medium text-white/92">{selectedAsset.model_key ?? "Unknown"}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                      <span className="text-sm text-white/56">Preset</span>
-                      <span className="text-sm font-medium text-white/92">{selectedAsset.preset_key ?? "builtin"}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                      <span className="text-sm text-white/56">Type</span>
-                      <span className="text-sm font-medium text-white/92">{selectedAsset.generation_kind ?? selectedAsset.task_mode ?? "asset"}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => void toggleAssetFavorite(selectedAsset)}
-                      disabled={favoriteAssetIdBusy === selectedAsset.asset_id}
-                      className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3 text-left transition hover:bg-white/[0.05] disabled:opacity-60"
-                    >
-                      <span className="text-sm text-white/56">Favorite</span>
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-2 text-sm font-medium",
-                          selectedAsset.favorited ? "text-[#ff9abc]" : "text-white/72",
-                        )}
-                      >
-                        <Heart className={cn("size-4", selectedAsset.favorited ? "fill-current" : "")} />
-                        {selectedAsset.favorited ? "Saved" : "Off"}
-                      </span>
-                    </button>
-                    {Object.entries((selectedAsset.payload?.resolved_options as Record<string, unknown> | undefined) ?? {})
-                      .filter(([, value]) => value != null && value !== "")
-                      .slice(0, 6)
-                      .map(([key, value]) => (
-                        <div key={key} className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                          <span className="text-sm text-white/56">{optionShortLabel(key)}</span>
-                          <span className="text-sm font-medium text-white/92">{displayChoiceLabel(key, {}, value) || formatOptionValue(value)}</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
+                <StudioInspectorInfo
+                  selectedAsset={selectedAsset}
+                  favoriteAssetIdBusy={favoriteAssetIdBusy}
+                  onToggleFavorite={toggleAssetFavorite}
+                />
 
-                <div className="grid gap-3">
-                  {selectedAsset.generation_kind === "image" ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => useAssetAsSource(selectedAsset, true)}
-                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-4 text-[0.82rem] font-semibold text-[#172200] shadow-[0_18px_38px_rgba(176,235,44,0.2)] transition hover:-translate-y-0.5"
-                      >
-                        <Wand2 className="size-4" />
-                        Animate
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => useAssetAsSource(selectedAsset, false)}
-                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.06] px-4 text-[0.82rem] font-semibold text-white/84 transition hover:border-[rgba(216,141,67,0.3)] hover:bg-[rgba(216,141,67,0.12)] hover:text-white"
-                      >
-                        <ImagePlus className="size-4" />
-                        Use image
-                      </button>
-                    </>
-                  ) : null}
-                </div>
+                <StudioInspectorActions
+                  canDownload={false}
+                  downloadActionLabel={downloadActionLabel}
+                  showImageActions={selectedAsset.generation_kind === "image"}
+                  onDownload={() => void handleAssetDownload(selectedAsset)}
+                  onDismiss={() => void dismissAsset(selectedAsset.asset_id)}
+                  onAnimate={() => useAssetAsSource(selectedAsset, true)}
+                  onUseImage={() => useAssetAsSource(selectedAsset, false)}
+                />
               </div>
 
               <div className="lg:hidden">
@@ -1925,51 +1857,11 @@ export function MediaStudio({
                   bodyClassName="mt-3"
                 >
                   <div className="grid gap-4">
-                    <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
-                      <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
-                        Information
-                      </div>
-                      <div className="mt-3 grid gap-2">
-                        <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                          <span className="text-sm text-white/56">Model</span>
-                          <span className="text-sm font-medium text-white/92">{selectedAsset.model_key ?? "Unknown"}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                          <span className="text-sm text-white/56">Preset</span>
-                          <span className="text-sm font-medium text-white/92">{selectedAsset.preset_key ?? "builtin"}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                          <span className="text-sm text-white/56">Type</span>
-                          <span className="text-sm font-medium text-white/92">{selectedAsset.generation_kind ?? selectedAsset.task_mode ?? "asset"}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => void toggleAssetFavorite(selectedAsset)}
-                          disabled={favoriteAssetIdBusy === selectedAsset.asset_id}
-                          className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3 text-left transition hover:bg-white/[0.05] disabled:opacity-60"
-                        >
-                          <span className="text-sm text-white/56">Favorite</span>
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-2 text-sm font-medium",
-                              selectedAsset.favorited ? "text-[#ff9abc]" : "text-white/72",
-                            )}
-                          >
-                            <Heart className={cn("size-4", selectedAsset.favorited ? "fill-current" : "")} />
-                            {selectedAsset.favorited ? "Saved" : "Off"}
-                          </span>
-                        </button>
-                        {Object.entries((selectedAsset.payload?.resolved_options as Record<string, unknown> | undefined) ?? {})
-                          .filter(([, value]) => value != null && value !== "")
-                          .slice(0, 6)
-                          .map(([key, value]) => (
-                            <div key={key} className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                              <span className="text-sm text-white/56">{optionShortLabel(key)}</span>
-                              <span className="text-sm font-medium text-white/92">{displayChoiceLabel(key, {}, value) || formatOptionValue(value)}</span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
+                    <StudioInspectorInfo
+                      selectedAsset={selectedAsset}
+                      favoriteAssetIdBusy={favoriteAssetIdBusy}
+                      onToggleFavorite={toggleAssetFavorite}
+                    />
                   </div>
                 </CollapsibleSubsection>
               </div>

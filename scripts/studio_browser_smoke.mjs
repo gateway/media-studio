@@ -43,11 +43,39 @@ function collectDuplicateKeys(cards) {
     .map(([key]) => key);
 }
 
+async function ensureModelSelected(modelMatcher) {
+  const picker = page.locator('[data-testid="studio-picker-model"]');
+  await picker.waitFor({ state: "visible", timeout: 20000 });
+  const currentLabel = ((await picker.textContent()) ?? "").trim();
+  if (modelMatcher.test(currentLabel)) {
+    return;
+  }
+  await picker.click();
+  const options = page.locator('[data-testid^="studio-picker-option-model-"]');
+  if ((await options.count()) === 0) {
+    await picker.evaluate((node) => node.click());
+  }
+  await page.waitForFunction(
+    () => document.querySelectorAll('[data-testid^="studio-picker-option-model-"]').length > 0,
+    null,
+    { timeout: 15000 },
+  );
+  const optionCount = await options.count();
+  for (let index = 0; index < optionCount; index += 1) {
+    const option = options.nth(index);
+    const label = ((await option.textContent()) ?? "").trim();
+    if (modelMatcher.test(label)) {
+      await option.click();
+      return;
+    }
+  }
+  throw new Error("No matching model option was found.");
+}
+
 try {
   await page.goto(studioUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForSelector('[data-testid="studio-gallery"]', { timeout: 60000 });
-  await page.locator('[data-testid="studio-picker-model"]').click();
-  await page.locator('[data-testid="studio-picker-option-model-nano-banana-2"]').click();
+  await ensureModelSelected(/nano banana 2/i);
   await page.waitForTimeout(500);
 
   const prompt = `Browser smoke ${new Date().toISOString()} cinematic sci-fi portrait, photo-real lighting`;
@@ -58,7 +86,11 @@ try {
   await page.waitForSelector('[data-testid="studio-gallery-batch-card"]', { timeout: 20000 });
   summary.queue_card_seen = true;
 
-  const firstAssetCard = page.locator('[data-testid="studio-gallery-card"][data-asset-id]').first();
+  const imageAssetCard = page.locator(
+    '[data-testid="studio-gallery-card"][data-asset-id][data-generation-kind="image"]',
+  ).first();
+  const firstAssetCard =
+    (await imageAssetCard.count()) > 0 ? imageAssetCard : page.locator('[data-testid="studio-gallery-card"][data-asset-id]').first();
   await firstAssetCard.waitFor({ state: "visible", timeout: 20000 });
   summary.selected_asset_id = await firstAssetCard.getAttribute("data-asset-id");
 
@@ -80,9 +112,13 @@ try {
     try {
       await page.getByLabel("Close media lightbox").click({ timeout: 4000 });
     } catch {
-      await page.keyboard.press("Escape");
+      try {
+        await page.keyboard.press("Escape");
+      } catch {
+        await page.locator('[data-testid="studio-lightbox"]').click({ position: { x: 12, y: 12 } });
+      }
     }
-    await page.waitForSelector('[data-testid="studio-lightbox"]', { state: "hidden", timeout: 15000 });
+    await page.waitForFunction(() => !document.querySelector('[data-testid="studio-lightbox"]'), null, { timeout: 15000 });
   }
 
   if (summary.selected_asset_id) {

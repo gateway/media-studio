@@ -490,8 +490,6 @@ export function MediaModelsConsole({
   const accentCardClassName = "rounded-[24px] border border-white/10 bg-[rgba(11,14,13,0.94)] p-5";
   const softAccentCardClassName =
     "rounded-[22px] border border-white/10 bg-[rgba(255,255,255,0.05)] px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]";
-  const inputClassName =
-    "rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.88)] px-3 py-3 text-sm text-white outline-none placeholder:text-white/36";
   const toggleOffClassName = "border-white/10 bg-[rgba(255,255,255,0.04)] text-white/68";
   const toggleOnClassName = "border-[rgba(208,255,72,0.28)] bg-[rgba(208,255,72,0.12)] text-[rgba(208,255,72,0.94)]";
 

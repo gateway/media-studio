@@ -455,21 +455,22 @@ def _run_external_enhancement(config: Dict[str, Any], request: EnhancePreviewReq
 
 
 def build_enhancement_preview(request: EnhancePreviewRequest) -> Dict[str, Any]:
-    bundle = build_validation_bundle(request)
-    enhancement_config = _resolved_enhancement_config(request.model_key)
+    preview_request = request.model_copy(update={"prompt_policy": request.prompt_policy or "preview"})
+    bundle = build_validation_bundle(preview_request)
+    enhancement_config = _resolved_enhancement_config(preview_request.model_key)
     provider_kind = str(enhancement_config.get("provider_kind") or "builtin").strip()
     if provider_kind == "builtin":
         enhancement = kie_adapter.dry_run_prompt_enhancement(bundle["raw_request"])
     else:
         try:
-            enhancement = _run_external_enhancement(enhancement_config, request, bundle)
+            enhancement = _run_external_enhancement(enhancement_config, preview_request, bundle)
         except enhancement_provider.EnhancementProviderError as exc:
             raise ServiceError(str(exc)) from exc
     return {
         "prompt_context": enhancement.get("context") or bundle["prompt_context"],
         "enhancement": enhancement,
         "validation": bundle["validation"],
-        "raw_prompt": bundle["final_prompt"] or request.prompt,
+        "raw_prompt": bundle["final_prompt"] or preview_request.prompt,
         "enhanced_prompt": enhancement.get("enhanced_prompt"),
         "final_prompt_used": enhancement.get("final_prompt_used") or enhancement.get("enhanced_prompt"),
         "image_analysis": enhancement.get("image_analysis"),

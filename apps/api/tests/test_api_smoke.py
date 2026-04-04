@@ -715,6 +715,41 @@ def test_enhance_preview_uses_saved_openrouter_config(client, app_modules, monke
     assert payload["image_analysis"] == "reference image detected"
 
 
+def test_enhance_preview_uses_preview_prompt_policy_for_builtin_helper(client, app_modules, monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_dry_run_prompt_enhancement(request):
+        captured["prompt_policy"] = request.get("prompt_policy")
+        captured["raw_prompt"] = request.get("raw_prompt")
+        return {
+            "enhanced_prompt": "built-in preview rewrite",
+            "final_prompt_used": "built-in preview rewrite",
+            "context": {"mode": "preview"},
+            "warnings": [],
+        }
+
+    monkeypatch.setattr(
+        app_modules["service"].kie_adapter,
+        "dry_run_prompt_enhancement",
+        fake_dry_run_prompt_enhancement,
+    )
+
+    response = client.post(
+        "/media/enhance/preview",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "portrait in neon rain",
+            "enhance": True,
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert captured["prompt_policy"] == "preview"
+    assert payload["enhanced_prompt"] == "built-in preview rewrite"
+    assert payload["final_prompt_used"] == "built-in preview rewrite"
+
+
 def test_enhance_preview_allows_prompt_only_when_text_and_image_support_are_enabled(client, app_modules, monkeypatch) -> None:
     client.post(
         "/media/enhancement-configs",

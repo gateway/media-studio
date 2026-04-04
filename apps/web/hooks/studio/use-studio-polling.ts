@@ -3,6 +3,44 @@ import { useState } from "react";
 import { FLOATING_COMPOSER_STATUS_MS, type ComposerStatusMessage } from "@/lib/media-studio-contract";
 import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
 
+type PublishHandoffKind = "job" | "batch";
+
+export function resolvePublishHandoffFeedback(kind: PublishHandoffKind, publishedToGallery: boolean) {
+  if (kind === "job") {
+    return publishedToGallery
+      ? {
+          activity: { tone: "healthy" as const, message: "Media publish completed. The gallery is refreshing." },
+          activityAutoHideMs: 2600,
+          finalMessage: "Media job completed and the reel is refreshing.",
+        }
+      : {
+          activity: {
+            tone: "warning" as const,
+            message: "The provider finished, but Studio is still waiting for the published media card.",
+            spinning: true,
+          },
+          activityAutoHideMs: 4200,
+          finalMessage: "Media job completed. Studio is still reconciling the published media card.",
+        };
+  }
+
+  return publishedToGallery
+    ? {
+        activity: { tone: "healthy" as const, message: "Batch publish completed. The gallery is refreshing." },
+        activityAutoHideMs: 2600,
+        finalMessage: "Media batch completed and the reel is refreshing.",
+      }
+    : {
+        activity: {
+          tone: "warning" as const,
+          message: "The provider finished, but Studio is still waiting for the published media cards.",
+          spinning: true,
+        },
+        activityAutoHideMs: 4200,
+        finalMessage: "Media batch completed. Studio is still reconciling the published media cards.",
+      };
+}
+
 type UseStudioPollingParams = {
   showActivity: (payload: { tone: "healthy" | "warning" | "danger"; message: string; spinning?: boolean }, options?: { autoHideMs?: number }) => void;
   showFloatingComposerBanner: (message: ComposerStatusMessage, autoHideMs?: number) => void;
@@ -95,17 +133,20 @@ export function useStudioPolling({
       }
 
       if (payload.job.status === "completed" || payload.job.status === "failed") {
+        let publishedToGallery = true;
         if (payload.job.status === "completed") {
-          await refreshActiveGalleryAssets({
+          publishedToGallery = await refreshActiveGalleryAssets({
             expectedJobIds: [payload.job.job_id],
             silent: true,
             attempts: 5,
           });
+          const feedback = resolvePublishHandoffFeedback("job", publishedToGallery);
+          showActivity(feedback.activity, { autoHideMs: feedback.activityAutoHideMs });
         }
         refreshStudioDataWithSettleDelay();
         const finalMessage =
           payload.job.status === "completed"
-            ? "Media job completed and the reel is refreshing."
+            ? resolvePublishHandoffFeedback("job", publishedToGallery).finalMessage
             : payload.job.error ?? "Media job failed.";
         setFormMessage({ tone: payload.job.status === "completed" ? "healthy" : "danger", text: finalMessage });
         showFloatingComposerBanner(
@@ -177,19 +218,25 @@ export function useStudioPolling({
             return finalState === "succeeded" || job.status === "completed";
           })
           .map((job) => job.job_id);
+        let publishedToGallery = true;
         if (successfulJobIds.length > 0) {
-          await refreshActiveGalleryAssets({
+          publishedToGallery = await refreshActiveGalleryAssets({
             expectedJobIds: successfulJobIds,
             silent: true,
             attempts: 5,
           });
+          const feedback = resolvePublishHandoffFeedback("batch", publishedToGallery);
+          showActivity(feedback.activity, { autoHideMs: feedback.activityAutoHideMs });
         }
         const failedJob = (batch.jobs ?? []).find((job) => job.status === "failed" && job.error);
         const batchFailureMessage =
           failedJob?.error ??
           (payload.batch.status === "cancelled" ? "Media batch was cancelled." : "Media batch finished with issues.");
         refreshStudioDataWithSettleDelay();
-        const finalMessage = payload.batch.status === "completed" ? "Media batch completed and the reel is refreshing." : batchFailureMessage;
+        const finalMessage =
+          payload.batch.status === "completed"
+            ? resolvePublishHandoffFeedback("batch", publishedToGallery).finalMessage
+            : batchFailureMessage;
         setFormMessage({ tone: payload.batch.status === "completed" ? "healthy" : "danger", text: finalMessage });
         showFloatingComposerBanner(
           { tone: payload.batch.status === "completed" ? "healthy" : "danger", text: finalMessage },
