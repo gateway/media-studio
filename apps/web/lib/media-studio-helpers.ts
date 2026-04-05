@@ -67,17 +67,17 @@ export const MULTI_SHOT_MODEL_KEYS = new Set(["kling-3.0-t2v", "kling-3.0-i2v"])
 export const SEEDANCE_MODEL_KEYS = new Set(["seedance-2.0"]);
 
 const STUDIO_PICKER_WIDTHS: Record<string, string> = {
-  model: "w-full sm:w-[232px]",
-  preset: "w-full sm:w-[186px]",
-  "output-count": "w-[calc(50%-0.25rem)] sm:w-[95px]",
-  duration: "w-[calc(50%-0.25rem)] sm:w-[110px]",
-  aspect_ratio: "w-[calc(50%-0.25rem)] sm:w-[104px]",
-  sound: "w-[calc(50%-0.25rem)] sm:w-[114px]",
-  audio: "w-[calc(50%-0.25rem)] sm:w-[114px]",
-  resolution: "w-[calc(50%-0.25rem)] sm:w-[108px]",
-  output_format: "w-[calc(50%-0.25rem)] sm:w-[120px]",
-  mode: "w-[calc(50%-0.25rem)] sm:w-[120px]",
-  google_search: "w-[calc(50%-0.25rem)] sm:w-[132px]",
+  model: "w-full sm:w-[196px]",
+  preset: "w-full sm:w-[162px]",
+  "output-count": "w-[calc(50%-0.25rem)] sm:w-[86px]",
+  duration: "w-[calc(50%-0.25rem)] sm:w-[92px]",
+  aspect_ratio: "w-[calc(50%-0.25rem)] sm:w-[90px]",
+  sound: "w-[calc(50%-0.25rem)] sm:w-[96px]",
+  audio: "w-[calc(50%-0.25rem)] sm:w-[96px]",
+  resolution: "w-[calc(50%-0.25rem)] sm:w-[92px]",
+  output_format: "w-[calc(50%-0.25rem)] sm:w-[102px]",
+  mode: "w-[calc(50%-0.25rem)] sm:w-[102px]",
+  google_search: "w-[calc(50%-0.25rem)] sm:w-[112px]",
 };
 
 export function isNanoPresetModel(modelKey: string | null | undefined) {
@@ -499,8 +499,11 @@ export function jobPreviewUrl(job?: MediaJob | null) {
 }
 
 export function classifyFile(file: File) {
+  const lowerName = file.name.toLowerCase();
   if (file.type.startsWith("video/")) return "videos" as const;
   if (file.type.startsWith("audio/")) return "audios" as const;
+  if (/\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(lowerName)) return "videos" as const;
+  if (/\.(mp3|wav|aac|m4a|ogg|flac)$/i.test(lowerName)) return "audios" as const;
   return "images" as const;
 }
 
@@ -623,7 +626,7 @@ export function pickerWidth(pickerId: string) {
   if (pickerId.includes("resolution") || pickerId.includes("size")) return STUDIO_PICKER_WIDTHS.resolution;
   if (pickerId.includes("format")) return STUDIO_PICKER_WIDTHS.output_format;
   if (pickerId.includes("web")) return STUDIO_PICKER_WIDTHS.google_search;
-  return "w-[calc(50%-0.25rem)] sm:w-[132px]";
+  return "w-[calc(50%-0.25rem)] sm:w-[108px]";
 }
 
 export function optionChoices(schema: Record<string, unknown>, currentValue: unknown) {

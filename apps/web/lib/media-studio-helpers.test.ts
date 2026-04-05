@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  classifyFile,
   deriveSeedanceComposerMode,
   inferInputPattern,
   seedanceReferenceTokenGuide,
@@ -77,5 +78,11 @@ describe("media-studio-helpers Seedance support", () => {
         null,
       ),
     ).toBe("first_last_frames");
+  });
+
+  it("classifies dragged media files by extension when mime is empty", () => {
+    expect(classifyFile(new File(["video"], "dragged-ref.mp4"))).toBe("videos");
+    expect(classifyFile(new File(["audio"], "dragged-ref.wav"))).toBe("audios");
+    expect(classifyFile(new File(["image"], "dragged-ref.png"))).toBe("images");
   });
 });

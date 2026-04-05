@@ -23,6 +23,17 @@ Use these commands when tightening the Studio client without changing public beh
 - `npm run smoke:studio-browser-enhance`
   - covers prompt-only enhancement for `nano-banana-2`, enhancement preview loading, and using the rewritten prompt back in the composer
   - `release:verify` forces the isolated temp API onto the built-in enhancement path so this smoke stays deterministic without mutating a real local database
+- `node scripts/studio_browser_seedance_smoke.mjs`
+  - covers Seedance no-submit validation wiring
+  - verifies:
+    - `Start frame` local file drop
+    - `End frame` rejection until `Start frame` exists
+    - `End frame` file drop after `Start frame`
+    - gallery image drag into `Image refs`
+    - gallery video drag into `Video refs`
+    - local dropped `.mp4` with empty MIME into `Video refs`
+    - audio ref file-input staging
+    - invalid vs valid control-route validation responses
 
 Both scripts default to `http://127.0.0.1:3000` and write artifacts under `output/browser-smoke/`.
 

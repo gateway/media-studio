@@ -1,40 +1,10 @@
 "use client";
 
-import { ChevronDown, CircleDollarSign, Coins, LoaderCircle, Settings2, X } from "lucide-react";
+import { ChevronDown, CircleDollarSign, Coins, LoaderCircle, X } from "lucide-react";
 
 import type { FloatingComposerStatus } from "@/lib/media-studio-contract";
+import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
 import { cn } from "@/lib/utils";
-
-function StudioMetricPill({
-  icon: Icon,
-  value,
-  accent = "default",
-}: {
-  icon: typeof Coins;
-  value: string;
-  accent?: "default" | "highlight";
-}) {
-  return (
-    <div
-      className={cn(
-        "inline-flex h-10 items-center gap-2 rounded-[14px] border px-3 text-[0.72rem] font-semibold",
-        accent === "highlight"
-          ? "border-[rgba(216,255,46,0.22)] bg-[rgba(14,18,15,0.99)] text-[#f4ffd3] shadow-[0_14px_24px_rgba(0,0,0,0.24)]"
-          : "border-white/14 bg-[rgba(14,18,15,0.99)] text-white/92 shadow-[0_14px_24px_rgba(0,0,0,0.26)]",
-      )}
-    >
-      <span
-        className={cn(
-          "inline-flex h-5 w-5 items-center justify-center rounded-full",
-          accent === "highlight" ? "bg-[rgba(216,255,46,0.22)] text-[#d8ff2e]" : "bg-[rgba(216,255,46,0.18)] text-[#d8ff2e]",
-        )}
-      >
-        <Icon className="size-3.5" />
-      </span>
-      <span>{value}</span>
-    </div>
-  );
-}
 
 type StudioComposerProps = {
   immersive: boolean;
@@ -46,7 +16,8 @@ type StudioComposerProps = {
   estimatedCostUsd: string | null;
   structuredPresetActive: boolean;
   presetLabel: string | null;
-  sourceAttachmentStrip: React.ReactNode;
+  externalTopContent?: React.ReactNode;
+  sourceAttachmentStrip?: React.ReactNode;
   studioSettingsButton: React.ReactNode;
   floatingComposerStatus: FloatingComposerStatus | null;
   onToggleCollapsed: () => void;
@@ -63,12 +34,14 @@ export function StudioComposer({
   estimatedCostUsd,
   structuredPresetActive,
   presetLabel,
+  externalTopContent,
   sourceAttachmentStrip,
   studioSettingsButton,
   floatingComposerStatus,
   onToggleCollapsed,
   children,
 }: StudioComposerProps) {
+  const hasSidebar = Boolean(sourceAttachmentStrip);
   return (
     <div
       className={cn(
@@ -79,6 +52,11 @@ export function StudioComposer({
             : "absolute bottom-4 left-4 right-4 z-20 md:bottom-6 md:left-6 md:right-6",
       )}
     >
+      {externalTopContent ? (
+        <div className={cn("mx-auto mb-3 w-full", immersive ? "max-w-[1480px]" : "max-w-[1240px]")}>
+          {externalTopContent}
+        </div>
+      ) : null}
       <div
         className={cn(
           "mx-auto w-full border border-white/10 bg-[rgba(21,24,23,0.9)] shadow-[0_28px_70px_rgba(0,0,0,0.42)] backdrop-blur-2xl",
@@ -99,9 +77,11 @@ export function StudioComposer({
                 {estimatedCostUsd ? <StudioMetricPill icon={CircleDollarSign} value={estimatedCostUsd} accent="highlight" /> : null}
               </div>
             ) : null}
-            <div className="mt-4 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/46">
-              {!structuredPresetActive ? "Source images" : presetLabel ?? "Preset mode"}
-            </div>
+            {hasSidebar ? (
+              <div className="mt-4 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/46">
+                {!structuredPresetActive ? "Source images" : presetLabel ?? "Preset mode"}
+              </div>
+            ) : null}
           </div>
           <button
             type="button"
@@ -113,14 +93,17 @@ export function StudioComposer({
           </button>
         </div>
         <div className={cn(mobileComposerCollapsed ? "hidden md:block" : "block")}>
-          <div className="mb-4 md:hidden">{sourceAttachmentStrip}</div>
-          <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-stretch">
-            <div className="relative hidden md:flex md:items-end md:justify-between md:gap-3 lg:order-none lg:grid lg:min-h-full lg:content-start lg:justify-stretch lg:gap-3">
-              {sourceAttachmentStrip}
-              <div className="absolute bottom-0 left-0">{studioSettingsButton}</div>
-            </div>
+          {hasSidebar ? <div className="mb-4 md:hidden">{sourceAttachmentStrip}</div> : null}
+          <div className={cn("grid gap-4 lg:items-stretch", hasSidebar ? "lg:grid-cols-[220px_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)]")}>
+            {hasSidebar ? (
+              <div className="relative hidden md:flex md:items-end md:justify-between md:gap-3 lg:order-none lg:grid lg:min-h-full lg:content-start lg:justify-stretch lg:gap-3">
+                {sourceAttachmentStrip}
+                <div className="absolute bottom-0 left-0">{studioSettingsButton}</div>
+              </div>
+            ) : null}
             <div className="grid gap-3">
               <div className="relative pt-8">
+                {!hasSidebar ? <div className="absolute right-0 top-0 hidden md:block">{studioSettingsButton}</div> : null}
                 {floatingComposerStatus ? (
                   <div
                     className={cn(

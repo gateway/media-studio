@@ -26,21 +26,22 @@ const summary = {
   ok: false,
   studio_url: studioUrl,
   selected_model: null,
-  mode_buttons_visible: false,
-  first_frame_uploaded: false,
-  last_frame_uploaded: false,
-  reference_image_uploaded: false,
-  reference_video_uploaded: false,
+  reference_strip_visible: false,
+  settings_visible: false,
+  start_frame_file_drop_uploaded: false,
+  end_frame_rejected_without_start: false,
+  end_frame_file_drop_uploaded: false,
+  gallery_image_drag_uploaded: false,
+  gallery_video_drag_uploaded: false,
+  local_video_file_drop_uploaded: false,
   reference_audio_uploaded: false,
-  token_panel_visible: false,
   invalid_validation_state: null,
   invalid_validation_error: null,
   valid_validation_state: null,
-  queue_card_seen: false,
   screenshot: successShot,
 };
 
-async function ensureModelSelected(modelMatcher) {
+async function ensureSeedanceSelected() {
   await page.waitForFunction(() => Boolean(window.__mediaStudioTest?.composer), null, { timeout: 15000 });
   await page.evaluate(() => {
     window.__mediaStudioTest?.composer?.setModel("seedance-2.0");
@@ -50,11 +51,53 @@ async function ensureModelSelected(modelMatcher) {
     const picker = document.querySelector('[data-testid="studio-picker-model"]');
     return (picker?.textContent ?? "").toLowerCase().includes("seedance");
   }, null, { timeout: 15000 });
-  const currentLabel = ((await picker.textContent()) ?? "").trim();
-  if (!modelMatcher.test(currentLabel)) {
-    throw new Error(`Seedance model was not selected. Current picker label: ${currentLabel}`);
-  }
-  summary.selected_model = currentLabel;
+  summary.selected_model = ((await picker.textContent()) ?? "").trim();
+}
+
+async function resetStudio() {
+  await page.goto(studioUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.waitForSelector('[data-testid="studio-gallery"]', { timeout: 60000 });
+  await ensureSeedanceSelected();
+  await page.waitForSelector('[data-testid="seedance-group-images"]:visible', { timeout: 10000 });
+  await page.waitForSelector('[data-testid="seedance-slot-first_frame"]:visible', { timeout: 10000 });
+  await page.waitForSelector('button[aria-label="Open studio settings"]:visible', { timeout: 10000 });
+  summary.reference_strip_visible = true;
+  summary.settings_visible = true;
+}
+
+async function dropFile(selector, { name, mimeType, buffer }) {
+  await page.locator(`${selector}:visible`).last().evaluate(
+    (node, fileData) => {
+      const dt = new DataTransfer();
+      const file = fileData.mimeType
+        ? new File([fileData.buffer], fileData.name, { type: fileData.mimeType })
+        : new File([fileData.buffer], fileData.name);
+      dt.items.add(file);
+      node.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }));
+      node.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+    },
+    { name, mimeType: mimeType ?? null, buffer },
+  );
+}
+
+async function dragGalleryAssetTo(selector, assetId) {
+  await page.evaluate(
+    ({ targetSelector, assetId: id }) => {
+      const source = document.querySelector(
+        `[data-testid="studio-gallery-card"][data-asset-id="${String(id)}"]`,
+      );
+      const target = document.querySelector(targetSelector);
+      if (!source || !target) {
+        throw new Error("Missing drag source or target.");
+      }
+      const dt = new DataTransfer();
+      source.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: dt }));
+      dt.setData("application/x-bumblebee-media-asset-id", String(id));
+      target.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }));
+      target.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+    },
+    { targetSelector: selector, assetId },
+  );
 }
 
 async function validateViaControlRoute({ prompt, manifest, attachments }) {
@@ -67,10 +110,7 @@ async function validateViaControlRoute({ prompt, manifest, attachments }) {
   formData.set("system_prompt_ids", JSON.stringify([]));
   formData.set("attachment_manifest", JSON.stringify(manifest));
   for (const attachment of attachments) {
-    formData.append(
-      "attachments",
-      new File([attachment.buffer], attachment.name, { type: attachment.type }),
-    );
+    formData.append("attachments", new File([attachment.buffer], attachment.name, { type: attachment.type }));
   }
   const response = await fetch(`${baseUrl}/api/control/media`, { method: "POST", body: formData });
   const payload = await response.json();
@@ -81,78 +121,90 @@ async function validateViaControlRoute({ prompt, manifest, attachments }) {
 }
 
 try {
-  await page.goto(studioUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
-  await page.waitForSelector('[data-testid="studio-gallery"]', { timeout: 60000 });
-  await ensureModelSelected(/seedance/i);
-  await page.waitForTimeout(500);
+  await resetStudio();
 
-  await page.waitForSelector('[data-testid="seedance-mode-text_only"]:visible', { timeout: 10000 });
-  await page.waitForSelector('[data-testid="seedance-mode-first_frame"]:visible', { timeout: 10000 });
-  await page.waitForSelector('[data-testid="seedance-mode-first_last_frames"]:visible', { timeout: 10000 });
-  await page.waitForSelector('[data-testid="seedance-mode-multimodal_reference"]:visible', { timeout: 10000 });
-  summary.mode_buttons_visible = true;
-
-  await page.evaluate(() => {
-    window.__mediaStudioTest?.composer?.setSeedanceMode("first_frame");
+  await dropFile('[data-testid="seedance-slot-last_frame"] label', {
+    name: "end-only.png",
+    mimeType: "image/png",
+    buffer: pngBuffer,
   });
-  const firstFrameSlot = page.locator('[data-testid="seedance-slot-first_frame"]:visible').last();
-  await firstFrameSlot.waitFor({ state: "visible", timeout: 10000 });
-  await firstFrameSlot.locator('[data-testid="seedance-slot-input-first_frame"]').setInputFiles({
+  await page.waitForTimeout(350);
+  const lastFrameBeforeStart = page.locator('[data-testid="seedance-slot-last_frame"]:visible').last();
+  const warningMessage = page.locator("text=Add a start frame before the end frame.").last();
+  summary.end_frame_rejected_without_start =
+    (await lastFrameBeforeStart.locator("img").count()) === 0 && (await warningMessage.count()) > 0;
+
+  await dropFile('[data-testid="seedance-slot-first_frame"] label', {
     name: "first-frame.png",
     mimeType: "image/png",
     buffer: pngBuffer,
   });
-  await page.waitForTimeout(400);
-  summary.first_frame_uploaded = (await firstFrameSlot.locator("img").count()) > 0;
+  await page.waitForTimeout(350);
+  summary.start_frame_file_drop_uploaded =
+    (await page.locator('[data-testid="seedance-slot-first_frame"]:visible').last().locator("img").count()) > 0;
 
-  await page.evaluate(() => {
-    window.__mediaStudioTest?.composer?.setSeedanceMode("first_last_frames");
-  });
-  const lastFrameSlot = page.locator('[data-testid="seedance-slot-last_frame"]:visible').last();
-  await lastFrameSlot.waitFor({ state: "visible", timeout: 10000 });
-  await lastFrameSlot.locator('[data-testid="seedance-slot-input-last_frame"]').setInputFiles({
+  await dropFile('[data-testid="seedance-slot-last_frame"] label', {
     name: "last-frame.png",
     mimeType: "image/png",
     buffer: pngBuffer,
   });
-  await page.waitForTimeout(400);
-  summary.last_frame_uploaded = (await lastFrameSlot.locator("img").count()) > 0;
+  await page.waitForTimeout(350);
+  summary.end_frame_file_drop_uploaded =
+    (await page.locator('[data-testid="seedance-slot-last_frame"]:visible').last().locator("img").count()) > 0;
 
-  await page.evaluate(() => {
-    window.__mediaStudioTest?.composer?.setSeedanceMode("multimodal_reference");
+  const assets = await page.evaluate(async () => {
+    const res = await fetch("/api/control/media-assets?page=1&page_size=100", { credentials: "same-origin" });
+    const data = await res.json();
+    return data.items || data.assets || [];
   });
-  await page.waitForSelector('[data-testid="seedance-group-input-images"]', { state: "attached", timeout: 10000 });
-  await page.locator('[data-testid="seedance-group-input-images"]').first().setInputFiles({
-    name: "ref-image.png",
-    mimeType: "image/png",
-    buffer: pngBuffer,
-  });
-  await page.locator('[data-testid="seedance-group-input-videos"]').first().setInputFiles({
-    name: "ref-video.mp4",
-    mimeType: "video/mp4",
+  const imageAsset = assets.find((asset) => asset.generation_kind === "image");
+  const videoAsset = assets.find((asset) => asset.generation_kind === "video");
+  if (!imageAsset || !videoAsset) {
+    throw new Error("Seedance smoke requires at least one image asset and one video asset in the gallery.");
+  }
+
+  await dragGalleryAssetTo('[data-testid="seedance-group-images"]', imageAsset.asset_id);
+  await page.waitForTimeout(600);
+  summary.gallery_image_drag_uploaded = await page
+    .locator('[data-testid="seedance-group-images"]')
+    .first()
+    .textContent()
+    .then((text) => (text ?? "").includes("1 / 9"));
+
+  await dragGalleryAssetTo('[data-testid="seedance-group-videos"]', videoAsset.asset_id);
+  await page.waitForTimeout(700);
+  summary.gallery_video_drag_uploaded = await page
+    .locator('[data-testid="seedance-group-videos"]')
+    .first()
+    .textContent()
+    .then((text) => (text ?? "").includes("1 / 3"));
+
+  await dropFile('[data-testid="seedance-group-videos"]', {
+    name: "finder-drop.mp4",
+    mimeType: null,
     buffer: videoBuffer,
   });
+  await page.waitForTimeout(700);
+  summary.local_video_file_drop_uploaded = await page
+    .locator('[data-testid="seedance-group-videos"]')
+    .first()
+    .textContent()
+    .then((text) => (text ?? "").includes("2 / 3"));
+
   await page.locator('[data-testid="seedance-group-input-audios"]').first().setInputFiles({
     name: "ref-audio.wav",
     mimeType: "audio/wav",
     buffer: audioBuffer,
   });
-  await page.waitForTimeout(600);
-
-  const referenceImageGroup = page.locator('[data-testid="seedance-group-images"]').first();
-  const referenceVideoGroup = page.locator('[data-testid="seedance-group-videos"]').first();
-  const referenceAudioGroup = page.locator('[data-testid="seedance-group-audios"]').first();
-  summary.reference_image_uploaded = (await referenceImageGroup.locator("img").count()) > 0;
-  summary.reference_video_uploaded = (await referenceVideoGroup.locator("video").count()) > 0;
-  summary.reference_audio_uploaded = await referenceAudioGroup.textContent().then((text) => (text ?? "").includes("1 / 3"));
-  summary.token_panel_visible = (await page.locator('[data-testid="seedance-reference-token-panel"]:visible').count()) > 0;
+  await page.waitForTimeout(350);
+  summary.reference_audio_uploaded = await page
+    .locator('[data-testid="seedance-group-audios"]')
+    .first()
+    .textContent()
+    .then((text) => (text ?? "").includes("1 / 3"));
 
   const prompt = `Seedance smoke ${new Date().toISOString()} use @image1 for the subject and @audio1 for the rhythm.`;
   await page.locator('[data-testid="studio-prompt-input"]:visible').last().fill(prompt);
-  await page.waitForFunction(() => {
-    const panel = document.querySelector('[data-testid="seedance-reference-token-panel"]');
-    return (panel?.textContent ?? "").includes("@image1") && (panel?.textContent ?? "").includes("@audio1");
-  }, null, { timeout: 15000 });
 
   const invalidValidation = await validateViaControlRoute({
     prompt: "Invalid mix",
@@ -183,21 +235,19 @@ try {
   });
   summary.valid_validation_state = validValidation?.state ?? null;
 
-  await page.locator('[data-testid="studio-generate-button"]:visible').last().click();
-  await page.waitForSelector('[data-testid="studio-gallery-batch-card"]', { timeout: 20000 });
-  summary.queue_card_seen = true;
-
   summary.ok =
-    summary.mode_buttons_visible &&
-    summary.first_frame_uploaded &&
-    summary.last_frame_uploaded &&
-    summary.reference_image_uploaded &&
-    summary.reference_video_uploaded &&
+    Boolean(summary.selected_model?.toLowerCase().includes("seedance")) &&
+    summary.reference_strip_visible &&
+    summary.settings_visible &&
+    summary.start_frame_file_drop_uploaded &&
+    summary.end_frame_rejected_without_start &&
+    summary.end_frame_file_drop_uploaded &&
+    summary.gallery_image_drag_uploaded &&
+    summary.gallery_video_drag_uploaded &&
+    summary.local_video_file_drop_uploaded &&
     summary.reference_audio_uploaded &&
-    summary.token_panel_visible &&
     summary.invalid_validation_state === "invalid" &&
-    summary.valid_validation_state?.startsWith("ready") &&
-    summary.queue_card_seen;
+    summary.valid_validation_state?.startsWith("ready");
 
   await page.screenshot({ path: successShot, fullPage: true });
   await fs.writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);

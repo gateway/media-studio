@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Check,
   CircleDollarSign,
   ChevronDown,
   Coins,
@@ -31,6 +32,7 @@ import { StudioHeaderChrome } from "@/components/studio/studio-header-chrome";
 import { StudioInspectorInfo } from "@/components/studio/studio-inspector-info";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
 import { StudioComposer } from "@/components/studio/studio-composer";
+import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
 import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
 import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
 import { useStudioPolling } from "@/hooks/studio/use-studio-polling";
@@ -120,7 +122,6 @@ declare global {
     __mediaStudioTest?: {
       composer?: {
         setModel: (modelKey: string) => void;
-        setSeedanceMode: (mode: "text_only" | "first_frame" | "first_last_frames" | "multimodal_reference") => void;
       };
       enhancement?: {
         openDialog: () => void;
@@ -131,37 +132,6 @@ declare global {
   }
 }
 
-function StudioMetricPill({
-  icon: Icon,
-  value,
-  accent = "default",
-}: {
-  icon: typeof Coins;
-  value: string;
-  accent?: "default" | "highlight";
-}) {
-  return (
-    <div
-      className={cn(
-        "inline-flex h-10 items-center gap-2 rounded-[14px] border px-3 text-[0.72rem] font-semibold",
-        accent === "highlight"
-          ? "border-[rgba(216,255,46,0.22)] bg-[rgba(14,18,15,0.99)] text-[#f4ffd3] shadow-[0_14px_24px_rgba(0,0,0,0.24)]"
-          : "border-white/14 bg-[rgba(14,18,15,0.99)] text-white/92 shadow-[0_14px_24px_rgba(0,0,0,0.26)]",
-      )}
-    >
-      <span
-        className={cn(
-          "inline-flex h-5 w-5 items-center justify-center rounded-full",
-          accent === "highlight" ? "bg-[rgba(216,255,46,0.22)] text-[#d8ff2e]" : "bg-[rgba(216,255,46,0.18)] text-[#d8ff2e]",
-        )}
-      >
-        <Icon className="size-3.5" />
-      </span>
-      <span>{value}</span>
-    </div>
-  );
-}
-
 function StudioPillSelect({
   pickerId,
   openPicker,
@@ -170,6 +140,8 @@ function StudioPillSelect({
   icon: Icon,
   label,
   choices,
+  selectedValue,
+  menuTitle,
   onSelect,
 }: {
   pickerId: string;
@@ -179,12 +151,23 @@ function StudioPillSelect({
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   choices: StudioChoice[];
+  selectedValue?: string;
+  menuTitle?: string;
   onSelect: (value: string) => void;
 }) {
   const isOpen = openPicker === pickerId;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [menuPlacement, setMenuPlacement] = useState<"up" | "down">("down");
   const [menuMaxHeight, setMenuMaxHeight] = useState(280);
+  const normalizedTitle = (menuTitle ?? pickerId.replaceAll("-", " ").replaceAll("_", " "))
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const selectedChoice =
+    choices.find((choice) => choice.value === selectedValue) ??
+    choices.find((choice) => choice.label === label) ??
+    null;
+  const fallbackChoices = selectedChoice
+    ? choices.filter((choice) => choice.value !== selectedChoice.value)
+    : choices;
 
   useLayoutEffect(() => {
     if (!isOpen) {
@@ -202,11 +185,11 @@ function StudioPillSelect({
       const gap = 12;
       const spaceBelow = Math.max(0, viewportHeight - rect.bottom - gutter - gap);
       const spaceAbove = Math.max(0, rect.top - gutter - gap);
-      const preferDown = spaceBelow >= 220 || spaceBelow >= spaceAbove;
-      const nextPlacement = preferDown ? "down" : "up";
+      const preferUp = spaceAbove >= 220 || spaceAbove >= spaceBelow;
+      const nextPlacement = preferUp ? "up" : "down";
       const availableSpace = nextPlacement === "down" ? spaceBelow : spaceAbove;
       setMenuPlacement(nextPlacement);
-      setMenuMaxHeight(Math.max(160, Math.min(availableSpace, 320)));
+      setMenuMaxHeight(Math.max(180, Math.min(availableSpace, 360)));
     }
 
     updateMenuPlacement();
@@ -234,41 +217,74 @@ function StudioPillSelect({
         type="button"
         data-testid={`studio-picker-${pickerId}`}
         onClick={() => setOpenPicker(isOpen ? null : pickerId)}
-        className="flex h-12 w-full items-center gap-3 rounded-[18px] border border-white/8 bg-white/[0.04] pl-3.5 pr-3.5 text-left text-[0.82rem] font-semibold text-white transition hover:border-[rgba(216,141,67,0.22)]"
+        className="flex h-10 w-full items-center gap-2.5 rounded-[16px] border border-white/8 bg-white/[0.04] px-3 text-left text-[0.74rem] font-semibold tracking-[0.01em] text-white transition hover:border-[rgba(216,141,67,0.22)]"
       >
-        <Icon className="size-4.5 shrink-0 text-[rgba(208,255,72,0.92)]" />
+        <Icon className="size-4 shrink-0 text-[rgba(208,255,72,0.92)]" />
         <span className="min-w-0 flex-1 truncate">{label}</span>
-        <ChevronDown className={cn("size-4 shrink-0 text-white/42 transition", isOpen ? "rotate-180" : "")} />
+        <ChevronDown className={cn("size-3.5 shrink-0 text-white/42 transition", isOpen ? "rotate-180" : "")} />
       </button>
 
       {isOpen ? (
         <div
           style={{ maxHeight: `${menuMaxHeight}px` }}
           className={cn(
-            "absolute left-0 z-30 w-full overflow-auto rounded-[20px] border border-white/10 bg-[rgba(17,20,19,0.98)] p-2 shadow-[0_24px_52px_rgba(0,0,0,0.44)] backdrop-blur-xl",
+            "absolute left-0 z-30 min-w-full w-max max-w-[24rem] overflow-auto rounded-[18px] border border-white/10 bg-[rgba(17,20,19,0.98)] p-2 shadow-[0_24px_52px_rgba(0,0,0,0.44)] backdrop-blur-xl",
             menuPlacement === "down" ? "top-[calc(100%+0.65rem)]" : "bottom-[calc(100%+0.65rem)]",
           )}
         >
-          <div className="grid gap-1">
-            {choices.map((choice) => (
+          <div className="grid gap-2">
+            <div className="px-2 pt-1 text-[0.66rem] font-semibold uppercase tracking-[0.24em] text-white/38">
+              {normalizedTitle}
+            </div>
+
+            {selectedChoice ? (
               <button
-                key={`${pickerId}:${choice.value}`}
                 type="button"
-                data-testid={`studio-picker-option-${pickerId}-${choice.value || "empty"}`}
+                data-testid={`studio-picker-option-${pickerId}-${selectedChoice.value || "empty"}`}
                 onClick={() => {
-                  onSelect(choice.value);
+                  onSelect(selectedChoice.value);
                   setOpenPicker(null);
                 }}
-                className="rounded-[14px] px-3 py-2.5 text-left text-[0.82rem] font-medium text-white/84 transition hover:bg-white/[0.08] hover:text-white"
+                className="flex items-center gap-2.5 rounded-[14px] border border-white/10 bg-white/[0.08] px-2.5 py-2.5 text-left transition hover:border-[rgba(216,141,67,0.24)] hover:bg-white/[0.1]"
               >
-                {choice.label}
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-white/10 bg-white/[0.06] text-white/92">
+                  <Icon className="size-4 text-[rgba(208,255,72,0.92)]" />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[0.9rem] font-medium text-white">{selectedChoice.label}</span>
+                <Check className="size-4 shrink-0 text-white/56" />
               </button>
-            ))}
+            ) : null}
+
+            <div className="grid gap-1">
+              {fallbackChoices.map((choice) => (
+                <button
+                  key={`${pickerId}:${choice.value}`}
+                  type="button"
+                  data-testid={`studio-picker-option-${pickerId}-${choice.value || "empty"}`}
+                  onClick={() => {
+                    onSelect(choice.value);
+                    setOpenPicker(null);
+                  }}
+                  className="flex items-center gap-2 rounded-[12px] px-2.5 py-2.5 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white"
+                >
+                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] border border-white/10 bg-white/[0.04] text-white/88">
+                    <Icon className="size-3.5 text-white/72" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{choice.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       ) : null}
     </div>
   );
+}
+
+function composerModelLabel(label: string | null | undefined) {
+  if (!label) return "Model";
+  if (label === "Seedance 2.0 Standard") return "Seedance 2.0";
+  return label;
 }
 
 export function MediaStudio({
@@ -428,7 +444,6 @@ export function MediaStudio({
     enhancePreview,
     enhanceError,
     attachments,
-    seedanceMode,
     isDragActive,
     validation,
     busyState,
@@ -499,7 +514,6 @@ export function MediaStudio({
     setSelectedPresetId,
     setSelectedPromptIds,
     setPrompt,
-    setSeedanceMode,
     setPresetInputValues,
     setPresetSlotStates,
     setOptionValues,
@@ -589,7 +603,6 @@ export function MediaStudio({
       ...(window.__mediaStudioTest ?? {}),
       composer: {
         setModel: (nextModelKey) => setModelKey(nextModelKey),
-        setSeedanceMode: (nextMode) => setSeedanceMode(nextMode),
       },
       enhancement: {
         openDialog: () => openEnhanceDialogProxyRef.current(),
@@ -615,169 +628,66 @@ export function MediaStudio({
   const sourceAttachmentStrip = !structuredPresetActive ? (
     <div className="flex flex-wrap gap-3">
       {seedanceComposer ? (
-        <div className="grid w-full gap-3">
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-3 py-3">
-            <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">Seedance mode</div>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {[
-                { value: "text_only", label: "Text only" },
-                { value: "first_frame", label: "First frame" },
-                { value: "first_last_frames", label: "First + last" },
-                { value: "multimodal_reference", label: "References" },
-              ].map((choice) => (
-                <button
-                  key={choice.value}
-                  type="button"
-                  data-testid={`seedance-mode-${choice.value}`}
-                  onClick={() => setSeedanceMode(choice.value as typeof seedanceMode)}
-                  className={cn(
-                    "rounded-[18px] border px-3 py-2 text-left text-[0.72rem] font-semibold uppercase tracking-[0.12em] transition",
-                    effectiveSeedanceMode === choice.value
-                      ? "border-[rgba(216,141,67,0.34)] bg-[rgba(216,141,67,0.12)] text-white"
-                      : "border-white/10 bg-white/[0.03] text-white/66 hover:border-white/16 hover:text-white/88",
-                  )}
-                >
-                  {choice.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          {effectiveSeedanceMode === "text_only" ? (
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-3 py-3 text-[0.72rem] leading-6 text-white/62">
-              Text-only Seedance mode is active. Add frame or reference uploads if you want the prompt to anchor to images, videos, or audio.
-            </div>
-          ) : null}
-          {effectiveSeedanceMode === "first_frame" || effectiveSeedanceMode === "first_last_frames" ? (
-            <div className="grid gap-3">
-              {[
-                { label: "First frame", role: "first_frame", attachment: seedanceFirstFrameAttachment },
-                ...(effectiveSeedanceMode === "first_last_frames"
-                  ? [{ label: "Last frame", role: "last_frame", attachment: seedanceLastFrameAttachment }]
-                  : []),
-              ].map((slot) => {
-                const attachment = slot.attachment;
-                return (
-                <div key={slot.role} data-testid={`seedance-slot-${slot.role}`} className="rounded-[24px] border border-white/10 bg-white/[0.04] px-3 py-3">
-                  <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slot.label}</div>
-                  <div className="mt-3 flex items-center gap-3">
-                    {attachment ? (
-                      <button
-                        type="button"
-                        onClick={() => removeAttachment(attachment.id)}
-                        className="group relative h-[82px] w-[82px] overflow-hidden rounded-[24px] border border-white/8 bg-white/8"
-                      >
-                        {attachment.previewUrl ? (
-                          <img
-                            src={attachment.previewUrl}
-                            alt={slot.label}
-                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                          />
-                        ) : null}
-                      </button>
-                    ) : (
-                      <label
-                        className="flex h-[82px] w-[82px] cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]"
-                      >
-                        <Plus className="size-6" />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          data-testid={`seedance-slot-input-${slot.role}`}
-                          className="hidden"
-                          onChange={(event) =>
-                            addFiles(event.target.files, {
-                              role: slot.role as "first_frame" | "last_frame",
-                              allowedKinds: ["images"],
-                            })
-                          }
-                        />
-                      </label>
-                    )}
-                    <div className="text-[0.7rem] leading-6 text-white/62">
-                      {slot.role === "first_frame"
-                        ? "Sets the opening visual anchor for the video."
-                        : "Sets the closing frame target for the video."}
-                    </div>
-                  </div>
-                </div>
-              )})}
-            </div>
-          ) : null}
-          {effectiveSeedanceMode === "multimodal_reference" ? (
-            <div className="grid gap-3">
-              {[
-                {
-                  key: "images",
-                  label: "Reference images",
-                  attachments: seedanceReferenceImages,
-                  accept: "image/*",
-                },
-                {
-                  key: "videos",
-                  label: "Reference videos",
-                  attachments: seedanceReferenceVideos,
-                  accept: "video/*",
-                },
-                {
-                  key: "audios",
-                  label: "Reference audio",
-                  attachments: seedanceReferenceAudios,
-                  accept: "audio/*",
-                },
-              ].map((group) => (
-                <div key={group.key} data-testid={`seedance-group-${group.key}`} className="rounded-[24px] border border-white/10 bg-white/[0.04] px-3 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">
-                      {group.label}
-                    </div>
-                    <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/38">
-                      {group.attachments.length}
-                      {group.key === "images" ? " / 9" : " / 3"}
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    {group.attachments.map((attachment) => (
-                      <button
-                        key={attachment.id}
-                        type="button"
-                        onClick={() => removeAttachment(attachment.id)}
-                        className="group relative h-[82px] w-[82px] overflow-hidden rounded-[24px] border border-white/8 bg-white/8"
-                      >
-                        {attachment.previewUrl ? (
-                          attachment.kind === "videos" ? (
-                            <video src={attachment.previewUrl} className="h-full w-full object-cover" />
-                          ) : (
-                            <img src={attachment.previewUrl} alt={attachment.file.name} className="h-full w-full object-cover" />
-                          )
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center px-2 text-center text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-white/74">
-                            Audio
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                    <label className="flex h-[82px] w-[82px] cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]">
-                      <Plus className="size-6" />
-                      <input
-                        type="file"
-                        multiple
-                        accept={group.accept}
-                        data-testid={`seedance-group-input-${group.key}`}
-                        className="hidden"
-                        onChange={(event) =>
-                          addFiles(event.target.files, {
-                            role: "reference",
-                            allowedKinds: [group.key as "images" | "videos" | "audios"],
-                          })
-                        }
+        <>
+          {[
+            { label: "Start frame", role: "first_frame", attachment: seedanceFirstFrameAttachment },
+            { label: "End frame", role: "last_frame", attachment: seedanceLastFrameAttachment },
+          ].map((slot, slotIndex) => {
+            const attachment = slot.attachment;
+            return (
+            <div key={`seedance-slot-${slot.role}`} className="flex flex-col gap-2">
+              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slot.label}</div>
+              <div data-testid={`seedance-slot-${slot.role}`} className="relative h-[82px] w-[82px]">
+                {attachment ? (
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(attachment.id)}
+                    className="group relative h-full w-full overflow-hidden rounded-[24px] border border-white/8 bg-white/8"
+                  >
+                    {attachment.previewUrl ? (
+                      <img
+                        src={attachment.previewUrl}
+                        alt={slot.label}
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                       />
-                    </label>
-                  </div>
-                </div>
-              ))}
+                    ) : null}
+                  </button>
+                ) : (
+                  <label
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setIsDragActive(true);
+                    }}
+                    onDragLeave={() => setIsDragActive(false)}
+                    onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
+                    className={cn(
+                      "flex h-full w-full cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]",
+                      isDragActive ? "border-[rgba(216,141,67,0.42)] bg-[rgba(24,28,26,0.95)]" : "",
+                    )}
+                  >
+                    <Plus className="size-6" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      data-testid={`seedance-slot-input-${slot.role}`}
+                      className="hidden"
+                      onChange={(event) => {
+                        if (slot.role === "last_frame" && !seedanceFirstFrameAttachment) {
+                          setFormMessage({ tone: "warning", text: "Add a start frame before the end frame." });
+                          return;
+                        }
+                        addFiles(event.target.files, {
+                          role: slot.role as "first_frame" | "last_frame",
+                          allowedKinds: ["images"],
+                        });
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
             </div>
-          ) : null}
-        </div>
+          )})}
+        </>
       ) : explicitVideoImageSlots ? (
         <>
           {Array.from({ length: maxImageInputs }, (_, slotIndex) => {
@@ -925,7 +835,7 @@ export function MediaStudio({
           </label>
         </>
       )}
-      {(imageLimitLabel || maxVideoInputs > 0 || maxAudioInputs > 0) && !explicitVideoImageSlots ? (
+      {(imageLimitLabel || maxVideoInputs > 0 || maxAudioInputs > 0) && !explicitVideoImageSlots && !seedanceComposer ? (
         <div className="flex min-h-[82px] min-w-[120px] flex-col justify-center rounded-[24px] border border-white/10 bg-white/[0.04] px-3 py-2">
           {imageLimitLabel ? (
             <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/62">{imageLimitLabel}</div>
@@ -944,6 +854,110 @@ export function MediaStudio({
       ) : null}
     </div>
   ) : null;
+  const seedanceReferenceStrip =
+    seedanceComposer ? (
+      <div className="rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-3 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
+        <div className="mb-3 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/44">Seedance References</div>
+        <div className="grid gap-2.5 lg:grid-cols-3">
+          {[
+            {
+              key: "images",
+              label: "Image refs",
+              attachments: seedanceReferenceImages,
+              accept: "image/*",
+            },
+            {
+              key: "videos",
+              label: "Video refs",
+              attachments: seedanceReferenceVideos,
+              accept: "video/*",
+            },
+            {
+              key: "audios",
+              label: "Audio refs",
+              attachments: seedanceReferenceAudios,
+              accept: "audio/*",
+            },
+          ].map((group) => (
+            <div
+              key={group.key}
+              data-testid={`seedance-group-${group.key}`}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsDragActive(true);
+              }}
+              onDragLeave={() => setIsDragActive(false)}
+              onDrop={(event) =>
+                void handleSeedanceReferenceDrop(event, group.key as "images" | "videos" | "audios")
+              }
+              className={cn(
+                "relative rounded-[20px] border border-white/8 bg-white/[0.035] px-3 py-2.5 transition",
+                isDragActive ? "border-[rgba(216,141,67,0.3)] bg-[rgba(32,38,35,0.9)]" : "",
+              )}
+            >
+              <div className="absolute left-3 top-2.5 rounded-full border border-white/8 bg-black/18 px-1.5 py-0.5 text-[0.52rem] font-semibold uppercase tracking-[0.12em] text-white/42">
+                {group.attachments.length}
+                {group.key === "images" ? " / 9" : " / 3"}
+              </div>
+              <div className="mb-2 flex items-center justify-between gap-3 pt-4">
+                <div className="min-w-0">
+                  <div className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-white/52">{group.label}</div>
+                </div>
+                <label className="flex h-[56px] w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-[18px] border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]">
+                  <Plus className="size-4.5" />
+                  <input
+                    type="file"
+                    multiple
+                    accept={group.accept}
+                    data-testid={`seedance-group-input-${group.key}`}
+                    className="hidden"
+                    onChange={(event) =>
+                      addFiles(event.target.files, {
+                        role: "reference",
+                        allowedKinds: [group.key as "images" | "videos" | "audios"],
+                      })
+                    }
+                  />
+                </label>
+              </div>
+              <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5">
+                {group.attachments.slice(0, 4).map((attachment) => (
+                  <button
+                    key={attachment.id}
+                    type="button"
+                    onClick={() => removeAttachment(attachment.id)}
+                    className="group relative h-[56px] w-[56px] shrink-0 overflow-hidden rounded-[18px] border border-white/8 bg-white/[0.08]"
+                    title={attachment.file.name}
+                  >
+                    {attachment.previewUrl ? (
+                      attachment.kind === "videos" ? (
+                        <>
+                          <video src={attachment.previewUrl} className="h-full w-full object-cover" />
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/28">
+                            <Play className="size-3.5 text-white" />
+                          </span>
+                        </>
+                      ) : (
+                        <img src={attachment.previewUrl} alt={attachment.file.name} className="h-full w-full object-cover" />
+                      )
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/68">
+                        {group.key === "audios" ? "Audio" : "Ref"}
+                      </span>
+                    )}
+                  </button>
+                ))}
+                {group.attachments.length > 4 ? (
+                  <div className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[18px] border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58">
+                    +{group.attachments.length - 4}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ) : null;
 
   useEffect(() => {
     setHasMounted(true);
@@ -1020,23 +1034,36 @@ export function MediaStudio({
       return;
     }
     if (seedanceComposer) {
-      if (effectiveSeedanceMode === "first_frame") {
-        addFiles(event.dataTransfer.files, { role: "first_frame", allowedKinds: ["images"] });
+      if (slotIndex > 0 && !seedanceFirstFrameAttachment) {
+        setFormMessage({ tone: "warning", text: "Add a start frame before the end frame." });
         return;
       }
-      if (effectiveSeedanceMode === "first_last_frames") {
-        addFiles(event.dataTransfer.files, {
-          role: slotIndex === 0 ? "first_frame" : "last_frame",
-          allowedKinds: ["images"],
-        });
-        return;
-      }
-      if (effectiveSeedanceMode === "multimodal_reference") {
-        addFiles(event.dataTransfer.files, { role: "reference", allowedKinds: ["images", "videos", "audios"] });
-        return;
-      }
+      addFiles(event.dataTransfer.files, {
+        role: slotIndex === 0 ? "first_frame" : "last_frame",
+        allowedKinds: ["images"],
+      });
+      return;
     }
     addFiles(event.dataTransfer.files);
+  }
+
+  function handleSeedanceReferenceDrop(
+    event: React.DragEvent<HTMLElement>,
+    allowedKind: "images" | "videos" | "audios",
+  ) {
+    event.preventDefault();
+    setIsDragActive(false);
+    const galleryAssetId = event.dataTransfer.getData("application/x-bumblebee-media-asset-id");
+    if (galleryAssetId) {
+      const asset = findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ?? null;
+      if (!asset) {
+        setFormMessage({ tone: "danger", text: "The dragged gallery asset could not be found." });
+        return;
+      }
+      void addGalleryAssetAsAttachment(asset, "reference", [allowedKind]);
+      return;
+    }
+    addFiles(event.dataTransfer.files, { role: "reference", allowedKinds: [allowedKind] });
   }
 
   function handlePresetSlotDrop(event: React.DragEvent<HTMLLabelElement>, slotKey: string) {
@@ -1052,7 +1079,7 @@ export function MediaStudio({
   }
 
   function handleGalleryAssetDragStart(event: React.DragEvent<HTMLDivElement>, asset: MediaAsset | null) {
-    if (!asset || asset.generation_kind !== "image") {
+    if (!asset) {
       event.preventDefault();
       return;
     }
@@ -1098,7 +1125,7 @@ export function MediaStudio({
           ? seedanceFirstFrameAttachment
             ? "last_frame"
             : "first_frame"
-          : effectiveSeedanceMode === "first_frame"
+          : effectiveSeedanceMode === "single_image"
             ? "first_frame"
             : "reference";
       void addGalleryAssetAsAttachment(asset, role);
@@ -1309,21 +1336,23 @@ export function MediaStudio({
           />
 
           {!selectedAsset ? (
-            <StudioComposer
-              immersive={immersive}
-              mobileComposerCollapsed={mobileComposerCollapsed}
-              mobileComposerExpanded={mobileComposerExpanded}
-              currentModelLabel={currentModel?.label ?? "Select a model"}
-              formattedRemainingCredits={formattedRemainingCredits}
-              estimatedCredits={estimatedCredits}
-              estimatedCostUsd={estimatedCostUsd}
-              structuredPresetActive={structuredPresetActive}
-              presetLabel={currentPreset?.label ?? null}
-              sourceAttachmentStrip={sourceAttachmentStrip}
-              studioSettingsButton={studioSettingsButton}
-              floatingComposerStatus={floatingComposerStatus}
-              onToggleCollapsed={() => setMobileComposerCollapsed((current) => !current)}
-            >
+            <>
+              <StudioComposer
+                immersive={immersive}
+                mobileComposerCollapsed={mobileComposerCollapsed}
+                mobileComposerExpanded={mobileComposerExpanded}
+                currentModelLabel={currentModel?.label ?? "Select a model"}
+                formattedRemainingCredits={formattedRemainingCredits}
+                estimatedCredits={estimatedCredits}
+                estimatedCostUsd={estimatedCostUsd}
+                structuredPresetActive={structuredPresetActive}
+                presetLabel={currentPreset?.label ?? null}
+                externalTopContent={seedanceReferenceStrip}
+                sourceAttachmentStrip={sourceAttachmentStrip}
+                studioSettingsButton={studioSettingsButton}
+                floatingComposerStatus={floatingComposerStatus}
+                onToggleCollapsed={() => setMobileComposerCollapsed((current) => !current)}
+              >
                   {structuredPresetActive ? (
                     <div className="relative grid gap-3 rounded-[26px] border border-white/8 bg-white/[0.04] px-4 py-4">
                       <div className={cn("grid gap-3", structuredPresetImageSlots.length ? "lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] lg:items-start" : "")}>
@@ -1411,56 +1440,34 @@ export function MediaStudio({
                   ) : (
                     <>
                       <div className="relative">
-                        <textarea
-                        data-testid="studio-prompt-input"
-                        ref={promptInputRef}
-                        value={prompt}
-                        onChange={(event) => setPrompt(event.target.value)}
-                        placeholder={
-                          seedanceComposer
-                            ? "Use @image1, @video1, or @audio1 to reference staged assets in the prompt."
-                            : multiShotsEnabled
-                            ? "3 | Wide shot of the skyline\n2 | Hero steps into frame on the rooftop"
-                            : "Describe the scene you imagine"
-                        }
-                        className={cn(
-                          "w-full resize-none rounded-[26px] border border-white/8 bg-white/[0.04] px-4 py-4 text-[0.86rem] leading-6 text-white outline-none placeholder:text-white/38 focus:border-[rgba(216,141,67,0.3)]",
-                          seedanceComposer ? "min-h-[176px] md:min-h-[156px]" : "min-h-[132px] md:min-h-[98px]",
-                        )}
-                      />
-                        {enhanceEnabledForModel ? (
-                          <button
-                          type="button"
-                          data-testid="studio-open-enhance-dialog"
-                          onClick={openEnhanceDialog}
-                          aria-label="Open enhance dialog"
-                          title="Open enhance dialog"
-                          className="absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white/72 transition hover:border-[rgba(216,141,67,0.32)] hover:bg-[rgba(216,141,67,0.14)] hover:text-white"
-                        >
-                            <Sparkles className="size-4" />
-                          </button>
-                        ) : null}
-                      </div>
-                      {seedanceComposer ? (
-                      <div data-testid="seedance-reference-token-panel" className="rounded-[20px] border border-white/8 bg-white/[0.03] px-4 py-3 text-[0.72rem] leading-6 text-white/62">
-                          <div className="font-semibold uppercase tracking-[0.14em] text-white/46">Reference tokens</div>
-                          <div className="mt-2">{seedanceReferenceGuideText}</div>
-                          {seedanceReferenceGuideTokens.length ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {seedanceReferenceGuideTokens.map((token) => (
-                                <button
-                                  key={token}
-                                  type="button"
-                                  onClick={() => setPrompt((current) => `${current}${current.trim() ? " " : ""}${token}`)}
-                                  className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[0.7rem] font-semibold text-white/84 transition hover:border-[rgba(216,141,67,0.28)] hover:text-white"
-                                >
-                                  {token}
-                                </button>
-                              ))}
-                            </div>
+                          <textarea
+                          data-testid="studio-prompt-input"
+                          ref={promptInputRef}
+                          value={prompt}
+                          onChange={(event) => setPrompt(event.target.value)}
+                          placeholder={
+                            multiShotsEnabled
+                              ? "3 | Wide shot of the skyline\n2 | Hero steps into frame on the rooftop"
+                              : "Describe the scene you imagine"
+                          }
+                          className={cn(
+                            "w-full resize-none rounded-[26px] border border-white/8 bg-white/[0.04] px-4 py-4 text-[0.86rem] leading-6 text-white outline-none placeholder:text-white/38 focus:border-[rgba(216,141,67,0.3)]",
+                            "min-h-[132px] md:min-h-[98px]",
+                          )}
+                        />
+                          {enhanceEnabledForModel ? (
+                            <button
+                            type="button"
+                            data-testid="studio-open-enhance-dialog"
+                            onClick={openEnhanceDialog}
+                            aria-label="Open enhance dialog"
+                            title="Open enhance dialog"
+                            className="absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white/72 transition hover:border-[rgba(216,141,67,0.32)] hover:bg-[rgba(216,141,67,0.14)] hover:text-white"
+                          >
+                              <Sparkles className="size-4" />
+                            </button>
                           ) : null}
-                        </div>
-                      ) : null}
+                      </div>
                     </>
                   )}
                   <div className="relative z-30 flex flex-wrap items-center gap-2 pb-1 text-[0.77rem]">
@@ -1470,10 +1477,12 @@ export function MediaStudio({
                       setOpenPicker={setOpenPicker}
                       widthClass={pickerWidth("model")}
                       icon={Clapperboard}
-                      label={currentModel?.label ?? "Model"}
+                      label={composerModelLabel(currentModel?.label)}
+                      selectedValue={modelKey ?? ""}
+                      menuTitle="Model"
                       choices={models.map((model) => ({
                         value: model.key,
-                        label: model.label,
+                        label: composerModelLabel(model.label),
                       }))}
                       onSelect={(value) => {
                         setModelKey(value);
@@ -1497,6 +1506,8 @@ export function MediaStudio({
                         modelPresets.find((preset) => preset.key === selectedPresetId)?.label ??
                         "Preset"
                       }
+                      selectedValue={selectedPresetId}
+                      menuTitle="Preset"
                       choices={[
                         { value: "", label: "Preset" },
                         ...modelPresets.map((preset) => ({
@@ -1547,6 +1558,8 @@ export function MediaStudio({
                         widthClass={pickerWidth("output-count")}
                         icon={Copy}
                         label={`${outputCount}`}
+                        selectedValue={String(outputCount)}
+                        menuTitle="Outputs"
                         choices={Array.from({ length: modelMaxOutputs }, (_, index) => ({
                           value: String(index + 1),
                           label: String(index + 1),
@@ -1575,6 +1588,8 @@ export function MediaStudio({
                           widthClass={pickerWidth(optionKey)}
                           icon={Icon}
                           label={resolvedLabel}
+                          selectedValue={serializeOptionChoice(resolvedValue ?? "")}
+                          menuTitle={optionKey.replaceAll("_", " ")}
                           choices={
                             choices.length
                               ? choices
@@ -1663,7 +1678,8 @@ export function MediaStudio({
                   </div>
                 </div>
               ) : null}
-            </StudioComposer>
+              </StudioComposer>
+            </>
           ) : null}
         </div>
       </div>

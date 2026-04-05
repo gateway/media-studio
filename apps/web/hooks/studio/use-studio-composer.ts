@@ -20,6 +20,7 @@ import {
   mediaDownloadName,
   mediaDownloadUrl,
   mediaInlineUrl,
+  mediaPlaybackUrl,
   mediaThumbnailUrl,
   modelInputLimit,
   MULTI_SHOT_MODEL_KEYS,
@@ -36,7 +37,6 @@ import {
   stripUnsupportedStudioOptions,
   studioValidationReady,
   type PresetSlotState,
-  type SeedanceComposerMode,
 } from "@/lib/media-studio-helpers";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import {
@@ -116,6 +116,7 @@ export function useStudioComposer({
   const validationRequestIdRef = useRef(0);
   const floatingComposerHideTimerRef = useRef<number | null>(null);
   const floatingComposerClearTimerRef = useRef<number | null>(null);
+  const formMessageHideTimerRef = useRef<number | null>(null);
   const [modelKey, setModelKey] = useState(models[0]?.key ?? "nano-banana-2");
   const [selectedPresetId, setSelectedPresetId] = useState("");
   const [selectedPromptIds, setSelectedPromptIds] = useState<string[]>([]);
@@ -128,7 +129,6 @@ export function useStudioComposer({
   const [enhancePreview, setEnhancePreview] = useState<MediaEnhancePreviewResponse | null>(null);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<AttachmentRecord[]>([]);
-  const [seedanceMode, setSeedanceMode] = useState<SeedanceComposerMode>("text_only");
   const [isDragActive, setIsDragActive] = useState(false);
   const [validation, setValidation] = useState<MediaValidationResponse | null>(null);
   const [busyState, setBusyState] = useState<"idle" | "validate" | "submit">("idle");
@@ -219,7 +219,7 @@ export function useStudioComposer({
   const structuredPresetImageSlots = useMemo(() => normalizeStructuredPresetImageSlots(currentPreset), [currentPreset]);
   const structuredPresetActive =
     isNanoPresetModel(modelKey) && Boolean(currentPreset) && (structuredPresetTextFields.length > 0 || structuredPresetImageSlots.length > 0);
-  const effectiveSeedanceMode = seedanceComposer ? seedanceMode : "text_only";
+  const effectiveSeedanceMode = seedanceComposer ? inferInputPattern(currentModel, attachments, currentSourceAsset) : "prompt_only";
   const inputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
   const explicitVideoImageSlots =
     !structuredPresetActive &&
@@ -354,9 +354,6 @@ export function useStudioComposer({
   }, [currentModel, currentPreset]);
 
   useEffect(() => {
-    if (!seedanceComposer) {
-      setSeedanceMode("text_only");
-    }
     setSourceAssetId(null);
   }, [attachments, seedanceComposer, setSourceAssetId]);
 
@@ -408,6 +405,9 @@ export function useStudioComposer({
       if (autoValidateTimerRef.current) {
         window.clearTimeout(autoValidateTimerRef.current);
       }
+      if (formMessageHideTimerRef.current) {
+        window.clearTimeout(formMessageHideTimerRef.current);
+      }
       if (floatingComposerHideTimerRef.current) {
         window.clearTimeout(floatingComposerHideTimerRef.current);
       }
@@ -416,6 +416,20 @@ export function useStudioComposer({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (formMessageHideTimerRef.current) {
+      window.clearTimeout(formMessageHideTimerRef.current);
+      formMessageHideTimerRef.current = null;
+    }
+    if (busyState !== "idle" || !formMessage?.text) {
+      return;
+    }
+    formMessageHideTimerRef.current = window.setTimeout(() => {
+      setFormMessage((current) => (current?.text === formMessage.text ? null : current));
+      formMessageHideTimerRef.current = null;
+    }, 4200);
+  }, [busyState, formMessage, setFormMessage]);
 
   useEffect(() => {
     const sourceKind = currentSourceAsset?.generation_kind ?? null;
@@ -459,53 +473,6 @@ export function useStudioComposer({
       return changed ? next : current;
     });
   }, [currentSourceAsset, maxAudioInputs, maxImageInputs, maxVideoInputs, setSourceAssetId]);
-
-  useEffect(() => {
-    if (!seedanceComposer) {
-      return;
-    }
-    setAttachments((current) => {
-      let changed = false;
-      const next = current.filter((attachment) => {
-        if (seedanceMode === "text_only") {
-          changed = true;
-          if (attachment.previewUrl) {
-            URL.revokeObjectURL(attachment.previewUrl);
-          }
-          return false;
-        }
-        if (seedanceMode === "first_frame") {
-          const keep = attachment.role === "first_frame";
-          if (!keep) {
-            changed = true;
-            if (attachment.previewUrl) {
-              URL.revokeObjectURL(attachment.previewUrl);
-            }
-          }
-          return keep;
-        }
-        if (seedanceMode === "first_last_frames") {
-          const keep = attachment.role === "first_frame" || attachment.role === "last_frame";
-          if (!keep) {
-            changed = true;
-            if (attachment.previewUrl) {
-              URL.revokeObjectURL(attachment.previewUrl);
-            }
-          }
-          return keep;
-        }
-        const keep = attachment.role === "reference";
-        if (!keep) {
-          changed = true;
-          if (attachment.previewUrl) {
-            URL.revokeObjectURL(attachment.previewUrl);
-          }
-        }
-        return keep;
-      });
-      return changed ? next : current;
-    });
-  }, [seedanceComposer, seedanceMode]);
 
   function showFloatingComposerBanner(message: ComposerStatusMessage | null, autoHideMs = FLOATING_COMPOSER_STATUS_MS) {
     if (floatingComposerHideTimerRef.current) {
@@ -671,28 +638,59 @@ export function useStudioComposer({
   async function addGalleryAssetAsAttachment(
     asset: MediaAsset | null,
     role: NonNullable<AttachmentRecord["role"]> | null = null,
+    allowedKinds?: AttachmentRecord["kind"][],
   ) {
-    if (!asset || asset.generation_kind !== "image") {
-      setFormMessage({ tone: "danger", text: "Only image cards can be staged in image slots." });
+    if (!asset) {
+      setFormMessage({ tone: "danger", text: "The selected gallery asset could not be staged." });
       return;
     }
-    const assetUrl = mediaInlineUrl(asset) ?? mediaDownloadUrl(asset);
+    const kind =
+      asset.generation_kind === "video"
+        ? ("videos" as const)
+        : asset.generation_kind === "audio"
+          ? ("audios" as const)
+          : ("images" as const);
+    if (allowedKinds?.length && !allowedKinds.includes(kind)) {
+      setFormMessage({
+        tone: "danger",
+        text:
+          kind === "videos"
+            ? "Only video gallery cards can be staged in that slot."
+            : kind === "audios"
+              ? "Only audio gallery cards can be staged in that slot."
+              : "Only image gallery cards can be staged in that slot.",
+      });
+      return;
+    }
+    const assetUrl =
+      (kind === "videos" ? mediaPlaybackUrl(asset) : null) ??
+      mediaInlineUrl(asset) ??
+      mediaDownloadUrl(asset);
     if (!assetUrl) {
-      setFormMessage({ tone: "danger", text: "The selected gallery image could not be loaded." });
+      setFormMessage({ tone: "danger", text: "The selected gallery asset could not be loaded." });
       return;
     }
     try {
       const response = await fetch(assetUrl, { credentials: "same-origin" });
       if (!response.ok) {
-        throw new Error("Unable to fetch gallery image.");
+        throw new Error("Unable to fetch gallery asset.");
       }
       const blob = await response.blob();
       const file = new File([blob], mediaDownloadName(asset), {
-        type: blob.type || "image/png",
+        type:
+          blob.type ||
+          (kind === "videos" ? "video/mp4" : kind === "audios" ? "audio/wav" : "image/png"),
       });
-      addFiles([file], role ? { role, allowedKinds: ["images"] } : undefined);
+      const addConfig =
+        role != null || allowedKinds?.length
+          ? {
+              ...(role != null ? { role } : {}),
+              ...(allowedKinds?.length ? { allowedKinds } : { allowedKinds: [kind] }),
+            }
+          : undefined;
+      addFiles([file], addConfig);
     } catch {
-      setFormMessage({ tone: "danger", text: "The selected gallery image could not be staged in that slot." });
+      setFormMessage({ tone: "danger", text: "The selected gallery asset could not be staged in that slot." });
     }
   }
 
@@ -784,7 +782,6 @@ export function useStudioComposer({
     setSelectedPresetId("");
     setSelectedPromptIds([]);
     setModelKey(models[0]?.key ?? "nano-banana-2");
-    setSeedanceMode("text_only");
     setOutputCount(1);
     setValidation(null);
     setFormMessage(null);
@@ -817,7 +814,7 @@ export function useStudioComposer({
     formData.set("options", JSON.stringify(sanitizedOptions));
     formData.set("system_prompt_ids", JSON.stringify(selectedPromptIds));
     if (seedanceComposer) {
-      formData.set("task_mode", effectiveSeedanceMode === "text_only" ? "text_to_video" : "reference_to_video");
+      formData.set("task_mode", effectiveSeedanceMode === "prompt_only" ? "text_to_video" : "reference_to_video");
     }
     if (multiShotsEnabled && multiShotScript.shots.length) {
       formData.set("multi_prompt", JSON.stringify(multiShotScript.shots));
@@ -1122,7 +1119,6 @@ export function useStudioComposer({
     };
   }, [
     modelKey,
-    seedanceMode,
     prompt,
     optionSignature,
     selectedPresetId,
@@ -1152,7 +1148,6 @@ export function useStudioComposer({
       enhancePreview,
       enhanceError,
       attachments,
-      seedanceMode,
       isDragActive,
       validation,
       busyState,
@@ -1223,7 +1218,6 @@ export function useStudioComposer({
       setSelectedPresetId,
       setSelectedPromptIds,
       setPrompt,
-      setSeedanceMode,
       setPresetInputValues,
       setPresetSlotStates,
       setOptionValues,

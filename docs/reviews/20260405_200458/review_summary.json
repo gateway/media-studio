@@ -1,0 +1,32 @@
+{
+  "scope": "Seedance dynamic composer and drag/drop integration in /tmp/media-studio-seedance",
+  "overall_quality": "good_with_targeted_risk",
+  "issue_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 1,
+    "low": 2
+  },
+  "top_risks": [
+    {
+      "severity": "medium",
+      "title": "Seedance frame-slot file drop misclassifies prompt-only drops",
+      "file": "apps/web/components/media-studio.tsx"
+    },
+    {
+      "severity": "low",
+      "title": "Theme primitive duplication for StudioMetricPill",
+      "file": "apps/web/components/media-studio.tsx"
+    },
+    {
+      "severity": "low",
+      "title": "Generated file churn in next-env.d.ts",
+      "file": "apps/web/next-env.d.ts"
+    }
+  ],
+  "ship_recommendation": "safe to continue internal testing with risk",
+  "must_fix_first": [
+    "Correct Seedance frame-slot file-drop behavior",
+    "Add committed browser coverage for gallery/video drag paths"
+  ]
+}

@@ -63,14 +63,14 @@ export function StudioGallery({
                   ? `asset-${tile.asset.asset_id}`
                   : `placeholder-${index}-${tile.label}`
             }
-            draggable={Boolean(tile.asset?.asset_id != null && tile.asset?.generation_kind === "image" && !batchTile)}
+            draggable={Boolean(tile.asset?.asset_id != null && !batchTile)}
             onDragStart={(event) => onDragAsset(event, tile.asset)}
             className={cn(
               "group relative min-h-[190px] overflow-hidden bg-[#171b18] text-left sm:min-h-[250px]",
               gallerySpanClasses[index] ?? "",
               selected ? "ring-2 ring-[rgba(216,141,67,0.58)] ring-inset" : "",
               tile.asset?.asset_id != null && !batchTile ? "cursor-pointer" : "",
-              tile.asset?.generation_kind === "image" && !batchTile ? "cursor-grab active:cursor-grabbing" : "",
+              tile.asset?.asset_id != null && !batchTile ? "cursor-grab active:cursor-grabbing" : "",
             )}
             onClick={() => tile.asset?.asset_id != null && !batchTile && onSelectAsset(tile.asset.asset_id)}
           >

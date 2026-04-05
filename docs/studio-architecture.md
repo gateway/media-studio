@@ -35,6 +35,27 @@
 - settings modal composition
 - browser-specific download/share behavior
 
+## Seedance 2.0 contract
+
+Seedance is the first Studio model with a split multimodal surface:
+
+- `Start frame` and `End frame` stay inside the shared composer source strip
+- reference media stays outside the composer in a dedicated reference strip
+- reference media kinds supported in Studio:
+  - images: `9` max
+  - videos: `3` max
+  - audio: `3` max
+
+Current interaction rules:
+
+- dropping or picking a file in `Start frame` stages `first_frame`
+- dropping or picking a file in `End frame` stages `last_frame`
+- `End frame` is rejected until a `Start frame` exists
+- gallery image/video cards can be dragged into the matching Seedance reference panel
+- Seedance reference panels also accept local file drop and file picker input
+
+The server-side authority for validation remains `kie-api`; Studio should only shape the request correctly and surface the resulting validation clearly.
+
 ## Refactor rule
 
 Further extraction should keep these unchanged:
