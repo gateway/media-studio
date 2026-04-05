@@ -36,6 +36,8 @@ class MediaRefInput(BaseModel):
     path: Optional[str] = None
     filename: Optional[str] = None
     mime_type: Optional[str] = None
+    role: Optional[str] = None
+    duration_seconds: Optional[float] = None
 
 
 class QueueSettingsResponse(BaseModel):

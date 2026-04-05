@@ -39,7 +39,9 @@ export type AttachmentRecord = {
   id: string;
   file: File;
   kind: "images" | "videos" | "audios";
+  role?: "first_frame" | "last_frame" | "reference" | null;
   previewUrl: string | null;
+  durationSeconds?: number | null;
 };
 
 export type GalleryKindFilter = "all" | "image" | "video";

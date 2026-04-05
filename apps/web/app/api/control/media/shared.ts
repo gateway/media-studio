@@ -20,12 +20,22 @@ export function triggerDashboardIndexRefresh() {
   }
 }
 
-function parseBoolean(value: FormDataEntryValue | null) {
-  return String(value ?? "").trim().toLowerCase() === "true";
+async function readFormText(value: FormDataEntryValue | null) {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value && typeof value === "object" && "text" in value && typeof value.text === "function") {
+    return await value.text();
+  }
+  return String(value ?? "");
 }
 
-function parseJson(value: FormDataEntryValue | null, fallback: Record<string, unknown> | string[] = {}) {
-  const raw = String(value ?? "").trim();
+async function parseBoolean(value: FormDataEntryValue | null) {
+  return (await readFormText(value)).trim().toLowerCase() === "true";
+}
+
+async function parseJson(value: FormDataEntryValue | null, fallback: Record<string, unknown> | string[] = {}) {
+  const raw = (await readFormText(value)).trim();
   if (!raw) {
     return fallback;
   }
@@ -37,8 +47,8 @@ function parseJson(value: FormDataEntryValue | null, fallback: Record<string, un
   }
 }
 
-function parseJsonArray(value: FormDataEntryValue | null): Array<Record<string, unknown>> {
-  const raw = String(value ?? "").trim();
+async function parseJsonArray(value: FormDataEntryValue | null): Promise<Array<Record<string, unknown>>> {
+  const raw = (await readFormText(value)).trim();
   if (!raw) {
     return [];
   }
@@ -56,8 +66,24 @@ function parseJsonArray(value: FormDataEntryValue | null): Array<Record<string, 
   }
 }
 
-function parseJsonRecord(value: FormDataEntryValue | null) {
-  const raw = String(value ?? "").trim();
+async function parseAttachmentManifest(value: FormDataEntryValue | null) {
+  return (await parseJsonArray(value))
+    .map((item) => ({
+      id: String(item.id ?? "").trim(),
+      kind: String(item.kind ?? "").trim(),
+      role: String(item.role ?? "").trim() || null,
+      duration_seconds:
+        typeof item.duration_seconds === "number"
+          ? item.duration_seconds
+          : Number.isFinite(Number(item.duration_seconds))
+            ? Number(item.duration_seconds)
+            : null,
+    }))
+    .filter((item) => item.id && item.kind);
+}
+
+async function parseJsonRecord(value: FormDataEntryValue | null) {
+  const raw = (await readFormText(value)).trim();
   if (!raw) {
     return {} as Record<string, unknown>;
   }
@@ -130,13 +156,14 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
   const presetKey = String(formData.get("preset_key") ?? "").trim();
   const sourceAssetId = String(formData.get("source_asset_id") ?? "").trim();
   const outputCount = String(formData.get("output_count") ?? "").trim();
-  const enhance = parseBoolean(formData.get("enhance"));
-  const options = normalizeOptionsRecord(parseJson(formData.get("options"), {}));
-  const multiPrompt = parseJsonArray(formData.get("multi_prompt"));
-  const systemPromptIds = parseJson(formData.get("system_prompt_ids"), []) as string[];
-  const metadata = parseJson(formData.get("metadata"), {});
-  const presetInputs = parseJsonRecord(formData.get("preset_inputs_json"));
-  const presetSlotValues = parseJsonRecord(formData.get("preset_slot_values_json"));
+  const enhance = await parseBoolean(formData.get("enhance"));
+  const options = normalizeOptionsRecord(await parseJson(formData.get("options"), {}));
+  const multiPrompt = await parseJsonArray(formData.get("multi_prompt"));
+  const systemPromptIds = (await parseJson(formData.get("system_prompt_ids"), [])) as string[];
+  const metadata = await parseJson(formData.get("metadata"), {});
+  const presetInputs = await parseJsonRecord(formData.get("preset_inputs_json"));
+  const presetSlotValues = await parseJsonRecord(formData.get("preset_slot_values_json"));
+  const attachmentManifest = await parseAttachmentManifest(formData.get("attachment_manifest"));
   const stagedRoot = path.join(controlApiDataRoot, "uploads", "media-studio", randomUUID());
 
   await fs.mkdir(stagedRoot, { recursive: true });
@@ -184,18 +211,24 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
     );
   }
 
-  const images: Array<{ path: string }> = [];
-  const videos: Array<{ path: string }> = [];
-  const audios: Array<{ path: string }> = [];
+  const images: Array<{ path: string; role?: string; duration_seconds?: number }> = [];
+  const videos: Array<{ path: string; role?: string; duration_seconds?: number }> = [];
+  const audios: Array<{ path: string; role?: string; duration_seconds?: number }> = [];
   const attachments = formData.getAll("attachments");
 
-  for (const entry of attachments) {
+  for (const [index, entry] of attachments.entries()) {
     if (!(entry instanceof File) || !entry.size) continue;
     const stagedPath = await stageAttachment(stagedRoot, entry);
     const target = classifyAttachment(entry);
-    if (target === "videos") videos.push({ path: stagedPath });
-    else if (target === "audios") audios.push({ path: stagedPath });
-    else images.push({ path: stagedPath });
+    const manifestEntry = attachmentManifest[index];
+    const ref = {
+      path: stagedPath,
+      ...(manifestEntry?.role ? { role: manifestEntry.role } : {}),
+      ...(typeof manifestEntry?.duration_seconds === "number" ? { duration_seconds: manifestEntry.duration_seconds } : {}),
+    };
+    if (target === "videos") videos.push(ref);
+    else if (target === "audios") audios.push(ref);
+    else images.push(ref);
   }
 
   for (const [fieldName, entry] of formData.entries()) {

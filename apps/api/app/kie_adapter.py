@@ -26,17 +26,49 @@ def _maybe_add_kie_repo_to_path() -> None:
                 sys.path.insert(0, value)
 
 
+def _configured_repo_prefixes() -> tuple[str, ...]:
+    if not settings.kie_api_repo_path:
+        return ()
+    prefixes = []
+    for candidate in (settings.kie_api_repo_path / "src", settings.kie_api_repo_path):
+        if candidate.exists():
+            prefixes.append(str(candidate.resolve()))
+    return tuple(prefixes)
+
+
+def _module_uses_configured_repo(module: Any) -> bool:
+    module_file = getattr(module, "__file__", None)
+    if not module_file:
+        return False
+    try:
+        resolved = str(Path(module_file).resolve())
+    except Exception:
+        resolved = str(module_file)
+    return any(resolved.startswith(prefix) for prefix in _configured_repo_prefixes())
+
+
+def _drop_stale_kie_modules() -> None:
+    for name in sorted([key for key in sys.modules if key == "kie_api" or key.startswith("kie_api.")], reverse=True):
+        sys.modules.pop(name, None)
+    importlib.invalidate_caches()
+
+
 @lru_cache(maxsize=1)
 def get_kie_module():
+    _maybe_add_kie_repo_to_path()
     try:
         import kie_api
-
-        return kie_api
     except ImportError:
         _maybe_add_kie_repo_to_path()
         import kie_api
-
         return kie_api
+
+    if settings.kie_api_repo_path and not _module_uses_configured_repo(kie_api):
+        _drop_stale_kie_modules()
+        _maybe_add_kie_repo_to_path()
+        import kie_api
+
+    return kie_api
 
 
 @lru_cache(maxsize=1)

@@ -169,6 +169,11 @@ export async function getControlApiFile(pathSegments: string[]) {
 }
 
 function deriveInputPatterns(model: Record<string, any>): string[] {
+  const promptSpec = model.raw?.prompt;
+  const dynamicPatterns = Object.keys(promptSpec?.default_profile_keys_by_input_pattern ?? {}).filter(Boolean);
+  if (dynamicPatterns.length) {
+    return dynamicPatterns;
+  }
   const key = String(model.key ?? "");
   if (key === "kling-2.6-i2v") return ["single_image"];
   if (key === "kling-2.6-t2v") return ["prompt_only"];

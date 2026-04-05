@@ -59,10 +59,12 @@ export type MultiShotParseResult = {
 
 export type MediaAttachmentKind = {
   kind: "images" | "videos" | "audios";
+  role?: "first_frame" | "last_frame" | "reference" | null;
 };
 
 export const HIDDEN_STUDIO_OPTION_KEYS = new Set<string>();
 export const MULTI_SHOT_MODEL_KEYS = new Set(["kling-3.0-t2v", "kling-3.0-i2v"]);
+export const SEEDANCE_MODEL_KEYS = new Set(["seedance-2.0"]);
 
 const STUDIO_PICKER_WIDTHS: Record<string, string> = {
   model: "w-full sm:w-[232px]",
@@ -80,6 +82,20 @@ const STUDIO_PICKER_WIDTHS: Record<string, string> = {
 
 export function isNanoPresetModel(modelKey: string | null | undefined) {
   return modelKey === "nano-banana-2" || modelKey === "nano-banana-pro";
+}
+
+export function isSeedanceModel(modelKey: string | null | undefined) {
+  return Boolean(modelKey && SEEDANCE_MODEL_KEYS.has(modelKey));
+}
+
+function specInputPatterns(model: MediaModelSummary | null) {
+  const rawPrompt = (model?.prompt as Record<string, unknown> | undefined) ?? undefined;
+  const byPattern =
+    (rawPrompt?.default_profile_keys_by_input_pattern as Record<string, unknown> | undefined) ?? undefined;
+  if (byPattern && typeof byPattern === "object") {
+    return Object.keys(byPattern).filter(Boolean);
+  }
+  return [];
 }
 
 export function normalizeStructuredPresetTextFields(preset: MediaPreset | null): StructuredPresetTextField[] {
@@ -140,7 +156,35 @@ export function inferInputPattern(
   const videoCount =
     attachments.filter((attachment) => attachment.kind === "videos").length +
     (sourceAsset?.generation_kind === "video" ? 1 : 0);
-  const patterns = new Set(model?.input_patterns ?? []);
+  const referenceImageCount = attachments.filter(
+    (attachment) => attachment.kind === "images" && attachment.role === "reference",
+  ).length;
+  const referenceVideoCount = attachments.filter(
+    (attachment) => attachment.kind === "videos" && attachment.role === "reference",
+  ).length;
+  const referenceAudioCount = attachments.filter(
+    (attachment) => attachment.kind === "audios" && attachment.role === "reference",
+  ).length;
+  const firstFrameCount = attachments.filter(
+    (attachment) => attachment.kind === "images" && attachment.role === "first_frame",
+  ).length;
+  const lastFrameCount = attachments.filter(
+    (attachment) => attachment.kind === "images" && attachment.role === "last_frame",
+  ).length;
+  const patterns = new Set([...(model?.input_patterns ?? []), ...specInputPatterns(model)]);
+
+  if (
+    patterns.has("multimodal_reference") &&
+    (referenceImageCount > 0 || referenceVideoCount > 0 || referenceAudioCount > 0)
+  ) {
+    return "multimodal_reference";
+  }
+  if (patterns.has("first_last_frames") && firstFrameCount > 0 && lastFrameCount > 0) {
+    return "first_last_frames";
+  }
+  if (patterns.has("single_image") && firstFrameCount > 0 && lastFrameCount === 0) {
+    return "single_image";
+  }
 
   if (patterns.has("motion_control") && imageCount >= 1 && videoCount >= 1) {
     return "motion_control";
@@ -155,6 +199,56 @@ export function inferInputPattern(
     return "single_image";
   }
   return "prompt_only";
+}
+
+export type SeedanceComposerMode = "text_only" | "first_frame" | "first_last_frames" | "multimodal_reference";
+
+export function deriveSeedanceComposerMode(
+  attachments: MediaAttachmentKind[],
+  sourceAsset: MediaAsset | null,
+): SeedanceComposerMode {
+  const firstFrameCount =
+    attachments.filter((attachment) => attachment.kind === "images" && attachment.role === "first_frame").length +
+    (sourceAsset?.generation_kind === "image" ? 1 : 0);
+  const lastFrameCount = attachments.filter(
+    (attachment) => attachment.kind === "images" && attachment.role === "last_frame",
+  ).length;
+  const referenceCount = attachments.filter((attachment) => attachment.role === "reference").length;
+  if (referenceCount > 0) {
+    return "multimodal_reference";
+  }
+  if (firstFrameCount > 0 && lastFrameCount > 0) {
+    return "first_last_frames";
+  }
+  if (firstFrameCount > 0) {
+    return "first_frame";
+  }
+  return "text_only";
+}
+
+export function seedanceReferenceTokenGuide(attachments: MediaAttachmentKind[]) {
+  const lines: string[] = [];
+  let imageIndex = 0;
+  let videoIndex = 0;
+  let audioIndex = 0;
+  for (const attachment of attachments) {
+    if (attachment.role !== "reference") continue;
+    if (attachment.kind === "images") {
+      imageIndex += 1;
+      lines.push(`@image${imageIndex}`);
+      continue;
+    }
+    if (attachment.kind === "videos") {
+      videoIndex += 1;
+      lines.push(`@video${videoIndex}`);
+      continue;
+    }
+    if (attachment.kind === "audios") {
+      audioIndex += 1;
+      lines.push(`@audio${audioIndex}`);
+    }
+  }
+  return lines;
 }
 
 export function formatOptionValue(value: unknown) {

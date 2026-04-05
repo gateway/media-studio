@@ -14,6 +14,7 @@ import {
   displayChoiceLabel,
   inferInputPattern,
   isNanoPresetModel,
+  isSeedanceModel,
   isRecord,
   mediaDisplayUrl,
   mediaDownloadName,
@@ -30,10 +31,12 @@ import {
   parseOptionChoice,
   pickerWidth,
   renderStructuredPresetPrompt,
+  seedanceReferenceTokenGuide,
   serializeOptionChoice,
   stripUnsupportedStudioOptions,
   studioValidationReady,
   type PresetSlotState,
+  type SeedanceComposerMode,
 } from "@/lib/media-studio-helpers";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import {
@@ -125,6 +128,7 @@ export function useStudioComposer({
   const [enhancePreview, setEnhancePreview] = useState<MediaEnhancePreviewResponse | null>(null);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<AttachmentRecord[]>([]);
+  const [seedanceMode, setSeedanceMode] = useState<SeedanceComposerMode>("text_only");
   const [isDragActive, setIsDragActive] = useState(false);
   const [validation, setValidation] = useState<MediaValidationResponse | null>(null);
   const [busyState, setBusyState] = useState<"idle" | "validate" | "submit">("idle");
@@ -155,6 +159,7 @@ export function useStudioComposer({
       : Boolean(globalEnhancementConfig?.supports_image_analysis);
   const enhanceEnabledForModel = enhanceSupportsText || enhanceSupportsImage;
   const currentQueuePolicy = queuePolicies.find((policy) => policy.model_key === modelKey) ?? null;
+  const seedanceComposer = isSeedanceModel(modelKey);
   const maxConcurrentJobs = Math.max(1, queueSettings?.max_concurrent_jobs ?? 10);
   const modelMaxOutputs = Math.max(
     1,
@@ -166,6 +171,19 @@ export function useStudioComposer({
   const imageAttachments = attachments.filter((attachment) => attachment.kind === "images");
   const videoAttachments = attachments.filter((attachment) => attachment.kind === "videos");
   const audioAttachments = attachments.filter((attachment) => attachment.kind === "audios");
+  const seedanceFirstFrameAttachment =
+    attachments.find((attachment) => attachment.kind === "images" && attachment.role === "first_frame") ?? null;
+  const seedanceLastFrameAttachment =
+    attachments.find((attachment) => attachment.kind === "images" && attachment.role === "last_frame") ?? null;
+  const seedanceReferenceImages = attachments.filter(
+    (attachment) => attachment.kind === "images" && attachment.role === "reference",
+  );
+  const seedanceReferenceVideos = attachments.filter(
+    (attachment) => attachment.kind === "videos" && attachment.role === "reference",
+  );
+  const seedanceReferenceAudios = attachments.filter(
+    (attachment) => attachment.kind === "audios" && attachment.role === "reference",
+  );
   const sourceAssetIsImage = currentSourceAsset?.generation_kind === "image";
   const sourceAssetIsVideo = currentSourceAsset?.generation_kind === "video";
   const stagedImageCount = imageAttachments.length + (sourceAssetIsImage ? 1 : 0);
@@ -201,6 +219,7 @@ export function useStudioComposer({
   const structuredPresetImageSlots = useMemo(() => normalizeStructuredPresetImageSlots(currentPreset), [currentPreset]);
   const structuredPresetActive =
     isNanoPresetModel(modelKey) && Boolean(currentPreset) && (structuredPresetTextFields.length > 0 || structuredPresetImageSlots.length > 0);
+  const effectiveSeedanceMode = seedanceComposer ? seedanceMode : "text_only";
   const inputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
   const explicitVideoImageSlots =
     !structuredPresetActive &&
@@ -260,6 +279,10 @@ export function useStudioComposer({
     : currentSourceAsset
       ? mediaDisplayUrl(currentSourceAsset)
       : attachments.find((attachment) => attachment.kind === "images")?.previewUrl ?? null;
+  const seedanceReferenceGuideTokens = useMemo(() => seedanceReferenceTokenGuide(attachments), [attachments]);
+  const seedanceReferenceGuideText = seedanceReferenceGuideTokens.length
+    ? `Reference staged assets in the prompt with ${seedanceReferenceGuideTokens.join(", ")}.`
+    : "Reference uploads can be mentioned in the prompt with @image1, @video1, or @audio1 once staged.";
   const compactOptionEntries = optionEntries(currentModel);
   const optionSignature = useMemo(() => JSON.stringify(optionValues), [optionValues]);
   const pricingOptions = useMemo(
@@ -273,7 +296,13 @@ export function useStudioComposer({
   );
   const selectedPromptSignature = useMemo(() => selectedPromptIds.join("|"), [selectedPromptIds]);
   const attachmentSignature = useMemo(
-    () => attachments.map((attachment) => `${attachment.id}:${attachment.file.name}:${attachment.file.size}`).join("|"),
+    () =>
+      attachments
+        .map(
+          (attachment) =>
+            `${attachment.id}:${attachment.file.name}:${attachment.file.size}:${attachment.kind}:${attachment.role ?? ""}`,
+        )
+        .join("|"),
     [attachments],
   );
   const localPricingEstimate = useMemo(
@@ -308,6 +337,7 @@ export function useStudioComposer({
     explicitVideoImageSlots && currentModel?.input_patterns?.includes("first_last_frames")
       ? ["Start frame", "End frame"]
       : ["Source image"];
+  const canUseSourceAsset = !seedanceComposer;
   const imageLimitLabel = maxImageInputs > 0 ? `${stagedImageCount} / ${maxImageInputs} images` : null;
   const canAddMoreImages = maxImageInputs > 0 && stagedImageCount < maxImageInputs;
   const canAddMoreVideos = maxVideoInputs > 0 && stagedVideoCount < maxVideoInputs;
@@ -322,6 +352,13 @@ export function useStudioComposer({
       buildNormalizedStudioOptions(currentModel, {}, isRecord(currentPreset?.default_options_json) ? currentPreset.default_options_json : null),
     );
   }, [currentModel, currentPreset]);
+
+  useEffect(() => {
+    if (!seedanceComposer) {
+      setSeedanceMode("text_only");
+    }
+    setSourceAssetId(null);
+  }, [attachments, seedanceComposer, setSourceAssetId]);
 
   useEffect(() => {
     const nextValues: Record<string, string> = {};
@@ -423,6 +460,53 @@ export function useStudioComposer({
     });
   }, [currentSourceAsset, maxAudioInputs, maxImageInputs, maxVideoInputs, setSourceAssetId]);
 
+  useEffect(() => {
+    if (!seedanceComposer) {
+      return;
+    }
+    setAttachments((current) => {
+      let changed = false;
+      const next = current.filter((attachment) => {
+        if (seedanceMode === "text_only") {
+          changed = true;
+          if (attachment.previewUrl) {
+            URL.revokeObjectURL(attachment.previewUrl);
+          }
+          return false;
+        }
+        if (seedanceMode === "first_frame") {
+          const keep = attachment.role === "first_frame";
+          if (!keep) {
+            changed = true;
+            if (attachment.previewUrl) {
+              URL.revokeObjectURL(attachment.previewUrl);
+            }
+          }
+          return keep;
+        }
+        if (seedanceMode === "first_last_frames") {
+          const keep = attachment.role === "first_frame" || attachment.role === "last_frame";
+          if (!keep) {
+            changed = true;
+            if (attachment.previewUrl) {
+              URL.revokeObjectURL(attachment.previewUrl);
+            }
+          }
+          return keep;
+        }
+        const keep = attachment.role === "reference";
+        if (!keep) {
+          changed = true;
+          if (attachment.previewUrl) {
+            URL.revokeObjectURL(attachment.previewUrl);
+          }
+        }
+        return keep;
+      });
+      return changed ? next : current;
+    });
+  }, [seedanceComposer, seedanceMode]);
+
   function showFloatingComposerBanner(message: ComposerStatusMessage | null, autoHideMs = FLOATING_COMPOSER_STATUS_MS) {
     if (floatingComposerHideTimerRef.current) {
       window.clearTimeout(floatingComposerHideTimerRef.current);
@@ -469,18 +553,60 @@ export function useStudioComposer({
     }, 0);
   }
 
-  function addFiles(fileList: FileList | File[] | null) {
+  function remainingSeedanceCapacity(kind: AttachmentRecord["kind"], role: NonNullable<AttachmentRecord["role"]>) {
+    if (role === "first_frame") {
+      return kind === "images" && !seedanceFirstFrameAttachment ? 1 : 0;
+    }
+    if (role === "last_frame") {
+      return kind === "images" && !seedanceLastFrameAttachment ? 1 : 0;
+    }
+    if (kind === "images") {
+      return Math.max(0, maxImageInputs - seedanceReferenceImages.length);
+    }
+    if (kind === "videos") {
+      return Math.max(0, maxVideoInputs - seedanceReferenceVideos.length);
+    }
+    return Math.max(0, maxAudioInputs - seedanceReferenceAudios.length);
+  }
+
+  function addFiles(
+    fileList: FileList | File[] | null,
+    config: { role?: NonNullable<AttachmentRecord["role"]>; allowedKinds?: AttachmentRecord["kind"][] } = {},
+  ) {
     const incomingFiles = Array.from(fileList ?? []);
     if (!incomingFiles.length) {
       return;
     }
+    const explicitRole = config.role ?? null;
+    const allowedKinds = new Set(config.allowedKinds ?? []);
     let remainingImageCapacity = Math.max(0, maxImageInputs - stagedImageCount);
     let remainingVideoCapacity = Math.max(0, maxVideoInputs - stagedVideoCount);
     let remainingAudioCapacity = Math.max(0, maxAudioInputs - stagedAudioCount);
     const acceptedFiles: File[] = [];
+    const acceptedMetadata: Array<{
+      role?: NonNullable<AttachmentRecord["role"]> | null;
+      kind: AttachmentRecord["kind"];
+    }> = [];
     const rejectedKinds = new Set<string>();
     for (const file of incomingFiles) {
       const kind = classifyFile(file);
+      if (allowedKinds.size > 0 && !allowedKinds.has(kind)) {
+        rejectedKinds.add(kind);
+        continue;
+      }
+      if (seedanceComposer && explicitRole) {
+        const remaining = remainingSeedanceCapacity(kind, explicitRole);
+        const acceptedForRole = acceptedMetadata.filter(
+          (item) => item.kind === kind && item.role === explicitRole,
+        ).length;
+        if (remaining - acceptedForRole <= 0) {
+          rejectedKinds.add(kind);
+          continue;
+        }
+        acceptedFiles.push(file);
+        acceptedMetadata.push({ kind, role: explicitRole });
+        continue;
+      }
       if (kind === "images") {
         if (remainingImageCapacity <= 0) {
           rejectedKinds.add("images");
@@ -488,6 +614,7 @@ export function useStudioComposer({
         }
         remainingImageCapacity -= 1;
         acceptedFiles.push(file);
+        acceptedMetadata.push({ kind });
         continue;
       }
       if (kind === "videos") {
@@ -497,6 +624,7 @@ export function useStudioComposer({
         }
         remainingVideoCapacity -= 1;
         acceptedFiles.push(file);
+        acceptedMetadata.push({ kind });
         continue;
       }
       if (remainingAudioCapacity <= 0) {
@@ -505,6 +633,7 @@ export function useStudioComposer({
       }
       remainingAudioCapacity -= 1;
       acceptedFiles.push(file);
+      acceptedMetadata.push({ kind });
     }
     if (!acceptedFiles.length) {
       if (rejectedKinds.size) {
@@ -515,11 +644,13 @@ export function useStudioComposer({
       }
       return;
     }
-    const nextAttachments = acceptedFiles.map((file) => ({
+    const nextAttachments = acceptedFiles.map((file, index) => ({
       id: `${file.name}-${file.size}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
       file,
-      kind: classifyFile(file),
+      kind: acceptedMetadata[index]?.kind ?? classifyFile(file),
+      role: acceptedMetadata[index]?.role ?? (seedanceComposer ? "reference" : null),
       previewUrl: file.type.startsWith("image/") || file.type.startsWith("video/") ? URL.createObjectURL(file) : null,
+      durationSeconds: null,
     }));
     setAttachments((current) => [...current, ...nextAttachments]);
     const existingImageCount = imageAttachments.length + (sourceAssetIsImage ? 1 : 0);
@@ -537,7 +668,10 @@ export function useStudioComposer({
     }
   }
 
-  async function addGalleryAssetAsAttachment(asset: MediaAsset | null) {
+  async function addGalleryAssetAsAttachment(
+    asset: MediaAsset | null,
+    role: NonNullable<AttachmentRecord["role"]> | null = null,
+  ) {
     if (!asset || asset.generation_kind !== "image") {
       setFormMessage({ tone: "danger", text: "Only image cards can be staged in image slots." });
       return;
@@ -556,7 +690,7 @@ export function useStudioComposer({
       const file = new File([blob], mediaDownloadName(asset), {
         type: blob.type || "image/png",
       });
-      addFiles([file]);
+      addFiles([file], role ? { role, allowedKinds: ["images"] } : undefined);
     } catch {
       setFormMessage({ tone: "danger", text: "The selected gallery image could not be staged in that slot." });
     }
@@ -650,6 +784,7 @@ export function useStudioComposer({
     setSelectedPresetId("");
     setSelectedPromptIds([]);
     setModelKey(models[0]?.key ?? "nano-banana-2");
+    setSeedanceMode("text_only");
     setOutputCount(1);
     setValidation(null);
     setFormMessage(null);
@@ -681,6 +816,9 @@ export function useStudioComposer({
     formData.set("enhance", intent === "enhance" ? "true" : "false");
     formData.set("options", JSON.stringify(sanitizedOptions));
     formData.set("system_prompt_ids", JSON.stringify(selectedPromptIds));
+    if (seedanceComposer) {
+      formData.set("task_mode", effectiveSeedanceMode === "text_only" ? "text_to_video" : "reference_to_video");
+    }
     if (multiShotsEnabled && multiShotScript.shots.length) {
       formData.set("multi_prompt", JSON.stringify(multiShotScript.shots));
     }
@@ -710,10 +848,21 @@ export function useStudioComposer({
       }
       formData.set("preset_slot_values_json", JSON.stringify(presetSlotValues));
     }
-    if (!structuredPresetActive && sourceAssetId) {
+    if (!structuredPresetActive && sourceAssetId && !seedanceComposer) {
       formData.set("source_asset_id", String(sourceAssetId));
     }
     if (!structuredPresetActive) {
+      formData.set(
+        "attachment_manifest",
+        JSON.stringify(
+          attachments.map((attachment) => ({
+            id: attachment.id,
+            kind: attachment.kind,
+            role: attachment.role ?? null,
+            duration_seconds: attachment.durationSeconds ?? null,
+          })),
+        ),
+      );
       for (const attachment of attachments) {
         formData.append("attachments", attachment.file);
       }
@@ -973,6 +1122,7 @@ export function useStudioComposer({
     };
   }, [
     modelKey,
+    seedanceMode,
     prompt,
     optionSignature,
     selectedPresetId,
@@ -1002,6 +1152,7 @@ export function useStudioComposer({
       enhancePreview,
       enhanceError,
       attachments,
+      seedanceMode,
       isDragActive,
       validation,
       busyState,
@@ -1014,6 +1165,8 @@ export function useStudioComposer({
       currentModel,
       currentPreset,
       currentSourceAsset,
+      seedanceComposer,
+      effectiveSeedanceMode,
       enhanceEnabledForModel,
       enhanceProviderLabel,
       enhanceProviderModelId,
@@ -1050,6 +1203,14 @@ export function useStudioComposer({
       canAddMoreImages,
       canAddMoreVideos,
       canAddMoreAudios,
+      seedanceFirstFrameAttachment,
+      seedanceLastFrameAttachment,
+      seedanceReferenceImages,
+      seedanceReferenceVideos,
+      seedanceReferenceAudios,
+      seedanceReferenceGuideTokens,
+      seedanceReferenceGuideText,
+      canUseSourceAsset,
       maxImageInputs,
       maxVideoInputs,
       maxAudioInputs,
@@ -1062,6 +1223,7 @@ export function useStudioComposer({
       setSelectedPresetId,
       setSelectedPromptIds,
       setPrompt,
+      setSeedanceMode,
       setPresetInputValues,
       setPresetSlotStates,
       setOptionValues,

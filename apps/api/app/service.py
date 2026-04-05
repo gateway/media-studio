@@ -155,7 +155,7 @@ def probe_enhancement_provider(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 def _ref_to_kie(value: Dict[str, Any]) -> Dict[str, Any]:
     ref = {}
-    for key in ("url", "path", "filename", "mime_type"):
+    for key in ("url", "path", "filename", "mime_type", "role", "duration_seconds"):
         if value.get(key):
             ref[key] = value[key]
     return ref

@@ -48,6 +48,13 @@ def test_models_endpoint(client) -> None:
     assert any(item["key"] == "nano-banana-2" for item in items)
 
 
+def test_kie_adapter_prefers_configured_repo(app_modules) -> None:
+    kie_module = app_modules["main"].kie_adapter.get_kie_module()
+    module_file = str(kie_module.__file__)
+    configured_root = str(app_modules["main"].settings.kie_api_repo_path)
+    assert module_file.startswith(configured_root)
+
+
 def test_pricing_endpoint_returns_normalized_snapshot(client) -> None:
     response = client.get("/media/pricing")
     assert response.status_code == 200
@@ -78,6 +85,27 @@ def test_pricing_estimate_applies_output_count_and_option_multipliers(client) ->
     assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(0.06)
     assert summary["total"]["estimated_credits"] == pytest.approx(36.0)
     assert summary["total"]["estimated_cost_usd"] == pytest.approx(0.18)
+
+
+def test_seedance_validate_returns_prompt_context_and_reference_guide(client) -> None:
+    response = client.post(
+        "/media/validate",
+        json={
+            "model_key": "seedance-2.0",
+            "task_mode": "reference_to_video",
+            "prompt": "Use @image1 for the hero and @audio1 for the rhythm.",
+            "images": [{"path": "/tmp/ref-image.png", "role": "reference"}],
+            "audios": [{"path": "/tmp/ref-audio.wav", "role": "reference"}],
+            "options": {"duration": 4, "resolution": "480p", "aspect_ratio": "16:9"},
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    prompt_context = payload["prompt_context"]
+    assert prompt_context["input_pattern"] == "multimodal_reference"
+    assert prompt_context["resolved_profile_key"] == "seedance_2_0_multimodal_reference_v1"
+    assert "@image1 -> reference image 1" in prompt_context["rendered_system_prompt"]
+    assert "@audio1 -> reference audio 1" in prompt_context["rendered_system_prompt"]
 
 
 def test_submit_requires_admin_access_mode(app_modules) -> None:

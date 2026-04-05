@@ -15,6 +15,7 @@
     "quality": "./scripts/run-quality-gates",
     "release:verify": "./scripts/run-release-gates",
     "smoke:studio-browser": "node ./scripts/studio_browser_smoke.mjs",
+    "smoke:studio-browser-seedance": "node ./scripts/studio_browser_seedance_smoke.mjs",
     "smoke:studio-browser-preset": "node ./scripts/studio_browser_preset_smoke.mjs",
     "smoke:studio-browser-enhance": "node ./scripts/studio_browser_enhance_smoke.mjs",
     "smoke:studio-live": "node ./scripts/studio_live_smoke.mjs",
