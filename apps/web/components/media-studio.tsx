@@ -115,6 +115,7 @@ import {
 } from "@/lib/media-studio-helpers";
 import type { MediaAsset, MediaBatch, MediaEnhancePreviewResponse, MediaJob, MediaValidationResponse } from "@/lib/types";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
+import { installStudioDebugConsole, studioDebug } from "@/lib/studio-debug";
 import { cn, formatDateTime, truncate } from "@/lib/utils";
 
 declare global {
@@ -317,6 +318,7 @@ export function MediaStudio({
   const [studioSettingsOpen, setStudioSettingsOpen] = useState(false);
   const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(null);
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
+  const lastComposerDebugSignatureRef = useRef<string | null>(null);
   const pollJobProxyRef = useRef<(jobId: string) => Promise<void>>(async () => {});
   const pollBatchProxyRef = useRef<(batchId: string) => Promise<void>>(async () => {});
   const openEnhanceDialogProxyRef = useRef<() => void>(() => undefined);
@@ -546,6 +548,30 @@ export function MediaStudio({
     parseOptionChoice,
     serializeOptionChoice,
   } = composer.actions;
+
+  useEffect(() => {
+    installStudioDebugConsole();
+  }, []);
+
+  useEffect(() => {
+    if (!composerStatusMessage?.text) {
+      lastComposerDebugSignatureRef.current = null;
+      return;
+    }
+    const signature = `${composerStatusMessage.tone}:${composerStatusMessage.text}:${busyState}`;
+    if (lastComposerDebugSignatureRef.current === signature) {
+      return;
+    }
+    lastComposerDebugSignatureRef.current = signature;
+    studioDebug("composer-status", {
+      tone: composerStatusMessage.tone,
+      text: composerStatusMessage.text,
+      busyState,
+      modelKey,
+      inputPatterns: currentModel?.input_patterns ?? [],
+    });
+  }, [busyState, composerStatusMessage, currentModel?.input_patterns, modelKey]);
+
   const polling = useStudioPolling({
     showActivity,
     showFloatingComposerBanner,
