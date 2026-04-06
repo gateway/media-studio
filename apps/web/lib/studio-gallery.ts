@@ -11,6 +11,7 @@ export type GalleryTile = {
 export type GalleryTileFilters = {
   modelKey?: string;
   generationKind?: "all" | "image" | "video";
+  favoritesOnly?: boolean;
 };
 
 type AttachmentKindCarrier = {
@@ -198,8 +199,9 @@ export function buildGalleryTiles(
   const seenAssetIds = new Set<string>();
   const activeModelFilter = filters.modelKey && filters.modelKey !== "all" ? filters.modelKey : null;
   const activeKindFilter = filters.generationKind && filters.generationKind !== "all" ? filters.generationKind : null;
+  const favoritesOnly = Boolean(filters.favoritesOnly);
 
-  for (const batch of batches.slice(0, 3)) {
+  for (const batch of favoritesOnly ? [] : batches.slice(0, 3)) {
     const pendingJobs = (batch.jobs ?? []).filter((job) => {
       const previewAsset = allAssets.find((asset) => asset.job_id === job.job_id) ?? null;
       const resolvedModelKey = String(job.model_key ?? batch.model_key ?? "");

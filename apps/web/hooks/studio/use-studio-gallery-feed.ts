@@ -154,6 +154,7 @@ export function useStudioGalleryFeed({
         {
           modelKey: galleryModelFilter,
           generationKind: galleryKindFilter,
+          favoritesOnly,
         },
       ),
     [
