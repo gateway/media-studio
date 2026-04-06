@@ -48,7 +48,7 @@ port_owner_command() {
 
 looks_like_media_studio_process() {
   local command="$1"
-  [[ "$command" == *"media-studio"* || "$command" == *"app.main:app"* || "$command" == *"next dev --hostname 127.0.0.1"* ]]
+  [[ "$command" == *"media-studio"* || "$command" == *"app.main:app"* || "$command" == *"next dev --hostname 127.0.0.1"* || "$command" == *"next start"* ]]
 }
 
 open_terminal_command() {
@@ -125,6 +125,3 @@ if [[ "$api_running" == true || "$web_running" == true ]]; then
 fi
 
 open_terminal_command "./scripts/run_studio_mac.sh"
-
-sleep 2
-open "http://127.0.0.1:$WEB_PORT/studio"

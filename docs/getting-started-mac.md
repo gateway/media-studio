@@ -68,7 +68,7 @@ Get a key here:
 
 If you skip this during onboarding, Media Studio stays in offline-safe mode until you add the key later.
 
-## 4. Optional prompt enhancement providers
+## 4. Optional prompt enhancement
 
 During onboarding, the macOS script now asks whether you want to enable prompt enhancement.
 
@@ -78,13 +78,11 @@ If you enable it during onboarding, the recommended hosted model is:
 
 - `qwen/qwen3.5-35b-a3b`
 
-You can also configure:
-
 - `OPENROUTER_API_KEY` for hosted prompt enhancement
-- `MEDIA_LOCAL_OPENAI_BASE_URL` for a local OpenAI-compatible endpoint
-- `MEDIA_LOCAL_OPENAI_API_KEY` if your local endpoint requires one
 
-The onboarding helper verifies the OpenRouter key before saving it. These providers are optional. Users can still generate media without them.
+The onboarding helper verifies the OpenRouter key before saving it. Users can still generate media without prompt enhancement.
+
+If you ever want to switch to a local OpenAI-compatible prompt enhancement endpoint instead, add that later in `Settings`.
 
 ## Terminal windows and port conflicts
 
@@ -108,11 +106,24 @@ Friend-friendly launchers from the repo root:
 
 `Start Media Studio.command` uses one launcher Terminal window on macOS and starts both the API and web processes behind it.
 
-If you prefer Terminal, run:
+If you prefer Terminal but still want the normal user path, run:
 
 ```bash
 ./scripts/run_studio_mac.sh
 ```
+
+That script runs the local app in production mode, waits for it to become ready, and opens the browser to `/studio`.
+
+## Developer mode
+
+If you are actively working on the code and want hot reload, use:
+
+```bash
+npm run dev:api
+./scripts/dev_web.sh
+```
+
+That path is for development only. It runs the web app in Next.js dev mode, so you may see dev-only UI such as the Next badge or overlay.
 
 Then open:
 

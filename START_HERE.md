@@ -59,7 +59,7 @@ Those scripts will:
 - generate a unique local control token for the dashboard and API
 - create a clean local database
 - prompt for `KIE_API_KEY`
-- optionally prompt for OpenRouter or a local OpenAI-compatible endpoint
+- optionally prompt for OpenRouter-based prompt enhancement
 
 If you skip the KIE key during setup, Media Studio still installs cleanly, but live generation stays off until you add it.
 
@@ -76,11 +76,24 @@ For a normal Mac user, the easiest way to reopen the app later is:
 - double-click `Start Media Studio.command`
 - double-click `Stop Media Studio.command` when you want to stop it
 
-If you prefer Terminal, run:
+That Mac launcher starts the API and web app together in one Terminal window in production mode, waits for the app to be ready, and opens your browser to the Studio.
+
+If you prefer Terminal but still want the same production-style local run, use:
 
 ```bash
 ./scripts/run_studio_mac.sh
 ```
+
+## Developer mode
+
+If you are editing the code and want hot reload instead of the normal user launch path, use:
+
+```bash
+npm run dev:api
+./scripts/dev_web.sh
+```
+
+That runs the app in development mode and can show dev-only UI such as the Next.js badge or overlay.
 
 Then open:
 
@@ -104,7 +117,7 @@ Then open:
 - `OPENROUTER_API_KEY`
   For hosted prompt enhancement. Optional, and you can add it later in `Settings`.
 - `MEDIA_LOCAL_OPENAI_BASE_URL`
-  For a local OpenAI-compatible endpoint.
+  For a local OpenAI-compatible endpoint if you choose to switch later in `Settings`.
 - `MEDIA_LOCAL_OPENAI_API_KEY`
   Only if that local endpoint requires auth.
 - `MEDIA_STUDIO_ADMIN_USERNAME` and `MEDIA_STUDIO_ADMIN_PASSWORD`

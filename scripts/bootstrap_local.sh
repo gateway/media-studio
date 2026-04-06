@@ -10,13 +10,6 @@ KIE_ROOT="$(resolve_kie_root "$MEDIA_ROOT")"
 VENV_PY="$KIE_ROOT/.venv/bin/python"
 VENV_PIP="$KIE_ROOT/.venv/bin/pip"
 
-generate_local_control_token() {
-  python3 - <<'PY'
-import secrets
-print(f"media-studio-{secrets.token_hex(24)}")
-PY
-}
-
 echo "Media Studio root: $MEDIA_ROOT"
 echo "KIE repo path: $KIE_ROOT"
 
@@ -41,7 +34,7 @@ echo "Installing web dependencies ..."
 mkdir -p "$MEDIA_ROOT/data/uploads" "$MEDIA_ROOT/data/downloads" "$MEDIA_ROOT/data/outputs" "$MEDIA_ROOT/data/preset-thumbnails"
 
 if [[ ! -f "$MEDIA_ROOT/.env" ]]; then
-  LOCAL_CONTROL_TOKEN="$(generate_local_control_token)"
+  LOCAL_CONTROL_TOKEN="$(generate_media_studio_local_control_token)"
   cat > "$MEDIA_ROOT/.env" <<EOF
 MEDIA_STUDIO_APP_ENV=development
 NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL=http://127.0.0.1:8000
@@ -69,6 +62,8 @@ MEDIA_LOCAL_OPENAI_API_KEY=
 EOF
   echo "Created .env with local defaults and a unique control token."
 fi
+
+ensure_media_env_control_token "$MEDIA_ROOT" >/dev/null
 
 echo "Bootstrapping empty Media Studio schema ..."
 MEDIA_STUDIO_DB_PATH="${MEDIA_STUDIO_DB_PATH:-$MEDIA_ROOT/data/media-studio.db}" \

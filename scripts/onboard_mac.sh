@@ -3,7 +3,6 @@ set -euo pipefail
 
 KIE_AFFILIATE_URL="https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42"
 MEDIA_PREREQS_URL="https://github.com/gateway/media-studio/blob/main/docs/prerequisites.md"
-DEFAULT_LOCAL_OPENAI_BASE_URL="http://127.0.0.1:8080/v1"
 DEFAULT_OPENROUTER_ENHANCEMENT_MODEL="qwen/qwen3.5-35b-a3b"
 NANO_BANANA_ENHANCEMENT_SYSTEM_PROMPT="$(cat <<'EOF'
 You are a prompt enhancer for Nano Banana Pro.
@@ -510,7 +509,7 @@ echo
 
 if prompt_yes_no "Enable prompt enhancement now? This is optional and can be set up later in Settings." "N"; then
   echo "OpenRouter is used only for prompt enhancement. It is not required for image or video generation."
-  echo "You can still skip this and enable it later in Settings."
+  echo "You can still skip this and enable or change it later in Settings."
   echo
   current_openrouter_key="$(env_value OPENROUTER_API_KEY)"
   openrouter_base_url="$(env_value OPENROUTER_BASE_URL)"
@@ -537,7 +536,7 @@ if prompt_yes_no "Enable prompt enhancement now? This is optional and can be set
       upsert_env "OPENROUTER_API_KEY" "$openrouter_key"
       seed_default_openrouter_enhancement_configs "$openrouter_base_url" >/dev/null 2>&1 || true
       echo "OpenRouter key verified."
-      echo "Studio saved the recommended OpenRouter enhancement model and Nano Banana enhancement prompts."
+      echo "Studio saved the recommended OpenRouter prompt enhancement setup."
       break
     fi
     echo "OpenRouter verification failed."
@@ -546,19 +545,7 @@ if prompt_yes_no "Enable prompt enhancement now? This is optional and can be set
       break
     fi
   done
-  current_local_base="$(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
-  if [[ -z "$current_local_base" ]]; then
-    current_local_base="$DEFAULT_LOCAL_OPENAI_BASE_URL"
-  fi
-  if prompt_yes_no "Configure a local OpenAI-compatible enhancement endpoint now?" "N"; then
-    read -r -p "Local OpenAI-compatible base URL [$current_local_base]: " local_base
-    if [[ -n "$local_base" ]]; then
-      upsert_env "MEDIA_LOCAL_OPENAI_BASE_URL" "$local_base"
-    fi
-    prompt_secret "Optional local OpenAI-compatible API key" "MEDIA_LOCAL_OPENAI_API_KEY"
-  else
-    echo "Skipping local enhancement provider setup. You can add it later in Settings."
-  fi
+  echo "If you ever want to switch to a local OpenAI-compatible prompt enhancer, add it later in Settings."
 else
   echo "Skipping prompt enhancement setup. You can enable it later in Settings."
 fi
@@ -568,7 +555,6 @@ echo "Current setup summary"
 echo " - KIE API key: $( [[ -n "$(env_value KIE_API_KEY)" ]] && echo configured || echo missing )"
 echo " - Live submit: $( [[ "$(env_value MEDIA_ENABLE_LIVE_SUBMIT)" == "true" ]] && echo enabled || echo offline )"
 echo " - OpenRouter: $( [[ -n "$(env_value OPENROUTER_API_KEY)" ]] && echo configured || echo skipped )"
-echo " - Local OpenAI base URL: $(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
 echo
 echo "Next steps"
 echo " - Start later: Start Media Studio.command"
@@ -578,7 +564,7 @@ echo " - Studio: http://127.0.0.1:$(web_port)/studio"
 echo " - Settings: http://127.0.0.1:$(web_port)/settings"
 echo
 echo "For normal use, double-click Start Media Studio.command."
-echo "It starts the API and web app together in one Terminal window."
+echo "It starts the API and web app together in one Terminal window in production mode."
 echo "If your browser does not open automatically, point it to the Studio URL above."
 echo
 
@@ -604,7 +590,6 @@ if [[ "$launch_now" =~ ^[Yy]$ ]]; then
     exit 1
   fi
 
-  open_terminal_command "./scripts/run_studio_mac.sh"
-  echo "Opening Media Studio in one Terminal window."
-  echo "Point your browser to: http://127.0.0.1:$web_port_value/studio"
+  "$SCRIPT_DIR/open_studio_mac.sh"
+  echo "Opening Media Studio in one Terminal window and launching the browser."
 fi

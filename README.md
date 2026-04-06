@@ -230,18 +230,28 @@ After setup, the easiest way to reopen the app later is to double-click:
 - [`Start Media Studio.command`](Start%20Media%20Studio.command)
 - [`Stop Media Studio.command`](Stop%20Media%20Studio.command)
 
-On macOS, `Start Media Studio.command` uses one launcher Terminal window and starts both the API and web processes for you behind that one launcher. It opens the Studio directly at `/studio`.
+On macOS, `Start Media Studio.command` uses one launcher Terminal window and starts both the API and web processes for you behind that one launcher. It runs the local app in production mode, waits for it to become ready, and opens the Studio directly at `/studio`.
 
-If you prefer Terminal, run:
+If you prefer the same production-style local run from Terminal, use:
+
+```bash
+./scripts/run_studio_mac.sh
+```
+
+Open:
+
+- `http://127.0.0.1:3000/studio`
+
+### Developer mode
+
+If you are actively changing the code and want hot reload, use the dev scripts instead:
 
 ```bash
 npm run dev:api
 ./scripts/dev_web.sh
 ```
 
-Open:
-
-- `http://127.0.0.1:3000/studio`
+That path is for development only. It runs the web app in Next.js dev mode, so you may see dev-only UI such as the Next badge or debug overlays.
 
 Media Studio will still route you to the right first page:
 
@@ -264,6 +274,8 @@ The shortest version is:
 3. Open the Studio.
 4. Pick a model.
 5. Prompt and generate.
+
+Prompt enhancement setup during onboarding now focuses on the hosted OpenRouter path. If you ever want to use a local OpenAI-compatible enhancer instead, you can switch that later in `Settings`.
 
 ### Linux
 
