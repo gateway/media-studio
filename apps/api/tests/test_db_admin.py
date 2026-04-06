@@ -25,6 +25,17 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert _count_rows(clean_db, "media_assets") == 0
     assert _count_rows(clean_db, "media_queue_settings") == 1
     assert _count_rows(clean_db, "media_presets") >= 2
+    connection = sqlite3.connect(clean_db)
+    try:
+        row = connection.execute(
+            "SELECT enabled, max_outputs_per_run FROM media_model_queue_policies WHERE model_key = ?",
+            ("seedance-2.0",),
+        ).fetchone()
+    finally:
+        connection.close()
+    assert row is not None
+    assert int(row[0] or 0) == 0
+    assert int(row[1] or 0) == 1
 
 
 def test_backup_database_copies_existing_database(app_modules, tmp_path: Path) -> None:

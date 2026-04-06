@@ -348,6 +348,16 @@ def _migrate_multi_model_seed_presets(connection: sqlite3.Connection) -> None:
         )
 
 
+def _seed_default_model_queue_policies(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO media_model_queue_policies (model_key, enabled, max_outputs_per_run, updated_at)
+        VALUES (?, ?, ?, ?)
+        """,
+        ("seedance-2.0", 0, 1, utcnow_iso()),
+    )
+
+
 def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
     connection.executescript(
         """
@@ -593,3 +603,4 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
     ensure_column(connection, "media_assets", "payload_json", "TEXT NOT NULL DEFAULT '{}'")
     _migrate_multi_model_seed_presets(connection)
     _seed_default_presets(connection)
+    _seed_default_model_queue_policies(connection)
