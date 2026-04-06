@@ -2331,26 +2331,32 @@ export function MediaStudio({
                   </div>
                   <StatusPill label={jobStatusLabel(selectedFailedJob.status)} tone="danger" />
                 </div>
-                <div className="rounded-[22px] border border-[rgba(255,139,139,0.16)] bg-[rgba(73,20,20,0.24)] p-4">
+                <div className="min-w-0 rounded-[22px] border border-[rgba(255,139,139,0.16)] bg-[rgba(73,20,20,0.24)] p-4">
                   <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[#ffb8b8]">
                     Provider Error
                   </div>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-white/84">
+                  <p className="mt-3 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-white/84">
                     {selectedFailedJob.error ?? "The media provider did not return a more specific failure message."}
                   </p>
                 </div>
                 <div className="grid gap-2 rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
-                  <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                    <span className="text-sm text-white/56">Job ID</span>
-                    <span className="text-sm font-medium text-white/92">{selectedFailedJob.job_id}</span>
+                  <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
+                    <span className="pt-0.5 text-sm text-white/56">Job ID</span>
+                    <span className="min-w-0 text-right text-sm font-medium text-white/92 break-words [overflow-wrap:anywhere]">
+                      {selectedFailedJob.job_id}
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                    <span className="text-sm text-white/56">Provider Task</span>
-                    <span className="text-sm font-medium text-white/92">{selectedFailedJob.provider_task_id ?? "Not assigned"}</span>
+                  <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
+                    <span className="pt-0.5 text-sm text-white/56">Provider Task</span>
+                    <span className="min-w-0 text-right text-sm font-medium text-white/92 break-words [overflow-wrap:anywhere]">
+                      {selectedFailedJob.provider_task_id ?? "Not assigned"}
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                    <span className="text-sm text-white/56">Mode</span>
-                    <span className="text-sm font-medium text-white/92">{selectedFailedJob.task_mode ?? "Unknown"}</span>
+                  <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
+                    <span className="pt-0.5 text-sm text-white/56">Mode</span>
+                    <span className="min-w-0 text-right text-sm font-medium text-white/92 break-words [overflow-wrap:anywhere]">
+                      {selectedFailedJob.task_mode ?? "Unknown"}
+                    </span>
                   </div>
                 </div>
               </div>
