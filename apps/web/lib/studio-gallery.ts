@@ -8,6 +8,11 @@ export type GalleryTile = {
   job: MediaJob | null;
 };
 
+export type GalleryTileFilters = {
+  modelKey?: string;
+  generationKind?: "all" | "image" | "video";
+};
+
 type AttachmentKindCarrier = {
   kind: "images" | "videos" | "audios";
 };
@@ -158,6 +163,26 @@ function jobHasPublishedAsset(job: MediaJob, assets: MediaAsset[]) {
   return assets.some((asset) => asset.job_id === job.job_id);
 }
 
+function inferBatchJobGenerationKind(job: MediaJob, batch: MediaBatch, previewAsset: MediaAsset | null) {
+  if (previewAsset?.generation_kind === "video") {
+    return "video";
+  }
+  if (previewAsset?.generation_kind === "image") {
+    return "image";
+  }
+  const modelKey = String(job.model_key ?? batch.model_key ?? "").toLowerCase();
+  const taskMode = String(job.task_mode ?? batch.task_mode ?? "").toLowerCase();
+  if (
+    modelKey.startsWith("kling-") ||
+    modelKey.startsWith("seedance-") ||
+    taskMode.includes("video") ||
+    taskMode === "motion_control"
+  ) {
+    return "video";
+  }
+  return "image";
+}
+
 export function buildGalleryTiles(
   assets: MediaAsset[],
   latestAsset: MediaAsset | null,
@@ -165,14 +190,26 @@ export function buildGalleryTiles(
   allAssets: MediaAsset[],
   hasMoreAssets: boolean,
   allowLatestFallback: boolean,
+  filters: GalleryTileFilters = {},
 ): GalleryTile[] {
   const source = assets.length ? assets : allowLatestFallback && latestAsset ? [latestAsset] : [];
   const tiles: GalleryTile[] = [];
   const seenJobIds = new Set<string>();
   const seenAssetIds = new Set<string>();
+  const activeModelFilter = filters.modelKey && filters.modelKey !== "all" ? filters.modelKey : null;
+  const activeKindFilter = filters.generationKind && filters.generationKind !== "all" ? filters.generationKind : null;
 
   for (const batch of batches.slice(0, 3)) {
     const pendingJobs = (batch.jobs ?? []).filter((job) => {
+      const previewAsset = allAssets.find((asset) => asset.job_id === job.job_id) ?? null;
+      const resolvedModelKey = String(job.model_key ?? batch.model_key ?? "");
+      const resolvedGenerationKind = inferBatchJobGenerationKind(job, batch, previewAsset);
+      if (activeModelFilter && resolvedModelKey !== activeModelFilter) {
+        return false;
+      }
+      if (activeKindFilter && resolvedGenerationKind !== activeKindFilter) {
+        return false;
+      }
       if (["queued", "submitted", "running", "processing"].includes(job.status)) {
         return true;
       }

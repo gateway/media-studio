@@ -151,6 +151,10 @@ export function useStudioGalleryFeed({
         localAssets,
         activeGalleryHasMore,
         allowLatestGalleryFallback,
+        {
+          modelKey: galleryModelFilter,
+          generationKind: galleryKindFilter,
+        },
       ),
     [
       activeGalleryHasMore,

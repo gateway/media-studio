@@ -149,6 +149,41 @@ describe("studio-gallery", () => {
     expect(tiles[0]?.label).toBe("Failed output");
   });
 
+  it("does not show queued image jobs in the videos filter", () => {
+    const tiles = buildGalleryTiles(
+      [],
+      null,
+      [
+        {
+          batch_id: "batch-image-1",
+          model_key: "nano-banana-2",
+          status: "processing",
+          requested_outputs: 1,
+          queued_count: 0,
+          running_count: 1,
+          completed_count: 0,
+          failed_count: 0,
+          cancelled_count: 0,
+          created_at: "2026-04-06T00:00:00Z",
+          updated_at: "2026-04-06T00:00:00Z",
+          jobs: [
+            {
+              job_id: "job-image-1",
+              model_key: "nano-banana-2",
+              status: "running",
+            },
+          ],
+        } as never,
+      ],
+      [],
+      false,
+      false,
+      { generationKind: "video" },
+    );
+
+    expect(tiles).toHaveLength(0);
+  });
+
   it("does not pad real assets with placeholder tiles once gallery content exists", () => {
     const tiles = buildGalleryTiles(
       [
