@@ -977,6 +977,7 @@ export function MediaModelsConsole({
 
       {visibleSections.enhancementProvider ? (
       <Panel>
+        <div id="prompt-enhancement" className="scroll-mt-24" />
         <PanelHeader
           eyebrow="Enhancement Model"
           title="Prompt Enhancement"

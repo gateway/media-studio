@@ -67,7 +67,7 @@ export const MULTI_SHOT_MODEL_KEYS = new Set(["kling-3.0-t2v", "kling-3.0-i2v"])
 export const SEEDANCE_MODEL_KEYS = new Set(["seedance-2.0"]);
 
 const STUDIO_PICKER_WIDTHS: Record<string, string> = {
-  model: "w-full sm:w-[196px]",
+  model: "w-full sm:w-[224px]",
   preset: "w-full sm:w-[162px]",
   "output-count": "w-[calc(50%-0.25rem)] sm:w-[86px]",
   duration: "w-[calc(50%-0.25rem)] sm:w-[92px]",
@@ -627,6 +627,13 @@ export function pickerWidth(pickerId: string) {
   if (pickerId.includes("format")) return STUDIO_PICKER_WIDTHS.output_format;
   if (pickerId.includes("web")) return STUDIO_PICKER_WIDTHS.google_search;
   return "w-[calc(50%-0.25rem)] sm:w-[108px]";
+}
+
+export function pickerMenuHeightCap(pickerId: string) {
+  if (pickerId === "model") {
+    return 520;
+  }
+  return 360;
 }
 
 export function optionChoices(schema: Record<string, unknown>, currentValue: unknown) {

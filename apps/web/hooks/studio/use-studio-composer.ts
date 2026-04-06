@@ -149,6 +149,12 @@ export function useStudioComposer({
     null;
   const currentModelEnhancementConfig =
     enhancementConfigs.find((config) => config.model_key === modelKey) ?? null;
+  const activeEnhancementEngineConfig =
+    currentModelEnhancementConfig &&
+    (Boolean(currentModelEnhancementConfig.provider_model_id) ||
+      (currentModelEnhancementConfig.provider_kind && currentModelEnhancementConfig.provider_kind !== "builtin"))
+      ? currentModelEnhancementConfig
+      : globalEnhancementConfig;
   const enhanceSupportsText =
     currentModelEnhancementConfig && "supports_text_enhancement" in currentModelEnhancementConfig
       ? Boolean(currentModelEnhancementConfig.supports_text_enhancement)
@@ -158,6 +164,20 @@ export function useStudioComposer({
       ? Boolean(currentModelEnhancementConfig.supports_image_analysis)
       : Boolean(globalEnhancementConfig?.supports_image_analysis);
   const enhanceEnabledForModel = enhanceSupportsText || enhanceSupportsImage;
+  const enhanceProviderKind = activeEnhancementEngineConfig?.provider_kind ?? "builtin";
+  const enhanceCredentialConfigured = Boolean(
+    activeEnhancementEngineConfig?.provider_credential_source || activeEnhancementEngineConfig?.provider_api_key_configured,
+  );
+  const enhanceBaseUrlConfigured = Boolean(activeEnhancementEngineConfig?.provider_base_url_configured);
+  const enhanceModelSelected = Boolean(activeEnhancementEngineConfig?.provider_model_id);
+  const enhanceConfiguredForModel =
+    enhanceEnabledForModel &&
+    (enhanceProviderKind === "openrouter"
+      ? enhanceCredentialConfigured
+      : enhanceProviderKind === "local_openai"
+        ? enhanceBaseUrlConfigured || enhanceCredentialConfigured || enhanceModelSelected
+        : false);
+  const enhanceSetupHref = "/settings#prompt-enhancement";
   const currentQueuePolicy = queuePolicies.find((policy) => policy.model_key === modelKey) ?? null;
   const seedanceComposer = isSeedanceModel(modelKey);
   const maxConcurrentJobs = Math.max(1, queueSettings?.max_concurrent_jobs ?? 10);
@@ -191,16 +211,16 @@ export function useStudioComposer({
   const stagedAudioCount = audioAttachments.length;
   const enhanceProviderLabel =
     enhancePreview?.provider_label ??
-    globalEnhancementConfig?.provider_label ??
-    (globalEnhancementConfig?.provider_kind === "openrouter"
+    activeEnhancementEngineConfig?.provider_label ??
+    (activeEnhancementEngineConfig?.provider_kind === "openrouter"
       ? "OpenRouter.ai"
-      : globalEnhancementConfig?.provider_kind === "local_openai"
+      : activeEnhancementEngineConfig?.provider_kind === "local_openai"
         ? "Local OpenAI-Compatible"
         : "Built-in helper");
   const enhanceProviderModelId =
     enhancePreview?.provider_model_id ??
-    globalEnhancementConfig?.provider_model_id ??
-    (globalEnhancementConfig?.provider_kind === "openrouter" ? "qwen/qwen3.5-35b-a3b" : null);
+    activeEnhancementEngineConfig?.provider_model_id ??
+    (activeEnhancementEngineConfig?.provider_kind === "openrouter" ? "qwen/qwen3.5-35b-a3b" : null);
   const enhanceImageAnalysisText = enhancePreview?.image_analysis
     ? typeof enhancePreview.image_analysis === "string"
       ? enhancePreview.image_analysis
@@ -880,6 +900,12 @@ export function useStudioComposer({
       setEnhanceError("Enhancement is not enabled for this model.");
       return;
     }
+    if (!enhanceConfiguredForModel) {
+      setEnhanceDialogOpen(true);
+      setEnhancePreview(null);
+      setEnhanceError("Set up prompt enhancement in Settings before using Enhance.");
+      return;
+    }
     if (!enhanceSupportsText && !enhancementPreviewVisual) {
       setEnhanceDialogOpen(true);
       setEnhancePreview(null);
@@ -1163,6 +1189,8 @@ export function useStudioComposer({
       seedanceComposer,
       effectiveSeedanceMode,
       enhanceEnabledForModel,
+      enhanceConfiguredForModel,
+      enhanceSetupHref,
       enhanceProviderLabel,
       enhanceProviderModelId,
       enhanceImageAnalysisText,

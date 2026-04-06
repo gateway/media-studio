@@ -91,6 +91,7 @@ import {
   optionIcon,
   parseMultiShotScript,
   parseOptionChoice,
+  pickerMenuHeightCap,
   pickerWidth,
   prefetchAssetThumbs,
   PresetSlotState,
@@ -190,7 +191,7 @@ function StudioPillSelect({
       const nextPlacement = preferUp ? "up" : "down";
       const availableSpace = nextPlacement === "down" ? spaceBelow : spaceAbove;
       setMenuPlacement(nextPlacement);
-      setMenuMaxHeight(Math.max(180, Math.min(availableSpace, 360)));
+      setMenuMaxHeight(Math.max(180, Math.min(availableSpace, pickerMenuHeightCap(pickerId))));
     }
 
     updateMenuPlacement();
@@ -229,7 +230,7 @@ function StudioPillSelect({
         <div
           style={{ maxHeight: `${menuMaxHeight}px` }}
           className={cn(
-            "absolute left-0 z-30 min-w-full w-max max-w-[24rem] overflow-auto rounded-[18px] border border-white/10 bg-[rgba(17,20,19,0.98)] p-2 shadow-[0_24px_52px_rgba(0,0,0,0.44)] backdrop-blur-xl",
+            "absolute left-0 z-30 min-w-full w-max max-w-[28rem] overflow-auto rounded-[18px] border border-white/10 bg-[rgba(17,20,19,0.98)] p-2 shadow-[0_24px_52px_rgba(0,0,0,0.44)] backdrop-blur-xl",
             menuPlacement === "down" ? "top-[calc(100%+0.65rem)]" : "bottom-[calc(100%+0.65rem)]",
           )}
         >
@@ -461,6 +462,8 @@ export function MediaStudio({
     seedanceComposer,
     effectiveSeedanceMode,
     enhanceEnabledForModel,
+    enhanceConfiguredForModel,
+    enhanceSetupHref,
     enhanceProviderLabel,
     enhanceProviderModelId,
     enhanceImageAnalysisText,
@@ -621,6 +624,9 @@ export function MediaStudio({
       <Settings2 className="size-4" />
     </button>
   );
+  const openEnhancementSetup = () => {
+    void router.push(enhanceSetupHref);
+  };
   useEffect(() => {
     if (typeof window === "undefined" || !window.navigator.webdriver) {
       return;
@@ -1482,6 +1488,7 @@ export function MediaStudio({
                           )}
                         />
                           {enhanceEnabledForModel ? (
+                            enhanceConfiguredForModel ? (
                             <button
                             type="button"
                             data-testid="studio-open-enhance-dialog"
@@ -1490,8 +1497,18 @@ export function MediaStudio({
                             title="Open enhance dialog"
                             className="absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white/72 transition hover:border-[rgba(216,141,67,0.32)] hover:bg-[rgba(216,141,67,0.14)] hover:text-white"
                           >
-                              <Sparkles className="size-4" />
+                            <Sparkles className="size-4" />
                             </button>
+                            ) : (
+                              <button
+                                type="button"
+                                data-testid="studio-open-enhance-setup"
+                                onClick={openEnhancementSetup}
+                                className="absolute bottom-3 right-3 inline-flex h-9 items-center justify-center rounded-full border border-[rgba(216,141,67,0.22)] bg-[rgba(216,141,67,0.12)] px-3 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#ffd7af] transition hover:border-[rgba(216,141,67,0.34)] hover:text-white"
+                              >
+                                Set up
+                              </button>
+                            )
                           ) : null}
                       </div>
                     </>
@@ -1808,10 +1825,22 @@ export function MediaStudio({
                 ) : null}
 
                 <div className="grid gap-3">
-                  <button type="button" data-testid="studio-enhance-run-button" onClick={() => void requestEnhancementPreview()} disabled={enhanceBusy} className="inline-flex w-full items-center justify-center gap-3 rounded-[22px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 py-4 text-[0.98rem] font-semibold text-[#162300] shadow-[0_18px_34px_rgba(156,204,33,0.22)] disabled:opacity-60">
-                    {enhanceBusy ? <LoaderCircle className="size-4.5 animate-spin" /> : <Sparkles className="size-4.5" />}
-                    {enhanceBusy ? "Enhancing..." : "Enhance"}
-                  </button>
+                  {enhanceConfiguredForModel ? (
+                    <button type="button" data-testid="studio-enhance-run-button" onClick={() => void requestEnhancementPreview()} disabled={enhanceBusy} className="inline-flex w-full items-center justify-center gap-3 rounded-[22px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 py-4 text-[0.98rem] font-semibold text-[#162300] shadow-[0_18px_34px_rgba(156,204,33,0.22)] disabled:opacity-60">
+                      {enhanceBusy ? <LoaderCircle className="size-4.5 animate-spin" /> : <Sparkles className="size-4.5" />}
+                      {enhanceBusy ? "Enhancing..." : "Enhance"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      data-testid="studio-enhance-setup-button"
+                      onClick={openEnhancementSetup}
+                      className="inline-flex w-full items-center justify-center gap-3 rounded-[22px] border border-[rgba(216,141,67,0.24)] bg-[rgba(216,141,67,0.12)] px-5 py-4 text-[0.9rem] font-semibold text-[#ffd7af] transition hover:border-[rgba(216,141,67,0.36)] hover:text-white"
+                    >
+                      <Settings2 className="size-4.5" />
+                      Set up enhancement
+                    </button>
+                  )}
                   <button
                     type="button"
                     data-testid="studio-enhance-use-prompt-button"

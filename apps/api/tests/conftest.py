@@ -11,6 +11,10 @@ CONTROL_HEADERS = {
     "x-media-studio-control-token": "test-control-token",
     "x-media-studio-access-mode": "admin",
 }
+API_ROOT = Path(__file__).resolve().parents[1]
+
+if str(API_ROOT) not in sys.path:
+    sys.path.insert(0, str(API_ROOT))
 
 
 @pytest.fixture()
@@ -37,12 +41,14 @@ def app_modules(tmp_path: Path):
     runner = importlib.import_module("app.runner")
     service = importlib.import_module("app.service")
     db_admin = importlib.import_module("app.db_admin")
+    schemas = importlib.import_module("app.schemas")
     yield {
         "main": main,
         "store": store,
         "runner": runner,
         "service": service,
         "db_admin": db_admin,
+        "schemas": schemas,
     }
 
 

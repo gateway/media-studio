@@ -1,7 +1,6 @@
-from app import schemas, service
-
-
 def test_seedance_roles_flow_into_raw_request(app_modules) -> None:
+    schemas = app_modules["schemas"]
+    service = app_modules["service"]
     request = schemas.ValidateRequest(
         model_key="seedance-2.0",
         task_mode="reference_to_video",
@@ -27,6 +26,8 @@ def test_seedance_roles_flow_into_raw_request(app_modules) -> None:
 
 
 def test_seedance_prompt_context_surfaces_reference_asset_guide(app_modules) -> None:
+    schemas = app_modules["schemas"]
+    service = app_modules["service"]
     request = schemas.ValidateRequest(
         model_key="seedance-2.0",
         task_mode="reference_to_video",
@@ -46,6 +47,8 @@ def test_seedance_prompt_context_surfaces_reference_asset_guide(app_modules) -> 
 
 
 def test_seedance_invalid_shapes_are_rejected_early(app_modules) -> None:
+    schemas = app_modules["schemas"]
+    service = app_modules["service"]
     invalid_last_only = schemas.ValidateRequest(
         model_key="seedance-2.0",
         task_mode="reference_to_video",
