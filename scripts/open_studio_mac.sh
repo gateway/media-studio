@@ -87,6 +87,9 @@ if [[ -z "$WEB_PORT" ]]; then
   WEB_PORT="3000"
 fi
 
+api_running=false
+web_running=false
+
 if port_is_listening "$API_PORT"; then
   api_owner="$(port_owner_command "$API_PORT")"
   if ! looks_like_media_studio_process "$api_owner"; then
@@ -95,8 +98,7 @@ if port_is_listening "$API_PORT"; then
     echo "Close that app or change MEDIA_STUDIO_API_PORT in .env, then try again." >&2
     exit 1
   fi
-else
-  open_terminal_command "MEDIA_STUDIO_API_PORT=$API_PORT ./scripts/dev_api.sh"
+  api_running=true
 fi
 
 if port_is_listening "$WEB_PORT"; then
@@ -107,9 +109,22 @@ if port_is_listening "$WEB_PORT"; then
     echo "Close that app or change MEDIA_STUDIO_WEB_PORT in .env, then try again." >&2
     exit 1
   fi
-else
-  open_terminal_command "MEDIA_STUDIO_WEB_PORT=$WEB_PORT ./scripts/dev_web.sh"
+  web_running=true
 fi
+
+if [[ "$api_running" == true && "$web_running" == true ]]; then
+  sleep 1
+  open "http://127.0.0.1:$WEB_PORT/"
+  exit 0
+fi
+
+if [[ "$api_running" == true || "$web_running" == true ]]; then
+  echo "Media Studio looks partially started already." >&2
+  echo "Use Stop Media Studio.command first, then start it again." >&2
+  exit 1
+fi
+
+open_terminal_command "./scripts/run_studio_mac.sh"
 
 sleep 2
 open "http://127.0.0.1:$WEB_PORT/"

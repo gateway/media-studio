@@ -62,6 +62,30 @@ docs/
 data/
 ```
 
+## What Goes Into The Shared Python Venv?
+
+The setup flow creates one shared Python virtualenv in the sibling `kie-api` checkout.
+
+The bootstrap step installs:
+
+- upgraded packaging tools: `pip`, `setuptools`, `wheel`
+- editable `kie-api`
+- editable `media-studio-api`
+
+That means the shared venv ends up with the local packages plus the API dependencies they declare, including:
+
+- `fastapi`
+- `uvicorn[standard]`
+- `pydantic`
+- `python-multipart`
+- `httpx`
+- `Pillow`
+- `PyYAML`
+
+For normal app usage, the important runtime pieces are the two local packages plus the FastAPI stack. The packaging tools are there so editable installs work cleanly.
+
+Test-only packages such as `pytest` and `pytest-asyncio` are installed later by the quality/release verification scripts, not by the basic onboarding path.
+
 ## What Provider Are We Using?
 
 Right now the live generation path is Kie AI, pronounced "key AI."
@@ -194,12 +218,16 @@ That script:
 - prompts for `KIE_API_KEY`
 - asks whether you want to enable optional prompt enhancement now
 - lets you skip prompt enhancement and add it later in `Settings`
+- explains that the API and web app run in separate Terminal windows during local development
+- checks whether the default API and web ports are already in use before opening those windows
 - can open the API and web app for you immediately when setup finishes
 
 After setup, the easiest way to reopen the app later is to double-click:
 
 - [`Start Media Studio.command`](Start%20Media%20Studio.command)
 - [`Stop Media Studio.command`](Stop%20Media%20Studio.command)
+
+On macOS, `Start Media Studio.command` now uses a single launcher Terminal window for the local app and starts both the API and web processes for you behind that one launcher.
 
 If you prefer Terminal, run:
 

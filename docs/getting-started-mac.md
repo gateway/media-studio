@@ -49,6 +49,13 @@ The script will:
 - ask whether you want to enable optional prompt enhancement now
 - let you skip prompt enhancement and add it later in Settings
 
+The shared Python virtualenv includes editable installs of:
+
+- `kie-api`
+- `media-studio-api`
+
+Test-only packages are installed later only when you run the quality or release verification scripts.
+
 ## 3. Add the required KIE API key
 
 Live generation requires `KIE_API_KEY`.
@@ -77,6 +84,17 @@ You can also configure:
 
 The onboarding helper verifies the OpenRouter key before saving it. These providers are optional. Users can still generate media without them.
 
+## Terminal windows and port conflicts
+
+If you choose the launch option at the end of onboarding, the script opens two Terminal windows:
+
+- one for the FastAPI control API
+- one for the Next.js web app
+
+That is expected for local development.
+
+Before opening them, the script checks whether the configured API and web ports are already in use. If either port is busy, onboarding stops and tells you to free the port or change it in `.env`.
+
 ## 5. Start the app
 
 Manual start commands:
@@ -90,6 +108,8 @@ Or use the Finder-friendly launchers from the repo root:
 
 - `Start Media Studio.command`
 - `Stop Media Studio.command`
+
+`Start Media Studio.command` uses one launcher Terminal window on macOS and starts both the API and web processes behind it.
 
 Then open:
 

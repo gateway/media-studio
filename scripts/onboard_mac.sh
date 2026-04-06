@@ -185,6 +185,47 @@ web_port() {
   fi
 }
 
+api_host() {
+  local value
+  value="$(env_value MEDIA_STUDIO_API_HOST)"
+  if [[ -n "$value" ]]; then
+    echo "$value"
+  else
+    echo "127.0.0.1"
+  fi
+}
+
+api_port() {
+  local value
+  value="$(env_value MEDIA_STUDIO_API_PORT)"
+  if [[ -n "$value" ]]; then
+    echo "$value"
+  else
+    echo "8000"
+  fi
+}
+
+port_available() {
+  local host="$1"
+  local port="$2"
+  python3 - "$host" "$port" <<'PY'
+import socket
+import sys
+
+host = sys.argv[1]
+port = int(sys.argv[2])
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+try:
+    sock.bind((host, port))
+except OSError:
+    raise SystemExit(1)
+finally:
+    sock.close()
+PY
+}
+
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "This onboarding flow is tuned for macOS. Use ./scripts/bootstrap_local.sh on other platforms." >&2
   exit 1
@@ -210,6 +251,7 @@ echo
 echo "This script will:"
 echo " - bootstrap the shared KIE API dependency"
 echo " - create or reuse the shared Python virtualenv"
+echo " - install runtime Python packages for kie-api and media-studio-api"
 echo " - create .env and a clean local database"
 echo " - prompt for your Kie AI key and optional prompt enhancement"
 echo
@@ -234,13 +276,13 @@ else
 fi
 
 echo
-echo "Optional prompt enhancement"
+echo "Optional prompt enhancement (you can set this up later in Settings)"
 echo "Prompt enhancement rewrites or improves your text prompt before generation."
 echo "You can skip this now and enable it later in Settings."
 echo "Recommended hosted model: $DEFAULT_OPENROUTER_ENHANCEMENT_MODEL"
 echo
 
-if prompt_yes_no "Enable prompt enhancement now?" "N"; then
+if prompt_yes_no "Enable prompt enhancement now? This is optional and can be set up later in Settings." "N"; then
   echo "OpenRouter is used only for prompt enhancement. It is not required for image or video generation."
   echo "You can still skip this and enable it later in Settings."
   echo
@@ -306,9 +348,31 @@ echo " - API: npm run dev:api"
 echo " - Web: ./scripts/dev_web.sh"
 echo " - App: http://127.0.0.1:$(web_port)/"
 echo
+echo "The launcher opens two Terminal windows because the API and the Next.js web app run as separate processes during local development."
+echo
 
 read -r -p "Open the API and web commands in new Terminal windows now? [y/N]: " launch_now
 if [[ "$launch_now" =~ ^[Yy]$ ]]; then
+  api_host_value="$(api_host)"
+  api_port_value="$(api_port)"
+  web_port_value="$(web_port)"
+  api_can_start=true
+  web_can_start=true
+
+  if ! port_available "$api_host_value" "$api_port_value"; then
+    api_can_start=false
+    echo "API port $api_port_value on $api_host_value is already in use."
+  fi
+  if ! port_available "127.0.0.1" "$web_port_value"; then
+    web_can_start=false
+    echo "Web port $web_port_value is already in use."
+  fi
+
+  if [[ "$api_can_start" != true || "$web_can_start" != true ]]; then
+    echo "Close the process using that port, or change MEDIA_STUDIO_API_PORT / MEDIA_STUDIO_WEB_PORT in .env, then rerun the launcher."
+    exit 1
+  fi
+
   open_terminal_command "npm run dev:api"
   open_terminal_command "./scripts/dev_web.sh"
   echo "Opening Terminal windows for the API and web app."

@@ -8,8 +8,11 @@ ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
 load_media_env "$ROOT"
 KIE_ROOT="$(resolve_kie_root "$ROOT")"
 VENV_PY="$KIE_ROOT/.venv/bin/python"
+VENV_PIP="$KIE_ROOT/.venv/bin/pip"
 
 "$VENV_PY" "$ROOT/scripts/check_repo_hygiene.py"
+
+"$VENV_PIP" install -q -e "$ROOT/apps/api[dev]"
 
 (
   cd "$ROOT/apps/api"
