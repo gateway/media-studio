@@ -319,9 +319,11 @@ export function MediaStudio({
   const [hasMounted, setHasMounted] = useState(false);
   const [studioSettingsOpen, setStudioSettingsOpen] = useState(false);
   const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(null);
+  const [copyPromptStatus, setCopyPromptStatus] = useState<"idle" | "copied" | "error">("idle");
   const [selectedFailedJobId, setSelectedFailedJobId] = useState<string | null>(null);
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
   const lastComposerDebugSignatureRef = useRef<string | null>(null);
+  const copyPromptStatusTimerRef = useRef<number | null>(null);
   const pollJobProxyRef = useRef<(jobId: string) => Promise<void>>(async () => {});
   const pollBatchProxyRef = useRef<(batchId: string) => Promise<void>>(async () => {});
   const openEnhanceDialogProxyRef = useRef<() => void>(() => undefined);
@@ -341,6 +343,14 @@ export function MediaStudio({
       startRefresh(() => router.refresh());
     }, 1400);
   };
+
+  useEffect(() => {
+    return () => {
+      if (copyPromptStatusTimerRef.current != null) {
+        window.clearTimeout(copyPromptStatusTimerRef.current);
+      }
+    };
+  }, []);
   const gallery = useStudioGalleryFeed({
     batches,
     jobs,
@@ -1193,6 +1203,16 @@ export function MediaStudio({
     }
   }
 
+  function showCopyPromptStatus(status: "copied" | "error") {
+    setCopyPromptStatus(status);
+    if (copyPromptStatusTimerRef.current != null) {
+      window.clearTimeout(copyPromptStatusTimerRef.current);
+    }
+    copyPromptStatusTimerRef.current = window.setTimeout(() => {
+      setCopyPromptStatus("idle");
+      copyPromptStatusTimerRef.current = null;
+    }, 1800);
+  }
 
   async function copyPromptFromAsset(promptText: string | null) {
     if (!promptText) {
@@ -1204,12 +1224,15 @@ export function MediaStudio({
       } else if (!fallbackCopyTextToClipboard(promptText)) {
         throw new Error("Clipboard copy is not available in this browser.");
       }
+      showCopyPromptStatus("copied");
       setFormMessage({ tone: "healthy", text: "Copied the selected asset prompt." });
     } catch {
       if (fallbackCopyTextToClipboard(promptText)) {
+        showCopyPromptStatus("copied");
         setFormMessage({ tone: "healthy", text: "Copied the selected asset prompt." });
         return;
       }
+      showCopyPromptStatus("error");
       setFormMessage({ tone: "danger", text: "Studio could not copy the prompt on this device." });
     }
   }
@@ -2039,8 +2062,12 @@ export function MediaStudio({
                         onClick={() => void copyPromptFromAsset(selectedAssetPrompt)}
                         className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white/76"
                       >
-                        <Copy className="size-3.5" />
-                        Copy
+                        {copyPromptStatus === "copied" ? (
+                          <Check className="size-3.5 text-[#b8ff9f]" />
+                        ) : (
+                          <Copy className="size-3.5" />
+                        )}
+                        {copyPromptStatus === "copied" ? "Copied" : copyPromptStatus === "error" ? "Copy failed" : "Copy"}
                       </button>
                     ) : null}
                   </div>
@@ -2120,8 +2147,12 @@ export function MediaStudio({
                           onClick={() => void copyPromptFromAsset(selectedAssetPrompt)}
                           className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-white/76"
                         >
-                          <Copy className="size-3.5" />
-                          Copy
+                          {copyPromptStatus === "copied" ? (
+                            <Check className="size-3.5 text-[#b8ff9f]" />
+                          ) : (
+                            <Copy className="size-3.5" />
+                          )}
+                          {copyPromptStatus === "copied" ? "Copied" : copyPromptStatus === "error" ? "Copy failed" : "Copy"}
                         </button>
                       ) : undefined
                     }
