@@ -17,6 +17,10 @@ The shortest way to think about it:
 - `npm`
 - a `KIE_API_KEY` for live generation through Kie AI
 
+If this machine still needs Git, Python 3, or Node.js:
+
+- [docs/prerequisites.md](docs/prerequisites.md)
+
 Kie AI, pronounced "key AI," is the external model marketplace and provider used by Media Studio. The models do not run on your machine. The app runs locally, but live image and video jobs are sent to Kie AI.
 
 Kie AI uses a credit-based pay-as-you-go system. As of April 3, 2026, Kie AI pages describe entry-level credit purchases starting at $5, and some current model pages cite 1,000 credits for $5. Each model has its own credit usage, so different image and video jobs cost different amounts.
@@ -94,7 +98,7 @@ Then open:
 ## Optional extras
 
 - `OPENROUTER_API_KEY`
-  For hosted prompt enhancement.
+  For hosted prompt enhancement. Optional, and you can add it later in `Settings`.
 - `MEDIA_LOCAL_OPENAI_BASE_URL`
   For a local OpenAI-compatible endpoint.
 - `MEDIA_LOCAL_OPENAI_API_KEY`

@@ -162,6 +162,10 @@ Minimum requirements:
 - `Node.js LTS` (includes `npm`)
 - `KIE_API_KEY` from Kie AI
 
+If you need install help first:
+
+- [docs/prerequisites.md](docs/prerequisites.md)
+
 ### macOS
 
 If Git is missing, install Apple Command Line Tools first:
@@ -188,6 +192,8 @@ That script:
 - creates `.env`
 - creates a clean local database
 - prompts for `KIE_API_KEY`
+- asks whether you want to enable optional prompt enhancement now
+- lets you skip prompt enhancement and add it later in `Settings`
 - can open the API and web app for you immediately when setup finishes
 
 After setup, the easiest way to reopen the app later is to double-click:
@@ -270,7 +276,9 @@ If you want prompt rewriting or enhancement before generation, you can also conf
 - `MEDIA_LOCAL_OPENAI_BASE_URL` for a local OpenAI-compatible endpoint
 - `MEDIA_LOCAL_OPENAI_API_KEY` if that local endpoint requires auth
 
-By default, the OpenRouter enhancement path is wired to `qwen/qwen3.5-35b-a3b`, and the enhancement layer can also work with supported multimodal models when you want image-aware prompt help.
+The macOS onboarding flow asks if you want to enable prompt enhancement now, verifies the OpenRouter key if you do, and lets you skip the whole step and add it later in `Settings`.
+
+By default, the recommended OpenRouter enhancement model is `qwen/qwen3.5-35b-a3b`, and the enhancement layer can also work with supported multimodal models when you want image-aware prompt help.
 
 These are helpers for prompt quality. They are not required for the core image or video generation flow.
 

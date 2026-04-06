@@ -7,7 +7,12 @@ Use this path if you want a clean first-run setup with the required KIE API depe
 Before you start, make sure this Mac has:
 
 - Git
+- Python 3
 - Node.js **LTS**
+
+If you want a short prerequisites page first:
+
+- [docs/prerequisites.md](prerequisites.md)
 
 If Git is missing, run:
 
@@ -40,7 +45,9 @@ The script will:
 - install Python and web dependencies
 - create `.env` if it does not exist
 - create a clean local SQLite database with schema and default presets
-- prompt for your KIE API key and optional prompt-enhancement providers
+- prompt for your Kie AI API key
+- ask whether you want to enable optional prompt enhancement now
+- let you skip prompt enhancement and add it later in Settings
 
 ## 3. Add the required KIE API key
 
@@ -54,13 +61,21 @@ If you skip this during onboarding, Media Studio stays in offline-safe mode unti
 
 ## 4. Optional prompt enhancement providers
 
+During onboarding, the macOS script now asks whether you want to enable prompt enhancement.
+
+This feature is optional. It rewrites or improves your text prompt before generation. If you skip it, you can turn it on later in `Settings`.
+
+If you enable it during onboarding, the recommended hosted model is:
+
+- `qwen/qwen3.5-35b-a3b`
+
 You can also configure:
 
 - `OPENROUTER_API_KEY` for hosted prompt enhancement
 - `MEDIA_LOCAL_OPENAI_BASE_URL` for a local OpenAI-compatible endpoint
 - `MEDIA_LOCAL_OPENAI_API_KEY` if your local endpoint requires one
 
-These are optional. Users can still generate media without them.
+The onboarding helper verifies the OpenRouter key before saving it. These providers are optional. Users can still generate media without them.
 
 ## 5. Start the app
 
