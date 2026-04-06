@@ -571,14 +571,13 @@ echo " - OpenRouter: $( [[ -n "$(env_value OPENROUTER_API_KEY)" ]] && echo confi
 echo " - Local OpenAI base URL: $(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
 echo
 echo "Next commands"
-echo " - API: npm run dev:api"
-echo " - Web: ./scripts/dev_web.sh"
+echo " - Launch app: ./scripts/run_studio_mac.sh"
 echo " - App: http://127.0.0.1:$(web_port)/"
 echo
-echo "The launcher opens two Terminal windows because the API and the Next.js web app run as separate processes during local development."
+echo "The launcher starts the API and web app together in one Terminal window for normal use."
 echo
 
-read -r -p "Open the API and web commands in new Terminal windows now? [y/N]: " launch_now
+read -r -p "Launch Media Studio in one Terminal window now? [y/N]: " launch_now
 if [[ "$launch_now" =~ ^[Yy]$ ]]; then
   api_host_value="$(api_host)"
   api_port_value="$(api_port)"
@@ -600,7 +599,6 @@ if [[ "$launch_now" =~ ^[Yy]$ ]]; then
     exit 1
   fi
 
-  open_terminal_command "npm run dev:api"
-  open_terminal_command "./scripts/dev_web.sh"
-  echo "Opening Terminal windows for the API and web app."
+  open_terminal_command "./scripts/run_studio_mac.sh"
+  echo "Opening Media Studio in one Terminal window."
 fi
