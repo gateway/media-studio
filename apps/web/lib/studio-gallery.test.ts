@@ -114,6 +114,41 @@ describe("studio-gallery", () => {
     expect(tiles[0]?.label).toBe("Publishing output");
   });
 
+  it("keeps a failed tile visible when the provider returns an error and no asset is published", () => {
+    const tiles = buildGalleryTiles(
+      [],
+      null,
+      [
+        {
+          batch_id: "batch-2",
+          status: "failed",
+          requested_outputs: 1,
+          queued_count: 0,
+          running_count: 0,
+          completed_count: 0,
+          failed_count: 1,
+          cancelled_count: 0,
+          created_at: "2026-04-06T00:00:00Z",
+          updated_at: "2026-04-06T00:00:00Z",
+          jobs: [
+            {
+              job_id: "job-3",
+              status: "failed",
+              error: "Provider policy rejected the generation.",
+              final_status: { state: "failed" },
+            },
+          ],
+        } as never,
+      ],
+      [],
+      false,
+      false,
+    );
+
+    expect(tiles[0]?.job?.job_id).toBe("job-3");
+    expect(tiles[0]?.label).toBe("Failed output");
+  });
+
   it("does not pad real assets with placeholder tiles once gallery content exists", () => {
     const tiles = buildGalleryTiles(
       [

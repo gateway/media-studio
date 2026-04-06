@@ -176,6 +176,9 @@ export function buildGalleryTiles(
       if (["queued", "submitted", "running", "processing"].includes(job.status)) {
         return true;
       }
+      if (job.status === "failed" && !jobHasPublishedAsset(job, allAssets)) {
+        return true;
+      }
       const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
       return finalState === "succeeded" && !jobHasPublishedAsset(job, allAssets);
     });
@@ -194,6 +197,8 @@ export function buildGalleryTiles(
         label:
           job.status === "queued"
             ? "Queued output"
+            : job.status === "failed"
+              ? "Failed output"
             : finalState === "succeeded" || job.status === "completed"
               ? "Publishing output"
               : "Processing output",

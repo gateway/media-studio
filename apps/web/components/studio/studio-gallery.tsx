@@ -1,6 +1,6 @@
 "use client";
 
-import { Clapperboard, Heart, Image as ImageIcon, LoaderCircle, Play } from "lucide-react";
+import { AlertTriangle, Clapperboard, Heart, Image as ImageIcon, LoaderCircle, Play } from "lucide-react";
 
 import { gallerySpanClasses } from "@/lib/media-studio-contract";
 import { mediaThumbnailUrl, prettifyModelLabel } from "@/lib/media-studio-helpers";
@@ -120,6 +120,8 @@ export function StudioGallery({
                   <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/14 bg-[rgba(18,22,19,0.92)] shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
                     {batchJob?.status === "queued" ? (
                       <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/84">Queued</div>
+                    ) : batchJob?.status === "failed" ? (
+                      <AlertTriangle className="size-6 text-[#ff8b8b]" />
                     ) : (
                       <LoaderCircle className="size-6 animate-spin text-[#d8ff2e]" />
                     )}
@@ -127,6 +129,11 @@ export function StudioGallery({
                   <div className="text-[0.88rem] font-semibold uppercase tracking-[0.18em] text-white/68">
                     {prettifyModelLabel(batchJob?.model_key ?? batchTile.model_key)}
                   </div>
+                  {batchJob?.status === "failed" ? (
+                    <div className="max-w-[18rem] text-[0.74rem] leading-5 text-[rgba(255,214,214,0.92)]">
+                      {batchJob?.error ?? "The media job failed before a finished asset was published."}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ) : null}
