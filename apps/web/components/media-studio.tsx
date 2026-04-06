@@ -1170,13 +1170,48 @@ export function MediaStudio({
     }
   }
 
+  function fallbackCopyTextToClipboard(text: string) {
+    if (typeof document === "undefined") {
+      return false;
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    try {
+      return document.execCommand("copy");
+    } catch {
+      return false;
+    } finally {
+      textarea.remove();
+    }
+  }
+
 
   async function copyPromptFromAsset(promptText: string | null) {
-    if (!promptText || !navigator.clipboard) {
+    if (!promptText) {
       return;
     }
-    await navigator.clipboard.writeText(promptText);
-    setFormMessage({ tone: "healthy", text: "Copied the selected asset prompt." });
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(promptText);
+      } else if (!fallbackCopyTextToClipboard(promptText)) {
+        throw new Error("Clipboard copy is not available in this browser.");
+      }
+      setFormMessage({ tone: "healthy", text: "Copied the selected asset prompt." });
+    } catch {
+      if (fallbackCopyTextToClipboard(promptText)) {
+        setFormMessage({ tone: "healthy", text: "Copied the selected asset prompt." });
+        return;
+      }
+      setFormMessage({ tone: "danger", text: "Studio could not copy the prompt on this device." });
+    }
   }
 
   function useAssetAsSource(asset: MediaAsset | null, animate = false) {
