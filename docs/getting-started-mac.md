@@ -42,7 +42,7 @@ The script will:
 - reuse an existing sibling `../kie-api` or `../kie-ai/kie_codex_bootstrap` checkout when present
 - clone `gateway/kie-api` beside this repo if no supported sibling checkout exists
 - create or reuse the shared Python virtualenv
-- install Python and web dependencies
+- install Python dependencies plus the web app workspace dependencies
 - create `.env` if it does not exist
 - create a clean local SQLite database with schema and default presets
 - prompt for your Kie AI API key
@@ -55,6 +55,8 @@ The shared Python virtualenv includes editable installs of:
 - `media-studio-api`
 
 Test-only packages are installed later only when you run the quality or release verification scripts.
+
+Test tooling such as Vitest and browser smoke tooling are also kept out of the normal user path. They only get installed when you run the quality or release verification workflow.
 
 ## 3. Add the required KIE API key
 

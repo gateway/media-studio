@@ -13,7 +13,6 @@ export default async function StudioSettingsPage() {
       title="Settings"
       description="Manage the Studio scheduler, enhancement provider, output path, supported models, and presets from one system view."
     >
-      <StudioDebugSettings />
       <MediaModelsConsole
         models={snapshot.models.data?.models ?? []}
         presets={snapshot.presets.data?.presets ?? []}
@@ -30,6 +29,7 @@ export default async function StudioSettingsPage() {
           presets: false,
         }}
       />
+      <StudioDebugSettings />
     </StudioAdminShell>
   );
 }

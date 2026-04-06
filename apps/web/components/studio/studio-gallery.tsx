@@ -35,6 +35,26 @@ export function StudioGallery({
   onDragAsset,
   onToggleFavorite,
 }: StudioGalleryProps) {
+  if (galleryTiles.length === 0) {
+    return (
+      <div
+        data-testid="studio-gallery"
+        className={cn(
+          "relative z-[1] flex items-center justify-center bg-white/6 p-px",
+          immersive ? "min-h-dvh pb-[270px] pt-0 md:pb-[290px]" : "min-h-[920px] pt-20",
+        )}
+      >
+        <div className="mx-4 w-full max-w-xl rounded-[32px] border border-white/10 bg-[rgba(11,14,13,0.9)] px-8 py-10 text-center text-white shadow-[0_24px_80px_rgba(0,0,0,0.24)] backdrop-blur-xl">
+          <div className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-[rgba(216,141,67,0.82)]">Gallery Empty</div>
+          <h2 className="mt-4 text-2xl font-semibold tracking-[-0.02em] text-white">Your studio is ready for the first render.</h2>
+          <p className="mt-3 text-sm leading-6 text-white/68">
+            Pick a model, write a prompt, and generate your first image or video. Finished results will appear here.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       data-testid="studio-gallery"

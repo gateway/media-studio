@@ -5,6 +5,84 @@ KIE_AFFILIATE_URL="https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42"
 MEDIA_PREREQS_URL="https://github.com/gateway/media-studio/blob/main/docs/prerequisites.md"
 DEFAULT_LOCAL_OPENAI_BASE_URL="http://127.0.0.1:8080/v1"
 DEFAULT_OPENROUTER_ENHANCEMENT_MODEL="qwen/qwen3.5-35b-a3b"
+NANO_BANANA_ENHANCEMENT_SYSTEM_PROMPT="$(cat <<'EOF'
+You are a prompt enhancer for Nano Banana Pro.
+
+Your job is to transform the user’s raw request into one strong, production-ready Nano Banana Pro prompt that is clearer, more specific, and more visually controllable while staying faithful to the user’s actual intent.
+
+Input placeholder:
+{user_prompt}
+
+Rules:
+- Output ONLY the final enhanced prompt.
+- Do not explain your reasoning.
+- Do not add labels, bullets, headers, quotes, or markdown.
+- Do not mention these instructions.
+- Do not ask questions.
+- Do not invent major story elements that change the user’s intent.
+- Preserve all explicit user requirements exactly.
+- If the user specifies text that must appear in the image, preserve it verbatim.
+- If the user implies editing or preserving an existing image/reference, prioritize minimal necessary changes and strong preservation of identity, composition, style, branding, clothing, objects, and scene elements unless the user asks otherwise.
+- When useful, rewrite vague asks into concrete visual directions.
+- Keep the final prompt concise but rich enough to control output.
+
+How to enhance:
+1. Identify the core intent:
+   - text-to-image
+   - image edit
+   - character consistency
+   - product shot
+   - typography / poster / infographic
+   - UI / mockup
+   - photoreal scene
+   - illustration / stylized art
+2. Rewrite the request into a clean visual brief using this priority:
+   subject -> action/pose -> key objects -> environment/background -> composition/framing -> style/look -> lighting/color -> important constraints -> exact text/rendering instructions.
+3. Add only useful specificity:
+   - camera/framing for realistic scenes
+   - layout/placement guidance for posters, infographics, covers, ads, and UI
+   - preservation language for edits and references
+   - material, texture, mood, and lighting cues when relevant
+   - exact wording for any on-image text
+4. Make the prompt unambiguous:
+   - specify what should remain unchanged
+   - specify what should be added, removed, or emphasized
+   - avoid conflicting instructions
+   - avoid filler words and hype
+5. If the user request includes brand/logo/text accuracy needs, explicitly emphasize:
+   - exact text rendering
+   - correct spelling
+   - clean layout
+   - legible typography
+   - no unwanted extra text
+6. If the request is about editing an existing image, strongly prefer language like:
+   - keep everything else the same
+   - preserve original composition
+   - preserve identity / outfit / pose / environment
+   - make only the requested changes
+7. If the request is about style consistency, explicitly anchor:
+   - same character
+   - same face
+   - same outfit
+   - same visual style
+   - same overall design language
+8. If the user is vague, choose sensible defaults without saying so:
+   - visually clean
+   - cohesive composition
+   - high detail
+   - intentional lighting
+   - strong subject clarity
+
+Output style:
+- One single polished prompt paragraph.
+- No preamble and no ending note.
+- No negative prompt section unless the user explicitly asks for one.
+- No parameter syntax unless the user explicitly requests parameters.
+
+Now transform this user request into the best possible Nano Banana Pro prompt:
+{user_prompt}
+EOF
+)"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/shared_env.sh
@@ -36,6 +114,10 @@ require_command() {
     echo "See prerequisites: $MEDIA_PREREQS_URL" >&2
     exit 1
   fi
+}
+
+normalize_secret_value() {
+  python3 -c 'import sys; value = sys.stdin.read(); print(value.replace("\r", "").replace("\n", "").strip(), end="")'
 }
 
 env_value() {
@@ -91,6 +173,7 @@ prompt_secret() {
   local value
   IFS= read -r -s -p "$label: " value
   echo
+  value="$(printf '%s' "$value" | normalize_secret_value)"
   if [[ -n "$value" ]]; then
     upsert_env "$key" "$value"
   fi
@@ -100,8 +183,8 @@ read_secret_or_blank() {
   local label="$1"
   local value=""
   IFS= read -r -s -p "$label: " value
-  echo
-  printf '%s' "$value"
+  printf '\n' >&2
+  printf '%s' "$value" | normalize_secret_value
 }
 
 prompt_yes_no() {
@@ -163,6 +246,149 @@ PY
     return 1
   fi
   return 0
+}
+
+seed_default_openrouter_enhancement_configs() {
+  local openrouter_base_url="$1"
+  local db_path
+  db_path="$(env_value MEDIA_STUDIO_DB_PATH)"
+  if [[ -z "$db_path" || ! -x "$VENV_PY" ]]; then
+    return 1
+  fi
+
+  MEDIA_STUDIO_DB_PATH="$db_path" "$VENV_PY" - "$db_path" "$openrouter_base_url" "$DEFAULT_OPENROUTER_ENHANCEMENT_MODEL" "$NANO_BANANA_ENHANCEMENT_SYSTEM_PROMPT" <<'PY'
+from __future__ import annotations
+
+import sqlite3
+import sys
+from datetime import datetime, timezone
+
+db_path, base_url, model_id, system_prompt = sys.argv[1:5]
+
+
+def utcnow_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def fetch_existing(connection: sqlite3.Connection, model_key: str):
+    return connection.execute(
+        "SELECT * FROM media_enhancement_configs WHERE model_key = ?",
+        (model_key,),
+    ).fetchone()
+
+
+def upsert_config(connection: sqlite3.Connection, payload: dict[str, object]) -> None:
+    columns = [
+        "config_id",
+        "model_key",
+        "label",
+        "helper_profile",
+        "provider_kind",
+        "provider_label",
+        "provider_model_id",
+        "provider_api_key",
+        "provider_base_url",
+        "provider_supports_images",
+        "provider_status",
+        "provider_last_tested_at",
+        "provider_capabilities_json",
+        "system_prompt",
+        "image_analysis_prompt",
+        "supports_text_enhancement",
+        "supports_image_analysis",
+        "created_at",
+        "updated_at",
+    ]
+    placeholders = ", ".join("?" for _ in columns)
+    assignments = ", ".join(f"{column} = excluded.{column}" for column in columns[2:])
+    connection.execute(
+        f"""
+        INSERT INTO media_enhancement_configs ({", ".join(columns)})
+        VALUES ({placeholders})
+        ON CONFLICT(model_key) DO UPDATE SET {assignments}
+        """,
+        tuple(payload[column] for column in columns),
+    )
+
+
+connection = sqlite3.connect(db_path)
+connection.row_factory = sqlite3.Row
+now = utcnow_iso()
+
+global_key = "__studio_enhancement__"
+global_row = fetch_existing(connection, global_key)
+global_created_at = global_row["created_at"] if global_row and global_row["created_at"] else now
+global_payload = {
+    "config_id": (global_row["config_id"] if global_row and global_row["config_id"] else "cfg-__studio_enhancement__"),
+    "model_key": global_key,
+    "label": (global_row["label"] if global_row and global_row["label"] else "Studio enhancement"),
+    "helper_profile": (
+        global_row["helper_profile"]
+        if global_row and global_row["helper_profile"]
+        else "midctx-64k-no-thinking-q3-prefill"
+    ),
+    "provider_kind": "openrouter",
+    "provider_label": "OpenRouter.ai",
+    "provider_model_id": model_id,
+    "provider_api_key": global_row["provider_api_key"] if global_row and global_row["provider_api_key"] else None,
+    "provider_base_url": base_url,
+    "provider_supports_images": 0,
+    "provider_status": "active",
+    "provider_last_tested_at": now,
+    "provider_capabilities_json": (
+        global_row["provider_capabilities_json"]
+        if global_row and global_row["provider_capabilities_json"]
+        else "{}"
+    ),
+    "system_prompt": global_row["system_prompt"] if global_row and global_row["system_prompt"] else None,
+    "image_analysis_prompt": (
+        global_row["image_analysis_prompt"]
+        if global_row and global_row["image_analysis_prompt"]
+        else None
+    ),
+    "supports_text_enhancement": 1,
+    "supports_image_analysis": 0,
+    "created_at": global_created_at,
+    "updated_at": now,
+}
+upsert_config(connection, global_payload)
+
+for model_key, label in (
+    ("nano-banana-2", "Nano Banana 2 enhancement"),
+    ("nano-banana-pro", "Nano Banana Pro enhancement"),
+):
+    row = fetch_existing(connection, model_key)
+    created_at = row["created_at"] if row and row["created_at"] else now
+    payload = {
+        "config_id": (row["config_id"] if row and row["config_id"] else f"cfg-{model_key}"),
+        "model_key": model_key,
+        "label": (row["label"] if row and row["label"] else label),
+        "helper_profile": (
+            row["helper_profile"] if row and row["helper_profile"] else "midctx-64k-no-thinking-q3-prefill"
+        ),
+        "provider_kind": row["provider_kind"] if row and row["provider_kind"] else "builtin",
+        "provider_label": row["provider_label"] if row and row["provider_label"] else None,
+        "provider_model_id": row["provider_model_id"] if row and row["provider_model_id"] else None,
+        "provider_api_key": row["provider_api_key"] if row and row["provider_api_key"] else None,
+        "provider_base_url": row["provider_base_url"] if row and row["provider_base_url"] else None,
+        "provider_supports_images": row["provider_supports_images"] if row else 0,
+        "provider_status": row["provider_status"] if row and row["provider_status"] else None,
+        "provider_last_tested_at": row["provider_last_tested_at"] if row and row["provider_last_tested_at"] else None,
+        "provider_capabilities_json": (
+            row["provider_capabilities_json"] if row and row["provider_capabilities_json"] else "{}"
+        ),
+        "system_prompt": row["system_prompt"] if row and row["system_prompt"] else system_prompt,
+        "image_analysis_prompt": row["image_analysis_prompt"] if row and row["image_analysis_prompt"] else None,
+        "supports_text_enhancement": 1,
+        "supports_image_analysis": 0,
+        "created_at": created_at,
+        "updated_at": now,
+    }
+    upsert_config(connection, payload)
+
+connection.commit()
+connection.close()
+PY
 }
 
 open_terminal_command() {
@@ -309,8 +535,9 @@ if prompt_yes_no "Enable prompt enhancement now? This is optional and can be set
     echo "Verifying OpenRouter key against $DEFAULT_OPENROUTER_ENHANCEMENT_MODEL ..."
     if verify_openrouter_key "$openrouter_key" "$openrouter_base_url"; then
       upsert_env "OPENROUTER_API_KEY" "$openrouter_key"
+      seed_default_openrouter_enhancement_configs "$openrouter_base_url" >/dev/null 2>&1 || true
       echo "OpenRouter key verified."
-      echo "When you open Settings, the recommended hosted enhancement model is $DEFAULT_OPENROUTER_ENHANCEMENT_MODEL."
+      echo "Studio saved the recommended OpenRouter enhancement model and Nano Banana enhancement prompts."
       break
     fi
     echo "OpenRouter verification failed."

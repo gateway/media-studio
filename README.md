@@ -71,6 +71,7 @@ The bootstrap step installs:
 - upgraded packaging tools: `pip`, `setuptools`, `wheel`
 - editable `kie-api`
 - editable `media-studio-api`
+- the `apps/web` workspace dependencies needed to run the local Next.js dashboard
 
 That means the shared venv ends up with the local packages plus the API dependencies they declare, including:
 
@@ -85,6 +86,8 @@ That means the shared venv ends up with the local packages plus the API dependen
 For normal app usage, the important runtime pieces are the two local packages plus the FastAPI stack. The packaging tools are there so editable installs work cleanly.
 
 Test-only packages such as `pytest` and `pytest-asyncio` are installed later by the quality/release verification scripts, not by the basic onboarding path.
+
+On the Node side, onboarding installs the web app workspace only. Test tooling such as Vitest and browser smoke tooling such as Playwright are part of the release/test path, not the normal user setup path.
 
 ## What Provider Are We Using?
 

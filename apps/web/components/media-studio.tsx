@@ -325,6 +325,14 @@ export function MediaStudio({
   const openEnhanceDialogProxyRef = useRef<() => void>(() => undefined);
   const requestEnhancementPreviewProxyRef = useRef<() => Promise<void>>(async () => undefined);
   const applyEnhancementPromptProxyRef = useRef<() => boolean>(() => false);
+  const enabledStudioModels = useMemo(
+    () =>
+      models.filter((model) => {
+        const policy = queuePolicies.find((entry) => entry.model_key === model.key);
+        return policy?.enabled ?? true;
+      }),
+    [models, queuePolicies],
+  );
   const refreshStudioDataWithSettleDelay = () => {
     startRefresh(() => router.refresh());
     window.setTimeout(() => {
@@ -1523,7 +1531,7 @@ export function MediaStudio({
                       label={composerModelLabel(currentModel?.label)}
                       selectedValue={modelKey ?? ""}
                       menuTitle="Model"
-                      choices={models.map((model) => ({
+                      choices={enabledStudioModels.map((model) => ({
                         value: model.key,
                         label: composerModelLabel(model.label),
                       }))}
@@ -1672,7 +1680,7 @@ export function MediaStudio({
                       </div>
                     </div>
                   </div>
-	              {(composerStatusMessage || selectedPromptList.length || multiShotsEnabled) ? (
+	              {(selectedPromptList.length || multiShotsEnabled) ? (
                 <div className="mt-4 grid gap-3 border-t border-white/8 pt-4">
                   <div className="grid gap-2">
                     {multiShotsEnabled ? (
@@ -1685,23 +1693,6 @@ export function MediaStudio({
                             {multiShotScript.shots.length === 1 ? "" : "s"} · {multiShotScript.totalDuration}s total
                           </span>
                         )}
-                      </div>
-                    ) : null}
-                    {composerStatusMessage ? (
-                      <div
-                        className={cn(
-                          "rounded-[20px] border px-4 py-3 text-sm",
-                          composerStatusMessage.tone === "danger"
-                            ? "border-[rgba(201,102,82,0.22)] bg-[rgba(201,102,82,0.08)] text-[#ffb5a6]"
-                            : composerStatusMessage.tone === "healthy"
-                              ? "border-[rgba(176,235,44,0.22)] bg-[rgba(176,235,44,0.08)] text-[#d8ff82]"
-                              : "border-white/8 bg-white/[0.03] text-white/78",
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          {busyState !== "idle" ? <LoaderCircle className="size-4 animate-spin" /> : null}
-                          <span>{composerStatusMessage.text}</span>
-                        </div>
                       </div>
                     ) : null}
                     {selectedPromptList.length ? (

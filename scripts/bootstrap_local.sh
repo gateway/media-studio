@@ -36,7 +36,7 @@ echo "Installing shared Python dependencies ..."
 "$VENV_PIP" install -e "$MEDIA_ROOT/apps/api"
 
 echo "Installing web dependencies ..."
-(cd "$MEDIA_ROOT" && npm install)
+(cd "$MEDIA_ROOT" && npm install --workspace apps/web --include-workspace-root=false)
 
 mkdir -p "$MEDIA_ROOT/data/uploads" "$MEDIA_ROOT/data/downloads" "$MEDIA_ROOT/data/outputs" "$MEDIA_ROOT/data/preset-thumbnails"
 

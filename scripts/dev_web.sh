@@ -12,4 +12,5 @@ export PORT="${MEDIA_STUDIO_WEB_PORT:-${PORT:-3000}}"
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 
 cd "$MEDIA_ROOT"
-exec npm --workspace apps/web run dev -- --hostname "$WEB_HOST" --port "$PORT"
+cd "$MEDIA_ROOT/apps/web"
+exec npm run dev -- --hostname "$WEB_HOST" --port "$PORT"

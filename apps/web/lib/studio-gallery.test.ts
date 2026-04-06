@@ -42,11 +42,9 @@ describe("studio-gallery", () => {
     expect(batch.jobs?.[1]?.status).toBe("queued");
   });
 
-  it("fills empty gallery slots with placeholders when there are no assets", () => {
+  it("returns no placeholder tiles when there are no assets or batches", () => {
     const tiles = buildGalleryTiles([], null, [], [], false, false);
-    expect(tiles).toHaveLength(12);
-    expect(tiles[0]?.label).toBe("Recent still");
-    expect(tiles.every((tile) => tile.asset === null)).toBe(true);
+    expect(tiles).toHaveLength(0);
   });
 
   it("does not duplicate an asset that is already being shown as a pending batch preview", () => {
@@ -114,6 +112,27 @@ describe("studio-gallery", () => {
 
     expect(tiles[0]?.job?.job_id).toBe("job-2");
     expect(tiles[0]?.label).toBe("Publishing output");
+  });
+
+  it("does not pad real assets with placeholder tiles once gallery content exists", () => {
+    const tiles = buildGalleryTiles(
+      [
+        {
+          asset_id: "asset-2",
+          job_id: "job-2",
+          model_key: "nano-banana-2",
+          created_at: "2026-04-06T00:00:00Z",
+        } as never,
+      ],
+      null,
+      [],
+      [],
+      false,
+      false,
+    );
+
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0]?.asset?.asset_id).toBe("asset-2");
   });
 
   it("reports missing preset attachments by media kind", () => {

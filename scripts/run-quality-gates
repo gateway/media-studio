@@ -10,6 +10,14 @@ KIE_ROOT="$(resolve_kie_root "$ROOT")"
 VENV_PY="$KIE_ROOT/.venv/bin/python"
 VENV_PIP="$KIE_ROOT/.venv/bin/pip"
 
+if [[ ! -x "$ROOT/node_modules/.bin/vitest" ]]; then
+  echo "Installing root development Node tooling for quality gates ..."
+  (
+    cd "$ROOT"
+    npm install
+  )
+fi
+
 "$VENV_PY" "$ROOT/scripts/check_repo_hygiene.py"
 
 "$VENV_PIP" install -q -e "$ROOT/apps/api[dev]"

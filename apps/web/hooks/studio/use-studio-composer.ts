@@ -117,7 +117,15 @@ export function useStudioComposer({
   const floatingComposerHideTimerRef = useRef<number | null>(null);
   const floatingComposerClearTimerRef = useRef<number | null>(null);
   const formMessageHideTimerRef = useRef<number | null>(null);
-  const [modelKey, setModelKey] = useState(models[0]?.key ?? "nano-banana-2");
+  const queuePolicyByModelKey = useMemo(
+    () => new Map(queuePolicies.map((policy) => [policy.model_key, policy])),
+    [queuePolicies],
+  );
+  const enabledModels = useMemo(
+    () => models.filter((model) => queuePolicyByModelKey.get(model.key)?.enabled ?? true),
+    [models, queuePolicyByModelKey],
+  );
+  const [modelKey, setModelKey] = useState(enabledModels[0]?.key ?? models[0]?.key ?? "nano-banana-2");
   const [selectedPresetId, setSelectedPresetId] = useState("");
   const [selectedPromptIds, setSelectedPromptIds] = useState<string[]>([]);
   const [prompt, setPrompt] = useState("");
@@ -178,7 +186,8 @@ export function useStudioComposer({
         ? enhanceBaseUrlConfigured || enhanceCredentialConfigured || enhanceModelSelected
         : false);
   const enhanceSetupHref = "/settings#prompt-enhancement";
-  const currentQueuePolicy = queuePolicies.find((policy) => policy.model_key === modelKey) ?? null;
+  const currentQueuePolicy = queuePolicyByModelKey.get(modelKey) ?? null;
+  const currentModelEnabled = currentQueuePolicy?.enabled ?? true;
   const seedanceComposer = isSeedanceModel(modelKey);
   const maxConcurrentJobs = Math.max(1, queueSettings?.max_concurrent_jobs ?? 10);
   const modelMaxOutputs = Math.max(
@@ -235,6 +244,23 @@ export function useStudioComposer({
       ? "available"
       : String((enhancePreview.image_analysis as Record<string, unknown>).status ?? "available")
     : "Not checked";
+  useEffect(() => {
+    if (currentModelEnabled) {
+      return;
+    }
+    const fallbackKey = enabledModels[0]?.key ?? models[0]?.key ?? "nano-banana-2";
+    if (fallbackKey === modelKey) {
+      return;
+    }
+    setModelKey(fallbackKey);
+    setSelectedPresetId("");
+    setSelectedPromptIds([]);
+    setValidation(null);
+    setFormMessage({
+      tone: "warning",
+      text: "That model is disabled in Settings, so Studio switched to an enabled model.",
+    });
+  }, [currentModelEnabled, enabledModels, modelKey, models, setFormMessage]);
   const structuredPresetTextFields = useMemo(() => normalizeStructuredPresetTextFields(currentPreset), [currentPreset]);
   const structuredPresetImageSlots = useMemo(() => normalizeStructuredPresetImageSlots(currentPreset), [currentPreset]);
   const structuredPresetActive =
@@ -801,7 +827,7 @@ export function useStudioComposer({
     setPrompt("");
     setSelectedPresetId("");
     setSelectedPromptIds([]);
-    setModelKey(models[0]?.key ?? "nano-banana-2");
+    setModelKey(enabledModels[0]?.key ?? models[0]?.key ?? "nano-banana-2");
     setOutputCount(1);
     setValidation(null);
     setFormMessage(null);
@@ -964,6 +990,13 @@ export function useStudioComposer({
       window.clearTimeout(autoValidateTimerRef.current);
       autoValidateTimerRef.current = null;
     }
+    if (!currentModelEnabled) {
+      setValidation(null);
+      if (!silent) {
+        setFormMessage({ tone: "danger", text: "This model is disabled in Settings. Re-enable it before validating." });
+      }
+      return null;
+    }
     if ((!structuredPresetActive && !prompt.trim() && !attachments.length && !sourceAssetId) || (structuredPresetActive && !structuredPresetPromptPreview.trim())) {
       setValidation(null);
       return null;
@@ -1026,6 +1059,10 @@ export function useStudioComposer({
   }
 
   async function submitMedia(intent: "validate" | "submit") {
+    if (!currentModelEnabled) {
+      setFormMessage({ tone: "danger", text: "This model is disabled in Settings. Re-enable it before generating." });
+      return;
+    }
     if (intent === "validate") {
       await requestValidation({ silent: false });
       return;

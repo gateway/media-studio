@@ -204,15 +204,6 @@ export function buildGalleryTiles(
   }
 
   if (!source.length) {
-    while (tiles.length < 12) {
-      const index = tiles.length;
-      tiles.push({
-        asset: null,
-        label: backgroundLabel(index),
-        batch: null,
-        job: null,
-      });
-    }
     return tiles;
   }
 
@@ -224,16 +215,6 @@ export function buildGalleryTiles(
     tiles.push({
       asset,
       label: backgroundLabel(tiles.length),
-      batch: null,
-      job: null,
-    });
-  }
-
-  while (!hasMoreAssets && tiles.length < 12) {
-    const index = tiles.length;
-    tiles.push({
-      asset: null,
-      label: backgroundLabel(index),
       batch: null,
       job: null,
     });

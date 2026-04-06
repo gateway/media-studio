@@ -798,11 +798,12 @@ export function MediaModelsConsole({
 
   async function saveModelQueuePolicy(maxOutputsPerRun: number) {
     const clampedValue = Math.min(Math.max(1, maxOutputsPerRun), 3);
+    const enabled = currentQueuePolicy?.enabled ?? true;
     setIsSaving(true);
     const response = await fetch(`/api/control/media-queue-policies/${selectedModelKey}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ max_outputs_per_run: clampedValue }),
+      body: JSON.stringify({ enabled, max_outputs_per_run: clampedValue }),
     });
     const result = (await response.json()) as { ok?: boolean; error?: string; policy?: MediaModelQueuePolicy };
     setIsSaving(false);
@@ -816,6 +817,28 @@ export function MediaModelsConsole({
       return next.sort((left, right) => left.model_key.localeCompare(right.model_key));
     });
     setMessage({ tone: "healthy", text: "Model settings saved." });
+  }
+
+  async function saveModelAvailability(enabled: boolean) {
+    const maxOutputsPerRun = currentQueuePolicy?.max_outputs_per_run ?? (isNanoBananaModel(selectedModelKey) ? 3 : 1);
+    setIsSaving(true);
+    const response = await fetch(`/api/control/media-queue-policies/${selectedModelKey}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled, max_outputs_per_run: Math.min(Math.max(1, maxOutputsPerRun), 3) }),
+    });
+    const result = (await response.json()) as { ok?: boolean; error?: string; policy?: MediaModelQueuePolicy };
+    setIsSaving(false);
+    if (!response.ok || result.ok === false || !result.policy) {
+      setMessage({ tone: "danger", text: result.error ?? "Unable to update the model availability." });
+      return;
+    }
+    setLocalQueuePolicies((current) => {
+      const next = current.filter((entry) => entry.model_key !== result.policy?.model_key);
+      next.push(result.policy as MediaModelQueuePolicy);
+      return next.sort((left, right) => left.model_key.localeCompare(right.model_key));
+    });
+    setMessage({ tone: "healthy", text: enabled ? "Model enabled." : "Model disabled." });
   }
 
   function renderSelect(
@@ -1275,6 +1298,50 @@ export function MediaModelsConsole({
       </Panel>
       ) : null}
 
+      {visibleSections.queue && !visibleSections.modelPanel ? (
+      <Panel>
+        <PanelHeader
+          eyebrow="Model Availability"
+          title="Enable Or Disable Models"
+          description="Turn individual models on or off for Studio without changing any saved jobs, outputs, or history."
+        />
+        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:items-start">
+          <label className="grid gap-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">Model</span>
+            {renderSelect(
+              "availability-model",
+              selectedModelKey,
+              (value) => setSelectedModelKey(value),
+              models.map((model) => ({ value: model.key, label: model.label })),
+            )}
+          </label>
+          <div className={surfaceCardClassName}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="grid gap-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                    Availability
+                  </span>
+                  <StatusPill
+                    label={(currentQueuePolicy?.enabled ?? true) ? "Enabled" : "Disabled"}
+                    tone={(currentQueuePolicy?.enabled ?? true) ? "healthy" : "warning"}
+                  />
+                </div>
+                <div className="text-sm leading-6 text-[var(--muted-strong)]">
+                  {(selectedModel?.label ?? selectedModelKey)} {currentQueuePolicy?.enabled ?? true ? "is available in Studio." : "is hidden from Studio and blocked from new submissions."}
+                </div>
+              </div>
+              <AdminToggle
+                checked={currentQueuePolicy?.enabled ?? true}
+                ariaLabel={`${(currentQueuePolicy?.enabled ?? true) ? "Disable" : "Enable"} ${selectedModel?.label ?? selectedModelKey}`}
+                onToggle={() => void saveModelAvailability(!(currentQueuePolicy?.enabled ?? true))}
+              />
+            </div>
+          </div>
+        </div>
+      </Panel>
+      ) : null}
+
       {visibleSections.modelPanel ? (
       <Panel className={modelPanelClassName}>
         <PanelHeader
@@ -1335,9 +1402,30 @@ export function MediaModelsConsole({
           <div className={surfaceCardClassName}>
             <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
               <Clapperboard className="size-3.5" />
-              Output Limit
+              Queue Controls
             </div>
-            <div className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-[18px] border border-white/8 bg-white/[0.03] px-4 py-3">
+              <div className="grid gap-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                    Availability
+                  </span>
+                  <StatusPill
+                    label={(currentQueuePolicy?.enabled ?? true) ? "Enabled" : "Disabled"}
+                    tone={(currentQueuePolicy?.enabled ?? true) ? "healthy" : "warning"}
+                  />
+                </div>
+                <div className="text-sm leading-6 text-[var(--muted-strong)]">
+                  Turn a model off to hide it from Studio and block new submissions without removing any saved history.
+                </div>
+              </div>
+              <AdminToggle
+                checked={currentQueuePolicy?.enabled ?? true}
+                ariaLabel={`${(currentQueuePolicy?.enabled ?? true) ? "Disable" : "Enable"} ${selectedModel?.label ?? selectedModelKey}`}
+                onToggle={() => void saveModelAvailability(!(currentQueuePolicy?.enabled ?? true))}
+              />
+            </div>
+            <div className="mt-4 text-sm leading-6 text-[var(--muted-strong)]">
               Set how many results this model can create in one run. Studio caps this at 3 so a single request cannot overload the queue.
             </div>
             <div className="mt-4 flex flex-nowrap items-end gap-3">
@@ -1357,7 +1445,7 @@ export function MediaModelsConsole({
                       const next = current.filter((entry) => entry.model_key !== selectedModelKey);
                       next.push({
                         model_key: selectedModelKey,
-                        enabled: true,
+                        enabled: currentQueuePolicy?.enabled ?? true,
                         max_outputs_per_run: nextValue,
                         created_at: currentQueuePolicy?.created_at ?? null,
                         updated_at: currentQueuePolicy?.updated_at ?? null,
