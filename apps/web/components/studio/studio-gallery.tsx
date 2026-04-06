@@ -18,6 +18,7 @@ type StudioGalleryProps = {
   galleryLoadMoreRef: React.MutableRefObject<HTMLDivElement | null>;
   onLoadMore: () => void;
   onSelectAsset: (assetId: string | number) => void;
+  onSelectFailedJob: (jobId: string) => void;
   onDragAsset: (event: React.DragEvent<HTMLDivElement>, asset: MediaAsset | null) => void;
   onToggleFavorite: (asset: MediaAsset | null) => void;
 };
@@ -32,6 +33,7 @@ export function StudioGallery({
   galleryLoadMoreRef,
   onLoadMore,
   onSelectAsset,
+  onSelectFailedJob,
   onDragAsset,
   onToggleFavorite,
 }: StudioGalleryProps) {
@@ -70,6 +72,7 @@ export function StudioGallery({
         const jobPreview = preview;
         const eagerTile = index < 4;
         const selected = tile.asset?.asset_id != null && tile.asset.asset_id === selectedAssetId && !batchTile;
+        const failedBatchTile = Boolean(batchTile && batchJob?.status === "failed");
         return (
           <div
             data-testid={batchTile ? "studio-gallery-batch-card" : "studio-gallery-card"}
@@ -89,10 +92,19 @@ export function StudioGallery({
               "group relative min-h-[190px] overflow-hidden bg-[#171b18] text-left sm:min-h-[250px]",
               gallerySpanClasses[index] ?? "",
               selected ? "ring-2 ring-[rgba(216,141,67,0.58)] ring-inset" : "",
+              failedBatchTile ? "cursor-pointer" : "",
               tile.asset?.asset_id != null && !batchTile ? "cursor-pointer" : "",
               tile.asset?.asset_id != null && !batchTile ? "cursor-grab active:cursor-grabbing" : "",
             )}
-            onClick={() => tile.asset?.asset_id != null && !batchTile && onSelectAsset(tile.asset.asset_id)}
+            onClick={() => {
+              if (tile.asset?.asset_id != null && !batchTile) {
+                onSelectAsset(tile.asset.asset_id);
+                return;
+              }
+              if (failedBatchTile && batchJob?.job_id) {
+                onSelectFailedJob(batchJob.job_id);
+              }
+            }}
           >
             {jobPreview ? (
               <img

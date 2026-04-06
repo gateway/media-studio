@@ -53,9 +53,12 @@ type UseStudioPollingParams = {
   setFavoriteAssets: React.Dispatch<React.SetStateAction<MediaAsset[] | null>>;
   setLocalLatestAsset: React.Dispatch<React.SetStateAction<MediaAsset | null>>;
   applyFavoriteAssetUpdate: (updatedAsset: MediaAsset) => void;
+  setLocalBatches: React.Dispatch<React.SetStateAction<MediaBatch[]>>;
   selectedAssetId: string | number | null;
+  selectedFailedJobId: string | null;
   sourceAssetId: string | number | null;
   setSelectedAssetId: React.Dispatch<React.SetStateAction<string | number | null>>;
+  setSelectedFailedJobId: React.Dispatch<React.SetStateAction<string | null>>;
   setSourceAssetId: React.Dispatch<React.SetStateAction<string | number | null>>;
   startRefresh: (callback: () => void) => void;
   refreshRoute: () => void;
@@ -87,9 +90,12 @@ export function useStudioPolling({
   setFavoriteAssets,
   setLocalLatestAsset,
   applyFavoriteAssetUpdate,
+  setLocalBatches,
   selectedAssetId,
+  selectedFailedJobId,
   sourceAssetId,
   setSelectedAssetId,
+  setSelectedFailedJobId,
   setSourceAssetId,
   startRefresh,
   refreshRoute,
@@ -297,6 +303,48 @@ export function useStudioPolling({
         return;
       }
       setLocalJobs((current) => current.filter((job) => job.job_id !== jobId));
+      setLocalBatches((current) =>
+        current.flatMap((batch) => {
+          const batchJobs = Array.isArray(batch.jobs) ? batch.jobs : [];
+          if (!batchJobs.some((job) => job.job_id === jobId)) {
+            return [batch];
+          }
+          const nextJobs = batchJobs.filter((job) => job.job_id !== jobId);
+          if (!nextJobs.length) {
+            return [];
+          }
+          const queuedCount = nextJobs.filter((job) => job.status === "queued").length;
+          const runningCount = nextJobs.filter((job) => ["submitted", "running", "processing"].includes(job.status)).length;
+          const completedCount = nextJobs.filter((job) => job.status === "completed").length;
+          const failedCount = nextJobs.filter((job) => job.status === "failed").length;
+          const cancelledCount = nextJobs.filter((job) => job.status === "cancelled").length;
+          const nextStatus =
+            failedCount === nextJobs.length
+              ? "failed"
+              : completedCount === nextJobs.length
+                ? "completed"
+                : runningCount > 0
+                  ? "processing"
+                  : queuedCount > 0
+                    ? "queued"
+                    : batch.status;
+          return [
+            {
+              ...batch,
+              status: nextStatus,
+              jobs: nextJobs,
+              queued_count: queuedCount,
+              running_count: runningCount,
+              completed_count: completedCount,
+              failed_count: failedCount,
+              cancelled_count: cancelledCount,
+            },
+          ];
+        }),
+      );
+      if (selectedFailedJobId === jobId) {
+        setSelectedFailedJobId(null);
+      }
       setFormMessage({ tone: "healthy", text: "Removed the failed media card from the dashboard." });
       startRefresh(refreshRoute);
     } catch {
