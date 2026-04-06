@@ -572,9 +572,11 @@ echo " - Local OpenAI base URL: $(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
 echo
 echo "Next commands"
 echo " - Launch app: ./scripts/run_studio_mac.sh"
-echo " - App: http://127.0.0.1:$(web_port)/"
+echo " - Studio: http://127.0.0.1:$(web_port)/studio"
+echo " - Settings: http://127.0.0.1:$(web_port)/settings"
 echo
 echo "The launcher starts the API and web app together in one Terminal window for normal use."
+echo "If your browser does not open automatically, point it to the Studio URL above."
 echo
 
 read -r -p "Launch Media Studio in one Terminal window now? [y/N]: " launch_now
@@ -601,4 +603,5 @@ if [[ "$launch_now" =~ ^[Yy]$ ]]; then
 
   open_terminal_command "./scripts/run_studio_mac.sh"
   echo "Opening Media Studio in one Terminal window."
+  echo "Point your browser to: http://127.0.0.1:$web_port_value/studio"
 fi

@@ -20,9 +20,12 @@ mkdir -p "$RUNTIME_DIR"
 echo "Starting Media Studio in one Terminal window..."
 echo " - API: http://127.0.0.1:$API_PORT"
 echo " - Web: http://127.0.0.1:$WEB_PORT"
+echo " - Studio: http://127.0.0.1:$WEB_PORT/studio"
+echo " - Settings: http://127.0.0.1:$WEB_PORT/settings"
 echo " - API log: $API_LOG"
 echo " - Web log: $WEB_LOG"
 echo
+echo "Point your browser to http://127.0.0.1:$WEB_PORT/studio if it does not open automatically."
 echo "Press Ctrl+C in this window to stop the local launcher."
 echo "You can also use Stop Media Studio.command."
 echo
