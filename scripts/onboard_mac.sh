@@ -568,7 +568,7 @@ echo "It starts the API and web app together in one Terminal window in productio
 echo "If your browser does not open automatically, point it to the Studio URL above."
 echo
 
-read -r -p "Launch Media Studio in one Terminal window now? [y/N]: " launch_now
+read -r -p "Launch Media Studio in this Terminal window now? [y/N]: " launch_now
 if [[ "$launch_now" =~ ^[Yy]$ ]]; then
   api_host_value="$(api_host)"
   api_port_value="$(api_port)"
@@ -590,6 +590,6 @@ if [[ "$launch_now" =~ ^[Yy]$ ]]; then
     exit 1
   fi
 
+  echo "Launching Media Studio in this Terminal window and opening the browser."
   "$SCRIPT_DIR/open_studio_mac.sh"
-  echo "Opening Media Studio in one Terminal window and launching the browser."
 fi

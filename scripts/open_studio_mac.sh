@@ -51,22 +51,11 @@ looks_like_media_studio_process() {
   [[ "$command" == *"media-studio"* || "$command" == *"app.main:app"* || "$command" == *"next dev --hostname 127.0.0.1"* || "$command" == *"next start"* ]]
 }
 
-open_terminal_command() {
-  local command="$1"
-  osascript <<OSA >/dev/null
-tell application "Terminal"
-  activate
-  do script "cd \"$MEDIA_ROOT\"; $command"
-end tell
-OSA
-}
-
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "This launcher is for macOS. Use the repo scripts directly on other platforms." >&2
   exit 1
 fi
 
-require_command osascript
 require_command open
 require_command lsof
 require_command python3
@@ -124,4 +113,5 @@ if [[ "$api_running" == true || "$web_running" == true ]]; then
   exit 1
 fi
 
-open_terminal_command "./scripts/run_studio_mac.sh"
+cd "$MEDIA_ROOT"
+exec ./scripts/run_studio_mac.sh
