@@ -421,7 +421,7 @@ def list_batches(limit: int = Query(default=100, le=500), offset: int = Query(de
     items = store.list_batches(limit=limit, offset=offset)
     batch_ids = [str(item.get("batch_id")) for item in items if item.get("batch_id")]
     jobs_by_batch: dict[str, list[dict]] = {}
-    for job in store.list_jobs_for_batches(batch_ids):
+    for job in store.list_jobs_for_batches(batch_ids, include_dismissed=False):
         batch_id = str(job.get("batch_id") or "")
         if not batch_id:
             continue
@@ -439,7 +439,7 @@ def get_batch(batch_id: str):
     batch = store.get_batch(batch_id)
     if not batch:
         raise _not_found("batch")
-    jobs = store.list_jobs_for_batches([batch_id])
+    jobs = store.list_jobs_for_batches([batch_id], include_dismissed=False)
     return BatchRecord(**{**batch, "jobs": jobs})
 
 

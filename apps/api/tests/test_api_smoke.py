@@ -879,6 +879,40 @@ def test_enhance_preview_allows_image_only_when_image_support_is_enabled(client,
     assert payload["image_analysis"] == "reference image detected"
 
 
+def test_dismissed_jobs_are_excluded_from_batch_responses(client, app_modules) -> None:
+    store = app_modules["store"]
+
+    batch, jobs = store.create_batch_and_jobs(
+        {
+            "model_key": "nano-banana-2",
+            "status": "failed",
+            "requested_outputs": 1,
+        },
+        [
+            {
+                "model_key": "nano-banana-2",
+                "status": "failed",
+                "raw_prompt": "failed prompt",
+                "error": "provider failed",
+            }
+        ],
+    )
+    job_id = jobs[0]["job_id"]
+    store.mark_job_dismissed(job_id)
+
+    list_response = client.get("/media/batches")
+    assert list_response.status_code == 200
+    list_body = list_response.json()
+    matching_batch = next((item for item in list_body["items"] if item["batch_id"] == batch["batch_id"]), None)
+    assert matching_batch is not None
+    assert matching_batch["jobs"] == []
+
+    get_response = client.get(f"/media/batches/{batch['batch_id']}")
+    assert get_response.status_code == 200
+    get_body = get_response.json()
+    assert get_body["jobs"] == []
+
+
 def test_reconcile_repairs_invalid_active_jobs(client, app_modules) -> None:
     submit_response = client.post(
         "/media/jobs",
