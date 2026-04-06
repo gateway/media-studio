@@ -7,6 +7,7 @@ const outputDir = path.resolve(process.cwd(), "output", "browser-smoke");
 const summaryPath = path.join(outputDir, "studio-browser-enhance-smoke.json");
 const successShot = path.join(outputDir, "studio-browser-enhance-smoke-success.png");
 const failureShot = path.join(outputDir, "studio-browser-enhance-smoke-failure.png");
+const referenceImagePath = path.resolve(process.cwd(), "docs", "images", "media-studio.jpg");
 const baseUrl = (process.env.STUDIO_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 const studioUrl = `${baseUrl}/studio`;
 const controlApiBaseUrl = (process.env.STUDIO_CONTROL_API_BASE_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
@@ -23,6 +24,7 @@ const summary = {
   studio_url: studioUrl,
   original_prompt: null,
   enhanced_prompt: null,
+  reference_image_path: referenceImagePath,
   screenshot: successShot,
 };
 
@@ -119,6 +121,8 @@ try {
 
   const promptInput = page.locator('[data-testid="studio-prompt-input"]');
   await promptInput.fill(originalPrompt);
+  await page.setInputFiles('[data-testid="studio-source-input"]', referenceImagePath);
+  await page.waitForTimeout(800);
 
   await page.evaluate(() => window.__mediaStudioTest?.enhancement?.openDialog());
   await page.waitForSelector('[data-testid="studio-enhance-dialog"]', { timeout: 15000 });

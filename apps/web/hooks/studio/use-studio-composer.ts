@@ -845,6 +845,9 @@ export function useStudioComposer({
 
   function buildMediaFormData(intent: "validate" | "submit" | "enhance") {
     const formData = new FormData();
+    // Prompt-only enhancement providers should not receive staged source media.
+    // The media stays attached in the composer and is still used for the later generate step.
+    const includeEnhancementImages = intent !== "enhance" || enhanceSupportsImage;
     const normalizedOptions = buildNormalizedStudioOptions(
       currentModel,
       optionValues,
@@ -881,17 +884,17 @@ export function useStudioComposer({
         if (!slotState) {
           continue;
         }
-        if (slotState.assetId) {
+        if (slotState.assetId && includeEnhancementImages) {
           presetSlotValues[slot.key] = [{ asset_id: slotState.assetId }];
           formData.set(`preset_slot_asset:${slot.key}`, String(slotState.assetId));
         }
-        if (slotState.file) {
+        if (slotState.file && includeEnhancementImages) {
           formData.append(`preset_slot_file:${slot.key}`, slotState.file);
         }
       }
       formData.set("preset_slot_values_json", JSON.stringify(presetSlotValues));
     }
-    if (!structuredPresetActive && sourceAssetId && !seedanceComposer) {
+    if (!structuredPresetActive && sourceAssetId && !seedanceComposer && includeEnhancementImages) {
       formData.set("source_asset_id", String(sourceAssetId));
     }
     if (!structuredPresetActive) {
@@ -906,8 +909,10 @@ export function useStudioComposer({
           })),
         ),
       );
-      for (const attachment of attachments) {
-        formData.append("attachments", attachment.file);
+      if (includeEnhancementImages) {
+        for (const attachment of attachments) {
+          formData.append("attachments", attachment.file);
+        }
       }
     }
     return formData;
