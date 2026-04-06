@@ -71,17 +71,21 @@ Without that key, the app can install and open, but it will stay in offline-safe
 
 ## After setup
 
-Run the app:
+For a normal Mac user, the easiest way to reopen the app later is:
+
+- double-click `Start Media Studio.command`
+- double-click `Stop Media Studio.command` when you want to stop it
+
+If you prefer Terminal, run:
 
 ```bash
-npm run dev:api
-npm run dev:web
+./scripts/run_studio_mac.sh
 ```
 
 Then open:
 
-- `http://127.0.0.1:3000/setup`
 - `http://127.0.0.1:3000/studio`
+- `http://127.0.0.1:3000/settings`
 - `http://127.0.0.1:3000/pricing`
 
 ## What to look at first

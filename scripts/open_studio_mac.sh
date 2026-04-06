@@ -114,7 +114,7 @@ fi
 
 if [[ "$api_running" == true && "$web_running" == true ]]; then
   sleep 1
-  open "http://127.0.0.1:$WEB_PORT/"
+  open "http://127.0.0.1:$WEB_PORT/studio"
   exit 0
 fi
 
@@ -127,4 +127,4 @@ fi
 open_terminal_command "./scripts/run_studio_mac.sh"
 
 sleep 2
-open "http://127.0.0.1:$WEB_PORT/"
+open "http://127.0.0.1:$WEB_PORT/studio"

@@ -221,16 +221,16 @@ That script:
 - prompts for `KIE_API_KEY`
 - asks whether you want to enable optional prompt enhancement now
 - lets you skip prompt enhancement and add it later in `Settings`
-- explains that the API and web app run in separate Terminal windows during local development
-- checks whether the default API and web ports are already in use before opening those windows
-- can open the API and web app for you immediately when setup finishes
+- creates a simple Mac start/stop flow for normal users
+- checks whether the default API and web ports are already in use before launching
+- can open Media Studio for you immediately when setup finishes
 
 After setup, the easiest way to reopen the app later is to double-click:
 
 - [`Start Media Studio.command`](Start%20Media%20Studio.command)
 - [`Stop Media Studio.command`](Stop%20Media%20Studio.command)
 
-On macOS, `Start Media Studio.command` now uses a single launcher Terminal window for the local app and starts both the API and web processes for you behind that one launcher.
+On macOS, `Start Media Studio.command` uses one launcher Terminal window and starts both the API and web processes for you behind that one launcher. It opens the Studio directly at `/studio`.
 
 If you prefer Terminal, run:
 
@@ -241,9 +241,9 @@ npm run dev:api
 
 Open:
 
-- `http://127.0.0.1:3000/`
+- `http://127.0.0.1:3000/studio`
 
-Media Studio now chooses the right first page for you:
+Media Studio will still route you to the right first page:
 
 - first run or incomplete setup -> `/setup`
 - ready system with models loaded -> `/studio`
@@ -252,8 +252,8 @@ The first real step to use the models is simple:
 
 - create a Kie AI account and get your `KIE_API_KEY`
 - add that key during setup
-- start the API and web app
-- open `/`
+- start Media Studio
+- open `/studio`
 - choose a model or preset
 - submit your first job
 

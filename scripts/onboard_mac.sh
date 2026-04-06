@@ -570,12 +570,15 @@ echo " - Live submit: $( [[ "$(env_value MEDIA_ENABLE_LIVE_SUBMIT)" == "true" ]]
 echo " - OpenRouter: $( [[ -n "$(env_value OPENROUTER_API_KEY)" ]] && echo configured || echo skipped )"
 echo " - Local OpenAI base URL: $(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
 echo
-echo "Next commands"
-echo " - Launch app: ./scripts/run_studio_mac.sh"
+echo "Next steps"
+echo " - Start later: Start Media Studio.command"
+echo " - Stop later: Stop Media Studio.command"
+echo " - Terminal launch: ./scripts/run_studio_mac.sh"
 echo " - Studio: http://127.0.0.1:$(web_port)/studio"
 echo " - Settings: http://127.0.0.1:$(web_port)/settings"
 echo
-echo "The launcher starts the API and web app together in one Terminal window for normal use."
+echo "For normal use, double-click Start Media Studio.command."
+echo "It starts the API and web app together in one Terminal window."
 echo "If your browser does not open automatically, point it to the Studio URL above."
 echo
 

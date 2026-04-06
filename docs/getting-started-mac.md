@@ -88,34 +88,35 @@ The onboarding helper verifies the OpenRouter key before saving it. These provid
 
 ## Terminal windows and port conflicts
 
-If you choose the launch option at the end of onboarding, the script opens two Terminal windows:
+If you choose the launch option at the end of onboarding, the script uses one launcher Terminal window for normal Mac use.
 
-- one for the FastAPI control API
-- one for the Next.js web app
+That launcher starts:
 
-That is expected for local development.
+- the FastAPI control API
+- the Next.js web app
 
-Before opening them, the script checks whether the configured API and web ports are already in use. If either port is busy, onboarding stops and tells you to free the port or change it in `.env`.
+behind one Terminal window, and it opens the browser to `/studio`.
+
+Before launching, the script checks whether the configured API and web ports are already in use. If either port is busy, onboarding stops and tells you to free the port or change it in `.env`.
 
 ## 5. Start the app
 
-Manual start commands:
-
-```bash
-npm run dev:api
-./scripts/dev_web.sh
-```
-
-Or use the Finder-friendly launchers from the repo root:
+Friend-friendly launchers from the repo root:
 
 - `Start Media Studio.command`
 - `Stop Media Studio.command`
 
 `Start Media Studio.command` uses one launcher Terminal window on macOS and starts both the API and web processes behind it.
 
+If you prefer Terminal, run:
+
+```bash
+./scripts/run_studio_mac.sh
+```
+
 Then open:
 
-- `http://127.0.0.1:3000/`
+- `http://127.0.0.1:3000/studio`
 
 Media Studio will route you automatically:
 
