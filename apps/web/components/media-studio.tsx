@@ -769,12 +769,7 @@ export function MediaStudio({
   const multiImageReferenceStrip = dedicatedImageReferenceRailActive ? (
     <div className="rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-3 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/44">Image references</div>
-          <div className="mt-1 text-sm text-white/64">
-            Stage up to {maxImageInputs} reference images for {currentModel?.label ?? "this model"}.
-          </div>
-        </div>
+        <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/44">Image references</div>
         {imageLimitLabel ? (
           <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/62">
             {imageLimitLabel}
