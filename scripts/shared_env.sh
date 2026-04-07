@@ -36,10 +36,33 @@ load_media_env() {
   local media_root="${1:?media_root required}"
   local env_file="$media_root/.env"
   if [[ -f "$env_file" ]]; then
-    set -a
-    # shellcheck disable=SC1090
-    . "$env_file"
-    set +a
+    python3 - "$env_file" <<'PY' | while IFS='=' read -r name value; do
+from pathlib import Path
+import re
+import shlex
+import sys
+
+env_path = Path(sys.argv[1])
+line_pattern = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$")
+
+for raw_line in env_path.read_text().splitlines():
+    stripped = raw_line.strip()
+    if not stripped or stripped.startswith("#"):
+        continue
+    match = line_pattern.match(raw_line)
+    if not match:
+        continue
+    name, raw_value = match.groups()
+    value = raw_value.strip()
+    if value and value[0] in {'"', "'"} and value[-1:] == value[0]:
+        value = value[1:-1]
+    print(f"{name}={value}")
+PY
+      if [[ -n "${!name+x}" ]]; then
+        continue
+      fi
+      export "$name=$value"
+    done
   fi
 }
 

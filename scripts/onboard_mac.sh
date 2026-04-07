@@ -570,26 +570,7 @@ echo
 
 read -r -p "Launch Media Studio in this Terminal window now? [y/N]: " launch_now
 if [[ "$launch_now" =~ ^[Yy]$ ]]; then
-  api_host_value="$(api_host)"
-  api_port_value="$(api_port)"
-  web_port_value="$(web_port)"
-  api_can_start=true
-  web_can_start=true
-
-  if ! port_available "$api_host_value" "$api_port_value"; then
-    api_can_start=false
-    echo "API port $api_port_value on $api_host_value is already in use."
-  fi
-  if ! port_available "127.0.0.1" "$web_port_value"; then
-    web_can_start=false
-    echo "Web port $web_port_value is already in use."
-  fi
-
-  if [[ "$api_can_start" != true || "$web_can_start" != true ]]; then
-    echo "Close the process using that port, or change MEDIA_STUDIO_API_PORT / MEDIA_STUDIO_WEB_PORT in .env, then rerun the launcher."
-    exit 1
-  fi
-
-  echo "Launching Media Studio in this Terminal window and opening the browser."
+  echo "Launching Media Studio in this Terminal window."
+  echo "The launcher will start or recover the local app and open your browser to Studio when it is ready."
   "$SCRIPT_DIR/open_studio_mac.sh"
 fi

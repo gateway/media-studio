@@ -43,17 +43,39 @@ function collectDuplicateKeys(cards) {
     .map(([key]) => key);
 }
 
-async function ensureModelSelected(modelMatcher) {
+async function ensureModelSelected(modelMatcher, modelKey) {
   const picker = page.locator('[data-testid="studio-picker-model"]');
   await picker.waitFor({ state: "visible", timeout: 20000 });
   const currentLabel = ((await picker.textContent()) ?? "").trim();
   if (modelMatcher.test(currentLabel)) {
     return;
   }
-  await picker.click();
+  await page
+    .waitForFunction(() => typeof window.__mediaStudioTest?.composer?.setModel === "function", null, { timeout: 5000 })
+    .catch(() => {});
+  const hookApplied = await page.evaluate((targetModelKey) => {
+    if (window.__mediaStudioTest?.composer?.setModel) {
+      window.__mediaStudioTest.composer.setModel(targetModelKey);
+      return true;
+    }
+    return false;
+  }, modelKey);
+  if (hookApplied) {
+    await page.waitForTimeout(1000);
+    return;
+  }
   const options = page.locator('[data-testid^="studio-picker-option-model-"]');
-  if ((await options.count()) === 0) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await picker.click({ force: true });
+    await page.waitForTimeout(250);
+    if ((await options.count()) > 0) {
+      break;
+    }
     await picker.evaluate((node) => node.click());
+    await page.waitForTimeout(250);
+    if ((await options.count()) > 0) {
+      break;
+    }
   }
   await page.waitForFunction(
     () => document.querySelectorAll('[data-testid^="studio-picker-option-model-"]').length > 0,
@@ -75,7 +97,7 @@ async function ensureModelSelected(modelMatcher) {
 try {
   await page.goto(studioUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForSelector('[data-testid="studio-gallery"]', { timeout: 60000 });
-  await ensureModelSelected(/nano banana 2/i);
+  await ensureModelSelected(/nano banana 2/i, "nano-banana-2");
   await page.waitForTimeout(500);
 
   const prompt = `Browser smoke ${new Date().toISOString()} cinematic sci-fi portrait, photo-real lighting`;

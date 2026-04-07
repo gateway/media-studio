@@ -248,15 +248,15 @@ powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
           <StepCard
             step="Step 3"
             title="Choose prompt enhancement"
-            description="Prompt enhancement is optional. Hosted OpenRouter and local OpenAI-compatible endpoints are both supported."
-            detail="If users skip this step, they can still generate media. They just won’t get external prompt enhancement until they add `OPENROUTER_API_KEY` or a local endpoint."
+            description="Prompt enhancement is optional. Onboarding can set up OpenRouter now, and local OpenAI-compatible enhancement can be added later in Settings."
+            detail="If users skip this step, they can still generate media. They just won’t get external prompt enhancement until they add `OPENROUTER_API_KEY` or a local endpoint later."
             icon={<Sparkles className="size-5" />}
           />
           <StepCard
             step="Step 4"
             title="Start the app"
-            description="The script can optionally open the API and web commands in macOS Terminal, or users can run them manually."
-            detail="Manual commands stay simple: `npm run dev:api` and `npm run dev:web`. Once both are up, use Studio for generation and Settings for provider tuning."
+            description="Normal users should launch Media Studio in production mode with the Mac start and stop commands."
+            detail="Use `Start Media Studio.command` to launch and `Stop Media Studio.command` to stop. Developer hot-reload commands are still available, but they are a separate workflow."
             icon={<PlayCircle className="size-5" />}
           />
         </section>
@@ -294,8 +294,8 @@ powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
               Start the app with:
             </div>
             <pre className="mt-3 overflow-x-auto rounded-[16px] border border-[var(--surface-border-soft)] bg-[#0b0e0d] p-4 text-sm leading-7 text-[var(--foreground)]">
-{`npm run dev:api
-./scripts/dev_web.sh`}
+{`Start Media Studio.command
+Stop Media Studio.command`}
             </pre>
             <div className="mt-4 text-sm leading-7 text-[var(--muted-strong)]">
               Then open:

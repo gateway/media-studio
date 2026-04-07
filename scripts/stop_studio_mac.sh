@@ -41,6 +41,21 @@ stop_pid_file() {
   rm -f "$pid_file"
 }
 
+wait_for_port_clear() {
+  local port="$1"
+  local attempts="${2:-20}"
+  local delay_seconds="${3:-0.2}"
+  local attempt=0
+  while (( attempt < attempts )); do
+    if ! lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$delay_seconds"
+    attempt=$((attempt + 1))
+  done
+  return 1
+}
+
 stop_port() {
   local port="$1"
   local pid
@@ -74,6 +89,8 @@ fi
 API_PORT="${MEDIA_STUDIO_API_PORT:-8000}"
 WEB_PORT="${MEDIA_STUDIO_WEB_PORT:-3000}"
 
+echo "Stopping local Media Studio..."
+
 stop_pid_file "$TAIL_PID_FILE"
 stop_pid_file "$WEB_PID_FILE"
 stop_pid_file "$API_PID_FILE"
@@ -84,5 +101,7 @@ stop_port "$API_PORT"
 pkill -f "$MEDIA_ROOT/apps/api.*app.main:app" >/dev/null 2>&1 || true
 pkill -f "$MEDIA_ROOT.*next start" >/dev/null 2>&1 || true
 pkill -f "$MEDIA_ROOT.*next dev" >/dev/null 2>&1 || true
+wait_for_port_clear "$WEB_PORT" || true
+wait_for_port_clear "$API_PORT" || true
 
-echo "Media Studio stop signal sent for ports $WEB_PORT and $API_PORT."
+echo "Media Studio stopped for ports $WEB_PORT and $API_PORT."

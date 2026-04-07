@@ -104,7 +104,7 @@ Friend-friendly launchers from the repo root:
 - `Start Media Studio.command`
 - `Stop Media Studio.command`
 
-`Start Media Studio.command` uses one launcher Terminal window on macOS and starts both the API and web processes behind it.
+`Start Media Studio.command` uses one launcher Terminal window on macOS, starts both the API and web processes in production mode, waits for Studio to be ready, and opens the browser to `/studio`.
 
 If you prefer Terminal but still want the normal user path, run:
 

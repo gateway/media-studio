@@ -8,10 +8,10 @@ describe("resolvePublishHandoffFeedback", () => {
 
     expect(feedback.activity).toEqual({
       tone: "healthy",
-      message: "Media publish completed. The gallery is refreshing.",
+      message: "Render published. The gallery is refreshing.",
     });
     expect(feedback.activityAutoHideMs).toBe(2600);
-    expect(feedback.finalMessage).toBe("Media job completed and the reel is refreshing.");
+    expect(feedback.finalMessage).toBe("Render completed and the gallery is refreshing.");
   });
 
   it("returns warning batch publish messaging when the gallery is still reconciling", () => {
@@ -19,10 +19,10 @@ describe("resolvePublishHandoffFeedback", () => {
 
     expect(feedback.activity).toEqual({
       tone: "warning",
-      message: "The provider finished, but Studio is still waiting for the published media cards.",
+      message: "Batch finished, but Studio is still waiting for the media cards to appear.",
       spinning: true,
     });
     expect(feedback.activityAutoHideMs).toBe(4200);
-    expect(feedback.finalMessage).toBe("Media batch completed. Studio is still reconciling the published media cards.");
+    expect(feedback.finalMessage).toBe("Batch completed. Studio is still waiting for the media cards to appear.");
   });
 });

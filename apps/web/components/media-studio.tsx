@@ -511,6 +511,9 @@ export function MediaStudio({
     enhanceSetupHref,
     enhanceProviderLabel,
     enhanceProviderModelId,
+    enhanceModeLabel,
+    enhanceReadinessLabel,
+    enhanceHelperText,
     enhanceImageAnalysisText,
     enhanceImageAnalysisStatus,
     structuredPresetTextFields,
@@ -529,6 +532,7 @@ export function MediaStudio({
     compactOptionEntries,
     estimatedCredits,
     estimatedCostUsd,
+    pricingHelperText,
     formattedRemainingCredits,
     generateButtonLabel,
     modelMaxOutputs,
@@ -1635,6 +1639,24 @@ export function MediaStudio({
                             )
                           ) : null}
                       </div>
+                      {(enhanceEnabledForModel || pricingHelperText) ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-2 text-[0.72rem] leading-6 text-white/62">
+                          {enhanceEnabledForModel ? (
+                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
+                              <Sparkles className="size-3.5 text-[#d8ff2e]" />
+                              <span className="font-semibold text-white/82">{enhanceReadinessLabel}</span>
+                              <span className="hidden text-white/48 md:inline">·</span>
+                              <span className="hidden md:inline">{enhanceHelperText}</span>
+                            </div>
+                          ) : null}
+                          {pricingHelperText ? (
+                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
+                              <CircleDollarSign className="size-3.5 text-[#d8ff2e]" />
+                              <span>{pricingHelperText}</span>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </>
                   )}
                   <div className="relative z-30 flex flex-wrap items-center gap-2 pb-1 text-[0.77rem]">
@@ -1907,6 +1929,12 @@ export function MediaStudio({
                       </div>
                       <div>
                         <span className="text-white/48">Enhancement model:</span> {enhanceProviderModelId ?? "Not selected"}
+                      </div>
+                      <div>
+                        <span className="text-white/48">Enhancement mode:</span> {enhanceModeLabel}
+                      </div>
+                      <div>
+                        <span className="text-white/48">Readiness:</span> {enhanceReadinessLabel}
                       </div>
                       <div>
                         <span className="text-white/48">Preset:</span> {currentPreset?.label ?? "No preset selected"}

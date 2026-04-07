@@ -41,11 +41,11 @@ function toneClasses(tone: GlobalActivityTone) {
 
 function titleForTone(tone: GlobalActivityTone) {
   if (tone === "healthy") {
-    return "Completed";
+    return "Done";
   }
 
   if (tone === "danger") {
-    return "Needs attention";
+    return "Heads up";
   }
 
   return "Working";
@@ -104,7 +104,7 @@ export function GlobalActivityProvider({ children }: { children: React.ReactNode
               )}
               <div className="min-w-0 flex-1">
                 <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] opacity-75">
-                  Dashboard activity
+                  Studio update
                 </div>
                 <div className="mt-1 text-sm font-semibold tracking-[-0.02em]">
                   {titleForTone(activity.tone)}

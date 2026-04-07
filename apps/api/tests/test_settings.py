@@ -20,7 +20,7 @@ def _reload_settings_module():
 
 def test_development_allows_default_control_token(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MEDIA_STUDIO_APP_ENV", "development")
-    monkeypatch.delenv("MEDIA_STUDIO_CONTROL_API_TOKEN", raising=False)
+    monkeypatch.setenv("MEDIA_STUDIO_CONTROL_API_TOKEN", "")
 
     settings_module = _reload_settings_module()
 
@@ -29,7 +29,7 @@ def test_development_allows_default_control_token(monkeypatch: pytest.MonkeyPatc
 
 def test_production_requires_explicit_control_token(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MEDIA_STUDIO_APP_ENV", "production")
-    monkeypatch.delenv("MEDIA_STUDIO_CONTROL_API_TOKEN", raising=False)
+    monkeypatch.setenv("MEDIA_STUDIO_CONTROL_API_TOKEN", "")
 
     with pytest.raises(RuntimeError, match="MEDIA_STUDIO_CONTROL_API_TOKEN is required"):
         _reload_settings_module()

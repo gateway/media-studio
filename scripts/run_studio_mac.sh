@@ -97,8 +97,10 @@ wait_for_url() {
 require_command curl
 require_command open
 
+echo "Checking the production web build..."
 bash "$SCRIPT_DIR/ensure_web_build.sh"
 
+echo "Starting the Media Studio API..."
 (
   cd "$MEDIA_ROOT"
   MEDIA_STUDIO_API_PORT="$API_PORT" ./scripts/start_api.sh
@@ -106,6 +108,7 @@ bash "$SCRIPT_DIR/ensure_web_build.sh"
 API_PID=$!
 echo "$API_PID" >"$API_PID_FILE"
 
+echo "Starting the Media Studio web app..."
 (
   cd "$MEDIA_ROOT"
   MEDIA_STUDIO_WEB_PORT="$WEB_PORT" ./scripts/start_web.sh
@@ -134,6 +137,7 @@ if ! wait_for_url "$STUDIO_URL" 90 1; then
 fi
 
 echo "Media Studio is ready."
+echo "Opening your browser to $STUDIO_URL ..."
 open "$STUDIO_URL"
 
 while true; do

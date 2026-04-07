@@ -245,6 +245,17 @@ export function useStudioComposer({
       ? "available"
       : String((enhancePreview.image_analysis as Record<string, unknown>).status ?? "available")
     : "Not checked";
+  const enhanceModeLabel = enhanceSupportsText && enhanceSupportsImage ? "Prompt + image guidance" : enhanceSupportsImage ? "Image-guided only" : "Prompt only";
+  const enhanceReadinessLabel = !enhanceEnabledForModel
+    ? "Enhancement unavailable for this model"
+    : enhanceConfiguredForModel
+      ? `${enhanceProviderLabel} ready`
+      : "Set up enhancement in Settings";
+  const enhanceHelperText = !enhanceEnabledForModel
+    ? "This model does not have prompt enhancement enabled."
+    : enhanceConfiguredForModel
+      ? `${enhanceModeLabel} with ${enhanceProviderLabel}${enhanceProviderModelId ? ` · ${enhanceProviderModelId}` : ""}.`
+      : "Enhancement is available for this model, but it still needs provider setup in Settings.";
   useEffect(() => {
     if (currentModelEnabled) {
       return;
@@ -368,6 +379,11 @@ export function useStudioComposer({
       : null;
   const generateButtonLabel =
     busyState === "submit" ? "Generating..." : generatePriceLabel ? `Generate · ${generatePriceLabel}` : "Generate";
+  const pricingHelperText = generatePriceLabel
+    ? modelMaxOutputs > 1
+      ? `Generate shows the total for ${outputCount} output${outputCount === 1 ? "" : "s"}.`
+      : "Generate shows the total for this request."
+    : null;
   const validationReady = studioValidationReady(validation);
   const inferredInputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
   const composerHasSubmittableInput = structuredPresetActive
@@ -378,9 +394,9 @@ export function useStudioComposer({
   const canSubmit = busyState === "idle" && !presetRequirementError && composerHasSubmittableInput;
   const composerStatusMessage =
     busyState === "validate"
-      ? ({ tone: "warning", text: "Validating request and checking estimated cost." } as const)
+      ? ({ tone: "warning", text: "Checking your request and refreshing the estimate." } as const)
       : busyState === "submit"
-        ? ({ tone: "warning", text: "Preparing the job and sending it to the runner." } as const)
+        ? ({ tone: "warning", text: "Sending your render to Studio." } as const)
         : formMessage;
   const imageSlotLabels =
     explicitVideoImageSlots && currentModel?.input_patterns?.includes("first_last_frames")
@@ -925,13 +941,13 @@ export function useStudioComposer({
     if ((!structuredPresetActive && !prompt.trim() && !attachments.length && !sourceAssetId) || (structuredPresetActive && !structuredPresetPromptPreview.trim())) {
       setEnhanceDialogOpen(true);
       setEnhancePreview(null);
-      setEnhanceError("Add a prompt or source media before enhancing.");
+      setEnhanceError("Add a prompt or a source image before running Enhance.");
       return;
     }
     if (!enhanceEnabledForModel) {
       setEnhanceDialogOpen(true);
       setEnhancePreview(null);
-      setEnhanceError("Enhancement is not enabled for this model.");
+      setEnhanceError("This model does not have enhancement enabled.");
       return;
     }
     if (!enhanceConfiguredForModel) {
@@ -943,7 +959,7 @@ export function useStudioComposer({
     if (!enhanceSupportsText && !enhancementPreviewVisual) {
       setEnhanceDialogOpen(true);
       setEnhancePreview(null);
-      setEnhanceError("Stage an image before running image-aware enhancement.");
+      setEnhanceError("Add an image before running image-guided enhancement.");
       return;
     }
     if (multiShotScriptError) {
@@ -961,7 +977,7 @@ export function useStudioComposer({
     setEnhanceDialogOpen(true);
     setEnhanceBusy(true);
     setEnhanceError(null);
-    showActivity({ tone: "warning", message: "Loading the enhancement preview.", spinning: true });
+    showActivity({ tone: "warning", message: "Building the enhancement preview.", spinning: true });
     const controller = new AbortController();
     const requestTimeout = window.setTimeout(() => controller.abort(), 35000);
     try {
@@ -979,13 +995,13 @@ export function useStudioComposer({
         return;
       }
       setEnhancePreview(payload.preview ?? null);
-      showActivity({ tone: "healthy", message: "Enhancement preview ready." }, { autoHideMs: 2200 });
+      showActivity({ tone: "healthy", message: "Enhancement preview is ready." }, { autoHideMs: 2200 });
     } catch (error) {
       setEnhancePreview(null);
       const errorMessage =
         error instanceof DOMException && error.name === "AbortError"
-          ? "Enhancement preview timed out. Check your provider setup in Settings and try again."
-          : "The dashboard could not reach the enhance preview route.";
+          ? "Enhancement timed out. Check the provider in Settings and try again."
+          : "Studio could not reach the enhancement preview route.";
       setEnhanceError(errorMessage);
       showActivity({ tone: "danger", message: errorMessage }, { autoHideMs: 4200 });
     } finally {
@@ -1058,12 +1074,12 @@ export function useStudioComposer({
       }
       setValidation(payload.validation ?? null);
       if (!silent) {
-        setFormMessage({ tone: "healthy", text: payload.success ?? "Preflight looks good." });
+        setFormMessage({ tone: "healthy", text: payload.success ?? "Estimate ready." });
       }
       return payload.validation ?? null;
     } catch {
       if (!silent) {
-        setFormMessage({ tone: "danger", text: "The dashboard could not reach the media route." });
+        setFormMessage({ tone: "danger", text: "Studio could not reach the local media service." });
       }
       return null;
     } finally {
@@ -1085,7 +1101,7 @@ export function useStudioComposer({
     showActivity(
       {
         tone: "warning",
-        message: validationReady ? "Submitting the media job." : "Checking the media request.",
+        message: validationReady ? "Sending your render to Studio." : "Checking your request before submit.",
         spinning: true,
       },
       { autoHideMs: 2200 },
@@ -1125,7 +1141,7 @@ export function useStudioComposer({
     showActivity({ tone: "warning", message: "Submitting the media job.", spinning: true });
     setBusyState(intent);
     setFormMessage(null);
-    showFloatingComposerBanner({ tone: "warning", text: "Preparing the job and sending it to the runner." }, 2400);
+    showFloatingComposerBanner({ tone: "warning", text: "Sending your render to Studio." }, 2400);
     try {
       const response = await fetch("/api/control/media", {
         method: "POST",
@@ -1160,7 +1176,7 @@ export function useStudioComposer({
           });
         }
       }
-      const successText = payload.success ?? "Media job queued.";
+      const successText = payload.success ?? "Render queued. Studio will update this card automatically.";
       setFormMessage({ tone: "warning", text: successText });
       showFloatingComposerBanner({ tone: "warning", text: successText }, 2600);
       showActivity({ tone: "healthy", message: successText }, { autoHideMs: 2200 });
@@ -1171,9 +1187,9 @@ export function useStudioComposer({
       }
     } catch {
       setOptimisticBatches((current) => current.filter((batch) => batch.batch_id !== optimisticBatch.batch_id));
-      setFormMessage({ tone: "danger", text: "The dashboard could not reach the media route." });
-      showFloatingComposerBanner({ tone: "danger", text: "The dashboard could not reach the media route." }, 5600);
-      showActivity({ tone: "danger", message: "The dashboard could not reach the media route." }, { autoHideMs: 3200 });
+      setFormMessage({ tone: "danger", text: "Studio could not reach the local media service." });
+      showFloatingComposerBanner({ tone: "danger", text: "Studio could not reach the local media service." }, 5600);
+      showActivity({ tone: "danger", message: "Studio could not reach the local media service." }, { autoHideMs: 3200 });
     } finally {
       setBusyState("idle");
     }
@@ -1245,6 +1261,9 @@ export function useStudioComposer({
       enhanceSetupHref,
       enhanceProviderLabel,
       enhanceProviderModelId,
+      enhanceModeLabel,
+      enhanceReadinessLabel,
+      enhanceHelperText,
       enhanceImageAnalysisText,
       enhanceImageAnalysisStatus,
       structuredPresetTextFields,
@@ -1266,6 +1285,7 @@ export function useStudioComposer({
       estimatedCredits,
       estimatedCostUsd,
       generatePriceLabel,
+      pricingHelperText,
       formattedRemainingCredits,
       generateButtonLabel,
       modelMaxOutputs,

@@ -1,44 +1,112 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { FLOATING_COMPOSER_STATUS_MS, type ComposerStatusMessage } from "@/lib/media-studio-contract";
 import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
 
 type PublishHandoffKind = "job" | "batch";
 
+type InFlightFeedback = {
+  signature: string;
+  activity: { tone: "warning" | "healthy"; message: string; spinning?: boolean };
+  activityAutoHideMs?: number;
+  formMessage: ComposerStatusMessage;
+};
+
 export function resolvePublishHandoffFeedback(kind: PublishHandoffKind, publishedToGallery: boolean) {
   if (kind === "job") {
     return publishedToGallery
       ? {
-          activity: { tone: "healthy" as const, message: "Media publish completed. The gallery is refreshing." },
+          activity: { tone: "healthy" as const, message: "Render published. The gallery is refreshing." },
           activityAutoHideMs: 2600,
-          finalMessage: "Media job completed and the reel is refreshing.",
+          finalMessage: "Render completed and the gallery is refreshing.",
         }
       : {
           activity: {
             tone: "warning" as const,
-            message: "The provider finished, but Studio is still waiting for the published media card.",
+            message: "Render finished, but Studio is still waiting for the media card to appear.",
             spinning: true,
           },
           activityAutoHideMs: 4200,
-          finalMessage: "Media job completed. Studio is still reconciling the published media card.",
+          finalMessage: "Render completed. Studio is still waiting for the media card to appear.",
         };
   }
 
   return publishedToGallery
     ? {
-        activity: { tone: "healthy" as const, message: "Batch publish completed. The gallery is refreshing." },
+        activity: { tone: "healthy" as const, message: "Batch published. The gallery is refreshing." },
         activityAutoHideMs: 2600,
-        finalMessage: "Media batch completed and the reel is refreshing.",
+        finalMessage: "Batch completed and the gallery is refreshing.",
       }
     : {
         activity: {
           tone: "warning" as const,
-          message: "The provider finished, but Studio is still waiting for the published media cards.",
+          message: "Batch finished, but Studio is still waiting for the media cards to appear.",
           spinning: true,
         },
         activityAutoHideMs: 4200,
-        finalMessage: "Media batch completed. Studio is still reconciling the published media cards.",
+        finalMessage: "Batch completed. Studio is still waiting for the media cards to appear.",
       };
+}
+
+function resolveJobInFlightFeedback(job: MediaJob): InFlightFeedback | null {
+  const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
+  if ((job.status === "running" || job.status === "processing") && finalState === "succeeded") {
+    return {
+      signature: `${job.job_id}:publishing`,
+      activity: { tone: "warning", message: "Render finished. Studio is publishing it into the gallery.", spinning: true },
+      activityAutoHideMs: 2600,
+      formMessage: { tone: "warning", text: "Render finished. Studio is publishing it into the gallery." },
+    };
+  }
+  if (job.status === "submitted" || job.status === "running" || job.status === "processing") {
+    return {
+      signature: `${job.job_id}:rendering`,
+      activity: { tone: "warning", message: "Studio is waiting for the render to finish.", spinning: true },
+      activityAutoHideMs: 2400,
+      formMessage: { tone: "warning", text: "Studio is waiting for the render to finish." },
+    };
+  }
+  if (job.status === "queued") {
+    return {
+      signature: `${job.job_id}:queued`,
+      activity: { tone: "warning", message: "Your render is queued and will start as soon as a runner is free." },
+      activityAutoHideMs: 2400,
+      formMessage: { tone: "warning", text: "Your render is queued and will start as soon as a runner is free." },
+    };
+  }
+  return null;
+}
+
+function resolveBatchInFlightFeedback(batch: MediaBatch): InFlightFeedback | null {
+  const publishingJob = (batch.jobs ?? []).find((job) => {
+    const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
+    return (job.status === "running" || job.status === "processing") && finalState === "succeeded";
+  });
+  if (publishingJob) {
+    return {
+      signature: `${batch.batch_id}:publishing`,
+      activity: { tone: "warning", message: "Render finished. Studio is publishing it into the gallery.", spinning: true },
+      activityAutoHideMs: 2600,
+      formMessage: { tone: "warning", text: "Render finished. Studio is publishing it into the gallery." },
+    };
+  }
+  if (batch.running_count > 0) {
+    return {
+      signature: `${batch.batch_id}:rendering`,
+      activity: { tone: "warning", message: "Studio is waiting for this batch to finish rendering.", spinning: true },
+      activityAutoHideMs: 2400,
+      formMessage: { tone: "warning", text: "Studio is waiting for this batch to finish rendering." },
+    };
+  }
+  if (batch.queued_count > 0) {
+    return {
+      signature: `${batch.batch_id}:queued`,
+      activity: { tone: "warning", message: "This batch is queued and will start as soon as a runner is free." },
+      activityAutoHideMs: 2400,
+      formMessage: { tone: "warning", text: "This batch is queued and will start as soon as a runner is free." },
+    };
+  }
+  return null;
 }
 
 type UseStudioPollingParams = {
@@ -101,6 +169,8 @@ export function useStudioPolling({
   refreshRoute,
 }: UseStudioPollingParams): UseStudioPollingResult {
   const [favoriteAssetIdBusy, setFavoriteAssetIdBusy] = useState<string | number | null>(null);
+  const lastJobFeedbackSignatureRef = useRef<Map<string, string>>(new Map());
+  const lastBatchFeedbackSignatureRef = useRef<Map<string, string>>(new Map());
 
   async function pollJob(jobId: string) {
     try {
@@ -121,24 +191,18 @@ export function useStudioPolling({
         upsertBatch(payload.batch as MediaBatch);
       }
 
-      const inFlightMessage = (() => {
-        const finalState = String((payload.job?.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
-        if ((payload.job?.status === "running" || payload.job?.status === "processing") && finalState === "succeeded") {
-          return "Final output received. Publishing it into Studio.";
+      const inFlightFeedback = resolveJobInFlightFeedback(payload.job);
+      if (inFlightFeedback) {
+        const previousSignature = lastJobFeedbackSignatureRef.current.get(payload.job.job_id);
+        if (previousSignature !== inFlightFeedback.signature) {
+          lastJobFeedbackSignatureRef.current.set(payload.job.job_id, inFlightFeedback.signature);
+          setFormMessage(inFlightFeedback.formMessage);
+          showActivity(inFlightFeedback.activity, { autoHideMs: inFlightFeedback.activityAutoHideMs });
         }
-        if (payload.job?.status === "submitted" || payload.job?.status === "running" || payload.job?.status === "processing") {
-          return "Waiting for the provider to finish the generation.";
-        }
-        if (payload.job?.status === "queued") {
-          return "The job is queued and waiting for an open runner slot.";
-        }
-        return null;
-      })();
-      if (inFlightMessage) {
-        setFormMessage({ tone: "warning", text: inFlightMessage });
       }
 
       if (payload.job.status === "completed" || payload.job.status === "failed") {
+        lastJobFeedbackSignatureRef.current.delete(payload.job.job_id);
         let publishedToGallery = true;
         if (payload.job.status === "completed") {
           publishedToGallery = await refreshActiveGalleryAssets({
@@ -197,27 +261,18 @@ export function useStudioPolling({
         });
       }
 
-      const inFlightMessage = (() => {
-        const publishingJob = (batch.jobs ?? []).find((job) => {
-          const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
-          return (job.status === "running" || job.status === "processing") && finalState === "succeeded";
-        });
-        if (publishingJob) {
-          return "Final output received. Publishing it into Studio.";
+      const inFlightFeedback = resolveBatchInFlightFeedback(batch);
+      if (inFlightFeedback) {
+        const previousSignature = lastBatchFeedbackSignatureRef.current.get(batch.batch_id);
+        if (previousSignature !== inFlightFeedback.signature) {
+          lastBatchFeedbackSignatureRef.current.set(batch.batch_id, inFlightFeedback.signature);
+          setFormMessage(inFlightFeedback.formMessage);
+          showActivity(inFlightFeedback.activity, { autoHideMs: inFlightFeedback.activityAutoHideMs });
         }
-        if (batch.running_count > 0) {
-          return "Studio is polling the provider for this batch right now.";
-        }
-        if (batch.queued_count > 0) {
-          return "This batch is queued and waiting for runner capacity.";
-        }
-        return null;
-      })();
-      if (inFlightMessage) {
-        setFormMessage({ tone: "warning", text: inFlightMessage });
       }
 
       if (["completed", "failed", "partial_failure", "cancelled"].includes(payload.batch.status)) {
+        lastBatchFeedbackSignatureRef.current.delete(batch.batch_id);
         const successfulJobIds = (batch.jobs ?? [])
           .filter((job) => {
             const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();

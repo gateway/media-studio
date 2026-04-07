@@ -222,7 +222,7 @@ That script:
 - asks whether you want to enable optional prompt enhancement now
 - lets you skip prompt enhancement and add it later in `Settings`
 - creates a simple Mac start/stop flow for normal users
-- checks whether the default API and web ports are already in use before launching
+- checks for existing local Studio processes or blocked ports before launching
 - can open Media Studio for you immediately when setup finishes
 
 After setup, the easiest way to reopen the app later is to double-click:
@@ -230,7 +230,7 @@ After setup, the easiest way to reopen the app later is to double-click:
 - [`Start Media Studio.command`](Start%20Media%20Studio.command)
 - [`Stop Media Studio.command`](Stop%20Media%20Studio.command)
 
-On macOS, `Start Media Studio.command` uses one launcher Terminal window and starts both the API and web processes for you behind that one launcher. It runs the local app in production mode, waits for it to become ready, and opens the Studio directly at `/studio`.
+On macOS, `Start Media Studio.command` uses one launcher Terminal window, starts both the API and web processes in production mode, waits for Studio to be ready, and opens the browser directly to `/studio`.
 
 If you accidentally close that launcher window or something gets stuck, the easiest recovery path is still:
 

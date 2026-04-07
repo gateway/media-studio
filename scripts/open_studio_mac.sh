@@ -117,13 +117,16 @@ if port_is_listening "$WEB_PORT"; then
 fi
 
 if [[ "$api_running" == true && "$web_running" == true ]]; then
+  echo "Media Studio is already running."
+  echo "Opening the browser to http://127.0.0.1:$WEB_PORT/studio ..."
   sleep 1
   open "http://127.0.0.1:$WEB_PORT/studio"
   exit 0
 fi
 
 if [[ "$api_running" == true || "$web_running" == true ]]; then
-  echo "Media Studio looks partially started already. Cleaning up the stale local processes and restarting..."
+  echo "Media Studio looks partially started already."
+  echo "Cleaning up the stale local processes and restarting..."
   cleanup_stale_media_studio
 fi
 
