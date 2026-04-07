@@ -850,7 +850,10 @@ export function MediaStudio({
                 accept="image/*"
                 data-testid="studio-multi-image-input"
                 className="hidden"
-                onChange={(event) => addFiles(event.target.files)}
+                onChange={(event) => {
+                  addFiles(event.target.files);
+                  resetFileInputValue(event.currentTarget);
+                }}
               />
             </label>
           </div>
@@ -907,12 +910,14 @@ export function MediaStudio({
                       onChange={(event) => {
                         if (slot.role === "last_frame" && !seedanceFirstFrameAttachment) {
                           setFormMessage({ tone: "warning", text: "Add a start frame before the end frame." });
+                          resetFileInputValue(event.currentTarget);
                           return;
                         }
                         addFiles(event.target.files, {
                           role: slot.role as "first_frame" | "last_frame",
                           allowedKinds: ["images"],
                         });
+                        resetFileInputValue(event.currentTarget);
                       }}
                     />
                   </label>
@@ -983,9 +988,11 @@ export function MediaStudio({
                         onChange={(event) => {
                           if (slotIndex > orderedImageInputs.length) {
                             setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+                            resetFileInputValue(event.currentTarget);
                             return;
                           }
                           addFiles(event.target.files);
+                          resetFileInputValue(event.currentTarget);
                         }}
                       />
                     </label>
@@ -1063,7 +1070,10 @@ export function MediaStudio({
               data-testid="studio-source-input"
               className="hidden"
               disabled={!canAddMoreImages && !canAddMoreVideos && !canAddMoreAudios}
-              onChange={(event) => addFiles(event.target.files)}
+              onChange={(event) => {
+                addFiles(event.target.files);
+                resetFileInputValue(event.currentTarget);
+              }}
             />
           </label>
         </>
@@ -1144,12 +1154,13 @@ export function MediaStudio({
                     accept={group.accept}
                     data-testid={`seedance-group-input-${group.key}`}
                     className="hidden"
-                    onChange={(event) =>
+                    onChange={(event) => {
                       addFiles(event.target.files, {
                         role: "reference",
                         allowedKinds: [group.key as "images" | "videos" | "audios"],
-                      })
-                    }
+                      });
+                      resetFileInputValue(event.currentTarget);
+                    }}
                   />
                 </label>
               </div>
@@ -1420,6 +1431,12 @@ export function MediaStudio({
       window.setTimeout(() => {
         dragImage.remove();
       }, 0);
+    }
+  }
+
+  function resetFileInputValue(input: HTMLInputElement | null) {
+    if (input) {
+      input.value = "";
     }
   }
 
@@ -1795,7 +1812,10 @@ export function MediaStudio({
                                           accept="image/*"
                                           data-testid={`studio-preset-slot-input-${slot.key}`}
                                           className="hidden"
-                                          onChange={(event) => assignPresetSlotFile(slot.key, event.target.files?.[0] ?? null)}
+                                          onChange={(event) => {
+                                            assignPresetSlotFile(slot.key, event.target.files?.[0] ?? null);
+                                            resetFileInputValue(event.currentTarget);
+                                          }}
                                         />
                                       </label>
                                       {slotState?.assetId || slotState?.file ? (
