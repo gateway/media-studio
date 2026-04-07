@@ -895,6 +895,82 @@ export function MediaStudio({
             );
           })}
         </>
+      ) : maxImageInputs > 1 && maxVideoInputs === 0 && maxAudioInputs === 0 ? (
+        <div className="flex min-w-0 flex-1 gap-3 overflow-x-auto pb-1">
+          {orderedImageInputs.map((slot, slotIndex) => {
+            const slotVisual =
+              slot.source === "asset"
+                ? mediaThumbnailUrl(slot.asset) ?? mediaDisplayUrl(slot.asset)
+                : slot.attachment.previewUrl ?? null;
+            const slotLabel = imageSlotLabels[slotIndex] ?? `Image ${slotIndex + 1}`;
+            return (
+              <div key={`multi-image-slot-${slotIndex}`} className="flex shrink-0 flex-col gap-2">
+                <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slotLabel}</div>
+                <div className="relative h-[82px] w-[82px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (slot.source === "asset") {
+                        setSourceAssetId(null);
+                      } else {
+                        removeAttachment(slot.attachment.id);
+                      }
+                    }}
+                    className={cn(
+                      "group relative h-full w-full overflow-hidden rounded-[24px] border bg-white/8",
+                      slot.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : "border-white/8",
+                    )}
+                    title={slotLabel}
+                  >
+                    {slotVisual ? (
+                      <img
+                        src={slotVisual}
+                        alt={slotLabel}
+                        loading="eager"
+                        fetchPriority="high"
+                        decoding="async"
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                      />
+                    ) : null}
+                    <div className="absolute inset-x-0 bottom-0 bg-black/45 px-2 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-white/92">
+                      {slot.source === "asset" ? "Source" : `Ref ${slotIndex + 1}`}
+                    </div>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {canAddMoreImages ? (
+            <div className="flex shrink-0 flex-col gap-2">
+              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">
+                {imageSlotLabels[orderedImageInputs.length] ?? `Image ${orderedImageInputs.length + 1}`}
+              </div>
+              <label
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setIsDragActive(true);
+                }}
+                onDragLeave={() => setIsDragActive(false)}
+                onDrop={(event) => void handleSourceTileDrop(event)}
+                className={cn(
+                  "flex h-[82px] w-[82px] cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]",
+                  isDragActive ? "border-[rgba(216,141,67,0.42)] bg-[rgba(24,28,26,0.95)]" : "",
+                )}
+              >
+                <Plus className="size-6" />
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  data-testid="studio-multi-image-input"
+                  className="hidden"
+                  onChange={(event) => addFiles(event.target.files)}
+                />
+              </label>
+            </div>
+          ) : null}
+        </div>
       ) : (
         <>
           {canUseSourceAsset && currentSourceAsset ? (
