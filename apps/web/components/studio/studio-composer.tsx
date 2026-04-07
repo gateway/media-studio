@@ -62,7 +62,7 @@ export function StudioComposer({
           "mx-auto w-full border border-white/10 bg-[rgba(21,24,23,0.9)] shadow-[0_28px_70px_rgba(0,0,0,0.42)] backdrop-blur-2xl",
           mobileComposerExpanded
             ? "mt-auto flex min-h-[calc(100dvh-1.5rem)] flex-col justify-end rounded-[30px] px-4 pb-6 pt-8 md:min-h-0 md:rounded-[34px] md:px-4 md:py-4"
-            : "rounded-[34px] px-4 py-4",
+            : "rounded-[34px] px-4 py-[17px]",
           immersive ? "max-w-[1480px]" : "max-w-[1240px]",
         )}
       >

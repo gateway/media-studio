@@ -141,6 +141,7 @@ function StudioPillSelect({
   setOpenPicker,
   widthClass,
   icon: Icon,
+  choiceIcon,
   label,
   choices,
   selectedValue,
@@ -152,6 +153,7 @@ function StudioPillSelect({
   setOpenPicker: (value: string | null) => void;
   widthClass: string;
   icon: React.ComponentType<{ className?: string }>;
+  choiceIcon?: (choice: StudioChoice) => React.ComponentType<{ className?: string }>;
   label: string;
   choices: StudioChoice[];
   selectedValue?: string;
@@ -168,6 +170,7 @@ function StudioPillSelect({
     choices.find((choice) => choice.value === selectedValue) ??
     choices.find((choice) => choice.label === label) ??
     null;
+  const SelectedIcon = selectedChoice ? choiceIcon?.(selectedChoice) ?? Icon : Icon;
   const fallbackChoices = selectedChoice
     ? choices.filter((choice) => choice.value !== selectedChoice.value)
     : choices;
@@ -222,7 +225,7 @@ function StudioPillSelect({
         onClick={() => setOpenPicker(isOpen ? null : pickerId)}
         className="flex h-10 w-full items-center gap-2.5 rounded-[16px] border border-white/8 bg-white/[0.04] px-3 text-left text-[0.74rem] font-semibold tracking-[0.01em] text-white transition hover:border-[rgba(216,141,67,0.22)]"
       >
-        <Icon className="size-4 shrink-0 text-[rgba(208,255,72,0.92)]" />
+        <SelectedIcon className="size-4 shrink-0 text-[rgba(208,255,72,0.92)]" />
         <span className="min-w-0 flex-1 truncate">{label}</span>
         <ChevronDown className={cn("size-3.5 shrink-0 text-white/42 transition", isOpen ? "rotate-180" : "")} />
       </button>
@@ -251,7 +254,7 @@ function StudioPillSelect({
                 className="flex items-center gap-2.5 rounded-[14px] border border-white/10 bg-white/[0.08] px-2.5 py-2.5 text-left transition hover:border-[rgba(216,141,67,0.24)] hover:bg-white/[0.1]"
               >
                 <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-white/10 bg-white/[0.06] text-white/92">
-                  <Icon className="size-4 text-[rgba(208,255,72,0.92)]" />
+                  <SelectedIcon className="size-4 text-[rgba(208,255,72,0.92)]" />
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[0.9rem] font-medium text-white">{selectedChoice.label}</span>
                 <Check className="size-4 shrink-0 text-white/56" />
@@ -259,23 +262,26 @@ function StudioPillSelect({
             ) : null}
 
             <div className="grid gap-1">
-              {fallbackChoices.map((choice) => (
-                <button
-                  key={`${pickerId}:${choice.value}`}
-                  type="button"
-                  data-testid={`studio-picker-option-${pickerId}-${choice.value || "empty"}`}
-                  onClick={() => {
-                    onSelect(choice.value);
-                    setOpenPicker(null);
-                  }}
-                  className="flex items-center gap-2 rounded-[12px] px-2.5 py-2.5 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white"
-                >
-                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] border border-white/10 bg-white/[0.04] text-white/88">
-                    <Icon className="size-3.5 text-white/72" />
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{choice.label}</span>
-                </button>
-              ))}
+              {fallbackChoices.map((choice) => {
+                const ChoiceIcon = choiceIcon?.(choice) ?? Icon;
+                return (
+                  <button
+                    key={`${pickerId}:${choice.value}`}
+                    type="button"
+                    data-testid={`studio-picker-option-${pickerId}-${choice.value || "empty"}`}
+                    onClick={() => {
+                      onSelect(choice.value);
+                      setOpenPicker(null);
+                    }}
+                    className="flex items-center gap-2 rounded-[12px] px-2.5 py-2.5 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white"
+                  >
+                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] border border-white/10 bg-white/[0.04] text-white/88">
+                      <ChoiceIcon className="size-3.5 text-white/72" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{choice.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1298,6 +1304,26 @@ export function MediaStudio({
     });
   }
 
+  function clearGallerySelection() {
+    resetInspector();
+    setSelectedFailedJobId(null);
+  }
+
+  function handleGalleryModelFilterChange(nextModelKey: string) {
+    clearGallerySelection();
+    setGalleryModelFilter(nextModelKey);
+  }
+
+  function handleGalleryKindFilterChange(nextKind: GalleryKindFilter) {
+    clearGallerySelection();
+    activateGalleryKindFilter(nextKind);
+  }
+
+  function handleFavoritesFilterToggle() {
+    clearGallerySelection();
+    toggleFavoritesFilter();
+  }
+
   async function handleAssetDownload(asset: MediaAsset | null) {
     if (!asset) {
       return;
@@ -1438,9 +1464,9 @@ export function MediaStudio({
                 </div>
               ) : null
             }
-            onGalleryModelFilterChange={setGalleryModelFilter}
-            onActivateGalleryKindFilter={activateGalleryKindFilter}
-            onToggleFavoritesFilter={toggleFavoritesFilter}
+            onGalleryModelFilterChange={handleGalleryModelFilterChange}
+            onActivateGalleryKindFilter={handleGalleryKindFilterChange}
+            onToggleFavoritesFilter={handleFavoritesFilterToggle}
           />
 
           <StudioGallery
@@ -1582,7 +1608,7 @@ export function MediaStudio({
                           }
                           className={cn(
                             "w-full resize-none rounded-[26px] border border-white/8 bg-white/[0.04] px-4 py-4 text-[0.86rem] leading-6 text-white outline-none placeholder:text-white/38 focus:border-[rgba(216,141,67,0.3)]",
-                            "min-h-[132px] md:min-h-[98px]",
+                            "min-h-[138px] md:min-h-[104px]",
                           )}
                         />
                           {enhanceEnabledForModel ? (
@@ -1712,8 +1738,8 @@ export function MediaStudio({
                     {compactOptionEntries
                       .filter(([optionKey]) => !(modelKey === "kling-3.0-i2v" && inferredInputPattern === "first_last_frames" && optionKey === "aspect_ratio"))
                       .map(([optionKey, schema]) => {
-                      const Icon = optionIcon(optionKey);
                       const currentValue = optionValues[optionKey];
+                      const Icon = optionIcon(optionKey, currentValue);
                       const choices = buildChoiceList(modelKey, optionKey, schema, currentValue);
                       const resolvedValue = currentValue ?? schema.default ?? null;
                       const resolvedLabel =
@@ -1728,6 +1754,7 @@ export function MediaStudio({
                           setOpenPicker={setOpenPicker}
                           widthClass={pickerWidth(optionKey)}
                           icon={Icon}
+                          choiceIcon={(choice) => optionIcon(optionKey, parseOptionChoice(schema, choice.value))}
                           label={resolvedLabel}
                           selectedValue={serializeOptionChoice(resolvedValue ?? "")}
                           menuTitle={optionKey.replaceAll("_", " ")}
