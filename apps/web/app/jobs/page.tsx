@@ -318,9 +318,10 @@ export default async function JobsPage({
                             </p>
                           </div>
                           <div className="flex flex-col items-end gap-2">
-                            <div className="text-right text-xs uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                            <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-right text-xs uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                              <div>{truncate(batch.batch_id, 20)}</div>
+                              <span className="text-white/20">•</span>
                               <div>{formatDateTime(batch.created_at)}</div>
-                              <div className="mt-1">{truncate(batch.batch_id, 20)}</div>
                             </div>
                             <MediaBatchActions
                               batchId={batch.batch_id}
@@ -339,7 +340,7 @@ export default async function JobsPage({
                             <span>{batch.failed_count} failed</span>
                           </div>
                           {pricingSummary ? (
-                            <div className={`${adminInsetClassName} grid gap-3 lg:grid-cols-4`}>
+                            <div className={`${adminInsetClassName} grid gap-3 lg:grid-cols-3`}>
                               <div className="grid gap-1">
                                 <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
                                   Estimated total
@@ -364,14 +365,6 @@ export default async function JobsPage({
                                 </span>
                                 <span className="text-[var(--foreground)]">{savedOutputCount ?? batch.requested_outputs}</span>
                               </div>
-                              <div className="grid gap-1">
-                                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
-                                  Pricing source
-                                </span>
-                                <span className="text-[var(--foreground)]">
-                                  {String(pricingSummary.pricing_source_kind ?? pricingSummary.pricing_status ?? "saved snapshot").replaceAll("_", " ")}
-                                </span>
-                              </div>
                             </div>
                           ) : null}
                           <div className="flex flex-wrap gap-3 pt-2">
@@ -383,7 +376,7 @@ export default async function JobsPage({
                                 <Link
                                   key={`${job.job_id}-inline-preview`}
                                   href={studioHref ?? "/studio"}
-                                  className="overflow-hidden rounded-[18px] border border-[var(--surface-border-soft)] bg-[linear-gradient(135deg,rgba(208,255,72,0.08),rgba(255,255,255,0.03))] transition hover:border-[rgba(208,255,72,0.24)]"
+                                  className="overflow-hidden rounded-[18px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 transition hover:border-white/16 hover:bg-[color:var(--surface-muted)]"
                                   title={`Open output ${job.batch_index ?? 1}`}
                                 >
                                   {childPreview ? (
