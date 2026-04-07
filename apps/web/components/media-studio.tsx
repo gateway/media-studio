@@ -427,6 +427,10 @@ export function MediaStudio({
     favoriteAssets,
   } = gallery.state;
   const { activeGalleryHasMore, activeGalleryLoadingMore, galleryTiles } = gallery.derived;
+  const visibleGalleryAssetIds = useMemo(
+    () => galleryTiles.map((tile) => tile.asset?.asset_id).filter((assetId): assetId is string | number => assetId != null),
+    [galleryTiles],
+  );
   const { galleryLoadMoreRef } = gallery.refs;
   const {
     setLocalJobs,
@@ -1121,6 +1125,48 @@ export function MediaStudio({
       window.scrollTo(0, scrollY);
     };
   }, [lockingOverlayOpen]);
+
+  useEffect(() => {
+    if (!selectedAsset) {
+      return;
+    }
+    const currentIndex = visibleGalleryAssetIds.findIndex((assetId) => String(assetId) === String(selectedAsset.asset_id));
+    if (currentIndex === -1 || visibleGalleryAssetIds.length < 2) {
+      return;
+    }
+
+    const isTypingTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+      const tagName = target.tagName.toLowerCase();
+      return target.isContentEditable || tagName === "input" || tagName === "textarea" || tagName === "select";
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+        return;
+      }
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+      const direction = event.key === "ArrowRight" ? 1 : -1;
+      const nextIndex = (currentIndex + direction + visibleGalleryAssetIds.length) % visibleGalleryAssetIds.length;
+      const nextAssetId = visibleGalleryAssetIds[nextIndex];
+      if (nextAssetId == null || String(nextAssetId) === String(selectedAsset.asset_id)) {
+        return;
+      }
+      event.preventDefault();
+      setSelectedFailedJobId(null);
+      setSelectedAssetId(nextAssetId);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedAsset, setSelectedAssetId, visibleGalleryAssetIds]);
 
   function handleSourceTileDrop(event: React.DragEvent<HTMLLabelElement>, slotIndex = 0) {
     event.preventDefault();

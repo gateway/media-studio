@@ -144,7 +144,9 @@ export function useStudioSelection({
         selectedAssetDisplayVisual) ?? null;
 
   useEffect(() => {
-    setSelectedMediaLightboxOpen(false);
+    if (!selectedAssetId) {
+      setSelectedMediaLightboxOpen(false);
+    }
   }, [selectedAssetId]);
 
   useEffect(() => {
