@@ -1764,7 +1764,7 @@ export function MediaStudio({
                 estimatedCostUsd={estimatedCostUsd}
                 structuredPresetActive={structuredPresetActive}
                 presetLabel={currentPreset?.label ?? null}
-                externalTopContent={seedanceReferenceStrip}
+                externalTopContent={multiImageReferenceStrip ?? seedanceReferenceStrip}
                 sourceAttachmentStrip={sourceAttachmentStrip}
                 studioSettingsButton={studioSettingsButton}
                 floatingComposerStatus={floatingComposerStatus}
