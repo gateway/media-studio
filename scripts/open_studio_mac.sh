@@ -52,9 +52,20 @@ port_owner_command() {
   ps -p "$pid" -o command= || true
 }
 
+port_owner_cwd() {
+  local port="$1"
+  local pid
+  pid="$(lsof -tiTCP:"$port" -sTCP:LISTEN | head -n 1 || true)"
+  if [[ -z "$pid" ]]; then
+    return 0
+  fi
+  lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | awk 'BEGIN{FS="n"} /^n/ {print $2; exit}'
+}
+
 looks_like_media_studio_process() {
   local command="$1"
-  [[ "$command" == *"media-studio"* || "$command" == *"$MEDIA_ROOT"* || "$command" == *"app.main:app"* || "$command" == *"next dev"* || "$command" == *"next start"* ]]
+  local cwd="$2"
+  [[ "$command" == *"media-studio"* || "$command" == *"$MEDIA_ROOT"* || "$command" == *"app.main:app"* || "$command" == *"next dev"* || "$command" == *"next start"* || "$command" == *"next-server"* || "$cwd" == "$MEDIA_ROOT"* ]]
 }
 
 cleanup_stale_media_studio() {
@@ -96,7 +107,8 @@ web_running=false
 
 if port_is_listening "$API_PORT"; then
   api_owner="$(port_owner_command "$API_PORT")"
-  if ! looks_like_media_studio_process "$api_owner"; then
+  api_cwd="$(port_owner_cwd "$API_PORT")"
+  if ! looks_like_media_studio_process "$api_owner" "$api_cwd"; then
     echo "Port $API_PORT is already in use by another app:" >&2
     echo "  $api_owner" >&2
     echo "Close that app or change MEDIA_STUDIO_API_PORT in .env, then try again." >&2
@@ -107,7 +119,8 @@ fi
 
 if port_is_listening "$WEB_PORT"; then
   web_owner="$(port_owner_command "$WEB_PORT")"
-  if ! looks_like_media_studio_process "$web_owner"; then
+  web_cwd="$(port_owner_cwd "$WEB_PORT")"
+  if ! looks_like_media_studio_process "$web_owner" "$web_cwd"; then
     echo "Port $WEB_PORT is already in use by another app:" >&2
     echo "  $web_owner" >&2
     echo "Close that app or change MEDIA_STUDIO_WEB_PORT in .env, then try again." >&2
