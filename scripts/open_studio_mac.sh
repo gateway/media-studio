@@ -13,6 +13,12 @@ require_command() {
   fi
 }
 
+runtime_dir="$MEDIA_ROOT/data/runtime"
+api_pid_file="$runtime_dir/media-studio-api.pid"
+web_pid_file="$runtime_dir/media-studio-web.pid"
+tail_pid_file="$runtime_dir/media-studio-tail.pid"
+launcher_pid_file="$runtime_dir/media-studio-launcher.pid"
+
 port_is_listening() {
   local port="$1"
   lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
@@ -48,7 +54,16 @@ port_owner_command() {
 
 looks_like_media_studio_process() {
   local command="$1"
-  [[ "$command" == *"media-studio"* || "$command" == *"app.main:app"* || "$command" == *"next dev --hostname 127.0.0.1"* || "$command" == *"next start"* ]]
+  [[ "$command" == *"media-studio"* || "$command" == *"$MEDIA_ROOT"* || "$command" == *"app.main:app"* || "$command" == *"next dev"* || "$command" == *"next start"* ]]
+}
+
+cleanup_stale_media_studio() {
+  MEDIA_ROOT="$MEDIA_ROOT" \
+  MEDIA_STUDIO_API_PORT="$API_PORT" \
+  MEDIA_STUDIO_WEB_PORT="$WEB_PORT" \
+  ./scripts/stop_studio_mac.sh >/dev/null 2>&1 || true
+  rm -f "$api_pid_file" "$web_pid_file" "$tail_pid_file" "$launcher_pid_file"
+  sleep 1
 }
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
@@ -108,9 +123,8 @@ if [[ "$api_running" == true && "$web_running" == true ]]; then
 fi
 
 if [[ "$api_running" == true || "$web_running" == true ]]; then
-  echo "Media Studio looks partially started already." >&2
-  echo "Use Stop Media Studio.command first, then start it again." >&2
-  exit 1
+  echo "Media Studio looks partially started already. Cleaning up the stale local processes and restarting..."
+  cleanup_stale_media_studio
 fi
 
 cd "$MEDIA_ROOT"

@@ -232,6 +232,13 @@ After setup, the easiest way to reopen the app later is to double-click:
 
 On macOS, `Start Media Studio.command` uses one launcher Terminal window and starts both the API and web processes for you behind that one launcher. It runs the local app in production mode, waits for it to become ready, and opens the Studio directly at `/studio`.
 
+If you accidentally close that launcher window or something gets stuck, the easiest recovery path is still:
+
+- double-click `Stop Media Studio.command`
+- double-click `Start Media Studio.command`
+
+The Mac launcher also tries to recover automatically if only part of the local app is still running.
+
 If you prefer the same production-style local run from Terminal, use:
 
 ```bash

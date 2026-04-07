@@ -114,6 +114,13 @@ If you prefer Terminal but still want the normal user path, run:
 
 That script runs the local app in production mode, waits for it to become ready, and opens the browser to `/studio`.
 
+If you close the launcher window by mistake or something gets stuck locally, the easiest recovery path is:
+
+- `Stop Media Studio.command`
+- then `Start Media Studio.command`
+
+The Mac launcher now also tries to auto-clean stale local Media Studio processes if only the API or only the web app is still running.
+
 ## Developer mode
 
 If you are actively working on the code and want hot reload, use:

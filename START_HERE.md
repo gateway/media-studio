@@ -78,6 +78,13 @@ For a normal Mac user, the easiest way to reopen the app later is:
 
 That Mac launcher starts the API and web app together in one Terminal window in production mode, waits for the app to be ready, and opens your browser to the Studio.
 
+If you ever close that launcher window by mistake or the local app feels stuck, the easiest reset is:
+
+- double-click `Stop Media Studio.command`
+- double-click `Start Media Studio.command`
+
+The launcher also tries to auto-clean stale local Media Studio processes if only part of the app is still running.
+
 If you prefer Terminal but still want the same production-style local run, use:
 
 ```bash
