@@ -218,6 +218,24 @@ def list_batches(limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
     return [_decode_row(row) for row in rows]
 
 
+def _dashboard_visible_job_clause(job_alias: str = "media_jobs") -> str:
+    return f"""
+    NOT EXISTS (
+        SELECT 1
+        FROM media_assets dismissed_asset
+        WHERE dismissed_asset.job_id = {job_alias}.job_id
+          AND (dismissed_asset.dismissed = 1 OR dismissed_asset.hidden_from_dashboard = 1)
+          AND NOT EXISTS (
+              SELECT 1
+              FROM media_assets visible_asset
+              WHERE visible_asset.job_id = {job_alias}.job_id
+                AND visible_asset.dismissed = 0
+                AND visible_asset.hidden_from_dashboard = 0
+          )
+    )
+    """
+
+
 def list_jobs_for_batches(batch_ids: List[str], include_dismissed: bool = True) -> List[Dict[str, Any]]:
     if not batch_ids:
         return []
@@ -226,6 +244,7 @@ def list_jobs_for_batches(batch_ids: List[str], include_dismissed: bool = True) 
     params: List[Any] = list(batch_ids)
     if not include_dismissed:
         clauses.append("dismissed = 0")
+        clauses.append(_dashboard_visible_job_clause())
     query = f"SELECT * FROM media_jobs WHERE {' AND '.join(clauses)} ORDER BY created_at DESC"
     with get_connection() as connection:
         rows = connection.execute(query, params).fetchall()
@@ -243,7 +262,9 @@ def update_batch(batch_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 
 def list_jobs(limit: int = 200, include_dismissed: bool = False) -> List[Dict[str, Any]]:
     query = "SELECT * FROM media_jobs %s ORDER BY created_at DESC LIMIT ?"
-    clause = "" if include_dismissed else "WHERE dismissed = 0"
+    clause = ""
+    if not include_dismissed:
+        clause = f"WHERE dismissed = 0 AND {_dashboard_visible_job_clause()}"
     with get_connection() as connection:
         rows = connection.execute(query % clause, (limit,)).fetchall()
     return [_decode_row(row) for row in rows]
@@ -373,7 +394,14 @@ def mark_asset_favorite(asset_id: str, favorited: bool) -> Dict[str, Any]:
 
 
 def mark_asset_dismissed(asset_id: str) -> Dict[str, Any]:
-    return create_or_update_asset(dict(get_asset(asset_id) or {}, asset_id=asset_id, dismissed=True))
+    asset = create_or_update_asset(dict(get_asset(asset_id) or {}, asset_id=asset_id, dismissed=True))
+    job_id = str(asset.get("job_id") or "").strip()
+    if job_id:
+        try:
+            update_job(job_id, {"dismissed": True})
+        except KeyError:
+            pass
+    return asset
 
 
 def mark_job_dismissed(job_id: str) -> Dict[str, Any]:

@@ -960,6 +960,62 @@ def test_dismissed_jobs_are_excluded_from_batch_responses(client, app_modules) -
     assert get_body["jobs"] == []
 
 
+def test_dismissed_assets_hide_completed_jobs_from_dashboard_lists(client, app_modules) -> None:
+    store = app_modules["store"]
+
+    batch, jobs = store.create_batch_and_jobs(
+        {
+            "model_key": "nano-banana-2",
+            "status": "completed",
+            "requested_outputs": 1,
+            "completed_count": 1,
+        },
+        [
+            {
+                "model_key": "nano-banana-2",
+                "status": "completed",
+                "raw_prompt": "completed prompt",
+                "finished_at": store.utcnow_iso(),
+            }
+        ],
+    )
+    job_id = jobs[0]["job_id"]
+    asset = store.create_or_update_asset(
+        {
+            "job_id": job_id,
+            "batch_id": batch["batch_id"],
+            "model_key": "nano-banana-2",
+            "generation_kind": "image",
+            "status": "completed",
+            "prompt_summary": "completed prompt",
+            "hero_thumb_path": "outputs/thumb.png",
+            "hero_original_path": "outputs/original.png",
+        }
+    )
+
+    dismiss_response = client.post(f"/media/assets/{asset['asset_id']}/dismiss")
+    assert dismiss_response.status_code == 200, dismiss_response.text
+    assert dismiss_response.json()["dismissed"] is True
+
+    refreshed_job = store.get_job(job_id)
+    assert refreshed_job is not None
+    assert refreshed_job["dismissed"] is True
+
+    jobs_response = client.get("/media/jobs")
+    assert jobs_response.status_code == 200, jobs_response.text
+    assert all(item["job_id"] != job_id for item in jobs_response.json()["items"])
+
+    batches_response = client.get("/media/batches")
+    assert batches_response.status_code == 200, batches_response.text
+    matching_batch = next((item for item in batches_response.json()["items"] if item["batch_id"] == batch["batch_id"]), None)
+    assert matching_batch is not None
+    assert matching_batch["jobs"] == []
+
+    single_batch_response = client.get(f"/media/batches/{batch['batch_id']}")
+    assert single_batch_response.status_code == 200, single_batch_response.text
+    assert single_batch_response.json()["jobs"] == []
+
+
 def test_reconcile_repairs_invalid_active_jobs(client, app_modules) -> None:
     submit_response = client.post(
         "/media/jobs",
