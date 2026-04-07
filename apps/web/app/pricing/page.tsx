@@ -10,6 +10,8 @@ import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { getMediaDashboardSnapshot } from "@/lib/control-api";
+import { estimateFromPricingSnapshot } from "@/lib/studio-pricing";
+import type { MediaModelSummary } from "@/lib/types";
 import { formatCreditsAmount, formatDateTime, formatUsdAmount, isRecord, toFiniteNumber } from "@/lib/utils";
 
 function formatAdjustmentMap(
@@ -42,9 +44,115 @@ function toneForPricing(authoritative: boolean, status: string | null | undefine
   return "warning" as const;
 }
 
+function pricingChoiceValue(value: unknown) {
+  if (value == null) {
+    return "__missing__";
+  }
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+  return String(value).toLowerCase();
+}
+
+function uniquePricingChoices(rule: Record<string, unknown>, optionKey: string) {
+  const values = new Map<string, unknown>();
+  for (const sourceKey of ["multipliers", "adders_credits", "adders_cost_usd"] as const) {
+    const source = isRecord(rule[sourceKey]) ? (rule[sourceKey] as Record<string, unknown>) : null;
+    const optionMap = source && isRecord(source[optionKey]) ? (source[optionKey] as Record<string, unknown>) : null;
+    if (!optionMap) {
+      continue;
+    }
+    for (const choice of Object.keys(optionMap)) {
+      values.set(pricingChoiceValue(choice), choice);
+    }
+  }
+  return Array.from(values.values());
+}
+
+function sortScenarioChoices(optionKey: string, values: unknown[]) {
+  const numericDuration = optionKey === "duration";
+  return [...values].sort((left, right) => {
+    const leftText = String(left);
+    const rightText = String(right);
+    if (numericDuration) {
+      const leftNumber = Number(leftText);
+      const rightNumber = Number(rightText);
+      if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) {
+        return leftNumber - rightNumber;
+      }
+    }
+    if (optionKey === "sound") {
+      const leftRank = leftText === "true" ? 1 : 0;
+      const rightRank = rightText === "true" ? 1 : 0;
+      return leftRank - rightRank;
+    }
+    return leftText.localeCompare(rightText, undefined, { numeric: true, sensitivity: "base" });
+  });
+}
+
+function formatScenarioChoice(optionKey: string, value: unknown) {
+  if (optionKey === "sound") {
+    return value === "true" || value === true ? "Audio on" : "Audio off";
+  }
+  if (optionKey === "duration") {
+    return `${value}s`;
+  }
+  if (optionKey === "resolution") {
+    return String(value);
+  }
+  return `${optionKey.replaceAll("_", " ")} ${String(value)}`;
+}
+
+function cartesianProduct(values: Array<Array<unknown>>) {
+  return values.reduce<Array<Array<unknown>>>(
+    (accumulator, current) =>
+      accumulator.flatMap((entry) => current.map((value) => [...entry, value])),
+    [[]],
+  );
+}
+
+type PricingScenarioRow = {
+  key: string;
+  label: string;
+  perOutputUsd: string | null;
+  perOutputCredits: string | null;
+  twoOutputUsd: string | null;
+  twoOutputCredits: string | null;
+};
+
+function buildPricingScenarioRows(rule: Record<string, unknown>, model: MediaModelSummary | null): PricingScenarioRow[] {
+  const preferredKeys = ["duration", "sound", "resolution", "mode"];
+  const scenarioKeys = preferredKeys.filter((optionKey) => uniquePricingChoices(rule, optionKey).length > 0).slice(0, 3);
+  if (!scenarioKeys.length) {
+    return [];
+  }
+
+  const choiceSets = scenarioKeys.map((optionKey) => sortScenarioChoices(optionKey, uniquePricingChoices(rule, optionKey)).slice(0, 2));
+  const combos = cartesianProduct(choiceSets).slice(0, 6);
+  const rows: PricingScenarioRow[] = [];
+  const modelKey = String(rule.model_key ?? model?.key ?? "");
+
+  for (const combo of combos) {
+    const options = Object.fromEntries(combo.map((value, index) => [scenarioKeys[index], value]));
+    const perOutput = estimateFromPricingSnapshot({ rules: [rule] }, modelKey, options, 1);
+    const twoOutput = estimateFromPricingSnapshot({ rules: [rule] }, modelKey, options, 2);
+    rows.push({
+      key: JSON.stringify(options),
+      label: combo.map((value, index) => formatScenarioChoice(scenarioKeys[index], value)).join(" • "),
+      perOutputUsd: formatUsdAmount(perOutput.estimatedCostUsd),
+      perOutputCredits: formatCreditsAmount(perOutput.estimatedCredits, { suffix: " credits" }),
+      twoOutputUsd: formatUsdAmount(twoOutput.estimatedCostUsd),
+      twoOutputCredits: formatCreditsAmount(twoOutput.estimatedCredits, { suffix: " credits" }),
+    });
+  }
+
+  return rows;
+}
+
 export default async function PricingPage() {
   const snapshot = await getMediaDashboardSnapshot();
   const pricing = snapshot.pricing.data;
+  const models = snapshot.models.data?.models ?? [];
   const credits = snapshot.credits.data?.balance;
   const availableCredits =
     typeof credits?.available_credits === "number"
@@ -159,6 +267,7 @@ export default async function PricingPage() {
           <div className="mt-5 grid gap-4 xl:grid-cols-2">
             {rules.map((rule, index) => {
               const record = (isRecord(rule) ? rule : {}) as Record<string, unknown>;
+              const model = models.find((entry) => entry.key === record.model_key) ?? null;
               const multiplierRows = formatAdjustmentMap("Multiplier", record.multipliers, (value) => {
                 const amount = toFiniteNumber(value);
                 return amount == null ? "n/a" : `${amount}x`;
@@ -174,6 +283,7 @@ export default async function PricingPage() {
                 (value) => formatUsdAmount(value) ?? "n/a",
               );
               const notes = Array.isArray(record.notes) ? record.notes.filter((value) => typeof value === "string") : [];
+              const scenarioRows = buildPricingScenarioRows(record, model);
 
               return (
                 <div key={`${String(record.model_key ?? "rule")}-${index}`} className={adminInsetPanelClassName}>
@@ -221,6 +331,33 @@ export default async function PricingPage() {
                       </div>
                     ) : null}
                   </div>
+
+                  {scenarioRows.length ? (
+                    <div className="mt-4 grid gap-3">
+                      <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Common scenarios</div>
+                      <div className="grid gap-2">
+                        {scenarioRows.map((row) => (
+                          <div
+                            key={row.key}
+                            className="grid gap-2 rounded-[16px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-3 py-3 text-sm text-[var(--muted-strong)] md:grid-cols-[minmax(0,1fr)_140px_140px]"
+                          >
+                            <div className="font-medium text-[var(--foreground)]">{row.label}</div>
+                            <div>
+                              <div className="text-[0.68rem] uppercase tracking-[0.12em] text-[var(--muted-strong)]">1 output</div>
+                              <div className="mt-1 text-[var(--foreground)]">{row.perOutputUsd ?? row.perOutputCredits ?? "n/a"}</div>
+                            </div>
+                            <div>
+                              <div className="text-[0.68rem] uppercase tracking-[0.12em] text-[var(--muted-strong)]">2 outputs</div>
+                              <div className="mt-1 text-[var(--foreground)]">{row.twoOutputUsd ?? row.twoOutputCredits ?? "n/a"}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-xs leading-6 text-[var(--muted-strong)]">
+                        These examples are computed from the current catalog rules. Studio multiplies the per-output estimate by the selected Outputs count at submit time.
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
