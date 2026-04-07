@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AdminActionNotice } from "@/components/admin-action-notice";
 import { AdminButton } from "@/components/admin-controls";
+import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 
 export function MediaBatchActions({
   batchId,
@@ -14,7 +15,7 @@ export function MediaBatchActions({
 }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "healthy" | "danger"; text: string } | null>(null);
+  const { notice, showNotice } = useAdminActionNotice(2200);
 
   if (!canCancelQueued) {
     return null;
@@ -30,14 +31,13 @@ export function MediaBatchActions({
         method: "POST",
       });
       if (!response.ok) {
-        setNotice({ tone: "danger", text: "Unable to cancel queued jobs for this batch." });
+        showNotice("danger", "Unable to cancel queued jobs for this batch.");
         return;
       }
-      setNotice({ tone: "healthy", text: "Queued jobs cancelled." });
+      showNotice("healthy", "Queued jobs cancelled.");
       router.refresh();
     } finally {
       setSubmitting(false);
-      window.setTimeout(() => setNotice(null), 2200);
     }
   }
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { AdminActionNotice } from "@/components/admin-action-notice";
 import { AdminButton, adminInsetCardClassName } from "@/components/admin-controls";
+import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 
 type RuntimeServiceState = {
   service: "api" | "web";
@@ -25,7 +26,7 @@ export function RuntimeControls() {
   const [services, setServices] = useState<RuntimePayload["services"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [restarting, setRestarting] = useState<"api" | "web" | null>(null);
-  const [notice, setNotice] = useState<{ tone: "healthy" | "danger"; text: string } | null>(null);
+  const { notice, showNotice } = useAdminActionNotice();
 
   async function load() {
     setLoading(true);
@@ -37,10 +38,7 @@ export function RuntimeControls() {
       }
       setServices(payload.services);
     } catch (error) {
-      setNotice({
-        tone: "danger",
-        text: error instanceof Error ? error.message : "Unable to load runtime controls.",
-      });
+      showNotice("danger", error instanceof Error ? error.message : "Unable to load runtime controls.");
     } finally {
       setLoading(false);
     }
@@ -49,14 +47,6 @@ export function RuntimeControls() {
   useEffect(() => {
     void load();
   }, []);
-
-  useEffect(() => {
-    if (!notice) {
-      return;
-    }
-    const timeout = window.setTimeout(() => setNotice(null), 2400);
-    return () => window.clearTimeout(timeout);
-  }, [notice]);
 
   async function restartService(service: "api" | "web") {
     if (restarting) {
@@ -73,15 +63,12 @@ export function RuntimeControls() {
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error ?? `Unable to restart ${service}.`);
       }
-      setNotice({ tone: "healthy", text: payload.message ?? `Restart scheduled for ${service}.` });
+      showNotice("healthy", payload.message ?? `Restart scheduled for ${service}.`);
       window.setTimeout(() => {
         void load();
       }, 1800);
     } catch (error) {
-      setNotice({
-        tone: "danger",
-        text: error instanceof Error ? error.message : `Unable to restart ${service}.`,
-      });
+      showNotice("danger", error instanceof Error ? error.message : `Unable to restart ${service}.`);
     } finally {
       setRestarting(null);
     }

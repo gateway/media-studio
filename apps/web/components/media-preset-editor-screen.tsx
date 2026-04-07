@@ -13,6 +13,7 @@ import {
 import { AdminActionNotice } from "@/components/admin-action-notice";
 import { CollapsibleSubsection } from "@/components/collapsible-sections";
 import { Panel } from "@/components/panel";
+import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import type { MediaModelSummary, MediaPreset } from "@/lib/types";
 import { slugifyKey } from "@/lib/utils";
 
@@ -231,7 +232,7 @@ export function MediaPresetEditorScreen({
   const [presetForm, setPresetForm] = useState<PresetFormState>(() => buildPresetForm(selectedPreset, defaultModelKey));
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
-  const [message, setMessage] = useState<{ tone: "healthy" | "danger"; text: string } | null>(null);
+  const { notice: message, showNotice } = useAdminActionNotice();
   const presetNameInputRef = useRef<HTMLInputElement | null>(null);
   const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -254,7 +255,7 @@ export function MediaPresetEditorScreen({
     const presetError = normalizePresetEditorError(presetForm);
     if (!resolvedKey || presetError) {
       setIsSaving(false);
-      setMessage({ tone: "danger", text: presetError ?? "Preset name is required." });
+      showNotice("danger", presetError ?? "Preset name is required.");
       return;
     }
     const scopedModels = Array.from(new Set(presetForm.appliesToModels)).filter(
@@ -262,7 +263,7 @@ export function MediaPresetEditorScreen({
     );
     if (!scopedModels.length) {
       setIsSaving(false);
-      setMessage({ tone: "danger", text: "Select at least one Nano Banana model for this preset." });
+      showNotice("danger", "Select at least one Nano Banana model for this preset.");
       return;
     }
     const payload = {
@@ -314,12 +315,12 @@ export function MediaPresetEditorScreen({
     const result = (await response.json()) as { ok?: boolean; error?: string; preset?: MediaPreset };
     if (!response.ok || result.ok === false || !result.preset) {
       setIsSaving(false);
-      setMessage({ tone: "danger", text: result.error ?? "Unable to save the preset." });
+      showNotice("danger", result.error ?? "Unable to save the preset.");
       return;
     }
     setPresetForm(buildPresetForm(result.preset, defaultModelKey));
     setIsSaving(false);
-    setMessage({ tone: "healthy", text: presetForm.presetId ? "Preset updated." : "Preset created." });
+    showNotice("healthy", presetForm.presetId ? "Preset updated." : "Preset created.");
     router.push(returnToModelsHref);
   }
 
@@ -332,11 +333,11 @@ export function MediaPresetEditorScreen({
     const result = (await response.json()) as { ok?: boolean; error?: string; preset?: MediaPreset };
     if (!response.ok || result.ok === false) {
       setIsSaving(false);
-      setMessage({ tone: "danger", text: result.error ?? "Unable to archive the preset." });
+      showNotice("danger", result.error ?? "Unable to archive the preset.");
       return;
     }
     setIsSaving(false);
-    setMessage({ tone: "healthy", text: "Preset archived." });
+    showNotice("healthy", "Preset archived.");
     router.push(returnToModelsHref);
   }
 
@@ -359,7 +360,7 @@ export function MediaPresetEditorScreen({
 
     setIsUploadingThumbnail(false);
     if (!response.ok || result.ok === false || !result.thumbnail_url || !result.thumbnail_path) {
-      setMessage({ tone: "danger", text: result.error ?? "Unable to upload the preset thumbnail." });
+      showNotice("danger", result.error ?? "Unable to upload the preset thumbnail.");
       return;
     }
 
@@ -368,16 +369,8 @@ export function MediaPresetEditorScreen({
       thumbnailPath: result.thumbnail_path ?? current.thumbnailPath,
       thumbnailUrl: result.thumbnail_url ?? current.thumbnailUrl,
     }));
-    setMessage({ tone: "healthy", text: "Thumbnail uploaded." });
+    showNotice("healthy", "Thumbnail uploaded.");
   }
-
-  useEffect(() => {
-    if (!message) {
-      return;
-    }
-    const timeoutId = window.setTimeout(() => setMessage(null), 2400);
-    return () => window.clearTimeout(timeoutId);
-  }, [message]);
 
   return (
     <div className="space-y-7">

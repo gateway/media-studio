@@ -36,6 +36,7 @@ import {
 import { CollapsibleSubsection } from "@/components/collapsible-sections";
 import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
+import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import { presetThumbnailVisual } from "@/lib/media-studio-helpers";
 import type {
   LlmPreset,
@@ -427,7 +428,7 @@ export function MediaModelsConsole({
   const [openRouterCatalog, setOpenRouterCatalog] = useState<MediaEnhancementProviderModel[]>([]);
   const [localProviderCatalog, setLocalProviderCatalog] = useState<MediaEnhancementProviderModel[]>([]);
   const [openRouterModelQuery, setOpenRouterModelQuery] = useState("");
-  const [message, setMessage] = useState<{ tone: "healthy" | "danger"; text: string } | null>(null);
+  const { notice: message, showNotice, clearNotice } = useAdminActionNotice();
   const hasAutoProbedOpenRouterRef = useRef(false);
   const presetListRef = useRef<HTMLDivElement | null>(null);
   const presetsSignature = useMemo(() => JSON.stringify(presets), [presets]);
@@ -577,7 +578,7 @@ export function MediaModelsConsole({
       setEnhancementProfileForm(emptyEnhancementProfileForm(selectedEnhancementModelKey));
     }
     setExpandedPresetId(null);
-    setMessage(null);
+    clearNotice();
   }, [currentModelEnhancementConfig, selectedEnhancementModelKey]);
 
   useEffect(() => {
@@ -594,14 +595,6 @@ export function MediaModelsConsole({
     hasAutoProbedOpenRouterRef.current = true;
     void probeEnhancementProvider("openrouter", true);
   }, [enhancementForm.providerKind, enhancementForm.providerModelId, isProbingProvider, openRouterCatalog.length]);
-
-  useEffect(() => {
-    if (!message) {
-      return;
-    }
-    const timeoutId = window.setTimeout(() => setMessage(null), 2400);
-    return () => window.clearTimeout(timeoutId);
-  }, [message]);
 
   async function saveEnhancementConfig() {
     setIsSaving(true);
@@ -641,7 +634,7 @@ export function MediaModelsConsole({
     const result = (await response.json()) as { ok?: boolean; error?: string; config?: MediaEnhancementConfig } | (MediaEnhancementConfig & { ok?: boolean; error?: string });
     if (!response.ok || result.ok === false) {
       setIsSaving(false);
-      setMessage({ tone: "danger", text: result.error ?? "Unable to save the enhancement config." });
+      showNotice("danger", result.error ?? "Unable to save the enhancement config.");
       return;
     }
     const savedConfig = parseSavedEnhancementConfig(result);
@@ -649,7 +642,7 @@ export function MediaModelsConsole({
       setLocalEnhancementConfigs((current) => upsertEnhancementConfigEntry(current, savedConfig));
     }
     setIsSaving(false);
-    setMessage({ tone: "healthy", text: "Provider settings saved." });
+    showNotice("healthy", "Provider settings saved.");
   }
 
   async function saveModelEnhancementProfile() {
@@ -686,17 +679,17 @@ export function MediaModelsConsole({
     setIsSaving(false);
     const savedConfig = parseSavedEnhancementConfig(result);
     if (!response.ok || result.ok === false || !savedConfig) {
-      setMessage({ tone: "danger", text: result.error ?? "Unable to save the model enhancement profile." });
+      showNotice("danger", result.error ?? "Unable to save the model enhancement profile.");
       return;
     }
     setLocalEnhancementConfigs((current) => upsertEnhancementConfigEntry(current, savedConfig));
-    setMessage({ tone: "healthy", text: `Model helper saved for ${selectedEnhancementModelKey}.` });
+    showNotice("healthy", `Model helper saved for ${selectedEnhancementModelKey}.`);
   }
 
   async function probeEnhancementProvider(providerKind: "openrouter" | "local_openai", silent = false) {
     setIsProbingProvider(true);
     if (!silent) {
-      setMessage(null);
+      clearNotice();
     }
     const payload = {
       provider_kind: providerKind,
@@ -725,7 +718,7 @@ export function MediaModelsConsole({
     setIsProbingProvider(false);
     if (!response.ok || result.ok === false) {
       if (!silent) {
-        setMessage({ tone: "danger", text: result.error ?? "Unable to connect to the enhancement provider." });
+        showNotice("danger", result.error ?? "Unable to connect to the enhancement provider.");
       }
       return;
     }
@@ -754,24 +747,24 @@ export function MediaModelsConsole({
       providerBaseUrlConfigured: current.providerBaseUrlConfigured || Boolean(current.providerBaseUrl),
     }));
     if (!silent) {
-      setMessage({
-        tone: "healthy",
-        text: result.selected_model
+      showNotice(
+        "healthy",
+        result.selected_model
           ? `Connected to ${providerKind === "openrouter" ? "OpenRouter" : "the local provider"} using ${result.selected_model.label}.`
           : `Connected to ${providerKind === "openrouter" ? "OpenRouter" : "the local provider"}.`,
-      });
+      );
     }
   }
 
   async function openMediaOutputsFolder() {
-    setMessage(null);
+    clearNotice();
     const response = await fetch("/api/control/media-output-folder", { method: "POST" });
     const result = (await response.json()) as { ok?: boolean; error?: string };
     if (!response.ok || result.ok === false) {
-      setMessage({ tone: "danger", text: result.error ?? "Unable to open the media outputs folder." });
+      showNotice("danger", result.error ?? "Unable to open the media outputs folder.");
       return;
     }
-    setMessage({ tone: "healthy", text: "Media output folder opened." });
+    showNotice("healthy", "Media output folder opened.");
   }
 
   async function saveGlobalQueueSettings(settings: MediaQueueSettings) {
@@ -789,11 +782,11 @@ export function MediaModelsConsole({
     const result = (await response.json()) as { ok?: boolean; error?: string; settings?: MediaQueueSettings };
     setIsSaving(false);
     if (!response.ok || result.ok === false || !result.settings) {
-      setMessage({ tone: "danger", text: result.error ?? "Unable to update the queue settings." });
+      showNotice("danger", result.error ?? "Unable to update the queue settings.");
       return;
     }
     setLocalQueueSettings(result.settings);
-    setMessage({ tone: "healthy", text: "Queue settings saved." });
+    showNotice("healthy", "Queue settings saved.");
   }
 
   async function saveModelQueuePolicy(maxOutputsPerRun: number) {
@@ -808,7 +801,7 @@ export function MediaModelsConsole({
     const result = (await response.json()) as { ok?: boolean; error?: string; policy?: MediaModelQueuePolicy };
     setIsSaving(false);
     if (!response.ok || result.ok === false || !result.policy) {
-      setMessage({ tone: "danger", text: result.error ?? "Unable to update the model queue policy." });
+      showNotice("danger", result.error ?? "Unable to update the model queue policy.");
       return;
     }
     setLocalQueuePolicies((current) => {
@@ -816,7 +809,7 @@ export function MediaModelsConsole({
       next.push(result.policy as MediaModelQueuePolicy);
       return next.sort((left, right) => left.model_key.localeCompare(right.model_key));
     });
-    setMessage({ tone: "healthy", text: "Model settings saved." });
+    showNotice("healthy", "Model settings saved.");
   }
 
   async function saveModelAvailability(enabled: boolean) {
@@ -830,7 +823,7 @@ export function MediaModelsConsole({
     const result = (await response.json()) as { ok?: boolean; error?: string; policy?: MediaModelQueuePolicy };
     setIsSaving(false);
     if (!response.ok || result.ok === false || !result.policy) {
-      setMessage({ tone: "danger", text: result.error ?? "Unable to update the model availability." });
+      showNotice("danger", result.error ?? "Unable to update the model availability.");
       return;
     }
     setLocalQueuePolicies((current) => {
@@ -838,7 +831,7 @@ export function MediaModelsConsole({
       next.push(result.policy as MediaModelQueuePolicy);
       return next.sort((left, right) => left.model_key.localeCompare(right.model_key));
     });
-    setMessage({ tone: "healthy", text: enabled ? "Model enabled." : "Model disabled." });
+    showNotice("healthy", enabled ? "Model enabled." : "Model disabled.");
   }
 
   function renderSelect(

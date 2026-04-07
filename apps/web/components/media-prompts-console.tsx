@@ -3,8 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { AdminActionNotice } from "@/components/admin-action-notice";
 import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
+import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import type { MediaModelSummary, MediaSystemPrompt } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -75,7 +77,7 @@ export function MediaPromptsConsole({ models, prompts }: MediaPromptsConsoleProp
         }
       : emptyPromptForm(),
   );
-  const [message, setMessage] = useState<{ tone: "healthy" | "danger"; text: string } | null>(null);
+  const { notice: message, showNotice, clearNotice } = useAdminActionNotice();
 
   const selectedPrompt = prompts.find((prompt) => prompt.prompt_id === selectedPromptId) ?? null;
 
@@ -96,10 +98,12 @@ export function MediaPromptsConsole({ models, prompts }: MediaPromptsConsoleProp
     });
   }
 
-  function resetPromptForm() {
+  function resetPromptForm({ preserveNotice = false }: { preserveNotice?: boolean } = {}) {
     setSelectedPromptId(null);
     setFormState(emptyPromptForm());
-    setMessage(null);
+    if (!preserveNotice) {
+      clearNotice();
+    }
   }
 
   function toggleModel(modelKey: string) {
@@ -137,13 +141,13 @@ export function MediaPromptsConsole({ models, prompts }: MediaPromptsConsoleProp
     const result = (await response.json()) as { ok?: boolean; error?: string };
 
     if (!response.ok || result.ok === false) {
-      setMessage({ tone: "danger", text: result.error ?? "Unable to save the system prompt." });
+      showNotice("danger", result.error ?? "Unable to save the system prompt.");
       return;
     }
 
-    setMessage({ tone: "healthy", text: formState.promptId ? "System prompt updated." : "System prompt created." });
+    showNotice("healthy", formState.promptId ? "System prompt updated." : "System prompt created.");
     startRefresh(() => router.refresh());
-    resetPromptForm();
+    resetPromptForm({ preserveNotice: true });
   }
 
   async function archivePrompt(promptId: string) {
@@ -151,17 +155,19 @@ export function MediaPromptsConsole({ models, prompts }: MediaPromptsConsoleProp
     const result = (await response.json()) as { ok?: boolean; error?: string };
 
     if (!response.ok || result.ok === false) {
-      setMessage({ tone: "danger", text: result.error ?? "Unable to archive the system prompt." });
+      showNotice("danger", result.error ?? "Unable to archive the system prompt.");
       return;
     }
 
-    setMessage({ tone: "healthy", text: "System prompt archived." });
+    showNotice("healthy", "System prompt archived.");
     startRefresh(() => router.refresh());
-    resetPromptForm();
+    resetPromptForm({ preserveNotice: true });
   }
 
   return (
-    <div className="grid gap-7 xl:grid-cols-[340px_minmax(0,1fr)]">
+    <>
+      {message ? <AdminActionNotice tone={message.tone} text={message.text} /> : null}
+      <div className="grid gap-7 xl:grid-cols-[340px_minmax(0,1fr)]">
       <Panel>
         <PanelHeader
           eyebrow="Prompt library"
@@ -289,7 +295,7 @@ export function MediaPromptsConsole({ models, prompts }: MediaPromptsConsoleProp
                 </button>
                 <button
                   type="button"
-                  onClick={resetPromptForm}
+                  onClick={() => resetPromptForm()}
                   className="rounded-full border border-[var(--surface-border)] bg-white px-4 py-3 text-sm font-semibold text-[var(--foreground)]"
                 >
                   Reset
@@ -304,18 +310,6 @@ export function MediaPromptsConsole({ models, prompts }: MediaPromptsConsoleProp
                   </button>
                 ) : null}
               </div>
-              {message ? (
-                <div
-                  className={cn(
-                    "rounded-[18px] border px-3 py-3 text-sm",
-                    message.tone === "healthy"
-                      ? "border-[rgba(81,136,111,0.18)] bg-[rgba(81,136,111,0.08)] text-[var(--success)]"
-                      : "border-[rgba(175,79,64,0.18)] bg-[rgba(175,79,64,0.08)] text-[var(--danger)]",
-                  )}
-                >
-                  {message.text}
-                </div>
-              ) : null}
               {isRefreshing ? (
                 <div className="text-xs uppercase tracking-[0.12em] text-[var(--muted-strong)]">
                   Refreshing prompt studio...
@@ -376,6 +370,7 @@ export function MediaPromptsConsole({ models, prompts }: MediaPromptsConsoleProp
           </div>
         </Panel>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
