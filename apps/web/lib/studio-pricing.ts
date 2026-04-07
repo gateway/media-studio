@@ -24,6 +24,11 @@ function pricingNumber(value: unknown) {
   return null;
 }
 
+function multiplyPricingValue(value: unknown, multiplier: number) {
+  const numericValue = pricingNumber(value);
+  return numericValue != null ? numericValue * multiplier : null;
+}
+
 export function estimateFromPricingSnapshot(
   pricingSnapshot: Record<string, unknown> | null | undefined,
   modelKey: string | null | undefined,
@@ -99,25 +104,39 @@ export function estimateFromPricingSnapshot(
 export function resolveStudioPricingDisplay(
   validation: MediaValidationResponse | null,
   localPricingEstimate: { estimatedCredits: number | null; estimatedCostUsd: number | null },
+  outputCount: number,
 ) {
+  const resolvedOutputCount = Math.max(1, outputCount || 1);
   const validationPricingSummary = isRecord(validation?.pricing_summary)
     ? (validation.pricing_summary as Record<string, unknown>)
     : isRecord(validation?.preflight?.pricing_summary)
       ? (validation.preflight.pricing_summary as Record<string, unknown>)
       : null;
+  const validationOutputCount = pricingNumber(validationPricingSummary?.output_count);
   const validationPricingTotal = isRecord(validationPricingSummary?.total)
     ? (validationPricingSummary.total as Record<string, unknown>)
+    : null;
+  const validationPricingPerOutput = isRecord(validationPricingSummary?.per_output)
+    ? (validationPricingSummary.per_output as Record<string, unknown>)
     : null;
   const preflightEstimatedCost = isRecord(validation?.preflight?.estimated_cost)
     ? (validation.preflight.estimated_cost as Record<string, unknown>)
     : null;
+  const validationPricingMatchesOutputCount =
+    validationOutputCount == null || validationOutputCount === resolvedOutputCount;
+  const estimatedCreditsFromValidation = validationPricingMatchesOutputCount
+    ? validationPricingTotal?.estimated_credits
+    : multiplyPricingValue(validationPricingPerOutput?.estimated_credits, resolvedOutputCount);
+  const estimatedCostUsdFromValidation = validationPricingMatchesOutputCount
+    ? validationPricingTotal?.estimated_cost_usd
+    : multiplyPricingValue(validationPricingPerOutput?.estimated_cost_usd, resolvedOutputCount);
   const estimatedCreditsValue =
-    validationPricingTotal?.estimated_credits ??
+    estimatedCreditsFromValidation ??
     localPricingEstimate.estimatedCredits ??
     validation?.preflight?.estimated_cost_credits ??
     preflightEstimatedCost?.estimated_credits;
   const estimatedCostUsdValue =
-    validationPricingTotal?.estimated_cost_usd ??
+    estimatedCostUsdFromValidation ??
     localPricingEstimate.estimatedCostUsd ??
     preflightEstimatedCost?.estimated_cost_usd;
   const estimatedCredits = formatCreditsAmount(estimatedCreditsValue, { fallback: null });

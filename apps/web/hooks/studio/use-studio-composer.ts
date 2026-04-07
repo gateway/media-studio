@@ -359,8 +359,8 @@ export function useStudioComposer({
     [modelKey, outputCount, pricingOptions, pricingSnapshot],
   );
   const { estimatedCredits, estimatedCostUsd, generatePriceLabel } = useMemo(
-    () => resolveStudioPricingDisplay(validation, localPricingEstimate),
-    [validation, localPricingEstimate],
+    () => resolveStudioPricingDisplay(validation, localPricingEstimate, outputCount),
+    [outputCount, validation, localPricingEstimate],
   );
   const formattedRemainingCredits =
     typeof remainingCredits === "number"

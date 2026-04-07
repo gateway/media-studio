@@ -40,11 +40,37 @@ describe("studio-pricing", () => {
         preflight: {},
       } as never,
       { estimatedCredits: 36, estimatedCostUsd: 0.18 },
+      1,
     );
 
     expect(display.estimatedCredits).toBe("200");
     expect(display.estimatedCostUsd).toBe("$1.00");
     expect(display.generatePriceLabel).toBe("$1.00");
+  });
+
+  it("recomputes the displayed total from per-output validation pricing when output count changes", () => {
+    const display = resolveStudioPricingDisplay(
+      {
+        pricing_summary: {
+          output_count: 1,
+          per_output: {
+            estimated_credits: 12,
+            estimated_cost_usd: 0.06,
+          },
+          total: {
+            estimated_credits: 12,
+            estimated_cost_usd: 0.06,
+          },
+        },
+        preflight: {},
+      } as never,
+      { estimatedCredits: 12, estimatedCostUsd: 0.06 },
+      2,
+    );
+
+    expect(display.estimatedCredits).toBe("24");
+    expect(display.estimatedCostUsd).toBe("$0.12");
+    expect(display.generatePriceLabel).toBe("$0.12");
   });
 
   it("falls back to credits when usd is unavailable", () => {
@@ -55,6 +81,7 @@ describe("studio-pricing", () => {
         },
       } as never,
       { estimatedCredits: null, estimatedCostUsd: null },
+      1,
     );
 
     expect(display.estimatedCredits).toBe("24");
