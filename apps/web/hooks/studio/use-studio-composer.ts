@@ -149,6 +149,7 @@ export function useStudioComposer({
   const currentModel = models.find((model) => model.key === modelKey) ?? null;
   const currentPreset =
     presets.find((preset) => preset.preset_id === selectedPresetId || preset.key === selectedPresetId) ?? null;
+  const currentPresetSelectionKey = currentPreset?.preset_id ?? currentPreset?.key ?? selectedPresetId;
   const currentSourceAsset = findMediaAssetById(sourceAssetId, localAssets, favoriteAssets) ?? null;
   const globalEnhancementConfig =
     enhancementConfigs.find((config) => config.model_key === "__studio_enhancement__") ??
@@ -416,7 +417,7 @@ export function useStudioComposer({
     setOptionValues(
       buildNormalizedStudioOptions(currentModel, {}, isRecord(currentPreset?.default_options_json) ? currentPreset.default_options_json : null),
     );
-  }, [currentModel, currentPreset]);
+  }, [modelKey, currentPresetSelectionKey]);
 
   useEffect(() => {
     setSourceAssetId(null);
@@ -846,7 +847,7 @@ export function useStudioComposer({
     setPrompt("");
     setSelectedPresetId("");
     setSelectedPromptIds([]);
-    setModelKey(enabledModels[0]?.key ?? models[0]?.key ?? "nano-banana-2");
+    setOptionValues(buildNormalizedStudioOptions(currentModel, {}, null));
     setOutputCount(1);
     setValidation(null);
     setFormMessage(null);
