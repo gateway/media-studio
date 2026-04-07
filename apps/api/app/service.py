@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import mimetypes
 import re
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -23,6 +24,7 @@ TEXT_TOKEN_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
 IMAGE_TOKEN_RE = re.compile(r"\[\[\s*([a-zA-Z0-9_]+)\s*\]\]")
 NANO_PRESET_MODELS = {"nano-banana-2", "nano-banana-pro"}
 GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
+ENHANCEMENT_PROVIDER_TIMEOUT_SECONDS = 25
 
 
 class ServiceError(Exception):
@@ -425,33 +427,40 @@ def _run_external_enhancement(config: Dict[str, Any], request: EnhancePreviewReq
         raise ServiceError("The selected enhancement model does not support image input.")
     provider_api_key = config.get("provider_api_key") or None
     provider_base_url = config.get("provider_base_url") or None
-    if provider_kind == "openrouter":
-        return enhancement_provider.run_openai_compatible_enhancement(
-            provider_kind="openrouter",
-            base_url=str(provider_base_url or settings.openrouter_base_url),
-            api_key=str(provider_api_key or settings.openrouter_api_key or ""),
-            model_id=provider_model_id,
-            prompt=prompt_text,
-            media_model_key=request.model_key,
-            task_mode=request.task_mode,
-            system_prompt=config.get("system_prompt"),
-            image_analysis_prompt=config.get("image_analysis_prompt"),
-            image_paths=image_paths[:1] if using_image_analysis else [],
-        )
-    if provider_kind == "local_openai":
-        return enhancement_provider.run_openai_compatible_enhancement(
-            provider_kind="local_openai",
-            base_url=str(provider_base_url or settings.local_openai_base_url),
-            api_key=str(provider_api_key or settings.local_openai_api_key or ""),
-            model_id=provider_model_id,
-            prompt=prompt_text,
-            media_model_key=request.model_key,
-            task_mode=request.task_mode,
-            system_prompt=config.get("system_prompt"),
-            image_analysis_prompt=config.get("image_analysis_prompt"),
-            image_paths=image_paths[:1] if using_image_analysis else [],
-        )
-    raise ServiceError("Unsupported enhancement provider.")
+    def run_provider_call() -> Dict[str, Any]:
+        if provider_kind == "openrouter":
+            return enhancement_provider.run_openai_compatible_enhancement(
+                provider_kind="openrouter",
+                base_url=str(provider_base_url or settings.openrouter_base_url),
+                api_key=str(provider_api_key or settings.openrouter_api_key or ""),
+                model_id=provider_model_id,
+                prompt=prompt_text,
+                media_model_key=request.model_key,
+                task_mode=request.task_mode,
+                system_prompt=config.get("system_prompt"),
+                image_analysis_prompt=config.get("image_analysis_prompt"),
+                image_paths=image_paths[:1] if using_image_analysis else [],
+            )
+        if provider_kind == "local_openai":
+            return enhancement_provider.run_openai_compatible_enhancement(
+                provider_kind="local_openai",
+                base_url=str(provider_base_url or settings.local_openai_base_url),
+                api_key=str(provider_api_key or settings.local_openai_api_key or ""),
+                model_id=provider_model_id,
+                prompt=prompt_text,
+                media_model_key=request.model_key,
+                task_mode=request.task_mode,
+                system_prompt=config.get("system_prompt"),
+                image_analysis_prompt=config.get("image_analysis_prompt"),
+                image_paths=image_paths[:1] if using_image_analysis else [],
+            )
+        raise ServiceError("Unsupported enhancement provider.")
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(run_provider_call)
+        try:
+            return future.result(timeout=ENHANCEMENT_PROVIDER_TIMEOUT_SECONDS)
+        except FuturesTimeoutError as exc:
+            raise ServiceError("The enhancement provider timed out. Try again or switch the enhancement model in Settings.") from exc
 
 
 def build_enhancement_preview(request: EnhancePreviewRequest) -> Dict[str, Any]:
