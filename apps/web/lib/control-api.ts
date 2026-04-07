@@ -37,6 +37,7 @@ import type {
   MediaValidationResponse,
 } from "@/lib/types";
 import { toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-paths";
+import { INITIAL_ASSET_PAGE_SIZE } from "@/lib/media-studio-contract";
 export { toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-paths";
 
 export const CONTROL_API_BASE_URL =
@@ -512,7 +513,7 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
       fetchControlApiJson<any[]>("/media/queue/policies"),
       fetchControlApiJson<Record<string, any>>(`/media/batches?limit=${batchesLimit}&offset=${batchesOffset}`),
       fetchControlApiJson<Record<string, any>>("/media/jobs?limit=8"),
-      fetchControlApiJson<Record<string, any>>("/media/assets?limit=12"),
+      fetchControlApiJson<Record<string, any>>(`/media/assets?limit=${INITIAL_ASSET_PAGE_SIZE}`),
       fetchControlApiJson<Record<string, any>>("/media/assets/latest"),
     ]);
 
@@ -570,7 +571,7 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
       ok: assetsRaw.ok,
       data: {
         assets,
-        limit: 12,
+        limit: INITIAL_ASSET_PAGE_SIZE,
         offset: 0,
         has_more: Boolean(assetsRaw.data?.next_cursor),
         next_offset: assets.length > 0 && assetsRaw.data?.next_cursor ? assets.length : null,

@@ -67,7 +67,7 @@ export type FloatingComposerStatus = ComposerStatusMessage & {
   visible: boolean;
 };
 
-export const INITIAL_ASSET_PAGE_SIZE = 12;
+export const INITIAL_ASSET_PAGE_SIZE = 18;
 export const ASSET_APPEND_BATCH_SIZE = 4;
 export const FLOATING_COMPOSER_STATUS_MS = 2600;
 export const FLOATING_COMPOSER_STATUS_FADE_MS = 320;

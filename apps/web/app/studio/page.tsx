@@ -1,5 +1,6 @@
 import { MediaStudio } from "@/components/media-studio";
 import { getMediaDashboardSnapshot } from "@/lib/control-api";
+import { INITIAL_ASSET_PAGE_SIZE } from "@/lib/media-studio-contract";
 
 export default async function MediaStudioPage({
   searchParams,
@@ -29,7 +30,7 @@ export default async function MediaStudioPage({
       batches={snapshot.batches.data?.batches ?? []}
       jobs={snapshot.jobs.data?.jobs ?? []}
       assets={snapshot.assets.data?.assets ?? []}
-      initialAssetLimit={snapshot.assets.data?.limit ?? 12}
+      initialAssetLimit={snapshot.assets.data?.limit ?? INITIAL_ASSET_PAGE_SIZE}
       initialAssetOffset={snapshot.assets.data?.offset ?? 0}
       initialAssetsHasMore={snapshot.assets.data?.has_more ?? false}
       initialAssetsNextOffset={snapshot.assets.data?.next_offset ?? null}
