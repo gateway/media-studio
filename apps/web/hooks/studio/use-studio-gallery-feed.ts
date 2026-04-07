@@ -73,7 +73,7 @@ type UseStudioGalleryFeedResult = {
     setFavoriteAssets: React.Dispatch<React.SetStateAction<MediaAsset[] | null>>;
     activateGalleryKindFilter: (nextKind: GalleryKindFilter) => void;
     toggleFavoritesFilter: () => void;
-    loadMoreActiveGalleryAssets: () => void;
+    loadMoreActiveGalleryAssets: () => Promise<void>;
     refreshActiveGalleryAssets: (options?: { expectedJobIds?: string[]; silent?: boolean; attempts?: number }) => Promise<boolean>;
     upsertBatch: (batch: MediaBatch) => void;
     mergeAssetIntoCollection: (collection: MediaAsset[], updatedAsset: MediaAsset) => MediaAsset[];
@@ -658,7 +658,9 @@ export function useStudioGalleryFeed({
       setFavoriteAssets,
       activateGalleryKindFilter,
       toggleFavoritesFilter,
-      loadMoreActiveGalleryAssets: loadMoreAssetsRef.current,
+      loadMoreActiveGalleryAssets: async () => {
+        loadMoreAssetsRef.current();
+      },
       refreshActiveGalleryAssets,
       upsertBatch: (batch) => setLocalBatches((current) => upsertBatchCollection(current, batch)),
       mergeAssetIntoCollection,

@@ -329,6 +329,7 @@ export function MediaStudio({
   const [copyPromptStatus, setCopyPromptStatus] = useState<"idle" | "copied" | "error">("idle");
   const [selectedFailedJobId, setSelectedFailedJobId] = useState<string | null>(null);
   const [selectedAssetAspectRatio, setSelectedAssetAspectRatio] = useState<number | null>(null);
+  const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(null);
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
   const lastComposerDebugSignatureRef = useRef<string | null>(null);
   const copyPromptStatusTimerRef = useRef<number | null>(null);
@@ -1141,10 +1142,32 @@ export function MediaStudio({
 
   useEffect(() => {
     if (!selectedAsset) {
+      setPendingGalleryStep(null);
       return;
     }
     const currentIndex = visibleGalleryAssetIds.findIndex((assetId) => String(assetId) === String(selectedAsset.asset_id));
-    if (currentIndex === -1 || visibleGalleryAssetIds.length < 2) {
+    if (currentIndex === -1) {
+      setPendingGalleryStep(null);
+      return;
+    }
+
+    if (pendingGalleryStep === "next") {
+      if (currentIndex < visibleGalleryAssetIds.length - 1) {
+        const nextAssetId = visibleGalleryAssetIds[currentIndex + 1];
+        if (nextAssetId != null) {
+          setPendingGalleryStep(null);
+          setSelectedFailedJobId(null);
+          setSelectedAssetId(nextAssetId);
+          return;
+        }
+      }
+      if (!activeGalleryHasMore && !activeGalleryLoadingMore) {
+        setPendingGalleryStep(null);
+      }
+      return;
+    }
+
+    if (visibleGalleryAssetIds.length < 2) {
       return;
     }
 
@@ -1166,6 +1189,14 @@ export function MediaStudio({
       if (isTypingTarget(event.target)) {
         return;
       }
+      if (event.key === "ArrowRight" && currentIndex === visibleGalleryAssetIds.length - 1 && activeGalleryHasMore) {
+        event.preventDefault();
+        if (!activeGalleryLoadingMore && pendingGalleryStep == null) {
+          setPendingGalleryStep("next");
+          void loadMoreActiveGalleryAssets();
+        }
+        return;
+      }
       const direction = event.key === "ArrowRight" ? 1 : -1;
       const nextIndex = (currentIndex + direction + visibleGalleryAssetIds.length) % visibleGalleryAssetIds.length;
       const nextAssetId = visibleGalleryAssetIds[nextIndex];
@@ -1179,7 +1210,15 @@ export function MediaStudio({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedAsset, setSelectedAssetId, visibleGalleryAssetIds]);
+  }, [
+    activeGalleryHasMore,
+    activeGalleryLoadingMore,
+    loadMoreActiveGalleryAssets,
+    pendingGalleryStep,
+    selectedAsset,
+    setSelectedAssetId,
+    visibleGalleryAssetIds,
+  ]);
 
   function handleSourceTileDrop(event: React.DragEvent<HTMLLabelElement>, slotIndex = 0) {
     event.preventDefault();
