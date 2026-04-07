@@ -1015,3 +1015,46 @@ def test_runner_resumes_existing_provider_task_without_resubmit(client, app_modu
     updated = store.get_job(job["job_id"])
     assert updated["status"] == "running"
     assert updated["provider_task_id"] == "existing-task-123"
+
+
+def test_runner_fails_job_after_repeated_poll_errors(client, app_modules, monkeypatch) -> None:
+    update = client.patch("/media/queue/settings", json={"max_retry_attempts": 2})
+    assert update.status_code == 200, update.text
+
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "Trigger repeated poll failures.",
+            "output_count": 1,
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    job = submit_response.json()["jobs"][0]
+    store = app_modules["store"]
+    runner = app_modules["runner"].runner
+    monkeypatch.setattr(app_modules["runner"].settings, "media_enable_live_submit", True)
+    monkeypatch.setattr(app_modules["runner"].settings, "kie_api_key", "test-kie-key")
+
+    store.update_job(job["job_id"], {"provider_task_id": "broken-task-123", "status": "running"})
+
+    def _raise_poll_error(*args, **kwargs):
+        raise RuntimeError("provider timeout")
+
+    monkeypatch.setattr(app_modules["runner"].kie_adapter, "poll_task", _raise_poll_error)
+
+    runner.tick()
+    after_first = store.get_job(job["job_id"])
+    assert after_first["status"] == "running"
+    assert after_first["error"] == "Poll failed: provider timeout"
+    assert store.count_job_events(job["job_id"], "poll_error") == 1
+
+    runner.tick()
+    after_second = store.get_job(job["job_id"])
+    assert after_second["status"] == "failed"
+    assert after_second["error"] == "Poll failed: provider timeout"
+    assert after_second["finished_at"] is not None
+    assert store.count_job_events(job["job_id"], "poll_error") == 1
+    failed_events = [event for event in store.list_job_events(job["job_id"]) if event["event_type"] == "failed"]
+    assert any(event["payload_json"].get("reason") == "poll_error_retry_limit" for event in failed_events)

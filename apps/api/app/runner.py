@@ -215,15 +215,38 @@ class MediaRunner:
             store.recompute_batch_counts(updated["batch_id"])
         except Exception as exc:
             logger.exception("media job poll failed", extra={"job_id": job["job_id"], "provider_task_id": job.get("provider_task_id")})
-            updated = store.update_job(
-                job["job_id"],
-                {
-                    "status": "running",
-                    "error": "Poll failed: %s" % exc,
-                    "last_polled_at": store.utcnow_iso(),
-                },
-            )
-            store.append_job_event(updated["job_id"], "poll_error", {"error": str(exc)})
+            queue_settings = store.get_queue_settings()
+            next_poll_error_count = store.count_job_events(job["job_id"], "poll_error") + 1
+            error_message = "Poll failed: %s" % exc
+            if next_poll_error_count >= queue_settings["max_retry_attempts"]:
+                updated = store.update_job(
+                    job["job_id"],
+                    {
+                        "status": "failed",
+                        "error": error_message,
+                        "finished_at": store.utcnow_iso(),
+                        "last_polled_at": store.utcnow_iso(),
+                    },
+                )
+                store.append_job_event(
+                    updated["job_id"],
+                    "failed",
+                    {"error": str(exc), "reason": "poll_error_retry_limit", "poll_error_count": next_poll_error_count},
+                )
+            else:
+                updated = store.update_job(
+                    job["job_id"],
+                    {
+                        "status": "running",
+                        "error": error_message,
+                        "last_polled_at": store.utcnow_iso(),
+                    },
+                )
+                store.append_job_event(
+                    updated["job_id"],
+                    "poll_error",
+                    {"error": str(exc), "poll_error_count": next_poll_error_count},
+                )
             store.recompute_batch_counts(updated["batch_id"])
 
 

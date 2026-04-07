@@ -295,6 +295,21 @@ def list_job_events(job_id: str) -> List[Dict[str, Any]]:
     return [_decode_row(row) for row in rows]
 
 
+def count_job_events(job_id: str, event_type: Optional[str] = None) -> int:
+    with get_connection() as connection:
+        if event_type:
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM media_job_events WHERE job_id = ? AND event_type = ?",
+                (job_id, event_type),
+            ).fetchone()
+        else:
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM media_job_events WHERE job_id = ?",
+                (job_id,),
+            ).fetchone()
+    return int(row["count"] if row else 0)
+
+
 def list_assets(
     limit: int = 100,
     cursor: Optional[str] = None,
