@@ -102,7 +102,7 @@ export function StudioComposer({
               </div>
             ) : null}
             <div className="grid gap-3">
-              <div className="relative pt-8">
+              <div className={cn("relative", floatingComposerStatus ? "pt-8" : "pt-0")}>
                 {!hasSidebar ? <div className="absolute right-0 top-0 hidden md:block">{studioSettingsButton}</div> : null}
                 {floatingComposerStatus ? (
                   <div
