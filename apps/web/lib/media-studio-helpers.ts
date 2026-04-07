@@ -4,8 +4,10 @@ import {
   Globe2,
   Monitor,
   RectangleHorizontal,
+  RectangleVertical,
   SlidersHorizontal,
   Sparkles,
+  Square,
   Volume2,
 } from "lucide-react";
 
@@ -50,6 +52,10 @@ export type PresetSlotState = {
   file: File | null;
   previewUrl: string | null;
 };
+
+export type OrderedImageInput =
+  | { source: "asset"; asset: MediaAsset }
+  | { source: "attachment"; attachment: { previewUrl: string | null } };
 
 export type MultiShotParseResult = {
   shots: Array<{ prompt: string; duration: number }>;
@@ -369,6 +375,42 @@ export function mediaDisplayUrl(asset?: MediaAsset | null) {
   return mediaVariantUrl(asset, "web") ?? mediaVariantUrl(asset, "thumb") ?? mediaVariantUrl(asset, "poster");
 }
 
+export function orderedImageInputVisual(input?: OrderedImageInput | null) {
+  if (!input) {
+    return null;
+  }
+  if (input.source === "asset") {
+    return mediaThumbnailUrl(input.asset) ?? mediaDisplayUrl(input.asset);
+  }
+  return input.attachment.previewUrl ?? null;
+}
+
+export function resolveEnhancementPreviewVisual({
+  structuredPresetActive,
+  firstPresetSlotPreview,
+  orderedImageInputs,
+  currentSourceAsset,
+  imageAttachmentPreviewUrls,
+}: {
+  structuredPresetActive: boolean;
+  firstPresetSlotPreview: string | null;
+  orderedImageInputs: OrderedImageInput[];
+  currentSourceAsset: MediaAsset | null;
+  imageAttachmentPreviewUrls: Array<string | null>;
+}) {
+  if (structuredPresetActive) {
+    return firstPresetSlotPreview ?? null;
+  }
+  const orderedVisual = orderedImageInputs.map((input) => orderedImageInputVisual(input)).find(Boolean);
+  if (orderedVisual) {
+    return orderedVisual;
+  }
+  if (currentSourceAsset) {
+    return mediaThumbnailUrl(currentSourceAsset) ?? mediaDisplayUrl(currentSourceAsset);
+  }
+  return imageAttachmentPreviewUrls.find(Boolean) ?? null;
+}
+
 export function mediaPlaybackUrl(asset?: MediaAsset | null) {
   if (asset?.generation_kind !== "video") {
     return null;
@@ -590,7 +632,24 @@ export function stripUnsupportedStudioOptions(
   return sanitized;
 }
 
-export function optionIcon(optionKey: string) {
+function aspectRatioIcon(value: unknown) {
+  const raw = String(value ?? "").trim();
+  const match = raw.match(/^(\d+(?:\.\d+)?)\s*[:x/]\s*(\d+(?:\.\d+)?)$/i);
+  if (!match) {
+    return RectangleHorizontal;
+  }
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return RectangleHorizontal;
+  }
+  if (Math.abs(width - height) < 0.001) {
+    return Square;
+  }
+  return width > height ? RectangleHorizontal : RectangleVertical;
+}
+
+export function optionIcon(optionKey: string, value?: unknown) {
   if (optionKey.includes("sound") || optionKey.includes("audio")) {
     return Volume2;
   }
@@ -600,7 +659,10 @@ export function optionIcon(optionKey: string) {
   if (optionKey.includes("duration")) {
     return Clock3;
   }
-  if (optionKey.includes("ratio") || optionKey.includes("resolution") || optionKey.includes("size")) {
+  if (optionKey.includes("ratio")) {
+    return aspectRatioIcon(value);
+  }
+  if (optionKey.includes("resolution") || optionKey.includes("size")) {
     return RectangleHorizontal;
   }
   if (optionKey.includes("preset")) {

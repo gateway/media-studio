@@ -31,8 +31,23 @@ const summary = {
 async function ensureModelSelected(modelMatcher) {
   const picker = page.locator('[data-testid="studio-picker-model"]');
   await picker.waitFor({ state: "visible", timeout: 20000 });
+  await page.waitForFunction(() => {
+    const label = document.querySelector('[data-testid="studio-picker-model"]')?.textContent?.trim() ?? "";
+    return Boolean(label) && label !== "Model";
+  }, { timeout: 20000 });
   const currentLabel = ((await picker.textContent()) ?? "").trim();
   if (modelMatcher.test(currentLabel)) {
+    return;
+  }
+  const usedBridge = await page.evaluate(() => {
+    if (typeof window.__mediaStudioTest?.composer?.setModel === "function") {
+      window.__mediaStudioTest.composer.setModel("nano-banana-2");
+      return true;
+    }
+    return false;
+  });
+  if (usedBridge) {
+    await page.waitForTimeout(1000);
     return;
   }
   await picker.click();
@@ -126,6 +141,10 @@ try {
 
   await page.evaluate(() => window.__mediaStudioTest?.enhancement?.openDialog());
   await page.waitForSelector('[data-testid="studio-enhance-dialog"]', { timeout: 15000 });
+  await page.waitForFunction(() => {
+    const summary = document.querySelector('[data-testid="studio-enhance-dialog"]');
+    return Boolean(summary?.textContent?.includes("Image reference: Attached"));
+  }, { timeout: 10000 });
   await page.evaluate(async () => {
     await window.__mediaStudioTest?.enhancement?.requestPreview();
   });

@@ -32,6 +32,7 @@ import {
   parseOptionChoice,
   pickerWidth,
   renderStructuredPresetPrompt,
+  resolveEnhancementPreviewVisual,
   seedanceReferenceTokenGuide,
   serializeOptionChoice,
   stripUnsupportedStudioOptions,
@@ -320,11 +321,13 @@ export function useStudioComposer({
     : presetRequirementMessage(currentPreset, attachments, currentSourceAsset);
   const firstPresetSlotPreview =
     structuredPresetImageSlots.map((slot) => presetSlotStates[slot.key]?.previewUrl).find((value) => Boolean(value)) ?? null;
-  const enhancementPreviewVisual = structuredPresetActive
-    ? firstPresetSlotPreview
-    : currentSourceAsset
-      ? mediaDisplayUrl(currentSourceAsset)
-      : attachments.find((attachment) => attachment.kind === "images")?.previewUrl ?? null;
+  const enhancementPreviewVisual = resolveEnhancementPreviewVisual({
+    structuredPresetActive,
+    firstPresetSlotPreview,
+    orderedImageInputs,
+    currentSourceAsset,
+    imageAttachmentPreviewUrls: imageAttachments.map((attachment) => attachment.previewUrl),
+  });
   const seedanceReferenceGuideTokens = useMemo(() => seedanceReferenceTokenGuide(attachments), [attachments]);
   const seedanceReferenceGuideText = seedanceReferenceGuideTokens.length
     ? `Reference staged assets in the prompt with ${seedanceReferenceGuideTokens.join(", ")}.`
@@ -959,10 +962,13 @@ export function useStudioComposer({
     setEnhanceBusy(true);
     setEnhanceError(null);
     showActivity({ tone: "warning", message: "Loading the enhancement preview.", spinning: true });
+    const controller = new AbortController();
+    const requestTimeout = window.setTimeout(() => controller.abort(), 35000);
     try {
       const response = await fetch("/api/control/media-enhance", {
         method: "POST",
         body: buildMediaFormData("enhance"),
+        signal: controller.signal,
       });
       const payload = (await response.json()) as { ok: false; error?: string } | { ok: true; preview?: MediaEnhancePreviewResponse };
       if (!response.ok || !payload.ok) {
@@ -974,12 +980,16 @@ export function useStudioComposer({
       }
       setEnhancePreview(payload.preview ?? null);
       showActivity({ tone: "healthy", message: "Enhancement preview ready." }, { autoHideMs: 2200 });
-    } catch {
+    } catch (error) {
       setEnhancePreview(null);
-      const errorMessage = "The dashboard could not reach the enhance preview route.";
+      const errorMessage =
+        error instanceof DOMException && error.name === "AbortError"
+          ? "Enhancement preview timed out. Check your provider setup in Settings and try again."
+          : "The dashboard could not reach the enhance preview route.";
       setEnhanceError(errorMessage);
       showActivity({ tone: "danger", message: errorMessage }, { autoHideMs: 4200 });
     } finally {
+      window.clearTimeout(requestTimeout);
       setEnhanceBusy(false);
     }
   }

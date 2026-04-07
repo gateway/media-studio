@@ -4,6 +4,8 @@ import {
   classifyFile,
   deriveSeedanceComposerMode,
   inferInputPattern,
+  orderedImageInputVisual,
+  resolveEnhancementPreviewVisual,
   seedanceReferenceTokenGuide,
 } from "./media-studio-helpers";
 
@@ -84,5 +86,46 @@ describe("media-studio-helpers Seedance support", () => {
     expect(classifyFile(new File(["video"], "dragged-ref.mp4"))).toBe("videos");
     expect(classifyFile(new File(["audio"], "dragged-ref.wav"))).toBe("audios");
     expect(classifyFile(new File(["image"], "dragged-ref.png"))).toBe("images");
+  });
+
+  it("uses the same staged image visual for enhancement previews as the composer strip", () => {
+    const asset = {
+      generation_kind: "image",
+      hero_thumb_path: "outputs/thumb/source.webp",
+      hero_web_path: null,
+      hero_thumb_url: null,
+      hero_web_url: null,
+      hero_poster_path: null,
+      hero_poster_url: null,
+    } as never;
+
+    expect(
+      orderedImageInputVisual({
+        source: "asset",
+        asset,
+      }),
+    ).toBe("/api/control/files/outputs/thumb/source.webp");
+
+    expect(
+      resolveEnhancementPreviewVisual({
+        structuredPresetActive: false,
+        firstPresetSlotPreview: null,
+        orderedImageInputs: [{ source: "asset", asset }],
+        currentSourceAsset: asset,
+        imageAttachmentPreviewUrls: [],
+      }),
+    ).toBe("/api/control/files/outputs/thumb/source.webp");
+  });
+
+  it("falls back to the first staged attachment preview for enhancement previews", () => {
+    expect(
+      resolveEnhancementPreviewVisual({
+        structuredPresetActive: false,
+        firstPresetSlotPreview: null,
+        orderedImageInputs: [{ source: "attachment", attachment: { previewUrl: "blob:source-preview" } }],
+        currentSourceAsset: null,
+        imageAttachmentPreviewUrls: ["blob:source-preview"],
+      }),
+    ).toBe("blob:source-preview");
   });
 });
