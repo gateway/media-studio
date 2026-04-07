@@ -1607,8 +1607,8 @@ export function MediaStudio({
                               : "Describe the scene you imagine"
                           }
                           className={cn(
-                            "w-full resize-none rounded-[26px] border border-white/8 bg-white/[0.04] px-4 py-4 text-[0.86rem] leading-6 text-white outline-none placeholder:text-white/38 focus:border-[rgba(216,141,67,0.3)]",
-                            "min-h-[138px] md:min-h-[104px]",
+                            "w-full resize-none rounded-[26px] border border-white/8 bg-white/[0.04] px-4 py-[18px] text-[0.86rem] leading-6 text-white outline-none placeholder:text-white/38 focus:border-[rgba(216,141,67,0.3)]",
+                            "min-h-[146px] md:min-h-[112px]",
                           )}
                         />
                           {enhanceEnabledForModel ? (

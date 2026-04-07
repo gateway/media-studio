@@ -886,114 +886,113 @@ export function MediaModelsConsole({
           description="Control how many jobs Studio can run at once and how often it checks for updates."
         />
         <div className="mt-5 max-w-[980px]">
-          <div className="rounded-[24px] border border-white/8 bg-[rgba(12,15,14,0.94)] px-5 py-5">
-            <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
-              <SlidersHorizontal className="size-3.5" />
-              Job Runner
+          <CollapsibleSubsection
+            title="Job Runner"
+            description="Keep Studio processing queued generations in the background so new work starts automatically as space frees up."
+            tone="media"
+            defaultOpen={false}
+            badge={<StatusPill label={localQueueSettings?.queue_enabled ? "Running" : "Paused"} tone={localQueueSettings?.queue_enabled ? "healthy" : "warning"} />}
+            className="border-white/8 bg-[rgba(12,15,14,0.94)] px-5 py-5"
+            summaryClassName="flex-col items-start gap-3 sm:flex-row sm:items-start"
+            titleClassName="flex items-center gap-2 text-[0.72rem] tracking-[0.14em]"
+            descriptionClassName="max-w-[760px]"
+            bodyClassName="grid max-w-[760px] gap-3 border-t border-[var(--surface-border-soft)] pt-5"
+          >
+            <label className="flex max-w-[280px] items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
+              <span className="font-medium text-[var(--foreground)]">Run jobs automatically</span>
+              <AdminToggle
+                checked={localQueueSettings?.queue_enabled ?? true}
+                ariaLabel="Run jobs automatically"
+                onToggle={() =>
+                  setLocalQueueSettings((current) => ({
+                    max_concurrent_jobs: current?.max_concurrent_jobs ?? 10,
+                    queue_enabled: !(current?.queue_enabled ?? true),
+                    default_poll_seconds: current?.default_poll_seconds ?? 6,
+                    max_retry_attempts: current?.max_retry_attempts ?? 3,
+                    created_at: current?.created_at ?? null,
+                    updated_at: current?.updated_at ?? null,
+                  }))
+                }
+              />
+            </label>
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,280px)_minmax(0,220px)] lg:items-end">
+              <AdminField label="Jobs running at once">
+                <AdminInput
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={String(localQueueSettings?.max_concurrent_jobs ?? 10)}
+                  onChange={(event) => setLocalQueueSettings((current) => ({
+                    max_concurrent_jobs: Math.max(1, Number(event.target.value) || 1),
+                    queue_enabled: current?.queue_enabled ?? true,
+                    default_poll_seconds: current?.default_poll_seconds ?? 6,
+                    max_retry_attempts: current?.max_retry_attempts ?? 3,
+                    created_at: current?.created_at ?? null,
+                    updated_at: current?.updated_at ?? null,
+                  }))}
+                  className=""
+                />
+              </AdminField>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <StatusPill label={localQueueSettings?.queue_enabled ? "Running" : "Paused"} tone={localQueueSettings?.queue_enabled ? "healthy" : "warning"} />
-            </div>
-            <div className="mt-4 max-w-[760px] text-sm leading-7 text-[var(--muted-strong)]">
-              Keep Studio processing queued generations in the background so new work starts automatically as space frees up.
-            </div>
-            <div className="mt-5 grid max-w-[760px] gap-3 border-t border-[var(--surface-border-soft)] pt-5">
-              <label className="flex max-w-[280px] items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
-                <span className="font-medium text-[var(--foreground)]">Run jobs automatically</span>
-                <AdminToggle
-                  checked={localQueueSettings?.queue_enabled ?? true}
-                  ariaLabel="Run jobs automatically"
-                  onToggle={() =>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,220px)_minmax(0,220px)]">
+              <AdminField label="Check every">
+                <AdminInput
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={String(Math.max(1, Number(localQueueSettings?.default_poll_seconds ?? 6)))}
+                  onChange={(event) =>
                     setLocalQueueSettings((current) => ({
                       max_concurrent_jobs: current?.max_concurrent_jobs ?? 10,
-                      queue_enabled: !(current?.queue_enabled ?? true),
-                      default_poll_seconds: current?.default_poll_seconds ?? 6,
+                      queue_enabled: current?.queue_enabled ?? true,
+                      default_poll_seconds: Math.max(1, Number(event.target.value) || 1),
                       max_retry_attempts: current?.max_retry_attempts ?? 3,
                       created_at: current?.created_at ?? null,
                       updated_at: current?.updated_at ?? null,
                     }))
                   }
+                  className=""
                 />
-              </label>
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,280px)_minmax(0,220px)] lg:items-end">
-                <AdminField label="Jobs running at once">
-                  <AdminInput
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={String(localQueueSettings?.max_concurrent_jobs ?? 10)}
-                    onChange={(event) => setLocalQueueSettings((current) => ({
-                      max_concurrent_jobs: Math.max(1, Number(event.target.value) || 1),
+              </AdminField>
+              <AdminField label="Retry limit">
+                <AdminInput
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={String(Math.max(1, Number(localQueueSettings?.max_retry_attempts ?? 3)))}
+                  onChange={(event) =>
+                    setLocalQueueSettings((current) => ({
+                      max_concurrent_jobs: current?.max_concurrent_jobs ?? 10,
                       queue_enabled: current?.queue_enabled ?? true,
                       default_poll_seconds: current?.default_poll_seconds ?? 6,
-                      max_retry_attempts: current?.max_retry_attempts ?? 3,
+                      max_retry_attempts: Math.max(1, Number(event.target.value) || 1),
                       created_at: current?.created_at ?? null,
                       updated_at: current?.updated_at ?? null,
-                    }))}
-                    className=""
-                  />
-                </AdminField>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,220px)_minmax(0,220px)]">
-                <AdminField label="Check every">
-                  <AdminInput
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={String(Math.max(1, Number(localQueueSettings?.default_poll_seconds ?? 6)))}
-                    onChange={(event) =>
-                      setLocalQueueSettings((current) => ({
-                        max_concurrent_jobs: current?.max_concurrent_jobs ?? 10,
-                        queue_enabled: current?.queue_enabled ?? true,
-                        default_poll_seconds: Math.max(1, Number(event.target.value) || 1),
-                        max_retry_attempts: current?.max_retry_attempts ?? 3,
-                        created_at: current?.created_at ?? null,
-                        updated_at: current?.updated_at ?? null,
-                      }))
-                    }
-                    className=""
-                  />
-                </AdminField>
-                <AdminField label="Retry limit">
-                  <AdminInput
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={String(Math.max(1, Number(localQueueSettings?.max_retry_attempts ?? 3)))}
-                    onChange={(event) =>
-                      setLocalQueueSettings((current) => ({
-                        max_concurrent_jobs: current?.max_concurrent_jobs ?? 10,
-                        queue_enabled: current?.queue_enabled ?? true,
-                        default_poll_seconds: current?.default_poll_seconds ?? 6,
-                        max_retry_attempts: Math.max(1, Number(event.target.value) || 1),
-                        created_at: current?.created_at ?? null,
-                        updated_at: current?.updated_at ?? null,
-                      }))
-                    }
-                    className=""
-                  />
-                </AdminField>
-              </div>
-              <div className="mt-1 flex flex-wrap gap-3">
-                <AdminButton
-                  onClick={() =>
-                    void saveGlobalQueueSettings({
-                      max_concurrent_jobs: localQueueSettings?.max_concurrent_jobs ?? 10,
-                      queue_enabled: localQueueSettings?.queue_enabled ?? true,
-                      default_poll_seconds: localQueueSettings?.default_poll_seconds ?? 6,
-                      max_retry_attempts: localQueueSettings?.max_retry_attempts ?? 3,
-                      created_at: localQueueSettings?.created_at ?? null,
-                      updated_at: localQueueSettings?.updated_at ?? null,
-                    })
+                    }))
                   }
-                  disabled={isSaving}
-                  size="compact"
-                >
-                  Save
-                </AdminButton>
-              </div>
+                  className=""
+                />
+              </AdminField>
             </div>
-          </div>
+            <div className="mt-1 flex flex-wrap gap-3">
+              <AdminButton
+                onClick={() =>
+                  void saveGlobalQueueSettings({
+                    max_concurrent_jobs: localQueueSettings?.max_concurrent_jobs ?? 10,
+                    queue_enabled: localQueueSettings?.queue_enabled ?? true,
+                    default_poll_seconds: localQueueSettings?.default_poll_seconds ?? 6,
+                    max_retry_attempts: localQueueSettings?.max_retry_attempts ?? 3,
+                    created_at: localQueueSettings?.created_at ?? null,
+                    updated_at: localQueueSettings?.updated_at ?? null,
+                  })
+                }
+                disabled={isSaving}
+                size="compact"
+              >
+                Save
+              </AdminButton>
+            </div>
+          </CollapsibleSubsection>
         </div>
       </Panel>
       ) : null}
