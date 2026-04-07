@@ -36,10 +36,10 @@ load_media_env() {
   local media_root="${1:?media_root required}"
   local env_file="$media_root/.env"
   if [[ -f "$env_file" ]]; then
-    python3 - "$env_file" <<'PY' | while IFS='=' read -r name value; do
+    local env_entries=""
+    env_entries="$(python3 - "$env_file" <<'PY'
 from pathlib import Path
 import re
-import shlex
 import sys
 
 env_path = Path(sys.argv[1])
@@ -58,11 +58,14 @@ for raw_line in env_path.read_text().splitlines():
         value = value[1:-1]
     print(f"{name}={value}")
 PY
-      if [[ -n "${!name+x}" ]]; then
+)"
+    while IFS='=' read -r name value; do
+      [[ -n "$name" ]] || continue
+      if declare -p "$name" >/dev/null 2>&1; then
         continue
       fi
       export "$name=$value"
-    done
+    done <<< "$env_entries"
   fi
 }
 
