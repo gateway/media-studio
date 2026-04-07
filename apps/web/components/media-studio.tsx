@@ -323,6 +323,7 @@ export function MediaStudio({
   const { showActivity } = useGlobalActivity();
   const [isRefreshing, startRefresh] = useTransition();
   const [hasMounted, setHasMounted] = useState(false);
+  const [localRemainingCredits, setLocalRemainingCredits] = useState<number | null>(remainingCredits ?? null);
   const [studioSettingsOpen, setStudioSettingsOpen] = useState(false);
   const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(null);
   const [copyPromptStatus, setCopyPromptStatus] = useState<"idle" | "copied" | "error">("idle");
@@ -343,6 +344,40 @@ export function MediaStudio({
       }),
     [models, queuePolicies],
   );
+  useEffect(() => {
+    setLocalRemainingCredits(remainingCredits ?? null);
+  }, [remainingCredits]);
+
+  async function refreshCreditBalance() {
+    try {
+      const response = await fetch("/api/control/media/credits", {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        return;
+      }
+      const payload = (await response.json()) as {
+        available_credits?: number | null;
+        remaining_credits?: number | null;
+        raw?: { available_credits?: number | null; remaining_credits?: number | null } | null;
+      };
+      const nextCredits =
+        typeof payload.available_credits === "number"
+          ? payload.available_credits
+          : typeof payload.remaining_credits === "number"
+            ? payload.remaining_credits
+            : typeof payload.raw?.available_credits === "number"
+              ? payload.raw.available_credits
+              : typeof payload.raw?.remaining_credits === "number"
+                ? payload.raw.remaining_credits
+                : null;
+      setLocalRemainingCredits(nextCredits);
+    } catch {
+      // Balance refresh is best-effort; do not surface transient credit fetch noise in Studio.
+    }
+  }
   const refreshStudioDataWithSettleDelay = () => {
     startRefresh(() => router.refresh());
     window.setTimeout(() => {
@@ -464,7 +499,7 @@ export function MediaStudio({
     queueSettings,
     queuePolicies,
     pricingSnapshot,
-    remainingCredits,
+    remainingCredits: localRemainingCredits,
     localBatches: gallery.state.localBatches,
     localAssets: gallery.state.localAssets,
     favoriteAssets: gallery.state.favoriteAssets,
@@ -478,6 +513,7 @@ export function MediaStudio({
     formMessage,
     setFormMessage,
     showActivity,
+    refreshCreditBalance,
   });
   const {
     modelKey,
@@ -643,6 +679,7 @@ export function MediaStudio({
     setSourceAssetId,
     startRefresh,
     refreshRoute: () => router.refresh(),
+    refreshCreditBalance,
   });
   const { favoriteAssetIdBusy } = polling.state;
   const { pollJob, pollBatch, retryJob, dismissJob, dismissAsset, toggleAssetFavorite } = polling.actions;

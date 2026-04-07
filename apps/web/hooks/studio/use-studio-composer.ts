@@ -85,6 +85,7 @@ type UseStudioComposerParams = {
     payload: { tone: "healthy" | "warning" | "danger"; message: string; spinning?: boolean },
     options?: { autoHideMs?: number },
   ) => void;
+  refreshCreditBalance: () => Promise<void>;
 };
 
 export type StudioComposerController = ReturnType<typeof useStudioComposer>;
@@ -111,6 +112,7 @@ export function useStudioComposer({
   formMessage,
   setFormMessage,
   showActivity,
+  refreshCreditBalance,
 }: UseStudioComposerParams) {
   const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
   const autoValidateTimerRef = useRef<number | null>(null);
@@ -1181,6 +1183,7 @@ export function useStudioComposer({
       setFormMessage({ tone: "warning", text: successText });
       showFloatingComposerBanner({ tone: "warning", text: successText }, 2600);
       showActivity({ tone: "healthy", message: successText }, { autoHideMs: 2200 });
+      void refreshCreditBalance();
       if (payload.batchId) {
         void pollBatch(payload.batchId);
       } else if (payload.jobId) {

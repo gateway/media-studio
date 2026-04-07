@@ -114,6 +114,7 @@ type UseStudioPollingParams = {
   showFloatingComposerBanner: (message: ComposerStatusMessage, autoHideMs?: number) => void;
   setFormMessage: React.Dispatch<React.SetStateAction<ComposerStatusMessage | null>>;
   refreshStudioDataWithSettleDelay: () => void;
+  refreshCreditBalance: () => Promise<void>;
   refreshActiveGalleryAssets: (options?: { expectedJobIds?: string[]; silent?: boolean; attempts?: number }) => Promise<boolean>;
   setLocalJobs: React.Dispatch<React.SetStateAction<MediaJob[]>>;
   upsertBatch: (batch: MediaBatch) => void;
@@ -151,6 +152,7 @@ export function useStudioPolling({
   showFloatingComposerBanner,
   setFormMessage,
   refreshStudioDataWithSettleDelay,
+  refreshCreditBalance,
   refreshActiveGalleryAssets,
   setLocalJobs,
   upsertBatch,
@@ -203,6 +205,7 @@ export function useStudioPolling({
 
       if (payload.job.status === "completed" || payload.job.status === "failed") {
         lastJobFeedbackSignatureRef.current.delete(payload.job.job_id);
+        void refreshCreditBalance();
         let publishedToGallery = true;
         if (payload.job.status === "completed") {
           publishedToGallery = await refreshActiveGalleryAssets({
@@ -273,6 +276,7 @@ export function useStudioPolling({
 
       if (["completed", "failed", "partial_failure", "cancelled"].includes(payload.batch.status)) {
         lastBatchFeedbackSignatureRef.current.delete(batch.batch_id);
+        void refreshCreditBalance();
         const successfulJobIds = (batch.jobs ?? [])
           .filter((job) => {
             const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
