@@ -335,7 +335,6 @@ export function MediaStudio({
   const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(null);
   const [copyPromptStatus, setCopyPromptStatus] = useState<"idle" | "copied" | "error">("idle");
   const [selectedFailedJobId, setSelectedFailedJobId] = useState<string | null>(null);
-  const [selectedAssetAspectRatio, setSelectedAssetAspectRatio] = useState<number | null>(null);
   const [selectedReferencePreview, setSelectedReferencePreview] = useState<StudioReferencePreview | null>(null);
   const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(null);
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
@@ -506,14 +505,6 @@ export function MediaStudio({
     () => selectedFailedJobReferenceInputs.filter((reference) => reference.kind === "images"),
     [selectedFailedJobReferenceInputs],
   );
-  const selectedAssetStageStyle = useMemo(
-    () =>
-      selectedAssetAspectRatio && Number.isFinite(selectedAssetAspectRatio) && selectedAssetAspectRatio > 0
-        ? { aspectRatio: String(selectedAssetAspectRatio) }
-        : undefined,
-    [selectedAssetAspectRatio],
-  );
-  const selectedAssetStagePortrait = Boolean(selectedAssetAspectRatio && selectedAssetAspectRatio < 0.95);
   const selectedAssetReferencePreviews = useMemo(
     () =>
       buildStudioReferencePreviews({
@@ -1248,10 +1239,6 @@ export function MediaStudio({
     setOutputCount((current) => Math.min(Math.max(1, current), modelMaxOutputs));
   }, [modelMaxOutputs]);
 
-  useEffect(() => {
-    setSelectedAssetAspectRatio(null);
-  }, [selectedAsset?.asset_id, selectedAssetDisplayVisual, selectedAssetPlaybackVisual]);
-
   const lockingOverlayOpen =
     Boolean(selectedAssetId) || studioSettingsOpen || selectedMediaLightboxOpen || Boolean(selectedReferencePreview);
 
@@ -1476,13 +1463,6 @@ export function MediaStudio({
     if (input) {
       input.value = "";
     }
-  }
-
-  function updateSelectedAssetAspectRatio(width: number, height: number) {
-    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-      return;
-    }
-    setSelectedAssetAspectRatio(width / height);
   }
 
   function fallbackCopyTextToClipboard(text: string) {
@@ -2502,10 +2482,8 @@ export function MediaStudio({
                           data-testid="studio-open-lightbox"
                           onClick={openSelectedMediaLightbox}
                           className={cn(
-                            "relative cursor-zoom-in overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
-                            selectedAssetStagePortrait ? "h-[min(68vh,720px)] max-w-full" : "w-full max-w-[min(100%,1180px)]",
+                            "relative flex max-h-[min(68vh,720px)] w-auto max-w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
                           )}
-                          style={selectedAssetStageStyle}
                           aria-label="Open selected video"
                         >
                           <img
@@ -2514,13 +2492,7 @@ export function MediaStudio({
                             loading="eager"
                             fetchPriority="high"
                             decoding="async"
-                            onLoad={(event) =>
-                              updateSelectedAssetAspectRatio(
-                                event.currentTarget.naturalWidth,
-                                event.currentTarget.naturalHeight,
-                              )
-                            }
-                            className="h-full w-full rounded-[28px] object-contain"
+                            className="block max-h-[min(68vh,720px)] max-w-full rounded-[28px] object-contain"
                           />
                           {selectedAssetPlaybackVisual ? (
                             <span className="absolute inset-0 flex items-center justify-center">
@@ -2536,10 +2508,8 @@ export function MediaStudio({
                           data-testid="studio-open-lightbox"
                           onClick={openSelectedMediaLightbox}
                           className={cn(
-                            "cursor-zoom-in overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
-                            selectedAssetStagePortrait ? "h-[min(68vh,720px)] max-w-full" : "w-full max-w-[min(100%,1180px)]",
+                            "flex max-h-[min(68vh,720px)] w-auto max-w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
                           )}
-                          style={selectedAssetStageStyle}
                           aria-label="Open selected image"
                         >
                           <img
@@ -2548,13 +2518,7 @@ export function MediaStudio({
                             loading="eager"
                             fetchPriority="high"
                             decoding="async"
-                            onLoad={(event) =>
-                              updateSelectedAssetAspectRatio(
-                                event.currentTarget.naturalWidth,
-                                event.currentTarget.naturalHeight,
-                              )
-                            }
-                            className="h-full w-full rounded-[28px] object-contain"
+                            className="block max-h-[min(68vh,720px)] max-w-full rounded-[28px] object-contain"
                           />
                         </button>
                       )
