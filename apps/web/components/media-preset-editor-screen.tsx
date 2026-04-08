@@ -591,282 +591,280 @@ export function MediaPresetEditorScreen({
               Use <span className="font-medium text-[var(--foreground)]">{"{{field_key}}"}</span> for text fields and{" "}
               <span className="font-medium text-[var(--foreground)]">{"[[image_slot_key]]"}</span> for image slots.
             </p>
-            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)]">
+            <div className="mt-4">
               <AdminTextarea
                 value={presetForm.promptTemplate}
                 onChange={(event) => setPresetForm((current) => ({ ...current, promptTemplate: event.target.value }))}
                 placeholder="Write the final prompt template using {{field_key}} and [[image_slot_key]]."
                 className="min-h-[180px] sm:min-h-[220px]"
               />
-              <div className="rounded-[22px] border border-white/8 bg-[rgba(255,255,255,0.04)] p-3.5 sm:p-4">
-                <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
-                  Token rules
-                </div>
-                <div className="mt-3 space-y-3 text-sm leading-7 text-[var(--muted-strong)]">
-                  <p>Every configured text field must appear in the prompt template.</p>
-                  <p>Every configured image slot must appear in the prompt template.</p>
-                  <p>Unused fields or slots will block saving.</p>
-                </div>
+            </div>
+            <div className="mt-4 rounded-[22px] border border-white/8 bg-[rgba(255,255,255,0.04)] p-3.5 sm:p-4">
+              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                Token rules
+              </div>
+              <div className="mt-3 space-y-3 text-sm leading-7 text-[var(--muted-strong)]">
+                <p>Every configured text field must appear in the prompt template.</p>
+                <p>Every configured image slot must appear in the prompt template.</p>
+                <p>Unused fields or slots will block saving.</p>
               </div>
             </div>
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-2">
-            <div className={accentCardClassName}>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
-                    Text fields
-                  </div>
-                  <div className="mt-1 text-sm text-[var(--muted-strong)]">
-                    Single-line text fields only.
-                  </div>
+          <div className={accentCardClassName}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                  Text fields
                 </div>
-                <AdminButton
-                  onClick={() =>
-                    setPresetForm((current) => ({
-                      ...current,
-                      inputFields: [...current.inputFields, createPresetFieldInput()],
-                    }))
-                  }
-                  size="compact"
-                >
-                  Add Text Field
-                </AdminButton>
+                <div className="mt-1 text-sm text-[var(--muted-strong)]">
+                  Single-line text fields only.
+                </div>
               </div>
-              {presetForm.inputFields.length ? (
-                <div className="mt-4 grid gap-3">
-                  {presetForm.inputFields.map((field, index) => (
-                    <CollapsibleSubsection
-                      key={field.id}
-                      title={`Field ${index + 1}`}
-                      description="Define the key, label, placeholder, and whether the field is required."
-                      tone="media"
-                      defaultOpen
-                      className="px-4 py-4 border-white/8 bg-[rgba(12,15,14,0.94)]"
-                      bodyClassName="border-t border-[var(--surface-border-soft)] pt-4"
-                      badge={
-                        <AdminButton
-                          size="compact"
-                          onClick={() =>
-                            setPresetForm((current) => ({
-                              ...current,
-                              inputFields: current.inputFields.filter((entry) => entry.id !== field.id),
-                            }))
-                          }
-                        >
-                          Remove
-                        </AdminButton>
-                      }
-                    >
-                      <div className="text-sm text-[var(--muted-strong)]">
-                        Use the field key in the prompt as <span className="font-medium text-[var(--foreground)]">{presetFieldKeyToken(normalizePresetFieldKey(field.key) || "field_key")}</span>.
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <AdminInput
-                          value={field.key}
-                          onChange={(event) =>
-                            setPresetForm((current) => ({
-                              ...current,
-                              inputFields: current.inputFields.map((entry) =>
-                                entry.id === field.id
-                                  ? { ...entry, key: normalizePresetFieldKey(event.target.value) }
-                                  : entry,
-                              ),
-                            }))
-                          }
-                          placeholder="field key"
-                        />
-                        <AdminInput
-                          value={field.label}
-                          onChange={(event) =>
-                            setPresetForm((current) => ({
-                              ...current,
-                              inputFields: current.inputFields.map((entry) =>
-                                entry.id === field.id ? { ...entry, label: event.target.value } : entry,
-                              ),
-                            }))
-                          }
-                          placeholder="Field label"
-                        />
-                        <AdminInput
-                          value={field.placeholder}
-                          onChange={(event) =>
-                            setPresetForm((current) => ({
-                              ...current,
-                              inputFields: current.inputFields.map((entry) =>
-                                entry.id === field.id ? { ...entry, placeholder: event.target.value } : entry,
-                              ),
-                            }))
-                          }
-                          placeholder="Placeholder text"
-                        />
-                        <AdminInput
-                          value={field.defaultValue}
-                          onChange={(event) =>
-                            setPresetForm((current) => ({
-                              ...current,
-                              inputFields: current.inputFields.map((entry) =>
-                                entry.id === field.id ? { ...entry, defaultValue: event.target.value } : entry,
-                              ),
-                            }))
-                          }
-                          placeholder="Optional default value"
-                        />
-                      </div>
-                      <label className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
-                        <span>Required field</span>
-                        <AdminToggle
-                          checked={field.required}
-                          ariaLabel={`Required field ${index + 1}`}
-                          onToggle={() =>
-                            setPresetForm((current) => ({
-                              ...current,
-                              inputFields: current.inputFields.map((entry) =>
-                                entry.id === field.id ? { ...entry, required: !entry.required } : entry,
-                              ),
-                            }))
-                          }
-                        />
-                      </label>
-                    </CollapsibleSubsection>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-4 rounded-[18px] border border-dashed border-white/10 bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm text-[var(--muted-strong)]">
-                  No text fields configured yet.
-                </div>
-              )}
+              <AdminButton
+                onClick={() =>
+                  setPresetForm((current) => ({
+                    ...current,
+                    inputFields: [...current.inputFields, createPresetFieldInput()],
+                  }))
+                }
+                size="compact"
+              >
+                Add Text Field
+              </AdminButton>
             </div>
+            {presetForm.inputFields.length ? (
+              <div className="mt-4 grid gap-3">
+                {presetForm.inputFields.map((field, index) => (
+                  <CollapsibleSubsection
+                    key={field.id}
+                    title={`Field ${index + 1}`}
+                    description="Define the key, label, placeholder, and whether the field is required."
+                    tone="media"
+                    defaultOpen
+                    className="px-4 py-4 border-white/8 bg-[rgba(12,15,14,0.94)]"
+                    bodyClassName="border-t border-[var(--surface-border-soft)] pt-4"
+                    badge={
+                      <AdminButton
+                        size="compact"
+                        onClick={() =>
+                          setPresetForm((current) => ({
+                            ...current,
+                            inputFields: current.inputFields.filter((entry) => entry.id !== field.id),
+                          }))
+                        }
+                      >
+                        Remove
+                      </AdminButton>
+                    }
+                  >
+                    <div className="text-sm text-[var(--muted-strong)]">
+                      Use the field key in the prompt as <span className="font-medium text-[var(--foreground)]">{presetFieldKeyToken(normalizePresetFieldKey(field.key) || "field_key")}</span>.
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <AdminInput
+                        value={field.key}
+                        onChange={(event) =>
+                          setPresetForm((current) => ({
+                            ...current,
+                            inputFields: current.inputFields.map((entry) =>
+                              entry.id === field.id
+                                ? { ...entry, key: normalizePresetFieldKey(event.target.value) }
+                                : entry,
+                            ),
+                          }))
+                        }
+                        placeholder="field key"
+                      />
+                      <AdminInput
+                        value={field.label}
+                        onChange={(event) =>
+                          setPresetForm((current) => ({
+                            ...current,
+                            inputFields: current.inputFields.map((entry) =>
+                              entry.id === field.id ? { ...entry, label: event.target.value } : entry,
+                            ),
+                          }))
+                        }
+                        placeholder="Field label"
+                      />
+                      <AdminInput
+                        value={field.placeholder}
+                        onChange={(event) =>
+                          setPresetForm((current) => ({
+                            ...current,
+                            inputFields: current.inputFields.map((entry) =>
+                              entry.id === field.id ? { ...entry, placeholder: event.target.value } : entry,
+                            ),
+                          }))
+                        }
+                        placeholder="Placeholder text"
+                      />
+                      <AdminInput
+                        value={field.defaultValue}
+                        onChange={(event) =>
+                          setPresetForm((current) => ({
+                            ...current,
+                            inputFields: current.inputFields.map((entry) =>
+                              entry.id === field.id ? { ...entry, defaultValue: event.target.value } : entry,
+                            ),
+                          }))
+                        }
+                        placeholder="Optional default value"
+                      />
+                    </div>
+                    <label className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
+                      <span>Required field</span>
+                      <AdminToggle
+                        checked={field.required}
+                        ariaLabel={`Required field ${index + 1}`}
+                        onToggle={() =>
+                          setPresetForm((current) => ({
+                            ...current,
+                            inputFields: current.inputFields.map((entry) =>
+                              entry.id === field.id ? { ...entry, required: !entry.required } : entry,
+                            ),
+                          }))
+                        }
+                      />
+                    </label>
+                  </CollapsibleSubsection>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-[18px] border border-dashed border-white/10 bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm text-[var(--muted-strong)]">
+                No text fields configured yet.
+              </div>
+            )}
+          </div>
 
-            <div className={accentCardClassName}>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
-                    Reference image slots
-                  </div>
-                  <div className="mt-1 text-sm text-[var(--muted-strong)]">
-                    Each slot becomes one named image requirement in Studio.
-                  </div>
+          <div className={accentCardClassName}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                  Reference image slots
                 </div>
-                <AdminButton
-                  onClick={() =>
-                    setPresetForm((current) => ({
-                      ...current,
-                      imageSlots: [...current.imageSlots, createPresetImageSlot()],
-                    }))
-                  }
-                  size="compact"
-                >
-                  Add Image Slot
-                </AdminButton>
+                <div className="mt-1 text-sm text-[var(--muted-strong)]">
+                  Each slot becomes one named image requirement in Studio.
+                </div>
               </div>
-              {presetForm.imageSlots.length ? (
-                <div className="mt-4 grid gap-3">
-                  {presetForm.imageSlots.map((slot, index) => (
-                    <CollapsibleSubsection
-                      key={slot.id}
-                      title={`Image slot ${index + 1}`}
-                      description="Define the slot key, label, help text, and whether the image is required."
-                      tone="media"
-                      defaultOpen
-                      className="px-4 py-4 border-white/8 bg-[rgba(12,15,14,0.94)]"
-                      bodyClassName="border-t border-[var(--surface-border-soft)] pt-4"
-                      badge={
-                        <AdminButton
-                          size="compact"
-                          onClick={() =>
-                            setPresetForm((current) => ({
-                              ...current,
-                              imageSlots: current.imageSlots.filter((entry) => entry.id !== slot.id),
-                            }))
-                          }
-                        >
-                          Remove
-                        </AdminButton>
-                      }
-                    >
-                      <div className="text-sm text-[var(--muted-strong)]">
-                        Use the slot key in the prompt as <span className="font-medium text-[var(--foreground)]">{presetSlotKeyToken(normalizePresetFieldKey(slot.key) || "image_slot_key")}</span>.
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <AdminInput
-                          value={slot.key}
-                          onChange={(event) =>
-                            setPresetForm((current) => ({
-                              ...current,
-                              imageSlots: current.imageSlots.map((entry) =>
-                                entry.id === slot.id
-                                  ? { ...entry, key: normalizePresetFieldKey(event.target.value) }
-                                  : entry,
-                              ),
-                            }))
-                          }
-                          placeholder="slot key"
-                        />
-                        <AdminInput
-                          value={slot.label}
-                          onChange={(event) =>
-                            setPresetForm((current) => ({
-                              ...current,
-                              imageSlots: current.imageSlots.map((entry) =>
-                                entry.id === slot.id ? { ...entry, label: event.target.value } : entry,
-                              ),
-                            }))
-                          }
-                          placeholder="Slot label"
-                        />
-                        <AdminInput
-                          value={String(slot.maxFiles)}
-                          onChange={(event) =>
-                            setPresetForm((current) => ({
-                              ...current,
-                              imageSlots: current.imageSlots.map((entry) =>
-                                entry.id === slot.id
-                                  ? { ...entry, maxFiles: Math.max(1, Number(event.target.value) || 1) }
-                                  : entry,
-                              ),
-                            }))
-                          }
-                          placeholder="1"
-                        />
-                        <AdminInput
-                          value={slot.helpText}
-                          onChange={(event) =>
-                            setPresetForm((current) => ({
-                              ...current,
-                              imageSlots: current.imageSlots.map((entry) =>
-                                entry.id === slot.id ? { ...entry, helpText: event.target.value } : entry,
-                              ),
-                            }))
-                          }
-                          placeholder="Help text shown to the operator"
-                        />
-                      </div>
-                      <label className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
-                        <span>Required image</span>
-                        <AdminToggle
-                          checked={slot.required}
-                          ariaLabel={`Required image slot ${index + 1}`}
-                          onToggle={() =>
-                            setPresetForm((current) => ({
-                              ...current,
-                              imageSlots: current.imageSlots.map((entry) =>
-                                entry.id === slot.id ? { ...entry, required: !entry.required } : entry,
-                              ),
-                            }))
-                          }
-                        />
-                      </label>
-                    </CollapsibleSubsection>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-4 rounded-[18px] border border-dashed border-white/10 bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm text-[var(--muted-strong)]">
-                  No image slots configured yet.
-                </div>
-              )}
+              <AdminButton
+                onClick={() =>
+                  setPresetForm((current) => ({
+                    ...current,
+                    imageSlots: [...current.imageSlots, createPresetImageSlot()],
+                  }))
+                }
+                size="compact"
+              >
+                Add Image Slot
+              </AdminButton>
             </div>
+            {presetForm.imageSlots.length ? (
+              <div className="mt-4 grid gap-3">
+                {presetForm.imageSlots.map((slot, index) => (
+                  <CollapsibleSubsection
+                    key={slot.id}
+                    title={`Image slot ${index + 1}`}
+                    description="Define the slot key, label, help text, and whether the image is required."
+                    tone="media"
+                    defaultOpen
+                    className="px-4 py-4 border-white/8 bg-[rgba(12,15,14,0.94)]"
+                    bodyClassName="border-t border-[var(--surface-border-soft)] pt-4"
+                    badge={
+                      <AdminButton
+                        size="compact"
+                        onClick={() =>
+                          setPresetForm((current) => ({
+                            ...current,
+                            imageSlots: current.imageSlots.filter((entry) => entry.id !== slot.id),
+                          }))
+                        }
+                      >
+                        Remove
+                      </AdminButton>
+                    }
+                  >
+                    <div className="text-sm text-[var(--muted-strong)]">
+                      Use the slot key in the prompt as <span className="font-medium text-[var(--foreground)]">{presetSlotKeyToken(normalizePresetFieldKey(slot.key) || "image_slot_key")}</span>.
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <AdminInput
+                        value={slot.key}
+                        onChange={(event) =>
+                          setPresetForm((current) => ({
+                            ...current,
+                            imageSlots: current.imageSlots.map((entry) =>
+                              entry.id === slot.id
+                                ? { ...entry, key: normalizePresetFieldKey(event.target.value) }
+                                : entry,
+                            ),
+                          }))
+                        }
+                        placeholder="slot key"
+                      />
+                      <AdminInput
+                        value={slot.label}
+                        onChange={(event) =>
+                          setPresetForm((current) => ({
+                            ...current,
+                            imageSlots: current.imageSlots.map((entry) =>
+                              entry.id === slot.id ? { ...entry, label: event.target.value } : entry,
+                            ),
+                          }))
+                        }
+                        placeholder="Slot label"
+                      />
+                      <AdminInput
+                        value={String(slot.maxFiles)}
+                        onChange={(event) =>
+                          setPresetForm((current) => ({
+                            ...current,
+                            imageSlots: current.imageSlots.map((entry) =>
+                              entry.id === slot.id
+                                ? { ...entry, maxFiles: Math.max(1, Number(event.target.value) || 1) }
+                                : entry,
+                            ),
+                          }))
+                        }
+                        placeholder="1"
+                      />
+                      <AdminInput
+                        value={slot.helpText}
+                        onChange={(event) =>
+                          setPresetForm((current) => ({
+                            ...current,
+                            imageSlots: current.imageSlots.map((entry) =>
+                              entry.id === slot.id ? { ...entry, helpText: event.target.value } : entry,
+                            ),
+                          }))
+                        }
+                        placeholder="Help text shown to the operator"
+                      />
+                    </div>
+                    <label className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
+                      <span>Required image</span>
+                      <AdminToggle
+                        checked={slot.required}
+                        ariaLabel={`Required image slot ${index + 1}`}
+                        onToggle={() =>
+                          setPresetForm((current) => ({
+                            ...current,
+                            imageSlots: current.imageSlots.map((entry) =>
+                              entry.id === slot.id ? { ...entry, required: !entry.required } : entry,
+                            ),
+                          }))
+                        }
+                      />
+                    </label>
+                  </CollapsibleSubsection>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-[18px] border border-dashed border-white/10 bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm text-[var(--muted-strong)]">
+                No image slots configured yet.
+              </div>
+            )}
           </div>
 
           <div className={accentCardClassName}>
