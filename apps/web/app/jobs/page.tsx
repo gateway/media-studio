@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Clapperboard, Coins, LoaderCircle, SlidersHorizontal } from "lucide-react";
 
+import { JobsBatchCard } from "@/app/jobs/jobs-batch-card";
 import { MediaBatchActions } from "@/app/jobs/media-batch-actions";
 import { RuntimeControls } from "@/app/jobs/runtime-controls";
 import {
@@ -20,52 +21,6 @@ import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
 import { formatCreditsAmount, formatDateTime, formatUsdAmount, isRecord, toFiniteNumber, truncate } from "@/lib/utils";
 
 const JOBS_PER_PAGE_OPTIONS = [20, 50, 100] as const;
-
-function jobPreviewUrl(job: MediaJob, assets: MediaAsset[]) {
-  const matchedAsset = assets.find((asset) => asset.job_id === job.job_id) ?? null;
-  if (matchedAsset?.generation_kind === "video") {
-    return (
-      toControlApiProxyPath(matchedAsset?.hero_poster_url) ??
-      toControlApiProxyPath(matchedAsset?.hero_thumb_url) ??
-      null
-    );
-  }
-  return (
-    toControlApiProxyPath(matchedAsset?.hero_thumb_url) ??
-    toControlApiProxyPath(matchedAsset?.hero_web_url) ??
-    toControlApiProxyPath(matchedAsset?.hero_poster_url) ??
-    null
-  );
-}
-
-function batchPromptSummary(batch: MediaBatch) {
-  const promptSummary = batch.request_summary?.prompt_summary;
-  return typeof promptSummary === "string" && promptSummary.trim()
-    ? promptSummary.trim()
-    : "No prompt recorded for this batch.";
-}
-
-function batchAssetForJob(job: MediaJob, assets: MediaAsset[]) {
-  return assets.find((asset) => asset.job_id === job.job_id) ?? null;
-}
-
-function batchPricingSummary(batch: MediaBatch) {
-  const requestSummary = isRecord(batch.request_summary) ? batch.request_summary : null;
-  const requestPricing = isRecord(requestSummary?.pricing_summary) ? requestSummary.pricing_summary : null;
-  if (requestPricing) {
-    return requestPricing;
-  }
-
-  for (const job of batch.jobs ?? []) {
-    const preflight = isRecord(job.preflight) ? job.preflight : null;
-    const pricing = isRecord(preflight?.pricing_summary) ? preflight.pricing_summary : null;
-    if (pricing) {
-      return pricing;
-    }
-  }
-
-  return null;
-}
 
 export default async function JobsPage({
   searchParams,
@@ -295,132 +250,10 @@ export default async function JobsPage({
 
             {visibleBatches.length ? (
               visibleBatches.map((batch) => {
-                const jobs = [...(batch.jobs ?? [])].sort((left, right) => (left.batch_index ?? 1) - (right.batch_index ?? 1));
-                const pricingSummary = batchPricingSummary(batch);
-                const totalPricing = isRecord(pricingSummary?.total) ? pricingSummary.total : null;
-                const perOutputPricing = isRecord(pricingSummary?.per_output) ? pricingSummary.per_output : null;
-                const savedOutputCount = toFiniteNumber(pricingSummary?.output_count);
-
-                return (
-                  <div
-                    key={batch.batch_id}
-                    className={adminInsetPanelClassName}
-                  >
-                    <div className="grid gap-4">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0 space-y-2">
-                            <h3 className="text-[0.98rem] font-semibold tracking-[0.02em] text-[var(--foreground)]">
-                              {batch.model_key ?? "Unknown model"}
-                            </h3>
-                            <p className="max-w-none pr-4 text-sm leading-6 text-[var(--muted-strong)]">
-                              {truncate(batchPromptSummary(batch), 180)}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-right text-xs uppercase tracking-[0.14em] text-[var(--muted-strong)]">
-                              <div>{truncate(batch.batch_id, 20)}</div>
-                              <span className="text-white/20">•</span>
-                              <div>{formatDateTime(batch.created_at)}</div>
-                            </div>
-                            <MediaBatchActions
-                              batchId={batch.batch_id}
-                              canCancelQueued={batch.queued_count > 0 && (batch.status === "queued" || batch.status === "processing")}
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="inline-flex items-center gap-2 text-sm text-[var(--muted-strong)]">
-                            <Clapperboard className="size-4 text-[var(--accent-strong)]" />
-                            <span>{batch.status === "processing" ? "Processing" : batch.status.replaceAll("_", " ")}</span>
-                          </div>
-                          <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.12em] text-[var(--muted-strong)]">
-                            <span>{batch.queued_count} queued</span>
-                            <span>{batch.running_count} processing</span>
-                            <span>{batch.failed_count} failed</span>
-                          </div>
-                          {pricingSummary ? (
-                            <div className={`${adminInsetClassName} grid gap-3 lg:grid-cols-3`}>
-                              <div className="grid gap-1">
-                                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
-                                  Estimated total
-                                </span>
-                                <span className="text-[var(--foreground)]">
-                                  {formatUsdAmount(totalPricing?.estimated_cost_usd)}{" "}
-                                  <span className="text-[var(--muted-strong)]">/ {formatCreditsAmount(totalPricing?.estimated_credits)} credits</span>
-                                </span>
-                              </div>
-                              <div className="grid gap-1">
-                                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
-                                  Per output
-                                </span>
-                                <span className="text-[var(--foreground)]">
-                                  {formatUsdAmount(perOutputPricing?.estimated_cost_usd)}{" "}
-                                  <span className="text-[var(--muted-strong)]">/ {formatCreditsAmount(perOutputPricing?.estimated_credits)} credits</span>
-                                </span>
-                              </div>
-                              <div className="grid gap-1">
-                                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
-                                  Outputs
-                                </span>
-                                <span className="text-[var(--foreground)]">{savedOutputCount ?? batch.requested_outputs}</span>
-                              </div>
-                            </div>
-                          ) : null}
-                          <div className="flex flex-wrap gap-3 pt-2">
-                            {jobs.map((job) => {
-                              const childPreview = jobPreviewUrl(job, assets);
-                              const asset = batchAssetForJob(job, assets);
-                              const studioHref = asset ? `/studio?asset=${encodeURIComponent(String(asset.asset_id))}` : null;
-                              return (
-                                <Link
-                                  key={`${job.job_id}-inline-preview`}
-                                  href={studioHref ?? "/studio"}
-                                  className="overflow-hidden rounded-[18px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 transition hover:border-white/16 hover:bg-[color:var(--surface-muted)]"
-                                  title={`Open output ${job.batch_index ?? 1}`}
-                                >
-                                  {childPreview ? (
-                                    <img
-                                      src={childPreview}
-                                      alt={`Output ${job.batch_index ?? 1}`}
-                                      loading="lazy"
-                                      decoding="async"
-                                      className="h-[84px] w-[84px] object-cover"
-                                    />
-                                  ) : (
-                                    <div className="flex h-[84px] w-[84px] items-center justify-center px-2 text-center text-[0.62rem] font-medium uppercase tracking-[0.12em] text-[var(--muted-strong)]">
-                                      Output {job.batch_index ?? 1}
-                                    </div>
-                                  )}
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {jobs.some((job) => Boolean(job.error)) ? (
-                      <div className="mt-4 grid gap-3">
-                        {jobs
-                          .filter((job) => Boolean(job.error))
-                          .map((job) => (
-                            <div key={`${job.job_id}-error`} className={mutedCardClassName}>
-                              <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="text-sm text-[var(--foreground)]">Output {job.batch_index ?? 1}</div>
-                                <div className="text-xs uppercase tracking-[0.12em] text-white/42">
-                                  {formatDateTime(job.updated_at)}
-                                </div>
-                              </div>
-                              <div className="mt-3 rounded-[14px] border border-[rgba(175,79,64,0.18)] bg-[rgba(175,79,64,0.08)] px-3 py-2 text-sm text-[var(--danger)]">
-                                {job.error}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    ) : null}
-                  </div>
+                const relatedAssets = assets.filter((asset) =>
+                  (batch.jobs ?? []).some((job) => job.job_id === asset.job_id),
                 );
+                return <JobsBatchCard key={batch.batch_id} batch={batch} assets={relatedAssets} />;
               })
             ) : (
               <div className={`${adminDashedCardClassName} py-8 leading-7`}>
