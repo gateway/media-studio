@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { AdminActionNotice } from "@/components/admin-action-notice";
 import { AdminButton } from "@/components/admin-controls";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
+import { cn } from "@/lib/utils";
 
 export function PricingRefreshAction() {
   const router = useRouter();
@@ -50,7 +51,7 @@ export function PricingRefreshAction() {
   return (
     <>
       <AdminButton variant="primary" size="compact" onClick={() => void handleRefresh()} disabled={busy}>
-        <RefreshCcw className="mr-2 size-3.5" />
+        <RefreshCcw className={cn("mr-2 size-3.5", busy ? "animate-[spin_1.1s_linear_infinite]" : "")} />
         {busy ? "Refreshing" : "Refresh pricing"}
       </AdminButton>
       {notice ? <AdminActionNotice tone={notice.tone} text={notice.text} /> : null}
