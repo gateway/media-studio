@@ -49,7 +49,7 @@ export function PricingRefreshAction() {
 
   return (
     <>
-      <AdminButton variant="subtle" size="compact" onClick={() => void handleRefresh()} disabled={busy}>
+      <AdminButton variant="primary" size="compact" onClick={() => void handleRefresh()} disabled={busy}>
         <RefreshCcw className="mr-2 size-3.5" />
         {busy ? "Refreshing" : "Refresh pricing"}
       </AdminButton>
