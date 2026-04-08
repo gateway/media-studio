@@ -1,8 +1,13 @@
 "use client";
 
-import { Heart } from "lucide-react";
+import { Heart, Image as ImageIcon } from "lucide-react";
 
-import { displayChoiceLabel, formatOptionValue, optionShortLabel } from "@/lib/media-studio-helpers";
+import {
+  displayChoiceLabel,
+  formatOptionValue,
+  optionShortLabel,
+  type StudioReferencePreview,
+} from "@/lib/media-studio-helpers";
 import type { MediaAsset } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +15,8 @@ type StudioInspectorInfoProps = {
   selectedAsset: MediaAsset;
   favoriteAssetIdBusy: string | number | null;
   onToggleFavorite: (asset: MediaAsset | null) => void;
+  referencePreviews?: StudioReferencePreview[];
+  onOpenReference?: (reference: StudioReferencePreview) => void;
   className?: string;
 };
 
@@ -17,6 +24,8 @@ export function StudioInspectorInfo({
   selectedAsset,
   favoriteAssetIdBusy,
   onToggleFavorite,
+  referencePreviews = [],
+  onOpenReference,
   className,
 }: StudioInspectorInfoProps) {
   const optionEntries = Object.entries((selectedAsset.payload?.resolved_options as Record<string, unknown> | undefined) ?? {})
@@ -68,6 +77,35 @@ export function StudioInspectorInfo({
             </span>
           </div>
         ))}
+        {referencePreviews.length ? (
+          <div className="rounded-[18px] bg-white/[0.03] p-3">
+            <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
+              <ImageIcon className="size-3.5 text-[rgba(208,255,72,0.88)]" />
+              References
+            </div>
+            <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+              {referencePreviews.map((reference) => (
+                <button
+                  key={reference.key}
+                  type="button"
+                  onClick={() => onOpenReference?.(reference)}
+                  className="grid w-[5.25rem] shrink-0 gap-2 text-left transition hover:opacity-95"
+                >
+                  <span className="overflow-hidden rounded-[16px] border border-white/10 bg-black/18">
+                    <img
+                      src={reference.url}
+                      alt={reference.label}
+                      className="h-[5.25rem] w-[5.25rem] object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </span>
+                  <span className="line-clamp-2 text-xs leading-5 text-white/70">{reference.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

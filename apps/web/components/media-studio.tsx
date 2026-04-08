@@ -31,6 +31,7 @@ import { StatusPill } from "@/components/status-pill";
 import { StudioGallery } from "@/components/studio/studio-gallery";
 import { StudioHeaderChrome } from "@/components/studio/studio-header-chrome";
 import { StudioInspectorInfo } from "@/components/studio/studio-inspector-info";
+import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
 import { StudioComposer } from "@/components/studio/studio-composer";
 import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
@@ -58,6 +59,7 @@ import {
 } from "@/lib/studio-gallery";
 import {
   batchPhaseMessage,
+  buildStudioReferencePreviews,
   buildChoiceList,
   buildNormalizedStudioOptions,
   classifyFile,
@@ -107,6 +109,7 @@ import {
   StructuredPresetTextField,
   structuredPresetSlotPreviewUrl,
   StudioChoice,
+  type StudioReferencePreview,
   studioOptionChoices,
   stripUnsupportedStudioOptions,
   toWholeNumber,
@@ -329,6 +332,7 @@ export function MediaStudio({
   const [copyPromptStatus, setCopyPromptStatus] = useState<"idle" | "copied" | "error">("idle");
   const [selectedFailedJobId, setSelectedFailedJobId] = useState<string | null>(null);
   const [selectedAssetAspectRatio, setSelectedAssetAspectRatio] = useState<number | null>(null);
+  const [selectedReferencePreview, setSelectedReferencePreview] = useState<StudioReferencePreview | null>(null);
   const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(null);
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
   const lastComposerDebugSignatureRef = useRef<string | null>(null);
@@ -495,6 +499,25 @@ export function MediaStudio({
     [selectedAssetAspectRatio],
   );
   const selectedAssetStagePortrait = Boolean(selectedAssetAspectRatio && selectedAssetAspectRatio < 0.95);
+  const selectedAssetReferencePreviews = useMemo(
+    () =>
+      buildStudioReferencePreviews({
+        asset: selectedAsset,
+        job: selectedAssetJob,
+        presetSlots: selectedAssetPresetSlots,
+        presetSlotValues: selectedAssetPresetSlotValues,
+        localAssets,
+        favoriteAssets,
+      }),
+    [
+      favoriteAssets,
+      localAssets,
+      selectedAsset,
+      selectedAssetJob,
+      selectedAssetPresetSlotValues,
+      selectedAssetPresetSlots,
+    ],
+  );
   const { lightboxVideoRef } = selection.refs;
   const {
     setSelectedAssetId,
@@ -505,6 +528,10 @@ export function MediaStudio({
     openSelectedMediaLightbox,
     closeSelectedMediaLightbox,
   } = selection.actions;
+
+  useEffect(() => {
+    setSelectedReferencePreview(null);
+  }, [selectedAssetId]);
   const composer = useStudioComposer({
     models,
     presets,
@@ -1210,7 +1237,8 @@ export function MediaStudio({
     setSelectedAssetAspectRatio(null);
   }, [selectedAsset?.asset_id, selectedAssetDisplayVisual, selectedAssetPlaybackVisual]);
 
-  const lockingOverlayOpen = Boolean(selectedAssetId) || studioSettingsOpen || selectedMediaLightboxOpen;
+  const lockingOverlayOpen =
+    Boolean(selectedAssetId) || studioSettingsOpen || selectedMediaLightboxOpen || Boolean(selectedReferencePreview);
 
   useEffect(() => {
     if (!lockingOverlayOpen) {
@@ -2556,6 +2584,8 @@ export function MediaStudio({
                   selectedAsset={selectedAsset}
                   favoriteAssetIdBusy={favoriteAssetIdBusy}
                   onToggleFavorite={toggleAssetFavorite}
+                  referencePreviews={selectedAssetReferencePreviews}
+                  onOpenReference={setSelectedReferencePreview}
                 />
 
                 <StudioInspectorActions
@@ -2588,6 +2618,8 @@ export function MediaStudio({
                       selectedAsset={selectedAsset}
                       favoriteAssetIdBusy={favoriteAssetIdBusy}
                       onToggleFavorite={toggleAssetFavorite}
+                      referencePreviews={selectedAssetReferencePreviews}
+                      onOpenReference={setSelectedReferencePreview}
                     />
                   </div>
                 </CollapsibleSubsection>
@@ -2716,6 +2748,14 @@ export function MediaStudio({
           selectedAssetLightboxVisual={selectedAssetLightboxVisual}
           lightboxVideoRef={lightboxVideoRef}
           onClose={closeSelectedMediaLightbox}
+        />
+      ) : null}
+
+      {selectedReferencePreview ? (
+        <StudioImageLightbox
+          src={selectedReferencePreview.url}
+          alt={selectedReferencePreview.label}
+          onClose={() => setSelectedReferencePreview(null)}
         />
       ) : null}
 

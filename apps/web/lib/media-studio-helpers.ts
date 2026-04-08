@@ -53,6 +53,12 @@ export type PresetSlotState = {
   previewUrl: string | null;
 };
 
+export type StudioReferencePreview = {
+  key: string;
+  label: string;
+  url: string;
+};
+
 export type OrderedImageInput =
   | { source: "asset"; asset: MediaAsset }
   | { source: "attachment"; attachment: { previewUrl: string | null } };
@@ -515,6 +521,109 @@ export function structuredPresetSlotPreviewUrl(
     url,
     label: pathValue?.split("/").at(-1) ?? "Preset image",
   };
+}
+
+function normalizedRequestImages(job?: MediaJob | null) {
+  const preparedRequest = isRecord(job?.prepared) && isRecord(job?.prepared["normalized_request"])
+    ? (job?.prepared["normalized_request"] as Record<string, unknown>)
+    : null;
+  const preparedImages = preparedRequest && Array.isArray(preparedRequest["images"])
+    ? (preparedRequest["images"] as unknown[])
+    : [];
+  if (preparedImages.length) {
+    return preparedImages;
+  }
+  const normalizedRequest = isRecord(job?.normalized_request) ? job.normalized_request : null;
+  return normalizedRequest && Array.isArray(normalizedRequest["images"]) ? (normalizedRequest["images"] as unknown[]) : [];
+}
+
+function normalizedReferenceLabel(role: string | null, fallbackIndex: number, referenceIndex: number) {
+  if (role === "first_frame") {
+    return "First frame";
+  }
+  if (role === "last_frame") {
+    return "Last frame";
+  }
+  if (role === "reference") {
+    return `Reference ${referenceIndex}`;
+  }
+  return `Image ${fallbackIndex}`;
+}
+
+export function buildStudioReferencePreviews({
+  asset,
+  job,
+  presetSlots,
+  presetSlotValues,
+  localAssets,
+  favoriteAssets,
+}: {
+  asset?: MediaAsset | null;
+  job?: MediaJob | null;
+  presetSlots?: StructuredPresetImageSlot[];
+  presetSlotValues?: Record<string, unknown>;
+  localAssets: MediaAsset[];
+  favoriteAssets: MediaAsset[] | null;
+}) {
+  const previews: StudioReferencePreview[] = [];
+  const seen = new Set<string>();
+
+  function pushPreview(key: string, label: string, url: string | null | undefined) {
+    if (!url) {
+      return;
+    }
+    const normalizedUrl = String(url).trim();
+    if (!normalizedUrl || seen.has(normalizedUrl)) {
+      return;
+    }
+    seen.add(normalizedUrl);
+    previews.push({ key, label, url: normalizedUrl });
+  }
+
+  const sourceAssetId = asset?.source_asset_id ?? job?.source_asset_id ?? null;
+  if (sourceAssetId != null) {
+    const sourceAsset =
+      (asset?.source_asset && String(asset.source_asset.asset_id) === String(sourceAssetId) ? asset.source_asset : null) ??
+      findMediaAssetById(sourceAssetId, localAssets, favoriteAssets) ??
+      null;
+    pushPreview(
+      `source:${sourceAssetId}`,
+      "Source",
+      mediaDisplayUrl(sourceAsset) ?? mediaThumbnailUrl(sourceAsset),
+    );
+  }
+
+  for (const slot of presetSlots ?? []) {
+    const rawItems = Array.isArray(presetSlotValues?.[slot.key]) ? (presetSlotValues?.[slot.key] as unknown[]) : [];
+    rawItems.forEach((item, index) => {
+      const preview = structuredPresetSlotPreviewUrl(item, localAssets, favoriteAssets);
+      const label = rawItems.length > 1 ? `${slot.label} ${index + 1}` : slot.label;
+      pushPreview(`slot:${slot.key}:${index}`, label, preview?.url);
+    });
+  }
+
+  let referenceIndex = 0;
+  normalizedRequestImages(job).forEach((image, index) => {
+    if (!isRecord(image)) {
+      return;
+    }
+    const assetId =
+      typeof image.asset_id === "string" || typeof image.asset_id === "number" ? image.asset_id : null;
+    const imageAsset = assetId != null ? findMediaAssetById(assetId, localAssets, favoriteAssets) ?? null : null;
+    const urlValue = typeof image.url === "string" ? image.url : null;
+    const pathValue = typeof image.path === "string" ? image.path : null;
+    const role = typeof image.role === "string" ? image.role : null;
+    if (role === "reference") {
+      referenceIndex += 1;
+    }
+    pushPreview(
+      `job-image:${index}`,
+      normalizedReferenceLabel(role, index + 1, Math.max(referenceIndex, 1)),
+      mediaDisplayUrl(imageAsset) ?? mediaThumbnailUrl(imageAsset) ?? urlValue ?? toControlApiDataPreviewPath(pathValue),
+    );
+  });
+
+  return previews;
 }
 
 export function jobPreviewUrl(job?: MediaJob | null) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildStudioReferencePreviews,
   classifyFile,
   deriveSeedanceComposerMode,
   inferInputPattern,
@@ -127,5 +128,55 @@ describe("media-studio-helpers Seedance support", () => {
         imageAttachmentPreviewUrls: ["blob:source-preview"],
       }),
     ).toBe("blob:source-preview");
+  });
+
+  it("builds inspector reference previews from source assets, slot values, and normalized request images without duplicates", () => {
+    const sourceAsset = {
+      asset_id: "asset-source",
+      generation_kind: "image",
+      hero_thumb_path: "outputs/thumb/source.webp",
+      hero_web_path: null,
+      hero_thumb_url: null,
+      hero_web_url: null,
+      hero_poster_path: null,
+      hero_poster_url: null,
+      prompt_summary: "Original source",
+    } as never;
+
+    expect(
+      buildStudioReferencePreviews({
+        asset: { source_asset_id: "asset-source" } as never,
+        job: {
+          normalized_request: {
+            images: [
+              { asset_id: "asset-source", role: "reference" },
+              { path: "outputs/frames/first.png", role: "first_frame" },
+            ],
+          },
+        } as never,
+        presetSlots: [{ key: "wardrobe", label: "Wardrobe", helpText: "", required: true, maxFiles: 1 }],
+        presetSlotValues: {
+          wardrobe: [{ path: "outputs/refs/wardrobe.png" }],
+        },
+        localAssets: [sourceAsset],
+        favoriteAssets: null,
+      }),
+    ).toEqual([
+      {
+        key: "source:asset-source",
+        label: "Source",
+        url: "/api/control/files/outputs/thumb/source.webp",
+      },
+      {
+        key: "slot:wardrobe:0",
+        label: "Wardrobe",
+        url: "/api/control/files/outputs/refs/wardrobe.png",
+      },
+      {
+        key: "job-image:1",
+        label: "First frame",
+        url: "/api/control/files/outputs/frames/first.png",
+      },
+    ]);
   });
 });
