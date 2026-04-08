@@ -1,5 +1,6 @@
 import { Coins, ExternalLink, RefreshCcw, Sparkles } from "lucide-react";
 
+import { PricingRefreshAction } from "@/app/pricing/pricing-refresh-action";
 import { adminThemeLayoutClassName } from "@/components/admin-theme";
 import {
   adminInsetCardClassName,
@@ -179,11 +180,14 @@ export default async function PricingPage() {
             title="Live pricing context"
             description="Studio uses the normalized KIE catalog for model rules and server-side estimates for exact request totals. The Generate button updates when pricing-sensitive options change."
             action={
-              sourceUrl ? (
-                <AdminNavButton href={sourceUrl} external size="compact">
-                  Open source <ExternalLink className="ml-2 size-3.5" />
-                </AdminNavButton>
-              ) : null
+              <div className="flex flex-wrap items-center gap-2">
+                <PricingRefreshAction />
+                {sourceUrl ? (
+                  <AdminNavButton href={sourceUrl} external size="compact">
+                    Open source <ExternalLink className="ml-2 size-3.5" />
+                  </AdminNavButton>
+                ) : null}
+              </div>
             }
           />
           <div className="mt-5 grid gap-3 lg:grid-cols-4">
@@ -264,7 +268,7 @@ export default async function PricingPage() {
             title="Current rule set"
             description="Base request pricing comes from KIE, then the listed multipliers or adders are applied when those options are selected."
           />
-          <div className="mt-5 grid gap-4 xl:grid-cols-2">
+          <div className="mt-5 grid gap-4">
             {rules.map((rule, index) => {
               const record = (isRecord(rule) ? rule : {}) as Record<string, unknown>;
               const model = models.find((entry) => entry.key === record.model_key) ?? null;
