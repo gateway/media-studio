@@ -65,6 +65,13 @@ export type StudioJobReferenceInput = StudioReferencePreview & {
   role: "first_frame" | "last_frame" | "reference" | null;
 };
 
+export type StudioJobPrimaryInput = {
+  assetId: string | number | null;
+  url: string;
+  kind: "images" | "videos" | "audios";
+  role: "first_frame" | "last_frame" | "reference" | null;
+};
+
 export type OrderedImageInput =
   | { source: "asset"; asset: MediaAsset }
   | { source: "attachment"; attachment: { previewUrl: string | null } };
@@ -653,6 +660,9 @@ export function buildStudioJobReferenceInputs({
       image.role === "first_frame" || image.role === "last_frame" || image.role === "reference"
         ? image.role
         : null;
+    if (sourceAssetId != null && role == null) {
+      return;
+    }
     if (role === "reference") {
       referenceIndex += 1;
     }
@@ -684,6 +694,69 @@ export function buildStudioJobReferenceInputs({
   });
 
   return references;
+}
+
+export function buildStudioJobPrimaryInput({
+  job,
+  localAssets,
+  favoriteAssets,
+}: {
+  job?: MediaJob | null;
+  localAssets: MediaAsset[];
+  favoriteAssets: MediaAsset[] | null;
+}) {
+  const sourceAssetId = job?.source_asset_id ?? null;
+  if (sourceAssetId != null) {
+    const sourceAsset = findMediaAssetById(sourceAssetId, localAssets, favoriteAssets) ?? null;
+    const sourceUrl =
+      mediaPlaybackUrl(sourceAsset) ?? mediaDisplayUrl(sourceAsset) ?? mediaThumbnailUrl(sourceAsset);
+    if (sourceUrl) {
+      return {
+        assetId: sourceAssetId,
+        url: sourceUrl,
+        kind: sourceAsset?.generation_kind === "video" ? "videos" : "images",
+        role: null,
+      } satisfies StudioJobPrimaryInput;
+    }
+  }
+
+  for (const image of normalizedRequestImages(job)) {
+    if (!isRecord(image)) {
+      continue;
+    }
+    const mediaType = typeof image.media_type === "string" ? image.media_type.toLowerCase() : "image";
+    const kind =
+      mediaType === "video" ? "videos" : mediaType === "audio" ? "audios" : ("images" as const);
+    const role =
+      image.role === "first_frame" || image.role === "last_frame" || image.role === "reference"
+        ? image.role
+        : null;
+    if (role != null && role !== "first_frame") {
+      continue;
+    }
+    const assetId =
+      typeof image.asset_id === "string" || typeof image.asset_id === "number" ? image.asset_id : null;
+    const asset = assetId != null ? findMediaAssetById(assetId, localAssets, favoriteAssets) ?? null : null;
+    const urlValue = typeof image.url === "string" ? image.url : null;
+    const pathValue = typeof image.path === "string" ? image.path : null;
+    const url =
+      (kind === "videos" ? mediaPlaybackUrl(asset) : null) ??
+      mediaDisplayUrl(asset) ??
+      mediaThumbnailUrl(asset) ??
+      urlValue ??
+      toControlApiDataPreviewPath(pathValue);
+    if (!url) {
+      continue;
+    }
+    return {
+      assetId,
+      url,
+      kind,
+      role,
+    } satisfies StudioJobPrimaryInput;
+  }
+
+  return null;
 }
 
 export function jobPreviewUrl(job?: MediaJob | null) {

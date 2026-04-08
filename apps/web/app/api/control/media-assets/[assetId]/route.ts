@@ -1,7 +1,30 @@
 import { NextResponse } from "next/server";
 
-import { sendControlApiJson, mapAssetRecord } from "@/lib/control-api";
+import { getControlApiJson, sendControlApiJson, mapAssetRecord } from "@/lib/control-api";
 import type { MediaAssetResponse } from "@/lib/types";
+
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ assetId: string }> },
+) {
+  const { assetId } = await context.params;
+  const result = await getControlApiJson<Record<string, unknown>>(`/media/assets/${assetId}`, "admin");
+
+  if (!result.ok || !result.data) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: result.error ?? "Unable to load the selected media asset.",
+      },
+      { status: 502 },
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    asset: mapAssetRecord(result.data),
+  } as MediaAssetResponse);
+}
 
 export async function POST(
   request: Request,

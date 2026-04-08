@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildStudioJobPrimaryInput,
   buildStudioJobReferenceInputs,
   buildStudioReferencePreviews,
   classifyFile,
@@ -231,5 +232,48 @@ describe("media-studio-helpers Seedance support", () => {
         role: "last_frame",
       },
     ]);
+  });
+
+  it("builds a primary retry input from the saved source asset or local source path", () => {
+    const sourceAsset = {
+      asset_id: "asset-source",
+      generation_kind: "image",
+      hero_thumb_path: "outputs/thumb/source.webp",
+      hero_web_path: null,
+      hero_thumb_url: null,
+      hero_web_url: null,
+      hero_poster_path: null,
+      hero_poster_url: null,
+    } as never;
+
+    expect(
+      buildStudioJobPrimaryInput({
+        job: { source_asset_id: "asset-source" } as never,
+        localAssets: [sourceAsset],
+        favoriteAssets: null,
+      }),
+    ).toEqual({
+      assetId: "asset-source",
+      url: "/api/control/files/outputs/thumb/source.webp",
+      kind: "images",
+      role: null,
+    });
+
+    expect(
+      buildStudioJobPrimaryInput({
+        job: {
+          normalized_request: {
+            images: [{ path: "outputs/retry/source.png", media_type: "image", role: null }],
+          },
+        } as never,
+        localAssets: [],
+        favoriteAssets: null,
+      }),
+    ).toEqual({
+      assetId: null,
+      url: "/api/control/files/outputs/retry/source.png",
+      kind: "images",
+      role: null,
+    });
   });
 });

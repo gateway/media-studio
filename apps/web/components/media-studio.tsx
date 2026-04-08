@@ -62,6 +62,7 @@ import {
 } from "@/lib/studio-gallery";
 import {
   batchPhaseMessage,
+  buildStudioJobPrimaryInput,
   buildStudioJobReferenceInputs,
   buildStudioReferencePreviews,
   buildChoiceList,
@@ -495,6 +496,10 @@ export function MediaStudio({
     selectedFailedJob?.final_prompt_used ?? selectedFailedJob?.enhanced_prompt ?? selectedFailedJob?.raw_prompt ?? null;
   const selectedFailedJobReferenceInputs = useMemo(
     () => buildStudioJobReferenceInputs({ job: selectedFailedJob, localAssets, favoriteAssets }),
+    [favoriteAssets, localAssets, selectedFailedJob],
+  );
+  const selectedFailedJobPrimaryInput = useMemo(
+    () => buildStudioJobPrimaryInput({ job: selectedFailedJob, localAssets, favoriteAssets }),
     [favoriteAssets, localAssets, selectedFailedJob],
   );
   const selectedFailedJobImageReferences = useMemo(
@@ -1618,6 +1623,19 @@ export function MediaStudio({
     return new File([blob], fileName, { type: blob.type || fallbackMime });
   }
 
+  async function fetchAssetById(assetId: string | number) {
+    const response = await fetch(`/api/control/media-assets/${assetId}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    const payload = (await response.json().catch(() => null)) as { ok?: boolean; asset?: MediaAsset | null } | null;
+    if (!response.ok || !payload?.ok || !payload.asset) {
+      throw new Error("Unable to load the selected media asset.");
+    }
+    return payload.asset;
+  }
+
   async function retryFailedJobInStudio(job: MediaJob | null) {
     if (!job) {
       return;
@@ -1660,6 +1678,38 @@ export function MediaStudio({
     setMobileComposerCollapsed(false);
 
     await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+    let restoredPrimaryInput = false;
+    if (job.source_asset_id != null) {
+      const localSourceAsset = findMediaAssetById(job.source_asset_id, localAssets, favoriteAssets);
+      if (localSourceAsset) {
+        setSourceAssetId(localSourceAsset.asset_id);
+        restoredPrimaryInput = true;
+      } else {
+        try {
+          const loadedSourceAsset = await fetchAssetById(job.source_asset_id);
+          setLocalAssets((current) => [loadedSourceAsset, ...current.filter((asset) => asset.asset_id !== loadedSourceAsset.asset_id)]);
+          setSourceAssetId(loadedSourceAsset.asset_id);
+          restoredPrimaryInput = true;
+        } catch {
+          // fall through to local file-based source restore below
+        }
+      }
+    }
+
+    if (!restoredPrimaryInput && selectedFailedJobPrimaryInput) {
+      try {
+        const primaryFile = await fetchReferenceFile(
+          selectedFailedJobPrimaryInput.url,
+          "source-image",
+          selectedFailedJobPrimaryInput.kind,
+        );
+        addFiles([primaryFile], { allowedKinds: [selectedFailedJobPrimaryInput.kind] });
+        restoredPrimaryInput = true;
+      } catch {
+        // leave the composer open even if the source cannot be refetched
+      }
+    }
 
     if (targetPreset) {
       const slotValues = structuredPresetSlotValues(job);
@@ -1712,8 +1762,10 @@ export function MediaStudio({
     }
 
     setFormMessage({
-      tone: "warning",
-      text: "Loaded the failed job back into Studio. Review it and generate again.",
+      tone: restoredPrimaryInput ? "warning" : "danger",
+      text: restoredPrimaryInput
+        ? "Loaded the failed job back into Studio. Review it and generate again."
+        : "Loaded the failed job prompt and settings, but Studio could not restage the original source image.",
     });
   }
 
