@@ -794,7 +794,7 @@ export function MediaStudio({
     maxAudioInputs === 0 &&
     orderedImageInputs.length > 0;
   const multiImageReferenceStrip = dedicatedImageReferenceRailActive ? (
-    <div className="rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-3 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
+    <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-3 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/44">Image references</div>
         {imageLimitLabel ? (
@@ -803,7 +803,7 @@ export function MediaStudio({
           </div>
         ) : null}
       </div>
-      <div className="flex min-w-0 gap-3 overflow-x-auto pb-1">
+      <div className="flex min-w-0 items-start gap-3 overflow-x-auto overflow-y-hidden pb-1">
         {orderedImageInputs.map((slot, slotIndex) => {
           const slotVisual =
             slot.source === "asset"
