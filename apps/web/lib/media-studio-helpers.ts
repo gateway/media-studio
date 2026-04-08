@@ -567,6 +567,7 @@ export function buildStudioReferencePreviews({
 }) {
   const previews: StudioReferencePreview[] = [];
   const seen = new Set<string>();
+  const sourceAssetId = asset?.source_asset_id ?? job?.source_asset_id ?? null;
 
   function pushPreview(key: string, label: string, url: string | null | undefined) {
     if (!url) {
@@ -578,19 +579,6 @@ export function buildStudioReferencePreviews({
     }
     seen.add(normalizedUrl);
     previews.push({ key, label, url: normalizedUrl });
-  }
-
-  const sourceAssetId = asset?.source_asset_id ?? job?.source_asset_id ?? null;
-  if (sourceAssetId != null) {
-    const sourceAsset =
-      (asset?.source_asset && String(asset.source_asset.asset_id) === String(sourceAssetId) ? asset.source_asset : null) ??
-      findMediaAssetById(sourceAssetId, localAssets, favoriteAssets) ??
-      null;
-    pushPreview(
-      `source:${sourceAssetId}`,
-      "Source",
-      mediaDisplayUrl(sourceAsset) ?? mediaThumbnailUrl(sourceAsset),
-    );
   }
 
   for (const slot of presetSlots ?? []) {
@@ -609,6 +597,9 @@ export function buildStudioReferencePreviews({
     }
     const assetId =
       typeof image.asset_id === "string" || typeof image.asset_id === "number" ? image.asset_id : null;
+    if (assetId != null && sourceAssetId != null && String(assetId) === String(sourceAssetId)) {
+      return;
+    }
     const imageAsset = assetId != null ? findMediaAssetById(assetId, localAssets, favoriteAssets) ?? null : null;
     const urlValue = typeof image.url === "string" ? image.url : null;
     const pathValue = typeof image.path === "string" ? image.path : null;

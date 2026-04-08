@@ -163,11 +163,6 @@ describe("media-studio-helpers Seedance support", () => {
       }),
     ).toEqual([
       {
-        key: "source:asset-source",
-        label: "Source",
-        url: "/api/control/files/outputs/thumb/source.webp",
-      },
-      {
         key: "slot:wardrobe:0",
         label: "Wardrobe",
         url: "/api/control/files/outputs/refs/wardrobe.png",
