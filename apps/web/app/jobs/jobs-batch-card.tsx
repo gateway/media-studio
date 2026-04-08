@@ -116,7 +116,7 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
                   </h3>
                   <div
                     className={cn(
-                      "ml-auto inline-flex items-center gap-2 text-[0.76rem] font-semibold uppercase tracking-[0.14em]",
+                      "ml-auto inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] leading-none",
                       batchStatusTone === "healthy"
                         ? "text-[var(--success)]"
                         : batchStatusTone === "warning"
@@ -126,7 +126,7 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
                             : "text-[var(--muted-strong)]",
                     )}
                   >
-                    <BatchStatusIcon className={cn("size-3.5", batchStatusTone === "warning" ? "animate-[spin_1.4s_linear_infinite]" : "")} />
+                    <BatchStatusIcon className={cn("size-[13px] shrink-0", batchStatusTone === "warning" ? "animate-[spin_1.4s_linear_infinite]" : "")} />
                     <span>{batchStatusLabel(batch.status)}</span>
                   </div>
                 </div>
