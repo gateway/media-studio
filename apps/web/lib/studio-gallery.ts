@@ -88,6 +88,10 @@ export function structuredPresetInputValues(job?: MediaJob | null) {
     ? (metadataPrepared?.preset_inputs as Record<string, unknown>)
     : isRecord(metadataNormalized?.preset_inputs)
       ? (metadataNormalized?.preset_inputs as Record<string, unknown>)
+      : isRecord(metadataPrepared?.preset_text_values)
+        ? (metadataPrepared?.preset_text_values as Record<string, unknown>)
+        : isRecord(metadataNormalized?.preset_text_values)
+          ? (metadataNormalized?.preset_text_values as Record<string, unknown>)
       : null;
   const source = metadataInputs ?? preparedInputs;
   if (!source) {
@@ -98,7 +102,11 @@ export function structuredPresetInputValues(job?: MediaJob | null) {
 
 export function structuredPresetInputValuesFromAsset(asset?: MediaAsset | null) {
   const payload = isRecord(asset?.payload) ? (asset?.payload as Record<string, unknown>) : null;
-  const source = isRecord(payload?.preset_inputs) ? (payload?.preset_inputs as Record<string, unknown>) : null;
+  const source = isRecord(payload?.preset_inputs)
+    ? (payload?.preset_inputs as Record<string, unknown>)
+    : isRecord(payload?.preset_text_values)
+      ? (payload?.preset_text_values as Record<string, unknown>)
+      : null;
   if (!source) {
     return {} as Record<string, string>;
   }

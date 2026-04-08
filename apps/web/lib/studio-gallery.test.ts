@@ -6,6 +6,8 @@ import {
   findMediaAssetById,
   mediaAssetPrompt,
   presetRequirementMessage,
+  structuredPresetInputValues,
+  structuredPresetInputValuesFromAsset,
 } from "@/lib/studio-gallery";
 
 describe("studio-gallery", () => {
@@ -248,5 +250,37 @@ describe("studio-gallery", () => {
         null,
       ),
     ).toContain("requires at least one image");
+  });
+
+  it("reads preset text values from normalized request metadata", () => {
+    expect(
+      structuredPresetInputValues({
+        normalized_request: {
+          metadata: {
+            preset_text_values: {
+              direction: "Cluster the communication elements above the pilot.",
+              position: "Standing",
+            },
+          },
+        },
+      } as never),
+    ).toEqual({
+      direction: "Cluster the communication elements above the pilot.",
+      position: "Standing",
+    });
+  });
+
+  it("reads preset text values from asset payload fallback", () => {
+    expect(
+      structuredPresetInputValuesFromAsset({
+        payload: {
+          preset_text_values: {
+            direction: "Use a fragmented workflow cluster.",
+          },
+        },
+      } as never),
+    ).toEqual({
+      direction: "Use a fragmented workflow cluster.",
+    });
   });
 });
