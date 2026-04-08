@@ -2474,7 +2474,7 @@ export function MediaStudio({
                   >
                     <X className="size-5" />
                   </button>
-                  <div className="flex min-h-[48vh] items-center justify-center p-4 sm:p-6 lg:h-full">
+                  <div className="flex min-h-[52vh] items-center justify-center p-4 sm:p-6 lg:h-full">
                     {selectedAssetDisplayVisual ? (
                       selectedAsset.generation_kind === "video" ? (
                         <button
@@ -2482,7 +2482,7 @@ export function MediaStudio({
                           data-testid="studio-open-lightbox"
                           onClick={openSelectedMediaLightbox}
                           className={cn(
-                            "relative flex max-h-[min(68vh,720px)] w-auto max-w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
+                            "relative flex h-full w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
                           )}
                           aria-label="Open selected video"
                         >
@@ -2492,7 +2492,7 @@ export function MediaStudio({
                             loading="eager"
                             fetchPriority="high"
                             decoding="async"
-                            className="block max-h-[min(68vh,720px)] max-w-full rounded-[28px] object-contain"
+                            className="block h-full w-full rounded-[28px] object-contain"
                           />
                           {selectedAssetPlaybackVisual ? (
                             <span className="absolute inset-0 flex items-center justify-center">
@@ -2508,7 +2508,7 @@ export function MediaStudio({
                           data-testid="studio-open-lightbox"
                           onClick={openSelectedMediaLightbox}
                           className={cn(
-                            "flex max-h-[min(68vh,720px)] w-auto max-w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
+                            "flex h-full w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
                           )}
                           aria-label="Open selected image"
                         >
@@ -2518,7 +2518,7 @@ export function MediaStudio({
                             loading="eager"
                             fetchPriority="high"
                             decoding="async"
-                            className="block max-h-[min(68vh,720px)] max-w-full rounded-[28px] object-contain"
+                            className="block h-full w-full rounded-[28px] object-contain"
                           />
                         </button>
                       )
