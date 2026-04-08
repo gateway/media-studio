@@ -202,16 +202,6 @@ export default async function JobsPage({
                   {healthData.issues[0]}
                 </div>
               ) : null}
-              <div className="flex flex-wrap items-center gap-3">
-                <AdminNavButton
-                  href="https://github.com/gateway/media-studio/blob/main/docs/runtime-and-supervision.md"
-                  external
-                  variant="primary"
-                  size="compact"
-                >
-                  Runtime setup docs
-                </AdminNavButton>
-              </div>
               <RuntimeControls />
               {availableCredits != null ? (
                 <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
