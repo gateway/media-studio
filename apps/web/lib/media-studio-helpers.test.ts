@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildStudioJobReferenceInputs,
   buildStudioReferencePreviews,
   classifyFile,
   deriveSeedanceComposerMode,
@@ -171,6 +172,63 @@ describe("media-studio-helpers Seedance support", () => {
         key: "job-image:1",
         label: "First frame",
         url: "/api/control/files/outputs/frames/first.png",
+      },
+    ]);
+  });
+
+  it("builds retryable failed-job reference inputs excluding the main source image", () => {
+    const sourceAsset = {
+      asset_id: "asset-source",
+      generation_kind: "image",
+      hero_thumb_path: "outputs/thumb/source.webp",
+      hero_web_path: null,
+      hero_thumb_url: null,
+      hero_web_url: null,
+      hero_poster_path: null,
+      hero_poster_url: null,
+    } as never;
+    const refAsset = {
+      asset_id: "asset-ref-2",
+      generation_kind: "image",
+      hero_thumb_path: "outputs/thumb/ref-2.webp",
+      hero_web_path: null,
+      hero_thumb_url: null,
+      hero_web_url: null,
+      hero_poster_path: null,
+      hero_poster_url: null,
+    } as never;
+
+    expect(
+      buildStudioJobReferenceInputs({
+        job: {
+          source_asset_id: "asset-source",
+          normalized_request: {
+            images: [
+              { asset_id: "asset-source", media_type: "image", role: null },
+              { asset_id: "asset-ref-2", media_type: "image", role: "reference" },
+              { path: "outputs/frames/last.png", media_type: "image", role: "last_frame" },
+            ],
+          },
+        } as never,
+        localAssets: [sourceAsset, refAsset],
+        favoriteAssets: null,
+      }),
+    ).toEqual([
+      {
+        key: "job-reference:1",
+        label: "Reference 1",
+        url: "/api/control/files/outputs/thumb/ref-2.webp",
+        assetId: "asset-ref-2",
+        kind: "images",
+        role: "reference",
+      },
+      {
+        key: "job-reference:2",
+        label: "Last frame",
+        url: "/api/control/files/outputs/frames/last.png",
+        assetId: null,
+        kind: "images",
+        role: "last_frame",
       },
     ]);
   });

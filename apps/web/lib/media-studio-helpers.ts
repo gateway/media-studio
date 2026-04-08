@@ -59,6 +59,12 @@ export type StudioReferencePreview = {
   url: string;
 };
 
+export type StudioJobReferenceInput = StudioReferencePreview & {
+  assetId: string | number | null;
+  kind: "images" | "videos" | "audios";
+  role: "first_frame" | "last_frame" | "reference" | null;
+};
+
 export type OrderedImageInput =
   | { source: "asset"; asset: MediaAsset }
   | { source: "attachment"; attachment: { previewUrl: string | null } };
@@ -615,6 +621,69 @@ export function buildStudioReferencePreviews({
   });
 
   return previews;
+}
+
+export function buildStudioJobReferenceInputs({
+  job,
+  localAssets,
+  favoriteAssets,
+}: {
+  job?: MediaJob | null;
+  localAssets: MediaAsset[];
+  favoriteAssets: MediaAsset[] | null;
+}) {
+  const references: StudioJobReferenceInput[] = [];
+  const seen = new Set<string>();
+  const sourceAssetId = job?.source_asset_id ?? null;
+  let referenceIndex = 0;
+
+  normalizedRequestImages(job).forEach((image, index) => {
+    if (!isRecord(image)) {
+      return;
+    }
+    const assetId =
+      typeof image.asset_id === "string" || typeof image.asset_id === "number" ? image.asset_id : null;
+    if (assetId != null && sourceAssetId != null && String(assetId) === String(sourceAssetId)) {
+      return;
+    }
+    const mediaType = typeof image.media_type === "string" ? image.media_type.toLowerCase() : "image";
+    const kind =
+      mediaType === "video" ? "videos" : mediaType === "audio" ? "audios" : ("images" as const);
+    const role =
+      image.role === "first_frame" || image.role === "last_frame" || image.role === "reference"
+        ? image.role
+        : null;
+    if (role === "reference") {
+      referenceIndex += 1;
+    }
+    const asset = assetId != null ? findMediaAssetById(assetId, localAssets, favoriteAssets) ?? null : null;
+    const urlValue = typeof image.url === "string" ? image.url : null;
+    const pathValue = typeof image.path === "string" ? image.path : null;
+    const url =
+      (kind === "videos" ? mediaPlaybackUrl(asset) : null) ??
+      mediaDisplayUrl(asset) ??
+      mediaThumbnailUrl(asset) ??
+      urlValue ??
+      toControlApiDataPreviewPath(pathValue);
+    if (!url) {
+      return;
+    }
+    const dedupeKey = [assetId ?? "", pathValue ?? "", url].join("|");
+    if (seen.has(dedupeKey)) {
+      return;
+    }
+    seen.add(dedupeKey);
+    references.push({
+      key: `job-reference:${index}`,
+      label: normalizedReferenceLabel(role, index + 1, Math.max(referenceIndex, 1)),
+      url,
+      assetId,
+      kind,
+      role,
+    });
+  });
+
+  return references;
 }
 
 export function jobPreviewUrl(job?: MediaJob | null) {

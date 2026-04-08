@@ -17,6 +17,7 @@ import {
   Monitor,
   Play,
   Plus,
+  RotateCcw,
   Sparkles,
   Settings2,
   Trash2,
@@ -56,9 +57,12 @@ import {
   findMediaAssetById,
   presetRequirementMessage,
   selectedPromptObjects,
+  structuredPresetInputValues,
+  structuredPresetSlotValues,
 } from "@/lib/studio-gallery";
 import {
   batchPhaseMessage,
+  buildStudioJobReferenceInputs,
   buildStudioReferencePreviews,
   buildChoiceList,
   buildNormalizedStudioOptions,
@@ -489,6 +493,14 @@ export function MediaStudio({
   }, [localBatches, localJobs, selectedFailedJobId]);
   const selectedFailedJobPrompt =
     selectedFailedJob?.final_prompt_used ?? selectedFailedJob?.enhanced_prompt ?? selectedFailedJob?.raw_prompt ?? null;
+  const selectedFailedJobReferenceInputs = useMemo(
+    () => buildStudioJobReferenceInputs({ job: selectedFailedJob, localAssets, favoriteAssets }),
+    [favoriteAssets, localAssets, selectedFailedJob],
+  );
+  const selectedFailedJobImageReferences = useMemo(
+    () => selectedFailedJobReferenceInputs.filter((reference) => reference.kind === "images"),
+    [selectedFailedJobReferenceInputs],
+  );
   const selectedAssetStageStyle = useMemo(
     () =>
       selectedAssetAspectRatio && Number.isFinite(selectedAssetAspectRatio) && selectedAssetAspectRatio > 0
@@ -1583,6 +1595,125 @@ export function MediaStudio({
       text: animate
         ? "The selected image is now staged for the animate flow."
         : "The selected asset is now attached as a source reference.",
+    });
+  }
+
+  async function fetchReferenceFile(referenceUrl: string, label: string, kind: "images" | "videos" | "audios") {
+    const response = await fetch(referenceUrl, { credentials: "same-origin" });
+    if (!response.ok) {
+      throw new Error("Unable to fetch the reference media.");
+    }
+    const blob = await response.blob();
+    const fallbackExtension = kind === "videos" ? "mp4" : kind === "audios" ? "wav" : "png";
+    const fallbackMime = kind === "videos" ? "video/mp4" : kind === "audios" ? "audio/wav" : "image/png";
+    const safeLabel = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "reference";
+    const urlPath = (() => {
+      try {
+        return new URL(referenceUrl, window.location.origin).pathname.split("/").at(-1) ?? "";
+      } catch {
+        return "";
+      }
+    })();
+    const fileName = urlPath || `${safeLabel}.${fallbackExtension}`;
+    return new File([blob], fileName, { type: blob.type || fallbackMime });
+  }
+
+  async function retryFailedJobInStudio(job: MediaJob | null) {
+    if (!job) {
+      return;
+    }
+    const targetModel = models.find((model) => model.key === job.model_key) ?? null;
+    if (!targetModel) {
+      setFormMessage({ tone: "danger", text: "Studio could not find the model used by this failed job." });
+      return;
+    }
+    const targetPreset =
+      presets.find(
+        (preset) =>
+          preset.key === job.resolved_preset_key ||
+          preset.key === job.requested_preset_key ||
+          preset.preset_id === job.resolved_preset_key ||
+          preset.preset_id === job.requested_preset_key,
+      ) ?? null;
+
+    clearComposer();
+    setModelKey(targetModel.key);
+    setSelectedPresetId(targetPreset?.preset_id ?? targetPreset?.key ?? "");
+    setSelectedPromptIds(job.selected_system_prompt_ids ?? []);
+    setPrompt(job.final_prompt_used ?? job.enhanced_prompt ?? job.raw_prompt ?? "");
+    setPresetInputValues(structuredPresetInputValues(job));
+    setOptionValues(buildNormalizedStudioOptions(targetModel, (job.resolved_options as Record<string, unknown> | undefined) ?? {}, null));
+    setOutputCount(Math.max(1, job.requested_outputs ?? 1));
+    setValidation(null);
+    setBusyState("idle");
+    setOpenPicker(null);
+    setEnhanceDialogOpen(false);
+    setEnhancePreview(null);
+    setEnhanceError(null);
+    setIsDragActive(false);
+    setSourceAssetId(job.source_asset_id ?? null);
+
+    setSelectedFailedJobId(null);
+    setSelectedAssetId(null);
+    setSelectedMediaLightboxOpen(false);
+    setSelectedReferencePreview(null);
+    setMobileComposerCollapsed(false);
+
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+    if (targetPreset) {
+      const slotValues = structuredPresetSlotValues(job);
+      for (const slot of normalizeStructuredPresetImageSlots(targetPreset)) {
+        const rawItems = Array.isArray(slotValues[slot.key]) ? (slotValues[slot.key] as unknown[]) : [];
+        const firstItem = rawItems[0];
+        if (!isRecord(firstItem)) {
+          continue;
+        }
+        const assetId =
+          typeof firstItem.asset_id === "string" || typeof firstItem.asset_id === "number" ? firstItem.asset_id : null;
+        if (assetId != null) {
+          const asset = findMediaAssetById(assetId, localAssets, favoriteAssets);
+          if (asset) {
+            assignPresetSlotAsset(slot.key, asset);
+            continue;
+          }
+        }
+        const slotUrl =
+          typeof firstItem.url === "string"
+            ? firstItem.url
+            : typeof firstItem.path === "string"
+              ? mediaPreviewUrl({ hero_original_path: firstItem.path } as MediaAsset)
+              : null;
+        if (slotUrl) {
+          try {
+            const file = await fetchReferenceFile(slotUrl, slot.label, "images");
+            assignPresetSlotFile(slot.key, file);
+          } catch {
+            // skip unavailable slot media
+          }
+        }
+      }
+    }
+
+    for (const reference of selectedFailedJobReferenceInputs) {
+      if (reference.assetId != null) {
+        const asset = findMediaAssetById(reference.assetId, localAssets, favoriteAssets);
+        if (asset) {
+          await addGalleryAssetAsAttachment(asset, reference.role, [reference.kind]);
+          continue;
+        }
+      }
+      try {
+        const file = await fetchReferenceFile(reference.url, reference.label, reference.kind);
+        addFiles([file], { role: reference.role ?? undefined, allowedKinds: [reference.kind] });
+      } catch {
+        // skip unavailable references; the user can still adjust before rerunning
+      }
+    }
+
+    setFormMessage({
+      tone: "warning",
+      text: "Loaded the failed job back into Studio. Review it and generate again.",
     });
   }
 
@@ -2693,6 +2824,14 @@ export function MediaStudio({
                   </div>
                   <StatusPill label={jobStatusLabel(selectedFailedJob.status)} tone="danger" />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => void retryFailedJobInStudio(selectedFailedJob)}
+                  className="inline-flex items-center justify-center gap-2 rounded-[18px] border border-[rgba(208,255,72,0.18)] bg-[rgba(208,255,72,0.12)] px-4 py-3 text-sm font-semibold text-[#dcff88] transition hover:border-[rgba(208,255,72,0.28)] hover:bg-[rgba(208,255,72,0.18)]"
+                >
+                  <RotateCcw className="size-4" />
+                  Retry in Studio
+                </button>
                 <div className="min-w-0 rounded-[22px] border border-[rgba(255,139,139,0.16)] bg-[rgba(73,20,20,0.24)] p-4">
                   <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[#ffb8b8]">
                     Provider Error
@@ -2701,6 +2840,35 @@ export function MediaStudio({
                     {selectedFailedJob.error ?? "The media provider did not return a more specific failure message."}
                   </p>
                 </div>
+                {selectedFailedJobImageReferences.length ? (
+                  <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
+                    <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
+                      <ImageIcon className="size-3.5 text-[rgba(208,255,72,0.88)]" />
+                      References
+                    </div>
+                    <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+                      {selectedFailedJobImageReferences.map((reference) => (
+                        <button
+                          key={reference.key}
+                          type="button"
+                          onClick={() => setSelectedReferencePreview(reference)}
+                          className="grid w-[5.5rem] shrink-0 gap-2 text-left transition hover:opacity-95"
+                        >
+                          <span className="overflow-hidden rounded-[16px] border border-white/10 bg-black/18">
+                            <img
+                              src={reference.url}
+                              alt={reference.label}
+                              className="h-[5.5rem] w-[5.5rem] object-cover"
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          </span>
+                          <span className="line-clamp-2 text-xs leading-5 text-white/70">{reference.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="grid gap-2 rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
                   <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
                     <span className="pt-0.5 text-sm text-white/56">Job ID</span>
