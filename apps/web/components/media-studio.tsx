@@ -74,7 +74,6 @@ import {
   isMobileDownloadDevice,
   isNanoPresetModel,
   isRecord,
-  jobPreviewUrl,
   mediaDisplayUrl,
   mediaDownloadName,
   mediaDownloadUrl,
@@ -490,7 +489,6 @@ export function MediaStudio({
   }, [localBatches, localJobs, selectedFailedJobId]);
   const selectedFailedJobPrompt =
     selectedFailedJob?.final_prompt_used ?? selectedFailedJob?.enhanced_prompt ?? selectedFailedJob?.raw_prompt ?? null;
-  const selectedFailedJobPreview = jobPreviewUrl(selectedFailedJob);
   const selectedAssetStageStyle = useMemo(
     () =>
       selectedAssetAspectRatio && Number.isFinite(selectedAssetAspectRatio) && selectedAssetAspectRatio > 0
@@ -2644,28 +2642,17 @@ export function MediaStudio({
                     <X className="size-5" />
                   </button>
                   <div className="flex min-h-[48vh] items-center justify-center p-4 sm:p-6 lg:h-full">
-                    {selectedFailedJobPreview ? (
-                      <img
-                        src={selectedFailedJobPreview}
-                        alt="Reference image used for failed media job"
-                        loading="eager"
-                        fetchPriority="high"
-                        decoding="async"
-                        className="max-h-[58vh] w-auto max-w-full rounded-[28px] object-contain shadow-[0_22px_60px_rgba(0,0,0,0.4)] lg:max-h-[68vh]"
-                      />
-                    ) : (
-                      <div className="grid max-w-[24rem] gap-4 rounded-[28px] border border-[rgba(255,139,139,0.18)] bg-[rgba(40,16,14,0.42)] px-6 py-8 text-center text-white/78">
-                        <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(255,139,139,0.24)] bg-[rgba(255,139,139,0.1)] text-[#ff8b8b]">
-                          <AlertTriangle className="size-7" />
-                        </div>
-                        <div>
-                          <div className="text-base font-semibold text-white">Failed media job</div>
-                          <p className="mt-2 text-sm leading-7 text-white/64">
-                            No preview image was published for this failed job, but the saved prompt and provider error are still available.
-                          </p>
-                        </div>
+                    <div className="grid max-w-[24rem] gap-4 rounded-[28px] border border-[rgba(255,139,139,0.18)] bg-[rgba(40,16,14,0.42)] px-6 py-8 text-center text-white/78">
+                      <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(255,139,139,0.24)] bg-[rgba(255,139,139,0.1)] text-[#ff8b8b]">
+                        <AlertTriangle className="size-7" />
                       </div>
-                    )}
+                      <div>
+                        <div className="text-base font-semibold text-white">Failed media job</div>
+                        <p className="mt-2 text-sm leading-7 text-white/64">
+                          No output image was published for this failed job. The saved prompt and provider error are still available below.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4">
                     <div className="pointer-events-auto flex items-center gap-2" />
