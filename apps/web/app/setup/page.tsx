@@ -2,7 +2,6 @@ import { CheckCircle2, KeyRound, PlayCircle, Sparkles, TerminalSquare } from "lu
 import type { ReactNode } from "react";
 
 import {
-  adminStatCardClassName,
   adminSurfaceCardClassName,
   adminThemeLayoutClassName,
 } from "@/components/admin-theme";
@@ -87,11 +86,8 @@ export default async function SetupPage() {
   const kieKeyConfigured = Boolean(health.kie_api_key_configured);
   const liveSubmitEnabled = Boolean(health.live_submit_enabled);
   const queueEnabled = Boolean(snapshot.queueSettings.data?.settings?.queue_enabled);
-  const modelsCount = snapshot.models.data?.models?.length ?? 0;
-  const presetsCount = snapshot.presets.data?.presets?.length ?? 0;
   const creditsReason =
     typeof credits.data?.raw?.reason === "string" ? credits.data.raw.reason : "Credit balance becomes visible after you add a KIE API key.";
-  const runnerReady = Boolean(health.runner_active) || !queueEnabled;
   const hasLocalEnhancementBase = enhancementConfigs.some((config) =>
     config.provider_kind === "local_openai" &&
     Boolean(config.provider_base_url_configured),
@@ -146,87 +142,67 @@ export default async function SetupPage() {
               detail="Optional. Use OpenRouter or a local OpenAI-compatible endpoint."
             />
           </div>
-          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div className={adminStatCardClassName}>
-              <div className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--muted-strong)]">Models</div>
-              <div className="mt-2 text-2xl font-semibold text-[var(--foreground)]">{modelsCount}</div>
+        </section>
+
+        <section className={adminSurfaceCardClassName}>
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--surface-border-soft)] bg-[rgba(208,255,72,0.08)] px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
+            <Sparkles className="size-4" />
+            Quick Start
+          </div>
+          <div className="mt-4 space-y-3">
+            <h2 className="text-[1.5rem] font-semibold tracking-[-0.04em] text-[var(--foreground)]">
+              Use one command for your platform.
+            </h2>
+            <p className="max-w-3xl text-sm leading-7 text-[var(--muted-strong)]">
+              The setup script reuses a supported sibling KIE checkout when present, otherwise it clones the required KIE API repo,
+              installs the shared Python runtime, creates `.env`, bootstraps the local database, and prompts for required and optional keys.
+            </p>
+          </div>
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-[20px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 p-4">
+              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">macOS</div>
+              <pre className="mt-3 overflow-x-auto rounded-[16px] border border-[var(--surface-border-soft)] bg-[#0b0e0d] p-4 text-sm leading-7 text-[var(--foreground)]">
+{`git clone https://github.com/gateway/media-studio.git
+cd media-studio
+./scripts/onboard_mac.sh`}
+              </pre>
             </div>
-            <div className={adminStatCardClassName}>
-              <div className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--muted-strong)]">Presets</div>
-              <div className="mt-2 text-2xl font-semibold text-[var(--foreground)]">{presetsCount}</div>
-            </div>
-            <div className={adminStatCardClassName}>
-              <div className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--muted-strong)]">Credits</div>
-              <div className="mt-2 text-2xl font-semibold text-[var(--foreground)]">
-                {availableCredits !== null ? availableCredits.toFixed(1) : "n/a"}
-              </div>
-            </div>
-            <div className={adminStatCardClassName}>
-              <div className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--muted-strong)]">Runner</div>
-              <div className="mt-2 text-2xl font-semibold text-[var(--foreground)]">{runnerReady ? "ready" : "check"}</div>
+            <div className="rounded-[20px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 p-4">
+              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">Windows</div>
+              <pre className="mt-3 overflow-x-auto rounded-[16px] border border-[var(--surface-border-soft)] bg-[#0b0e0d] p-4 text-sm leading-7 text-[var(--foreground)]">
+{`git clone https://github.com/gateway/media-studio.git
+cd media-studio
+powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
+              </pre>
             </div>
           </div>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-3">
-          <div className={`${adminSurfaceCardClassName} lg:col-span-2`}>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--surface-border-soft)] bg-[rgba(208,255,72,0.08)] px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
-              <Sparkles className="size-4" />
-              Quick Start
-            </div>
-            <div className="mt-4 space-y-3">
-              <h2 className="text-[1.5rem] font-semibold tracking-[-0.04em] text-[var(--foreground)]">
-                Use one command for your platform.
-              </h2>
-              <p className="max-w-3xl text-sm leading-7 text-[var(--muted-strong)]">
-                The setup script reuses a supported sibling KIE checkout when present, otherwise it clones the required KIE API repo,
-                installs the shared Python runtime, creates `.env`, bootstraps the local database, and prompts for required and optional keys.
-              </p>
-            </div>
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-[20px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 p-4">
-                <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">macOS</div>
-                <pre className="mt-3 overflow-x-auto rounded-[16px] border border-[var(--surface-border-soft)] bg-[#0b0e0d] p-4 text-sm leading-7 text-[var(--foreground)]">
-{`git clone https://github.com/gateway/media-studio.git
-cd media-studio
-./scripts/onboard_mac.sh`}
-                </pre>
-              </div>
-              <div className="rounded-[20px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 p-4">
-                <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">Windows</div>
-                <pre className="mt-3 overflow-x-auto rounded-[16px] border border-[var(--surface-border-soft)] bg-[#0b0e0d] p-4 text-sm leading-7 text-[var(--foreground)]">
-{`git clone https://github.com/gateway/media-studio.git
-cd media-studio
-powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
-                </pre>
-              </div>
+        <section className={adminSurfaceCardClassName}>
+          <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
+            Required
+          </div>
+          <div className="mt-4 space-y-3 text-sm leading-7 text-[var(--muted-strong)]">
+            <div>`KIE_API_KEY` for live generation.</div>
+            <div>
+              Get a key here:{" "}
+              <a href={KIE_AFFILIATE_URL} target="_blank" rel="noreferrer" className="text-[var(--accent-strong)] underline underline-offset-4">
+                kie.ai
+              </a>
             </div>
           </div>
+        </section>
 
-          <div className={adminSurfaceCardClassName}>
-            <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
-              Required and Optional
+        <section className={adminSurfaceCardClassName}>
+          <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
+            Optional
+          </div>
+          <div className="mt-4 space-y-3 text-sm leading-7 text-[var(--muted-strong)]">
+            <div>`OPENROUTER_API_KEY` for hosted prompt enhancement.</div>
+            <div>
+              `MEDIA_LOCAL_OPENAI_BASE_URL` and `MEDIA_LOCAL_OPENAI_API_KEY` for a local OpenAI-compatible endpoint.
             </div>
-            <div className="mt-4 space-y-4 text-sm leading-7 text-[var(--muted-strong)]">
-              <div>
-                <div className="font-semibold text-[var(--foreground)]">Required</div>
-                <div>`KIE_API_KEY` for live generation.</div>
-                <div className="mt-2">
-                  Get a key here:{" "}
-                  <a href={KIE_AFFILIATE_URL} target="_blank" rel="noreferrer" className="text-[var(--accent-strong)] underline underline-offset-4">
-                    kie.ai
-                  </a>
-                </div>
-              </div>
-              <div>
-                <div className="font-semibold text-[var(--foreground)]">Optional</div>
-                <div>`OPENROUTER_API_KEY` for hosted prompt enhancement.</div>
-                <div>
-                  `MEDIA_LOCAL_OPENAI_BASE_URL` and `MEDIA_LOCAL_OPENAI_API_KEY` for a local OpenAI-compatible endpoint.
-                </div>
-                <div className="mt-2 font-mono text-[var(--foreground)]">{DEFAULT_LOCAL_OPENAI_BASE_URL}</div>
-              </div>
-            </div>
+            <div className="font-mono text-[var(--foreground)]">{DEFAULT_LOCAL_OPENAI_BASE_URL}</div>
           </div>
         </section>
 
