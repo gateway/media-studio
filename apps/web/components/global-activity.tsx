@@ -88,7 +88,7 @@ export function GlobalActivityProvider({ children }: { children: React.ReactNode
     <GlobalActivityContext.Provider value={{ showActivity, clearActivity }}>
       {children}
       {activity ? (
-        <div className="pointer-events-none fixed right-4 top-4 z-[90] w-[min(28rem,calc(100vw-2rem))]">
+        <div className="pointer-events-none fixed right-5 top-5 z-[90] w-[min(28rem,calc(100vw-2.5rem))] md:right-7 md:top-7 md:w-[min(28rem,calc(100vw-3.5rem))]">
           <div
             aria-live="polite"
             className={cn(
