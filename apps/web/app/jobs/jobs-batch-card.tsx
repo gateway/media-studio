@@ -11,7 +11,6 @@ import {
   adminInsetCardClassName,
   adminInsetPanelClassName,
 } from "@/components/admin-controls";
-import { StatusPill } from "@/components/status-pill";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
 import { mediaDisplayUrl, mediaPlaybackUrl, mediaVariantUrl, toneForStatus } from "@/lib/media-studio-helpers";
 import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
@@ -115,22 +114,20 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
                   <h3 className="min-w-0 text-[0.98rem] font-semibold tracking-[0.02em] text-[var(--foreground)]">
                     {batch.model_key ?? "Unknown model"}
                   </h3>
-                  <div className="ml-auto inline-flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em]",
-                        batchStatusTone === "healthy"
-                          ? "border-[rgba(81,136,111,0.18)] bg-[rgba(81,136,111,0.14)] text-[var(--success)]"
-                          : batchStatusTone === "warning"
-                            ? "border-[rgba(204,135,51,0.18)] bg-[rgba(204,135,51,0.15)] text-[var(--warning)]"
-                            : batchStatusTone === "danger"
-                              ? "border-[rgba(175,79,64,0.18)] bg-[rgba(175,79,64,0.14)] text-[var(--danger)]"
-                              : "border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)] text-[var(--muted-strong)]",
-                      )}
-                    >
-                      <BatchStatusIcon className={cn("size-3.5", batchStatusTone === "warning" ? "animate-[spin_1.4s_linear_infinite]" : "")} />
-                      {batchStatusLabel(batch.status)}
-                    </span>
+                  <div
+                    className={cn(
+                      "ml-auto inline-flex items-center gap-2 text-[0.76rem] font-semibold uppercase tracking-[0.14em]",
+                      batchStatusTone === "healthy"
+                        ? "text-[var(--success)]"
+                        : batchStatusTone === "warning"
+                          ? "text-[var(--warning)]"
+                          : batchStatusTone === "danger"
+                            ? "text-[var(--danger)]"
+                            : "text-[var(--muted-strong)]",
+                    )}
+                  >
+                    <BatchStatusIcon className={cn("size-3.5", batchStatusTone === "warning" ? "animate-[spin_1.4s_linear_infinite]" : "")} />
+                    <span>{batchStatusLabel(batch.status)}</span>
                   </div>
                 </div>
                 <p className="max-w-none pr-4 text-sm leading-6 text-[var(--muted-strong)]">
