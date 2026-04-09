@@ -495,6 +495,41 @@ export function prefetchAssetThumbs(assets: MediaAsset[], seenThumbUrls: Set<str
 }
 
 export function mediaDownloadName(asset?: MediaAsset | null) {
+  const payload = isRecord(asset?.payload) ? asset.payload : null;
+  const firstOutput = Array.isArray(payload?.outputs) && payload.outputs.length > 0 && isRecord(payload.outputs[0]) ? payload.outputs[0] : null;
+  const outputOriginalFilename = typeof firstOutput?.original_filename === "string" ? firstOutput.original_filename : null;
+  const extensionSource =
+    outputOriginalFilename ??
+    asset?.hero_original_path ??
+    asset?.hero_web_path ??
+    asset?.hero_original_url ??
+    asset?.hero_web_url ??
+    asset?.hero_poster_url ??
+    asset?.hero_thumb_url ??
+    null;
+  const normalizedExtensionSource = extensionSource?.split("?")[0]?.split("#")[0] ?? extensionSource ?? "";
+  const extensionMatch = normalizedExtensionSource.match(/(\.[a-z0-9]+)$/i);
+  const extension = extensionMatch?.[1]?.toLowerCase() ?? "";
+  const options = isRecord(payload?.options) ? payload.options : null;
+  const cleanPart = (value: unknown) =>
+    typeof value === "string" && value.trim()
+      ? value
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+      : "";
+  const preferredParts = [
+    cleanPart(asset?.job_id),
+    cleanPart(asset?.model_key),
+    cleanPart(options?.resolution),
+    cleanPart(options?.aspect_ratio),
+  ].filter(Boolean);
+
+  if (preferredParts.length) {
+    return `${preferredParts.join("_")}${extension}`;
+  }
+
   const candidate =
     asset?.hero_original_path ??
     asset?.hero_web_path ??

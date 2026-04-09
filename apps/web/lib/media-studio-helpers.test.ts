@@ -8,6 +8,7 @@ import {
   deriveSeedanceComposerMode,
   inferInputPattern,
   isStudioPresetVisible,
+  mediaDownloadName,
   orderedImageInputVisual,
   resolveStudioPresetTargetModel,
   resolveEnhancementPreviewVisual,
@@ -321,5 +322,29 @@ describe("media-studio-helpers Seedance support", () => {
     } as never;
 
     expect(resolveStudioPresetTargetModel(preset, "kling-2.6-i2v", "seedance-2.0")).toBe("nano-banana-pro");
+  });
+
+  it("builds clean download names from job, model, resolution, and aspect ratio", () => {
+    expect(
+      mediaDownloadName({
+        asset_id: "asset-1",
+        job_id: "job_bec8bef43dae",
+        model_key: "nano-banana-2",
+        hero_original_path: "outputs/2026-04-09/original/output_01.png",
+        payload: {
+          outputs: [{ original_filename: "job_bec8bef43dae.png" }],
+          options: { resolution: "2K", aspect_ratio: "4:3" },
+        },
+      } as never),
+    ).toBe("job-bec8bef43dae_nano-banana-2_2k_4-3.png");
+  });
+
+  it("falls back to the stored filename when richer asset metadata is unavailable", () => {
+    expect(
+      mediaDownloadName({
+        asset_id: "asset-2",
+        hero_original_path: "outputs/2026-04-09/original/output_01.png",
+      } as never),
+    ).toBe("output_01.png");
   });
 });
