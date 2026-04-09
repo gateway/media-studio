@@ -7,9 +7,12 @@ import {
   classifyFile,
   deriveSeedanceComposerMode,
   inferInputPattern,
+  isStudioPresetVisible,
   orderedImageInputVisual,
+  resolveStudioPresetTargetModel,
   resolveEnhancementPreviewVisual,
   seedanceReferenceTokenGuide,
+  studioPresetSupportedModels,
 } from "./media-studio-helpers";
 
 describe("media-studio-helpers Seedance support", () => {
@@ -275,5 +278,48 @@ describe("media-studio-helpers Seedance support", () => {
       kind: "images",
       role: null,
     });
+  });
+
+  it("filters Studio preset browser entries to active Nano presets", () => {
+    expect(
+      isStudioPresetVisible({
+        status: "active",
+        applies_to_models: ["nano-banana-2", "kling-2.6-i2v"],
+      } as never),
+    ).toBe(true);
+
+    expect(
+      isStudioPresetVisible({
+        status: "archived",
+        applies_to_models: ["nano-banana-2"],
+      } as never),
+    ).toBe(false);
+
+    expect(
+      isStudioPresetVisible({
+        status: "active",
+        applies_to_models: ["kling-2.6-i2v"],
+      } as never),
+    ).toBe(false);
+  });
+
+  it("resolves Studio preset target model using the preferred Nano model when supported", () => {
+    const preset = {
+      status: "active",
+      applies_to_models: ["nano-banana-2", "nano-banana-pro"],
+    } as never;
+
+    expect(studioPresetSupportedModels(preset)).toEqual(["nano-banana-2", "nano-banana-pro"]);
+    expect(resolveStudioPresetTargetModel(preset, "nano-banana-pro", "nano-banana-2")).toBe("nano-banana-pro");
+    expect(resolveStudioPresetTargetModel(preset, "kling-2.6-i2v", "nano-banana-2")).toBe("nano-banana-2");
+  });
+
+  it("falls back to the first allowed Nano model when no preferred model is supported", () => {
+    const preset = {
+      status: "active",
+      applies_to_models: ["nano-banana-pro"],
+    } as never;
+
+    expect(resolveStudioPresetTargetModel(preset, "kling-2.6-i2v", "seedance-2.0")).toBe("nano-banana-pro");
   });
 });

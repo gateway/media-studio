@@ -6,6 +6,7 @@ import {
   Image as ImageIcon,
   Monitor,
   Settings2,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,6 +24,7 @@ type StudioHeaderChromeProps = {
   onGalleryModelFilterChange: (value: string) => void;
   onActivateGalleryKindFilter: (value: "all" | "image" | "video") => void;
   onToggleFavoritesFilter: () => void;
+  onOpenPresets: () => void;
   onOpenSettings: () => void;
 };
 
@@ -74,6 +76,7 @@ export function StudioHeaderChrome({
   onGalleryModelFilterChange,
   onActivateGalleryKindFilter,
   onToggleFavoritesFilter,
+  onOpenPresets,
   onOpenSettings,
 }: StudioHeaderChromeProps) {
   if (!immersive) {
@@ -129,6 +132,13 @@ export function StudioHeaderChrome({
           tone="favorite"
           testId="studio-filter-favorites"
           onClick={onToggleFavoritesFilter}
+        />
+        <FilterButton
+          active={false}
+          icon={Sparkles}
+          label="Presets"
+          testId="studio-filter-presets"
+          onClick={onOpenPresets}
         />
         <FilterButton
           active={false}

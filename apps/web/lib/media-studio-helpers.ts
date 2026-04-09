@@ -105,8 +105,44 @@ const STUDIO_PICKER_WIDTHS: Record<string, string> = {
   google_search: "w-[calc(50%-0.25rem)] sm:w-[112px]",
 };
 
+const NANO_PRESET_MODEL_KEYS = ["nano-banana-2", "nano-banana-pro"] as const;
+
 export function isNanoPresetModel(modelKey: string | null | undefined) {
   return modelKey === "nano-banana-2" || modelKey === "nano-banana-pro";
+}
+
+export function studioPresetSupportedModels(preset: MediaPreset | null | undefined) {
+  const scopedModels = preset?.applies_to_models?.length
+    ? preset.applies_to_models
+    : preset?.model_key
+      ? [preset.model_key]
+      : [];
+  return Array.from(new Set(scopedModels.filter((modelKey): modelKey is string => isNanoPresetModel(modelKey))));
+}
+
+export function isStudioPresetVisible(preset: MediaPreset | null | undefined) {
+  if (!preset) {
+    return false;
+  }
+  return String(preset.status ?? "").toLowerCase() === "active" && studioPresetSupportedModels(preset).length > 0;
+}
+
+export function resolveStudioPresetTargetModel(
+  preset: MediaPreset | null | undefined,
+  preferredModelKey: string | null | undefined,
+  fallbackModelKey?: string | null | undefined,
+) {
+  const supportedModels = studioPresetSupportedModels(preset);
+  if (!supportedModels.length) {
+    return null;
+  }
+  if (preferredModelKey && supportedModels.includes(preferredModelKey as (typeof NANO_PRESET_MODEL_KEYS)[number])) {
+    return preferredModelKey;
+  }
+  if (fallbackModelKey && supportedModels.includes(fallbackModelKey as (typeof NANO_PRESET_MODEL_KEYS)[number])) {
+    return fallbackModelKey;
+  }
+  return supportedModels[0] ?? null;
 }
 
 export function isSeedanceModel(modelKey: string | null | undefined) {

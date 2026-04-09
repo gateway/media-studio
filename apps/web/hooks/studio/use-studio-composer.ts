@@ -33,8 +33,11 @@ import {
   pickerWidth,
   renderStructuredPresetPrompt,
   resolveEnhancementPreviewVisual,
+  resolveStudioPresetTargetModel,
   seedanceReferenceTokenGuide,
   serializeOptionChoice,
+  isStudioPresetVisible,
+  studioPresetSupportedModels,
   stripUnsupportedStudioOptions,
   studioValidationReady,
   type PresetSlotState,
@@ -147,6 +150,11 @@ export function useStudioComposer({
   const [mobileComposerCollapsed, setMobileComposerCollapsed] = useState(true);
   const [outputCount, setOutputCount] = useState(1);
   const [openPicker, setOpenPicker] = useState<string | null>(null);
+  const [lastNanoPresetModelKey, setLastNanoPresetModelKey] = useState(
+    isNanoPresetModel(enabledModels[0]?.key ?? models[0]?.key ?? null)
+      ? (enabledModels[0]?.key ?? models[0]?.key ?? "nano-banana-2")
+      : "nano-banana-2",
+  );
 
   const currentModel = models.find((model) => model.key === modelKey) ?? null;
   const currentPreset =
@@ -276,6 +284,12 @@ export function useStudioComposer({
       text: "That model is disabled in Settings, so Studio switched to an enabled model.",
     });
   }, [currentModelEnabled, enabledModels, modelKey, models, setFormMessage]);
+  useEffect(() => {
+    if (!isNanoPresetModel(modelKey)) {
+      return;
+    }
+    setLastNanoPresetModelKey(modelKey);
+  }, [modelKey]);
   const structuredPresetTextFields = useMemo(() => normalizeStructuredPresetTextFields(currentPreset), [currentPreset]);
   const structuredPresetImageSlots = useMemo(() => normalizeStructuredPresetImageSlots(currentPreset), [currentPreset]);
   const structuredPresetActive =
@@ -303,14 +317,12 @@ export function useStudioComposer({
   const multiShotScript = useMemo(() => parseMultiShotScript(prompt, optionValues["duration"]), [optionValues, prompt]);
   const multiShotScriptError = multiShotsEnabled ? multiShotScript.errors[0] ?? null : null;
   const selectedPromptList = selectedPromptObjects(selectedPromptIds, prompts);
+  const availableStudioPresets = useMemo(
+    () => presets.filter((preset) => isStudioPresetVisible(preset)),
+    [presets],
+  );
   const modelPresets = isNanoPresetModel(modelKey)
-    ? presets.filter((preset) => {
-        if (preset.source_kind === "builtin") {
-          return false;
-        }
-        const scopedModels = preset.applies_to_models?.length ? preset.applies_to_models : preset.model_key ? [preset.model_key] : [];
-        return !scopedModels.length || scopedModels.includes(modelKey);
-      })
+    ? availableStudioPresets.filter((preset) => studioPresetSupportedModels(preset).includes(modelKey))
     : [];
   const structuredPresetPromptPreview = structuredPresetActive
     ? renderStructuredPresetPrompt(currentPreset?.prompt_template ?? "", presetInputValues, presetSlotStates, structuredPresetImageSlots)
@@ -829,13 +841,7 @@ export function useStudioComposer({
     });
   }
 
-  function clearComposer() {
-    for (const attachment of attachments) {
-      if (attachment.previewUrl) {
-        URL.revokeObjectURL(attachment.previewUrl);
-      }
-    }
-    setAttachments([]);
+  function clearPresetSlotStateValues() {
     setPresetSlotStates((current) => {
       for (const state of Object.values(current)) {
         if (state?.previewUrl && state.file) {
@@ -844,6 +850,16 @@ export function useStudioComposer({
       }
       return {};
     });
+  }
+
+  function clearComposer() {
+    for (const attachment of attachments) {
+      if (attachment.previewUrl) {
+        URL.revokeObjectURL(attachment.previewUrl);
+      }
+    }
+    setAttachments([]);
+    clearPresetSlotStateValues();
     setPresetInputValues({});
     setSourceAssetId(null);
     setPrompt("");
@@ -857,6 +873,58 @@ export function useStudioComposer({
     setEnhancePreview(null);
     setEnhanceError(null);
     setOpenPicker(null);
+  }
+
+  function applyPresetSelection(
+    value: string,
+    options: {
+      preferredModelKey?: string | null;
+    } = {},
+  ) {
+    setValidation(null);
+    setFormMessage(null);
+
+    if (!value) {
+      setSelectedPresetId("");
+      setPresetInputValues({});
+      clearPresetSlotStateValues();
+      return;
+    }
+
+    const targetPreset = presets.find((preset) => preset.preset_id === value || preset.key === value) ?? null;
+    if (!targetPreset) {
+      return;
+    }
+
+    const nextModelKey =
+      resolveStudioPresetTargetModel(targetPreset, options.preferredModelKey ?? modelKey, lastNanoPresetModelKey) ?? modelKey;
+    if (nextModelKey !== modelKey) {
+      setModelKey(nextModelKey);
+    }
+
+    const hasStructuredInputs =
+      ((targetPreset.input_schema_json as Array<Record<string, unknown>> | undefined)?.length ?? 0) > 0 ||
+      ((targetPreset.input_slots_json as Array<Record<string, unknown>> | undefined)?.length ?? 0) > 0;
+
+    setSelectedPresetId(targetPreset.preset_id ?? targetPreset.key);
+
+    if (hasStructuredInputs) {
+      for (const attachment of attachments) {
+        if (attachment.previewUrl) {
+          URL.revokeObjectURL(attachment.previewUrl);
+        }
+      }
+      setAttachments([]);
+      setSourceAssetId(null);
+    }
+
+    if (!hasStructuredInputs && targetPreset.prompt_template?.trim()) {
+      setPrompt(targetPreset.prompt_template);
+    }
+
+    if (targetPreset.default_options_json && Object.keys(targetPreset.default_options_json).length) {
+      setOptionValues((current) => ({ ...current, ...targetPreset.default_options_json }));
+    }
   }
 
   function togglePrompt(promptId: string) {
@@ -1280,6 +1348,7 @@ export function useStudioComposer({
       multiShotScript,
       multiShotScriptError,
       selectedPromptList,
+      availableStudioPresets,
       modelPresets,
       structuredPresetPromptPreview,
       presetRequirementError,
@@ -1344,6 +1413,7 @@ export function useStudioComposer({
       insertPromptSnippet,
       removeAttachment,
       clearComposer,
+      applyPresetSelection,
       togglePrompt,
       requestEnhancementPreview,
       openEnhanceDialog,

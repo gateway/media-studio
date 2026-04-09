@@ -35,6 +35,7 @@ import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
 import { StudioComposer } from "@/components/studio/studio-composer";
 import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
+import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
 import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
 import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
 import { useStudioPolling } from "@/hooks/studio/use-studio-polling";
@@ -331,6 +332,7 @@ export function MediaStudio({
   const [hasMounted, setHasMounted] = useState(false);
   const [localRemainingCredits, setLocalRemainingCredits] = useState<number | null>(remainingCredits ?? null);
   const [studioSettingsOpen, setStudioSettingsOpen] = useState(false);
+  const [presetBrowserOpen, setPresetBrowserOpen] = useState(false);
   const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(null);
   const [copyPromptStatus, setCopyPromptStatus] = useState<"idle" | "copied" | "error">("idle");
   const [selectedFailedJobId, setSelectedFailedJobId] = useState<string | null>(null);
@@ -606,6 +608,7 @@ export function MediaStudio({
     multiShotScript,
     multiShotScriptError,
     selectedPromptList,
+    availableStudioPresets,
     modelPresets,
     structuredPresetPromptPreview,
     presetRequirementError,
@@ -669,6 +672,7 @@ export function MediaStudio({
     clearPresetSlot,
     removeAttachment,
     clearComposer,
+    applyPresetSelection,
     togglePrompt,
     requestEnhancementPreview,
     openEnhanceDialog,
@@ -749,6 +753,19 @@ export function MediaStudio({
   const openEnhancementSetup = () => {
     void router.push(enhanceSetupHref);
   };
+
+  function loadPresetIntoStudio(presetIdOrKey: string) {
+    applyPresetSelection(presetIdOrKey, { preferredModelKey: modelKey });
+    setPresetBrowserOpen(false);
+    setSelectedAssetId(null);
+    setSelectedFailedJobId(null);
+    setSelectedMediaLightboxOpen(false);
+    setSelectedReferencePreview(null);
+    setOpenPicker(null);
+    setMobileComposerCollapsed(false);
+    setFormMessage({ tone: "healthy", text: "Preset loaded into the composer." });
+  }
+
   useEffect(() => {
     if (typeof window === "undefined" || !window.navigator.webdriver) {
       return;
@@ -1228,7 +1245,11 @@ export function MediaStudio({
   }, [modelMaxOutputs]);
 
   const lockingOverlayOpen =
-    Boolean(selectedAssetId) || studioSettingsOpen || selectedMediaLightboxOpen || Boolean(selectedReferencePreview);
+    Boolean(selectedAssetId) ||
+    studioSettingsOpen ||
+    presetBrowserOpen ||
+    selectedMediaLightboxOpen ||
+    Boolean(selectedReferencePreview);
 
   useEffect(() => {
     if (!lockingOverlayOpen) {
@@ -1900,6 +1921,7 @@ export function MediaStudio({
             onGalleryModelFilterChange={handleGalleryModelFilterChange}
             onActivateGalleryKindFilter={handleGalleryKindFilterChange}
             onToggleFavoritesFilter={handleFavoritesFilterToggle}
+            onOpenPresets={() => setPresetBrowserOpen(true)}
             onOpenSettings={() => void router.push("/settings")}
           />
 
@@ -2118,38 +2140,7 @@ export function MediaStudio({
                           label: preset.label,
                         })),
                       ]}
-                      onSelect={(value) => {
-                        setSelectedPresetId(value);
-                        setValidation(null);
-                        setFormMessage(null);
-                        if (!value) {
-                          setPresetInputValues({});
-                          setPresetSlotStates({});
-                          return;
-                        }
-                        const preset = modelPresets.find((entry) => entry.preset_id === value || entry.key === value) ?? null;
-                        if (!preset) {
-                          return;
-                        }
-                        const hasStructuredInputs =
-                          ((preset.input_schema_json as Array<Record<string, unknown>> | undefined)?.length ?? 0) > 0 ||
-                          ((preset.input_slots_json as Array<Record<string, unknown>> | undefined)?.length ?? 0) > 0;
-                        if (hasStructuredInputs) {
-                          for (const attachment of attachments) {
-                            if (attachment.previewUrl) {
-                              URL.revokeObjectURL(attachment.previewUrl);
-                            }
-                          }
-                          setAttachments([]);
-                          setSourceAssetId(null);
-                        }
-                        if (!hasStructuredInputs && preset.prompt_template?.trim()) {
-                          setPrompt(preset.prompt_template);
-                        }
-                        if (preset.default_options_json && Object.keys(preset.default_options_json).length) {
-                          setOptionValues((current) => ({ ...current, ...preset.default_options_json }));
-                        }
-                      }}
+                      onSelect={(value) => applyPresetSelection(value, { preferredModelKey: modelKey })}
                     />
                   ) : null}
 
@@ -2407,6 +2398,14 @@ export function MediaStudio({
             </div>
           </div>
         </div>
+      ) : null}
+
+      {presetBrowserOpen ? (
+        <StudioPresetBrowser
+          presets={availableStudioPresets}
+          onClose={() => setPresetBrowserOpen(false)}
+          onSelectPreset={(preset) => loadPresetIntoStudio(preset.preset_id ?? preset.key)}
+        />
       ) : null}
 
       {studioSettingsOpen ? (
