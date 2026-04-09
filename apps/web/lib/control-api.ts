@@ -226,7 +226,7 @@ export function mapPresetRecord(preset: Record<string, any>): MediaPreset {
     description: preset.description ?? null,
     status: String(preset.status ?? "active"),
     model_key: preset.model_key ?? null,
-    source_kind: (preset.source_kind ?? "custom") as "builtin" | "built_in_override" | "custom",
+    source_kind: (preset.source_kind ?? "custom") as "builtin" | "built_in_override" | "custom" | "imported",
     base_builtin_key: preset.base_builtin_key ?? null,
     applies_to_models: appliesToModels,
     applies_to_task_modes: appliesToTaskModes,

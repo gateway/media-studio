@@ -742,7 +742,7 @@ export type MediaPreset = {
   description?: string | null;
   status: string;
   model_key?: string | null;
-  source_kind: "builtin" | "built_in_override" | "custom";
+  source_kind: "builtin" | "built_in_override" | "custom" | "imported";
   base_builtin_key?: string | null;
   applies_to_models: string[];
   applies_to_task_modes: string[];

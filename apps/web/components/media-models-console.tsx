@@ -420,6 +420,7 @@ export function MediaModelsConsole({
   );
   const [expandedPresetId, setExpandedPresetId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImportingPreset, setIsImportingPreset] = useState(false);
   const [isProbingProvider, setIsProbingProvider] = useState(false);
   const [mobileControlDevice, setMobileControlDevice] = useState(false);
   const [openPicker, setOpenPicker] = useState<string | null>(null);
@@ -431,6 +432,7 @@ export function MediaModelsConsole({
   const { notice: message, showNotice, clearNotice } = useAdminActionNotice();
   const hasAutoProbedOpenRouterRef = useRef(false);
   const presetListRef = useRef<HTMLDivElement | null>(null);
+  const presetImportInputRef = useRef<HTMLInputElement | null>(null);
   const presetsSignature = useMemo(() => JSON.stringify(presets), [presets]);
   const enhancementConfigsSignature = useMemo(() => JSON.stringify(enhancementConfigs), [enhancementConfigs]);
   const queueSettingsSignature = useMemo(() => JSON.stringify(queueSettings ?? null), [queueSettings]);
@@ -517,6 +519,46 @@ export function MediaModelsConsole({
       JSON.stringify(current) === enhancementConfigsSignature ? current : enhancementConfigs,
     );
   }, [enhancementConfigs, enhancementConfigsSignature]);
+
+  async function importPresetBundle(file: File) {
+    setIsImportingPreset(true);
+    clearNotice();
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      const response = await fetch("/api/control/media-presets/import", {
+        method: "POST",
+        body: formData,
+      });
+      const result = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        message?: string;
+        status?: "skipped" | "created" | "copied";
+        preset?: MediaPreset | null;
+      };
+      if (!response.ok || result.ok === false) {
+        showNotice("danger", result.error ?? "Unable to import the preset.");
+        return;
+      }
+      if (result.preset) {
+        const importedPreset = result.preset;
+        setLocalPresets((current) => {
+          const next = current.filter((preset) => preset.preset_id !== importedPreset.preset_id);
+          return [importedPreset, ...next];
+        });
+      }
+      showNotice("healthy", result.message ?? "Preset imported.");
+      router.refresh();
+    } catch {
+      showNotice("danger", "Unable to import the preset.");
+    } finally {
+      setIsImportingPreset(false);
+      if (presetImportInputRef.current) {
+        presetImportInputRef.current.value = "";
+      }
+    }
+  }
 
   useEffect(() => {
     setLocalQueueSettings((current) =>
@@ -858,6 +900,18 @@ export function MediaModelsConsole({
   return (
     <div className={rootClassName}>
       {message ? <AdminActionNotice tone={message.tone} text={message.text} /> : null}
+      <input
+        ref={presetImportInputRef}
+        type="file"
+        accept=".zip,application/zip"
+        className="hidden"
+        onChange={(event) => {
+          const selectedFile = event.target.files?.[0] ?? null;
+          if (selectedFile) {
+            void importPresetBundle(selectedFile);
+          }
+        }}
+      />
       {message ? (
         <div
           className={cn(
@@ -1560,9 +1614,17 @@ export function MediaModelsConsole({
           title="Structured Presets"
           description="These presets appear in the Studio composer for Nano Banana models and guide operators through a repeatable setup."
           action={(
-            <AdminButton onClick={() => router.push(`/models/presets/new?model=${encodeURIComponent(selectedModelKey)}`)}>
-              New Preset
-            </AdminButton>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <AdminButton
+                onClick={() => presetImportInputRef.current?.click()}
+                disabled={isImportingPreset}
+              >
+                {isImportingPreset ? "Importing..." : "Import Preset"}
+              </AdminButton>
+              <AdminButton onClick={() => router.push(`/models/presets/new?model=${encodeURIComponent(selectedModelKey)}`)}>
+                New Preset
+              </AdminButton>
+            </div>
           )}
         />
         <div className="mt-5 grid gap-4">

@@ -37,6 +37,8 @@ type PresetImageSlotInput = {
 
 type PresetFormState = {
   presetId: string | null;
+  sourceKind: MediaPreset["source_kind"];
+  baseBuiltinKey: string | null;
   key: string;
   label: string;
   description: string;
@@ -105,6 +107,8 @@ function presetSlotKeyToken(key: string) {
 function emptyPresetForm(defaultModelKey: string | null | undefined): PresetFormState {
   return {
     presetId: null,
+    sourceKind: "custom",
+    baseBuiltinKey: null,
     key: "",
     label: "",
     description: "",
@@ -126,6 +130,8 @@ function buildPresetForm(preset: MediaPreset | null | undefined, defaultModelKey
   }
   return {
     presetId: preset.preset_id,
+    sourceKind: preset.source_kind,
+    baseBuiltinKey: preset.base_builtin_key ?? null,
     key: preset.key,
     label: preset.label,
     description: preset.description ?? "",
@@ -231,6 +237,7 @@ export function MediaPresetEditorScreen({
   const defaultModelKey = initialModelKey ?? selectedPreset?.model_key ?? "nano-banana-2";
   const [presetForm, setPresetForm] = useState<PresetFormState>(() => buildPresetForm(selectedPreset, defaultModelKey));
   const [isSaving, setIsSaving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const { notice: message, showNotice } = useAdminActionNotice();
   const presetNameInputRef = useRef<HTMLInputElement | null>(null);
@@ -272,8 +279,8 @@ export function MediaPresetEditorScreen({
       description: presetForm.description.trim() || null,
       status: presetForm.status,
       model_key: scopedModels[0],
-      source_kind: "custom",
-      base_builtin_key: null,
+      source_kind: presetForm.sourceKind,
+      base_builtin_key: presetForm.baseBuiltinKey,
       applies_to_models: scopedModels,
       applies_to_task_modes: [],
       applies_to_input_patterns: [],
@@ -322,6 +329,39 @@ export function MediaPresetEditorScreen({
     setIsSaving(false);
     showNotice("healthy", presetForm.presetId ? "Preset updated." : "Preset created.");
     router.push(returnToModelsHref);
+  }
+
+  async function exportPreset() {
+    if (!presetForm.presetId) {
+      return;
+    }
+    setIsExporting(true);
+    showNotice("healthy", "Preparing preset export...", 4000);
+    try {
+      const response = await fetch(`/api/control/media-presets/export/${presetForm.presetId}`);
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as { error?: string } | null;
+        showNotice("danger", result?.error ?? "Unable to export the preset.");
+        return;
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const downloadLink = document.createElement("a");
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const fileNameMatch = disposition.match(/filename=\"?([^"]+)\"?/i);
+      downloadLink.href = objectUrl;
+      downloadLink.download = fileNameMatch?.[1] ?? `${generatedPresetKey || "preset"}.zip`;
+      showNotice("healthy", "Preset exported.");
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch {
+      showNotice("danger", "Unable to export the preset.");
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   async function archivePreset() {
@@ -881,6 +921,15 @@ export function MediaPresetEditorScreen({
                 />
               </div>
               <div className="grid w-full gap-3 sm:flex sm:w-auto sm:flex-wrap xl:justify-end">
+                {presetForm.presetId ? (
+                  <AdminButton
+                    onClick={() => void exportPreset()}
+                    disabled={isExporting}
+                    className="w-full sm:w-auto"
+                  >
+                    {isExporting ? "Exporting..." : "Export Preset"}
+                  </AdminButton>
+                ) : null}
                 <AdminButton
                   onClick={() => void savePreset()}
                   disabled={isSaving}
