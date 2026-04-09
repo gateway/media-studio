@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { resolvePublishHandoffFeedback } from "@/hooks/studio/use-studio-polling";
+import { resolvePublishHandoffFeedback, STUDIO_POLL_INTERVAL_MS } from "@/hooks/studio/use-studio-polling";
+
+describe("studio polling cadence", () => {
+  it("uses the slower five-second poll interval", () => {
+    expect(STUDIO_POLL_INTERVAL_MS).toBe(5000);
+  });
+});
 
 describe("resolvePublishHandoffFeedback", () => {
   it("returns healthy job publish messaging when the asset is already in the gallery", () => {

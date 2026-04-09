@@ -585,11 +585,8 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
 }
 
 export async function getMediaBatch(batchId: string) {
-  const [batchRaw, jobsRaw] = await Promise.all([
-    fetchControlApiJson<Record<string, any>>(`/media/batches/${batchId}`),
-    fetchControlApiJson<Record<string, any>>("/media/jobs?limit=100"),
-  ]);
-  const jobs = ((jobsRaw.data?.items ?? []) as Record<string, any>[]).map(mapJobRecord);
+  const batchRaw = await fetchControlApiJson<Record<string, any>>(`/media/batches/${batchId}`);
+  const jobs = Array.isArray(batchRaw.data?.jobs) ? (batchRaw.data.jobs as Record<string, any>[]).map(mapJobRecord) : [];
   const batch = batchRaw.data ? mapBatchRecord(batchRaw.data, jobs) : null;
   return { ok: batchRaw.ok, data: { batch } as MediaBatchResponse, error: batchRaw.error };
 }

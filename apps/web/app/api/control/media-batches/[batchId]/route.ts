@@ -1,13 +1,33 @@
 import { NextResponse } from "next/server";
 
-import { getControlApiJson, getMediaBatch, sendControlApiJson, mapBatchRecord, mapJobRecord } from "@/lib/control-api";
+import { getControlApiJson, getMediaBatch, postControlApiJson, sendControlApiJson, mapBatchRecord, mapJobRecord } from "@/lib/control-api";
 import type { MediaBatchResponse } from "@/lib/types";
+
+const ACTIVE_BATCH_JOB_STATUSES = new Set(["submitted", "running", "processing"]);
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ batchId: string }> },
 ) {
   const { batchId } = await context.params;
+  const batchSnapshot = await getControlApiJson<Record<string, unknown>>(`/media/batches/${batchId}`, "read");
+  const activeJobs = Array.isArray(batchSnapshot.data?.jobs)
+    ? (batchSnapshot.data.jobs as Record<string, unknown>[]).filter((job) => {
+        const status = String(job.status ?? "").toLowerCase();
+        return ACTIVE_BATCH_JOB_STATUSES.has(status);
+      })
+    : [];
+
+  if (activeJobs.length) {
+    await Promise.all(
+      activeJobs.map((job) =>
+        postControlApiJson<Record<string, unknown>>(`/media/jobs/${String(job.job_id ?? "")}/poll`, { wait: false }, "admin").catch(
+          () => null,
+        ),
+      ),
+    );
+  }
+
   const result = await getMediaBatch(batchId);
 
   if (!result.ok || !result.data) {

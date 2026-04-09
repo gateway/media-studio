@@ -12,6 +12,8 @@ type InFlightFeedback = {
   formMessage: ComposerStatusMessage;
 };
 
+export const STUDIO_POLL_INTERVAL_MS = 5000;
+
 export function resolvePublishHandoffFeedback(kind: PublishHandoffKind, publishedToGallery: boolean) {
   if (kind === "job") {
     return publishedToGallery
@@ -231,7 +233,7 @@ export function useStudioPolling({
 
       window.setTimeout(() => {
         void pollJob(jobId);
-      }, 1800);
+      }, STUDIO_POLL_INTERVAL_MS);
     } catch {
       setFormMessage({ tone: "danger", text: "The dashboard lost contact with the media job poller." });
       showFloatingComposerBanner({ tone: "danger", text: "The dashboard lost contact with the media job poller." }, 5600);
@@ -312,7 +314,7 @@ export function useStudioPolling({
 
       window.setTimeout(() => {
         void pollBatch(batchId);
-      }, 1800);
+      }, STUDIO_POLL_INTERVAL_MS);
     } catch {
       setFormMessage({ tone: "danger", text: "The dashboard lost contact with the media queue watcher." });
       showFloatingComposerBanner({ tone: "danger", text: "The dashboard lost contact with the media queue watcher." }, 5600);
