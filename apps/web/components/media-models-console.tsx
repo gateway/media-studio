@@ -155,6 +155,20 @@ function isNanoBananaModel(modelKey: string | null | undefined) {
   return modelKey === "nano-banana-2" || modelKey === "nano-banana-pro";
 }
 
+function presetModelLabels(preset: MediaPreset) {
+  const scopedModels = preset.applies_to_models?.length
+    ? preset.applies_to_models
+    : preset.model_key
+      ? [preset.model_key]
+      : [];
+  if (!scopedModels.length) {
+    return "No model scope";
+  }
+  return scopedModels
+    .map((value) => (value === "nano-banana-pro" ? "Nano Banana Pro" : value === "nano-banana-2" ? "Nano Banana 2" : value))
+    .join(", ");
+}
+
 function isMobileControlDevice() {
   if (typeof navigator === "undefined" || typeof window === "undefined") {
     return false;
@@ -461,20 +475,16 @@ export function MediaModelsConsole({
       return haystack.includes(query);
     });
   }, [openRouterCatalog, openRouterModelQuery]);
-  const modelPresets = useMemo(
+  const visiblePresets = useMemo(
     () =>
       localPresets.filter((preset) => {
         if (preset.source_kind === "builtin") {
           return false;
         }
-        if (preset.applies_to_models?.length) {
-          return preset.applies_to_models.includes(selectedModelKey);
-        }
-        return preset.model_key === selectedModelKey;
+        return true;
       }),
-    [localPresets, selectedModelKey],
+    [localPresets],
   );
-  const presetsEnabledForModel = isNanoBananaModel(selectedModelKey);
   const isStudio = variant === "studio";
   const visibleSections = {
     queue: sections?.queue ?? true,
@@ -1607,12 +1617,12 @@ export function MediaModelsConsole({
       ) : null}
 
 
-      {visibleSections.presets && presetsEnabledForModel ? (
+      {visibleSections.presets ? (
       <Panel>
         <PanelHeader
           eyebrow="Presets"
           title="Structured Presets"
-          description="These presets appear in the Studio composer for Nano Banana models and guide operators through a repeatable setup."
+          description="Manage all structured presets in one place. Each preset shows which Studio models it appears in."
           action={(
             <div className="flex flex-wrap items-center justify-end gap-2">
               <AdminButton
@@ -1621,7 +1631,7 @@ export function MediaModelsConsole({
               >
                 {isImportingPreset ? "Importing..." : "Import Preset"}
               </AdminButton>
-              <AdminButton onClick={() => router.push(`/models/presets/new?model=${encodeURIComponent(selectedModelKey)}`)}>
+              <AdminButton onClick={() => router.push("/models/presets/new")}>
                 New Preset
               </AdminButton>
             </div>
@@ -1638,12 +1648,14 @@ export function MediaModelsConsole({
           </div>
 
           <div ref={presetListRef} className="grid gap-3">
-            {modelPresets.length ? (
-              modelPresets.map((preset) => (
+            {visiblePresets.length ? (
+              visiblePresets.map((preset) => (
                 <CollapsibleSubsection
                   key={preset.preset_id}
                   title={preset.label}
-                  description={preset.description ?? "Add a short description so operators know what this preset is for."}
+                  description={
+                    `${presetModelLabels(preset)}${preset.description ? ` · ${preset.description}` : ""}`
+                  }
                   tone="media"
                   defaultOpen={expandedPresetId === preset.preset_id}
                   open={expandedPresetId === preset.preset_id}
@@ -1677,11 +1689,7 @@ export function MediaModelsConsole({
                         </div>
                         <div>
                           <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[var(--muted-strong)]">Available in</div>
-                          <div className="text-[var(--foreground)]">
-                            {(preset.applies_to_models?.length ? preset.applies_to_models : (preset.model_key ? [preset.model_key] : []))
-                              .map((value) => value === "nano-banana-pro" ? "Nano Banana Pro" : value === "nano-banana-2" ? "Nano Banana 2" : value)
-                              .join(", ") || "No model scope"}
-                          </div>
+                          <div className="text-[var(--foreground)]">{presetModelLabels(preset)}</div>
                         </div>
                         <div>
                           <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[var(--muted-strong)]">Inputs</div>
@@ -1736,7 +1744,7 @@ export function MediaModelsConsole({
               ))
             ) : (
               <div className="rounded-[22px] border border-dashed border-white/10 bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]">
-                No presets are associated with this model yet.
+                No structured presets have been added yet.
               </div>
             )}
           </div>
