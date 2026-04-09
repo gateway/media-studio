@@ -257,7 +257,7 @@ def build_validation_bundle(request: ValidateRequest) -> Dict[str, Any]:
         if mime_type.startswith("video/"):
             merged_videos.append(source_asset_ref)
         else:
-            merged_images.append(source_asset_ref)
+            merged_images.insert(0, source_asset_ref)
     raw_request = {
         "model_key": request.model_key,
         "task_mode": request.task_mode,
