@@ -336,7 +336,7 @@ describe("media-studio-helpers Seedance support", () => {
           options: { resolution: "2K", aspect_ratio: "4:3" },
         },
       } as never),
-    ).toBe("job-bec8bef43dae_nano-banana-2_2k_4-3.png");
+    ).toBe("ms-bec8bef43dae_nano-banana-2_2k_4-3.png");
   });
 
   it("falls back to the stored filename when richer asset metadata is unavailable", () => {

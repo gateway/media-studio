@@ -520,7 +520,7 @@ export function mediaDownloadName(asset?: MediaAsset | null) {
           .replace(/^-+|-+$/g, "")
       : "";
   const preferredParts = [
-    cleanPart(asset?.job_id),
+    asset?.job_id ? `ms-${cleanPart(asset.job_id).replace(/^job-/, "")}` : "",
     cleanPart(asset?.model_key),
     cleanPart(options?.resolution),
     cleanPart(options?.aspect_ratio),
