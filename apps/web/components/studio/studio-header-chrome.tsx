@@ -5,6 +5,7 @@ import {
   Heart,
   Image as ImageIcon,
   Monitor,
+  Settings2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,6 +23,7 @@ type StudioHeaderChromeProps = {
   onGalleryModelFilterChange: (value: string) => void;
   onActivateGalleryKindFilter: (value: "all" | "image" | "video") => void;
   onToggleFavoritesFilter: () => void;
+  onOpenSettings: () => void;
 };
 
 function FilterButton({
@@ -72,6 +74,7 @@ export function StudioHeaderChrome({
   onGalleryModelFilterChange,
   onActivateGalleryKindFilter,
   onToggleFavoritesFilter,
+  onOpenSettings,
 }: StudioHeaderChromeProps) {
   if (!immersive) {
     return (
@@ -126,6 +129,13 @@ export function StudioHeaderChrome({
           tone="favorite"
           testId="studio-filter-favorites"
           onClick={onToggleFavoritesFilter}
+        />
+        <FilterButton
+          active={false}
+          icon={Settings2}
+          label="Settings"
+          testId="studio-filter-settings"
+          onClick={onOpenSettings}
         />
       </div>
       <div className="pointer-events-auto flex items-center justify-end gap-2 md:max-w-[calc(100vw-3.5rem)]">

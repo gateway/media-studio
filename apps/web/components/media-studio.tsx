@@ -19,7 +19,6 @@ import {
   Plus,
   RotateCcw,
   Sparkles,
-  Settings2,
   Trash2,
   X,
 } from "lucide-react";
@@ -747,17 +746,6 @@ export function MediaStudio({
   requestEnhancementPreviewProxyRef.current = requestEnhancementPreview;
   applyEnhancementPromptProxyRef.current = applyEnhancementPrompt;
 
-  const studioSettingsButton = (
-    <button
-      type="button"
-      onClick={() => router.push("/settings")}
-      aria-label="Open studio settings"
-      title="Open studio settings"
-      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.05] text-white/76 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-[rgba(216,141,67,0.12)] hover:text-white"
-    >
-      <Settings2 className="size-4" />
-    </button>
-  );
   const openEnhancementSetup = () => {
     void router.push(enhanceSetupHref);
   };
@@ -1912,6 +1900,7 @@ export function MediaStudio({
             onGalleryModelFilterChange={handleGalleryModelFilterChange}
             onActivateGalleryKindFilter={handleGalleryKindFilterChange}
             onToggleFavoritesFilter={handleFavoritesFilterToggle}
+            onOpenSettings={() => void router.push("/settings")}
           />
 
           <StudioGallery
@@ -1950,7 +1939,6 @@ export function MediaStudio({
                 presetLabel={currentPreset?.label ?? null}
                 externalTopContent={multiImageReferenceStrip ?? seedanceReferenceStrip}
                 sourceAttachmentStrip={sourceAttachmentStrip}
-                studioSettingsButton={studioSettingsButton}
                 floatingComposerStatus={floatingComposerStatus}
                 onToggleCollapsed={() => setMobileComposerCollapsed((current) => !current)}
               >
@@ -2222,9 +2210,6 @@ export function MediaStudio({
                     })}
 
                     <div className="flex w-full items-center gap-2 sm:w-auto sm:ml-auto">
-                      <div className="shrink-0 md:hidden">
-                        {studioSettingsButton}
-                      </div>
                       <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -2399,7 +2384,7 @@ export function MediaStudio({
                       onClick={openEnhancementSetup}
                       className="inline-flex w-full items-center justify-center gap-3 rounded-[22px] border border-[rgba(216,141,67,0.24)] bg-[rgba(216,141,67,0.12)] px-5 py-4 text-[0.9rem] font-semibold text-[#ffd7af] transition hover:border-[rgba(216,141,67,0.36)] hover:text-white"
                     >
-                      <Settings2 className="size-4.5" />
+                      <Sparkles className="size-4.5" />
                       Set up enhancement
                     </button>
                   )}

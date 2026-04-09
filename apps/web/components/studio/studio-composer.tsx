@@ -18,7 +18,6 @@ type StudioComposerProps = {
   presetLabel: string | null;
   externalTopContent?: React.ReactNode;
   sourceAttachmentStrip?: React.ReactNode;
-  studioSettingsButton: React.ReactNode;
   floatingComposerStatus: FloatingComposerStatus | null;
   onToggleCollapsed: () => void;
   children: React.ReactNode;
@@ -36,7 +35,6 @@ export function StudioComposer({
   presetLabel,
   externalTopContent,
   sourceAttachmentStrip,
-  studioSettingsButton,
   floatingComposerStatus,
   onToggleCollapsed,
   children,
@@ -96,14 +94,12 @@ export function StudioComposer({
           {hasSidebar ? <div className="mb-4 md:hidden">{sourceAttachmentStrip}</div> : null}
           <div className={cn("grid gap-4 lg:items-stretch", hasSidebar ? "lg:grid-cols-[220px_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)]")}>
             {hasSidebar ? (
-              <div className="relative hidden md:flex md:items-end md:justify-between md:gap-3 lg:order-none lg:grid lg:min-h-full lg:content-start lg:justify-stretch lg:gap-3">
+              <div className="hidden md:flex md:items-end md:justify-between md:gap-3 lg:order-none lg:grid lg:min-h-full lg:content-start lg:justify-stretch lg:gap-3">
                 {sourceAttachmentStrip}
-                <div className="absolute bottom-0 left-0">{studioSettingsButton}</div>
               </div>
             ) : null}
             <div className="grid gap-3">
               <div className={cn("relative", floatingComposerStatus ? "pt-8" : "pt-0")}>
-                {!hasSidebar ? <div className="absolute right-0 top-0 hidden md:block">{studioSettingsButton}</div> : null}
                 {floatingComposerStatus ? (
                   <div
                     className={cn(
