@@ -2,20 +2,15 @@ import { MediaModelsConsole } from "@/components/media-models-console";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { getMediaDashboardSnapshot } from "@/lib/control-api";
 
-export default async function MediaModelsPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ model?: string }>;
-}) {
+export default async function MediaPresetsPage() {
   const snapshot = await getMediaDashboardSnapshot();
-  const resolvedSearchParams = (await searchParams) ?? {};
 
   return (
     <StudioAdminShell
-      section="models"
+      section="presets"
       eyebrow="Studio Admin"
-      title="Models"
-      description="Choose a Studio model, then manage everything tied to that model in one place: capabilities, output limits, and prompt helper instructions."
+      title="Presets"
+      description="Manage structured Studio presets in one place, then assign them to Nano Banana 2 and Nano Banana Pro as needed."
     >
       <MediaModelsConsole
         models={snapshot.models.data?.models ?? []}
@@ -24,14 +19,13 @@ export default async function MediaModelsPage({
         llmPresets={snapshot.llmPresets.data?.presets ?? []}
         queueSettings={snapshot.queueSettings.data?.settings ?? null}
         queuePolicies={snapshot.queuePolicies.data?.policies ?? []}
-        initialSelectedModelKey={resolvedSearchParams.model}
         sections={{
           queue: false,
           enhancementProvider: false,
-          modelHelper: true,
+          modelHelper: false,
           studioSettings: false,
-          modelPanel: true,
-          presets: false,
+          modelPanel: false,
+          presets: true,
         }}
       />
     </StudioAdminShell>

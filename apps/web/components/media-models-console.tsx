@@ -1631,7 +1631,7 @@ export function MediaModelsConsole({
               >
                 {isImportingPreset ? "Importing..." : "Import Preset"}
               </AdminButton>
-              <AdminButton onClick={() => router.push("/models/presets/new")}>
+              <AdminButton onClick={() => router.push("/presets/new")}>
                 New Preset
               </AdminButton>
             </div>
@@ -1666,7 +1666,7 @@ export function MediaModelsConsole({
                   descriptionClassName="max-w-3xl"
                   bodyClassName="border-t border-[var(--surface-border-soft)] pt-4"
                   badge={(
-                    <AdminButton onClick={() => router.push(`/models/presets/${encodeURIComponent(preset.preset_id)}`)}>
+                    <AdminButton onClick={() => router.push(`/presets/${encodeURIComponent(preset.preset_id)}`)}>
                       Edit
                     </AdminButton>
                   )}

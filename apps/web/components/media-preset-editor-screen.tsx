@@ -247,7 +247,7 @@ export function MediaPresetEditorScreen({
   const selectedNanoModels = models.filter(
     (model) => model.key === "nano-banana-2" || model.key === "nano-banana-pro",
   );
-  const returnToModelsHref = `/models?model=${encodeURIComponent(defaultModelKey)}`;
+  const returnToPresetsHref = "/presets";
   const sectionEyebrowClassName =
     "text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]";
   const sectionTitleClassName =
@@ -328,7 +328,7 @@ export function MediaPresetEditorScreen({
     setPresetForm(buildPresetForm(result.preset, defaultModelKey));
     setIsSaving(false);
     showNotice("healthy", presetForm.presetId ? "Preset updated." : "Preset created.");
-    router.push(returnToModelsHref);
+    router.push(returnToPresetsHref);
   }
 
   async function exportPreset() {
@@ -378,7 +378,7 @@ export function MediaPresetEditorScreen({
     }
     setIsSaving(false);
     showNotice("healthy", "Preset archived.");
-    router.push(returnToModelsHref);
+    router.push(returnToPresetsHref);
   }
 
   async function uploadThumbnail(file: File) {
@@ -423,15 +423,15 @@ export function MediaPresetEditorScreen({
             <div>
               <h2 className={sectionTitleClassName}>{presetForm.presetId ? presetForm.label || "Edit preset" : "Create preset"}</h2>
               <p className={sectionDescriptionClassName}>
-                Define the preset basics, scope, prompt template, and structured inputs using the same admin system as Settings and Models.
+                Define the preset basics, scope, prompt template, and structured inputs using the same admin system as the Studio admin pages.
               </p>
             </div>
           </div>
           <div className="shrink-0">
-            <AdminButton variant="subtle" onClick={() => router.push(returnToModelsHref)}>
+            <AdminButton variant="subtle" onClick={() => router.push(returnToPresetsHref)}>
               <span className="inline-flex items-center gap-2">
                 <ArrowLeft className="size-3.5" />
-                Back to models
+                Back to presets
               </span>
             </AdminButton>
           </div>
