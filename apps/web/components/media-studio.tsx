@@ -1141,7 +1141,7 @@ export function MediaStudio({
                 setIsDragActive(true);
               }}
               onDragLeave={() => setIsDragActive(false)}
-              onDrop={(event) => void handleSourceTileDrop(event)}
+              onDrop={(event) => void handleSourceTileDrop(event, orderedImageInputs.length)}
               className={cn(
                 "flex h-[82px] w-[82px] cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]",
                 isDragActive ? "border-[rgba(216,141,67,0.42)] bg-[rgba(24,28,26,0.95)]" : "",
