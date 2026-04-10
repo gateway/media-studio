@@ -14,6 +14,15 @@ type InFlightFeedback = {
 
 export const STUDIO_POLL_INTERVAL_MS = 5000;
 
+export function completedBatchJobIds(batch: MediaBatch) {
+  return (batch.jobs ?? [])
+    .filter((job) => {
+      const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
+      return finalState === "succeeded" || job.status === "completed";
+    })
+    .map((job) => job.job_id);
+}
+
 export function resolvePublishHandoffFeedback(kind: PublishHandoffKind, publishedToGallery: boolean) {
   if (kind === "job") {
     return publishedToGallery
@@ -276,15 +285,18 @@ export function useStudioPolling({
         }
       }
 
+      const successfulJobIds = completedBatchJobIds(batch);
+      if (!["completed", "failed", "partial_failure", "cancelled"].includes(batch.status) && successfulJobIds.length > 0) {
+        await refreshActiveGalleryAssets({
+          expectedJobIds: successfulJobIds,
+          silent: true,
+          attempts: 1,
+        });
+      }
+
       if (["completed", "failed", "partial_failure", "cancelled"].includes(payload.batch.status)) {
         lastBatchFeedbackSignatureRef.current.delete(batch.batch_id);
         void refreshCreditBalance();
-        const successfulJobIds = (batch.jobs ?? [])
-          .filter((job) => {
-            const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
-            return finalState === "succeeded" || job.status === "completed";
-          })
-          .map((job) => job.job_id);
         let publishedToGallery = true;
         if (successfulJobIds.length > 0) {
           publishedToGallery = await refreshActiveGalleryAssets({

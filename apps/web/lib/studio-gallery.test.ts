@@ -82,6 +82,44 @@ describe("studio-gallery", () => {
     expect(tiles.filter((tile) => tile.asset?.asset_id === "asset-1")).toHaveLength(1);
   });
 
+  it("prefers a published asset tile over a lingering batch spinner for the same job", () => {
+    const publishedAsset = {
+      asset_id: "asset-published-1",
+      job_id: "job-published-1",
+      model_key: "nano-banana-2",
+      created_at: "2026-04-03T00:00:00Z",
+    } as never;
+
+    const tiles = buildGalleryTiles(
+      [publishedAsset],
+      null,
+      [
+        {
+          batch_id: "batch-published-1",
+          status: "processing",
+          requested_outputs: 2,
+          queued_count: 0,
+          running_count: 1,
+          completed_count: 1,
+          failed_count: 0,
+          cancelled_count: 0,
+          created_at: "2026-04-03T00:00:00Z",
+          updated_at: "2026-04-03T00:00:00Z",
+          jobs: [
+            { job_id: "job-published-1", status: "running", final_status: { state: "succeeded" } },
+            { job_id: "job-published-2", status: "running" },
+          ],
+        } as never,
+      ],
+      [publishedAsset],
+      false,
+      false,
+    );
+
+    expect(tiles.some((tile) => tile.batch?.batch_id === "batch-published-1" && tile.job?.job_id === "job-published-1")).toBe(false);
+    expect(tiles.some((tile) => tile.asset?.asset_id === "asset-published-1" && tile.batch == null)).toBe(true);
+  });
+
   it("keeps a publishing tile visible after a batch completes until the asset is available", () => {
     const tiles = buildGalleryTiles(
       [],

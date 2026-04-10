@@ -212,6 +212,7 @@ export function buildGalleryTiles(
   for (const batch of favoritesOnly ? [] : batches.slice(0, 3)) {
     const pendingJobs = (batch.jobs ?? []).filter((job) => {
       const previewAsset = allAssets.find((asset) => asset.job_id === job.job_id) ?? null;
+      const publishedAsset = previewAsset ? jobHasPublishedAsset(job, allAssets) : false;
       const resolvedModelKey = String(job.model_key ?? batch.model_key ?? "");
       const resolvedGenerationKind = inferBatchJobGenerationKind(job, batch, previewAsset);
       if (activeModelFilter && resolvedModelKey !== activeModelFilter) {
@@ -220,14 +221,17 @@ export function buildGalleryTiles(
       if (activeKindFilter && resolvedGenerationKind !== activeKindFilter) {
         return false;
       }
+      if (publishedAsset) {
+        return false;
+      }
       if (["queued", "submitted", "running", "processing"].includes(job.status)) {
         return true;
       }
-      if (job.status === "failed" && !jobHasPublishedAsset(job, allAssets)) {
+      if (job.status === "failed") {
         return true;
       }
       const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
-      return finalState === "succeeded" && !jobHasPublishedAsset(job, allAssets);
+      return finalState === "succeeded";
     });
     for (const job of pendingJobs) {
       if (seenJobIds.has(job.job_id)) {

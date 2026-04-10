@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolvePublishHandoffFeedback, STUDIO_POLL_INTERVAL_MS } from "@/hooks/studio/use-studio-polling";
+import { completedBatchJobIds, resolvePublishHandoffFeedback, STUDIO_POLL_INTERVAL_MS } from "@/hooks/studio/use-studio-polling";
 
 describe("studio polling cadence", () => {
   it("uses the slower five-second poll interval", () => {
@@ -30,5 +30,21 @@ describe("resolvePublishHandoffFeedback", () => {
     });
     expect(feedback.activityAutoHideMs).toBe(4200);
     expect(feedback.finalMessage).toBe("Batch completed. Studio is still waiting for the media cards to appear.");
+  });
+});
+
+describe("completedBatchJobIds", () => {
+  it("returns completed job ids even while the overall batch is still processing", () => {
+    expect(
+      completedBatchJobIds({
+        batch_id: "batch-1",
+        status: "processing",
+        jobs: [
+          { job_id: "job-1", status: "completed" },
+          { job_id: "job-2", status: "running", final_status: { state: "succeeded" } },
+          { job_id: "job-3", status: "running" },
+        ],
+      } as never),
+    ).toEqual(["job-1", "job-2"]);
   });
 });
