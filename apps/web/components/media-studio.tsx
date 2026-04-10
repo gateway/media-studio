@@ -11,7 +11,6 @@ import {
   Coins,
   Clapperboard,
   Copy,
-  FolderOpen,
   Image as ImageIcon,
   ImagePlus,
   LoaderCircle,
@@ -21,7 +20,6 @@ import {
   RotateCcw,
   Sparkles,
   Trash2,
-  Volume2,
   X,
 } from "lucide-react";
 
@@ -34,11 +32,14 @@ import { StudioGallery } from "@/components/studio/studio-gallery";
 import { StudioHeaderChrome } from "@/components/studio/studio-header-chrome";
 import { StudioInspectorInfo } from "@/components/studio/studio-inspector-info";
 import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
+import { StudioLibraryButton } from "@/components/studio/studio-library-button";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
+import { StudioMediaSlotAddTile } from "@/components/studio/studio-media-slot-add-tile";
 import { StudioComposer } from "@/components/studio/studio-composer";
 import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
 import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
 import { StudioReferenceLibrary } from "@/components/studio/studio-reference-library";
+import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
 import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
 import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
 import { useStudioPolling } from "@/hooks/studio/use-studio-polling";
@@ -300,128 +301,10 @@ function StudioPillSelect({
   );
 }
 
-function StudioStagedMediaTile({
-  preview,
-  visualUrl,
-  footerLabel,
-  onOpenPreview,
-  onRemove,
-  replaceControl,
-  className,
-  tileClassName,
-  testId,
-}: {
-  preview: StudioReferencePreview;
-  visualUrl?: string | null;
-  footerLabel?: string | null;
-  onOpenPreview: (preview: StudioReferencePreview) => void;
-  onRemove?: () => void;
-  replaceControl?: React.ReactNode;
-  className?: string;
-  tileClassName?: string;
-  testId?: string;
-}) {
-  const mediaVisual = visualUrl ?? (preview.kind === "images" ? preview.url : preview.posterUrl ?? null);
-
-  return (
-    <div data-testid={testId} className={cn("group relative", className)}>
-      <button
-        type="button"
-        onClick={() => onOpenPreview(preview)}
-        className={cn("relative h-full w-full overflow-hidden rounded-[24px] border border-white/8 bg-white/8 text-left", tileClassName)}
-        title={preview.label}
-      >
-        {preview.kind === "videos" ? (
-          mediaVisual ? (
-            <>
-              <img
-                src={mediaVisual}
-                alt={preview.label}
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
-                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-              />
-              <span className="absolute inset-0 flex items-center justify-center bg-black/28">
-                <Play className="size-4 text-white" />
-              </span>
-            </>
-          ) : (
-            <span className="flex h-full w-full items-center justify-center bg-white/[0.05] text-white/72">
-              <Play className="size-5" />
-            </span>
-          )
-        ) : preview.kind === "audios" ? (
-          <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-white/[0.05] text-white/72">
-            <Volume2 className="size-5" />
-            <span className="text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-white/58">Audio</span>
-          </span>
-        ) : mediaVisual ? (
-          <img
-            src={mediaVisual}
-            alt={preview.label}
-            loading="eager"
-            fetchPriority="high"
-            decoding="async"
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-          />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center bg-white/[0.05] text-white/72">
-            <ImageIcon className="size-5" />
-          </span>
-        )}
-        {footerLabel ? (
-          <div className="absolute inset-x-0 bottom-0 bg-black/45 px-2 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-white/92">
-            {footerLabel}
-          </div>
-        ) : null}
-      </button>
-      {replaceControl ? <div className="absolute bottom-1.5 left-1.5 z-10">{replaceControl}</div> : null}
-      {onRemove ? (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onRemove();
-          }}
-          className="absolute right-1.5 top-1.5 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 opacity-100 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
-          aria-label={`Remove ${preview.label}`}
-          title={`Remove ${preview.label}`}
-        >
-          <X className="size-3.5" />
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
 function composerModelLabel(label: string | null | undefined) {
   if (!label) return "Model";
   if (label === "Seedance 2.0 Standard") return "Seedance 2.0";
   return label;
-}
-
-function StudioLibraryButton({
-  onClick,
-  label = "Library",
-  testId,
-}: {
-  onClick: () => void;
-  label?: string;
-  testId?: string;
-}) {
-  return (
-    <button
-      type="button"
-      data-testid={testId}
-      onClick={onClick}
-      className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-white/68 transition hover:border-[rgba(216,141,67,0.24)] hover:text-white"
-    >
-      <FolderOpen className="size-3.5 text-[rgba(208,255,72,0.88)]" />
-      <span>{label}</span>
-    </button>
-  );
 }
 
 type ReferenceLibraryTarget =
@@ -1131,36 +1014,23 @@ export function MediaStudio({
         })}
 
         {canAddMoreImages ? (
-          <div className="flex shrink-0 flex-col gap-2">
-            <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">
-              {imageSlotLabels[orderedImageInputs.length] ?? `Image ${orderedImageInputs.length + 1}`}
-            </div>
-            <label
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsDragActive(true);
-              }}
-              onDragLeave={() => setIsDragActive(false)}
-              onDrop={(event) => void handleSourceTileDrop(event, orderedImageInputs.length)}
-              className={cn(
-                "flex h-[82px] w-[82px] cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]",
-                isDragActive ? "border-[rgba(216,141,67,0.42)] bg-[rgba(24,28,26,0.95)]" : "",
-              )}
-            >
-              <Plus className="size-6" />
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                data-testid="studio-multi-image-input"
-                className="hidden"
-                onChange={(event) => {
-                  addFiles(event.target.files);
-                  resetFileInputValue(event.currentTarget);
-                }}
-              />
-            </label>
-          </div>
+          <StudioMediaSlotAddTile
+            label={imageSlotLabels[orderedImageInputs.length] ?? `Image ${orderedImageInputs.length + 1}`}
+            accept="image/*"
+            multiple
+            isDragActive={isDragActive}
+            testId="studio-multi-image-input"
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsDragActive(true);
+            }}
+            onDragLeave={() => setIsDragActive(false)}
+            onDrop={(event) => void handleSourceTileDrop(event, orderedImageInputs.length)}
+            onPickFiles={(fileList, input) => {
+              addFiles(fileList);
+              resetFileInputValue(input);
+            }}
+          />
         ) : null}
       </div>
     </div>
@@ -1225,38 +1095,31 @@ export function MediaStudio({
                     />
                   </div>
                 ) : (
-                  <label
+                  <StudioMediaSlotAddTile
+                    accept="image/*"
+                    isDragActive={isDragActive}
+                    testId={`seedance-slot-input-${slot.role}`}
+                    wrapperClassName="h-full w-full"
+                    tileClassName="h-full w-full"
                     onDragOver={(event) => {
                       event.preventDefault();
                       setIsDragActive(true);
                     }}
                     onDragLeave={() => setIsDragActive(false)}
                     onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
-                    className={cn(
-                      "flex h-full w-full cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]",
-                      isDragActive ? "border-[rgba(216,141,67,0.42)] bg-[rgba(24,28,26,0.95)]" : "",
-                    )}
-                  >
-                    <Plus className="size-6" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      data-testid={`seedance-slot-input-${slot.role}`}
-                      className="hidden"
-                      onChange={(event) => {
-                        if (slot.role === "last_frame" && !seedanceFirstFrameAttachment) {
-                          setFormMessage({ tone: "warning", text: "Add a start frame before the end frame." });
-                          resetFileInputValue(event.currentTarget);
-                          return;
-                        }
-                        addFiles(event.target.files, {
-                          role: slot.role as "first_frame" | "last_frame",
-                          allowedKinds: ["images"],
-                        });
-                        resetFileInputValue(event.currentTarget);
-                      }}
-                    />
-                  </label>
+                    onPickFiles={(fileList, input) => {
+                      if (slot.role === "last_frame" && !seedanceFirstFrameAttachment) {
+                        setFormMessage({ tone: "warning", text: "Add a start frame before the end frame." });
+                        resetFileInputValue(input);
+                        return;
+                      }
+                      addFiles(fileList, {
+                        role: slot.role as "first_frame" | "last_frame",
+                        allowedKinds: ["images"],
+                      });
+                      resetFileInputValue(input);
+                    }}
+                  />
                 )}
               </div>
               <StudioLibraryButton
@@ -1342,35 +1205,28 @@ export function MediaStudio({
                       />
                     </div>
                   ) : (
-                    <label
+                    <StudioMediaSlotAddTile
+                      accept="image/*"
+                      isDragActive={isDragActive}
+                      testId={`studio-source-slot-input-${slotIndex + 1}`}
+                      wrapperClassName="h-full w-full"
+                      tileClassName="h-full w-full"
                       onDragOver={(event) => {
                         event.preventDefault();
                         setIsDragActive(true);
                       }}
                       onDragLeave={() => setIsDragActive(false)}
                       onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
-                      className={cn(
-                        "flex h-full w-full cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]",
-                        isDragActive ? "border-[rgba(216,141,67,0.42)] bg-[rgba(24,28,26,0.95)]" : "",
-                      )}
-                    >
-                      <Plus className="size-6" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        data-testid={`studio-source-slot-input-${slotIndex + 1}`}
-                        className="hidden"
-                        onChange={(event) => {
-                          if (slotIndex > orderedImageInputs.length) {
-                            setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
-                            resetFileInputValue(event.currentTarget);
-                            return;
-                          }
-                          addFiles(event.target.files);
-                          resetFileInputValue(event.currentTarget);
-                        }}
-                      />
-                    </label>
+                      onPickFiles={(fileList, input) => {
+                        if (slotIndex > orderedImageInputs.length) {
+                          setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+                          resetFileInputValue(input);
+                          return;
+                        }
+                        addFiles(fileList);
+                        resetFileInputValue(input);
+                      }}
+                    />
                   )}
                 </div>
                 <StudioLibraryButton
@@ -1437,33 +1293,23 @@ export function MediaStudio({
             </div>
           ) : null}
 
-          <label
+          <StudioMediaSlotAddTile
+            accept="image/*,video/*,audio/*"
+            multiple
+            disabled={!canAddMoreImages && !canAddMoreVideos && !canAddMoreAudios}
+            isDragActive={isDragActive}
+            testId="studio-source-input"
             onDragOver={(event) => {
               event.preventDefault();
               setIsDragActive(true);
             }}
             onDragLeave={() => setIsDragActive(false)}
             onDrop={(event) => void handleSourceTileDrop(event)}
-            className={cn(
-              "flex h-[82px] w-[82px] cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]",
-              isDragActive ? "border-[rgba(216,141,67,0.42)] bg-[rgba(24,28,26,0.95)]" : "",
-              !canAddMoreImages && !canAddMoreVideos && !canAddMoreAudios ? "cursor-not-allowed opacity-45 hover:border-white/10 hover:bg-white/[0.06]" : "",
-            )}
-          >
-            <Plus className="size-6" />
-            <input
-              type="file"
-              multiple
-              accept="image/*,video/*,audio/*"
-              data-testid="studio-source-input"
-              className="hidden"
-              disabled={!canAddMoreImages && !canAddMoreVideos && !canAddMoreAudios}
-              onChange={(event) => {
-                addFiles(event.target.files);
-                resetFileInputValue(event.currentTarget);
-              }}
-            />
-          </label>
+            onPickFiles={(fileList, input) => {
+              addFiles(fileList);
+              resetFileInputValue(input);
+            }}
+          />
           <StudioLibraryButton
             onClick={() =>
               openReferenceLibrary({
