@@ -567,10 +567,10 @@ def recompute_batch_counts(batch_id: str) -> Dict[str, Any]:
             status = "failed"
         elif cancelled_count == len(statuses):
             status = "cancelled"
-        elif completed_count and failed_count:
-            status = "partial_failure"
         elif queued_count or running_count:
             status = "processing" if running_count else "queued"
+        elif completed_count and failed_count:
+            status = "partial_failure"
         else:
             status = "processing"
         connection.execute(
