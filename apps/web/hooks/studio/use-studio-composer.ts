@@ -198,6 +198,14 @@ async function normalizeImageFileForUpload(file: File, maxBytes: number): Promis
   });
 }
 
+async function buildAttachmentPreviewUrl(file: File) {
+  if (!file.type.startsWith("image/")) {
+    return URL.createObjectURL(file);
+  }
+  const previewBlob = new Blob([await file.arrayBuffer()], { type: file.type || "image/png" });
+  return URL.createObjectURL(previewBlob);
+}
+
 export type StudioComposerController = ReturnType<typeof useStudioComposer>;
 
 export function useStudioComposer({
@@ -720,7 +728,7 @@ export function useStudioComposer({
     return Math.max(0, maxAudioInputs - seedanceReferenceAudios.length);
   }
 
-  function addFiles(
+  async function addFiles(
     fileList: FileList | File[] | null,
     config: {
       role?: NonNullable<AttachmentRecord["role"]>;
@@ -801,12 +809,13 @@ export function useStudioComposer({
       }
       return;
     }
+    const previewUrls = await Promise.all(acceptedFiles.map((file) => buildAttachmentPreviewUrl(file)));
     const nextAttachments = acceptedFiles.map((file, index) => ({
       id: `${file.name}-${file.size}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
       file,
       kind: acceptedMetadata[index]?.kind ?? classifyFile(file),
       role: acceptedMetadata[index]?.role ?? (seedanceComposer ? "reference" : null),
-      previewUrl: URL.createObjectURL(file),
+      previewUrl: previewUrls[index] ?? null,
       durationSeconds: null,
       referenceId: null,
       referenceRecord: null,
