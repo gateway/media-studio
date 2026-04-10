@@ -96,6 +96,7 @@ type UseStudioComposerParams = {
 
 const MAX_IMAGE_UPLOAD_DIMENSION = 4096;
 const IMAGE_UPLOAD_QUALITIES = [0.92, 0.86, 0.8, 0.74, 0.68];
+const MAX_IMAGE_PREVIEW_DIMENSION = 320;
 
 function resolveImageMaxBytes(model: MediaModelSummary | null): number | null {
   const inputConstraints = model?.input_constraints;
@@ -202,8 +203,31 @@ async function buildAttachmentPreviewUrl(file: File) {
   if (!file.type.startsWith("image/")) {
     return URL.createObjectURL(file);
   }
-  const previewBlob = new Blob([await file.arrayBuffer()], { type: file.type || "image/png" });
-  return URL.createObjectURL(previewBlob);
+  const source = await loadImageBitmap(file);
+  const sourceWidth = "width" in source ? source.width : 0;
+  const sourceHeight = "height" in source ? source.height : 0;
+  if (!sourceWidth || !sourceHeight) {
+    if ("close" in source && typeof source.close === "function") {
+      source.close();
+    }
+    return URL.createObjectURL(file);
+  }
+  const scale = Math.min(1, MAX_IMAGE_PREVIEW_DIMENSION / Math.max(sourceWidth, sourceHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+  canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+  const context = canvas.getContext("2d", { alpha: true });
+  if (!context) {
+    if ("close" in source && typeof source.close === "function") {
+      source.close();
+    }
+    return URL.createObjectURL(file);
+  }
+  context.drawImage(source as CanvasImageSource, 0, 0, canvas.width, canvas.height);
+  if ("close" in source && typeof source.close === "function") {
+    source.close();
+  }
+  return canvas.toDataURL(file.type === "image/png" ? "image/png" : "image/webp", 0.84);
 }
 
 export type StudioComposerController = ReturnType<typeof useStudioComposer>;
