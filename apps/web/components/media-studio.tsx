@@ -2452,20 +2452,15 @@ export function MediaStudio({
                                     promptReferenceActiveIndex === index ? "bg-white/[0.08] text-white" : "",
                                   )}
                                 >
-                                  <span className="inline-flex h-10 w-10 shrink-0 overflow-hidden rounded-[10px] border border-white/10 bg-white/[0.05]">
-                                    {choice.visualUrl ? (
-                                      <img
-                                        src={choice.visualUrl}
-                                        alt={choice.label}
-                                        loading="eager"
-                                        decoding="async"
-                                        className="h-full w-full object-cover"
-                                      />
-                                    ) : (
+                                  <span
+                                    className="inline-flex h-10 w-10 shrink-0 overflow-hidden rounded-[10px] border border-white/10 bg-white/[0.05] bg-cover bg-center bg-no-repeat"
+                                    style={choice.visualUrl ? { backgroundImage: `url("${choice.visualUrl}")` } : undefined}
+                                  >
+                                    {!choice.visualUrl ? (
                                       <span className="flex h-full w-full items-center justify-center text-white/48">
                                         <ImageIcon className="size-4" />
                                       </span>
-                                    )}
+                                    ) : null}
                                   </span>
                                   <span className="min-w-0 flex-1 truncate">{choice.label}</span>
                                 </button>
