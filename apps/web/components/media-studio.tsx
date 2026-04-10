@@ -1586,6 +1586,7 @@ export function MediaStudio({
 
   function handleSourceTileDrop(event: React.DragEvent<HTMLElement>, slotIndex = 0) {
     event.preventDefault();
+    event.stopPropagation();
     setIsDragActive(false);
     const galleryAssetId = event.dataTransfer.getData("application/x-bumblebee-media-asset-id");
     if (galleryAssetId) {
@@ -1625,7 +1626,11 @@ export function MediaStudio({
       });
       return;
     }
-    addFiles(event.dataTransfer.files);
+    if (slotIndex > orderedImageInputs.length) {
+      setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+      return;
+    }
+    addFiles(event.dataTransfer.files, dedicatedImageReferenceRailActive ? { allowedKinds: ["images"] } : undefined);
   }
 
   function handleSeedanceReferenceDrop(
@@ -2323,6 +2328,17 @@ export function MediaStudio({
                           ref={promptInputRef}
                           value={prompt}
                           onChange={(event) => setPrompt(event.target.value)}
+                          onDragOver={(event) => {
+                            if (event.dataTransfer?.files?.length) {
+                              event.preventDefault();
+                            }
+                          }}
+                          onDrop={(event) => {
+                            if (event.dataTransfer?.files?.length) {
+                              event.preventDefault();
+                              event.stopPropagation();
+                            }
+                          }}
                           placeholder={
                             multiShotsEnabled
                               ? "3 | Wide shot of the skyline\n2 | Hero steps into frame on the rooftop"

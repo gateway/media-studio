@@ -33,15 +33,32 @@ export function StudioMediaSlotAddTile({
   onDrop,
   onPickFiles,
 }: StudioMediaSlotAddTileProps) {
+  function handleDragOver(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    onDragOver?.(event);
+  }
+
+  function handleDragLeave(event: React.DragEvent<HTMLLabelElement>) {
+    event.stopPropagation();
+    onDragLeave?.(event);
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    onDrop?.(event);
+  }
+
   return (
     <div className={cn("flex shrink-0 flex-col gap-2", wrapperClassName)}>
       {label ? (
         <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{label}</div>
       ) : null}
       <label
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
-        onDrop={onDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         className={cn(
           "flex h-[82px] w-[82px] cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]",
           isDragActive ? "border-[rgba(216,141,67,0.42)] bg-[rgba(24,28,26,0.95)]" : "",
