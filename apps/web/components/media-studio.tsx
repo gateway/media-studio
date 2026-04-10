@@ -952,8 +952,7 @@ export function MediaStudio({
     !explicitVideoImageSlots &&
     maxImageInputs > 1 &&
     maxVideoInputs === 0 &&
-    maxAudioInputs === 0 &&
-    orderedImageInputs.length > 0;
+    maxAudioInputs === 0;
   const multiImageReferenceStrip = dedicatedImageReferenceRailActive ? (
     <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-3 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
       <div className="mb-3 flex items-center justify-between gap-3">
