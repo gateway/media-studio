@@ -993,6 +993,8 @@ export function MediaStudio({
           return;
         }
 
+        composerRoot.scrollIntoView({ block: "end", behavior: "smooth" });
+
         const focusTarget = options.focusPresetField
           ? ((composerRoot.querySelector("input[placeholder], input[type='text'], textarea") as HTMLElement | null) ?? promptInputRef.current)
           : promptInputRef.current;
@@ -2017,7 +2019,11 @@ export function MediaStudio({
 
     clearComposer();
     setModelKey(targetModel.key);
-    setSelectedPresetId(targetPreset?.preset_id ?? targetPreset?.key ?? "");
+    if (targetPreset) {
+      applyPresetSelection(targetPreset.preset_id ?? targetPreset.key, { preferredModelKey: targetModel.key });
+    } else {
+      setSelectedPresetId("");
+    }
     setSelectedPromptIds(job.selected_system_prompt_ids ?? []);
     setPrompt(job.final_prompt_used ?? job.enhanced_prompt ?? job.raw_prompt ?? "");
     setPresetInputValues(structuredPresetInputValues(job));
@@ -2128,6 +2134,7 @@ export function MediaStudio({
         ? "Loaded the failed job back into Studio. Review it and generate again."
         : "Loaded the failed job prompt and settings, but Studio could not restage the original source image.",
     });
+    revealComposer({ focusPresetField: Boolean(targetPreset) });
   }
 
   function clearGallerySelection() {
@@ -3249,7 +3256,7 @@ export function MediaStudio({
                 <button
                   type="button"
                   onClick={() => void retryFailedJobInStudio(selectedFailedJob)}
-                  className="inline-flex items-center justify-center gap-2 rounded-[18px] border border-[rgba(208,255,72,0.18)] bg-[rgba(208,255,72,0.12)] px-4 py-3 text-sm font-semibold text-[#dcff88] transition hover:border-[rgba(208,255,72,0.28)] hover:bg-[rgba(208,255,72,0.18)]"
+                  className="inline-flex h-9 w-fit items-center justify-center gap-2 self-start rounded-full border border-[rgba(208,255,72,0.18)] bg-[rgba(208,255,72,0.12)] px-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#dcff88] transition hover:border-[rgba(208,255,72,0.28)] hover:bg-[rgba(208,255,72,0.18)]"
                 >
                   <RotateCcw className="size-4" />
                   Retry in Studio
