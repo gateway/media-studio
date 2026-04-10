@@ -94,6 +94,12 @@ export type MediaAttachmentKind = {
   role?: "first_frame" | "last_frame" | "reference" | null;
 };
 
+export type PromptReferenceMentionMatch = {
+  start: number;
+  end: number;
+  query: string;
+};
+
 function isDefaultImageAttachment(attachment: AttachmentRecord) {
   return attachment.kind === "images" && !attachment.role;
 }
@@ -164,6 +170,46 @@ export function insertImageAttachments(
   }
 
   return result;
+}
+
+export function detectPromptReferenceMention(prompt: string, caretIndex: number | null | undefined) {
+  const normalizedCaret = Math.max(0, Math.min(caretIndex ?? prompt.length, prompt.length));
+  const atIndex = prompt.lastIndexOf("@", normalizedCaret - 1);
+  if (atIndex === -1) {
+    return null;
+  }
+
+  const beforeAt = atIndex > 0 ? prompt[atIndex - 1] : "";
+  if (beforeAt && !/\s|[([{,]/.test(beforeAt)) {
+    return null;
+  }
+
+  const segment = prompt.slice(atIndex + 1, normalizedCaret);
+  if (/[\n\r[\]]/.test(segment)) {
+    return null;
+  }
+
+  return {
+    start: atIndex,
+    end: normalizedCaret,
+    query: segment.trim().toLowerCase(),
+  } satisfies PromptReferenceMentionMatch;
+}
+
+export function applyPromptReferenceMention(
+  prompt: string,
+  mention: PromptReferenceMentionMatch,
+  replacement: string,
+) {
+  const suffix = prompt.slice(mention.end);
+  const needsTrailingSpace = suffix.length > 0 && !/^\s|[.,!?;:)\]]/.test(suffix);
+  const separator = needsTrailingSpace ? " " : "";
+  const nextPrompt = `${prompt.slice(0, mention.start)}${replacement}${separator}${suffix}`;
+  const nextCaretIndex = mention.start + replacement.length + separator.length;
+  return {
+    prompt: nextPrompt,
+    caretIndex: nextCaretIndex,
+  };
 }
 
 export const HIDDEN_STUDIO_OPTION_KEYS = new Set<string>();

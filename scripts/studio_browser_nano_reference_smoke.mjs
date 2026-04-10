@@ -32,10 +32,16 @@ const summary = {
     after_remove: 0,
     after_readd: 0,
   },
+  prompt_tokens: {
+    after_use_image: "",
+    after_second_click: "",
+    after_reference_insert: "",
+  },
   payloads: [],
   payload_before_model_switch: null,
   mobile_widths: {},
   screenshot: successShot,
+  used_gallery_source: false,
 };
 
 async function ensureModelSelected(modelMatcher, modelKey) {
@@ -197,37 +203,32 @@ try {
   await ensureModelSelected(/nano banana 2/i, "nano-banana-2");
   await clearNanoComposer();
 
-  const firstImageCard = page.locator(
-    '[data-testid="studio-gallery-card"][data-generation-kind="image"][data-asset-id]',
-  ).first();
-  await firstImageCard.waitFor({ state: "visible", timeout: 20000 });
-  await firstImageCard.click();
-  const desktopUseImageButton = page.locator('[data-testid="studio-inspector-use-image-desktop"]');
-  const mobileUseImageButton = page.locator('[data-testid="studio-inspector-use-image"]');
-  const useImageButton =
-    (await desktopUseImageButton.count()) > 0 ? desktopUseImageButton.first() : mobileUseImageButton.first();
-  await useImageButton.waitFor({ state: "visible", timeout: 15000 });
-  await useImageButton.click();
-  await page.waitForSelector('[data-testid="studio-multi-image-slot-1"]', { timeout: 15000 });
-  summary.slot_counts.after_use_image = await currentSlotCount();
-
   const promptInput = page.locator('[data-testid="studio-prompt-input"]');
-  await promptInput.fill(`Nano reference smoke ${new Date().toISOString()}`);
-
   const addInput = page.locator('[data-testid="studio-multi-image-input"]');
   await addInput.setInputFiles(fixturePaths[0]);
+  await page.waitForSelector('[data-testid="studio-multi-image-slot-1"]', { timeout: 15000 });
+  summary.slot_counts.after_use_image = await currentSlotCount();
+  summary.prompt_tokens.after_use_image = await promptInput.inputValue();
+
+  await addInput.setInputFiles(fixturePaths[1]);
   await page.waitForSelector('[data-testid="studio-multi-image-slot-2"]', { timeout: 15000 });
   summary.slot_counts.after_second_click = await currentSlotCount();
+  summary.prompt_tokens.after_second_click = await promptInput.inputValue();
 
-  await dropFileOnAddTile(fixturePaths[1]);
+  await dropFileOnAddTile(fixturePaths[2]);
   await page.waitForSelector('[data-testid="studio-multi-image-slot-3"]', { timeout: 15000 });
   summary.slot_counts.after_third_drop = await currentSlotCount();
+
+  await promptInput.fill("Nano reference smoke @image ref");
+  await page.waitForSelector('[data-testid="studio-prompt-reference-option-1"]', { timeout: 15000 });
+  await page.locator('[data-testid="studio-prompt-reference-option-2"]').click();
+  summary.prompt_tokens.after_reference_insert = await promptInput.inputValue();
 
   await page.locator('[data-testid="studio-multi-image-slot-2-remove"]').click();
   await page.waitForTimeout(600);
   summary.slot_counts.after_remove = await currentSlotCount();
 
-  await addInput.setInputFiles(fixturePaths[2]);
+  await addInput.setInputFiles(fixturePaths[0]);
   await page.waitForTimeout(800);
   summary.slot_counts.after_readd = await currentSlotCount();
 
@@ -274,9 +275,12 @@ try {
     summary.slot_counts.after_third_drop === 3 &&
     summary.slot_counts.after_remove === 2 &&
     summary.slot_counts.after_readd === 3 &&
-    Boolean(summary.payload_before_model_switch?.source_asset_id) &&
-    summary.payload_before_model_switch?.attachment_count === 2 &&
-    summary.payload_before_model_switch?.attachment_manifest?.length === 2 &&
+    summary.prompt_tokens.after_use_image === "" &&
+    summary.prompt_tokens.after_second_click === "" &&
+    summary.prompt_tokens.after_reference_insert.includes("[image reference 2]") &&
+    !summary.payload_before_model_switch?.source_asset_id &&
+    summary.payload_before_model_switch?.attachment_count === 3 &&
+    summary.payload_before_model_switch?.attachment_manifest?.length === 3 &&
     Object.values(summary.mobile_widths).every((value) => value.prompt_visible && value.add_tile_visible && value.generate_visible);
 
   await fs.writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);

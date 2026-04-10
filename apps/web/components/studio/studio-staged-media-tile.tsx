@@ -78,7 +78,7 @@ export function StudioStagedMediaTile({
           </span>
         )}
         {footerLabel ? (
-          <div className="absolute inset-x-0 bottom-0 bg-black/45 px-2 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-white/92">
+          <div className="absolute inset-x-0 bottom-0 bg-black/45 px-2 py-1 text-[0.5rem] font-semibold uppercase leading-[1.15] tracking-[0.1em] text-white/92">
             {footerLabel}
           </div>
         ) : null}

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyPromptReferenceMention,
   buildOrderedImageInputs,
   buildStudioJobPrimaryInput,
   buildStudioJobReferenceInputs,
   buildStudioReferencePreviews,
   classifyFile,
+  detectPromptReferenceMention,
   deriveSeedanceComposerMode,
   inferInputPattern,
   insertImageAttachments,
@@ -181,6 +183,33 @@ describe("media-studio-helpers Seedance support", () => {
       "image-new",
       "image-2",
     ]);
+  });
+
+  it("detects @-triggered prompt reference mentions for staged Nano images", () => {
+    expect(detectPromptReferenceMention("Make the scene match @image reference 2", 39)).toEqual({
+      start: 21,
+      end: 39,
+      query: "image reference 2",
+    });
+    expect(detectPromptReferenceMention("Email test@example.com", 22)).toBeNull();
+    expect(detectPromptReferenceMention("Line one\n@image", 15)).toEqual({
+      start: 9,
+      end: 15,
+      query: "image",
+    });
+  });
+
+  it("replaces a prompt mention with the selected image reference token", () => {
+    expect(
+      applyPromptReferenceMention(
+        "Make the lighting match @image reference 1 please",
+        { start: 24, end: 42, query: "image reference 1" },
+        "[image reference 1]",
+      ),
+    ).toEqual({
+      prompt: "Make the lighting match [image reference 1] please",
+      caretIndex: 43,
+    });
   });
 
   it("builds inspector reference previews from source assets, slot values, and normalized request images without duplicates", () => {

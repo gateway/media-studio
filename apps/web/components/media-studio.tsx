@@ -64,6 +64,7 @@ import {
   structuredPresetSlotValues,
 } from "@/lib/studio-gallery";
 import {
+  applyPromptReferenceMention,
   batchPhaseMessage,
   buildStudioJobPrimaryInput,
   buildStudioJobReferenceInputs,
@@ -72,6 +73,7 @@ import {
   buildNormalizedStudioOptions,
   classifyFile,
   displayChoiceLabel,
+  detectPromptReferenceMention,
   getMobileShareBlob,
   HIDDEN_STUDIO_OPTION_KEYS,
   inferBlobMimeType,
@@ -347,6 +349,10 @@ export function MediaStudio({
   const [selectedFailedJobId, setSelectedFailedJobId] = useState<string | null>(null);
   const [selectedReferencePreview, setSelectedReferencePreview] = useState<StudioReferencePreview | null>(null);
   const [referenceLibraryTarget, setReferenceLibraryTarget] = useState<ReferenceLibraryTarget | null>(null);
+  const [promptCursorIndex, setPromptCursorIndex] = useState<number | null>(null);
+  const [promptHasFocus, setPromptHasFocus] = useState(false);
+  const [promptReferenceDismissed, setPromptReferenceDismissed] = useState(false);
+  const [promptReferenceActiveIndex, setPromptReferenceActiveIndex] = useState(0);
   const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(null);
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
   const composerShellRef = useRef<HTMLDivElement | null>(null);
@@ -992,6 +998,58 @@ export function MediaStudio({
     maxImageInputs > 1 &&
     maxVideoInputs === 0 &&
     maxAudioInputs === 0;
+  const promptReferenceMention =
+    dedicatedImageReferenceRailActive && promptHasFocus
+      ? detectPromptReferenceMention(prompt, promptCursorIndex ?? promptInputRef.current?.selectionStart ?? prompt.length)
+      : null;
+  const promptReferenceChoices = useMemo(() => {
+    if (!dedicatedImageReferenceRailActive) {
+      return [];
+    }
+    const normalizedQuery = (promptReferenceMention?.query ?? "").replace(/\s+/g, " ").trim();
+    return orderedImageInputs
+      .map((_, index) => {
+        const label = `Image reference ${index + 1}`;
+        return {
+          id: `image-reference-${index + 1}`,
+          label,
+          token: `[image reference ${index + 1}]`,
+          search: `${label.toLowerCase()} ref ${index + 1} image ${index + 1}`,
+        };
+      })
+      .filter((choice) => !normalizedQuery || choice.search.includes(normalizedQuery));
+  }, [dedicatedImageReferenceRailActive, orderedImageInputs, promptReferenceMention?.query]);
+  const promptReferencePickerOpen = Boolean(promptReferenceMention && promptReferenceChoices.length > 0 && !promptReferenceDismissed);
+
+  useEffect(() => {
+    setPromptReferenceActiveIndex(0);
+    setPromptReferenceDismissed(false);
+  }, [promptReferenceMention?.start, promptReferenceMention?.query, promptReferenceChoices.length]);
+
+  function syncPromptCursorIndex(target: HTMLTextAreaElement | null) {
+    if (!target) {
+      return;
+    }
+    setPromptCursorIndex(target.selectionStart ?? target.value.length);
+  }
+
+  function applyPromptReferenceChoice(choice: (typeof promptReferenceChoices)[number] | null) {
+    if (!choice || !promptReferenceMention) {
+      return;
+    }
+    const nextPromptState = applyPromptReferenceMention(prompt, promptReferenceMention, choice.token);
+    setPrompt(nextPromptState.prompt);
+    setPromptCursorIndex(nextPromptState.caretIndex);
+    window.requestAnimationFrame(() => {
+      const input = promptInputRef.current;
+      if (!input) {
+        return;
+      }
+      input.focus();
+      input.setSelectionRange(nextPromptState.caretIndex, nextPromptState.caretIndex);
+    });
+  }
+
   const multiImageReferenceStrip = dedicatedImageReferenceRailActive ? (
     <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-3 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -1005,7 +1063,7 @@ export function MediaStudio({
       <div className="flex min-w-0 items-start gap-3 overflow-x-auto overflow-y-hidden pb-1">
         {orderedImageInputs.map((slot, slotIndex) => {
           const slotVisual = orderedImageInputVisual(slot);
-          const slotLabel = imageSlotLabels[slotIndex] ?? `Image ${slotIndex + 1}`;
+          const slotLabel = `Image reference ${slotIndex + 1}`;
           const slotPreview = orderedImageInputPreview(slot, slotLabel, `multi-image-${slotIndex + 1}`);
           return (
             <div key={orderedImageInputKey(slot, slotIndex)} className="flex shrink-0 flex-col gap-2">
@@ -1013,11 +1071,11 @@ export function MediaStudio({
                 <StudioStagedMediaTile
                   preview={slotPreview}
                   visualUrl={slotVisual}
-                  footerLabel={slot.source === "asset" ? "Source" : `Ref ${slotIndex + 1}`}
+                  footerLabel={slotLabel}
                   onOpenPreview={openReferencePreview}
                   onRemove={() => clearOrderedImageInput(slot)}
                   className="h-[82px] w-[82px]"
-                  tileClassName={slot.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
+                  tileClassName="border-[rgba(216,141,67,0.2)]"
                   testId={`studio-multi-image-slot-${slotIndex + 1}`}
                 />
               ) : null}
@@ -2309,11 +2367,51 @@ export function MediaStudio({
                   ) : (
                     <>
                       <div className="relative">
-                          <textarea
+                        <textarea
                           data-testid="studio-prompt-input"
                           ref={promptInputRef}
                           value={prompt}
-                          onChange={(event) => setPrompt(event.target.value)}
+                          onChange={(event) => {
+                            setPrompt(event.target.value);
+                            setPromptReferenceDismissed(false);
+                            syncPromptCursorIndex(event.currentTarget);
+                          }}
+                          onFocus={(event) => {
+                            setPromptHasFocus(true);
+                            setPromptReferenceDismissed(false);
+                            syncPromptCursorIndex(event.currentTarget);
+                          }}
+                          onBlur={() => {
+                            setPromptHasFocus(false);
+                          }}
+                          onClick={(event) => syncPromptCursorIndex(event.currentTarget)}
+                          onKeyUp={(event) => syncPromptCursorIndex(event.currentTarget)}
+                          onSelect={(event) => syncPromptCursorIndex(event.currentTarget)}
+                          onKeyDown={(event) => {
+                            if (!promptReferencePickerOpen || !promptReferenceChoices.length) {
+                              return;
+                            }
+                            if (event.key === "ArrowDown") {
+                              event.preventDefault();
+                              setPromptReferenceActiveIndex((current) => (current + 1) % promptReferenceChoices.length);
+                              return;
+                            }
+                            if (event.key === "ArrowUp") {
+                              event.preventDefault();
+                              setPromptReferenceActiveIndex((current) =>
+                                current === 0 ? promptReferenceChoices.length - 1 : current - 1,
+                              );
+                              return;
+                            }
+                            if (event.key === "Enter" || event.key === "Tab") {
+                              event.preventDefault();
+                              applyPromptReferenceChoice(promptReferenceChoices[promptReferenceActiveIndex] ?? null);
+                              return;
+                            }
+                            if (event.key === "Escape") {
+                              setPromptReferenceDismissed(true);
+                            }
+                          }}
                           onDragOver={(event) => {
                             if (event.dataTransfer?.files?.length) {
                               event.preventDefault();
@@ -2335,29 +2433,56 @@ export function MediaStudio({
                             "min-h-[146px] md:min-h-[136px]",
                           )}
                         />
-                          {enhanceEnabledForModel ? (
-                            enhanceConfiguredForModel ? (
+                        {promptReferencePickerOpen ? (
+                          <div className="absolute inset-x-3 bottom-3 z-20 rounded-[18px] border border-white/10 bg-[rgba(17,20,19,0.96)] p-2 shadow-[0_18px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+                            <div className="px-2 pb-1 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-white/42">
+                              Insert image reference
+                            </div>
+                            <div className="grid gap-1">
+                              {promptReferenceChoices.map((choice, index) => (
+                                <button
+                                  key={choice.id}
+                                  type="button"
+                                  data-testid={`studio-prompt-reference-option-${index + 1}`}
+                                  onMouseDown={(event) => {
+                                    event.preventDefault();
+                                  }}
+                                  onClick={() => applyPromptReferenceChoice(choice)}
+                                  className={cn(
+                                    "flex items-center justify-between gap-3 rounded-[12px] px-3 py-2 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white",
+                                    promptReferenceActiveIndex === index ? "bg-white/[0.08] text-white" : "",
+                                  )}
+                                >
+                                  <span>{choice.label}</span>
+                                  <span className="text-[0.64rem] uppercase tracking-[0.12em] text-white/42">{choice.token}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                        {enhanceEnabledForModel ? (
+                          enhanceConfiguredForModel ? (
                             <button
-                            type="button"
-                            data-testid="studio-open-enhance-dialog"
-                            onClick={openEnhanceDialog}
-                            aria-label="Open enhance dialog"
-                            title="Open enhance dialog"
-                            className="absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white/72 transition hover:border-[rgba(216,141,67,0.32)] hover:bg-[rgba(216,141,67,0.14)] hover:text-white"
-                          >
-                            <Sparkles className="size-4" />
+                              type="button"
+                              data-testid="studio-open-enhance-dialog"
+                              onClick={openEnhanceDialog}
+                              aria-label="Open enhance dialog"
+                              title="Open enhance dialog"
+                              className="absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white/72 transition hover:border-[rgba(216,141,67,0.32)] hover:bg-[rgba(216,141,67,0.14)] hover:text-white"
+                            >
+                              <Sparkles className="size-4" />
                             </button>
-                            ) : (
-                              <button
-                                type="button"
-                                data-testid="studio-open-enhance-setup"
-                                onClick={openEnhancementSetup}
-                                className="absolute bottom-3 right-3 inline-flex h-9 items-center justify-center rounded-full border border-[rgba(216,141,67,0.22)] bg-[rgba(216,141,67,0.12)] px-3 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#ffd7af] transition hover:border-[rgba(216,141,67,0.34)] hover:text-white"
-                              >
-                                Set up
-                              </button>
-                            )
-                          ) : null}
+                          ) : (
+                            <button
+                              type="button"
+                              data-testid="studio-open-enhance-setup"
+                              onClick={openEnhancementSetup}
+                              className="absolute bottom-3 right-3 inline-flex h-9 items-center justify-center rounded-full border border-[rgba(216,141,67,0.22)] bg-[rgba(216,141,67,0.12)] px-3 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#ffd7af] transition hover:border-[rgba(216,141,67,0.34)] hover:text-white"
+                            >
+                              Set up
+                            </button>
+                          )
+                        ) : null}
                       </div>
                     </>
                   )}

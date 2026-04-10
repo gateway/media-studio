@@ -816,13 +816,6 @@ export function useStudioComposer({
         ? insertImageAttachments(current, nextAttachments, insertImageIndex)
         : [...current, ...nextAttachments],
     );
-    const existingImageCount = imageAttachments.length + (sourceAssetIsImage ? 1 : 0);
-    const imageReferenceTokens = nextAttachments
-      .filter((attachment) => attachment.kind === "images")
-      .map((_, index) => `[image reference ${existingImageCount + index + 1}]`);
-    if (imageReferenceTokens.length && isNanoPresetModel(modelKey)) {
-      insertPromptSnippet(imageReferenceTokens.join(" "));
-    }
     if (rejectedKinds.size) {
       setFormMessage({
         tone: "warning",
@@ -937,11 +930,6 @@ export function useStudioComposer({
         referenceRecord: reference,
       },
     ]);
-
-    if (kind === "images" && isNanoPresetModel(modelKey)) {
-      const imageIndex = imageAttachments.length + (sourceAssetIsImage ? 1 : 0) + 1;
-      insertPromptSnippet(`[image reference ${imageIndex}]`);
-    }
   }
 
   function assignPresetSlotFile(slotKey: string, file: File | null) {
