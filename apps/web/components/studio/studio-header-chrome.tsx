@@ -2,6 +2,7 @@
 
 import {
   Clapperboard,
+  FolderOpen,
   Heart,
   Image as ImageIcon,
   Monitor,
@@ -25,6 +26,7 @@ type StudioHeaderChromeProps = {
   onActivateGalleryKindFilter: (value: "all" | "image" | "video") => void;
   onToggleFavoritesFilter: () => void;
   onOpenPresets: () => void;
+  onOpenLibrary: () => void;
   onOpenSettings: () => void;
 };
 
@@ -77,6 +79,7 @@ export function StudioHeaderChrome({
   onActivateGalleryKindFilter,
   onToggleFavoritesFilter,
   onOpenPresets,
+  onOpenLibrary,
   onOpenSettings,
 }: StudioHeaderChromeProps) {
   if (!immersive) {
@@ -139,6 +142,13 @@ export function StudioHeaderChrome({
           label="Presets"
           testId="studio-filter-presets"
           onClick={onOpenPresets}
+        />
+        <FilterButton
+          active={false}
+          icon={FolderOpen}
+          label="Reference library"
+          testId="studio-filter-library"
+          onClick={onOpenLibrary}
         />
         <FilterButton
           active={false}

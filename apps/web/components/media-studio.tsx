@@ -32,7 +32,6 @@ import { StudioGallery } from "@/components/studio/studio-gallery";
 import { StudioHeaderChrome } from "@/components/studio/studio-header-chrome";
 import { StudioInspectorInfo } from "@/components/studio/studio-inspector-info";
 import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
-import { StudioLibraryButton } from "@/components/studio/studio-library-button";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
 import { StudioMediaSlotAddTile } from "@/components/studio/studio-media-slot-add-tile";
 import { StudioComposer } from "@/components/studio/studio-composer";
@@ -709,6 +708,57 @@ export function MediaStudio({
     setReferenceLibraryTarget(target);
   }
 
+  function openContextualReferenceLibrary() {
+    if (structuredPresetActive && structuredPresetImageSlots.length) {
+      const targetSlot =
+        structuredPresetImageSlots.find((slot) => {
+          const slotState = presetSlotStates[slot.key];
+          return !slotState?.assetId && !slotState?.referenceId && !slotState?.file;
+        }) ?? structuredPresetImageSlots[0];
+      openReferenceLibrary({
+        type: "preset-slot",
+        title: `Pick a reusable image for ${targetSlot.label}.`,
+        slotKey: targetSlot.key,
+      });
+      return;
+    }
+    if (seedanceComposer) {
+      if (!seedanceFirstFrameAttachment) {
+        openReferenceLibrary({
+          type: "attachment",
+          title: "Pick a reusable image for the Seedance start frame.",
+          role: "first_frame",
+          allowedKinds: ["images"],
+        });
+        return;
+      }
+      if (effectiveSeedanceMode === "first_last_frames" && !seedanceLastFrameAttachment) {
+        openReferenceLibrary({
+          type: "attachment",
+          title: "Pick a reusable image for the Seedance end frame.",
+          role: "last_frame",
+          allowedKinds: ["images"],
+        });
+        return;
+      }
+      openReferenceLibrary({
+        type: "attachment",
+        title: "Pick a reusable image for Seedance reference guidance.",
+        role: "reference",
+        allowedKinds: ["images"],
+      });
+      return;
+    }
+    openReferenceLibrary({
+      type: "attachment",
+      title: dedicatedImageReferenceRailActive
+        ? "Pick a reusable image reference for Nano Banana."
+        : "Pick a reusable image from your reference library.",
+      role: dedicatedImageReferenceRailActive ? "reference" : undefined,
+      allowedKinds: ["images"],
+    });
+  }
+
   async function handleReferenceLibrarySelect(reference: MediaReference) {
     try {
       await fetch(`/api/control/reference-media/${reference.reference_id}/use`, {
@@ -957,24 +1007,11 @@ export function MediaStudio({
     <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-3 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/44">Image references</div>
-        <div className="flex items-center gap-2">
-          <StudioLibraryButton
-            onClick={() =>
-              openReferenceLibrary({
-                type: "attachment",
-                title: "Pick a reusable image reference for Nano Banana.",
-                role: "reference",
-                allowedKinds: ["images"],
-              })
-            }
-            testId="studio-open-reference-library-nano"
-          />
-          {imageLimitLabel ? (
-            <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/62">
-              {imageLimitLabel}
-            </div>
-          ) : null}
-        </div>
+        {imageLimitLabel ? (
+          <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/62">
+            {imageLimitLabel}
+          </div>
+        ) : null}
       </div>
       <div className="flex min-w-0 items-start gap-3 overflow-x-auto overflow-y-hidden pb-1">
         {orderedImageInputs.map((slot, slotIndex) => {
@@ -983,7 +1020,6 @@ export function MediaStudio({
           const slotPreview = orderedImageInputPreview(slot, slotLabel, `multi-image-${slotIndex + 1}`);
           return (
             <div key={`multi-image-slot-${slotIndex}`} className="flex shrink-0 flex-col gap-2">
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slotLabel}</div>
               {slotPreview ? (
                 <StudioStagedMediaTile
                   preview={slotPreview}
@@ -1014,7 +1050,6 @@ export function MediaStudio({
 
         {canAddMoreImages ? (
           <StudioMediaSlotAddTile
-            label={imageSlotLabels[orderedImageInputs.length] ?? `Image ${orderedImageInputs.length + 1}`}
             accept="image/*"
             multiple
             isDragActive={isDragActive}
@@ -1048,7 +1083,9 @@ export function MediaStudio({
               : null;
             return (
             <div key={`seedance-slot-${slot.role}`} className="flex flex-col gap-2">
-              <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slot.label}</div>
+              {!attachment ? (
+                <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slot.label}</div>
+              ) : null}
               <div data-testid={`seedance-slot-${slot.role}`} className="relative h-[82px] w-[82px]">
                 {attachment && attachmentPreview ? (
                   <div
@@ -1121,17 +1158,6 @@ export function MediaStudio({
                   />
                 )}
               </div>
-              <StudioLibraryButton
-                onClick={() =>
-                  openReferenceLibrary({
-                    type: "attachment",
-                    title: `Pick a reusable image for the Seedance ${slot.label.toLowerCase()}.`,
-                    role: slot.role as "first_frame" | "last_frame",
-                    allowedKinds: ["images"],
-                  })
-                }
-                testId={`studio-open-reference-library-${slot.role}`}
-              />
             </div>
           )})}
         </>
@@ -1145,7 +1171,9 @@ export function MediaStudio({
             const slotPreview = orderedImageInputPreview(slot, slotLabel, `video-slot-${slotIndex + 1}`);
             return (
               <div key={`video-image-slot-${slotIndex}`} className="flex flex-col gap-2">
-                <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slotLabel}</div>
+                {!slotFilled ? (
+                  <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slotLabel}</div>
+                ) : null}
                 <div className="relative h-[82px] w-[82px]">
                   {slotFilled && slotPreview ? (
                     <div
@@ -1228,16 +1256,6 @@ export function MediaStudio({
                     />
                   )}
                 </div>
-                <StudioLibraryButton
-                  onClick={() =>
-                    openReferenceLibrary({
-                      type: "attachment",
-                      title: `Pick a reusable image for ${slotLabel.toLowerCase()}.`,
-                      allowedKinds: ["images"],
-                    })
-                  }
-                  testId={`studio-open-reference-library-video-slot-${slotIndex + 1}`}
-                />
               </div>
             );
           })}
@@ -1308,16 +1326,6 @@ export function MediaStudio({
               addFiles(fileList);
               resetFileInputValue(input);
             }}
-          />
-          <StudioLibraryButton
-            onClick={() =>
-              openReferenceLibrary({
-                type: "attachment",
-                title: "Pick a reusable image from your reference library.",
-                allowedKinds: ["images"],
-              })
-            }
-            testId="studio-open-reference-library-generic"
           />
         </>
       )}
@@ -1390,19 +1398,6 @@ export function MediaStudio({
                   <div className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-white/52">{group.label}</div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  {group.key === "images" ? (
-                    <StudioLibraryButton
-                      onClick={() =>
-                        openReferenceLibrary({
-                          type: "attachment",
-                          title: "Pick a reusable image for Seedance reference guidance.",
-                          role: "reference",
-                          allowedKinds: ["images"],
-                        })
-                      }
-                      testId="studio-open-reference-library-seedance-images"
-                    />
-                  ) : null}
                   <label className="flex h-[56px] w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-[18px] border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]">
                     <Plus className="size-4.5" />
                     <input
@@ -2151,6 +2146,7 @@ export function MediaStudio({
             onActivateGalleryKindFilter={handleGalleryKindFilterChange}
             onToggleFavoritesFilter={handleFavoritesFilterToggle}
             onOpenPresets={() => setPresetBrowserOpen(true)}
+            onOpenLibrary={openContextualReferenceLibrary}
             onOpenSettings={() => void router.push("/settings")}
           />
 
@@ -2234,16 +2230,6 @@ export function MediaStudio({
                                       <div className="text-sm font-semibold text-white/88">{slot.label}</div>
                                       <div className="mt-1 text-xs leading-6 text-white/56">{slot.helpText || "Upload or drag an image into this slot."}</div>
                                     </div>
-                                    <StudioLibraryButton
-                                      onClick={() =>
-                                        openReferenceLibrary({
-                                          type: "preset-slot",
-                                          title: `Pick a reusable image for ${slot.label}.`,
-                                          slotKey: slot.key,
-                                        })
-                                      }
-                                      testId={`studio-open-reference-library-preset-slot-${slot.key}`}
-                                    />
                                   </div>
                                   <div className="mt-3 flex items-center gap-3">
                                     <div className="relative h-[86px] w-[86px] shrink-0">
