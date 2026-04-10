@@ -905,6 +905,30 @@ export type MediaAsset = {
   source_asset?: MediaAsset | null;
 };
 
+export type MediaReference = {
+  reference_id: string;
+  kind: "image" | "video" | "audio";
+  status: string;
+  original_filename?: string | null;
+  stored_path: string;
+  mime_type?: string | null;
+  file_size_bytes: number;
+  sha256: string;
+  width?: number | null;
+  height?: number | null;
+  duration_seconds?: number | null;
+  thumb_path?: string | null;
+  poster_path?: string | null;
+  stored_url?: string | null;
+  thumb_url?: string | null;
+  poster_url?: string | null;
+  usage_count: number;
+  last_used_at?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 export type MediaCreditsResponse = {
   ok?: boolean;
   balance?: {
@@ -1007,6 +1031,18 @@ export type MediaAssetsResponse = {
 export type MediaAssetResponse = {
   ok?: boolean;
   asset?: MediaAsset | null;
+};
+
+export type MediaReferencesResponse = {
+  ok?: boolean;
+  items?: MediaReference[];
+  limit?: number;
+  offset?: number;
+};
+
+export type MediaReferenceResponse = {
+  ok?: boolean;
+  item?: MediaReference | null;
 };
 
 export type MediaModelSummary = {

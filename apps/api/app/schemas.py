@@ -32,6 +32,7 @@ class HealthResponse(BaseModel):
 
 
 class MediaRefInput(BaseModel):
+    reference_id: Optional[str] = None
     url: Optional[str] = None
     path: Optional[str] = None
     filename: Optional[str] = None
@@ -403,6 +404,50 @@ class JobSubmitRequest(ValidateRequest):
 
 class FavoriteAssetRequest(BaseModel):
     favorited: bool = True
+
+
+class ReferenceMediaRegisterRequest(BaseModel):
+    kind: str
+    original_filename: Optional[str] = None
+    stored_path: str
+    mime_type: Optional[str] = None
+    file_size_bytes: int
+    sha256: str
+    width: Optional[int] = None
+    height: Optional[int] = None
+    duration_seconds: Optional[float] = None
+    thumb_path: Optional[str] = None
+    poster_path: Optional[str] = None
+    usage_count: int = 1
+    last_used_at: Optional[str] = None
+    metadata_json: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ReferenceMediaRecord(BaseModel):
+    reference_id: str
+    kind: str
+    status: str = "active"
+    original_filename: Optional[str] = None
+    stored_path: str
+    mime_type: Optional[str] = None
+    file_size_bytes: int = 0
+    sha256: str
+    width: Optional[int] = None
+    height: Optional[int] = None
+    duration_seconds: Optional[float] = None
+    thumb_path: Optional[str] = None
+    poster_path: Optional[str] = None
+    usage_count: int = 0
+    last_used_at: Optional[str] = None
+    metadata_json: Dict[str, Any] = Field(default_factory=dict)
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class ReferenceMediaListResponse(BaseModel):
+    items: List[ReferenceMediaRecord] = Field(default_factory=list)
+    limit: int = 0
+    offset: int = 0
 
 
 class JobRecord(BaseModel):

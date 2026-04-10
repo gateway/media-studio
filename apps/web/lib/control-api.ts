@@ -21,6 +21,9 @@ import type {
   MediaModelDetailResponse,
   MediaModelsResponse,
   MediaModelQueuePolicy,
+  MediaReference,
+  MediaReferenceResponse,
+  MediaReferencesResponse,
   MediaModelSummary,
   MediaPreset,
   MediaPresetsResponse,
@@ -267,6 +270,35 @@ export function mapPromptRecord(prompt: Record<string, any>): MediaSystemPrompt 
     notes: null,
     created_at: prompt.created_at ?? null,
     updated_at: prompt.updated_at ?? null,
+  };
+}
+
+export function mapReferenceMediaRecord(reference: Record<string, any>): MediaReference {
+  const storedPath = reference.stored_path ?? null;
+  const thumbPath = reference.thumb_path ?? null;
+  const posterPath = reference.poster_path ?? null;
+  return {
+    reference_id: String(reference.reference_id),
+    kind: String(reference.kind ?? "image") as "image" | "video" | "audio",
+    status: String(reference.status ?? "active"),
+    original_filename: reference.original_filename ?? null,
+    stored_path: String(storedPath ?? ""),
+    mime_type: reference.mime_type ?? null,
+    file_size_bytes: Number(reference.file_size_bytes ?? 0),
+    sha256: String(reference.sha256 ?? ""),
+    width: reference.width == null ? null : Number(reference.width),
+    height: reference.height == null ? null : Number(reference.height),
+    duration_seconds: reference.duration_seconds == null ? null : Number(reference.duration_seconds),
+    thumb_path: thumbPath,
+    poster_path: posterPath,
+    stored_url: reference.stored_url ?? (storedPath ? toControlApiDataProxyPath(String(storedPath)) : null),
+    thumb_url: reference.thumb_url ?? (thumbPath ? toControlApiDataProxyPath(String(thumbPath)) : null),
+    poster_url: reference.poster_url ?? (posterPath ? toControlApiDataProxyPath(String(posterPath)) : null),
+    usage_count: Number(reference.usage_count ?? 0),
+    last_used_at: reference.last_used_at ?? null,
+    metadata: reference.metadata_json ?? {},
+    created_at: reference.created_at ?? null,
+    updated_at: reference.updated_at ?? null,
   };
 }
 
@@ -693,4 +725,56 @@ export async function updateMediaPreset(presetId: string, payload: Record<string
 
 export async function archiveMediaPreset(presetId: string) {
   return sendControlApiJson<MediaPresetsResponse | { preset: unknown }>(`/media/presets/${presetId}`, { method: "DELETE" });
+}
+
+export async function listReferenceMedia({
+  kind,
+  limit = 100,
+  offset = 0,
+}: {
+  kind?: string | null;
+  limit?: number;
+  offset?: number;
+} = {}) {
+  const params = new URLSearchParams();
+  if (kind) params.set("kind", kind);
+  params.set("limit", String(limit));
+  params.set("offset", String(offset));
+  const result = await fetchControlApiJson<Record<string, any>>(`/media/reference-media?${params.toString()}`);
+  return {
+    ok: result.ok,
+    data: {
+      items: Array.isArray(result.data?.items) ? result.data.items.map(mapReferenceMediaRecord) : [],
+      limit: Number(result.data?.limit ?? limit),
+      offset: Number(result.data?.offset ?? offset),
+    } as MediaReferencesResponse,
+    error: result.error,
+  };
+}
+
+export async function getReferenceMedia(referenceId: string) {
+  const result = await fetchControlApiJson<Record<string, any>>(`/media/reference-media/${referenceId}`);
+  return {
+    ok: result.ok,
+    data: { item: result.data ? mapReferenceMediaRecord(result.data) : null } as MediaReferenceResponse,
+    error: result.error,
+  };
+}
+
+export async function registerReferenceMedia(payload: Record<string, unknown>) {
+  const result = await postControlApiJson<Record<string, any>>("/media/reference-media/register", payload);
+  return {
+    ok: result.ok,
+    data: { item: result.data ? mapReferenceMediaRecord(result.data) : null } as MediaReferenceResponse,
+    error: result.error,
+  };
+}
+
+export async function markReferenceMediaUsed(referenceId: string) {
+  const result = await postControlApiJson<Record<string, any>>(`/media/reference-media/${referenceId}/use`, {});
+  return {
+    ok: result.ok,
+    data: { item: result.data ? mapReferenceMediaRecord(result.data) : null } as MediaReferenceResponse,
+    error: result.error,
+  };
 }

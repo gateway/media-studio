@@ -42,6 +42,9 @@ from .schemas import (
     PromptContextResponse,
     QueueSettingsResponse,
     QueueSettingsUpdate,
+    ReferenceMediaListResponse,
+    ReferenceMediaRecord,
+    ReferenceMediaRegisterRequest,
     SubmitResponse,
     SystemPromptRecord,
     SystemPromptUpsertRequest,
@@ -233,6 +236,42 @@ def delete_preset(preset_id: str):
         return PresetRecord(**store.delete_preset(preset_id))
     except FileNotFoundError:
         raise _not_found("preset")
+
+
+@app.get("/media/reference-media", response_model=ReferenceMediaListResponse)
+def list_reference_media(
+    kind: Optional[str] = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+):
+    items = store.list_reference_media(kind=kind, limit=limit, offset=offset)
+    return ReferenceMediaListResponse(
+        items=[ReferenceMediaRecord(**item) for item in items],
+        limit=limit,
+        offset=offset,
+    )
+
+
+@app.get("/media/reference-media/{reference_id}", response_model=ReferenceMediaRecord)
+def get_reference_media(reference_id: str):
+    record = store.get_reference_media(reference_id)
+    if not record:
+        raise _not_found("reference media")
+    return ReferenceMediaRecord(**record)
+
+
+@app.post("/media/reference-media/register", response_model=ReferenceMediaRecord)
+def register_reference_media(payload: ReferenceMediaRegisterRequest):
+    record = store.create_or_reuse_reference_media(payload.model_dump(), increment_usage=True)
+    return ReferenceMediaRecord(**record)
+
+
+@app.post("/media/reference-media/{reference_id}/use", response_model=ReferenceMediaRecord)
+def mark_reference_media_used(reference_id: str):
+    try:
+        return ReferenceMediaRecord(**store.mark_reference_media_used(reference_id))
+    except KeyError:
+        raise _not_found("reference media")
 
 
 @app.get("/media/system-prompts", response_model=List[SystemPromptRecord])  # type: ignore[name-defined]

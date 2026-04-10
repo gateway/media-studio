@@ -36,6 +36,7 @@ JSON_FIELDS = {
     "tags_json",
     "payload_json",
     "provider_capabilities_json",
+    "metadata_json",
 }
 
 
@@ -88,6 +89,7 @@ def decode_row(row: sqlite3.Row) -> Dict[str, Any]:
             "supports_image_analysis",
             "favorited",
             "dismissed",
+            "hidden_from_dashboard",
         }:
             payload[key] = bool(value)
         else:
@@ -552,6 +554,33 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(job_id) REFERENCES media_jobs(job_id)
             );
+
+            CREATE TABLE IF NOT EXISTS reference_media (
+                reference_id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                original_filename TEXT,
+                stored_path TEXT NOT NULL,
+                mime_type TEXT,
+                file_size_bytes INTEGER NOT NULL DEFAULT 0,
+                sha256 TEXT NOT NULL,
+                width INTEGER,
+                height INTEGER,
+                duration_seconds REAL,
+                thumb_path TEXT,
+                poster_path TEXT,
+                usage_count INTEGER NOT NULL DEFAULT 0,
+                last_used_at TEXT,
+                metadata_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+        """
+    )
+    connection.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_reference_media_dedupe
+        ON reference_media(kind, sha256, file_size_bytes)
         """
     )
     connection.execute(
@@ -601,6 +630,20 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
     ensure_column(connection, "media_assets", "preset_source", "TEXT")
     ensure_column(connection, "media_assets", "tags_json", "TEXT NOT NULL DEFAULT '[]'")
     ensure_column(connection, "media_assets", "payload_json", "TEXT NOT NULL DEFAULT '{}'")
+    ensure_column(connection, "reference_media", "status", "TEXT NOT NULL DEFAULT 'active'")
+    ensure_column(connection, "reference_media", "original_filename", "TEXT")
+    ensure_column(connection, "reference_media", "stored_path", "TEXT")
+    ensure_column(connection, "reference_media", "mime_type", "TEXT")
+    ensure_column(connection, "reference_media", "file_size_bytes", "INTEGER NOT NULL DEFAULT 0")
+    ensure_column(connection, "reference_media", "sha256", "TEXT")
+    ensure_column(connection, "reference_media", "width", "INTEGER")
+    ensure_column(connection, "reference_media", "height", "INTEGER")
+    ensure_column(connection, "reference_media", "duration_seconds", "REAL")
+    ensure_column(connection, "reference_media", "thumb_path", "TEXT")
+    ensure_column(connection, "reference_media", "poster_path", "TEXT")
+    ensure_column(connection, "reference_media", "usage_count", "INTEGER NOT NULL DEFAULT 0")
+    ensure_column(connection, "reference_media", "last_used_at", "TEXT")
+    ensure_column(connection, "reference_media", "metadata_json", "TEXT NOT NULL DEFAULT '{}'")
     _migrate_multi_model_seed_presets(connection)
     _seed_default_presets(connection)
     _seed_default_model_queue_policies(connection)

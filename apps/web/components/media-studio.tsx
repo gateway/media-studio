@@ -11,6 +11,7 @@ import {
   Coins,
   Clapperboard,
   Copy,
+  FolderOpen,
   Image as ImageIcon,
   ImagePlus,
   LoaderCircle,
@@ -37,6 +38,7 @@ import { StudioLightbox } from "@/components/studio/studio-lightbox";
 import { StudioComposer } from "@/components/studio/studio-composer";
 import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
 import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
+import { StudioReferenceLibrary } from "@/components/studio/studio-reference-library";
 import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
 import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
 import { useStudioPolling } from "@/hooks/studio/use-studio-polling";
@@ -123,7 +125,7 @@ import {
   jobPhaseMessage,
   type MultiShotParseResult,
 } from "@/lib/media-studio-helpers";
-import type { MediaAsset, MediaBatch, MediaEnhancePreviewResponse, MediaJob, MediaValidationResponse } from "@/lib/types";
+import type { MediaAsset, MediaBatch, MediaEnhancePreviewResponse, MediaJob, MediaReference, MediaValidationResponse } from "@/lib/types";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import { installStudioDebugConsole, studioDebug } from "@/lib/studio-debug";
 import { cn, formatDateTime, truncate } from "@/lib/utils";
@@ -400,6 +402,32 @@ function composerModelLabel(label: string | null | undefined) {
   return label;
 }
 
+function StudioLibraryButton({
+  onClick,
+  label = "Library",
+  testId,
+}: {
+  onClick: () => void;
+  label?: string;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      onClick={onClick}
+      className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-white/68 transition hover:border-[rgba(216,141,67,0.24)] hover:text-white"
+    >
+      <FolderOpen className="size-3.5 text-[rgba(208,255,72,0.88)]" />
+      <span>{label}</span>
+    </button>
+  );
+}
+
+type ReferenceLibraryTarget =
+  | { type: "attachment"; title: string; role?: "first_frame" | "last_frame" | "reference" | null; allowedKinds?: AttachmentRecord["kind"][] }
+  | { type: "preset-slot"; title: string; slotKey: string };
+
 export function MediaStudio({
   apiHealthy,
   models,
@@ -434,6 +462,7 @@ export function MediaStudio({
   const [copyPromptStatus, setCopyPromptStatus] = useState<"idle" | "copied" | "error">("idle");
   const [selectedFailedJobId, setSelectedFailedJobId] = useState<string | null>(null);
   const [selectedReferencePreview, setSelectedReferencePreview] = useState<StudioReferencePreview | null>(null);
+  const [referenceLibraryTarget, setReferenceLibraryTarget] = useState<ReferenceLibraryTarget | null>(null);
   const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(null);
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
   const composerShellRef = useRef<HTMLDivElement | null>(null);
@@ -765,8 +794,10 @@ export function MediaStudio({
     updateOption,
     addFiles,
     addGalleryAssetAsAttachment,
+    addReferenceMediaAsAttachment,
     assignPresetSlotFile,
     assignPresetSlotAsset,
+    assignPresetSlotReference,
     clearPresetSlot,
     removeAttachment,
     clearComposer,
@@ -790,12 +821,43 @@ export function MediaStudio({
     setSelectedReferencePreview(preview);
   }
 
+  function openReferenceLibrary(target: ReferenceLibraryTarget) {
+    setOpenPicker(null);
+    setReferenceLibraryTarget(target);
+  }
+
+  async function handleReferenceLibrarySelect(reference: MediaReference) {
+    try {
+      await fetch(`/api/control/reference-media/${reference.reference_id}/use`, {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } catch {
+      // Helpful, not required for staging.
+    }
+    const target = referenceLibraryTarget;
+    setReferenceLibraryTarget(null);
+    if (!target) {
+      return;
+    }
+    if (target.type === "preset-slot") {
+      assignPresetSlotReference(target.slotKey, reference);
+      setFormMessage({ tone: "healthy", text: "Reference image loaded into the preset slot." });
+      return;
+    }
+    addReferenceMediaAsAttachment(reference, {
+      role: target.role ?? undefined,
+      allowedKinds: target.allowedKinds,
+    });
+    setFormMessage({ tone: "healthy", text: "Reference image loaded from the library." });
+  }
+
   function buildAttachmentPreview(
     attachment: AttachmentRecord | null | undefined,
     label: string,
     previewKey = label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
   ): StudioReferencePreview | null {
-    const url = attachment?.previewUrl ?? null;
+    const url = attachment?.previewUrl ?? attachment?.referenceRecord?.stored_url ?? null;
     if (!url) {
       return null;
     }
@@ -804,8 +866,40 @@ export function MediaStudio({
       label,
       url,
       kind: attachment?.kind ?? "images",
-      posterUrl: attachment?.kind === "videos" ? null : undefined,
+      posterUrl: attachment?.kind === "videos" ? attachment?.referenceRecord?.poster_url ?? null : undefined,
     };
+  }
+
+  function orderedImageInputVisual(slot: (typeof orderedImageInputs)[number] | null) {
+    if (!slot) {
+      return null;
+    }
+    if (slot.source === "asset") {
+      return mediaThumbnailUrl(slot.asset) ?? mediaDisplayUrl(slot.asset);
+    }
+    if (slot.source === "reference") {
+      return slot.reference.thumb_url ?? slot.reference.stored_url ?? slot.previewUrl ?? null;
+    }
+    return slot.attachment.previewUrl ?? slot.attachment.referenceRecord?.thumb_url ?? slot.attachment.referenceRecord?.stored_url ?? null;
+  }
+
+  function orderedImageInputPreview(slot: (typeof orderedImageInputs)[number] | null, label: string, key: string) {
+    if (!slot) {
+      return null;
+    }
+    if (slot.source === "asset") {
+      return buildAssetReferencePreview(slot.asset, label);
+    }
+    if (slot.source === "reference") {
+      return {
+        key: `reference:${slot.reference.reference_id}:${key}`,
+        label,
+        url: slot.reference.stored_url ?? slot.previewUrl ?? "",
+        kind: "images" as const,
+        posterUrl: null,
+      } satisfies StudioReferencePreview;
+    }
+    return buildAttachmentPreview(slot.attachment as AttachmentRecord, label, key);
   }
 
   function buildAssetReferencePreview(asset: MediaAsset | null | undefined, label: string): StudioReferencePreview | null {
@@ -979,23 +1073,30 @@ export function MediaStudio({
     <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-3 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/44">Image references</div>
-        {imageLimitLabel ? (
-          <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/62">
-            {imageLimitLabel}
-          </div>
-        ) : null}
+        <div className="flex items-center gap-2">
+          <StudioLibraryButton
+            onClick={() =>
+              openReferenceLibrary({
+                type: "attachment",
+                title: "Pick a reusable image reference for Nano Banana.",
+                role: "reference",
+                allowedKinds: ["images"],
+              })
+            }
+            testId="studio-open-reference-library-nano"
+          />
+          {imageLimitLabel ? (
+            <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/62">
+              {imageLimitLabel}
+            </div>
+          ) : null}
+        </div>
       </div>
       <div className="flex min-w-0 items-start gap-3 overflow-x-auto overflow-y-hidden pb-1">
         {orderedImageInputs.map((slot, slotIndex) => {
-          const slotVisual =
-            slot.source === "asset"
-              ? mediaThumbnailUrl(slot.asset) ?? mediaDisplayUrl(slot.asset)
-              : slot.attachment.previewUrl ?? null;
+          const slotVisual = orderedImageInputVisual(slot);
           const slotLabel = imageSlotLabels[slotIndex] ?? `Image ${slotIndex + 1}`;
-          const slotPreview =
-            slot.source === "asset"
-              ? buildAssetReferencePreview(slot.asset, slotLabel)
-              : buildAttachmentPreview(slot.attachment as AttachmentRecord, slotLabel, `multi-image-${slotIndex + 1}`);
+          const slotPreview = orderedImageInputPreview(slot, slotLabel, `multi-image-${slotIndex + 1}`);
           return (
             <div key={`multi-image-slot-${slotIndex}`} className="flex shrink-0 flex-col gap-2">
               <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slotLabel}</div>
@@ -1008,6 +1109,12 @@ export function MediaStudio({
                   onRemove={() => {
                     if (slot.source === "asset") {
                       setSourceAssetId(null);
+                    } else if (slot.source === "reference") {
+                      const referenceId = slot.reference.reference_id;
+                      const match = attachments.find((attachment) => attachment.referenceId === referenceId);
+                      if (match) {
+                        removeAttachment(match.id);
+                      }
                     } else {
                       removeAttachment(slot.attachment.id);
                     }
@@ -1150,6 +1257,17 @@ export function MediaStudio({
                   </label>
                 )}
               </div>
+              <StudioLibraryButton
+                onClick={() =>
+                  openReferenceLibrary({
+                    type: "attachment",
+                    title: `Pick a reusable image for the Seedance ${slot.label.toLowerCase()}.`,
+                    role: slot.role as "first_frame" | "last_frame",
+                    allowedKinds: ["images"],
+                  })
+                }
+                testId={`studio-open-reference-library-${slot.role}`}
+              />
             </div>
           )})}
         </>
@@ -1157,18 +1275,10 @@ export function MediaStudio({
         <>
           {Array.from({ length: maxImageInputs }, (_, slotIndex) => {
             const slot = orderedImageInputs[slotIndex] ?? null;
-            const slotVisual =
-              slot?.source === "asset"
-                ? mediaThumbnailUrl(slot.asset)
-                : slot?.attachment?.previewUrl ?? null;
+            const slotVisual = orderedImageInputVisual(slot);
             const slotLabel = imageSlotLabels[slotIndex] ?? `Image ${slotIndex + 1}`;
             const slotFilled = Boolean(slot);
-            const slotPreview =
-              slot?.source === "asset"
-                ? buildAssetReferencePreview(slot.asset, slotLabel)
-                : slot?.source === "attachment"
-                  ? buildAttachmentPreview(slot.attachment as AttachmentRecord, slotLabel, `video-slot-${slotIndex + 1}`)
-                  : null;
+            const slotPreview = orderedImageInputPreview(slot, slotLabel, `video-slot-${slotIndex + 1}`);
             return (
               <div key={`video-image-slot-${slotIndex}`} className="flex flex-col gap-2">
                 <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slotLabel}</div>
@@ -1190,6 +1300,11 @@ export function MediaStudio({
                         onRemove={() => {
                           if (slot?.source === "asset") {
                             setSourceAssetId(null);
+                          } else if (slot?.source === "reference") {
+                            const match = attachments.find((attachment) => attachment.referenceId === slot.reference.reference_id);
+                            if (match) {
+                              removeAttachment(match.id);
+                            }
                           } else if (slot?.source === "attachment") {
                             removeAttachment(slot.attachment.id);
                           }
@@ -1205,6 +1320,11 @@ export function MediaStudio({
                               onChange={(event) => {
                                 if (slot?.source === "asset") {
                                   setSourceAssetId(null);
+                                } else if (slot?.source === "reference") {
+                                  const match = attachments.find((attachment) => attachment.referenceId === slot.reference.reference_id);
+                                  if (match) {
+                                    removeAttachment(match.id);
+                                  }
                                 } else if (slot?.source === "attachment") {
                                   removeAttachment(slot.attachment.id);
                                 }
@@ -1251,6 +1371,16 @@ export function MediaStudio({
                     </label>
                   )}
                 </div>
+                <StudioLibraryButton
+                  onClick={() =>
+                    openReferenceLibrary({
+                      type: "attachment",
+                      title: `Pick a reusable image for ${slotLabel.toLowerCase()}.`,
+                      allowedKinds: ["images"],
+                    })
+                  }
+                  testId={`studio-open-reference-library-video-slot-${slotIndex + 1}`}
+                />
               </div>
             );
           })}
@@ -1282,15 +1412,15 @@ export function MediaStudio({
             <StudioStagedMediaTile
               key={attachment.id}
               preview={
-                buildAttachmentPreview(attachment, attachment.file.name, attachment.id) ?? {
+                buildAttachmentPreview(attachment, attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference", attachment.id) ?? {
                   key: `attachment:${attachment.id}`,
-                  label: attachment.file.name,
-                  url: attachment.previewUrl ?? "",
+                  label: attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
+                  url: attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
                   kind: attachment.kind,
-                  posterUrl: null,
+                  posterUrl: attachment.referenceRecord?.poster_url ?? null,
                 }
               }
-              visualUrl={attachment.kind === "audios" ? null : attachment.previewUrl}
+              visualUrl={attachment.kind === "audios" ? null : attachment.previewUrl ?? attachment.referenceRecord?.thumb_url ?? attachment.referenceRecord?.stored_url ?? null}
               footerLabel={attachment.kind === "images" ? "Image" : attachment.kind === "videos" ? "Video" : "Audio"}
               onOpenPreview={openReferencePreview}
               onRemove={() => removeAttachment(attachment.id)}
@@ -1332,6 +1462,16 @@ export function MediaStudio({
               }}
             />
           </label>
+          <StudioLibraryButton
+            onClick={() =>
+              openReferenceLibrary({
+                type: "attachment",
+                title: "Pick a reusable image from your reference library.",
+                allowedKinds: ["images"],
+              })
+            }
+            testId="studio-open-reference-library-generic"
+          />
         </>
       )}
       {(imageLimitLabel || maxVideoInputs > 0 || maxAudioInputs > 0) && !explicitVideoImageSlots && !seedanceComposer ? (
@@ -1402,38 +1542,53 @@ export function MediaStudio({
                 <div className="min-w-0">
                   <div className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-white/52">{group.label}</div>
                 </div>
-                <label className="flex h-[56px] w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-[18px] border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]">
-                  <Plus className="size-4.5" />
-                  <input
-                    type="file"
-                    multiple
-                    accept={group.accept}
-                    data-testid={`seedance-group-input-${group.key}`}
-                    className="hidden"
-                    onChange={(event) => {
-                      addFiles(event.target.files, {
-                        role: "reference",
-                        allowedKinds: [group.key as "images" | "videos" | "audios"],
-                      });
-                      resetFileInputValue(event.currentTarget);
-                    }}
-                  />
-                </label>
+                <div className="flex shrink-0 items-center gap-2">
+                  {group.key === "images" ? (
+                    <StudioLibraryButton
+                      onClick={() =>
+                        openReferenceLibrary({
+                          type: "attachment",
+                          title: "Pick a reusable image for Seedance reference guidance.",
+                          role: "reference",
+                          allowedKinds: ["images"],
+                        })
+                      }
+                      testId="studio-open-reference-library-seedance-images"
+                    />
+                  ) : null}
+                  <label className="flex h-[56px] w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-[18px] border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]">
+                    <Plus className="size-4.5" />
+                    <input
+                      type="file"
+                      multiple
+                      accept={group.accept}
+                      data-testid={`seedance-group-input-${group.key}`}
+                      className="hidden"
+                      onChange={(event) => {
+                        addFiles(event.target.files, {
+                          role: "reference",
+                          allowedKinds: [group.key as "images" | "videos" | "audios"],
+                        });
+                        resetFileInputValue(event.currentTarget);
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
               <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5">
                 {group.attachments.slice(0, 4).map((attachment) => (
                   <StudioStagedMediaTile
                     key={attachment.id}
                     preview={
-                      buildAttachmentPreview(attachment, attachment.file.name, `${group.key}-${attachment.id}`) ?? {
+                      buildAttachmentPreview(attachment, attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference", `${group.key}-${attachment.id}`) ?? {
                         key: `attachment:${attachment.id}`,
-                        label: attachment.file.name,
-                        url: attachment.previewUrl ?? "",
+                        label: attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
+                        url: attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
                         kind: attachment.kind,
-                        posterUrl: null,
+                        posterUrl: attachment.referenceRecord?.poster_url ?? null,
                       }
                     }
-                    visualUrl={attachment.kind === "audios" ? null : attachment.previewUrl}
+                    visualUrl={attachment.kind === "audios" ? null : attachment.previewUrl ?? attachment.referenceRecord?.thumb_url ?? attachment.referenceRecord?.stored_url ?? null}
                     onOpenPreview={openReferencePreview}
                     onRemove={() => removeAttachment(attachment.id)}
                     className="h-[56px] w-[56px] shrink-0"
@@ -1465,7 +1620,8 @@ export function MediaStudio({
     studioSettingsOpen ||
     presetBrowserOpen ||
     selectedMediaLightboxOpen ||
-    Boolean(selectedReferencePreview);
+    Boolean(selectedReferencePreview) ||
+    Boolean(referenceLibraryTarget);
 
   useEffect(() => {
     if (!lockingOverlayOpen) {
@@ -2197,6 +2353,8 @@ export function MediaStudio({
                               const slotState = presetSlotStates[slot.key];
                               const slotPreview = slotState?.assetId
                                 ? mediaThumbnailUrl(findMediaAssetById(slotState.assetId, localAssets, favoriteAssets) ?? null) ?? slotState.previewUrl
+                                : slotState?.referenceId
+                                  ? slotState.referenceRecord?.thumb_url ?? slotState.referenceRecord?.stored_url ?? slotState.previewUrl
                                 : slotState?.previewUrl;
                               const presetSlotPreview =
                                 slotPreview
@@ -2219,6 +2377,16 @@ export function MediaStudio({
                                       <div className="text-sm font-semibold text-white/88">{slot.label}</div>
                                       <div className="mt-1 text-xs leading-6 text-white/56">{slot.helpText || "Upload or drag an image into this slot."}</div>
                                     </div>
+                                    <StudioLibraryButton
+                                      onClick={() =>
+                                        openReferenceLibrary({
+                                          type: "preset-slot",
+                                          title: `Pick a reusable image for ${slot.label}.`,
+                                          slotKey: slot.key,
+                                        })
+                                      }
+                                      testId={`studio-open-reference-library-preset-slot-${slot.key}`}
+                                    />
                                   </div>
                                   <div className="mt-3 flex items-center gap-3">
                                     <div className="relative h-[86px] w-[86px] shrink-0">
@@ -2650,6 +2818,15 @@ export function MediaStudio({
           presets={availableStudioPresets}
           onClose={() => setPresetBrowserOpen(false)}
           onSelectPreset={(preset) => loadPresetIntoStudio(preset.preset_id ?? preset.key)}
+        />
+      ) : null}
+
+      {referenceLibraryTarget ? (
+        <StudioReferenceLibrary
+          title={referenceLibraryTarget.title}
+          kind="image"
+          onClose={() => setReferenceLibraryTarget(null)}
+          onSelect={(reference) => void handleReferenceLibrarySelect(reference)}
         />
       ) : null}
 

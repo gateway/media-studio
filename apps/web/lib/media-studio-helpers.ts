@@ -18,6 +18,7 @@ import type {
   MediaJob,
   MediaModelSummary,
   MediaPreset,
+  MediaReference,
   MediaValidationResponse,
 } from "@/lib/types";
 import { isRecord } from "@/lib/utils";
@@ -49,6 +50,8 @@ export type StructuredPresetImageSlot = {
 
 export type PresetSlotState = {
   assetId: string | number | null;
+  referenceId?: string | null;
+  referenceRecord?: MediaReference | null;
   file: File | null;
   previewUrl: string | null;
 };
@@ -76,6 +79,7 @@ export type StudioJobPrimaryInput = {
 
 export type OrderedImageInput =
   | { source: "asset"; asset: MediaAsset }
+  | { source: "reference"; reference: MediaReference; previewUrl: string | null }
   | { source: "attachment"; attachment: { previewUrl: string | null } };
 
 export type MultiShotParseResult = {
@@ -198,7 +202,7 @@ export function renderStructuredPresetPrompt(
   let imageIndex = 0;
   for (const slot of imageSlots) {
     const slotState = slotStates[slot.key];
-    if (slotState?.assetId || slotState?.file) {
+    if (slotState?.assetId || slotState?.referenceId || slotState?.file) {
       imageIndex += 1;
       rendered = rendered.replaceAll(`[[${slot.key}]]`, `[image reference ${imageIndex}]`);
       continue;
@@ -439,7 +443,36 @@ export function orderedImageInputVisual(input?: OrderedImageInput | null) {
   if (input.source === "asset") {
     return mediaThumbnailUrl(input.asset) ?? mediaDisplayUrl(input.asset);
   }
+  if (input.source === "reference") {
+    return input.previewUrl ?? null;
+  }
   return input.attachment.previewUrl ?? null;
+}
+
+export function referenceKindToAttachmentKind(kind: string | null | undefined) {
+  if (kind === "video") return "videos" as const;
+  if (kind === "audio") return "audios" as const;
+  return "images" as const;
+}
+
+export function referencePreviewUrl(reference: MediaReference | null | undefined) {
+  if (!reference) {
+    return null;
+  }
+  if (reference.kind === "video") {
+    return reference.poster_url ?? reference.thumb_url ?? reference.stored_url ?? toControlApiDataPreviewPath(reference.poster_path ?? reference.thumb_path ?? reference.stored_path);
+  }
+  if (reference.kind === "audio") {
+    return null;
+  }
+  return reference.thumb_url ?? reference.stored_url ?? toControlApiDataPreviewPath(reference.thumb_path ?? reference.stored_path);
+}
+
+export function referencePlaybackUrl(reference: MediaReference | null | undefined) {
+  if (!reference) {
+    return null;
+  }
+  return reference.stored_url ?? toControlApiDataPreviewPath(reference.stored_path);
 }
 
 export function resolveEnhancementPreviewVisual({

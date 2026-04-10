@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import mimetypes
 import re
+from hashlib import sha256
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from PIL import Image, ImageDraw
 
@@ -156,6 +157,24 @@ def probe_enhancement_provider(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _ref_to_kie(value: Dict[str, Any]) -> Dict[str, Any]:
+    if value.get("reference_id") and not value.get("path"):
+        reference = store.get_reference_media(str(value.get("reference_id")))
+        if reference and reference.get("stored_path"):
+            merged = dict(reference)
+            merged.update(value)
+            merged["path"] = reference.get("stored_path")
+            if not merged.get("filename"):
+                merged["filename"] = reference.get("original_filename")
+            if not merged.get("mime_type"):
+                merged["mime_type"] = reference.get("mime_type")
+            value = merged
+    raw_path = value.get("path")
+    if raw_path:
+        candidate = Path(str(raw_path))
+        if not candidate.is_absolute():
+            resolved = settings.data_root / candidate
+            if resolved.exists():
+                value = {**value, "path": str(resolved)}
     ref = {}
     for key in ("url", "path", "filename", "mime_type", "role", "duration_seconds"):
         if value.get(key):
@@ -211,6 +230,92 @@ def _collect_system_prompts(ids: List[str]) -> List[Dict[str, Any]]:
         if prompt:
             prompts.append(prompt)
     return prompts
+
+
+def _reference_kind_for_path(file_path: Path) -> Optional[str]:
+    mime_type, _ = mimetypes.guess_type(file_path.name)
+    normalized = str(mime_type or "").lower()
+    if normalized.startswith("image/"):
+        return "image"
+    if normalized.startswith("video/"):
+        return "video"
+    if normalized.startswith("audio/"):
+        return "audio"
+    return None
+
+
+def _probe_reference_media_metadata(file_path: Path, kind: str) -> Tuple[Optional[int], Optional[int], Optional[float]]:
+    if kind != "image":
+        return None, None, None
+    try:
+        with Image.open(file_path) as image:
+            width, height = image.size
+        return width, height, None
+    except Exception:
+        return None, None, None
+
+
+def iter_existing_upload_files() -> Iterable[Path]:
+    uploads_dir = settings.uploads_dir
+    if not uploads_dir.exists():
+        return []
+    return (path for path in uploads_dir.rglob("*") if path.is_file())
+
+
+def backfill_reference_media() -> Dict[str, Any]:
+    scanned = 0
+    imported = 0
+    reused = 0
+    skipped = 0
+    errors: List[str] = []
+
+    for file_path in iter_existing_upload_files():
+        scanned += 1
+        kind = _reference_kind_for_path(file_path)
+        if not kind:
+            skipped += 1
+            continue
+        try:
+            raw_bytes = file_path.read_bytes()
+            digest = sha256(raw_bytes).hexdigest()
+            relative_path = str(file_path.relative_to(settings.data_root)).replace("\\", "/")
+            file_size_bytes = file_path.stat().st_size
+            existing = store.get_reference_media_by_hash(kind, digest, file_size_bytes)
+            width, height, duration_seconds = _probe_reference_media_metadata(file_path, kind)
+            record = store.create_or_reuse_reference_media(
+                {
+                    "kind": kind,
+                    "status": "active",
+                    "original_filename": file_path.name,
+                    "stored_path": relative_path,
+                    "mime_type": mimetypes.guess_type(file_path.name)[0],
+                    "file_size_bytes": file_size_bytes,
+                    "sha256": digest,
+                    "width": width,
+                    "height": height,
+                    "duration_seconds": duration_seconds,
+                    "thumb_path": None,
+                    "poster_path": None,
+                    "usage_count": 0,
+                    "metadata_json": {"backfilled": True},
+                },
+                increment_usage=False,
+            )
+            if existing or record.get("stored_path") != relative_path:
+                reused += 1
+            else:
+                imported += 1
+        except Exception as exc:
+            skipped += 1
+            errors.append(f"{file_path}: {exc}")
+
+    return {
+        "scanned": scanned,
+        "imported": imported,
+        "reused": reused,
+        "skipped": skipped,
+        "errors": errors,
+    }
 
 
 def _resolve_preset(request: ValidateRequest) -> Tuple[Optional[Dict[str, Any]], Dict[str, str], Dict[str, List[Dict[str, Any]]], Optional[str]]:

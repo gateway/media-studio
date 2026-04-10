@@ -135,6 +135,94 @@ def delete_preset(preset_id: str) -> Dict[str, Any]:
     return create_or_update_preset(record)
 
 
+def list_reference_media(
+    *,
+    kind: Optional[str] = None,
+    status: str = "active",
+    limit: int = 100,
+    offset: int = 0,
+) -> List[Dict[str, Any]]:
+    clauses = ["1 = 1"]
+    params: List[Any] = []
+    if status:
+        clauses.append("status = ?")
+        params.append(status)
+    if kind:
+        clauses.append("kind = ?")
+        params.append(kind)
+    query = "SELECT * FROM reference_media WHERE %s ORDER BY last_used_at DESC, created_at DESC LIMIT ? OFFSET ?" % " AND ".join(clauses)
+    params.extend([limit, offset])
+    with get_connection() as connection:
+        rows = connection.execute(query, params).fetchall()
+    return [_decode_row(row) for row in rows]
+
+
+def get_reference_media(reference_id: str) -> Optional[Dict[str, Any]]:
+    return _get_table("reference_media", "reference_id", reference_id)
+
+
+def get_reference_media_by_hash(kind: str, sha256: str, file_size_bytes: int) -> Optional[Dict[str, Any]]:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT *
+            FROM reference_media
+            WHERE kind = ? AND sha256 = ? AND file_size_bytes = ?
+            LIMIT 1
+            """,
+            (kind, sha256, file_size_bytes),
+        ).fetchone()
+    return _decode_row(row) if row else None
+
+
+def get_reference_media_by_stored_path(stored_path: str) -> Optional[Dict[str, Any]]:
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM reference_media WHERE stored_path = ? LIMIT 1",
+            (stored_path,),
+        ).fetchone()
+    return _decode_row(row) if row else None
+
+
+def create_or_update_reference_media(payload: Dict[str, Any]) -> Dict[str, Any]:
+    payload = payload.copy()
+    payload.setdefault("reference_id", new_id("ref"))
+    payload.setdefault("created_at", utcnow_iso())
+    payload.setdefault("updated_at", utcnow_iso())
+    payload.setdefault("status", "active")
+    payload.setdefault("usage_count", 0)
+    payload.setdefault("metadata_json", {})
+    return _upsert_table("reference_media", "reference_id", payload)
+
+
+def create_or_reuse_reference_media(payload: Dict[str, Any], *, increment_usage: bool = True) -> Dict[str, Any]:
+    kind = str(payload.get("kind") or "").strip()
+    sha256 = str(payload.get("sha256") or "").strip()
+    file_size_bytes = int(payload.get("file_size_bytes") or 0)
+    if kind and sha256 and file_size_bytes > 0:
+        existing = get_reference_media_by_hash(kind, sha256, file_size_bytes)
+        if existing:
+            updates: Dict[str, Any] = {"updated_at": utcnow_iso()}
+            if increment_usage:
+                updates["usage_count"] = int(existing.get("usage_count") or 0) + 1
+                updates["last_used_at"] = utcnow_iso()
+            return create_or_update_reference_media({**existing, **updates})
+    next_payload = payload.copy()
+    if increment_usage:
+        next_payload["usage_count"] = max(1, int(next_payload.get("usage_count") or 0))
+        next_payload["last_used_at"] = next_payload.get("last_used_at") or utcnow_iso()
+    return create_or_update_reference_media(next_payload)
+
+
+def mark_reference_media_used(reference_id: str, increment: int = 1) -> Dict[str, Any]:
+    current = get_reference_media(reference_id)
+    if not current:
+        raise KeyError("reference media not found")
+    current["usage_count"] = max(0, int(current.get("usage_count") or 0) + increment)
+    current["last_used_at"] = utcnow_iso()
+    return create_or_update_reference_media(current)
+
+
 def list_system_prompts() -> List[Dict[str, Any]]:
     return _list_table("media_system_prompts", "created_at DESC, label ASC")
 

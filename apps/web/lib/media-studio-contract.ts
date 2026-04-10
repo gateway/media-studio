@@ -5,6 +5,7 @@ import type {
   MediaEnhancementConfig,
   MediaJob,
   MediaModelQueuePolicy,
+  MediaReference,
   MediaModelSummary,
   MediaPreset,
   MediaQueueSettings,
@@ -37,11 +38,13 @@ export type MediaStudioProps = {
 
 export type AttachmentRecord = {
   id: string;
-  file: File;
+  file: File | null;
   kind: "images" | "videos" | "audios";
   role?: "first_frame" | "last_frame" | "reference" | null;
   previewUrl: string | null;
   durationSeconds?: number | null;
+  referenceId?: string | null;
+  referenceRecord?: MediaReference | null;
 };
 
 export type GalleryKindFilter = "all" | "image" | "video";

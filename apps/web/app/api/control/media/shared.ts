@@ -1,9 +1,6 @@
-import { randomUUID } from "node:crypto";
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { spawn } from "node:child_process";
 
-import { controlApiDataRoot } from "@/lib/paths";
+import { registerReferenceMediaFile, resolveReferenceMedia } from "@/lib/reference-media-storage";
 
 export type MediaIntent = "validate" | "submit" | "enhance";
 
@@ -72,6 +69,8 @@ async function parseAttachmentManifest(value: FormDataEntryValue | null) {
       id: String(item.id ?? "").trim(),
       kind: String(item.kind ?? "").trim(),
       role: String(item.role ?? "").trim() || null,
+      reference_id: String(item.reference_id ?? "").trim() || null,
+      has_file: Boolean(item.has_file),
       duration_seconds:
         typeof item.duration_seconds === "number"
           ? item.duration_seconds
@@ -139,14 +138,6 @@ function classifyAttachment(file: File) {
   return "images" as const;
 }
 
-async function stageAttachment(runDir: string, file: File) {
-  const fileName = file.name || `upload-${randomUUID()}`;
-  const destination = path.join(runDir, fileName);
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(destination, buffer);
-  return destination;
-}
-
 export async function buildMediaPayloadFromFormData(formData: FormData) {
   const intent = (String(formData.get("intent") ?? "validate").trim().toLowerCase() || "validate") as MediaIntent;
   const modelKey = String(formData.get("model_key") ?? "").trim();
@@ -164,9 +155,6 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
   const presetInputs = await parseJsonRecord(formData.get("preset_inputs_json"));
   const presetSlotValues = await parseJsonRecord(formData.get("preset_slot_values_json"));
   const attachmentManifest = await parseAttachmentManifest(formData.get("attachment_manifest"));
-  const stagedRoot = path.join(controlApiDataRoot, "uploads", "media-studio", randomUUID());
-
-  await fs.mkdir(stagedRoot, { recursive: true });
 
   const payload: Record<string, unknown> = {
     model_key: modelKey,
@@ -214,18 +202,57 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
   const images: Array<{ path: string; role?: string; duration_seconds?: number }> = [];
   const videos: Array<{ path: string; role?: string; duration_seconds?: number }> = [];
   const audios: Array<{ path: string; role?: string; duration_seconds?: number }> = [];
-  const attachments = formData.getAll("attachments");
+  const attachmentFiles = formData
+    .getAll("attachments")
+    .filter((entry): entry is File => entry instanceof File && Boolean(entry.size));
+  let fileIndex = 0;
 
-  for (const [index, entry] of attachments.entries()) {
-    if (!(entry instanceof File) || !entry.size) continue;
-    const stagedPath = await stageAttachment(stagedRoot, entry);
-    const target = classifyAttachment(entry);
-    const manifestEntry = attachmentManifest[index];
-    const ref = {
-      path: stagedPath,
-      ...(manifestEntry?.role ? { role: manifestEntry.role } : {}),
-      ...(typeof manifestEntry?.duration_seconds === "number" ? { duration_seconds: manifestEntry.duration_seconds } : {}),
-    };
+  for (const manifestEntry of attachmentManifest) {
+    let ref:
+      | {
+          path: string;
+          role?: string;
+          duration_seconds?: number;
+          reference_id?: string;
+        }
+      | null = null;
+    if (manifestEntry.reference_id) {
+      const reference = await resolveReferenceMedia(manifestEntry.reference_id);
+      if (!reference?.stored_path) {
+        throw new Error("Unable to resolve the selected reference media item.");
+      }
+      ref = {
+        reference_id: reference.reference_id,
+        path: reference.stored_path,
+        ...(manifestEntry.role ? { role: manifestEntry.role } : {}),
+        ...(typeof manifestEntry.duration_seconds === "number" ? { duration_seconds: manifestEntry.duration_seconds } : {}),
+      };
+    } else if (manifestEntry.has_file) {
+      const file = attachmentFiles[fileIndex] ?? null;
+      fileIndex += 1;
+      if (!file) {
+        continue;
+      }
+      const registered = await registerReferenceMediaFile(file);
+      ref = {
+        reference_id: registered.reference_id,
+        path: registered.stored_path,
+        ...(manifestEntry.role ? { role: manifestEntry.role } : {}),
+        ...(typeof manifestEntry.duration_seconds === "number" ? { duration_seconds: manifestEntry.duration_seconds } : {}),
+      };
+    }
+    if (!ref) continue;
+    const target = manifestEntry.kind || "images";
+    if (target === "videos") videos.push(ref);
+    else if (target === "audios") audios.push(ref);
+    else images.push(ref);
+  }
+
+  for (; fileIndex < attachmentFiles.length; fileIndex += 1) {
+    const file = attachmentFiles[fileIndex];
+    const registered = await registerReferenceMediaFile(file);
+    const ref = { reference_id: registered.reference_id, path: registered.stored_path };
+    const target = classifyAttachment(file);
     if (target === "videos") videos.push(ref);
     else if (target === "audios") audios.push(ref);
     else images.push(ref);
@@ -236,11 +263,11 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
     if (!(entry instanceof File) || !entry.size) continue;
     const slotKey = fieldName.slice("preset_slot_file:".length).trim();
     if (!slotKey) continue;
-    const stagedPath = await stageAttachment(stagedRoot, entry);
+    const registered = await registerReferenceMediaFile(entry);
     if (!normalizedSlotValues[slotKey]) {
       normalizedSlotValues[slotKey] = [];
     }
-    normalizedSlotValues[slotKey].push({ path: stagedPath });
+    normalizedSlotValues[slotKey].push({ reference_id: registered.reference_id, path: registered.stored_path });
   }
 
   for (const [fieldName, entry] of formData.entries()) {
@@ -262,6 +289,26 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
       continue;
     }
     normalizedSlotValues[slotKey].push({ asset_id: assetId });
+  }
+
+  for (const [slotKey, rawValue] of Object.entries(normalizedSlotValues)) {
+    normalizedSlotValues[slotKey] = await Promise.all(
+      rawValue.map(async (item) => {
+        const referenceId = String(item.reference_id ?? "").trim();
+        if (!referenceId || item.path) {
+          return item;
+        }
+        const reference = await resolveReferenceMedia(referenceId);
+        if (!reference?.stored_path) {
+          throw new Error("Unable to resolve the selected preset reference media item.");
+        }
+        return {
+          ...item,
+          reference_id: reference.reference_id,
+          path: reference.stored_path,
+        };
+      }),
+    );
   }
 
   if (Object.keys(normalizedSlotValues).length) {

@@ -59,6 +59,7 @@ import type {
   MediaModelSummary,
   MediaPreset,
   MediaQueueSettings,
+  MediaReference,
   MediaSystemPrompt,
   MediaValidationResponse,
 } from "@/lib/types";
@@ -304,12 +305,24 @@ export function useStudioComposer({
     maxVideoInputs === 0 &&
     maxAudioInputs === 0;
   const orderedImageInputs = useMemo(() => {
-    const items: Array<{ source: "asset"; asset: MediaAsset } | { source: "attachment"; attachment: AttachmentRecord }> = [];
+    const items: Array<
+      { source: "asset"; asset: MediaAsset }
+      | { source: "reference"; reference: MediaReference; previewUrl: string | null }
+      | { source: "attachment"; attachment: AttachmentRecord }
+    > = [];
     if (sourceAssetIsImage && currentSourceAsset) {
       items.push({ source: "asset", asset: currentSourceAsset });
     }
     for (const attachment of imageAttachments) {
-      items.push({ source: "attachment", attachment });
+      if (attachment.referenceRecord && attachment.referenceId) {
+        items.push({
+          source: "reference",
+          reference: attachment.referenceRecord,
+          previewUrl: attachment.previewUrl,
+        });
+      } else {
+        items.push({ source: "attachment", attachment });
+      }
     }
     return items;
   }, [currentSourceAsset, imageAttachments, sourceAssetIsImage]);
@@ -375,7 +388,7 @@ export function useStudioComposer({
       attachments
         .map(
           (attachment) =>
-            `${attachment.id}:${attachment.file.name}:${attachment.file.size}:${attachment.kind}:${attachment.role ?? ""}`,
+            `${attachment.id}:${attachment.file?.name ?? attachment.referenceId ?? ""}:${attachment.file?.size ?? 0}:${attachment.kind}:${attachment.role ?? ""}`,
         )
         .join("|"),
     [attachments],
@@ -445,7 +458,7 @@ export function useStudioComposer({
     setPresetInputValues(nextValues);
     setPresetSlotStates((current) => {
       for (const state of Object.values(current)) {
-        if (state?.previewUrl) {
+        if (state?.previewUrl && state.file) {
           URL.revokeObjectURL(state.previewUrl);
         }
       }
@@ -456,12 +469,12 @@ export function useStudioComposer({
   useEffect(() => {
     return () => {
       for (const attachment of attachments) {
-        if (attachment.previewUrl) {
+        if (attachment.previewUrl && attachment.file) {
           URL.revokeObjectURL(attachment.previewUrl);
         }
       }
       for (const state of Object.values(presetSlotStates)) {
-        if (state?.previewUrl) {
+        if (state?.previewUrl && state.file) {
           URL.revokeObjectURL(state.previewUrl);
         }
       }
@@ -526,7 +539,7 @@ export function useStudioComposer({
         if (attachment.kind === "images") {
           if (remainingImages <= 0) {
             changed = true;
-            if (attachment.previewUrl) {
+            if (attachment.previewUrl && attachment.file) {
               URL.revokeObjectURL(attachment.previewUrl);
             }
             continue;
@@ -535,7 +548,7 @@ export function useStudioComposer({
         } else if (attachment.kind === "videos") {
           if (remainingVideos <= 0) {
             changed = true;
-            if (attachment.previewUrl) {
+            if (attachment.previewUrl && attachment.file) {
               URL.revokeObjectURL(attachment.previewUrl);
             }
             continue;
@@ -698,6 +711,8 @@ export function useStudioComposer({
       role: acceptedMetadata[index]?.role ?? (seedanceComposer ? "reference" : null),
       previewUrl: URL.createObjectURL(file),
       durationSeconds: null,
+      referenceId: null,
+      referenceRecord: null,
     }));
     setAttachments((current) => [...current, ...nextAttachments]);
     const existingImageCount = imageAttachments.length + (sourceAssetIsImage ? 1 : 0);
@@ -774,19 +789,78 @@ export function useStudioComposer({
     }
   }
 
+  function addReferenceMediaAsAttachment(
+    reference: MediaReference | null,
+    config: { role?: NonNullable<AttachmentRecord["role"]>; allowedKinds?: AttachmentRecord["kind"][] } = {},
+  ) {
+    if (!reference) {
+      return;
+    }
+    const kind =
+      reference.kind === "video"
+        ? ("videos" as const)
+        : reference.kind === "audio"
+          ? ("audios" as const)
+          : ("images" as const);
+    const allowedKinds = new Set(config.allowedKinds ?? []);
+    if (allowedKinds.size > 0 && !allowedKinds.has(kind)) {
+      setFormMessage({ tone: "warning", text: "That library item cannot be used in this slot." });
+      return;
+    }
+    if (seedanceComposer && config.role) {
+      if (remainingSeedanceCapacity(kind, config.role) <= 0) {
+        setFormMessage({ tone: "warning", text: "This slot is already full." });
+        return;
+      }
+    } else if (kind === "images" && stagedImageCount >= maxImageInputs) {
+      setFormMessage({ tone: "warning", text: "This model cannot accept more images right now." });
+      return;
+    } else if (kind === "videos" && stagedVideoCount >= maxVideoInputs) {
+      setFormMessage({ tone: "warning", text: "This model cannot accept more videos right now." });
+      return;
+    } else if (kind === "audios" && stagedAudioCount >= maxAudioInputs) {
+      setFormMessage({ tone: "warning", text: "This model cannot accept more audio right now." });
+      return;
+    }
+
+    setAttachments((current) => [
+      ...current,
+      {
+        id: `reference-${reference.reference_id}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
+        file: null,
+        kind,
+        role: config.role ?? (seedanceComposer ? "reference" : null),
+        previewUrl: reference.thumb_url ?? reference.poster_url ?? reference.stored_url ?? null,
+        durationSeconds: reference.duration_seconds ?? null,
+        referenceId: reference.reference_id,
+        referenceRecord: reference,
+      },
+    ]);
+
+    if (kind === "images" && isNanoPresetModel(modelKey)) {
+      const imageIndex = imageAttachments.length + (sourceAssetIsImage ? 1 : 0) + 1;
+      insertPromptSnippet(`[image reference ${imageIndex}]`);
+    }
+  }
+
   function assignPresetSlotFile(slotKey: string, file: File | null) {
     setPresetSlotStates((current) => {
       const previous = current[slotKey];
-      if (previous?.previewUrl) {
+      if (previous?.previewUrl && previous.file) {
         URL.revokeObjectURL(previous.previewUrl);
       }
       if (!file) {
-        return { ...current, [slotKey]: { assetId: null, file: null, previewUrl: null } };
+        return {
+          ...current,
+          [slotKey]: { assetId: null, referenceId: null, referenceRecord: null, file: null, previewUrl: null },
+        };
       }
       return {
         ...current,
         [slotKey]: {
           assetId: null,
+          referenceId: null,
+          referenceRecord: null,
           file,
           previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
         },
@@ -804,15 +878,43 @@ export function useStudioComposer({
     }
     setPresetSlotStates((current) => {
       const previous = current[slotKey];
-      if (previous?.previewUrl) {
+      if (previous?.previewUrl && previous.file) {
         URL.revokeObjectURL(previous.previewUrl);
       }
       return {
         ...current,
         [slotKey]: {
           assetId: asset.asset_id,
+          referenceId: null,
+          referenceRecord: null,
           file: null,
           previewUrl: mediaThumbnailUrl(asset) ?? mediaDisplayUrl(asset),
+        },
+      };
+    });
+  }
+
+  function assignPresetSlotReference(slotKey: string, reference: MediaReference | null) {
+    if (!reference) {
+      return;
+    }
+    if (reference.kind !== "image") {
+      setFormMessage({ tone: "danger", text: "Structured Nano Banana presets only accept image references in image slots." });
+      return;
+    }
+    setPresetSlotStates((current) => {
+      const previous = current[slotKey];
+      if (previous?.previewUrl && previous.file) {
+        URL.revokeObjectURL(previous.previewUrl);
+      }
+      return {
+        ...current,
+        [slotKey]: {
+          assetId: null,
+          referenceId: reference.reference_id,
+          referenceRecord: reference,
+          file: null,
+          previewUrl: reference.thumb_url ?? reference.stored_url ?? null,
         },
       };
     });
@@ -826,7 +928,7 @@ export function useStudioComposer({
       }
       return {
         ...current,
-        [slotKey]: { assetId: null, file: null, previewUrl: null },
+        [slotKey]: { assetId: null, referenceId: null, referenceRecord: null, file: null, previewUrl: null },
       };
     });
   }
@@ -834,7 +936,7 @@ export function useStudioComposer({
   function removeAttachment(attachmentId: string) {
     setAttachments((current) => {
       const match = current.find((attachment) => attachment.id === attachmentId);
-      if (match?.previewUrl) {
+      if (match?.previewUrl && match.file) {
         URL.revokeObjectURL(match.previewUrl);
       }
       return current.filter((attachment) => attachment.id !== attachmentId);
@@ -854,7 +956,7 @@ export function useStudioComposer({
 
   function clearComposer() {
     for (const attachment of attachments) {
-      if (attachment.previewUrl) {
+      if (attachment.previewUrl && attachment.file) {
         URL.revokeObjectURL(attachment.previewUrl);
       }
     }
@@ -910,7 +1012,7 @@ export function useStudioComposer({
 
     if (hasStructuredInputs) {
       for (const attachment of attachments) {
-        if (attachment.previewUrl) {
+        if (attachment.previewUrl && attachment.file) {
           URL.revokeObjectURL(attachment.previewUrl);
         }
       }
@@ -978,6 +1080,9 @@ export function useStudioComposer({
           presetSlotValues[slot.key] = [{ asset_id: slotState.assetId }];
           formData.set(`preset_slot_asset:${slot.key}`, String(slotState.assetId));
         }
+        if (slotState.referenceId && includeEnhancementImages) {
+          presetSlotValues[slot.key] = [{ reference_id: slotState.referenceId }];
+        }
         if (slotState.file && includeEnhancementImages) {
           formData.append(`preset_slot_file:${slot.key}`, slotState.file);
         }
@@ -996,12 +1101,16 @@ export function useStudioComposer({
             kind: attachment.kind,
             role: attachment.role ?? null,
             duration_seconds: attachment.durationSeconds ?? null,
+            reference_id: attachment.referenceId ?? null,
+            has_file: Boolean(attachment.file),
           })),
         ),
       );
       if (includeEnhancementImages) {
         for (const attachment of attachments) {
-          formData.append("attachments", attachment.file);
+          if (attachment.file) {
+            formData.append("attachments", attachment.file);
+          }
         }
       }
     }
@@ -1294,7 +1403,11 @@ export function useStudioComposer({
     structuredPresetActive,
     structuredPresetPromptPreview,
     JSON.stringify(presetInputValues),
-    JSON.stringify(Object.fromEntries(Object.entries(presetSlotStates).map(([key, value]) => [key, value.assetId ?? value.file?.name ?? ""]))),
+    JSON.stringify(
+      Object.fromEntries(
+        Object.entries(presetSlotStates).map(([key, value]) => [key, value.assetId ?? value.referenceId ?? value.file?.name ?? ""]),
+      ),
+    ),
   ]);
 
   return {
@@ -1407,8 +1520,10 @@ export function useStudioComposer({
       updateOption,
       addFiles,
       addGalleryAssetAsAttachment,
+      addReferenceMediaAsAttachment,
       assignPresetSlotFile,
       assignPresetSlotAsset,
+      assignPresetSlotReference,
       clearPresetSlot,
       insertPromptSnippet,
       removeAttachment,
