@@ -1008,13 +1008,16 @@ export function MediaStudio({
     }
     const normalizedQuery = (promptReferenceMention?.query ?? "").replace(/\s+/g, " ").trim();
     return orderedImageInputs
-      .map((_, index) => {
+      .map((slot, index) => {
         const label = `Image reference ${index + 1}`;
+        const preview = orderedImageInputPreview(slot, label, `prompt-reference-${index + 1}`);
         return {
           id: `image-reference-${index + 1}`,
           label,
           token: `[image reference ${index + 1}]`,
           search: `${label.toLowerCase()} ref ${index + 1} image ${index + 1}`,
+          preview,
+          visualUrl: orderedImageInputVisual(slot) ?? preview?.posterUrl ?? preview?.url ?? null,
         };
       })
       .filter((choice) => !normalizedQuery || choice.search.includes(normalizedQuery));
@@ -1071,7 +1074,6 @@ export function MediaStudio({
                 <StudioStagedMediaTile
                   preview={slotPreview}
                   visualUrl={slotVisual}
-                  footerLabel={slotLabel}
                   onOpenPreview={openReferencePreview}
                   onRemove={() => clearOrderedImageInput(slot)}
                   className="h-[82px] w-[82px]"
@@ -2434,10 +2436,7 @@ export function MediaStudio({
                           )}
                         />
                         {promptReferencePickerOpen ? (
-                          <div className="absolute inset-x-3 bottom-3 z-20 rounded-[18px] border border-white/10 bg-[rgba(17,20,19,0.96)] p-2 shadow-[0_18px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-                            <div className="px-2 pb-1 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-white/42">
-                              Insert image reference
-                            </div>
+                          <div className="absolute bottom-3 left-3 z-20 w-[min(19rem,calc(100%-4.5rem))] rounded-[18px] border border-white/10 bg-[rgba(17,20,19,0.96)] p-2 shadow-[0_18px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl">
                             <div className="grid gap-1">
                               {promptReferenceChoices.map((choice, index) => (
                                 <button
@@ -2449,12 +2448,26 @@ export function MediaStudio({
                                   }}
                                   onClick={() => applyPromptReferenceChoice(choice)}
                                   className={cn(
-                                    "flex items-center justify-between gap-3 rounded-[12px] px-3 py-2 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white",
+                                    "flex items-center gap-3 rounded-[12px] px-2 py-2 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white",
                                     promptReferenceActiveIndex === index ? "bg-white/[0.08] text-white" : "",
                                   )}
                                 >
-                                  <span>{choice.label}</span>
-                                  <span className="text-[0.64rem] uppercase tracking-[0.12em] text-white/42">{choice.token}</span>
+                                  <span className="inline-flex h-10 w-10 shrink-0 overflow-hidden rounded-[10px] border border-white/10 bg-white/[0.05]">
+                                    {choice.visualUrl ? (
+                                      <img
+                                        src={choice.visualUrl}
+                                        alt={choice.label}
+                                        loading="eager"
+                                        decoding="async"
+                                        className="h-full w-full object-cover"
+                                      />
+                                    ) : (
+                                      <span className="flex h-full w-full items-center justify-center text-white/48">
+                                        <ImageIcon className="size-4" />
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className="min-w-0 flex-1 truncate">{choice.label}</span>
                                 </button>
                               ))}
                             </div>
