@@ -92,6 +92,110 @@ type UseStudioComposerParams = {
   refreshCreditBalance: () => Promise<void>;
 };
 
+const MAX_IMAGE_UPLOAD_DIMENSION = 4096;
+const IMAGE_UPLOAD_QUALITIES = [0.92, 0.86, 0.8, 0.74, 0.68];
+
+function resolveImageMaxBytes(model: MediaModelSummary | null): number | null {
+  const inputConstraints = model?.input_constraints;
+  if (!inputConstraints || typeof inputConstraints !== "object" || Array.isArray(inputConstraints)) {
+    return null;
+  }
+  const raw = inputConstraints.image_max_mb;
+  const imageMaxMb = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(imageMaxMb) || imageMaxMb <= 0) {
+    return null;
+  }
+  return Math.trunc(imageMaxMb * 1024 * 1024);
+}
+
+async function loadImageBitmap(file: File): Promise<ImageBitmap | HTMLImageElement> {
+  if (typeof createImageBitmap === "function") {
+    return createImageBitmap(file);
+  }
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("Unable to decode image for upload optimization."));
+      element.src = objectUrl;
+    });
+    return image;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+function renameFileExtension(name: string, nextExtension: string) {
+  const extension = nextExtension.startsWith(".") ? nextExtension : `.${nextExtension}`;
+  return name.replace(/\.[^.]+$/, "") + extension;
+}
+
+async function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number): Promise<Blob | null> {
+  return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+}
+
+async function normalizeImageFileForUpload(file: File, maxBytes: number): Promise<File> {
+  if (!file.type.startsWith("image/") || file.size <= maxBytes) {
+    return file;
+  }
+
+  const source = await loadImageBitmap(file);
+  const sourceWidth = "width" in source ? source.width : 0;
+  const sourceHeight = "height" in source ? source.height : 0;
+  if (!sourceWidth || !sourceHeight) {
+    return file;
+  }
+
+  let scale = Math.min(1, MAX_IMAGE_UPLOAD_DIMENSION / Math.max(sourceWidth, sourceHeight));
+  let bestBlob: Blob | null = null;
+  const preferWebp = file.type === "image/png" || file.type === "image/webp";
+  const outputType = preferWebp ? "image/webp" : "image/jpeg";
+  const outputName = renameFileExtension(file.name, preferWebp ? "webp" : "jpg");
+
+  try {
+    for (let index = 0; index < IMAGE_UPLOAD_QUALITIES.length; index += 1) {
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+      canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+      const context = canvas.getContext("2d", { alpha: preferWebp });
+      if (!context) {
+        return file;
+      }
+      context.drawImage(source as CanvasImageSource, 0, 0, canvas.width, canvas.height);
+      const blob = await canvasToBlob(canvas, outputType, IMAGE_UPLOAD_QUALITIES[index]);
+      if (!blob) {
+        continue;
+      }
+      if (!bestBlob || blob.size < bestBlob.size) {
+        bestBlob = blob;
+      }
+      if (blob.size <= maxBytes) {
+        return new File([blob], outputName, {
+          type: outputType,
+          lastModified: file.lastModified,
+        });
+      }
+      if (index % 2 === 1) {
+        scale *= 0.88;
+      }
+    }
+  } finally {
+    if ("close" in source && typeof source.close === "function") {
+      source.close();
+    }
+  }
+
+  if (!bestBlob || bestBlob.size >= file.size) {
+    return file;
+  }
+
+  return new File([bestBlob], outputName, {
+    type: outputType,
+    lastModified: file.lastModified,
+  });
+}
+
 export type StudioComposerController = ReturnType<typeof useStudioComposer>;
 
 export function useStudioComposer({
@@ -412,6 +516,7 @@ export function useStudioComposer({
       ? `Generate shows the total for ${outputCount} output${outputCount === 1 ? "" : "s"}.`
       : "Generate shows the total for this request."
     : null;
+  const currentImageMaxBytes = useMemo(() => resolveImageMaxBytes(currentModel), [currentModel]);
   const validationReady = studioValidationReady(validation);
   const inferredInputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
   const composerHasSubmittableInput = structuredPresetActive
@@ -1035,7 +1140,7 @@ export function useStudioComposer({
     );
   }
 
-  function buildMediaFormData(intent: "validate" | "submit" | "enhance") {
+  async function buildMediaFormData(intent: "validate" | "submit" | "enhance") {
     const formData = new FormData();
     // Prompt-only enhancement providers should not receive staged source media.
     // The media stays attached in the composer and is still used for the later generate step.
@@ -1084,7 +1189,11 @@ export function useStudioComposer({
           presetSlotValues[slot.key] = [{ reference_id: slotState.referenceId }];
         }
         if (slotState.file && includeEnhancementImages) {
-          formData.append(`preset_slot_file:${slot.key}`, slotState.file);
+          const preparedFile =
+            currentImageMaxBytes && slotState.file.type.startsWith("image/")
+              ? await normalizeImageFileForUpload(slotState.file, currentImageMaxBytes)
+              : slotState.file;
+          formData.append(`preset_slot_file:${slot.key}`, preparedFile);
         }
       }
       formData.set("preset_slot_values_json", JSON.stringify(presetSlotValues));
@@ -1109,7 +1218,11 @@ export function useStudioComposer({
       if (includeEnhancementImages) {
         for (const attachment of attachments) {
           if (attachment.file) {
-            formData.append("attachments", attachment.file);
+            const preparedFile =
+              currentImageMaxBytes && attachment.kind === "images"
+                ? await normalizeImageFileForUpload(attachment.file, currentImageMaxBytes)
+                : attachment.file;
+            formData.append("attachments", preparedFile);
           }
         }
       }
@@ -1163,7 +1276,7 @@ export function useStudioComposer({
     try {
       const response = await fetch("/api/control/media-enhance", {
         method: "POST",
-        body: buildMediaFormData("enhance"),
+        body: await buildMediaFormData("enhance"),
         signal: controller.signal,
       });
       const payload = (await response.json()) as { ok: false; error?: string } | { ok: true; preview?: MediaEnhancePreviewResponse };
@@ -1235,7 +1348,7 @@ export function useStudioComposer({
     try {
       const response = await fetch("/api/control/media", {
         method: "POST",
-        body: buildMediaFormData("validate"),
+        body: await buildMediaFormData("validate"),
       });
       const payload = (await response.json()) as
         | { ok: false; error?: string }
@@ -1325,7 +1438,7 @@ export function useStudioComposer({
     try {
       const response = await fetch("/api/control/media", {
         method: "POST",
-        body: buildMediaFormData(intent),
+        body: await buildMediaFormData(intent),
       });
       const payload = (await response.json()) as
         | { ok: false; error?: string }
