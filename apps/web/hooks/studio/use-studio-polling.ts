@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { FLOATING_COMPOSER_STATUS_MS, type ComposerStatusMessage } from "@/lib/media-studio-contract";
 import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
@@ -184,8 +184,83 @@ export function useStudioPolling({
   const [favoriteAssetIdBusy, setFavoriteAssetIdBusy] = useState<string | number | null>(null);
   const lastJobFeedbackSignatureRef = useRef<Map<string, string>>(new Map());
   const lastBatchFeedbackSignatureRef = useRef<Map<string, string>>(new Map());
+  const activeJobPollsRef = useRef<Set<string>>(new Set());
+  const activeBatchPollsRef = useRef<Set<string>>(new Set());
+  const inFlightJobPollsRef = useRef<Set<string>>(new Set());
+  const inFlightBatchPollsRef = useRef<Set<string>>(new Set());
+  const jobPollTimersRef = useRef<Map<string, number>>(new Map());
+  const batchPollTimersRef = useRef<Map<string, number>>(new Map());
+
+  function clearJobPoll(jobId: string) {
+    activeJobPollsRef.current.delete(jobId);
+    inFlightJobPollsRef.current.delete(jobId);
+    const timer = jobPollTimersRef.current.get(jobId);
+    if (timer != null) {
+      window.clearTimeout(timer);
+      jobPollTimersRef.current.delete(jobId);
+    }
+  }
+
+  function clearBatchPoll(batchId: string) {
+    activeBatchPollsRef.current.delete(batchId);
+    inFlightBatchPollsRef.current.delete(batchId);
+    const timer = batchPollTimersRef.current.get(batchId);
+    if (timer != null) {
+      window.clearTimeout(timer);
+      batchPollTimersRef.current.delete(batchId);
+    }
+  }
+
+  function scheduleJobPoll(jobId: string) {
+    if (!activeJobPollsRef.current.has(jobId) || jobPollTimersRef.current.has(jobId)) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      jobPollTimersRef.current.delete(jobId);
+      void pollJob(jobId);
+    }, STUDIO_POLL_INTERVAL_MS);
+    jobPollTimersRef.current.set(jobId, timer);
+  }
+
+  function scheduleBatchPoll(batchId: string) {
+    if (!activeBatchPollsRef.current.has(batchId) || batchPollTimersRef.current.has(batchId)) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      batchPollTimersRef.current.delete(batchId);
+      void pollBatch(batchId);
+    }, STUDIO_POLL_INTERVAL_MS);
+    batchPollTimersRef.current.set(batchId, timer);
+  }
+
+  useEffect(() => {
+    return () => {
+      for (const timer of jobPollTimersRef.current.values()) {
+        window.clearTimeout(timer);
+      }
+      jobPollTimersRef.current.clear();
+      for (const timer of batchPollTimersRef.current.values()) {
+        window.clearTimeout(timer);
+      }
+      batchPollTimersRef.current.clear();
+      activeJobPollsRef.current.clear();
+      activeBatchPollsRef.current.clear();
+      inFlightJobPollsRef.current.clear();
+      inFlightBatchPollsRef.current.clear();
+    };
+  }, []);
 
   async function pollJob(jobId: string) {
+    activeJobPollsRef.current.add(jobId);
+    const existingTimer = jobPollTimersRef.current.get(jobId);
+    if (existingTimer != null) {
+      window.clearTimeout(existingTimer);
+      jobPollTimersRef.current.delete(jobId);
+    }
+    if (inFlightJobPollsRef.current.has(jobId)) {
+      return;
+    }
+    inFlightJobPollsRef.current.add(jobId);
     try {
       const response = await fetch(`/api/control/media-jobs/${jobId}`, {
         method: "GET",
@@ -194,6 +269,7 @@ export function useStudioPolling({
       });
       const payload = (await response.json()) as { ok?: boolean; error?: string; job?: MediaJob; batch?: MediaBatch | null };
       if (!response.ok || !payload.ok || !payload.job) {
+        clearJobPoll(jobId);
         setFormMessage({ tone: "danger", text: payload.error ?? "Unable to read the current media job state." });
         showFloatingComposerBanner({ tone: "danger", text: payload.error ?? "Unable to read the current media job state." }, 5200);
         return;
@@ -237,19 +313,31 @@ export function useStudioPolling({
           { tone: payload.job.status === "completed" ? "healthy" : "danger", text: finalMessage },
           payload.job.status === "completed" ? FLOATING_COMPOSER_STATUS_MS : 5600,
         );
+        clearJobPoll(jobId);
         return;
       }
-
-      window.setTimeout(() => {
-        void pollJob(jobId);
-      }, STUDIO_POLL_INTERVAL_MS);
     } catch {
+      clearJobPoll(jobId);
       setFormMessage({ tone: "danger", text: "The dashboard lost contact with the media job poller." });
       showFloatingComposerBanner({ tone: "danger", text: "The dashboard lost contact with the media job poller." }, 5600);
+      return;
+    } finally {
+      inFlightJobPollsRef.current.delete(jobId);
     }
+    scheduleJobPoll(jobId);
   }
 
   async function pollBatch(batchId: string) {
+    activeBatchPollsRef.current.add(batchId);
+    const existingTimer = batchPollTimersRef.current.get(batchId);
+    if (existingTimer != null) {
+      window.clearTimeout(existingTimer);
+      batchPollTimersRef.current.delete(batchId);
+    }
+    if (inFlightBatchPollsRef.current.has(batchId)) {
+      return;
+    }
+    inFlightBatchPollsRef.current.add(batchId);
     try {
       const response = await fetch(`/api/control/media-batches/${batchId}`, {
         method: "GET",
@@ -258,6 +346,7 @@ export function useStudioPolling({
       });
       const payload = (await response.json()) as { ok?: boolean; error?: string; batch?: MediaBatch | null };
       if (!response.ok || !payload.ok || !payload.batch) {
+        clearBatchPoll(batchId);
         setFormMessage({ tone: "danger", text: payload.error ?? "Unable to read the current media batch state." });
         showFloatingComposerBanner({ tone: "danger", text: payload.error ?? "Unable to read the current media batch state." }, 5200);
         return;
@@ -321,16 +410,18 @@ export function useStudioPolling({
           { tone: payload.batch.status === "completed" ? "healthy" : "danger", text: finalMessage },
           payload.batch.status === "completed" ? FLOATING_COMPOSER_STATUS_MS : 5600,
         );
+        clearBatchPoll(batchId);
         return;
       }
-
-      window.setTimeout(() => {
-        void pollBatch(batchId);
-      }, STUDIO_POLL_INTERVAL_MS);
     } catch {
+      clearBatchPoll(batchId);
       setFormMessage({ tone: "danger", text: "The dashboard lost contact with the media queue watcher." });
       showFloatingComposerBanner({ tone: "danger", text: "The dashboard lost contact with the media queue watcher." }, 5600);
+      return;
+    } finally {
+      inFlightBatchPollsRef.current.delete(batchId);
     }
+    scheduleBatchPoll(batchId);
   }
 
   async function retryJob(jobId: string, setBusyState: (value: "idle" | "validate" | "submit") => void) {
