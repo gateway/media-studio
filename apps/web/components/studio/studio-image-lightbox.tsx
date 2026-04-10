@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useEffect } from "react";
 
 type StudioImageLightboxProps = {
   src: string;
@@ -11,6 +12,17 @@ type StudioImageLightboxProps = {
 };
 
 export function StudioImageLightbox({ src, alt, kind = "images", posterSrc, onClose }: StudioImageLightboxProps) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   return (
     <div data-testid="studio-image-lightbox" className="fixed inset-0 z-[140] bg-[rgba(4,6,5,0.96)]" onClick={onClose}>
       <button
