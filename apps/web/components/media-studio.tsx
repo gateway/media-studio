@@ -20,6 +20,7 @@ import {
   RotateCcw,
   Sparkles,
   Trash2,
+  Volume2,
   X,
 } from "lucide-react";
 
@@ -292,6 +293,102 @@ function StudioPillSelect({
             </div>
           </div>
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+function StudioStagedMediaTile({
+  preview,
+  visualUrl,
+  footerLabel,
+  onOpenPreview,
+  onRemove,
+  replaceControl,
+  className,
+  tileClassName,
+  testId,
+}: {
+  preview: StudioReferencePreview;
+  visualUrl?: string | null;
+  footerLabel?: string | null;
+  onOpenPreview: (preview: StudioReferencePreview) => void;
+  onRemove?: () => void;
+  replaceControl?: React.ReactNode;
+  className?: string;
+  tileClassName?: string;
+  testId?: string;
+}) {
+  const mediaVisual = visualUrl ?? (preview.kind === "images" ? preview.url : preview.posterUrl ?? null);
+
+  return (
+    <div data-testid={testId} className={cn("group relative", className)}>
+      <button
+        type="button"
+        onClick={() => onOpenPreview(preview)}
+        className={cn("relative h-full w-full overflow-hidden rounded-[24px] border border-white/8 bg-white/8 text-left", tileClassName)}
+        title={preview.label}
+      >
+        {preview.kind === "videos" ? (
+          mediaVisual ? (
+            <>
+              <img
+                src={mediaVisual}
+                alt={preview.label}
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              />
+              <span className="absolute inset-0 flex items-center justify-center bg-black/28">
+                <Play className="size-4 text-white" />
+              </span>
+            </>
+          ) : (
+            <span className="flex h-full w-full items-center justify-center bg-white/[0.05] text-white/72">
+              <Play className="size-5" />
+            </span>
+          )
+        ) : preview.kind === "audios" ? (
+          <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-white/[0.05] text-white/72">
+            <Volume2 className="size-5" />
+            <span className="text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-white/58">Audio</span>
+          </span>
+        ) : mediaVisual ? (
+          <img
+            src={mediaVisual}
+            alt={preview.label}
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center bg-white/[0.05] text-white/72">
+            <ImageIcon className="size-5" />
+          </span>
+        )}
+        {footerLabel ? (
+          <div className="absolute inset-x-0 bottom-0 bg-black/45 px-2 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-white/92">
+            {footerLabel}
+          </div>
+        ) : null}
+      </button>
+      {replaceControl ? <div className="absolute bottom-1.5 left-1.5 z-10">{replaceControl}</div> : null}
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onRemove();
+          }}
+          className="absolute right-1.5 top-1.5 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 opacity-100 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+          aria-label={`Remove ${preview.label}`}
+          title={`Remove ${preview.label}`}
+        >
+          <X className="size-3.5" />
+        </button>
       ) : null}
     </div>
   );
@@ -685,6 +782,61 @@ export function MediaStudio({
     serializeOptionChoice,
   } = composer.actions;
 
+  function openReferencePreview(preview: StudioReferencePreview | null) {
+    if (!preview?.url) {
+      return;
+    }
+    setSelectedReferencePreview(preview);
+  }
+
+  function buildAttachmentPreview(
+    attachment: AttachmentRecord | null | undefined,
+    label: string,
+    previewKey = label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+  ): StudioReferencePreview | null {
+    const url = attachment?.previewUrl ?? null;
+    if (!url) {
+      return null;
+    }
+    return {
+      key: `attachment:${attachment?.id ?? previewKey}`,
+      label,
+      url,
+      kind: attachment?.kind ?? "images",
+      posterUrl: attachment?.kind === "videos" ? null : undefined,
+    };
+  }
+
+  function buildAssetReferencePreview(asset: MediaAsset | null | undefined, label: string): StudioReferencePreview | null {
+    if (!asset) {
+      return null;
+    }
+    const kind =
+      asset.generation_kind === "video"
+        ? ("videos" as const)
+        : asset.generation_kind === "audio"
+          ? ("audios" as const)
+          : ("images" as const);
+    const posterUrl =
+      kind === "videos" ? mediaThumbnailUrl(asset) ?? mediaDisplayUrl(asset) ?? null : null;
+    const url =
+      (kind === "videos" ? mediaPlaybackUrl(asset) : null) ??
+      mediaInlineUrl(asset) ??
+      mediaDisplayUrl(asset) ??
+      mediaThumbnailUrl(asset) ??
+      null;
+    if (!url) {
+      return null;
+    }
+    return {
+      key: `asset:${asset.asset_id}`,
+      label,
+      url,
+      kind,
+      posterUrl,
+    };
+  }
+
   useEffect(() => {
     installStudioDebugConsole();
   }, []);
@@ -821,40 +973,31 @@ export function MediaStudio({
               ? mediaThumbnailUrl(slot.asset) ?? mediaDisplayUrl(slot.asset)
               : slot.attachment.previewUrl ?? null;
           const slotLabel = imageSlotLabels[slotIndex] ?? `Image ${slotIndex + 1}`;
+          const slotPreview =
+            slot.source === "asset"
+              ? buildAssetReferencePreview(slot.asset, slotLabel)
+              : buildAttachmentPreview(slot.attachment as AttachmentRecord, slotLabel, `multi-image-${slotIndex + 1}`);
           return (
             <div key={`multi-image-slot-${slotIndex}`} className="flex shrink-0 flex-col gap-2">
               <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slotLabel}</div>
-              <div className="relative h-[82px] w-[82px]">
-                <button
-                  type="button"
-                  onClick={() => {
+              {slotPreview ? (
+                <StudioStagedMediaTile
+                  preview={slotPreview}
+                  visualUrl={slotVisual}
+                  footerLabel={slot.source === "asset" ? "Source" : `Ref ${slotIndex + 1}`}
+                  onOpenPreview={openReferencePreview}
+                  onRemove={() => {
                     if (slot.source === "asset") {
                       setSourceAssetId(null);
                     } else {
                       removeAttachment(slot.attachment.id);
                     }
                   }}
-                  className={cn(
-                    "group relative h-full w-full overflow-hidden rounded-[24px] border bg-white/8",
-                    slot.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : "border-white/8",
-                  )}
-                  title={slotLabel}
-                >
-                  {slotVisual ? (
-                    <img
-                      src={slotVisual}
-                      alt={slotLabel}
-                      loading="eager"
-                      fetchPriority="high"
-                      decoding="async"
-                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                    />
-                  ) : null}
-                  <div className="absolute inset-x-0 bottom-0 bg-black/45 px-2 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-white/92">
-                    {slot.source === "asset" ? "Source" : `Ref ${slotIndex + 1}`}
-                  </div>
-                </button>
-              </div>
+                  className="h-[82px] w-[82px]"
+                  tileClassName={slot.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
+                  testId={`studio-multi-image-slot-${slotIndex + 1}`}
+                />
+              ) : null}
             </div>
           );
         })}
@@ -903,24 +1046,56 @@ export function MediaStudio({
             { label: "End frame", role: "last_frame", attachment: seedanceLastFrameAttachment },
           ].map((slot, slotIndex) => {
             const attachment = slot.attachment;
+            const attachmentPreview = attachment
+              ? buildAttachmentPreview(attachment, slot.label, `seedance-${slot.role}`)
+              : null;
             return (
             <div key={`seedance-slot-${slot.role}`} className="flex flex-col gap-2">
               <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slot.label}</div>
               <div data-testid={`seedance-slot-${slot.role}`} className="relative h-[82px] w-[82px]">
-                {attachment ? (
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(attachment.id)}
-                    className="group relative h-full w-full overflow-hidden rounded-[24px] border border-white/8 bg-white/8"
+                {attachment && attachmentPreview ? (
+                  <div
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setIsDragActive(true);
+                    }}
+                    onDragLeave={() => setIsDragActive(false)}
+                    onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
+                    className="h-full w-full"
                   >
-                    {attachment.previewUrl ? (
-                      <img
-                        src={attachment.previewUrl}
-                        alt={slot.label}
-                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                      />
-                    ) : null}
-                  </button>
+                    <StudioStagedMediaTile
+                      preview={attachmentPreview}
+                      visualUrl={attachment.previewUrl}
+                      onOpenPreview={openReferencePreview}
+                      onRemove={() => removeAttachment(attachment.id)}
+                      replaceControl={
+                        <label className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white">
+                          <ImagePlus className="size-3.5" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            data-testid={`seedance-slot-input-${slot.role}`}
+                            className="hidden"
+                            onChange={(event) => {
+                              if (slot.role === "last_frame" && !seedanceFirstFrameAttachment) {
+                                setFormMessage({ tone: "warning", text: "Add a start frame before the end frame." });
+                                resetFileInputValue(event.currentTarget);
+                                return;
+                              }
+                              removeAttachment(attachment.id);
+                              addFiles(event.target.files, {
+                                role: slot.role as "first_frame" | "last_frame",
+                                allowedKinds: ["images"],
+                              });
+                              resetFileInputValue(event.currentTarget);
+                            }}
+                          />
+                        </label>
+                      }
+                      className="h-full w-full"
+                      testId={`seedance-slot-filled-${slot.role}`}
+                    />
+                  </div>
                 ) : (
                   <label
                     onDragOver={(event) => {
@@ -969,36 +1144,62 @@ export function MediaStudio({
                 : slot?.attachment?.previewUrl ?? null;
             const slotLabel = imageSlotLabels[slotIndex] ?? `Image ${slotIndex + 1}`;
             const slotFilled = Boolean(slot);
+            const slotPreview =
+              slot?.source === "asset"
+                ? buildAssetReferencePreview(slot.asset, slotLabel)
+                : slot?.source === "attachment"
+                  ? buildAttachmentPreview(slot.attachment as AttachmentRecord, slotLabel, `video-slot-${slotIndex + 1}`)
+                  : null;
             return (
               <div key={`video-image-slot-${slotIndex}`} className="flex flex-col gap-2">
                 <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slotLabel}</div>
                 <div className="relative h-[82px] w-[82px]">
-                  {slotFilled ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (slot?.source === "asset") {
-                          setSourceAssetId(null);
-                        } else if (slot?.source === "attachment") {
-                          removeAttachment(slot.attachment.id);
-                        }
+                  {slotFilled && slotPreview ? (
+                    <div
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        setIsDragActive(true);
                       }}
-                      className={cn(
-                        "group relative h-full w-full overflow-hidden rounded-[24px] border bg-white/8",
-                        slot?.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : "border-white/8",
-                      )}
+                      onDragLeave={() => setIsDragActive(false)}
+                      onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
+                      className="h-full w-full"
                     >
-                      {slotVisual ? (
-                        <img
-                          src={slotVisual}
-                          alt={slotLabel}
-                          loading="eager"
-                          fetchPriority="high"
-                          decoding="async"
-                          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                        />
-                      ) : null}
-                    </button>
+                      <StudioStagedMediaTile
+                        preview={slotPreview}
+                        visualUrl={slotVisual}
+                        onOpenPreview={openReferencePreview}
+                        onRemove={() => {
+                          if (slot?.source === "asset") {
+                            setSourceAssetId(null);
+                          } else if (slot?.source === "attachment") {
+                            removeAttachment(slot.attachment.id);
+                          }
+                        }}
+                        replaceControl={
+                          <label className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white">
+                            <ImagePlus className="size-3.5" />
+                            <input
+                              type="file"
+                              accept="image/*"
+                              data-testid={`studio-source-slot-input-${slotIndex + 1}`}
+                              className="hidden"
+                              onChange={(event) => {
+                                if (slot?.source === "asset") {
+                                  setSourceAssetId(null);
+                                } else if (slot?.source === "attachment") {
+                                  removeAttachment(slot.attachment.id);
+                                }
+                                addFiles(event.target.files);
+                                resetFileInputValue(event.currentTarget);
+                              }}
+                            />
+                          </label>
+                        }
+                        className="h-full w-full"
+                        tileClassName={slot?.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
+                        testId={`studio-source-slot-filled-${slotIndex + 1}`}
+                      />
+                    </div>
                   ) : (
                     <label
                       onDragOver={(event) => {
@@ -1038,42 +1239,45 @@ export function MediaStudio({
       ) : (
         <>
           {canUseSourceAsset && currentSourceAsset ? (
-            <button
-              type="button"
-              onClick={() => setSourceAssetId(null)}
-              className="group relative h-[82px] w-[82px] overflow-hidden rounded-[24px] border border-[rgba(216,141,67,0.24)] bg-white/8"
-            >
-              {mediaThumbnailUrl(currentSourceAsset) ? (
-                <img
-                  src={mediaThumbnailUrl(currentSourceAsset) ?? ""}
-                  alt={currentSourceAsset.prompt_summary ?? "Source asset"}
-                  loading="eager"
-                  fetchPriority="high"
-                  decoding="async"
-                  className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                />
-              ) : null}
-            </button>
+            <StudioStagedMediaTile
+              preview={
+                buildAssetReferencePreview(currentSourceAsset, currentSourceAsset.prompt_summary ?? "Source asset") ??
+                {
+                  key: `asset:${currentSourceAsset.asset_id}`,
+                  label: currentSourceAsset.prompt_summary ?? "Source asset",
+                  url: mediaThumbnailUrl(currentSourceAsset) ?? "",
+                  kind: currentSourceAsset.generation_kind === "video" ? "videos" : "images",
+                  posterUrl: mediaThumbnailUrl(currentSourceAsset) ?? null,
+                }
+              }
+              visualUrl={mediaThumbnailUrl(currentSourceAsset) ?? mediaDisplayUrl(currentSourceAsset)}
+              onOpenPreview={openReferencePreview}
+              onRemove={() => setSourceAssetId(null)}
+              className="h-[82px] w-[82px]"
+              tileClassName="border-[rgba(216,141,67,0.24)]"
+              testId="studio-source-asset-tile"
+            />
           ) : null}
 
           {attachments.slice(0, 4).map((attachment) => (
-            <button
+            <StudioStagedMediaTile
               key={attachment.id}
-              type="button"
-              onClick={() => removeAttachment(attachment.id)}
-              className="group relative h-[82px] w-[82px] overflow-hidden rounded-[24px] border border-white/8 bg-white/8"
-            >
-              {attachment.previewUrl ? (
-                attachment.kind === "videos" ? (
-                  <video src={attachment.previewUrl} className="h-full w-full object-cover" />
-                ) : (
-                  <img src={attachment.previewUrl} alt={attachment.file.name} className="h-full w-full object-cover" />
-                )
-              ) : null}
-              <div className="absolute inset-x-0 bottom-0 bg-black/45 px-2 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-white/92">
-                {attachment.kind === "images" ? "Image" : attachment.kind === "videos" ? "Video" : "Audio"}
-              </div>
-            </button>
+              preview={
+                buildAttachmentPreview(attachment, attachment.file.name, attachment.id) ?? {
+                  key: `attachment:${attachment.id}`,
+                  label: attachment.file.name,
+                  url: attachment.previewUrl ?? "",
+                  kind: attachment.kind,
+                  posterUrl: null,
+                }
+              }
+              visualUrl={attachment.kind === "audios" ? null : attachment.previewUrl}
+              footerLabel={attachment.kind === "images" ? "Image" : attachment.kind === "videos" ? "Video" : "Audio"}
+              onOpenPreview={openReferencePreview}
+              onRemove={() => removeAttachment(attachment.id)}
+              className="h-[82px] w-[82px]"
+              testId={`studio-attachment-tile-${attachment.id}`}
+            />
           ))}
 
           {attachments.length > 4 ? (
@@ -1199,30 +1403,23 @@ export function MediaStudio({
               </div>
               <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5">
                 {group.attachments.slice(0, 4).map((attachment) => (
-                  <button
+                  <StudioStagedMediaTile
                     key={attachment.id}
-                    type="button"
-                    onClick={() => removeAttachment(attachment.id)}
-                    className="group relative h-[56px] w-[56px] shrink-0 overflow-hidden rounded-[18px] border border-white/8 bg-white/[0.08]"
-                    title={attachment.file.name}
-                  >
-                    {attachment.previewUrl ? (
-                      attachment.kind === "videos" ? (
-                        <>
-                          <video src={attachment.previewUrl} className="h-full w-full object-cover" />
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/28">
-                            <Play className="size-3.5 text-white" />
-                          </span>
-                        </>
-                      ) : (
-                        <img src={attachment.previewUrl} alt={attachment.file.name} className="h-full w-full object-cover" />
-                      )
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/68">
-                        {group.key === "audios" ? "Audio" : "Ref"}
-                      </span>
-                    )}
-                  </button>
+                    preview={
+                      buildAttachmentPreview(attachment, attachment.file.name, `${group.key}-${attachment.id}`) ?? {
+                        key: `attachment:${attachment.id}`,
+                        label: attachment.file.name,
+                        url: attachment.previewUrl ?? "",
+                        kind: attachment.kind,
+                        posterUrl: null,
+                      }
+                    }
+                    visualUrl={attachment.kind === "audios" ? null : attachment.previewUrl}
+                    onOpenPreview={openReferencePreview}
+                    onRemove={() => removeAttachment(attachment.id)}
+                    className="h-[56px] w-[56px] shrink-0"
+                    testId={`seedance-group-tile-${group.key}-${attachment.id}`}
+                  />
                 ))}
                 {group.attachments.length > 4 ? (
                   <div className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[18px] border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58">
@@ -1365,7 +1562,7 @@ export function MediaStudio({
     visibleGalleryAssetIds,
   ]);
 
-  function handleSourceTileDrop(event: React.DragEvent<HTMLLabelElement>, slotIndex = 0) {
+  function handleSourceTileDrop(event: React.DragEvent<HTMLElement>, slotIndex = 0) {
     event.preventDefault();
     setIsDragActive(false);
     const galleryAssetId = event.dataTransfer.getData("application/x-bumblebee-media-asset-id");
@@ -1428,7 +1625,7 @@ export function MediaStudio({
     addFiles(event.dataTransfer.files, { role: "reference", allowedKinds: [allowedKind] });
   }
 
-  function handlePresetSlotDrop(event: React.DragEvent<HTMLLabelElement>, slotKey: string) {
+  function handlePresetSlotDrop(event: React.DragEvent<HTMLElement>, slotKey: string) {
     event.preventDefault();
     const galleryAssetId = event.dataTransfer.getData("application/x-bumblebee-media-asset-id");
     if (galleryAssetId) {
@@ -1981,6 +2178,16 @@ export function MediaStudio({
                               const slotPreview = slotState?.assetId
                                 ? mediaThumbnailUrl(findMediaAssetById(slotState.assetId, localAssets, favoriteAssets) ?? null) ?? slotState.previewUrl
                                 : slotState?.previewUrl;
+                              const presetSlotPreview =
+                                slotPreview
+                                  ? ({
+                                      key: `preset-slot:${slot.key}`,
+                                      label: slot.label,
+                                      url: slotPreview,
+                                      kind: "images",
+                                      posterUrl: null,
+                                    } satisfies StudioReferencePreview)
+                                  : null;
                               return (
                                 <div
                                   key={slot.key}
@@ -1995,38 +2202,55 @@ export function MediaStudio({
                                   </div>
                                   <div className="mt-3 flex items-center gap-3">
                                     <div className="relative h-[86px] w-[86px] shrink-0">
-                                      <label
-                                        onDragOver={(event) => event.preventDefault()}
-                                        onDrop={(event) => handlePresetSlotDrop(event, slot.key)}
-                                        className="relative flex h-full w-full cursor-pointer items-center justify-center overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.05] text-white/74"
-                                      >
-                                        {slotPreview ? <img src={slotPreview} alt={slot.label} className="h-full w-full object-cover" /> : <ImagePlus className="size-5" />}
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          data-testid={`studio-preset-slot-input-${slot.key}`}
-                                          className="hidden"
-                                          onChange={(event) => {
-                                            assignPresetSlotFile(slot.key, event.target.files?.[0] ?? null);
-                                            resetFileInputValue(event.currentTarget);
-                                          }}
-                                        />
-                                      </label>
-                                      {slotState?.assetId || slotState?.file ? (
-                                        <button
-                                          type="button"
-                                          onClick={(event) => {
-                                            event.preventDefault();
-                                            event.stopPropagation();
-                                            clearPresetSlot(slot.key);
-                                          }}
-                                          className="absolute bottom-1.5 right-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(255,181,166,0.22)] bg-[rgba(18,11,10,0.82)] text-[#ffb5a6] shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:border-[rgba(255,181,166,0.34)] hover:text-white"
-                                          aria-label={`Clear ${slot.label}`}
-                                          title={`Clear ${slot.label}`}
+                                      {presetSlotPreview ? (
+                                        <div
+                                          onDragOver={(event) => event.preventDefault()}
+                                          onDrop={(event) => handlePresetSlotDrop(event, slot.key)}
+                                          className="h-full w-full"
                                         >
-                                          <Trash2 className="size-3.5" />
-                                        </button>
-                                      ) : null}
+                                          <StudioStagedMediaTile
+                                            preview={presetSlotPreview}
+                                            visualUrl={slotPreview}
+                                            onOpenPreview={openReferencePreview}
+                                            onRemove={() => clearPresetSlot(slot.key)}
+                                            replaceControl={
+                                              <label className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white">
+                                                <ImagePlus className="size-3.5" />
+                                                <input
+                                                  type="file"
+                                                  accept="image/*"
+                                                  data-testid={`studio-preset-slot-input-${slot.key}`}
+                                                  className="hidden"
+                                                  onChange={(event) => {
+                                                    assignPresetSlotFile(slot.key, event.target.files?.[0] ?? null);
+                                                    resetFileInputValue(event.currentTarget);
+                                                  }}
+                                                />
+                                              </label>
+                                            }
+                                            className="h-full w-full"
+                                            testId={`studio-preset-slot-filled-${slot.key}`}
+                                          />
+                                        </div>
+                                      ) : (
+                                        <label
+                                          onDragOver={(event) => event.preventDefault()}
+                                          onDrop={(event) => handlePresetSlotDrop(event, slot.key)}
+                                          className="relative flex h-full w-full cursor-pointer items-center justify-center overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.05] text-white/74"
+                                        >
+                                          <ImagePlus className="size-5" />
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            data-testid={`studio-preset-slot-input-${slot.key}`}
+                                            className="hidden"
+                                            onChange={(event) => {
+                                              assignPresetSlotFile(slot.key, event.target.files?.[0] ?? null);
+                                              resetFileInputValue(event.currentTarget);
+                                            }}
+                                          />
+                                        </label>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -2910,6 +3134,8 @@ export function MediaStudio({
         <StudioImageLightbox
           src={selectedReferencePreview.url}
           alt={selectedReferencePreview.label}
+          kind={selectedReferencePreview.kind}
+          posterSrc={selectedReferencePreview.posterUrl}
           onClose={() => setSelectedReferencePreview(null)}
         />
       ) : null}

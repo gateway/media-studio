@@ -172,11 +172,15 @@ describe("media-studio-helpers Seedance support", () => {
         key: "slot:wardrobe:0",
         label: "Wardrobe",
         url: "/api/control/files/outputs/refs/wardrobe.png",
+        kind: "images",
+        posterUrl: null,
       },
       {
         key: "job-image:1",
         label: "First frame",
         url: "/api/control/files/outputs/frames/first.png",
+        kind: "images",
+        posterUrl: null,
       },
     ]);
   });
@@ -223,6 +227,7 @@ describe("media-studio-helpers Seedance support", () => {
         key: "job-reference:1",
         label: "Reference 1",
         url: "/api/control/files/outputs/thumb/ref-2.webp",
+        posterUrl: null,
         assetId: "asset-ref-2",
         kind: "images",
         role: "reference",
@@ -231,6 +236,7 @@ describe("media-studio-helpers Seedance support", () => {
         key: "job-reference:2",
         label: "Last frame",
         url: "/api/control/files/outputs/frames/last.png",
+        posterUrl: null,
         assetId: null,
         kind: "images",
         role: "last_frame",

@@ -57,6 +57,8 @@ export type StudioReferencePreview = {
   key: string;
   label: string;
   url: string;
+  kind: "images" | "videos" | "audios";
+  posterUrl?: string | null;
 };
 
 export type StudioJobReferenceInput = StudioReferencePreview & {
@@ -634,6 +636,19 @@ function normalizedReferenceLabel(role: string | null, fallbackIndex: number, re
   return `Image ${fallbackIndex}`;
 }
 
+function studioReferenceKind(mediaType: unknown): "images" | "videos" | "audios" {
+  if (typeof mediaType === "string") {
+    const normalized = mediaType.toLowerCase();
+    if (normalized === "video") {
+      return "videos";
+    }
+    if (normalized === "audio") {
+      return "audios";
+    }
+  }
+  return "images";
+}
+
 export function buildStudioReferencePreviews({
   asset,
   job,
@@ -653,7 +668,13 @@ export function buildStudioReferencePreviews({
   const seen = new Set<string>();
   const sourceAssetId = asset?.source_asset_id ?? job?.source_asset_id ?? null;
 
-  function pushPreview(key: string, label: string, url: string | null | undefined) {
+  function pushPreview(
+    key: string,
+    label: string,
+    kind: "images" | "videos" | "audios",
+    url: string | null | undefined,
+    posterUrl?: string | null,
+  ) {
     if (!url) {
       return;
     }
@@ -662,7 +683,7 @@ export function buildStudioReferencePreviews({
       return;
     }
     seen.add(normalizedUrl);
-    previews.push({ key, label, url: normalizedUrl });
+    previews.push({ key, label, url: normalizedUrl, kind, posterUrl: posterUrl ?? null });
   }
 
   for (const slot of presetSlots ?? []) {
@@ -670,7 +691,7 @@ export function buildStudioReferencePreviews({
     rawItems.forEach((item, index) => {
       const preview = structuredPresetSlotPreviewUrl(item, localAssets, favoriteAssets);
       const label = rawItems.length > 1 ? `${slot.label} ${index + 1}` : slot.label;
-      pushPreview(`slot:${slot.key}:${index}`, label, preview?.url);
+      pushPreview(`slot:${slot.key}:${index}`, label, "images", preview?.url);
     });
   }
 
@@ -688,13 +709,22 @@ export function buildStudioReferencePreviews({
     const urlValue = typeof image.url === "string" ? image.url : null;
     const pathValue = typeof image.path === "string" ? image.path : null;
     const role = typeof image.role === "string" ? image.role : null;
+    const kind = studioReferenceKind(image.media_type);
     if (role === "reference") {
       referenceIndex += 1;
     }
     pushPreview(
       `job-image:${index}`,
       normalizedReferenceLabel(role, index + 1, Math.max(referenceIndex, 1)),
-      mediaDisplayUrl(imageAsset) ?? mediaThumbnailUrl(imageAsset) ?? urlValue ?? toControlApiDataPreviewPath(pathValue),
+      kind,
+      (kind === "videos" ? mediaPlaybackUrl(imageAsset) : null) ??
+        mediaDisplayUrl(imageAsset) ??
+        mediaThumbnailUrl(imageAsset) ??
+        urlValue ??
+        toControlApiDataPreviewPath(pathValue),
+      kind === "videos"
+        ? mediaThumbnailUrl(imageAsset) ?? mediaDisplayUrl(imageAsset) ?? null
+        : null,
     );
   });
 
@@ -724,9 +754,7 @@ export function buildStudioJobReferenceInputs({
     if (assetId != null && sourceAssetId != null && String(assetId) === String(sourceAssetId)) {
       return;
     }
-    const mediaType = typeof image.media_type === "string" ? image.media_type.toLowerCase() : "image";
-    const kind =
-      mediaType === "video" ? "videos" : mediaType === "audio" ? "audios" : ("images" as const);
+    const kind = studioReferenceKind(image.media_type);
     const role =
       image.role === "first_frame" || image.role === "last_frame" || image.role === "reference"
         ? image.role
@@ -758,6 +786,7 @@ export function buildStudioJobReferenceInputs({
       key: `job-reference:${index}`,
       label: normalizedReferenceLabel(role, index + 1, Math.max(referenceIndex, 1)),
       url,
+      posterUrl: kind === "videos" ? mediaThumbnailUrl(asset) ?? mediaDisplayUrl(asset) ?? null : null,
       assetId,
       kind,
       role,

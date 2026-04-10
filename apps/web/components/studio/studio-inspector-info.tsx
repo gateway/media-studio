@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Image as ImageIcon } from "lucide-react";
+import { Heart, Image as ImageIcon, Play, Volume2 } from "lucide-react";
 
 import {
   displayChoiceLabel,
@@ -92,13 +92,39 @@ export function StudioInspectorInfo({
                   className="grid w-[5.25rem] shrink-0 gap-2 text-left transition hover:opacity-95"
                 >
                   <span className="overflow-hidden rounded-[16px] border border-white/10 bg-black/18">
-                    <img
-                      src={reference.url}
-                      alt={reference.label}
-                      className="h-[5.25rem] w-[5.25rem] object-cover"
-                      loading="lazy"
-                      decoding="async"
-                    />
+                    {reference.kind === "videos" ? (
+                      reference.posterUrl ? (
+                        <span className="relative block">
+                          <img
+                            src={reference.posterUrl}
+                            alt={reference.label}
+                            className="h-[5.25rem] w-[5.25rem] object-cover"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/28">
+                            <Play className="size-4 text-white" />
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="flex h-[5.25rem] w-[5.25rem] items-center justify-center bg-white/[0.05] text-white/72">
+                          <Play className="size-4.5" />
+                        </span>
+                      )
+                    ) : reference.kind === "audios" ? (
+                      <span className="flex h-[5.25rem] w-[5.25rem] flex-col items-center justify-center gap-1 bg-white/[0.05] text-white/72">
+                        <Volume2 className="size-4.5" />
+                        <span className="text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58">Audio</span>
+                      </span>
+                    ) : (
+                      <img
+                        src={reference.url}
+                        alt={reference.label}
+                        className="h-[5.25rem] w-[5.25rem] object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    )}
                   </span>
                   <span className="line-clamp-2 text-xs leading-5 text-white/70">{reference.label}</span>
                 </button>

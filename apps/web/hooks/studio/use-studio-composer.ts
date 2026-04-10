@@ -696,7 +696,7 @@ export function useStudioComposer({
       file,
       kind: acceptedMetadata[index]?.kind ?? classifyFile(file),
       role: acceptedMetadata[index]?.role ?? (seedanceComposer ? "reference" : null),
-      previewUrl: file.type.startsWith("image/") || file.type.startsWith("video/") ? URL.createObjectURL(file) : null,
+      previewUrl: URL.createObjectURL(file),
       durationSeconds: null,
     }));
     setAttachments((current) => [...current, ...nextAttachments]);
