@@ -59,12 +59,12 @@ export function StudioComposer({
         className={cn(
           "mx-auto w-full border border-white/10 bg-[rgba(21,24,23,0.9)] shadow-[0_28px_70px_rgba(0,0,0,0.42)] backdrop-blur-2xl",
           mobileComposerExpanded
-            ? "mt-auto flex min-h-[calc(100dvh-1.5rem)] flex-col justify-end rounded-[30px] px-4 pb-6 pt-8 md:min-h-0 md:rounded-[34px] md:px-4 md:py-4"
+            ? "mt-auto flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-[30px] px-4 pb-6 pt-8 lg:max-h-none lg:rounded-[34px] lg:px-4 lg:py-4"
             : "rounded-[34px] px-4 py-[17px]",
           immersive ? "max-w-[1480px]" : "max-w-[1240px]",
         )}
       >
-        <div className="mb-4 flex items-start justify-between gap-3 md:hidden">
+        <div className="mb-4 flex items-start justify-between gap-3 lg:hidden">
           <div className="min-w-0 flex-1">
             <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/46">Prompt composer</div>
             <div className="mt-2 text-[0.95rem] font-semibold tracking-[-0.03em] text-white/92">{currentModelLabel}</div>
@@ -90,11 +90,11 @@ export function StudioComposer({
             <ChevronDown className={cn("size-4 transition-transform", mobileComposerCollapsed ? "" : "rotate-180")} />
           </button>
         </div>
-        <div className={cn(mobileComposerCollapsed ? "hidden md:block" : "block")}>
-          {hasSidebar ? <div className="mb-4 md:hidden">{sourceAttachmentStrip}</div> : null}
+        <div className={cn(mobileComposerCollapsed ? "hidden lg:block" : "block", mobileComposerExpanded ? "overflow-y-auto pr-1" : "")}>
+          {hasSidebar ? <div className="mb-4 lg:hidden">{sourceAttachmentStrip}</div> : null}
           <div className={cn("grid gap-4 lg:items-stretch", hasSidebar ? "lg:grid-cols-[220px_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)]")}>
             {hasSidebar ? (
-              <div className="hidden md:flex md:items-end md:justify-between md:gap-3 lg:order-none lg:grid lg:min-h-full lg:content-start lg:justify-stretch lg:gap-3">
+              <div className="hidden lg:flex lg:items-end lg:justify-between lg:gap-3 lg:order-none lg:grid lg:min-h-full lg:content-start lg:justify-stretch">
                 {sourceAttachmentStrip}
               </div>
             ) : null}

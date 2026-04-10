@@ -9,6 +9,7 @@ import {
 } from "@/lib/media-studio-contract";
 import {
   buildChoiceList,
+  buildOrderedImageInputs,
   buildNormalizedStudioOptions,
   classifyFile,
   displayChoiceLabel,
@@ -36,6 +37,7 @@ import {
   resolveStudioPresetTargetModel,
   seedanceReferenceTokenGuide,
   serializeOptionChoice,
+  insertImageAttachments,
   isStudioPresetVisible,
   studioPresetSupportedModels,
   stripUnsupportedStudioOptions,
@@ -408,28 +410,10 @@ export function useStudioComposer({
     maxImageInputs <= 2 &&
     maxVideoInputs === 0 &&
     maxAudioInputs === 0;
-  const orderedImageInputs = useMemo(() => {
-    const items: Array<
-      { source: "asset"; asset: MediaAsset }
-      | { source: "reference"; reference: MediaReference; previewUrl: string | null }
-      | { source: "attachment"; attachment: AttachmentRecord }
-    > = [];
-    if (sourceAssetIsImage && currentSourceAsset) {
-      items.push({ source: "asset", asset: currentSourceAsset });
-    }
-    for (const attachment of imageAttachments) {
-      if (attachment.referenceRecord && attachment.referenceId) {
-        items.push({
-          source: "reference",
-          reference: attachment.referenceRecord,
-          previewUrl: attachment.previewUrl,
-        });
-      } else {
-        items.push({ source: "attachment", attachment });
-      }
-    }
-    return items;
-  }, [currentSourceAsset, imageAttachments, sourceAssetIsImage]);
+  const orderedImageInputs = useMemo(
+    () => buildOrderedImageInputs(currentSourceAsset, imageAttachments, sourceAssetIsImage),
+    [currentSourceAsset, imageAttachments, sourceAssetIsImage],
+  );
   const multiShotsEnabled = MULTI_SHOT_MODEL_KEYS.has(modelKey) && optionBooleanValue(optionValues["multi_shots"]);
   const multiShotScript = useMemo(() => parseMultiShotScript(prompt, optionValues["duration"]), [optionValues, prompt]);
   const multiShotScriptError = multiShotsEnabled ? multiShotScript.errors[0] ?? null : null;
@@ -552,8 +536,10 @@ export function useStudioComposer({
   }, [modelKey, currentPresetSelectionKey]);
 
   useEffect(() => {
-    setSourceAssetId(null);
-  }, [attachments, seedanceComposer, setSourceAssetId]);
+    if (seedanceComposer && sourceAssetId != null) {
+      setSourceAssetId(null);
+    }
+  }, [seedanceComposer, setSourceAssetId, sourceAssetId]);
 
   useEffect(() => {
     const nextValues: Record<string, string> = {};
@@ -736,13 +722,19 @@ export function useStudioComposer({
 
   function addFiles(
     fileList: FileList | File[] | null,
-    config: { role?: NonNullable<AttachmentRecord["role"]>; allowedKinds?: AttachmentRecord["kind"][] } = {},
+    config: {
+      role?: NonNullable<AttachmentRecord["role"]>;
+      allowedKinds?: AttachmentRecord["kind"][];
+      insertImageIndex?: number | null;
+    } = {},
   ) {
     const incomingFiles = Array.from(fileList ?? []);
     if (!incomingFiles.length) {
       return;
     }
     const explicitRole = config.role ?? null;
+    const insertImageIndex =
+      explicitRole || seedanceComposer || config.insertImageIndex == null ? null : Math.max(0, config.insertImageIndex);
     const allowedKinds = new Set(config.allowedKinds ?? []);
     let remainingImageCapacity = Math.max(0, maxImageInputs - stagedImageCount);
     let remainingVideoCapacity = Math.max(0, maxVideoInputs - stagedVideoCount);
@@ -819,7 +811,11 @@ export function useStudioComposer({
       referenceId: null,
       referenceRecord: null,
     }));
-    setAttachments((current) => [...current, ...nextAttachments]);
+    setAttachments((current) =>
+      insertImageIndex != null
+        ? insertImageAttachments(current, nextAttachments, insertImageIndex)
+        : [...current, ...nextAttachments],
+    );
     const existingImageCount = imageAttachments.length + (sourceAssetIsImage ? 1 : 0);
     const imageReferenceTokens = nextAttachments
       .filter((attachment) => attachment.kind === "images")

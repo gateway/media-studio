@@ -99,6 +99,8 @@ import {
   optionChoices,
   optionEntries,
   optionIcon,
+  orderedImageInputKey,
+  orderedImageInputVisual,
   parseMultiShotScript,
   parseOptionChoice,
   pickerMenuHeightCap,
@@ -803,19 +805,6 @@ export function MediaStudio({
     };
   }
 
-  function orderedImageInputVisual(slot: (typeof orderedImageInputs)[number] | null) {
-    if (!slot) {
-      return null;
-    }
-    if (slot.source === "asset") {
-      return mediaThumbnailUrl(slot.asset) ?? mediaDisplayUrl(slot.asset);
-    }
-    if (slot.source === "reference") {
-      return slot.reference.thumb_url ?? slot.reference.stored_url ?? slot.previewUrl ?? null;
-    }
-    return slot.attachment.previewUrl ?? slot.attachment.referenceRecord?.thumb_url ?? slot.attachment.referenceRecord?.stored_url ?? null;
-  }
-
   function orderedImageInputPreview(slot: (typeof orderedImageInputs)[number] | null, label: string, key: string) {
     if (!slot) {
       return null;
@@ -1019,26 +1008,14 @@ export function MediaStudio({
           const slotLabel = imageSlotLabels[slotIndex] ?? `Image ${slotIndex + 1}`;
           const slotPreview = orderedImageInputPreview(slot, slotLabel, `multi-image-${slotIndex + 1}`);
           return (
-            <div key={`multi-image-slot-${slotIndex}`} className="flex shrink-0 flex-col gap-2">
+            <div key={orderedImageInputKey(slot, slotIndex)} className="flex shrink-0 flex-col gap-2">
               {slotPreview ? (
                 <StudioStagedMediaTile
                   preview={slotPreview}
                   visualUrl={slotVisual}
                   footerLabel={slot.source === "asset" ? "Source" : `Ref ${slotIndex + 1}`}
                   onOpenPreview={openReferencePreview}
-                  onRemove={() => {
-                    if (slot.source === "asset") {
-                      setSourceAssetId(null);
-                    } else if (slot.source === "reference") {
-                      const referenceId = slot.reference.reference_id;
-                      const match = attachments.find((attachment) => attachment.referenceId === referenceId);
-                      if (match) {
-                        removeAttachment(match.id);
-                      }
-                    } else {
-                      removeAttachment(slot.attachment.id);
-                    }
-                  }}
+                  onRemove={() => clearOrderedImageInput(slot)}
                   className="h-[82px] w-[82px]"
                   tileClassName={slot.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
                   testId={`studio-multi-image-slot-${slotIndex + 1}`}
@@ -1061,8 +1038,7 @@ export function MediaStudio({
             onDragLeave={() => setIsDragActive(false)}
             onDrop={(event) => void handleSourceTileDrop(event, orderedImageInputs.length)}
             onPickFiles={(fileList, input) => {
-              addFiles(fileList);
-              resetFileInputValue(input);
+              addImageFilesToOrderedSlot(fileList, orderedImageInputs.length, input);
             }}
           />
         ) : null}
@@ -1170,7 +1146,7 @@ export function MediaStudio({
             const slotFilled = Boolean(slot);
             const slotPreview = orderedImageInputPreview(slot, slotLabel, `video-slot-${slotIndex + 1}`);
             return (
-              <div key={`video-image-slot-${slotIndex}`} className="flex flex-col gap-2">
+              <div key={orderedImageInputKey(slot, slotIndex)} className="flex flex-col gap-2">
                 {!slotFilled ? (
                   <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slotLabel}</div>
                 ) : null}
@@ -1189,18 +1165,7 @@ export function MediaStudio({
                         preview={slotPreview}
                         visualUrl={slotVisual}
                         onOpenPreview={openReferencePreview}
-                        onRemove={() => {
-                          if (slot?.source === "asset") {
-                            setSourceAssetId(null);
-                          } else if (slot?.source === "reference") {
-                            const match = attachments.find((attachment) => attachment.referenceId === slot.reference.reference_id);
-                            if (match) {
-                              removeAttachment(match.id);
-                            }
-                          } else if (slot?.source === "attachment") {
-                            removeAttachment(slot.attachment.id);
-                          }
-                        }}
+                        onRemove={() => clearOrderedImageInput(slot)}
                         replaceControl={
                           <label className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white">
                             <ImagePlus className="size-3.5" />
@@ -1210,18 +1175,8 @@ export function MediaStudio({
                               data-testid={`studio-source-slot-input-${slotIndex + 1}`}
                               className="hidden"
                               onChange={(event) => {
-                                if (slot?.source === "asset") {
-                                  setSourceAssetId(null);
-                                } else if (slot?.source === "reference") {
-                                  const match = attachments.find((attachment) => attachment.referenceId === slot.reference.reference_id);
-                                  if (match) {
-                                    removeAttachment(match.id);
-                                  }
-                                } else if (slot?.source === "attachment") {
-                                  removeAttachment(slot.attachment.id);
-                                }
-                                addFiles(event.target.files);
-                                resetFileInputValue(event.currentTarget);
+                                clearOrderedImageInput(slot);
+                                addImageFilesToOrderedSlot(event.target.files, slotIndex, event.currentTarget);
                               }}
                             />
                           </label>
@@ -1245,13 +1200,7 @@ export function MediaStudio({
                       onDragLeave={() => setIsDragActive(false)}
                       onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
                       onPickFiles={(fileList, input) => {
-                        if (slotIndex > orderedImageInputs.length) {
-                          setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
-                          resetFileInputValue(input);
-                          return;
-                        }
-                        addFiles(fileList);
-                        resetFileInputValue(input);
+                        addImageFilesToOrderedSlot(fileList, slotIndex, input);
                       }}
                     />
                   )}
@@ -1621,11 +1570,27 @@ export function MediaStudio({
       });
       return;
     }
-    if (slotIndex > orderedImageInputs.length) {
+    if ((dedicatedImageReferenceRailActive || explicitVideoImageSlots) && slotIndex > orderedImageInputs.length) {
       setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
       return;
     }
-    addFiles(event.dataTransfer.files, dedicatedImageReferenceRailActive ? { allowedKinds: ["images"] } : undefined);
+    if (explicitVideoImageSlots) {
+      const slot = orderedImageInputs[slotIndex] ?? null;
+      if (slot) {
+        clearOrderedImageInput(slot);
+      }
+      addFiles(event.dataTransfer.files, {
+        allowedKinds: ["images"],
+        insertImageIndex: Math.min(slotIndex, orderedImageInputs.length),
+      });
+      return;
+    }
+    addFiles(
+      event.dataTransfer.files,
+      dedicatedImageReferenceRailActive
+        ? { allowedKinds: ["images"], insertImageIndex: slotIndex }
+        : undefined,
+    );
   }
 
   function handleSeedanceReferenceDrop(
@@ -1829,6 +1794,41 @@ export function MediaStudio({
     })();
     const fileName = urlPath || `${safeLabel}.${fallbackExtension}`;
     return new File([blob], fileName, { type: blob.type || fallbackMime });
+  }
+
+  function addImageFilesToOrderedSlot(
+    fileList: FileList | File[] | null,
+    slotIndex: number,
+    input?: HTMLInputElement | null,
+  ) {
+    if (slotIndex > orderedImageInputs.length) {
+      setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+      resetFileInputValue(input ?? null);
+      return;
+    }
+    addFiles(fileList, {
+      allowedKinds: ["images"],
+      insertImageIndex: slotIndex,
+    });
+    resetFileInputValue(input ?? null);
+  }
+
+  function clearOrderedImageInput(slot: (typeof orderedImageInputs)[number] | null) {
+    if (!slot) {
+      return;
+    }
+    if (slot.source === "asset") {
+      setSourceAssetId(null);
+      return;
+    }
+    if (slot.source === "reference") {
+      const match = attachments.find((attachment) => attachment.id === slot.attachmentId);
+      if (match) {
+        removeAttachment(match.id);
+      }
+      return;
+    }
+    removeAttachment(slot.attachment.id);
   }
 
   async function fetchAssetById(assetId: string | number) {

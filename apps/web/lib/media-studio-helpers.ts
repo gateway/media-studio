@@ -11,6 +11,7 @@ import {
   Volume2,
 } from "lucide-react";
 
+import type { AttachmentRecord } from "@/lib/media-studio-contract";
 import { findMediaAssetById } from "@/lib/studio-gallery";
 import type {
   MediaAsset,
@@ -79,8 +80,8 @@ export type StudioJobPrimaryInput = {
 
 export type OrderedImageInput =
   | { source: "asset"; asset: MediaAsset }
-  | { source: "reference"; reference: MediaReference; previewUrl: string | null }
-  | { source: "attachment"; attachment: { previewUrl: string | null } };
+  | { source: "reference"; reference: MediaReference; previewUrl: string | null; attachmentId: string }
+  | { source: "attachment"; attachment: { id: string; previewUrl: string | null; referenceRecord?: MediaReference | null } };
 
 export type MultiShotParseResult = {
   shots: Array<{ prompt: string; duration: number }>;
@@ -92,6 +93,78 @@ export type MediaAttachmentKind = {
   kind: "images" | "videos" | "audios";
   role?: "first_frame" | "last_frame" | "reference" | null;
 };
+
+function isDefaultImageAttachment(attachment: AttachmentRecord) {
+  return attachment.kind === "images" && !attachment.role;
+}
+
+export function buildOrderedImageInputs(
+  currentSourceAsset: MediaAsset | null,
+  imageAttachments: AttachmentRecord[],
+  sourceAssetIsImage: boolean,
+) {
+  const items: OrderedImageInput[] = [];
+  if (sourceAssetIsImage && currentSourceAsset) {
+    items.push({ source: "asset", asset: currentSourceAsset });
+  }
+  for (const attachment of imageAttachments) {
+    if (attachment.referenceRecord && attachment.referenceId) {
+      items.push({
+        source: "reference",
+        reference: attachment.referenceRecord,
+        previewUrl: attachment.previewUrl,
+        attachmentId: attachment.id,
+      });
+      continue;
+    }
+    items.push({ source: "attachment", attachment });
+  }
+  return items;
+}
+
+export function orderedImageInputKey(input: OrderedImageInput | null | undefined, slotIndex: number) {
+  if (!input) {
+    return `image-slot-${slotIndex}`;
+  }
+  if (input.source === "asset") {
+    return `asset:${input.asset.asset_id}`;
+  }
+  if (input.source === "reference") {
+    return `reference:${input.attachmentId}`;
+  }
+  return `attachment:${input.attachment.id}`;
+}
+
+export function insertImageAttachments(
+  currentAttachments: AttachmentRecord[],
+  nextAttachments: AttachmentRecord[],
+  insertAtIndex: number,
+) {
+  if (!nextAttachments.length) {
+    return currentAttachments;
+  }
+  const normalizedIndex = Math.max(0, insertAtIndex);
+  const result: AttachmentRecord[] = [];
+  let inserted = false;
+  let imageIndex = 0;
+
+  for (const attachment of currentAttachments) {
+    if (!inserted && isDefaultImageAttachment(attachment) && imageIndex === normalizedIndex) {
+      result.push(...nextAttachments);
+      inserted = true;
+    }
+    result.push(attachment);
+    if (isDefaultImageAttachment(attachment)) {
+      imageIndex += 1;
+    }
+  }
+
+  if (!inserted) {
+    result.push(...nextAttachments);
+  }
+
+  return result;
+}
 
 export const HIDDEN_STUDIO_OPTION_KEYS = new Set<string>();
 export const MULTI_SHOT_MODEL_KEYS = new Set(["kling-3.0-t2v", "kling-3.0-i2v"]);

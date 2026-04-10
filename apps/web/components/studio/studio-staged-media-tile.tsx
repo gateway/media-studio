@@ -92,6 +92,7 @@ export function StudioStagedMediaTile({
             event.stopPropagation();
             onRemove();
           }}
+          data-testid={testId ? `${testId}-remove` : undefined}
           className="absolute right-1.5 top-1.5 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 opacity-100 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
           aria-label={`Remove ${preview.label}`}
           title={`Remove ${preview.label}`}

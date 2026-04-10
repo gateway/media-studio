@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildOrderedImageInputs,
   buildStudioJobPrimaryInput,
   buildStudioJobReferenceInputs,
   buildStudioReferencePreviews,
   classifyFile,
   deriveSeedanceComposerMode,
   inferInputPattern,
+  insertImageAttachments,
   isStudioPresetVisible,
   mediaDownloadName,
+  orderedImageInputKey,
   orderedImageInputVisual,
   resolveStudioPresetTargetModel,
   resolveEnhancementPreviewVisual,
@@ -134,6 +137,50 @@ describe("media-studio-helpers Seedance support", () => {
         imageAttachmentPreviewUrls: ["blob:source-preview"],
       }),
     ).toBe("blob:source-preview");
+  });
+
+  it("builds ordered image inputs from the source asset and appended references", () => {
+    const sourceAsset = {
+      asset_id: "asset-source",
+      generation_kind: "image",
+      hero_thumb_path: "outputs/thumb/source.webp",
+    } as never;
+    const reference = {
+      reference_id: "ref-1",
+      kind: "image",
+      stored_url: "/api/control/reference/ref-1.png",
+    } as never;
+    const ordered = buildOrderedImageInputs(
+      sourceAsset,
+      [
+        { id: "att-1", kind: "images", role: null, previewUrl: "blob:first", file: {} },
+        { id: "att-2", kind: "images", role: null, previewUrl: "blob:second", file: null, referenceId: "ref-1", referenceRecord: reference },
+      ] as never,
+      true,
+    );
+
+    expect(ordered).toHaveLength(3);
+    expect(ordered.map((item) => item.source)).toEqual(["asset", "attachment", "reference"]);
+    expect(orderedImageInputKey(ordered[0], 0)).toBe("asset:asset-source");
+    expect(orderedImageInputKey(ordered[2], 2)).toBe("reference:att-2");
+  });
+
+  it("inserts new image attachments at the requested slot without disturbing other media", () => {
+    const current = [
+      { id: "video-1", kind: "videos", role: null },
+      { id: "image-1", kind: "images", role: null },
+      { id: "seedance-first", kind: "images", role: "first_frame" },
+      { id: "image-2", kind: "images", role: null },
+    ] as never;
+    const next = [{ id: "image-new", kind: "images", role: null }] as never;
+
+    expect(insertImageAttachments(current, next, 1).map((attachment) => attachment.id)).toEqual([
+      "video-1",
+      "image-1",
+      "seedance-first",
+      "image-new",
+      "image-2",
+    ]);
   });
 
   it("builds inspector reference previews from source assets, slot values, and normalized request images without duplicates", () => {
