@@ -3,12 +3,14 @@ import { NextRequest } from "next/server";
 
 const listReferenceMedia = vi.fn();
 const getReferenceMedia = vi.fn();
+const deleteReferenceMedia = vi.fn();
 const markReferenceMediaUsed = vi.fn();
 const registerReferenceMediaFile = vi.fn();
 
 vi.mock("@/lib/control-api", () => ({
   listReferenceMedia,
   getReferenceMedia,
+  deleteReferenceMedia,
   markReferenceMediaUsed,
 }));
 
@@ -21,6 +23,7 @@ describe("reference media web routes", () => {
     vi.resetModules();
     listReferenceMedia.mockReset();
     getReferenceMedia.mockReset();
+    deleteReferenceMedia.mockReset();
     markReferenceMediaUsed.mockReset();
     registerReferenceMediaFile.mockReset();
   });
@@ -63,6 +66,22 @@ describe("reference media web routes", () => {
 
     expect(response.status).toBe(200);
     expect(payload).toEqual({ ok: true, item: { reference_id: "ref-1", kind: "image" } });
+  });
+
+  it("deletes one reference media record", async () => {
+    deleteReferenceMedia.mockResolvedValueOnce({
+      ok: true,
+      data: { item: { reference_id: "ref-1", status: "hidden" } },
+    });
+
+    const { DELETE } = await import("@/app/api/control/reference-media/[referenceId]/route");
+    const response = await DELETE(new Request("http://localhost/api/control/reference-media/ref-1", { method: "DELETE" }), {
+      params: Promise.resolve({ referenceId: "ref-1" }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({ ok: true, item: { reference_id: "ref-1", status: "hidden" } });
   });
 
   it("marks a reference as used", async () => {

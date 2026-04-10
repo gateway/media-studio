@@ -93,6 +93,39 @@ def test_mark_reference_media_used_updates_usage_metadata(client) -> None:
     assert payload["last_used_at"] is not None
 
 
+def test_delete_reference_media_hides_item_without_removing_record(client) -> None:
+    register_response = client.post(
+        "/media/reference-media/register",
+        json={
+            "kind": "image",
+            "original_filename": "delete-me.png",
+            "stored_path": "reference-media/images/delete-me.png",
+            "mime_type": "image/png",
+            "file_size_bytes": 321,
+            "sha256": "hash-delete-me",
+            "usage_count": 0,
+            "metadata_json": {},
+        },
+    )
+    assert register_response.status_code == 200
+    reference_id = register_response.json()["reference_id"]
+
+    delete_response = client.delete(f"/media/reference-media/{reference_id}")
+    assert delete_response.status_code == 200
+    deleted = delete_response.json()
+
+    assert deleted["reference_id"] == reference_id
+    assert deleted["status"] == "hidden"
+
+    list_response = client.get("/media/reference-media?kind=image")
+    assert list_response.status_code == 200
+    assert [item["reference_id"] for item in list_response.json()["items"]] == []
+
+    detail_response = client.get(f"/media/reference-media/{reference_id}")
+    assert detail_response.status_code == 200
+    assert detail_response.json()["status"] == "hidden"
+
+
 def test_backfill_reference_media_scans_uploads_and_is_idempotent(app_modules) -> None:
     service = app_modules["service"]
     store = app_modules["store"]

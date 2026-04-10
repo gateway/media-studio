@@ -223,6 +223,15 @@ def mark_reference_media_used(reference_id: str, increment: int = 1) -> Dict[str
     return create_or_update_reference_media(current)
 
 
+def hide_reference_media(reference_id: str) -> Dict[str, Any]:
+    current = get_reference_media(reference_id)
+    if not current:
+        raise KeyError("reference media not found")
+    current["status"] = "hidden"
+    current["updated_at"] = utcnow_iso()
+    return create_or_update_reference_media(current)
+
+
 def list_system_prompts() -> List[Dict[str, Any]]:
     return _list_table("media_system_prompts", "created_at DESC, label ASC")
 

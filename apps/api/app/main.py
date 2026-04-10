@@ -263,6 +263,14 @@ def get_reference_media(reference_id: str):
     return ReferenceMediaRecord(**record)
 
 
+@app.delete("/media/reference-media/{reference_id}", response_model=ReferenceMediaRecord)
+def delete_reference_media(reference_id: str):
+    try:
+        return ReferenceMediaRecord(**store.hide_reference_media(reference_id))
+    except KeyError:
+        raise _not_found("reference media")
+
+
 @app.post("/media/reference-media/register", response_model=ReferenceMediaRecord)
 def register_reference_media(payload: ReferenceMediaRegisterRequest):
     record = store.create_or_reuse_reference_media(payload.model_dump(), increment_usage=True)

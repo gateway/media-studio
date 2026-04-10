@@ -778,3 +778,14 @@ export async function markReferenceMediaUsed(referenceId: string) {
     error: result.error,
   };
 }
+
+export async function deleteReferenceMedia(referenceId: string) {
+  const result = await sendControlApiJson<Record<string, any>>(`/media/reference-media/${referenceId}`, {
+    method: "DELETE",
+  });
+  return {
+    ok: result.ok,
+    data: { item: result.data ? mapReferenceMediaRecord(result.data) : null } as MediaReferenceResponse,
+    error: result.error,
+  };
+}

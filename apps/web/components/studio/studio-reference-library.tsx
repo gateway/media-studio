@@ -1,8 +1,9 @@
 "use client";
 
-import { Image as ImageIcon, LoaderCircle, X } from "lucide-react";
+import { Image as ImageIcon, LoaderCircle, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
 import type { MediaReference } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 
@@ -22,6 +23,8 @@ export function StudioReferenceLibrary({
   const [items, setItems] = useState<MediaReference[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [previewItem, setPreviewItem] = useState<MediaReference | null>(null);
+  const [deletingReferenceId, setDeletingReferenceId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -59,6 +62,27 @@ export function StudioReferenceLibrary({
     };
   }, [kind]);
 
+  async function deleteItem(referenceId: string) {
+    setDeletingReferenceId(referenceId);
+    setError(null);
+    try {
+      const response = await fetch(`/api/control/reference-media/${referenceId}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      const payload = (await response.json()) as { ok?: boolean; error?: string };
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error ?? "Unable to remove the library item.");
+      }
+      setItems((current) => current.filter((item) => item.reference_id !== referenceId));
+      setPreviewItem((current) => (current?.reference_id === referenceId ? null : current));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Unable to remove the library item.");
+    } finally {
+      setDeletingReferenceId(null);
+    }
+  }
+
   return (
     <div data-testid="studio-reference-library" className="fixed inset-0 z-[119] overflow-y-auto overscroll-contain bg-[rgba(6,8,7,0.78)] backdrop-blur-md [webkit-overflow-scrolling:touch]">
       <div className="min-h-dvh p-0 lg:p-6">
@@ -90,42 +114,67 @@ export function StudioReferenceLibrary({
                 {error}
               </div>
             ) : items.length ? (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                 {items.map((item) => (
-                  <button
+                  <div
                     key={item.reference_id}
-                    type="button"
                     data-testid={`studio-reference-library-item-${item.reference_id}`}
-                    onClick={() => onSelect(item)}
-                    className="grid gap-3 rounded-[24px] border border-white/10 bg-[rgba(18,22,20,0.92)] p-3 text-left shadow-[0_22px_54px_rgba(0,0,0,0.28)] transition hover:-translate-y-0.5 hover:border-[rgba(216,141,67,0.28)] hover:bg-[rgba(22,26,24,0.98)]"
+                    className="grid gap-2 rounded-[18px] border border-white/10 bg-[rgba(18,22,20,0.92)] p-2 text-left shadow-[0_18px_40px_rgba(0,0,0,0.24)]"
                   >
-                    <div className="aspect-[1/1] overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.05]">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewItem(item)}
+                      className="group relative aspect-square overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.05] text-left transition hover:border-[rgba(216,141,67,0.28)]"
+                    >
                       {item.thumb_url ?? item.stored_url ? (
                         <img
                           src={item.thumb_url ?? item.stored_url ?? undefined}
                           alt={item.original_filename ?? item.reference_id}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
                           loading="lazy"
                           decoding="async"
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-white/58">
-                          <ImageIcon className="size-5" />
+                          <ImageIcon className="size-4" />
                         </div>
                       )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold tracking-[-0.02em] text-white/94">
+                    </button>
+                    <div className="min-w-0 px-0.5">
+                      <div className="truncate text-[0.72rem] font-semibold tracking-[-0.01em] text-white/92">
                         {item.original_filename ?? item.reference_id}
                       </div>
-                      <div className="mt-1 text-xs leading-5 text-white/52">
+                      <div className="mt-0.5 text-[0.64rem] leading-4 text-white/48">
                         {item.width && item.height ? `${item.width}×${item.height}` : "Unknown size"} · {Math.max(1, Math.round(item.file_size_bytes / 1024))} KB
                       </div>
-                      <div className="mt-1 text-xs leading-5 text-white/46">
-                        Last used {item.last_used_at ? formatDateTime(item.last_used_at) : "never"}
-                      </div>
                     </div>
-                  </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onSelect(item)}
+                        className="inline-flex h-8 min-w-0 items-center justify-center rounded-full border border-[rgba(208,255,72,0.18)] bg-[rgba(208,255,72,0.12)] px-3 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-[#dcff88] transition hover:border-[rgba(208,255,72,0.28)] hover:bg-[rgba(208,255,72,0.18)]"
+                      >
+                        Use image
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void deleteItem(item.reference_id)}
+                        disabled={deletingReferenceId === item.reference_id}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(201,102,82,0.24)] bg-[rgba(40,16,14,0.68)] text-[#ffb5a6] transition hover:border-[rgba(201,102,82,0.4)] hover:text-white disabled:opacity-60"
+                        aria-label={`Delete ${item.original_filename ?? item.reference_id} from the library`}
+                        title="Delete from library"
+                      >
+                        {deletingReferenceId === item.reference_id ? (
+                          <LoaderCircle className="size-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-3.5" />
+                        )}
+                      </button>
+                    </div>
+                    <div className="px-0.5 text-[0.62rem] leading-4 text-white/42">
+                      Last used {item.last_used_at ? formatDateTime(item.last_used_at) : "never"}
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -136,6 +185,15 @@ export function StudioReferenceLibrary({
           </div>
         </div>
       </div>
+      {previewItem ? (
+        <StudioImageLightbox
+          src={previewItem.stored_url ?? previewItem.thumb_url ?? ""}
+          alt={previewItem.original_filename ?? previewItem.reference_id}
+          kind={previewItem.kind === "video" ? "videos" : previewItem.kind === "audio" ? "audios" : "images"}
+          posterSrc={previewItem.poster_url}
+          onClose={() => setPreviewItem(null)}
+        />
+      ) : null}
     </div>
   );
 }
