@@ -890,19 +890,13 @@ export function MediaStudio({
   const mobileComposerExpanded = !mobileComposerCollapsed;
 
   function revealComposer(options: { focusPresetField?: boolean } = {}) {
-    setMobileComposerCollapsed(false);
+    setMobileComposerCollapsed(!isCoarsePointerDevice());
 
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         const composerRoot = composerShellRef.current;
         if (!composerRoot) {
           return;
-        }
-        const studioSurface = document.getElementById("create");
-        if (studioSurface) {
-          const surfaceRect = studioSurface.getBoundingClientRect();
-          const targetTop = Math.max(0, window.scrollY + surfaceRect.top + studioSurface.offsetHeight - window.innerHeight + 24);
-          window.scrollTo({ top: targetTop, behavior: "smooth" });
         }
 
         const focusTarget = options.focusPresetField
