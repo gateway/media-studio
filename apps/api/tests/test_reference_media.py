@@ -130,6 +130,32 @@ def test_backfill_reference_media_scans_uploads_and_is_idempotent(app_modules) -
     assert len(records) == 2
 
 
+def test_list_reference_media_auto_backfills_existing_uploads_once(client, app_modules) -> None:
+    service = app_modules["service"]
+    store = app_modules["store"]
+    store.bootstrap_schema()
+
+    upload_dir = service.settings.uploads_dir / "legacy-user" / "portrait.png"
+    upload_dir.parent.mkdir(parents=True, exist_ok=True)
+    upload_dir.write_bytes(
+        b"\x89PNG\r\n\x1a\n"
+        b"\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+        b"\x00\x00\x00\x0cIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfeA\x0b~\x90"
+        b"\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+
+    response = client.get("/media/reference-media?kind=image")
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["original_filename"] == "portrait.png"
+
+    second = client.get("/media/reference-media?kind=image")
+    assert second.status_code == 200
+    assert len(second.json()["items"]) == 1
+
+
 def test_validation_bundle_resolves_reference_id_without_leaking_provider_extra_fields(app_modules) -> None:
     schemas = app_modules["schemas"]
     service = app_modules["service"]

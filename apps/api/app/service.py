@@ -6,6 +6,7 @@ from hashlib import sha256
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Lock
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from PIL import Image, ImageDraw
@@ -26,6 +27,8 @@ IMAGE_TOKEN_RE = re.compile(r"\[\[\s*([a-zA-Z0-9_]+)\s*\]\]")
 NANO_PRESET_MODELS = {"nano-banana-2", "nano-banana-pro"}
 GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
 ENHANCEMENT_PROVIDER_TIMEOUT_SECONDS = 25
+_reference_media_backfill_lock = Lock()
+_reference_media_backfill_attempted = False
 
 
 class ServiceError(Exception):
@@ -316,6 +319,19 @@ def backfill_reference_media() -> Dict[str, Any]:
         "skipped": skipped,
         "errors": errors,
     }
+
+
+def ensure_reference_media_backfilled_once(force: bool = False) -> Dict[str, Any] | None:
+    global _reference_media_backfill_attempted
+    if _reference_media_backfill_attempted and not force:
+        return None
+    with _reference_media_backfill_lock:
+        if _reference_media_backfill_attempted and not force:
+            return None
+        result = backfill_reference_media()
+        if not force:
+            _reference_media_backfill_attempted = True
+        return result
 
 
 def _resolve_preset(request: ValidateRequest) -> Tuple[Optional[Dict[str, Any]], Dict[str, str], Dict[str, List[Dict[str, Any]]], Optional[str]]:

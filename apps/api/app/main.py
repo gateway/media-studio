@@ -245,6 +245,9 @@ def list_reference_media(
     offset: int = Query(default=0, ge=0),
 ):
     items = store.list_reference_media(kind=kind, limit=limit, offset=offset)
+    if offset == 0 and not items:
+        service.ensure_reference_media_backfilled_once()
+        items = store.list_reference_media(kind=kind, limit=limit, offset=offset)
     return ReferenceMediaListResponse(
         items=[ReferenceMediaRecord(**item) for item in items],
         limit=limit,
