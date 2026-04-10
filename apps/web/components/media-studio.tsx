@@ -436,6 +436,7 @@ export function MediaStudio({
   const [selectedReferencePreview, setSelectedReferencePreview] = useState<StudioReferencePreview | null>(null);
   const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(null);
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
+  const composerShellRef = useRef<HTMLDivElement | null>(null);
   const lastComposerDebugSignatureRef = useRef<string | null>(null);
   const copyPromptStatusTimerRef = useRef<number | null>(null);
   const pollJobProxyRef = useRef<(jobId: string) => Promise<void>>(async () => {});
@@ -888,6 +889,30 @@ export function MediaStudio({
   const downloadActionLabel = hasMounted ? mobileSaveActionLabel() : "Download";
   const mobileComposerExpanded = !mobileComposerCollapsed;
 
+  function revealComposer(options: { focusPresetField?: boolean } = {}) {
+    setMobileComposerCollapsed(false);
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const composerRoot = composerShellRef.current;
+        if (!composerRoot) {
+          return;
+        }
+        const studioSurface = document.getElementById("create");
+        if (studioSurface) {
+          const surfaceRect = studioSurface.getBoundingClientRect();
+          const targetTop = Math.max(0, window.scrollY + surfaceRect.top + studioSurface.offsetHeight - window.innerHeight + 24);
+          window.scrollTo({ top: targetTop, behavior: "smooth" });
+        }
+
+        const focusTarget = options.focusPresetField
+          ? ((composerRoot.querySelector("input[placeholder], input[type='text'], textarea") as HTMLElement | null) ?? promptInputRef.current)
+          : promptInputRef.current;
+        focusTarget?.focus();
+      });
+    });
+  }
+
   function applyEnhancementPrompt() {
     const nextPrompt = enhancePreview?.final_prompt_used || enhancePreview?.enhanced_prompt;
     if (!nextPrompt) {
@@ -914,7 +939,7 @@ export function MediaStudio({
     setSelectedMediaLightboxOpen(false);
     setSelectedReferencePreview(null);
     setOpenPicker(null);
-    setMobileComposerCollapsed(false);
+    revealComposer({ focusPresetField: true });
     setFormMessage({ tone: "healthy", text: "Preset loaded into the composer." });
   }
 
@@ -2089,13 +2114,13 @@ export function MediaStudio({
       <div
         id="create"
         className={cn(
-          "overflow-hidden bg-[#121413] px-0 py-0 text-white",
+          "overflow-x-hidden overflow-y-visible bg-[#121413] px-0 py-0 text-white",
           immersive
             ? "min-h-dvh"
             : "rounded-[34px] border border-[rgba(22,26,24,0.9)] shadow-[0_38px_90px_rgba(19,24,21,0.3)]",
         )}
       >
-        <div className={cn("relative overflow-hidden", immersive ? "min-h-dvh" : "min-h-[920px]")}>
+        <div className={cn("relative overflow-x-hidden overflow-y-visible", immersive ? "min-h-dvh" : "min-h-[920px]")}>
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(216,141,67,0.16),transparent_24%),radial-gradient(circle_at_top_right,rgba(82,110,106,0.2),transparent_28%),linear-gradient(180deg,#181c1a,#111412_52%,#171917)]" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,9,8,0.12),rgba(7,9,8,0.52)),radial-gradient(circle_at_center,transparent_40%,rgba(4,4,4,0.42)_100%)]" />
 
@@ -2146,21 +2171,22 @@ export function MediaStudio({
 
           {!selectedAsset ? (
             <>
-              <StudioComposer
-                immersive={immersive}
-                mobileComposerCollapsed={mobileComposerCollapsed}
-                mobileComposerExpanded={mobileComposerExpanded}
-                currentModelLabel={currentModel?.label ?? "Select a model"}
-                formattedRemainingCredits={formattedRemainingCredits}
-                estimatedCredits={estimatedCredits}
-                estimatedCostUsd={estimatedCostUsd}
-                structuredPresetActive={structuredPresetActive}
-                presetLabel={currentPreset?.label ?? null}
-                externalTopContent={multiImageReferenceStrip ?? seedanceReferenceStrip}
-                sourceAttachmentStrip={sourceAttachmentStrip}
-                floatingComposerStatus={floatingComposerStatus}
-                onToggleCollapsed={() => setMobileComposerCollapsed((current) => !current)}
-              >
+              <div ref={composerShellRef}>
+                <StudioComposer
+                  immersive={immersive}
+                  mobileComposerCollapsed={mobileComposerCollapsed}
+                  mobileComposerExpanded={mobileComposerExpanded}
+                  currentModelLabel={currentModel?.label ?? "Select a model"}
+                  formattedRemainingCredits={formattedRemainingCredits}
+                  estimatedCredits={estimatedCredits}
+                  estimatedCostUsd={estimatedCostUsd}
+                  structuredPresetActive={structuredPresetActive}
+                  presetLabel={currentPreset?.label ?? null}
+                  externalTopContent={multiImageReferenceStrip ?? seedanceReferenceStrip}
+                  sourceAttachmentStrip={sourceAttachmentStrip}
+                  floatingComposerStatus={floatingComposerStatus}
+                  onToggleCollapsed={() => setMobileComposerCollapsed((current) => !current)}
+                >
                   {structuredPresetActive ? (
                     <div className="relative grid gap-3 rounded-[26px] border border-white/8 bg-white/[0.04] px-4 py-4">
                       <div className={cn("grid gap-3", structuredPresetImageSlots.length ? "lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] lg:items-start" : "")}>
@@ -2477,7 +2503,8 @@ export function MediaStudio({
                   </div>
                 </div>
               ) : null}
-              </StudioComposer>
+                </StudioComposer>
+              </div>
             </>
           ) : null}
         </div>
