@@ -131,7 +131,18 @@ export function StudioGallery({
                 <div className="flex flex-col items-center gap-4 text-center">
                   <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/14 bg-[rgba(18,22,19,0.92)] shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
                     {batchJob?.status === "queued" ? (
-                      <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/84">Queued</div>
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="relative flex h-11 w-11 items-center justify-center">
+                          <div className="absolute inset-0 rounded-full border border-[rgba(216,255,46,0.18)] animate-pulse" />
+                          <div className="absolute inset-[6px] rounded-full border border-[rgba(216,255,46,0.1)]" />
+                          <div className="flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#d8ff2e] animate-pulse" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#d8ff2e] animate-pulse [animation-delay:180ms]" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#d8ff2e] animate-pulse [animation-delay:360ms]" />
+                          </div>
+                        </div>
+                        <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/84">Queued</div>
+                      </div>
                     ) : batchJob?.status === "failed" ? (
                       <AlertTriangle className="size-6 text-[#ff8b8b]" />
                     ) : (
