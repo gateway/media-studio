@@ -29,6 +29,7 @@ export function StudioStagedMediaTile({
   testId,
 }: StudioStagedMediaTileProps) {
   const mediaVisual = visualUrl ?? (preview.kind === "images" ? preview.url : preview.posterUrl ?? null);
+  const videoPoster = preview.posterUrl ?? (visualUrl && visualUrl !== preview.url ? visualUrl : null);
 
   return (
     <div data-testid={testId} className={cn("group relative", className)}>
@@ -39,14 +40,27 @@ export function StudioStagedMediaTile({
         title={preview.label}
       >
         {preview.kind === "videos" ? (
-          mediaVisual ? (
+          videoPoster ? (
             <>
               <img
-                src={mediaVisual}
+                src={videoPoster}
                 alt={preview.label}
                 loading="eager"
                 fetchPriority="high"
                 decoding="async"
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              />
+              <span className="absolute inset-0 flex items-center justify-center bg-black/28">
+                <Play className="size-4 text-white" />
+              </span>
+            </>
+          ) : preview.url ? (
+            <>
+              <video
+                src={preview.url}
+                muted
+                playsInline
+                preload="metadata"
                 className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
               />
               <span className="absolute inset-0 flex items-center justify-center bg-black/28">

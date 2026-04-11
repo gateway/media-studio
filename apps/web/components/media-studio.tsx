@@ -1299,25 +1299,6 @@ export function MediaStudio({
                 <div className="min-w-0">
                   <div className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-white/52">{group.label}</div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <label className={cn("flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]", group.addTileClassName)}>
-                    <Plus className={group.plusIconClassName} />
-                    <input
-                      type="file"
-                      multiple
-                      accept={group.accept}
-                      data-testid={`seedance-group-input-${group.key}`}
-                      className="hidden"
-                      onChange={(event) => {
-                        addFiles(event.target.files, {
-                          role: "reference",
-                          allowedKinds: [group.key as "images" | "videos" | "audios"],
-                        });
-                        resetFileInputValue(event.currentTarget);
-                      }}
-                    />
-                  </label>
-                </div>
               </div>
               <div className="scrollbar-none flex flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden pb-0.5">
                 {group.attachments.slice(0, group.maxVisibleTiles).map((attachment) => (
@@ -1339,6 +1320,25 @@ export function MediaStudio({
                     testId={`seedance-group-tile-${group.key}-${attachment.id}`}
                   />
                 ))}
+                {group.attachments.length < Number(group.maxLabel) ? (
+                  <label className={cn("flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]", group.addTileClassName)}>
+                    <Plus className={group.plusIconClassName} />
+                    <input
+                      type="file"
+                      multiple
+                      accept={group.accept}
+                      data-testid={`seedance-group-input-${group.key}`}
+                      className="hidden"
+                      onChange={(event) => {
+                        addFiles(event.target.files, {
+                          role: "reference",
+                          allowedKinds: [group.key as "images" | "videos" | "audios"],
+                        });
+                        resetFileInputValue(event.currentTarget);
+                      }}
+                    />
+                  </label>
+                ) : null}
                 {group.attachments.length > group.maxVisibleTiles ? (
                   <div className={cn("flex shrink-0 items-center justify-center border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58", group.addTileClassName)}>
                     +{group.attachments.length - group.maxVisibleTiles}
@@ -1524,23 +1524,6 @@ export function MediaStudio({
                 )}
               >
                 <div className="scrollbar-none flex min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden pb-1">
-                  <label className={cn("flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]", group.addTileClassName)}>
-                    <Plus className={group.plusIconClassName} />
-                    <input
-                      type="file"
-                      multiple
-                      accept={group.accept}
-                      data-testid={`studio-mobile-seedance-group-input-${group.key}`}
-                      className="hidden"
-                      onChange={(event) => {
-                        addFiles(event.target.files, {
-                          role: "reference",
-                          allowedKinds: [group.key as "images" | "videos" | "audios"],
-                        });
-                        resetFileInputValue(event.currentTarget);
-                      }}
-                    />
-                  </label>
                   {group.attachments.slice(0, group.maxVisibleTiles).map((attachment) => (
                     <StudioStagedMediaTile
                       key={attachment.id}
@@ -1568,6 +1551,25 @@ export function MediaStudio({
                       testId={`studio-mobile-seedance-group-tile-${group.key}-${attachment.id}`}
                     />
                   ))}
+                  {group.attachments.length < Number(group.maxLabel) ? (
+                    <label className={cn("flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]", group.addTileClassName)}>
+                      <Plus className={group.plusIconClassName} />
+                      <input
+                        type="file"
+                        multiple
+                        accept={group.accept}
+                        data-testid={`studio-mobile-seedance-group-input-${group.key}`}
+                        className="hidden"
+                        onChange={(event) => {
+                          addFiles(event.target.files, {
+                            role: "reference",
+                            allowedKinds: [group.key as "images" | "videos" | "audios"],
+                          });
+                          resetFileInputValue(event.currentTarget);
+                        }}
+                      />
+                    </label>
+                  ) : null}
                   {group.attachments.length > group.maxVisibleTiles ? (
                     <div className={cn("flex shrink-0 items-center justify-center border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58", group.addTileClassName)}>
                       +{group.attachments.length - group.maxVisibleTiles}
