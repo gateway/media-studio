@@ -40,7 +40,6 @@ import {
   serializeOptionChoice,
   insertImageAttachments,
   isStudioPresetVisible,
-  STUDIO_NANO_MAX_OUTPUTS,
   studioPresetSupportedModels,
   stripUnsupportedStudioOptions,
   studioValidationReady,
@@ -361,10 +360,7 @@ export function useStudioComposer({
   const currentModelEnabled = currentQueuePolicy?.enabled ?? true;
   const seedanceComposer = isSeedanceModel(modelKey);
   const maxConcurrentJobs = Math.max(1, queueSettings?.max_concurrent_jobs ?? 10);
-  const modelMaxOutputs = Math.max(
-    1,
-    currentQueuePolicy?.max_outputs_per_run ?? (isNanoPresetModel(modelKey) ? STUDIO_NANO_MAX_OUTPUTS : 1),
-  );
+  const modelMaxOutputs = Math.max(1, currentQueuePolicy?.max_outputs_per_run ?? 1);
   const maxImageInputs = modelInputLimit(currentModel, "image_inputs");
   const maxVideoInputs = modelInputLimit(currentModel, "video_inputs");
   const maxAudioInputs = modelInputLimit(currentModel, "audio_inputs");

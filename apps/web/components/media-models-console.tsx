@@ -155,10 +155,6 @@ function capabilityTone(enabled: boolean) {
   return enabled ? "healthy" : "warning";
 }
 
-function isNanoBananaModel(modelKey: string | null | undefined) {
-  return modelKey === "nano-banana-2" || modelKey === "nano-banana-pro";
-}
-
 function presetModelLabels(preset: MediaPreset) {
   const scopedModels = preset.applies_to_models?.length
     ? preset.applies_to_models
@@ -869,8 +865,7 @@ export function MediaModelsConsole({
   }
 
   async function saveModelAvailability(enabled: boolean) {
-    const maxOutputsPerRun =
-      currentQueuePolicy?.max_outputs_per_run ?? (isNanoBananaModel(selectedModelKey) ? STUDIO_NANO_MAX_OUTPUTS : 1);
+    const maxOutputsPerRun = currentQueuePolicy?.max_outputs_per_run ?? 1;
     setIsSaving(true);
     const response = await fetch(`/api/control/media-queue-policies/${selectedModelKey}`, {
       method: "PATCH",
@@ -1512,8 +1507,7 @@ export function MediaModelsConsole({
                   max={STUDIO_NANO_MAX_OUTPUTS}
                   step={1}
                   value={String(
-                    currentQueuePolicy?.max_outputs_per_run ??
-                      (isNanoBananaModel(selectedModelKey) ? STUDIO_NANO_MAX_OUTPUTS : 1),
+                    currentQueuePolicy?.max_outputs_per_run ?? 1,
                   )}
                   onChange={(event) => {
                     const nextValue = Math.min(
@@ -1538,10 +1532,7 @@ export function MediaModelsConsole({
               <div className="shrink-0 pb-[1px]">
                 <AdminButton
                   onClick={() =>
-                    void saveModelQueuePolicy(
-                      currentQueuePolicy?.max_outputs_per_run ??
-                        (isNanoBananaModel(selectedModelKey) ? STUDIO_NANO_MAX_OUTPUTS : 1),
-                    )
+                    void saveModelQueuePolicy(currentQueuePolicy?.max_outputs_per_run ?? 1)
                   }
                   disabled={isSaving}
                   size="compact"
