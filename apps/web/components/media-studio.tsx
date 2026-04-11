@@ -2767,7 +2767,12 @@ export function MediaStudio({
                       </div>
                     </>
                   )}
-                  <div className="relative z-30 flex flex-wrap items-center gap-2 pb-1 text-[0.77rem]">
+              <div
+                className={cn(
+                  "relative z-30 flex flex-wrap items-center gap-2 pb-1 text-[0.77rem]",
+                  structuredPresetActive ? "pt-[6px]" : "",
+                )}
+              >
                     {!structuredPresetActive ? (
                       <>
                         <PillSelect
