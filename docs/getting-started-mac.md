@@ -136,6 +136,34 @@ Then open:
 
 - `http://127.0.0.1:3000/studio`
 
+### Private LAN / TailScale access
+
+If you want to open Studio from another device on your private LAN or TailScale network, add this to `.env`:
+
+```env
+MEDIA_STUDIO_ALLOW_PRIVATE_NETWORK_ACCESS=true
+```
+
+Then restart Studio with:
+
+```bash
+./scripts/stop_studio_mac.sh
+./scripts/run_studio_mac.sh
+```
+
+If you are using dev mode instead of the normal production-style launcher, also set:
+
+```env
+MEDIA_STUDIO_WEB_HOST=0.0.0.0
+```
+
+If you prefer browser auth instead of the private-network flag, use:
+
+```env
+MEDIA_STUDIO_ADMIN_USERNAME=your_user
+MEDIA_STUDIO_ADMIN_PASSWORD=your_password
+```
+
 Media Studio will route you automatically:
 
 - to `/setup` if this machine still needs configuration

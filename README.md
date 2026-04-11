@@ -29,6 +29,14 @@ Important: the dashboard and queue run locally, but the image and video models d
 
 The local control API is intentionally private by default. The setup scripts generate a unique local control token and keep the Studio locked to localhost unless you explicitly configure browser credentials.
 
+If you want to open Studio from a private LAN or TailScale network without browser auth, set:
+
+```env
+MEDIA_STUDIO_ALLOW_PRIVATE_NETWORK_ACCESS=true
+```
+
+That allows private-network access only. It does not open Studio to arbitrary public internet traffic.
+
 ## Why Was It Built?
 
 Most AI media tools make you rent the whole product just to access the models.
@@ -254,6 +262,29 @@ If you prefer the same production-style local run from Terminal, use:
 Open:
 
 - `http://127.0.0.1:3000/studio`
+
+### Private LAN / TailScale access
+
+If you want to open Studio from your phone or another device on your private network, add this to `.env`:
+
+```env
+MEDIA_STUDIO_ALLOW_PRIVATE_NETWORK_ACCESS=true
+```
+
+Then restart Studio.
+
+For TailScale or LAN access in development mode, also set:
+
+```env
+MEDIA_STUDIO_WEB_HOST=0.0.0.0
+```
+
+The browser auth alternative is still:
+
+```env
+MEDIA_STUDIO_ADMIN_USERNAME=your_user
+MEDIA_STUDIO_ADMIN_PASSWORD=your_password
+```
 
 ### Developer mode
 
