@@ -598,7 +598,45 @@ def test_validate_accepts_legacy_web_preset_field_names(client) -> None:
 
     assert response.status_code == 200, response.text
     payload = response.json()
-    assert payload["final_prompt"] == "Portrait of [1 image(s)] with studio lighting"
+    assert payload["final_prompt"] == "Portrait of [image reference 1] with studio lighting"
+
+
+def test_validate_structured_preset_numbers_image_references_across_slots(client) -> None:
+    preset = client.post(
+        "/media/presets",
+        json={
+            "key": "structured-preset-multi-image",
+            "label": "Structured Preset Multi Image",
+            "model_key": "nano-banana-2",
+            "source_kind": "custom",
+            "applies_to_models": ["nano-banana-2"],
+            "prompt_template": "Blend [[first]] with [[second]] and [[third]]",
+            "input_schema_json": [],
+            "input_slots_json": [
+                {"key": "first", "label": "First", "required": True},
+                {"key": "second", "label": "Second", "required": True},
+                {"key": "third", "label": "Third", "required": False},
+            ],
+        },
+    ).json()
+
+    response = client.post(
+        "/media/validate",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "image_edit",
+            "preset_id": preset["preset_id"],
+            "preset_slot_values_json": {
+                "first": [{"path": "/tmp/first.png"}],
+                "second": [{"path": "/tmp/second.png"}],
+            },
+            "output_count": 1,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["final_prompt"] == "Blend [image reference 1] with [image reference 2] and [[third]]"
 
 
 def test_delete_preset_archives_instead_of_hard_delete(client) -> None:

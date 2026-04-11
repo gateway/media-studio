@@ -328,12 +328,25 @@ def build_retry_submit_request(job: Dict[str, Any], batch: Optional[Dict[str, An
     )
 
 
+def _image_reference_tokens(count: int, start_index: int) -> List[str]:
+    if count <= 0:
+        return []
+    return [f"[image reference {index}]" for index in range(start_index, start_index + count)]
+
+
 def _render_preset_prompt(template: str, text_values: Dict[str, str], image_slots: Dict[str, List[Dict[str, Any]]]) -> str:
     rendered = template
     for key, value in text_values.items():
         rendered = re.sub(r"\{\{\s*%s\s*\}\}" % re.escape(key), value, rendered)
+    image_index = 0
     for key, refs in image_slots.items():
-        rendered = re.sub(r"\[\[\s*%s\s*\]\]" % re.escape(key), "[%d image(s)]" % len(refs), rendered)
+        tokens = _image_reference_tokens(len(refs), image_index + 1)
+        if tokens:
+            image_index += len(tokens)
+            replacement = ", ".join(tokens)
+        else:
+            replacement = f"[[{key}]]"
+        rendered = re.sub(r"\[\[\s*%s\s*\]\]" % re.escape(key), replacement, rendered)
     return rendered
 
 

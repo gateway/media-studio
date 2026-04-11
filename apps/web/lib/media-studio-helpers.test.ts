@@ -16,6 +16,7 @@ import {
   mediaDownloadName,
   orderedImageInputKey,
   orderedImageInputVisual,
+  renderStructuredPresetPrompt,
   resolveComposerSourceAsset,
   resolveStudioRetryPreset,
   resolveStudioPresetTargetModel,
@@ -228,6 +229,23 @@ describe("media-studio-helpers Seedance support", () => {
       prompt: "Make the lighting match [image reference 1] please",
       caretIndex: 43,
     });
+  });
+
+  it("renders structured preset placeholders as image reference tokens", () => {
+    expect(
+      renderStructuredPresetPrompt(
+        "Create a premium selfie of [[subject]] with {{style}} lighting.",
+        { style: "cinematic" },
+        {
+          subject: {
+            assetId: "asset-1",
+            file: null,
+            previewUrl: null,
+          },
+        } as never,
+        [{ key: "subject", label: "Subject", helpText: "", required: true, maxFiles: 1 }],
+      ),
+    ).toBe("Create a premium selfie of [image reference 1] with cinematic lighting.");
   });
 
   it("builds inspector reference previews from source assets, slot values, and normalized request images without duplicates", () => {
