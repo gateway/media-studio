@@ -1246,7 +1246,6 @@ export function MediaStudio({
               maxLabel: "9",
               tileClassName: "h-[82px] w-[82px]",
               addTileClassName: "h-[82px] w-[82px] rounded-[22px]",
-              plusClassName: "size-5",
               plusIconClassName: "size-4.5",
               maxVisibleTiles: 4,
             },
@@ -1256,10 +1255,9 @@ export function MediaStudio({
               attachments: seedanceReferenceVideos,
               accept: "video/*",
               maxLabel: "3",
-              tileClassName: "h-[48px] w-[48px]",
-              addTileClassName: "h-[48px] w-[48px] rounded-[16px]",
-              plusClassName: "size-4",
-              plusIconClassName: "size-3.5",
+              tileClassName: "h-[82px] w-[82px]",
+              addTileClassName: "h-[82px] w-[82px] rounded-[22px]",
+              plusIconClassName: "size-4.5",
               maxVisibleTiles: 3,
             },
             {
@@ -1268,10 +1266,9 @@ export function MediaStudio({
               attachments: seedanceReferenceAudios,
               accept: "audio/*",
               maxLabel: "3",
-              tileClassName: "h-[48px] w-[48px]",
-              addTileClassName: "h-[48px] w-[48px] rounded-[16px]",
-              plusClassName: "size-4",
-              plusIconClassName: "size-3.5",
+              tileClassName: "h-[82px] w-[82px]",
+              addTileClassName: "h-[82px] w-[82px] rounded-[22px]",
+              plusIconClassName: "size-4.5",
               maxVisibleTiles: 3,
             },
           ].map((group) => (
@@ -1291,13 +1288,13 @@ export function MediaStudio({
                 isDragActive ? "border-[rgba(216,141,67,0.3)] bg-[rgba(32,38,35,0.9)]" : "",
               )}
             >
-              <div className="absolute left-3 top-2.5 rounded-full border border-white/8 bg-black/18 px-1.5 py-0.5 text-[0.52rem] font-semibold uppercase tracking-[0.12em] text-white/42">
-                {group.attachments.length}
-                {` / ${group.maxLabel}`}
-              </div>
-              <div className="mb-2 flex items-center justify-between gap-3 pt-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-white/52">{group.label}</div>
+                </div>
+                <div className="shrink-0 rounded-full border border-white/8 bg-black/18 px-1.5 py-0.5 text-[0.52rem] font-semibold uppercase tracking-[0.12em] text-white/42">
+                  {group.attachments.length}
+                  {` / ${group.maxLabel}`}
                 </div>
               </div>
               <div className="scrollbar-none flex flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden pb-0.5">
@@ -1487,9 +1484,9 @@ export function MediaStudio({
               attachments: seedanceReferenceVideos,
               accept: "video/*",
               maxLabel: "3",
-              tileClassName: "h-[44px] w-[44px]",
-              addTileClassName: "h-[44px] w-[44px] rounded-[14px]",
-              plusIconClassName: "size-3.5",
+              tileClassName: "h-[72px] w-[72px]",
+              addTileClassName: "h-[72px] w-[72px] rounded-[20px]",
+              plusIconClassName: "size-4.5",
               maxVisibleTiles: 3,
             },
             {
@@ -1498,9 +1495,9 @@ export function MediaStudio({
               attachments: seedanceReferenceAudios,
               accept: "audio/*",
               maxLabel: "3",
-              tileClassName: "h-[44px] w-[44px]",
-              addTileClassName: "h-[44px] w-[44px] rounded-[14px]",
-              plusIconClassName: "size-3.5",
+              tileClassName: "h-[72px] w-[72px]",
+              addTileClassName: "h-[72px] w-[72px] rounded-[20px]",
+              plusIconClassName: "size-4.5",
               maxVisibleTiles: 3,
             },
           ].map((group) => (
