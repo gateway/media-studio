@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
   FLOATING_COMPOSER_STATUS_FADE_MS,
@@ -53,6 +53,7 @@ import {
   presetRequirementMessage,
   selectedPromptObjects,
 } from "@/lib/studio-gallery";
+import { readStudioComposerDraft, writeStudioComposerDraft } from "@/lib/studio-composer-draft";
 import type {
   MediaAsset,
   MediaBatch,
@@ -258,6 +259,7 @@ export function useStudioComposer({
   showActivity,
   refreshCreditBalance,
 }: UseStudioComposerParams) {
+  const initialDraftRef = useRef(readStudioComposerDraft());
   const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
   const autoValidateTimerRef = useRef<number | null>(null);
   const validationRequestIdRef = useRef(0);
@@ -272,30 +274,39 @@ export function useStudioComposer({
     () => models.filter((model) => queuePolicyByModelKey.get(model.key)?.enabled ?? true),
     [models, queuePolicyByModelKey],
   );
-  const [modelKey, setModelKey] = useState(enabledModels[0]?.key ?? models[0]?.key ?? "nano-banana-2");
-  const [selectedPresetId, setSelectedPresetId] = useState("");
-  const [selectedPromptIds, setSelectedPromptIds] = useState<string[]>([]);
-  const [prompt, setPrompt] = useState("");
-  const [presetInputValues, setPresetInputValues] = useState<Record<string, string>>({});
-  const [presetSlotStates, setPresetSlotStates] = useState<Record<string, PresetSlotState>>({});
-  const [optionValues, setOptionValues] = useState<Record<string, unknown>>({});
+  const [modelKey, setModelKey] = useState(
+    initialDraftRef.current?.modelKey ?? enabledModels[0]?.key ?? models[0]?.key ?? "nano-banana-2",
+  );
+  const [selectedPresetId, setSelectedPresetId] = useState(initialDraftRef.current?.selectedPresetId ?? "");
+  const [selectedPromptIds, setSelectedPromptIds] = useState<string[]>(initialDraftRef.current?.selectedPromptIds ?? []);
+  const [prompt, setPrompt] = useState(initialDraftRef.current?.prompt ?? "");
+  const [presetInputValues, setPresetInputValues] = useState<Record<string, string>>(
+    initialDraftRef.current?.presetInputValues ?? {},
+  );
+  const [presetSlotStates, setPresetSlotStates] = useState<Record<string, PresetSlotState>>(
+    initialDraftRef.current?.presetSlotStates ?? {},
+  );
+  const [optionValues, setOptionValues] = useState<Record<string, unknown>>(initialDraftRef.current?.optionValues ?? {});
   const [enhanceDialogOpen, setEnhanceDialogOpen] = useState(false);
   const [enhanceBusy, setEnhanceBusy] = useState(false);
   const [enhancePreview, setEnhancePreview] = useState<MediaEnhancePreviewResponse | null>(null);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
-  const [attachments, setAttachments] = useState<AttachmentRecord[]>([]);
-  const [stagedSourceAssetSnapshot, setStagedSourceAssetSnapshot] = useState<MediaAsset | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentRecord[]>(initialDraftRef.current?.attachments ?? []);
+  const [stagedSourceAssetSnapshot, setStagedSourceAssetSnapshot] = useState<MediaAsset | null>(
+    initialDraftRef.current?.stagedSourceAssetSnapshot ?? null,
+  );
   const [isDragActive, setIsDragActive] = useState(false);
   const [validation, setValidation] = useState<MediaValidationResponse | null>(null);
   const [busyState, setBusyState] = useState<"idle" | "validate" | "submit">("idle");
   const [floatingComposerStatus, setFloatingComposerStatus] = useState<FloatingComposerStatus | null>(null);
   const [mobileComposerCollapsed, setMobileComposerCollapsed] = useState(true);
-  const [outputCount, setOutputCount] = useState(1);
+  const [outputCount, setOutputCount] = useState(initialDraftRef.current?.outputCount ?? 1);
   const [openPicker, setOpenPicker] = useState<string | null>(null);
   const [lastNanoPresetModelKey, setLastNanoPresetModelKey] = useState(
-    isNanoPresetModel(enabledModels[0]?.key ?? models[0]?.key ?? null)
-      ? (enabledModels[0]?.key ?? models[0]?.key ?? "nano-banana-2")
-      : "nano-banana-2",
+    initialDraftRef.current?.lastNanoPresetModelKey ??
+      (isNanoPresetModel(enabledModels[0]?.key ?? models[0]?.key ?? null)
+        ? (enabledModels[0]?.key ?? models[0]?.key ?? "nano-banana-2")
+        : "nano-banana-2"),
   );
 
   const currentModel = models.find((model) => model.key === modelKey) ?? null;
@@ -415,6 +426,91 @@ export function useStudioComposer({
     : enhanceConfiguredForModel
       ? `${enhanceModeLabel} with ${enhanceProviderLabel}${enhanceProviderModelId ? ` · ${enhanceProviderModelId}` : ""}.`
       : "Enhancement is available for this model, but it still needs provider setup in Settings.";
+  useEffect(() => {
+    const initialDraft = initialDraftRef.current;
+    if (!initialDraft) {
+      return;
+    }
+    const draft = initialDraft;
+    let active = true;
+    async function refreshDraftPreviews() {
+      const refreshedAttachments = await Promise.all(
+        (draft.attachments ?? []).map(async (attachment) => {
+          if (!attachment.file) {
+            return attachment;
+          }
+          return {
+            ...attachment,
+            previewUrl: await buildAttachmentPreviewUrl(attachment.file),
+          };
+        }),
+      );
+      const refreshedPresetEntries = await Promise.all(
+        Object.entries(draft.presetSlotStates ?? {}).map(async ([slotKey, state]) => {
+          if (!state?.file) {
+            return [slotKey, state] as const;
+          }
+          return [
+            slotKey,
+            {
+              ...state,
+              previewUrl: state.file.type.startsWith("image/") ? URL.createObjectURL(state.file) : null,
+            },
+          ] as const;
+        }),
+      );
+      if (!active) {
+        for (const attachment of refreshedAttachments) {
+          if (attachment.file && attachment.previewUrl) {
+            URL.revokeObjectURL(attachment.previewUrl);
+          }
+        }
+        for (const [, state] of refreshedPresetEntries) {
+          if (state?.file && state.previewUrl) {
+            URL.revokeObjectURL(state.previewUrl);
+          }
+        }
+        return;
+      }
+      setAttachments(refreshedAttachments);
+      setPresetSlotStates(Object.fromEntries(refreshedPresetEntries));
+    }
+    void refreshDraftPreviews();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    writeStudioComposerDraft({
+      sourceAssetId,
+      modelKey,
+      selectedPresetId,
+      selectedPromptIds,
+      prompt,
+      presetInputValues,
+      presetSlotStates,
+      optionValues,
+      attachments,
+      stagedSourceAssetSnapshot,
+      outputCount,
+      lastNanoPresetModelKey,
+    });
+  }, [
+    attachments,
+    lastNanoPresetModelKey,
+    modelKey,
+    optionValues,
+    outputCount,
+    presetInputValues,
+    presetSlotStates,
+    prompt,
+    selectedPresetId,
+    selectedPromptIds,
+    sourceAssetId,
+    stagedSourceAssetSnapshot,
+  ]);
+
   useEffect(() => {
     if (currentModelEnabled) {
       return;

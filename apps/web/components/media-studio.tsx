@@ -128,6 +128,7 @@ import {
 import type { MediaAsset, MediaBatch, MediaEnhancePreviewResponse, MediaJob, MediaReference, MediaValidationResponse } from "@/lib/types";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import { installStudioDebugConsole, studioDebug } from "@/lib/studio-debug";
+import { readStudioComposerDraft } from "@/lib/studio-composer-draft";
 import { cn, formatDateTime, truncate } from "@/lib/utils";
 
 declare global {
@@ -339,6 +340,7 @@ export function MediaStudio({
   immersive = false,
   closeHref = "/media",
 }: MediaStudioProps) {
+  const initialComposerDraftRef = useRef(readStudioComposerDraft());
   const router = useRouter();
   const { showActivity } = useGlobalActivity();
   const [isRefreshing, startRefresh] = useTransition();
@@ -356,7 +358,9 @@ export function MediaStudio({
   const [promptReferenceDismissed, setPromptReferenceDismissed] = useState(false);
   const [promptReferenceActiveIndex, setPromptReferenceActiveIndex] = useState(0);
   const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(null);
-  const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
+  const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(
+    initialComposerDraftRef.current?.sourceAssetId ?? null,
+  );
   const composerShellRef = useRef<HTMLDivElement | null>(null);
   const lastComposerDebugSignatureRef = useRef<string | null>(null);
   const copyPromptStatusTimerRef = useRef<number | null>(null);
