@@ -55,14 +55,21 @@ export function StudioComposer({
       )}
     >
       {externalTopContent ? (
-        <div className={cn("mx-auto mb-3 w-full", immersive ? "max-w-[1480px]" : "max-w-[1240px]")}>
+        <div
+          className={cn(
+            "mb-3 w-full",
+            mobileComposerExpanded ? "hidden lg:block lg:mx-auto" : "mx-auto",
+            immersive ? "max-w-[1480px]" : "max-w-[1240px]",
+          )}
+        >
           {externalTopContent}
         </div>
       ) : null}
       {floatingComposerStatus ? (
         <div
           className={cn(
-            "pointer-events-none mx-auto mb-3 w-full transition duration-300 ease-out",
+            "pointer-events-none mb-3 w-full transition duration-300 ease-out",
+            mobileComposerExpanded ? "hidden lg:block lg:mx-auto" : "mx-auto",
             immersive ? "max-w-[1480px]" : "max-w-[1240px]",
             floatingComposerStatus.visible ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0",
           )}
@@ -78,11 +85,13 @@ export function StudioComposer({
       ) : null}
       <div
         className={cn(
-          "mx-auto w-full border border-white/10 bg-[rgba(21,24,23,0.9)] shadow-[0_28px_70px_rgba(0,0,0,0.42)] backdrop-blur-2xl",
+          "border border-white/10 bg-[rgba(21,24,23,0.9)] shadow-[0_28px_70px_rgba(0,0,0,0.42)] backdrop-blur-2xl",
           mobileComposerExpanded
-            ? "flex h-[100dvh] min-h-[100dvh] max-w-none flex-col overflow-hidden rounded-none border-x-0 border-b-0 px-4 pb-4 pt-6 shadow-[0_32px_80px_rgba(0,0,0,0.48)] lg:mt-auto lg:h-auto lg:min-h-0 lg:max-h-[calc(100dvh-1.5rem)] lg:rounded-[34px] lg:border-x lg:border-b lg:px-4 lg:py-4"
-            : "rounded-[34px] px-4 py-[17px]",
-          immersive ? "max-w-[1480px]" : "max-w-[1240px]",
+            ? cn(
+                "w-screen max-w-none self-stretch flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden rounded-none border-x-0 border-b-0 px-4 pb-4 pt-6 shadow-[0_32px_80px_rgba(0,0,0,0.48)] lg:mx-auto lg:mt-auto lg:h-auto lg:min-h-0 lg:max-h-[calc(100dvh-1.5rem)] lg:w-full lg:rounded-[34px] lg:border-x lg:border-b lg:px-4 lg:py-4",
+                immersive ? "lg:max-w-[1480px]" : "lg:max-w-[1240px]",
+              )
+            : cn("mx-auto w-full rounded-[34px] px-4 py-[17px]", immersive ? "max-w-[1480px]" : "max-w-[1240px]"),
         )}
       >
         <div className="sticky top-0 z-10 -mx-4 mb-4 flex items-start justify-between gap-3 border-b border-white/8 bg-[rgba(21,24,23,0.96)] px-4 pb-4 pt-1 backdrop-blur-xl lg:hidden">
