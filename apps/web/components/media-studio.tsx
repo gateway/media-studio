@@ -2700,55 +2700,59 @@ export function MediaStudio({
                     </>
                   )}
                   <div className="relative z-30 flex flex-wrap items-center gap-2 pb-1 text-[0.77rem]">
-                    <PillSelect
-                      pickerId="model"
-                      open={openPicker === "model"}
-                      onToggle={() => setOpenPicker(openPicker === "model" ? null : "model")}
-                      onClose={() => setOpenPicker(null)}
-                      widthClassName={pickerWidth("model")}
-                      icon={Clapperboard}
-                      label={composerModelLabel(currentModel?.label)}
-                      selectedValue={modelKey ?? ""}
-                      menuTitle="Model"
-                      choices={enabledStudioModels.map((model) => ({
-                        value: model.key,
-                        label: composerModelLabel(model.label),
-                      }))}
-                      onSelect={(value) => {
-                        setModelKey(value);
-                        setSelectedPresetId("");
-                        setSelectedPromptIds([]);
-                        setValidation(null);
-                        setPresetInputValues({});
-                        setPresetSlotStates({});
-                      }}
-                    />
+                    {!structuredPresetActive ? (
+                      <>
+                        <PillSelect
+                          pickerId="model"
+                          open={openPicker === "model"}
+                          onToggle={() => setOpenPicker(openPicker === "model" ? null : "model")}
+                          onClose={() => setOpenPicker(null)}
+                          widthClassName={pickerWidth("model")}
+                          icon={Clapperboard}
+                          label={composerModelLabel(currentModel?.label)}
+                          selectedValue={modelKey ?? ""}
+                          menuTitle="Model"
+                          choices={enabledStudioModels.map((model) => ({
+                            value: model.key,
+                            label: composerModelLabel(model.label),
+                          }))}
+                          onSelect={(value) => {
+                            setModelKey(value);
+                            setSelectedPresetId("");
+                            setSelectedPromptIds([]);
+                            setValidation(null);
+                            setPresetInputValues({});
+                            setPresetSlotStates({});
+                          }}
+                        />
 
-                  {selectedPresetId || modelPresets.length ? (
-                    <PillSelect
-                      pickerId="preset"
-                      open={openPicker === "preset"}
-                      onToggle={() => setOpenPicker(openPicker === "preset" ? null : "preset")}
-                      onClose={() => setOpenPicker(null)}
-                      widthClassName={pickerWidth("preset")}
-                      icon={Sparkles}
-                      label={
-                        modelPresets.find((preset) => preset.preset_id === selectedPresetId)?.label ??
-                        modelPresets.find((preset) => preset.key === selectedPresetId)?.label ??
-                        "Preset"
-                      }
-                      selectedValue={selectedPresetId}
-                      menuTitle="Preset"
-                      choices={[
-                        { value: "", label: "Preset" },
-                        ...modelPresets.map((preset) => ({
-                          value: preset.preset_id,
-                          label: preset.label,
-                        })),
-                      ]}
-                      onSelect={(value) => applyPresetSelection(value, { preferredModelKey: modelKey })}
-                    />
-                  ) : null}
+                        {selectedPresetId || modelPresets.length ? (
+                          <PillSelect
+                            pickerId="preset"
+                            open={openPicker === "preset"}
+                            onToggle={() => setOpenPicker(openPicker === "preset" ? null : "preset")}
+                            onClose={() => setOpenPicker(null)}
+                            widthClassName={pickerWidth("preset")}
+                            icon={Sparkles}
+                            label={
+                              modelPresets.find((preset) => preset.preset_id === selectedPresetId)?.label ??
+                              modelPresets.find((preset) => preset.key === selectedPresetId)?.label ??
+                              "Preset"
+                            }
+                            selectedValue={selectedPresetId}
+                            menuTitle="Preset"
+                            choices={[
+                              { value: "", label: "Preset" },
+                              ...modelPresets.map((preset) => ({
+                                value: preset.preset_id,
+                                label: preset.label,
+                              })),
+                            ]}
+                            onSelect={(value) => applyPresetSelection(value, { preferredModelKey: modelKey })}
+                          />
+                        ) : null}
+                      </>
+                    ) : null}
 
                     {modelMaxOutputs > 1 ? (
                       <PillSelect
