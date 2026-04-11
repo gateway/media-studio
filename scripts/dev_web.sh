@@ -9,6 +9,8 @@ load_media_env "$MEDIA_ROOT"
 
 WEB_HOST="${MEDIA_STUDIO_WEB_HOST:-127.0.0.1}"
 export PORT="${MEDIA_STUDIO_WEB_PORT:-${PORT:-3000}}"
+export NPM_CONFIG_FUND="${NPM_CONFIG_FUND:-false}"
+export NPM_CONFIG_AUDIT="${NPM_CONFIG_AUDIT:-false}"
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 
 cd "$MEDIA_ROOT"

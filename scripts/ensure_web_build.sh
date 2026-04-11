@@ -30,7 +30,7 @@ fi
 if [[ "$needs_install" == true ]]; then
   echo "Refreshing Media Studio web dependencies..."
   cd "$MEDIA_ROOT"
-  npm install
+  npm install --no-fund --no-audit
 fi
 
 if [[ ! -f "$BUILD_ID_FILE" ]]; then
