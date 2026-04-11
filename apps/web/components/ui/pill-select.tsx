@@ -18,8 +18,8 @@ export function pillSelectButtonClassName(appearance: "admin" | "studio") {
 
 function pillSelectMenuClassName(appearance: "admin" | "studio") {
   return appearance === "admin"
-    ? "absolute left-0 z-30 w-full overflow-auto rounded-[20px] border border-[var(--ui-action-subtle-border)] bg-[rgba(17,20,19,0.98)] p-2 shadow-[var(--ui-shadow-overlay)] backdrop-blur-xl"
-    : "absolute left-0 z-30 min-w-full w-max max-w-[28rem] overflow-auto rounded-[18px] border border-[var(--ms-action-subtle-border)] bg-[rgba(17,20,19,0.98)] p-2 shadow-[var(--ms-shadow-overlay)] backdrop-blur-xl";
+    ? "scrollbar-none absolute left-0 z-30 w-full overflow-auto rounded-[20px] border border-[var(--ui-action-subtle-border)] bg-[rgba(17,20,19,0.98)] p-2 shadow-[var(--ui-shadow-overlay)] backdrop-blur-xl"
+    : "scrollbar-none absolute left-0 z-30 min-w-full w-max max-w-[28rem] overflow-auto rounded-[18px] border border-[var(--ms-action-subtle-border)] bg-[rgba(17,20,19,0.98)] p-2 shadow-[var(--ms-shadow-overlay)] backdrop-blur-xl";
 }
 
 type PillSelectProps = {
