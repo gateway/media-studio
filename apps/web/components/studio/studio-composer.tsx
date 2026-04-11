@@ -48,7 +48,7 @@ export function StudioComposer({
     <div
       className={cn(
         mobileComposerExpanded
-          ? "fixed inset-0 z-[110] flex items-end overflow-y-auto bg-[rgba(6,8,7,0.84)] p-3 pb-6 [webkit-overflow-scrolling:touch] md:inset-auto md:block md:overflow-visible md:bg-transparent md:p-0"
+          ? "fixed inset-0 z-[110] flex items-stretch overflow-y-auto bg-[rgba(6,8,7,0.84)] p-0 [webkit-overflow-scrolling:touch] lg:inset-auto lg:block lg:overflow-visible lg:bg-transparent lg:p-0"
           : immersive
             ? "fixed bottom-4 left-4 right-4 z-[70] md:bottom-6 md:left-6 md:right-6"
             : "absolute bottom-4 left-4 right-4 z-20 md:bottom-6 md:left-6 md:right-6",
@@ -80,12 +80,12 @@ export function StudioComposer({
         className={cn(
           "mx-auto w-full border border-white/10 bg-[rgba(21,24,23,0.9)] shadow-[0_28px_70px_rgba(0,0,0,0.42)] backdrop-blur-2xl",
           mobileComposerExpanded
-            ? "mt-auto flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-[30px] px-4 pb-6 pt-8 lg:max-h-none lg:rounded-[34px] lg:px-4 lg:py-4"
+            ? "flex h-[100dvh] min-h-[100dvh] max-w-none flex-col overflow-hidden rounded-none border-x-0 border-b-0 px-4 pb-4 pt-6 shadow-[0_32px_80px_rgba(0,0,0,0.48)] lg:mt-auto lg:h-auto lg:min-h-0 lg:max-h-[calc(100dvh-1.5rem)] lg:rounded-[34px] lg:border-x lg:border-b lg:px-4 lg:py-4"
             : "rounded-[34px] px-4 py-[17px]",
           immersive ? "max-w-[1480px]" : "max-w-[1240px]",
         )}
       >
-        <div className="mb-4 flex items-start justify-between gap-3 lg:hidden">
+        <div className="sticky top-0 z-10 -mx-4 mb-4 flex items-start justify-between gap-3 border-b border-white/8 bg-[rgba(21,24,23,0.96)] px-4 pb-4 pt-1 backdrop-blur-xl lg:hidden">
           <div className="min-w-0 flex-1">
             <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/46">Prompt composer</div>
             <div className="mt-2 text-[0.95rem] font-semibold tracking-[-0.03em] text-white/92">{currentModelLabel}</div>
@@ -110,7 +110,12 @@ export function StudioComposer({
             aria-label={mobileComposerCollapsed ? "Expand prompt composer" : "Collapse prompt composer"}
           />
         </div>
-        <div className={cn(mobileComposerCollapsed ? "hidden lg:block" : "block", mobileComposerExpanded ? "overflow-y-auto pr-1" : "")}>
+        <div
+          className={cn(
+            mobileComposerCollapsed ? "hidden lg:block" : "block",
+            mobileComposerExpanded ? "min-h-0 flex-1 overflow-y-auto pr-0 lg:pr-1" : "",
+          )}
+        >
           <div className={cn("grid gap-4 lg:items-stretch", hasSidebar ? "lg:grid-cols-[220px_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)]")}>
             {hasSidebar ? (
               <div className="hidden lg:flex lg:items-end lg:justify-between lg:gap-3 lg:order-none lg:grid lg:min-h-full lg:content-start lg:justify-stretch">
