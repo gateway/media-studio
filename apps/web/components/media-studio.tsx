@@ -1241,6 +1241,7 @@ export function MediaStudio({
             {
               key: "images",
               label: "Image refs",
+              tokenHint: "image@",
               attachments: seedanceReferenceImages,
               accept: "image/*",
               maxLabel: "9",
@@ -1252,6 +1253,7 @@ export function MediaStudio({
             {
               key: "videos",
               label: "Video refs",
+              tokenHint: "video@",
               attachments: seedanceReferenceVideos,
               accept: "video/*",
               maxLabel: "3",
@@ -1263,6 +1265,7 @@ export function MediaStudio({
             {
               key: "audios",
               label: "Audio refs",
+              tokenHint: "audio@",
               attachments: seedanceReferenceAudios,
               accept: "audio/*",
               maxLabel: "3",
@@ -1290,7 +1293,9 @@ export function MediaStudio({
             >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-white/52">{group.label}</div>
+                  <div className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-white/52">
+                    {group.label} <span className="text-white/32">- {group.tokenHint}</span>
+                  </div>
                 </div>
                 <div className="shrink-0 rounded-full border border-white/8 bg-black/18 px-1.5 py-0.5 text-[0.52rem] font-semibold uppercase tracking-[0.12em] text-white/42">
                   {group.attachments.length}
@@ -1470,6 +1475,7 @@ export function MediaStudio({
             {
               key: "images",
               label: "Image refs",
+              tokenHint: "image@",
               attachments: seedanceReferenceImages,
               accept: "image/*",
               maxLabel: "9",
@@ -1481,6 +1487,7 @@ export function MediaStudio({
             {
               key: "videos",
               label: "Video refs",
+              tokenHint: "video@",
               attachments: seedanceReferenceVideos,
               accept: "video/*",
               maxLabel: "3",
@@ -1492,6 +1499,7 @@ export function MediaStudio({
             {
               key: "audios",
               label: "Audio refs",
+              tokenHint: "audio@",
               attachments: seedanceReferenceAudios,
               accept: "audio/*",
               maxLabel: "3",
@@ -1503,7 +1511,7 @@ export function MediaStudio({
           ].map((group) => (
             <StudioMobileInputsGroup
               key={`mobile-${group.key}`}
-              label={group.label}
+              label={`${group.label} - ${group.tokenHint}`}
               summary={`${group.attachments.length} / ${group.maxLabel}`}
             >
               <div
