@@ -19,6 +19,7 @@ type StudioComposerProps = {
   structuredPresetActive: boolean;
   presetLabel: string | null;
   externalTopContent?: React.ReactNode;
+  mobileInputsContent?: React.ReactNode;
   sourceAttachmentStrip?: React.ReactNode;
   floatingComposerStatus: FloatingComposerStatus | null;
   onToggleCollapsed: () => void;
@@ -36,6 +37,7 @@ export function StudioComposer({
   structuredPresetActive,
   presetLabel,
   externalTopContent,
+  mobileInputsContent,
   sourceAttachmentStrip,
   floatingComposerStatus,
   onToggleCollapsed,
@@ -109,7 +111,6 @@ export function StudioComposer({
           />
         </div>
         <div className={cn(mobileComposerCollapsed ? "hidden lg:block" : "block", mobileComposerExpanded ? "overflow-y-auto pr-1" : "")}>
-          {hasSidebar ? <div className="mb-4 lg:hidden">{sourceAttachmentStrip}</div> : null}
           <div className={cn("grid gap-4 lg:items-stretch", hasSidebar ? "lg:grid-cols-[220px_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)]")}>
             {hasSidebar ? (
               <div className="hidden lg:flex lg:items-end lg:justify-between lg:gap-3 lg:order-none lg:grid lg:min-h-full lg:content-start lg:justify-stretch">
@@ -117,6 +118,7 @@ export function StudioComposer({
               </div>
             ) : null}
             <div className="grid gap-3">
+              {mobileInputsContent ? <div className="lg:hidden">{mobileInputsContent}</div> : null}
               <div>
                 {children}
               </div>
