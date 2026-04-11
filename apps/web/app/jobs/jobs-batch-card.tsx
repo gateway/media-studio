@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clapperboard, LoaderCircle, XCircle } from "lucide-react";
 
 import { MediaBatchActions } from "@/app/jobs/media-batch-actions";
@@ -96,9 +96,35 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
   const savedOutputCount = toFiniteNumber(pricingSummary?.output_count);
   const [lightboxAssetId, setLightboxAssetId] = useState<string | number | null>(null);
   const lightboxVideoRef = useRef<HTMLVideoElement | null>(null);
+  const lightboxAssetIds = useMemo(
+    () =>
+      jobs
+        .map((job) => batchAssetForJob(job, assets)?.asset_id ?? null)
+        .filter((assetId): assetId is string | number => assetId != null),
+    [assets, jobs],
+  );
   const selectedLightboxAsset = useMemo(
     () => assets.find((asset) => String(asset.asset_id) === String(lightboxAssetId)) ?? null,
     [assets, lightboxAssetId],
+  );
+  const navigateLightboxAsset = useCallback(
+    (direction: 1 | -1) => {
+      if (lightboxAssetId == null || lightboxAssetIds.length < 2) {
+        return false;
+      }
+      const currentIndex = lightboxAssetIds.findIndex((assetId) => String(assetId) === String(lightboxAssetId));
+      if (currentIndex === -1) {
+        return false;
+      }
+      const nextIndex = (currentIndex + direction + lightboxAssetIds.length) % lightboxAssetIds.length;
+      const nextAssetId = lightboxAssetIds[nextIndex];
+      if (nextAssetId == null || String(nextAssetId) === String(lightboxAssetId)) {
+        return false;
+      }
+      setLightboxAssetId(nextAssetId);
+      return true;
+    },
+    [lightboxAssetId, lightboxAssetIds],
   );
   const BatchStatusIcon = batchStatusIcon(batch.status);
   const batchStatusTone = batch.status === "partial_failure" ? "warning" : toneForStatus(batch.status);
@@ -250,6 +276,7 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
           selectedAssetPlaybackVisual={mediaPlaybackUrl(selectedLightboxAsset)}
           selectedAssetLightboxVisual={lightboxVisual(selectedLightboxAsset)}
           lightboxVideoRef={lightboxVideoRef}
+          onNavigate={navigateLightboxAsset}
           onClose={() => setLightboxAssetId(null)}
         />
       ) : null}

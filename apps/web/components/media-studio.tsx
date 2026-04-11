@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -136,6 +136,10 @@ declare global {
     __mediaStudioTest?: {
       composer?: {
         setModel: (modelKey: string) => void;
+      };
+      gallery?: {
+        seedAssets: (assets: MediaAsset[]) => void;
+        openLightbox: (assetId: string | number) => void;
       };
       library?: {
         open: () => void;
@@ -834,6 +838,21 @@ export function MediaStudio({
       composer: {
         setModel: (nextModelKey) => setModelKey(nextModelKey),
       },
+      gallery: {
+        seedAssets: (seedAssets) => {
+          setLocalAssets(seedAssets);
+          setSelectedFailedJobId(null);
+          setSelectedAssetId(null);
+          setSelectedMediaLightboxOpen(false);
+          activateGalleryKindFilter("all");
+          setGalleryModelFilter("all");
+        },
+        openLightbox: (assetId) => {
+          setSelectedFailedJobId(null);
+          setSelectedAssetId(assetId);
+          setSelectedMediaLightboxOpen(true);
+        },
+      },
       library: {
         open: () => openContextualReferenceLibrary(),
       },
@@ -854,6 +873,7 @@ export function MediaStudio({
         return;
       }
       delete window.__mediaStudioTest.composer;
+      delete window.__mediaStudioTest.gallery;
       delete window.__mediaStudioTest.library;
       delete window.__mediaStudioTest.failedJob;
       delete window.__mediaStudioTest.enhancement;
@@ -1806,6 +1826,42 @@ export function MediaStudio({
     setSelectedAssetId,
     visibleGalleryAssetIds,
   ]);
+
+  const navigateSelectedGalleryAsset = useCallback(
+    (direction: 1 | -1) => {
+      if (!selectedAsset || visibleGalleryAssetIds.length < 2) {
+        return false;
+      }
+      const currentIndex = visibleGalleryAssetIds.findIndex((assetId) => String(assetId) === String(selectedAsset.asset_id));
+      if (currentIndex === -1) {
+        return false;
+      }
+      if (direction === 1 && currentIndex === visibleGalleryAssetIds.length - 1 && activeGalleryHasMore) {
+        if (!activeGalleryLoadingMore && pendingGalleryStep == null) {
+          setPendingGalleryStep("next");
+          void loadMoreActiveGalleryAssets();
+        }
+        return true;
+      }
+      const nextIndex = (currentIndex + direction + visibleGalleryAssetIds.length) % visibleGalleryAssetIds.length;
+      const nextAssetId = visibleGalleryAssetIds[nextIndex];
+      if (nextAssetId == null || String(nextAssetId) === String(selectedAsset.asset_id)) {
+        return false;
+      }
+      setSelectedFailedJobId(null);
+      setSelectedAssetId(nextAssetId);
+      return true;
+    },
+    [
+      activeGalleryHasMore,
+      activeGalleryLoadingMore,
+      loadMoreActiveGalleryAssets,
+      pendingGalleryStep,
+      selectedAsset,
+      setSelectedAssetId,
+      visibleGalleryAssetIds,
+    ],
+  );
 
   function handleSourceTileDrop(event: React.DragEvent<HTMLElement>, slotIndex = 0) {
     event.preventDefault();
@@ -3400,6 +3456,7 @@ export function MediaStudio({
           selectedAssetPlaybackVisual={selectedAssetPlaybackVisual}
           selectedAssetLightboxVisual={selectedAssetLightboxVisual}
           lightboxVideoRef={lightboxVideoRef}
+          onNavigate={navigateSelectedGalleryAsset}
           onClose={closeSelectedMediaLightbox}
         />
       ) : null}

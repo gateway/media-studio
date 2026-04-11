@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useRef } from "react";
 
 import type { MediaAsset } from "@/lib/types";
 
@@ -10,6 +11,7 @@ type StudioLightboxProps = {
   selectedAssetPlaybackVisual: string | null;
   selectedAssetLightboxVisual: string | null;
   lightboxVideoRef: React.MutableRefObject<HTMLVideoElement | null>;
+  onNavigate: (direction: 1 | -1) => boolean;
   onClose: () => void | Promise<void>;
 };
 
@@ -19,8 +21,37 @@ export function StudioLightbox({
   selectedAssetPlaybackVisual,
   selectedAssetLightboxVisual,
   lightboxVideoRef,
+  onNavigate,
   onClose,
 }: StudioLightboxProps) {
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    const touch = event.touches[0];
+    if (!touch) {
+      return;
+    }
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) {
+      return;
+    }
+    const touch = event.changedTouches[0];
+    if (!touch) {
+      return;
+    }
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (Math.abs(deltaX) < 56 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) {
+      return;
+    }
+    onNavigate(deltaX < 0 ? 1 : -1);
+  }
+
   return (
     <div data-testid="studio-lightbox" className="fixed inset-0 z-[140] bg-[rgba(4,6,5,0.96)]" onClick={() => void onClose()}>
       <button
@@ -31,7 +62,13 @@ export function StudioLightbox({
       >
         <X className="size-5" />
       </button>
-      <div className="flex h-full w-full items-center justify-center p-4 md:p-8" onClick={(event) => event.stopPropagation()}>
+      <div
+        data-testid="studio-lightbox-swipe-surface"
+        className="flex h-full w-full items-center justify-center p-4 md:p-8"
+        onClick={(event) => event.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {selectedAsset.generation_kind === "video" && selectedAssetPlaybackVisual ? (
           <video
             ref={lightboxVideoRef}
