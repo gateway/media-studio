@@ -2,47 +2,8 @@
 
 import { Download, ImagePlus, Trash2, Wand2 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
-
-function StudioActionIconButton({
-  icon: Icon,
-  label,
-  onClick,
-  disabled = false,
-  tone = "secondary",
-  className,
-  testId,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  tone?: "primary" | "secondary" | "danger";
-  className?: string;
-  testId?: string;
-}) {
-  return (
-    <button
-      type="button"
-      data-testid={testId}
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className={cn(
-        "inline-flex h-10 w-10 items-center justify-center rounded-[16px] border transition disabled:cursor-not-allowed disabled:opacity-60",
-        tone === "primary"
-          ? "border-[rgba(216,255,46,0.24)] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] text-[#172200] shadow-[0_16px_28px_rgba(176,235,44,0.18)] hover:-translate-y-0.5"
-          : tone === "danger"
-            ? "border-[rgba(201,102,82,0.22)] bg-[rgba(201,102,82,0.08)] text-[#ffb5a6] hover:border-[rgba(201,102,82,0.34)] hover:bg-[rgba(201,102,82,0.12)]"
-            : "border-white/10 bg-white/[0.06] text-white/78 hover:border-[rgba(216,141,67,0.32)] hover:bg-[rgba(216,141,67,0.14)] hover:text-white",
-        className,
-      )}
-    >
-      <Icon className="size-4" />
-    </button>
-  );
-}
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 
 type StudioInspectorActionsProps = {
   canDownload: boolean;
@@ -68,22 +29,24 @@ export function StudioInspectorActions({
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4">
         <div className="pointer-events-auto flex items-center gap-2">
           {canDownload ? (
-            <StudioActionIconButton
+            <IconButton
               icon={Download}
-              label={downloadActionLabel}
+              aria-label={downloadActionLabel}
+              title={downloadActionLabel}
               onClick={onDownload}
-              testId="studio-inspector-download"
+              data-testid="studio-inspector-download"
               className="h-11 w-11 rounded-full border-white/12 bg-[rgba(8,10,9,0.72)] text-white/82 shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-xl"
             />
           ) : null}
         </div>
         <div className="pointer-events-auto flex items-center gap-2">
-          <StudioActionIconButton
+          <IconButton
             icon={Trash2}
-            label="Remove"
+            aria-label="Remove"
+            title="Remove"
             onClick={onDismiss}
             tone="danger"
-            testId="studio-inspector-remove"
+            data-testid="studio-inspector-remove"
             className="h-11 w-11 rounded-full border-[rgba(201,102,82,0.28)] bg-[rgba(40,16,14,0.76)] text-[#ffb5a6] shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-xl"
           />
         </div>
@@ -92,24 +55,24 @@ export function StudioInspectorActions({
       <div className="grid gap-3 rounded-[24px] border border-white/10 bg-[rgba(16,19,18,0.98)] p-3 shadow-[0_18px_38px_rgba(0,0,0,0.22)] lg:hidden">
         {showImageActions ? (
           <>
-            <button
-              type="button"
+            <Button
               data-testid="studio-inspector-animate"
               onClick={onAnimate}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-4 text-[0.82rem] font-semibold text-[#172200] shadow-[0_18px_38px_rgba(176,235,44,0.2)] transition hover:-translate-y-0.5"
+              variant="primary"
+              className="h-11 w-full gap-2 shadow-[0_18px_38px_rgba(176,235,44,0.2)]"
             >
               <Wand2 className="size-4" />
               Animate
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
               data-testid="studio-inspector-use-image"
               onClick={onUseImage}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.06] px-4 text-[0.82rem] font-semibold text-white/84 transition hover:border-[rgba(216,141,67,0.3)] hover:bg-[rgba(216,141,67,0.12)] hover:text-white"
+              variant="subtle"
+              className="h-11 w-full gap-2"
             >
               <ImagePlus className="size-4" />
               Use image
-            </button>
+            </Button>
           </>
         ) : null}
       </div>
@@ -117,24 +80,24 @@ export function StudioInspectorActions({
       <div className="hidden gap-3 lg:grid">
         {showImageActions ? (
           <>
-            <button
-              type="button"
+            <Button
               data-testid="studio-inspector-animate-desktop"
               onClick={onAnimate}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-4 text-[0.82rem] font-semibold text-[#172200] shadow-[0_18px_38px_rgba(176,235,44,0.2)] transition hover:-translate-y-0.5"
+              variant="primary"
+              className="h-11 w-full gap-2 shadow-[0_18px_38px_rgba(176,235,44,0.2)]"
             >
               <Wand2 className="size-4" />
               Animate
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
               data-testid="studio-inspector-use-image-desktop"
               onClick={onUseImage}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.06] px-4 text-[0.82rem] font-semibold text-white/84 transition hover:border-[rgba(216,141,67,0.3)] hover:bg-[rgba(216,141,67,0.12)] hover:text-white"
+              variant="subtle"
+              className="h-11 w-full gap-2"
             >
               <ImagePlus className="size-4" />
               Use image
-            </button>
+            </Button>
           </>
         ) : null}
       </div>

@@ -1,7 +1,8 @@
 import { forwardRef } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
 
+import { Button, buttonClassName } from "@/components/ui/button";
+import { PillSelect, type PillSelectChoice } from "@/components/ui/pill-select";
 import { cn } from "@/lib/utils";
 
 export type AdminChoice = {
@@ -10,13 +11,13 @@ export type AdminChoice = {
 };
 
 export const adminSubtleButtonClassName =
-  "inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/10 bg-[rgba(255,255,255,0.05)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white/84 no-underline transition hover:border-white/18 hover:bg-[rgba(255,255,255,0.08)] hover:text-white visited:text-white/84 disabled:cursor-not-allowed disabled:opacity-60";
+  buttonClassName({ appearance: "admin", variant: "subtle" });
 
 export const adminPrimaryButtonClassName =
-  "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 py-3 text-sm font-semibold text-[#162400] no-underline shadow-[0_16px_32px_rgba(181,244,20,0.16)] transition hover:brightness-[1.04] hover:text-[#162400] hover:shadow-[0_20px_38px_rgba(181,244,20,0.22)] visited:text-[#162400] disabled:cursor-not-allowed disabled:opacity-60";
+  buttonClassName({ appearance: "admin", variant: "primary" });
 
 export const adminDangerButtonClassName =
-  "inline-flex items-center justify-center whitespace-nowrap rounded-full border border-[rgba(201,102,82,0.22)] bg-[rgba(201,102,82,0.08)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#d88e7d] no-underline transition hover:border-[rgba(201,102,82,0.34)] hover:bg-[rgba(201,102,82,0.12)] hover:text-[#d88e7d] visited:text-[#d88e7d] disabled:cursor-not-allowed disabled:opacity-60";
+  buttonClassName({ appearance: "admin", variant: "danger" });
 
 export const adminInsetCardClassName =
   "rounded-[20px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 p-4";
@@ -66,7 +67,7 @@ export function AdminButton({
   variant?: AdminButtonVariant;
   size?: AdminButtonSize;
 }) {
-  return <button {...props} type={type} className={adminButtonClassName({ variant, size, className })} />;
+  return <Button {...props} type={type} appearance="admin" variant={variant} size={size} className={className} />;
 }
 
 export function AdminField({
@@ -155,6 +156,7 @@ export function AdminToggle({
 }
 
 export function AdminPillSelect({
+  pickerId = "admin-pill-select",
   open,
   onToggle,
   value,
@@ -162,42 +164,26 @@ export function AdminPillSelect({
   onSelect,
   className,
 }: {
+  pickerId?: string;
   open: boolean;
   onToggle: () => void;
   value: string;
-  choices: AdminChoice[];
+  choices: PillSelectChoice[];
   onSelect: (value: string) => void;
   className?: string;
 }) {
-  const selected = choices.find((choice) => choice.value === value) ?? choices[0] ?? null;
-
   return (
-    <div className={cn("relative", open ? "z-40" : "z-10", className)}>
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex h-12 w-full items-center gap-3 rounded-[18px] border border-white/8 bg-white/[0.04] pl-3.5 pr-3.5 text-left text-[0.82rem] font-semibold text-white transition hover:border-[rgba(216,141,67,0.22)]"
-      >
-        <span className="min-w-0 flex-1 truncate">{selected?.label ?? "Select"}</span>
-        <ChevronDown className={cn("size-4 shrink-0 text-white/42 transition", open ? "rotate-180" : "")} />
-      </button>
-
-      {open ? (
-        <div className="absolute left-0 top-[calc(100%+0.65rem)] z-30 w-full overflow-auto rounded-[20px] border border-white/10 bg-[rgba(17,20,19,0.98)] p-2 shadow-[0_24px_52px_rgba(0,0,0,0.44)] backdrop-blur-xl">
-          <div className="grid gap-1">
-            {choices.map((choice) => (
-              <button
-                key={choice.value}
-                type="button"
-                onClick={() => onSelect(choice.value)}
-                className="rounded-[14px] px-3 py-2.5 text-left text-[0.82rem] font-medium text-white/84 transition hover:bg-white/[0.08] hover:text-white"
-              >
-                {choice.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </div>
+    <PillSelect
+      pickerId={pickerId}
+      open={open}
+      onToggle={onToggle}
+      onClose={onToggle}
+      appearance="admin"
+      label={choices.find((choice) => choice.value === value)?.label ?? choices[0]?.label ?? "Select"}
+      choices={choices}
+      selectedValue={value}
+      onSelect={onSelect}
+      className={className}
+    />
   );
 }

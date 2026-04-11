@@ -1,9 +1,11 @@
 "use client";
 
-import { ChevronDown, CircleDollarSign, Coins, LoaderCircle, X } from "lucide-react";
+import { ChevronDown, CircleDollarSign, Coins } from "lucide-react";
 
 import type { FloatingComposerStatus } from "@/lib/media-studio-contract";
 import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
+import { IconButton } from "@/components/ui/icon-button";
+import { ToastBanner } from "@/components/ui/toast-banner";
 import { cn } from "@/lib/utils";
 
 type StudioComposerProps = {
@@ -63,37 +65,13 @@ export function StudioComposer({
             floatingComposerStatus.visible ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0",
           )}
         >
-          <div
-            className={cn(
-              "mx-2 overflow-hidden rounded-[20px] border px-4 py-3 shadow-[0_22px_48px_rgba(0,0,0,0.34)] backdrop-blur-xl md:mx-4",
-              floatingComposerStatus.tone === "danger"
-                ? "border-[rgba(201,102,82,0.34)] bg-[rgba(62,19,16,0.88)] text-[#ffd3ca]"
-                : floatingComposerStatus.tone === "healthy"
-                  ? "border-[rgba(176,235,44,0.28)] bg-[rgba(28,40,10,0.88)] text-[#e4ff97]"
-                  : "border-[rgba(216,141,67,0.26)] bg-[rgba(22,18,12,0.9)] text-[#f6d8a8]",
-            )}
-          >
-            <div className="flex items-center gap-2 text-[0.78rem] font-medium">
-              {floatingComposerStatus.tone === "danger" ? (
-                <X className="size-4 shrink-0" />
-              ) : (
-                <LoaderCircle className="size-4 shrink-0 animate-spin" />
-              )}
-              <span>{floatingComposerStatus.text}</span>
-            </div>
-            <div className="mt-2 h-1 overflow-hidden rounded-full bg-black/20">
-              <div
-                className={cn(
-                  "h-full w-1/2 animate-pulse rounded-full",
-                  floatingComposerStatus.tone === "danger"
-                    ? "bg-[#ff9f8a]"
-                    : floatingComposerStatus.tone === "healthy"
-                      ? "bg-[#d8ff2e]"
-                      : "bg-[#e3a54b]",
-                )}
-              />
-            </div>
-          </div>
+          <ToastBanner
+            tone={floatingComposerStatus.tone}
+            message={floatingComposerStatus.text}
+            spinning={floatingComposerStatus.tone !== "danger"}
+            progress={50}
+            className="pointer-events-none mx-2 md:mx-4"
+          />
         </div>
       ) : null}
       <div
@@ -122,14 +100,13 @@ export function StudioComposer({
               </div>
             ) : null}
           </div>
-          <button
-            type="button"
+          <IconButton
+            icon={ChevronDown}
             onClick={onToggleCollapsed}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/76 transition hover:border-[rgba(216,141,67,0.28)] hover:text-white"
+            className="text-white/76 hover:text-white"
+            iconClassName={cn("transition-transform", mobileComposerCollapsed ? "" : "rotate-180")}
             aria-label={mobileComposerCollapsed ? "Expand prompt composer" : "Collapse prompt composer"}
-          >
-            <ChevronDown className={cn("size-4 transition-transform", mobileComposerCollapsed ? "" : "rotate-180")} />
-          </button>
+          />
         </div>
         <div className={cn(mobileComposerCollapsed ? "hidden lg:block" : "block", mobileComposerExpanded ? "overflow-y-auto pr-1" : "")}>
           {hasSidebar ? <div className="mb-4 lg:hidden">{sourceAttachmentStrip}</div> : null}

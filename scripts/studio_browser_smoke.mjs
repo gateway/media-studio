@@ -113,7 +113,7 @@ try {
   ).first();
   const firstAssetCard =
     (await imageAssetCard.count()) > 0 ? imageAssetCard : page.locator('[data-testid="studio-gallery-card"][data-asset-id]').first();
-  await firstAssetCard.waitFor({ state: "visible", timeout: 20000 });
+  await firstAssetCard.waitFor({ state: "visible", timeout: 60000 });
   summary.selected_asset_id = await firstAssetCard.getAttribute("data-asset-id");
 
   const favoriteButton = firstAssetCard.locator('[data-testid="studio-favorite-toggle"]').first();

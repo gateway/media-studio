@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
   CircleDollarSign,
-  ChevronDown,
   Coins,
   Clapperboard,
   Copy,
@@ -37,6 +36,7 @@ import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
 import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
 import { StudioReferenceLibrary } from "@/components/studio/studio-reference-library";
 import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
+import { PillSelect } from "@/components/ui/pill-select";
 import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
 import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
 import { useStudioPolling } from "@/hooks/studio/use-studio-polling";
@@ -101,7 +101,6 @@ import {
   orderedImageInputVisual,
   parseMultiShotScript,
   parseOptionChoice,
-  pickerMenuHeightCap,
   pickerWidth,
   prefetchAssetThumbs,
   PresetSlotState,
@@ -150,161 +149,6 @@ declare global {
       };
     };
   }
-}
-
-function StudioPillSelect({
-  pickerId,
-  openPicker,
-  setOpenPicker,
-  widthClass,
-  icon: Icon,
-  choiceIcon,
-  label,
-  choices,
-  selectedValue,
-  menuTitle,
-  onSelect,
-}: {
-  pickerId: string;
-  openPicker: string | null;
-  setOpenPicker: (value: string | null) => void;
-  widthClass: string;
-  icon: React.ComponentType<{ className?: string }>;
-  choiceIcon?: (choice: StudioChoice) => React.ComponentType<{ className?: string }>;
-  label: string;
-  choices: StudioChoice[];
-  selectedValue?: string;
-  menuTitle?: string;
-  onSelect: (value: string) => void;
-}) {
-  const isOpen = openPicker === pickerId;
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [menuPlacement, setMenuPlacement] = useState<"up" | "down">("down");
-  const [menuMaxHeight, setMenuMaxHeight] = useState(280);
-  const normalizedTitle = (menuTitle ?? pickerId.replaceAll("-", " ").replaceAll("_", " "))
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-  const selectedChoice =
-    choices.find((choice) => choice.value === selectedValue) ??
-    choices.find((choice) => choice.label === label) ??
-    null;
-  const SelectedIcon = selectedChoice ? choiceIcon?.(selectedChoice) ?? Icon : Icon;
-  const fallbackChoices = selectedChoice
-    ? choices.filter((choice) => choice.value !== selectedChoice.value)
-    : choices;
-
-  useLayoutEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    function updateMenuPlacement() {
-      const container = containerRef.current;
-      if (!container) {
-        return;
-      }
-      const rect = container.getBoundingClientRect();
-      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      const gutter = 20;
-      const gap = 12;
-      const spaceBelow = Math.max(0, viewportHeight - rect.bottom - gutter - gap);
-      const spaceAbove = Math.max(0, rect.top - gutter - gap);
-      const preferUp = spaceAbove >= 220 || spaceAbove >= spaceBelow;
-      const nextPlacement = preferUp ? "up" : "down";
-      const availableSpace = nextPlacement === "down" ? spaceBelow : spaceAbove;
-      setMenuPlacement(nextPlacement);
-      setMenuMaxHeight(Math.max(180, Math.min(availableSpace, pickerMenuHeightCap(pickerId))));
-    }
-
-    updateMenuPlacement();
-    window.addEventListener("resize", updateMenuPlacement);
-    window.addEventListener("scroll", updateMenuPlacement, true);
-    window.visualViewport?.addEventListener("resize", updateMenuPlacement);
-    window.visualViewport?.addEventListener("scroll", updateMenuPlacement);
-
-    return () => {
-      window.removeEventListener("resize", updateMenuPlacement);
-      window.removeEventListener("scroll", updateMenuPlacement, true);
-      window.visualViewport?.removeEventListener("resize", updateMenuPlacement);
-      window.visualViewport?.removeEventListener("scroll", updateMenuPlacement);
-    };
-  }, [isOpen]);
-
-  return (
-    <div
-      ref={containerRef}
-      data-studio-picker
-      data-picker-id={pickerId}
-      className={cn("relative", widthClass, isOpen ? "z-40" : "z-10")}
-    >
-      <button
-        type="button"
-        data-testid={`studio-picker-${pickerId}`}
-        onClick={() => setOpenPicker(isOpen ? null : pickerId)}
-        className="flex h-10 w-full items-center gap-2.5 rounded-[16px] border border-white/8 bg-white/[0.04] px-3 text-left text-[0.74rem] font-semibold tracking-[0.01em] text-white transition hover:border-[rgba(216,141,67,0.22)]"
-      >
-        <SelectedIcon className="size-4 shrink-0 text-[rgba(208,255,72,0.92)]" />
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        <ChevronDown className={cn("size-3.5 shrink-0 text-white/42 transition", isOpen ? "rotate-180" : "")} />
-      </button>
-
-      {isOpen ? (
-        <div
-          style={{ maxHeight: `${menuMaxHeight}px` }}
-          className={cn(
-            "absolute left-0 z-30 min-w-full w-max max-w-[28rem] overflow-auto rounded-[18px] border border-white/10 bg-[rgba(17,20,19,0.98)] p-2 shadow-[0_24px_52px_rgba(0,0,0,0.44)] backdrop-blur-xl",
-            menuPlacement === "down" ? "top-[calc(100%+0.65rem)]" : "bottom-[calc(100%+0.65rem)]",
-          )}
-        >
-          <div className="grid gap-2">
-            <div className="px-2 pt-1 text-[0.66rem] font-semibold uppercase tracking-[0.24em] text-white/38">
-              {normalizedTitle}
-            </div>
-
-            {selectedChoice ? (
-              <button
-                type="button"
-                data-testid={`studio-picker-option-${pickerId}-${selectedChoice.value || "empty"}`}
-                onClick={() => {
-                  onSelect(selectedChoice.value);
-                  setOpenPicker(null);
-                }}
-                className="flex items-center gap-2.5 rounded-[14px] border border-white/10 bg-white/[0.08] px-2.5 py-2.5 text-left transition hover:border-[rgba(216,141,67,0.24)] hover:bg-white/[0.1]"
-              >
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-white/10 bg-white/[0.06] text-white/92">
-                  <SelectedIcon className="size-4 text-[rgba(208,255,72,0.92)]" />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[0.9rem] font-medium text-white">{selectedChoice.label}</span>
-                <Check className="size-4 shrink-0 text-white/56" />
-              </button>
-            ) : null}
-
-            <div className="grid gap-1">
-              {fallbackChoices.map((choice) => {
-                const ChoiceIcon = choiceIcon?.(choice) ?? Icon;
-                return (
-                  <button
-                    key={`${pickerId}:${choice.value}`}
-                    type="button"
-                    data-testid={`studio-picker-option-${pickerId}-${choice.value || "empty"}`}
-                    onClick={() => {
-                      onSelect(choice.value);
-                      setOpenPicker(null);
-                    }}
-                    className="flex items-center gap-2 rounded-[12px] px-2.5 py-2.5 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white"
-                  >
-                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] border border-white/10 bg-white/[0.04] text-white/88">
-                      <ChoiceIcon className="size-3.5 text-white/72" />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">{choice.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 function composerModelLabel(label: string | null | undefined) {
@@ -2506,11 +2350,12 @@ export function MediaStudio({
                     </>
                   )}
                   <div className="relative z-30 flex flex-wrap items-center gap-2 pb-1 text-[0.77rem]">
-                    <StudioPillSelect
+                    <PillSelect
                       pickerId="model"
-                      openPicker={openPicker}
-                      setOpenPicker={setOpenPicker}
-                      widthClass={pickerWidth("model")}
+                      open={openPicker === "model"}
+                      onToggle={() => setOpenPicker(openPicker === "model" ? null : "model")}
+                      onClose={() => setOpenPicker(null)}
+                      widthClassName={pickerWidth("model")}
                       icon={Clapperboard}
                       label={composerModelLabel(currentModel?.label)}
                       selectedValue={modelKey ?? ""}
@@ -2530,11 +2375,12 @@ export function MediaStudio({
                     />
 
                   {selectedPresetId || modelPresets.length ? (
-                    <StudioPillSelect
+                    <PillSelect
                       pickerId="preset"
-                      openPicker={openPicker}
-                      setOpenPicker={setOpenPicker}
-                      widthClass={pickerWidth("preset")}
+                      open={openPicker === "preset"}
+                      onToggle={() => setOpenPicker(openPicker === "preset" ? null : "preset")}
+                      onClose={() => setOpenPicker(null)}
+                      widthClassName={pickerWidth("preset")}
                       icon={Sparkles}
                       label={
                         modelPresets.find((preset) => preset.preset_id === selectedPresetId)?.label ??
@@ -2555,11 +2401,12 @@ export function MediaStudio({
                   ) : null}
 
                     {modelMaxOutputs > 1 ? (
-                      <StudioPillSelect
+                      <PillSelect
                         pickerId="output-count"
-                        openPicker={openPicker}
-                        setOpenPicker={setOpenPicker}
-                        widthClass={pickerWidth("output-count")}
+                        open={openPicker === "output-count"}
+                        onToggle={() => setOpenPicker(openPicker === "output-count" ? null : "output-count")}
+                        onClose={() => setOpenPicker(null)}
+                        widthClassName={pickerWidth("output-count")}
                         icon={Copy}
                         label={`${outputCount}`}
                         selectedValue={String(outputCount)}
@@ -2584,12 +2431,13 @@ export function MediaStudio({
                           ? choices[0]?.label ?? "Select"
                           : displayChoiceLabel(optionKey, schema, resolvedValue);
                       return (
-                        <StudioPillSelect
+                        <PillSelect
                           key={optionKey}
                           pickerId={optionKey}
-                          openPicker={openPicker}
-                          setOpenPicker={setOpenPicker}
-                          widthClass={pickerWidth(optionKey)}
+                          open={openPicker === optionKey}
+                          onToggle={() => setOpenPicker(openPicker === optionKey ? null : optionKey)}
+                          onClose={() => setOpenPicker(null)}
+                          widthClassName={pickerWidth(optionKey)}
                           icon={Icon}
                           choiceIcon={(choice) => optionIcon(optionKey, parseOptionChoice(schema, choice.value))}
                           label={resolvedLabel}

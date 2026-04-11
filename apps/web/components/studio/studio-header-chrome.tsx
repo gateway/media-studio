@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { StatusPill } from "@/components/status-pill";
-import { cn } from "@/lib/utils";
+import { IconButton } from "@/components/ui/icon-button";
 
 type StudioHeaderChromeProps = {
   immersive: boolean;
@@ -46,24 +46,14 @@ function FilterButton({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
+    <IconButton
+      icon={Icon}
       data-testid={testId}
       onClick={onClick}
-      className={cn(
-        "inline-flex h-11 w-11 items-center justify-center rounded-full border text-white/82 shadow-[0_16px_38px_rgba(0,0,0,0.34)] backdrop-blur-xl transition hover:text-white",
-        tone === "favorite"
-          ? active
-            ? "border-[rgba(255,126,166,0.42)] bg-[rgba(255,126,166,0.16)] text-[#ff8db3]"
-            : "border-white/12 bg-[rgba(10,12,11,0.72)]"
-          : active
-            ? "border-[rgba(216,141,67,0.36)] bg-[rgba(216,141,67,0.16)]"
-            : "border-white/12 bg-[rgba(10,12,11,0.72)]",
-      )}
       aria-label={label}
-    >
-      <Icon className={cn("size-4", tone === "favorite" && active ? "fill-current" : "")} />
-    </button>
+      tone={tone === "favorite" && active ? "favorite" : active ? "primary" : "subtle"}
+      className={tone === "favorite" && !active ? "hover:border-[rgba(255,126,166,0.28)] hover:text-[#ffd6e3]" : ""}
+    />
   );
 }
 
