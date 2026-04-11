@@ -21,7 +21,17 @@ class MediaRunner:
         self._thread = None
         self._stop = threading.Event()
         self._lock = threading.Lock()
+        self._job_lock_guard = threading.Lock()
+        self._job_locks: dict[str, threading.Lock] = {}
         self.last_tick = None
+
+    def _job_lock(self, job_id: str) -> threading.Lock:
+        with self._job_lock_guard:
+            lock = self._job_locks.get(job_id)
+            if lock is None:
+                lock = threading.Lock()
+                self._job_locks[job_id] = lock
+            return lock
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -159,47 +169,55 @@ class MediaRunner:
                 store.recompute_batch_counts(updated["batch_id"])
 
     def _finalize_job_from_status(self, job: Dict[str, Any], status: Dict[str, Any]) -> Dict[str, Any]:
-        updated = store.update_job(job["job_id"], {"last_polled_at": store.utcnow_iso(), "final_status_json": status})
-        state = str(status.get("state") or "").lower()
-        if state in {"succeeded", "completed"}:
-            if job.get("status") == "completed" and job.get("artifact_json"):
-                return store.update_job(
-                    job["job_id"],
-                    {
-                        "status": "completed",
-                        "finished_at": job.get("finished_at") or store.utcnow_iso(),
-                        "error": None,
-                    },
-                )
-            output_urls = status.get("output_urls") or []
-            if output_urls:
-                source_url = output_urls[0]
-                suffix = ".mp4" if ".mp4" in source_url.lower() else ".bin"
-                destination = settings.downloads_dir / f"{updated['job_id']}{suffix}"
-                kie_adapter.download_output_file(source_url, str(destination))
-                try:
-                    asset = service.publish_job_artifact(updated, destination, source_url)
-                    updated = store.update_job(updated["job_id"], {"status": "completed", "finished_at": store.utcnow_iso(), "error": None})
-                    store.append_job_event(updated["job_id"], "completed", {"asset_id": asset["asset_id"]})
-                except Exception as exc:
-                    logger.exception("media artifact publish failed", extra={"job_id": updated["job_id"]})
-                    updated = store.update_job(
+        with self._job_lock(job["job_id"]):
+            current = store.get_job(job["job_id"]) or job
+            updated = store.update_job(current["job_id"], {"last_polled_at": store.utcnow_iso(), "final_status_json": status})
+            state = str(status.get("state") or "").lower()
+            if state in {"succeeded", "completed"}:
+                if updated.get("status") == "completed" and updated.get("artifact_json"):
+                    return store.update_job(
                         updated["job_id"],
                         {
-                            "status": "running",
-                            "error": "Artifact publish failed: %s" % exc,
+                            "status": "completed",
+                            "finished_at": updated.get("finished_at") or store.utcnow_iso(),
+                            "error": None,
                         },
                     )
-                    store.append_job_event(updated["job_id"], "artifact_publish_retry", {"error": str(exc)})
-            else:
-                updated = store.update_job(updated["job_id"], {"status": "failed", "error": "No output URLs returned.", "finished_at": store.utcnow_iso()})
-                store.append_job_event(updated["job_id"], "failed", {"error": "No output URLs returned."})
+                output_urls = status.get("output_urls") or []
+                if output_urls:
+                    source_url = output_urls[0]
+                    suffix = ".mp4" if ".mp4" in source_url.lower() else ".bin"
+                    destination = settings.downloads_dir / f"{updated['job_id']}{suffix}"
+                    kie_adapter.download_output_file(source_url, str(destination))
+                    try:
+                        asset = service.publish_job_artifact(updated, destination, source_url)
+                        updated = store.update_job(updated["job_id"], {"status": "completed", "finished_at": store.utcnow_iso(), "error": None})
+                        store.append_job_event(updated["job_id"], "completed", {"asset_id": asset["asset_id"]})
+                    except Exception as exc:
+                        logger.exception("media artifact publish failed", extra={"job_id": updated["job_id"]})
+                        updated = store.update_job(
+                            updated["job_id"],
+                            {
+                                "status": "running",
+                                "error": "Artifact publish failed: %s" % exc,
+                            },
+                        )
+                        store.append_job_event(updated["job_id"], "artifact_publish_retry", {"error": str(exc)})
+                else:
+                    updated = store.update_job(
+                        updated["job_id"],
+                        {"status": "failed", "error": "No output URLs returned.", "finished_at": store.utcnow_iso()},
+                    )
+                    store.append_job_event(updated["job_id"], "failed", {"error": "No output URLs returned."})
+                return updated
+            if state == "failed":
+                updated = store.update_job(
+                    updated["job_id"],
+                    {"status": "failed", "error": status.get("error_message"), "finished_at": store.utcnow_iso()},
+                )
+                store.append_job_event(updated["job_id"], "failed", {"error": status.get("error_message")})
+                return updated
             return updated
-        if state == "failed":
-            updated = store.update_job(updated["job_id"], {"status": "failed", "error": status.get("error_message"), "finished_at": store.utcnow_iso()})
-            store.append_job_event(updated["job_id"], "failed", {"error": status.get("error_message")})
-            return updated
-        return updated
 
     def _poll_job(self, job: Dict[str, Any]) -> None:
         if not settings.media_enable_live_submit or not settings.kie_api_key:

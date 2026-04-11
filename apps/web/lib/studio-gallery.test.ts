@@ -8,6 +8,7 @@ import {
   presetRequirementMessage,
   structuredPresetInputValues,
   structuredPresetInputValuesFromAsset,
+  upsertBatchCollection,
 } from "@/lib/studio-gallery";
 
 describe("studio-gallery", () => {
@@ -42,6 +43,30 @@ describe("studio-gallery", () => {
     expect(batch.jobs).toHaveLength(3);
     expect(batch.jobs?.[0]?.status).toBe("processing");
     expect(batch.jobs?.[1]?.status).toBe("queued");
+  });
+
+  it("keeps an existing batch in place when a poll refresh updates it", () => {
+    const olderBatch = {
+      batch_id: "batch-older",
+      status: "processing",
+      created_at: "2026-04-11T01:00:00Z",
+      updated_at: "2026-04-11T01:00:00Z",
+    } as never;
+    const newerBatch = {
+      batch_id: "batch-newer",
+      status: "processing",
+      created_at: "2026-04-11T01:05:00Z",
+      updated_at: "2026-04-11T01:05:00Z",
+    } as never;
+
+    const refreshed = upsertBatchCollection([newerBatch, olderBatch], {
+      ...olderBatch,
+      updated_at: "2026-04-11T01:06:00Z",
+      running_count: 2,
+    } as never);
+
+    expect(refreshed.map((batch) => batch.batch_id)).toEqual(["batch-newer", "batch-older"]);
+    expect(refreshed[1]?.running_count).toBe(2);
   });
 
   it("returns no placeholder tiles when there are no assets or batches", () => {

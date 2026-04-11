@@ -55,8 +55,14 @@ export function reconcileAssetCollections(primary: MediaAsset[], existing: Media
 }
 
 export function upsertBatchCollection(collection: MediaBatch[], batch: MediaBatch) {
-  const next = collection.filter((entry) => entry.batch_id !== batch.batch_id);
-  next.unshift(batch);
+  const existingIndex = collection.findIndex((entry) => entry.batch_id === batch.batch_id);
+  if (existingIndex >= 0) {
+    const next = [...collection];
+    next[existingIndex] = batch;
+    return next.slice(0, 12);
+  }
+  const next = [...collection, batch];
+  next.sort((left, right) => right.created_at.localeCompare(left.created_at));
   return next.slice(0, 12);
 }
 

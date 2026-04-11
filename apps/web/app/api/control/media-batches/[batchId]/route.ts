@@ -11,6 +11,15 @@ export async function GET(
 ) {
   const { batchId } = await context.params;
   const batchSnapshot = await getControlApiJson<Record<string, unknown>>(`/media/batches/${batchId}`, "read");
+  if (!batchSnapshot.ok || !batchSnapshot.data) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: batchSnapshot.error ?? "Unable to read the current media batch state.",
+      },
+      { status: 502 },
+    );
+  }
   const activeJobs = Array.isArray(batchSnapshot.data?.jobs)
     ? (batchSnapshot.data.jobs as Record<string, unknown>[]).filter((job) => {
         const status = String(job.status ?? "").toLowerCase();
@@ -18,15 +27,21 @@ export async function GET(
       })
     : [];
 
-  if (activeJobs.length) {
-    await Promise.all(
-      activeJobs.map((job) =>
-        postControlApiJson<Record<string, unknown>>(`/media/jobs/${String(job.job_id ?? "")}/poll`, { wait: false }, "admin").catch(
-          () => null,
-        ),
-      ),
-    );
+  if (!activeJobs.length) {
+    const jobs = (batchSnapshot.data.jobs as Record<string, unknown>[]).map(mapJobRecord);
+    return NextResponse.json({
+      ok: true,
+      batch: mapBatchRecord(batchSnapshot.data, jobs),
+    });
   }
+
+  await Promise.all(
+    activeJobs.map((job) =>
+      postControlApiJson<Record<string, unknown>>(`/media/jobs/${String(job.job_id ?? "")}/poll`, { wait: false }, "admin").catch(
+        () => null,
+      ),
+    ),
+  );
 
   const result = await getMediaBatch(batchId);
 

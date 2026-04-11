@@ -1,5 +1,6 @@
 import pytest
 import time
+from pathlib import Path
 
 
 def test_media_routes_require_internal_control_token(unauthenticated_client) -> None:
@@ -1114,3 +1115,46 @@ def test_runner_fails_job_after_repeated_poll_errors(client, app_modules, monkey
     assert store.count_job_events(job["job_id"], "poll_error") == 1
     failed_events = [event for event in store.list_job_events(job["job_id"]) if event["event_type"] == "failed"]
     assert any(event["payload_json"].get("reason") == "poll_error_retry_limit" for event in failed_events)
+
+
+def test_finalize_job_is_idempotent_after_artifact_publish(client, app_modules, monkeypatch) -> None:
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "Idempotent finalize test.",
+            "output_count": 1,
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    job = submit_response.json()["jobs"][0]
+    store = app_modules["store"]
+    runner = app_modules["runner"].runner
+
+    store.update_job(job["job_id"], {"provider_task_id": "task-idempotent-123", "status": "running"})
+
+    def _fake_download(_url: str, destination: str) -> None:
+        Path(destination).write_bytes(
+          b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+          b"\x00\x00\x00\x0cIDAT\x08\x99c```\x00\x00\x00\x04\x00\x01\xf6\x178U\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+
+    publish_calls = {"count": 0}
+    original_publish = app_modules["runner"].service.publish_job_artifact
+
+    def _count_publish(*args, **kwargs):
+        publish_calls["count"] += 1
+        return original_publish(*args, **kwargs)
+
+    monkeypatch.setattr(app_modules["runner"].kie_adapter, "download_output_file", _fake_download)
+    monkeypatch.setattr(app_modules["runner"].service, "publish_job_artifact", _count_publish)
+
+    status = {"state": "succeeded", "output_urls": ["https://example.com/output.png"]}
+    first = runner._finalize_job_from_status(store.get_job(job["job_id"]), status)
+    second = runner._finalize_job_from_status(store.get_job(job["job_id"]), status)
+
+    assert first["status"] == "completed"
+    assert second["status"] == "completed"
+    assert publish_calls["count"] == 1
+    assert store.get_job(job["job_id"])["artifact_json"]
