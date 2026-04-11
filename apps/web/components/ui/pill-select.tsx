@@ -1,8 +1,9 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
-import { Check, ChevronDown, type LucideIcon } from "lucide-react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { Check, ChevronDown, ChevronUp, type LucideIcon } from "lucide-react";
 
+import { pickerMenuHeightCap } from "@/lib/media-studio-helpers";
 import { cn } from "@/lib/utils";
 
 export type PillSelectChoice = {
@@ -56,8 +57,11 @@ export function PillSelect({
   className,
 }: PillSelectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const [menuPlacement, setMenuPlacement] = useState<"up" | "down">("down");
   const [menuMaxHeight, setMenuMaxHeight] = useState(appearance === "studio" ? 280 : 320);
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
   const normalizedTitle = (menuTitle ?? pickerId.replaceAll("-", " ").replaceAll("_", " "))
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
   const selectedChoice =
@@ -69,6 +73,19 @@ export function PillSelect({
     appearance === "studio" && selectedChoice
       ? choices.filter((choice) => choice.value !== selectedChoice.value)
       : choices;
+
+  const updateScrollIndicators = useCallback(() => {
+    const menu = menuRef.current;
+    if (!menu) {
+      setCanScrollUp(false);
+      setCanScrollDown(false);
+      return;
+    }
+    const nextCanScrollUp = menu.scrollTop > 4;
+    const nextCanScrollDown = menu.scrollTop + menu.clientHeight < menu.scrollHeight - 4;
+    setCanScrollUp(nextCanScrollUp);
+    setCanScrollDown(nextCanScrollDown);
+  }, []);
 
   useLayoutEffect(() => {
     if (!open) {
@@ -89,8 +106,9 @@ export function PillSelect({
       const preferUp = spaceAbove >= 220 || spaceAbove >= spaceBelow;
       const nextPlacement = preferUp ? "up" : "down";
       const availableSpace = nextPlacement === "down" ? spaceBelow : spaceAbove;
+      const desiredCap = pickerMenuHeightCap(pickerId);
       setMenuPlacement(nextPlacement);
-      setMenuMaxHeight(Math.max(180, Math.min(availableSpace, appearance === "studio" ? 320 : 360)));
+      setMenuMaxHeight(Math.max(220, Math.min(availableSpace, desiredCap)));
     }
 
     updateMenuPlacement();
@@ -105,7 +123,21 @@ export function PillSelect({
       window.visualViewport?.removeEventListener("resize", updateMenuPlacement);
       window.visualViewport?.removeEventListener("scroll", updateMenuPlacement);
     };
-  }, [appearance, open]);
+  }, [open, pickerId]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      updateScrollIndicators();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [open, updateScrollIndicators, fallbackChoices.length, selectedChoice?.value]);
 
   return (
     <div
@@ -127,12 +159,22 @@ export function PillSelect({
 
       {open ? (
         <div
+          ref={menuRef}
           style={{ maxHeight: `${menuMaxHeight}px` }}
+          onScroll={updateScrollIndicators}
           className={cn(
             pillSelectMenuClassName(appearance),
             menuPlacement === "down" ? "top-[calc(100%+0.65rem)]" : "bottom-[calc(100%+0.65rem)]",
           )}
         >
+          {canScrollUp ? (
+            <div className="pointer-events-none sticky top-0 z-10 -mx-2 -mt-2 mb-2 flex justify-center bg-gradient-to-b from-[rgba(17,20,19,0.98)] via-[rgba(17,20,19,0.92)] to-transparent px-2 pt-2">
+              <span className="inline-flex h-6 items-center gap-1 rounded-full border border-white/10 bg-[rgba(10,12,11,0.68)] px-2 text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-white/54 backdrop-blur-xl">
+                <ChevronUp className="size-3" />
+                More
+              </span>
+            </div>
+          ) : null}
           <div className="grid gap-2">
             {appearance === "studio" ? (
               <div className="px-2 pt-1 text-[0.66rem] font-semibold uppercase tracking-[0.24em] text-white/38">
@@ -189,6 +231,14 @@ export function PillSelect({
               })}
             </div>
           </div>
+          {canScrollDown ? (
+            <div className="pointer-events-none sticky bottom-0 z-10 -mx-2 -mb-2 mt-2 flex justify-center bg-gradient-to-t from-[rgba(17,20,19,0.98)] via-[rgba(17,20,19,0.92)] to-transparent px-2 pb-2">
+              <span className="inline-flex h-6 items-center gap-1 rounded-full border border-white/10 bg-[rgba(10,12,11,0.68)] px-2 text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-white/54 backdrop-blur-xl">
+                More
+                <ChevronDown className="size-3" />
+              </span>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
