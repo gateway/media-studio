@@ -15,6 +15,7 @@ import {
   mediaDownloadName,
   orderedImageInputKey,
   orderedImageInputVisual,
+  resolveComposerSourceAsset,
   resolveStudioPresetTargetModel,
   resolveEnhancementPreviewVisual,
   seedanceReferenceTokenGuide,
@@ -165,6 +166,21 @@ describe("media-studio-helpers Seedance support", () => {
     expect(ordered.map((item) => item.source)).toEqual(["asset", "attachment", "reference"]);
     expect(orderedImageInputKey(ordered[0], 0)).toBe("asset:asset-source");
     expect(orderedImageInputKey(ordered[2], 2)).toBe("reference:att-2");
+  });
+
+  it("keeps a staged source asset available when the current gallery filter no longer includes it", () => {
+    const sourceAsset = {
+      asset_id: "asset-source",
+      generation_kind: "image",
+      hero_thumb_path: "outputs/thumb/source.webp",
+    } as never;
+
+    expect(resolveComposerSourceAsset("asset-source", sourceAsset, [], [])).toEqual(sourceAsset);
+    expect(resolveComposerSourceAsset("asset-source", sourceAsset, [{ ...sourceAsset, prompt_summary: "fresh copy" }] as never, [])).toEqual({
+      ...sourceAsset,
+      prompt_summary: "fresh copy",
+    });
+    expect(resolveComposerSourceAsset("asset-other", sourceAsset, [], [])).toBeNull();
   });
 
   it("inserts new image attachments at the requested slot without disturbing other media", () => {

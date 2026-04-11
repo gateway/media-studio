@@ -681,6 +681,8 @@ export function MediaStudio({
     setMobileComposerCollapsed,
     setOutputCount,
     setOpenPicker,
+    stageSourceAsset,
+    clearSourceAsset,
     updateOption,
     addFiles,
     addGalleryAssetAsAttachment,
@@ -1285,7 +1287,7 @@ export function MediaStudio({
               }
               visualUrl={mediaThumbnailUrl(currentSourceAsset) ?? mediaDisplayUrl(currentSourceAsset)}
               onOpenPreview={openReferencePreview}
-              onRemove={() => setSourceAssetId(null)}
+              onRemove={() => clearSourceAsset()}
               className="h-[82px] w-[82px]"
               tileClassName="border-[rgba(216,141,67,0.24)]"
               testId="studio-source-asset-tile"
@@ -1812,7 +1814,7 @@ export function MediaStudio({
       setFormMessage({ tone: "warning", text: `${asset.prompt_summary ? "Image" : "Selected asset"} assigned to ${nextSlot.label}.` });
       return;
     }
-    setSourceAssetId(asset.asset_id);
+    stageSourceAsset(asset);
     if (animate && asset.generation_kind !== "video") {
       const currentModelSupportsAnimate = Boolean(
         currentModel?.generation_kind === "video" &&
@@ -1878,7 +1880,7 @@ export function MediaStudio({
       return;
     }
     if (slot.source === "asset") {
-      setSourceAssetId(null);
+      clearSourceAsset();
       return;
     }
     if (slot.source === "reference") {
@@ -1941,7 +1943,7 @@ export function MediaStudio({
     setEnhancePreview(null);
     setEnhanceError(null);
     setIsDragActive(false);
-    setSourceAssetId(job.source_asset_id ?? null);
+    clearSourceAsset();
 
     setSelectedFailedJobId(null);
     setSelectedAssetId(null);
@@ -1955,13 +1957,13 @@ export function MediaStudio({
     if (job.source_asset_id != null) {
       const localSourceAsset = findMediaAssetById(job.source_asset_id, localAssets, favoriteAssets);
       if (localSourceAsset) {
-        setSourceAssetId(localSourceAsset.asset_id);
+        stageSourceAsset(localSourceAsset);
         restoredPrimaryInput = true;
       } else {
         try {
           const loadedSourceAsset = await fetchAssetById(job.source_asset_id);
           setLocalAssets((current) => [loadedSourceAsset, ...current.filter((asset) => asset.asset_id !== loadedSourceAsset.asset_id)]);
-          setSourceAssetId(loadedSourceAsset.asset_id);
+          stageSourceAsset(loadedSourceAsset);
           restoredPrimaryInput = true;
         } catch {
           // fall through to local file-based source restore below

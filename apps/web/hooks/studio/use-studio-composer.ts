@@ -34,11 +34,13 @@ import {
   pickerWidth,
   renderStructuredPresetPrompt,
   resolveEnhancementPreviewVisual,
+  resolveComposerSourceAsset,
   resolveStudioPresetTargetModel,
   seedanceReferenceTokenGuide,
   serializeOptionChoice,
   insertImageAttachments,
   isStudioPresetVisible,
+  STUDIO_NANO_MAX_OUTPUTS,
   studioPresetSupportedModels,
   stripUnsupportedStudioOptions,
   studioValidationReady,
@@ -282,6 +284,7 @@ export function useStudioComposer({
   const [enhancePreview, setEnhancePreview] = useState<MediaEnhancePreviewResponse | null>(null);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<AttachmentRecord[]>([]);
+  const [stagedSourceAssetSnapshot, setStagedSourceAssetSnapshot] = useState<MediaAsset | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const [validation, setValidation] = useState<MediaValidationResponse | null>(null);
   const [busyState, setBusyState] = useState<"idle" | "validate" | "submit">("idle");
@@ -299,7 +302,13 @@ export function useStudioComposer({
   const currentPreset =
     presets.find((preset) => preset.preset_id === selectedPresetId || preset.key === selectedPresetId) ?? null;
   const currentPresetSelectionKey = currentPreset?.preset_id ?? currentPreset?.key ?? selectedPresetId;
-  const currentSourceAsset = findMediaAssetById(sourceAssetId, localAssets, favoriteAssets) ?? null;
+  const resolvedSourceAsset = findMediaAssetById(sourceAssetId, localAssets, favoriteAssets) ?? null;
+  const currentSourceAsset = resolveComposerSourceAsset(
+    sourceAssetId,
+    stagedSourceAssetSnapshot,
+    localAssets,
+    favoriteAssets,
+  );
   const globalEnhancementConfig =
     enhancementConfigs.find((config) => config.model_key === "__studio_enhancement__") ??
     enhancementConfigs.find(
@@ -343,7 +352,7 @@ export function useStudioComposer({
   const maxConcurrentJobs = Math.max(1, queueSettings?.max_concurrent_jobs ?? 10);
   const modelMaxOutputs = Math.max(
     1,
-    Math.min(maxConcurrentJobs, currentQueuePolicy?.max_outputs_per_run ?? (isNanoPresetModel(modelKey) ? 3 : 1)),
+    currentQueuePolicy?.max_outputs_per_run ?? (isNanoPresetModel(modelKey) ? STUDIO_NANO_MAX_OUTPUTS : 1),
   );
   const maxImageInputs = modelInputLimit(currentModel, "image_inputs");
   const maxVideoInputs = modelInputLimit(currentModel, "video_inputs");
@@ -424,11 +433,31 @@ export function useStudioComposer({
     });
   }, [currentModelEnabled, enabledModels, modelKey, models, setFormMessage]);
   useEffect(() => {
+    if (sourceAssetId == null) {
+      setStagedSourceAssetSnapshot(null);
+      return;
+    }
+    if (resolvedSourceAsset) {
+      setStagedSourceAssetSnapshot(resolvedSourceAsset);
+    }
+  }, [resolvedSourceAsset, sourceAssetId]);
+
+  useEffect(() => {
     if (!isNanoPresetModel(modelKey)) {
       return;
     }
     setLastNanoPresetModelKey(modelKey);
   }, [modelKey]);
+  function stageSourceAsset(asset: MediaAsset | null) {
+    setStagedSourceAssetSnapshot(asset);
+    setSourceAssetId(asset?.asset_id ?? null);
+  }
+
+  function clearSourceAsset() {
+    setStagedSourceAssetSnapshot(null);
+    setSourceAssetId(null);
+  }
+
   const structuredPresetTextFields = useMemo(() => normalizeStructuredPresetTextFields(currentPreset), [currentPreset]);
   const structuredPresetImageSlots = useMemo(() => normalizeStructuredPresetImageSlots(currentPreset), [currentPreset]);
   const structuredPresetActive =
@@ -569,6 +598,7 @@ export function useStudioComposer({
 
   useEffect(() => {
     if (seedanceComposer && sourceAssetId != null) {
+      setStagedSourceAssetSnapshot(null);
       setSourceAssetId(null);
     }
   }, [seedanceComposer, setSourceAssetId, sourceAssetId]);
@@ -650,6 +680,7 @@ export function useStudioComposer({
   useEffect(() => {
     const sourceKind = currentSourceAsset?.generation_kind ?? null;
     if ((sourceKind === "image" && maxImageInputs <= 0) || (sourceKind === "video" && maxVideoInputs <= 0)) {
+      setStagedSourceAssetSnapshot(null);
       setSourceAssetId(null);
     }
     setAttachments((current) => {
@@ -1085,7 +1116,7 @@ export function useStudioComposer({
     setAttachments([]);
     clearPresetSlotStateValues();
     setPresetInputValues({});
-    setSourceAssetId(null);
+    clearSourceAsset();
     setPrompt("");
     setSelectedPresetId("");
     setSelectedPromptIds([]);
@@ -1139,7 +1170,7 @@ export function useStudioComposer({
         }
       }
       setAttachments([]);
-      setSourceAssetId(null);
+      clearSourceAsset();
     }
 
     if (!hasStructuredInputs && targetPreset.prompt_template?.trim()) {
@@ -1647,6 +1678,8 @@ export function useStudioComposer({
       setMobileComposerCollapsed,
       setOutputCount,
       setOpenPicker,
+      stageSourceAsset,
+      clearSourceAsset,
       updateOption,
       addFiles,
       addGalleryAssetAsAttachment,

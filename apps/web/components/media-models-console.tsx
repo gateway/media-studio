@@ -37,7 +37,7 @@ import { CollapsibleSubsection } from "@/components/collapsible-sections";
 import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
-import { presetThumbnailVisual } from "@/lib/media-studio-helpers";
+import { presetThumbnailVisual, STUDIO_NANO_MAX_OUTPUTS } from "@/lib/media-studio-helpers";
 import type {
   LlmPreset,
   MediaEnhancementConfig,
@@ -842,7 +842,7 @@ export function MediaModelsConsole({
   }
 
   async function saveModelQueuePolicy(maxOutputsPerRun: number) {
-    const clampedValue = Math.min(Math.max(1, maxOutputsPerRun), 3);
+    const clampedValue = Math.min(Math.max(1, maxOutputsPerRun), STUDIO_NANO_MAX_OUTPUTS);
     const enabled = currentQueuePolicy?.enabled ?? true;
     setIsSaving(true);
     const response = await fetch(`/api/control/media-queue-policies/${selectedModelKey}`, {
@@ -865,12 +865,16 @@ export function MediaModelsConsole({
   }
 
   async function saveModelAvailability(enabled: boolean) {
-    const maxOutputsPerRun = currentQueuePolicy?.max_outputs_per_run ?? (isNanoBananaModel(selectedModelKey) ? 3 : 1);
+    const maxOutputsPerRun =
+      currentQueuePolicy?.max_outputs_per_run ?? (isNanoBananaModel(selectedModelKey) ? STUDIO_NANO_MAX_OUTPUTS : 1);
     setIsSaving(true);
     const response = await fetch(`/api/control/media-queue-policies/${selectedModelKey}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled, max_outputs_per_run: Math.min(Math.max(1, maxOutputsPerRun), 3) }),
+      body: JSON.stringify({
+        enabled,
+        max_outputs_per_run: Math.min(Math.max(1, maxOutputsPerRun), STUDIO_NANO_MAX_OUTPUTS),
+      }),
     });
     const result = (await response.json()) as { ok?: boolean; error?: string; policy?: MediaModelQueuePolicy };
     setIsSaving(false);
@@ -1482,20 +1486,23 @@ export function MediaModelsConsole({
               />
             </div>
             <div className="mt-4 text-sm leading-6 text-[var(--muted-strong)]">
-              Set how many results this model can create in one run. Studio caps this at 3 so a single request cannot overload the queue.
+              Set how many results this model can create in one run. Studio caps this at 10, and the queue will process any excess over the active runner slots as queued jobs.
             </div>
             <div className="mt-4 flex flex-nowrap items-end gap-3">
               <AdminField label="Outputs per run" className="w-[156px] shrink-0">
                 <AdminInput
                   type="number"
                   min={1}
-                  max={3}
+                  max={STUDIO_NANO_MAX_OUTPUTS}
                   step={1}
-                  value={String(currentQueuePolicy?.max_outputs_per_run ?? (isNanoBananaModel(selectedModelKey) ? 3 : 1))}
+                  value={String(
+                    currentQueuePolicy?.max_outputs_per_run ??
+                      (isNanoBananaModel(selectedModelKey) ? STUDIO_NANO_MAX_OUTPUTS : 1),
+                  )}
                   onChange={(event) => {
                     const nextValue = Math.min(
                       Math.max(1, Number(event.target.value) || 1),
-                      3,
+                      STUDIO_NANO_MAX_OUTPUTS,
                     );
                     setLocalQueuePolicies((current) => {
                       const next = current.filter((entry) => entry.model_key !== selectedModelKey);
@@ -1514,7 +1521,12 @@ export function MediaModelsConsole({
               </AdminField>
               <div className="shrink-0 pb-[1px]">
                 <AdminButton
-                  onClick={() => void saveModelQueuePolicy(currentQueuePolicy?.max_outputs_per_run ?? (isNanoBananaModel(selectedModelKey) ? 3 : 1))}
+                  onClick={() =>
+                    void saveModelQueuePolicy(
+                      currentQueuePolicy?.max_outputs_per_run ??
+                        (isNanoBananaModel(selectedModelKey) ? STUDIO_NANO_MAX_OUTPUTS : 1),
+                    )
+                  }
                   disabled={isSaving}
                   size="compact"
                 >

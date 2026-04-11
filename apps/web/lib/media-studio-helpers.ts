@@ -100,6 +100,8 @@ export type PromptReferenceMentionMatch = {
   query: string;
 };
 
+export const STUDIO_NANO_MAX_OUTPUTS = 10;
+
 function isDefaultImageAttachment(attachment: AttachmentRecord) {
   return attachment.kind === "images" && !attachment.role;
 }
@@ -170,6 +172,21 @@ export function insertImageAttachments(
   }
 
   return result;
+}
+
+export function resolveComposerSourceAsset(
+  sourceAssetId: string | number | null,
+  stagedSourceAsset: MediaAsset | null,
+  ...collections: Array<MediaAsset[] | null | undefined>
+) {
+  const resolvedAsset = findMediaAssetById(sourceAssetId, ...collections);
+  if (resolvedAsset) {
+    return resolvedAsset;
+  }
+  if (sourceAssetId == null || !stagedSourceAsset) {
+    return null;
+  }
+  return String(stagedSourceAsset.asset_id) === String(sourceAssetId) ? stagedSourceAsset : null;
 }
 
 export function detectPromptReferenceMention(prompt: string, caretIndex: number | null | undefined) {
