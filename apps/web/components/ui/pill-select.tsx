@@ -14,7 +14,7 @@ export type PillSelectChoice = {
 export function pillSelectButtonClassName(appearance: "admin" | "studio") {
   return appearance === "admin"
     ? "flex h-12 w-full items-center gap-3 rounded-[18px] border border-[var(--ui-action-subtle-border)] bg-[var(--ui-action-subtle-surface)] pl-3.5 pr-3.5 text-left text-[0.82rem] font-semibold text-[var(--ui-action-subtle-text-hover)] transition hover:border-[var(--ui-action-subtle-border-hover)]"
-    : "flex h-10 w-full items-center gap-2.5 rounded-[16px] border border-[var(--ms-action-subtle-border)] bg-[var(--ms-action-subtle-surface)] px-3 text-left text-[0.74rem] font-semibold tracking-[0.01em] text-[var(--ms-action-subtle-text-hover)] transition hover:border-[var(--ms-action-warning-border)]";
+    : "flex h-[41px] w-full items-center gap-2.5 rounded-[16px] border border-[var(--ms-action-subtle-border)] bg-[var(--ms-action-subtle-surface)] px-3 text-left text-[0.74rem] font-semibold tracking-[0.01em] text-[var(--ms-action-subtle-text-hover)] transition hover:border-[var(--ms-action-warning-border)]";
 }
 
 function pillSelectMenuClassName(appearance: "admin" | "studio") {

@@ -256,13 +256,13 @@ export const SEEDANCE_MODEL_KEYS = new Set(["seedance-2.0"]);
 const STUDIO_PICKER_WIDTHS: Record<string, string> = {
   model: "w-full sm:w-[224px]",
   preset: "w-full sm:w-[162px]",
-  "output-count": "w-[calc(50%-0.25rem)] sm:w-[86px]",
+  "output-count": "w-[calc(50%-0.25rem)] sm:w-[78px]",
   duration: "w-[calc(50%-0.25rem)] sm:w-[92px]",
-  aspect_ratio: "w-[calc(50%-0.25rem)] sm:w-[90px]",
+  aspect_ratio: "w-[calc(50%-0.25rem)] sm:w-[84px]",
   sound: "w-[calc(50%-0.25rem)] sm:w-[96px]",
   audio: "w-[calc(50%-0.25rem)] sm:w-[96px]",
-  resolution: "w-[calc(50%-0.25rem)] sm:w-[92px]",
-  output_format: "w-[calc(50%-0.25rem)] sm:w-[102px]",
+  resolution: "w-[calc(50%-0.25rem)] sm:w-[86px]",
+  output_format: "w-[calc(50%-0.25rem)] sm:w-[94px]",
   mode: "w-[calc(50%-0.25rem)] sm:w-[102px]",
   google_search: "w-[calc(50%-0.25rem)] sm:w-[112px]",
 };
