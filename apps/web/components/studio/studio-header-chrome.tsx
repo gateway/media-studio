@@ -34,14 +34,12 @@ function FilterButton({
   active,
   icon: Icon,
   label,
-  tone = "default",
   testId,
   onClick,
 }: {
   active: boolean;
   icon: LucideIcon;
   label: string;
-  tone?: "default" | "favorite";
   testId?: string;
   onClick: () => void;
 }) {
@@ -51,8 +49,7 @@ function FilterButton({
       data-testid={testId}
       onClick={onClick}
       aria-label={label}
-      tone={tone === "favorite" && active ? "favorite" : active ? "primary" : "subtle"}
-      className={tone === "favorite" && !active ? "hover:border-[rgba(255,126,166,0.28)] hover:text-[#ffd6e3]" : ""}
+      tone={active ? "primary" : "subtle"}
     />
   );
 }
@@ -122,7 +119,6 @@ export function StudioHeaderChrome({
           active={favoritesOnly}
           icon={Heart}
           label="Favorites only"
-          tone="favorite"
           testId="studio-filter-favorites"
           onClick={onToggleFavoritesFilter}
         />
