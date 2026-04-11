@@ -2212,7 +2212,6 @@ export function MediaStudio({
     }
     setSelectedPromptIds(retryPlan?.selectedPromptIds ?? []);
     setPrompt(retryPlan?.prompt ?? "");
-    setPresetInputValues(retryPlan?.presetInputValues ?? {});
     setOptionValues(retryPlan?.optionValues ?? {});
     setOutputCount(retryPlan?.outputCount ?? 1);
     setValidation(null);
@@ -2231,6 +2230,7 @@ export function MediaStudio({
     setMobileComposerCollapsed(false);
 
     await new Promise((resolve) => window.setTimeout(resolve, 0));
+    setPresetInputValues(retryPlan?.presetInputValues ?? {});
 
     let restoredPrimaryInput = false;
     if (job.source_asset_id != null) {
