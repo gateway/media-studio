@@ -145,7 +145,7 @@ declare global {
         open: () => void;
       };
       failedJob?: {
-        seedAndOpen: (job: MediaJob) => void;
+        seedAndOpen: (job: MediaJob, batch?: MediaBatch | null) => void;
       };
       enhancement?: {
         openDialog: () => void;
@@ -364,6 +364,12 @@ export function MediaStudio({
     }
     return null;
   }, [localBatches, localJobs, selectedFailedJobId]);
+  const selectedFailedJobBatch = useMemo(() => {
+    if (!selectedFailedJob?.batch_id) {
+      return null;
+    }
+    return localBatches.find((batch) => batch.batch_id === selectedFailedJob.batch_id) ?? null;
+  }, [localBatches, selectedFailedJob?.batch_id]);
   const selectedFailedJobPrompt =
     selectedFailedJob?.final_prompt_used ?? selectedFailedJob?.enhanced_prompt ?? selectedFailedJob?.raw_prompt ?? null;
   const selectedFailedJobReferenceInputs = useMemo(
@@ -378,12 +384,13 @@ export function MediaStudio({
     () =>
       buildStudioRetryRestorePlan({
         job: selectedFailedJob,
+        batch: selectedFailedJobBatch,
         models,
         presets,
         localAssets,
         favoriteAssets,
       }),
-    [favoriteAssets, localAssets, models, presets, selectedFailedJob],
+    [favoriteAssets, localAssets, models, presets, selectedFailedJob, selectedFailedJobBatch],
   );
   const selectedFailedJobImageReferences = useMemo(
     () => (selectedFailedJobRetryPlan?.referenceInputs ?? []).filter((reference) => reference.kind === "images"),
@@ -857,7 +864,12 @@ export function MediaStudio({
         open: () => openContextualReferenceLibrary(),
       },
       failedJob: {
-        seedAndOpen: (job) => {
+        seedAndOpen: (job, batch = null) => {
+          if (batch) {
+            gallery.actions.setLocalBatches((current) =>
+              [batch, ...current.filter((entry) => entry.batch_id !== batch.batch_id)].slice(0, 12),
+            );
+          }
           setLocalJobs((current) => [job, ...current.filter((entry) => entry.job_id !== job.job_id)].slice(0, 24));
           setSelectedFailedJobId(job.job_id);
         },

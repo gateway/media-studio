@@ -89,6 +89,11 @@ export function structuredPresetInputValues(job?: MediaJob | null) {
   const metadataNormalized = isRecord(job?.normalized_request?.metadata)
     ? (job?.normalized_request?.metadata as Record<string, unknown>)
     : null;
+  const normalizedInputs = isRecord(job?.normalized_request?.preset_inputs_json)
+    ? (job?.normalized_request?.preset_inputs_json as Record<string, unknown>)
+    : isRecord(job?.normalized_request?.preset_text_values)
+      ? (job?.normalized_request?.preset_text_values as Record<string, unknown>)
+      : null;
   const preparedInputs = isRecord(job?.prepared?.preset_inputs_json) ? (job?.prepared?.preset_inputs_json as Record<string, unknown>) : null;
   const metadataInputs = isRecord(metadataPrepared?.preset_inputs)
     ? (metadataPrepared?.preset_inputs as Record<string, unknown>)
@@ -99,7 +104,7 @@ export function structuredPresetInputValues(job?: MediaJob | null) {
         : isRecord(metadataNormalized?.preset_text_values)
           ? (metadataNormalized?.preset_text_values as Record<string, unknown>)
       : null;
-  const source = metadataInputs ?? preparedInputs;
+  const source = metadataInputs ?? preparedInputs ?? normalizedInputs;
   if (!source) {
     return {} as Record<string, string>;
   }
@@ -123,8 +128,14 @@ export function structuredPresetSlotValues(job?: MediaJob | null) {
   if (isRecord(job?.prepared?.preset_slot_values_json)) {
     return job?.prepared?.preset_slot_values_json as Record<string, unknown>;
   }
+  if (isRecord(job?.prepared?.preset_image_slots)) {
+    return job?.prepared?.preset_image_slots as Record<string, unknown>;
+  }
   if (isRecord(job?.normalized_request?.preset_slot_values_json)) {
     return job?.normalized_request?.preset_slot_values_json as Record<string, unknown>;
+  }
+  if (isRecord(job?.normalized_request?.preset_image_slots)) {
+    return job?.normalized_request?.preset_image_slots as Record<string, unknown>;
   }
   const normalizedRequest = isRecord(job?.normalized_request) ? (job?.normalized_request as Record<string, unknown>) : null;
   const metadata = isRecord(normalizedRequest?.metadata) ? (normalizedRequest?.metadata as Record<string, unknown>) : null;
@@ -150,6 +161,23 @@ export function structuredPresetSlotValues(job?: MediaJob | null) {
       }),
     );
     return inferred as Record<string, unknown>;
+  }
+  return {} as Record<string, unknown>;
+}
+
+export function structuredPresetInputValuesFromBatch(batch?: MediaBatch | null) {
+  const summary = isRecord(batch?.request_summary) ? (batch?.request_summary as Record<string, unknown>) : null;
+  const source = isRecord(summary?.preset_text_values) ? (summary?.preset_text_values as Record<string, unknown>) : null;
+  if (!source) {
+    return {} as Record<string, string>;
+  }
+  return Object.fromEntries(Object.entries(source).map(([key, value]) => [key, String(value ?? "").trim()]));
+}
+
+export function structuredPresetSlotValuesFromBatch(batch?: MediaBatch | null) {
+  const summary = isRecord(batch?.request_summary) ? (batch?.request_summary as Record<string, unknown>) : null;
+  if (isRecord(summary?.preset_image_slots)) {
+    return summary.preset_image_slots as Record<string, unknown>;
   }
   return {} as Record<string, unknown>;
 }

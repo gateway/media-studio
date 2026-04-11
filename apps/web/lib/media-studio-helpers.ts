@@ -12,7 +12,13 @@ import {
 } from "lucide-react";
 
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
-import { findMediaAssetById, structuredPresetInputValues, structuredPresetSlotValues } from "@/lib/studio-gallery";
+import {
+  findMediaAssetById,
+  structuredPresetInputValues,
+  structuredPresetInputValuesFromBatch,
+  structuredPresetSlotValues,
+  structuredPresetSlotValuesFromBatch,
+} from "@/lib/studio-gallery";
 import type {
   MediaAsset,
   MediaBatch,
@@ -933,6 +939,7 @@ export function buildStudioJobReferenceInputs({
   const seen = new Set<string>();
   const sourceAssetId = job?.source_asset_id ?? null;
   let referenceIndex = 0;
+  let consumedImplicitPrimary = false;
 
   normalizedRequestImages(job).forEach((image, index) => {
     if (!isRecord(image)) {
@@ -948,6 +955,10 @@ export function buildStudioJobReferenceInputs({
       image.role === "first_frame" || image.role === "last_frame" || image.role === "reference"
         ? image.role
         : null;
+    if (role == null && sourceAssetId == null && !consumedImplicitPrimary) {
+      consumedImplicitPrimary = true;
+      return;
+    }
     if (sourceAssetId != null && role == null) {
       return;
     }
@@ -1065,12 +1076,14 @@ export function resolveStudioRetryPreset(job: MediaJob | null | undefined, prese
 
 export function buildStudioRetryRestorePlan({
   job,
+  batch,
   models,
   presets,
   localAssets,
   favoriteAssets,
 }: {
   job?: MediaJob | null;
+  batch?: MediaBatch | null;
   models: MediaModelSummary[];
   presets: MediaPreset[];
   localAssets: MediaAsset[];
@@ -1082,7 +1095,10 @@ export function buildStudioRetryRestorePlan({
 
   const targetModel = models.find((model) => model.key === job.model_key) ?? null;
   const targetPreset = resolveStudioRetryPreset(job, presets);
-  const presetInputValues = structuredPresetInputValues(job);
+  const presetInputValues = {
+    ...structuredPresetInputValuesFromBatch(batch),
+    ...structuredPresetInputValues(job),
+  };
   const optionValues = buildNormalizedStudioOptions(
     targetModel,
     (job.resolved_options as Record<string, unknown> | undefined) ?? {},
@@ -1093,7 +1109,10 @@ export function buildStudioRetryRestorePlan({
 
   const presetSlotRestores: StudioRetryPresetSlotRestore[] = [];
   if (targetPreset) {
-    const slotValues = structuredPresetSlotValues(job);
+    const slotValues = {
+      ...structuredPresetSlotValuesFromBatch(batch),
+      ...structuredPresetSlotValues(job),
+    };
     for (const slot of normalizeStructuredPresetImageSlots(targetPreset)) {
       const rawItems = Array.isArray(slotValues[slot.key]) ? (slotValues[slot.key] as unknown[]) : [];
       const firstItem = rawItems[0];
@@ -1102,12 +1121,8 @@ export function buildStudioRetryRestorePlan({
       }
       const assetId =
         typeof firstItem.asset_id === "string" || typeof firstItem.asset_id === "number" ? firstItem.asset_id : null;
-      const url =
-        typeof firstItem.url === "string"
-          ? firstItem.url
-          : typeof firstItem.path === "string"
-            ? mediaPreviewUrl({ hero_original_path: firstItem.path } as MediaAsset)
-            : null;
+      const preview = structuredPresetSlotPreviewUrl(firstItem, localAssets, favoriteAssets);
+      const url = preview?.url ?? null;
       if (assetId == null && !url) {
         continue;
       }

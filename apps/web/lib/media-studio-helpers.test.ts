@@ -450,6 +450,7 @@ describe("media-studio-helpers Seedance support", () => {
             ],
           },
         } as never,
+        batch: null,
         models: [model],
         presets: [preset],
         localAssets: [sourceAsset],
@@ -485,7 +486,76 @@ describe("media-studio-helpers Seedance support", () => {
           slotKey: "wardrobe",
           label: "Wardrobe",
           assetId: "asset-source",
-          url: null,
+          url: "/api/control/files/outputs/thumb/source.webp",
+        },
+      ],
+    });
+  });
+
+  it("uses batch request summary values when failed jobs do not retain structured preset state", () => {
+    const model = {
+      key: "nano-banana-2",
+      defaults: { resolution: "1k" },
+      options: {
+        output_format: {
+          default: "png",
+        },
+      },
+    } as never;
+    const preset = {
+      key: "nano-style",
+      preset_id: "preset-1",
+      input_schema_json: [{ key: "character", label: "Character", required: true }],
+      input_slots_json: [{ key: "subject_image", label: "Subject image", required: true }],
+    } as never;
+
+    expect(
+      buildStudioRetryRestorePlan({
+        job: {
+          model_key: "nano-banana-2",
+          requested_preset_key: "nano-style",
+          selected_system_prompt_ids: [],
+          final_prompt_used: "Retry structured preset",
+          requested_outputs: 1,
+          resolved_options: { output_format: "png" },
+          normalized_request: {
+            images: [{ path: "outputs/retry/source.png", media_type: "image", role: null }],
+          },
+        } as never,
+        batch: {
+          request_summary: {
+            preset_text_values: { character: "Neo" },
+            preset_image_slots: {
+              subject_image: [{ path: "outputs/retry/subject.png" }],
+            },
+          },
+        } as never,
+        models: [model],
+        presets: [preset],
+        localAssets: [],
+        favoriteAssets: null,
+      }),
+    ).toEqual({
+      targetModel: model,
+      targetPreset: preset,
+      selectedPromptIds: [],
+      prompt: "Retry structured preset",
+      presetInputValues: { character: "Neo" },
+      optionValues: { resolution: "1k", output_format: "png" },
+      outputCount: 1,
+      primaryInput: {
+        assetId: null,
+        url: "/api/control/files/outputs/retry/source.png",
+        kind: "images",
+        role: null,
+      },
+      referenceInputs: [],
+      presetSlotRestores: [
+        {
+          slotKey: "subject_image",
+          label: "Subject image",
+          assetId: null,
+          url: "/api/control/files/outputs/retry/subject.png",
         },
       ],
     });
