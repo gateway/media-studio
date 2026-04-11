@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { hasValidBasicAuthorization, isTrustedLocalRequest } from "@/lib/admin-access";
+import { hasValidBasicAuthorization, isTrustedLocalRequest, isTrustedPrivateNetworkRequest } from "@/lib/admin-access";
 
 export function isProtectedPath(pathname: string) {
   return (
@@ -32,6 +32,7 @@ export function proxy(request: NextRequest) {
 
   const adminUsername = process.env.MEDIA_STUDIO_ADMIN_USERNAME?.trim() ?? "";
   const adminPassword = process.env.MEDIA_STUDIO_ADMIN_PASSWORD?.trim() ?? "";
+  const privateNetworkAccessEnabled = process.env.MEDIA_STUDIO_ALLOW_PRIVATE_NETWORK_ACCESS?.trim().toLowerCase() === "true";
   if (adminUsername && adminPassword) {
     if (hasValidBasicAuthorization(request.headers.get("authorization"), adminUsername, adminPassword)) {
       return NextResponse.next();
@@ -45,11 +46,15 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (privateNetworkAccessEnabled && isTrustedPrivateNetworkRequest(request.nextUrl, request.headers)) {
+    return NextResponse.next();
+  }
+
   return NextResponse.json(
     {
       ok: false,
       error:
-        "Media Studio is only available on localhost until admin credentials are configured. Open http://127.0.0.1:3000/studio or http://localhost:3000/studio on this machine, or set MEDIA_STUDIO_ADMIN_USERNAME and MEDIA_STUDIO_ADMIN_PASSWORD for non-local access.",
+        "Media Studio is only available on localhost until admin credentials are configured. Open http://127.0.0.1:3000/studio or http://localhost:3000/studio on this machine, or set MEDIA_STUDIO_ADMIN_USERNAME and MEDIA_STUDIO_ADMIN_PASSWORD for non-local access. For private TailScale/LAN access without browser auth, set MEDIA_STUDIO_ALLOW_PRIVATE_NETWORK_ACCESS=true.",
     },
     { status: 403 },
   );

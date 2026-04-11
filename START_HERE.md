@@ -129,6 +129,8 @@ Then open:
   Only if that local endpoint requires auth.
 - `MEDIA_STUDIO_ADMIN_USERNAME` and `MEDIA_STUDIO_ADMIN_PASSWORD`
   Add these if you want browser auth instead of localhost-only access.
+- `MEDIA_STUDIO_ALLOW_PRIVATE_NETWORK_ACCESS=true`
+  Optional shortcut for private LAN / TailScale access without browser auth.
 
 ## If you want more detail
 

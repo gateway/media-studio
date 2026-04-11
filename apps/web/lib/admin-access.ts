@@ -1,4 +1,5 @@
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
+const TAILSCALE_HOST_SUFFIX = ".ts.net";
 
 function normalizeHostname(value: string | null | undefined) {
   const raw = String(value ?? "").trim().toLowerCase();
@@ -20,6 +21,40 @@ export function isLoopbackHostname(value: string | null | undefined) {
   return LOOPBACK_HOSTS.has(normalizeHostname(value));
 }
 
+function isPrivateIpv4Address(hostname: string) {
+  const normalized = normalizeHostname(hostname);
+  const parts = normalized.split(".");
+  if (parts.length !== 4 || parts.some((part) => !/^\d+$/.test(part))) {
+    return false;
+  }
+  const octets = parts.map((part) => Number(part));
+  if (octets.some((octet) => Number.isNaN(octet) || octet < 0 || octet > 255)) {
+    return false;
+  }
+  if (octets[0] === 10) return true;
+  if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return true;
+  if (octets[0] === 192 && octets[1] === 168) return true;
+  if (octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127) return true;
+  return false;
+}
+
+function isPrivateIpv6Address(hostname: string) {
+  const normalized = normalizeHostname(hostname);
+  return normalized.startsWith("fc") || normalized.startsWith("fd");
+}
+
+export function isTrustedPrivateNetworkHostname(value: string | null | undefined) {
+  const normalized = normalizeHostname(value);
+  if (!normalized) {
+    return false;
+  }
+  return (
+    isPrivateIpv4Address(normalized) ||
+    isPrivateIpv6Address(normalized) ||
+    normalized.endsWith(TAILSCALE_HOST_SUFFIX)
+  );
+}
+
 export function isTrustedLocalRequest(url: URL, headers: Headers) {
   if (!isLoopbackHostname(url.hostname)) {
     return false;
@@ -30,6 +65,18 @@ export function isTrustedLocalRequest(url: URL, headers: Headers) {
   }
   const remoteHost = forwardedFor.split(",")[0]?.trim() ?? "";
   return isLoopbackHostname(remoteHost);
+}
+
+export function isTrustedPrivateNetworkRequest(url: URL, headers: Headers) {
+  if (isTrustedPrivateNetworkHostname(url.hostname)) {
+    return true;
+  }
+  const forwardedFor = headers.get("x-forwarded-for");
+  if (!forwardedFor) {
+    return false;
+  }
+  const remoteHost = forwardedFor.split(",")[0]?.trim() ?? "";
+  return isTrustedPrivateNetworkHostname(remoteHost);
 }
 
 export function parseBasicAuthorization(headerValue: string | null | undefined) {
