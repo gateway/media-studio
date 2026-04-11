@@ -1236,25 +1236,43 @@ export function MediaStudio({
     seedanceComposer ? (
       <div className="rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-3 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
         <div className="mb-3 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/44">Seedance References</div>
-        <div className="grid gap-2.5 lg:grid-cols-3">
+        <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.3fr)_minmax(260px,0.85fr)_minmax(260px,0.85fr)]">
           {[
             {
               key: "images",
               label: "Image refs",
               attachments: seedanceReferenceImages,
               accept: "image/*",
+              maxLabel: "9",
+              tileClassName: "h-[82px] w-[82px]",
+              addTileClassName: "h-[82px] w-[82px] rounded-[22px]",
+              plusClassName: "size-5",
+              plusIconClassName: "size-4.5",
+              maxVisibleTiles: 4,
             },
             {
               key: "videos",
               label: "Video refs",
               attachments: seedanceReferenceVideos,
               accept: "video/*",
+              maxLabel: "3",
+              tileClassName: "h-[48px] w-[48px]",
+              addTileClassName: "h-[48px] w-[48px] rounded-[16px]",
+              plusClassName: "size-4",
+              plusIconClassName: "size-3.5",
+              maxVisibleTiles: 3,
             },
             {
               key: "audios",
               label: "Audio refs",
               attachments: seedanceReferenceAudios,
               accept: "audio/*",
+              maxLabel: "3",
+              tileClassName: "h-[48px] w-[48px]",
+              addTileClassName: "h-[48px] w-[48px] rounded-[16px]",
+              plusClassName: "size-4",
+              plusIconClassName: "size-3.5",
+              maxVisibleTiles: 3,
             },
           ].map((group) => (
             <div
@@ -1275,15 +1293,15 @@ export function MediaStudio({
             >
               <div className="absolute left-3 top-2.5 rounded-full border border-white/8 bg-black/18 px-1.5 py-0.5 text-[0.52rem] font-semibold uppercase tracking-[0.12em] text-white/42">
                 {group.attachments.length}
-                {group.key === "images" ? " / 9" : " / 3"}
+                {` / ${group.maxLabel}`}
               </div>
               <div className="mb-2 flex items-center justify-between gap-3 pt-4">
                 <div className="min-w-0">
                   <div className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-white/52">{group.label}</div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <label className="flex h-[56px] w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-[18px] border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]">
-                    <Plus className="size-4.5" />
+                  <label className={cn("flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]", group.addTileClassName)}>
+                    <Plus className={group.plusIconClassName} />
                     <input
                       type="file"
                       multiple
@@ -1301,8 +1319,8 @@ export function MediaStudio({
                   </label>
                 </div>
               </div>
-              <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5">
-                {group.attachments.slice(0, 4).map((attachment) => (
+              <div className="scrollbar-none flex flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden pb-0.5">
+                {group.attachments.slice(0, group.maxVisibleTiles).map((attachment) => (
                   <StudioStagedMediaTile
                     key={attachment.id}
                     preview={
@@ -1317,13 +1335,13 @@ export function MediaStudio({
                     visualUrl={attachment.kind === "audios" ? null : attachment.previewUrl ?? attachment.referenceRecord?.thumb_url ?? attachment.referenceRecord?.stored_url ?? null}
                     onOpenPreview={openReferencePreview}
                     onRemove={() => removeAttachment(attachment.id)}
-                    className="h-[56px] w-[56px] shrink-0"
+                    className={cn("shrink-0", group.tileClassName)}
                     testId={`seedance-group-tile-${group.key}-${attachment.id}`}
                   />
                 ))}
-                {group.attachments.length > 4 ? (
-                  <div className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[18px] border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58">
-                    +{group.attachments.length - 4}
+                {group.attachments.length > group.maxVisibleTiles ? (
+                  <div className={cn("flex shrink-0 items-center justify-center border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58", group.addTileClassName)}>
+                    +{group.attachments.length - group.maxVisibleTiles}
                   </div>
                 ) : null}
               </div>
@@ -1387,7 +1405,7 @@ export function MediaStudio({
                   : "0/1"
             }
           >
-            <div className="flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
+            <div className="scrollbar-none flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
               {[
                 { label: "Start frame", role: "first_frame", attachment: seedanceFirstFrameAttachment },
                 ...(effectiveSeedanceMode === "first_last_frames"
@@ -1458,6 +1476,10 @@ export function MediaStudio({
               attachments: seedanceReferenceImages,
               accept: "image/*",
               maxLabel: "9",
+              tileClassName: "h-[72px] w-[72px]",
+              addTileClassName: "h-[72px] w-[72px] rounded-[20px]",
+              plusIconClassName: "size-4.5",
+              maxVisibleTiles: 4,
             },
             {
               key: "videos",
@@ -1465,6 +1487,10 @@ export function MediaStudio({
               attachments: seedanceReferenceVideos,
               accept: "video/*",
               maxLabel: "3",
+              tileClassName: "h-[44px] w-[44px]",
+              addTileClassName: "h-[44px] w-[44px] rounded-[14px]",
+              plusIconClassName: "size-3.5",
+              maxVisibleTiles: 3,
             },
             {
               key: "audios",
@@ -1472,6 +1498,10 @@ export function MediaStudio({
               attachments: seedanceReferenceAudios,
               accept: "audio/*",
               maxLabel: "3",
+              tileClassName: "h-[44px] w-[44px]",
+              addTileClassName: "h-[44px] w-[44px] rounded-[14px]",
+              plusIconClassName: "size-3.5",
+              maxVisibleTiles: 3,
             },
           ].map((group) => (
             <StudioMobileInputsGroup
@@ -1493,9 +1523,9 @@ export function MediaStudio({
                   isDragActive ? "border-[rgba(216,141,67,0.3)] bg-[rgba(32,38,35,0.9)]" : "",
                 )}
               >
-                <div className="flex min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden pb-1">
-                  <label className="flex h-[56px] w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-[18px] border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]">
-                    <Plus className="size-4.5" />
+                <div className="scrollbar-none flex min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden pb-1">
+                  <label className={cn("flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]", group.addTileClassName)}>
+                    <Plus className={group.plusIconClassName} />
                     <input
                       type="file"
                       multiple
@@ -1511,7 +1541,7 @@ export function MediaStudio({
                       }}
                     />
                   </label>
-                  {group.attachments.slice(0, 4).map((attachment) => (
+                  {group.attachments.slice(0, group.maxVisibleTiles).map((attachment) => (
                     <StudioStagedMediaTile
                       key={attachment.id}
                       preview={
@@ -1534,13 +1564,13 @@ export function MediaStudio({
                       }
                       onOpenPreview={openReferencePreview}
                       onRemove={() => removeAttachment(attachment.id)}
-                      className="h-[56px] w-[56px] shrink-0"
+                      className={cn("shrink-0", group.tileClassName)}
                       testId={`studio-mobile-seedance-group-tile-${group.key}-${attachment.id}`}
                     />
                   ))}
-                  {group.attachments.length > 4 ? (
-                    <div className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[18px] border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58">
-                      +{group.attachments.length - 4}
+                  {group.attachments.length > group.maxVisibleTiles ? (
+                    <div className={cn("flex shrink-0 items-center justify-center border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58", group.addTileClassName)}>
+                      +{group.attachments.length - group.maxVisibleTiles}
                     </div>
                   ) : null}
                 </div>
