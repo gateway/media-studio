@@ -49,6 +49,10 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const STUDIO_MAX_CONCURRENT_JOBS = 10;
+const STUDIO_MAX_POLL_SECONDS = 300;
+const STUDIO_MAX_RETRY_ATTEMPTS = 10;
+
 type MediaModelsConsoleProps = {
   models: MediaModelSummary[];
   presets: MediaPreset[];
@@ -981,10 +985,14 @@ export function MediaModelsConsole({
                 <AdminInput
                   type="number"
                   min={1}
+                  max={STUDIO_MAX_CONCURRENT_JOBS}
                   step={1}
                   value={String(localQueueSettings?.max_concurrent_jobs ?? 10)}
                   onChange={(event) => setLocalQueueSettings((current) => ({
-                    max_concurrent_jobs: Math.max(1, Number(event.target.value) || 1),
+                    max_concurrent_jobs: Math.min(
+                      Math.max(1, Number(event.target.value) || 1),
+                      STUDIO_MAX_CONCURRENT_JOBS,
+                    ),
                     queue_enabled: current?.queue_enabled ?? true,
                     default_poll_seconds: current?.default_poll_seconds ?? 6,
                     max_retry_attempts: current?.max_retry_attempts ?? 3,
@@ -1000,13 +1008,17 @@ export function MediaModelsConsole({
                 <AdminInput
                   type="number"
                   min={1}
+                  max={STUDIO_MAX_POLL_SECONDS}
                   step={1}
-                  value={String(Math.max(1, Number(localQueueSettings?.default_poll_seconds ?? 6)))}
+                  value={String(Math.max(1, Math.min(STUDIO_MAX_POLL_SECONDS, Number(localQueueSettings?.default_poll_seconds ?? 6))))}
                   onChange={(event) =>
                     setLocalQueueSettings((current) => ({
                       max_concurrent_jobs: current?.max_concurrent_jobs ?? 10,
                       queue_enabled: current?.queue_enabled ?? true,
-                      default_poll_seconds: Math.max(1, Number(event.target.value) || 1),
+                      default_poll_seconds: Math.min(
+                        Math.max(1, Number(event.target.value) || 1),
+                        STUDIO_MAX_POLL_SECONDS,
+                      ),
                       max_retry_attempts: current?.max_retry_attempts ?? 3,
                       created_at: current?.created_at ?? null,
                       updated_at: current?.updated_at ?? null,
@@ -1019,14 +1031,18 @@ export function MediaModelsConsole({
                 <AdminInput
                   type="number"
                   min={1}
+                  max={STUDIO_MAX_RETRY_ATTEMPTS}
                   step={1}
-                  value={String(Math.max(1, Number(localQueueSettings?.max_retry_attempts ?? 3)))}
+                  value={String(Math.max(1, Math.min(STUDIO_MAX_RETRY_ATTEMPTS, Number(localQueueSettings?.max_retry_attempts ?? 3))))}
                   onChange={(event) =>
                     setLocalQueueSettings((current) => ({
                       max_concurrent_jobs: current?.max_concurrent_jobs ?? 10,
                       queue_enabled: current?.queue_enabled ?? true,
                       default_poll_seconds: current?.default_poll_seconds ?? 6,
-                      max_retry_attempts: Math.max(1, Number(event.target.value) || 1),
+                      max_retry_attempts: Math.min(
+                        Math.max(1, Number(event.target.value) || 1),
+                        STUDIO_MAX_RETRY_ATTEMPTS,
+                      ),
                       created_at: current?.created_at ?? null,
                       updated_at: current?.updated_at ?? null,
                     }))

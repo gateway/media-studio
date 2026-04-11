@@ -21,6 +21,12 @@ The API should load that repo through configuration instead of hardcoding import
 - Next.js owns the Studio UI and browser proxy routes.
 - KIE integration stays behind an adapter boundary.
 
+## Deployment boundary
+
+- Media Studio is intended to run locally on the operator's machine.
+- It should not be treated as a general public-network web app.
+- Web auth and control-route protections still need to stay internally consistent, but review and remediation work should treat localhost-only operation as the baseline deployment model.
+
 ## Pricing architecture
 
 - The source of truth for pricing math stays in the shared Python `kie-api` layer.

@@ -6,12 +6,14 @@ const getReferenceMedia = vi.fn();
 const deleteReferenceMedia = vi.fn();
 const markReferenceMediaUsed = vi.fn();
 const registerReferenceMediaFile = vi.fn();
+const backfillReferenceMedia = vi.fn();
 
 vi.mock("@/lib/control-api", () => ({
   listReferenceMedia,
   getReferenceMedia,
   deleteReferenceMedia,
   markReferenceMediaUsed,
+  backfillReferenceMedia,
 }));
 
 vi.mock("@/lib/reference-media-storage", () => ({
@@ -26,6 +28,7 @@ describe("reference media web routes", () => {
     deleteReferenceMedia.mockReset();
     markReferenceMediaUsed.mockReset();
     registerReferenceMediaFile.mockReset();
+    backfillReferenceMedia.mockReset();
   });
 
   it("lists reference media through the control proxy", async () => {
@@ -125,6 +128,35 @@ describe("reference media web routes", () => {
         kind: "image",
         stored_path: "reference-media/images/ref-1.png",
       },
+    });
+  });
+
+  it("triggers explicit reference-media backfill", async () => {
+    backfillReferenceMedia.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        scanned: 3,
+        imported: 2,
+        reused: 1,
+        skipped: 0,
+        errors: [],
+        duration_seconds: 0.42,
+      },
+    });
+
+    const { POST } = await import("@/app/api/control/reference-media/backfill/route");
+    const response = await POST(new Request("http://localhost/api/control/reference-media/backfill", { method: "POST" }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({
+      ok: true,
+      scanned: 3,
+      imported: 2,
+      reused: 1,
+      skipped: 0,
+      errors: [],
+      duration_seconds: 0.42,
     });
   });
 });

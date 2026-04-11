@@ -54,13 +54,17 @@ The main repo layout is:
 apps/
   api/   FastAPI backend
   web/   Next.js frontend
-packages/
-  provider-adapter/
-  shared-types/
 scripts/
 docs/
 data/
 ```
+
+Key supporting paths:
+
+- `scripts/` local run, verification, and maintenance commands
+- `docs/` operator and architecture notes
+- `data/` local SQLite, uploads, downloads, generated outputs, and runtime files
+- sibling `kie-api/` checkout for validation, pricing, submit, polling, and artifact publishing
 
 ## What Goes Into The Shared Python Venv?
 
@@ -118,6 +122,8 @@ At a high level, the system works like this:
 - the local app validates and stores the job
 - Kie AI runs the model remotely and sends back the result
 - the finished output lands back in your gallery and local files
+
+See [docs/request-lifecycle.md](docs/request-lifecycle.md) for the full submit, queue, polling, publish, and retry lifecycle.
 
 That is the main idea: local studio experience, remote model execution, local history.
 

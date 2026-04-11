@@ -161,9 +161,10 @@ def test_backfill_reference_media_scans_uploads_and_is_idempotent(app_modules) -
     assert second["imported"] == 0
     assert second["reused"] == 3
     assert len(records) == 2
+    assert first["duration_seconds"] >= 0
 
 
-def test_list_reference_media_auto_backfills_existing_uploads_once(client, app_modules) -> None:
+def test_list_reference_media_does_not_auto_backfill_existing_uploads(client, app_modules) -> None:
     service = app_modules["service"]
     store = app_modules["store"]
     store.bootstrap_schema()
@@ -181,12 +182,16 @@ def test_list_reference_media_auto_backfills_existing_uploads_once(client, app_m
     assert response.status_code == 200
     payload = response.json()
 
-    assert len(payload["items"]) == 1
-    assert payload["items"][0]["original_filename"] == "portrait.png"
+    assert payload["items"] == []
+
+    backfill = client.post("/media/reference-media/backfill")
+    assert backfill.status_code == 200
+    assert backfill.json()["imported"] == 1
 
     second = client.get("/media/reference-media?kind=image")
     assert second.status_code == 200
     assert len(second.json()["items"]) == 1
+    assert second.json()["items"][0]["original_filename"] == "portrait.png"
 
 
 def test_validation_bundle_resolves_reference_id_without_leaking_provider_extra_fields(app_modules) -> None:

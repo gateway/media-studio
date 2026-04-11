@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
-import { findMediaAssetById } from "@/lib/studio-gallery";
+import { findMediaAssetById, structuredPresetInputValues, structuredPresetSlotValues } from "@/lib/studio-gallery";
 import type {
   MediaAsset,
   MediaBatch,
@@ -76,6 +76,26 @@ export type StudioJobPrimaryInput = {
   url: string;
   kind: "images" | "videos" | "audios";
   role: "first_frame" | "last_frame" | "reference" | null;
+};
+
+export type StudioRetryPresetSlotRestore = {
+  slotKey: string;
+  label: string;
+  assetId: string | number | null;
+  url: string | null;
+};
+
+export type StudioRetryRestorePlan = {
+  targetModel: MediaModelSummary | null;
+  targetPreset: MediaPreset | null;
+  selectedPromptIds: string[];
+  prompt: string;
+  presetInputValues: Record<string, string>;
+  optionValues: Record<string, unknown>;
+  outputCount: number;
+  primaryInput: StudioJobPrimaryInput | null;
+  referenceInputs: StudioJobReferenceInput[];
+  presetSlotRestores: StudioRetryPresetSlotRestore[];
 };
 
 export type OrderedImageInput =
@@ -1026,6 +1046,92 @@ export function buildStudioJobPrimaryInput({
   }
 
   return null;
+}
+
+export function resolveStudioRetryPreset(job: MediaJob | null | undefined, presets: MediaPreset[]) {
+  if (!job) {
+    return null;
+  }
+  return (
+    presets.find(
+      (preset) =>
+        preset.key === job.resolved_preset_key ||
+        preset.key === job.requested_preset_key ||
+        preset.preset_id === job.resolved_preset_key ||
+        preset.preset_id === job.requested_preset_key,
+    ) ?? null
+  );
+}
+
+export function buildStudioRetryRestorePlan({
+  job,
+  models,
+  presets,
+  localAssets,
+  favoriteAssets,
+}: {
+  job?: MediaJob | null;
+  models: MediaModelSummary[];
+  presets: MediaPreset[];
+  localAssets: MediaAsset[];
+  favoriteAssets: MediaAsset[] | null;
+}) {
+  if (!job) {
+    return null;
+  }
+
+  const targetModel = models.find((model) => model.key === job.model_key) ?? null;
+  const targetPreset = resolveStudioRetryPreset(job, presets);
+  const presetInputValues = structuredPresetInputValues(job);
+  const optionValues = buildNormalizedStudioOptions(
+    targetModel,
+    (job.resolved_options as Record<string, unknown> | undefined) ?? {},
+    null,
+  );
+  const primaryInput = buildStudioJobPrimaryInput({ job, localAssets, favoriteAssets });
+  const referenceInputs = buildStudioJobReferenceInputs({ job, localAssets, favoriteAssets });
+
+  const presetSlotRestores: StudioRetryPresetSlotRestore[] = [];
+  if (targetPreset) {
+    const slotValues = structuredPresetSlotValues(job);
+    for (const slot of normalizeStructuredPresetImageSlots(targetPreset)) {
+      const rawItems = Array.isArray(slotValues[slot.key]) ? (slotValues[slot.key] as unknown[]) : [];
+      const firstItem = rawItems[0];
+      if (!isRecord(firstItem)) {
+        continue;
+      }
+      const assetId =
+        typeof firstItem.asset_id === "string" || typeof firstItem.asset_id === "number" ? firstItem.asset_id : null;
+      const url =
+        typeof firstItem.url === "string"
+          ? firstItem.url
+          : typeof firstItem.path === "string"
+            ? mediaPreviewUrl({ hero_original_path: firstItem.path } as MediaAsset)
+            : null;
+      if (assetId == null && !url) {
+        continue;
+      }
+      presetSlotRestores.push({
+        slotKey: slot.key,
+        label: slot.label,
+        assetId,
+        url,
+      });
+    }
+  }
+
+  return {
+    targetModel,
+    targetPreset,
+    selectedPromptIds: job.selected_system_prompt_ids ?? [],
+    prompt: job.final_prompt_used ?? job.enhanced_prompt ?? job.raw_prompt ?? "",
+    presetInputValues,
+    optionValues,
+    outputCount: Math.max(1, job.requested_outputs ?? 1),
+    primaryInput,
+    referenceInputs,
+    presetSlotRestores,
+  } satisfies StudioRetryRestorePlan;
 }
 
 export function jobPreviewUrl(job?: MediaJob | null) {

@@ -789,3 +789,19 @@ export async function deleteReferenceMedia(referenceId: string) {
     error: result.error,
   };
 }
+
+export async function backfillReferenceMedia() {
+  const result = await postControlApiJson<Record<string, any>>("/media/reference-media/backfill", {});
+  return {
+    ok: result.ok,
+    data: {
+      scanned: Number(result.data?.scanned ?? 0),
+      imported: Number(result.data?.imported ?? 0),
+      reused: Number(result.data?.reused ?? 0),
+      skipped: Number(result.data?.skipped ?? 0),
+      errors: Array.isArray(result.data?.errors) ? result.data.errors.map(String) : [],
+      duration_seconds: Number(result.data?.duration_seconds ?? 0),
+    },
+    error: result.error,
+  };
+}

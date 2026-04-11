@@ -25,42 +25,80 @@ export function StudioReferenceLibrary({
   const [error, setError] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<MediaReference | null>(null);
   const [deletingReferenceId, setDeletingReferenceId] = useState<string | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillSummary, setBackfillSummary] = useState<{
+    scanned: number;
+    imported: number;
+    reused: number;
+    skipped: number;
+    duration_seconds: number;
+  } | null>(null);
+
+  async function loadItems(signal?: AbortSignal) {
+    setLoading(true);
+    setError(null);
+    const response = await fetch(`/api/control/reference-media?kind=${kind}&limit=120&offset=0`, {
+      signal,
+      credentials: "same-origin",
+    });
+    const payload = (await response.json()) as { ok?: boolean; error?: string; items?: MediaReference[] };
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error ?? "Unable to load the reference library.");
+    }
+    setItems(Array.isArray(payload.items) ? payload.items : []);
+    setLoading(false);
+  }
 
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(`/api/control/reference-media?kind=${kind}&limit=120&offset=0`, {
-          signal: controller.signal,
-          credentials: "same-origin",
-        });
-        const payload = (await response.json()) as { ok?: boolean; error?: string; items?: MediaReference[] };
-        if (!response.ok || !payload.ok) {
-          throw new Error(payload.error ?? "Unable to load the reference library.");
-        }
-        if (active) {
-          setItems(Array.isArray(payload.items) ? payload.items : []);
-        }
-      } catch (loadError) {
-        if (!active || controller.signal.aborted) {
-          return;
-        }
-        setError(loadError instanceof Error ? loadError.message : "Unable to load the reference library.");
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
+    void loadItems(controller.signal).catch((loadError) => {
+      if (!active || controller.signal.aborted) {
+        return;
       }
-    }
-    void load();
+      setError(loadError instanceof Error ? loadError.message : "Unable to load the reference library.");
+      setLoading(false);
+    });
     return () => {
       active = false;
       controller.abort();
     };
   }, [kind]);
+
+  async function triggerBackfill() {
+    setBackfilling(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/control/reference-media/backfill", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        scanned?: number;
+        imported?: number;
+        reused?: number;
+        skipped?: number;
+        duration_seconds?: number;
+      };
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error ?? "Unable to scan existing uploads.");
+      }
+      setBackfillSummary({
+        scanned: Number(payload.scanned ?? 0),
+        imported: Number(payload.imported ?? 0),
+        reused: Number(payload.reused ?? 0),
+        skipped: Number(payload.skipped ?? 0),
+        duration_seconds: Number(payload.duration_seconds ?? 0),
+      });
+      await loadItems();
+    } catch (backfillError) {
+      setError(backfillError instanceof Error ? backfillError.message : "Unable to scan existing uploads.");
+    } finally {
+      setBackfilling(false);
+    }
+  }
 
   async function deleteItem(referenceId: string) {
     setDeletingReferenceId(referenceId);
@@ -94,16 +132,44 @@ export function StudioReferenceLibrary({
               </div>
               <div className="mt-1 text-sm text-white/68">{title}</div>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/78 transition hover:border-[rgba(216,141,67,0.28)] hover:text-white"
-              aria-label="Close reference library"
-            >
-              <X className="size-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                data-testid="studio-reference-library-scan"
+                onClick={() => void triggerBackfill()}
+                disabled={backfilling}
+                className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-4 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-white/78 transition hover:border-[rgba(216,141,67,0.28)] hover:text-white disabled:opacity-60"
+              >
+                {backfilling ? (
+                  <>
+                    <LoaderCircle className="mr-2 size-3.5 animate-spin" />
+                    Scanning
+                  </>
+                ) : (
+                  "Scan uploads"
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/78 transition hover:border-[rgba(216,141,67,0.28)] hover:text-white"
+                aria-label="Close reference library"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
           </div>
           <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 md:px-6 md:py-6">
+            {backfillSummary ? (
+              <div
+                data-testid="studio-reference-library-backfill-summary"
+                className="mb-4 rounded-[18px] border border-[rgba(208,255,72,0.18)] bg-[rgba(208,255,72,0.08)] px-4 py-3 text-[0.72rem] leading-6 text-white/78"
+              >
+                Scanned {backfillSummary.scanned} upload{backfillSummary.scanned === 1 ? "" : "s"} · imported{" "}
+                {backfillSummary.imported} · reused {backfillSummary.reused} · skipped {backfillSummary.skipped} ·{" "}
+                {backfillSummary.duration_seconds.toFixed(3)}s
+              </div>
+            ) : null}
             {loading ? (
               <div className="flex min-h-[240px] items-center justify-center text-white/62">
                 <LoaderCircle className="mr-3 size-5 animate-spin text-[rgba(208,255,72,0.88)]" />
@@ -179,7 +245,24 @@ export function StudioReferenceLibrary({
               </div>
             ) : (
               <div className="rounded-[26px] border border-dashed border-white/10 bg-[rgba(18,22,20,0.92)] px-5 py-8 text-sm leading-7 text-white/62">
-                No reference media is available yet. Upload and run an image first, then it will appear here for reuse.
+                <div>No reference media is available yet.</div>
+                <div className="mt-2">Upload and run an image first, or scan your existing uploads to populate the library.</div>
+                <button
+                  type="button"
+                  data-testid="studio-reference-library-scan-empty"
+                  onClick={() => void triggerBackfill()}
+                  disabled={backfilling}
+                  className="mt-4 inline-flex h-10 items-center justify-center rounded-full border border-[rgba(208,255,72,0.18)] bg-[rgba(208,255,72,0.12)] px-4 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#dcff88] transition hover:border-[rgba(208,255,72,0.28)] hover:bg-[rgba(208,255,72,0.18)] disabled:opacity-60"
+                >
+                  {backfilling ? (
+                    <>
+                      <LoaderCircle className="mr-2 size-3.5 animate-spin" />
+                      Scanning uploads
+                    </>
+                  ) : (
+                    "Scan existing uploads"
+                  )}
+                </button>
               </div>
             )}
           </div>

@@ -123,6 +123,12 @@ def get_preset(preset_id: str) -> Optional[Dict[str, Any]]:
     return _get_table("media_presets", "preset_id", preset_id)
 
 
+def get_preset_by_key(key: str) -> Optional[Dict[str, Any]]:
+    with get_connection() as connection:
+        row = connection.execute("SELECT * FROM media_presets WHERE key = ? LIMIT 1", (key,)).fetchone()
+    return _decode_row(row) if row else None
+
+
 def create_or_update_preset(payload: Dict[str, Any]) -> Dict[str, Any]:
     return _upsert_table("media_presets", "preset_id", payload)
 

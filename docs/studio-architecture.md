@@ -73,3 +73,5 @@ See [docs/studio-testing.md](/Users/evilone/Documents/Development/Video-Image-AP
 - fast quality gates
 - release verification with browser smoke coverage
 - provider-backed live smoke for real Nano/Kling runs
+
+For the full submit, queue, publish, retry, and reference-library backfill lifecycle, see [docs/request-lifecycle.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/request-lifecycle.md).

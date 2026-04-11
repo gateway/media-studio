@@ -3,11 +3,12 @@ import { NextResponse } from "next/server";
 
 import { hasValidBasicAuthorization, isTrustedLocalRequest } from "@/lib/admin-access";
 
-function isProtectedPath(pathname: string) {
+export function isProtectedPath(pathname: string) {
   return (
     pathname.startsWith("/api/control") ||
     pathname.startsWith("/jobs") ||
     pathname.startsWith("/models") ||
+    pathname.startsWith("/presets") ||
     pathname.startsWith("/pricing") ||
     pathname.startsWith("/settings") ||
     pathname.startsWith("/setup") ||
@@ -54,6 +55,26 @@ export function proxy(request: NextRequest) {
   );
 }
 
+export const PROTECTED_ROUTE_MATCHER = [
+  "/api/control/:path*",
+  "/jobs/:path*",
+  "/models/:path*",
+  "/presets/:path*",
+  "/pricing/:path*",
+  "/settings/:path*",
+  "/setup/:path*",
+  "/studio/:path*",
+] as const;
+
 export const config = {
-  matcher: ["/api/control/:path*", "/jobs/:path*", "/models/:path*", "/pricing/:path*", "/settings/:path*", "/setup/:path*", "/studio/:path*"],
+  matcher: [
+    "/api/control/:path*",
+    "/jobs/:path*",
+    "/models/:path*",
+    "/presets/:path*",
+    "/pricing/:path*",
+    "/settings/:path*",
+    "/setup/:path*",
+    "/studio/:path*",
+  ],
 };

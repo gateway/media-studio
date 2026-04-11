@@ -5,6 +5,7 @@ import {
   buildOrderedImageInputs,
   buildStudioJobPrimaryInput,
   buildStudioJobReferenceInputs,
+  buildStudioRetryRestorePlan,
   buildStudioReferencePreviews,
   classifyFile,
   detectPromptReferenceMention,
@@ -16,6 +17,7 @@ import {
   orderedImageInputKey,
   orderedImageInputVisual,
   resolveComposerSourceAsset,
+  resolveStudioRetryPreset,
   resolveStudioPresetTargetModel,
   resolveEnhancementPreviewVisual,
   seedanceReferenceTokenGuide,
@@ -379,6 +381,98 @@ describe("media-studio-helpers Seedance support", () => {
     });
   });
 
+  it("builds a retry restore plan from the failed job state", () => {
+    const model = {
+      key: "nano-banana-2",
+      defaults: { resolution: "1k" },
+      options: {
+        resolution: { default: "2k", type: "select" },
+        output_format: { default: "jpg", type: "select" },
+      },
+    } as never;
+    const preset = {
+      preset_id: "preset-1",
+      key: "nano-style",
+      label: "Nano style",
+      status: "active",
+      applies_to_models: ["nano-banana-2"],
+      input_slots_json: [{ key: "wardrobe", label: "Wardrobe", type: "image", required: true }],
+    } as never;
+    const sourceAsset = {
+      asset_id: "asset-source",
+      generation_kind: "image",
+      hero_thumb_path: "outputs/thumb/source.webp",
+      hero_web_path: null,
+      hero_thumb_url: null,
+      hero_web_url: null,
+      hero_poster_path: null,
+      hero_poster_url: null,
+    } as never;
+
+    expect(
+      buildStudioRetryRestorePlan({
+        job: {
+          model_key: "nano-banana-2",
+          requested_preset_key: "nano-style",
+          selected_system_prompt_ids: ["prompt-1"],
+          final_prompt_used: "Retry me",
+          requested_outputs: 2,
+          source_asset_id: "asset-source",
+          resolved_options: { output_format: "png" },
+          prepared: {
+            metadata: { preset_inputs: { vibe: "dramatic" } },
+            preset_slot_values_json: {
+              wardrobe: [{ asset_id: "asset-source" }],
+            },
+          },
+          normalized_request: {
+            images: [
+              { asset_id: "asset-source", media_type: "image", role: null },
+              { path: "outputs/retry/reference.png", media_type: "image", role: "reference" },
+            ],
+          },
+        } as never,
+        models: [model],
+        presets: [preset],
+        localAssets: [sourceAsset],
+        favoriteAssets: null,
+      }),
+    ).toEqual({
+      targetModel: model,
+      targetPreset: preset,
+      selectedPromptIds: ["prompt-1"],
+      prompt: "Retry me",
+      presetInputValues: { vibe: "dramatic" },
+      optionValues: { resolution: "1k", output_format: "png" },
+      outputCount: 2,
+      primaryInput: {
+        assetId: "asset-source",
+        url: "/api/control/files/outputs/thumb/source.webp",
+        kind: "images",
+        role: null,
+      },
+      referenceInputs: [
+        {
+          key: "job-reference:1",
+          label: "Reference 1",
+          url: "/api/control/files/outputs/retry/reference.png",
+          posterUrl: null,
+          assetId: null,
+          kind: "images",
+          role: "reference",
+        },
+      ],
+      presetSlotRestores: [
+        {
+          slotKey: "wardrobe",
+          label: "Wardrobe",
+          assetId: "asset-source",
+          url: null,
+        },
+      ],
+    });
+  });
+
   it("filters Studio preset browser entries to active Nano presets", () => {
     expect(
       isStudioPresetVisible({
@@ -420,6 +514,27 @@ describe("media-studio-helpers Seedance support", () => {
     } as never;
 
     expect(resolveStudioPresetTargetModel(preset, "kling-2.6-i2v", "seedance-2.0")).toBe("nano-banana-pro");
+  });
+
+  it("resolves the retry preset by key or preset id", () => {
+    const presets = [
+      { preset_id: "preset-a", key: "preset-a-key", label: "Preset A" },
+      { preset_id: "preset-b", key: "preset-b-key", label: "Preset B" },
+    ] as never;
+
+    expect(
+      resolveStudioRetryPreset(
+        { requested_preset_key: "preset-b-key", resolved_preset_key: null } as never,
+        presets,
+      ),
+    ).toEqual(presets[1]);
+    expect(
+      resolveStudioRetryPreset(
+        { requested_preset_key: null, resolved_preset_key: "preset-a" } as never,
+        presets,
+      ),
+    ).toEqual(presets[0]);
+    expect(resolveStudioRetryPreset(null, presets)).toBeNull();
   });
 
   it("builds clean download names from job, model, resolution, and aspect ratio", () => {

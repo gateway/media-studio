@@ -5,6 +5,15 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+QUEUE_MAX_CONCURRENT_JOBS_MIN = 1
+QUEUE_MAX_CONCURRENT_JOBS_MAX = 10
+QUEUE_DEFAULT_POLL_SECONDS_MIN = 1
+QUEUE_DEFAULT_POLL_SECONDS_MAX = 300
+QUEUE_MAX_RETRY_ATTEMPTS_MIN = 1
+QUEUE_MAX_RETRY_ATTEMPTS_MAX = 10
+MODEL_QUEUE_MAX_OUTPUTS_PER_RUN_MIN = 1
+MODEL_QUEUE_MAX_OUTPUTS_PER_RUN_MAX = 10
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -50,10 +59,22 @@ class QueueSettingsResponse(BaseModel):
 
 
 class QueueSettingsUpdate(BaseModel):
-    max_concurrent_jobs: Optional[int] = None
+    max_concurrent_jobs: Optional[int] = Field(
+        default=None,
+        ge=QUEUE_MAX_CONCURRENT_JOBS_MIN,
+        le=QUEUE_MAX_CONCURRENT_JOBS_MAX,
+    )
     queue_enabled: Optional[bool] = None
-    default_poll_seconds: Optional[int] = None
-    max_retry_attempts: Optional[int] = None
+    default_poll_seconds: Optional[int] = Field(
+        default=None,
+        ge=QUEUE_DEFAULT_POLL_SECONDS_MIN,
+        le=QUEUE_DEFAULT_POLL_SECONDS_MAX,
+    )
+    max_retry_attempts: Optional[int] = Field(
+        default=None,
+        ge=QUEUE_MAX_RETRY_ATTEMPTS_MIN,
+        le=QUEUE_MAX_RETRY_ATTEMPTS_MAX,
+    )
 
 
 class ModelQueuePolicyResponse(BaseModel):
@@ -64,7 +85,11 @@ class ModelQueuePolicyResponse(BaseModel):
 
 class ModelQueuePolicyUpdate(BaseModel):
     enabled: Optional[bool] = None
-    max_outputs_per_run: Optional[int] = None
+    max_outputs_per_run: Optional[int] = Field(
+        default=None,
+        ge=MODEL_QUEUE_MAX_OUTPUTS_PER_RUN_MIN,
+        le=MODEL_QUEUE_MAX_OUTPUTS_PER_RUN_MAX,
+    )
 
 
 class ModelSummary(BaseModel):

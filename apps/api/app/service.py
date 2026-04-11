@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import logging
 import mimetypes
 import re
 from hashlib import sha256
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
+from time import perf_counter
 from threading import Lock
+from collections import Counter
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from PIL import Image, ImageDraw
@@ -17,6 +20,8 @@ from .settings import settings
 from .schemas import (
     EnhancePreviewRequest,
     EnhancementConfigRecord,
+    JobSubmitRequest,
+    MediaRefInput,
     PresetUpsertRequest,
     SystemPromptUpsertRequest,
     ValidateRequest,
@@ -28,7 +33,7 @@ NANO_PRESET_MODELS = {"nano-banana-2", "nano-banana-pro"}
 GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
 ENHANCEMENT_PROVIDER_TIMEOUT_SECONDS = 25
 _reference_media_backfill_lock = Lock()
-_reference_media_backfill_attempted = False
+logger = logging.getLogger(__name__)
 
 
 class ServiceError(Exception):
@@ -217,6 +222,112 @@ def _source_asset_to_kie_ref(asset_id: str | None) -> Dict[str, Any] | None:
     return None
 
 
+def _media_ref_signature(value: Dict[str, Any]) -> Tuple[Any, ...]:
+    normalized = _ref_to_kie(value)
+    return (
+        normalized.get("url"),
+        normalized.get("path"),
+        normalized.get("filename"),
+        normalized.get("mime_type"),
+        normalized.get("role"),
+        normalized.get("duration_seconds"),
+    )
+
+
+def _strip_injected_retry_image_refs(
+    images: List[Dict[str, Any]],
+    *,
+    source_asset_id: Optional[str],
+    preset_image_slots: Dict[str, List[Dict[str, Any]]],
+) -> List[Dict[str, Any]]:
+    removals: Counter[Tuple[Any, ...]] = Counter()
+    source_asset_ref = _source_asset_to_kie_ref(source_asset_id)
+    if source_asset_ref:
+        removals[_media_ref_signature(source_asset_ref)] += 1
+    for refs in preset_image_slots.values():
+        for ref in refs:
+            removals[_media_ref_signature(ref)] += 1
+
+    kept: List[Dict[str, Any]] = []
+    for image in images:
+        signature = _media_ref_signature(image)
+        if removals[signature] > 0:
+            removals[signature] -= 1
+            continue
+        kept.append(image)
+    return kept
+
+
+def build_retry_submit_request(job: Dict[str, Any], batch: Optional[Dict[str, Any]] = None) -> JobSubmitRequest:
+    normalized_request = job.get("normalized_request_json") or {}
+    if not isinstance(normalized_request, dict):
+        raise ServiceError("Stored job request is invalid.")
+
+    batch_record = batch or store.get_batch(job["batch_id"]) or {}
+    batch_summary = batch_record.get("request_summary_json") or {}
+    if not isinstance(batch_summary, dict):
+        batch_summary = {}
+
+    preset_image_slots = batch_summary.get("preset_image_slots") or {}
+    if not isinstance(preset_image_slots, dict):
+        preset_image_slots = {}
+    preset_text_values = batch_summary.get("preset_text_values") or {}
+    if not isinstance(preset_text_values, dict):
+        preset_text_values = {}
+
+    preset_key = str(job.get("requested_preset_key") or job.get("resolved_preset_key") or "").strip()
+    preset = store.get_preset_by_key(preset_key) if preset_key else None
+    if preset_key and not preset:
+        raise ServiceError("Stored preset could not be resolved for retry.")
+
+    images = normalized_request.get("images") or []
+    if not isinstance(images, list):
+        images = []
+    replay_images = _strip_injected_retry_image_refs(
+        [dict(item) for item in images if isinstance(item, dict)],
+        source_asset_id=job.get("source_asset_id"),
+        preset_image_slots={key: [dict(item) for item in value if isinstance(item, dict)] for key, value in preset_image_slots.items() if isinstance(value, list)},
+    )
+
+    videos = normalized_request.get("videos") or []
+    if not isinstance(videos, list):
+        videos = []
+    audios = normalized_request.get("audios") or []
+    if not isinstance(audios, list):
+        audios = []
+    options = normalized_request.get("options") or job.get("resolved_options_json") or {}
+    if not isinstance(options, dict):
+        options = {}
+
+    selected_system_prompt_ids = job.get("selected_system_prompt_ids_json") or []
+    if not isinstance(selected_system_prompt_ids, list):
+        selected_system_prompt_ids = []
+
+    return JobSubmitRequest(
+        model_key=str(normalized_request.get("model_key") or job["model_key"]),
+        task_mode=normalized_request.get("task_mode") or job.get("task_mode"),
+        prompt=job.get("raw_prompt") if job.get("raw_prompt") is not None else normalized_request.get("prompt"),
+        images=[MediaRefInput(**item) for item in replay_images],
+        videos=[MediaRefInput(**item) for item in videos if isinstance(item, dict)],
+        audios=[MediaRefInput(**item) for item in audios if isinstance(item, dict)],
+        options=options,
+        preset_id=preset.get("preset_id") if preset else None,
+        preset_text_values={str(key): str(value) for key, value in preset_text_values.items()},
+        preset_image_slots={
+            str(key): [MediaRefInput(**item) for item in value if isinstance(item, dict)]
+            for key, value in preset_image_slots.items()
+            if isinstance(value, list)
+        },
+        selected_system_prompt_ids=[str(value) for value in selected_system_prompt_ids],
+        source_asset_id=job.get("source_asset_id"),
+        output_count=1,
+        enhance=False,
+        prompt_policy=normalized_request.get("prompt_policy"),
+        prompt_profile_key=normalized_request.get("prompt_profile_key"),
+        system_prompt_override=normalized_request.get("system_prompt_override"),
+    )
+
+
 def _render_preset_prompt(template: str, text_values: Dict[str, str], image_slots: Dict[str, List[Dict[str, Any]]]) -> str:
     rendered = template
     for key, value in text_values.items():
@@ -258,6 +369,17 @@ def _probe_reference_media_metadata(file_path: Path, kind: str) -> Tuple[Optiona
         return None, None, None
 
 
+def _sha256_file(file_path: Path) -> str:
+    digest = sha256()
+    with file_path.open("rb") as handle:
+        while True:
+            chunk = handle.read(1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def iter_existing_upload_files() -> Iterable[Path]:
     uploads_dir = settings.uploads_dir
     if not uploads_dir.exists():
@@ -266,72 +388,72 @@ def iter_existing_upload_files() -> Iterable[Path]:
 
 
 def backfill_reference_media() -> Dict[str, Any]:
+    started = perf_counter()
     scanned = 0
     imported = 0
     reused = 0
     skipped = 0
     errors: List[str] = []
 
-    for file_path in iter_existing_upload_files():
-        scanned += 1
-        kind = _reference_kind_for_path(file_path)
-        if not kind:
-            skipped += 1
-            continue
-        try:
-            raw_bytes = file_path.read_bytes()
-            digest = sha256(raw_bytes).hexdigest()
-            relative_path = str(file_path.relative_to(settings.data_root)).replace("\\", "/")
-            file_size_bytes = file_path.stat().st_size
-            existing = store.get_reference_media_by_hash(kind, digest, file_size_bytes)
-            width, height, duration_seconds = _probe_reference_media_metadata(file_path, kind)
-            record = store.create_or_reuse_reference_media(
-                {
-                    "kind": kind,
-                    "status": "active",
-                    "original_filename": file_path.name,
-                    "stored_path": relative_path,
-                    "mime_type": mimetypes.guess_type(file_path.name)[0],
-                    "file_size_bytes": file_size_bytes,
-                    "sha256": digest,
-                    "width": width,
-                    "height": height,
-                    "duration_seconds": duration_seconds,
-                    "thumb_path": None,
-                    "poster_path": None,
-                    "usage_count": 0,
-                    "metadata_json": {"backfilled": True},
-                },
-                increment_usage=False,
-            )
-            if existing or record.get("stored_path") != relative_path:
-                reused += 1
-            else:
-                imported += 1
-        except Exception as exc:
-            skipped += 1
-            errors.append(f"{file_path}: {exc}")
+    with _reference_media_backfill_lock:
+        for file_path in iter_existing_upload_files():
+            scanned += 1
+            kind = _reference_kind_for_path(file_path)
+            if not kind:
+                skipped += 1
+                continue
+            try:
+                digest = _sha256_file(file_path)
+                relative_path = str(file_path.relative_to(settings.data_root)).replace("\\", "/")
+                file_size_bytes = file_path.stat().st_size
+                existing = store.get_reference_media_by_hash(kind, digest, file_size_bytes)
+                width, height, duration_seconds = _probe_reference_media_metadata(file_path, kind)
+                record = store.create_or_reuse_reference_media(
+                    {
+                        "kind": kind,
+                        "status": "active",
+                        "original_filename": file_path.name,
+                        "stored_path": relative_path,
+                        "mime_type": mimetypes.guess_type(file_path.name)[0],
+                        "file_size_bytes": file_size_bytes,
+                        "sha256": digest,
+                        "width": width,
+                        "height": height,
+                        "duration_seconds": duration_seconds,
+                        "thumb_path": None,
+                        "poster_path": None,
+                        "usage_count": 0,
+                        "metadata_json": {"backfilled": True},
+                    },
+                    increment_usage=False,
+                )
+                if existing or record.get("stored_path") != relative_path:
+                    reused += 1
+                else:
+                    imported += 1
+            except Exception as exc:
+                skipped += 1
+                errors.append(f"{file_path}: {exc}")
 
-    return {
+    duration_seconds = round(perf_counter() - started, 3)
+    result = {
         "scanned": scanned,
         "imported": imported,
         "reused": reused,
         "skipped": skipped,
         "errors": errors,
+        "duration_seconds": duration_seconds,
     }
-
-
-def ensure_reference_media_backfilled_once(force: bool = False) -> Dict[str, Any] | None:
-    global _reference_media_backfill_attempted
-    if _reference_media_backfill_attempted and not force:
-        return None
-    with _reference_media_backfill_lock:
-        if _reference_media_backfill_attempted and not force:
-            return None
-        result = backfill_reference_media()
-        if not force:
-            _reference_media_backfill_attempted = True
-        return result
+    logger.info(
+        "reference_media_backfill scanned=%s imported=%s reused=%s skipped=%s errors=%s duration_seconds=%s",
+        scanned,
+        imported,
+        reused,
+        skipped,
+        len(errors),
+        duration_seconds,
+    )
+    return result
 
 
 def _resolve_preset(request: ValidateRequest) -> Tuple[Optional[Dict[str, Any]], Dict[str, str], Dict[str, List[Dict[str, Any]]], Optional[str]]:

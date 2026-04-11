@@ -133,6 +133,31 @@ def test_submit_requires_admin_access_mode(app_modules) -> None:
     assert "Admin access" in response.text
 
 
+def test_poll_job_route_uses_public_runner_method(client, app_modules, monkeypatch) -> None:
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "Poll me.",
+            "output_count": 1,
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    job_id = submit_response.json()["jobs"][0]["job_id"]
+
+    captured = {"job_id": None}
+
+    def fake_poll_job_once(job):
+      captured["job_id"] = job["job_id"]
+
+    monkeypatch.setattr(app_modules["main"].runner, "poll_job_once", fake_poll_job_once)
+
+    response = client.post(f"/media/jobs/{job_id}/poll")
+    assert response.status_code == 200, response.text
+    assert captured["job_id"] == job_id
+
+
 def test_enhancement_config_responses_redact_provider_credentials(client) -> None:
     create_response = client.post(
         "/media/enhancement-configs",
@@ -430,6 +455,25 @@ def test_queue_settings_update(client) -> None:
     response = client.patch("/media/queue/settings", json={"max_concurrent_jobs": 1})
     assert response.status_code == 200
     assert response.json()["max_concurrent_jobs"] == 1
+
+
+def test_queue_settings_reject_out_of_bounds_values(client) -> None:
+    too_low = client.patch("/media/queue/settings", json={"max_concurrent_jobs": 0})
+    assert too_low.status_code == 422
+
+    too_high = client.patch("/media/queue/settings", json={"default_poll_seconds": 301})
+    assert too_high.status_code == 422
+
+    retry_too_high = client.patch("/media/queue/settings", json={"max_retry_attempts": 11})
+    assert retry_too_high.status_code == 422
+
+
+def test_queue_policy_rejects_out_of_bounds_outputs(client) -> None:
+    too_low = client.patch("/media/queue/policies/nano-banana-2", json={"max_outputs_per_run": 0})
+    assert too_low.status_code == 422
+
+    too_high = client.patch("/media/queue/policies/nano-banana-2", json={"max_outputs_per_run": 11})
+    assert too_high.status_code == 422
 
 
 def test_latest_asset_endpoint_returns_one_asset_record(client, app_modules) -> None:
@@ -1043,6 +1087,174 @@ def test_reconcile_repairs_invalid_active_jobs(client, app_modules) -> None:
     assert repaired_b["status"] == "queued"
     assert repaired_a["queue_position"] is not None
     assert repaired_b["queue_position"] is not None
+
+
+def test_retry_job_replays_original_request_shape(client, app_modules) -> None:
+    store = app_modules["store"]
+    service = app_modules["service"]
+
+    source_dir = service.settings.data_root / "generated"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source_path = source_dir / "retry-source.png"
+    source_path.write_bytes(
+        b"\x89PNG\r\n\x1a\n"
+        b"\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+        b"\x00\x00\x00\x0cIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfeA\x0b~\x90"
+        b"\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+    source_asset = store.create_or_update_asset(
+        {
+            "asset_id": "asset-retry-source-helper",
+            "job_id": "job-retry-source-helper",
+            "created_at": "2026-04-11T00:00:00+00:00",
+            "model_key": "nano-banana-pro",
+            "status": "completed",
+            "generation_kind": "image",
+            "prompt_summary": "retry source helper",
+            "hero_original_path": str(Path("generated") / source_path.name),
+        }
+    )
+    system_prompt = store.create_or_update_system_prompt(
+        {
+            "prompt_id": "prompt-retry-shared",
+            "key": "retry-shared",
+            "label": "Retry shared",
+            "status": "active",
+            "content": "Keep the lighting consistent.",
+            "applies_to_models_json": ["nano-banana-pro"],
+            "applies_to_task_modes_json": ["text_to_image"],
+            "applies_to_input_patterns_json": ["multimodal_reference"],
+        }
+    )
+    preset = store.create_or_update_preset(
+        {
+            "preset_id": "preset-retry-shared",
+            "key": "retry-shared-preset",
+            "label": "Retry shared preset",
+            "description": "Preset used to verify retry fidelity.",
+            "status": "active",
+            "model_key": "nano-banana-pro",
+            "source_kind": "custom",
+            "applies_to_models_json": ["nano-banana-pro"],
+            "applies_to_task_modes_json": ["text_to_image"],
+            "applies_to_input_patterns_json": ["multimodal_reference"],
+            "prompt_template": "Portrait of {{subject}} with [[subject_image]].",
+            "system_prompt_template": "",
+            "system_prompt_ids_json": [],
+            "default_options_json": {"aspect_ratio": "3:4"},
+            "rules_json": {},
+            "requires_image": 0,
+            "requires_video": 0,
+            "requires_audio": 0,
+            "input_schema_json": [{"key": "subject", "label": "Subject", "required": True}],
+            "input_slots_json": [{"key": "subject_image", "label": "Subject image", "required": True}],
+            "choice_groups_json": [],
+            "version": "v1",
+            "priority": 100,
+        }
+    )
+
+    batch = {
+        "batch_id": "batch-retry-helper",
+        "request_summary_json": {
+            "preset_text_values": {"subject": "A founder"},
+            "preset_image_slots": {
+                "subject_image": [{"path": "/tmp/preset-subject.png", "mime_type": "image/png"}]
+            },
+        },
+    }
+    job = {
+        "job_id": "job-retry-helper",
+        "batch_id": batch["batch_id"],
+        "model_key": "nano-banana-pro",
+        "task_mode": "text_to_image",
+        "raw_prompt": "ignored raw prompt",
+        "source_asset_id": source_asset["asset_id"],
+        "requested_preset_key": preset["key"],
+        "resolved_preset_key": preset["key"],
+        "selected_system_prompt_ids_json": [system_prompt["prompt_id"]],
+        "resolved_options_json": {"aspect_ratio": "3:4", "resolution": "2k"},
+        "normalized_request_json": {
+            "model_key": "nano-banana-pro",
+            "task_mode": "text_to_image",
+            "prompt": "Portrait of A founder with [1 image(s)].",
+            "images": [
+                {"path": str(source_path), "filename": source_path.name, "mime_type": "image/png"},
+                {"path": "/tmp/direct-ref.png", "mime_type": "image/png", "role": "reference"},
+                {"path": "/tmp/preset-subject.png", "mime_type": "image/png"},
+            ],
+            "videos": [],
+            "audios": [],
+            "options": {"aspect_ratio": "3:4", "resolution": "2k"},
+            "prompt_policy": "off",
+        },
+    }
+
+    replay = service.build_retry_submit_request(job, batch=batch)
+
+    assert replay.model_key == "nano-banana-pro"
+    assert replay.task_mode == "text_to_image"
+    assert replay.prompt == "ignored raw prompt"
+    assert replay.source_asset_id == source_asset["asset_id"]
+    assert replay.preset_id == preset["preset_id"]
+    assert replay.selected_system_prompt_ids == [system_prompt["prompt_id"]]
+    assert replay.options == {"aspect_ratio": "3:4", "resolution": "2k"}
+    assert replay.preset_text_values == {"subject": "A founder"}
+    assert {key: [item.model_dump(exclude_none=True) for item in value] for key, value in replay.preset_image_slots.items()} == {
+        "subject_image": [{"path": "/tmp/preset-subject.png", "mime_type": "image/png"}]
+    }
+    assert [item.model_dump(exclude_none=True) for item in replay.images] == [
+        {"path": "/tmp/direct-ref.png", "mime_type": "image/png", "role": "reference"}
+    ]
+    assert replay.output_count == 1
+
+
+def test_retry_job_replays_source_asset_request_shape(client, app_modules) -> None:
+    store = app_modules["store"]
+    service = app_modules["service"]
+
+    source_dir = service.settings.data_root / "generated"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source_path = source_dir / "retry-source.png"
+    source_path.write_bytes(
+        b"\x89PNG\r\n\x1a\n"
+        b"\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+        b"\x00\x00\x00\x0cIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfeA\x0b~\x90"
+        b"\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+    source_asset = store.create_or_update_asset(
+        {
+            "asset_id": "asset-retry-source",
+            "job_id": "job-retry-source",
+            "created_at": "2026-04-11T00:00:00+00:00",
+            "model_key": "nano-banana-2",
+            "status": "completed",
+            "generation_kind": "image",
+            "prompt_summary": "retry source",
+            "hero_original_path": str(Path("generated") / source_path.name),
+        }
+    )
+
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "image_edit",
+            "prompt": "Use the selected source image.",
+            "options": {"aspect_ratio": "1:1"},
+            "source_asset_id": source_asset["asset_id"],
+            "output_count": 1,
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    original_job = submit_response.json()["jobs"][0]
+
+    retry_response = client.post(f"/media/jobs/{original_job['job_id']}/retry")
+    assert retry_response.status_code == 200, retry_response.text
+    retried_job = retry_response.json()["jobs"][0]
+
+    assert retried_job["source_asset_id"] == source_asset["asset_id"]
+    assert retried_job["normalized_request_json"] == original_job["normalized_request_json"]
 
 
 def test_runner_resumes_existing_provider_task_without_resubmit(client, app_modules, monkeypatch) -> None:

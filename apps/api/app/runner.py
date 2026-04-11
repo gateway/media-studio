@@ -78,7 +78,10 @@ class MediaRunner:
                 for job in store.queued_jobs(capacity):
                     self._start_job(job)
             for job in store.active_jobs():
-                self._poll_job(job)
+                self.poll_job_once(job)
+
+    def poll_job_once(self, job: Dict[str, Any]) -> None:
+        self._poll_job(job)
 
     def _start_job(self, job: Dict[str, Any]) -> None:
         if job.get("provider_task_id"):

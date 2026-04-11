@@ -23,6 +23,12 @@ Use these commands when tightening the Studio client without changing public beh
 - `npm run smoke:studio-browser-enhance`
   - covers prompt-only enhancement for `nano-banana-2`, enhancement preview loading, and using the rewritten prompt back in the composer
   - `release:verify` forces the isolated temp API onto the built-in enhancement path so this smoke stays deterministic without mutating a real local database
+- `npm run smoke:studio-browser-retry`
+  - seeds a deterministic failed Nano job through the webdriver-only Studio test hook
+  - verifies `Retry in Studio` restores the composer prompt, model, and staged image refs
+- `npm run smoke:studio-browser-reference-backfill`
+  - opens the reference library and runs the explicit `Scan uploads` flow
+  - verifies the backfill summary banner appears and the library reload completes
 - `node scripts/studio_browser_seedance_smoke.mjs`
   - covers Seedance no-submit validation wiring
   - verifies:
@@ -35,7 +41,7 @@ Use these commands when tightening the Studio client without changing public beh
     - audio ref file-input staging
     - invalid vs valid control-route validation responses
 
-Both scripts default to `http://127.0.0.1:3000` and write artifacts under `output/browser-smoke/`.
+All browser smokes default to `http://127.0.0.1:3000` and write artifacts under `output/browser-smoke/`.
 
 ## Provider-Backed Smoke
 

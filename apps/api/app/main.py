@@ -245,9 +245,6 @@ def list_reference_media(
     offset: int = Query(default=0, ge=0),
 ):
     items = store.list_reference_media(kind=kind, limit=limit, offset=offset)
-    if offset == 0 and not items:
-        service.ensure_reference_media_backfilled_once()
-        items = store.list_reference_media(kind=kind, limit=limit, offset=offset)
     return ReferenceMediaListResponse(
         items=[ReferenceMediaRecord(**item) for item in items],
         limit=limit,
@@ -275,6 +272,11 @@ def delete_reference_media(reference_id: str):
 def register_reference_media(payload: ReferenceMediaRegisterRequest):
     record = store.create_or_reuse_reference_media(payload.model_dump(), increment_usage=True)
     return ReferenceMediaRecord(**record)
+
+
+@app.post("/media/reference-media/backfill")
+def backfill_reference_media():
+    return service.backfill_reference_media()
 
 
 @app.post("/media/reference-media/{reference_id}/use", response_model=ReferenceMediaRecord)
@@ -440,7 +442,7 @@ def poll_job(job_id: str):
     job = store.get_job(job_id)
     if not job:
         raise _not_found("job")
-    runner._poll_job(job)
+    runner.poll_job_once(job)
     return JobRecord(**store.get_job(job_id))
 
 
@@ -449,14 +451,8 @@ def retry_job(job_id: str):
     job = store.get_job(job_id)
     if not job:
         raise _not_found("job")
-    batch_request = job["normalized_request_json"] or {}
-    payload = JobSubmitRequest(
-        model_key=job["model_key"],
-        task_mode=job.get("task_mode"),
-        prompt=job.get("raw_prompt"),
-        options=job.get("resolved_options_json") or {},
-        output_count=1,
-    )
+    batch = store.get_batch(job["batch_id"])
+    payload = service.build_retry_submit_request(job, batch=batch)
     batch, jobs = service.submit_jobs(payload)
     return SubmitResponse(batch=BatchRecord(**batch), jobs=[JobRecord(**item) for item in jobs])
 

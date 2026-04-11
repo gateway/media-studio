@@ -18,6 +18,8 @@
     "smoke:studio-browser-seedance": "node ./scripts/studio_browser_seedance_smoke.mjs",
     "smoke:studio-browser-preset": "node ./scripts/studio_browser_preset_smoke.mjs",
     "smoke:studio-browser-enhance": "node ./scripts/studio_browser_enhance_smoke.mjs",
+    "smoke:studio-browser-retry": "node ./scripts/studio_browser_retry_restore_smoke.mjs",
+    "smoke:studio-browser-reference-backfill": "node ./scripts/studio_browser_reference_backfill_smoke.mjs",
     "smoke:studio-live": "node ./scripts/studio_live_smoke.mjs",
     "db:backup": "./scripts/backup_db.sh",
     "db:clean": "./scripts/create_clean_db.sh --output ./data/backups/media-studio-clean.sqlite --overwrite",
