@@ -13,6 +13,7 @@ type StudioMediaSlotAddTileProps = {
   testId?: string;
   wrapperClassName?: string;
   tileClassName?: string;
+  plusIconClassName?: string;
   onDragOver?: (event: React.DragEvent<HTMLLabelElement>) => void;
   onDragLeave?: (event: React.DragEvent<HTMLLabelElement>) => void;
   onDrop?: (event: React.DragEvent<HTMLLabelElement>) => void;
@@ -28,6 +29,7 @@ export function StudioMediaSlotAddTile({
   testId,
   wrapperClassName,
   tileClassName,
+  plusIconClassName,
   onDragOver,
   onDragLeave,
   onDrop,
@@ -66,7 +68,7 @@ export function StudioMediaSlotAddTile({
           tileClassName,
         )}
       >
-        <Plus className="size-6" />
+        <Plus className={cn("size-6", plusIconClassName)} />
         <input
           type="file"
           multiple={multiple}

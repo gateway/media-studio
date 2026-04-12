@@ -392,6 +392,8 @@ export function MediaStudio({
       }),
     [favoriteAssets, localAssets, models, presets, selectedFailedJob, selectedFailedJobBatch],
   );
+  const mobileAddTileClassName = "h-[58px] w-[58px] rounded-[18px]";
+  const mobileAddTilePlusIconClassName = "size-5";
   const selectedFailedJobImageReferences = useMemo(
     () => (selectedFailedJobRetryPlan?.referenceInputs ?? []).filter((reference) => reference.kind === "images"),
     [selectedFailedJobRetryPlan],
@@ -1412,7 +1414,8 @@ export function MediaStudio({
               isDragActive={isDragActive}
               testId="studio-mobile-multi-image-input"
               wrapperClassName="shrink-0"
-              tileClassName="h-[72px] w-[72px] rounded-[20px]"
+              tileClassName={mobileAddTileClassName}
+              plusIconClassName={mobileAddTilePlusIconClassName}
               onDragOver={(event) => {
                 event.preventDefault();
                 setIsDragActive(true);
@@ -1476,7 +1479,8 @@ export function MediaStudio({
                         isDragActive={isDragActive}
                         testId={`studio-mobile-seedance-slot-input-${slot.role}`}
                         wrapperClassName="shrink-0"
-                        tileClassName="h-[72px] w-[72px] rounded-[20px]"
+                        tileClassName={mobileAddTileClassName}
+                        plusIconClassName={mobileAddTilePlusIconClassName}
                         onDragOver={(event) => {
                           event.preventDefault();
                           setIsDragActive(true);
@@ -1512,8 +1516,8 @@ export function MediaStudio({
               accept: "image/*",
               maxLabel: "9",
               tileClassName: "h-[72px] w-[72px]",
-              addTileClassName: "h-[72px] w-[72px] rounded-[20px]",
-              plusIconClassName: "size-4.5",
+              addTileClassName: mobileAddTileClassName,
+              plusIconClassName: mobileAddTilePlusIconClassName,
               maxVisibleTiles: 4,
             },
             {
@@ -1524,8 +1528,8 @@ export function MediaStudio({
               accept: "video/*",
               maxLabel: "3",
               tileClassName: "h-[72px] w-[72px]",
-              addTileClassName: "h-[72px] w-[72px] rounded-[20px]",
-              plusIconClassName: "size-4.5",
+              addTileClassName: mobileAddTileClassName,
+              plusIconClassName: mobileAddTilePlusIconClassName,
               maxVisibleTiles: 3,
             },
             {
@@ -1536,8 +1540,8 @@ export function MediaStudio({
               accept: "audio/*",
               maxLabel: "3",
               tileClassName: "h-[72px] w-[72px]",
-              addTileClassName: "h-[72px] w-[72px] rounded-[20px]",
-              plusIconClassName: "size-4.5",
+              addTileClassName: mobileAddTileClassName,
+              plusIconClassName: mobileAddTilePlusIconClassName,
               maxVisibleTiles: 3,
             },
           ].map((group) => (
@@ -1692,7 +1696,8 @@ export function MediaStudio({
             isDragActive={isDragActive}
             testId="studio-mobile-source-input"
             wrapperClassName="shrink-0"
-            tileClassName="h-[72px] w-[72px] rounded-[20px]"
+            tileClassName={mobileAddTileClassName}
+            plusIconClassName={mobileAddTilePlusIconClassName}
             onDragOver={(event) => {
               event.preventDefault();
               setIsDragActive(true);
