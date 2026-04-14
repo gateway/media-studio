@@ -14,6 +14,7 @@ import {
   classifyFile,
   displayChoiceLabel,
   inferInputPattern,
+  isCoarsePointerDevice,
   isNanoPresetModel,
   isSeedanceModel,
   isRecord,
@@ -1613,6 +1614,9 @@ export function useStudioComposer({
       setFormMessage({ tone: "warning", text: successText });
       showFloatingComposerBanner({ tone: "warning", text: successText }, 2600);
       showActivity({ tone: "healthy", message: successText }, { autoHideMs: 2200 });
+      if (isCoarsePointerDevice()) {
+        setMobileComposerCollapsed(true);
+      }
       void refreshCreditBalance();
       if (payload.batchId) {
         void pollBatch(payload.batchId);
