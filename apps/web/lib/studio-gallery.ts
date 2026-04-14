@@ -269,7 +269,7 @@ export function galleryTileSizeBand(tile: GalleryTile): GalleryTileSizeBand {
   if (aspectRatio == null) {
     return tile.asset.generation_kind === "video" ? "medium" : "medium";
   }
-  if (aspectRatio < 0.82) {
+  if (aspectRatio < 0.72) {
     return "tall";
   }
   if (aspectRatio > 1.2) {

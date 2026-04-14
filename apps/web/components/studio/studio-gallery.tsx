@@ -39,7 +39,7 @@ export function StudioGallery({
   function tileBandClassName(tile: GalleryTile) {
     const band = galleryTileSizeBand(tile);
     if (band === "tall") {
-      return "row-span-4";
+      return "row-span-5";
     }
     if (band === "short") {
       return "row-span-2";
