@@ -2,9 +2,8 @@
 
 import { AlertTriangle, Clapperboard, Heart, Image as ImageIcon, LoaderCircle, Play } from "lucide-react";
 
-import { gallerySpanClasses } from "@/lib/media-studio-contract";
 import { mediaThumbnailUrl, prettifyModelLabel } from "@/lib/media-studio-helpers";
-import type { GalleryTile } from "@/lib/studio-gallery";
+import { galleryTileSizeBand, type GalleryTile } from "@/lib/studio-gallery";
 import type { MediaAsset } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +36,17 @@ export function StudioGallery({
   onDragAsset,
   onToggleFavorite,
 }: StudioGalleryProps) {
+  function tileBandClassName(tile: GalleryTile) {
+    const band = galleryTileSizeBand(tile);
+    if (band === "tall") {
+      return "row-span-4";
+    }
+    if (band === "short") {
+      return "row-span-2";
+    }
+    return "row-span-3";
+  }
+
   if (galleryTiles.length === 0) {
     return (
       <div
@@ -61,7 +71,7 @@ export function StudioGallery({
     <div
       data-testid="studio-gallery"
       className={cn(
-        "relative z-[1] grid grid-cols-2 gap-px bg-white/6 p-px sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6",
+        "relative z-[1] grid grid-flow-dense grid-cols-2 auto-rows-[92px] gap-px bg-white/6 p-px sm:grid-cols-3 sm:auto-rows-[98px] lg:grid-cols-5 lg:auto-rows-[102px] xl:grid-cols-6 xl:auto-rows-[108px]",
         immersive ? "min-h-dvh pb-[270px] pt-0 md:pb-[290px]" : "min-h-[920px] pt-20",
       )}
     >
@@ -89,8 +99,8 @@ export function StudioGallery({
             draggable={Boolean(tile.asset?.asset_id != null && !batchTile)}
             onDragStart={(event) => onDragAsset(event, tile.asset)}
             className={cn(
-              "group relative min-h-[190px] overflow-hidden bg-[#171b18] text-left sm:min-h-[250px]",
-              gallerySpanClasses[index] ?? "",
+              "group relative overflow-hidden bg-[#171b18] text-left",
+              tileBandClassName(tile),
               selected ? "ring-2 ring-[rgba(216,141,67,0.58)] ring-inset" : "",
               failedBatchTile ? "cursor-pointer" : "",
               tile.asset?.asset_id != null && !batchTile ? "cursor-pointer" : "",
