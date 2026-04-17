@@ -8,6 +8,8 @@ export type GalleryTile = {
   job: MediaJob | null;
 };
 
+export type GalleryTileSizeBand = "short" | "medium" | "tall";
+
 export type GalleryTileFilters = {
   modelKey?: string;
   generationKind?: "all" | "image" | "video";
@@ -200,6 +202,80 @@ export function backgroundLabel(index: number) {
     "Artifact preview",
   ];
   return labels[index % labels.length] ?? "Media tile";
+}
+
+function parseAspectRatioValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+  if (typeof value !== "string") {
+    return null;
+  }
+  const match = value.trim().match(/^(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)$/);
+  if (!match) {
+    return null;
+  }
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return null;
+  }
+  return width / height;
+}
+
+function extractAspectRatioFromRecord(record: Record<string, unknown> | null | undefined): number | null {
+  if (!record) {
+    return null;
+  }
+  const width = Number(record.width);
+  const height = Number(record.height);
+  if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+    return width / height;
+  }
+  const aspect = parseAspectRatioValue(record.aspect_ratio);
+  if (aspect != null) {
+    return aspect;
+  }
+  return null;
+}
+
+function galleryTileAspectRatio(tile: GalleryTile): number | null {
+  const payload = isRecord(tile.asset?.payload) ? (tile.asset?.payload as Record<string, unknown>) : null;
+  const output = Array.isArray(payload?.outputs) && isRecord(payload.outputs[0])
+    ? (payload.outputs[0] as Record<string, unknown>)
+    : null;
+  const outputAspect = extractAspectRatioFromRecord(output);
+  if (outputAspect != null) {
+    return outputAspect;
+  }
+  const payloadOptions = isRecord(payload?.options) ? (payload.options as Record<string, unknown>) : null;
+  const payloadAspect = extractAspectRatioFromRecord(payloadOptions);
+  if (payloadAspect != null) {
+    return payloadAspect;
+  }
+  const jobOptions = isRecord(tile.job?.resolved_options) ? (tile.job?.resolved_options as Record<string, unknown>) : null;
+  const jobAspect = extractAspectRatioFromRecord(jobOptions);
+  if (jobAspect != null) {
+    return jobAspect;
+  }
+  return null;
+}
+
+export function galleryTileSizeBand(tile: GalleryTile): GalleryTileSizeBand {
+  if (tile.batch || !tile.asset) {
+    return "medium";
+  }
+  const aspectRatio = galleryTileAspectRatio(tile);
+  if (aspectRatio == null) {
+    return tile.asset.generation_kind === "video" ? "medium" : "medium";
+  }
+  if (aspectRatio < 0.72) {
+    return "tall";
+  }
+  if (aspectRatio > 1.2) {
+    return "short";
+  }
+  return "medium";
 }
 
 function jobHasPublishedAsset(job: MediaJob, assets: MediaAsset[]) {
