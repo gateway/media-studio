@@ -263,6 +263,24 @@ Open:
 
 - `http://127.0.0.1:3000/studio`
 
+If `3000` or `8000` is already taken, you can run Studio on different ports without editing every related env var by hand:
+
+```bash
+./scripts/run_studio_mac.sh --api-port 8010 --web-port 3010
+```
+
+The launcher and Terminal start scripts now accept explicit port overrides and wire the web app to the matching API port automatically. The safest normal path is still:
+
+```bash
+./scripts/open_studio_mac.sh --api-port 8010 --web-port 3010
+```
+
+If you need to stop that alternate pair explicitly:
+
+```bash
+./scripts/stop_studio_mac.sh --api-port 8010 --web-port 3010
+```
+
 ### Private LAN / TailScale access
 
 If you want to open Studio from your phone or another device on your private network, add this to `.env`:

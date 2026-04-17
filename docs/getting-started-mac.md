@@ -114,6 +114,20 @@ If you prefer Terminal but still want the normal user path, run:
 
 That script runs the local app in production mode, waits for it to become ready, and opens the browser to `/studio`.
 
+If the default ports are already in use, pass a different pair directly:
+
+```bash
+./scripts/run_studio_mac.sh --api-port 8010 --web-port 3010
+```
+
+The startup scripts now derive the web control API URL from the chosen API host and port automatically, so you do not need to manually edit every related base URL when you just want alternate local ports.
+
+If you want the friendlier launcher behavior with the same override:
+
+```bash
+./scripts/open_studio_mac.sh --api-port 8010 --web-port 3010
+```
+
 If you close the launcher window by mistake or something gets stuck locally, the easiest recovery path is:
 
 - `Stop Media Studio.command`
@@ -149,6 +163,13 @@ Then restart Studio with:
 ```bash
 ./scripts/stop_studio_mac.sh
 ./scripts/run_studio_mac.sh
+```
+
+For an alternate port pair, stop and start with the same explicit values:
+
+```bash
+./scripts/stop_studio_mac.sh --api-port 8010 --web-port 3010
+./scripts/run_studio_mac.sh --api-port 8010 --web-port 3010
 ```
 
 If you are using dev mode instead of the normal production-style launcher, also set:

@@ -131,6 +131,14 @@ Then open:
   Add these if you want browser auth instead of localhost-only access.
 - `MEDIA_STUDIO_ALLOW_PRIVATE_NETWORK_ACCESS=true`
   Optional shortcut for private LAN / TailScale access without browser auth.
+- `MEDIA_STUDIO_API_PORT` and `MEDIA_STUDIO_WEB_PORT`
+  Optional if you want Studio to run on a different local port pair.
+
+Terminal launchers also accept direct overrides, for example:
+
+```bash
+./scripts/run_studio_mac.sh --api-port 8010 --web-port 3010
+```
 
 ## If you want more detail
 

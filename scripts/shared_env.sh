@@ -117,3 +117,29 @@ env_path.write_text("\n".join(lines).rstrip("\n") + "\n")
 print(token)
 PY
 }
+
+media_runtime_access_host() {
+  local host="${1:-127.0.0.1}"
+  case "$host" in
+    "" | "0.0.0.0")
+      printf '%s\n' "127.0.0.1"
+      ;;
+    "::" | "[::]")
+      printf '%s\n' "::1"
+      ;;
+    *)
+      printf '%s\n' "$host"
+      ;;
+  esac
+}
+
+media_control_api_base_url() {
+  local host
+  host="$(media_runtime_access_host "${1:-127.0.0.1}")"
+  local port="${2:-8000}"
+  if [[ "$host" == *:* && "$host" != \[*\] ]]; then
+    printf 'http://[%s]:%s\n' "$host" "$port"
+  else
+    printf 'http://%s:%s\n' "$host" "$port"
+  fi
+}

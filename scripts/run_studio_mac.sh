@@ -5,13 +5,65 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/shared_env.sh
 . "$SCRIPT_DIR/shared_env.sh"
 MEDIA_ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
+CLI_API_HOST=""
+CLI_API_PORT=""
+CLI_WEB_HOST=""
+CLI_WEB_PORT=""
+
+usage() {
+  cat <<'EOF'
+Usage: ./scripts/run_studio_mac.sh [--api-host HOST] [--api-port PORT] [--web-host HOST] [--web-port PORT]
+EOF
+}
+
+while (($# > 0)); do
+  case "$1" in
+    --api-host)
+      shift
+      [[ $# -gt 0 ]] || { echo "Missing value for --api-host" >&2; exit 1; }
+      CLI_API_HOST="$1"
+      ;;
+    --api-port)
+      shift
+      [[ $# -gt 0 ]] || { echo "Missing value for --api-port" >&2; exit 1; }
+      CLI_API_PORT="$1"
+      ;;
+    --web-host)
+      shift
+      [[ $# -gt 0 ]] || { echo "Missing value for --web-host" >&2; exit 1; }
+      CLI_WEB_HOST="$1"
+      ;;
+    --web-port)
+      shift
+      [[ $# -gt 0 ]] || { echo "Missing value for --web-port" >&2; exit 1; }
+      CLI_WEB_PORT="$1"
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
 ensure_media_env_control_token "$MEDIA_ROOT" >/dev/null 2>&1 || true
+ENV_API_HOST="${MEDIA_STUDIO_API_HOST:-}"
 ENV_API_PORT="${MEDIA_STUDIO_API_PORT:-}"
+ENV_WEB_HOST="${MEDIA_STUDIO_WEB_HOST:-}"
 ENV_WEB_PORT="${MEDIA_STUDIO_WEB_PORT:-}"
 load_media_env "$MEDIA_ROOT"
 
-API_PORT="${ENV_API_PORT:-${MEDIA_STUDIO_API_PORT:-8000}}"
-WEB_PORT="${ENV_WEB_PORT:-${MEDIA_STUDIO_WEB_PORT:-3000}}"
+API_HOST="${CLI_API_HOST:-${ENV_API_HOST:-${MEDIA_STUDIO_API_HOST:-127.0.0.1}}}"
+API_PORT="${CLI_API_PORT:-${ENV_API_PORT:-${MEDIA_STUDIO_API_PORT:-8000}}}"
+WEB_HOST="${CLI_WEB_HOST:-${ENV_WEB_HOST:-${MEDIA_STUDIO_WEB_HOST:-127.0.0.1}}}"
+WEB_PORT="${CLI_WEB_PORT:-${ENV_WEB_PORT:-${MEDIA_STUDIO_WEB_PORT:-3000}}}"
+WEB_ACCESS_HOST="$(media_runtime_access_host "$WEB_HOST")"
+API_ACCESS_HOST="$(media_runtime_access_host "$API_HOST")"
 RUNTIME_DIR="$MEDIA_ROOT/data/runtime"
 API_LOG="$RUNTIME_DIR/media-studio-api.log"
 WEB_LOG="$RUNTIME_DIR/media-studio-web.log"
@@ -19,9 +71,9 @@ API_PID_FILE="$RUNTIME_DIR/media-studio-api.pid"
 WEB_PID_FILE="$RUNTIME_DIR/media-studio-web.pid"
 TAIL_PID_FILE="$RUNTIME_DIR/media-studio-tail.pid"
 LAUNCHER_PID_FILE="$RUNTIME_DIR/media-studio-launcher.pid"
-STUDIO_URL="http://127.0.0.1:$WEB_PORT/studio"
-SETTINGS_URL="http://127.0.0.1:$WEB_PORT/settings"
-API_HEALTH_URL="http://127.0.0.1:$API_PORT/health"
+STUDIO_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/studio"
+SETTINGS_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/settings"
+API_HEALTH_URL="http://$API_ACCESS_HOST:$API_PORT/health"
 
 mkdir -p "$RUNTIME_DIR"
 : >"$API_LOG"
@@ -79,6 +131,45 @@ require_command() {
   fi
 }
 
+port_is_listening() {
+  local port="$1"
+  lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+port_owner_command() {
+  local port="$1"
+  local pid
+  pid="$(lsof -tiTCP:"$port" -sTCP:LISTEN | head -n 1 || true)"
+  if [[ -z "$pid" ]]; then
+    return 0
+  fi
+  ps -p "$pid" -o command= || true
+}
+
+port_owner_cwd() {
+  local port="$1"
+  local pid
+  pid="$(lsof -tiTCP:"$port" -sTCP:LISTEN | head -n 1 || true)"
+  if [[ -z "$pid" ]]; then
+    return 0
+  fi
+  lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | awk 'BEGIN{FS="n"} /^n/ {print $2; exit}'
+}
+
+looks_like_media_studio_process() {
+  local command="$1"
+  local cwd="$2"
+  [[ "$command" == *"media-studio"* || "$command" == *"$MEDIA_ROOT"* || "$command" == *"app.main:app"* || "$command" == *"next dev"* || "$command" == *"next start"* || "$command" == *"next-server"* || "$cwd" == "$MEDIA_ROOT"* ]]
+}
+
+cleanup_stale_media_studio() {
+  MEDIA_STUDIO_API_PORT="$API_PORT" \
+  MEDIA_STUDIO_WEB_PORT="$WEB_PORT" \
+  ./scripts/stop_studio_mac.sh >/dev/null 2>&1 || true
+  rm -f "$API_PID_FILE" "$WEB_PID_FILE" "$TAIL_PID_FILE" "$LAUNCHER_PID_FILE"
+  sleep 1
+}
+
 wait_for_url() {
   local url="$1"
   local attempts="${2:-90}"
@@ -96,6 +187,40 @@ wait_for_url() {
 
 require_command curl
 require_command open
+require_command lsof
+
+api_running=false
+web_running=false
+
+if port_is_listening "$API_PORT"; then
+  api_owner="$(port_owner_command "$API_PORT")"
+  api_cwd="$(port_owner_cwd "$API_PORT")"
+  if ! looks_like_media_studio_process "$api_owner" "$api_cwd"; then
+    echo "Port $API_PORT is already in use by another app:" >&2
+    echo "  $api_owner" >&2
+    echo "Choose a different API port with --api-port or update MEDIA_STUDIO_API_PORT in .env." >&2
+    exit 1
+  fi
+  api_running=true
+fi
+
+if port_is_listening "$WEB_PORT"; then
+  web_owner="$(port_owner_command "$WEB_PORT")"
+  web_cwd="$(port_owner_cwd "$WEB_PORT")"
+  if ! looks_like_media_studio_process "$web_owner" "$web_cwd"; then
+    echo "Port $WEB_PORT is already in use by another app:" >&2
+    echo "  $web_owner" >&2
+    echo "Choose a different web port with --web-port or update MEDIA_STUDIO_WEB_PORT in .env." >&2
+    exit 1
+  fi
+  web_running=true
+fi
+
+if [[ "$api_running" == true || "$web_running" == true ]]; then
+  echo "Media Studio looks partially started already."
+  echo "Cleaning up the stale local processes and restarting..."
+  cleanup_stale_media_studio
+fi
 
 echo "Checking the production web build..."
 bash "$SCRIPT_DIR/ensure_web_build.sh"
@@ -103,7 +228,7 @@ bash "$SCRIPT_DIR/ensure_web_build.sh"
 echo "Starting the Media Studio API..."
 (
   cd "$MEDIA_ROOT"
-  MEDIA_STUDIO_API_PORT="$API_PORT" ./scripts/start_api.sh
+  MEDIA_STUDIO_API_HOST="$API_HOST" MEDIA_STUDIO_API_PORT="$API_PORT" ./scripts/start_api.sh --host "$API_HOST" --port "$API_PORT"
 ) >>"$API_LOG" 2>&1 &
 API_PID=$!
 echo "$API_PID" >"$API_PID_FILE"
@@ -111,7 +236,7 @@ echo "$API_PID" >"$API_PID_FILE"
 echo "Starting the Media Studio web app..."
 (
   cd "$MEDIA_ROOT"
-  MEDIA_STUDIO_WEB_PORT="$WEB_PORT" ./scripts/start_web.sh
+  MEDIA_STUDIO_API_HOST="$API_HOST" MEDIA_STUDIO_API_PORT="$API_PORT" MEDIA_STUDIO_WEB_HOST="$WEB_HOST" MEDIA_STUDIO_WEB_PORT="$WEB_PORT" ./scripts/start_web.sh --api-host "$API_HOST" --api-port "$API_PORT" --host "$WEB_HOST" --port "$WEB_PORT"
 ) >>"$WEB_LOG" 2>&1 &
 WEB_PID=$!
 echo "$WEB_PID" >"$WEB_PID_FILE"

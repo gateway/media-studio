@@ -5,6 +5,40 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/shared_env.sh"
 MEDIA_ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
+CLI_API_PORT=""
+CLI_WEB_PORT=""
+
+usage() {
+  cat <<'EOF'
+Usage: ./scripts/stop_studio_mac.sh [--api-port PORT] [--web-port PORT]
+EOF
+}
+
+while (($# > 0)); do
+  case "$1" in
+    --api-port)
+      shift
+      [[ $# -gt 0 ]] || { echo "Missing value for --api-port" >&2; exit 1; }
+      CLI_API_PORT="$1"
+      ;;
+    --web-port)
+      shift
+      [[ $# -gt 0 ]] || { echo "Missing value for --web-port" >&2; exit 1; }
+      CLI_WEB_PORT="$1"
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
 load_media_env "$MEDIA_ROOT"
 RUNTIME_DIR="$MEDIA_ROOT/data/runtime"
 API_PID_FILE="$RUNTIME_DIR/media-studio-api.pid"
@@ -86,8 +120,8 @@ if ! command -v lsof >/dev/null 2>&1; then
   exit 1
 fi
 
-API_PORT="${MEDIA_STUDIO_API_PORT:-8000}"
-WEB_PORT="${MEDIA_STUDIO_WEB_PORT:-3000}"
+API_PORT="${CLI_API_PORT:-${MEDIA_STUDIO_API_PORT:-8000}}"
+WEB_PORT="${CLI_WEB_PORT:-${MEDIA_STUDIO_WEB_PORT:-3000}}"
 
 echo "Stopping local Media Studio..."
 
