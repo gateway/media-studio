@@ -118,6 +118,7 @@ import {
   StudioChoice,
   type StudioReferencePreview,
   studioOptionChoices,
+  studioPresetSupportedModels,
   stripUnsupportedStudioOptions,
   toWholeNumber,
   toneForStatus,
@@ -787,6 +788,19 @@ export function MediaStudio({
   const { pollJob, pollBatch, retryJob, dismissJob, dismissAsset, toggleAssetFavorite } = polling.actions;
   const downloadActionLabel = hasMounted ? mobileSaveActionLabel() : "Download";
   const mobileComposerExpanded = !mobileComposerCollapsed;
+  const structuredPresetModelChoices = useMemo(() => {
+    if (!structuredPresetActive) {
+      return [];
+    }
+    const supportedModelKeys = new Set(studioPresetSupportedModels(currentPreset));
+    return models
+      .filter((model) => supportedModelKeys.has(model.key))
+      .map((model) => ({
+        value: model.key,
+        label: composerModelLabel(model.label),
+      }));
+  }, [currentPreset, models, structuredPresetActive]);
+  const showStructuredPresetModelPicker = structuredPresetActive && structuredPresetModelChoices.length > 1;
 
   function revealComposer(options: { focusPresetField?: boolean } = {}) {
     setMobileComposerCollapsed(!isCoarsePointerDevice());
@@ -2778,7 +2792,7 @@ export function MediaStudio({
                   structuredPresetActive ? "pt-[6px]" : "",
                 )}
               >
-                    {!structuredPresetActive ? (
+                    {!structuredPresetActive || showStructuredPresetModelPicker ? (
                       <>
                         <PillSelect
                           pickerId="model"
@@ -2790,11 +2804,20 @@ export function MediaStudio({
                           label={composerModelLabel(currentModel?.label)}
                           selectedValue={modelKey ?? ""}
                           menuTitle="Model"
-                          choices={enabledStudioModels.map((model) => ({
-                            value: model.key,
-                            label: composerModelLabel(model.label),
-                          }))}
+                          choices={
+                            structuredPresetActive && showStructuredPresetModelPicker
+                              ? structuredPresetModelChoices
+                              : enabledStudioModels.map((model) => ({
+                                  value: model.key,
+                                  label: composerModelLabel(model.label),
+                                }))
+                          }
                           onSelect={(value) => {
+                            if (structuredPresetActive && showStructuredPresetModelPicker) {
+                              setModelKey(value);
+                              setValidation(null);
+                              return;
+                            }
                             setModelKey(value);
                             setSelectedPresetId("");
                             setSelectedPromptIds([]);
@@ -2804,7 +2827,7 @@ export function MediaStudio({
                           }}
                         />
 
-                        {selectedPresetId || modelPresets.length ? (
+                        {!structuredPresetActive && (selectedPresetId || modelPresets.length) ? (
                           <PillSelect
                             pickerId="preset"
                             open={openPicker === "preset"}
