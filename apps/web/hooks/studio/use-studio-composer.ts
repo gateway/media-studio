@@ -584,7 +584,7 @@ export function useStudioComposer({
   );
   const visibleExplicitVideoImageSlots = explicitVideoImageSlots
     ? modelHasFirstLastFrameInputs
-      ? Math.min(maxImageInputs, orderedImageInputs[0] ? 2 : 1)
+      ? Math.min(maxImageInputs, 2)
       : Math.min(maxImageInputs, 1)
     : 0;
   const multiShotsEnabled = MULTI_SHOT_MODEL_KEYS.has(modelKey) && optionBooleanValue(optionValues["multi_shots"]);
@@ -690,7 +690,7 @@ export function useStudioComposer({
         : formMessage;
   const imageSlotLabels =
     explicitVideoImageSlots && modelHasFirstLastFrameInputs
-      ? ["Start frame", "End frame"]
+      ? ["Start frame", "End frame optional"]
       : ["Source image"];
   const canUseSourceAsset = !seedanceComposer && (maxImageInputs > 0 || maxVideoInputs > 0);
   const canOpenReferenceLibrary =
