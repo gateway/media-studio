@@ -248,13 +248,10 @@ export function MediaPresetEditorScreen({
     (model) => model.key === "nano-banana-2" || model.key === "nano-banana-pro",
   );
   const returnToPresetsHref = "/presets";
-  const sectionEyebrowClassName =
-    "text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]";
-  const sectionTitleClassName =
-    "text-[1.35rem] font-semibold tracking-[-0.03em] text-[var(--foreground)]";
-  const sectionDescriptionClassName = "mt-2 max-w-3xl text-sm leading-7 text-[var(--muted-strong)]";
-  const accentCardClassName =
-    "rounded-[24px] border border-white/10 bg-[rgba(11,14,13,0.94)] p-4 sm:p-5";
+  const sectionEyebrowClassName = "admin-label-accent";
+  const sectionTitleClassName = "admin-section-title";
+  const sectionDescriptionClassName = "admin-section-description";
+  const accentCardClassName = "admin-surface-accent p-4 sm:p-5";
 
   async function savePreset() {
     setIsSaving(true);
@@ -416,7 +413,7 @@ export function MediaPresetEditorScreen({
     <div className="space-y-7">
       {message ? <AdminActionNotice tone={message.tone} text={message.text} /> : null}
 
-      <Panel className="border-white/8 bg-[rgba(14,17,16,0.88)] shadow-[0_20px_44px_rgba(0,0,0,0.18)]">
+      <Panel>
         <div className="flex flex-col gap-4 border-b border-white/6 pb-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
             <p className={sectionEyebrowClassName}>Preset Settings</p>
@@ -441,7 +438,7 @@ export function MediaPresetEditorScreen({
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
             <div className={accentCardClassName}>
               <div className="mb-4">
-                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">
+                <div className="admin-label-accent">
                   Preset Basics
                 </div>
                 <p className="mt-2 text-sm leading-7 text-[var(--muted-strong)]">
@@ -468,7 +465,7 @@ export function MediaPresetEditorScreen({
                   className="min-h-[96px] sm:min-h-[108px]"
                 />
                 <div className="grid gap-2">
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                  <div className="admin-label-muted">
                     Thumbnail
                   </div>
                   <div
@@ -489,14 +486,14 @@ export function MediaPresetEditorScreen({
                         thumbnailInputRef.current?.click();
                       }
                     }}
-                    className="grid gap-3 rounded-[18px] border border-dashed border-white/10 bg-[rgba(255,255,255,0.03)] p-4 text-sm text-[var(--muted-strong)] transition hover:border-[rgba(208,255,72,0.22)]"
+                    className="admin-dropzone"
                   >
                     {presetForm.thumbnailUrl ? (
                       <div className="flex flex-wrap items-center gap-4">
                         <img
                           src={presetForm.thumbnailUrl}
                           alt={presetForm.label || "Preset thumbnail"}
-                          className="h-24 w-24 rounded-[16px] border border-white/10 object-cover"
+                          className="admin-preview-frame h-24 w-24 object-cover"
                         />
                         <div className="grid gap-3">
                           <div className="leading-6 text-[var(--foreground)]">
@@ -530,7 +527,7 @@ export function MediaPresetEditorScreen({
                       </div>
                     ) : (
                       <div className="flex items-center gap-3">
-                        <div className="rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] p-3">
+                        <div className="admin-icon-frame p-3">
                           <ImagePlus className="size-5 text-[var(--accent-strong)]" />
                         </div>
                         <div className="grid gap-1">
@@ -562,12 +559,12 @@ export function MediaPresetEditorScreen({
 
             <div className="grid gap-5">
               <div className={accentCardClassName}>
-                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">
+                <div className="admin-label-accent">
                   Availability
                 </div>
                 <div className="mt-4 grid gap-4">
                   <div className="grid gap-3 lg:grid-cols-2">
-                    <label className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
+                    <label className="admin-toggle-row text-sm">
                       <span>Enable this preset</span>
                       <AdminToggle
                         checked={presetForm.status === "active"}
@@ -581,8 +578,8 @@ export function MediaPresetEditorScreen({
                       />
                     </label>
 
-                    <div className="rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
-                      <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                    <div className="admin-summary-card text-sm">
+                      <div className="admin-label-muted">
                         Snapshot
                       </div>
                       <div className="mt-2 leading-6 text-[var(--foreground)]">
@@ -592,14 +589,14 @@ export function MediaPresetEditorScreen({
                   </div>
 
                   <div className="grid gap-2">
-                    <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                    <div className="admin-label-muted">
                       Available in
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {selectedNanoModels.map((model) => (
                         <label
                           key={model.key}
-                          className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm"
+                          className="admin-toggle-row text-sm"
                         >
                           <span>{model.label}</span>
                           <AdminToggle
@@ -624,7 +621,7 @@ export function MediaPresetEditorScreen({
           </div>
 
           <div className={accentCardClassName}>
-            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">
+            <div className="admin-label-accent">
               Prompt Template
             </div>
             <p className="mt-2 text-sm leading-7 text-[var(--muted-strong)]">
@@ -639,8 +636,8 @@ export function MediaPresetEditorScreen({
                 className="min-h-[180px] sm:min-h-[220px]"
               />
             </div>
-            <div className="mt-4 rounded-[22px] border border-white/8 bg-[rgba(255,255,255,0.04)] p-3.5 sm:p-4">
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+            <div className="admin-summary-card mt-4 p-3.5 sm:p-4">
+              <div className="admin-label-muted">
                 Token rules
               </div>
               <div className="mt-3 space-y-3 text-sm leading-7 text-[var(--muted-strong)]">
@@ -654,7 +651,7 @@ export function MediaPresetEditorScreen({
           <div className={accentCardClassName}>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                <div className="admin-label-muted">
                   Text fields
                 </div>
                 <div className="mt-1 text-sm text-[var(--muted-strong)]">
@@ -682,7 +679,7 @@ export function MediaPresetEditorScreen({
                     description="Define the key, label, placeholder, and whether the field is required."
                     tone="media"
                     defaultOpen
-                    className="px-4 py-4 border-white/8 bg-[rgba(12,15,14,0.94)]"
+                    className="px-4 py-4"
                     bodyClassName="border-t border-[var(--surface-border-soft)] pt-4"
                     badge={
                       <AdminButton
@@ -753,7 +750,7 @@ export function MediaPresetEditorScreen({
                         placeholder="Optional default value"
                       />
                     </div>
-                    <label className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
+                    <label className="admin-toggle-row text-sm">
                       <span>Required field</span>
                       <AdminToggle
                         checked={field.required}
@@ -772,7 +769,7 @@ export function MediaPresetEditorScreen({
                 ))}
               </div>
             ) : (
-              <div className="mt-4 rounded-[18px] border border-dashed border-white/10 bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm text-[var(--muted-strong)]">
+              <div className="admin-empty-state mt-4 text-sm">
                 No text fields configured yet.
               </div>
             )}
@@ -781,7 +778,7 @@ export function MediaPresetEditorScreen({
           <div className={accentCardClassName}>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                <div className="admin-label-muted">
                   Reference image slots
                 </div>
                 <div className="mt-1 text-sm text-[var(--muted-strong)]">
@@ -809,7 +806,7 @@ export function MediaPresetEditorScreen({
                     description="Define the slot key, label, help text, and whether the image is required."
                     tone="media"
                     defaultOpen
-                    className="px-4 py-4 border-white/8 bg-[rgba(12,15,14,0.94)]"
+                    className="px-4 py-4"
                     bodyClassName="border-t border-[var(--surface-border-soft)] pt-4"
                     badge={
                       <AdminButton
@@ -882,7 +879,7 @@ export function MediaPresetEditorScreen({
                         placeholder="Help text shown to the operator"
                       />
                     </div>
-                    <label className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
+                    <label className="admin-toggle-row text-sm">
                       <span>Required image</span>
                       <AdminToggle
                         checked={slot.required}
@@ -901,7 +898,7 @@ export function MediaPresetEditorScreen({
                 ))}
               </div>
             ) : (
-              <div className="mt-4 rounded-[18px] border border-dashed border-white/10 bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm text-[var(--muted-strong)]">
+              <div className="admin-empty-state mt-4 text-sm">
                 No image slots configured yet.
               </div>
             )}
@@ -910,7 +907,7 @@ export function MediaPresetEditorScreen({
           <div className={accentCardClassName}>
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
               <div>
-                <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                <div className="admin-label-muted">
                   Notes
                 </div>
                 <AdminTextarea

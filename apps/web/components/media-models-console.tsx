@@ -512,13 +512,11 @@ export function MediaModelsConsole({
   const parameterRows = useMemo(() => modelParameterRows(selectedModel), [selectedModel]);
   const optionBadges = useMemo(() => modelOptionPills(selectedModel), [selectedModel]);
   const rootClassName = isStudio ? adminThemeLayoutOverflowClassName : adminThemeLayoutClassName;
-  const modelPanelClassName = "border-white/10 bg-[linear-gradient(180deg,rgba(24,28,26,0.96),rgba(14,17,16,0.98))]";
+  const modelPanelClassName = "admin-surface-panel";
   const surfaceCardClassName = "admin-surface-card p-5";
   const accentCardClassName = "admin-surface-panel p-5";
   const softAccentCardClassName =
     "admin-surface-inset px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]";
-  const toggleOffClassName = "border-white/10 bg-[rgba(255,255,255,0.04)] text-white/68";
-  const toggleOnClassName = "border-[rgba(208,255,72,0.28)] bg-[rgba(208,255,72,0.12)] text-[rgba(208,255,72,0.94)]";
 
   useEffect(() => {
     if (!initialSelectedModelKey) {

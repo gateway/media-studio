@@ -97,9 +97,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background:
-    radial-gradient(circle at top, rgba(208, 255, 72, 0.08), transparent 22%),
-    linear-gradient(180deg, #090b0b 0%, #111514 100%);
+  background: #202424;
   color: var(--ms-text-primary);
   font-family: var(--font-sans), "SF Pro Display", "Neue Haas Grotesk Text", "Inter", sans-serif;
 }
@@ -278,6 +276,69 @@ textarea {
 .admin-live-notice-danger {
   background-color: rgba(175, 79, 64, 0.08);
   color: var(--danger);
+}
+
+.admin-section-title {
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--foreground);
+}
+
+.admin-section-description {
+  margin-top: 0.5rem;
+  max-width: 48rem;
+  font-size: 0.875rem;
+  line-height: 1.75;
+  color: var(--muted-strong);
+}
+
+.admin-surface-accent {
+  background-color: #202424;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.admin-toggle-row {
+  background-color: #202424;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.admin-empty-state {
+  background-color: #202424;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 1rem;
+  color: var(--muted-strong);
+}
+
+.admin-summary-card {
+  background-color: #202424;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0.75rem;
+}
+
+.admin-dropzone {
+  display: grid;
+  gap: 0.75rem;
+  background-color: #202424;
+  border: 0;
+  border-radius: 0;
+  padding: 1rem;
+  font-size: 0.875rem;
+  color: var(--muted-strong);
+  transition: none;
 }
 
 .admin-input {
