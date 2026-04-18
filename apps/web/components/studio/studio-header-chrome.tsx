@@ -27,6 +27,7 @@ type StudioHeaderChromeProps = {
   onToggleFavoritesFilter: () => void;
   onOpenPresets: () => void;
   onOpenLibrary: () => void;
+  showLibraryButton?: boolean;
   onOpenSettings: () => void;
 };
 
@@ -67,6 +68,7 @@ export function StudioHeaderChrome({
   onToggleFavoritesFilter,
   onOpenPresets,
   onOpenLibrary,
+  showLibraryButton = true,
   onOpenSettings,
 }: StudioHeaderChromeProps) {
   if (!immersive) {
@@ -129,13 +131,15 @@ export function StudioHeaderChrome({
           testId="studio-filter-presets"
           onClick={onOpenPresets}
         />
-        <FilterButton
-          active={false}
-          icon={FolderOpen}
-          label="Reference library"
-          testId="studio-filter-library"
-          onClick={onOpenLibrary}
-        />
+        {showLibraryButton ? (
+          <FilterButton
+            active={false}
+            icon={FolderOpen}
+            label="Reference library"
+            testId="studio-filter-library"
+            onClick={onOpenLibrary}
+          />
+        ) : null}
         <FilterButton
           active={false}
           icon={Settings2}

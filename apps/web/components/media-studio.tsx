@@ -495,7 +495,9 @@ export function MediaStudio({
     structuredPresetTextFields,
     structuredPresetImageSlots,
     structuredPresetActive,
+    canOpenReferenceLibrary,
     explicitVideoImageSlots,
+    visibleExplicitVideoImageSlots,
     orderedImageInputs,
     multiShotsEnabled,
     multiShotScript,
@@ -521,6 +523,7 @@ export function MediaStudio({
     canAddMoreImages,
     canAddMoreVideos,
     canAddMoreAudios,
+    modelHasFirstLastFrameInputs,
     seedanceFirstFrameAttachment,
     seedanceLastFrameAttachment,
     seedanceReferenceImages,
@@ -595,6 +598,10 @@ export function MediaStudio({
   }
 
   function openContextualReferenceLibrary() {
+    if (!canOpenReferenceLibrary) {
+      setFormMessage({ tone: "warning", text: "This model is text-to-video only, so Studio is hiding image inputs." });
+      return;
+    }
     if (structuredPresetActive && structuredPresetImageSlots.length) {
       const targetSlot =
         structuredPresetImageSlots.find((slot) => {
@@ -631,6 +638,19 @@ export function MediaStudio({
         type: "attachment",
         title: "Pick a reusable image for Seedance reference guidance.",
         role: "reference",
+        allowedKinds: ["images"],
+      });
+      return;
+    }
+    if (explicitVideoImageSlots) {
+      openReferenceLibrary({
+        type: "attachment",
+        title:
+          modelHasFirstLastFrameInputs && visibleExplicitVideoImageSlots > 1
+            ? "Pick a reusable image for the end frame."
+            : modelHasFirstLastFrameInputs
+              ? "Pick a reusable image for the start frame."
+              : "Pick a reusable image for this video input.",
         allowedKinds: ["images"],
       });
       return;
@@ -1028,7 +1048,16 @@ export function MediaStudio({
       </div>
     </div>
   ) : null;
-  const sourceAttachmentStrip = !structuredPresetActive && !dedicatedImageReferenceRailActive ? (
+  const genericSourceInputsAvailable =
+    !structuredPresetActive &&
+    !dedicatedImageReferenceRailActive &&
+    !seedanceComposer &&
+    !explicitVideoImageSlots &&
+    (maxImageInputs > 0 || maxVideoInputs > 0 || maxAudioInputs > 0);
+  const genericSourceAddTileVisible = canAddMoreImages || canAddMoreVideos || canAddMoreAudios;
+  const sourceAttachmentStrip = !structuredPresetActive &&
+    !dedicatedImageReferenceRailActive &&
+    (seedanceComposer || explicitVideoImageSlots || genericSourceInputsAvailable) ? (
     <div className="flex flex-wrap gap-3">
       {seedanceComposer ? (
         <>
@@ -1122,7 +1151,7 @@ export function MediaStudio({
         </>
       ) : explicitVideoImageSlots ? (
         <>
-          {Array.from({ length: maxImageInputs }, (_, slotIndex) => {
+          {Array.from({ length: visibleExplicitVideoImageSlots }, (_, slotIndex) => {
             const slot = orderedImageInputs[slotIndex] ?? null;
             const slotVisual = orderedImageInputVisual(slot);
             const slotLabel = imageSlotLabels[slotIndex] ?? `Image ${slotIndex + 1}`;
@@ -1242,23 +1271,25 @@ export function MediaStudio({
             </div>
           ) : null}
 
-          <StudioMediaSlotAddTile
-            accept="image/*,video/*,audio/*"
-            multiple
-            disabled={!canAddMoreImages && !canAddMoreVideos && !canAddMoreAudios}
-            isDragActive={isDragActive}
-            testId="studio-source-input"
-            onDragOver={(event) => {
-              event.preventDefault();
-              setIsDragActive(true);
-            }}
-            onDragLeave={() => setIsDragActive(false)}
-            onDrop={(event) => void handleSourceTileDrop(event)}
-            onPickFiles={(fileList, input) => {
-              addFiles(fileList);
-              resetFileInputValue(input);
-            }}
-          />
+          {genericSourceAddTileVisible ? (
+            <StudioMediaSlotAddTile
+              accept="image/*,video/*,audio/*"
+              multiple
+              disabled={!genericSourceAddTileVisible}
+              isDragActive={isDragActive}
+              testId="studio-source-input"
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsDragActive(true);
+              }}
+              onDragLeave={() => setIsDragActive(false)}
+              onDrop={(event) => void handleSourceTileDrop(event)}
+              onPickFiles={(fileList, input) => {
+                addFiles(fileList);
+                resetFileInputValue(input);
+              }}
+            />
+          ) : null}
         </>
       )}
       {(imageLimitLabel || maxVideoInputs > 0 || maxAudioInputs > 0) && !explicitVideoImageSlots && !seedanceComposer ? (
@@ -1636,6 +1667,63 @@ export function MediaStudio({
           ))}
         </div>
       </StudioMobileInputsSection>
+    ) : explicitVideoImageSlots ? (
+      <StudioMobileInputsSection
+        title={modelHasFirstLastFrameInputs ? "Frames" : "Input"}
+        summary={`${orderedImageInputs.length} / ${maxImageInputs}`}
+      >
+        <div className="flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
+          {Array.from({ length: visibleExplicitVideoImageSlots }, (_, slotIndex) => {
+            const slot = orderedImageInputs[slotIndex] ?? null;
+            const slotVisual = orderedImageInputVisual(slot);
+            const slotLabel = imageSlotLabels[slotIndex] ?? `Image ${slotIndex + 1}`;
+            const slotPreview = orderedImageInputPreview(slot, slotLabel, `mobile-video-slot-${slotIndex + 1}`);
+            return (
+              <div key={orderedImageInputKey(slot, slotIndex)} className="shrink-0">
+                {slotPreview ? (
+                  <div
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setIsDragActive(true);
+                    }}
+                    onDragLeave={() => setIsDragActive(false)}
+                    onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
+                    className="h-[72px] w-[72px]"
+                  >
+                    <StudioStagedMediaTile
+                      preview={slotPreview}
+                      visualUrl={slotVisual}
+                      onOpenPreview={openReferencePreview}
+                      onRemove={() => clearOrderedImageInput(slot)}
+                      className="h-[72px] w-[72px]"
+                      tileClassName={slot?.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
+                      testId={`studio-mobile-source-slot-filled-${slotIndex + 1}`}
+                    />
+                  </div>
+                ) : (
+                  <StudioMediaSlotAddTile
+                    accept="image/*"
+                    isDragActive={isDragActive}
+                    testId={`studio-mobile-source-slot-input-${slotIndex + 1}`}
+                    wrapperClassName="shrink-0"
+                    tileClassName={mobileAddTileClassName}
+                    plusIconClassName={mobileAddTilePlusIconClassName}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setIsDragActive(true);
+                    }}
+                    onDragLeave={() => setIsDragActive(false)}
+                    onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
+                    onPickFiles={(fileList, input) => {
+                      addImageFilesToOrderedSlot(fileList, slotIndex, input);
+                    }}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </StudioMobileInputsSection>
     ) : sourceAttachmentStrip ? (
       <StudioMobileInputsSection
         title="Inputs"
@@ -1703,26 +1791,28 @@ export function MediaStudio({
             </div>
           ) : null}
 
-          <StudioMediaSlotAddTile
-            accept="image/*,video/*,audio/*"
-            multiple
-            disabled={!canAddMoreImages && !canAddMoreVideos && !canAddMoreAudios}
-            isDragActive={isDragActive}
-            testId="studio-mobile-source-input"
-            wrapperClassName="shrink-0"
-            tileClassName={mobileAddTileClassName}
-            plusIconClassName={mobileAddTilePlusIconClassName}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setIsDragActive(true);
-            }}
-            onDragLeave={() => setIsDragActive(false)}
-            onDrop={(event) => void handleSourceTileDrop(event)}
-            onPickFiles={(fileList, input) => {
-              addFiles(fileList);
-              resetFileInputValue(input);
-            }}
-          />
+          {genericSourceAddTileVisible ? (
+            <StudioMediaSlotAddTile
+              accept="image/*,video/*,audio/*"
+              multiple
+              disabled={!genericSourceAddTileVisible}
+              isDragActive={isDragActive}
+              testId="studio-mobile-source-input"
+              wrapperClassName="shrink-0"
+              tileClassName={mobileAddTileClassName}
+              plusIconClassName={mobileAddTilePlusIconClassName}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsDragActive(true);
+              }}
+              onDragLeave={() => setIsDragActive(false)}
+              onDrop={(event) => void handleSourceTileDrop(event)}
+              onPickFiles={(fileList, input) => {
+                addFiles(fileList);
+                resetFileInputValue(input);
+              }}
+            />
+          ) : null}
         </div>
       </StudioMobileInputsSection>
     ) : null
@@ -2085,6 +2175,10 @@ export function MediaStudio({
     if (!asset) {
       return;
     }
+    if (!seedanceComposer && !structuredPresetActive && !canUseSourceAsset && !explicitVideoImageSlots && !dedicatedImageReferenceRailActive) {
+      setFormMessage({ tone: "warning", text: "The selected model is text-to-video only, so Studio is hiding source image inputs." });
+      return;
+    }
     if (seedanceComposer) {
       const role =
         effectiveSeedanceMode === "first_last_frames"
@@ -2122,9 +2216,7 @@ export function MediaStudio({
     if (animate && asset.generation_kind !== "video") {
       const currentModelSupportsAnimate = Boolean(
         currentModel?.generation_kind === "video" &&
-          (currentModel?.task_modes?.includes("image_to_video") ||
-            currentModel?.input_patterns?.includes("single_image") ||
-            currentModel?.input_patterns?.includes("first_last_frames")),
+          (currentModel?.task_modes?.includes("image_to_video") || maxImageInputs > 0),
       );
       if (!currentModelSupportsAnimate) {
         setModelKey("kling-2.6-i2v");
@@ -2494,6 +2586,7 @@ export function MediaStudio({
             onToggleFavoritesFilter={handleFavoritesFilterToggle}
             onOpenPresets={() => setPresetBrowserOpen(true)}
             onOpenLibrary={openContextualReferenceLibrary}
+            showLibraryButton={canOpenReferenceLibrary}
             onOpenSettings={() => void router.push("/settings")}
           />
 

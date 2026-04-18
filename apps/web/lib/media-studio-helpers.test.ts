@@ -14,6 +14,8 @@ import {
   insertImageAttachments,
   isStudioPresetVisible,
   mediaDownloadName,
+  modelSupportsFirstLastFrames,
+  modelSupportsImageDrivenInputs,
   orderedImageInputKey,
   orderedImageInputVisual,
   renderStructuredPresetPrompt,
@@ -96,6 +98,20 @@ describe("media-studio-helpers Seedance support", () => {
         null,
       ),
     ).toBe("first_last_frames");
+  });
+
+  it("treats prompt-only video models as having no image-driven inputs", () => {
+    const textToVideoModel = { input_patterns: ["prompt_only"] } as never;
+
+    expect(modelSupportsImageDrivenInputs(textToVideoModel)).toBe(false);
+    expect(modelSupportsFirstLastFrames(textToVideoModel)).toBe(false);
+  });
+
+  it("detects when a model supports first/last frame flows", () => {
+    const firstLastModel = { input_patterns: ["prompt_only", "single_image", "first_last_frames"] } as never;
+
+    expect(modelSupportsImageDrivenInputs(firstLastModel)).toBe(true);
+    expect(modelSupportsFirstLastFrames(firstLastModel)).toBe(true);
   });
 
   it("classifies dragged media files by extension when mime is empty", () => {

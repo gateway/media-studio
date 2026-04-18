@@ -24,6 +24,8 @@ import {
   mediaInlineUrl,
   mediaPlaybackUrl,
   mediaThumbnailUrl,
+  modelSupportsFirstLastFrames,
+  modelSupportsImageDrivenInputs,
   modelInputLimit,
   MULTI_SHOT_MODEL_KEYS,
   normalizeStructuredPresetImageSlots,
@@ -362,7 +364,7 @@ export function useStudioComposer({
   const seedanceComposer = isSeedanceModel(modelKey);
   const maxConcurrentJobs = Math.max(1, queueSettings?.max_concurrent_jobs ?? 10);
   const modelMaxOutputs = Math.max(1, currentQueuePolicy?.max_outputs_per_run ?? 1);
-  const maxImageInputs = modelInputLimit(currentModel, "image_inputs");
+  const rawMaxImageInputs = modelInputLimit(currentModel, "image_inputs");
   const maxVideoInputs = modelInputLimit(currentModel, "video_inputs");
   const maxAudioInputs = modelInputLimit(currentModel, "audio_inputs");
   const imageAttachments = attachments.filter((attachment) => attachment.kind === "images");
@@ -557,6 +559,9 @@ export function useStudioComposer({
     isNanoPresetModel(modelKey) && Boolean(currentPreset) && (structuredPresetTextFields.length > 0 || structuredPresetImageSlots.length > 0);
   const effectiveSeedanceMode = seedanceComposer ? inferInputPattern(currentModel, attachments, currentSourceAsset) : "prompt_only";
   const inputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
+  const modelHasImageDrivenInputs = modelSupportsImageDrivenInputs(currentModel);
+  const modelHasFirstLastFrameInputs = modelSupportsFirstLastFrames(currentModel);
+  const maxImageInputs = modelHasImageDrivenInputs ? rawMaxImageInputs : 0;
   const explicitVideoImageSlots =
     !structuredPresetActive &&
     currentModel?.generation_kind === "video" &&
@@ -568,6 +573,11 @@ export function useStudioComposer({
     () => buildOrderedImageInputs(currentSourceAsset, imageAttachments, sourceAssetIsImage),
     [currentSourceAsset, imageAttachments, sourceAssetIsImage],
   );
+  const visibleExplicitVideoImageSlots = explicitVideoImageSlots
+    ? modelHasFirstLastFrameInputs
+      ? Math.min(maxImageInputs, orderedImageInputs[0] ? 2 : 1)
+      : Math.min(maxImageInputs, 1)
+    : 0;
   const multiShotsEnabled = MULTI_SHOT_MODEL_KEYS.has(modelKey) && optionBooleanValue(optionValues["multi_shots"]);
   const multiShotScript = useMemo(() => parseMultiShotScript(prompt, optionValues["duration"]), [optionValues, prompt]);
   const multiShotScriptError = multiShotsEnabled ? multiShotScript.errors[0] ?? null : null;
@@ -670,10 +680,12 @@ export function useStudioComposer({
         ? ({ tone: "warning", text: "Sending your render to Studio." } as const)
         : formMessage;
   const imageSlotLabels =
-    explicitVideoImageSlots && currentModel?.input_patterns?.includes("first_last_frames")
+    explicitVideoImageSlots && modelHasFirstLastFrameInputs
       ? ["Start frame", "End frame"]
       : ["Source image"];
-  const canUseSourceAsset = !seedanceComposer;
+  const canUseSourceAsset = !seedanceComposer && (maxImageInputs > 0 || maxVideoInputs > 0);
+  const canOpenReferenceLibrary =
+    (structuredPresetActive && structuredPresetImageSlots.length > 0) || seedanceComposer || maxImageInputs > 0;
   const imageLimitLabel = maxImageInputs > 0 ? `${stagedImageCount} / ${maxImageInputs} images` : null;
   const canAddMoreImages = maxImageInputs > 0 && stagedImageCount < maxImageInputs;
   const canAddMoreVideos = maxVideoInputs > 0 && stagedVideoCount < maxVideoInputs;
@@ -1711,8 +1723,10 @@ export function useStudioComposer({
       structuredPresetTextFields,
       structuredPresetImageSlots,
       structuredPresetActive,
+      canOpenReferenceLibrary,
       inputPattern,
       explicitVideoImageSlots,
+      visibleExplicitVideoImageSlots,
       orderedImageInputs,
       multiShotsEnabled,
       multiShotScript,
@@ -1741,6 +1755,7 @@ export function useStudioComposer({
       canAddMoreImages,
       canAddMoreVideos,
       canAddMoreAudios,
+      modelHasFirstLastFrameInputs,
       seedanceFirstFrameAttachment,
       seedanceLastFrameAttachment,
       seedanceReferenceImages,

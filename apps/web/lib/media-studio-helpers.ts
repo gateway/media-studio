@@ -327,6 +327,25 @@ function specInputPatterns(model: MediaModelSummary | null) {
   return [];
 }
 
+export function supportedModelInputPatterns(model: MediaModelSummary | null) {
+  return Array.from(new Set([...(model?.input_patterns ?? []), ...specInputPatterns(model)]));
+}
+
+export function modelSupportsImageDrivenInputs(model: MediaModelSummary | null) {
+  const patterns = new Set(supportedModelInputPatterns(model));
+  return (
+    patterns.has("single_image") ||
+    patterns.has("image_edit") ||
+    patterns.has("first_last_frames") ||
+    patterns.has("multimodal_reference") ||
+    patterns.has("motion_control")
+  );
+}
+
+export function modelSupportsFirstLastFrames(model: MediaModelSummary | null) {
+  return new Set(supportedModelInputPatterns(model)).has("first_last_frames");
+}
+
 export function normalizeStructuredPresetTextFields(preset: MediaPreset | null): StructuredPresetTextField[] {
   return ((preset?.input_schema_json as Array<Record<string, unknown>> | undefined) ?? [])
     .map((field) => ({
@@ -400,7 +419,7 @@ export function inferInputPattern(
   const lastFrameCount = attachments.filter(
     (attachment) => attachment.kind === "images" && attachment.role === "last_frame",
   ).length;
-  const patterns = new Set([...(model?.input_patterns ?? []), ...specInputPatterns(model)]);
+  const patterns = new Set(supportedModelInputPatterns(model));
 
   if (
     patterns.has("multimodal_reference") &&
