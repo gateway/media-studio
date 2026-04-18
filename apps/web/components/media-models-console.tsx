@@ -1456,8 +1456,8 @@ export function MediaModelsConsole({
         <div className="mt-4 max-w-[780px] text-sm leading-7 text-[var(--muted-strong)]">
           Everything below belongs to <span className="font-medium text-[var(--foreground)]">{selectedModel?.label ?? selectedModelKey}</span>, so you can review the model, decide how many outputs it can create at once, and tune how Enhance rewrites prompts for it.
         </div>
-        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] lg:items-start">
-          <div>
+        <div className="mt-5 grid gap-4">
+          <div className="grid gap-4">
             <div className="admin-icon-label-row admin-label-muted">
               <Sparkles className="size-3.5 text-[rgba(208,255,72,0.94)]" />
               Parameters
@@ -1491,76 +1491,76 @@ export function MediaModelsConsole({
                 <div className="px-3 py-3 text-sm leading-7 text-[var(--muted-strong)]">No published capability details.</div>
               )}
             </div>
-          </div>
-          <div className={surfaceCardClassName}>
-            <div className="admin-icon-label-row admin-label-muted">
-              <Clapperboard className="size-3.5" />
-              Queue Controls
-            </div>
-            <div className="admin-surface-inset mt-4 flex items-center justify-between gap-3 px-4 py-3">
-              <div className="grid gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="admin-label-muted">
-                    Availability
-                  </span>
-                  <StatusPill
-                    label={(currentQueuePolicy?.enabled ?? true) ? "Enabled" : "Disabled"}
-                    tone={(currentQueuePolicy?.enabled ?? true) ? "healthy" : "warning"}
-                  />
-                </div>
-                <div className="text-sm leading-6 text-[var(--muted-strong)]">
-                  Turn a model off to hide it from Studio and block new submissions without removing any saved history.
-                </div>
+            <div className={surfaceCardClassName}>
+              <div className="admin-icon-label-row admin-label-muted">
+                <Clapperboard className="size-3.5" />
+                Queue Controls
               </div>
-              <AdminToggle
-                checked={currentQueuePolicy?.enabled ?? true}
-                ariaLabel={`${(currentQueuePolicy?.enabled ?? true) ? "Disable" : "Enable"} ${selectedModel?.label ?? selectedModelKey}`}
-                onToggle={() => void saveModelAvailability(selectedModelKey, !(currentQueuePolicy?.enabled ?? true))}
-              />
-            </div>
-            <div className="mt-4 text-sm leading-6 text-[var(--muted-strong)]">
-              Set how many results this model can create in one run. Studio caps this at 10, and the queue will process any excess over the active runner slots as queued jobs.
-            </div>
-            <div className="mt-4 flex flex-nowrap items-end gap-3">
-              <AdminField label="Outputs per run" className="w-[156px] shrink-0">
-                <AdminInput
-                  type="number"
-                  min={1}
-                  max={STUDIO_NANO_MAX_OUTPUTS}
-                  step={1}
-                  value={String(
-                    currentQueuePolicy?.max_outputs_per_run ?? 1,
-                  )}
-                  onChange={(event) => {
-                    const nextValue = Math.min(
-                      Math.max(1, Number(event.target.value) || 1),
-                      STUDIO_NANO_MAX_OUTPUTS,
-                    );
-                    setLocalQueuePolicies((current) => {
-                      const next = current.filter((entry) => entry.model_key !== selectedModelKey);
-                      next.push({
-                        model_key: selectedModelKey,
-                        enabled: currentQueuePolicy?.enabled ?? true,
-                        max_outputs_per_run: nextValue,
-                        created_at: currentQueuePolicy?.created_at ?? null,
-                        updated_at: currentQueuePolicy?.updated_at ?? null,
-                      });
-                      return next.sort((left, right) => left.model_key.localeCompare(right.model_key));
-                    });
-                  }}
-                  className=""
+              <div className="admin-surface-inset mt-4 flex items-center justify-between gap-3 px-4 py-3">
+                <div className="grid gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="admin-label-muted">
+                      Availability
+                    </span>
+                    <StatusPill
+                      label={(currentQueuePolicy?.enabled ?? true) ? "Enabled" : "Disabled"}
+                      tone={(currentQueuePolicy?.enabled ?? true) ? "healthy" : "warning"}
+                    />
+                  </div>
+                  <div className="text-sm leading-6 text-[var(--muted-strong)]">
+                    Turn a model off to hide it from Studio and block new submissions without removing any saved history.
+                  </div>
+                </div>
+                <AdminToggle
+                  checked={currentQueuePolicy?.enabled ?? true}
+                  ariaLabel={`${(currentQueuePolicy?.enabled ?? true) ? "Disable" : "Enable"} ${selectedModel?.label ?? selectedModelKey}`}
+                  onToggle={() => void saveModelAvailability(selectedModelKey, !(currentQueuePolicy?.enabled ?? true))}
                 />
-              </AdminField>
-              <div className="shrink-0 pb-[1px]">
-                <AdminButton
-                  onClick={() =>
-                    void saveModelQueuePolicy(currentQueuePolicy?.max_outputs_per_run ?? 1)
-                  }
-                  disabled={isSaving}
-                  size="compact"
-                >
-                  Save
-                </AdminButton>
+              </div>
+              <div className="mt-4 text-sm leading-6 text-[var(--muted-strong)]">
+                Set how many results this model can create in one run. Studio caps this at 10, and the queue will process any excess over the active runner slots as queued jobs.
+              </div>
+              <div className="mt-4 flex flex-nowrap items-end gap-3">
+                <AdminField label="Outputs per run" className="w-[156px] shrink-0">
+                  <AdminInput
+                    type="number"
+                    min={1}
+                    max={STUDIO_NANO_MAX_OUTPUTS}
+                    step={1}
+                    value={String(
+                      currentQueuePolicy?.max_outputs_per_run ?? 1,
+                    )}
+                    onChange={(event) => {
+                      const nextValue = Math.min(
+                        Math.max(1, Number(event.target.value) || 1),
+                        STUDIO_NANO_MAX_OUTPUTS,
+                      );
+                      setLocalQueuePolicies((current) => {
+                        const next = current.filter((entry) => entry.model_key !== selectedModelKey);
+                        next.push({
+                          model_key: selectedModelKey,
+                          enabled: currentQueuePolicy?.enabled ?? true,
+                          max_outputs_per_run: nextValue,
+                          created_at: currentQueuePolicy?.created_at ?? null,
+                          updated_at: currentQueuePolicy?.updated_at ?? null,
+                        });
+                        return next.sort((left, right) => left.model_key.localeCompare(right.model_key));
+                      });
+                    }}
+                    className=""
+                  />
+                </AdminField>
+                <div className="shrink-0 pb-[1px]">
+                  <AdminButton
+                    onClick={() =>
+                      void saveModelQueuePolicy(currentQueuePolicy?.max_outputs_per_run ?? 1)
+                    }
+                    disabled={isSaving}
+                    size="compact"
+                  >
+                    Save
+                  </AdminButton>
+                </div>
               </div>
             </div>
           </div>

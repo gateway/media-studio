@@ -136,37 +136,37 @@ textarea {
 }
 
 .admin-surface-panel {
-  background-color: #2d3131;
+  background-color: #191b1b;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
 }
 
 .admin-surface-card {
-  background-color: #2d3131;
+  background-color: #191b1b;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
 }
 
 .admin-surface-inset {
-  background-color: #2d3131;
+  background-color: #191b1b;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
 }
 
 .admin-surface-compact {
-  background-color: #2d3131;
+  background-color: #191b1b;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
 }
 
 .admin-surface-dashed {
   border: 0;
-  border-radius: 0;
-  background-color: #202424;
+  border-radius: 10px;
+  background-color: #191b1b;
 }
 
 .admin-disclosure {
@@ -188,33 +188,33 @@ textarea {
 }
 
 .admin-status-pill {
-  border-radius: 0;
+  border-radius: 10px;
 }
 
 .admin-code-block {
-  background-color: #202424;
+  background-color: #191b1b;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
 }
 
 .admin-icon-frame {
-  background-color: #202424;
+  background-color: #191b1b;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
 }
 
 .admin-danger-callout {
   background-color: rgba(175, 79, 64, 0.08);
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
 }
 
 .admin-preview-frame {
-  background-color: #202424;
+  background-color: #191b1b;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
 }
 
@@ -267,7 +267,7 @@ textarea {
 
 .admin-live-notice {
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
   box-shadow: none;
@@ -299,9 +299,9 @@ textarea {
 }
 
 .admin-surface-accent {
-  background-color: #2d3131;
+  background-color: #212525;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
 }
 
@@ -323,18 +323,18 @@ textarea {
 }
 
 .admin-empty-state {
-  background-color: #202424;
+  background-color: #191b1b;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
   padding: 1rem;
   color: var(--muted-strong);
 }
 
 .admin-summary-card {
-  background-color: #202424;
+  background-color: #191b1b;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
   padding: 0.75rem;
 }
@@ -342,9 +342,9 @@ textarea {
 .admin-dropzone {
   display: grid;
   gap: 0.75rem;
-  background-color: #202424;
+  background-color: #191b1b;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   padding: 1rem;
   font-size: 0.875rem;
   color: var(--muted-strong);
