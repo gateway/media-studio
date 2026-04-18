@@ -20,13 +20,13 @@ export const adminDangerButtonClassName =
   buttonClassName({ appearance: "admin", variant: "danger" });
 
 export const adminInsetCardClassName =
-  "rounded-[20px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 p-4";
+  "rounded-[16px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)] p-4";
 
 export const adminInsetPanelClassName =
-  "rounded-[24px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 p-5";
+  "rounded-[18px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)] p-4";
 
 export const adminDashedCardClassName =
-  "rounded-[18px] border border-dashed border-[var(--surface-border)] px-4 py-5 text-sm text-[var(--muted-strong)]";
+  "rounded-[16px] border border-dashed border-[var(--surface-border-soft)] px-4 py-5 text-sm text-[var(--muted-strong)]";
 
 type AdminButtonVariant = "primary" | "subtle" | "danger";
 type AdminButtonSize = "default" | "compact";
