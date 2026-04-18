@@ -41,11 +41,11 @@ function StepCard({
             <p className="mt-2 text-sm leading-7 text-[var(--muted-strong)]">{description}</p>
           </div>
         </div>
-        <div className="rounded-full border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 p-3 text-[var(--accent-strong)]">
+        <div className="admin-icon-frame p-3 text-[var(--accent-strong)]">
           {icon}
         </div>
       </div>
-      <div className="mt-4 rounded-[20px] border border-dashed border-[var(--surface-border)] px-4 py-3 text-sm leading-6 text-[var(--muted-strong)]">
+      <div className="admin-surface-dashed mt-4 px-4 py-3 text-sm leading-6 text-[var(--muted-strong)]">
         {detail}
       </div>
     </div>
@@ -64,7 +64,7 @@ function StatusRow({
   detail: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 rounded-[18px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-4 py-4">
+    <div className="admin-surface-inset flex items-start justify-between gap-4 px-4 py-4">
       <div>
         <div className="text-sm font-semibold text-[var(--foreground)]">{label}</div>
         <div className="mt-1 text-sm leading-6 text-[var(--muted-strong)]">{detail}</div>
@@ -145,7 +145,7 @@ export default async function SetupPage() {
         </section>
 
         <section className={adminSurfaceCardClassName}>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--surface-border-soft)] bg-[rgba(208,255,72,0.08)] px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
+          <div className="admin-status-pill inline-flex items-center gap-2 border border-[var(--surface-border-soft)] bg-[rgba(208,255,72,0.08)] px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
             <Sparkles className="size-4" />
             Quick Start
           </div>
@@ -159,17 +159,17 @@ export default async function SetupPage() {
             </p>
           </div>
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-[20px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 p-4">
+            <div className="admin-surface-inset p-4">
               <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">macOS</div>
-              <pre className="mt-3 overflow-x-auto rounded-[16px] border border-[var(--surface-border-soft)] bg-[#0b0e0d] p-4 text-sm leading-7 text-[var(--foreground)]">
+              <pre className="admin-code-block mt-3 overflow-x-auto p-4 text-sm leading-7 text-[var(--foreground)]">
 {`git clone https://github.com/gateway/media-studio.git
 cd media-studio
 ./scripts/onboard_mac.sh`}
               </pre>
             </div>
-            <div className="rounded-[20px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 p-4">
+            <div className="admin-surface-inset p-4">
               <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">Windows</div>
-              <pre className="mt-3 overflow-x-auto rounded-[16px] border border-[var(--surface-border-soft)] bg-[#0b0e0d] p-4 text-sm leading-7 text-[var(--foreground)]">
+              <pre className="admin-code-block mt-3 overflow-x-auto p-4 text-sm leading-7 text-[var(--foreground)]">
 {`git clone https://github.com/gateway/media-studio.git
 cd media-studio
 powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
@@ -269,7 +269,7 @@ powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
             <div className="mt-4 text-sm leading-7 text-[var(--muted-strong)]">
               Start the app with:
             </div>
-            <pre className="mt-3 overflow-x-auto rounded-[16px] border border-[var(--surface-border-soft)] bg-[#0b0e0d] p-4 text-sm leading-7 text-[var(--foreground)]">
+            <pre className="admin-code-block mt-3 overflow-x-auto p-4 text-sm leading-7 text-[var(--foreground)]">
 {`Start Media Studio.command
 Stop Media Studio.command`}
             </pre>

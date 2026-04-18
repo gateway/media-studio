@@ -171,10 +171,59 @@ textarea {
   background-color: #202424;
 }
 
+.admin-disclosure {
+  background-color: #202424;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.admin-subsection {
+  background-color: #202424;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.admin-status-pill {
+  border-radius: 0;
+}
+
+.admin-code-block {
+  background-color: #202424;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.admin-icon-frame {
+  background-color: #202424;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.admin-danger-callout {
+  background-color: rgba(175, 79, 64, 0.08);
+  border: 0;
+  border-radius: 0;
+}
+
+.admin-preview-frame {
+  background-color: #202424;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.admin-button {
+  border-radius: 0;
+}
+
 .admin-input {
   width: 100%;
   border: 0;
-  border-radius: 0;
+  border-radius: 18px;
   background-color: #202424;
   padding: 0.75rem 1rem;
   color: #f7f6f0;
@@ -193,7 +242,7 @@ textarea {
 .admin-textarea {
   width: 100%;
   border: 0;
-  border-radius: 0;
+  border-radius: 18px;
   background-color: #202424;
   padding: 0.75rem 1rem;
   color: #f7f6f0;

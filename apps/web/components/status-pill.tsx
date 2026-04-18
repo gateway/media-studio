@@ -17,7 +17,7 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em]",
+        "admin-status-pill inline-flex items-center border px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em]",
         styles[tone],
       )}
     >

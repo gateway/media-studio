@@ -513,10 +513,10 @@ export function MediaModelsConsole({
   const optionBadges = useMemo(() => modelOptionPills(selectedModel), [selectedModel]);
   const rootClassName = isStudio ? adminThemeLayoutOverflowClassName : adminThemeLayoutClassName;
   const modelPanelClassName = "border-white/10 bg-[linear-gradient(180deg,rgba(24,28,26,0.96),rgba(14,17,16,0.98))]";
-  const surfaceCardClassName = "rounded-[22px] border border-white/8 bg-[rgba(11,14,13,0.92)] p-5";
-  const accentCardClassName = "rounded-[24px] border border-white/10 bg-[rgba(11,14,13,0.94)] p-5";
+  const surfaceCardClassName = "admin-surface-card p-5";
+  const accentCardClassName = "admin-surface-panel p-5";
   const softAccentCardClassName =
-    "rounded-[22px] border border-white/10 bg-[rgba(255,255,255,0.05)] px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]";
+    "admin-surface-inset px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]";
   const toggleOffClassName = "border-white/10 bg-[rgba(255,255,255,0.04)] text-white/68";
   const toggleOnClassName = "border-[rgba(208,255,72,0.28)] bg-[rgba(208,255,72,0.12)] text-[rgba(208,255,72,0.94)]";
 
@@ -943,7 +943,7 @@ export function MediaModelsConsole({
       {message ? (
         <div
           className={cn(
-            "sr-only rounded-[20px] border px-4 py-3 text-sm shadow-[var(--shadow-soft)]",
+            "sr-only border px-4 py-3 text-sm shadow-[var(--shadow-soft)]",
             message.tone === "healthy"
               ? "border-[rgba(81,136,111,0.18)] bg-[rgba(81,136,111,0.08)] text-[var(--success)]"
               : "border-[rgba(175,79,64,0.18)] bg-[rgba(175,79,64,0.08)] text-[var(--danger)]",
@@ -967,13 +967,13 @@ export function MediaModelsConsole({
             tone="media"
             defaultOpen={false}
             badge={<StatusPill label={localQueueSettings?.queue_enabled ? "Running" : "Paused"} tone={localQueueSettings?.queue_enabled ? "healthy" : "warning"} />}
-            className="border-white/8 bg-[rgba(12,15,14,0.94)] px-5 py-5"
+            className="px-5 py-5"
             summaryClassName="flex-col items-start gap-3 sm:flex-row sm:items-start"
             titleClassName="flex items-center gap-2 text-[0.72rem] tracking-[0.14em]"
             descriptionClassName="max-w-[760px]"
             bodyClassName="grid max-w-[760px] gap-3 border-t border-[var(--surface-border-soft)] pt-5"
           >
-            <label className="flex max-w-[280px] items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
+            <label className="admin-surface-inset flex max-w-[280px] items-center justify-between gap-3 px-3 py-3 text-sm">
               <span className="font-medium text-[var(--foreground)]">Run jobs automatically</span>
               <AdminToggle
                 checked={localQueueSettings?.queue_enabled ?? true}
@@ -1099,7 +1099,7 @@ export function MediaModelsConsole({
               description="Pick the provider and model that powers prompt enhancement across Studio."
               tone="media"
               defaultOpen={false}
-              className="px-5 py-5 border-white/8 bg-[rgba(12,15,14,0.94)]"
+              className="px-5 py-5"
               summaryClassName="flex-col items-start gap-3 sm:flex-row sm:items-center"
               titleClassName="text-[0.78rem] tracking-[0.16em]"
               descriptionClassName="max-w-3xl"
@@ -1121,7 +1121,7 @@ export function MediaModelsConsole({
               </div>
               <div className="mt-4 grid gap-3">
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,280px)_minmax(0,320px)] lg:items-start">
-                  <label className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
+                  <label className="admin-surface-inset flex items-center justify-between gap-3 px-3 py-3 text-sm">
                     <span>Enable Enhance</span>
                     <AdminToggle
                       checked={enhancementForm.status !== "inactive"}
@@ -1403,7 +1403,7 @@ export function MediaModelsConsole({
                 tone={disabledModelCount > 0 ? "warning" : "healthy"}
               />
             }
-            className="border-white/8 bg-[rgba(12,15,14,0.94)] px-5 py-5"
+            className="px-5 py-5"
             summaryClassName="flex-col items-start gap-3 sm:flex-row sm:items-start"
             titleClassName="flex items-center gap-2 text-[0.72rem] tracking-[0.14em]"
             descriptionClassName="max-w-[760px]"
@@ -1413,7 +1413,7 @@ export function MediaModelsConsole({
               {modelAvailabilityRows.map(({ model, enabled }) => (
                 <div
                   key={`availability-${model.key}`}
-                  className="flex items-center justify-between gap-4 rounded-[18px] border border-white/8 bg-[rgba(11,14,13,0.94)] px-4 py-4"
+                  className="admin-surface-inset flex items-center justify-between gap-4 px-4 py-4"
                 >
                   <div className="min-w-0 grid gap-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1499,7 +1499,7 @@ export function MediaModelsConsole({
               <Clapperboard className="size-3.5" />
               Queue Controls
             </div>
-            <div className="mt-4 flex items-center justify-between gap-3 rounded-[18px] border border-white/8 bg-white/[0.03] px-4 py-3">
+            <div className="admin-surface-inset mt-4 flex items-center justify-between gap-3 px-4 py-3">
               <div className="grid gap-1">
                 <div className="flex items-center gap-2">
                   <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
@@ -1583,7 +1583,7 @@ export function MediaModelsConsole({
             description="Use this section to teach Enhance how prompts should be rewritten for this model so the final prompt matches how the model performs best."
             tone="media"
             defaultOpen={false}
-            className="px-5 py-5 border-white/8 bg-[rgba(12,15,14,0.94)]"
+            className="px-5 py-5"
             summaryClassName="flex-col items-start gap-3 sm:flex-row sm:items-center"
             titleClassName="text-[0.78rem] tracking-[0.16em]"
             descriptionClassName="max-w-3xl"
@@ -1614,7 +1614,7 @@ export function MediaModelsConsole({
               />
             </div>
             <div className="mt-4 grid max-w-[860px] gap-3 lg:grid-cols-2">
-              <label className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
+              <label className="admin-surface-inset flex items-center justify-between gap-3 px-3 py-3 text-sm">
                 <span>Rewrite prompts for this model</span>
                 <AdminToggle
                   checked={enhancementProfileForm.supportsTextEnhancement}
@@ -1627,7 +1627,7 @@ export function MediaModelsConsole({
                   }
                 />
               </label>
-              <label className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-3 py-3 text-sm">
+              <label className="admin-surface-inset flex items-center justify-between gap-3 px-3 py-3 text-sm">
                 <span>Use attached images to guide enhancement</span>
                 <AdminToggle
                   checked={enhancementProfileForm.supportsImageAnalysis}
@@ -1703,7 +1703,7 @@ export function MediaModelsConsole({
                   defaultOpen={expandedPresetId === preset.preset_id}
                   open={expandedPresetId === preset.preset_id}
                   onOpenChange={(open) => setExpandedPresetId(open ? preset.preset_id : null)}
-                  className="px-4 py-4 border-white/8 bg-[rgba(12,15,14,0.94)]"
+                  className="px-4 py-4"
                   summaryClassName="flex-col items-start gap-3 sm:flex-row sm:items-start"
                   titleClassName="text-[0.88rem] tracking-[0.06em] normal-case text-[var(--foreground)]"
                   descriptionClassName="max-w-3xl"
@@ -1717,7 +1717,7 @@ export function MediaModelsConsole({
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
                     <div className="grid gap-3">
                       {presetThumbnailVisual(preset) ? (
-                        <div className="h-28 w-28 overflow-hidden rounded-[18px] border border-white/10 bg-[rgba(255,255,255,0.05)]">
+                        <div className="admin-preview-frame h-28 w-28 overflow-hidden">
                           <img src={presetThumbnailVisual(preset) ?? ""} alt={preset.label} className="h-full w-full object-cover" />
                         </div>
                       ) : null}
@@ -1750,7 +1750,7 @@ export function MediaModelsConsole({
                             {preset.input_schema_json.map((field, index) => {
                               const item = field as Record<string, unknown>;
                               return (
-                                <div key={`${preset.preset_id}-field-${String(item.key ?? index)}`} className="rounded-[14px] border border-white/8 bg-[rgba(255,255,255,0.03)] px-3 py-2.5 text-sm leading-6">
+                                <div key={`${preset.preset_id}-field-${String(item.key ?? index)}`} className="admin-surface-inset px-3 py-2.5 text-sm leading-6">
                                   <div className="text-[var(--foreground)]">{String(item.label ?? item.key ?? `Field ${index + 1}`)}</div>
                                   <div className="text-[var(--muted-strong)]">{presetFieldKeyToken(String(item.key ?? ""))}</div>
                                 </div>
@@ -1766,7 +1766,7 @@ export function MediaModelsConsole({
                             {preset.input_slots_json.map((slot, index) => {
                               const item = slot as Record<string, unknown>;
                               return (
-                                <div key={`${preset.preset_id}-slot-${String(item.key ?? index)}`} className="rounded-[14px] border border-white/8 bg-[rgba(255,255,255,0.03)] px-3 py-2.5 text-sm leading-6">
+                                <div key={`${preset.preset_id}-slot-${String(item.key ?? index)}`} className="admin-surface-inset px-3 py-2.5 text-sm leading-6">
                                   <div className="text-[var(--foreground)]">{String(item.label ?? item.key ?? `Slot ${index + 1}`)}</div>
                                   <div className="text-[var(--muted-strong)]">{presetSlotKeyToken(String(item.key ?? ""))}</div>
                                 </div>
@@ -1777,7 +1777,7 @@ export function MediaModelsConsole({
                       ) : null}
                       <div className="grid gap-2">
                         <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">Prompt template</div>
-                        <pre className="whitespace-pre-wrap rounded-[18px] border border-white/8 bg-[rgba(255,255,255,0.04)] px-3 py-3 text-xs leading-6 text-[var(--muted-strong)]">
+                        <pre className="admin-code-block whitespace-pre-wrap px-3 py-3 text-xs leading-6 text-[var(--muted-strong)]">
                           {preset.prompt_template || "No prompt configured yet."}
                         </pre>
                       </div>
@@ -1786,7 +1786,7 @@ export function MediaModelsConsole({
                 </CollapsibleSubsection>
               ))
             ) : (
-              <div className="rounded-[22px] border border-dashed border-white/10 bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]">
+              <div className="admin-surface-dashed px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]">
                 No structured presets have been added yet.
               </div>
             )}

@@ -60,7 +60,7 @@ export function SectionDisclosure({
       open={resolvedOpen}
       onToggle={(event) => updateOpenState(event.currentTarget.open)}
       className={cn(
-        "group rounded-[30px] border border-[var(--surface-border)] bg-[color:var(--surface)]/92 px-5 py-5 shadow-[var(--shadow-soft)]",
+        "admin-disclosure group px-5 py-5",
         className,
       )}
     >
@@ -119,10 +119,10 @@ export function CollapsibleSubsection({
       open={resolvedOpen}
       onToggle={(event) => updateOpenState(event.currentTarget.open)}
       className={cn(
-        "group rounded-[24px] px-4 py-4",
+        "admin-subsection group px-4 py-4",
         tone === "media"
-          ? "border border-white/10 bg-[rgba(12,15,14,0.94)]"
-          : "border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82",
+          ? ""
+          : "",
         className,
       )}
     >

@@ -222,7 +222,7 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
                       }}
                       disabled={!canOpenLightbox}
                       className={cn(
-                        "overflow-hidden rounded-[18px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 transition",
+                        "admin-preview-frame overflow-hidden transition",
                         canOpenLightbox ? "hover:border-white/16 hover:bg-[color:var(--surface-muted)]" : "cursor-default opacity-80",
                       )}
                       title={canOpenLightbox ? `Open output ${job.batch_index ?? 1}` : `Output ${job.batch_index ?? 1}`}
@@ -260,7 +260,7 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
                       {formatDateTime(job.updated_at)}
                     </div>
                   </div>
-                  <div className="mt-3 rounded-[14px] border border-[rgba(175,79,64,0.18)] bg-[rgba(175,79,64,0.08)] px-3 py-2 text-sm text-[var(--danger)]">
+                  <div className="admin-danger-callout mt-3 px-3 py-2 text-sm text-[var(--danger)]">
                     {job.error}
                   </div>
                 </div>

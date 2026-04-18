@@ -256,7 +256,7 @@ export default async function PricingPage() {
             </div>
           </div>
           {pricing?.notes?.length ? (
-            <div className="mt-4 rounded-[20px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]">
+            <div className="admin-surface-inset mt-4 px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]">
               {pricing.notes[0]}
             </div>
           ) : null}
@@ -320,17 +320,17 @@ export default async function PricingPage() {
                   <div className="mt-4 grid gap-2 text-sm leading-7 text-[var(--muted-strong)]">
                     {[...multiplierRows, ...creditAdders, ...usdAdders].length ? (
                       [...multiplierRows, ...creditAdders, ...usdAdders].map((line) => (
-                        <div key={line} className="rounded-[16px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-3 py-2">
+                        <div key={line} className="admin-surface-inset px-3 py-2">
                           {line}
                         </div>
                       ))
                     ) : (
-                      <div className="rounded-[16px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-3 py-2">
+                      <div className="admin-surface-inset px-3 py-2">
                         No option adjustments recorded for this rule.
                       </div>
                     )}
                     {notes.length ? (
-                      <div className="rounded-[16px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-3 py-2">
+                      <div className="admin-surface-inset px-3 py-2">
                         {notes[0]}
                       </div>
                     ) : null}
@@ -343,7 +343,7 @@ export default async function PricingPage() {
                         {scenarioRows.map((row) => (
                           <div
                             key={row.key}
-                            className="grid gap-2 rounded-[16px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-3 py-3 text-sm text-[var(--muted-strong)] md:grid-cols-[minmax(0,1fr)_140px_140px]"
+                            className="admin-surface-inset grid gap-2 px-3 py-3 text-sm text-[var(--muted-strong)] md:grid-cols-[minmax(0,1fr)_140px_140px]"
                           >
                             <div className="font-medium text-[var(--foreground)]">{row.label}</div>
                             <div>

@@ -198,7 +198,7 @@ export default async function JobsPage({
                 </div>
               </div>
               {healthData?.issues?.length ? (
-                <div className="rounded-[16px] border border-[rgba(175,79,64,0.18)] bg-[rgba(175,79,64,0.08)] px-3 py-3 text-sm text-[var(--danger)]">
+                <div className="admin-danger-callout px-3 py-3 text-sm text-[var(--danger)]">
                   {healthData.issues[0]}
                 </div>
               ) : null}
