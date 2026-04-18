@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { AdminActionNotice } from "@/components/admin-action-notice";
+import { AdminButton, AdminInput, AdminTextarea } from "@/components/admin-controls";
 import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
@@ -219,29 +220,29 @@ export function MediaPromptsConsole({ models, prompts }: MediaPromptsConsoleProp
           />
           <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="grid gap-3">
-              <input
+              <AdminInput
                 value={formState.key}
                 onChange={(event) => setFormState((current) => ({ ...current, key: event.target.value }))}
                 placeholder="Prompt key"
-                className="rounded-[16px] border border-[var(--surface-border)] bg-white px-3 py-3 text-sm"
+                className="text-sm"
               />
-              <input
+              <AdminInput
                 value={formState.label}
                 onChange={(event) => setFormState((current) => ({ ...current, label: event.target.value }))}
                 placeholder="Prompt label"
-                className="rounded-[16px] border border-[var(--surface-border)] bg-white px-3 py-3 text-sm"
+                className="text-sm"
               />
-              <input
+              <AdminInput
                 value={formState.description}
                 onChange={(event) => setFormState((current) => ({ ...current, description: event.target.value }))}
                 placeholder="Short description"
-                className="rounded-[16px] border border-[var(--surface-border)] bg-white px-3 py-3 text-sm"
+                className="text-sm"
               />
               <div className="grid gap-3 sm:grid-cols-2">
                 <select
                   value={formState.status}
                   onChange={(event) => setFormState((current) => ({ ...current, status: event.target.value }))}
-                  className="rounded-[16px] border border-[var(--surface-border)] bg-white px-3 py-3 text-sm"
+                  className="admin-form-control h-12 px-3 text-sm"
                 >
                   <option value="active">active</option>
                   <option value="inactive">inactive</option>
@@ -250,7 +251,7 @@ export function MediaPromptsConsole({ models, prompts }: MediaPromptsConsoleProp
                 <select
                   value={formState.roleTag}
                   onChange={(event) => setFormState((current) => ({ ...current, roleTag: event.target.value }))}
-                  className="rounded-[16px] border border-[var(--surface-border)] bg-white px-3 py-3 text-sm"
+                  className="admin-form-control h-12 px-3 text-sm"
                 >
                   <option value="general">general</option>
                   <option value="first_frame">first_frame</option>
@@ -259,55 +260,43 @@ export function MediaPromptsConsole({ models, prompts }: MediaPromptsConsoleProp
                   <option value="motion_control">motion_control</option>
                 </select>
               </div>
-              <textarea
+              <AdminTextarea
                 value={formState.content}
                 onChange={(event) => setFormState((current) => ({ ...current, content: event.target.value }))}
                 placeholder="Prompt content"
-                className="min-h-[220px] rounded-[16px] border border-[var(--surface-border)] bg-white px-3 py-3 text-sm leading-7"
+                className="min-h-[220px] text-sm leading-7"
               />
-              <input
+              <AdminInput
                 value={formState.appliesToTaskModes}
                 onChange={(event) => setFormState((current) => ({ ...current, appliesToTaskModes: event.target.value }))}
                 placeholder="Task modes CSV"
-                className="rounded-[16px] border border-[var(--surface-border)] bg-white px-3 py-3 text-sm"
+                className="text-sm"
               />
-              <input
+              <AdminInput
                 value={formState.appliesToInputPatterns}
                 onChange={(event) =>
                   setFormState((current) => ({ ...current, appliesToInputPatterns: event.target.value }))
                 }
                 placeholder="Input patterns CSV"
-                className="rounded-[16px] border border-[var(--surface-border)] bg-white px-3 py-3 text-sm"
+                className="text-sm"
               />
-              <textarea
+              <AdminTextarea
                 value={formState.notes}
                 onChange={(event) => setFormState((current) => ({ ...current, notes: event.target.value }))}
                 placeholder="Operator notes"
-                className="min-h-[90px] rounded-[16px] border border-[var(--surface-border)] bg-white px-3 py-3 text-sm"
+                className="min-h-[90px] text-sm"
               />
               <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => void savePrompt()}
-                  className="rounded-full bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 py-3 text-sm font-semibold text-[#162400]"
-                >
+                <AdminButton type="button" onClick={() => void savePrompt()}>
                   {formState.promptId ? "Save prompt" : "Create prompt"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => resetPromptForm()}
-                  className="rounded-full border border-[var(--surface-border)] bg-white px-4 py-3 text-sm font-semibold text-[var(--foreground)]"
-                >
+                </AdminButton>
+                <AdminButton type="button" variant="subtle" onClick={() => resetPromptForm()}>
                   Reset
-                </button>
+                </AdminButton>
                 {formState.promptId ? (
-                  <button
-                    type="button"
-                    onClick={() => void archivePrompt(formState.promptId as string)}
-                    className="rounded-full border border-[rgba(175,79,64,0.18)] bg-white px-4 py-3 text-sm font-semibold text-[var(--danger)]"
-                  >
+                  <AdminButton type="button" variant="danger" onClick={() => void archivePrompt(formState.promptId as string)}>
                     Archive
-                  </button>
+                  </AdminButton>
                 ) : null}
               </div>
               {isRefreshing ? (

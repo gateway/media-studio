@@ -60,7 +60,7 @@ export function SectionDisclosure({
       open={resolvedOpen}
       onToggle={(event) => updateOpenState(event.currentTarget.open)}
       className={cn(
-        "admin-disclosure group px-5 py-5",
+        "admin-disclosure group w-full min-w-0 px-5 py-5",
         className,
       )}
     >
@@ -119,7 +119,7 @@ export function CollapsibleSubsection({
       open={resolvedOpen}
       onToggle={(event) => updateOpenState(event.currentTarget.open)}
       className={cn(
-        "admin-subsection group px-4 py-4",
+        "admin-subsection group w-full min-w-0 px-4 py-4",
         tone === "media"
           ? ""
           : "",

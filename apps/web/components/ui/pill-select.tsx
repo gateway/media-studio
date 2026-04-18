@@ -13,13 +13,13 @@ export type PillSelectChoice = {
 
 export function pillSelectButtonClassName(appearance: "admin" | "studio") {
   return appearance === "admin"
-    ? "flex h-12 w-full items-center gap-3 rounded-[18px] border border-[var(--ui-action-subtle-border)] bg-[var(--ui-action-subtle-surface)] pl-3.5 pr-3.5 text-left text-[0.82rem] font-semibold text-[var(--ui-action-subtle-text-hover)] transition hover:border-[var(--ui-action-subtle-border-hover)]"
+    ? "admin-form-control admin-select-trigger"
     : "flex h-[41px] w-full items-center gap-2.5 rounded-[16px] border border-[var(--ms-action-subtle-border)] bg-[var(--ms-action-subtle-surface)] px-3 text-left text-[0.74rem] font-semibold tracking-[0.01em] text-[var(--ms-action-subtle-text-hover)] transition hover:border-[var(--ms-action-warning-border)]";
 }
 
 function pillSelectMenuClassName(appearance: "admin" | "studio") {
   return appearance === "admin"
-    ? "scrollbar-none absolute left-0 z-30 w-full overflow-auto rounded-[20px] border border-[var(--ui-action-subtle-border)] bg-[rgba(17,20,19,0.98)] p-2 shadow-[var(--ui-shadow-overlay)] backdrop-blur-xl"
+    ? "admin-select-menu scrollbar-none"
     : "scrollbar-none absolute left-0 z-30 min-w-full w-max max-w-[28rem] overflow-auto rounded-[18px] border border-[var(--ms-action-subtle-border)] bg-[rgba(17,20,19,0.98)] p-2 shadow-[var(--ms-shadow-overlay)] backdrop-blur-xl";
 }
 
@@ -217,7 +217,7 @@ export function PillSelect({
                     className={cn(
                       appearance === "studio"
                         ? "flex items-center gap-2 rounded-[12px] px-2.5 py-2.5 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white"
-                        : "rounded-[14px] px-3 py-2.5 text-left text-[0.82rem] font-medium text-white/84 transition hover:bg-white/[0.08] hover:text-white",
+                        : "admin-select-option",
                     )}
                   >
                     {appearance === "studio" && ChoiceIcon ? (

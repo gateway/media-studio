@@ -136,28 +136,28 @@ textarea {
 }
 
 .admin-surface-panel {
-  background-color: #202424;
+  background-color: #2d3131;
   border: 0;
   border-radius: 0;
   box-shadow: none;
 }
 
 .admin-surface-card {
-  background-color: #202424;
+  background-color: #2d3131;
   border: 0;
   border-radius: 0;
   box-shadow: none;
 }
 
 .admin-surface-inset {
-  background-color: #202424;
+  background-color: #2d3131;
   border: 0;
   border-radius: 0;
   box-shadow: none;
 }
 
 .admin-surface-compact {
-  background-color: #202424;
+  background-color: #2d3131;
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -170,14 +170,18 @@ textarea {
 }
 
 .admin-disclosure {
-  background-color: #202424;
+  width: 100%;
+  min-width: 0;
+  background-color: #141616;
   border: 0;
   border-radius: 0;
   box-shadow: none;
 }
 
 .admin-subsection {
-  background-color: #202424;
+  width: 100%;
+  min-width: 0;
+  background-color: #141616;
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -215,7 +219,8 @@ textarea {
 }
 
 .admin-button {
-  border-radius: 0;
+  border-radius: 12px;
+  box-shadow: none;
 }
 
 .admin-label-muted {
@@ -294,14 +299,14 @@ textarea {
 }
 
 .admin-surface-accent {
-  background-color: #202424;
+  background-color: #2d3131;
   border: 0;
   border-radius: 0;
   box-shadow: none;
 }
 
 .admin-toggle-row {
-  background-color: #202424;
+  background-color: #1b1d1d;
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -345,7 +350,7 @@ textarea {
   width: 100%;
   border: 0;
   border-radius: 18px;
-  background-color: #202424;
+  background-color: #151818;
   padding: 0.75rem 1rem;
   color: #f7f6f0;
   outline: none;
@@ -364,7 +369,7 @@ textarea {
   width: 100%;
   border: 0;
   border-radius: 18px;
-  background-color: #202424;
+  background-color: #151818;
   padding: 0.75rem 1rem;
   color: #f7f6f0;
   outline: none;
@@ -377,4 +382,57 @@ textarea {
 
 .admin-textarea:focus {
   box-shadow: inset 0 0 0 1px rgba(208, 255, 72, 0.24);
+}
+
+.admin-form-control {
+  width: 100%;
+  border: 0;
+  border-radius: 18px;
+  background-color: #151818;
+  color: #f7f6f0;
+  box-shadow: none;
+}
+
+.admin-form-control:focus-visible {
+  box-shadow: inset 0 0 0 1px rgba(208, 255, 72, 0.24);
+}
+
+.admin-select-trigger {
+  display: flex;
+  height: 3rem;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  padding-left: 0.875rem;
+  padding-right: 0.875rem;
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.admin-select-menu {
+  position: absolute;
+  left: 0;
+  z-index: 30;
+  width: 100%;
+  overflow: auto;
+  background-color: #151818;
+  padding: 0.5rem;
+  box-shadow: var(--ui-shadow-overlay);
+  backdrop-filter: blur(20px);
+}
+
+.admin-select-option {
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: rgba(247, 246, 240, 0.84);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.admin-select-option:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #f7f6f0;
 }
