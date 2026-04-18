@@ -26,6 +26,7 @@ import {
   mediaThumbnailUrl,
   modelSupportsFirstLastFrames,
   modelSupportsImageDrivenInputs,
+  modelSupportsMotionControl,
   modelInputLimit,
   MULTI_SHOT_MODEL_KEYS,
   normalizeStructuredPresetImageSlots,
@@ -561,6 +562,7 @@ export function useStudioComposer({
   const inputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
   const modelHasImageDrivenInputs = modelSupportsImageDrivenInputs(currentModel);
   const modelHasFirstLastFrameInputs = modelSupportsFirstLastFrames(currentModel);
+  const modelHasMotionControlInputs = modelSupportsMotionControl(currentModel);
   const maxImageInputs = modelHasImageDrivenInputs ? rawMaxImageInputs : 0;
   const explicitVideoImageSlots =
     !structuredPresetActive &&
@@ -568,6 +570,13 @@ export function useStudioComposer({
     maxImageInputs > 0 &&
     maxImageInputs <= 2 &&
     maxVideoInputs === 0 &&
+    maxAudioInputs === 0;
+  const explicitMotionControlSlots =
+    !structuredPresetActive &&
+    currentModel?.generation_kind === "video" &&
+    modelHasMotionControlInputs &&
+    maxImageInputs === 1 &&
+    maxVideoInputs === 1 &&
     maxAudioInputs === 0;
   const orderedImageInputs = useMemo(
     () => buildOrderedImageInputs(currentSourceAsset, imageAttachments, sourceAssetIsImage),
@@ -1726,6 +1735,7 @@ export function useStudioComposer({
       canOpenReferenceLibrary,
       inputPattern,
       explicitVideoImageSlots,
+      explicitMotionControlSlots,
       visibleExplicitVideoImageSlots,
       orderedImageInputs,
       multiShotsEnabled,
@@ -1756,6 +1766,7 @@ export function useStudioComposer({
       canAddMoreVideos,
       canAddMoreAudios,
       modelHasFirstLastFrameInputs,
+      modelHasMotionControlInputs,
       seedanceFirstFrameAttachment,
       seedanceLastFrameAttachment,
       seedanceReferenceImages,

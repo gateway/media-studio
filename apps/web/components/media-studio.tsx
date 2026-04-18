@@ -497,6 +497,7 @@ export function MediaStudio({
     structuredPresetActive,
     canOpenReferenceLibrary,
     explicitVideoImageSlots,
+    explicitMotionControlSlots,
     visibleExplicitVideoImageSlots,
     orderedImageInputs,
     multiShotsEnabled,
@@ -524,6 +525,7 @@ export function MediaStudio({
     canAddMoreVideos,
     canAddMoreAudios,
     modelHasFirstLastFrameInputs,
+    modelHasMotionControlInputs,
     seedanceFirstFrameAttachment,
     seedanceLastFrameAttachment,
     seedanceReferenceImages,
@@ -1053,11 +1055,27 @@ export function MediaStudio({
     !dedicatedImageReferenceRailActive &&
     !seedanceComposer &&
     !explicitVideoImageSlots &&
+    !explicitMotionControlSlots &&
     (maxImageInputs > 0 || maxVideoInputs > 0 || maxAudioInputs > 0);
   const genericSourceAddTileVisible = canAddMoreImages || canAddMoreVideos || canAddMoreAudios;
+  const motionControlImageInput = orderedImageInputs[0] ?? null;
+  const motionControlImagePreview = orderedImageInputPreview(motionControlImageInput, "Image input", "motion-control-image");
+  const motionControlImageVisual = orderedImageInputVisual(motionControlImageInput);
+  const motionControlVideoAsset = currentSourceAsset?.generation_kind === "video" ? currentSourceAsset : null;
+  const motionControlVideoAttachment =
+    motionControlVideoAsset ? null : attachments.find((attachment) => attachment.kind === "videos") ?? null;
+  const motionControlVideoPreview = motionControlVideoAsset
+    ? buildAssetReferencePreview(motionControlVideoAsset, "Driving video")
+    : buildAttachmentPreview(motionControlVideoAttachment, "Driving video", "motion-control-video");
+  const motionControlVideoVisual = motionControlVideoAsset
+    ? mediaThumbnailUrl(motionControlVideoAsset) ?? mediaDisplayUrl(motionControlVideoAsset)
+    : motionControlVideoAttachment?.previewUrl ??
+      motionControlVideoAttachment?.referenceRecord?.thumb_url ??
+      motionControlVideoAttachment?.referenceRecord?.stored_url ??
+      null;
   const sourceAttachmentStrip = !structuredPresetActive &&
     !dedicatedImageReferenceRailActive &&
-    (seedanceComposer || explicitVideoImageSlots || genericSourceInputsAvailable) ? (
+    (seedanceComposer || explicitVideoImageSlots || explicitMotionControlSlots || genericSourceInputsAvailable) ? (
     <div className="flex flex-wrap gap-3">
       {seedanceComposer ? (
         <>
@@ -1221,6 +1239,95 @@ export function MediaStudio({
             );
           })}
         </>
+      ) : explicitMotionControlSlots ? (
+        <>
+          {[
+            {
+              key: "image",
+              label: "Image input",
+              preview: motionControlImagePreview,
+              visualUrl: motionControlImageVisual,
+              testId: "studio-motion-image-input",
+              accept: "image/*",
+              onRemove: () => clearOrderedImageInput(motionControlImageInput),
+              onDrop: (event: React.DragEvent<HTMLElement>) => void handleSourceTileDrop(event, 0),
+              onPickFiles: (fileList: FileList | File[] | null, input: HTMLInputElement | null) => {
+                addImageFilesToOrderedSlot(fileList, 0, input);
+              },
+            },
+            {
+              key: "video",
+              label: "Driving video",
+              preview: motionControlVideoPreview,
+              visualUrl: motionControlVideoVisual,
+              testId: "studio-motion-video-input",
+              accept: "video/*",
+              onRemove: () => {
+                if (motionControlVideoAsset) {
+                  clearSourceAsset();
+                  return;
+                }
+                if (motionControlVideoAttachment) {
+                  removeAttachment(motionControlVideoAttachment.id);
+                }
+              },
+              onDrop: (event: React.DragEvent<HTMLElement>) => void handleSourceTileDrop(event, 1),
+              onPickFiles: (fileList: FileList | File[] | null, input: HTMLInputElement | null) => {
+                if (motionControlVideoAsset) {
+                  clearSourceAsset();
+                } else if (motionControlVideoAttachment) {
+                  removeAttachment(motionControlVideoAttachment.id);
+                }
+                addFiles(fileList, { allowedKinds: ["videos"] });
+                resetFileInputValue(input);
+              },
+            },
+          ].map((slot) => (
+            <div key={slot.key} className="flex flex-col gap-2">
+              {!slot.preview ? (
+                <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slot.label}</div>
+              ) : null}
+              <div className="relative h-[82px] w-[82px]">
+                {slot.preview ? (
+                  <div
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setIsDragActive(true);
+                    }}
+                    onDragLeave={() => setIsDragActive(false)}
+                    onDrop={slot.onDrop}
+                    className="h-full w-full"
+                  >
+                    <StudioStagedMediaTile
+                      preview={slot.preview}
+                      visualUrl={slot.visualUrl}
+                      onOpenPreview={openReferencePreview}
+                      onRemove={slot.onRemove}
+                      className="h-full w-full"
+                      tileClassName={slot.key === "image" && motionControlImageInput?.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
+                      testId={`${slot.testId}-filled`}
+                    />
+                  </div>
+                ) : (
+                  <StudioMediaSlotAddTile
+                    accept={slot.accept}
+                    isDragActive={isDragActive}
+                    testId={slot.testId}
+                    wrapperClassName="h-full w-full"
+                    tileClassName="h-full w-full"
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setIsDragActive(true);
+                    }}
+                    onDragLeave={() => setIsDragActive(false)}
+                    onDrop={slot.onDrop}
+                    onPickFiles={slot.onPickFiles}
+                  />
+                )}
+              </div>
+            </div>
+          ))}
+        </>
       ) : (
         <>
           {canUseSourceAsset && currentSourceAsset ? (
@@ -1292,7 +1399,10 @@ export function MediaStudio({
           ) : null}
         </>
       )}
-      {(imageLimitLabel || maxVideoInputs > 0 || maxAudioInputs > 0) && !explicitVideoImageSlots && !seedanceComposer ? (
+      {(imageLimitLabel || maxVideoInputs > 0 || maxAudioInputs > 0) &&
+      !explicitVideoImageSlots &&
+      !explicitMotionControlSlots &&
+      !seedanceComposer ? (
         <div className="flex min-h-[82px] min-w-[120px] flex-col justify-center rounded-[24px] border border-white/10 bg-white/[0.04] px-3 py-2">
           {imageLimitLabel ? (
             <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/62">{imageLimitLabel}</div>
@@ -1724,6 +1834,91 @@ export function MediaStudio({
           })}
         </div>
       </StudioMobileInputsSection>
+    ) : explicitMotionControlSlots ? (
+      <StudioMobileInputsSection title="Motion inputs" summary={`${motionControlImagePreview ? 1 : 0}/${motionControlVideoPreview ? 2 : 1}`}>
+        <div className="flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
+          {[
+            {
+              key: "image",
+              preview: motionControlImagePreview,
+              visualUrl: motionControlImageVisual,
+              accept: "image/*",
+              testId: "studio-mobile-motion-image-input",
+              onRemove: () => clearOrderedImageInput(motionControlImageInput),
+              onDrop: (event: React.DragEvent<HTMLElement>) => void handleSourceTileDrop(event, 0),
+              onPickFiles: (fileList: FileList | File[] | null, input: HTMLInputElement | null) => {
+                addImageFilesToOrderedSlot(fileList, 0, input);
+              },
+            },
+            {
+              key: "video",
+              preview: motionControlVideoPreview,
+              visualUrl: motionControlVideoVisual,
+              accept: "video/*",
+              testId: "studio-mobile-motion-video-input",
+              onRemove: () => {
+                if (motionControlVideoAsset) {
+                  clearSourceAsset();
+                  return;
+                }
+                if (motionControlVideoAttachment) {
+                  removeAttachment(motionControlVideoAttachment.id);
+                }
+              },
+              onDrop: (event: React.DragEvent<HTMLElement>) => void handleSourceTileDrop(event, 1),
+              onPickFiles: (fileList: FileList | File[] | null, input: HTMLInputElement | null) => {
+                if (motionControlVideoAsset) {
+                  clearSourceAsset();
+                } else if (motionControlVideoAttachment) {
+                  removeAttachment(motionControlVideoAttachment.id);
+                }
+                addFiles(fileList, { allowedKinds: ["videos"] });
+                resetFileInputValue(input);
+              },
+            },
+          ].map((slot) => (
+            <div key={`mobile-motion-${slot.key}`} className="shrink-0">
+              {slot.preview ? (
+                <div
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsDragActive(true);
+                  }}
+                  onDragLeave={() => setIsDragActive(false)}
+                  onDrop={slot.onDrop}
+                  className="h-[72px] w-[72px]"
+                >
+                  <StudioStagedMediaTile
+                    preview={slot.preview}
+                    visualUrl={slot.visualUrl}
+                    onOpenPreview={openReferencePreview}
+                    onRemove={slot.onRemove}
+                    className="h-[72px] w-[72px]"
+                    tileClassName={slot.key === "image" && motionControlImageInput?.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
+                    testId={`${slot.testId}-filled`}
+                  />
+                </div>
+              ) : (
+                <StudioMediaSlotAddTile
+                  accept={slot.accept}
+                  isDragActive={isDragActive}
+                  testId={slot.testId}
+                  wrapperClassName="shrink-0"
+                  tileClassName={mobileAddTileClassName}
+                  plusIconClassName={mobileAddTilePlusIconClassName}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsDragActive(true);
+                  }}
+                  onDragLeave={() => setIsDragActive(false)}
+                  onDrop={slot.onDrop}
+                  onPickFiles={slot.onPickFiles}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </StudioMobileInputsSection>
     ) : sourceAttachmentStrip ? (
       <StudioMobileInputsSection
         title="Inputs"
@@ -1995,6 +2190,27 @@ export function MediaStudio({
         setFormMessage({ tone: "danger", text: "The dragged gallery asset could not be found." });
         return;
       }
+      if (explicitMotionControlSlots) {
+        if (slotIndex === 0) {
+          if (asset.generation_kind !== "image") {
+            setFormMessage({ tone: "danger", text: "The motion image slot only accepts image assets." });
+            return;
+          }
+          useAssetAsSource(asset, false);
+          return;
+        }
+        if (asset.generation_kind !== "video") {
+          setFormMessage({ tone: "danger", text: "The motion video slot only accepts video assets." });
+          return;
+        }
+        if (motionControlVideoAsset) {
+          clearSourceAsset();
+        } else if (motionControlVideoAttachment) {
+          removeAttachment(motionControlVideoAttachment.id);
+        }
+        void addGalleryAssetAsAttachment(asset, null, ["videos"]);
+        return;
+      }
       if (asset.generation_kind !== "image") {
         setFormMessage({ tone: "danger", text: "Only image cards can be staged as source media." });
         return;
@@ -2024,6 +2240,19 @@ export function MediaStudio({
         role: slotIndex === 0 ? "first_frame" : "last_frame",
         allowedKinds: ["images"],
       });
+      return;
+    }
+    if (explicitMotionControlSlots) {
+      if (slotIndex === 0) {
+        addFiles(event.dataTransfer.files, { allowedKinds: ["images"], insertImageIndex: 0 });
+        return;
+      }
+      if (motionControlVideoAsset) {
+        clearSourceAsset();
+      } else if (motionControlVideoAttachment) {
+        removeAttachment(motionControlVideoAttachment.id);
+      }
+      addFiles(event.dataTransfer.files, { allowedKinds: ["videos"] });
       return;
     }
     if ((dedicatedImageReferenceRailActive || explicitVideoImageSlots) && slotIndex > orderedImageInputs.length) {
@@ -2177,6 +2406,26 @@ export function MediaStudio({
     }
     if (!seedanceComposer && !structuredPresetActive && !canUseSourceAsset && !explicitVideoImageSlots && !dedicatedImageReferenceRailActive) {
       setFormMessage({ tone: "warning", text: "The selected model is text-to-video only, so Studio is hiding source image inputs." });
+      return;
+    }
+    if (explicitMotionControlSlots) {
+      if (asset.generation_kind === "video") {
+        if (motionControlVideoAsset) {
+          clearSourceAsset();
+        } else if (motionControlVideoAttachment) {
+          removeAttachment(motionControlVideoAttachment.id);
+        }
+        void addGalleryAssetAsAttachment(asset, null, ["videos"]);
+        setSelectedMediaLightboxOpen(false);
+        setSelectedAssetId(null);
+        setFormMessage({ tone: "warning", text: "The selected asset is now staged as the driving video." });
+        return;
+      }
+      stageSourceAsset(asset);
+      setSelectedMediaLightboxOpen(false);
+      setMobileComposerCollapsed(!isCoarsePointerDevice());
+      setSelectedAssetId(null);
+      setFormMessage({ tone: "warning", text: "The selected asset is now staged as the source image." });
       return;
     }
     if (seedanceComposer) {

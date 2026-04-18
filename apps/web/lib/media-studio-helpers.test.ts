@@ -16,6 +16,7 @@ import {
   mediaDownloadName,
   modelSupportsFirstLastFrames,
   modelSupportsImageDrivenInputs,
+  modelSupportsMotionControl,
   orderedImageInputKey,
   orderedImageInputVisual,
   renderStructuredPresetPrompt,
@@ -112,6 +113,13 @@ describe("media-studio-helpers Seedance support", () => {
 
     expect(modelSupportsImageDrivenInputs(firstLastModel)).toBe(true);
     expect(modelSupportsFirstLastFrames(firstLastModel)).toBe(true);
+  });
+
+  it("detects motion-control models without treating them as generic text-to-video", () => {
+    const motionModel = { input_patterns: ["motion_control"] } as never;
+
+    expect(modelSupportsImageDrivenInputs(motionModel)).toBe(true);
+    expect(modelSupportsMotionControl(motionModel)).toBe(true);
   });
 
   it("classifies dragged media files by extension when mime is empty", () => {

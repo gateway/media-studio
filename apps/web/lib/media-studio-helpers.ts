@@ -346,6 +346,10 @@ export function modelSupportsFirstLastFrames(model: MediaModelSummary | null) {
   return new Set(supportedModelInputPatterns(model)).has("first_last_frames");
 }
 
+export function modelSupportsMotionControl(model: MediaModelSummary | null) {
+  return new Set(supportedModelInputPatterns(model)).has("motion_control");
+}
+
 export function normalizeStructuredPresetTextFields(preset: MediaPreset | null): StructuredPresetTextField[] {
   return ((preset?.input_schema_json as Array<Record<string, unknown>> | undefined) ?? [])
     .map((field) => ({
