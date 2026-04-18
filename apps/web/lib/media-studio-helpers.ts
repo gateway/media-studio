@@ -120,6 +120,34 @@ export type MediaAttachmentKind = {
   role?: "first_frame" | "last_frame" | "reference" | null;
 };
 
+export type StudioComposerSlotKind = "image" | "video" | "audio";
+
+export type StudioComposerSlotRole =
+  | "source_image"
+  | "start_frame"
+  | "end_frame"
+  | "driving_video"
+  | "reference";
+
+export type StudioComposerSlot = {
+  id: string;
+  kind: StudioComposerSlotKind;
+  role: StudioComposerSlotRole;
+  label: string;
+  required: boolean;
+  visible: boolean;
+  filled: boolean;
+  accept: string;
+  slotIndex: number;
+  supportsGalleryDrop: boolean;
+};
+
+export type StandardComposerLayout = {
+  slots: StudioComposerSlot[];
+  summaryLabel: string | null;
+  usesExplicitSlots: boolean;
+};
+
 export type PromptReferenceMentionMatch = {
   start: number;
   end: number;
@@ -348,6 +376,126 @@ export function modelSupportsFirstLastFrames(model: MediaModelSummary | null) {
 
 export function modelSupportsMotionControl(model: MediaModelSummary | null) {
   return new Set(supportedModelInputPatterns(model)).has("motion_control");
+}
+
+export function resolveStandardComposerSlots({
+  model,
+  attachments,
+  sourceAsset,
+}: {
+  model: MediaModelSummary | null;
+  attachments: MediaAttachmentKind[];
+  sourceAsset: MediaAsset | null;
+}): StandardComposerLayout {
+  const patterns = new Set(supportedModelInputPatterns(model));
+  const maxImageInputs = modelInputLimit(model, "image_inputs");
+  const maxVideoInputs = modelInputLimit(model, "video_inputs");
+  const maxAudioInputs = modelInputLimit(model, "audio_inputs");
+  const imageCount =
+    attachments.filter((attachment) => attachment.kind === "images").length +
+    (sourceAsset?.generation_kind === "image" ? 1 : 0);
+  const videoCount =
+    attachments.filter((attachment) => attachment.kind === "videos").length +
+    (sourceAsset?.generation_kind === "video" ? 1 : 0);
+
+  if (patterns.has("motion_control") && maxImageInputs === 1 && maxVideoInputs === 1 && maxAudioInputs === 0) {
+    const slots: StudioComposerSlot[] = [
+      {
+        id: "slot-source-image",
+        kind: "image",
+        role: "source_image",
+        label: "Source image",
+        required: true,
+        visible: true,
+        filled: imageCount >= 1,
+        accept: "image/*",
+        slotIndex: 0,
+        supportsGalleryDrop: true,
+      },
+      {
+        id: "slot-driving-video",
+        kind: "video",
+        role: "driving_video",
+        label: "Driving video",
+        required: true,
+        visible: true,
+        filled: videoCount >= 1,
+        accept: "video/*",
+        slotIndex: 1,
+        supportsGalleryDrop: true,
+      },
+    ];
+    const filledCount = slots.filter((slot) => slot.filled).length;
+    return {
+      slots,
+      summaryLabel: `${filledCount} / ${slots.length} inputs`,
+      usesExplicitSlots: true,
+    };
+  }
+
+  const usesExplicitImageSlots =
+    maxImageInputs > 0 &&
+    maxImageInputs <= 2 &&
+    maxVideoInputs === 0 &&
+    maxAudioInputs === 0 &&
+    (patterns.has("single_image") || patterns.has("image_edit") || patterns.has("first_last_frames"));
+
+  if (!usesExplicitImageSlots) {
+    return {
+      slots: [],
+      summaryLabel: null,
+      usesExplicitSlots: false,
+    };
+  }
+
+  const slots: StudioComposerSlot[] = patterns.has("first_last_frames")
+    ? [
+        {
+          id: "slot-start-frame",
+          kind: "image",
+          role: "start_frame",
+          label: "Start frame",
+          required: true,
+          visible: true,
+          filled: imageCount >= 1,
+          accept: "image/*",
+          slotIndex: 0,
+          supportsGalleryDrop: true,
+        },
+        {
+          id: "slot-end-frame",
+          kind: "image",
+          role: "end_frame",
+          label: "End frame optional",
+          required: false,
+          visible: true,
+          filled: imageCount >= 2,
+          accept: "image/*",
+          slotIndex: 1,
+          supportsGalleryDrop: true,
+        },
+      ]
+    : [
+        {
+          id: "slot-source-image",
+          kind: "image",
+          role: "source_image",
+          label: "Source image",
+          required: true,
+          visible: true,
+          filled: imageCount >= 1,
+          accept: "image/*",
+          slotIndex: 0,
+          supportsGalleryDrop: true,
+        },
+      ];
+
+  const filledCount = slots.filter((slot) => slot.filled).length;
+  return {
+    slots,
+    summaryLabel: slots.length > 1 ? `${filledCount} / ${slots.length} frames` : `${filledCount} / ${slots.length}`,
+    usesExplicitSlots: true,
+  };
 }
 
 export function normalizeStructuredPresetTextFields(preset: MediaPreset | null): StructuredPresetTextField[] {

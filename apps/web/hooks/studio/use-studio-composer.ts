@@ -37,6 +37,7 @@ import {
   parseOptionChoice,
   pickerWidth,
   renderStructuredPresetPrompt,
+  resolveStandardComposerSlots,
   resolveEnhancementPreviewVisual,
   resolveComposerSourceAsset,
   resolveStudioPresetTargetModel,
@@ -564,29 +565,27 @@ export function useStudioComposer({
   const modelHasFirstLastFrameInputs = modelSupportsFirstLastFrames(currentModel);
   const modelHasMotionControlInputs = modelSupportsMotionControl(currentModel);
   const maxImageInputs = modelHasImageDrivenInputs ? rawMaxImageInputs : 0;
-  const explicitVideoImageSlots =
-    !structuredPresetActive &&
-    currentModel?.generation_kind === "video" &&
-    maxImageInputs > 0 &&
-    maxImageInputs <= 2 &&
-    maxVideoInputs === 0 &&
-    maxAudioInputs === 0;
-  const explicitMotionControlSlots =
-    !structuredPresetActive &&
-    currentModel?.generation_kind === "video" &&
-    modelHasMotionControlInputs &&
-    maxImageInputs === 1 &&
-    maxVideoInputs === 1 &&
-    maxAudioInputs === 0;
   const orderedImageInputs = useMemo(
     () => buildOrderedImageInputs(currentSourceAsset, imageAttachments, sourceAssetIsImage),
     [currentSourceAsset, imageAttachments, sourceAssetIsImage],
   );
-  const visibleExplicitVideoImageSlots = explicitVideoImageSlots
-    ? modelHasFirstLastFrameInputs
-      ? Math.min(maxImageInputs, 2)
-      : Math.min(maxImageInputs, 1)
-    : 0;
+  const standardComposerLayout = useMemo(
+    () =>
+      structuredPresetActive
+        ? { slots: [], summaryLabel: null, usesExplicitSlots: false }
+        : resolveStandardComposerSlots({
+            model: currentModel,
+            attachments,
+            sourceAsset: currentSourceAsset,
+          }),
+    [attachments, currentModel, currentSourceAsset, structuredPresetActive],
+  );
+  const explicitVideoImageSlots =
+    standardComposerLayout.usesExplicitSlots &&
+    standardComposerLayout.slots.length > 0 &&
+    standardComposerLayout.slots.every((slot) => slot.kind === "image");
+  const explicitMotionControlSlots = standardComposerLayout.slots.some((slot) => slot.role === "driving_video");
+  const visibleExplicitVideoImageSlots = standardComposerLayout.slots.filter((slot) => slot.kind === "image" && slot.visible).length;
   const multiShotsEnabled = MULTI_SHOT_MODEL_KEYS.has(modelKey) && optionBooleanValue(optionValues["multi_shots"]);
   const multiShotScript = useMemo(() => parseMultiShotScript(prompt, optionValues["duration"]), [optionValues, prompt]);
   const multiShotScriptError = multiShotsEnabled ? multiShotScript.errors[0] ?? null : null;
@@ -689,9 +688,7 @@ export function useStudioComposer({
         ? ({ tone: "warning", text: "Sending your render to Studio." } as const)
         : formMessage;
   const imageSlotLabels =
-    explicitVideoImageSlots && modelHasFirstLastFrameInputs
-      ? ["Start frame", "End frame optional"]
-      : ["Source image"];
+    standardComposerLayout.slots.filter((slot) => slot.kind === "image").map((slot) => slot.label);
   const canUseSourceAsset = !seedanceComposer && (maxImageInputs > 0 || maxVideoInputs > 0);
   const canOpenReferenceLibrary =
     (structuredPresetActive && structuredPresetImageSlots.length > 0) || seedanceComposer || maxImageInputs > 0;
@@ -903,6 +900,7 @@ export function useStudioComposer({
       role?: NonNullable<AttachmentRecord["role"]>;
       allowedKinds?: AttachmentRecord["kind"][];
       insertImageIndex?: number | null;
+      replaceImageIndex?: number | null;
     } = {},
   ) {
     const incomingFiles = Array.from(fileList ?? []);
@@ -912,8 +910,11 @@ export function useStudioComposer({
     const explicitRole = config.role ?? null;
     const insertImageIndex =
       explicitRole || seedanceComposer || config.insertImageIndex == null ? null : Math.max(0, config.insertImageIndex);
+    const replaceImageIndex =
+      explicitRole || seedanceComposer || config.replaceImageIndex == null ? null : Math.max(0, config.replaceImageIndex);
     const allowedKinds = new Set(config.allowedKinds ?? []);
-    let remainingImageCapacity = Math.max(0, maxImageInputs - stagedImageCount);
+    const imageReplacementAllowance = replaceImageIndex != null ? 1 : 0;
+    let remainingImageCapacity = Math.max(0, maxImageInputs - stagedImageCount + imageReplacementAllowance);
     let remainingVideoCapacity = Math.max(0, maxVideoInputs - stagedVideoCount);
     let remainingAudioCapacity = Math.max(0, maxAudioInputs - stagedAudioCount);
     const acceptedFiles: File[] = [];
@@ -989,11 +990,27 @@ export function useStudioComposer({
       referenceId: null,
       referenceRecord: null,
     }));
-    setAttachments((current) =>
-      insertImageIndex != null
-        ? insertImageAttachments(current, nextAttachments, insertImageIndex)
-        : [...current, ...nextAttachments],
-    );
+    setAttachments((current) => {
+      const removeReplacedImageAttachment = (attachments: AttachmentRecord[]) => {
+        if (replaceImageIndex == null) {
+          return attachments;
+        }
+        let imageIndex = 0;
+        let removed = false;
+        return attachments.filter((attachment) => {
+          if (!removed && attachment.kind === "images" && !attachment.role && imageIndex++ === replaceImageIndex) {
+            removed = true;
+            return false;
+          }
+          return true;
+        });
+      };
+
+      const nextCurrent = removeReplacedImageAttachment(current);
+      return insertImageIndex != null
+        ? insertImageAttachments(nextCurrent, nextAttachments, insertImageIndex)
+        : [...nextCurrent, ...nextAttachments];
+    });
     if (rejectedKinds.size) {
       setFormMessage({
         tone: "warning",
@@ -1006,6 +1023,10 @@ export function useStudioComposer({
     asset: MediaAsset | null,
     role: NonNullable<AttachmentRecord["role"]> | null = null,
     allowedKinds?: AttachmentRecord["kind"][],
+    extraConfig: {
+      insertImageIndex?: number | null;
+      replaceImageIndex?: number | null;
+    } = {},
   ) {
     if (!asset) {
       setFormMessage({ tone: "danger", text: "The selected gallery asset could not be staged." });
@@ -1053,8 +1074,13 @@ export function useStudioComposer({
           ? {
               ...(role != null ? { role } : {}),
               ...(allowedKinds?.length ? { allowedKinds } : { allowedKinds: [kind] }),
+              ...(extraConfig.insertImageIndex != null ? { insertImageIndex: extraConfig.insertImageIndex } : {}),
+              ...(extraConfig.replaceImageIndex != null ? { replaceImageIndex: extraConfig.replaceImageIndex } : {}),
             }
-          : undefined;
+          : {
+              ...(extraConfig.insertImageIndex != null ? { insertImageIndex: extraConfig.insertImageIndex } : {}),
+              ...(extraConfig.replaceImageIndex != null ? { replaceImageIndex: extraConfig.replaceImageIndex } : {}),
+            };
       addFiles([file], addConfig);
     } catch {
       setFormMessage({ tone: "danger", text: "The selected gallery asset could not be staged in that slot." });
@@ -1063,7 +1089,12 @@ export function useStudioComposer({
 
   function addReferenceMediaAsAttachment(
     reference: MediaReference | null,
-    config: { role?: NonNullable<AttachmentRecord["role"]>; allowedKinds?: AttachmentRecord["kind"][] } = {},
+    config: {
+      role?: NonNullable<AttachmentRecord["role"]>;
+      allowedKinds?: AttachmentRecord["kind"][];
+      insertImageIndex?: number | null;
+      replaceImageIndex?: number | null;
+    } = {},
   ) {
     if (!reference) {
       return;
@@ -1085,8 +1116,10 @@ export function useStudioComposer({
         return;
       }
     } else if (kind === "images" && stagedImageCount >= maxImageInputs) {
-      setFormMessage({ tone: "warning", text: "This model cannot accept more images right now." });
-      return;
+      if (config.replaceImageIndex == null) {
+        setFormMessage({ tone: "warning", text: "This model cannot accept more images right now." });
+        return;
+      }
     } else if (kind === "videos" && stagedVideoCount >= maxVideoInputs) {
       setFormMessage({ tone: "warning", text: "This model cannot accept more videos right now." });
       return;
@@ -1095,19 +1128,47 @@ export function useStudioComposer({
       return;
     }
 
-    setAttachments((current) => [
-      ...current,
-      {
-        id: `reference-${reference.reference_id}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
-        file: null,
-        kind,
-        role: config.role ?? (seedanceComposer ? "reference" : null),
-        previewUrl: reference.thumb_url ?? reference.poster_url ?? reference.stored_url ?? null,
-        durationSeconds: reference.duration_seconds ?? null,
-        referenceId: reference.reference_id,
-        referenceRecord: reference,
-      },
-    ]);
+    const nextAttachment = {
+      id: `reference-${reference.reference_id}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
+      file: null,
+      kind,
+      role: config.role ?? (seedanceComposer ? "reference" : null),
+      previewUrl: reference.thumb_url ?? reference.poster_url ?? reference.stored_url ?? null,
+      durationSeconds: reference.duration_seconds ?? null,
+      referenceId: reference.reference_id,
+      referenceRecord: reference,
+    } satisfies AttachmentRecord;
+
+    setAttachments((current) => {
+      const normalizedReplaceIndex =
+        kind === "images" && config.replaceImageIndex != null ? Math.max(0, config.replaceImageIndex) : null;
+      const normalizedInsertIndex =
+        kind === "images" && config.insertImageIndex != null ? Math.max(0, config.insertImageIndex) : null;
+
+      let nextCurrent = current;
+      if (normalizedReplaceIndex != null) {
+        let imageIndex = 0;
+        let removed = false;
+        nextCurrent = current.filter((attachment) => {
+          if (
+            !removed &&
+            attachment.kind === "images" &&
+            !attachment.role &&
+            imageIndex++ === normalizedReplaceIndex
+          ) {
+            removed = true;
+            return false;
+          }
+          return true;
+        });
+      }
+
+      if (normalizedInsertIndex != null) {
+        return insertImageAttachments(nextCurrent, [nextAttachment], normalizedInsertIndex);
+      }
+
+      return [...nextCurrent, nextAttachment];
+    });
   }
 
   function assignPresetSlotFile(slotKey: string, file: File | null) {
@@ -1734,6 +1795,7 @@ export function useStudioComposer({
       structuredPresetActive,
       canOpenReferenceLibrary,
       inputPattern,
+      standardComposerLayout,
       explicitVideoImageSlots,
       explicitMotionControlSlots,
       visibleExplicitVideoImageSlots,
