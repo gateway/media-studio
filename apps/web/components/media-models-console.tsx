@@ -464,6 +464,20 @@ export function MediaModelsConsole({
     localEnhancementConfigs.find((config) => config.model_key === selectedEnhancementModelKey) ?? null;
   const helperPreset = llmPresets.find((preset) => preset.profile === globalEnhancementConfig?.helper_profile) ?? null;
   const currentQueuePolicy = localQueuePolicies.find((policy) => policy.model_key === selectedModelKey) ?? null;
+  const modelAvailabilityRows = useMemo(
+    () =>
+      models.map((model) => {
+        const policy = localQueuePolicies.find((entry) => entry.model_key === model.key) ?? null;
+        return {
+          model,
+          policy,
+          enabled: policy?.enabled ?? true,
+        };
+      }),
+    [localQueuePolicies, models],
+  );
+  const enabledModelCount = modelAvailabilityRows.filter((entry) => entry.enabled).length;
+  const disabledModelCount = modelAvailabilityRows.length - enabledModelCount;
   const filteredOpenRouterCatalog = useMemo(() => {
     const query = openRouterModelQuery.trim().toLowerCase();
     const multimodalModels = openRouterCatalog.filter((model) => model.supports_images);
@@ -864,10 +878,11 @@ export function MediaModelsConsole({
     showNotice("healthy", "Model settings saved.");
   }
 
-  async function saveModelAvailability(enabled: boolean) {
-    const maxOutputsPerRun = currentQueuePolicy?.max_outputs_per_run ?? 1;
+  async function saveModelAvailability(modelKey: string, enabled: boolean) {
+    const policy = localQueuePolicies.find((entry) => entry.model_key === modelKey) ?? null;
+    const maxOutputsPerRun = policy?.max_outputs_per_run ?? 1;
     setIsSaving(true);
-    const response = await fetch(`/api/control/media-queue-policies/${selectedModelKey}`, {
+    const response = await fetch(`/api/control/media-queue-policies/${modelKey}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1376,39 +1391,48 @@ export function MediaModelsConsole({
           title="Enable Or Disable Models"
           description="Turn individual models on or off for Studio without changing any saved jobs, outputs, or history."
         />
-        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:items-start">
-          <label className="grid gap-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">Model</span>
-            {renderSelect(
-              "availability-model",
-              selectedModelKey,
-              (value) => setSelectedModelKey(value),
-              models.map((model) => ({ value: model.key, label: model.label })),
-            )}
-          </label>
-          <div className={surfaceCardClassName}>
-            <div className="flex items-center justify-between gap-3">
-              <div className="grid gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
-                    Availability
-                  </span>
-                  <StatusPill
-                    label={(currentQueuePolicy?.enabled ?? true) ? "Enabled" : "Disabled"}
-                    tone={(currentQueuePolicy?.enabled ?? true) ? "healthy" : "warning"}
+        <div className="mt-5 max-w-[980px]">
+          <CollapsibleSubsection
+            title="Model Availability"
+            description="Expand this list to enable or disable any Studio model without changing saved jobs, outputs, or history."
+            tone="media"
+            defaultOpen={false}
+            badge={
+              <StatusPill
+                label={`${enabledModelCount} enabled${disabledModelCount > 0 ? ` · ${disabledModelCount} disabled` : ""}`}
+                tone={disabledModelCount > 0 ? "warning" : "healthy"}
+              />
+            }
+            className="border-white/8 bg-[rgba(12,15,14,0.94)] px-5 py-5"
+            summaryClassName="flex-col items-start gap-3 sm:flex-row sm:items-start"
+            titleClassName="flex items-center gap-2 text-[0.72rem] tracking-[0.14em]"
+            descriptionClassName="max-w-[760px]"
+            bodyClassName="grid gap-3 border-t border-[var(--surface-border-soft)] pt-5"
+          >
+            <div className="grid gap-3">
+              {modelAvailabilityRows.map(({ model, enabled }) => (
+                <div
+                  key={`availability-${model.key}`}
+                  className="flex items-center justify-between gap-4 rounded-[18px] border border-white/8 bg-[rgba(11,14,13,0.94)] px-4 py-4"
+                >
+                  <div className="min-w-0 grid gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="truncate text-sm font-medium text-[var(--foreground)]">{model.label}</div>
+                      <StatusPill label={enabled ? "Enabled" : "Disabled"} tone={enabled ? "healthy" : "warning"} />
+                    </div>
+                    <div className="text-sm leading-6 text-[var(--muted-strong)]">
+                      {model.key} · {(model.task_modes ?? []).length ? model.task_modes.join(", ").replaceAll("_", " ") : "No published task modes"}
+                    </div>
+                  </div>
+                  <AdminToggle
+                    checked={enabled}
+                    ariaLabel={`${enabled ? "Disable" : "Enable"} ${model.label}`}
+                    onToggle={() => void saveModelAvailability(model.key, !enabled)}
                   />
                 </div>
-                <div className="text-sm leading-6 text-[var(--muted-strong)]">
-                  {(selectedModel?.label ?? selectedModelKey)} {currentQueuePolicy?.enabled ?? true ? "is available in Studio." : "is hidden from Studio and blocked from new submissions."}
-                </div>
-              </div>
-              <AdminToggle
-                checked={currentQueuePolicy?.enabled ?? true}
-                ariaLabel={`${(currentQueuePolicy?.enabled ?? true) ? "Disable" : "Enable"} ${selectedModel?.label ?? selectedModelKey}`}
-                onToggle={() => void saveModelAvailability(!(currentQueuePolicy?.enabled ?? true))}
-              />
+              ))}
             </div>
-          </div>
+          </CollapsibleSubsection>
         </div>
       </Panel>
       ) : null}
@@ -1493,7 +1517,7 @@ export function MediaModelsConsole({
               <AdminToggle
                 checked={currentQueuePolicy?.enabled ?? true}
                 ariaLabel={`${(currentQueuePolicy?.enabled ?? true) ? "Disable" : "Enable"} ${selectedModel?.label ?? selectedModelKey}`}
-                onToggle={() => void saveModelAvailability(!(currentQueuePolicy?.enabled ?? true))}
+                onToggle={() => void saveModelAvailability(selectedModelKey, !(currentQueuePolicy?.enabled ?? true))}
               />
             </div>
             <div className="mt-4 text-sm leading-6 text-[var(--muted-strong)]">

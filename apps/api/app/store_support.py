@@ -356,8 +356,39 @@ def _seed_default_model_queue_policies(connection: sqlite3.Connection) -> None:
         INSERT OR IGNORE INTO media_model_queue_policies (model_key, enabled, max_outputs_per_run, updated_at)
         VALUES (?, ?, ?, ?)
         """,
-        ("seedance-2.0", 0, 1, utcnow_iso()),
+        ("seedance-2.0", 1, 1, utcnow_iso()),
     )
+    row = connection.execute(
+        """
+        SELECT enabled, max_outputs_per_run
+        FROM media_model_queue_policies
+        WHERE model_key = ?
+        """,
+        ("seedance-2.0",),
+    ).fetchone()
+    if row is None:
+        return
+    if int(row[0] or 0) != 0 or int(row[1] or 0) != 1:
+        return
+    other_policy_count = int(
+        connection.execute(
+            "SELECT COUNT(*) FROM media_model_queue_policies WHERE model_key != ?",
+            ("seedance-2.0",),
+        ).fetchone()[0]
+        or 0
+    )
+    job_count = int(connection.execute("SELECT COUNT(*) FROM media_jobs").fetchone()[0] or 0)
+    asset_count = int(connection.execute("SELECT COUNT(*) FROM media_assets").fetchone()[0] or 0)
+    batch_count = int(connection.execute("SELECT COUNT(*) FROM media_batches").fetchone()[0] or 0)
+    if other_policy_count == 0 and job_count == 0 and asset_count == 0 and batch_count == 0:
+        connection.execute(
+            """
+            UPDATE media_model_queue_policies
+            SET enabled = 1, updated_at = ?
+            WHERE model_key = ?
+            """,
+            (utcnow_iso(), "seedance-2.0"),
+        )
 
 
 def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:

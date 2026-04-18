@@ -34,7 +34,57 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     finally:
         connection.close()
     assert row is not None
-    assert int(row[0] or 0) == 0
+    assert int(row[0] or 0) == 1
+    assert int(row[1] or 0) == 1
+
+
+def test_bootstrap_schema_upgrades_legacy_seedance_default_policy(app_modules, tmp_path: Path) -> None:
+    store = app_modules["store"]
+    legacy_db = tmp_path / "legacy-seedance.sqlite"
+
+    connection = sqlite3.connect(legacy_db)
+    try:
+        connection.executescript(
+            """
+            CREATE TABLE media_jobs (
+                job_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE media_assets (
+                asset_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE media_batches (
+                batch_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE media_model_queue_policies (
+                model_key TEXT PRIMARY KEY,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                max_outputs_per_run INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT
+            );
+            INSERT INTO media_model_queue_policies (model_key, enabled, max_outputs_per_run, updated_at)
+            VALUES ('seedance-2.0', 0, 1, '2026-04-01T00:00:00+00:00');
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    store.bootstrap_schema(legacy_db)
+
+    connection = sqlite3.connect(legacy_db)
+    try:
+        row = connection.execute(
+            "SELECT enabled, max_outputs_per_run FROM media_model_queue_policies WHERE model_key = ?",
+            ("seedance-2.0",),
+        ).fetchone()
+    finally:
+        connection.close()
+
+    assert row is not None
+    assert int(row[0] or 0) == 1
     assert int(row[1] or 0) == 1
 
 
