@@ -13,7 +13,7 @@ export function Panel({
     <section
       id={id}
       className={cn(
-        "rounded-[22px] border border-[var(--surface-border-soft)] bg-[color:var(--surface)] px-5 py-5",
+        "admin-surface-panel px-5 py-5",
         className,
       )}
     >

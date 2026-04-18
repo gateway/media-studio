@@ -20,13 +20,13 @@ export const adminDangerButtonClassName =
   buttonClassName({ appearance: "admin", variant: "danger" });
 
 export const adminInsetCardClassName =
-  "rounded-[16px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)] p-4";
+  "admin-surface-inset p-4";
 
 export const adminInsetPanelClassName =
-  "rounded-[18px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)] p-4";
+  "admin-surface-inset p-4";
 
 export const adminDashedCardClassName =
-  "rounded-[16px] border border-dashed border-[var(--surface-border-soft)] px-4 py-5 text-sm text-[var(--muted-strong)]";
+  "admin-surface-dashed px-4 py-5 text-sm text-[var(--muted-strong)]";
 
 type AdminButtonVariant = "primary" | "subtle" | "danger";
 type AdminButtonSize = "default" | "compact";
@@ -101,7 +101,7 @@ export const AdminInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes
         {...props}
         ref={ref}
         className={cn(
-          "w-full rounded-[18px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-4 py-3 text-sm text-white shadow-[0_14px_30px_rgba(0,0,0,0.18)] outline-none placeholder:text-white/34 focus:border-[rgba(208,255,72,0.24)]",
+          "admin-input text-sm",
           props.className,
         )}
       />
@@ -116,7 +116,7 @@ export const AdminTextarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLA
         {...props}
         ref={ref}
         className={cn(
-          "w-full rounded-[18px] border border-white/10 bg-[rgba(11,14,13,0.94)] px-4 py-3 text-sm leading-7 text-white shadow-[0_14px_30px_rgba(0,0,0,0.18)] outline-none placeholder:text-white/34 focus:border-[rgba(208,255,72,0.24)]",
+          "admin-textarea text-sm leading-7",
           props.className,
         )}
       />

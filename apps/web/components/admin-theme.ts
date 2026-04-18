@@ -5,10 +5,10 @@ export const adminThemeLayoutClassName = `grid min-w-0 gap-6 ${adminThemeVarsCla
 export const adminThemeLayoutOverflowClassName = `${adminThemeLayoutClassName} overflow-x-hidden`;
 
 export const adminSurfaceCardClassName =
-  "rounded-[22px] border border-[var(--surface-border-soft)] bg-[color:var(--surface)] px-5 py-5";
+  "admin-surface-card px-5 py-5";
 
 export const adminStatCardClassName =
-  "rounded-[16px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)] px-4 py-4";
+  "admin-surface-inset px-4 py-4";
 
 export const adminInsetCompactClassName =
-  "rounded-[14px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)] px-3 py-3";
+  "admin-surface-compact px-3 py-3";
