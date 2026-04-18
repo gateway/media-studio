@@ -189,7 +189,7 @@ textarea {
 
 .admin-status-badge,
 .admin-status-pill {
-  border-radius: 8px;
+  border-radius: 4px;
   box-shadow: none;
 }
 
@@ -347,6 +347,12 @@ textarea {
   border-color: rgba(208, 255, 72, 0.24);
   background-color: rgba(208, 255, 72, 0.12);
   color: var(--accent-strong);
+}
+
+.admin-jobs-batch-card {
+  background-color: #212525;
+  border-radius: 10px;
+  box-shadow: none;
 }
 
 .admin-empty-state {

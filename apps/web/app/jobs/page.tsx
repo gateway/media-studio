@@ -226,7 +226,7 @@ export default async function JobsPage({
             action={<AdminNavButton href="/models">Open Models</AdminNavButton>}
           />
 
-          <div className="mt-5 grid gap-4">
+          <div className="mt-5 grid gap-5">
             <div className={`${adminInsetClassName} text-sm leading-6 text-[var(--muted-strong)]`}>
               <div>
                 Showing{" "}
