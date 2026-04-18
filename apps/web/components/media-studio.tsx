@@ -1140,6 +1140,7 @@ export function MediaStudio({
                     accept="image/*"
                     isDragActive={isDragActive}
                     testId={`seedance-slot-input-${slot.role}`}
+                    required={slot.role === "first_frame"}
                     wrapperClassName="h-full w-full"
                     tileClassName="h-full w-full"
                     onDragOver={(event) => {
@@ -1220,6 +1221,7 @@ export function MediaStudio({
                       accept="image/*"
                       isDragActive={isDragActive}
                       testId={`studio-source-slot-input-${slotIndex + 1}`}
+                      required={modelHasFirstLastFrameInputs && slotIndex === 0}
                       wrapperClassName="h-full w-full"
                       tileClassName="h-full w-full"
                       onDragOver={(event) => {
@@ -1637,6 +1639,7 @@ export function MediaStudio({
                         accept="image/*"
                         isDragActive={isDragActive}
                         testId={`studio-mobile-seedance-slot-input-${slot.role}`}
+                        required={slot.role === "first_frame"}
                         wrapperClassName="shrink-0"
                         tileClassName={mobileAddTileClassName}
                         plusIconClassName={mobileAddTilePlusIconClassName}
@@ -1824,6 +1827,7 @@ export function MediaStudio({
                     accept="image/*"
                     isDragActive={isDragActive}
                     testId={`studio-mobile-source-slot-input-${slotIndex + 1}`}
+                    required={modelHasFirstLastFrameInputs && slotIndex === 0}
                     wrapperClassName="shrink-0"
                     tileClassName={mobileAddTileClassName}
                     plusIconClassName={mobileAddTilePlusIconClassName}

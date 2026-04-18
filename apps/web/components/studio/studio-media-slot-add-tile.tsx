@@ -13,6 +13,7 @@ type StudioMediaSlotAddTileProps = {
   isDragActive?: boolean;
   label?: string;
   mediaKind?: StudioMediaSlotAddTileKind;
+  required?: boolean;
   testId?: string;
   wrapperClassName?: string;
   tileClassName?: string;
@@ -62,6 +63,7 @@ export function StudioMediaSlotAddTile({
   isDragActive = false,
   label,
   mediaKind,
+  required = false,
   testId,
   wrapperClassName,
   tileClassName,
@@ -101,12 +103,17 @@ export function StudioMediaSlotAddTile({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "flex h-[82px] w-[82px] cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]",
+          "relative flex h-[82px] w-[82px] cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]",
           isDragActive ? "border-[rgba(216,141,67,0.42)] bg-[rgba(24,28,26,0.95)]" : "",
           disabled ? "cursor-not-allowed opacity-45 hover:border-white/10 hover:bg-white/[0.06]" : "",
           tileClassName,
         )}
       >
+        {required ? (
+          <span className="absolute left-2.5 top-2 text-[0.8rem] font-semibold leading-none text-[rgba(216,141,67,0.92)]">
+            *
+          </span>
+        ) : null}
         <Icon className={cn("size-5.5", plusIconClassName)} />
         <input
           type="file"
