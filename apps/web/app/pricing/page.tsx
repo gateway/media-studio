@@ -8,7 +8,6 @@ import {
 } from "@/components/admin-controls";
 import { AdminNavButton } from "@/components/admin-nav-button";
 import { Panel, PanelHeader } from "@/components/panel";
-import { StatusPill } from "@/components/status-pill";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { getMediaDashboardSnapshot } from "@/lib/control-api";
 import { estimateFromPricingSnapshot } from "@/lib/studio-pricing";
@@ -35,14 +34,11 @@ function formatAdjustmentMap(
     .filter(Boolean);
 }
 
-function toneForPricing(authoritative: boolean, status: string | null | undefined) {
+function formatPricingStatus(authoritative: boolean, status: string | null | undefined) {
   if (authoritative) {
-    return "healthy" as const;
+    return "Authoritative";
   }
-  if (status === "unknown") {
-    return "danger" as const;
-  }
-  return "warning" as const;
+  return String(status ?? "unknown").replaceAll("_", " ");
 }
 
 function pricingChoiceValue(value: unknown) {
@@ -193,11 +189,8 @@ export default async function PricingPage() {
           <div className="mt-5 grid gap-3 lg:grid-cols-4">
             <div className={adminInsetPanelClassName}>
               <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Catalog status</div>
-              <div className="mt-3 flex items-center gap-3">
-                <StatusPill
-                  label={authoritative ? "authoritative" : pricingStatus.replaceAll("_", " ")}
-                  tone={toneForPricing(authoritative, pricingStatus)}
-                />
+              <div className="mt-3 text-lg font-semibold text-[var(--foreground)]">
+                {formatPricingStatus(authoritative, pricingStatus)}
               </div>
             </div>
             <div className={adminInsetPanelClassName}>
@@ -268,7 +261,7 @@ export default async function PricingPage() {
             title="Current rule set"
             description="Base request pricing comes from KIE, then the listed multipliers or adders are applied when those options are selected."
           />
-          <div className="mt-5 grid gap-4">
+          <div className="mt-5 grid gap-5">
             {rules.map((rule, index) => {
               const record = (isRecord(rule) ? rule : {}) as Record<string, unknown>;
               const model = models.find((entry) => entry.key === record.model_key) ?? null;
@@ -290,7 +283,10 @@ export default async function PricingPage() {
               const scenarioRows = buildPricingScenarioRows(record, model);
 
               return (
-                <div key={`${String(record.model_key ?? "rule")}-${index}`} className={adminInsetPanelClassName}>
+                <div
+                  key={`${String(record.model_key ?? "rule")}-${index}`}
+                  className="admin-pricing-model-card grid gap-4 p-5"
+                >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="text-[1rem] font-semibold tracking-[-0.02em] text-[var(--foreground)]">
@@ -300,10 +296,12 @@ export default async function PricingPage() {
                         {[record.provider, record.interface_type, record.billing_unit].filter(Boolean).join(" • ") || "Request pricing"}
                       </div>
                     </div>
-                    <StatusPill
-                      label={String(record.pricing_status ?? "unknown").replaceAll("_", " ")}
-                      tone={toneForPricing(authoritative, String(record.pricing_status ?? "unknown"))}
-                    />
+                    <div className="text-right text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-strong)]">
+                      Pricing status
+                      <div className="mt-1 text-sm font-medium tracking-normal text-[var(--foreground)]">
+                        {formatPricingStatus(authoritative, String(record.pricing_status ?? "unknown"))}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
