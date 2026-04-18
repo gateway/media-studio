@@ -1,8 +1,10 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { AudioLines, Clapperboard, Image as ImageIcon, type LucideIcon, Upload } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+
+type StudioMediaSlotAddTileKind = "image" | "video" | "audio" | "mixed";
 
 type StudioMediaSlotAddTileProps = {
   accept: string;
@@ -10,6 +12,7 @@ type StudioMediaSlotAddTileProps = {
   disabled?: boolean;
   isDragActive?: boolean;
   label?: string;
+  mediaKind?: StudioMediaSlotAddTileKind;
   testId?: string;
   wrapperClassName?: string;
   tileClassName?: string;
@@ -20,12 +23,45 @@ type StudioMediaSlotAddTileProps = {
   onPickFiles: (fileList: FileList | null, input: HTMLInputElement) => void;
 };
 
+function inferMediaKindFromAccept(accept: string): StudioMediaSlotAddTileKind {
+  const normalized = accept.toLowerCase();
+  const hasImage = normalized.includes("image/");
+  const hasVideo = normalized.includes("video/");
+  const hasAudio = normalized.includes("audio/");
+
+  const presentKinds = [hasImage, hasVideo, hasAudio].filter(Boolean).length;
+  if (presentKinds > 1) {
+    return "mixed";
+  }
+  if (hasVideo) {
+    return "video";
+  }
+  if (hasAudio) {
+    return "audio";
+  }
+  return "image";
+}
+
+export function studioMediaSlotAddTileIcon(kind: StudioMediaSlotAddTileKind): LucideIcon {
+  if (kind === "video") {
+    return Clapperboard;
+  }
+  if (kind === "audio") {
+    return AudioLines;
+  }
+  if (kind === "mixed") {
+    return Upload;
+  }
+  return ImageIcon;
+}
+
 export function StudioMediaSlotAddTile({
   accept,
   multiple = false,
   disabled = false,
   isDragActive = false,
   label,
+  mediaKind,
   testId,
   wrapperClassName,
   tileClassName,
@@ -35,6 +71,9 @@ export function StudioMediaSlotAddTile({
   onDrop,
   onPickFiles,
 }: StudioMediaSlotAddTileProps) {
+  const resolvedKind = mediaKind ?? inferMediaKindFromAccept(accept);
+  const Icon = studioMediaSlotAddTileIcon(resolvedKind);
+
   function handleDragOver(event: React.DragEvent<HTMLLabelElement>) {
     event.preventDefault();
     event.stopPropagation();
@@ -68,7 +107,7 @@ export function StudioMediaSlotAddTile({
           tileClassName,
         )}
       >
-        <Plus className={cn("size-6", plusIconClassName)} />
+        <Icon className={cn("size-5.5", plusIconClassName)} />
         <input
           type="file"
           multiple={multiple}

@@ -14,7 +14,6 @@ import {
   LoaderCircle,
   Monitor,
   Play,
-  Plus,
   Sparkles,
   X,
 } from "lucide-react";
@@ -30,7 +29,7 @@ import { StudioHeaderChrome } from "@/components/studio/studio-header-chrome";
 import { StudioInspectorInfo } from "@/components/studio/studio-inspector-info";
 import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
-import { StudioMediaSlotAddTile } from "@/components/studio/studio-media-slot-add-tile";
+import { StudioMediaSlotAddTile, studioMediaSlotAddTileIcon } from "@/components/studio/studio-media-slot-add-tile";
 import { StudioMobileInputsGroup, StudioMobileInputsSection } from "@/components/studio/studio-mobile-inputs-section";
 import { StudioComposer } from "@/components/studio/studio-composer";
 import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
@@ -1513,7 +1512,12 @@ export function MediaStudio({
                 ))}
                 {group.attachments.length < Number(group.maxLabel) ? (
                   <label className={cn("flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]", group.addTileClassName)}>
-                    <Plus className={group.plusIconClassName} />
+                    {(() => {
+                      const AddIcon = studioMediaSlotAddTileIcon(
+                        group.key === "videos" ? "video" : group.key === "audios" ? "audio" : "image",
+                      );
+                      return <AddIcon className={group.plusIconClassName} />;
+                    })()}
                     <input
                       type="file"
                       multiple
@@ -1749,7 +1753,12 @@ export function MediaStudio({
                   ))}
                   {group.attachments.length < Number(group.maxLabel) ? (
                     <label className={cn("flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]", group.addTileClassName)}>
-                      <Plus className={group.plusIconClassName} />
+                      {(() => {
+                        const AddIcon = studioMediaSlotAddTileIcon(
+                          group.key === "videos" ? "video" : group.key === "audios" ? "audio" : "image",
+                        );
+                        return <AddIcon className={group.plusIconClassName} />;
+                      })()}
                       <input
                         type="file"
                         multiple
