@@ -29,7 +29,8 @@ describe("ui primitives", () => {
 
   it("uses shared pill select button styles for both app surfaces", () => {
     expect(pillSelectButtonClassName("studio")).toContain("var(--ms-action-subtle-border)");
-    expect(pillSelectButtonClassName("admin")).toContain("var(--ui-action-subtle-border)");
+    expect(pillSelectButtonClassName("admin")).toContain("admin-form-control");
+    expect(pillSelectButtonClassName("admin")).toContain("admin-select-trigger");
   });
 
   it("maps feedback intents to semantic theme tokens", () => {
