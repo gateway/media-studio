@@ -19,11 +19,12 @@ export const adminPrimaryButtonClassName =
 export const adminDangerButtonClassName =
   buttonClassName({ appearance: "admin", variant: "danger" });
 
-export const adminInsetCardClassName =
+export const adminInsetSurfaceClassName =
   "admin-surface-inset p-4";
 
-export const adminInsetPanelClassName =
-  "admin-surface-inset p-4";
+export const adminInsetCardClassName = adminInsetSurfaceClassName;
+
+export const adminInsetPanelClassName = adminInsetSurfaceClassName;
 
 export const adminDashedCardClassName =
   "admin-surface-dashed px-4 py-5 text-sm text-[var(--muted-strong)]";
@@ -50,8 +51,8 @@ export function adminButtonClassName({
   const sizeClassName =
     size === "compact"
       ? variant === "primary"
-        ? "w-auto px-4 py-2 text-xs uppercase tracking-[0.12em]"
-        : "w-auto px-4 py-2"
+        ? "w-auto px-[0.9rem] py-[0.41rem] text-[0.64rem] leading-none uppercase tracking-[0.12em]"
+        : "w-auto px-[0.9rem] py-[0.41rem]"
       : "";
 
   return cn(variantClassName, sizeClassName, className);
@@ -84,11 +85,9 @@ export function AdminField({
   return (
     <label className={cn("grid gap-2", className)}>
       {label ? (
-        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
-          {label}
-        </span>
+        <span className="admin-field-label">{label}</span>
       ) : null}
-      {description ? <span className="text-sm leading-6 text-white/62">{description}</span> : null}
+      {description ? <span className="admin-field-description">{description}</span> : null}
       {children}
     </label>
   );
@@ -141,21 +140,21 @@ export function AdminToggle({
       aria-label={ariaLabel}
       onClick={onToggle}
       className={cn(
-        "relative inline-flex h-7 w-12 shrink-0 rounded-full border transition",
-        checked ? "border-[rgba(208,255,72,0.28)] bg-[rgba(208,255,72,0.18)]" : "border-white/10 bg-white/[0.06]",
+        "admin-toggle-control",
+        checked ? "admin-toggle-control-active" : "",
       )}
     >
       <span
         className={cn(
-          "absolute top-1 h-5 w-5 rounded-full transition",
-          checked ? "left-6 bg-[rgba(208,255,72,0.94)]" : "left-1 bg-white/70",
+          "admin-toggle-thumb",
+          checked ? "admin-toggle-thumb-active" : "",
         )}
       />
     </button>
   );
 }
 
-export function AdminPillSelect({
+export function AdminSelect({
   pickerId = "admin-pill-select",
   open,
   onToggle,
@@ -187,3 +186,5 @@ export function AdminPillSelect({
     />
   );
 }
+
+export const AdminPillSelect = AdminSelect;

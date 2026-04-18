@@ -64,7 +64,7 @@ function StatusRow({
   detail: string;
 }) {
   return (
-    <div className="admin-surface-inset flex items-start justify-between gap-4 px-4 py-4">
+    <div className="admin-row-surface items-start">
       <div>
         <div className="text-sm font-semibold text-[var(--foreground)]">{label}</div>
         <div className="mt-1 text-sm leading-6 text-[var(--muted-strong)]">{detail}</div>
@@ -104,9 +104,7 @@ export default async function SetupPage() {
         <section className={adminSurfaceCardClassName}>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
-                Current Readiness
-              </div>
+              <div className="admin-label-accent">Current Readiness</div>
               <h2 className="mt-2 text-[1.15rem] font-semibold tracking-[-0.03em] text-[var(--foreground)]">
                 This machine
               </h2>
@@ -179,9 +177,7 @@ powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
         </section>
 
         <section className={adminSurfaceCardClassName}>
-          <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
-            Required
-          </div>
+          <div className="admin-label-accent">Required</div>
           <div className="mt-4 space-y-3 text-sm leading-7 text-[var(--muted-strong)]">
             <div>`KIE_API_KEY` for live generation.</div>
             <div>
@@ -194,9 +190,7 @@ powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
         </section>
 
         <section className={adminSurfaceCardClassName}>
-          <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
-            Optional
-          </div>
+          <div className="admin-label-accent">Optional</div>
           <div className="mt-4 space-y-3 text-sm leading-7 text-[var(--muted-strong)]">
             <div>`OPENROUTER_API_KEY` for hosted prompt enhancement.</div>
             <div>

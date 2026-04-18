@@ -181,27 +181,21 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
               {pricingSummary ? (
                 <div className={`${adminInsetClassName} grid gap-3 lg:grid-cols-3`}>
                   <div className="grid gap-1">
-                    <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
-                      Estimated total
-                    </span>
+                    <span className="admin-label-muted">Estimated total</span>
                     <span className="text-[var(--foreground)]">
                       {formatUsdAmount(totalPricing?.estimated_cost_usd)}{" "}
                       <span className="text-[var(--muted-strong)]">/ {formatCreditsAmount(totalPricing?.estimated_credits)} credits</span>
                     </span>
                   </div>
                   <div className="grid gap-1">
-                    <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
-                      Per output
-                    </span>
+                    <span className="admin-label-muted">Per output</span>
                     <span className="text-[var(--foreground)]">
                       {formatUsdAmount(perOutputPricing?.estimated_cost_usd)}{" "}
                       <span className="text-[var(--muted-strong)]">/ {formatCreditsAmount(perOutputPricing?.estimated_credits)} credits</span>
                     </span>
                   </div>
                   <div className="grid gap-1">
-                    <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
-                      Outputs
-                    </span>
+                    <span className="admin-label-muted">Outputs</span>
                     <span className="text-[var(--foreground)]">{savedOutputCount ?? batch.requested_outputs}</span>
                   </div>
                 </div>

@@ -126,24 +126,20 @@ export default async function JobsPage({
         />
         <div className="mt-5">
           <div className={mutedCardClassName}>
-            <div className="mb-3 flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
+            <div className="admin-icon-label-row admin-label-muted mb-3">
               <LoaderCircle className={`size-3.5 ${runnerHealthy ? "" : "text-[var(--danger)]"}`} />
               Media Studio runner
             </div>
             <div className="grid gap-2 text-sm text-[var(--muted-strong)]">
               <div className={`grid gap-2 sm:grid-cols-2 ${adminInsetClassName}`}>
                 <div className="grid gap-1">
-                  <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
-                    Last heartbeat
-                  </span>
+                  <span className="admin-label-muted">Last heartbeat</span>
                   <span className="font-medium text-[var(--foreground)]">
                     {healthData?.last_scheduler_tick ? formatDateTime(healthData.last_scheduler_tick) : "Waiting"}
                   </span>
                 </div>
                 <div className="grid justify-items-end gap-1 text-right">
-                  <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
-                    Runner status
-                  </span>
+                  <span className="admin-label-muted">Runner status</span>
                   <span className={`font-medium ${runnerHealthy ? "text-[var(--accent-strong)]" : "text-[var(--danger)]"}`}>
                     {runnerHealth === "healthy" ? "Healthy" : runnerHealth === "paused" ? "Paused" : "Needs attention"}
                   </span>
@@ -151,15 +147,15 @@ export default async function JobsPage({
               </div>
               <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
                 <div className={adminInsetClassName}>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Attached to</div>
+                  <div className="admin-label-muted">Attached to</div>
                   <div className="mt-1 text-[var(--foreground)]">{healthData?.runner_attached_to ?? "Media Studio API"}</div>
                 </div>
                 <div className={adminInsetClassName}>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Mode</div>
+                  <div className="admin-label-muted">Mode</div>
                   <div className="mt-1 text-[var(--foreground)] capitalize">{healthData?.runner_mode ?? "embedded"}</div>
                 </div>
                 <div className={adminInsetClassName}>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Launch</div>
+                  <div className="admin-label-muted">Launch</div>
                   <div className="mt-1 text-[var(--foreground)]">
                     {healthData?.runner_launch_mode === "supervised"
                       ? (healthData?.supervisor ?? "Supervised")
@@ -167,15 +163,15 @@ export default async function JobsPage({
                   </div>
                 </div>
                 <div className={adminInsetClassName}>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Process</div>
+                  <div className="admin-label-muted">Process</div>
                   <div className="mt-1 font-mono text-[var(--foreground)]">{healthData?.runner_process_name ?? "media-studio-runner"}</div>
                 </div>
                 <div className={adminInsetClassName}>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Running</div>
+                  <div className="admin-label-muted">Running</div>
                   <div className="mt-1 text-[var(--foreground)]">{healthData?.running_jobs ?? recentRunningCount}</div>
                 </div>
                 <div className={adminInsetClassName}>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Queued</div>
+                  <div className="admin-label-muted">Queued</div>
                   <div className="mt-1 text-[var(--foreground)]">{healthData?.queued_jobs ?? recentQueuedCount}</div>
                 </div>
               </div>
@@ -254,9 +250,7 @@ export default async function JobsPage({
             {totalBatches > 0 ? (
               <div className={`${adminInsetClassName} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
-                    Show
-                  </span>
+                  <span className="admin-label-muted">Show</span>
                   {JOBS_PER_PAGE_OPTIONS.map((option) => (
                     <AdminNavButton
                       key={option}

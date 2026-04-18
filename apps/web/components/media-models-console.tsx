@@ -10,7 +10,7 @@ import {
   AdminButton,
   AdminField,
   AdminInput,
-  AdminPillSelect,
+  AdminSelect,
   AdminTextarea,
   AdminToggle,
 } from "@/components/admin-controls";
@@ -910,7 +910,7 @@ export function MediaModelsConsole({
   ) {
     const isOpen = openPicker === pickerId;
     return (
-      <AdminPillSelect
+      <AdminSelect
         open={isOpen}
         onToggle={() => setOpenPicker(isOpen ? null : pickerId)}
         value={value}
@@ -967,11 +967,11 @@ export function MediaModelsConsole({
             badge={<StatusPill label={localQueueSettings?.queue_enabled ? "Running" : "Paused"} tone={localQueueSettings?.queue_enabled ? "healthy" : "warning"} />}
             className="px-5 py-5"
             summaryClassName="flex-col items-start gap-3 sm:flex-row sm:items-start"
-            titleClassName="flex items-center gap-2 text-[0.72rem] tracking-[0.14em]"
+            titleClassName="admin-label-muted flex items-center gap-2"
             descriptionClassName="max-w-[760px]"
             bodyClassName="grid max-w-[760px] gap-3 border-t border-[var(--surface-border-soft)] pt-5"
           >
-            <label className="admin-surface-inset flex max-w-[280px] items-center justify-between gap-3 px-3 py-3 text-sm">
+            <label className="admin-toggle-row max-w-[280px] text-sm">
               <span className="font-medium text-[var(--foreground)]">Run jobs automatically</span>
               <AdminToggle
                 checked={localQueueSettings?.queue_enabled ?? true}
@@ -1119,7 +1119,7 @@ export function MediaModelsConsole({
               </div>
               <div className="mt-4 grid gap-3">
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,280px)_minmax(0,320px)] lg:items-start">
-                  <label className="admin-surface-inset flex items-center justify-between gap-3 px-3 py-3 text-sm">
+                  <label className="admin-toggle-row text-sm">
                     <span>Enable Enhance</span>
                     <AdminToggle
                       checked={enhancementForm.status !== "inactive"}
@@ -1403,7 +1403,7 @@ export function MediaModelsConsole({
             }
             className="px-5 py-5"
             summaryClassName="flex-col items-start gap-3 sm:flex-row sm:items-start"
-            titleClassName="flex items-center gap-2 text-[0.72rem] tracking-[0.14em]"
+            titleClassName="admin-label-muted flex items-center gap-2"
             descriptionClassName="max-w-[760px]"
             bodyClassName="grid gap-3 border-t border-[var(--surface-border-soft)] pt-5"
           >
@@ -1411,7 +1411,7 @@ export function MediaModelsConsole({
               {modelAvailabilityRows.map(({ model, enabled }) => (
                 <div
                   key={`availability-${model.key}`}
-                  className="admin-surface-inset flex items-center justify-between gap-4 px-4 py-4"
+                  className="admin-row-surface"
                 >
                   <div className="min-w-0 grid gap-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1444,7 +1444,7 @@ export function MediaModelsConsole({
         />
         <div className="mt-5 max-w-full sm:max-w-[340px]">
           <label className="grid gap-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">Model</span>
+            <span className="admin-field-label">Model</span>
             {renderSelect(
               "supported-model",
               selectedModelKey,
@@ -1496,7 +1496,7 @@ export function MediaModelsConsole({
                 <Clapperboard className="size-3.5" />
                 Queue Controls
               </div>
-              <div className="admin-surface-inset mt-4 flex items-center justify-between gap-3 px-4 py-3">
+              <div className="admin-row-surface mt-4">
                 <div className="grid gap-1">
                   <div className="flex items-center gap-2">
                     <span className="admin-label-muted">
@@ -1612,7 +1612,7 @@ export function MediaModelsConsole({
               />
             </div>
             <div className="mt-4 grid max-w-[860px] gap-3 lg:grid-cols-2">
-              <label className="admin-surface-inset flex items-center justify-between gap-3 px-3 py-3 text-sm">
+              <label className="admin-toggle-row text-sm">
                 <span>Rewrite prompts for this model</span>
                 <AdminToggle
                   checked={enhancementProfileForm.supportsTextEnhancement}
@@ -1625,7 +1625,7 @@ export function MediaModelsConsole({
                   }
                 />
               </label>
-              <label className="admin-surface-inset flex items-center justify-between gap-3 px-3 py-3 text-sm">
+              <label className="admin-toggle-row text-sm">
                 <span>Use attached images to guide enhancement</span>
                 <AdminToggle
                   checked={enhancementProfileForm.supportsImageAnalysis}

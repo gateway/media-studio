@@ -28,21 +28,19 @@ export function StudioDebugSettings() {
         title="Studio Debug Console"
         description="Mirror Studio operational messages to the browser console while keeping the normal composer status UI."
       />
-      <div className="mt-5 rounded-[22px] border border-white/8 bg-[rgba(11,14,13,0.92)] p-5">
+      <div className="admin-surface-inset mt-5 p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="grid gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
-              Browser Debug Logging
-            </span>
+            <span className="admin-label-muted">Browser Debug Logging</span>
           </div>
           <div className="text-sm leading-6 text-[var(--muted-strong)]">
             Uses local browser storage only. You can still control it manually with{" "}
-            <code className="rounded-[10px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-2 py-1 text-[0.78rem] text-[var(--foreground)]">
+            <code className="admin-inline-code">
               window.__mediaStudioDebug.enable()
             </code>{" "}
             and{" "}
-            <code className="rounded-[10px] border border-[var(--surface-border-soft)] bg-[color:var(--surface-muted)]/82 px-2 py-1 text-[0.78rem] text-[var(--foreground)]">
+            <code className="admin-inline-code">
               window.__mediaStudioDebug.disable()
             </code>.
           </div>

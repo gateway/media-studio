@@ -11,9 +11,7 @@ export function SectionIntro({ eyebrow, title, description, meta }: SectionIntro
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div className="max-w-3xl">
-        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">
-          {eyebrow}
-        </p>
+        <p className="admin-panel-eyebrow">{eyebrow}</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)] lg:text-[2.5rem]">
           {title}
         </h1>

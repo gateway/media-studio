@@ -31,7 +31,7 @@ export function StudioAdminShell({
   aside,
 }: StudioAdminShellProps) {
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[1560px] flex-col gap-8 px-4 pb-10 pt-8 sm:px-6 lg:px-8">
+    <div className="admin-theme-root mx-auto flex min-h-screen w-full max-w-[1560px] flex-col gap-8 px-4 pb-10 pt-8 sm:px-6 lg:px-8">
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-white/8 pb-3">
           {navItems.map((item) => {
@@ -52,11 +52,11 @@ export function StudioAdminShell({
           {aside ? <div className="ml-auto">{aside}</div> : null}
         </div>
         <div className="space-y-3">
-          <div className="text-[0.74rem] font-semibold uppercase tracking-[0.22em] text-white/46">{eyebrow}</div>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[var(--ms-text-primary)] sm:text-[2.4rem]">
+          <div className="admin-page-eyebrow">{eyebrow}</div>
+          <h1 className="admin-page-title sm:text-[2.4rem]">
             {title}
           </h1>
-          <p className="max-w-4xl text-sm leading-7 text-[var(--ms-text-muted)] sm:text-[0.98rem]">{description}</p>
+          <p className="admin-page-description sm:text-[0.98rem]">{description}</p>
         </div>
       </div>
       <div className="min-w-0">{children}</div>

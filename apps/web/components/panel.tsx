@@ -36,17 +36,11 @@ export function PanelHeader({
   return (
     <div className="flex flex-col gap-4 border-b border-[var(--surface-border-soft)] pb-4 lg:flex-row lg:items-start lg:justify-between">
       <div className="space-y-2">
-        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-          {eyebrow}
-        </p>
+        <p className="admin-panel-eyebrow">{eyebrow}</p>
         <div>
-          <h2 className="text-[1.35rem] font-semibold tracking-[-0.03em] text-[var(--foreground)]">
-            {title}
-          </h2>
+          <h2 className="admin-panel-title">{title}</h2>
           {description ? (
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-[var(--muted-strong)]">
-              {description}
-            </p>
+            <p className="admin-panel-description">{description}</p>
           ) : null}
         </div>
       </div>

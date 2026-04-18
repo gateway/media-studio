@@ -94,9 +94,7 @@ export function RuntimeControls() {
           <div key={service.service} className={adminInsetCardClassName}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">
-                  {service.service === "api" ? "API runtime" : "Web runtime"}
-                </div>
+                <div className="admin-label-muted">{service.service === "api" ? "API runtime" : "Web runtime"}</div>
                 <div className="mt-1 text-sm font-medium text-[var(--foreground)]">
                   {service.supervisor === "unknown" ? "Unknown" : service.supervisor}
                 </div>

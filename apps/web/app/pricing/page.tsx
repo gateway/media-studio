@@ -188,31 +188,31 @@ export default async function PricingPage() {
           />
           <div className="mt-5 grid gap-3 lg:grid-cols-4">
             <div className={adminInsetPanelClassName}>
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Catalog status</div>
+              <div className="admin-label-muted">Catalog status</div>
               <div className="mt-3 text-lg font-semibold text-[var(--foreground)]">
                 {formatPricingStatus(authoritative, pricingStatus)}
               </div>
             </div>
             <div className={adminInsetPanelClassName}>
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Credits left</div>
+              <div className="admin-label-muted">Credits left</div>
               <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
                 {availableCredits != null ? availableCredits.toFixed(1) : "n/a"}
               </div>
             </div>
             <div className={adminInsetPanelClassName}>
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Refreshed</div>
+              <div className="admin-label-muted">Refreshed</div>
               <div className="mt-3 text-sm font-medium text-[var(--foreground)]">
                 {pricing?.refreshed_at ? formatDateTime(pricing.refreshed_at) : "Unknown"}
               </div>
             </div>
             <div className={adminInsetPanelClassName}>
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Models covered</div>
+              <div className="admin-label-muted">Models covered</div>
               <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">{rules.length}</div>
             </div>
           </div>
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
             <div className={adminInsetCardClassName}>
-              <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">
+              <div className="admin-icon-label-row admin-label-accent">
                 <Coins className="size-3.5" />
                 Estimate path
               </div>
@@ -222,7 +222,7 @@ export default async function PricingPage() {
               </p>
             </div>
             <div className={adminInsetCardClassName}>
-              <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">
+              <div className="admin-icon-label-row admin-label-accent">
                 <Sparkles className="size-3.5" />
                 Saved snapshot
               </div>
@@ -232,7 +232,7 @@ export default async function PricingPage() {
               </p>
             </div>
             <div className={adminInsetCardClassName}>
-              <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">
+              <div className="admin-icon-label-row admin-label-accent">
                 <RefreshCcw className="size-3.5" />
                 Source
               </div>
@@ -306,11 +306,11 @@ export default async function PricingPage() {
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <div className={adminInsetCardClassName}>
-                      <div className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--muted-strong)]">Base credits</div>
+                      <div className="admin-label-muted">Base credits</div>
                       <div className="mt-2 text-xl font-semibold text-[var(--foreground)]">{formatCreditsAmount(record.base_credits, { suffix: " credits" })}</div>
                     </div>
                     <div className={adminInsetCardClassName}>
-                      <div className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--muted-strong)]">Base USD</div>
+                      <div className="admin-label-muted">Base USD</div>
                       <div className="mt-2 text-xl font-semibold text-[var(--foreground)]">{formatUsdAmount(record.base_cost_usd)}</div>
                     </div>
                   </div>
@@ -336,7 +336,7 @@ export default async function PricingPage() {
 
                   {scenarioRows.length ? (
                     <div className="mt-4 grid gap-3">
-                      <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">Common scenarios</div>
+                      <div className="admin-label-muted">Common scenarios</div>
                       <div className="grid gap-2">
                         {scenarioRows.map((row) => (
                           <div
