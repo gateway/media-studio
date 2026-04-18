@@ -220,6 +220,66 @@ textarea {
   border-radius: 0;
 }
 
+.admin-label-muted {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted-strong);
+}
+
+.admin-label-accent {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent-strong);
+}
+
+.admin-icon-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-property-grid-header {
+  display: grid;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.75rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted-strong);
+}
+
+.admin-property-grid-row {
+  display: grid;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.admin-live-notice {
+  border: 0;
+  border-radius: 0;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  box-shadow: none;
+}
+
+.admin-live-notice-success {
+  background-color: rgba(81, 136, 111, 0.08);
+  color: var(--success);
+}
+
+.admin-live-notice-danger {
+  background-color: rgba(175, 79, 64, 0.08);
+  color: var(--danger);
+}
+
 .admin-input {
   width: 100%;
   border: 0;

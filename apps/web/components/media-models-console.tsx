@@ -943,10 +943,10 @@ export function MediaModelsConsole({
       {message ? (
         <div
           className={cn(
-            "sr-only border px-4 py-3 text-sm shadow-[var(--shadow-soft)]",
+            "admin-live-notice sr-only",
             message.tone === "healthy"
-              ? "border-[rgba(81,136,111,0.18)] bg-[rgba(81,136,111,0.08)] text-[var(--success)]"
-              : "border-[rgba(175,79,64,0.18)] bg-[rgba(175,79,64,0.08)] text-[var(--danger)]",
+              ? "admin-live-notice-success"
+              : "admin-live-notice-danger",
           )}
         >
           {message.text}
@@ -1151,7 +1151,7 @@ export function MediaModelsConsole({
                 </div>
                 {enhancementForm.providerKind === "openrouter" ? (
                   <div className="grid gap-3">
-                    <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                    <div className="admin-icon-label-row admin-label-muted">
                       <KeyRound className="size-3.5" />
                       OpenRouter.ai
                     </div>
@@ -1252,10 +1252,10 @@ export function MediaModelsConsole({
                 ) : null}
                 {enhancementForm.providerKind === "local_openai" ? (
                   <div className="grid gap-3">
-                    <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                    <div className="admin-icon-label-row admin-label-muted">
                       <Server className="size-3.5" />
-                        Local OpenAI-Compatible
-                      </div>
+                      Local OpenAI-Compatible
+                    </div>
                     <div className="grid max-w-[760px] gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
                       <AdminInput
                         value={enhancementForm.providerBaseUrl}
@@ -1329,7 +1329,7 @@ export function MediaModelsConsole({
                 ) : null}
                 {enhancementForm.providerKind === "builtin" ? (
                   <div className="grid max-w-[520px] gap-3">
-                    <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                    <div className="admin-icon-label-row admin-label-muted">
                       <PlugZap className="size-3.5" />
                       Built-in helper
                     </div>
@@ -1360,7 +1360,7 @@ export function MediaModelsConsole({
           description="Open the folder where Media Studio saves finished files on this machine."
         />
         <div className={cn(surfaceCardClassName, "mt-5")}>
-          <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+          <div className="admin-icon-label-row admin-label-muted">
             <FolderOpen className="size-3.5" />
             Media output folder
           </div>
@@ -1460,14 +1460,14 @@ export function MediaModelsConsole({
         </div>
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] lg:items-start">
           <div>
-            <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+            <div className="admin-icon-label-row admin-label-muted">
               <Sparkles className="size-3.5 text-[rgba(208,255,72,0.94)]" />
               Parameters
             </div>
             <div className="mt-3 overflow-hidden">
               {parameterRows.length ? (
                 <div className="grid">
-                  <div className="grid grid-cols-[minmax(0,0.9fr)_80px_minmax(0,1.6fr)] gap-4 border-b border-white/8 px-3 py-3 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[var(--muted-strong)]">
+                  <div className="admin-property-grid-header grid-cols-[minmax(0,0.9fr)_80px_minmax(0,1.6fr)]">
                     <div>Parameter</div>
                     <div>Required</div>
                     <div>Description</div>
@@ -1477,7 +1477,7 @@ export function MediaModelsConsole({
                     return (
                       <div
                         key={`${selectedModelKey}-parameter-${row.name}`}
-                        className="grid grid-cols-[minmax(0,0.9fr)_80px_minmax(0,1.6fr)] gap-4 border-b border-white/8 px-3 py-3 text-sm last:border-b-0"
+                        className="admin-property-grid-row grid-cols-[minmax(0,0.9fr)_80px_minmax(0,1.6fr)] last:border-b-0"
                       >
                         <div className="flex items-center gap-2 text-[var(--foreground)]">
                           <Icon className="size-3.5 shrink-0 text-[rgba(208,255,72,0.94)]" />
@@ -1495,14 +1495,14 @@ export function MediaModelsConsole({
             </div>
           </div>
           <div className={surfaceCardClassName}>
-            <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+            <div className="admin-icon-label-row admin-label-muted">
               <Clapperboard className="size-3.5" />
               Queue Controls
             </div>
             <div className="admin-surface-inset mt-4 flex items-center justify-between gap-3 px-4 py-3">
               <div className="grid gap-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                  <span className="admin-label-muted">
                     Availability
                   </span>
                   <StatusPill
@@ -1590,7 +1590,7 @@ export function MediaModelsConsole({
             bodyClassName="border-t border-[var(--surface-border-soft)] pt-5"
           >
             <div className="grid max-w-[860px] gap-2">
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">Prompt rewrite instructions</div>
+              <div className="admin-label-muted">Prompt rewrite instructions</div>
               <div className="text-sm leading-6 text-[var(--muted-strong)]">
                 Add the system prompt you want to use for this model, based on the model specs, research, and prompt guides you trust. Use <span className="font-medium text-[var(--foreground)]">{"{user_prompt}"}</span> anywhere you want Studio to inject the operator&apos;s prompt before it is sent to the LLM for prompt enhancement.
               </div>
@@ -1602,7 +1602,7 @@ export function MediaModelsConsole({
               />
             </div>
             <div className="mt-4 grid max-w-[860px] gap-2">
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">Image understanding instructions</div>
+              <div className="admin-label-muted">Image understanding instructions</div>
               <div className="text-sm leading-6 text-[var(--muted-strong)]">
                 Explain how an attached image should be read and combined with the written prompt when building the final prompt.
               </div>
@@ -1745,7 +1745,7 @@ export function MediaModelsConsole({
                     <div className="grid gap-4">
                       {preset.input_schema_json?.length ? (
                         <div className="grid gap-2">
-                          <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">Text fields</div>
+                          <div className="admin-label-muted">Text fields</div>
                           <div className="grid gap-2">
                             {preset.input_schema_json.map((field, index) => {
                               const item = field as Record<string, unknown>;
@@ -1761,7 +1761,7 @@ export function MediaModelsConsole({
                       ) : null}
                       {preset.input_slots_json?.length ? (
                         <div className="grid gap-2">
-                          <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">Image slots</div>
+                          <div className="admin-label-muted">Image slots</div>
                           <div className="grid gap-2">
                             {preset.input_slots_json.map((slot, index) => {
                               const item = slot as Record<string, unknown>;
@@ -1776,7 +1776,7 @@ export function MediaModelsConsole({
                         </div>
                       ) : null}
                       <div className="grid gap-2">
-                        <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">Prompt template</div>
+                        <div className="admin-label-muted">Prompt template</div>
                         <pre className="admin-code-block whitespace-pre-wrap px-3 py-3 text-xs leading-6 text-[var(--muted-strong)]">
                           {preset.prompt_template || "No prompt configured yet."}
                         </pre>

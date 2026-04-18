@@ -160,7 +160,7 @@ export default async function SetupPage() {
           </div>
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
             <div className="admin-surface-inset p-4">
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">macOS</div>
+              <div className="admin-label-accent">macOS</div>
               <pre className="admin-code-block mt-3 overflow-x-auto p-4 text-sm leading-7 text-[var(--foreground)]">
 {`git clone https://github.com/gateway/media-studio.git
 cd media-studio
@@ -168,7 +168,7 @@ cd media-studio
               </pre>
             </div>
             <div className="admin-surface-inset p-4">
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">Windows</div>
+              <div className="admin-label-accent">Windows</div>
               <pre className="admin-code-block mt-3 overflow-x-auto p-4 text-sm leading-7 text-[var(--foreground)]">
 {`git clone https://github.com/gateway/media-studio.git
 cd media-studio
