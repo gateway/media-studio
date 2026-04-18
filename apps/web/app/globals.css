@@ -172,18 +172,18 @@ textarea {
 .admin-disclosure {
   width: 100%;
   min-width: 0;
-  background-color: #141616;
+  background-color: #212525;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
 }
 
 .admin-subsection {
   width: 100%;
   min-width: 0;
-  background-color: #141616;
+  background-color: #212525;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
 }
 
@@ -308,13 +308,18 @@ textarea {
 .admin-toggle-row {
   background-color: #1b1d1d;
   border: 0;
-  border-radius: 0;
+  border-radius: 10px;
   box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.75rem;
+}
+
+.admin-form-stack {
+  display: grid;
+  gap: 0.75rem;
 }
 
 .admin-empty-state {

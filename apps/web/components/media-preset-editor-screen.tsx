@@ -680,7 +680,7 @@ export function MediaPresetEditorScreen({
                     tone="media"
                     defaultOpen
                     className="px-4 py-4"
-                    bodyClassName="border-t border-[var(--surface-border-soft)] pt-4"
+                    bodyClassName="admin-form-stack border-t border-[var(--surface-border-soft)] pt-4"
                     badge={
                       <AdminButton
                         size="compact"
@@ -807,7 +807,7 @@ export function MediaPresetEditorScreen({
                     tone="media"
                     defaultOpen
                     className="px-4 py-4"
-                    bodyClassName="border-t border-[var(--surface-border-soft)] pt-4"
+                    bodyClassName="admin-form-stack border-t border-[var(--surface-border-soft)] pt-4"
                     badge={
                       <AdminButton
                         size="compact"
