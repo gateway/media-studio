@@ -328,10 +328,8 @@ export function MediaPromptsConsole({ models, prompts }: MediaPromptsConsoleProp
                         type="button"
                         onClick={() => toggleModel(model.key)}
                         className={cn(
-                          "rounded-full border px-3 py-2 text-xs uppercase tracking-[0.12em] transition",
-                          active
-                            ? "border-[rgba(208,255,72,0.24)] bg-[rgba(208,255,72,0.12)] text-[var(--accent-strong)]"
-                            : "border-white/10 bg-[rgba(255,255,255,0.04)] text-[var(--muted-strong)]",
+                          "admin-option-button",
+                          active ? "admin-option-button-active" : "",
                         )}
                       >
                         {model.label}

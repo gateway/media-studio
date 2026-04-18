@@ -145,7 +145,7 @@ export default async function SetupPage() {
         </section>
 
         <section className={adminSurfaceCardClassName}>
-          <div className="admin-status-pill inline-flex items-center gap-2 border border-[var(--surface-border-soft)] bg-[rgba(208,255,72,0.08)] px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
+          <div className="admin-status-badge inline-flex items-center gap-2 border border-[var(--surface-border-soft)] bg-[rgba(208,255,72,0.08)] px-2.5 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
             <Sparkles className="size-4" />
             Quick Start
           </div>

@@ -18,7 +18,7 @@ describe("ui primitives", () => {
     const adminCompact = buttonClassName({ appearance: "admin", variant: "subtle", size: "compact" });
 
     expect(studioCompact).toContain("h-9");
-    expect(adminCompact).toContain("px-4");
+    expect(adminCompact).toContain("px-[0.95rem]");
   });
 
   it("uses shared icon button tones for studio surfaces", () => {

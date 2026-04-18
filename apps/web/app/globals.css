@@ -187,8 +187,10 @@ textarea {
   box-shadow: none;
 }
 
+.admin-status-badge,
 .admin-status-pill {
-  border-radius: 10px;
+  border-radius: 8px;
+  box-shadow: none;
 }
 
 .admin-code-block {
@@ -320,6 +322,31 @@ textarea {
 .admin-form-stack {
   display: grid;
   gap: 0.75rem;
+}
+
+.admin-option-button {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.04);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted-strong);
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.admin-option-button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--foreground);
+}
+
+.admin-option-button-active {
+  border-color: rgba(208, 255, 72, 0.24);
+  background-color: rgba(208, 255, 72, 0.12);
+  color: var(--accent-strong);
 }
 
 .admin-empty-state {
