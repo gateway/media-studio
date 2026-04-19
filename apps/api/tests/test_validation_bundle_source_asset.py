@@ -97,3 +97,13 @@ def test_preset_slot_asset_id_resolves_to_real_image_path_in_validation_bundle(a
 
     assert raw_request["images"][0]["filename"] == subject_path.name
     assert raw_request["images"][0]["path"] == str(subject_path)
+    assert bundle["image_slot_values"] == {
+        "person": [
+            {
+                "path": str(subject_path),
+                "filename": subject_path.name,
+                "mime_type": "image/png",
+            }
+        ]
+    }
+    assert raw_request["metadata"]["preset_image_slots"] == bundle["image_slot_values"]

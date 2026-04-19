@@ -651,10 +651,14 @@ def _resolve_preset(request: ValidateRequest) -> Tuple[Optional[Dict[str, Any]],
 
 def build_validation_bundle(request: ValidateRequest) -> Dict[str, Any]:
     preset, text_values, image_slot_values, final_prompt = _resolve_preset(request)
+    resolved_image_slot_values = {
+        key: [_ref_to_kie(ref) for ref in refs]
+        for key, refs in image_slot_values.items()
+    }
     selected_prompts = _collect_system_prompts(request.selected_system_prompt_ids)
     merged_images = [_ref_to_kie(item.model_dump()) for item in request.images]
-    for refs in image_slot_values.values():
-        merged_images.extend([_ref_to_kie(ref) for ref in refs])
+    for refs in resolved_image_slot_values.values():
+        merged_images.extend(refs)
     merged_videos = [_ref_to_kie(item.model_dump()) for item in request.videos]
     source_asset_ref = _source_asset_to_kie_ref(request.source_asset_id)
     if source_asset_ref:
@@ -678,7 +682,7 @@ def build_validation_bundle(request: ValidateRequest) -> Dict[str, Any]:
             "output_count": request.output_count,
             "selected_system_prompt_ids": request.selected_system_prompt_ids,
             "preset_text_values": text_values,
-            "preset_image_slots": image_slot_values,
+            "preset_image_slots": resolved_image_slot_values,
         },
     }
     prompt_context = kie_adapter.resolve_prompt_context(raw_request)
@@ -722,7 +726,7 @@ def build_validation_bundle(request: ValidateRequest) -> Dict[str, Any]:
         "resolved_options": request.options,
         "selected_prompts": selected_prompts,
         "text_values": text_values,
-        "image_slot_values": image_slot_values,
+        "image_slot_values": resolved_image_slot_values,
     }
 
 
