@@ -1185,9 +1185,8 @@ export function MediaStudio({
   function renderStandardComposerSlotLabel(slot: StudioComposerSlot) {
     if (slot.role === "end_frame") {
       return (
-        <div className="flex max-w-[96px] items-baseline gap-1 whitespace-nowrap text-[0.62rem] font-semibold uppercase leading-none tracking-[0.14em] text-white/46">
-          <span>End frame</span>
-          <span className="text-[0.5rem] tracking-[0.08em] text-white/34">(optional)</span>
+        <div className="max-w-[96px] whitespace-nowrap text-[0.62rem] font-semibold uppercase leading-none tracking-[0.14em] text-white/46">
+          End frame
         </div>
       );
     }
