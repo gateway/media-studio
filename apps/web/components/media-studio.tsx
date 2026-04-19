@@ -2919,10 +2919,6 @@ export function MediaStudio({
   }
 
   function handleGalleryKindFilterChange(nextKind: GalleryKindFilter) {
-    if (selectedProjectId && nextKind === "all") {
-      openProjectWorkspace(null);
-      return;
-    }
     clearGallerySelection();
     activateGalleryKindFilter(nextKind);
   }
