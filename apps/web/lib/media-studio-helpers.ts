@@ -536,7 +536,7 @@ export function renderStructuredPresetPrompt(
   let imageIndex = 0;
   for (const slot of imageSlots) {
     const slotState = slotStates[slot.key];
-    if (slotState?.assetId || slotState?.referenceId || slotState?.file) {
+    if (isPresetSlotFilled(slotState)) {
       imageIndex += 1;
       rendered = rendered.replaceAll(`[[${slot.key}]]`, `[image reference ${imageIndex}]`);
       continue;
@@ -544,6 +544,10 @@ export function renderStructuredPresetPrompt(
     rendered = rendered.replaceAll(`[[${slot.key}]]`, `[[${slot.key}]]`);
   }
   return rendered.trim();
+}
+
+export function isPresetSlotFilled(slotState: PresetSlotState | null | undefined) {
+  return Boolean(slotState?.assetId || slotState?.referenceId || slotState?.file);
 }
 
 export function inferInputPattern(

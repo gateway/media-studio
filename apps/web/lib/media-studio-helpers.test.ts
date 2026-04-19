@@ -12,6 +12,7 @@ import {
   deriveSeedanceComposerMode,
   inferInputPattern,
   insertImageAttachments,
+  isPresetSlotFilled,
   isStudioPresetVisible,
   mediaDownloadName,
   modelSupportsFirstLastFrames,
@@ -219,6 +220,18 @@ describe("media-studio-helpers Seedance support", () => {
     expect(classifyFile(new File(["video"], "dragged-ref.mp4"))).toBe("videos");
     expect(classifyFile(new File(["audio"], "dragged-ref.wav"))).toBe("audios");
     expect(classifyFile(new File(["image"], "dragged-ref.png"))).toBe("images");
+  });
+
+  it("treats reference-backed preset slots as filled", () => {
+    expect(
+      isPresetSlotFilled({
+        assetId: null,
+        referenceId: "ref-1",
+        referenceRecord: null,
+        file: null,
+        previewUrl: "https://example.com/thumb.webp",
+      }),
+    ).toBe(true);
   });
 
   it("uses the same staged image visual for enhancement previews as the composer strip", () => {

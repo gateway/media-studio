@@ -16,6 +16,7 @@ import {
   inferInputPattern,
   isCoarsePointerDevice,
   isNanoPresetModel,
+  isPresetSlotFilled,
   isSeedanceModel,
   isRecord,
   mediaDisplayUrl,
@@ -612,7 +613,7 @@ export function useStudioComposer({
         }
         for (const slot of structuredPresetImageSlots) {
           const slotState = presetSlotStates[slot.key];
-          const slotFilled = Boolean(slotState?.assetId || slotState?.file);
+          const slotFilled = isPresetSlotFilled(slotState);
           if (slot.required && !slotFilled) {
             return `The preset ${currentPreset?.label} requires the image slot ${slot.label}.`;
           }
