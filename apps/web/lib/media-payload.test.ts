@@ -193,4 +193,20 @@ describe("buildMediaPayloadFromFormData", () => {
       person: [{ reference_id: "ref-slot", path: "reference-media/images/preset-slot.png" }],
     });
   });
+
+  it("preserves preset slot gallery asset ids for API-side resolution", async () => {
+    const { buildMediaPayloadFromFormData } = await import("../app/api/control/media/shared");
+    const formData = new FormData();
+    formData.set("intent", "submit");
+    formData.set("model_key", "nano-banana-2");
+    formData.set("prompt", "Reuse the selected gallery image inside the preset slot");
+    formData.set("preset_slot_values_json", JSON.stringify({}));
+    formData.set("preset_slot_asset:person", "123");
+
+    const { payload } = await buildMediaPayloadFromFormData(formData);
+
+    expect(payload.preset_image_slots).toEqual({
+      person: [{ asset_id: 123 }],
+    });
+  });
 });

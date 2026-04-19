@@ -169,33 +169,7 @@ def probe_enhancement_provider(payload: Dict[str, Any]) -> Dict[str, Any]:
     raise ServiceError("Unsupported enhancement provider.")
 
 
-def _ref_to_kie(value: Dict[str, Any]) -> Dict[str, Any]:
-    if value.get("reference_id") and not value.get("path"):
-        reference = store.get_reference_media(str(value.get("reference_id")))
-        if reference and reference.get("stored_path"):
-            merged = dict(reference)
-            merged.update(value)
-            merged["path"] = reference.get("stored_path")
-            if not merged.get("filename"):
-                merged["filename"] = reference.get("original_filename")
-            if not merged.get("mime_type"):
-                merged["mime_type"] = reference.get("mime_type")
-            value = merged
-    raw_path = value.get("path")
-    if raw_path:
-        candidate = Path(str(raw_path))
-        if not candidate.is_absolute():
-            resolved = settings.data_root / candidate
-            if resolved.exists():
-                value = {**value, "path": str(resolved)}
-    ref = {}
-    for key in ("url", "path", "filename", "mime_type", "role", "duration_seconds"):
-        if value.get(key):
-            ref[key] = value[key]
-    return ref
-
-
-def _source_asset_to_kie_ref(asset_id: str | None) -> Dict[str, Any] | None:
+def _asset_to_kie_ref(asset_id: str | None) -> Dict[str, Any] | None:
     if not asset_id:
         return None
     asset = store.get_asset(str(asset_id))
@@ -225,6 +199,48 @@ def _source_asset_to_kie_ref(asset_id: str | None) -> Dict[str, Any] | None:
                 }
             )
     return None
+
+
+def _ref_to_kie(value: Dict[str, Any]) -> Dict[str, Any]:
+    if value.get("asset_id") and not value.get("path") and not value.get("url"):
+        asset_ref = _asset_to_kie_ref(str(value.get("asset_id")))
+        if asset_ref:
+            merged = dict(asset_ref)
+            merged.update(
+                {
+                    key: item
+                    for key, item in value.items()
+                    if key not in {"asset_id"} and item not in {None, ""}
+                }
+            )
+            value = merged
+    if value.get("reference_id") and not value.get("path"):
+        reference = store.get_reference_media(str(value.get("reference_id")))
+        if reference and reference.get("stored_path"):
+            merged = dict(reference)
+            merged.update(value)
+            merged["path"] = reference.get("stored_path")
+            if not merged.get("filename"):
+                merged["filename"] = reference.get("original_filename")
+            if not merged.get("mime_type"):
+                merged["mime_type"] = reference.get("mime_type")
+            value = merged
+    raw_path = value.get("path")
+    if raw_path:
+        candidate = Path(str(raw_path))
+        if not candidate.is_absolute():
+            resolved = settings.data_root / candidate
+            if resolved.exists():
+                value = {**value, "path": str(resolved)}
+    ref = {}
+    for key in ("url", "path", "filename", "mime_type", "role", "duration_seconds"):
+        if value.get(key):
+            ref[key] = value[key]
+    return ref
+
+
+def _source_asset_to_kie_ref(asset_id: str | None) -> Dict[str, Any] | None:
+    return _asset_to_kie_ref(asset_id)
 
 
 def _media_ref_signature(value: Dict[str, Any]) -> Tuple[Any, ...]:

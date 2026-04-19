@@ -41,6 +41,7 @@ class HealthResponse(BaseModel):
 
 
 class MediaRefInput(BaseModel):
+    asset_id: Optional[str] = None
     reference_id: Optional[str] = None
     url: Optional[str] = None
     path: Optional[str] = None
