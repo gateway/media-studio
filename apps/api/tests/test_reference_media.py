@@ -3,6 +3,13 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+PNG_1X1_BYTES = (
+    b"\x89PNG\r\n\x1a\n"
+    b"\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+    b"\x00\x00\x00\x0cIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfeA\x0b~\x90"
+    b"\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
 
 def test_reference_media_schema_bootstrap_creates_table_and_dedupe_index(app_modules, tmp_path: Path) -> None:
     store = app_modules["store"]
@@ -93,6 +100,39 @@ def test_mark_reference_media_used_updates_usage_metadata(client) -> None:
     assert payload["last_used_at"] is not None
 
 
+def test_import_reference_media_upload_stores_file_and_deduplicates(client, app_modules) -> None:
+    service = app_modules["service"]
+
+    first = client.post(
+        "/media/reference-media/import",
+        files={"file": ("portrait.png", PNG_1X1_BYTES, "image/png")},
+    )
+    assert first.status_code == 200, first.text
+    first_payload = first.json()
+
+    stored_path = service.settings.data_root / first_payload["stored_path"]
+    thumb_path = service.settings.data_root / first_payload["thumb_path"]
+
+    assert first_payload["kind"] == "image"
+    assert first_payload["original_filename"] == "portrait.png"
+    assert first_payload["width"] == 1
+    assert first_payload["height"] == 1
+    assert stored_path.exists()
+    assert thumb_path.exists()
+
+    second = client.post(
+        "/media/reference-media/import",
+        files={"file": ("portrait-copy.png", PNG_1X1_BYTES, "image/png")},
+    )
+    assert second.status_code == 200, second.text
+    second_payload = second.json()
+
+    assert second_payload["reference_id"] == first_payload["reference_id"]
+    assert second_payload["usage_count"] == first_payload["usage_count"] + 1
+    assert second_payload["stored_path"] == first_payload["stored_path"]
+    assert second_payload["thumb_path"] == first_payload["thumb_path"]
+
+
 def test_delete_reference_media_hides_item_without_removing_record(client) -> None:
     register_response = client.post(
         "/media/reference-media/register",
@@ -137,12 +177,7 @@ def test_backfill_reference_media_scans_uploads_and_is_idempotent(app_modules) -
     duplicate_a.parent.mkdir(parents=True, exist_ok=True)
     duplicate_b.parent.mkdir(parents=True, exist_ok=True)
     unique.parent.mkdir(parents=True, exist_ok=True)
-    duplicate_a.write_bytes(
-        b"\x89PNG\r\n\x1a\n"
-        b"\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
-        b"\x00\x00\x00\x0cIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfeA\x0b~\x90"
-        b"\x00\x00\x00\x00IEND\xaeB`\x82"
-    )
+    duplicate_a.write_bytes(PNG_1X1_BYTES)
     duplicate_b.write_bytes(duplicate_a.read_bytes())
     unique.write_bytes(
         b"\x89PNG\r\n\x1a\n"
@@ -171,12 +206,7 @@ def test_list_reference_media_does_not_auto_backfill_existing_uploads(client, ap
 
     upload_dir = service.settings.uploads_dir / "legacy-user" / "portrait.png"
     upload_dir.parent.mkdir(parents=True, exist_ok=True)
-    upload_dir.write_bytes(
-        b"\x89PNG\r\n\x1a\n"
-        b"\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
-        b"\x00\x00\x00\x0cIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfeA\x0b~\x90"
-        b"\x00\x00\x00\x00IEND\xaeB`\x82"
-    )
+    upload_dir.write_bytes(PNG_1X1_BYTES)
 
     response = client.get("/media/reference-media?kind=image")
     assert response.status_code == 200
@@ -203,12 +233,7 @@ def test_validation_bundle_resolves_reference_id_without_leaking_provider_extra_
     uploads_dir = service.settings.uploads_dir / "uuid-reference"
     uploads_dir.mkdir(parents=True, exist_ok=True)
     reference_path = uploads_dir / "portrait.png"
-    reference_path.write_bytes(
-        b"\x89PNG\r\n\x1a\n"
-        b"\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
-        b"\x00\x00\x00\x0cIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfeA\x0b~\x90"
-        b"\x00\x00\x00\x00IEND\xaeB`\x82"
-    )
+    reference_path.write_bytes(PNG_1X1_BYTES)
     reference = store.create_or_reuse_reference_media(
         {
             "kind": "image",

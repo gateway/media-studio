@@ -12,7 +12,7 @@ from threading import Lock
 from collections import Counter
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 from . import enhancement_provider, kie_adapter, store
 from .pricing import attach_pricing_summary
@@ -34,6 +34,11 @@ GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
 ENHANCEMENT_PROVIDER_TIMEOUT_SECONDS = 25
 _reference_media_backfill_lock = Lock()
 logger = logging.getLogger(__name__)
+REFERENCE_MEDIA_ROOT = settings.data_root / "reference-media"
+REFERENCE_IMAGES_ROOT = REFERENCE_MEDIA_ROOT / "images"
+REFERENCE_VIDEOS_ROOT = REFERENCE_MEDIA_ROOT / "videos"
+REFERENCE_AUDIOS_ROOT = REFERENCE_MEDIA_ROOT / "audios"
+REFERENCE_THUMBS_ROOT = REFERENCE_MEDIA_ROOT / "thumbs"
 
 
 class ServiceError(Exception):
@@ -371,6 +376,73 @@ def _reference_kind_for_path(file_path: Path) -> Optional[str]:
     return None
 
 
+def _reference_kind_from_source(source_mime_type: Optional[str], source_name: Optional[str]) -> str:
+    normalized = str(source_mime_type or "").lower().strip()
+    if normalized.startswith("video/"):
+        return "video"
+    if normalized.startswith("audio/"):
+        return "audio"
+    if normalized.startswith("image/"):
+        return "image"
+    guessed, _ = mimetypes.guess_type(source_name or "")
+    guessed = str(guessed or "").lower()
+    if guessed.startswith("video/"):
+        return "video"
+    if guessed.startswith("audio/"):
+        return "audio"
+    return "image"
+
+
+def _reference_extension_from_source(kind: str, source_name: Optional[str], source_mime_type: Optional[str]) -> str:
+    explicit = Path(source_name or "").suffix.lower()
+    if explicit:
+        return explicit
+    normalized = str(source_mime_type or "").lower()
+    if kind == "video" and "mp4" in normalized:
+        return ".mp4"
+    if kind == "audio" and "wav" in normalized:
+        return ".wav"
+    if kind == "audio" and "mpeg" in normalized:
+        return ".mp3"
+    if "jpeg" in normalized:
+        return ".jpg"
+    if "png" in normalized:
+        return ".png"
+    if "webp" in normalized:
+        return ".webp"
+    if kind == "video":
+        return ".mp4"
+    if kind == "audio":
+        return ".wav"
+    return ".png"
+
+
+def _reference_root_for_kind(kind: str) -> Path:
+    if kind == "video":
+        return REFERENCE_VIDEOS_ROOT
+    if kind == "audio":
+        return REFERENCE_AUDIOS_ROOT
+    return REFERENCE_IMAGES_ROOT
+
+
+def _relative_data_path(path_value: Path) -> str:
+    return str(path_value.relative_to(settings.data_root)).replace("\\", "/")
+
+
+def _write_reference_thumb(source_path: Path, digest: str) -> Optional[str]:
+    REFERENCE_THUMBS_ROOT.mkdir(parents=True, exist_ok=True)
+    thumb_path = REFERENCE_THUMBS_ROOT / f"{digest}.webp"
+    if not thumb_path.exists():
+        with Image.open(source_path) as image:
+            normalized = ImageOps.exif_transpose(image)
+            if normalized.mode not in {"RGB", "RGBA"}:
+                normalized = normalized.convert("RGB")
+            resampling = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.LANCZOS)
+            normalized.thumbnail((512, 512), resampling)
+            normalized.save(thumb_path, "WEBP", quality=82, method=6)
+    return _relative_data_path(thumb_path)
+
+
 def _probe_reference_media_metadata(file_path: Path, kind: str) -> Tuple[Optional[int], Optional[int], Optional[float]]:
     if kind != "image":
         return None, None, None
@@ -380,6 +452,67 @@ def _probe_reference_media_metadata(file_path: Path, kind: str) -> Tuple[Optiona
         return width, height, None
     except Exception:
         return None, None, None
+
+
+def import_reference_media_bytes(
+    *,
+    source_bytes: bytes,
+    source_name: Optional[str] = None,
+    source_mime_type: Optional[str] = None,
+) -> Dict[str, Any]:
+    if not source_bytes:
+        raise ServiceError("Choose a reference file to import.")
+
+    kind = _reference_kind_from_source(source_mime_type, source_name)
+    file_size_bytes = len(source_bytes)
+    digest = sha256(source_bytes).hexdigest()
+    existing = store.get_reference_media_by_hash(kind, digest, file_size_bytes)
+    if existing:
+        existing_path = settings.data_root / str(existing.get("stored_path") or "")
+        if existing.get("stored_path") and existing_path.exists():
+            return store.mark_reference_media_used(str(existing["reference_id"]))
+
+    extension = _reference_extension_from_source(kind, source_name, source_mime_type)
+    root = _reference_root_for_kind(kind)
+    root.mkdir(parents=True, exist_ok=True)
+    stored_path = root / f"{digest}{extension}"
+    if not stored_path.exists():
+        stored_path.write_bytes(source_bytes)
+
+    width, height, duration_seconds = _probe_reference_media_metadata(stored_path, kind)
+    thumb_path = _write_reference_thumb(stored_path, digest) if kind == "image" else None
+    mime_type = source_mime_type or mimetypes.guess_type(source_name or stored_path.name)[0]
+
+    payload = {
+        "kind": kind,
+        "status": "active",
+        "original_filename": source_name or stored_path.name,
+        "stored_path": _relative_data_path(stored_path),
+        "mime_type": mime_type,
+        "file_size_bytes": file_size_bytes,
+        "sha256": digest,
+        "width": width,
+        "height": height,
+        "duration_seconds": duration_seconds,
+        "thumb_path": thumb_path,
+        "poster_path": None,
+        "usage_count": 1,
+        "metadata_json": {},
+    }
+
+    if existing:
+        updated_existing = store.mark_reference_media_used(str(existing["reference_id"]))
+        return store.create_or_update_reference_media(
+            {
+                **updated_existing,
+                **payload,
+                "reference_id": updated_existing["reference_id"],
+                "usage_count": updated_existing["usage_count"],
+                "last_used_at": updated_existing.get("last_used_at"),
+            }
+        )
+
+    return store.create_or_reuse_reference_media(payload, increment_usage=True)
 
 
 def _sha256_file(file_path: Path) -> str:

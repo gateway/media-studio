@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -272,6 +272,23 @@ def delete_reference_media(reference_id: str):
 def register_reference_media(payload: ReferenceMediaRegisterRequest):
     record = store.create_or_reuse_reference_media(payload.model_dump(), increment_usage=True)
     return ReferenceMediaRecord(**record)
+
+
+@app.post("/media/reference-media/import", response_model=ReferenceMediaRecord)
+async def import_reference_media(file: UploadFile = File(...)):
+    filename = str(file.filename or "").strip()
+    source_bytes = await file.read()
+    if not source_bytes:
+        raise _bad_request("Choose a reference file to import.")
+    try:
+        record = service.import_reference_media_bytes(
+            source_bytes=source_bytes,
+            source_name=filename or None,
+            source_mime_type=file.content_type,
+        )
+        return ReferenceMediaRecord(**record)
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
 
 
 @app.post("/media/reference-media/backfill")

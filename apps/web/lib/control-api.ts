@@ -770,6 +770,27 @@ export async function registerReferenceMedia(payload: Record<string, unknown>) {
   };
 }
 
+export async function importReferenceMediaFile(file: File) {
+  const formData = new FormData();
+  formData.set("file", file);
+  const result = await fetchControlApiResponse(
+    "/media/reference-media/import",
+    {
+      method: "POST",
+      body: formData,
+    },
+    "admin",
+  );
+  if (!result.ok || !result.response) {
+    return { ok: false as const, data: null, error: result.error };
+  }
+  return {
+    ok: true as const,
+    data: { item: mapReferenceMediaRecord((await result.response.json()) as Record<string, any>) } as MediaReferenceResponse,
+    error: null,
+  };
+}
+
 export async function markReferenceMediaUsed(referenceId: string) {
   const result = await postControlApiJson<Record<string, any>>(`/media/reference-media/${referenceId}/use`, {});
   return {
