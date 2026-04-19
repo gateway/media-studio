@@ -1182,6 +1182,22 @@ export function MediaStudio({
     );
   }
 
+  function renderStandardComposerSlotLabel(slot: StudioComposerSlot) {
+    if (slot.role === "end_frame") {
+      return (
+        <div className="flex max-w-[96px] items-baseline gap-1 whitespace-nowrap text-[0.62rem] font-semibold uppercase leading-none tracking-[0.14em] text-white/46">
+          <span>End frame</span>
+          <span className="text-[0.5rem] tracking-[0.08em] text-white/34">(optional)</span>
+        </div>
+      );
+    }
+    return (
+      <div className="max-w-[96px] whitespace-nowrap text-[0.62rem] font-semibold uppercase leading-none tracking-[0.14em] text-white/46">
+        {slot.label}
+      </div>
+    );
+  }
+
   function renderStandardComposerSlot(
     slot: StudioComposerSlot,
     options: { mobile?: boolean; testIdPrefix: string },
@@ -1191,9 +1207,9 @@ export function MediaStudio({
     const visualUrl = standardComposerSlotVisual(slot);
     const previewClassName = mobile ? "h-[72px] w-[72px]" : "h-full w-full";
     return (
-      <div key={slot.id} className={mobile ? "shrink-0" : "flex w-[82px] flex-col gap-2"}>
+      <div key={slot.id} className={mobile ? "shrink-0" : "flex w-[96px] flex-col gap-2"}>
         {!preview ? (
-          <div className="max-w-[82px] text-[0.62rem] font-semibold uppercase leading-[1.15] tracking-[0.14em] text-white/46">{slot.label}</div>
+          renderStandardComposerSlotLabel(slot)
         ) : null}
         <div className={mobile ? "h-[72px] w-[72px]" : "relative h-[82px] w-[82px]"}>
           {preview ? (
