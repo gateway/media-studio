@@ -175,6 +175,14 @@ def list_projects(status: Optional[str] = "active") -> List[Dict[str, Any]]:
     return [_decode_row(row) for row in rows]
 
 
+def _visible_in_global_gallery_clause(table_name: str) -> str:
+    return (
+        f"({table_name}.project_id IS NULL OR {table_name}.project_id NOT IN ("
+        "SELECT project_id FROM media_projects WHERE hidden_from_global_gallery = 1"
+        "))"
+    )
+
+
 def get_project(project_id: str) -> Optional[Dict[str, Any]]:
     return _get_table("media_projects", "project_id", project_id)
 
@@ -485,6 +493,8 @@ def count_batches(project_id: Optional[str] = None) -> int:
     if project_id:
         query += " WHERE project_id = ?"
         params.append(project_id)
+    else:
+        query += " WHERE " + _visible_in_global_gallery_clause("media_batches")
     with get_connection() as connection:
         row = connection.execute(query, params).fetchone()
     return int(row["total"] if row else 0)
@@ -496,6 +506,8 @@ def list_batches(limit: int = 100, offset: int = 0, project_id: Optional[str] = 
     if project_id:
         clauses.append("project_id = ?")
         params.append(project_id)
+    else:
+        clauses.append(_visible_in_global_gallery_clause("media_batches"))
     params.extend([limit, offset])
     with get_connection() as connection:
         rows = connection.execute(
@@ -555,6 +567,8 @@ def list_jobs(limit: int = 200, include_dismissed: bool = False, project_id: Opt
         clauses.extend(["dismissed = 0", _dashboard_visible_job_clause()])
     if project_id:
         clauses.append("project_id = ?")
+    else:
+        clauses.append(_visible_in_global_gallery_clause("media_jobs"))
     if clauses:
         clause = "WHERE " + " AND ".join(clauses)
     with get_connection() as connection:
@@ -660,6 +674,8 @@ def list_assets(
     if project_id:
         clauses.append("project_id = ?")
         params.append(project_id)
+    else:
+        clauses.append(_visible_in_global_gallery_clause("media_assets"))
     query = "SELECT * FROM media_assets WHERE %s ORDER BY created_at DESC LIMIT ?" % " AND ".join(clauses)
     params.append(limit)
     with get_connection() as connection:

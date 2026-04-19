@@ -101,6 +101,7 @@ def decode_row(row: sqlite3.Row) -> Dict[str, Any]:
             "favorited",
             "dismissed",
             "hidden_from_dashboard",
+            "hidden_from_global_gallery",
         }:
             payload[key] = bool(value)
         else:
@@ -624,6 +625,7 @@ def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
                 description TEXT,
                 status TEXT NOT NULL DEFAULT 'active',
                 cover_asset_id TEXT,
+                hidden_from_global_gallery INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
@@ -881,6 +883,17 @@ MIGRATIONS = [
         version=2,
         description="Add reference-backed project cover images.",
         apply=lambda connection: ensure_column(connection, "media_projects", "cover_reference_id", "TEXT"),
+    ),
+    SchemaMigration(
+        migration_id="20260419_003_project_visibility_flags",
+        version=3,
+        description="Add project visibility flags for global gallery filtering.",
+        apply=lambda connection: ensure_column(
+            connection,
+            "media_projects",
+            "hidden_from_global_gallery",
+            "INTEGER NOT NULL DEFAULT 0",
+        ),
     ),
 ]
 

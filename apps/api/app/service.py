@@ -132,6 +132,7 @@ def validate_project_payload(payload: ProjectUpsertRequest) -> Dict[str, Any]:
         "description": str(payload.description).strip() if payload.description is not None else None,
         "cover_asset_id": str(payload.cover_asset_id).strip() if payload.cover_asset_id else None,
         "cover_reference_id": str(payload.cover_reference_id).strip() if payload.cover_reference_id else None,
+        "hidden_from_global_gallery": bool(payload.hidden_from_global_gallery),
         "status": status,
     }
 

@@ -149,3 +149,81 @@ def test_project_cover_reference_is_returned_with_cover_urls(client, app_modules
     assert payload["cover_reference_id"] == reference["reference_id"]
     assert payload["cover_image_url"] == "reference-media/images/project-cover.png"
     assert payload["cover_thumb_url"] == "reference-media/thumbs/project-cover.webp"
+
+
+def test_hidden_project_assets_are_excluded_from_global_gallery(client, app_modules) -> None:
+    store = app_modules["store"]
+    service = app_modules["service"]
+
+    visible_project = client.post(
+        "/media/projects",
+        json={"name": "Visible Project", "description": "Visible in global gallery."},
+    ).json()
+    hidden_project = client.post(
+        "/media/projects",
+        json={
+            "name": "Hidden Project",
+            "description": "Hidden in global gallery.",
+            "hidden_from_global_gallery": True,
+        },
+    ).json()
+
+    visible_submit = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "nano-banana-2",
+            "prompt": "Visible project render",
+            "project_id": visible_project["project_id"],
+            "output_count": 1,
+        },
+    )
+    hidden_submit = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "nano-banana-2",
+            "prompt": "Hidden project render",
+            "project_id": hidden_project["project_id"],
+            "output_count": 1,
+        },
+    )
+    assert visible_submit.status_code == 200
+    assert hidden_submit.status_code == 200
+
+    visible_job = store.get_job(visible_submit.json()["jobs"][0]["job_id"])
+    hidden_job = store.get_job(hidden_submit.json()["jobs"][0]["job_id"])
+    assert visible_job is not None
+    assert hidden_job is not None
+
+    service.simulate_job_completion(visible_job, service.settings.downloads_dir)
+    service.simulate_job_completion(hidden_job, service.settings.downloads_dir)
+
+    visible_asset = store.get_asset_by_job_id(visible_job["job_id"])
+    hidden_asset = store.get_asset_by_job_id(hidden_job["job_id"])
+    assert visible_asset is not None
+    assert hidden_asset is not None
+
+    global_assets = client.get("/media/assets")
+    assert global_assets.status_code == 200
+    global_asset_ids = [item["asset_id"] for item in global_assets.json()["items"]]
+    assert visible_asset["asset_id"] in global_asset_ids
+    assert hidden_asset["asset_id"] not in global_asset_ids
+
+    hidden_assets = client.get(f"/media/assets?project_id={hidden_project['project_id']}")
+    assert hidden_assets.status_code == 200
+    assert [item["asset_id"] for item in hidden_assets.json()["items"]] == [hidden_asset["asset_id"]]
+
+    global_jobs = client.get("/media/jobs")
+    assert global_jobs.status_code == 200
+    global_job_ids = [item["job_id"] for item in global_jobs.json()["items"]]
+    assert visible_job["job_id"] in global_job_ids
+    assert hidden_job["job_id"] not in global_job_ids
+
+    hidden_jobs = client.get(f"/media/jobs?project_id={hidden_project['project_id']}")
+    assert hidden_jobs.status_code == 200
+    assert [item["job_id"] for item in hidden_jobs.json()["items"]] == [hidden_job["job_id"]]
+
+    global_batches = client.get("/media/batches")
+    assert global_batches.status_code == 200
+    global_batch_ids = [item["batch_id"] for item in global_batches.json()["items"]]
+    assert visible_submit.json()["batch"]["batch_id"] in global_batch_ids
+    assert hidden_submit.json()["batch"]["batch_id"] not in global_batch_ids

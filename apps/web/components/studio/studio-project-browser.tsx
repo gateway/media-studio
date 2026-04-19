@@ -24,6 +24,7 @@ import { cn, formatDateTime } from "@/lib/utils";
 type ProjectDraft = {
   name: string;
   description: string;
+  hiddenFromGlobalGallery?: boolean;
   coverAssetId?: string | null;
   coverReferenceId?: string | null;
 };
@@ -41,7 +42,7 @@ type StudioProjectBrowserProps = {
 };
 
 function emptyDraft(): ProjectDraft {
-  return { name: "", description: "" };
+  return { name: "", description: "", hiddenFromGlobalGallery: false };
 }
 
 function projectCoverUrl(project: MediaProject) {
@@ -109,6 +110,11 @@ function ProjectCard({
       <div className="px-0.5 text-[0.62rem] leading-4 text-white/42">
         Updated {project.updated_at ? formatDateTime(project.updated_at) : "recently"}
       </div>
+      {project.hidden_from_global_gallery ? (
+        <div className="px-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[rgba(255,183,107,0.88)]">
+          Hidden from main gallery
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button
           onClick={onOpen}
@@ -236,6 +242,7 @@ export function StudioProjectBrowser({
     setDraft({
       name: project.name,
       description: project.description ?? "",
+      hiddenFromGlobalGallery: Boolean(project.hidden_from_global_gallery),
       coverReferenceId: project.cover_reference_id ?? undefined,
     });
     setCoverFile(null);
@@ -280,6 +287,7 @@ export function StudioProjectBrowser({
       const payload: ProjectDraft = {
         name: trimmedName,
         description: draft.description.trim(),
+        hiddenFromGlobalGallery: Boolean(draft.hiddenFromGlobalGallery),
       };
 
       if (coverFile) {
@@ -473,6 +481,42 @@ export function StudioProjectBrowser({
                     placeholder="What content belongs in this workspace, what references it uses, and what the goal is."
                   />
                 </label>
+
+                <button
+                  type="button"
+                  data-testid="studio-project-hide-global-toggle"
+                  onClick={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      hiddenFromGlobalGallery: !current.hiddenFromGlobalGallery,
+                    }))
+                  }
+                  className="flex items-start justify-between gap-4 rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-4 text-left transition hover:bg-white/[0.05]"
+                >
+                  <div>
+                    <div className="text-sm font-medium text-white/86">Hide from main gallery</div>
+                    <div className="mt-1 text-sm leading-6 text-white/58">
+                      Keep this project and its media out of the global gallery and global filters. It will only show inside the project workspace.
+                    </div>
+                  </div>
+                  <div
+                    className={cn(
+                      "mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full border transition",
+                      draft.hiddenFromGlobalGallery
+                        ? "border-[rgba(216,141,67,0.48)] bg-[rgba(216,141,67,0.22)]"
+                        : "border-white/12 bg-white/[0.06]",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "m-[2px] h-5 w-5 rounded-full transition",
+                        draft.hiddenFromGlobalGallery
+                          ? "translate-x-[20px] bg-[rgba(255,183,107,0.98)]"
+                          : "translate-x-0 bg-white/82",
+                      )}
+                    />
+                  </div>
+                </button>
 
                 <div className="grid gap-2">
                   <span className="text-sm font-medium text-white/76">Image (optional)</span>

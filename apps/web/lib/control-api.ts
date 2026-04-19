@@ -444,6 +444,7 @@ export function mapProjectRecord(project: Record<string, any>): MediaProject {
     name: String(project.name ?? ""),
     description: project.description ?? null,
     status: String(project.status ?? "active"),
+    hidden_from_global_gallery: Boolean(project.hidden_from_global_gallery),
     cover_asset_id: project.cover_asset_id ?? null,
     cover_reference_id: project.cover_reference_id ?? null,
     cover_image_url: project.cover_image_url ? asProxyUrl(project.cover_image_url) : null,

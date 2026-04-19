@@ -938,6 +938,7 @@ export type MediaProject = {
   name: string;
   description?: string | null;
   status: "active" | "archived" | string;
+  hidden_from_global_gallery?: boolean;
   cover_asset_id?: string | null;
   cover_reference_id?: string | null;
   cover_image_url?: string | null;
