@@ -36,6 +36,8 @@ data/*.sqlite-shm
 data/uploads/
 data/downloads/
 data/outputs/
+data/reference-media/
+data/runtime/
 data/preset-thumbnails/
 data/*.jsonl
 data/backups/
