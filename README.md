@@ -2,17 +2,17 @@
 
 Media Studio is a local AI image and video studio you run on your own machine.
 
-Your gallery, prompts, presets, projects, references, and generated files stay local. Media Studio connects to [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42), a credit-based model API marketplace, so you can run image and video models remotely without needing your own GPU box or a fixed monthly hosted studio subscription.
+Your gallery, prompts, presets, projects, references, and generated files stay with you. Media Studio connects to [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42), a credit-based model API marketplace, so you can run strong image and video models without paying for another fixed monthly hosted studio.
 
 ![Media Studio gallery and prompt workspace](docs/images/media-studio.jpg)
 
 Important before you install:
 
-- Media Studio runs locally, but generation does not work by itself.
+- Installing Media Studio is not enough by itself.
 - You need a funded [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) account and a `KIE_API_KEY`.
 - You can usually get started with a small credit balance, often around `$5`.
 - Once you have credits and your API key, Media Studio becomes a self-contained local studio for prompts, presets, projects, references, queueing, revisions, and output history.
-- New models can be added over time without turning the app into a monthly hosted service.
+- More models will keep getting added over time as they become available on [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42).
 
 If you want the fastest path first:
 
@@ -25,23 +25,15 @@ What you need:
 - a `KIE_API_KEY` from [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
 - a small Kie credit balance to start generating, often something like `$5`
 
-## What It Includes
-
-- local Studio UI for image and video generation
-- model-aware composer with prompts, source media, presets, and references
-- local queue, jobs, retries, revisions, and output history
-- local SQLite state plus local uploads, downloads, references, and generated outputs
-- Kie-backed pricing, validation, submit, polling, and artifact publishing
-
 ## Current Feature Set
 
 ### Studio Workspace
 
-- global gallery with image, video, favorite, and all-media filters
-- fullscreen asset viewer with inspector, metadata, and quick actions
-- `Create Revision`, `Animate`, and `Use image` actions directly from the inspector
+- one Studio for prompts, media, presets, references, jobs, and history
+- global gallery with image, video, favorites, and all-media views
+- fullscreen asset viewer with inspector and quick actions like `Create Revision`, `Animate`, and `Use image`
 - batch tracking that keeps completed, pending, and failed jobs visible together
-- retry flow that sends failed jobs back into Studio with their prompt and settings restored
+- retry and revision flows that put work back into the composer instead of making you rebuild it by hand
 
 ### Projects And Organization
 
@@ -49,7 +41,7 @@ What you need:
 - project create, edit, archive, and restore flows
 - optional project cover image
 - option to hide a project from the global gallery
-- project-scoped references plus a global gallery that can still show everything
+- project-scoped references with a global gallery that can still show everything
 
 ### Presets And Prompt Tools
 
@@ -60,7 +52,7 @@ What you need:
 - preset import and export for sharing or moving setups between installs
 - prompt enhancement before generation
 - optional OpenRouter-based enhancement
-- optional local OpenAI-compatible prompt enhancement endpoint
+- optional local OpenAI-compatible enhancement endpoint
 
 ### References And Inputs
 
@@ -68,16 +60,6 @@ What you need:
 - drag-and-drop from the gallery into compatible slots
 - model-aware input slots instead of one generic upload rail
 - reference restore for revisions, retries, and preset-driven flows
-
-### Generation Modes
-
-- text to image
-- image editing
-- text to video
-- image to video
-- start frame plus optional end frame video generation
-- motion control with a source image plus driving video
-- Seedance multimodal workflows with image, video, and audio references
 
 ### Local Safety And Runtime
 
@@ -89,44 +71,26 @@ What you need:
 
 Important:
 
-- the app runs locally
-- the models do not run on your machine
-- live generation is sent to [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
 - if your [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) account is not funded, Studio can open but it cannot generate
 
 ## Models In The Studio
 
-Image models:
-
 - `nano-banana-2`
-  Text to image and image editing.
+  Fast text to image and image editing.
 - `nano-banana-pro`
   Higher-end text to image and image editing.
-
-Video models:
-
 - `seedance-2.0`
   Text to video, start/end frames, and multimodal image, video, and audio references.
 - `kling-2.6-t2v`
-  Text-to-video.
+  Text to video.
 - `kling-2.6-i2v`
-  Image-to-video from one starting image.
+  Image to video from one starting image.
 - `kling-3.0-t2v`
-  Newer Kling text-to-video flow.
+  Newer text to video workflow.
 - `kling-3.0-i2v`
-  Newer Kling image-to-video flow.
+  Newer image to video workflow with start frame and optional end frame support.
 - `kling-3.0-motion`
-  Motion-control workflow.
-
-Supported generation patterns today:
-
-- text to image
-- image editing
-- text to video
-- image to video
-- start frame plus optional end frame video generation
-- source image plus driving video motion control
-- Seedance image, video, and audio reference composition
+  Motion control with a source image plus driving video.
 
 The exact pricing and request rules can change over time, so the app also exposes:
 
