@@ -197,10 +197,7 @@ export function useStudioSelection({
       setSelectedAssetHydratedJob(null);
       return;
     }
-    if (selectedAssetCachedJob?.job_id === selectedAsset.job_id) {
-      setSelectedAssetHydratedJob(null);
-      return;
-    }
+    setSelectedAssetHydratedJob(null);
     let cancelled = false;
     void fetch(`/api/control/media-jobs/${selectedAsset.job_id}`, {
       method: "GET",
@@ -219,7 +216,7 @@ export function useStudioSelection({
     return () => {
       cancelled = true;
     };
-  }, [onHydratedJob, selectedAsset?.asset_id, selectedAsset?.job_id, selectedAssetCachedJob?.job_id]);
+  }, [onHydratedJob, selectedAsset?.asset_id, selectedAsset?.job_id]);
 
   function resetInspector() {
     setSelectedMediaLightboxOpen(false);
