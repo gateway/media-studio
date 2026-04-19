@@ -1,8 +1,10 @@
 # Media Studio
 
-Media Studio is a local AI image and video studio you run on your own machine.
+Media Studio is your own local AI image and video studio.
 
-Your gallery, prompts, presets, projects, references, and generated files stay with you. Media Studio connects to [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42), a credit-based model API marketplace, so you can run strong image and video models without paying for another fixed monthly hosted studio.
+Generate with the latest supported models, build reusable presets, organize work into projects, keep a reference library, retry and revise old jobs, and grow your gallery over time without locking yourself into another monthly hosted studio.
+
+Your prompts, presets, projects, references, and generated files stay with you. Media Studio connects to [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42), a credit-based model API marketplace, so you can run strong image and video models from one self-contained workspace.
 
 ![Media Studio gallery and prompt workspace](docs/images/media-studio.jpg)
 
@@ -11,7 +13,7 @@ Important before you install:
 - Installing Media Studio is not enough by itself.
 - You need a funded [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) account and a `KIE_API_KEY`.
 - You can usually get started with a small credit balance, often around `$5`.
-- Once you have credits and your API key, Media Studio becomes a self-contained local studio for prompts, presets, projects, references, queueing, revisions, and output history.
+- Once you have credits and your API key, Media Studio becomes a full local workspace for generation, organization, revisions, and history.
 - More models will keep getting added over time as they become available on [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42).
 
 If you want the fastest path first:
