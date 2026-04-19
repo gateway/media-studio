@@ -1,6 +1,7 @@
 "use client";
 
-import { Heart, Image as ImageIcon, Play, Volume2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Copy, Heart, Image as ImageIcon, Play, Volume2 } from "lucide-react";
 
 import {
   displayChoiceLabel,
@@ -28,9 +29,29 @@ export function StudioInspectorInfo({
   onOpenReference,
   className,
 }: StudioInspectorInfoProps) {
+  const [copyLinkStatus, setCopyLinkStatus] = useState<"idle" | "copied" | "error">("idle");
   const optionEntries = Object.entries((selectedAsset.payload?.resolved_options as Record<string, unknown> | undefined) ?? {})
     .filter(([, value]) => value != null && value !== "")
     .slice(0, 6);
+  const assetLinkPath = `/studio?asset=${encodeURIComponent(String(selectedAsset.asset_id))}`;
+
+  useEffect(() => {
+    if (copyLinkStatus === "idle") {
+      return;
+    }
+    const timer = window.setTimeout(() => setCopyLinkStatus("idle"), 2200);
+    return () => window.clearTimeout(timer);
+  }, [copyLinkStatus]);
+
+  async function copyAssetLink() {
+    try {
+      const link = new URL(assetLinkPath, window.location.origin).toString();
+      await navigator.clipboard.writeText(link);
+      setCopyLinkStatus("copied");
+    } catch {
+      setCopyLinkStatus("error");
+    }
+  }
 
   return (
     <div className={cn("rounded-[22px] border border-white/8 bg-white/[0.03] p-4", className)}>
@@ -67,6 +88,32 @@ export function StudioInspectorInfo({
           >
             <Heart className={cn("size-4", selectedAsset.favorited ? "fill-current" : "")} />
             {selectedAsset.favorited ? "Saved" : "Off"}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => void copyAssetLink()}
+          data-testid="studio-inspector-copy-link"
+          className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3 text-left transition hover:bg-white/[0.05]"
+        >
+          <span className="text-sm text-white/56">Link</span>
+          <span className="inline-flex items-center gap-2 text-sm font-medium text-white/82">
+            {copyLinkStatus === "copied" ? (
+              <>
+                <Check className="size-4 text-[#b8ff9f]" />
+                <span className="text-[#b8ff9f]">Copied</span>
+              </>
+            ) : copyLinkStatus === "error" ? (
+              <>
+                <Copy className="size-4 text-[#ffb5a6]" />
+                <span className="text-[#ffb5a6]">Copy failed</span>
+              </>
+            ) : (
+              <>
+                <Copy className="size-4 text-white/52" />
+                <span className="max-w-[10rem] truncate text-white/60">{assetLinkPath}</span>
+              </>
+            )}
           </span>
         </button>
         {optionEntries.map(([key, value]) => (

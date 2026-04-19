@@ -92,7 +92,7 @@ export function StudioInspectorActions({
         ) : null}
       </div>
 
-      <div className="hidden gap-3 lg:grid">
+      <div className="hidden content-start gap-3 self-start lg:grid">
         {showReviseAction && onRevise ? (
           <Button
             data-testid="studio-inspector-revise-desktop"

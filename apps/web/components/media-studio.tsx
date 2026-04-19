@@ -3821,7 +3821,7 @@ export function MediaStudio({
                   </div>
                 </div>
 
-                <div className="hidden min-h-0 gap-4 rounded-[28px] bg-[rgba(255,255,255,0.04)] p-4 text-white lg:grid lg:overflow-y-auto lg:p-5">
+                <div className="hidden min-h-0 content-start gap-4 rounded-[28px] bg-[rgba(255,255,255,0.04)] p-4 text-white lg:grid lg:overflow-y-auto lg:p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-white/54">
