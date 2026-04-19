@@ -3667,15 +3667,26 @@ export function MediaStudio({
                   </div>
                   {selectedAssetStructuredPresetActive ? (
                     <div className="grid gap-4">
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
+                          <div className="text-sm text-white/56">Preset</div>
+                          <div className="mt-1 text-sm font-medium text-white/92">
+                            {selectedAssetPreset?.label || selectedAsset.preset_key || "Preset"}
+                          </div>
+                        </div>
+                        <div className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
+                          <div className="text-sm text-white/56">Preset key</div>
+                          <div className="mt-1 text-sm font-medium text-white/92">
+                            {selectedAssetPreset?.key || selectedAsset.preset_key || "builtin"}
+                          </div>
+                        </div>
+                      </div>
                       {selectedAssetPresetSlots.length ? (
                         <div className="grid gap-3">
                           {selectedAssetPresetSlots.map((slot) => {
                             const rawItems = Array.isArray(selectedAssetPresetSlotValues[slot.key])
                               ? (selectedAssetPresetSlotValues[slot.key] as unknown[])
                               : [];
-                            const previews = rawItems
-                              .map((item) => structuredPresetSlotPreviewUrl(item, localAssets, favoriteAssets))
-                              .filter((item): item is { url: string; label: string } => Boolean(item?.url));
                             return (
                               <div key={slot.key} className="rounded-[18px] border border-white/7 bg-black/16 p-3">
                                 <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/56">
@@ -3685,23 +3696,22 @@ export function MediaStudio({
                                 {slot.helpText ? (
                                   <div className="mt-1 text-sm leading-6 text-white/60">{slot.helpText}</div>
                                 ) : null}
-                                {previews.length ? (
-                                  <div className="mt-3 flex flex-wrap gap-3">
-                                    {previews.map((preview, index) => (
-                                      <div key={`${slot.key}-${index}`} className="grid gap-2">
-                                        <img
-                                          src={preview.url}
-                                          alt={preview.label}
-                                          className="h-24 w-24 rounded-[16px] object-cover"
-                                          loading="lazy"
-                                          decoding="async"
-                                        />
-                                      </div>
-                                    ))}
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                  <div className="rounded-[14px] bg-white/[0.03] px-3 py-2.5">
+                                    <div className="text-[0.72rem] uppercase tracking-[0.12em] text-white/48">Requirement</div>
+                                    <div className="mt-1 text-sm font-medium text-white/88">
+                                      {slot.required ? "Required" : "Optional"}
+                                    </div>
                                   </div>
-                                ) : (
-                                  <div className="mt-3 text-sm text-white/54">No source image was recorded.</div>
-                                )}
+                                  <div className="rounded-[14px] bg-white/[0.03] px-3 py-2.5">
+                                    <div className="text-[0.72rem] uppercase tracking-[0.12em] text-white/48">Saved input</div>
+                                    <div className="mt-1 text-sm font-medium text-white/88">
+                                      {rawItems.length > 0
+                                        ? `${rawItems.length} ${rawItems.length === 1 ? "reference" : "references"} attached`
+                                        : "No media recorded"}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             );
                           })}
@@ -3760,15 +3770,26 @@ export function MediaStudio({
                   >
                     {selectedAssetStructuredPresetActive ? (
                       <div className="grid gap-4">
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
+                            <div className="text-sm text-white/56">Preset</div>
+                            <div className="mt-1 text-sm font-medium text-white/92">
+                              {selectedAssetPreset?.label || selectedAsset.preset_key || "Preset"}
+                            </div>
+                          </div>
+                          <div className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
+                            <div className="text-sm text-white/56">Preset key</div>
+                            <div className="mt-1 text-sm font-medium text-white/92">
+                              {selectedAssetPreset?.key || selectedAsset.preset_key || "builtin"}
+                            </div>
+                          </div>
+                        </div>
                         {selectedAssetPresetSlots.length ? (
                           <div className="grid gap-3">
                             {selectedAssetPresetSlots.map((slot) => {
                               const rawItems = Array.isArray(selectedAssetPresetSlotValues[slot.key])
                                 ? (selectedAssetPresetSlotValues[slot.key] as unknown[])
                                 : [];
-                              const previews = rawItems
-                                .map((item) => structuredPresetSlotPreviewUrl(item, localAssets, favoriteAssets))
-                                .filter((item): item is { url: string; label: string } => Boolean(item?.url));
                               return (
                                 <div key={slot.key} className="rounded-[18px] border border-white/7 bg-black/16 p-3">
                                   <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/56">
@@ -3776,22 +3797,22 @@ export function MediaStudio({
                                     {slot.label}
                                   </div>
                                   {slot.helpText ? <div className="mt-1 text-sm leading-6 text-white/60">{slot.helpText}</div> : null}
-                                  {previews.length ? (
-                                    <div className="mt-3 flex flex-wrap gap-3">
-                                      {previews.map((preview, index) => (
-                                        <img
-                                          key={`${slot.key}-${index}`}
-                                          src={preview.url}
-                                          alt={preview.label}
-                                          className="h-20 w-20 rounded-[14px] object-cover"
-                                          loading="lazy"
-                                          decoding="async"
-                                        />
-                                      ))}
+                                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                    <div className="rounded-[14px] bg-white/[0.03] px-3 py-2.5">
+                                      <div className="text-[0.72rem] uppercase tracking-[0.12em] text-white/48">Requirement</div>
+                                      <div className="mt-1 text-sm font-medium text-white/88">
+                                        {slot.required ? "Required" : "Optional"}
+                                      </div>
                                     </div>
-                                  ) : (
-                                    <div className="mt-3 text-sm text-white/54">No source image was recorded.</div>
-                                  )}
+                                    <div className="rounded-[14px] bg-white/[0.03] px-3 py-2.5">
+                                      <div className="text-[0.72rem] uppercase tracking-[0.12em] text-white/48">Saved input</div>
+                                      <div className="mt-1 text-sm font-medium text-white/88">
+                                        {rawItems.length > 0
+                                          ? `${rawItems.length} ${rawItems.length === 1 ? "reference" : "references"} attached`
+                                          : "No media recorded"}
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
                               );
                             })}
