@@ -162,78 +162,21 @@ npm run dev:api
 ./scripts/dev_web.sh
 ```
 
-## Starting The App Later
+## Advanced Runtime And Commands
 
-### macOS friendlier launchers
+If you want the detailed operator-side commands, use:
 
-- `Start Media Studio.command`
-- `Stop Media Studio.command`
+- [docs/advanced-runtime.md](docs/advanced-runtime.md)
 
-### macOS Terminal launch
+That doc covers:
 
-```bash
-./scripts/run_studio_mac.sh
-```
-
-Studio opens at:
-
-- `http://127.0.0.1:3000/studio`
-
-### Developer mode
-
-```bash
-npm run dev:api
-./scripts/dev_web.sh
-```
-
-## Running On Different Ports
-
-If `3000` or `8000` is already in use, use explicit port overrides.
-
-Start:
-
-```bash
-./scripts/open_studio_mac.sh --api-port 8010 --web-port 3010
-```
-
-Or from Terminal:
-
-```bash
-./scripts/run_studio_mac.sh --api-port 8010 --web-port 3010
-```
-
-Stop the same pair:
-
-```bash
-./scripts/stop_studio_mac.sh --api-port 8010 --web-port 3010
-```
-
-The startup scripts now wire the web app to the matching API port automatically, so you do not need to hand-edit multiple base URL vars just to change local ports.
-
-## Private LAN / TailScale Access
-
-By default, Studio stays localhost-only unless you configure browser credentials.
-
-If you want private LAN or TailScale access without browser auth, set:
-
-```env
-MEDIA_STUDIO_ALLOW_PRIVATE_NETWORK_ACCESS=true
-```
-
-That allows private-network access only. It does not open Studio to arbitrary public internet traffic.
-
-If you are using development mode and want remote device access too, also set:
-
-```env
-MEDIA_STUDIO_WEB_HOST=0.0.0.0
-```
-
-Browser-auth alternative:
-
-```env
-MEDIA_STUDIO_ADMIN_USERNAME=your_user
-MEDIA_STUDIO_ADMIN_PASSWORD=your_password
-```
+- normal start and stop commands
+- alternate ports
+- developer mode
+- private LAN / TailScale access
+- backup and migration commands
+- safe repo sync without wiping local runtime data
+- background supervision and health checks
 
 ## Optional Prompt Enhancement
 
