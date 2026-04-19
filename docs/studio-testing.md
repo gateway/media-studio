@@ -18,6 +18,16 @@ Use these commands when tightening the Studio client without changing public beh
 
 - `npm run smoke:studio-browser`
   - covers basic Studio load, model selection, generate path, lightbox, favorite toggle, filters, and duplicate-card checks
+- `npm run smoke:studio-browser-standard-slots`
+  - covers the standard explicit slot contract for non-Seedance, non-Nano models
+  - verifies:
+    - `Kling 3.0 i2v` renders `Start frame` and `End frame optional`
+    - gallery image drag into both frame slots
+    - `Kling 3.0 Motion Control` renders `Source image` and `Driving video`
+    - wrong-type image drag is rejected for `Driving video`
+    - gallery video drag fills `Driving video`
+    - reference-library replacement preserves the motion source-image slot and does not disturb the driving video
+    - mobile explicit-slot visibility for `Kling 3.0 i2v` and `Kling 3.0 Motion Control`
 - `npm run smoke:studio-browser-preset`
   - covers Nano preset selection, preset image-slot upload, and queue-card creation
 - `npm run smoke:studio-browser-enhance`

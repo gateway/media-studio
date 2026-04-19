@@ -20,6 +20,7 @@ import {
   orderedImageInputKey,
   orderedImageInputVisual,
   renderStructuredPresetPrompt,
+  resolveStandardComposerSlots,
   resolveComposerSourceAsset,
   resolveStudioRetryPreset,
   resolveStudioPresetTargetModel,
@@ -120,6 +121,98 @@ describe("media-studio-helpers Seedance support", () => {
 
     expect(modelSupportsImageDrivenInputs(motionModel)).toBe(true);
     expect(modelSupportsMotionControl(motionModel)).toBe(true);
+  });
+
+  it("returns no standard composer slots for prompt-only models", () => {
+    const layout = resolveStandardComposerSlots({
+      model: { input_patterns: ["prompt_only"] } as never,
+      attachments: [],
+      sourceAsset: null,
+    });
+
+    expect(layout.usesExplicitSlots).toBe(false);
+    expect(layout.slots).toEqual([]);
+  });
+
+  it("returns a required source image slot for single-image models", () => {
+    const layout = resolveStandardComposerSlots({
+      model: {
+        input_patterns: ["prompt_only", "single_image"],
+        image_inputs: { required_max: 1 },
+        video_inputs: { required_max: 0 },
+        audio_inputs: { required_max: 0 },
+      } as never,
+      attachments: [],
+      sourceAsset: null,
+    });
+
+    expect(layout.usesExplicitSlots).toBe(true);
+    expect(layout.slots).toHaveLength(1);
+    expect(layout.slots[0]).toMatchObject({
+      kind: "image",
+      role: "source_image",
+      required: true,
+      visible: true,
+      filled: false,
+    });
+  });
+
+  it("returns visible start and optional end frame slots for first/last-frame models", () => {
+    const layout = resolveStandardComposerSlots({
+      model: {
+        input_patterns: ["prompt_only", "single_image", "first_last_frames"],
+        image_inputs: { required_max: 2 },
+        video_inputs: { required_max: 0 },
+        audio_inputs: { required_max: 0 },
+      } as never,
+      attachments: [{ kind: "images" }] as never,
+      sourceAsset: null,
+    });
+
+    expect(layout.usesExplicitSlots).toBe(true);
+    expect(layout.slots).toHaveLength(2);
+    expect(layout.slots[0]).toMatchObject({
+      role: "start_frame",
+      required: true,
+      visible: true,
+      filled: true,
+    });
+    expect(layout.slots[1]).toMatchObject({
+      role: "end_frame",
+      required: false,
+      visible: true,
+      filled: false,
+    });
+  });
+
+  it("returns image and video slots for motion-control models", () => {
+    const layout = resolveStandardComposerSlots({
+      model: {
+        input_patterns: ["motion_control"],
+        image_inputs: { required_max: 1 },
+        video_inputs: { required_max: 1 },
+        audio_inputs: { required_max: 0 },
+      } as never,
+      attachments: [{ kind: "videos" }] as never,
+      sourceAsset: null,
+    });
+
+    expect(layout.usesExplicitSlots).toBe(true);
+    expect(layout.slots).toHaveLength(2);
+    expect(layout.slots[0]).toMatchObject({
+      kind: "image",
+      role: "source_image",
+      required: true,
+      visible: true,
+      filled: false,
+    });
+    expect(layout.slots[1]).toMatchObject({
+      kind: "video",
+      role: "driving_video",
+      required: true,
+      visible: true,
+      filled: true,
+    });
   });
 
   it("classifies dragged media files by extension when mime is empty", () => {

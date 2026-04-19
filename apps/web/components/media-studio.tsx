@@ -110,6 +110,7 @@ import {
   replaceFileExtension,
   sanitizeStudioOptions,
   serializeOptionChoice,
+  type StudioComposerSlot,
   studioValidationReady,
   StructuredPresetImageSlot,
   StructuredPresetTextField,
@@ -164,6 +165,7 @@ function composerModelLabel(label: string | null | undefined) {
 
 type ReferenceLibraryTarget =
   | { type: "attachment"; title: string; role?: "first_frame" | "last_frame" | "reference" | null; allowedKinds?: AttachmentRecord["kind"][] }
+  | { type: "standard-slot"; title: string; slotIndex: number; label: string; allowedKinds?: AttachmentRecord["kind"][] }
   | { type: "preset-slot"; title: string; slotKey: string };
 
 export function MediaStudio({
@@ -495,9 +497,9 @@ export function MediaStudio({
     structuredPresetImageSlots,
     structuredPresetActive,
     canOpenReferenceLibrary,
+    standardComposerLayout,
     explicitVideoImageSlots,
     explicitMotionControlSlots,
-    visibleExplicitVideoImageSlots,
     orderedImageInputs,
     multiShotsEnabled,
     multiShotScript,
@@ -518,13 +520,10 @@ export function MediaStudio({
     inferredInputPattern,
     canSubmit,
     composerStatusMessage,
-    imageSlotLabels,
     imageLimitLabel,
     canAddMoreImages,
     canAddMoreVideos,
     canAddMoreAudios,
-    modelHasFirstLastFrameInputs,
-    modelHasMotionControlInputs,
     seedanceFirstFrameAttachment,
     seedanceLastFrameAttachment,
     seedanceReferenceImages,
@@ -643,15 +642,21 @@ export function MediaStudio({
       });
       return;
     }
-    if (explicitVideoImageSlots) {
+    const nextStandardImageSlot =
+      standardComposerSlots.find((slot) => slot.kind === "image" && !slot.filled) ??
+      standardComposerSlots.find((slot) => slot.kind === "image") ??
+      null;
+    if (standardComposerLayout.usesExplicitSlots && nextStandardImageSlot) {
       openReferenceLibrary({
-        type: "attachment",
+        type: "standard-slot",
         title:
-          modelHasFirstLastFrameInputs && visibleExplicitVideoImageSlots > 1
+          nextStandardImageSlot.role === "end_frame"
             ? "Pick a reusable image for the end frame."
-            : modelHasFirstLastFrameInputs
+            : nextStandardImageSlot.role === "start_frame"
               ? "Pick a reusable image for the start frame."
-              : "Pick a reusable image for this video input.",
+              : "Pick a reusable image for this input.",
+        slotIndex: nextStandardImageSlot.slotIndex,
+        label: nextStandardImageSlot.label,
         allowedKinds: ["images"],
       });
       return;
@@ -683,6 +688,23 @@ export function MediaStudio({
     if (target.type === "preset-slot") {
       assignPresetSlotReference(target.slotKey, reference);
       setFormMessage({ tone: "healthy", text: "Reference image loaded into the preset slot." });
+      return;
+    }
+    if (target.type === "standard-slot") {
+      const currentSlot = orderedImageInputs[target.slotIndex] ?? null;
+      if (target.slotIndex > orderedImageInputs.length) {
+        setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+        return;
+      }
+      if (currentSlot?.source === "asset") {
+        clearSourceAsset();
+      }
+      addReferenceMediaAsAttachment(reference, {
+        allowedKinds: target.allowedKinds,
+        insertImageIndex: Math.min(target.slotIndex, orderedImageInputs.length),
+        replaceImageIndex: target.slotIndex,
+      });
+      setFormMessage({ tone: "healthy", text: `Reference image loaded into ${target.label}.` });
       return;
     }
     addReferenceMediaAsAttachment(reference, {
@@ -1057,9 +1079,6 @@ export function MediaStudio({
     !explicitMotionControlSlots &&
     (maxImageInputs > 0 || maxVideoInputs > 0 || maxAudioInputs > 0);
   const genericSourceAddTileVisible = canAddMoreImages || canAddMoreVideos || canAddMoreAudios;
-  const motionControlImageInput = orderedImageInputs[0] ?? null;
-  const motionControlImagePreview = orderedImageInputPreview(motionControlImageInput, "Image input", "motion-control-image");
-  const motionControlImageVisual = orderedImageInputVisual(motionControlImageInput);
   const motionControlVideoAsset = currentSourceAsset?.generation_kind === "video" ? currentSourceAsset : null;
   const motionControlVideoAttachment =
     motionControlVideoAsset ? null : attachments.find((attachment) => attachment.kind === "videos") ?? null;
@@ -1072,9 +1091,162 @@ export function MediaStudio({
       motionControlVideoAttachment?.referenceRecord?.thumb_url ??
       motionControlVideoAttachment?.referenceRecord?.stored_url ??
       null;
+  const standardComposerSlots = standardComposerLayout.slots.filter((slot) => slot.visible);
+  const standardComposerSectionTitle = standardComposerSlots.some((slot) => slot.role === "driving_video")
+    ? "Motion inputs"
+    : standardComposerSlots.some((slot) => slot.role === "start_frame" || slot.role === "end_frame")
+      ? "Frames"
+      : standardComposerSlots.length > 0
+        ? "Input"
+        : "Inputs";
+
+  function standardComposerSlotPreview(slot: StudioComposerSlot, previewKey: string) {
+    if (slot.kind === "image") {
+      return orderedImageInputPreview(orderedImageInputs[slot.slotIndex] ?? null, slot.label, previewKey);
+    }
+    if (slot.role === "driving_video") {
+      return motionControlVideoAsset
+        ? buildAssetReferencePreview(motionControlVideoAsset, slot.label)
+        : buildAttachmentPreview(motionControlVideoAttachment, slot.label, previewKey);
+    }
+    return null;
+  }
+
+  function standardComposerSlotVisual(slot: StudioComposerSlot) {
+    if (slot.kind === "image") {
+      return orderedImageInputVisual(orderedImageInputs[slot.slotIndex] ?? null);
+    }
+    if (slot.role === "driving_video") {
+      return motionControlVideoVisual;
+    }
+    return null;
+  }
+
+  function clearStandardComposerSlot(slot: StudioComposerSlot) {
+    if (slot.kind === "image") {
+      clearOrderedImageInput(orderedImageInputs[slot.slotIndex] ?? null);
+      return;
+    }
+    if (slot.role === "driving_video") {
+      if (motionControlVideoAsset) {
+        clearSourceAsset();
+        return;
+      }
+      if (motionControlVideoAttachment) {
+        removeAttachment(motionControlVideoAttachment.id);
+      }
+    }
+  }
+
+  function addFilesToStandardComposerSlot(
+    slot: StudioComposerSlot,
+    fileList: FileList | File[] | null,
+    input?: HTMLInputElement | null,
+    replaceFilled = false,
+  ) {
+    if (slot.kind === "image") {
+      const currentSlot = orderedImageInputs[slot.slotIndex] ?? null;
+      if (replaceFilled && currentSlot?.source === "asset") {
+        clearSourceAsset();
+      }
+      addImageFilesToOrderedSlot(fileList, slot.slotIndex, input, replaceFilled);
+      return;
+    }
+    if (slot.role === "driving_video") {
+      if (replaceFilled) {
+        if (motionControlVideoAsset) {
+          clearSourceAsset();
+        } else if (motionControlVideoAttachment) {
+          removeAttachment(motionControlVideoAttachment.id);
+        }
+      }
+      addFiles(fileList, { allowedKinds: ["videos"] });
+      resetFileInputValue(input ?? null);
+    }
+  }
+
+  function standardComposerSlotReplaceControl(slot: StudioComposerSlot, testId: string) {
+    return (
+      <label className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white">
+        <ImagePlus className="size-3.5" />
+        <input
+          type="file"
+          accept={slot.accept}
+          data-testid={testId}
+          className="hidden"
+          onChange={(event) => {
+            addFilesToStandardComposerSlot(slot, event.target.files, event.currentTarget, true);
+          }}
+        />
+      </label>
+    );
+  }
+
+  function renderStandardComposerSlot(
+    slot: StudioComposerSlot,
+    options: { mobile?: boolean; testIdPrefix: string },
+  ) {
+    const mobile = options.mobile ?? false;
+    const preview = standardComposerSlotPreview(slot, `${options.testIdPrefix}-${slot.id}`);
+    const visualUrl = standardComposerSlotVisual(slot);
+    const previewClassName = mobile ? "h-[72px] w-[72px]" : "h-full w-full";
+    return (
+      <div key={slot.id} className={mobile ? "shrink-0" : "flex w-[82px] flex-col gap-2"}>
+        {!preview ? (
+          <div className="max-w-[82px] text-[0.62rem] font-semibold uppercase leading-[1.15] tracking-[0.14em] text-white/46">{slot.label}</div>
+        ) : null}
+        <div className={mobile ? "h-[72px] w-[72px]" : "relative h-[82px] w-[82px]"}>
+          {preview ? (
+            <div
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsDragActive(true);
+              }}
+              onDragLeave={() => setIsDragActive(false)}
+              onDrop={(event) => void handleSourceTileDrop(event, slot.slotIndex, slot)}
+              className={previewClassName}
+            >
+              <StudioStagedMediaTile
+                preview={preview}
+                visualUrl={visualUrl}
+                onOpenPreview={openReferencePreview}
+                onRemove={() => clearStandardComposerSlot(slot)}
+                replaceControl={
+                  mobile ? undefined : standardComposerSlotReplaceControl(slot, `${options.testIdPrefix}-${slot.id}-replace`)
+                }
+                className={previewClassName}
+                tileClassName={slot.kind === "image" && orderedImageInputs[slot.slotIndex]?.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
+                testId={`${options.testIdPrefix}-${slot.id}-filled`}
+              />
+            </div>
+          ) : (
+            <StudioMediaSlotAddTile
+              accept={slot.accept}
+              isDragActive={isDragActive}
+              testId={`${options.testIdPrefix}-${slot.id}`}
+              required={slot.required}
+              wrapperClassName={mobile ? "shrink-0" : "h-full w-full"}
+              tileClassName={mobile ? mobileAddTileClassName : "h-full w-full"}
+              plusIconClassName={mobile ? mobileAddTilePlusIconClassName : undefined}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsDragActive(true);
+              }}
+              onDragLeave={() => setIsDragActive(false)}
+              onDrop={(event) => void handleSourceTileDrop(event, slot.slotIndex, slot)}
+              onPickFiles={(fileList, input) => {
+                addFilesToStandardComposerSlot(slot, fileList, input);
+              }}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const sourceAttachmentStrip = !structuredPresetActive &&
     !dedicatedImageReferenceRailActive &&
-    (seedanceComposer || explicitVideoImageSlots || explicitMotionControlSlots || genericSourceInputsAvailable) ? (
+    (seedanceComposer || standardComposerLayout.usesExplicitSlots || genericSourceInputsAvailable) ? (
     <div className="flex flex-wrap gap-3">
       {seedanceComposer ? (
         <>
@@ -1167,168 +1339,8 @@ export function MediaStudio({
             </div>
           )})}
         </>
-      ) : explicitVideoImageSlots ? (
-        <>
-          {Array.from({ length: visibleExplicitVideoImageSlots }, (_, slotIndex) => {
-            const slot = orderedImageInputs[slotIndex] ?? null;
-            const slotVisual = orderedImageInputVisual(slot);
-            const slotLabel = imageSlotLabels[slotIndex] ?? `Image ${slotIndex + 1}`;
-            const slotFilled = Boolean(slot);
-            const slotPreview = orderedImageInputPreview(slot, slotLabel, `video-slot-${slotIndex + 1}`);
-            return (
-              <div key={orderedImageInputKey(slot, slotIndex)} className="flex flex-col gap-2">
-                {!slotFilled ? (
-                  <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slotLabel}</div>
-                ) : null}
-                <div className="relative h-[82px] w-[82px]">
-                  {slotFilled && slotPreview ? (
-                    <div
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        setIsDragActive(true);
-                      }}
-                      onDragLeave={() => setIsDragActive(false)}
-                      onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
-                      className="h-full w-full"
-                    >
-                      <StudioStagedMediaTile
-                        preview={slotPreview}
-                        visualUrl={slotVisual}
-                        onOpenPreview={openReferencePreview}
-                        onRemove={() => clearOrderedImageInput(slot)}
-                        replaceControl={
-                          <label className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white">
-                            <ImagePlus className="size-3.5" />
-                            <input
-                              type="file"
-                              accept="image/*"
-                              data-testid={`studio-source-slot-input-${slotIndex + 1}`}
-                              className="hidden"
-                              onChange={(event) => {
-                                clearOrderedImageInput(slot);
-                                addImageFilesToOrderedSlot(event.target.files, slotIndex, event.currentTarget);
-                              }}
-                            />
-                          </label>
-                        }
-                        className="h-full w-full"
-                        tileClassName={slot?.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
-                        testId={`studio-source-slot-filled-${slotIndex + 1}`}
-                      />
-                    </div>
-                  ) : (
-                    <StudioMediaSlotAddTile
-                      accept="image/*"
-                      isDragActive={isDragActive}
-                      testId={`studio-source-slot-input-${slotIndex + 1}`}
-                      required={modelHasFirstLastFrameInputs && slotIndex === 0}
-                      wrapperClassName="h-full w-full"
-                      tileClassName="h-full w-full"
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        setIsDragActive(true);
-                      }}
-                      onDragLeave={() => setIsDragActive(false)}
-                      onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
-                      onPickFiles={(fileList, input) => {
-                        addImageFilesToOrderedSlot(fileList, slotIndex, input);
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </>
-      ) : explicitMotionControlSlots ? (
-        <>
-          {[
-            {
-              key: "image",
-              label: "Image input",
-              preview: motionControlImagePreview,
-              visualUrl: motionControlImageVisual,
-              testId: "studio-motion-image-input",
-              accept: "image/*",
-              onRemove: () => clearOrderedImageInput(motionControlImageInput),
-              onDrop: (event: React.DragEvent<HTMLElement>) => void handleSourceTileDrop(event, 0),
-              onPickFiles: (fileList: FileList | File[] | null, input: HTMLInputElement | null) => {
-                addImageFilesToOrderedSlot(fileList, 0, input);
-              },
-            },
-            {
-              key: "video",
-              label: "Driving video",
-              preview: motionControlVideoPreview,
-              visualUrl: motionControlVideoVisual,
-              testId: "studio-motion-video-input",
-              accept: "video/*",
-              onRemove: () => {
-                if (motionControlVideoAsset) {
-                  clearSourceAsset();
-                  return;
-                }
-                if (motionControlVideoAttachment) {
-                  removeAttachment(motionControlVideoAttachment.id);
-                }
-              },
-              onDrop: (event: React.DragEvent<HTMLElement>) => void handleSourceTileDrop(event, 1),
-              onPickFiles: (fileList: FileList | File[] | null, input: HTMLInputElement | null) => {
-                if (motionControlVideoAsset) {
-                  clearSourceAsset();
-                } else if (motionControlVideoAttachment) {
-                  removeAttachment(motionControlVideoAttachment.id);
-                }
-                addFiles(fileList, { allowedKinds: ["videos"] });
-                resetFileInputValue(input);
-              },
-            },
-          ].map((slot) => (
-            <div key={slot.key} className="flex flex-col gap-2">
-              {!slot.preview ? (
-                <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slot.label}</div>
-              ) : null}
-              <div className="relative h-[82px] w-[82px]">
-                {slot.preview ? (
-                  <div
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setIsDragActive(true);
-                    }}
-                    onDragLeave={() => setIsDragActive(false)}
-                    onDrop={slot.onDrop}
-                    className="h-full w-full"
-                  >
-                    <StudioStagedMediaTile
-                      preview={slot.preview}
-                      visualUrl={slot.visualUrl}
-                      onOpenPreview={openReferencePreview}
-                      onRemove={slot.onRemove}
-                      className="h-full w-full"
-                      tileClassName={slot.key === "image" && motionControlImageInput?.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
-                      testId={`${slot.testId}-filled`}
-                    />
-                  </div>
-                ) : (
-                  <StudioMediaSlotAddTile
-                    accept={slot.accept}
-                    isDragActive={isDragActive}
-                    testId={slot.testId}
-                    wrapperClassName="h-full w-full"
-                    tileClassName="h-full w-full"
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setIsDragActive(true);
-                    }}
-                    onDragLeave={() => setIsDragActive(false)}
-                    onDrop={slot.onDrop}
-                    onPickFiles={slot.onPickFiles}
-                  />
-                )}
-              </div>
-            </div>
-          ))}
-        </>
+      ) : standardComposerLayout.usesExplicitSlots ? (
+        <>{standardComposerSlots.map((slot) => renderStandardComposerSlot(slot, { testIdPrefix: "studio-standard-slot" }))}</>
       ) : (
         <>
           {canUseSourceAsset && currentSourceAsset ? (
@@ -1789,147 +1801,13 @@ export function MediaStudio({
           ))}
         </div>
       </StudioMobileInputsSection>
-    ) : explicitVideoImageSlots ? (
+    ) : standardComposerLayout.usesExplicitSlots ? (
       <StudioMobileInputsSection
-        title={modelHasFirstLastFrameInputs ? "Frames" : "Input"}
-        summary={`${orderedImageInputs.length} / ${maxImageInputs}`}
+        title={standardComposerSectionTitle}
+        summary={standardComposerLayout.summaryLabel}
       >
         <div className="flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
-          {Array.from({ length: visibleExplicitVideoImageSlots }, (_, slotIndex) => {
-            const slot = orderedImageInputs[slotIndex] ?? null;
-            const slotVisual = orderedImageInputVisual(slot);
-            const slotLabel = imageSlotLabels[slotIndex] ?? `Image ${slotIndex + 1}`;
-            const slotPreview = orderedImageInputPreview(slot, slotLabel, `mobile-video-slot-${slotIndex + 1}`);
-            return (
-              <div key={orderedImageInputKey(slot, slotIndex)} className="shrink-0">
-                {slotPreview ? (
-                  <div
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setIsDragActive(true);
-                    }}
-                    onDragLeave={() => setIsDragActive(false)}
-                    onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
-                    className="h-[72px] w-[72px]"
-                  >
-                    <StudioStagedMediaTile
-                      preview={slotPreview}
-                      visualUrl={slotVisual}
-                      onOpenPreview={openReferencePreview}
-                      onRemove={() => clearOrderedImageInput(slot)}
-                      className="h-[72px] w-[72px]"
-                      tileClassName={slot?.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
-                      testId={`studio-mobile-source-slot-filled-${slotIndex + 1}`}
-                    />
-                  </div>
-                ) : (
-                  <StudioMediaSlotAddTile
-                    accept="image/*"
-                    isDragActive={isDragActive}
-                    testId={`studio-mobile-source-slot-input-${slotIndex + 1}`}
-                    required={modelHasFirstLastFrameInputs && slotIndex === 0}
-                    wrapperClassName="shrink-0"
-                    tileClassName={mobileAddTileClassName}
-                    plusIconClassName={mobileAddTilePlusIconClassName}
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setIsDragActive(true);
-                    }}
-                    onDragLeave={() => setIsDragActive(false)}
-                    onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
-                    onPickFiles={(fileList, input) => {
-                      addImageFilesToOrderedSlot(fileList, slotIndex, input);
-                    }}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </StudioMobileInputsSection>
-    ) : explicitMotionControlSlots ? (
-      <StudioMobileInputsSection title="Motion inputs" summary={`${motionControlImagePreview ? 1 : 0}/${motionControlVideoPreview ? 2 : 1}`}>
-        <div className="flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
-          {[
-            {
-              key: "image",
-              preview: motionControlImagePreview,
-              visualUrl: motionControlImageVisual,
-              accept: "image/*",
-              testId: "studio-mobile-motion-image-input",
-              onRemove: () => clearOrderedImageInput(motionControlImageInput),
-              onDrop: (event: React.DragEvent<HTMLElement>) => void handleSourceTileDrop(event, 0),
-              onPickFiles: (fileList: FileList | File[] | null, input: HTMLInputElement | null) => {
-                addImageFilesToOrderedSlot(fileList, 0, input);
-              },
-            },
-            {
-              key: "video",
-              preview: motionControlVideoPreview,
-              visualUrl: motionControlVideoVisual,
-              accept: "video/*",
-              testId: "studio-mobile-motion-video-input",
-              onRemove: () => {
-                if (motionControlVideoAsset) {
-                  clearSourceAsset();
-                  return;
-                }
-                if (motionControlVideoAttachment) {
-                  removeAttachment(motionControlVideoAttachment.id);
-                }
-              },
-              onDrop: (event: React.DragEvent<HTMLElement>) => void handleSourceTileDrop(event, 1),
-              onPickFiles: (fileList: FileList | File[] | null, input: HTMLInputElement | null) => {
-                if (motionControlVideoAsset) {
-                  clearSourceAsset();
-                } else if (motionControlVideoAttachment) {
-                  removeAttachment(motionControlVideoAttachment.id);
-                }
-                addFiles(fileList, { allowedKinds: ["videos"] });
-                resetFileInputValue(input);
-              },
-            },
-          ].map((slot) => (
-            <div key={`mobile-motion-${slot.key}`} className="shrink-0">
-              {slot.preview ? (
-                <div
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    setIsDragActive(true);
-                  }}
-                  onDragLeave={() => setIsDragActive(false)}
-                  onDrop={slot.onDrop}
-                  className="h-[72px] w-[72px]"
-                >
-                  <StudioStagedMediaTile
-                    preview={slot.preview}
-                    visualUrl={slot.visualUrl}
-                    onOpenPreview={openReferencePreview}
-                    onRemove={slot.onRemove}
-                    className="h-[72px] w-[72px]"
-                    tileClassName={slot.key === "image" && motionControlImageInput?.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
-                    testId={`${slot.testId}-filled`}
-                  />
-                </div>
-              ) : (
-                <StudioMediaSlotAddTile
-                  accept={slot.accept}
-                  isDragActive={isDragActive}
-                  testId={slot.testId}
-                  wrapperClassName="shrink-0"
-                  tileClassName={mobileAddTileClassName}
-                  plusIconClassName={mobileAddTilePlusIconClassName}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    setIsDragActive(true);
-                  }}
-                  onDragLeave={() => setIsDragActive(false)}
-                  onDrop={slot.onDrop}
-                  onPickFiles={slot.onPickFiles}
-                />
-              )}
-            </div>
-          ))}
+          {standardComposerSlots.map((slot) => renderStandardComposerSlot(slot, { mobile: true, testIdPrefix: "studio-mobile-standard-slot" }))}
         </div>
       </StudioMobileInputsSection>
     ) : sourceAttachmentStrip ? (
@@ -2192,11 +2070,81 @@ export function MediaStudio({
     ],
   );
 
-  function handleSourceTileDrop(event: React.DragEvent<HTMLElement>, slotIndex = 0) {
+  function handleSourceTileDrop(
+    event: React.DragEvent<HTMLElement>,
+    slotIndex = 0,
+    standardSlot?: StudioComposerSlot | null,
+  ) {
     event.preventDefault();
     event.stopPropagation();
     setIsDragActive(false);
     const galleryAssetId = event.dataTransfer.getData("application/x-bumblebee-media-asset-id");
+    if (standardSlot) {
+      if (galleryAssetId) {
+        const asset = findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ?? null;
+        if (!asset) {
+          setFormMessage({ tone: "danger", text: "The dragged gallery asset could not be found." });
+          return;
+        }
+        if (standardSlot.kind === "image") {
+          if (asset.generation_kind !== "image") {
+            setFormMessage({ tone: "danger", text: `${standardSlot.label} only accepts image assets.` });
+            return;
+          }
+          if (slotIndex > orderedImageInputs.length) {
+            setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+            return;
+          }
+          if (slotIndex === 0) {
+            const currentSlot = orderedImageInputs[0] ?? null;
+            if (currentSlot && currentSlot.source !== "asset") {
+              clearOrderedImageInput(currentSlot);
+            }
+            useAssetAsSource(asset, false);
+            return;
+          }
+          void addGalleryAssetAsAttachment(asset, null, ["images"], {
+            insertImageIndex: Math.min(slotIndex, orderedImageInputs.length),
+            replaceImageIndex: slotIndex,
+          });
+          return;
+        }
+        if (asset.generation_kind !== "video") {
+          setFormMessage({ tone: "danger", text: `${standardSlot.label} only accepts video assets.` });
+          return;
+        }
+        if (motionControlVideoAsset) {
+          clearSourceAsset();
+        } else if (motionControlVideoAttachment) {
+          removeAttachment(motionControlVideoAttachment.id);
+        }
+        void addGalleryAssetAsAttachment(asset, null, ["videos"]);
+        return;
+      }
+      if (standardSlot.kind === "image") {
+        if (slotIndex > orderedImageInputs.length) {
+          setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
+          return;
+        }
+        const currentSlot = orderedImageInputs[slotIndex] ?? null;
+        if (currentSlot?.source === "asset") {
+          clearSourceAsset();
+        }
+        addFiles(event.dataTransfer.files, {
+          allowedKinds: ["images"],
+          insertImageIndex: Math.min(slotIndex, orderedImageInputs.length),
+          replaceImageIndex: slotIndex,
+        });
+        return;
+      }
+      if (motionControlVideoAsset) {
+        clearSourceAsset();
+      } else if (motionControlVideoAttachment) {
+        removeAttachment(motionControlVideoAttachment.id);
+      }
+      addFiles(event.dataTransfer.files, { allowedKinds: ["videos"] });
+      return;
+    }
     if (galleryAssetId) {
       const asset = findMediaAssetById(galleryAssetId, localAssets, favoriteAssets) ?? null;
       if (!asset) {
@@ -2520,6 +2468,7 @@ export function MediaStudio({
     fileList: FileList | File[] | null,
     slotIndex: number,
     input?: HTMLInputElement | null,
+    replaceFilled = false,
   ) {
     if (slotIndex > orderedImageInputs.length) {
       setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
@@ -2529,6 +2478,7 @@ export function MediaStudio({
     addFiles(fileList, {
       allowedKinds: ["images"],
       insertImageIndex: slotIndex,
+      replaceImageIndex: replaceFilled ? slotIndex : null,
     });
     resetFileInputValue(input ?? null);
   }

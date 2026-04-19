@@ -56,6 +56,29 @@ Current interaction rules:
 
 The server-side authority for validation remains `kie-api`; Studio should only shape the request correctly and surface the resulting validation clearly.
 
+## Standard composer slot contract
+
+Non-Seedance, non-Nano standard models now use one shared explicit slot contract instead of branching separately for:
+
+- single-image flows
+- first-and-last-frame flows
+- motion-control flows
+
+The contract lives in:
+
+- `apps/web/lib/media-studio-helpers.ts`
+  - `resolveStandardComposerSlots(...)`
+
+The renderer consumes that contract in:
+
+- `apps/web/components/media-studio.tsx`
+
+The controller/hook keeps slot staging and replacement behavior coherent in:
+
+- `apps/web/hooks/studio/use-studio-composer.ts`
+
+For the concrete rules, slot types, replacement semantics, and verification path, see [docs/studio-standard-composer-slots.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/studio-standard-composer-slots.md).
+
 ## Refactor rule
 
 Further extraction should keep these unchanged:
