@@ -1009,14 +1009,17 @@ export function MediaStudio({
   }, [currentPreset, models, structuredPresetActive]);
   const showStructuredPresetModelPicker = structuredPresetActive && structuredPresetModelChoices.length > 1;
   const selectedProjectMetric = selectedProject ? (
-    <div className="group relative hidden md:block">
+    <div className="hidden md:flex items-center overflow-hidden rounded-[14px] border border-[rgba(255,183,107,0.28)] bg-[rgba(29,18,10,0.96)] text-[#ffe2ba] shadow-[0_14px_24px_rgba(0,0,0,0.28)]">
       <button
         type="button"
         onClick={() => openProjectWorkspace(selectedProject.project_id)}
-        className="block"
+        className="inline-flex h-10 items-center gap-2 px-3 text-[0.72rem] font-semibold transition hover:bg-[rgba(255,183,107,0.08)]"
         aria-label={`Open project ${selectedProject.name}`}
       >
-        <StudioMetricPill icon={FolderPlus} value={selectedProject.name} accent="project" />
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[rgba(255,183,107,0.18)] text-[#ffb76b]">
+          <FolderPlus className="size-3.5" />
+        </span>
+        <span>{selectedProject.name}</span>
       </button>
       <button
         type="button"
@@ -1024,7 +1027,7 @@ export function MediaStudio({
           event.stopPropagation();
           openProjectWorkspace(null);
         }}
-        className="absolute right-[calc(100%+0.45rem)] top-1/2 hidden h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-[rgba(255,183,107,0.34)] bg-[rgba(34,20,8,0.92)] text-[rgba(255,191,132,0.96)] shadow-[0_14px_28px_rgba(0,0,0,0.28)] transition hover:border-[rgba(255,183,107,0.5)] hover:text-white group-hover:inline-flex"
+        className="inline-flex h-10 items-center justify-center border-l border-[rgba(255,183,107,0.2)] px-3 text-[rgba(255,191,132,0.96)] transition hover:bg-[rgba(255,183,107,0.12)] hover:text-white"
         aria-label="Exit project workspace"
         title="Exit project workspace"
       >
