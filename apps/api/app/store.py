@@ -3,16 +3,21 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from .db_backup import backup_database
 from .db import get_connection
+from .settings import settings
 from .store_support import (
     bootstrap_connection_schema,
+    database_has_user_schema,
     connect_path,
     decode_row as _decode_row,
     delete_table as _delete_table,
     encode_value as _encode,
+    schema_status as _schema_status,
     get_table as _get_table,
     insert_or_update as _insert_or_update,
     list_table as _list_table,
+    list_pending_migrations,
     next_queue_position as _next_queue_position,
     new_id,
     upsert_table as _upsert_table,
@@ -24,16 +29,33 @@ def _bootstrap_schema(connection) -> None:
     bootstrap_connection_schema(connection)
 
 
-def bootstrap_schema(db_path: Optional[Path] = None) -> None:
-    if db_path is None:
-        with get_connection() as connection:
-            _bootstrap_schema(connection)
-        return
-
-    connection = connect_path(Path(db_path))
+def bootstrap_schema(db_path: Optional[Path] = None, backup_dir: Optional[Path] = None) -> Optional[Path]:
+    target_path = Path(db_path) if db_path is not None else settings.db_path
+    existing_before_bootstrap = target_path.exists()
+    connection = connect_path(target_path)
+    backup_path: Optional[Path] = None
     try:
+        pending_migrations = list_pending_migrations(connection)
+        if (
+            existing_before_bootstrap
+            and pending_migrations
+            and settings.media_auto_backup_before_migration
+            and database_has_user_schema(connection)
+        ):
+            resolved_backup_dir = Path(backup_dir) if backup_dir is not None else settings.backups_dir
+            backup_path = backup_database(target_path, resolved_backup_dir)
         _bootstrap_schema(connection)
         connection.commit()
+    finally:
+        connection.close()
+    return backup_path
+
+
+def get_schema_status(db_path: Optional[Path] = None) -> Dict[str, Any]:
+    target_path = Path(db_path) if db_path is not None else settings.db_path
+    connection = connect_path(target_path)
+    try:
+        return _schema_status(connection)
     finally:
         connection.close()
 

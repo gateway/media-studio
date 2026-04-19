@@ -23,6 +23,7 @@
     "smoke:studio-browser-reference-backfill": "node ./scripts/studio_browser_reference_backfill_smoke.mjs",
     "smoke:studio-live": "node ./scripts/studio_live_smoke.mjs",
     "db:backup": "./scripts/backup_db.sh",
+    "db:migration-status": "./scripts/migration_status.sh",
     "db:clean": "./scripts/create_clean_db.sh --output ./data/backups/media-studio-clean.sqlite --overwrite",
     "start:api": "./scripts/start_api.sh",
     "dev:api": "./scripts/dev_api.sh",

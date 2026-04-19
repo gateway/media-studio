@@ -15,6 +15,7 @@ def _count_rows(db_path: Path, table: str) -> int:
 
 def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_path: Path) -> None:
     db_admin = app_modules["db_admin"]
+    store = app_modules["store"]
     clean_db = tmp_path / "clean.sqlite"
 
     created_path = db_admin.create_clean_database(clean_db)
@@ -38,6 +39,13 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert row is not None
     assert int(row[0] or 0) == 1
     assert int(row[1] or 0) == 1
+
+    status = store.get_schema_status(clean_db)
+    assert status["schema_version"] == 1
+    assert status["latest_version"] == 1
+    assert len(status["applied_migrations"]) == 1
+    assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
+    assert status["pending_migrations"] == []
 
 
 def test_bootstrap_schema_upgrades_legacy_seedance_default_policy(app_modules, tmp_path: Path) -> None:
@@ -100,6 +108,47 @@ def test_backup_database_copies_existing_database(app_modules, tmp_path: Path) -
     assert backup_path.parent == tmp_path / "backups"
     assert _count_rows(backup_path, "media_queue_settings") == 1
     assert _count_rows(backup_path, "media_presets") == _count_rows(source_db, "media_presets")
+
+
+def test_bootstrap_schema_creates_backup_before_upgrading_existing_database(app_modules, tmp_path: Path) -> None:
+    store = app_modules["store"]
+    legacy_db = tmp_path / "legacy-upgrade.sqlite"
+    backup_dir = tmp_path / "backups"
+
+    connection = sqlite3.connect(legacy_db)
+    try:
+        connection.executescript(
+            """
+            CREATE TABLE media_jobs (
+                job_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE media_assets (
+                asset_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE media_batches (
+                batch_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            INSERT INTO media_jobs (job_id) VALUES ('job-1');
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    backup_path = store.bootstrap_schema(legacy_db, backup_dir=backup_dir)
+
+    assert backup_path is not None
+    assert backup_path.exists()
+    assert backup_path.parent == backup_dir
+    assert _count_rows(backup_path, "media_jobs") == 1
+
+    status = store.get_schema_status(legacy_db)
+    assert status["schema_version"] == 1
+    assert status["pending_migrations"] == []
+    assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
 
 
 def test_deduplicate_assets_by_job_id_keeps_latest_asset(app_modules) -> None:

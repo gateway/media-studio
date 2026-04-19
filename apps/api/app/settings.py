@@ -66,6 +66,7 @@ class AppSettings(BaseModel):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     local_openai_base_url: str = "http://127.0.0.1:8080/v1"
     local_openai_api_key: Optional[str] = None
+    media_auto_backup_before_migration: bool = True
 
     @property
     def uploads_dir(self) -> Path:
@@ -78,6 +79,10 @@ class AppSettings(BaseModel):
     @property
     def outputs_dir(self) -> Path:
         return self.data_root / "outputs"
+
+    @property
+    def backups_dir(self) -> Path:
+        return self.data_root / "backups"
 
 
 settings = AppSettings(
@@ -102,4 +107,5 @@ settings = AppSettings(
     openrouter_base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
     local_openai_base_url=os.getenv("MEDIA_LOCAL_OPENAI_BASE_URL", "http://127.0.0.1:8080/v1"),
     local_openai_api_key=os.getenv("MEDIA_LOCAL_OPENAI_API_KEY"),
+    media_auto_backup_before_migration=_env_bool("MEDIA_AUTO_BACKUP_BEFORE_MIGRATION", True),
 )
