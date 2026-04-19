@@ -470,6 +470,52 @@ def _probe_reference_media_metadata(file_path: Path, kind: str) -> Tuple[Optiona
         return None, None, None
 
 
+def _reference_media_path_exists(relative_path: Optional[str]) -> bool:
+    if not relative_path:
+        return False
+    return (settings.data_root / relative_path).exists()
+
+
+def sanitize_reference_media_record(record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    stored_path = str(record.get("stored_path") or "").strip()
+    if not stored_path or not _reference_media_path_exists(stored_path):
+        return None
+
+    normalized = dict(record)
+    thumb_path = str(normalized.get("thumb_path") or "").strip()
+    poster_path = str(normalized.get("poster_path") or "").strip()
+    if thumb_path and not _reference_media_path_exists(thumb_path):
+        normalized["thumb_path"] = None
+    if poster_path and not _reference_media_path_exists(poster_path):
+        normalized["poster_path"] = None
+    return normalized
+
+
+def list_available_reference_media(*, kind: Optional[str], limit: int, offset: int) -> List[Dict[str, Any]]:
+    page_size = max(limit * 2, 40)
+    skipped_live_offset = 0
+    raw_offset = 0
+    items: List[Dict[str, Any]] = []
+
+    while len(items) < limit:
+        batch = store.list_reference_media(kind=kind, limit=page_size, offset=raw_offset)
+        if not batch:
+            break
+        raw_offset += len(batch)
+        for record in batch:
+            normalized = sanitize_reference_media_record(record)
+            if normalized is None:
+                continue
+            if skipped_live_offset < offset:
+                skipped_live_offset += 1
+                continue
+            items.append(normalized)
+            if len(items) >= limit:
+                break
+
+    return items
+
+
 def import_reference_media_bytes(
     *,
     source_bytes: bytes,

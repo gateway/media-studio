@@ -133,7 +133,10 @@ def test_import_reference_media_upload_stores_file_and_deduplicates(client, app_
     assert second_payload["thumb_path"] == first_payload["thumb_path"]
 
 
-def test_delete_reference_media_hides_item_without_removing_record(client) -> None:
+def test_delete_reference_media_hides_item_without_removing_record(client, app_modules) -> None:
+    file_path = app_modules["service"].settings.data_root / "reference-media" / "images" / "delete-me.png"
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(PNG_1X1_BYTES)
     register_response = client.post(
         "/media/reference-media/register",
         json={
@@ -164,6 +167,72 @@ def test_delete_reference_media_hides_item_without_removing_record(client) -> No
     detail_response = client.get(f"/media/reference-media/{reference_id}")
     assert detail_response.status_code == 200
     assert detail_response.json()["status"] == "hidden"
+
+
+def test_list_reference_media_filters_missing_files_and_clears_missing_thumbs(client, app_modules) -> None:
+    store = app_modules["store"]
+    service = app_modules["service"]
+    store.bootstrap_schema()
+
+    good_image = service.settings.data_root / "reference-media" / "images" / "good.png"
+    good_thumb = service.settings.data_root / "reference-media" / "thumbs" / "good.webp"
+    thumbless_image = service.settings.data_root / "reference-media" / "images" / "thumbless.png"
+    good_image.parent.mkdir(parents=True, exist_ok=True)
+    good_thumb.parent.mkdir(parents=True, exist_ok=True)
+    good_image.write_bytes(PNG_1X1_BYTES)
+    good_thumb.write_bytes(PNG_1X1_BYTES)
+    thumbless_image.write_bytes(PNG_1X1_BYTES)
+
+    store.create_or_reuse_reference_media(
+        {
+            "kind": "image",
+            "original_filename": "good.png",
+            "stored_path": "reference-media/images/good.png",
+            "mime_type": "image/png",
+            "file_size_bytes": good_image.stat().st_size,
+            "sha256": "good-hash",
+            "thumb_path": "reference-media/thumbs/good.webp",
+            "usage_count": 0,
+            "metadata_json": {},
+        },
+        increment_usage=False,
+    )
+    store.create_or_reuse_reference_media(
+        {
+            "kind": "image",
+            "original_filename": "missing.png",
+            "stored_path": "reference-media/images/missing.png",
+            "mime_type": "image/png",
+            "file_size_bytes": 123,
+            "sha256": "missing-hash",
+            "thumb_path": "reference-media/thumbs/missing.webp",
+            "usage_count": 0,
+            "metadata_json": {},
+        },
+        increment_usage=False,
+    )
+    thumbless = store.create_or_reuse_reference_media(
+        {
+            "kind": "image",
+            "original_filename": "thumbless.png",
+            "stored_path": "reference-media/images/thumbless.png",
+            "mime_type": "image/png",
+            "file_size_bytes": thumbless_image.stat().st_size,
+            "sha256": "thumbless-hash",
+            "thumb_path": "reference-media/thumbs/thumbless.webp",
+            "usage_count": 0,
+            "metadata_json": {},
+        },
+        increment_usage=False,
+    )
+
+    response = client.get("/media/reference-media?kind=image")
+    assert response.status_code == 200, response.text
+    payload = response.json()
+
+    assert [item["original_filename"] for item in payload["items"]] == ["thumbless.png", "good.png"]
+    thumbless_payload = next(item for item in payload["items"] if item["reference_id"] == thumbless["reference_id"])
+    assert thumbless_payload["thumb_path"] is None
 
 
 def test_backfill_reference_media_scans_uploads_and_is_idempotent(app_modules) -> None:

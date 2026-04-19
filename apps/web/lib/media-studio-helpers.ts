@@ -1046,6 +1046,8 @@ export function buildStudioReferencePreviews({
   const previews: StudioReferencePreview[] = [];
   const seen = new Set<string>();
   const sourceAssetId = asset?.source_asset_id ?? job?.source_asset_id ?? null;
+  const sourceAsset =
+    sourceAssetId != null ? findMediaAssetById(sourceAssetId, localAssets, favoriteAssets) ?? null : null;
 
   function pushPreview(
     key: string,
@@ -1063,6 +1065,19 @@ export function buildStudioReferencePreviews({
     }
     seen.add(normalizedUrl);
     previews.push({ key, label, url: normalizedUrl, kind, posterUrl: posterUrl ?? null });
+  }
+
+  if (sourceAsset) {
+    const sourceKind = sourceAsset.generation_kind === "video" ? "videos" : "images";
+    pushPreview(
+      `source:${sourceAsset.asset_id}`,
+      sourceKind === "videos" ? "Source video" : "Source image",
+      sourceKind,
+      (sourceKind === "videos" ? mediaPlaybackUrl(sourceAsset) : null) ??
+        mediaDisplayUrl(sourceAsset) ??
+        mediaThumbnailUrl(sourceAsset),
+      sourceKind === "videos" ? mediaThumbnailUrl(sourceAsset) ?? mediaDisplayUrl(sourceAsset) ?? null : null,
+    );
   }
 
   for (const slot of presetSlots ?? []) {

@@ -244,7 +244,7 @@ def list_reference_media(
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ):
-    items = store.list_reference_media(kind=kind, limit=limit, offset=offset)
+    items = service.list_available_reference_media(kind=kind, limit=limit, offset=offset)
     return ReferenceMediaListResponse(
         items=[ReferenceMediaRecord(**item) for item in items],
         limit=limit,
@@ -257,7 +257,10 @@ def get_reference_media(reference_id: str):
     record = store.get_reference_media(reference_id)
     if not record:
         raise _not_found("reference media")
-    return ReferenceMediaRecord(**record)
+    normalized = service.sanitize_reference_media_record(record)
+    if not normalized:
+        raise _not_found("reference media")
+    return ReferenceMediaRecord(**normalized)
 
 
 @app.delete("/media/reference-media/{reference_id}", response_model=ReferenceMediaRecord)
