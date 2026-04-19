@@ -65,7 +65,7 @@ export function StudioInspectorActions({
             className="h-11 w-full gap-2"
           >
             <RefreshCcw className="size-4" />
-            Revise
+            Create Revision
           </Button>
         ) : null}
         {showImageActions ? (
@@ -101,7 +101,7 @@ export function StudioInspectorActions({
             className="h-11 w-full gap-2"
           >
             <RefreshCcw className="size-4" />
-            Revise
+            Create Revision
           </Button>
         ) : null}
         {showImageActions ? (

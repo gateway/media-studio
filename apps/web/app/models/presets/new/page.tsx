@@ -3,9 +3,16 @@ import { redirect } from "next/navigation";
 export default async function LegacyNewMediaPresetPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ model?: string }>;
+  searchParams?: Promise<{ model?: string; returnTo?: string }>;
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
-  const model = resolvedSearchParams.model ? `?model=${encodeURIComponent(resolvedSearchParams.model)}` : "";
-  redirect(`/presets/new${model}`);
+  const params = new URLSearchParams();
+  if (resolvedSearchParams.model) {
+    params.set("model", resolvedSearchParams.model);
+  }
+  if (resolvedSearchParams.returnTo) {
+    params.set("returnTo", resolvedSearchParams.returnTo);
+  }
+  const query = params.toString();
+  redirect(`/presets/new${query ? `?${query}` : ""}`);
 }

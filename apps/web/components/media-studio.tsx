@@ -2722,7 +2722,7 @@ export function MediaStudio({
       sourceAssetId: selectedAssetJob?.source_asset_id ?? asset.source_asset_id ?? null,
       missingModelMessage: "Studio could not reconstruct this asset into an editable composer state.",
       successMessage: "Loaded this asset back into Studio with its original prompt, references, and settings.",
-      partialFailureMessage: "Loaded this asset prompt and settings, but Studio could not restage the original reference image.",
+      partialFailureMessage: "Loaded this asset prompt and settings, but Studio could not restage some of the original reference media.",
       closeAssetInspector: true,
       closeFailedJobInspector: false,
     });

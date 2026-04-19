@@ -57,8 +57,16 @@ type MediaPresetEditorScreenProps = {
   presets: MediaPreset[];
   initialPresetId?: string | null;
   initialModelKey?: string | null;
+  initialReturnTo?: string | null;
   variant?: "default" | "studio";
 };
+
+function normalizeReturnToHref(value: string | null | undefined) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/presets";
+  }
+  return value;
+}
 
 function createLocalId(prefix: string) {
   const randomValue =
@@ -227,6 +235,7 @@ export function MediaPresetEditorScreen({
   presets,
   initialPresetId = null,
   initialModelKey = null,
+  initialReturnTo = null,
   variant = "studio",
 }: MediaPresetEditorScreenProps) {
   const router = useRouter();
@@ -247,7 +256,8 @@ export function MediaPresetEditorScreen({
   const selectedNanoModels = models.filter(
     (model) => model.key === "nano-banana-2" || model.key === "nano-banana-pro",
   );
-  const returnToPresetsHref = "/presets";
+  const returnToPresetsHref = normalizeReturnToHref(initialReturnTo);
+  const returnActionLabel = returnToPresetsHref === "/studio" ? "Back to Studio" : "Back to presets";
   const sectionEyebrowClassName = "admin-label-accent";
   const sectionTitleClassName = "admin-section-title";
   const sectionDescriptionClassName = "admin-section-description";
@@ -428,7 +438,7 @@ export function MediaPresetEditorScreen({
             <AdminButton variant="subtle" onClick={() => router.push(returnToPresetsHref)}>
               <span className="inline-flex items-center gap-2">
                 <ArrowLeft className="size-3.5" />
-                Back to presets
+                {returnActionLabel}
               </span>
             </AdminButton>
           </div>

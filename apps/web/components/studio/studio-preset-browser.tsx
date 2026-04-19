@@ -24,6 +24,7 @@ export function StudioPresetBrowser({
   onSelectPreset,
 }: StudioPresetBrowserProps) {
   const router = useRouter();
+  const studioReturnToHref = "/studio";
 
   return (
     <div data-testid="studio-preset-browser" className="fixed inset-0 z-[118] overflow-y-auto overscroll-contain bg-[rgba(6,8,7,0.78)] backdrop-blur-md [webkit-overflow-scrolling:touch]">
@@ -38,14 +39,23 @@ export function StudioPresetBrowser({
                 Pick a preset first, then Studio will load the right model and composer setup for you.
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/78 transition hover:border-[rgba(216,141,67,0.28)] hover:text-white"
-              aria-label="Close preset browser"
-            >
-              <X className="size-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => router.push(`/presets/new?returnTo=${encodeURIComponent(studioReturnToHref)}`)}
+                className="inline-flex h-10 items-center justify-center rounded-full border border-[rgba(208,255,72,0.28)] bg-[rgba(208,255,72,0.12)] px-4 text-sm font-semibold tracking-[-0.01em] text-[rgba(236,255,180,0.96)] transition hover:bg-[rgba(208,255,72,0.18)] hover:text-white"
+              >
+                New Preset
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/78 transition hover:border-[rgba(216,141,67,0.28)] hover:text-white"
+                aria-label="Close preset browser"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
           </div>
           <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 md:px-6 md:py-6">
             {presets.length ? (
@@ -95,7 +105,7 @@ export function StudioPresetBrowser({
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          router.push(`/presets/${preset.preset_id}`);
+                          router.push(`/presets/${preset.preset_id}?returnTo=${encodeURIComponent(studioReturnToHref)}`);
                         }}
                         className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/72 transition hover:border-[rgba(208,255,72,0.38)] hover:bg-white/[0.09] hover:text-[rgba(208,255,72,0.94)]"
                         aria-label={`Edit ${preset.label}`}

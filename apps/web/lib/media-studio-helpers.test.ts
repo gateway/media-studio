@@ -453,7 +453,7 @@ describe("media-studio-helpers Seedance support", () => {
       }),
     ).toEqual([
       {
-        key: "job-reference:1",
+        key: "job-reference:images:1",
         label: "Reference 1",
         url: "/api/control/files/outputs/thumb/ref-2.webp",
         posterUrl: null,
@@ -462,13 +462,49 @@ describe("media-studio-helpers Seedance support", () => {
         role: "reference",
       },
       {
-        key: "job-reference:2",
+        key: "job-reference:images:2",
         label: "Last frame",
         url: "/api/control/files/outputs/frames/last.png",
         posterUrl: null,
         assetId: null,
         kind: "images",
         role: "last_frame",
+      },
+    ]);
+  });
+
+  it("includes image, video, and audio references in retry restore inputs", () => {
+    expect(
+      buildStudioJobReferenceInputs({
+        job: {
+          source_asset_id: "asset-source",
+          normalized_request: {
+            images: [{ asset_id: "asset-source", media_type: "image", role: null }],
+            videos: [{ path: "outputs/retry/ref-video.mp4", media_type: "video", role: "reference" }],
+            audios: [{ path: "outputs/retry/ref-audio.mp3", media_type: "audio", role: "reference" }],
+          },
+        } as never,
+        localAssets: [],
+        favoriteAssets: null,
+      }),
+    ).toEqual([
+      {
+        key: "job-reference:videos:0",
+        label: "Reference 1",
+        url: "/api/control/files/outputs/retry/ref-video.mp4",
+        posterUrl: null,
+        assetId: null,
+        kind: "videos",
+        role: "reference",
+      },
+      {
+        key: "job-reference:audios:0",
+        label: "Reference 2",
+        url: "/api/control/files/outputs/retry/ref-audio.mp3",
+        posterUrl: null,
+        assetId: null,
+        kind: "audios",
+        role: "reference",
       },
     ]);
   });
@@ -589,7 +625,7 @@ describe("media-studio-helpers Seedance support", () => {
       },
       referenceInputs: [
         {
-          key: "job-reference:1",
+          key: "job-reference:images:1",
           label: "Reference 1",
           url: "/api/control/files/outputs/retry/reference.png",
           posterUrl: null,
@@ -607,6 +643,38 @@ describe("media-studio-helpers Seedance support", () => {
         },
       ],
     });
+  });
+
+  it("shows cross-media reference previews from the normalized request", () => {
+    expect(
+      buildStudioReferencePreviews({
+        asset: { source_asset_id: "asset-source" } as never,
+        job: {
+          normalized_request: {
+            images: [{ asset_id: "asset-source", role: null, media_type: "image" }],
+            videos: [{ path: "outputs/retry/ref-video.mp4", role: "reference", media_type: "video" }],
+            audios: [{ path: "outputs/retry/ref-audio.mp3", role: "reference", media_type: "audio" }],
+          },
+        } as never,
+        localAssets: [],
+        favoriteAssets: null,
+      }),
+    ).toEqual([
+      {
+        key: "job-video:0",
+        label: "Reference 1",
+        url: "/api/control/files/outputs/retry/ref-video.mp4",
+        kind: "videos",
+        posterUrl: null,
+      },
+      {
+        key: "job-audio:0",
+        label: "Reference 2",
+        url: "/api/control/files/outputs/retry/ref-audio.mp3",
+        kind: "audios",
+        posterUrl: null,
+      },
+    ]);
   });
 
   it("uses batch request summary values when failed jobs do not retain structured preset state", () => {

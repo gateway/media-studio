@@ -6,11 +6,14 @@ import { getMediaDashboardSnapshot } from "@/lib/control-api";
 
 export default async function EditMediaPresetPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ presetId: string }>;
+  searchParams?: Promise<{ returnTo?: string }>;
 }) {
   const snapshot = await getMediaDashboardSnapshot();
   const resolvedParams = await params;
+  const resolvedSearchParams = (await searchParams) ?? {};
   const presets = snapshot.presets.data?.presets ?? [];
   const preset = presets.find((entry) => entry.preset_id === resolvedParams.presetId);
   if (!preset) {
@@ -29,6 +32,7 @@ export default async function EditMediaPresetPage({
         presets={presets}
         initialPresetId={resolvedParams.presetId}
         initialModelKey={preset.model_key ?? "nano-banana-2"}
+        initialReturnTo={resolvedSearchParams.returnTo ?? null}
       />
     </StudioAdminShell>
   );

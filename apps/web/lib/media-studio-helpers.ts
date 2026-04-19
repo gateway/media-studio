@@ -975,18 +975,31 @@ export function structuredPresetSlotPreviewUrl(
   };
 }
 
-function normalizedRequestImages(job?: MediaJob | null) {
+type NormalizedRequestMediaKey = "images" | "videos" | "audios";
+
+function normalizedRequestMedia(job: MediaJob | null | undefined, key: NormalizedRequestMediaKey) {
   const preparedRequest = isRecord(job?.prepared) && isRecord(job?.prepared["normalized_request"])
     ? (job?.prepared["normalized_request"] as Record<string, unknown>)
     : null;
-  const preparedImages = preparedRequest && Array.isArray(preparedRequest["images"])
-    ? (preparedRequest["images"] as unknown[])
+  const preparedItems = preparedRequest && Array.isArray(preparedRequest[key])
+    ? (preparedRequest[key] as unknown[])
     : [];
-  if (preparedImages.length) {
-    return preparedImages;
+  if (preparedItems.length) {
+    return preparedItems;
   }
   const normalizedRequest = isRecord(job?.normalized_request) ? job.normalized_request : null;
-  return normalizedRequest && Array.isArray(normalizedRequest["images"]) ? (normalizedRequest["images"] as unknown[]) : [];
+  return normalizedRequest && Array.isArray(normalizedRequest[key]) ? (normalizedRequest[key] as unknown[]) : [];
+}
+
+function normalizedRequestImages(job?: MediaJob | null) {
+  return normalizedRequestMedia(job, "images");
+}
+
+function normalizedRequestMediaEntries(job?: MediaJob | null) {
+  const collections: NormalizedRequestMediaKey[] = ["images", "videos", "audios"];
+  return collections.flatMap((collectionKey) =>
+    normalizedRequestMedia(job, collectionKey).map((item, index) => ({ item, index, collectionKey })),
+  );
 }
 
 function normalizedReferenceLabel(role: string | null, fallbackIndex: number, referenceIndex: number) {
@@ -1062,25 +1075,33 @@ export function buildStudioReferencePreviews({
   }
 
   let referenceIndex = 0;
-  normalizedRequestImages(job).forEach((image, index) => {
-    if (!isRecord(image)) {
+  let consumedImplicitPrimary = false;
+  normalizedRequestMediaEntries(job).forEach(({ item, index, collectionKey }) => {
+    if (!isRecord(item)) {
       return;
     }
     const assetId =
-      typeof image.asset_id === "string" || typeof image.asset_id === "number" ? image.asset_id : null;
+      typeof item.asset_id === "string" || typeof item.asset_id === "number" ? item.asset_id : null;
     if (assetId != null && sourceAssetId != null && String(assetId) === String(sourceAssetId)) {
       return;
     }
     const imageAsset = assetId != null ? findMediaAssetById(assetId, localAssets, favoriteAssets) ?? null : null;
-    const urlValue = typeof image.url === "string" ? image.url : null;
-    const pathValue = typeof image.path === "string" ? image.path : null;
-    const role = typeof image.role === "string" ? image.role : null;
-    const kind = studioReferenceKind(image.media_type);
+    const urlValue = typeof item.url === "string" ? item.url : null;
+    const pathValue = typeof item.path === "string" ? item.path : null;
+    const role = typeof item.role === "string" ? item.role : null;
+    const kind = studioReferenceKind(item.media_type ?? collectionKey.slice(0, -1));
+    if (role == null && sourceAssetId == null && !consumedImplicitPrimary) {
+      consumedImplicitPrimary = true;
+      return;
+    }
+    if (sourceAssetId != null && role == null) {
+      return;
+    }
     if (role === "reference") {
       referenceIndex += 1;
     }
     pushPreview(
-      `job-image:${index}`,
+      `job-${collectionKey.slice(0, -1)}:${index}`,
       normalizedReferenceLabel(role, index + 1, Math.max(referenceIndex, 1)),
       kind,
       (kind === "videos" ? mediaPlaybackUrl(imageAsset) : null) ??
@@ -1112,19 +1133,19 @@ export function buildStudioJobReferenceInputs({
   let referenceIndex = 0;
   let consumedImplicitPrimary = false;
 
-  normalizedRequestImages(job).forEach((image, index) => {
-    if (!isRecord(image)) {
+  normalizedRequestMediaEntries(job).forEach(({ item, index, collectionKey }) => {
+    if (!isRecord(item)) {
       return;
     }
     const assetId =
-      typeof image.asset_id === "string" || typeof image.asset_id === "number" ? image.asset_id : null;
+      typeof item.asset_id === "string" || typeof item.asset_id === "number" ? item.asset_id : null;
     if (assetId != null && sourceAssetId != null && String(assetId) === String(sourceAssetId)) {
       return;
     }
-    const kind = studioReferenceKind(image.media_type);
+    const kind = studioReferenceKind(item.media_type ?? collectionKey.slice(0, -1));
     const role =
-      image.role === "first_frame" || image.role === "last_frame" || image.role === "reference"
-        ? image.role
+      item.role === "first_frame" || item.role === "last_frame" || item.role === "reference"
+        ? item.role
         : null;
     if (role == null && sourceAssetId == null && !consumedImplicitPrimary) {
       consumedImplicitPrimary = true;
@@ -1137,8 +1158,8 @@ export function buildStudioJobReferenceInputs({
       referenceIndex += 1;
     }
     const asset = assetId != null ? findMediaAssetById(assetId, localAssets, favoriteAssets) ?? null : null;
-    const urlValue = typeof image.url === "string" ? image.url : null;
-    const pathValue = typeof image.path === "string" ? image.path : null;
+    const urlValue = typeof item.url === "string" ? item.url : null;
+    const pathValue = typeof item.path === "string" ? item.path : null;
     const url =
       (kind === "videos" ? mediaPlaybackUrl(asset) : null) ??
       mediaDisplayUrl(asset) ??
@@ -1154,7 +1175,7 @@ export function buildStudioJobReferenceInputs({
     }
     seen.add(dedupeKey);
     references.push({
-      key: `job-reference:${index}`,
+      key: `job-reference:${collectionKey}:${index}`,
       label: normalizedReferenceLabel(role, index + 1, Math.max(referenceIndex, 1)),
       url,
       posterUrl: kind === "videos" ? mediaThumbnailUrl(asset) ?? mediaDisplayUrl(asset) ?? null : null,
