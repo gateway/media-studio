@@ -105,24 +105,16 @@ export function StudioInspectorInfo({
           onClick={() => void copyAssetLink()}
           data-testid="studio-inspector-copy-link"
           className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3 text-left transition hover:bg-white/[0.05]"
+          title={copyLinkStatus === "copied" ? "Link copied" : copyLinkStatus === "error" ? "Copy failed" : "Copy link"}
         >
           <span className="text-sm text-white/56">Link</span>
-          <span className="inline-flex items-center gap-2 text-sm font-medium text-white/82">
+          <span className="inline-flex items-center text-sm font-medium text-white/82">
             {copyLinkStatus === "copied" ? (
-              <>
-                <Check className="size-4 text-[#b8ff9f]" />
-                <span className="text-[#b8ff9f]">Copied</span>
-              </>
+              <Check className="size-4 text-[#b8ff9f]" />
             ) : copyLinkStatus === "error" ? (
-              <>
-                <Copy className="size-4 text-[#ffb5a6]" />
-                <span className="text-[#ffb5a6]">Copy failed</span>
-              </>
+              <Copy className="size-4 text-[#ffb5a6]" />
             ) : (
-              <>
-                <Copy className="size-4 text-white/52" />
-                <span className="max-w-[10rem] truncate text-white/60">{assetLinkPath}</span>
-              </>
+              <Copy className="size-4 text-white/52" />
             )}
           </span>
         </button>

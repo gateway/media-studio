@@ -3675,9 +3675,9 @@ export function MediaStudio({
                           </div>
                         </div>
                         <div className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
-                          <div className="text-sm text-white/56">Preset key</div>
+                          <div className="text-sm text-white/56">Description</div>
                           <div className="mt-1 text-sm font-medium text-white/92">
-                            {selectedAssetPreset?.key || selectedAsset.preset_key || "builtin"}
+                            {selectedAssetPreset?.description?.trim() || "No preset description was saved."}
                           </div>
                         </div>
                       </div>
@@ -3778,9 +3778,9 @@ export function MediaStudio({
                             </div>
                           </div>
                           <div className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
-                            <div className="text-sm text-white/56">Preset key</div>
+                            <div className="text-sm text-white/56">Description</div>
                             <div className="mt-1 text-sm font-medium text-white/92">
-                              {selectedAssetPreset?.key || selectedAsset.preset_key || "builtin"}
+                              {selectedAssetPreset?.description?.trim() || "No preset description was saved."}
                             </div>
                           </div>
                         </div>
