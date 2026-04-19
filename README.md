@@ -18,6 +18,25 @@ If you want the fastest path first:
 - local SQLite state plus local uploads, downloads, and generated outputs
 - Kie-backed pricing, validation, submit, polling, and artifact publishing
 
+## Current Feature Set
+
+- global gallery with image/video/favorites filters
+- project workspaces for organizing media into groups without losing the global gallery
+- project create/edit/archive flows with optional project cover image
+- option to hide a project from the global gallery
+- reusable reference library for image inputs
+- preset system with structured text fields and image slots
+- model-aware composer inputs for:
+  - text-only
+  - image-to-video
+  - start/end frame flows
+  - motion-control flows
+  - multimodal Seedance reference flows
+- failed job inspector with retry back into Studio
+- queue and batch tracking, including partial-failure handling
+- local migration tracking and backup-before-migrate safety
+- safe local sync script that preserves persistent `data/`
+
 Important:
 
 - the app runs locally
@@ -47,6 +66,15 @@ Video models:
   Newer Kling image-to-video flow.
 - `kling-3.0-motion`
   Motion-control workflow.
+
+Supported model/input patterns today:
+
+- prompt-only image generation
+- prompt-only video generation
+- single-image editing / image-to-video
+- start-frame plus optional end-frame video generation
+- image plus driving-video motion control
+- Seedance image/video/audio reference composition
 
 The exact pricing and request rules can change over time, so the app also exposes:
 
