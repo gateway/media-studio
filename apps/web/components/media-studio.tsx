@@ -3822,18 +3822,6 @@ export function MediaStudio({
                 </div>
 
                 <div className="hidden min-h-0 content-start gap-4 rounded-[28px] bg-[rgba(255,255,255,0.04)] p-4 text-white lg:grid lg:overflow-y-auto lg:p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-white/54">
-                      Selected asset
-                    </div>
-                    <div className="mt-1 text-sm text-white/76">
-                      {selectedAsset.model_key ?? "Unknown model"} • {formatDateTime(selectedAsset.created_at)}
-                    </div>
-                  </div>
-                  <StatusPill label={selectedAsset.status ?? "stored"} tone={toneForStatus(selectedAsset.status)} />
-                </div>
-
                 <StudioInspectorInfo
                   selectedAsset={selectedAsset}
                   favoriteAssetIdBusy={favoriteAssetIdBusy}

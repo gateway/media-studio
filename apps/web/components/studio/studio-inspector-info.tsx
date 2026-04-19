@@ -10,7 +10,7 @@ import {
   type StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
 import type { MediaAsset } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 
 type StudioInspectorInfoProps = {
   selectedAsset: MediaAsset;
@@ -59,6 +59,16 @@ export function StudioInspectorInfo({
         Information
       </div>
       <div className="mt-3 grid gap-2">
+        <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
+          <span className="text-sm text-white/56">Date</span>
+          <span className="text-sm font-medium text-white/92">{formatDateTime(selectedAsset.created_at)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
+          <span className="text-sm text-white/56">Status</span>
+          <span className="text-sm font-medium uppercase tracking-[0.08em] text-white/92">
+            {selectedAsset.status ?? "stored"}
+          </span>
+        </div>
         <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
           <span className="text-sm text-white/56">Model</span>
           <span className="text-sm font-medium text-white/92">{selectedAsset.model_key ?? "Unknown"}</span>
