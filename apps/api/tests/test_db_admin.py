@@ -41,10 +41,11 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert int(row[1] or 0) == 1
 
     status = store.get_schema_status(clean_db)
-    assert status["schema_version"] == 1
-    assert status["latest_version"] == 1
-    assert len(status["applied_migrations"]) == 1
+    assert status["schema_version"] == 2
+    assert status["latest_version"] == 2
+    assert len(status["applied_migrations"]) == 2
     assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
+    assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
     assert status["pending_migrations"] == []
 
 
@@ -146,9 +147,10 @@ def test_bootstrap_schema_creates_backup_before_upgrading_existing_database(app_
     assert _count_rows(backup_path, "media_jobs") == 1
 
     status = store.get_schema_status(legacy_db)
-    assert status["schema_version"] == 1
+    assert status["schema_version"] == 2
     assert status["pending_migrations"] == []
     assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
+    assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
 
 
 def test_deduplicate_assets_by_job_id_keeps_latest_asset(app_modules) -> None:
@@ -286,3 +288,9 @@ def test_bootstrap_schema_adds_project_columns_and_tables_to_legacy_db(app_modul
     assert "project_id" in batch_columns
     assert "project_id" in job_columns
     assert "project_id" in asset_columns
+    connection = sqlite3.connect(legacy_db)
+    try:
+        project_columns = {row[1] for row in connection.execute("PRAGMA table_info(media_projects)").fetchall()}
+    finally:
+        connection.close()
+    assert "cover_reference_id" in project_columns

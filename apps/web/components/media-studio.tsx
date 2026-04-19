@@ -354,11 +354,21 @@ export function MediaStudio({
     void router.push(studioHrefForProject(projectId, null));
   }
 
-  async function createProjectInStudio(draft: { name: string; description: string }) {
+  async function createProjectInStudio(draft: {
+    name: string;
+    description: string;
+    coverAssetId?: string | null;
+    coverReferenceId?: string | null;
+  }) {
     const response = await fetch("/api/control/media/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(draft),
+      body: JSON.stringify({
+        name: draft.name,
+        description: draft.description,
+        ...(draft.coverAssetId !== undefined ? { cover_asset_id: draft.coverAssetId } : {}),
+        ...(draft.coverReferenceId !== undefined ? { cover_reference_id: draft.coverReferenceId } : {}),
+      }),
     });
     const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
     if (!response.ok || !payload.project) {
@@ -368,11 +378,21 @@ export function MediaStudio({
     openProjectWorkspace(String(payload.project.project_id));
   }
 
-  async function updateProjectInStudio(projectId: string, draft: { name: string; description: string }) {
+  async function updateProjectInStudio(projectId: string, draft: {
+    name: string;
+    description: string;
+    coverAssetId?: string | null;
+    coverReferenceId?: string | null;
+  }) {
     const response = await fetch(`/api/control/media/projects/${projectId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(draft),
+      body: JSON.stringify({
+        name: draft.name,
+        description: draft.description,
+        ...(draft.coverAssetId !== undefined ? { cover_asset_id: draft.coverAssetId } : {}),
+        ...(draft.coverReferenceId !== undefined ? { cover_reference_id: draft.coverReferenceId } : {}),
+      }),
     });
     const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
     if (!response.ok || !payload.project) {

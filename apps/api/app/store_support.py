@@ -876,6 +876,12 @@ MIGRATIONS = [
         description="Initialize tracked Media Studio schema baseline.",
         apply=_apply_baseline_schema,
     ),
+    SchemaMigration(
+        migration_id="20260419_002_project_cover_references",
+        version=2,
+        description="Add reference-backed project cover images.",
+        apply=lambda connection: ensure_column(connection, "media_projects", "cover_reference_id", "TEXT"),
+    ),
 ]
 
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version

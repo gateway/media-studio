@@ -108,3 +108,44 @@ def test_project_reference_attachment_and_submit_propagation(client, app_modules
     detach = client.delete(f"/media/projects/{project_id}/references/{reference['reference_id']}")
     assert detach.status_code == 200
     assert detach.json()["attached_project_ids"] == []
+
+
+def test_project_cover_reference_is_returned_with_cover_urls(client, app_modules) -> None:
+    store = app_modules["store"]
+    service = app_modules["service"]
+
+    reference_path = service.settings.data_root / "reference-media" / "images" / "project-cover.png"
+    reference_path.parent.mkdir(parents=True, exist_ok=True)
+    reference_path.write_bytes(PNG_1X1_BYTES)
+    thumb_path = service.settings.data_root / "reference-media" / "thumbs" / "project-cover.webp"
+    thumb_path.parent.mkdir(parents=True, exist_ok=True)
+    thumb_path.write_bytes(PNG_1X1_BYTES)
+    reference = store.create_or_reuse_reference_media(
+        {
+            "kind": "image",
+            "original_filename": "project-cover.png",
+            "stored_path": str(reference_path.relative_to(service.settings.data_root)).replace("\\", "/"),
+            "thumb_path": str(thumb_path.relative_to(service.settings.data_root)).replace("\\", "/"),
+            "mime_type": "image/png",
+            "file_size_bytes": reference_path.stat().st_size,
+            "sha256": "project-cover-hash",
+            "width": 1,
+            "height": 1,
+            "usage_count": 0,
+        },
+        increment_usage=False,
+    )
+
+    create = client.post(
+        "/media/projects",
+        json={
+            "name": "Cover Project",
+            "description": "Uses a reference image cover.",
+            "cover_reference_id": reference["reference_id"],
+        },
+    )
+    assert create.status_code == 200
+    payload = create.json()
+    assert payload["cover_reference_id"] == reference["reference_id"]
+    assert payload["cover_image_url"] == "reference-media/images/project-cover.png"
+    assert payload["cover_thumb_url"] == "reference-media/thumbs/project-cover.webp"

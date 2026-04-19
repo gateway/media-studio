@@ -437,6 +437,7 @@ class ProjectUpsertRequest(BaseModel):
     name: str
     description: Optional[str] = None
     cover_asset_id: Optional[str] = None
+    cover_reference_id: Optional[str] = None
     status: Optional[str] = None
 
 
@@ -446,6 +447,9 @@ class ProjectRecord(BaseModel):
     description: Optional[str] = None
     status: str = "active"
     cover_asset_id: Optional[str] = None
+    cover_reference_id: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    cover_thumb_url: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 

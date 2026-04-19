@@ -42,7 +42,7 @@ import type {
   MediaSystemPromptsResponse,
   MediaValidationResponse,
 } from "@/lib/types";
-import { toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-paths";
+import { toControlApiDataPreviewPath, toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-paths";
 import { INITIAL_ASSET_PAGE_SIZE } from "@/lib/media-studio-contract";
 export { toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-paths";
 
@@ -339,7 +339,7 @@ function asProxyUrl(pathValue: unknown) {
   if (typeof pathValue !== "string" || !pathValue) {
     return null;
   }
-  return `/files/${pathValue.replace(/^\/+/, "")}`;
+  return toControlApiProxyPath(pathValue) ?? toControlApiDataPreviewPath(pathValue);
 }
 
 export function mapJobRecord(job: Record<string, any>): MediaJob {
@@ -445,6 +445,9 @@ export function mapProjectRecord(project: Record<string, any>): MediaProject {
     description: project.description ?? null,
     status: String(project.status ?? "active"),
     cover_asset_id: project.cover_asset_id ?? null,
+    cover_reference_id: project.cover_reference_id ?? null,
+    cover_image_url: project.cover_image_url ? asProxyUrl(project.cover_image_url) : null,
+    cover_thumb_url: project.cover_thumb_url ? asProxyUrl(project.cover_thumb_url) : null,
     created_at: project.created_at ?? null,
     updated_at: project.updated_at ?? null,
   };

@@ -939,6 +939,9 @@ export type MediaProject = {
   description?: string | null;
   status: "active" | "archived" | string;
   cover_asset_id?: string | null;
+  cover_reference_id?: string | null;
+  cover_image_url?: string | null;
+  cover_thumb_url?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };

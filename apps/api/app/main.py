@@ -243,12 +243,12 @@ def delete_preset(preset_id: str):
 
 @app.get("/media/projects", response_model=ProjectListResponse)
 def list_projects(status: Optional[str] = Query(default="active")):
-    return ProjectListResponse(items=[ProjectRecord(**item) for item in store.list_projects(status=status)])
+    return ProjectListResponse(items=[ProjectRecord(**item) for item in service.list_projects(status=status)])
 
 
 @app.get("/media/projects/{project_id}", response_model=ProjectRecord)
 def get_project(project_id: str):
-    record = store.get_project(project_id)
+    record = service.get_project(project_id)
     if not record:
         raise _not_found("project")
     return ProjectRecord(**record)

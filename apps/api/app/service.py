@@ -131,32 +131,75 @@ def validate_project_payload(payload: ProjectUpsertRequest) -> Dict[str, Any]:
         "name": name,
         "description": str(payload.description).strip() if payload.description is not None else None,
         "cover_asset_id": str(payload.cover_asset_id).strip() if payload.cover_asset_id else None,
+        "cover_reference_id": str(payload.cover_reference_id).strip() if payload.cover_reference_id else None,
         "status": status,
     }
+
+
+def hydrate_project_record(record: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(record)
+    cover_reference_id = str(normalized.get("cover_reference_id") or "").strip()
+    if cover_reference_id:
+        reference = store.get_reference_media(cover_reference_id)
+        sanitized = sanitize_reference_media_record(reference) if reference else None
+        if sanitized:
+            normalized["cover_image_url"] = sanitized.get("stored_path")
+            normalized["cover_thumb_url"] = sanitized.get("thumb_path") or sanitized.get("stored_path")
+        else:
+            normalized["cover_reference_id"] = None
+    if not normalized.get("cover_image_url"):
+        cover_asset_id = str(normalized.get("cover_asset_id") or "").strip()
+        if cover_asset_id:
+            asset = store.get_asset(cover_asset_id)
+            if asset:
+                normalized["cover_image_url"] = (
+                    asset.get("hero_web_path")
+                    or asset.get("hero_original_path")
+                    or asset.get("hero_thumb_path")
+                )
+                normalized["cover_thumb_url"] = (
+                    asset.get("hero_thumb_path")
+                    or asset.get("hero_web_path")
+                    or asset.get("hero_original_path")
+                )
+    return normalized
+
+
+def list_projects(status: Optional[str] = "active") -> List[Dict[str, Any]]:
+    return [hydrate_project_record(record) for record in store.list_projects(status=status)]
+
+
+def get_project(project_id: str) -> Optional[Dict[str, Any]]:
+    record = store.get_project(project_id)
+    if not record:
+        return None
+    return hydrate_project_record(record)
 
 
 def upsert_project(payload: ProjectUpsertRequest, project_id: Optional[str] = None) -> Dict[str, Any]:
     record = validate_project_payload(payload)
     if record.get("cover_asset_id") and not store.get_asset(str(record["cover_asset_id"])):
         raise ServiceError("Selected cover asset could not be found.")
+    if record.get("cover_reference_id") and not store.get_reference_media(str(record["cover_reference_id"])):
+        raise ServiceError("Selected project image could not be found.")
     if project_id:
         current = store.get_project(project_id)
         if not current:
             raise ServiceError("Project not found.")
         record["project_id"] = project_id
-    return store.create_or_update_project(record)
+    return hydrate_project_record(store.create_or_update_project(record))
 
 
 def archive_project(project_id: str) -> Dict[str, Any]:
     try:
-        return store.archive_project(project_id)
+        return hydrate_project_record(store.archive_project(project_id))
     except KeyError as exc:
         raise ServiceError("Project not found.") from exc
 
 
 def unarchive_project(project_id: str) -> Dict[str, Any]:
     try:
-        return store.unarchive_project(project_id)
+        return hydrate_project_record(store.unarchive_project(project_id))
     except KeyError as exc:
         raise ServiceError("Project not found.") from exc
 
