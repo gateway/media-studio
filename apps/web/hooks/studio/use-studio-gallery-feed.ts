@@ -151,6 +151,7 @@ export function useStudioGalleryFeed({
         localLatestAsset,
         [...openOptimisticBatches, ...openBatches],
         localAssets,
+        localJobs,
         activeGalleryHasMore,
         allowLatestGalleryFallback,
         {
@@ -163,6 +164,7 @@ export function useStudioGalleryFeed({
       activeGalleryHasMore,
       allowLatestGalleryFallback,
       localAssets,
+      localJobs,
       localLatestAsset,
       openBatches,
       openOptimisticBatches,

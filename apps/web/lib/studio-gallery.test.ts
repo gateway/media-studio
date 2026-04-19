@@ -87,7 +87,7 @@ describe("studio-gallery", () => {
   });
 
   it("returns no placeholder tiles when there are no assets or batches", () => {
-    const tiles = buildGalleryTiles([], null, [], [], false, false);
+    const tiles = buildGalleryTiles([], null, [], [], [], false, false);
     expect(tiles).toHaveLength(0);
   });
 
@@ -117,6 +117,7 @@ describe("studio-gallery", () => {
         } as never,
       ],
       [sharedAsset],
+      [],
       false,
       false,
     );
@@ -154,6 +155,7 @@ describe("studio-gallery", () => {
         } as never,
       ],
       [publishedAsset],
+      [],
       false,
       false,
     );
@@ -187,6 +189,7 @@ describe("studio-gallery", () => {
           ],
         } as never,
       ],
+      [],
       [],
       false,
       false,
@@ -223,12 +226,66 @@ describe("studio-gallery", () => {
         } as never,
       ],
       [],
+      [],
       false,
       false,
     );
 
     expect(tiles[0]?.job?.job_id).toBe("job-3");
     expect(tiles[0]?.label).toBe("Failed output");
+  });
+
+  it("keeps a failed sibling tile visible after refresh when batch jobs are only present in the jobs feed", () => {
+    const publishedAsset = {
+      asset_id: "asset-batch-1",
+      job_id: "job-batch-completed",
+      model_key: "nano-banana-2",
+      created_at: "2026-04-06T00:00:00Z",
+    } as never;
+
+    const tiles = buildGalleryTiles(
+      [publishedAsset],
+      null,
+      [
+        {
+          batch_id: "batch-partial-1",
+          status: "partial_failure",
+          model_key: "nano-banana-2",
+          requested_outputs: 2,
+          queued_count: 0,
+          running_count: 0,
+          completed_count: 1,
+          failed_count: 1,
+          cancelled_count: 0,
+          created_at: "2026-04-06T00:00:00Z",
+          updated_at: "2026-04-06T00:00:00Z",
+          jobs: [],
+        } as never,
+      ],
+      [publishedAsset],
+      [
+        {
+          job_id: "job-batch-failed",
+          batch_id: "batch-partial-1",
+          model_key: "nano-banana-2",
+          status: "failed",
+          error: "Provider policy rejected the generation.",
+          created_at: "2026-04-06T00:00:01Z",
+        },
+        {
+          job_id: "job-batch-completed",
+          batch_id: "batch-partial-1",
+          model_key: "nano-banana-2",
+          status: "completed",
+          created_at: "2026-04-06T00:00:00Z",
+        },
+      ] as never,
+      false,
+      false,
+    );
+
+    expect(tiles.some((tile) => tile.job?.job_id === "job-batch-failed" && tile.label === "Failed output")).toBe(true);
+    expect(tiles.some((tile) => tile.asset?.asset_id === "asset-batch-1" && tile.batch == null)).toBe(true);
   });
 
   it("does not show queued image jobs in the videos filter", () => {
@@ -257,6 +314,7 @@ describe("studio-gallery", () => {
           ],
         } as never,
       ],
+      [],
       [],
       false,
       false,
@@ -293,6 +351,7 @@ describe("studio-gallery", () => {
         } as never,
       ],
       [],
+      [],
       false,
       false,
       { favoritesOnly: true },
@@ -312,6 +371,7 @@ describe("studio-gallery", () => {
         } as never,
       ],
       null,
+      [],
       [],
       [],
       false,

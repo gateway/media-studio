@@ -310,6 +310,7 @@ export function buildGalleryTiles(
   latestAsset: MediaAsset | null,
   batches: MediaBatch[],
   allAssets: MediaAsset[],
+  allJobs: MediaJob[] = [],
   hasMoreAssets: boolean,
   allowLatestFallback: boolean,
   filters: GalleryTileFilters = {},
@@ -323,7 +324,24 @@ export function buildGalleryTiles(
   const favoritesOnly = Boolean(filters.favoritesOnly);
 
   for (const batch of favoritesOnly ? [] : batches.slice(0, 3)) {
-    const pendingJobs = (batch.jobs ?? []).filter((job) => {
+    const mergedBatchJobs = (() => {
+      const byId = new Map<string, MediaJob>();
+      for (const job of batch.jobs ?? []) {
+        byId.set(job.job_id, job);
+      }
+      for (const job of allJobs) {
+        if (job.batch_id !== batch.batch_id) {
+          continue;
+        }
+        byId.set(job.job_id, { ...job, ...byId.get(job.job_id) });
+      }
+      return Array.from(byId.values()).sort((left, right) => {
+        const leftCreatedAt = typeof left.created_at === "string" ? left.created_at : "";
+        const rightCreatedAt = typeof right.created_at === "string" ? right.created_at : "";
+        return leftCreatedAt.localeCompare(rightCreatedAt);
+      });
+    })();
+    const pendingJobs = mergedBatchJobs.filter((job) => {
       const previewAsset = allAssets.find((asset) => asset.job_id === job.job_id) ?? null;
       const publishedAsset = previewAsset ? jobHasPublishedAsset(job, allAssets) : false;
       const resolvedModelKey = String(job.model_key ?? batch.model_key ?? "");
