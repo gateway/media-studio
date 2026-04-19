@@ -1,61 +1,112 @@
 # Media Studio
 
-Media Studio is a local AI studio for image and video generation.
+Media Studio is a local AI image and video studio you run on your own machine.
 
-You run the app on your own machine, keep your prompts and outputs local, and connect it to [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) for pay-as-you-go model access.
+Your gallery, prompts, presets, projects, references, and generated files stay local. Media Studio connects to [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42), a credit-based model API marketplace, so you can run image and video models remotely without needing your own GPU box or a fixed monthly hosted studio subscription.
 
 ![Media Studio gallery and prompt workspace](docs/images/media-studio.jpg)
+
+Important before you install:
+
+- Media Studio runs locally, but generation does not work by itself.
+- You need a funded [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) account and a `KIE_API_KEY`.
+- You can usually get started with a small credit balance, often around `$5`.
+- Once you have credits and your API key, Media Studio becomes a self-contained local studio for prompts, presets, projects, references, queueing, revisions, and output history.
+- New models can be added over time without turning the app into a monthly hosted service.
 
 If you want the fastest path first:
 
 - [START_HERE.md](START_HERE.md)
 
+What you need:
+
+- a local machine
+- a funded [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) account
+- a `KIE_API_KEY` from [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
+- a small Kie credit balance to start generating, often something like `$5`
+
 ## What It Includes
 
-- gallery-style Studio UI
-- prompt composer with source images, presets, and references
-- local queue, jobs, retries, and output history
-- local SQLite state plus local uploads, downloads, and generated outputs
+- local Studio UI for image and video generation
+- model-aware composer with prompts, source media, presets, and references
+- local queue, jobs, retries, revisions, and output history
+- local SQLite state plus local uploads, downloads, references, and generated outputs
 - Kie-backed pricing, validation, submit, polling, and artifact publishing
 
 ## Current Feature Set
 
-- global gallery with image/video/favorites filters
-- project workspaces for organizing media into groups without losing the global gallery
-- project create/edit/archive flows with optional project cover image
+### Studio Workspace
+
+- global gallery with image, video, favorite, and all-media filters
+- fullscreen asset viewer with inspector, metadata, and quick actions
+- `Create Revision`, `Animate`, and `Use image` actions directly from the inspector
+- batch tracking that keeps completed, pending, and failed jobs visible together
+- retry flow that sends failed jobs back into Studio with their prompt and settings restored
+
+### Projects And Organization
+
+- project workspaces for organizing content without losing the global gallery
+- project create, edit, archive, and restore flows
+- optional project cover image
 - option to hide a project from the global gallery
-- reusable reference library for image inputs
-- preset system with structured text fields and image slots
-- model-aware composer inputs for:
-  - text-only
-  - image-to-video
-  - start/end frame flows
-  - motion-control flows
-  - multimodal Seedance reference flows
-- failed job inspector with retry back into Studio
-- queue and batch tracking, including partial-failure handling
-- local migration tracking and backup-before-migrate safety
+- project-scoped references plus a global gallery that can still show everything
+
+### Presets And Prompt Tools
+
+- built-in presets that ship with Studio, including:
+  - `3D Caricature Style`
+  - `Selfie with Movie Character`
+- custom preset creation with structured text fields and media slots
+- preset import and export for sharing or moving setups between installs
+- prompt enhancement before generation
+- optional OpenRouter-based enhancement
+- optional local OpenAI-compatible prompt enhancement endpoint
+
+### References And Inputs
+
+- reusable reference library for stored image inputs
+- drag-and-drop from the gallery into compatible slots
+- model-aware input slots instead of one generic upload rail
+- reference restore for revisions, retries, and preset-driven flows
+
+### Generation Modes
+
+- text to image
+- image editing
+- text to video
+- image to video
+- start frame plus optional end frame video generation
+- motion control with a source image plus driving video
+- Seedance multimodal workflows with image, video, and audio references
+
+### Local Safety And Runtime
+
+- local queue, polling, and output publishing
+- local migration tracking with schema registry tables
+- automatic backup before pending migrations on existing installs
 - safe local sync script that preserves persistent `data/`
+- local files stay on disk and are not meant to be committed to git
 
 Important:
 
 - the app runs locally
 - the models do not run on your machine
 - live generation is sent to [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
+- if your [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) account is not funded, Studio can open but it cannot generate
 
 ## Models In The Studio
 
 Image models:
 
 - `nano-banana-2`
-  General image generation and image editing.
+  Text to image and image editing.
 - `nano-banana-pro`
-  Higher-end Nano Banana generation and editing.
+  Higher-end text to image and image editing.
 
 Video models:
 
 - `seedance-2.0`
-  Multi-input video workflow with start/end frames plus image, video, and audio references.
+  Text to video, start/end frames, and multimodal image, video, and audio references.
 - `kling-2.6-t2v`
   Text-to-video.
 - `kling-2.6-i2v`
@@ -67,14 +118,15 @@ Video models:
 - `kling-3.0-motion`
   Motion-control workflow.
 
-Supported model/input patterns today:
+Supported generation patterns today:
 
-- prompt-only image generation
-- prompt-only video generation
-- single-image editing / image-to-video
-- start-frame plus optional end-frame video generation
-- image plus driving-video motion control
-- Seedance image/video/audio reference composition
+- text to image
+- image editing
+- text to video
+- image to video
+- start frame plus optional end frame video generation
+- source image plus driving video motion control
+- Seedance image, video, and audio reference composition
 
 The exact pricing and request rules can change over time, so the app also exposes:
 
@@ -87,11 +139,14 @@ The exact pricing and request rules can change over time, so the app also expose
 - `python3`
 - `Node.js` LTS
 - a `KIE_API_KEY` from [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
+- credits in your [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) account so live generation can run
 
 Optional:
 
 - `OPENROUTER_API_KEY`
   Only needed if you want prompt enhancement during onboarding. You can skip this and add it later in `Settings`.
+- `MEDIA_LOCAL_OPENAI_BASE_URL`
+  Optional if you want prompt enhancement through a local OpenAI-compatible endpoint instead of OpenRouter.
 
 If you need install help first:
 
@@ -114,11 +169,11 @@ What happens during onboarding:
 - installs Python and web dependencies
 - creates `.env`
 - creates a clean local database
-- asks for your `KIE_API_KEY`
+- asks for your `KIE_API_KEY` from [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
 - asks whether you want optional OpenRouter prompt enhancement now
 - can launch Studio for you when setup finishes
 
-If you skip OpenRouter, that is fine. Core image and video generation only requires `KIE_API_KEY`.
+If you skip OpenRouter, that is fine. Core image and video generation only requires a `KIE_API_KEY` from [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42).
 
 ### Windows
 
@@ -136,7 +191,7 @@ cd media-studio
 ./scripts/bootstrap_local.sh
 ```
 
-Then add your `KIE_API_KEY` to `.env` and run:
+Then add your `KIE_API_KEY` from [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) to `.env` and run:
 
 ```bash
 npm run dev:api
@@ -222,18 +277,26 @@ Prompt enhancement is optional.
 
 You can use Media Studio with only:
 
-- `KIE_API_KEY`
+- a `KIE_API_KEY` from [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
 
 If you want prompt rewriting before generation, you can also configure:
 
 - `OPENROUTER_API_KEY`
 - `OPENROUTER_BASE_URL`
+- `MEDIA_LOCAL_OPENAI_BASE_URL`
+- `MEDIA_LOCAL_OPENAI_API_KEY`
 
 The onboarding flow asks whether you want this now, but you can skip it and add it later in `Settings`.
 
+Supported enhancement paths:
+
+- built-in helper flow
+- OpenRouter-hosted prompt enhancement
+- local OpenAI-compatible prompt enhancement
+
 ## How It Works
 
-- you open Studio and choose a model or preset
+- you open Studio and choose a model, project, or preset
 - you write a prompt and optionally add source or reference media
 - the local app validates and stores the request
 - [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) runs the model remotely
