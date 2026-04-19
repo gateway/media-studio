@@ -92,6 +92,10 @@ echo " - Studio: $STUDIO_URL"
 echo " - Settings: $SETTINGS_URL"
 echo " - API log: $API_LOG"
 echo " - Web log: $WEB_LOG"
+echo " - Data root: $DATA_ROOT"
+echo
+echo "Local Studio data under ./data is persistent user content and is never cleaned by this launcher."
+echo "Do not run blanket cleanup commands like 'git clean -fd' in this repo."
 echo
 echo "The launcher will open your browser to Studio when the app is ready."
 echo "To stop the app later, double-click Stop Media Studio.command."
