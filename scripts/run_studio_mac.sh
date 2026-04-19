@@ -56,12 +56,17 @@ ENV_API_HOST="${MEDIA_STUDIO_API_HOST:-}"
 ENV_API_PORT="${MEDIA_STUDIO_API_PORT:-}"
 ENV_WEB_HOST="${MEDIA_STUDIO_WEB_HOST:-}"
 ENV_WEB_PORT="${MEDIA_STUDIO_WEB_PORT:-}"
+ENV_DB_PATH="${MEDIA_STUDIO_DB_PATH:-}"
+ENV_DATA_ROOT="${MEDIA_STUDIO_DATA_ROOT:-}"
 load_media_env "$MEDIA_ROOT"
 
 API_HOST="${CLI_API_HOST:-${ENV_API_HOST:-${MEDIA_STUDIO_API_HOST:-127.0.0.1}}}"
 API_PORT="${CLI_API_PORT:-${ENV_API_PORT:-${MEDIA_STUDIO_API_PORT:-8000}}}"
 WEB_HOST="${CLI_WEB_HOST:-${ENV_WEB_HOST:-${MEDIA_STUDIO_WEB_HOST:-127.0.0.1}}}"
 WEB_PORT="${CLI_WEB_PORT:-${ENV_WEB_PORT:-${MEDIA_STUDIO_WEB_PORT:-3000}}}"
+DB_PATH="${ENV_DB_PATH:-${MEDIA_STUDIO_DB_PATH:-$MEDIA_ROOT/data/media-studio.db}}"
+DATA_ROOT="${ENV_DATA_ROOT:-${MEDIA_STUDIO_DATA_ROOT:-$MEDIA_ROOT/data}}"
+BACKUP_DIR="$DATA_ROOT/backups"
 WEB_ACCESS_HOST="$(media_runtime_access_host "$WEB_HOST")"
 API_ACCESS_HOST="$(media_runtime_access_host "$API_HOST")"
 RUNTIME_DIR="$MEDIA_ROOT/data/runtime"
@@ -87,6 +92,10 @@ echo " - Studio: $STUDIO_URL"
 echo " - Settings: $SETTINGS_URL"
 echo " - API log: $API_LOG"
 echo " - Web log: $WEB_LOG"
+echo " - Data root: $DATA_ROOT"
+echo
+echo "Local Studio data under ./data is persistent user content and is never cleaned by this launcher."
+echo "Do not run blanket cleanup commands like 'git clean -fd' in this repo."
 echo
 echo "The launcher will open your browser to Studio when the app is ready."
 echo "To stop the app later, double-click Stop Media Studio.command."
@@ -188,6 +197,51 @@ wait_for_url() {
 require_command curl
 require_command open
 require_command lsof
+require_command python3
+
+migration_preflight() {
+  if [[ ! -f "$DB_PATH" ]]; then
+    return 0
+  fi
+
+  local status_json
+  if ! status_json="$(MEDIA_STUDIO_DB_PATH="$DB_PATH" MEDIA_STUDIO_DATA_ROOT="$DATA_ROOT" "$SCRIPT_DIR/migration_status.sh" --db "$DB_PATH")"; then
+    echo "Unable to inspect Media Studio migration status for $DB_PATH." >&2
+    echo "Refusing to start automatically because startup safety checks failed." >&2
+    exit 1
+  fi
+
+  local pending_count
+  pending_count="$(python3 - "$status_json" <<'PY'
+import json, sys
+payload = json.loads(sys.argv[1])
+print(len(payload.get("pending_migrations", [])))
+PY
+)"
+  local user_schema_present
+  user_schema_present="$(python3 - "$status_json" <<'PY'
+import json, sys
+payload = json.loads(sys.argv[1])
+print("true" if payload.get("user_schema_present") else "false")
+PY
+)"
+
+  if [[ "$user_schema_present" != "true" || "$pending_count" == "0" ]]; then
+    return 0
+  fi
+
+  echo "Detected $pending_count pending database migration(s) for an existing Media Studio install."
+  echo "Creating a safety backup before startup..."
+  local backup_output
+  if ! backup_output="$(MEDIA_STUDIO_DB_PATH="$DB_PATH" MEDIA_STUDIO_DATA_ROOT="$DATA_ROOT" "$SCRIPT_DIR/backup_db.sh" --source "$DB_PATH" --backup-dir "$BACKUP_DIR")"; then
+    echo "Automatic database backup failed. Startup aborted to avoid unsafe migration." >&2
+    exit 1
+  fi
+  echo "$backup_output"
+  export MEDIA_AUTO_BACKUP_BEFORE_MIGRATION=0
+  echo "Backup complete. Continuing with startup."
+  echo
+}
 
 api_running=false
 web_running=false
@@ -221,6 +275,8 @@ if [[ "$api_running" == true || "$web_running" == true ]]; then
   echo "Cleaning up the stale local processes and restarting..."
   cleanup_stale_media_studio
 fi
+
+migration_preflight
 
 echo "Checking the production web build..."
 bash "$SCRIPT_DIR/ensure_web_build.sh"

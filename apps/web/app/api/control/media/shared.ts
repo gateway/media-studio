@@ -146,6 +146,7 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
   const presetId = String(formData.get("preset_id") ?? "").trim();
   const presetKey = String(formData.get("preset_key") ?? "").trim();
   const sourceAssetId = String(formData.get("source_asset_id") ?? "").trim();
+  const projectId = String(formData.get("project_id") ?? "").trim();
   const outputCount = String(formData.get("output_count") ?? "").trim();
   const enhance = await parseBoolean(formData.get("enhance"));
   const options = normalizeOptionsRecord(await parseJson(formData.get("options"), {}));
@@ -173,6 +174,9 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
   }
   if (sourceAssetId) {
     payload.source_asset_id = sourceAssetId;
+  }
+  if (projectId) {
+    payload.project_id = projectId;
   }
   if (outputCount) {
     const parsedOutputCount = Number(outputCount);

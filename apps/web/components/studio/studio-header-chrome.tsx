@@ -3,6 +3,7 @@
 import {
   Clapperboard,
   FolderOpen,
+  Folders,
   Heart,
   Image as ImageIcon,
   Monitor,
@@ -25,6 +26,8 @@ type StudioHeaderChromeProps = {
   onGalleryModelFilterChange: (value: string) => void;
   onActivateGalleryKindFilter: (value: "all" | "image" | "video") => void;
   onToggleFavoritesFilter: () => void;
+  onOpenProjects: () => void;
+  projectWorkspaceActive?: boolean;
   onOpenPresets: () => void;
   onOpenLibrary: () => void;
   showLibraryButton?: boolean;
@@ -66,6 +69,8 @@ export function StudioHeaderChrome({
   onGalleryModelFilterChange,
   onActivateGalleryKindFilter,
   onToggleFavoritesFilter,
+  onOpenProjects,
+  projectWorkspaceActive = false,
   onOpenPresets,
   onOpenLibrary,
   showLibraryButton = true,
@@ -123,6 +128,13 @@ export function StudioHeaderChrome({
           label="Favorites only"
           testId="studio-filter-favorites"
           onClick={onToggleFavoritesFilter}
+        />
+        <FilterButton
+          active={projectWorkspaceActive}
+          icon={Folders}
+          label="Projects"
+          testId="studio-filter-projects"
+          onClick={onOpenProjects}
         />
         <FilterButton
           active={false}

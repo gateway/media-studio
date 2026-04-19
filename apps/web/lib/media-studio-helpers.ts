@@ -94,6 +94,7 @@ export type StudioRetryPresetSlotRestore = {
 export type StudioRetryRestorePlan = {
   targetModel: MediaModelSummary | null;
   targetPreset: MediaPreset | null;
+  projectId: string | null;
   selectedPromptIds: string[];
   prompt: string;
   presetInputValues: Record<string, string>;
@@ -535,7 +536,7 @@ export function renderStructuredPresetPrompt(
   let imageIndex = 0;
   for (const slot of imageSlots) {
     const slotState = slotStates[slot.key];
-    if (slotState?.assetId || slotState?.referenceId || slotState?.file) {
+    if (isPresetSlotFilled(slotState)) {
       imageIndex += 1;
       rendered = rendered.replaceAll(`[[${slot.key}]]`, `[image reference ${imageIndex}]`);
       continue;
@@ -543,6 +544,10 @@ export function renderStructuredPresetPrompt(
     rendered = rendered.replaceAll(`[[${slot.key}]]`, `[[${slot.key}]]`);
   }
   return rendered.trim();
+}
+
+export function isPresetSlotFilled(slotState: PresetSlotState | null | undefined) {
+  return Boolean(slotState?.assetId || slotState?.referenceId || slotState?.file);
 }
 
 export function inferInputPattern(
@@ -1345,6 +1350,7 @@ export function buildStudioRetryRestorePlan({
   return {
     targetModel,
     targetPreset,
+    projectId: job.project_id ? String(job.project_id) : batch?.project_id ? String(batch.project_id) : null,
     selectedPromptIds: job.selected_system_prompt_ids ?? [],
     prompt: job.final_prompt_used ?? job.enhanced_prompt ?? job.raw_prompt ?? "",
     presetInputValues,

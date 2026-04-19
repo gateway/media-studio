@@ -2,19 +2,21 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Check,
   CircleDollarSign,
   Coins,
   Clapperboard,
   Copy,
+  FolderPlus,
   Image as ImageIcon,
   ImagePlus,
   LoaderCircle,
   Monitor,
   Play,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 
@@ -36,6 +38,7 @@ import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
 import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
 import { StudioReferenceLibrary } from "@/components/studio/studio-reference-library";
 import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
+import { StudioProjectBrowser } from "@/components/studio/studio-project-browser";
 import { PillSelect } from "@/components/ui/pill-select";
 import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
 import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
@@ -126,7 +129,7 @@ import {
   jobPhaseMessage,
   type MultiShotParseResult,
 } from "@/lib/media-studio-helpers";
-import type { MediaAsset, MediaBatch, MediaEnhancePreviewResponse, MediaJob, MediaReference, MediaValidationResponse } from "@/lib/types";
+import type { MediaAsset, MediaBatch, MediaEnhancePreviewResponse, MediaJob, MediaProject, MediaReference, MediaValidationResponse } from "@/lib/types";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import { installStudioDebugConsole, studioDebug } from "@/lib/studio-debug";
 import { readStudioComposerDraft } from "@/lib/studio-composer-draft";
@@ -177,6 +180,7 @@ export function MediaStudio({
   llmPresets,
   queueSettings,
   queuePolicies,
+  projects,
   batches,
   jobs,
   assets,
@@ -188,17 +192,20 @@ export function MediaStudio({
   remainingCredits,
   pricingSnapshot,
   initialSelectedAssetId = null,
+  initialSelectedProjectId = null,
   immersive = false,
   closeHref = "/media",
 }: MediaStudioProps) {
   const initialComposerDraftRef = useRef(readStudioComposerDraft());
   const router = useRouter();
+  const pathname = usePathname();
   const { showActivity } = useGlobalActivity();
   const [isRefreshing, startRefresh] = useTransition();
   const [hasMounted, setHasMounted] = useState(false);
   const [localRemainingCredits, setLocalRemainingCredits] = useState<number | null>(remainingCredits ?? null);
   const [studioSettingsOpen, setStudioSettingsOpen] = useState(false);
   const [presetBrowserOpen, setPresetBrowserOpen] = useState(false);
+  const [projectBrowserOpen, setProjectBrowserOpen] = useState(false);
   const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(null);
   const [copyPromptStatus, setCopyPromptStatus] = useState<"idle" | "copied" | "error">("idle");
   const [selectedFailedJobId, setSelectedFailedJobId] = useState<string | null>(null);
@@ -209,6 +216,8 @@ export function MediaStudio({
   const [promptReferenceDismissed, setPromptReferenceDismissed] = useState(false);
   const [promptReferenceActiveIndex, setPromptReferenceActiveIndex] = useState(0);
   const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(null);
+  const [localProjects, setLocalProjects] = useState<MediaProject[]>(projects);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialSelectedProjectId);
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(
     initialComposerDraftRef.current?.sourceAssetId ?? null,
   );
@@ -228,9 +237,19 @@ export function MediaStudio({
       }),
     [models, queuePolicies],
   );
+  const selectedProject = useMemo(
+    () => localProjects.find((project) => project.project_id === selectedProjectId) ?? null,
+    [localProjects, selectedProjectId],
+  );
   useEffect(() => {
     setLocalRemainingCredits(remainingCredits ?? null);
   }, [remainingCredits]);
+  useEffect(() => {
+    setLocalProjects(projects);
+  }, [projects]);
+  useEffect(() => {
+    setSelectedProjectId(initialSelectedProjectId);
+  }, [initialSelectedProjectId]);
 
   async function refreshCreditBalance() {
     try {
@@ -269,6 +288,125 @@ export function MediaStudio({
     }, 1400);
   };
 
+  function studioHrefForProject(projectId: string | null, assetId?: string | number | null) {
+    const params = new URLSearchParams();
+    if (projectId) {
+      params.set("project", String(projectId));
+    }
+    if (assetId != null) {
+      params.set("asset", String(assetId));
+    }
+    return params.size ? `${pathname}?${params.toString()}` : pathname;
+  }
+
+  function openProjectWorkspace(projectId: string | null) {
+    clearGallerySelection();
+    setProjectBrowserOpen(false);
+    setSelectedProjectId(projectId);
+    void router.push(studioHrefForProject(projectId, null));
+  }
+
+  async function createProjectInStudio(draft: {
+    name: string;
+    description: string;
+    hiddenFromGlobalGallery?: boolean;
+    coverAssetId?: string | null;
+    coverReferenceId?: string | null;
+  }) {
+    const response = await fetch("/api/control/media/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        name: draft.name,
+        description: draft.description,
+        hidden_from_global_gallery: Boolean(draft.hiddenFromGlobalGallery),
+        ...(draft.coverAssetId !== undefined ? { cover_asset_id: draft.coverAssetId } : {}),
+        ...(draft.coverReferenceId !== undefined ? { cover_reference_id: draft.coverReferenceId } : {}),
+      }),
+    });
+    const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
+    if (!response.ok || !payload.project) {
+      throw new Error(payload.error ?? payload.detail ?? "Unable to create the project.");
+    }
+    setLocalProjects((current) => [payload.project as MediaProject, ...current.filter((item) => item.project_id !== payload.project?.project_id)]);
+    openProjectWorkspace(String(payload.project.project_id));
+  }
+
+  async function updateProjectInStudio(projectId: string, draft: {
+    name: string;
+    description: string;
+    hiddenFromGlobalGallery?: boolean;
+    coverAssetId?: string | null;
+    coverReferenceId?: string | null;
+  }) {
+    const response = await fetch(`/api/control/media/projects/${projectId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        name: draft.name,
+        description: draft.description,
+        hidden_from_global_gallery: Boolean(draft.hiddenFromGlobalGallery),
+        ...(draft.coverAssetId !== undefined ? { cover_asset_id: draft.coverAssetId } : {}),
+        ...(draft.coverReferenceId !== undefined ? { cover_reference_id: draft.coverReferenceId } : {}),
+      }),
+    });
+    const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
+    if (!response.ok || !payload.project) {
+      throw new Error(payload.error ?? payload.detail ?? "Unable to update the project.");
+    }
+    setLocalProjects((current) =>
+      current.map((item) => (item.project_id === projectId ? (payload.project as MediaProject) : item)),
+    );
+  }
+
+  async function archiveProjectInStudio(projectId: string) {
+    const response = await fetch(`/api/control/media/projects/${projectId}/archive`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
+    if (!response.ok || !payload.project) {
+      throw new Error(payload.error ?? payload.detail ?? "Unable to archive the project.");
+    }
+    setLocalProjects((current) =>
+      current.map((item) =>
+        item.project_id === projectId ? (payload.project as MediaProject) : item,
+      ),
+    );
+    if (selectedProjectId === projectId) {
+      openProjectWorkspace(null);
+    }
+  }
+
+  async function unarchiveProjectInStudio(projectId: string) {
+    const response = await fetch(`/api/control/media/projects/${projectId}/unarchive`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
+    if (!response.ok || !payload.project) {
+      throw new Error(payload.error ?? payload.detail ?? "Unable to restore the project.");
+    }
+    setLocalProjects((current) =>
+      current.map((item) => (item.project_id === projectId ? (payload.project as MediaProject) : item)),
+    );
+  }
+
+  async function deleteProjectInStudio(projectId: string) {
+    const response = await fetch(`/api/control/media/projects/${projectId}?permanent=true`, {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+    });
+    const payload = (await response.json()) as { ok?: boolean; detail?: string; error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error ?? payload.detail ?? "Unable to delete the project.");
+    }
+    setLocalProjects((current) => current.filter((item) => item.project_id !== projectId));
+    if (selectedProjectId === projectId) {
+      openProjectWorkspace(null);
+    }
+  }
+
   useEffect(() => {
     return () => {
       if (copyPromptStatusTimerRef.current != null) {
@@ -280,6 +418,7 @@ export function MediaStudio({
     batches,
     jobs,
     assets,
+    activeProjectId: selectedProjectId,
     initialAssetLimit,
     initialAssetsHasMore,
     initialAssetsNextOffset,
@@ -378,6 +517,12 @@ export function MediaStudio({
     }
     return localBatches.find((batch) => batch.batch_id === selectedAssetJob.batch_id) ?? null;
   }, [localBatches, selectedAssetJob?.batch_id]);
+  const selectedAssetProject = useMemo(() => {
+    if (!selectedAsset?.project_id) {
+      return null;
+    }
+    return localProjects.find((project) => project.project_id === selectedAsset.project_id) ?? null;
+  }, [localProjects, selectedAsset?.project_id]);
   const selectedFailedJobPrompt =
     selectedFailedJob?.final_prompt_used ?? selectedFailedJob?.enhanced_prompt ?? selectedFailedJob?.raw_prompt ?? null;
   const selectedFailedJobReferenceInputs = useMemo(
@@ -463,6 +608,7 @@ export function MediaStudio({
     localBatches: gallery.state.localBatches,
     localAssets: gallery.state.localAssets,
     favoriteAssets: gallery.state.favoriteAssets,
+    projectId: selectedProjectId,
     sourceAssetId,
     setSourceAssetId,
     setOptimisticBatches,
@@ -862,6 +1008,33 @@ export function MediaStudio({
       }));
   }, [currentPreset, models, structuredPresetActive]);
   const showStructuredPresetModelPicker = structuredPresetActive && structuredPresetModelChoices.length > 1;
+  const selectedProjectMetric = selectedProject ? (
+    <div className="hidden md:flex items-center overflow-hidden rounded-[14px] border border-[rgba(255,183,107,0.28)] bg-[rgba(29,18,10,0.96)] text-[#ffe2ba] shadow-[0_14px_24px_rgba(0,0,0,0.28)]">
+      <button
+        type="button"
+        onClick={() => openProjectWorkspace(selectedProject.project_id)}
+        className="inline-flex h-10 items-center gap-2 px-3 text-[0.72rem] font-semibold transition hover:bg-[rgba(255,183,107,0.08)]"
+        aria-label={`Open project ${selectedProject.name}`}
+      >
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[rgba(255,183,107,0.18)] text-[#ffb76b]">
+          <FolderPlus className="size-3.5" />
+        </span>
+        <span>{selectedProject.name}</span>
+      </button>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          openProjectWorkspace(null);
+        }}
+        className="inline-flex h-10 items-center justify-center border-l border-[rgba(255,183,107,0.2)] px-3 text-[rgba(255,191,132,0.96)] transition hover:bg-[rgba(255,183,107,0.12)] hover:text-white"
+        aria-label="Exit project workspace"
+        title="Exit project workspace"
+      >
+        <X className="size-3.5" />
+      </button>
+    </div>
+  ) : null;
 
   function revealComposer(options: { focusPresetField?: boolean } = {}) {
     setMobileComposerCollapsed(!isCoarsePointerDevice());
@@ -2574,8 +2747,15 @@ export function MediaStudio({
       return;
     }
     const targetPreset = plan?.targetPreset ?? null;
+    const targetProjectId = plan?.projectId ?? null;
 
     clearComposer();
+    if (targetProjectId !== selectedProjectId) {
+      setSelectedProjectId(targetProjectId);
+      if (typeof window !== "undefined") {
+        window.history.replaceState({}, "", studioHrefForProject(targetProjectId, null));
+      }
+    }
     setModelKey(targetModel.key);
     if (targetPreset) {
       applyPresetSelection(targetPreset.preset_id ?? targetPreset.key, { preferredModelKey: targetModel.key });
@@ -2879,9 +3059,11 @@ export function MediaStudio({
             models={models}
             favoritesOnly={favoritesOnly}
             galleryKindFilter={galleryKindFilter}
+            projectWorkspaceActive={Boolean(selectedProject)}
             metrics={
               !selectedAsset ? (
                 <div className="hidden items-center gap-2 md:flex">
+                  {selectedProjectMetric}
                   {formattedRemainingCredits ? <StudioMetricPill icon={Coins} value={formattedRemainingCredits} /> : null}
                   {estimatedCredits ? <StudioMetricPill icon={Coins} value={estimatedCredits} accent="highlight" /> : null}
                   {estimatedCostUsd ? <StudioMetricPill icon={CircleDollarSign} value={estimatedCostUsd} accent="highlight" /> : null}
@@ -2891,6 +3073,7 @@ export function MediaStudio({
             onGalleryModelFilterChange={handleGalleryModelFilterChange}
             onActivateGalleryKindFilter={handleGalleryKindFilterChange}
             onToggleFavoritesFilter={handleFavoritesFilterToggle}
+            onOpenProjects={() => setProjectBrowserOpen(true)}
             onOpenPresets={() => setPresetBrowserOpen(true)}
             onOpenLibrary={openContextualReferenceLibrary}
             showLibraryButton={canOpenReferenceLibrary}
@@ -2934,7 +3117,9 @@ export function MediaStudio({
                   presetLabel={currentPreset?.label ?? null}
                   externalTopContent={
                     multiImageReferenceStrip || seedanceReferenceStrip ? (
-                      <div className="hidden lg:block">{multiImageReferenceStrip ?? seedanceReferenceStrip}</div>
+                      <div className="hidden space-y-3 lg:block">
+                        {multiImageReferenceStrip ?? seedanceReferenceStrip}
+                      </div>
                     ) : null
                   }
                   mobileInputsContent={mobileInputsSection}
@@ -3522,6 +3707,20 @@ export function MediaStudio({
         />
       ) : null}
 
+      {projectBrowserOpen ? (
+        <StudioProjectBrowser
+          projects={localProjects}
+          selectedProjectId={selectedProjectId}
+          onClose={() => setProjectBrowserOpen(false)}
+          onSelectProject={openProjectWorkspace}
+          onCreateProject={createProjectInStudio}
+          onUpdateProject={updateProjectInStudio}
+          onArchiveProject={archiveProjectInStudio}
+          onUnarchiveProject={unarchiveProjectInStudio}
+          onDeleteProject={deleteProjectInStudio}
+        />
+      ) : null}
+
       {referenceLibraryTarget ? (
         <StudioReferenceLibrary
           title={referenceLibraryTarget.title}
@@ -3847,6 +4046,8 @@ export function MediaStudio({
                   selectedAsset={selectedAsset}
                   favoriteAssetIdBusy={favoriteAssetIdBusy}
                   onToggleFavorite={toggleAssetFavorite}
+                  projectLabel={selectedAssetProject?.name ?? null}
+                  onOpenProject={openProjectWorkspace}
                   referencePreviews={selectedAssetReferencePreviews}
                   onOpenReference={setSelectedReferencePreview}
                 />
@@ -3883,6 +4084,8 @@ export function MediaStudio({
                       selectedAsset={selectedAsset}
                       favoriteAssetIdBusy={favoriteAssetIdBusy}
                       onToggleFavorite={toggleAssetFavorite}
+                      projectLabel={selectedAssetProject?.name ?? null}
+                      onOpenProject={openProjectWorkspace}
                       referencePreviews={selectedAssetReferencePreviews}
                       onOpenReference={setSelectedReferencePreview}
                     />

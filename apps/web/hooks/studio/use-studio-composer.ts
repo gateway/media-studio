@@ -16,6 +16,7 @@ import {
   inferInputPattern,
   isCoarsePointerDevice,
   isNanoPresetModel,
+  isPresetSlotFilled,
   isSeedanceModel,
   isRecord,
   mediaDisplayUrl,
@@ -85,6 +86,7 @@ type UseStudioComposerParams = {
   localBatches: MediaBatch[];
   localAssets: MediaAsset[];
   favoriteAssets: MediaAsset[] | null;
+  projectId: string | null;
   sourceAssetId: string | number | null;
   setSourceAssetId: React.Dispatch<React.SetStateAction<string | number | null>>;
   setOptimisticBatches: React.Dispatch<React.SetStateAction<MediaBatch[]>>;
@@ -251,6 +253,7 @@ export function useStudioComposer({
   localBatches,
   localAssets,
   favoriteAssets,
+  projectId,
   sourceAssetId,
   setSourceAssetId,
   setOptimisticBatches,
@@ -610,7 +613,7 @@ export function useStudioComposer({
         }
         for (const slot of structuredPresetImageSlots) {
           const slotState = presetSlotStates[slot.key];
-          const slotFilled = Boolean(slotState?.assetId || slotState?.file);
+          const slotFilled = isPresetSlotFilled(slotState);
           if (slot.required && !slotFilled) {
             return `The preset ${currentPreset?.label} requires the image slot ${slot.label}.`;
           }
@@ -1395,6 +1398,9 @@ export function useStudioComposer({
       } else {
         formData.set("preset_id", selectedPresetId);
       }
+    }
+    if (projectId) {
+      formData.set("project_id", projectId);
     }
     if (structuredPresetActive) {
       formData.set("preset_inputs_json", JSON.stringify(presetInputValues));

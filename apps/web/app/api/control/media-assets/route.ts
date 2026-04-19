@@ -14,6 +14,7 @@ export async function GET(request: Request) {
   const modelKey = url.searchParams.get("model_key");
   const status = url.searchParams.get("status");
   const presetKey = url.searchParams.get("preset_key");
+  const projectId = url.searchParams.get("project_id");
   const favorited = url.searchParams.get("favorited");
   const mediaType = generationKind === "video" || generationKind === "image" ? generationKind : null;
   const baseParams = new URLSearchParams();
@@ -28,6 +29,9 @@ export async function GET(request: Request) {
   }
   if (presetKey) {
     baseParams.set("preset_key", presetKey);
+  }
+  if (projectId) {
+    baseParams.set("project_id", projectId);
   }
   if (favorited === "true") {
     baseParams.set("favorites", "true");

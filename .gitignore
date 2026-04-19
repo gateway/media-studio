@@ -26,6 +26,9 @@ __pycache__/
 *.pyd
 
 # Runtime databases and sidecar files
+# `data/` is persistent local Studio state: user media, references, thumbs, DBs, logs.
+# Never commit it and never treat it as disposable during repo syncs.
+data/
 data/*.db
 data/*.sqlite
 data/*.sqlite3

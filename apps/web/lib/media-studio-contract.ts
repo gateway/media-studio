@@ -5,6 +5,7 @@ import type {
   MediaEnhancementConfig,
   MediaJob,
   MediaModelQueuePolicy,
+  MediaProject,
   MediaReference,
   MediaModelSummary,
   MediaPreset,
@@ -21,6 +22,7 @@ export type MediaStudioProps = {
   llmPresets: LlmPreset[];
   queueSettings: MediaQueueSettings | null;
   queuePolicies: MediaModelQueuePolicy[];
+  projects: MediaProject[];
   batches: MediaBatch[];
   jobs: MediaJob[];
   assets: MediaAsset[];
@@ -32,6 +34,7 @@ export type MediaStudioProps = {
   remainingCredits?: number | null;
   pricingSnapshot?: Record<string, unknown> | null;
   initialSelectedAssetId?: string | null;
+  initialSelectedProjectId?: string | null;
   immersive?: boolean;
   closeHref?: string;
 };

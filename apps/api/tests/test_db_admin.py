@@ -15,6 +15,7 @@ def _count_rows(db_path: Path, table: str) -> int:
 
 def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_path: Path) -> None:
     db_admin = app_modules["db_admin"]
+    store = app_modules["store"]
     clean_db = tmp_path / "clean.sqlite"
 
     created_path = db_admin.create_clean_database(clean_db)
@@ -23,6 +24,8 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert clean_db.exists()
     assert _count_rows(clean_db, "media_jobs") == 0
     assert _count_rows(clean_db, "media_assets") == 0
+    assert _count_rows(clean_db, "media_projects") == 0
+    assert _count_rows(clean_db, "media_project_references") == 0
     assert _count_rows(clean_db, "media_queue_settings") == 1
     assert _count_rows(clean_db, "media_presets") >= 2
     connection = sqlite3.connect(clean_db)
@@ -36,6 +39,15 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert row is not None
     assert int(row[0] or 0) == 1
     assert int(row[1] or 0) == 1
+
+    status = store.get_schema_status(clean_db)
+    assert status["schema_version"] == 3
+    assert status["latest_version"] == 3
+    assert len(status["applied_migrations"]) == 3
+    assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
+    assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
+    assert status["applied_migrations"][2]["migration_id"] == "20260419_003_project_visibility_flags"
+    assert status["pending_migrations"] == []
 
 
 def test_bootstrap_schema_upgrades_legacy_seedance_default_policy(app_modules, tmp_path: Path) -> None:
@@ -98,6 +110,49 @@ def test_backup_database_copies_existing_database(app_modules, tmp_path: Path) -
     assert backup_path.parent == tmp_path / "backups"
     assert _count_rows(backup_path, "media_queue_settings") == 1
     assert _count_rows(backup_path, "media_presets") == _count_rows(source_db, "media_presets")
+
+
+def test_bootstrap_schema_creates_backup_before_upgrading_existing_database(app_modules, tmp_path: Path) -> None:
+    store = app_modules["store"]
+    legacy_db = tmp_path / "legacy-upgrade.sqlite"
+    backup_dir = tmp_path / "backups"
+
+    connection = sqlite3.connect(legacy_db)
+    try:
+        connection.executescript(
+            """
+            CREATE TABLE media_jobs (
+                job_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE media_assets (
+                asset_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE media_batches (
+                batch_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            INSERT INTO media_jobs (job_id) VALUES ('job-1');
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    backup_path = store.bootstrap_schema(legacy_db, backup_dir=backup_dir)
+
+    assert backup_path is not None
+    assert backup_path.exists()
+    assert backup_path.parent == backup_dir
+    assert _count_rows(backup_path, "media_jobs") == 1
+
+    status = store.get_schema_status(legacy_db)
+    assert status["schema_version"] == 3
+    assert status["pending_migrations"] == []
+    assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
+    assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
+    assert status["applied_migrations"][2]["migration_id"] == "20260419_003_project_visibility_flags"
 
 
 def test_deduplicate_assets_by_job_id_keeps_latest_asset(app_modules) -> None:
@@ -189,3 +244,55 @@ def test_bootstrap_schema_adds_hidden_from_dashboard_to_legacy_assets_table(app_
 
     assert "hidden_from_dashboard" in columns
     assert columns["hidden_from_dashboard"] == "0"
+
+
+def test_bootstrap_schema_adds_project_columns_and_tables_to_legacy_db(app_modules, tmp_path: Path) -> None:
+    store = app_modules["store"]
+    legacy_db = tmp_path / "legacy-projects.sqlite"
+
+    connection = sqlite3.connect(legacy_db)
+    try:
+        connection.executescript(
+            """
+            CREATE TABLE media_jobs (
+                job_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE media_assets (
+                asset_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE media_batches (
+                batch_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    store.bootstrap_schema(legacy_db)
+
+    connection = sqlite3.connect(legacy_db)
+    try:
+        table_names = {
+            row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+        }
+        batch_columns = {row[1] for row in connection.execute("PRAGMA table_info(media_batches)").fetchall()}
+        job_columns = {row[1] for row in connection.execute("PRAGMA table_info(media_jobs)").fetchall()}
+        asset_columns = {row[1] for row in connection.execute("PRAGMA table_info(media_assets)").fetchall()}
+    finally:
+        connection.close()
+
+    assert "media_projects" in table_names
+    assert "media_project_references" in table_names
+    assert "project_id" in batch_columns
+    assert "project_id" in job_columns
+    assert "project_id" in asset_columns
+    connection = sqlite3.connect(legacy_db)
+    try:
+        project_columns = {row[1] for row in connection.execute("PRAGMA table_info(media_projects)").fetchall()}
+    finally:
+        connection.close()
+    assert "cover_reference_id" in project_columns

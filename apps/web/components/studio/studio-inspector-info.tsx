@@ -16,6 +16,8 @@ type StudioInspectorInfoProps = {
   selectedAsset: MediaAsset;
   favoriteAssetIdBusy: string | number | null;
   onToggleFavorite: (asset: MediaAsset | null) => void;
+  projectLabel?: string | null;
+  onOpenProject?: (projectId: string) => void;
   referencePreviews?: StudioReferencePreview[];
   onOpenReference?: (reference: StudioReferencePreview) => void;
   className?: string;
@@ -25,6 +27,8 @@ export function StudioInspectorInfo({
   selectedAsset,
   favoriteAssetIdBusy,
   onToggleFavorite,
+  projectLabel,
+  onOpenProject,
   referencePreviews = [],
   onOpenReference,
   className,
@@ -33,7 +37,12 @@ export function StudioInspectorInfo({
   const optionEntries = Object.entries((selectedAsset.payload?.resolved_options as Record<string, unknown> | undefined) ?? {})
     .filter(([, value]) => value != null && value !== "")
     .slice(0, 6);
-  const assetLinkPath = `/studio?asset=${encodeURIComponent(String(selectedAsset.asset_id))}`;
+  const assetLinkParams = new URLSearchParams();
+  if (selectedAsset.project_id) {
+    assetLinkParams.set("project", String(selectedAsset.project_id));
+  }
+  assetLinkParams.set("asset", String(selectedAsset.asset_id));
+  const assetLinkPath = `/studio?${assetLinkParams.toString()}`;
 
   useEffect(() => {
     if (copyLinkStatus === "idle") {
@@ -83,6 +92,23 @@ export function StudioInspectorInfo({
             {selectedAsset.generation_kind ?? selectedAsset.task_mode ?? "asset"}
           </span>
         </div>
+        {selectedAsset.project_id ? (
+          <button
+            type="button"
+            onClick={() => onOpenProject?.(String(selectedAsset.project_id))}
+            className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3 text-left transition hover:bg-white/[0.05]"
+          >
+            <span className="text-sm text-white/56">Project</span>
+            <span className="text-sm font-medium text-[rgba(255,183,107,0.96)]">
+              {projectLabel?.trim() || String(selectedAsset.project_id)}
+            </span>
+          </button>
+        ) : (
+          <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
+            <span className="text-sm text-white/56">Project</span>
+            <span className="text-sm font-medium text-white/92">Global</span>
+          </div>
+        )}
         <button
           type="button"
           onClick={() => void onToggleFavorite(selectedAsset)}

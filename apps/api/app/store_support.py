@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from .db import get_connection
 
@@ -38,6 +39,16 @@ JSON_FIELDS = {
     "provider_capabilities_json",
     "metadata_json",
 }
+
+MIGRATION_TABLES = {"schema_meta", "schema_migrations"}
+
+
+@dataclass(frozen=True)
+class SchemaMigration:
+    migration_id: str
+    version: int
+    description: str
+    apply: Callable[[sqlite3.Connection], None]
 
 
 def utcnow_iso() -> str:
@@ -90,6 +101,7 @@ def decode_row(row: sqlite3.Row) -> Dict[str, Any]:
             "favorited",
             "dismissed",
             "hidden_from_dashboard",
+            "hidden_from_global_gallery",
         }:
             payload[key] = bool(value)
         else:
@@ -104,6 +116,18 @@ def connect_path(db_path: Path) -> sqlite3.Connection:
     return connection
 
 
+def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
+    row = connection.execute(
+        """
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table' AND name = ?
+        """,
+        (table_name,),
+    ).fetchone()
+    return row is not None
+
+
 def ensure_column(connection: sqlite3.Connection, table_name: str, column_name: str, definition: str) -> None:
     rows = connection.execute("PRAGMA table_info(%s)" % table_name).fetchall()
     existing = {row["name"] for row in rows}
@@ -115,6 +139,123 @@ def ensure_column(connection: sqlite3.Connection, table_name: str, column_name: 
 def table_columns(connection: sqlite3.Connection, table_name: str) -> set[str]:
     rows = connection.execute("PRAGMA table_info(%s)" % table_name).fetchall()
     return {row["name"] for row in rows}
+
+
+def database_has_user_schema(connection: sqlite3.Connection) -> bool:
+    rows = connection.execute(
+        """
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name NOT LIKE 'sqlite_%'
+        """
+    ).fetchall()
+    user_tables = {str(row["name"]) for row in rows}
+    return bool(user_tables - MIGRATION_TABLES)
+
+
+def _ensure_migration_tables(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """
+            CREATE TABLE IF NOT EXISTS schema_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                migration_id TEXT PRIMARY KEY,
+                version INTEGER NOT NULL,
+                description TEXT NOT NULL,
+                applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+        """
+    )
+
+
+def _set_schema_meta(connection: sqlite3.Connection, key: str, value: str) -> None:
+    connection.execute(
+        """
+        INSERT INTO schema_meta (key, value, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+        """,
+        (key, value, utcnow_iso()),
+    )
+
+
+def _get_schema_meta(connection: sqlite3.Connection, key: str) -> Optional[str]:
+    if not table_exists(connection, "schema_meta"):
+        return None
+    row = connection.execute("SELECT value FROM schema_meta WHERE key = ?", (key,)).fetchone()
+    if row is None:
+        return None
+    return str(row["value"])
+
+
+def _list_applied_migrations(connection: sqlite3.Connection) -> List[Dict[str, Any]]:
+    if not table_exists(connection, "schema_migrations"):
+        return []
+    rows = connection.execute(
+        """
+        SELECT migration_id, version, description, applied_at
+        FROM schema_migrations
+        ORDER BY version ASC, migration_id ASC
+        """
+    ).fetchall()
+    return [
+        {
+            "migration_id": str(row["migration_id"]),
+            "version": int(row["version"]),
+            "description": str(row["description"]),
+            "applied_at": str(row["applied_at"]),
+        }
+        for row in rows
+    ]
+
+
+def _applied_migration_ids(connection: sqlite3.Connection) -> set[str]:
+    return {entry["migration_id"] for entry in _list_applied_migrations(connection)}
+
+
+def list_pending_migrations(connection: sqlite3.Connection) -> List[SchemaMigration]:
+    applied = _applied_migration_ids(connection)
+    return [migration for migration in MIGRATIONS if migration.migration_id not in applied]
+
+
+def schema_status(connection: sqlite3.Connection) -> Dict[str, Any]:
+    applied = _list_applied_migrations(connection)
+    pending = list_pending_migrations(connection)
+    schema_version_raw = _get_schema_meta(connection, "schema_version")
+    schema_version = int(schema_version_raw) if schema_version_raw and schema_version_raw.isdigit() else 0
+    return {
+        "schema_version": schema_version,
+        "latest_version": LATEST_SCHEMA_VERSION,
+        "applied_migrations": applied,
+        "pending_migrations": [
+            {
+                "migration_id": migration.migration_id,
+                "version": migration.version,
+                "description": migration.description,
+            }
+            for migration in pending
+        ],
+        "user_schema_present": database_has_user_schema(connection),
+    }
+
+
+def _record_migration(connection: sqlite3.Connection, migration: SchemaMigration) -> None:
+    applied_at = utcnow_iso()
+    connection.execute(
+        """
+        INSERT OR REPLACE INTO schema_migrations (migration_id, version, description, applied_at)
+        VALUES (?, ?, ?, ?)
+        """,
+        (migration.migration_id, migration.version, migration.description, applied_at),
+    )
+    _set_schema_meta(connection, "schema_version", str(migration.version))
+    _set_schema_meta(connection, "last_migration_id", migration.migration_id)
+    _set_schema_meta(connection, "last_migrated_at", applied_at)
 
 
 def list_table(table: str, order_by: str = "created_at DESC") -> List[Dict[str, Any]]:
@@ -391,7 +532,7 @@ def _seed_default_model_queue_policies(connection: sqlite3.Connection) -> None:
         )
 
 
-def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
+def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
     connection.executescript(
         """
             CREATE TABLE IF NOT EXISTS media_system_prompts (
@@ -478,6 +619,17 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS media_projects (
+                project_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                cover_asset_id TEXT,
+                hidden_from_global_gallery INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
             CREATE TABLE IF NOT EXISTS media_batches (
                 batch_id TEXT PRIMARY KEY,
                 status TEXT NOT NULL,
@@ -490,6 +642,7 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
                 failed_count INTEGER NOT NULL DEFAULT 0,
                 cancelled_count INTEGER NOT NULL DEFAULT 0,
                 source_asset_id TEXT,
+                project_id TEXT,
                 requested_preset_key TEXT,
                 resolved_preset_key TEXT,
                 preset_source TEXT,
@@ -514,6 +667,7 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
                 model_key TEXT NOT NULL,
                 task_mode TEXT,
                 source_asset_id TEXT,
+                project_id TEXT,
                 requested_preset_key TEXT,
                 resolved_preset_key TEXT,
                 preset_source TEXT,
@@ -555,6 +709,7 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
                 provider_task_id TEXT,
                 run_id TEXT,
                 source_asset_id TEXT,
+                project_id TEXT,
                 model_key TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'completed',
                 task_mode TEXT,
@@ -606,6 +761,15 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS media_project_references (
+                project_id TEXT NOT NULL,
+                reference_id TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (project_id, reference_id),
+                FOREIGN KEY(project_id) REFERENCES media_projects(project_id),
+                FOREIGN KEY(reference_id) REFERENCES reference_media(reference_id)
+            );
         """
     )
     connection.execute(
@@ -647,10 +811,13 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
     ensure_column(connection, "media_enhancement_configs", "provider_status", "TEXT")
     ensure_column(connection, "media_enhancement_configs", "provider_last_tested_at", "TEXT")
     ensure_column(connection, "media_enhancement_configs", "provider_capabilities_json", "TEXT NOT NULL DEFAULT '{}'")
+    ensure_column(connection, "media_batches", "project_id", "TEXT")
     ensure_column(connection, "media_jobs", "remote_output_url", "TEXT")
+    ensure_column(connection, "media_jobs", "project_id", "TEXT")
     ensure_column(connection, "media_assets", "provider_task_id", "TEXT")
     ensure_column(connection, "media_assets", "run_id", "TEXT")
     ensure_column(connection, "media_assets", "source_asset_id", "TEXT")
+    ensure_column(connection, "media_assets", "project_id", "TEXT")
     ensure_column(connection, "media_assets", "status", "TEXT NOT NULL DEFAULT 'completed'")
     ensure_column(connection, "media_assets", "task_mode", "TEXT")
     ensure_column(connection, "media_assets", "artifact_run_dir", "TEXT")
@@ -675,6 +842,66 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
     ensure_column(connection, "reference_media", "usage_count", "INTEGER NOT NULL DEFAULT 0")
     ensure_column(connection, "reference_media", "last_used_at", "TEXT")
     ensure_column(connection, "reference_media", "metadata_json", "TEXT NOT NULL DEFAULT '{}'")
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_media_batches_project_id
+        ON media_batches(project_id, created_at DESC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_media_jobs_project_id
+        ON media_jobs(project_id, created_at DESC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_media_assets_project_id
+        ON media_assets(project_id, created_at DESC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_media_project_references_reference_id
+        ON media_project_references(reference_id, created_at DESC)
+        """
+    )
     _migrate_multi_model_seed_presets(connection)
     _seed_default_presets(connection)
     _seed_default_model_queue_policies(connection)
+
+
+MIGRATIONS = [
+    SchemaMigration(
+        migration_id="20260419_001_tracked_baseline",
+        version=1,
+        description="Initialize tracked Media Studio schema baseline.",
+        apply=_apply_baseline_schema,
+    ),
+    SchemaMigration(
+        migration_id="20260419_002_project_cover_references",
+        version=2,
+        description="Add reference-backed project cover images.",
+        apply=lambda connection: ensure_column(connection, "media_projects", "cover_reference_id", "TEXT"),
+    ),
+    SchemaMigration(
+        migration_id="20260419_003_project_visibility_flags",
+        version=3,
+        description="Add project visibility flags for global gallery filtering.",
+        apply=lambda connection: ensure_column(
+            connection,
+            "media_projects",
+            "hidden_from_global_gallery",
+            "INTEGER NOT NULL DEFAULT 0",
+        ),
+    ),
+]
+
+LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
+
+
+def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
+    _ensure_migration_tables(connection)
+    for migration in list_pending_migrations(connection):
+        migration.apply(connection)
+        _record_migration(connection, migration)

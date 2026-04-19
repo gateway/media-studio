@@ -8,11 +8,15 @@ export async function GET(request: Request) {
   const params = new URLSearchParams();
   const limit = url.searchParams.get("limit");
   const offset = url.searchParams.get("offset");
+  const projectId = url.searchParams.get("project_id");
   if (limit) {
     params.set("limit", limit);
   }
   if (offset) {
     params.set("offset", offset);
+  }
+  if (projectId) {
+    params.set("project_id", projectId);
   }
   const endpoint = params.size ? `/media/batches?${params.toString()}` : "/media/batches";
   const result = await getControlApiJson<MediaBatchesResponse>(endpoint, "read");
