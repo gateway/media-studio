@@ -141,6 +141,9 @@ export function structuredPresetSlotValues(job?: MediaJob | null) {
   }
   const normalizedRequest = isRecord(job?.normalized_request) ? (job?.normalized_request as Record<string, unknown>) : null;
   const metadata = isRecord(normalizedRequest?.metadata) ? (normalizedRequest?.metadata as Record<string, unknown>) : null;
+  if (isRecord(metadata?.preset_image_slots)) {
+    return metadata.preset_image_slots as Record<string, unknown>;
+  }
   const slotKeys = Array.isArray(metadata?.preset_slot_keys)
     ? (metadata?.preset_slot_keys as unknown[]).map((value) => String(value ?? "").trim()).filter(Boolean)
     : [];

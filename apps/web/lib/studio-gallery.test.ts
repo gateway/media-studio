@@ -8,6 +8,7 @@ import {
   presetRequirementMessage,
   structuredPresetInputValues,
   structuredPresetInputValuesFromAsset,
+  structuredPresetSlotValues,
   upsertBatchCollection,
 } from "@/lib/studio-gallery";
 
@@ -25,6 +26,22 @@ describe("studio-gallery", () => {
         { final_prompt_used: "Final prompt", enhanced_prompt: "Enhanced", raw_prompt: "Raw" } as never,
       ),
     ).toBe("Final prompt");
+  });
+
+  it("falls back to normalized request metadata for structured preset slot values", () => {
+    expect(
+      structuredPresetSlotValues({
+        normalized_request: {
+          metadata: {
+            preset_image_slots: {
+              person: [{ path: "/tmp/source.png", filename: "source.png", mime_type: "image/png" }],
+            },
+          },
+        },
+      } as never),
+    ).toEqual({
+      person: [{ path: "/tmp/source.png", filename: "source.png", mime_type: "image/png" }],
+    });
   });
 
   it("builds optimistic batches with running and queued jobs", () => {

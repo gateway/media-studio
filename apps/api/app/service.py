@@ -925,6 +925,9 @@ def submit_jobs(request: ValidateRequest) -> Tuple[Dict[str, Any], List[Dict[str
             "pricing_summary": bundle["pricing_summary"],
         },
     }
+    normalized_request_for_storage = dict(bundle["validation"].get("normalized_request") or {})
+    if bundle["image_slot_values"]:
+        normalized_request_for_storage["preset_image_slots"] = bundle["image_slot_values"]
     jobs_payload = []
     for index in range(request.output_count):
         jobs_payload.append(
@@ -942,7 +945,7 @@ def submit_jobs(request: ValidateRequest) -> Tuple[Dict[str, Any], List[Dict[str
                 "selected_system_prompts_json": bundle["selected_prompts"],
                 "resolved_system_prompt_json": bundle["prompt_context"],
                 "resolved_options_json": bundle["resolved_options"],
-                "normalized_request_json": bundle["validation"].get("normalized_request") or {},
+                "normalized_request_json": normalized_request_for_storage,
                 "prompt_context_json": bundle["prompt_context"],
                 "validation_json": bundle["validation"],
                 "preflight_json": bundle["preflight"],
