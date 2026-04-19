@@ -372,6 +372,12 @@ export function MediaStudio({
     }
     return localBatches.find((batch) => batch.batch_id === selectedFailedJob.batch_id) ?? null;
   }, [localBatches, selectedFailedJob?.batch_id]);
+  const selectedAssetBatch = useMemo(() => {
+    if (!selectedAssetJob?.batch_id) {
+      return null;
+    }
+    return localBatches.find((batch) => batch.batch_id === selectedAssetJob.batch_id) ?? null;
+  }, [localBatches, selectedAssetJob?.batch_id]);
   const selectedFailedJobPrompt =
     selectedFailedJob?.final_prompt_used ?? selectedFailedJob?.enhanced_prompt ?? selectedFailedJob?.raw_prompt ?? null;
   const selectedFailedJobReferenceInputs = useMemo(
@@ -418,6 +424,18 @@ export function MediaStudio({
       selectedAssetPresetSlotValues,
       selectedAssetPresetSlots,
     ],
+  );
+  const selectedAssetRevisionPlan = useMemo(
+    () =>
+      buildStudioRetryRestorePlan({
+        job: selectedAssetJob,
+        batch: selectedAssetBatch,
+        models,
+        presets,
+        localAssets,
+        favoriteAssets,
+      }),
+    [favoriteAssets, localAssets, models, presets, selectedAssetBatch, selectedAssetJob],
   );
   const { lightboxVideoRef } = selection.refs;
   const {
@@ -2529,17 +2547,33 @@ export function MediaStudio({
     return payload.asset;
   }
 
-  async function retryFailedJobInStudio(job: MediaJob | null) {
-    if (!job) {
-      return;
-    }
-    const retryPlan = selectedFailedJobRetryPlan;
-    const targetModel = retryPlan?.targetModel ?? null;
+  async function restoreComposerFromPlan({
+    plan,
+    fallbackPrimaryInput,
+    fallbackReferenceInputs,
+    sourceAssetId,
+    missingModelMessage,
+    successMessage,
+    partialFailureMessage,
+    closeAssetInspector = false,
+    closeFailedJobInspector = false,
+  }: {
+    plan: ReturnType<typeof buildStudioRetryRestorePlan> | null;
+    fallbackPrimaryInput?: ReturnType<typeof buildStudioJobPrimaryInput> | null;
+    fallbackReferenceInputs?: ReturnType<typeof buildStudioJobReferenceInputs>;
+    sourceAssetId?: string | number | null;
+    missingModelMessage: string;
+    successMessage: string;
+    partialFailureMessage: string;
+    closeAssetInspector?: boolean;
+    closeFailedJobInspector?: boolean;
+  }) {
+    const targetModel = plan?.targetModel ?? null;
     if (!targetModel) {
-      setFormMessage({ tone: "danger", text: "Studio could not find the model used by this failed job." });
+      setFormMessage({ tone: "danger", text: missingModelMessage });
       return;
     }
-    const targetPreset = retryPlan?.targetPreset ?? null;
+    const targetPreset = plan?.targetPreset ?? null;
 
     clearComposer();
     setModelKey(targetModel.key);
@@ -2548,10 +2582,10 @@ export function MediaStudio({
     } else {
       setSelectedPresetId("");
     }
-    setSelectedPromptIds(retryPlan?.selectedPromptIds ?? []);
-    setPrompt(retryPlan?.prompt ?? "");
-    setOptionValues(retryPlan?.optionValues ?? {});
-    setOutputCount(retryPlan?.outputCount ?? 1);
+    setSelectedPromptIds(plan?.selectedPromptIds ?? []);
+    setPrompt(plan?.prompt ?? "");
+    setOptionValues(plan?.optionValues ?? {});
+    setOutputCount(plan?.outputCount ?? 1);
     setValidation(null);
     setBusyState("idle");
     setOpenPicker(null);
@@ -2561,24 +2595,28 @@ export function MediaStudio({
     setIsDragActive(false);
     clearSourceAsset();
 
-    setSelectedFailedJobId(null);
-    setSelectedAssetId(null);
-    setSelectedMediaLightboxOpen(false);
-    setSelectedReferencePreview(null);
+    if (closeFailedJobInspector) {
+      setSelectedFailedJobId(null);
+    }
+    if (closeAssetInspector) {
+      setSelectedAssetId(null);
+      setSelectedMediaLightboxOpen(false);
+      setSelectedReferencePreview(null);
+    }
     setMobileComposerCollapsed(false);
 
     await new Promise((resolve) => window.setTimeout(resolve, 0));
-    setPresetInputValues(retryPlan?.presetInputValues ?? {});
+    setPresetInputValues(plan?.presetInputValues ?? {});
 
     let restoredPrimaryInput = false;
-    if (job.source_asset_id != null) {
-      const localSourceAsset = findMediaAssetById(job.source_asset_id, localAssets, favoriteAssets);
+    if (sourceAssetId != null) {
+      const localSourceAsset = findMediaAssetById(sourceAssetId, localAssets, favoriteAssets);
       if (localSourceAsset) {
         stageSourceAsset(localSourceAsset);
         restoredPrimaryInput = true;
       } else {
         try {
-          const loadedSourceAsset = await fetchAssetById(job.source_asset_id);
+          const loadedSourceAsset = await fetchAssetById(sourceAssetId);
           setLocalAssets((current) => [loadedSourceAsset, ...current.filter((asset) => asset.asset_id !== loadedSourceAsset.asset_id)]);
           stageSourceAsset(loadedSourceAsset);
           restoredPrimaryInput = true;
@@ -2588,23 +2626,35 @@ export function MediaStudio({
       }
     }
 
-    const retryPrimaryInput = retryPlan?.primaryInput ?? selectedFailedJobPrimaryInput;
-    if (!restoredPrimaryInput && retryPrimaryInput) {
-      try {
-        const primaryFile = await fetchReferenceFile(
-          retryPrimaryInput.url,
-          "source-image",
-          retryPrimaryInput.kind,
-        );
-        addFiles([primaryFile], { allowedKinds: [retryPrimaryInput.kind] });
-        restoredPrimaryInput = true;
-      } catch {
-        // leave the composer open even if the source cannot be refetched
+    const primaryInput = plan?.primaryInput ?? fallbackPrimaryInput ?? null;
+    if (!restoredPrimaryInput && primaryInput) {
+      if (primaryInput.assetId != null) {
+        const localPrimaryAsset = findMediaAssetById(primaryInput.assetId, localAssets, favoriteAssets);
+        if (localPrimaryAsset) {
+          if (primaryInput.role) {
+            await addGalleryAssetAsAttachment(localPrimaryAsset, primaryInput.role, [primaryInput.kind]);
+          } else {
+            stageSourceAsset(localPrimaryAsset);
+          }
+          restoredPrimaryInput = true;
+        }
+      }
+      if (!restoredPrimaryInput && primaryInput.url) {
+        try {
+          const primaryFile = await fetchReferenceFile(primaryInput.url, "source-image", primaryInput.kind);
+          addFiles([primaryFile], {
+            role: primaryInput.role ?? undefined,
+            allowedKinds: [primaryInput.kind],
+          });
+          restoredPrimaryInput = true;
+        } catch {
+          // leave the composer open even if the source cannot be refetched
+        }
       }
     }
 
     if (targetPreset) {
-      for (const slotRestore of retryPlan?.presetSlotRestores ?? []) {
+      for (const slotRestore of plan?.presetSlotRestores ?? []) {
         if (slotRestore.assetId != null) {
           const asset = findMediaAssetById(slotRestore.assetId, localAssets, favoriteAssets);
           if (asset) {
@@ -2623,7 +2673,7 @@ export function MediaStudio({
       }
     }
 
-    for (const reference of retryPlan?.referenceInputs ?? selectedFailedJobReferenceInputs) {
+    for (const reference of plan?.referenceInputs ?? fallbackReferenceInputs ?? []) {
       if (reference.assetId != null) {
         const asset = findMediaAssetById(reference.assetId, localAssets, favoriteAssets);
         if (asset) {
@@ -2641,11 +2691,41 @@ export function MediaStudio({
 
     setFormMessage({
       tone: restoredPrimaryInput ? "warning" : "danger",
-      text: restoredPrimaryInput
-        ? "Loaded the failed job back into Studio. Review it and generate again."
-        : "Loaded the failed job prompt and settings, but Studio could not restage the original source image.",
+      text: restoredPrimaryInput ? successMessage : partialFailureMessage,
     });
     revealComposer({ focusPresetField: Boolean(targetPreset) });
+  }
+
+  async function retryFailedJobInStudio(job: MediaJob | null) {
+    if (!job) {
+      return;
+    }
+    await restoreComposerFromPlan({
+      plan: selectedFailedJobRetryPlan,
+      fallbackPrimaryInput: selectedFailedJobPrimaryInput,
+      fallbackReferenceInputs: selectedFailedJobReferenceInputs,
+      sourceAssetId: job.source_asset_id ?? null,
+      missingModelMessage: "Studio could not find the model used by this failed job.",
+      successMessage: "Loaded the failed job back into Studio. Review it and generate again.",
+      partialFailureMessage: "Loaded the failed job prompt and settings, but Studio could not restage the original source image.",
+      closeAssetInspector: true,
+      closeFailedJobInspector: true,
+    });
+  }
+
+  async function reviseSelectedAssetInStudio(asset: MediaAsset | null) {
+    if (!asset) {
+      return;
+    }
+    await restoreComposerFromPlan({
+      plan: selectedAssetRevisionPlan,
+      sourceAssetId: selectedAssetJob?.source_asset_id ?? asset.source_asset_id ?? null,
+      missingModelMessage: "Studio could not reconstruct this asset into an editable composer state.",
+      successMessage: "Loaded this asset back into Studio with its original prompt, references, and settings.",
+      partialFailureMessage: "Loaded this asset prompt and settings, but Studio could not restage the original reference image.",
+      closeAssetInspector: true,
+      closeFailedJobInspector: false,
+    });
   }
 
   function clearGallerySelection() {
@@ -3555,10 +3635,12 @@ export function MediaStudio({
                     canDownload={Boolean(mediaDownloadUrl(selectedAsset))}
                     downloadActionLabel={downloadActionLabel}
                     showImageActions={selectedAsset.generation_kind === "image"}
+                    showReviseAction={Boolean(selectedAssetRevisionPlan?.targetModel)}
                     onDownload={() => void handleAssetDownload(selectedAsset)}
                     onDismiss={() => void dismissAsset(selectedAsset.asset_id)}
                     onAnimate={() => useAssetAsSource(selectedAsset, true)}
                     onUseImage={() => useAssetAsSource(selectedAsset, false)}
+                    onRevise={() => void reviseSelectedAssetInStudio(selectedAsset)}
                   />
 
                 </div>
@@ -3764,10 +3846,12 @@ export function MediaStudio({
                   canDownload={false}
                   downloadActionLabel={downloadActionLabel}
                   showImageActions={selectedAsset.generation_kind === "image"}
+                  showReviseAction={Boolean(selectedAssetRevisionPlan?.targetModel)}
                   onDownload={() => void handleAssetDownload(selectedAsset)}
                   onDismiss={() => void dismissAsset(selectedAsset.asset_id)}
                   onAnimate={() => useAssetAsSource(selectedAsset, true)}
                   onUseImage={() => useAssetAsSource(selectedAsset, false)}
+                  onRevise={() => void reviseSelectedAssetInStudio(selectedAsset)}
                 />
               </div>
 

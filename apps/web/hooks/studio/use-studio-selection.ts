@@ -139,8 +139,8 @@ export function useStudioSelection({
   const selectedAssetLightboxVisual =
     (selectedAsset?.generation_kind === "video"
       ? selectedAssetPlaybackVisual ?? selectedAssetDisplayVisual
-      : mediaVariantUrl(selectedAsset, "web") ??
-        mediaVariantUrl(selectedAsset, "original") ??
+      : mediaVariantUrl(selectedAsset, "original") ??
+        mediaVariantUrl(selectedAsset, "web") ??
         selectedAssetDisplayVisual) ?? null;
 
   useEffect(() => {

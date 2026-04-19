@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, ImagePlus, Trash2, Wand2 } from "lucide-react";
+import { Download, ImagePlus, RefreshCcw, Trash2, Wand2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -9,20 +9,24 @@ type StudioInspectorActionsProps = {
   canDownload: boolean;
   downloadActionLabel: string;
   showImageActions: boolean;
+  showReviseAction?: boolean;
   onDownload: () => void;
   onDismiss: () => void;
   onAnimate: () => void;
   onUseImage: () => void;
+  onRevise?: () => void;
 };
 
 export function StudioInspectorActions({
   canDownload,
   downloadActionLabel,
   showImageActions,
+  showReviseAction = false,
   onDownload,
   onDismiss,
   onAnimate,
   onUseImage,
+  onRevise,
 }: StudioInspectorActionsProps) {
   return (
     <>
@@ -53,6 +57,17 @@ export function StudioInspectorActions({
       </div>
 
       <div className="grid gap-3 rounded-[24px] border border-white/10 bg-[rgba(16,19,18,0.98)] p-3 shadow-[0_18px_38px_rgba(0,0,0,0.22)] lg:hidden">
+        {showReviseAction && onRevise ? (
+          <Button
+            data-testid="studio-inspector-revise"
+            onClick={onRevise}
+            variant="subtle"
+            className="h-11 w-full gap-2"
+          >
+            <RefreshCcw className="size-4" />
+            Revise
+          </Button>
+        ) : null}
         {showImageActions ? (
           <>
             <Button
@@ -78,6 +93,17 @@ export function StudioInspectorActions({
       </div>
 
       <div className="hidden gap-3 lg:grid">
+        {showReviseAction && onRevise ? (
+          <Button
+            data-testid="studio-inspector-revise-desktop"
+            onClick={onRevise}
+            variant="subtle"
+            className="h-11 w-full gap-2"
+          >
+            <RefreshCcw className="size-4" />
+            Revise
+          </Button>
+        ) : null}
         {showImageActions ? (
           <>
             <Button
