@@ -141,30 +141,180 @@ def delete_preset(preset_id: str) -> Dict[str, Any]:
     return create_or_update_preset(record)
 
 
+def list_projects(status: Optional[str] = "active") -> List[Dict[str, Any]]:
+    clauses = ["1 = 1"]
+    params: List[Any] = []
+    if status and status != "all":
+        clauses.append("status = ?")
+        params.append(status)
+    query = "SELECT * FROM media_projects WHERE %s ORDER BY updated_at DESC, name ASC" % " AND ".join(clauses)
+    with get_connection() as connection:
+        rows = connection.execute(query, params).fetchall()
+    return [_decode_row(row) for row in rows]
+
+
+def get_project(project_id: str) -> Optional[Dict[str, Any]]:
+    return _get_table("media_projects", "project_id", project_id)
+
+
+def create_or_update_project(payload: Dict[str, Any]) -> Dict[str, Any]:
+    payload = payload.copy()
+    payload.setdefault("project_id", new_id("project"))
+    payload.setdefault("created_at", utcnow_iso())
+    payload.setdefault("updated_at", utcnow_iso())
+    payload.setdefault("status", "active")
+    return _upsert_table("media_projects", "project_id", payload)
+
+
+def archive_project(project_id: str) -> Dict[str, Any]:
+    current = get_project(project_id)
+    if not current:
+        raise KeyError("project not found")
+    current["status"] = "archived"
+    current["updated_at"] = utcnow_iso()
+    return create_or_update_project(current)
+
+
+def unarchive_project(project_id: str) -> Dict[str, Any]:
+    current = get_project(project_id)
+    if not current:
+        raise KeyError("project not found")
+    current["status"] = "active"
+    current["updated_at"] = utcnow_iso()
+    return create_or_update_project(current)
+
+
+def delete_project(project_id: str) -> None:
+    with get_connection() as connection:
+        connection.execute("UPDATE media_batches SET project_id = NULL WHERE project_id = ?", (project_id,))
+        connection.execute("UPDATE media_jobs SET project_id = NULL WHERE project_id = ?", (project_id,))
+        connection.execute("UPDATE media_assets SET project_id = NULL WHERE project_id = ?", (project_id,))
+        connection.execute("DELETE FROM media_project_references WHERE project_id = ?", (project_id,))
+        connection.execute("DELETE FROM media_projects WHERE project_id = ?", (project_id,))
+
+
+def list_project_references(project_id: str, *, kind: Optional[str] = None, status: str = "active") -> List[Dict[str, Any]]:
+    clauses = ["mpr.project_id = ?"]
+    params: List[Any] = [project_id]
+    if status:
+        clauses.append("rm.status = ?")
+        params.append(status)
+    if kind:
+        clauses.append("rm.kind = ?")
+        params.append(kind)
+    query = """
+        SELECT rm.*
+        FROM media_project_references mpr
+        INNER JOIN reference_media rm ON rm.reference_id = mpr.reference_id
+        WHERE %s
+        ORDER BY mpr.created_at DESC, rm.last_used_at DESC, rm.created_at DESC
+    """ % " AND ".join(clauses)
+    with get_connection() as connection:
+        rows = connection.execute(query, params).fetchall()
+    return _attach_project_ids_to_reference_records([_decode_row(row) for row in rows])
+
+
+def attach_reference_to_project(project_id: str, reference_id: str) -> Dict[str, Any]:
+    now = utcnow_iso()
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO media_project_references (project_id, reference_id, created_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(project_id, reference_id) DO NOTHING
+            """,
+            (project_id, reference_id, now),
+        )
+    record = get_reference_media(reference_id)
+    if not record:
+        raise KeyError("reference media not found")
+    return record
+
+
+def detach_reference_from_project(project_id: str, reference_id: str) -> Dict[str, Any]:
+    with get_connection() as connection:
+        connection.execute(
+            "DELETE FROM media_project_references WHERE project_id = ? AND reference_id = ?",
+            (project_id, reference_id),
+        )
+    record = get_reference_media(reference_id)
+    if not record:
+        raise KeyError("reference media not found")
+    return record
+
+
+def _reference_project_ids(connection, reference_ids: List[str]) -> Dict[str, List[str]]:
+    if not reference_ids:
+        return {}
+    placeholders = ",".join("?" for _ in reference_ids)
+    rows = connection.execute(
+        f"""
+        SELECT project_id, reference_id
+        FROM media_project_references
+        WHERE reference_id IN ({placeholders})
+        ORDER BY created_at ASC
+        """,
+        reference_ids,
+    ).fetchall()
+    attached: Dict[str, List[str]] = {}
+    for row in rows:
+        reference_id = str(row["reference_id"])
+        attached.setdefault(reference_id, []).append(str(row["project_id"]))
+    return attached
+
+
+def _attach_project_ids_to_reference_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not records:
+        return records
+    reference_ids = [str(record.get("reference_id") or "").strip() for record in records]
+    reference_ids = [reference_id for reference_id in reference_ids if reference_id]
+    if not reference_ids:
+        return records
+    with get_connection() as connection:
+        attached = _reference_project_ids(connection, reference_ids)
+    hydrated: List[Dict[str, Any]] = []
+    for record in records:
+        reference_id = str(record.get("reference_id") or "").strip()
+        hydrated.append({**record, "attached_project_ids": attached.get(reference_id, [])})
+    return hydrated
+
+
 def list_reference_media(
     *,
     kind: Optional[str] = None,
     status: str = "active",
     limit: int = 100,
     offset: int = 0,
+    project_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     clauses = ["1 = 1"]
     params: List[Any] = []
     if status:
-        clauses.append("status = ?")
+        clauses.append("rm.status = ?")
         params.append(status)
     if kind:
-        clauses.append("kind = ?")
+        clauses.append("rm.kind = ?")
         params.append(kind)
-    query = "SELECT * FROM reference_media WHERE %s ORDER BY last_used_at DESC, created_at DESC LIMIT ? OFFSET ?" % " AND ".join(clauses)
+    join = ""
+    if project_id:
+        join = "INNER JOIN media_project_references mpr ON mpr.reference_id = rm.reference_id"
+        clauses.append("mpr.project_id = ?")
+        params.append(project_id)
+    query = "SELECT rm.* FROM reference_media rm %s WHERE %s ORDER BY rm.last_used_at DESC, rm.created_at DESC LIMIT ? OFFSET ?" % (
+        join,
+        " AND ".join(clauses),
+    )
     params.extend([limit, offset])
     with get_connection() as connection:
         rows = connection.execute(query, params).fetchall()
-    return [_decode_row(row) for row in rows]
+    return _attach_project_ids_to_reference_records([_decode_row(row) for row in rows])
 
 
 def get_reference_media(reference_id: str) -> Optional[Dict[str, Any]]:
-    return _get_table("reference_media", "reference_id", reference_id)
+    record = _get_table("reference_media", "reference_id", reference_id)
+    if not record:
+        return None
+    return _attach_project_ids_to_reference_records([record])[0]
 
 
 def get_reference_media_by_hash(kind: str, sha256: str, file_size_bytes: int) -> Optional[Dict[str, Any]]:
@@ -288,6 +438,7 @@ def create_batch_and_jobs(batch_payload: Dict[str, Any], jobs_payloads: List[Dic
             job = payload.copy()
             job.setdefault("job_id", new_id("job"))
             job["batch_id"] = batch["batch_id"]
+            job.setdefault("project_id", batch.get("project_id"))
             job.setdefault("batch_index", index)
             job.setdefault("requested_outputs", 1)
             job.setdefault("status", "queued")
@@ -306,17 +457,28 @@ def get_batch(batch_id: str) -> Optional[Dict[str, Any]]:
     return _get_table("media_batches", "batch_id", batch_id)
 
 
-def count_batches() -> int:
+def count_batches(project_id: Optional[str] = None) -> int:
+    query = "SELECT COUNT(*) AS total FROM media_batches"
+    params: List[Any] = []
+    if project_id:
+        query += " WHERE project_id = ?"
+        params.append(project_id)
     with get_connection() as connection:
-        row = connection.execute("SELECT COUNT(*) AS total FROM media_batches").fetchone()
+        row = connection.execute(query, params).fetchone()
     return int(row["total"] if row else 0)
 
 
-def list_batches(limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+def list_batches(limit: int = 100, offset: int = 0, project_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    clauses = ["1 = 1"]
+    params: List[Any] = []
+    if project_id:
+        clauses.append("project_id = ?")
+        params.append(project_id)
+    params.extend([limit, offset])
     with get_connection() as connection:
         rows = connection.execute(
-            "SELECT * FROM media_batches ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            (limit, offset),
+            "SELECT * FROM media_batches WHERE %s ORDER BY created_at DESC LIMIT ? OFFSET ?" % " AND ".join(clauses),
+            params,
         ).fetchall()
     return [_decode_row(row) for row in rows]
 
@@ -363,13 +525,22 @@ def update_batch(batch_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     return _upsert_table("media_batches", "batch_id", current)
 
 
-def list_jobs(limit: int = 200, include_dismissed: bool = False) -> List[Dict[str, Any]]:
+def list_jobs(limit: int = 200, include_dismissed: bool = False, project_id: Optional[str] = None) -> List[Dict[str, Any]]:
     query = "SELECT * FROM media_jobs %s ORDER BY created_at DESC LIMIT ?"
     clause = ""
+    clauses: List[str] = []
     if not include_dismissed:
-        clause = f"WHERE dismissed = 0 AND {_dashboard_visible_job_clause()}"
+        clauses.extend(["dismissed = 0", _dashboard_visible_job_clause()])
+    if project_id:
+        clauses.append("project_id = ?")
+    if clauses:
+        clause = "WHERE " + " AND ".join(clauses)
     with get_connection() as connection:
-        rows = connection.execute(query % clause, (limit,)).fetchall()
+        params: List[Any] = []
+        if project_id:
+            params.append(project_id)
+        params.append(limit)
+        rows = connection.execute(query % clause, params).fetchall()
     return [_decode_row(row) for row in rows]
 
 
@@ -442,6 +613,7 @@ def list_assets(
     model_key: Optional[str] = None,
     status: Optional[str] = None,
     preset_key: Optional[str] = None,
+    project_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     clauses = ["dismissed = 0", "hidden_from_dashboard = 0"]
     params: List[Any] = []
@@ -463,6 +635,9 @@ def list_assets(
     if preset_key:
         clauses.append("preset_key = ?")
         params.append(preset_key)
+    if project_id:
+        clauses.append("project_id = ?")
+        params.append(project_id)
     query = "SELECT * FROM media_assets WHERE %s ORDER BY created_at DESC LIMIT ?" % " AND ".join(clauses)
     params.append(limit)
     with get_connection() as connection:

@@ -373,6 +373,7 @@ class ValidateRequest(BaseModel):
     preset_image_slots: Dict[str, List[MediaRefInput]] = Field(default_factory=dict)
     selected_system_prompt_ids: List[str] = Field(default_factory=list)
     source_asset_id: Optional[str] = None
+    project_id: Optional[str] = None
     output_count: int = 1
     enhance: Optional[bool] = None
     prompt_policy: Optional[str] = None
@@ -432,6 +433,27 @@ class FavoriteAssetRequest(BaseModel):
     favorited: bool = True
 
 
+class ProjectUpsertRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    cover_asset_id: Optional[str] = None
+    status: Optional[str] = None
+
+
+class ProjectRecord(BaseModel):
+    project_id: str
+    name: str
+    description: Optional[str] = None
+    status: str = "active"
+    cover_asset_id: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class ProjectListResponse(BaseModel):
+    items: List[ProjectRecord] = Field(default_factory=list)
+
+
 class ReferenceMediaRegisterRequest(BaseModel):
     kind: str
     original_filename: Optional[str] = None
@@ -453,6 +475,7 @@ class ReferenceMediaRecord(BaseModel):
     reference_id: str
     kind: str
     status: str = "active"
+    attached_project_ids: List[str] = Field(default_factory=list)
     original_filename: Optional[str] = None
     stored_path: str
     mime_type: Optional[str] = None
@@ -480,6 +503,7 @@ class JobRecord(BaseModel):
     job_id: str
     batch_id: str
     batch_index: int
+    project_id: Optional[str] = None
     provider_task_id: Optional[str] = None
     status: str
     queued_at: Optional[str] = None
@@ -519,6 +543,7 @@ class BatchRecord(BaseModel):
     batch_id: str
     status: str
     model_key: str
+    project_id: Optional[str] = None
     task_mode: Optional[str] = None
     requested_outputs: int
     queued_count: int = 0
@@ -547,6 +572,7 @@ class JobEventRecord(BaseModel):
 class AssetRecord(BaseModel):
     asset_id: str
     job_id: str
+    project_id: Optional[str] = None
     provider_task_id: Optional[str] = None
     run_id: Optional[str] = None
     source_asset_id: Optional[str] = None

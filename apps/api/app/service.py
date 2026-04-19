@@ -22,6 +22,7 @@ from .schemas import (
     EnhancementConfigRecord,
     JobSubmitRequest,
     MediaRefInput,
+    ProjectUpsertRequest,
     PresetUpsertRequest,
     SystemPromptUpsertRequest,
     ValidateRequest,
@@ -117,6 +118,91 @@ def upsert_enhancement_config(payload: Dict[str, Any], model_key: Optional[str] 
     if model_key:
         record["model_key"] = model_key
     return store.create_or_update_enhancement_config(record)
+
+
+def validate_project_payload(payload: ProjectUpsertRequest) -> Dict[str, Any]:
+    name = str(payload.name or "").strip()
+    if not name:
+        raise ServiceError("Project name is required.")
+    status = str(payload.status or "active").strip().lower() or "active"
+    if status not in {"active", "archived"}:
+        raise ServiceError("Project status must be active or archived.")
+    return {
+        "name": name,
+        "description": str(payload.description).strip() if payload.description is not None else None,
+        "cover_asset_id": str(payload.cover_asset_id).strip() if payload.cover_asset_id else None,
+        "status": status,
+    }
+
+
+def upsert_project(payload: ProjectUpsertRequest, project_id: Optional[str] = None) -> Dict[str, Any]:
+    record = validate_project_payload(payload)
+    if record.get("cover_asset_id") and not store.get_asset(str(record["cover_asset_id"])):
+        raise ServiceError("Selected cover asset could not be found.")
+    if project_id:
+        current = store.get_project(project_id)
+        if not current:
+            raise ServiceError("Project not found.")
+        record["project_id"] = project_id
+    return store.create_or_update_project(record)
+
+
+def archive_project(project_id: str) -> Dict[str, Any]:
+    try:
+        return store.archive_project(project_id)
+    except KeyError as exc:
+        raise ServiceError("Project not found.") from exc
+
+
+def unarchive_project(project_id: str) -> Dict[str, Any]:
+    try:
+        return store.unarchive_project(project_id)
+    except KeyError as exc:
+        raise ServiceError("Project not found.") from exc
+
+
+def delete_project(project_id: str, *, permanent: bool = False) -> Optional[Dict[str, Any]]:
+    project = store.get_project(project_id)
+    if not project:
+        raise ServiceError("Project not found.")
+    if permanent:
+        store.delete_project(project_id)
+        return None
+    return store.archive_project(project_id)
+
+
+def require_active_project(project_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not project_id:
+        return None
+    project = store.get_project(project_id)
+    if not project:
+        raise ServiceError("Project not found.")
+    if str(project.get("status") or "active") != "active":
+        raise ServiceError("Archived projects cannot receive new jobs.")
+    return project
+
+
+def attach_reference_to_project(project_id: str, reference_id: str) -> Dict[str, Any]:
+    project = store.get_project(project_id)
+    if not project:
+        raise ServiceError("Project not found.")
+    record = store.get_reference_media(reference_id)
+    if not record:
+        raise ServiceError("Reference media not found.")
+    try:
+        return store.attach_reference_to_project(project_id, reference_id)
+    except KeyError as exc:
+        raise ServiceError("Reference media not found.") from exc
+
+
+def detach_reference_from_project(project_id: str, reference_id: str) -> Dict[str, Any]:
+    project = store.get_project(project_id)
+    if not project:
+        raise ServiceError("Project not found.")
+    try:
+        return store.detach_reference_from_project(project_id, reference_id)
+    except KeyError as exc:
+        raise ServiceError("Reference media not found.") from exc
 
 
 def public_enhancement_config(record: Dict[str, Any]) -> Dict[str, Any]:
@@ -341,6 +427,7 @@ def build_retry_submit_request(job: Dict[str, Any], batch: Optional[Dict[str, An
         },
         selected_system_prompt_ids=[str(value) for value in selected_system_prompt_ids],
         source_asset_id=job.get("source_asset_id"),
+        project_id=job.get("project_id") or batch_record.get("project_id"),
         output_count=1,
         enhance=False,
         prompt_policy=normalized_request.get("prompt_policy"),
@@ -491,14 +578,14 @@ def sanitize_reference_media_record(record: Dict[str, Any]) -> Optional[Dict[str
     return normalized
 
 
-def list_available_reference_media(*, kind: Optional[str], limit: int, offset: int) -> List[Dict[str, Any]]:
+def list_available_reference_media(*, kind: Optional[str], limit: int, offset: int, project_id: Optional[str] = None) -> List[Dict[str, Any]]:
     page_size = max(limit * 2, 40)
     skipped_live_offset = 0
     raw_offset = 0
     items: List[Dict[str, Any]] = []
 
     while len(items) < limit:
-        batch = store.list_reference_media(kind=kind, limit=page_size, offset=raw_offset)
+        batch = store.list_reference_media(kind=kind, limit=page_size, offset=raw_offset, project_id=project_id)
         if not batch:
             break
         raw_offset += len(batch)
@@ -948,6 +1035,7 @@ def build_enhancement_preview(request: EnhancePreviewRequest) -> Dict[str, Any]:
 
 
 def submit_jobs(request: ValidateRequest) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    require_active_project(request.project_id)
     bundle = build_validation_bundle(request)
     validation_state = bundle["validation"].get("state")
     if validation_state not in {"ready", "ready_with_defaults", "ready_with_warning"}:
@@ -959,6 +1047,7 @@ def submit_jobs(request: ValidateRequest) -> Tuple[Dict[str, Any], List[Dict[str
         "task_mode": request.task_mode,
         "requested_outputs": request.output_count,
         "source_asset_id": request.source_asset_id,
+        "project_id": request.project_id,
         "requested_preset_key": preset["key"] if preset else None,
         "resolved_preset_key": preset["key"] if preset else None,
         "preset_source": "media_preset" if preset else None,
@@ -982,6 +1071,7 @@ def submit_jobs(request: ValidateRequest) -> Tuple[Dict[str, Any], List[Dict[str
                 "model_key": request.model_key,
                 "task_mode": request.task_mode,
                 "source_asset_id": request.source_asset_id,
+                "project_id": request.project_id,
                 "requested_preset_key": preset["key"] if preset else None,
                 "resolved_preset_key": preset["key"] if preset else None,
                 "preset_source": "media_preset" if preset else None,
@@ -1121,6 +1211,7 @@ def publish_job_artifact(job: Dict[str, Any], output_path: Path, remote_output_u
     generation_kind = "video" if output_kind == "video" else "image"
     asset_payload = {
         "job_id": job["job_id"],
+        "project_id": job.get("project_id"),
         "provider_task_id": job.get("provider_task_id"),
         "run_id": artifact["run_id"],
         "source_asset_id": job.get("source_asset_id"),

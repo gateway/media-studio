@@ -12,8 +12,9 @@ import type { MediaReference } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
 type StudioReferenceLibraryProps = {
-  kind?: "image" | "video" | "audio";
+  kind?: "image" | "video" | "audio" | "all";
   title: string;
+  actionLabel?: string;
   onClose: () => void;
   onSelect: (reference: MediaReference) => void;
 };
@@ -21,6 +22,7 @@ type StudioReferenceLibraryProps = {
 export function StudioReferenceLibrary({
   kind = "image",
   title,
+  actionLabel,
   onClose,
   onSelect,
 }: StudioReferenceLibraryProps) {
@@ -41,7 +43,11 @@ export function StudioReferenceLibrary({
   async function loadItems(signal?: AbortSignal) {
     setLoading(true);
     setError(null);
-    const response = await fetch(`/api/control/reference-media?kind=${kind}&limit=120&offset=0`, {
+    const params = new URLSearchParams({ limit: "120", offset: "0" });
+    if (kind !== "all") {
+      params.set("kind", kind);
+    }
+    const response = await fetch(`/api/control/reference-media?${params.toString()}`, {
       signal,
       credentials: "same-origin",
     });
@@ -221,7 +227,7 @@ export function StudioReferenceLibrary({
                         size="compact"
                         className="h-8 min-w-0 rounded-full px-3 text-[0.62rem] tracking-[0.12em] text-[#172200]"
                       >
-                        Use image
+                        {actionLabel ?? (kind === "all" ? "Use reference" : kind === "video" ? "Use video" : kind === "audio" ? "Use audio" : "Use image")}
                       </Button>
                       <IconButton
                         icon={deletingReferenceId === item.reference_id ? LoaderCircle : Trash2}

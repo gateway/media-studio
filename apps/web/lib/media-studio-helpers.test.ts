@@ -621,6 +621,7 @@ describe("media-studio-helpers Seedance support", () => {
       buildStudioRetryRestorePlan({
         job: {
           model_key: "nano-banana-2",
+          project_id: "project-1",
           requested_preset_key: "nano-style",
           selected_system_prompt_ids: ["prompt-1"],
           final_prompt_used: "Retry me",
@@ -649,6 +650,7 @@ describe("media-studio-helpers Seedance support", () => {
     ).toEqual({
       targetModel: model,
       targetPreset: preset,
+      projectId: "project-1",
       selectedPromptIds: ["prompt-1"],
       prompt: "Retry me",
       presetInputValues: { vibe: "dramatic" },
@@ -788,6 +790,7 @@ describe("media-studio-helpers Seedance support", () => {
     ).toEqual({
       targetModel: model,
       targetPreset: preset,
+      projectId: null,
       selectedPromptIds: [],
       prompt: "Retry structured preset",
       presetInputValues: { character: "Neo" },

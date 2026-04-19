@@ -94,6 +94,7 @@ export type StudioRetryPresetSlotRestore = {
 export type StudioRetryRestorePlan = {
   targetModel: MediaModelSummary | null;
   targetPreset: MediaPreset | null;
+  projectId: string | null;
   selectedPromptIds: string[];
   prompt: string;
   presetInputValues: Record<string, string>;
@@ -1345,6 +1346,7 @@ export function buildStudioRetryRestorePlan({
   return {
     targetModel,
     targetPreset,
+    projectId: job.project_id ? String(job.project_id) : batch?.project_id ? String(batch.project_id) : null,
     selectedPromptIds: job.selected_system_prompt_ids ?? [],
     prompt: job.final_prompt_used ?? job.enhanced_prompt ?? job.raw_prompt ?? "",
     presetInputValues,

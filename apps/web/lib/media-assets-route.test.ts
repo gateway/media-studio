@@ -83,4 +83,24 @@ describe("control media-assets route", () => {
       error: "Control API returned 422 for /media/assets?limit=226.",
     });
   });
+
+  it("forwards project filtering to the control API", async () => {
+    getControlApiJson.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        items: [buildAsset(1)],
+        next_cursor: null,
+      },
+    });
+
+    const { GET } = await import("@/app/api/control/media-assets/route");
+    const response = await GET(
+      new Request("http://localhost/api/control/media-assets?limit=12&offset=0&project_id=project-1"),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(getControlApiJson).toHaveBeenCalledWith("/media/assets?project_id=project-1&limit=100", "read");
+  });
 });

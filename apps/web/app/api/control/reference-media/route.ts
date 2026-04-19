@@ -4,10 +4,12 @@ import { listReferenceMedia } from "@/lib/control-api";
 
 export async function GET(request: NextRequest) {
   const kind = request.nextUrl.searchParams.get("kind");
+  const projectId = request.nextUrl.searchParams.get("project_id");
   const limit = Number(request.nextUrl.searchParams.get("limit") ?? 100);
   const offset = Number(request.nextUrl.searchParams.get("offset") ?? 0);
   const result = await listReferenceMedia({
     kind,
+    projectId,
     limit: Number.isFinite(limit) ? limit : 100,
     offset: Number.isFinite(offset) ? offset : 0,
   });

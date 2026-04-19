@@ -34,6 +34,9 @@ from .schemas import (
     ModelQueuePolicyResponse,
     ModelQueuePolicyUpdate,
     ModelSummary,
+    ProjectListResponse,
+    ProjectRecord,
+    ProjectUpsertRequest,
     PresetRecord,
     PresetUpsertRequest,
     PricingResponse,
@@ -238,13 +241,72 @@ def delete_preset(preset_id: str):
         raise _not_found("preset")
 
 
+@app.get("/media/projects", response_model=ProjectListResponse)
+def list_projects(status: Optional[str] = Query(default="active")):
+    return ProjectListResponse(items=[ProjectRecord(**item) for item in store.list_projects(status=status)])
+
+
+@app.get("/media/projects/{project_id}", response_model=ProjectRecord)
+def get_project(project_id: str):
+    record = store.get_project(project_id)
+    if not record:
+        raise _not_found("project")
+    return ProjectRecord(**record)
+
+
+@app.post("/media/projects", response_model=ProjectRecord)
+def create_project(payload: ProjectUpsertRequest):
+    try:
+        return ProjectRecord(**service.upsert_project(payload))
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
+
+
+@app.patch("/media/projects/{project_id}", response_model=ProjectRecord)
+def update_project(project_id: str, payload: ProjectUpsertRequest):
+    try:
+        return ProjectRecord(**service.upsert_project(payload, project_id))
+    except service.ServiceError as exc:
+        if "not found" in str(exc).lower():
+            raise _not_found("project")
+        raise _bad_request(str(exc))
+
+
+@app.post("/media/projects/{project_id}/archive", response_model=ProjectRecord)
+def archive_project(project_id: str):
+    try:
+        return ProjectRecord(**service.archive_project(project_id))
+    except service.ServiceError:
+        raise _not_found("project")
+
+
+@app.post("/media/projects/{project_id}/unarchive", response_model=ProjectRecord)
+def unarchive_project(project_id: str):
+    try:
+        return ProjectRecord(**service.unarchive_project(project_id))
+    except service.ServiceError:
+        raise _not_found("project")
+
+
+@app.delete("/media/projects/{project_id}")
+def delete_project(project_id: str, permanent: bool = Query(default=False)):
+    try:
+        record = service.delete_project(project_id, permanent=permanent)
+        if record is None:
+            return {"ok": True}
+        return ProjectRecord(**record)
+    except service.ServiceError:
+        raise _not_found("project")
+
+
 @app.get("/media/reference-media", response_model=ReferenceMediaListResponse)
 def list_reference_media(
     kind: Optional[str] = Query(default=None),
+    project_id: Optional[str] = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ):
-    items = service.list_available_reference_media(kind=kind, limit=limit, offset=offset)
+    items = service.list_available_reference_media(kind=kind, limit=limit, offset=offset, project_id=project_id)
     return ReferenceMediaListResponse(
         items=[ReferenceMediaRecord(**item) for item in items],
         limit=limit,
@@ -305,6 +367,53 @@ def mark_reference_media_used(reference_id: str):
         return ReferenceMediaRecord(**store.mark_reference_media_used(reference_id))
     except KeyError:
         raise _not_found("reference media")
+
+
+@app.get("/media/projects/{project_id}/references", response_model=ReferenceMediaListResponse)
+def list_project_references(
+    project_id: str,
+    kind: Optional[str] = Query(default=None),
+):
+    project = store.get_project(project_id)
+    if not project:
+        raise _not_found("project")
+    normalized_items = [
+        item
+        for item in (
+            service.sanitize_reference_media_record(record)
+            for record in store.list_project_references(project_id, kind=kind)
+        )
+        if item
+    ]
+    return ReferenceMediaListResponse(
+        items=[ReferenceMediaRecord(**item) for item in normalized_items],
+        limit=len(normalized_items),
+        offset=0,
+    )
+
+
+@app.post("/media/projects/{project_id}/references/{reference_id}", response_model=ReferenceMediaRecord)
+def attach_project_reference(project_id: str, reference_id: str):
+    try:
+        return ReferenceMediaRecord(**service.attach_reference_to_project(project_id, reference_id))
+    except service.ServiceError as exc:
+        if "project not found" in str(exc).lower():
+            raise _not_found("project")
+        if "reference media not found" in str(exc).lower():
+            raise _not_found("reference media")
+        raise _bad_request(str(exc))
+
+
+@app.delete("/media/projects/{project_id}/references/{reference_id}", response_model=ReferenceMediaRecord)
+def detach_project_reference(project_id: str, reference_id: str):
+    try:
+        return ReferenceMediaRecord(**service.detach_reference_from_project(project_id, reference_id))
+    except service.ServiceError as exc:
+        if "project not found" in str(exc).lower():
+            raise _not_found("project")
+        if "reference media not found" in str(exc).lower():
+            raise _not_found("reference media")
+        raise _bad_request(str(exc))
 
 
 @app.get("/media/system-prompts", response_model=List[SystemPromptRecord])  # type: ignore[name-defined]
@@ -437,8 +546,8 @@ def submit_jobs(payload: JobSubmitRequest):
 
 
 @app.get("/media/jobs", response_model=JobsListResponse)
-def list_jobs(limit: int = Query(default=200, le=500)):
-    return JobsListResponse(items=[JobRecord(**item) for item in store.list_jobs(limit=limit)])
+def list_jobs(limit: int = Query(default=200, le=500), project_id: Optional[str] = Query(default=None)):
+    return JobsListResponse(items=[JobRecord(**item) for item in store.list_jobs(limit=limit, project_id=project_id)])
 
 
 @app.get("/media/jobs/{job_id}", response_model=JobRecord)
@@ -483,8 +592,8 @@ def dismiss_job(job_id: str):
 
 
 @app.get("/media/batches", response_model=BatchesListResponse)
-def list_batches(limit: int = Query(default=100, le=500), offset: int = Query(default=0, ge=0)):
-    items = store.list_batches(limit=limit, offset=offset)
+def list_batches(limit: int = Query(default=100, le=500), offset: int = Query(default=0, ge=0), project_id: Optional[str] = Query(default=None)):
+    items = store.list_batches(limit=limit, offset=offset, project_id=project_id)
     batch_ids = [str(item.get("batch_id")) for item in items if item.get("batch_id")]
     jobs_by_batch: dict[str, list[dict]] = {}
     for job in store.list_jobs_for_batches(batch_ids, include_dismissed=False):
@@ -494,7 +603,7 @@ def list_batches(limit: int = Query(default=100, le=500), offset: int = Query(de
         jobs_by_batch.setdefault(batch_id, []).append(job)
     return BatchesListResponse(
         items=[BatchRecord(**{**item, "jobs": jobs_by_batch.get(str(item.get("batch_id")), [])}) for item in items],
-        total=store.count_batches(),
+        total=store.count_batches(project_id=project_id),
         limit=limit,
         offset=offset,
     )
@@ -530,6 +639,7 @@ def list_assets(
     model_key: Optional[str] = None,
     status: Optional[str] = None,
     preset_key: Optional[str] = None,
+    project_id: Optional[str] = Query(default=None),
 ):
     rows = store.list_assets(
         limit=limit + 1,
@@ -539,6 +649,7 @@ def list_assets(
         model_key=model_key,
         status=status,
         preset_key=preset_key,
+        project_id=project_id,
     )
     has_more = len(rows) > limit
     rows = rows[:limit]
@@ -548,8 +659,8 @@ def list_assets(
 
 
 @app.get("/media/assets/latest", response_model=Optional[AssetRecord])
-def latest_assets():
-    latest = store.list_assets(limit=1)
+def latest_assets(project_id: Optional[str] = Query(default=None)):
+    latest = store.list_assets(limit=1, project_id=project_id)
     if not latest:
         return None
     return AssetRecord(**latest[0])

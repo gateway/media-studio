@@ -23,6 +23,8 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert clean_db.exists()
     assert _count_rows(clean_db, "media_jobs") == 0
     assert _count_rows(clean_db, "media_assets") == 0
+    assert _count_rows(clean_db, "media_projects") == 0
+    assert _count_rows(clean_db, "media_project_references") == 0
     assert _count_rows(clean_db, "media_queue_settings") == 1
     assert _count_rows(clean_db, "media_presets") >= 2
     connection = sqlite3.connect(clean_db)
@@ -189,3 +191,49 @@ def test_bootstrap_schema_adds_hidden_from_dashboard_to_legacy_assets_table(app_
 
     assert "hidden_from_dashboard" in columns
     assert columns["hidden_from_dashboard"] == "0"
+
+
+def test_bootstrap_schema_adds_project_columns_and_tables_to_legacy_db(app_modules, tmp_path: Path) -> None:
+    store = app_modules["store"]
+    legacy_db = tmp_path / "legacy-projects.sqlite"
+
+    connection = sqlite3.connect(legacy_db)
+    try:
+        connection.executescript(
+            """
+            CREATE TABLE media_jobs (
+                job_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE media_assets (
+                asset_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE media_batches (
+                batch_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    store.bootstrap_schema(legacy_db)
+
+    connection = sqlite3.connect(legacy_db)
+    try:
+        table_names = {
+            row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+        }
+        batch_columns = {row[1] for row in connection.execute("PRAGMA table_info(media_batches)").fetchall()}
+        job_columns = {row[1] for row in connection.execute("PRAGMA table_info(media_jobs)").fetchall()}
+        asset_columns = {row[1] for row in connection.execute("PRAGMA table_info(media_assets)").fetchall()}
+    finally:
+        connection.close()
+
+    assert "media_projects" in table_names
+    assert "media_project_references" in table_names
+    assert "project_id" in batch_columns
+    assert "project_id" in job_columns
+    assert "project_id" in asset_columns

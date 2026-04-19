@@ -478,6 +478,16 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS media_projects (
+                project_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                cover_asset_id TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
             CREATE TABLE IF NOT EXISTS media_batches (
                 batch_id TEXT PRIMARY KEY,
                 status TEXT NOT NULL,
@@ -490,6 +500,7 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
                 failed_count INTEGER NOT NULL DEFAULT 0,
                 cancelled_count INTEGER NOT NULL DEFAULT 0,
                 source_asset_id TEXT,
+                project_id TEXT,
                 requested_preset_key TEXT,
                 resolved_preset_key TEXT,
                 preset_source TEXT,
@@ -514,6 +525,7 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
                 model_key TEXT NOT NULL,
                 task_mode TEXT,
                 source_asset_id TEXT,
+                project_id TEXT,
                 requested_preset_key TEXT,
                 resolved_preset_key TEXT,
                 preset_source TEXT,
@@ -555,6 +567,7 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
                 provider_task_id TEXT,
                 run_id TEXT,
                 source_asset_id TEXT,
+                project_id TEXT,
                 model_key TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'completed',
                 task_mode TEXT,
@@ -606,6 +619,15 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS media_project_references (
+                project_id TEXT NOT NULL,
+                reference_id TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (project_id, reference_id),
+                FOREIGN KEY(project_id) REFERENCES media_projects(project_id),
+                FOREIGN KEY(reference_id) REFERENCES reference_media(reference_id)
+            );
         """
     )
     connection.execute(
@@ -647,10 +669,13 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
     ensure_column(connection, "media_enhancement_configs", "provider_status", "TEXT")
     ensure_column(connection, "media_enhancement_configs", "provider_last_tested_at", "TEXT")
     ensure_column(connection, "media_enhancement_configs", "provider_capabilities_json", "TEXT NOT NULL DEFAULT '{}'")
+    ensure_column(connection, "media_batches", "project_id", "TEXT")
     ensure_column(connection, "media_jobs", "remote_output_url", "TEXT")
+    ensure_column(connection, "media_jobs", "project_id", "TEXT")
     ensure_column(connection, "media_assets", "provider_task_id", "TEXT")
     ensure_column(connection, "media_assets", "run_id", "TEXT")
     ensure_column(connection, "media_assets", "source_asset_id", "TEXT")
+    ensure_column(connection, "media_assets", "project_id", "TEXT")
     ensure_column(connection, "media_assets", "status", "TEXT NOT NULL DEFAULT 'completed'")
     ensure_column(connection, "media_assets", "task_mode", "TEXT")
     ensure_column(connection, "media_assets", "artifact_run_dir", "TEXT")
@@ -675,6 +700,30 @@ def bootstrap_connection_schema(connection: sqlite3.Connection) -> None:
     ensure_column(connection, "reference_media", "usage_count", "INTEGER NOT NULL DEFAULT 0")
     ensure_column(connection, "reference_media", "last_used_at", "TEXT")
     ensure_column(connection, "reference_media", "metadata_json", "TEXT NOT NULL DEFAULT '{}'")
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_media_batches_project_id
+        ON media_batches(project_id, created_at DESC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_media_jobs_project_id
+        ON media_jobs(project_id, created_at DESC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_media_assets_project_id
+        ON media_assets(project_id, created_at DESC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_media_project_references_reference_id
+        ON media_project_references(reference_id, created_at DESC)
+        """
+    )
     _migrate_multi_model_seed_presets(connection)
     _seed_default_presets(connection)
     _seed_default_model_queue_policies(connection)

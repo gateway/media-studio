@@ -786,6 +786,7 @@ export type MediaSystemPrompt = {
 export type MediaJob = {
   job_id: string;
   batch_id?: string | null;
+  project_id?: string | null;
   batch_index?: number;
   requested_outputs?: number;
   status: string;
@@ -834,6 +835,7 @@ export type MediaJob = {
 export type MediaBatch = {
   batch_id: string;
   status: string;
+  project_id?: string | null;
   model_key?: string | null;
   task_mode?: string | null;
   requested_outputs: number;
@@ -873,6 +875,7 @@ export type MediaModelQueuePolicy = {
 export type MediaAsset = {
   asset_id: string | number;
   job_id?: string | null;
+  project_id?: string | null;
   provider_task_id?: string | null;
   run_id?: string | null;
   source_asset_id?: string | number | null;
@@ -909,6 +912,7 @@ export type MediaReference = {
   reference_id: string;
   kind: "image" | "video" | "audio";
   status: string;
+  attached_project_ids?: string[];
   original_filename?: string | null;
   stored_path: string;
   mime_type?: string | null;
@@ -925,6 +929,16 @@ export type MediaReference = {
   usage_count: number;
   last_used_at?: string | null;
   metadata?: Record<string, unknown>;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type MediaProject = {
+  project_id: string;
+  name: string;
+  description?: string | null;
+  status: "active" | "archived" | string;
+  cover_asset_id?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -978,6 +992,16 @@ export type MediaModelsResponse = {
 export type MediaPresetsResponse = {
   ok?: boolean;
   presets?: MediaPreset[];
+};
+
+export type MediaProjectsResponse = {
+  ok?: boolean;
+  projects?: MediaProject[];
+};
+
+export type MediaProjectResponse = {
+  ok?: boolean;
+  project?: MediaProject | null;
 };
 
 export type MediaJobsResponse = {

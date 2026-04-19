@@ -21,6 +21,9 @@ import type {
   MediaModelDetailResponse,
   MediaModelsResponse,
   MediaModelQueuePolicy,
+  MediaProject,
+  MediaProjectResponse,
+  MediaProjectsResponse,
   MediaReference,
   MediaReferenceResponse,
   MediaReferencesResponse,
@@ -281,6 +284,9 @@ export function mapReferenceMediaRecord(reference: Record<string, any>): MediaRe
     reference_id: String(reference.reference_id),
     kind: String(reference.kind ?? "image") as "image" | "video" | "audio",
     status: String(reference.status ?? "active"),
+    attached_project_ids: Array.isArray(reference.attached_project_ids)
+      ? reference.attached_project_ids.map((value: unknown) => String(value))
+      : [],
     original_filename: reference.original_filename ?? null,
     stored_path: String(storedPath ?? ""),
     mime_type: reference.mime_type ?? null,
@@ -350,6 +356,7 @@ export function mapJobRecord(job: Record<string, any>): MediaJob {
   return {
     job_id: String(job.job_id),
     batch_id: job.batch_id ?? null,
+    project_id: job.project_id ?? null,
     batch_index: job.batch_index ?? 0,
     requested_outputs: job.requested_outputs ?? 1,
     status: String(job.status),
@@ -390,6 +397,7 @@ export function mapJobRecord(job: Record<string, any>): MediaJob {
 export function mapAssetRecord(asset: Record<string, any>): MediaAsset {
   return {
     ...asset,
+    project_id: asset.project_id ?? null,
     hidden_from_dashboard: false,
     dismissed_at: asset.dismissed ? asset.created_at : null,
     tags: asset.tags_json ?? [],
@@ -406,6 +414,7 @@ export function mapBatchRecord(batch: Record<string, any>, jobs: MediaJob[]): Me
   return {
     batch_id: String(batch.batch_id),
     status: String(batch.status),
+    project_id: batch.project_id ?? null,
     model_key: batch.model_key ?? null,
     task_mode: batch.task_mode ?? null,
     requested_outputs: batch.requested_outputs ?? 1,
@@ -426,6 +435,18 @@ export function mapBatchRecord(batch: Record<string, any>, jobs: MediaJob[]): Me
     created_at: String(batch.created_at),
     updated_at: String(batch.updated_at),
     finished_at: batch.finished_at ?? null,
+  };
+}
+
+export function mapProjectRecord(project: Record<string, any>): MediaProject {
+  return {
+    project_id: String(project.project_id),
+    name: String(project.name ?? ""),
+    description: project.description ?? null,
+    status: String(project.status ?? "active"),
+    cover_asset_id: project.cover_asset_id ?? null,
+    created_at: project.created_at ?? null,
+    updated_at: project.updated_at ?? null,
   };
 }
 
@@ -529,10 +550,12 @@ export async function getControlPlaneSnapshot() {
   };
 }
 
-export async function getMediaDashboardSnapshot(options?: { batchesLimit?: number; batchesOffset?: number }) {
+export async function getMediaDashboardSnapshot(options?: { batchesLimit?: number; batchesOffset?: number; projectId?: string | null }) {
   const batchesLimit = options?.batchesLimit ?? 8;
   const batchesOffset = options?.batchesOffset ?? 0;
-  const [health, credits, pricing, modelsRaw, presetsRaw, promptsRaw, enhancementRaw, queueSettingsRaw, queuePoliciesRaw, batchesRaw, jobsRaw, assetsRaw, latestAssetRaw] =
+  const projectId = options?.projectId ? String(options.projectId) : null;
+  const projectParams = projectId ? `&project_id=${encodeURIComponent(projectId)}` : "";
+  const [health, credits, pricing, modelsRaw, presetsRaw, promptsRaw, enhancementRaw, queueSettingsRaw, queuePoliciesRaw, projectsRaw, batchesRaw, jobsRaw, assetsRaw, latestAssetRaw] =
     await Promise.all([
       fetchControlApiJson<Record<string, any>>("/health"),
       fetchControlApiJson<Record<string, any>>("/media/credits"),
@@ -543,16 +566,18 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
       fetchControlApiJson<any[]>("/media/enhancement-configs"),
       fetchControlApiJson<Record<string, any>>("/media/queue/settings"),
       fetchControlApiJson<any[]>("/media/queue/policies"),
-      fetchControlApiJson<Record<string, any>>(`/media/batches?limit=${batchesLimit}&offset=${batchesOffset}`),
-      fetchControlApiJson<Record<string, any>>("/media/jobs?limit=8"),
-      fetchControlApiJson<Record<string, any>>(`/media/assets?limit=${INITIAL_ASSET_PAGE_SIZE}`),
-      fetchControlApiJson<Record<string, any>>("/media/assets/latest"),
+      fetchControlApiJson<Record<string, any>>("/media/projects?status=all"),
+      fetchControlApiJson<Record<string, any>>(`/media/batches?limit=${batchesLimit}&offset=${batchesOffset}${projectParams}`),
+      fetchControlApiJson<Record<string, any>>(`/media/jobs?limit=8${projectParams}`),
+      fetchControlApiJson<Record<string, any>>(`/media/assets?limit=${INITIAL_ASSET_PAGE_SIZE}${projectParams}`),
+      fetchControlApiJson<Record<string, any>>(`/media/assets/latest${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`),
     ]);
 
   const models = (modelsRaw.data ?? []).map(mapModelRecord);
   const presets = (presetsRaw.data ?? []).map(mapPresetRecord);
   const prompts = (promptsRaw.data ?? []).map(mapPromptRecord);
   const enhancementConfigs = (enhancementRaw.data ?? []).map(mapEnhancementConfigRecord);
+  const projects = ((projectsRaw.data?.items ?? projectsRaw.data ?? []) as Record<string, any>[]).map(mapProjectRecord);
   const jobs = ((jobsRaw.data?.items ?? []) as Record<string, any>[]).map(mapJobRecord);
   const assets = ((assetsRaw.data?.items ?? []) as Record<string, any>[]).map(mapAssetRecord);
   const latestAssetRecord = Array.isArray(latestAssetRaw.data?.items)
@@ -589,6 +614,7 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
     llmPresets: { ok: true, data: { presets: [] as any[] } as LlmPresetsResponse },
     queueSettings: { ok: queueSettingsRaw.ok, data: { settings: queueSettingsRaw.data ? mapQueueSettingsRecord(queueSettingsRaw.data) : null } as MediaQueueSettingsResponse },
     queuePolicies: { ok: queuePoliciesRaw.ok, data: { policies: (queuePoliciesRaw.data ?? []).map(mapQueuePolicyRecord) } as MediaQueuePoliciesResponse },
+    projects: { ok: projectsRaw.ok, data: { projects } as MediaProjectsResponse },
     batches: {
       ok: batchesRaw.ok,
       data: {
@@ -729,15 +755,18 @@ export async function archiveMediaPreset(presetId: string) {
 
 export async function listReferenceMedia({
   kind,
+  projectId,
   limit = 100,
   offset = 0,
 }: {
   kind?: string | null;
+  projectId?: string | null;
   limit?: number;
   offset?: number;
 } = {}) {
   const params = new URLSearchParams();
   if (kind) params.set("kind", kind);
+  if (projectId) params.set("project_id", projectId);
   params.set("limit", String(limit));
   params.set("offset", String(offset));
   const result = await fetchControlApiJson<Record<string, any>>(`/media/reference-media?${params.toString()}`);
@@ -748,6 +777,100 @@ export async function listReferenceMedia({
       limit: Number(result.data?.limit ?? limit),
       offset: Number(result.data?.offset ?? offset),
     } as MediaReferencesResponse,
+    error: result.error,
+  };
+}
+
+export async function listMediaProjects(status: "active" | "archived" | "all" = "active") {
+  const result = await fetchControlApiJson<Record<string, any>>(`/media/projects?status=${encodeURIComponent(status)}`);
+  return {
+    ok: result.ok,
+    data: {
+      projects: Array.isArray(result.data?.items) ? result.data.items.map(mapProjectRecord) : [],
+    } as MediaProjectsResponse,
+    error: result.error,
+  };
+}
+
+export async function createMediaProject(payload: Record<string, unknown>) {
+  const result = await postControlApiJson<Record<string, any>>("/media/projects", payload);
+  return {
+    ok: result.ok,
+    data: { project: result.data ? mapProjectRecord(result.data) : null } as MediaProjectResponse,
+    error: result.error,
+  };
+}
+
+export async function updateMediaProject(projectId: string, payload: Record<string, unknown>) {
+  const result = await sendControlApiJson<Record<string, any>>(`/media/projects/${projectId}`, { method: "PATCH", payload });
+  return {
+    ok: result.ok,
+    data: { project: result.data ? mapProjectRecord(result.data) : null } as MediaProjectResponse,
+    error: result.error,
+  };
+}
+
+export async function archiveMediaProject(projectId: string) {
+  const result = await postControlApiJson<Record<string, any>>(`/media/projects/${projectId}/archive`, {});
+  return {
+    ok: result.ok,
+    data: { project: result.data ? mapProjectRecord(result.data) : null } as MediaProjectResponse,
+    error: result.error,
+  };
+}
+
+export async function unarchiveMediaProject(projectId: string) {
+  const result = await postControlApiJson<Record<string, any>>(`/media/projects/${projectId}/unarchive`, {});
+  return {
+    ok: result.ok,
+    data: { project: result.data ? mapProjectRecord(result.data) : null } as MediaProjectResponse,
+    error: result.error,
+  };
+}
+
+export async function deleteMediaProject(projectId: string, permanent = false) {
+  const result = await sendControlApiJson<Record<string, any>>(
+    `/media/projects/${projectId}${permanent ? "?permanent=true" : ""}`,
+    { method: "DELETE" },
+  );
+  return {
+    ok: result.ok,
+    data: { project: result.data && result.data.project_id ? mapProjectRecord(result.data) : null } as MediaProjectResponse,
+    error: result.error,
+  };
+}
+
+export async function listProjectReferences(projectId: string, kind?: string | null) {
+  const params = new URLSearchParams();
+  if (kind) params.set("kind", kind);
+  const result = await fetchControlApiJson<Record<string, any>>(
+    `/media/projects/${projectId}/references${params.size ? `?${params.toString()}` : ""}`,
+  );
+  return {
+    ok: result.ok,
+    data: {
+      items: Array.isArray(result.data?.items) ? result.data.items.map(mapReferenceMediaRecord) : [],
+      limit: Number(result.data?.limit ?? 0),
+      offset: Number(result.data?.offset ?? 0),
+    } as MediaReferencesResponse,
+    error: result.error,
+  };
+}
+
+export async function attachProjectReference(projectId: string, referenceId: string) {
+  const result = await postControlApiJson<Record<string, any>>(`/media/projects/${projectId}/references/${referenceId}`, {});
+  return {
+    ok: result.ok,
+    data: { item: result.data ? mapReferenceMediaRecord(result.data) : null } as MediaReferenceResponse,
+    error: result.error,
+  };
+}
+
+export async function detachProjectReference(projectId: string, referenceId: string) {
+  const result = await sendControlApiJson<Record<string, any>>(`/media/projects/${projectId}/references/${referenceId}`, { method: "DELETE" });
+  return {
+    ok: result.ok,
+    data: { item: result.data ? mapReferenceMediaRecord(result.data) : null } as MediaReferenceResponse,
     error: result.error,
   };
 }

@@ -21,6 +21,7 @@ type UseStudioGalleryFeedParams = {
   batches: MediaBatch[];
   jobs: MediaJob[];
   assets: MediaAsset[];
+  activeProjectId?: string | null;
   initialAssetLimit: number;
   initialAssetsHasMore: boolean;
   initialAssetsNextOffset: number | null;
@@ -85,6 +86,7 @@ export function useStudioGalleryFeed({
   batches,
   jobs,
   assets,
+  activeProjectId = null,
   initialAssetLimit,
   initialAssetsHasMore,
   initialAssetsNextOffset,
@@ -192,6 +194,9 @@ export function useStudioGalleryFeed({
     }
     if (galleryModelFilter !== "all") {
       params.set("model_key", galleryModelFilter);
+    }
+    if (activeProjectId) {
+      params.set("project_id", activeProjectId);
     }
 
     try {
@@ -394,7 +399,7 @@ export function useStudioGalleryFeed({
     return () => {
       cancelled = true;
     };
-  }, [favoritesOnly, galleryKindFilter, galleryModelFilter]);
+  }, [activeProjectId, favoritesOnly, galleryKindFilter, galleryModelFilter]);
 
   useEffect(() => {
     setLocalLatestAsset(latestAsset);
@@ -485,7 +490,7 @@ export function useStudioGalleryFeed({
     return () => {
       cancelled = true;
     };
-  }, [favoritesOnly, galleryKindFilter, galleryModelFilter]);
+  }, [activeProjectId, favoritesOnly, galleryKindFilter, galleryModelFilter]);
 
   useEffect(() => {
     if (favoritesOnly || !assetFeedHasMore || assetFeedNextOffset == null || loadingMoreAssets || prefetchingAssetPage || prefetchedAssetPage) {
@@ -518,7 +523,7 @@ export function useStudioGalleryFeed({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [assetFeedHasMore, assetFeedNextOffset, assetPageLimit, favoritesOnly, loadingMoreAssets, prefetchedAssetPage, prefetchingAssetPage]);
+  }, [activeProjectId, assetFeedHasMore, assetFeedNextOffset, assetPageLimit, favoritesOnly, loadingMoreAssets, prefetchedAssetPage, prefetchingAssetPage]);
 
   useEffect(() => {
     if (
@@ -569,6 +574,7 @@ export function useStudioGalleryFeed({
     favoritesOnly,
     galleryKindFilter,
     galleryModelFilter,
+    activeProjectId,
     loadingMoreFavoriteAssets,
     prefetchedFavoriteAssetPage,
     prefetchingFavoriteAssetPage,

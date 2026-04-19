@@ -46,7 +46,7 @@ describe("reference media web routes", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(listReferenceMedia).toHaveBeenCalledWith({ kind: "image", limit: 40, offset: 20 });
+    expect(listReferenceMedia).toHaveBeenCalledWith({ kind: "image", projectId: null, limit: 40, offset: 20 });
     expect(payload).toEqual({
       ok: true,
       items: [{ reference_id: "ref-1", kind: "image" }],

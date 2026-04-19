@@ -7,8 +7,10 @@ export default async function MediaStudioPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const snapshot = await getMediaDashboardSnapshot();
   const resolvedSearchParams = searchParams ? await searchParams : {};
+  const selectedProjectId =
+    typeof resolvedSearchParams?.project === "string" ? resolvedSearchParams.project : null;
+  const snapshot = await getMediaDashboardSnapshot({ projectId: selectedProjectId });
   const balance = snapshot.credits.data?.balance;
   const availableCredits =
     typeof balance?.available_credits === "number"
@@ -27,6 +29,7 @@ export default async function MediaStudioPage({
       llmPresets={snapshot.llmPresets.data?.presets ?? []}
       queueSettings={snapshot.queueSettings.data?.settings ?? null}
       queuePolicies={snapshot.queuePolicies.data?.policies ?? []}
+      projects={snapshot.projects.data?.projects ?? []}
       batches={snapshot.batches.data?.batches ?? []}
       jobs={snapshot.jobs.data?.jobs ?? []}
       assets={snapshot.assets.data?.assets ?? []}
@@ -40,6 +43,7 @@ export default async function MediaStudioPage({
       initialSelectedAssetId={
         typeof resolvedSearchParams?.asset === "string" ? resolvedSearchParams.asset : null
       }
+      initialSelectedProjectId={selectedProjectId}
       immersive
       closeHref="/jobs"
     />

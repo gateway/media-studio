@@ -85,6 +85,7 @@ type UseStudioComposerParams = {
   localBatches: MediaBatch[];
   localAssets: MediaAsset[];
   favoriteAssets: MediaAsset[] | null;
+  projectId: string | null;
   sourceAssetId: string | number | null;
   setSourceAssetId: React.Dispatch<React.SetStateAction<string | number | null>>;
   setOptimisticBatches: React.Dispatch<React.SetStateAction<MediaBatch[]>>;
@@ -251,6 +252,7 @@ export function useStudioComposer({
   localBatches,
   localAssets,
   favoriteAssets,
+  projectId,
   sourceAssetId,
   setSourceAssetId,
   setOptimisticBatches,
@@ -1395,6 +1397,9 @@ export function useStudioComposer({
       } else {
         formData.set("preset_id", selectedPresetId);
       }
+    }
+    if (projectId) {
+      formData.set("project_id", projectId);
     }
     if (structuredPresetActive) {
       formData.set("preset_inputs_json", JSON.stringify(presetInputValues));

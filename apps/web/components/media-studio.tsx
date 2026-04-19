@@ -2,19 +2,22 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
+  Archive,
   Check,
   CircleDollarSign,
   Coins,
   Clapperboard,
   Copy,
+  FolderPlus,
   Image as ImageIcon,
   ImagePlus,
   LoaderCircle,
   Monitor,
   Play,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 
@@ -36,6 +39,7 @@ import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
 import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
 import { StudioReferenceLibrary } from "@/components/studio/studio-reference-library";
 import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
+import { StudioProjectBrowser } from "@/components/studio/studio-project-browser";
 import { PillSelect } from "@/components/ui/pill-select";
 import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
 import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
@@ -126,7 +130,7 @@ import {
   jobPhaseMessage,
   type MultiShotParseResult,
 } from "@/lib/media-studio-helpers";
-import type { MediaAsset, MediaBatch, MediaEnhancePreviewResponse, MediaJob, MediaReference, MediaValidationResponse } from "@/lib/types";
+import type { MediaAsset, MediaBatch, MediaEnhancePreviewResponse, MediaJob, MediaProject, MediaReference, MediaValidationResponse } from "@/lib/types";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import { installStudioDebugConsole, studioDebug } from "@/lib/studio-debug";
 import { readStudioComposerDraft } from "@/lib/studio-composer-draft";
@@ -166,7 +170,8 @@ function composerModelLabel(label: string | null | undefined) {
 type ReferenceLibraryTarget =
   | { type: "attachment"; title: string; role?: "first_frame" | "last_frame" | "reference" | null; allowedKinds?: AttachmentRecord["kind"][] }
   | { type: "standard-slot"; title: string; slotIndex: number; label: string; allowedKinds?: AttachmentRecord["kind"][] }
-  | { type: "preset-slot"; title: string; slotKey: string };
+  | { type: "preset-slot"; title: string; slotKey: string }
+  | { type: "project-reference"; title: string; projectId: string };
 
 export function MediaStudio({
   apiHealthy,
@@ -177,6 +182,7 @@ export function MediaStudio({
   llmPresets,
   queueSettings,
   queuePolicies,
+  projects,
   batches,
   jobs,
   assets,
@@ -188,17 +194,20 @@ export function MediaStudio({
   remainingCredits,
   pricingSnapshot,
   initialSelectedAssetId = null,
+  initialSelectedProjectId = null,
   immersive = false,
   closeHref = "/media",
 }: MediaStudioProps) {
   const initialComposerDraftRef = useRef(readStudioComposerDraft());
   const router = useRouter();
+  const pathname = usePathname();
   const { showActivity } = useGlobalActivity();
   const [isRefreshing, startRefresh] = useTransition();
   const [hasMounted, setHasMounted] = useState(false);
   const [localRemainingCredits, setLocalRemainingCredits] = useState<number | null>(remainingCredits ?? null);
   const [studioSettingsOpen, setStudioSettingsOpen] = useState(false);
   const [presetBrowserOpen, setPresetBrowserOpen] = useState(false);
+  const [projectBrowserOpen, setProjectBrowserOpen] = useState(false);
   const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(null);
   const [copyPromptStatus, setCopyPromptStatus] = useState<"idle" | "copied" | "error">("idle");
   const [selectedFailedJobId, setSelectedFailedJobId] = useState<string | null>(null);
@@ -209,6 +218,10 @@ export function MediaStudio({
   const [promptReferenceDismissed, setPromptReferenceDismissed] = useState(false);
   const [promptReferenceActiveIndex, setPromptReferenceActiveIndex] = useState(0);
   const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(null);
+  const [localProjects, setLocalProjects] = useState<MediaProject[]>(projects);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialSelectedProjectId);
+  const [projectReferences, setProjectReferences] = useState<MediaReference[]>([]);
+  const [projectReferencesLoading, setProjectReferencesLoading] = useState(false);
   const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(
     initialComposerDraftRef.current?.sourceAssetId ?? null,
   );
@@ -228,9 +241,63 @@ export function MediaStudio({
       }),
     [models, queuePolicies],
   );
+  const selectedProject = useMemo(
+    () => localProjects.find((project) => project.project_id === selectedProjectId) ?? null,
+    [localProjects, selectedProjectId],
+  );
   useEffect(() => {
     setLocalRemainingCredits(remainingCredits ?? null);
   }, [remainingCredits]);
+  useEffect(() => {
+    setLocalProjects(projects);
+  }, [projects]);
+  useEffect(() => {
+    setSelectedProjectId(initialSelectedProjectId);
+  }, [initialSelectedProjectId]);
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setProjectReferences([]);
+      setProjectReferencesLoading(false);
+      return;
+    }
+    let active = true;
+    const controller = new AbortController();
+    setProjectReferencesLoading(true);
+    void fetch(`/api/control/media/projects/${selectedProjectId}/references`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = (await response.json()) as { items?: MediaReference[]; detail?: string; error?: string };
+        if (!response.ok) {
+          throw new Error(payload.error ?? payload.detail ?? "Unable to load project references.");
+        }
+        if (!active) {
+          return;
+        }
+        setProjectReferences(Array.isArray(payload.items) ? payload.items : []);
+      })
+      .catch((error) => {
+        if (!active || controller.signal.aborted) {
+          return;
+        }
+        setFormMessage({
+          tone: "danger",
+          text: error instanceof Error ? error.message : "Unable to load project references.",
+        });
+      })
+      .finally(() => {
+        if (active) {
+          setProjectReferencesLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [selectedProjectId]);
 
   async function refreshCreditBalance() {
     try {
@@ -269,6 +336,137 @@ export function MediaStudio({
     }, 1400);
   };
 
+  function studioHrefForProject(projectId: string | null, assetId?: string | number | null) {
+    const params = new URLSearchParams();
+    if (projectId) {
+      params.set("project", String(projectId));
+    }
+    if (assetId != null) {
+      params.set("asset", String(assetId));
+    }
+    return params.size ? `${pathname}?${params.toString()}` : pathname;
+  }
+
+  function openProjectWorkspace(projectId: string | null) {
+    clearGallerySelection();
+    setProjectBrowserOpen(false);
+    setSelectedProjectId(projectId);
+    void router.push(studioHrefForProject(projectId, null));
+  }
+
+  async function createProjectInStudio(draft: { name: string; description: string }) {
+    const response = await fetch("/api/control/media/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(draft),
+    });
+    const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
+    if (!response.ok || !payload.project) {
+      throw new Error(payload.error ?? payload.detail ?? "Unable to create the project.");
+    }
+    setLocalProjects((current) => [payload.project as MediaProject, ...current.filter((item) => item.project_id !== payload.project?.project_id)]);
+    openProjectWorkspace(String(payload.project.project_id));
+  }
+
+  async function updateProjectInStudio(projectId: string, draft: { name: string; description: string }) {
+    const response = await fetch(`/api/control/media/projects/${projectId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(draft),
+    });
+    const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
+    if (!response.ok || !payload.project) {
+      throw new Error(payload.error ?? payload.detail ?? "Unable to update the project.");
+    }
+    setLocalProjects((current) =>
+      current.map((item) => (item.project_id === projectId ? (payload.project as MediaProject) : item)),
+    );
+  }
+
+  async function archiveProjectInStudio(projectId: string) {
+    const response = await fetch(`/api/control/media/projects/${projectId}/archive`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
+    if (!response.ok || !payload.project) {
+      throw new Error(payload.error ?? payload.detail ?? "Unable to archive the project.");
+    }
+    setLocalProjects((current) =>
+      current.map((item) =>
+        item.project_id === projectId ? (payload.project as MediaProject) : item,
+      ),
+    );
+    if (selectedProjectId === projectId) {
+      openProjectWorkspace(null);
+    }
+  }
+
+  async function unarchiveProjectInStudio(projectId: string) {
+    const response = await fetch(`/api/control/media/projects/${projectId}/unarchive`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
+    if (!response.ok || !payload.project) {
+      throw new Error(payload.error ?? payload.detail ?? "Unable to restore the project.");
+    }
+    setLocalProjects((current) =>
+      current.map((item) => (item.project_id === projectId ? (payload.project as MediaProject) : item)),
+    );
+  }
+
+  async function deleteProjectInStudio(projectId: string) {
+    const response = await fetch(`/api/control/media/projects/${projectId}?permanent=true`, {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+    });
+    const payload = (await response.json()) as { ok?: boolean; detail?: string; error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error ?? payload.detail ?? "Unable to delete the project.");
+    }
+    setLocalProjects((current) => current.filter((item) => item.project_id !== projectId));
+    if (selectedProjectId === projectId) {
+      openProjectWorkspace(null);
+    }
+  }
+
+  async function attachReferenceToSelectedProject(reference: MediaReference) {
+    if (!selectedProjectId) {
+      return;
+    }
+    const response = await fetch(`/api/control/media/projects/${selectedProjectId}/references/${reference.reference_id}`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    const payload = (await response.json()) as { item?: MediaReference | null; detail?: string; error?: string };
+    if (!response.ok || !payload.item) {
+      throw new Error(payload.error ?? payload.detail ?? "Unable to attach the reference to this project.");
+    }
+    setProjectReferences((current) => {
+      if (current.some((item) => item.reference_id === payload.item?.reference_id)) {
+        return current;
+      }
+      return [payload.item as MediaReference, ...current];
+    });
+    setFormMessage({ tone: "healthy", text: "Attached the reference to this project." });
+  }
+
+  async function detachReferenceFromSelectedProject(referenceId: string) {
+    if (!selectedProjectId) {
+      return;
+    }
+    const response = await fetch(`/api/control/media/projects/${selectedProjectId}/references/${referenceId}`, {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+    });
+    const payload = (await response.json()) as { detail?: string; error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error ?? payload.detail ?? "Unable to remove the reference from this project.");
+    }
+    setProjectReferences((current) => current.filter((item) => item.reference_id !== referenceId));
+  }
+
   useEffect(() => {
     return () => {
       if (copyPromptStatusTimerRef.current != null) {
@@ -280,6 +478,7 @@ export function MediaStudio({
     batches,
     jobs,
     assets,
+    activeProjectId: selectedProjectId,
     initialAssetLimit,
     initialAssetsHasMore,
     initialAssetsNextOffset,
@@ -463,6 +662,7 @@ export function MediaStudio({
     localBatches: gallery.state.localBatches,
     localAssets: gallery.state.localAssets,
     favoriteAssets: gallery.state.favoriteAssets,
+    projectId: selectedProjectId,
     sourceAssetId,
     setSourceAssetId,
     setOptimisticBatches,
@@ -701,6 +901,17 @@ export function MediaStudio({
     const target = referenceLibraryTarget;
     setReferenceLibraryTarget(null);
     if (!target) {
+      return;
+    }
+    if (target.type === "project-reference") {
+      try {
+        await attachReferenceToSelectedProject(reference);
+      } catch (error) {
+        setFormMessage({
+          tone: "danger",
+          text: error instanceof Error ? error.message : "Unable to attach the reference to this project.",
+        });
+      }
       return;
     }
     if (target.type === "preset-slot") {
@@ -1036,6 +1247,88 @@ export function MediaStudio({
       input.setSelectionRange(nextPromptState.caretIndex, nextPromptState.caretIndex);
     });
   }
+
+  const projectWorkspaceStrip = selectedProject ? (
+    <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-4 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/44">Project Workspace</div>
+          <div className="mt-2 text-base font-semibold text-white">{selectedProject.name}</div>
+          <div className="mt-1 max-w-2xl text-sm leading-6 text-white/58">
+            {selectedProject.description?.trim() || "New jobs, batches, and assets created here are assigned to this project."}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setProjectBrowserOpen(true)}
+            className="inline-flex h-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] px-4 text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-white/76 transition hover:text-white"
+          >
+            <Archive className="mr-1.5 size-3.5" />
+            Manage
+          </button>
+          <button
+            type="button"
+            onClick={() => openReferenceLibrary({ type: "project-reference", title: `Attach a reusable reference to ${selectedProject.name}.`, projectId: selectedProject.project_id })}
+            className="inline-flex h-9 items-center justify-center rounded-full border border-[rgba(208,255,72,0.18)] bg-[rgba(208,255,72,0.12)] px-4 text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-[rgba(208,255,72,0.92)] transition hover:bg-[rgba(208,255,72,0.16)]"
+          >
+            <FolderPlus className="mr-1.5 size-3.5" />
+            Attach reference
+          </button>
+        </div>
+      </div>
+      <div className="mt-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/44">Project References</div>
+          {projectReferencesLoading ? (
+            <div className="flex items-center gap-2 text-[0.68rem] text-white/54">
+              <LoaderCircle className="size-3.5 animate-spin" />
+              Loading
+            </div>
+          ) : null}
+        </div>
+        {projectReferences.length ? (
+          <div className="flex min-w-0 items-start gap-3 overflow-x-auto overflow-y-hidden pb-1">
+            {projectReferences.map((reference) => {
+              const kind = reference.kind === "video" ? "videos" : reference.kind === "audio" ? "audios" : "images";
+              const previewUrl =
+                reference.kind === "video"
+                  ? reference.poster_url ?? reference.thumb_url ?? reference.stored_url
+                  : reference.thumb_url ?? reference.stored_url;
+              return (
+                <StudioStagedMediaTile
+                  key={reference.reference_id}
+                  preview={{
+                    key: `project-reference:${reference.reference_id}`,
+                    label: reference.original_filename ?? reference.reference_id,
+                    url: reference.stored_url ?? previewUrl ?? "",
+                    kind,
+                    posterUrl: reference.poster_url ?? null,
+                  }}
+                  visualUrl={previewUrl}
+                  onOpenPreview={openReferencePreview}
+                  onRemove={() => {
+                    void detachReferenceFromSelectedProject(reference.reference_id).catch((error) => {
+                      setFormMessage({
+                        tone: "danger",
+                        text: error instanceof Error ? error.message : "Unable to remove the project reference.",
+                      });
+                    });
+                  }}
+                  className="h-[82px] w-[82px]"
+                  testId={`studio-project-reference-${reference.reference_id}`}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-[20px] border border-dashed border-white/10 bg-white/[0.03] px-4 py-4 text-sm leading-6 text-white/56">
+            No references are attached to this project yet. Attach from the global reference library so the workspace has the inputs it needs.
+          </div>
+        )}
+      </div>
+    </div>
+  ) : null;
 
   const multiImageReferenceStrip = dedicatedImageReferenceRailActive ? (
     <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-3 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
@@ -2574,8 +2867,15 @@ export function MediaStudio({
       return;
     }
     const targetPreset = plan?.targetPreset ?? null;
+    const targetProjectId = plan?.projectId ?? null;
 
     clearComposer();
+    if (targetProjectId !== selectedProjectId) {
+      setSelectedProjectId(targetProjectId);
+      if (typeof window !== "undefined") {
+        window.history.replaceState({}, "", studioHrefForProject(targetProjectId, null));
+      }
+    }
     setModelKey(targetModel.key);
     if (targetPreset) {
       applyPresetSelection(targetPreset.preset_id ?? targetPreset.key, { preferredModelKey: targetModel.key });
@@ -2739,6 +3039,10 @@ export function MediaStudio({
   }
 
   function handleGalleryKindFilterChange(nextKind: GalleryKindFilter) {
+    if (selectedProjectId && nextKind === "all") {
+      openProjectWorkspace(null);
+      return;
+    }
     clearGallerySelection();
     activateGalleryKindFilter(nextKind);
   }
@@ -2879,9 +3183,11 @@ export function MediaStudio({
             models={models}
             favoritesOnly={favoritesOnly}
             galleryKindFilter={galleryKindFilter}
+            projectWorkspaceActive={Boolean(selectedProject)}
             metrics={
               !selectedAsset ? (
                 <div className="hidden items-center gap-2 md:flex">
+                  {selectedProject ? <StudioMetricPill icon={FolderPlus} value={selectedProject.name} accent="highlight" /> : null}
                   {formattedRemainingCredits ? <StudioMetricPill icon={Coins} value={formattedRemainingCredits} /> : null}
                   {estimatedCredits ? <StudioMetricPill icon={Coins} value={estimatedCredits} accent="highlight" /> : null}
                   {estimatedCostUsd ? <StudioMetricPill icon={CircleDollarSign} value={estimatedCostUsd} accent="highlight" /> : null}
@@ -2891,6 +3197,7 @@ export function MediaStudio({
             onGalleryModelFilterChange={handleGalleryModelFilterChange}
             onActivateGalleryKindFilter={handleGalleryKindFilterChange}
             onToggleFavoritesFilter={handleFavoritesFilterToggle}
+            onOpenProjects={() => setProjectBrowserOpen(true)}
             onOpenPresets={() => setPresetBrowserOpen(true)}
             onOpenLibrary={openContextualReferenceLibrary}
             showLibraryButton={canOpenReferenceLibrary}
@@ -2933,8 +3240,11 @@ export function MediaStudio({
                   structuredPresetActive={structuredPresetActive}
                   presetLabel={currentPreset?.label ?? null}
                   externalTopContent={
-                    multiImageReferenceStrip || seedanceReferenceStrip ? (
-                      <div className="hidden lg:block">{multiImageReferenceStrip ?? seedanceReferenceStrip}</div>
+                    projectWorkspaceStrip || multiImageReferenceStrip || seedanceReferenceStrip ? (
+                      <div className="hidden space-y-3 lg:block">
+                        {projectWorkspaceStrip}
+                        {multiImageReferenceStrip ?? seedanceReferenceStrip}
+                      </div>
                     ) : null
                   }
                   mobileInputsContent={mobileInputsSection}
@@ -3522,10 +3832,25 @@ export function MediaStudio({
         />
       ) : null}
 
+      {projectBrowserOpen ? (
+        <StudioProjectBrowser
+          projects={localProjects}
+          selectedProjectId={selectedProjectId}
+          onClose={() => setProjectBrowserOpen(false)}
+          onSelectProject={openProjectWorkspace}
+          onCreateProject={createProjectInStudio}
+          onUpdateProject={updateProjectInStudio}
+          onArchiveProject={archiveProjectInStudio}
+          onUnarchiveProject={unarchiveProjectInStudio}
+          onDeleteProject={deleteProjectInStudio}
+        />
+      ) : null}
+
       {referenceLibraryTarget ? (
         <StudioReferenceLibrary
           title={referenceLibraryTarget.title}
-          kind="image"
+          kind={referenceLibraryTarget.type === "project-reference" ? "all" : "image"}
+          actionLabel={referenceLibraryTarget.type === "project-reference" ? "Attach reference" : undefined}
           onClose={() => setReferenceLibraryTarget(null)}
           onSelect={(reference) => void handleReferenceLibrarySelect(reference)}
         />

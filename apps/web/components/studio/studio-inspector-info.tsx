@@ -33,7 +33,12 @@ export function StudioInspectorInfo({
   const optionEntries = Object.entries((selectedAsset.payload?.resolved_options as Record<string, unknown> | undefined) ?? {})
     .filter(([, value]) => value != null && value !== "")
     .slice(0, 6);
-  const assetLinkPath = `/studio?asset=${encodeURIComponent(String(selectedAsset.asset_id))}`;
+  const assetLinkParams = new URLSearchParams();
+  if (selectedAsset.project_id) {
+    assetLinkParams.set("project", String(selectedAsset.project_id));
+  }
+  assetLinkParams.set("asset", String(selectedAsset.asset_id));
+  const assetLinkPath = `/studio?${assetLinkParams.toString()}`;
 
   useEffect(() => {
     if (copyLinkStatus === "idle") {
@@ -82,6 +87,10 @@ export function StudioInspectorInfo({
           <span className="text-sm font-medium text-white/92">
             {selectedAsset.generation_kind ?? selectedAsset.task_mode ?? "asset"}
           </span>
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
+          <span className="text-sm text-white/56">Project</span>
+          <span className="text-sm font-medium text-white/92">{selectedAsset.project_id ?? "Global"}</span>
         </div>
         <button
           type="button"
