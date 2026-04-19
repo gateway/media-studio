@@ -17,17 +17,26 @@ export function toControlApiDataPreviewPath(pathValue: string | null | undefined
   if (!pathValue) {
     return null;
   }
-  if (!pathValue.includes("/runtime/control-api/data/")) {
-    return toControlApiDataProxyPath(pathValue);
+  const normalizedPath = pathValue.replaceAll("\\", "/");
+  const knownRelativePrefixes = ["outputs/", "reference-media/", "downloads/", "uploads/"];
+
+  if (!normalizedPath.startsWith("/")) {
+    return toControlApiDataProxyPath(normalizedPath);
   }
-  const marker = "/runtime/control-api/data/";
-  const markerIndex = pathValue.indexOf(marker);
-  if (markerIndex === -1) {
-    return null;
+
+  for (const marker of ["/runtime/control-api/data/", "/data/"]) {
+    const markerIndex = normalizedPath.indexOf(marker);
+    if (markerIndex === -1) {
+      continue;
+    }
+    const relative = normalizedPath.slice(markerIndex + marker.length).replace(/^\/+/, "");
+    if (!relative || relative.startsWith("../")) {
+      continue;
+    }
+    if (knownRelativePrefixes.some((prefix) => relative.startsWith(prefix))) {
+      return `/api/control/files/${relative}`;
+    }
   }
-  const relative = pathValue.slice(markerIndex + marker.length).replaceAll("\\", "/");
-  if (!relative || relative.startsWith("../")) {
-    return null;
-  }
-  return `/api/control/files/${relative}`;
+
+  return toControlApiDataProxyPath(normalizedPath);
 }

@@ -509,6 +509,36 @@ describe("media-studio-helpers Seedance support", () => {
     ]);
   });
 
+  it("normalizes legacy absolute data paths when rebuilding retry references", () => {
+    expect(
+      buildStudioJobReferenceInputs({
+        job: {
+          normalized_request: {
+            images: [
+              {
+                path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/reference-media/images/legacy-ref.png",
+                media_type: "image",
+                role: "reference",
+              },
+            ],
+          },
+        } as never,
+        localAssets: [],
+        favoriteAssets: null,
+      }),
+    ).toEqual([
+      {
+        key: "job-reference:images:0",
+        label: "Reference 1",
+        url: "/api/control/files/reference-media/images/legacy-ref.png",
+        posterUrl: null,
+        assetId: null,
+        kind: "images",
+        role: "reference",
+      },
+    ]);
+  });
+
   it("builds a primary retry input from the saved source asset or local source path", () => {
     const sourceAsset = {
       asset_id: "asset-source",
@@ -672,6 +702,34 @@ describe("media-studio-helpers Seedance support", () => {
         label: "Reference 2",
         url: "/api/control/files/outputs/retry/ref-audio.mp3",
         kind: "audios",
+        posterUrl: null,
+      },
+    ]);
+  });
+
+  it("normalizes legacy absolute data paths in inspector reference previews", () => {
+    expect(
+      buildStudioReferencePreviews({
+        job: {
+          normalized_request: {
+            images: [
+              {
+                path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/reference-media/images/legacy-ref.png",
+                role: "reference",
+                media_type: "image",
+              },
+            ],
+          },
+        } as never,
+        localAssets: [],
+        favoriteAssets: null,
+      }),
+    ).toEqual([
+      {
+        key: "job-image:0",
+        label: "Reference 1",
+        url: "/api/control/files/reference-media/images/legacy-ref.png",
+        kind: "images",
         posterUrl: null,
       },
     ]);
