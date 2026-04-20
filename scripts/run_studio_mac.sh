@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/shared_env.sh
 . "$SCRIPT_DIR/shared_env.sh"
 MEDIA_ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
+KIE_ROOT="$(resolve_kie_root "$MEDIA_ROOT")"
 CLI_API_HOST=""
 CLI_API_PORT=""
 CLI_WEB_HOST=""
@@ -211,18 +212,26 @@ kie_repo_preflight() {
     return 0
   fi
 
-  declare -A KIE_STATUS=()
+  local kie_state=""
+  local kie_behind="0"
+  local kie_dirty="false"
+  local kie_upstream="origin"
   while IFS='=' read -r key value; do
     [[ -n "$key" ]] || continue
-    KIE_STATUS["$key"]="$value"
+    case "$key" in
+      state) kie_state="$value" ;;
+      behind) kie_behind="$value" ;;
+      dirty) kie_dirty="$value" ;;
+      upstream) kie_upstream="$value" ;;
+    esac
   done < <(kie_repo_status_summary "$KIE_ROOT")
 
-  if [[ "${KIE_STATUS[state]:-}" != "ok" || "${KIE_STATUS[behind]:-0}" == "0" ]]; then
+  if [[ "$kie_state" != "ok" || "$kie_behind" == "0" ]]; then
     return 0
   fi
 
-  echo "Warning: local kie-api checkout is behind ${KIE_STATUS[upstream]:-origin} by ${KIE_STATUS[behind]} commit(s)."
-  if [[ "${KIE_STATUS[dirty]:-false}" == "true" ]]; then
+  echo "Warning: local kie-api checkout is behind $kie_upstream by $kie_behind commit(s)."
+  if [[ "$kie_dirty" == "true" ]]; then
     echo "Local kie-api changes are present, so startup will not try to update it."
   else
     echo "If you want the latest model registry and runtime changes first, run:"
