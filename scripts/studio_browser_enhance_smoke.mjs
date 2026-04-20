@@ -122,6 +122,24 @@ async function waitForEnhancementBridge() {
   );
 }
 
+async function attachSourceImage() {
+  const selectors = [
+    '[data-testid="studio-source-input"]',
+    '[data-testid="studio-standard-slot-slot-source-image"]',
+    '[data-testid="studio-multi-image-input"]',
+  ];
+
+  for (const selector of selectors) {
+    const locator = page.locator(selector).first();
+    if ((await locator.count()) > 0) {
+      await page.setInputFiles(selector, referenceImagePath);
+      return;
+    }
+  }
+
+  throw new Error("Studio enhancement smoke could not find an image input slot.");
+}
+
 try {
   await forceBuiltinEnhancementConfig();
   await page.goto(studioUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -136,7 +154,7 @@ try {
 
   const promptInput = page.locator('[data-testid="studio-prompt-input"]');
   await promptInput.fill(originalPrompt);
-  await page.setInputFiles('[data-testid="studio-source-input"]', referenceImagePath);
+  await attachSourceImage();
   await page.waitForTimeout(800);
 
   await page.evaluate(() => window.__mediaStudioTest?.enhancement?.openDialog());

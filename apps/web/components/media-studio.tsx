@@ -36,8 +36,11 @@ import { StudioMobileInputsGroup, StudioMobileInputsSection } from "@/components
 import { StudioComposer } from "@/components/studio/studio-composer";
 import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
 import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
+import { SelectedAssetPromptPanelContent } from "@/components/studio/selected-asset-prompt-panel-content";
 import { StudioReferenceLibrary } from "@/components/studio/studio-reference-library";
+import { restoreComposerFromPlan as restoreStudioComposerFromPlan } from "@/components/studio/studio-composer-restore";
 import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
+import { StudioStandardSlotRail } from "@/components/studio/studio-standard-slot-rail";
 import { StudioProjectBrowser } from "@/components/studio/studio-project-browser";
 import { PillSelect } from "@/components/ui/pill-select";
 import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
@@ -150,6 +153,15 @@ declare global {
       };
       failedJob?: {
         seedAndOpen: (job: MediaJob, batch?: MediaBatch | null) => void;
+      };
+      assetInspector?: {
+        seedAndOpen: (payload: {
+          asset: MediaAsset;
+          job?: MediaJob | null;
+          batch?: MediaBatch | null;
+          assets?: MediaAsset[];
+          jobs?: MediaJob[];
+        }) => void;
       };
       enhancement?: {
         openDialog: () => void;
@@ -1125,6 +1137,32 @@ export function MediaStudio({
           setSelectedFailedJobId(job.job_id);
         },
       },
+      assetInspector: {
+        seedAndOpen: ({ asset, job = null, batch = null, assets = [], jobs = [] }) => {
+          const nextAssets = [asset, ...assets];
+          setLocalAssets((current) => [
+            ...nextAssets,
+            ...current.filter((entry) => !nextAssets.some((seeded) => String(seeded.asset_id) === String(entry.asset_id))),
+          ]);
+          if (batch) {
+            gallery.actions.setLocalBatches((current) =>
+              [batch, ...current.filter((entry) => entry.batch_id !== batch.batch_id)].slice(0, 12),
+            );
+          }
+          const nextJobs = [...(job ? [job] : []), ...jobs];
+          if (nextJobs.length) {
+            setLocalJobs((current) => [
+              ...nextJobs,
+              ...current.filter((entry) => !nextJobs.some((seeded) => seeded.job_id === entry.job_id)),
+            ].slice(0, 24));
+          }
+          setSelectedFailedJobId(null);
+          setSelectedMediaLightboxOpen(false);
+          setSelectedAssetId(asset.asset_id);
+          activateGalleryKindFilter("all");
+          setGalleryModelFilter("all");
+        },
+      },
       enhancement: {
         openDialog: () => openEnhanceDialogProxyRef.current(),
         requestPreview: () => requestEnhancementPreviewProxyRef.current(),
@@ -1139,6 +1177,7 @@ export function MediaStudio({
       delete window.__mediaStudioTest.gallery;
       delete window.__mediaStudioTest.library;
       delete window.__mediaStudioTest.failedJob;
+      delete window.__mediaStudioTest.assetInspector;
       delete window.__mediaStudioTest.enhancement;
       if (Object.keys(window.__mediaStudioTest).length === 0) {
         delete window.__mediaStudioTest;
@@ -1357,100 +1396,6 @@ export function MediaStudio({
     }
   }
 
-  function standardComposerSlotReplaceControl(slot: StudioComposerSlot, testId: string) {
-    return (
-      <label className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white">
-        <ImagePlus className="size-3.5" />
-        <input
-          type="file"
-          accept={slot.accept}
-          data-testid={testId}
-          className="hidden"
-          onChange={(event) => {
-            addFilesToStandardComposerSlot(slot, event.target.files, event.currentTarget, true);
-          }}
-        />
-      </label>
-    );
-  }
-
-  function renderStandardComposerSlotLabel(slot: StudioComposerSlot) {
-    if (slot.role === "end_frame") {
-      return (
-        <div className="max-w-[96px] whitespace-nowrap text-[0.62rem] font-semibold uppercase leading-none tracking-[0.14em] text-white/46">
-          End frame
-        </div>
-      );
-    }
-    return (
-      <div className="max-w-[96px] whitespace-nowrap text-[0.62rem] font-semibold uppercase leading-none tracking-[0.14em] text-white/46">
-        {slot.label}
-      </div>
-    );
-  }
-
-  function renderStandardComposerSlot(
-    slot: StudioComposerSlot,
-    options: { mobile?: boolean; testIdPrefix: string },
-  ) {
-    const mobile = options.mobile ?? false;
-    const preview = standardComposerSlotPreview(slot, `${options.testIdPrefix}-${slot.id}`);
-    const visualUrl = standardComposerSlotVisual(slot);
-    const previewClassName = mobile ? "h-[72px] w-[72px]" : "h-full w-full";
-    return (
-      <div key={slot.id} className={mobile ? "shrink-0" : "flex w-[96px] flex-col gap-2"}>
-        {!preview ? (
-          renderStandardComposerSlotLabel(slot)
-        ) : null}
-        <div className={mobile ? "h-[72px] w-[72px]" : "relative h-[82px] w-[82px]"}>
-          {preview ? (
-            <div
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsDragActive(true);
-              }}
-              onDragLeave={() => setIsDragActive(false)}
-              onDrop={(event) => void handleSourceTileDrop(event, slot.slotIndex, slot)}
-              className={previewClassName}
-            >
-              <StudioStagedMediaTile
-                preview={preview}
-                visualUrl={visualUrl}
-                onOpenPreview={openReferencePreview}
-                onRemove={() => clearStandardComposerSlot(slot)}
-                replaceControl={
-                  mobile ? undefined : standardComposerSlotReplaceControl(slot, `${options.testIdPrefix}-${slot.id}-replace`)
-                }
-                className={previewClassName}
-                tileClassName={slot.kind === "image" && orderedImageInputs[slot.slotIndex]?.source === "asset" ? "border-[rgba(216,141,67,0.24)]" : undefined}
-                testId={`${options.testIdPrefix}-${slot.id}-filled`}
-              />
-            </div>
-          ) : (
-            <StudioMediaSlotAddTile
-              accept={slot.accept}
-              isDragActive={isDragActive}
-              testId={`${options.testIdPrefix}-${slot.id}`}
-              required={slot.required}
-              wrapperClassName={mobile ? "shrink-0" : "h-full w-full"}
-              tileClassName={mobile ? mobileAddTileClassName : "h-full w-full"}
-              plusIconClassName={mobile ? mobileAddTilePlusIconClassName : undefined}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsDragActive(true);
-              }}
-              onDragLeave={() => setIsDragActive(false)}
-              onDrop={(event) => void handleSourceTileDrop(event, slot.slotIndex, slot)}
-              onPickFiles={(fileList, input) => {
-                addFilesToStandardComposerSlot(slot, fileList, input);
-              }}
-            />
-          )}
-        </div>
-      </div>
-    );
-  }
-
   const sourceAttachmentStrip = !structuredPresetActive &&
     !dedicatedImageReferenceRailActive &&
     (seedanceComposer || standardComposerLayout.usesExplicitSlots || genericSourceInputsAvailable) ? (
@@ -1547,7 +1492,20 @@ export function MediaStudio({
           )})}
         </>
       ) : standardComposerLayout.usesExplicitSlots ? (
-        <>{standardComposerSlots.map((slot) => renderStandardComposerSlot(slot, { testIdPrefix: "studio-standard-slot" }))}</>
+        <StudioStandardSlotRail
+          slots={standardComposerSlots}
+          isDragActive={isDragActive}
+          mobileAddTileClassName={mobileAddTileClassName}
+          mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
+          buildPreview={(slot, testIdPrefix) => standardComposerSlotPreview(slot, testIdPrefix)}
+          resolveVisualUrl={(slot) => standardComposerSlotVisual(slot)}
+          isAssetBackedImageSlot={(slot) => slot.kind === "image" && orderedImageInputs[slot.slotIndex]?.source === "asset"}
+          onSetDragActive={setIsDragActive}
+          onSlotDrop={(event, slot) => void handleSourceTileDrop(event, slot.slotIndex, slot)}
+          onOpenPreview={openReferencePreview}
+          onClearSlot={clearStandardComposerSlot}
+          onPickFiles={addFilesToStandardComposerSlot}
+        />
       ) : (
         <>
           {canUseSourceAsset && currentSourceAsset ? (
@@ -2014,7 +1972,21 @@ export function MediaStudio({
         summary={standardComposerLayout.summaryLabel}
       >
         <div className="flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
-          {standardComposerSlots.map((slot) => renderStandardComposerSlot(slot, { mobile: true, testIdPrefix: "studio-mobile-standard-slot" }))}
+          <StudioStandardSlotRail
+            slots={standardComposerSlots}
+            mobile
+            isDragActive={isDragActive}
+            mobileAddTileClassName={mobileAddTileClassName}
+            mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
+            buildPreview={(slot, testIdPrefix) => standardComposerSlotPreview(slot, testIdPrefix)}
+            resolveVisualUrl={(slot) => standardComposerSlotVisual(slot)}
+            isAssetBackedImageSlot={(slot) => slot.kind === "image" && orderedImageInputs[slot.slotIndex]?.source === "asset"}
+            onSetDragActive={setIsDragActive}
+            onSlotDrop={(event, slot) => void handleSourceTileDrop(event, slot.slotIndex, slot)}
+            onOpenPreview={openReferencePreview}
+            onClearSlot={clearStandardComposerSlot}
+            onPickFiles={addFilesToStandardComposerSlot}
+          />
         </div>
       </StudioMobileInputsSection>
     ) : sourceAttachmentStrip ? (
@@ -2651,26 +2623,6 @@ export function MediaStudio({
     });
   }
 
-  async function fetchReferenceFile(referenceUrl: string, label: string, kind: "images" | "videos" | "audios") {
-    const response = await fetch(referenceUrl, { credentials: "same-origin" });
-    if (!response.ok) {
-      throw new Error("Unable to fetch the reference media.");
-    }
-    const blob = await response.blob();
-    const fallbackExtension = kind === "videos" ? "mp4" : kind === "audios" ? "wav" : "png";
-    const fallbackMime = kind === "videos" ? "video/mp4" : kind === "audios" ? "audio/wav" : "image/png";
-    const safeLabel = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "reference";
-    const urlPath = (() => {
-      try {
-        return new URL(referenceUrl, window.location.origin).pathname.split("/").at(-1) ?? "";
-      } catch {
-        return "";
-      }
-    })();
-    const fileName = urlPath || `${safeLabel}.${fallbackExtension}`;
-    return new File([blob], fileName, { type: blob.type || fallbackMime });
-  }
-
   function addImageFilesToOrderedSlot(
     fileList: FileList | File[] | null,
     slotIndex: number,
@@ -2721,169 +2673,11 @@ export function MediaStudio({
     return payload.asset;
   }
 
-  async function restoreComposerFromPlan({
-    plan,
-    fallbackPrimaryInput,
-    fallbackReferenceInputs,
-    sourceAssetId,
-    missingModelMessage,
-    successMessage,
-    partialFailureMessage,
-    closeAssetInspector = false,
-    closeFailedJobInspector = false,
-  }: {
-    plan: ReturnType<typeof buildStudioRetryRestorePlan> | null;
-    fallbackPrimaryInput?: ReturnType<typeof buildStudioJobPrimaryInput> | null;
-    fallbackReferenceInputs?: ReturnType<typeof buildStudioJobReferenceInputs>;
-    sourceAssetId?: string | number | null;
-    missingModelMessage: string;
-    successMessage: string;
-    partialFailureMessage: string;
-    closeAssetInspector?: boolean;
-    closeFailedJobInspector?: boolean;
-  }) {
-    const targetModel = plan?.targetModel ?? null;
-    if (!targetModel) {
-      setFormMessage({ tone: "danger", text: missingModelMessage });
-      return;
-    }
-    const targetPreset = plan?.targetPreset ?? null;
-    const targetProjectId = plan?.projectId ?? null;
-
-    clearComposer();
-    if (targetProjectId !== selectedProjectId) {
-      setSelectedProjectId(targetProjectId);
-      if (typeof window !== "undefined") {
-        window.history.replaceState({}, "", studioHrefForProject(targetProjectId, null));
-      }
-    }
-    setModelKey(targetModel.key);
-    if (targetPreset) {
-      applyPresetSelection(targetPreset.preset_id ?? targetPreset.key, { preferredModelKey: targetModel.key });
-    } else {
-      setSelectedPresetId("");
-    }
-    setSelectedPromptIds(plan?.selectedPromptIds ?? []);
-    setPrompt(plan?.prompt ?? "");
-    setOptionValues(plan?.optionValues ?? {});
-    setOutputCount(plan?.outputCount ?? 1);
-    setValidation(null);
-    setBusyState("idle");
-    setOpenPicker(null);
-    setEnhanceDialogOpen(false);
-    setEnhancePreview(null);
-    setEnhanceError(null);
-    setIsDragActive(false);
-    clearSourceAsset();
-
-    if (closeFailedJobInspector) {
-      setSelectedFailedJobId(null);
-    }
-    if (closeAssetInspector) {
-      setSelectedAssetId(null);
-      setSelectedMediaLightboxOpen(false);
-      setSelectedReferencePreview(null);
-    }
-    setMobileComposerCollapsed(false);
-
-    await new Promise((resolve) => window.setTimeout(resolve, 0));
-    setPresetInputValues(plan?.presetInputValues ?? {});
-
-    let restoredPrimaryInput = false;
-    if (sourceAssetId != null) {
-      const localSourceAsset = findMediaAssetById(sourceAssetId, localAssets, favoriteAssets);
-      if (localSourceAsset) {
-        stageSourceAsset(localSourceAsset);
-        restoredPrimaryInput = true;
-      } else {
-        try {
-          const loadedSourceAsset = await fetchAssetById(sourceAssetId);
-          setLocalAssets((current) => [loadedSourceAsset, ...current.filter((asset) => asset.asset_id !== loadedSourceAsset.asset_id)]);
-          stageSourceAsset(loadedSourceAsset);
-          restoredPrimaryInput = true;
-        } catch {
-          // fall through to local file-based source restore below
-        }
-      }
-    }
-
-    const primaryInput = plan?.primaryInput ?? fallbackPrimaryInput ?? null;
-    if (!restoredPrimaryInput && primaryInput) {
-      if (primaryInput.assetId != null) {
-        const localPrimaryAsset = findMediaAssetById(primaryInput.assetId, localAssets, favoriteAssets);
-        if (localPrimaryAsset) {
-          if (primaryInput.role) {
-            await addGalleryAssetAsAttachment(localPrimaryAsset, primaryInput.role, [primaryInput.kind]);
-          } else {
-            stageSourceAsset(localPrimaryAsset);
-          }
-          restoredPrimaryInput = true;
-        }
-      }
-      if (!restoredPrimaryInput && primaryInput.url) {
-        try {
-          const primaryFile = await fetchReferenceFile(primaryInput.url, "source-image", primaryInput.kind);
-          await addRestoredFiles([primaryFile], {
-            role: primaryInput.role ?? undefined,
-            allowedKinds: [primaryInput.kind],
-            insertImageIndex: primaryInput.role == null && primaryInput.kind === "images" ? 0 : null,
-            replaceImageIndex: primaryInput.role == null && primaryInput.kind === "images" ? 0 : null,
-          });
-          restoredPrimaryInput = true;
-        } catch {
-          // leave the composer open even if the source cannot be refetched
-        }
-      }
-    }
-
-    if (targetPreset) {
-      for (const slotRestore of plan?.presetSlotRestores ?? []) {
-        if (slotRestore.assetId != null) {
-          const asset = findMediaAssetById(slotRestore.assetId, localAssets, favoriteAssets);
-          if (asset) {
-            assignPresetSlotAsset(slotRestore.slotKey, asset);
-            continue;
-          }
-        }
-        if (slotRestore.url) {
-          try {
-            const file = await fetchReferenceFile(slotRestore.url, slotRestore.label, "images");
-            assignPresetSlotFile(slotRestore.slotKey, file);
-          } catch {
-            // skip unavailable slot media
-          }
-        }
-      }
-    }
-
-    for (const reference of plan?.referenceInputs ?? fallbackReferenceInputs ?? []) {
-      if (reference.assetId != null) {
-        const asset = findMediaAssetById(reference.assetId, localAssets, favoriteAssets);
-        if (asset) {
-          await addGalleryAssetAsAttachment(asset, reference.role, [reference.kind]);
-          continue;
-        }
-      }
-      try {
-        const file = await fetchReferenceFile(reference.url, reference.label, reference.kind);
-        await addRestoredFiles([file], { role: reference.role ?? undefined, allowedKinds: [reference.kind] });
-      } catch {
-        // skip unavailable references; the user can still adjust before rerunning
-      }
-    }
-
-    setFormMessage({
-      tone: restoredPrimaryInput ? "warning" : "danger",
-      text: restoredPrimaryInput ? successMessage : partialFailureMessage,
-    });
-    revealComposer({ focusPresetField: Boolean(targetPreset) });
-  }
-
   async function retryFailedJobInStudio(job: MediaJob | null) {
     if (!job) {
       return;
     }
-    await restoreComposerFromPlan({
+    await restoreStudioComposerFromPlan({
       plan: selectedFailedJobRetryPlan,
       fallbackPrimaryInput: selectedFailedJobPrimaryInput,
       fallbackReferenceInputs: selectedFailedJobReferenceInputs,
@@ -2893,6 +2687,48 @@ export function MediaStudio({
       partialFailureMessage: "Loaded the failed job prompt and settings, but Studio could not restage the original source image.",
       closeAssetInspector: true,
       closeFailedJobInspector: true,
+      dependencies: {
+        localAssets,
+        favoriteAssets,
+        selectedProjectId,
+        setSelectedProjectId,
+        replaceStudioHistory: (projectId) => {
+          if (typeof window !== "undefined") {
+            window.history.replaceState({}, "", studioHrefForProject(projectId, null));
+          }
+        },
+        clearComposer,
+        setModelKey,
+        applyPresetSelection,
+        setSelectedPresetId,
+        setSelectedPromptIds,
+        setPrompt,
+        setOptionValues,
+        setOutputCount,
+        setValidation,
+        setBusyState,
+        setOpenPicker,
+        setEnhanceDialogOpen,
+        setEnhancePreview,
+        setEnhanceError,
+        setIsDragActive,
+        clearSourceAsset,
+        setPresetInputValues,
+        stageSourceAsset,
+        setLocalAssets,
+        fetchAssetById,
+        addRestoredFiles,
+        addGalleryAssetAsAttachment,
+        assignPresetSlotAsset,
+        assignPresetSlotFile,
+        setSelectedFailedJobId,
+        setSelectedAssetId,
+        setSelectedMediaLightboxOpen,
+        setSelectedReferencePreview: () => setSelectedReferencePreview(null),
+        setMobileComposerCollapsed,
+        setFormMessage,
+        revealComposer,
+      },
     });
   }
 
@@ -2900,7 +2736,7 @@ export function MediaStudio({
     if (!asset) {
       return;
     }
-    await restoreComposerFromPlan({
+    await restoreStudioComposerFromPlan({
       plan: selectedAssetRevisionPlan,
       sourceAssetId: selectedAssetJob?.source_asset_id ?? asset.source_asset_id ?? null,
       missingModelMessage: "Studio could not reconstruct this asset into an editable composer state.",
@@ -2908,6 +2744,48 @@ export function MediaStudio({
       partialFailureMessage: "Loaded this asset prompt and settings, but Studio could not restage some of the original reference media.",
       closeAssetInspector: true,
       closeFailedJobInspector: false,
+      dependencies: {
+        localAssets,
+        favoriteAssets,
+        selectedProjectId,
+        setSelectedProjectId,
+        replaceStudioHistory: (projectId) => {
+          if (typeof window !== "undefined") {
+            window.history.replaceState({}, "", studioHrefForProject(projectId, null));
+          }
+        },
+        clearComposer,
+        setModelKey,
+        applyPresetSelection,
+        setSelectedPresetId,
+        setSelectedPromptIds,
+        setPrompt,
+        setOptionValues,
+        setOutputCount,
+        setValidation,
+        setBusyState,
+        setOpenPicker,
+        setEnhanceDialogOpen,
+        setEnhancePreview,
+        setEnhanceError,
+        setIsDragActive,
+        clearSourceAsset,
+        setPresetInputValues,
+        stageSourceAsset,
+        setLocalAssets,
+        fetchAssetById,
+        addRestoredFiles,
+        addGalleryAssetAsAttachment,
+        assignPresetSlotAsset,
+        assignPresetSlotFile,
+        setSelectedFailedJobId,
+        setSelectedAssetId,
+        setSelectedMediaLightboxOpen,
+        setSelectedReferencePreview: () => setSelectedReferencePreview(null),
+        setMobileComposerCollapsed,
+        setFormMessage,
+        revealComposer,
+      },
     });
   }
 
@@ -3867,78 +3745,17 @@ export function MediaStudio({
                       </button>
                     ) : null}
                   </div>
-                  {selectedAssetStructuredPresetActive ? (
-                    <div className="grid gap-4">
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <div className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
-                          <div className="text-sm text-white/56">Preset</div>
-                          <div className="mt-1 text-sm font-medium text-white/92">
-                            {selectedAssetPreset?.label || selectedAsset.preset_key || "Preset"}
-                          </div>
-                        </div>
-                        <div className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
-                          <div className="text-sm text-white/56">Description</div>
-                          <div className="mt-1 text-sm font-medium text-white/92">
-                            {selectedAssetPreset?.description?.trim() || "No preset description was saved."}
-                          </div>
-                        </div>
-                      </div>
-                      {selectedAssetPresetSlots.length ? (
-                        <div className="grid gap-3">
-                          {selectedAssetPresetSlots.map((slot) => {
-                            const rawItems = Array.isArray(selectedAssetPresetSlotValues[slot.key])
-                              ? (selectedAssetPresetSlotValues[slot.key] as unknown[])
-                              : [];
-                            return (
-                              <div key={slot.key} className="rounded-[18px] border border-white/7 bg-black/16 p-3">
-                                <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/56">
-                                  <ImageIcon className="size-3.5 text-[rgba(208,255,72,0.88)]" />
-                                  {slot.label}
-                                </div>
-                                {slot.helpText ? (
-                                  <div className="mt-1 text-sm leading-6 text-white/60">{slot.helpText}</div>
-                                ) : null}
-                                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                                  <div className="rounded-[14px] bg-white/[0.03] px-3 py-2.5">
-                                    <div className="text-[0.72rem] uppercase tracking-[0.12em] text-white/48">Requirement</div>
-                                    <div className="mt-1 text-sm font-medium text-white/88">
-                                      {slot.required ? "Required" : "Optional"}
-                                    </div>
-                                  </div>
-                                  <div className="rounded-[14px] bg-white/[0.03] px-3 py-2.5">
-                                    <div className="text-[0.72rem] uppercase tracking-[0.12em] text-white/48">Saved input</div>
-                                    <div className="mt-1 text-sm font-medium text-white/88">
-                                      {rawItems.length > 0
-                                        ? `${rawItems.length} ${rawItems.length === 1 ? "reference" : "references"} attached`
-                                        : "No media recorded"}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : null}
-                      {selectedAssetPresetFields.length ? (
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {selectedAssetPresetFields.map((field) => (
-                            <div key={field.key} className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
-                              <div className="text-sm text-white/56">{field.label}</div>
-                              <div className="mt-1 text-sm font-medium text-white/92">
-                                {selectedAssetPresetInputValues[field.key] || field.defaultValue || "Not provided"}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="max-h-[14rem] overflow-y-auto rounded-[18px] border border-white/7 bg-black/16 px-4 py-3 pr-2">
-                      <p className="whitespace-pre-wrap text-sm leading-7 text-white/78">
-                        {selectedAssetPrompt ?? "No prompt text was stored for this asset."}
-                      </p>
-                    </div>
-                  )}
+                  <SelectedAssetPromptPanelContent
+                    structuredPresetActive={selectedAssetStructuredPresetActive}
+                    presetLabel={selectedAssetPreset?.label || selectedAsset.preset_key || "Preset"}
+                    presetDescription={selectedAssetPreset?.description ?? null}
+                    presetSlots={selectedAssetPresetSlots}
+                    presetSlotValues={selectedAssetPresetSlotValues}
+                    presetFields={selectedAssetPresetFields}
+                    presetInputValues={selectedAssetPresetInputValues}
+                    prompt={selectedAssetPrompt}
+                    promptContainerClassName="max-h-[14rem] overflow-y-auto rounded-[18px] border border-white/7 bg-black/16 px-4 py-3 pr-2"
+                  />
                 </div>
 
                 <div className="lg:hidden">
@@ -3970,76 +3787,16 @@ export function MediaStudio({
                     iconClassName="text-white/64"
                     bodyClassName="mt-3"
                   >
-                    {selectedAssetStructuredPresetActive ? (
-                      <div className="grid gap-4">
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <div className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
-                            <div className="text-sm text-white/56">Preset</div>
-                            <div className="mt-1 text-sm font-medium text-white/92">
-                              {selectedAssetPreset?.label || selectedAsset.preset_key || "Preset"}
-                            </div>
-                          </div>
-                          <div className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
-                            <div className="text-sm text-white/56">Description</div>
-                            <div className="mt-1 text-sm font-medium text-white/92">
-                              {selectedAssetPreset?.description?.trim() || "No preset description was saved."}
-                            </div>
-                          </div>
-                        </div>
-                        {selectedAssetPresetSlots.length ? (
-                          <div className="grid gap-3">
-                            {selectedAssetPresetSlots.map((slot) => {
-                              const rawItems = Array.isArray(selectedAssetPresetSlotValues[slot.key])
-                                ? (selectedAssetPresetSlotValues[slot.key] as unknown[])
-                                : [];
-                              return (
-                                <div key={slot.key} className="rounded-[18px] border border-white/7 bg-black/16 p-3">
-                                  <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/56">
-                                    <ImageIcon className="size-3.5 text-[rgba(208,255,72,0.88)]" />
-                                    {slot.label}
-                                  </div>
-                                  {slot.helpText ? <div className="mt-1 text-sm leading-6 text-white/60">{slot.helpText}</div> : null}
-                                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                                    <div className="rounded-[14px] bg-white/[0.03] px-3 py-2.5">
-                                      <div className="text-[0.72rem] uppercase tracking-[0.12em] text-white/48">Requirement</div>
-                                      <div className="mt-1 text-sm font-medium text-white/88">
-                                        {slot.required ? "Required" : "Optional"}
-                                      </div>
-                                    </div>
-                                    <div className="rounded-[14px] bg-white/[0.03] px-3 py-2.5">
-                                      <div className="text-[0.72rem] uppercase tracking-[0.12em] text-white/48">Saved input</div>
-                                      <div className="mt-1 text-sm font-medium text-white/88">
-                                        {rawItems.length > 0
-                                          ? `${rawItems.length} ${rawItems.length === 1 ? "reference" : "references"} attached`
-                                          : "No media recorded"}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : null}
-                        {selectedAssetPresetFields.length ? (
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {selectedAssetPresetFields.map((field) => (
-                              <div key={field.key} className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
-                                <div className="text-sm text-white/56">{field.label}</div>
-                                <div className="mt-1 text-sm font-medium text-white/92">
-                                  {selectedAssetPresetInputValues[field.key] || field.defaultValue || "Not provided"}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div className="rounded-[18px] border border-white/7 bg-black/16 px-4 py-3">
-                        <p className="whitespace-pre-wrap text-sm leading-7 text-white/78">
-                          {selectedAssetPrompt ?? "No prompt text was stored for this asset."}
-                        </p>
-                      </div>
-                    )}
+                    <SelectedAssetPromptPanelContent
+                      structuredPresetActive={selectedAssetStructuredPresetActive}
+                      presetLabel={selectedAssetPreset?.label || selectedAsset.preset_key || "Preset"}
+                      presetDescription={selectedAssetPreset?.description ?? null}
+                      presetSlots={selectedAssetPresetSlots}
+                      presetSlotValues={selectedAssetPresetSlotValues}
+                      presetFields={selectedAssetPresetFields}
+                      presetInputValues={selectedAssetPresetInputValues}
+                      prompt={selectedAssetPrompt}
+                    />
                   </CollapsibleSubsection>
                   </div>
                 </div>

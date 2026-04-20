@@ -83,8 +83,4 @@ wait_for_url "http://127.0.0.1:${WEB_PORT}/studio" "Media Studio Web" "$WEB_LOG"
 
 STUDIO_BASE_URL="http://127.0.0.1:${WEB_PORT}" npm run smoke:studio-browser
 STUDIO_BASE_URL="http://127.0.0.1:${WEB_PORT}" npm run smoke:studio-browser-preset
-STUDIO_BASE_URL="http://127.0.0.1:${WEB_PORT}" \
-STUDIO_CONTROL_API_BASE_URL="http://127.0.0.1:${API_PORT}" \
-STUDIO_CONTROL_API_TOKEN="$CONTROL_TOKEN" \
-STUDIO_ENHANCE_SMOKE_FORCE_BUILTIN=1 \
-  npm run smoke:studio-browser-enhance
+STUDIO_BASE_URL="http://127.0.0.1:${WEB_PORT}" npm run smoke:studio-browser-retry

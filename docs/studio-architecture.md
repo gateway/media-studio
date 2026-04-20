@@ -23,6 +23,12 @@
   Dock shell for the prompt composer, floating banner, metrics, and mobile expand/collapse framing.
 - `apps/web/components/studio/studio-lightbox.tsx`
   Full-screen media preview.
+- `apps/web/components/studio/studio-composer-restore.ts`
+  Shared restore controller for failed-job retry and completed-asset revision flows.
+- `apps/web/components/studio/selected-asset-prompt-panel-content.tsx`
+  Shared selected-asset prompt and preset-details body used by both desktop and mobile inspector wrappers.
+- `apps/web/components/studio/studio-standard-slot-rail.tsx`
+  Shared explicit slot renderer for standard slot-contract models across desktop and mobile.
 
 ## Remaining top-level responsibilities
 
@@ -34,6 +40,7 @@
 - selected asset inspector layout
 - settings modal composition
 - browser-specific download/share behavior
+- controller wiring between gallery, selection, polling, composer, and restore helpers
 
 ## Seedance 2.0 contract
 
@@ -71,13 +78,32 @@ The contract lives in:
 
 The renderer consumes that contract in:
 
-- `apps/web/components/media-studio.tsx`
+- `apps/web/components/studio/studio-standard-slot-rail.tsx`
 
 The controller/hook keeps slot staging and replacement behavior coherent in:
 
 - `apps/web/hooks/studio/use-studio-composer.ts`
+- `apps/web/lib/studio-attachment-staging.ts`
+
+## Restore path
+
+Retry and revision now share one internal restore controller:
+
+- `apps/web/components/studio/studio-composer-restore.ts`
+
+That controller owns:
+
+- project context handoff before restore
+- implicit primary-input fallback from normalized request payloads
+- preset slot file restore
+- reference reattachment fallback
+- non-blocking partial restore behavior when some media cannot be refetched
+
+`MediaStudio` only decides when to invoke restore and what success/failure copy to show.
 
 For the concrete rules, slot types, replacement semantics, and verification path, see [docs/studio-standard-composer-slots.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/studio-standard-composer-slots.md).
+
+For the current implementation ownership map after the monolith-reduction pass, see [docs/studio-implementation-map.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/studio-implementation-map.md).
 
 ## Refactor rule
 

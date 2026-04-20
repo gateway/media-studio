@@ -10,6 +10,8 @@ const failureShot = path.join(outputDir, "studio-browser-standard-slots-smoke-fa
 const mobileShot = path.join(outputDir, "studio-browser-standard-slots-smoke-mobile.png");
 const baseUrl = (process.env.STUDIO_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 const studioUrl = `${baseUrl}/studio`;
+const tinyPngDataUrl =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jX3cAAAAASUVORK5CYII=";
 
 await fs.mkdir(outputDir, { recursive: true });
 
@@ -33,6 +35,11 @@ const summary = {
   },
   screenshot: successShot,
   mobile_screenshot: mobileShot,
+};
+
+const seedMedia = {
+  imagePath: "outputs/smokes/standard-slot-image.png",
+  videoPath: "outputs/smokes/standard-slot-video.mp4",
 };
 
 function expectState(condition, message) {
@@ -99,9 +106,82 @@ async function ensureModelSelected(page, modelMatcher, modelKey) {
   throw new Error(`No matching model option was found for ${modelKey}.`);
 }
 
+async function seedSyntheticGalleryAssets(page) {
+  const createdAt = new Date().toISOString();
+  const imageBuffer = Buffer.from(tinyPngDataUrl.split(",")[1], "base64");
+  await fs.mkdir(path.resolve(process.cwd(), "data", "outputs", "smokes"), { recursive: true });
+  await fs.writeFile(path.resolve(process.cwd(), "data", seedMedia.imagePath), imageBuffer);
+  await fs.writeFile(path.resolve(process.cwd(), "data", seedMedia.videoPath), Buffer.from([0x00, 0x00, 0x00, 0x18]));
+  await page.waitForFunction(
+    () => typeof window.__mediaStudioTest?.gallery?.seedAssets === "function",
+    null,
+    { timeout: 15000 },
+  );
+  await page.evaluate(
+    ({ createdAt, imagePath, videoPath }) => {
+      window.__mediaStudioTest?.gallery?.seedAssets([
+        {
+          asset_id: "asset-standard-slot-image-1",
+          generation_kind: "image",
+          status: "completed",
+          model_key: "nano-banana-2",
+          prompt_summary: "Seeded image 1",
+          hero_thumb_path: imagePath,
+          hero_web_path: imagePath,
+          created_at: createdAt,
+          updated_at: createdAt,
+        },
+        {
+          asset_id: "asset-standard-slot-image-2",
+          generation_kind: "image",
+          status: "completed",
+          model_key: "nano-banana-2",
+          prompt_summary: "Seeded image 2",
+          hero_thumb_path: imagePath,
+          hero_web_path: imagePath,
+          created_at: createdAt,
+          updated_at: createdAt,
+        },
+        {
+          asset_id: "asset-standard-slot-video-1",
+          generation_kind: "video",
+          status: "completed",
+          model_key: "kling-2.6-i2v",
+          prompt_summary: "Seeded video",
+          hero_poster_path: imagePath,
+          hero_thumb_path: imagePath,
+          hero_original_path: videoPath,
+          created_at: createdAt,
+          updated_at: createdAt,
+        },
+      ]);
+    },
+    { createdAt, imagePath: seedMedia.imagePath, videoPath: seedMedia.videoPath },
+  );
+  await page.waitForFunction(
+    () => document.querySelectorAll('[data-testid="studio-gallery-card"]').length >= 3,
+    null,
+    { timeout: 15000 },
+  );
+}
+
+async function ensureReferenceLibraryHasItem() {
+  const formData = new FormData();
+  formData.set("file", new File([Buffer.from(tinyPngDataUrl.split(",")[1], "base64")], "smoke-reference.png", { type: "image/png" }));
+  const response = await fetch(`${baseUrl}/api/control/reference-media/import`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    throw new Error("Standard slots smoke could not import a synthetic reference image.");
+  }
+}
+
 async function runDesktopSmoke(page) {
   await page.goto(studioUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForSelector('[data-testid="studio-gallery"]', { timeout: 60000 });
+  await seedSyntheticGalleryAssets(page);
+  await ensureReferenceLibraryHasItem();
   await page.getByTestId("studio-filter-images").click();
   await page.waitForTimeout(300);
   const imageCards = page.locator('[data-testid="studio-gallery-card"][data-generation-kind="image"]');

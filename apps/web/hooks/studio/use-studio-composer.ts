@@ -44,13 +44,13 @@ import {
   resolveStudioPresetTargetModel,
   seedanceReferenceTokenGuide,
   serializeOptionChoice,
-  insertImageAttachments,
   isStudioPresetVisible,
   studioPresetSupportedModels,
   stripUnsupportedStudioOptions,
   studioValidationReady,
   type PresetSlotState,
 } from "@/lib/media-studio-helpers";
+import { applyAttachmentInsertOrReplace, buildStagedAttachments } from "@/lib/studio-attachment-staging";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import {
   createOptimisticBatch,
@@ -983,37 +983,20 @@ export function useStudioComposer({
       return;
     }
     const previewUrls = await Promise.all(acceptedFiles.map((file) => buildAttachmentPreviewUrl(file)));
-    const nextAttachments = acceptedFiles.map((file, index) => ({
-      id: `${file.name}-${file.size}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
-      file,
-      kind: acceptedMetadata[index]?.kind ?? classifyFile(file),
-      role: acceptedMetadata[index]?.role ?? (seedanceComposer ? "reference" : null),
-      previewUrl: previewUrls[index] ?? null,
-      durationSeconds: null,
-      referenceId: null,
-      referenceRecord: null,
-    }));
-    setAttachments((current) => {
-      const removeReplacedImageAttachment = (attachments: AttachmentRecord[]) => {
-        if (replaceImageIndex == null) {
-          return attachments;
-        }
-        let imageIndex = 0;
-        let removed = false;
-        return attachments.filter((attachment) => {
-          if (!removed && attachment.kind === "images" && !attachment.role && imageIndex++ === replaceImageIndex) {
-            removed = true;
-            return false;
-          }
-          return true;
-        });
-      };
-
-      const nextCurrent = removeReplacedImageAttachment(current);
-      return insertImageIndex != null
-        ? insertImageAttachments(nextCurrent, nextAttachments, insertImageIndex)
-        : [...nextCurrent, ...nextAttachments];
-    });
+    const nextAttachments = buildStagedAttachments(
+      acceptedFiles.map((file, index) => ({
+        file,
+        kind: acceptedMetadata[index]?.kind ?? classifyFile(file),
+        role: acceptedMetadata[index]?.role ?? (seedanceComposer ? "reference" : null),
+        previewUrl: previewUrls[index] ?? null,
+      })),
+    );
+    setAttachments((current) =>
+      applyAttachmentInsertOrReplace(current, nextAttachments, {
+        insertImageIndex,
+        replaceImageIndex,
+      }),
+    );
     if (rejectedKinds.size) {
       setFormMessage({
         tone: "warning",
@@ -1041,37 +1024,20 @@ export function useStudioComposer({
     const replaceImageIndex =
       explicitRole || seedanceComposer || config.replaceImageIndex == null ? null : Math.max(0, config.replaceImageIndex);
     const previewUrls = await Promise.all(incomingFiles.map((file) => buildAttachmentPreviewUrl(file)));
-    const nextAttachments = incomingFiles.map((file, index) => ({
-      id: `${file.name}-${file.size}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
-      file,
-      kind: config.allowedKinds?.[0] ?? classifyFile(file),
-      role: explicitRole ?? (seedanceComposer ? "reference" : null),
-      previewUrl: previewUrls[index] ?? null,
-      durationSeconds: null,
-      referenceId: null,
-      referenceRecord: null,
-    }));
-    setAttachments((current) => {
-      const removeReplacedImageAttachment = (attachments: AttachmentRecord[]) => {
-        if (replaceImageIndex == null) {
-          return attachments;
-        }
-        let imageIndex = 0;
-        let removed = false;
-        return attachments.filter((attachment) => {
-          if (!removed && attachment.kind === "images" && !attachment.role && imageIndex++ === replaceImageIndex) {
-            removed = true;
-            return false;
-          }
-          return true;
-        });
-      };
-
-      const nextCurrent = removeReplacedImageAttachment(current);
-      return insertImageIndex != null
-        ? insertImageAttachments(nextCurrent, nextAttachments, insertImageIndex)
-        : [...nextCurrent, ...nextAttachments];
-    });
+    const nextAttachments = buildStagedAttachments(
+      incomingFiles.map((file, index) => ({
+        file,
+        kind: config.allowedKinds?.[0] ?? classifyFile(file),
+        role: explicitRole ?? (seedanceComposer ? "reference" : null),
+        previewUrl: previewUrls[index] ?? null,
+      })),
+    );
+    setAttachments((current) =>
+      applyAttachmentInsertOrReplace(current, nextAttachments, {
+        insertImageIndex,
+        replaceImageIndex,
+      }),
+    );
   }
 
   async function addGalleryAssetAsAttachment(
@@ -1183,47 +1149,24 @@ export function useStudioComposer({
       return;
     }
 
-    const nextAttachment = {
-      id: `reference-${reference.reference_id}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
-      file: null,
-      kind,
-      role: config.role ?? (seedanceComposer ? "reference" : null),
-      previewUrl: reference.thumb_url ?? reference.poster_url ?? reference.stored_url ?? null,
-      durationSeconds: reference.duration_seconds ?? null,
-      referenceId: reference.reference_id,
-      referenceRecord: reference,
-    } satisfies AttachmentRecord;
+    const [nextAttachment] = buildStagedAttachments([
+      {
+        file: null,
+        kind,
+        role: config.role ?? (seedanceComposer ? "reference" : null),
+        previewUrl: reference.thumb_url ?? reference.poster_url ?? reference.stored_url ?? null,
+        durationSeconds: reference.duration_seconds ?? null,
+        referenceId: reference.reference_id,
+        referenceRecord: reference,
+      },
+    ]);
 
-    setAttachments((current) => {
-      const normalizedReplaceIndex =
-        kind === "images" && config.replaceImageIndex != null ? Math.max(0, config.replaceImageIndex) : null;
-      const normalizedInsertIndex =
-        kind === "images" && config.insertImageIndex != null ? Math.max(0, config.insertImageIndex) : null;
-
-      let nextCurrent = current;
-      if (normalizedReplaceIndex != null) {
-        let imageIndex = 0;
-        let removed = false;
-        nextCurrent = current.filter((attachment) => {
-          if (
-            !removed &&
-            attachment.kind === "images" &&
-            !attachment.role &&
-            imageIndex++ === normalizedReplaceIndex
-          ) {
-            removed = true;
-            return false;
-          }
-          return true;
-        });
-      }
-
-      if (normalizedInsertIndex != null) {
-        return insertImageAttachments(nextCurrent, [nextAttachment], normalizedInsertIndex);
-      }
-
-      return [...nextCurrent, nextAttachment];
-    });
+    setAttachments((current) =>
+      applyAttachmentInsertOrReplace(current, [nextAttachment], {
+        insertImageIndex: kind === "images" ? config.insertImageIndex : null,
+        replaceImageIndex: kind === "images" ? config.replaceImageIndex : null,
+      }),
+    );
   }
 
   function assignPresetSlotFile(slotKey: string, file: File | null) {

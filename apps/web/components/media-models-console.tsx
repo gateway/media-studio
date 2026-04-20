@@ -37,6 +37,15 @@ import { CollapsibleSubsection } from "@/components/collapsible-sections";
 import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
+import {
+  openMediaOutputsFolderRequest,
+  probeEnhancementProviderRequest,
+  saveEnhancementConfigRequest,
+  saveGlobalQueueSettingsRequest,
+  saveModelQueuePolicyRequest,
+  upsertEnhancementConfigEntry,
+  upsertQueuePolicyEntry,
+} from "@/lib/media-model-admin";
 import { presetThumbnailVisual, STUDIO_NANO_MAX_OUTPUTS } from "@/lib/media-studio-helpers";
 import type {
   LlmPreset,
@@ -393,25 +402,6 @@ function modelParameterRows(model: MediaModelSummary | null) {
   return rows;
 }
 
-function upsertEnhancementConfigEntry(list: MediaEnhancementConfig[], config: MediaEnhancementConfig) {
-  const next = list.filter((item) => item.model_key !== config.model_key);
-  next.push(config);
-  next.sort((left, right) => left.model_key.localeCompare(right.model_key));
-  return next;
-}
-
-function parseSavedEnhancementConfig(
-  result: { ok?: boolean; error?: string; config?: MediaEnhancementConfig } | (MediaEnhancementConfig & { ok?: boolean; error?: string }),
-) {
-  if ("config" in result && result.config) {
-    return result.config;
-  }
-  if ("model_key" in result && typeof result.model_key === "string") {
-    return result as MediaEnhancementConfig;
-  }
-  return null;
-}
-
 export function MediaModelsConsole({
   models,
   presets,
@@ -690,20 +680,14 @@ export function MediaModelsConsole({
       ? `/api/control/media-enhancement-configs/${GLOBAL_ENHANCEMENT_CONFIG_KEY}`
       : "/api/control/media-enhancement-configs";
     const method = globalEnhancementConfig ? "PATCH" : "POST";
-    const response = await fetch(endpoint, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const result = (await response.json()) as { ok?: boolean; error?: string; config?: MediaEnhancementConfig } | (MediaEnhancementConfig & { ok?: boolean; error?: string });
-    if (!response.ok || result.ok === false) {
+    const result = await saveEnhancementConfigRequest({ endpoint, method, payload });
+    if (!result.ok) {
       setIsSaving(false);
       showNotice("danger", result.error ?? "Unable to save the enhancement config.");
       return;
     }
-    const savedConfig = parseSavedEnhancementConfig(result);
-    if (savedConfig) {
-      setLocalEnhancementConfigs((current) => upsertEnhancementConfigEntry(current, savedConfig));
+    if (result.config) {
+      setLocalEnhancementConfigs((current) => upsertEnhancementConfigEntry(current, result.config as MediaEnhancementConfig));
     }
     setIsSaving(false);
     showNotice("healthy", "Provider settings saved.");
@@ -734,19 +718,13 @@ export function MediaModelsConsole({
       ? `/api/control/media-enhancement-configs/${selectedEnhancementModelKey}`
       : "/api/control/media-enhancement-configs";
     const method = existingConfig ? "PATCH" : "POST";
-    const response = await fetch(endpoint, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const result = (await response.json()) as { ok?: boolean; error?: string; config?: MediaEnhancementConfig } | (MediaEnhancementConfig & { ok?: boolean; error?: string });
+    const result = await saveEnhancementConfigRequest({ endpoint, method, payload });
     setIsSaving(false);
-    const savedConfig = parseSavedEnhancementConfig(result);
-    if (!response.ok || result.ok === false || !savedConfig) {
+    if (!result.ok || !result.config) {
       showNotice("danger", result.error ?? "Unable to save the model enhancement profile.");
       return;
     }
-    setLocalEnhancementConfigs((current) => upsertEnhancementConfigEntry(current, savedConfig));
+    setLocalEnhancementConfigs((current) => upsertEnhancementConfigEntry(current, result.config as MediaEnhancementConfig));
     showNotice("healthy", `Model helper saved for ${selectedEnhancementModelKey}.`);
   }
 
@@ -766,34 +744,22 @@ export function MediaModelsConsole({
       selected_model_id: enhancementForm.providerModelId || null,
       require_images: enhancementForm.supportsImageAnalysis,
     };
-    const response = await fetch("/api/control/media-enhancement-providers/probe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const result = (await response.json()) as {
-      ok?: boolean;
-      error?: string;
-      provider?: string;
-      credential_source?: string | null;
-      selected_model?: MediaEnhancementProviderModel | null;
-      available_models?: MediaEnhancementProviderModel[];
-    };
+    const result = await probeEnhancementProviderRequest(payload);
     setIsProbingProvider(false);
-    if (!response.ok || result.ok === false) {
+    if (!result.ok) {
       if (!silent) {
         showNotice("danger", result.error ?? "Unable to connect to the enhancement provider.");
       }
       return;
     }
-    const catalog = result.available_models ?? [];
+    const catalog = result.availableModels ?? [];
     if (providerKind === "openrouter") {
       setOpenRouterCatalog(catalog);
     } else {
       setLocalProviderCatalog(catalog);
     }
     const recommendedModel =
-      result.selected_model ??
+      result.selectedModel ??
       (providerKind === "openrouter"
         ? catalog.find((item) => item.id === DEFAULT_OPENROUTER_ENHANCEMENT_MODEL) ?? null
         : null);
@@ -806,15 +772,15 @@ export function MediaModelsConsole({
       providerStatus: "connected",
       providerLastTestedAt: new Date().toISOString(),
       providerCapabilities: recommendedModel?.raw ?? {},
-      providerCredentialSource: result.credential_source ?? "",
-      providerApiKeyConfigured: current.providerApiKeyConfigured || Boolean(result.credential_source),
+      providerCredentialSource: result.credentialSource ?? "",
+      providerApiKeyConfigured: current.providerApiKeyConfigured || Boolean(result.credentialSource),
       providerBaseUrlConfigured: current.providerBaseUrlConfigured || Boolean(current.providerBaseUrl),
     }));
     if (!silent) {
       showNotice(
         "healthy",
-        result.selected_model
-          ? `Connected to ${providerKind === "openrouter" ? "OpenRouter" : "the local provider"} using ${result.selected_model.label}.`
+        result.selectedModel
+          ? `Connected to ${providerKind === "openrouter" ? "OpenRouter" : "the local provider"} using ${result.selectedModel.label}.`
           : `Connected to ${providerKind === "openrouter" ? "OpenRouter" : "the local provider"}.`,
       );
     }
@@ -822,9 +788,8 @@ export function MediaModelsConsole({
 
   async function openMediaOutputsFolder() {
     clearNotice();
-    const response = await fetch("/api/control/media-output-folder", { method: "POST" });
-    const result = (await response.json()) as { ok?: boolean; error?: string };
-    if (!response.ok || result.ok === false) {
+    const result = await openMediaOutputsFolderRequest();
+    if (!result.ok) {
       showNotice("danger", result.error ?? "Unable to open the media outputs folder.");
       return;
     }
@@ -833,19 +798,9 @@ export function MediaModelsConsole({
 
   async function saveGlobalQueueSettings(settings: MediaQueueSettings) {
     setIsSaving(true);
-    const response = await fetch("/api/control/media-queue-settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        max_concurrent_jobs: Math.max(1, settings.max_concurrent_jobs),
-        queue_enabled: settings.queue_enabled,
-        default_poll_seconds: Math.max(1, Number(settings.default_poll_seconds) || 1),
-        max_retry_attempts: Math.max(1, Number(settings.max_retry_attempts) || 1),
-      }),
-    });
-    const result = (await response.json()) as { ok?: boolean; error?: string; settings?: MediaQueueSettings };
+    const result = await saveGlobalQueueSettingsRequest(settings);
     setIsSaving(false);
-    if (!response.ok || result.ok === false || !result.settings) {
+    if (!result.ok || !result.settings) {
       showNotice("danger", result.error ?? "Unable to update the queue settings.");
       return;
     }
@@ -857,22 +812,13 @@ export function MediaModelsConsole({
     const clampedValue = Math.min(Math.max(1, maxOutputsPerRun), STUDIO_NANO_MAX_OUTPUTS);
     const enabled = currentQueuePolicy?.enabled ?? true;
     setIsSaving(true);
-    const response = await fetch(`/api/control/media-queue-policies/${selectedModelKey}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled, max_outputs_per_run: clampedValue }),
-    });
-    const result = (await response.json()) as { ok?: boolean; error?: string; policy?: MediaModelQueuePolicy };
+    const result = await saveModelQueuePolicyRequest(selectedModelKey, enabled, clampedValue);
     setIsSaving(false);
-    if (!response.ok || result.ok === false || !result.policy) {
+    if (!result.ok || !result.policy) {
       showNotice("danger", result.error ?? "Unable to update the model queue policy.");
       return;
     }
-    setLocalQueuePolicies((current) => {
-      const next = current.filter((entry) => entry.model_key !== result.policy?.model_key);
-      next.push(result.policy as MediaModelQueuePolicy);
-      return next.sort((left, right) => left.model_key.localeCompare(right.model_key));
-    });
+    setLocalQueuePolicies((current) => upsertQueuePolicyEntry(current, result.policy as MediaModelQueuePolicy));
     showNotice("healthy", "Model settings saved.");
   }
 
@@ -880,25 +826,13 @@ export function MediaModelsConsole({
     const policy = localQueuePolicies.find((entry) => entry.model_key === modelKey) ?? null;
     const maxOutputsPerRun = policy?.max_outputs_per_run ?? 1;
     setIsSaving(true);
-    const response = await fetch(`/api/control/media-queue-policies/${modelKey}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        enabled,
-        max_outputs_per_run: Math.min(Math.max(1, maxOutputsPerRun), STUDIO_NANO_MAX_OUTPUTS),
-      }),
-    });
-    const result = (await response.json()) as { ok?: boolean; error?: string; policy?: MediaModelQueuePolicy };
+    const result = await saveModelQueuePolicyRequest(modelKey, enabled, maxOutputsPerRun);
     setIsSaving(false);
-    if (!response.ok || result.ok === false || !result.policy) {
+    if (!result.ok || !result.policy) {
       showNotice("danger", result.error ?? "Unable to update the model availability.");
       return;
     }
-    setLocalQueuePolicies((current) => {
-      const next = current.filter((entry) => entry.model_key !== result.policy?.model_key);
-      next.push(result.policy as MediaModelQueuePolicy);
-      return next.sort((left, right) => left.model_key.localeCompare(right.model_key));
-    });
+    setLocalQueuePolicies((current) => upsertQueuePolicyEntry(current, result.policy as MediaModelQueuePolicy));
     showNotice("healthy", enabled ? "Model enabled." : "Model disabled.");
   }
 
