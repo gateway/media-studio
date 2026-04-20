@@ -571,6 +571,14 @@ textarea {
   transition: background-color 160ms ease, color 160ms ease;
 }
 
+.admin-model-select > button {
+  background-color: #1a1d1d;
+}
+
+.admin-model-select > button:hover {
+  background-color: #1e2121;
+}
+
 .admin-select-menu {
   position: absolute;
   left: 0;

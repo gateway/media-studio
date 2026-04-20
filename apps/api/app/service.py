@@ -964,14 +964,9 @@ def _resolved_enhancement_config(model_key: str) -> Dict[str, Any]:
 
 def _candidate_enhancement_image_paths(request: ValidateRequest, bundle: Dict[str, Any]) -> List[str]:
     paths: List[str] = []
-    for item in request.images:
-        if item.path:
-            paths.append(str(item.path))
-    for refs in bundle.get("image_slot_values", {}).values():
-        for ref in refs:
-            path_value = ref.get("path")
-            if path_value:
-                paths.append(str(path_value))
+    for item in bundle.get("raw_request", {}).get("images", []) or []:
+        if isinstance(item, dict) and item.get("path"):
+            paths.append(str(item.get("path")))
     if request.source_asset_id:
         asset = store.get_asset(str(request.source_asset_id))
         if asset:

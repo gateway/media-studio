@@ -907,6 +907,7 @@ export function MediaModelsConsole({
     value: string,
     onChange: (value: string) => void,
     options: SettingsChoice[],
+    className?: string,
   ) {
     const isOpen = openPicker === pickerId;
     return (
@@ -919,6 +920,7 @@ export function MediaModelsConsole({
           onChange(nextValue);
           setOpenPicker(null);
         }}
+        className={className}
       />
     );
   }
@@ -1450,6 +1452,7 @@ export function MediaModelsConsole({
               selectedModelKey,
               (value) => setSelectedModelKey(value),
               models.map((model) => ({ value: model.key, label: model.label })),
+              "admin-model-select",
             )}
           </label>
         </div>

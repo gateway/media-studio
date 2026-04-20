@@ -962,6 +962,80 @@ def test_enhance_preview_allows_image_only_when_image_support_is_enabled(client,
     assert payload["image_analysis"] == "reference image detected"
 
 
+def test_enhance_preview_resolves_reference_library_images_to_absolute_paths(client, app_modules, monkeypatch) -> None:
+    client.post(
+        "/media/enhancement-configs",
+        json={
+            "model_key": "kling-2.6-i2v",
+            "label": "kling enhancement",
+            "provider_kind": "openrouter",
+            "provider_label": "OpenRouter.ai",
+            "provider_model_id": "qwen/qwen3.5-35b-a3b",
+            "provider_supports_images": True,
+            "supports_text_enhancement": True,
+            "supports_image_analysis": True,
+            "system_prompt": "Rewrite the prompt.",
+            "image_analysis_prompt": "Analyze the reference image.",
+        },
+    )
+
+    reference_path = app_modules["main"].settings.data_root / "reference-media" / "images" / "enhance-ref.png"
+    reference_path.parent.mkdir(parents=True, exist_ok=True)
+    reference_path.write_bytes(b"png-bytes")
+    reference = app_modules["store"].create_or_reuse_reference_media(
+        {
+            "kind": "image",
+            "status": "active",
+            "original_filename": "enhance-ref.png",
+            "stored_path": "reference-media/images/enhance-ref.png",
+            "mime_type": "image/png",
+            "file_size_bytes": len(b"png-bytes"),
+            "sha256": "enhance-ref-sha",
+            "width": 768,
+            "height": 1024,
+            "duration_seconds": None,
+            "thumb_path": None,
+            "poster_path": None,
+            "usage_count": 1,
+            "metadata_json": {},
+        },
+        increment_usage=False,
+    )
+
+    def fake_enhancement(**kwargs):
+        assert kwargs["prompt"] == "walk forward"
+        assert kwargs["image_paths"] == [str(reference_path)]
+        return {
+            "provider_kind": "openrouter",
+            "provider_model_id": "qwen/qwen3.5-35b-a3b",
+            "enhanced_prompt": "enhanced walk forward",
+            "final_prompt_used": "enhanced walk forward",
+            "image_analysis": "reference image detected",
+            "warnings": [],
+        }
+
+    monkeypatch.setattr(
+        app_modules["service"].enhancement_provider,
+        "run_openai_compatible_enhancement",
+        fake_enhancement,
+    )
+
+    response = client.post(
+        "/media/enhance/preview",
+        json={
+            "model_key": "kling-2.6-i2v",
+            "task_mode": "image_to_video",
+            "prompt": "walk forward",
+            "images": [{"reference_id": reference["reference_id"]}],
+            "enhance": True,
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["enhanced_prompt"] == "enhanced walk forward"
+    assert payload["image_analysis"] == "reference image detected"
+
+
 def test_enhance_preview_returns_timeout_error_when_provider_stalls(client, app_modules, monkeypatch) -> None:
     client.post(
         "/media/enhancement-configs",
