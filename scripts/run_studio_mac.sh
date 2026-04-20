@@ -199,6 +199,38 @@ require_command open
 require_command lsof
 require_command python3
 
+kie_repo_preflight() {
+  if ! kie_repo_is_git_checkout "$KIE_ROOT"; then
+    return 0
+  fi
+
+  if ! kie_repo_refresh_remote "$KIE_ROOT"; then
+    echo "Warning: unable to check whether kie-api is up to date with GitHub."
+    echo "Reusing the current kie-api checkout at: $KIE_ROOT"
+    echo
+    return 0
+  fi
+
+  declare -A KIE_STATUS=()
+  while IFS='=' read -r key value; do
+    [[ -n "$key" ]] || continue
+    KIE_STATUS["$key"]="$value"
+  done < <(kie_repo_status_summary "$KIE_ROOT")
+
+  if [[ "${KIE_STATUS[state]:-}" != "ok" || "${KIE_STATUS[behind]:-0}" == "0" ]]; then
+    return 0
+  fi
+
+  echo "Warning: local kie-api checkout is behind ${KIE_STATUS[upstream]:-origin} by ${KIE_STATUS[behind]} commit(s)."
+  if [[ "${KIE_STATUS[dirty]:-false}" == "true" ]]; then
+    echo "Local kie-api changes are present, so startup will not try to update it."
+  else
+    echo "If you want the latest model registry and runtime changes first, run:"
+    echo "  git -C \"$KIE_ROOT\" fetch --prune origin && git -C \"$KIE_ROOT\" pull --ff-only"
+  fi
+  echo
+}
+
 migration_preflight() {
   if [[ ! -f "$DB_PATH" ]]; then
     return 0
@@ -276,6 +308,7 @@ if [[ "$api_running" == true || "$web_running" == true ]]; then
   cleanup_stale_media_studio
 fi
 
+kie_repo_preflight
 migration_preflight
 
 echo "Checking the production web build..."
