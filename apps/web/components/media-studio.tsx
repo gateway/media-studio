@@ -728,6 +728,7 @@ export function MediaStudio({
     clearSourceAsset,
     updateOption,
     addFiles,
+    addRestoredFiles,
     addGalleryAssetAsAttachment,
     addReferenceMediaAsAttachment,
     assignPresetSlotFile,
@@ -2822,9 +2823,11 @@ export function MediaStudio({
       if (!restoredPrimaryInput && primaryInput.url) {
         try {
           const primaryFile = await fetchReferenceFile(primaryInput.url, "source-image", primaryInput.kind);
-          addFiles([primaryFile], {
+          await addRestoredFiles([primaryFile], {
             role: primaryInput.role ?? undefined,
             allowedKinds: [primaryInput.kind],
+            insertImageIndex: primaryInput.role == null && primaryInput.kind === "images" ? 0 : null,
+            replaceImageIndex: primaryInput.role == null && primaryInput.kind === "images" ? 0 : null,
           });
           restoredPrimaryInput = true;
         } catch {
@@ -2863,7 +2866,7 @@ export function MediaStudio({
       }
       try {
         const file = await fetchReferenceFile(reference.url, reference.label, reference.kind);
-        addFiles([file], { role: reference.role ?? undefined, allowedKinds: [reference.kind] });
+        await addRestoredFiles([file], { role: reference.role ?? undefined, allowedKinds: [reference.kind] });
       } catch {
         // skip unavailable references; the user can still adjust before rerunning
       }

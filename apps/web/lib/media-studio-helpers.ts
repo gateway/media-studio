@@ -1111,6 +1111,19 @@ export function buildStudioReferencePreviews({
     const role = typeof item.role === "string" ? item.role : null;
     const kind = studioReferenceKind(item.media_type ?? collectionKey.slice(0, -1));
     if (role == null && sourceAssetId == null && !consumedImplicitPrimary) {
+      pushPreview(
+        `job-${collectionKey.slice(0, -1)}:${index}`,
+        kind === "videos" ? "Source video" : kind === "audios" ? "Source audio" : "Source image",
+        kind,
+        (kind === "videos" ? mediaPlaybackUrl(imageAsset) : null) ??
+          mediaDisplayUrl(imageAsset) ??
+          mediaThumbnailUrl(imageAsset) ??
+          urlValue ??
+          toControlApiDataPreviewPath(pathValue),
+        kind === "videos"
+          ? mediaThumbnailUrl(imageAsset) ?? mediaDisplayUrl(imageAsset) ?? null
+          : null,
+      );
       consumedImplicitPrimary = true;
       return;
     }

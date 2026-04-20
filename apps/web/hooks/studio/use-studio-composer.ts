@@ -1022,6 +1022,58 @@ export function useStudioComposer({
     }
   }
 
+  async function addRestoredFiles(
+    fileList: FileList | File[] | null,
+    config: {
+      role?: NonNullable<AttachmentRecord["role"]>;
+      allowedKinds?: AttachmentRecord["kind"][];
+      insertImageIndex?: number | null;
+      replaceImageIndex?: number | null;
+    } = {},
+  ) {
+    const incomingFiles = Array.from(fileList ?? []);
+    if (!incomingFiles.length) {
+      return;
+    }
+    const explicitRole = config.role ?? null;
+    const insertImageIndex =
+      explicitRole || seedanceComposer || config.insertImageIndex == null ? null : Math.max(0, config.insertImageIndex);
+    const replaceImageIndex =
+      explicitRole || seedanceComposer || config.replaceImageIndex == null ? null : Math.max(0, config.replaceImageIndex);
+    const previewUrls = await Promise.all(incomingFiles.map((file) => buildAttachmentPreviewUrl(file)));
+    const nextAttachments = incomingFiles.map((file, index) => ({
+      id: `${file.name}-${file.size}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
+      file,
+      kind: config.allowedKinds?.[0] ?? classifyFile(file),
+      role: explicitRole ?? (seedanceComposer ? "reference" : null),
+      previewUrl: previewUrls[index] ?? null,
+      durationSeconds: null,
+      referenceId: null,
+      referenceRecord: null,
+    }));
+    setAttachments((current) => {
+      const removeReplacedImageAttachment = (attachments: AttachmentRecord[]) => {
+        if (replaceImageIndex == null) {
+          return attachments;
+        }
+        let imageIndex = 0;
+        let removed = false;
+        return attachments.filter((attachment) => {
+          if (!removed && attachment.kind === "images" && !attachment.role && imageIndex++ === replaceImageIndex) {
+            removed = true;
+            return false;
+          }
+          return true;
+        });
+      };
+
+      const nextCurrent = removeReplacedImageAttachment(current);
+      return insertImageIndex != null
+        ? insertImageAttachments(nextCurrent, nextAttachments, insertImageIndex)
+        : [...nextCurrent, ...nextAttachments];
+    });
+  }
+
   async function addGalleryAssetAsAttachment(
     asset: MediaAsset | null,
     role: NonNullable<AttachmentRecord["role"]> | null = null,
@@ -1872,6 +1924,7 @@ export function useStudioComposer({
       clearSourceAsset,
       updateOption,
       addFiles,
+      addRestoredFiles,
       addGalleryAssetAsAttachment,
       addReferenceMediaAsAttachment,
       assignPresetSlotFile,

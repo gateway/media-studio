@@ -757,6 +757,34 @@ describe("media-studio-helpers Seedance support", () => {
     ]);
   });
 
+  it("shows the implicit primary source preview when no source asset id was stored", () => {
+    expect(
+      buildStudioReferencePreviews({
+        job: {
+          normalized_request: {
+            images: [
+              {
+                path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/reference-media/images/legacy-source.png",
+                role: null,
+                media_type: "image",
+              },
+            ],
+          },
+        } as never,
+        localAssets: [],
+        favoriteAssets: null,
+      }),
+    ).toEqual([
+      {
+        key: "job-image:0",
+        label: "Source image",
+        url: "/api/control/files/reference-media/images/legacy-source.png",
+        kind: "images",
+        posterUrl: null,
+      },
+    ]);
+  });
+
   it("uses batch request summary values when failed jobs do not retain structured preset state", () => {
     const model = {
       key: "nano-banana-2",
