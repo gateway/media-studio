@@ -1000,6 +1000,45 @@ function normalizedRequestImages(job?: MediaJob | null) {
   return normalizedRequestMedia(job, "images");
 }
 
+function normalizedRequestOriginalMedia(job: MediaJob | null | undefined, key: NormalizedRequestMediaKey) {
+  const preparedRequest =
+    isRecord(job?.prepared) && isRecord(job?.prepared["normalized_request"])
+      ? (job?.prepared["normalized_request"] as Record<string, unknown>)
+      : null;
+  const preparedDebug = preparedRequest && isRecord(preparedRequest.debug) ? (preparedRequest.debug as Record<string, unknown>) : null;
+  const preparedOriginalMedia =
+    preparedDebug && isRecord(preparedDebug.original_media) ? (preparedDebug.original_media as Record<string, unknown>) : null;
+  const preparedItems = preparedOriginalMedia && Array.isArray(preparedOriginalMedia[key])
+    ? (preparedOriginalMedia[key] as unknown[])
+    : [];
+  if (preparedItems.length) {
+    return preparedItems;
+  }
+
+  const normalizedRequest = isRecord(job?.normalized_request) ? (job.normalized_request as Record<string, unknown>) : null;
+  const normalizedDebug = normalizedRequest && isRecord(normalizedRequest.debug) ? (normalizedRequest.debug as Record<string, unknown>) : null;
+  const normalizedOriginalMedia =
+    normalizedDebug && isRecord(normalizedDebug.original_media) ? (normalizedDebug.original_media as Record<string, unknown>) : null;
+  const normalizedItems = normalizedOriginalMedia && Array.isArray(normalizedOriginalMedia[key])
+    ? (normalizedOriginalMedia[key] as unknown[])
+    : [];
+  if (normalizedItems.length) {
+    return normalizedItems;
+  }
+
+  const preparedTopLevelDebug =
+    isRecord(job?.prepared) && isRecord(job?.prepared["debug"])
+      ? (job?.prepared["debug"] as Record<string, unknown>)
+      : null;
+  const preparedTopLevelOriginalMedia =
+    preparedTopLevelDebug && isRecord(preparedTopLevelDebug.original_media)
+      ? (preparedTopLevelDebug.original_media as Record<string, unknown>)
+      : null;
+  return preparedTopLevelOriginalMedia && Array.isArray(preparedTopLevelOriginalMedia[key])
+    ? (preparedTopLevelOriginalMedia[key] as unknown[])
+    : [];
+}
+
 function normalizedRequestMediaEntries(job?: MediaJob | null) {
   const collections: NormalizedRequestMediaKey[] = ["images", "videos", "audios"];
   return collections.flatMap((collectionKey) =>
@@ -1263,7 +1302,9 @@ export function buildStudioJobPrimaryInput({
     }
   }
 
-  for (const image of normalizedRequestImages(job)) {
+  const requestImages = normalizedRequestImages(job);
+  const fallbackOriginalMedia = normalizedRequestOriginalMedia(job, "images");
+  for (const [index, image] of requestImages.entries()) {
     if (!isRecord(image)) {
       continue;
     }
@@ -1282,10 +1323,14 @@ export function buildStudioJobPrimaryInput({
     const asset = assetId != null ? findMediaAssetById(assetId, localAssets, favoriteAssets) ?? null : null;
     const urlValue = typeof image.url === "string" ? image.url : null;
     const pathValue = typeof image.path === "string" ? image.path : null;
+    const originalMediaEntry = fallbackOriginalMedia[index];
+    const originalPathValue =
+      isRecord(originalMediaEntry) && typeof originalMediaEntry.path === "string" ? originalMediaEntry.path : null;
     const url =
       (kind === "videos" ? mediaPlaybackUrl(asset) : null) ??
       mediaDisplayUrl(asset) ??
       mediaThumbnailUrl(asset) ??
+      toControlApiDataPreviewPath(originalPathValue) ??
       urlValue ??
       toControlApiDataPreviewPath(pathValue);
     if (!url) {

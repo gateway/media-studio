@@ -648,6 +648,36 @@ describe("media-studio-helpers Seedance support", () => {
       kind: "images",
       role: null,
     });
+
+    expect(
+      buildStudioJobPrimaryInput({
+        job: {
+          prepared: {
+            normalized_request: {
+              images: [
+                {
+                  url: "https://tempfile.redpandaai.co/example/source.png",
+                  media_type: "image",
+                  role: null,
+                },
+              ],
+              debug: {
+                original_media: {
+                  images: [{ path: "reference-media/images/source.png" }],
+                },
+              },
+            },
+          },
+        } as never,
+        localAssets: [],
+        favoriteAssets: null,
+      }),
+    ).toEqual({
+      assetId: null,
+      url: "/api/control/files/reference-media/images/source.png",
+      kind: "images",
+      role: null,
+    });
   });
 
   it("builds a retry restore plan from the failed job state", () => {

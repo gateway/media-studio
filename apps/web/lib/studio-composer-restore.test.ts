@@ -91,6 +91,50 @@ describe("studio-composer-restore", () => {
     expect(dependencies.setFormMessage).toHaveBeenCalledWith({ tone: "warning", text: "Success" });
   });
 
+  it("prefers a local original-media path over a remote upload url for implicit primary restores", async () => {
+    const sourceFile = new File(["image"], "source.png", { type: "image/png" });
+    const dependencies = createDependencies({
+      fetchReferenceFile: vi.fn().mockResolvedValue(sourceFile),
+    });
+
+    await restoreComposerFromPlan({
+      plan: {
+        targetModel: { key: "kling-3.0-i2v" } as never,
+        targetPreset: null,
+        projectId: null,
+        selectedPromptIds: [],
+        prompt: "Restore me",
+        presetInputValues: {},
+        optionValues: {},
+        outputCount: 1,
+        primaryInput: {
+          assetId: null,
+          url: "/api/control/files/reference-media/images/source.png",
+          kind: "images",
+          role: null,
+        },
+        referenceInputs: [],
+        presetSlotRestores: [],
+      },
+      missingModelMessage: "Missing model",
+      successMessage: "Success",
+      partialFailureMessage: "Partial",
+      dependencies,
+    });
+
+    expect(dependencies.fetchReferenceFile).toHaveBeenCalledWith(
+      "/api/control/files/reference-media/images/source.png",
+      "source-image",
+      "images",
+    );
+    expect(dependencies.addRestoredFiles).toHaveBeenCalledWith([sourceFile], {
+      role: undefined,
+      allowedKinds: ["images"],
+      insertImageIndex: 0,
+      replaceImageIndex: 0,
+    });
+  });
+
   it("uses staged gallery assets for reference restores when the asset is already cached locally", async () => {
     const referenceAsset = { asset_id: "asset-ref", generation_kind: "image" } as never;
     const dependencies = createDependencies({
