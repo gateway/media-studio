@@ -186,6 +186,33 @@ describe("media-studio-helpers Seedance support", () => {
     });
   });
 
+  it("keeps optional end-frame slots visible before any frames are filled", () => {
+    const layout = resolveStandardComposerSlots({
+      model: {
+        input_patterns: ["prompt_only", "single_image", "first_last_frames"],
+        image_inputs: { required_max: 2 },
+        video_inputs: { required_max: 0 },
+        audio_inputs: { required_max: 0 },
+      } as never,
+      attachments: [],
+      sourceAsset: null,
+    });
+
+    expect(layout.slots).toHaveLength(2);
+    expect(layout.slots[0]).toMatchObject({
+      role: "start_frame",
+      required: true,
+      visible: true,
+      filled: false,
+    });
+    expect(layout.slots[1]).toMatchObject({
+      role: "end_frame",
+      required: false,
+      visible: true,
+      filled: false,
+    });
+  });
+
   it("returns image and video slots for motion-control models", () => {
     const layout = resolveStandardComposerSlots({
       model: {

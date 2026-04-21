@@ -32,7 +32,7 @@ type StudioStandardSlotRailProps = {
 function renderSlotLabel(slot: StudioComposerSlot) {
   const label = slot.role === "end_frame" ? "End frame" : slot.label;
   return (
-    <div className="max-w-[96px] whitespace-nowrap text-[0.62rem] font-semibold uppercase leading-none tracking-[0.14em] text-white/46">
+    <div className="studio-slot-label">
       {label}
     </div>
   );
@@ -55,7 +55,7 @@ export function StudioStandardSlotRail({
 }: StudioStandardSlotRailProps) {
   function renderReplaceControl(slot: StudioComposerSlot, testId: string): ReactNode {
     return (
-      <label className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white">
+      <label className="studio-slot-utility-button inline-flex h-8 w-8 cursor-pointer">
         <ImagePlus className="size-3.5" />
         <input
           type="file"

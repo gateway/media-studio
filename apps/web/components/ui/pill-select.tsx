@@ -14,13 +14,13 @@ export type PillSelectChoice = {
 export function pillSelectButtonClassName(appearance: "admin" | "studio") {
   return appearance === "admin"
     ? "admin-form-control admin-select-trigger"
-    : "flex h-[41px] w-full items-center gap-2.5 rounded-[16px] border border-[var(--ms-action-subtle-border)] bg-[var(--ms-action-subtle-surface)] px-3 text-left text-[0.74rem] font-semibold tracking-[0.01em] text-[var(--ms-action-subtle-text-hover)] transition hover:border-[var(--ms-action-warning-border)]";
+    : "flex h-[41px] w-full items-center gap-2.5 rounded-[calc(var(--radius-control)-2px)] border border-[var(--action-subtle-border)] bg-[var(--action-subtle-surface)] px-3 text-left text-[0.74rem] font-semibold tracking-[0.01em] text-[var(--action-subtle-text-hover)] transition hover:border-[var(--action-warning-border)]";
 }
 
 function pillSelectMenuClassName(appearance: "admin" | "studio") {
   return appearance === "admin"
     ? "admin-select-menu scrollbar-none"
-    : "scrollbar-none absolute left-0 z-30 min-w-full w-max max-w-[28rem] overflow-auto rounded-[18px] border border-[var(--ms-action-subtle-border)] bg-[rgba(17,20,19,0.98)] p-2 shadow-[var(--ms-shadow-overlay)] backdrop-blur-xl";
+    : "scrollbar-none absolute left-0 z-30 min-w-full w-max max-w-[28rem] overflow-auto rounded-[var(--radius-control)] border border-[var(--action-subtle-border)] bg-[var(--surface-card-bg)] p-2 shadow-[var(--shadow-overlay)] backdrop-blur-xl";
 }
 
 type PillSelectProps = {
@@ -152,7 +152,7 @@ export function PillSelect({
         onClick={onToggle}
         className={pillSelectButtonClassName(appearance)}
       >
-        {SelectedIcon ? <SelectedIcon className={cn("shrink-0", appearance === "studio" ? "size-4 text-[var(--ms-accent)]" : "size-4 text-[var(--ui-accent-strong)]")} /> : null}
+        {SelectedIcon ? <SelectedIcon className={cn("shrink-0", "size-4 text-[var(--accent-strong)]")} /> : null}
         <span className="min-w-0 flex-1 truncate">{label}</span>
         <ChevronDown className={cn("size-4 shrink-0 text-white/42 transition", open ? "rotate-180" : "", appearance === "studio" ? "size-3.5" : "")} />
       </button>
@@ -190,11 +190,11 @@ export function PillSelect({
                   onSelect(selectedChoice.value);
                   onClose();
                 }}
-                className="flex items-center gap-2.5 rounded-[14px] border border-[var(--ms-action-subtle-border)] bg-white/[0.08] px-2.5 py-2.5 text-left transition hover:border-[var(--ms-action-warning-border)] hover:bg-white/[0.1]"
+                className="flex items-center gap-2.5 rounded-[14px] border border-[var(--action-subtle-border)] bg-white/[0.08] px-2.5 py-2.5 text-left transition hover:border-[var(--action-warning-border)] hover:bg-white/[0.1]"
               >
                 {SelectedIcon ? (
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-[var(--ms-action-subtle-border)] bg-white/[0.06] text-white/92">
-                    <SelectedIcon className="size-4 text-[var(--ms-accent)]" />
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-[var(--action-subtle-border)] bg-white/[0.06] text-white/92">
+                    <SelectedIcon className="size-4 text-[var(--accent-strong)]" />
                   </span>
                 ) : null}
                 <span className="min-w-0 flex-1 truncate text-[0.9rem] font-medium text-white">{selectedChoice.label}</span>
@@ -221,7 +221,7 @@ export function PillSelect({
                     )}
                   >
                     {appearance === "studio" && ChoiceIcon ? (
-                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] border border-[var(--ms-action-subtle-border)] bg-white/[0.04] text-white/88">
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] border border-[var(--action-subtle-border)] bg-white/[0.04] text-white/88">
                         <ChoiceIcon className="size-3.5 text-white/72" />
                       </span>
                     ) : null}

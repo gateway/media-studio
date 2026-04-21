@@ -911,6 +911,8 @@ export function useStudioComposer({
       return;
     }
     const explicitRole = config.role ?? null;
+    // Ordered image slot placement only applies to plain image attachments. Once a
+    // role is explicit or Seedance is active, role semantics own the placement.
     const insertImageIndex =
       explicitRole || seedanceComposer || config.insertImageIndex == null ? null : Math.max(0, config.insertImageIndex);
     const replaceImageIndex =
@@ -1019,6 +1021,8 @@ export function useStudioComposer({
       return;
     }
     const explicitRole = config.role ?? null;
+    // Restore replays the saved request contract directly, so it intentionally skips
+    // the normal per-model capacity gate used for fresh interactive staging.
     const insertImageIndex =
       explicitRole || seedanceComposer || config.insertImageIndex == null ? null : Math.max(0, config.insertImageIndex);
     const replaceImageIndex =
@@ -1080,6 +1084,8 @@ export function useStudioComposer({
       return;
     }
     try {
+      // Materialize gallery assets back into Files so drag/drop, picker selection,
+      // revision restore, and gallery reuse all converge on one attachment path.
       const response = await fetch(assetUrl, { credentials: "same-origin" });
       if (!response.ok) {
         throw new Error("Unable to fetch gallery asset.");

@@ -3,6 +3,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { Button, buttonClassName } from "@/components/ui/button";
 import { PillSelect, type PillSelectChoice } from "@/components/ui/pill-select";
+import { emptyStateClassName, surfaceInsetClassName } from "@/components/ui/surface-primitives";
 import { cn } from "@/lib/utils";
 
 export type AdminChoice = {
@@ -20,14 +21,14 @@ export const adminDangerButtonClassName =
   buttonClassName({ appearance: "admin", variant: "danger" });
 
 export const adminInsetSurfaceClassName =
-  "admin-surface-inset p-4";
+  surfaceInsetClassName({ appearance: "admin", className: "p-4" });
 
 export const adminInsetCardClassName = adminInsetSurfaceClassName;
 
 export const adminInsetPanelClassName = adminInsetSurfaceClassName;
 
 export const adminDashedCardClassName =
-  "admin-surface-dashed px-4 py-5 text-sm text-[var(--muted-strong)]";
+  emptyStateClassName({ appearance: "admin", density: "compact", className: "px-4 py-5 text-sm text-[var(--muted-strong)]" });
 
 type AdminButtonVariant = "primary" | "subtle" | "danger";
 type AdminButtonSize = "default" | "compact";

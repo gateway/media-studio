@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { AdminActionNotice } from "@/components/admin-action-notice";
 import { AdminButton, adminInsetCardClassName } from "@/components/admin-controls";
+import { CalloutPanel, SurfaceInset } from "@/components/ui/surface-primitives";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 
 type RuntimeServiceState = {
@@ -76,9 +77,9 @@ export function RuntimeControls() {
 
   if (loading && !services) {
     return (
-      <div className={`${adminInsetCardClassName} text-sm text-[var(--muted-strong)]`}>
+      <CalloutPanel appearance="admin" tone="muted" className={`${adminInsetCardClassName} text-sm text-[var(--muted-strong)]`}>
         Loading runtime controls…
-      </div>
+      </CalloutPanel>
     );
   }
 
@@ -91,7 +92,7 @@ export function RuntimeControls() {
       {notice ? <AdminActionNotice tone={notice.tone} text={notice.text} /> : null}
       <div className="grid gap-2 sm:grid-cols-2">
         {([services.api, services.web] as RuntimeServiceState[]).map((service) => (
-          <div key={service.service} className={adminInsetCardClassName}>
+          <SurfaceInset key={service.service} appearance="admin" className={adminInsetCardClassName}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="admin-label-muted">{service.service === "api" ? "API runtime" : "Web runtime"}</div>
@@ -114,7 +115,7 @@ export function RuntimeControls() {
                 {restarting === service.service ? "Restarting…" : `Restart ${service.service}`}
               </AdminButton>
             </div>
-          </div>
+          </SurfaceInset>
         ))}
       </div>
     </>

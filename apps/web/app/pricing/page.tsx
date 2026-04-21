@@ -9,6 +9,7 @@ import {
 import { AdminNavButton } from "@/components/admin-nav-button";
 import { Panel, PanelHeader } from "@/components/panel";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
+import { CalloutPanel, SurfaceInset } from "@/components/ui/surface-primitives";
 import { getMediaDashboardSnapshot } from "@/lib/control-api";
 import { estimateFromPricingSnapshot } from "@/lib/studio-pricing";
 import type { MediaModelSummary } from "@/lib/types";
@@ -187,31 +188,31 @@ export default async function PricingPage() {
             }
           />
           <div className="mt-5 grid gap-3 lg:grid-cols-4">
-            <div className={adminInsetPanelClassName}>
+            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
               <div className="admin-label-muted">Catalog status</div>
               <div className="mt-3 text-lg font-semibold text-[var(--foreground)]">
                 {formatPricingStatus(authoritative, pricingStatus)}
               </div>
-            </div>
-            <div className={adminInsetPanelClassName}>
+            </SurfaceInset>
+            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
               <div className="admin-label-muted">Credits left</div>
               <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
                 {availableCredits != null ? availableCredits.toFixed(1) : "n/a"}
               </div>
-            </div>
-            <div className={adminInsetPanelClassName}>
+            </SurfaceInset>
+            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
               <div className="admin-label-muted">Refreshed</div>
               <div className="mt-3 text-sm font-medium text-[var(--foreground)]">
                 {pricing?.refreshed_at ? formatDateTime(pricing.refreshed_at) : "Unknown"}
               </div>
-            </div>
-            <div className={adminInsetPanelClassName}>
+            </SurfaceInset>
+            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
               <div className="admin-label-muted">Models covered</div>
               <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">{rules.length}</div>
-            </div>
+            </SurfaceInset>
           </div>
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
-            <div className={adminInsetCardClassName}>
+            <CalloutPanel appearance="admin" tone="accent" className={adminInsetCardClassName}>
               <div className="admin-icon-label-row admin-label-accent">
                 <Coins className="size-3.5" />
                 Estimate path
@@ -220,8 +221,8 @@ export default async function PricingPage() {
                 The Studio requests a server estimate for the exact model, prompt, and option set. That total is what shows in the
                 Generate button before submit.
               </p>
-            </div>
-            <div className={adminInsetCardClassName}>
+            </CalloutPanel>
+            <CalloutPanel appearance="admin" tone="accent" className={adminInsetCardClassName}>
               <div className="admin-icon-label-row admin-label-accent">
                 <Sparkles className="size-3.5" />
                 Saved snapshot
@@ -230,8 +231,8 @@ export default async function PricingPage() {
                 When a batch is submitted, the estimated total, per-output breakdown, and pricing metadata are saved with that batch so
                 Jobs can show what the run was expected to cost.
               </p>
-            </div>
-            <div className={adminInsetCardClassName}>
+            </CalloutPanel>
+            <CalloutPanel appearance="admin" tone="accent" className={adminInsetCardClassName}>
               <div className="admin-icon-label-row admin-label-accent">
                 <RefreshCcw className="size-3.5" />
                 Source
@@ -246,12 +247,12 @@ export default async function PricingPage() {
                   </>
                 ) : null}
               </p>
-            </div>
+            </CalloutPanel>
           </div>
           {pricing?.notes?.length ? (
-            <div className="admin-surface-inset mt-4 px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]">
+            <CalloutPanel appearance="admin" tone="muted" className="mt-4 text-sm leading-7 text-[var(--muted-strong)]">
               {pricing.notes[0]}
-            </div>
+            </CalloutPanel>
           ) : null}
         </Panel>
 
@@ -305,32 +306,32 @@ export default async function PricingPage() {
                   </div>
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div className={adminInsetCardClassName}>
+                    <SurfaceInset appearance="admin" className={adminInsetCardClassName}>
                       <div className="admin-label-muted">Base credits</div>
                       <div className="mt-2 text-xl font-semibold text-[var(--foreground)]">{formatCreditsAmount(record.base_credits, { suffix: " credits" })}</div>
-                    </div>
-                    <div className={adminInsetCardClassName}>
+                    </SurfaceInset>
+                    <SurfaceInset appearance="admin" className={adminInsetCardClassName}>
                       <div className="admin-label-muted">Base USD</div>
                       <div className="mt-2 text-xl font-semibold text-[var(--foreground)]">{formatUsdAmount(record.base_cost_usd)}</div>
-                    </div>
+                    </SurfaceInset>
                   </div>
 
                   <div className="mt-4 grid gap-2 text-sm leading-7 text-[var(--muted-strong)]">
                     {[...multiplierRows, ...creditAdders, ...usdAdders].length ? (
                       [...multiplierRows, ...creditAdders, ...usdAdders].map((line) => (
-                        <div key={line} className="admin-surface-inset px-3 py-2">
+                        <SurfaceInset key={line} appearance="admin" density="compact" className="px-3 py-2">
                           {line}
-                        </div>
+                        </SurfaceInset>
                       ))
                     ) : (
-                      <div className="admin-surface-inset px-3 py-2">
+                      <CalloutPanel appearance="admin" tone="muted" className="px-3 py-2">
                         No option adjustments recorded for this rule.
-                      </div>
+                      </CalloutPanel>
                     )}
                     {notes.length ? (
-                      <div className="admin-surface-inset px-3 py-2">
+                      <CalloutPanel appearance="admin" tone="muted" className="px-3 py-2">
                         {notes[0]}
-                      </div>
+                      </CalloutPanel>
                     ) : null}
                   </div>
 
@@ -339,9 +340,11 @@ export default async function PricingPage() {
                       <div className="admin-label-muted">Common scenarios</div>
                       <div className="grid gap-2">
                         {scenarioRows.map((row) => (
-                          <div
+                          <SurfaceInset
                             key={row.key}
-                            className="admin-surface-inset grid gap-2 px-3 py-3 text-sm text-[var(--muted-strong)] md:grid-cols-[minmax(0,1fr)_140px_140px]"
+                            appearance="admin"
+                            density="compact"
+                            className="grid gap-2 px-3 py-3 text-sm text-[var(--muted-strong)] md:grid-cols-[minmax(0,1fr)_140px_140px]"
                           >
                             <div className="font-medium text-[var(--foreground)]">{row.label}</div>
                             <div>
@@ -352,7 +355,7 @@ export default async function PricingPage() {
                               <div className="text-[0.68rem] uppercase tracking-[0.12em] text-[var(--muted-strong)]">2 outputs</div>
                               <div className="mt-1 text-[var(--foreground)]">{row.twoOutputUsd ?? row.twoOutputCredits ?? "n/a"}</div>
                             </div>
-                          </div>
+                          </SurfaceInset>
                         ))}
                       </div>
                       <div className="text-xs leading-6 text-[var(--muted-strong)]">

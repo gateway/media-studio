@@ -37,6 +37,8 @@ export async function saveEnhancementConfigRequest(args: {
   method: "POST" | "PATCH";
   payload: Record<string, unknown>;
 }) {
+  // The admin console owns form state, but every persisted write should still flow
+  // through one request shape so probe/save behavior cannot drift by page section.
   const response = await fetch(args.endpoint, {
     method: args.method,
     headers: { "Content-Type": "application/json" },
@@ -60,6 +62,8 @@ export async function probeEnhancementProviderRequest(payload: {
   selected_model_id: string | null;
   require_images: boolean;
 }) {
+  // Probe requests intentionally reuse the persisted payload contract so the
+  // operator validates the same provider/model pairing that will later be saved.
   const response = await fetch("/api/control/media-enhancement-providers/probe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -96,6 +100,8 @@ export async function saveGlobalQueueSettingsRequest(settings: MediaQueueSetting
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      // The server is still the source of truth, but normalizing here keeps the
+      // admin form from submitting impossible zero/negative values during edits.
       max_concurrent_jobs: Math.max(1, settings.max_concurrent_jobs),
       queue_enabled: settings.queue_enabled,
       default_poll_seconds: Math.max(1, Number(settings.default_poll_seconds) || 1),
@@ -116,6 +122,8 @@ export async function saveModelQueuePolicyRequest(modelKey: string, enabled: boo
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       enabled,
+      // Queue policy caps must stay aligned with Studio-side batch limits so the
+      // admin surface cannot save a value the submit flow will never honor.
       max_outputs_per_run: Math.min(Math.max(1, maxOutputsPerRun), STUDIO_NANO_MAX_OUTPUTS),
     }),
   });

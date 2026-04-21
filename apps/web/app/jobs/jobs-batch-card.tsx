@@ -12,6 +12,7 @@ import {
   adminInsetPanelClassName,
 } from "@/components/admin-controls";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
+import { CalloutPanel, SurfaceInset } from "@/components/ui/surface-primitives";
 import { mediaDisplayUrl, mediaPlaybackUrl, mediaVariantUrl, toneForStatus } from "@/lib/media-studio-helpers";
 import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
 import { cn, formatCreditsAmount, formatDateTime, formatUsdAmount, isRecord, toFiniteNumber, truncate } from "@/lib/utils";
@@ -172,14 +173,14 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.12em] text-[var(--muted-strong)]">
-                <span>{batch.queued_count} queued</span>
-                <span>{batch.running_count} processing</span>
-                <span>{batch.failed_count} failed</span>
-              </div>
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.12em] text-[var(--muted-strong)]">
+                  <span>{batch.queued_count} queued</span>
+                  <span>{batch.running_count} processing</span>
+                  <span>{batch.failed_count} failed</span>
+                </div>
               {pricingSummary ? (
-                <div className={`${adminInsetClassName} grid gap-3 lg:grid-cols-3`}>
+                <SurfaceInset appearance="admin" density="compact" className={`${adminInsetClassName} grid gap-3 lg:grid-cols-3`}>
                   <div className="grid gap-1">
                     <span className="admin-label-muted">Estimated total</span>
                     <span className="text-[var(--foreground)]">
@@ -198,7 +199,7 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
                     <span className="admin-label-muted">Outputs</span>
                     <span className="text-[var(--foreground)]">{savedOutputCount ?? batch.requested_outputs}</span>
                   </div>
-                </div>
+                </SurfaceInset>
               ) : null}
               <div className="flex flex-wrap gap-3 pt-2">
                 {jobs.map((job) => {
@@ -247,17 +248,17 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
             {jobs
               .filter((job) => Boolean(job.error))
               .map((job) => (
-                <div key={`${job.job_id}-error`} className={mutedCardClassName}>
+                <SurfaceInset key={`${job.job_id}-error`} appearance="admin" className={mutedCardClassName}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="text-sm text-[var(--foreground)]">Output {job.batch_index ?? 1}</div>
                     <div className="text-xs uppercase tracking-[0.12em] text-white/42">
                       {formatDateTime(job.updated_at)}
                     </div>
                   </div>
-                  <div className="admin-danger-callout mt-3 px-3 py-2 text-sm text-[var(--danger)]">
+                  <CalloutPanel appearance="admin" tone="danger" className="mt-3 px-3 py-2 text-sm text-[var(--danger)]">
                     {job.error}
-                  </div>
-                </div>
+                  </CalloutPanel>
+                </SurfaceInset>
               ))}
           </div>
         ) : null}

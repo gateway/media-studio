@@ -7,6 +7,7 @@ import {
 } from "@/components/admin-theme";
 import { StatusPill } from "@/components/status-pill";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
+import { CalloutPanel, SurfaceInset } from "@/components/ui/surface-primitives";
 import { getControlApiJson, getMediaDashboardSnapshot } from "@/lib/control-api";
 import { DEFAULT_LOCAL_OPENAI_BASE_URL, KIE_AFFILIATE_URL } from "@/lib/onboarding";
 
@@ -45,10 +46,27 @@ function StepCard({
           {icon}
         </div>
       </div>
-      <div className="admin-surface-dashed mt-4 px-4 py-3 text-sm leading-6 text-[var(--muted-strong)]">
+      <CalloutPanel appearance="admin" tone="muted" className="mt-4 px-4 py-3 text-sm leading-6 text-[var(--muted-strong)]">
         {detail}
-      </div>
+      </CalloutPanel>
     </div>
+  );
+}
+
+function CommandSurface({
+  title,
+  children,
+}: {
+  title?: string;
+  children: ReactNode;
+}) {
+  return (
+    <SurfaceInset appearance="admin" className="p-4">
+      {title ? <div className="admin-label-accent">{title}</div> : null}
+      <pre className="admin-code-block mt-3 overflow-x-auto p-4 text-sm leading-7 text-[var(--foreground)]">
+        {children}
+      </pre>
+    </SurfaceInset>
   );
 }
 
@@ -143,10 +161,10 @@ export default async function SetupPage() {
         </section>
 
         <section className={adminSurfaceCardClassName}>
-          <div className="admin-status-badge inline-flex items-center gap-2 border border-[var(--surface-border-soft)] bg-[rgba(208,255,72,0.08)] px-2.5 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+          <CalloutPanel appearance="admin" tone="accent" className="inline-flex items-center gap-2 px-2.5 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
             <Sparkles className="size-4" />
             Quick Start
-          </div>
+          </CalloutPanel>
           <div className="mt-4 space-y-3">
             <h2 className="text-[1.5rem] font-semibold tracking-[-0.04em] text-[var(--foreground)]">
               Use one command for your platform.
@@ -157,22 +175,16 @@ export default async function SetupPage() {
             </p>
           </div>
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
-            <div className="admin-surface-inset p-4">
-              <div className="admin-label-accent">macOS</div>
-              <pre className="admin-code-block mt-3 overflow-x-auto p-4 text-sm leading-7 text-[var(--foreground)]">
+            <CommandSurface title="macOS">
 {`git clone https://github.com/gateway/media-studio.git
 cd media-studio
 ./scripts/onboard_mac.sh`}
-              </pre>
-            </div>
-            <div className="admin-surface-inset p-4">
-              <div className="admin-label-accent">Windows</div>
-              <pre className="admin-code-block mt-3 overflow-x-auto p-4 text-sm leading-7 text-[var(--foreground)]">
+            </CommandSurface>
+            <CommandSurface title="Windows">
 {`git clone https://github.com/gateway/media-studio.git
 cd media-studio
 powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
-              </pre>
-            </div>
+            </CommandSurface>
           </div>
         </section>
 
@@ -260,13 +272,13 @@ powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1`}
             <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
               After setup
             </div>
-            <div className="mt-4 text-sm leading-7 text-[var(--muted-strong)]">
+          <div className="mt-4 text-sm leading-7 text-[var(--muted-strong)]">
               Start the app with:
             </div>
-            <pre className="admin-code-block mt-3 overflow-x-auto p-4 text-sm leading-7 text-[var(--foreground)]">
+            <CommandSurface>
 {`Start Media Studio.command
 Stop Media Studio.command`}
-            </pre>
+            </CommandSurface>
             <div className="mt-4 text-sm leading-7 text-[var(--muted-strong)]">
               Then open:
             </div>

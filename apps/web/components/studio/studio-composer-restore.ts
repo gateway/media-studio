@@ -288,6 +288,9 @@ export async function restoreComposerFromPlan({
   await restorePresetSlotInputs(plan, dependencies);
   await restoreReferenceInputs(plan?.referenceInputs ?? fallbackReferenceInputs ?? [], dependencies);
 
+  // A missing primary input is the one restore failure that should downgrade the
+  // final message. Reference/preset misses stay non-blocking so the user can still
+  // land back in the composer with the recoverable parts of the request intact.
   dependencies.setFormMessage({
     tone: restoredPrimaryInput ? "warning" : "danger",
     text: restoredPrimaryInput ? successMessage : partialFailureMessage,

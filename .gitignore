@@ -46,6 +46,7 @@ data/*.jsonl
 data/backups/
 
 # Local artifacts, temp files, and process output
+# `temp/local-smoke/` is the home for developer-only smoke helpers that should never be tracked.
 .playwright-cli/
 artifacts/
 logs/

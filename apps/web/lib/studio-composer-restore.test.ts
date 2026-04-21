@@ -134,4 +134,50 @@ describe("studio-composer-restore", () => {
     expect(dependencies.addGalleryAssetAsAttachment).toHaveBeenCalledWith(referenceAsset, "reference", ["images"]);
     expect(dependencies.addRestoredFiles).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps the restore flow alive when reference refetching fails", async () => {
+    const dependencies = createDependencies({
+      fetchReferenceFile: vi
+        .fn()
+        .mockResolvedValueOnce(new File(["image"], "source.png", { type: "image/png" }))
+        .mockRejectedValueOnce(new Error("missing reference")),
+    });
+
+    await restoreComposerFromPlan({
+      plan: {
+        targetModel: { key: "kling-2.6-i2v" } as never,
+        targetPreset: null,
+        projectId: null,
+        selectedPromptIds: [],
+        prompt: "Retry",
+        presetInputValues: {},
+        optionValues: {},
+        outputCount: 1,
+        primaryInput: {
+          assetId: null,
+          url: "http://127.0.0.1:3000/source.png",
+          kind: "images",
+          role: null,
+        },
+        referenceInputs: [
+          {
+            assetId: null,
+            url: "http://127.0.0.1:3000/reference.png",
+            kind: "images",
+            role: "reference",
+            label: "Reference image",
+          },
+        ],
+        presetSlotRestores: [],
+      },
+      missingModelMessage: "Missing model",
+      successMessage: "Success",
+      partialFailureMessage: "Partial",
+      dependencies,
+    });
+
+    expect(dependencies.addRestoredFiles).toHaveBeenCalledTimes(1);
+    expect(dependencies.revealComposer).toHaveBeenCalledWith({ focusPresetField: false });
+    expect(dependencies.setFormMessage).toHaveBeenCalledWith({ tone: "warning", text: "Success" });
+  });
 });

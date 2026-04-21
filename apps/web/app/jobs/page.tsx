@@ -10,12 +10,12 @@ import {
 } from "@/components/admin-theme";
 import {
   adminDashedCardClassName,
-  adminInsetCardClassName,
   adminInsetPanelClassName,
 } from "@/components/admin-controls";
 import { AdminNavButton } from "@/components/admin-nav-button";
 import { Panel, PanelHeader } from "@/components/panel";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
+import { CalloutPanel, EmptyState, SurfaceInset } from "@/components/ui/surface-primitives";
 import { getMediaDashboardSnapshot, toControlApiProxyPath } from "@/lib/control-api";
 import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
 import { formatCreditsAmount, formatDateTime, formatUsdAmount, isRecord, toFiniteNumber, truncate } from "@/lib/utils";
@@ -125,13 +125,13 @@ export default async function JobsPage({
           description="This is the background Media Studio runner attached to the API. It owns queue pickup, provider polling, and final asset publishing."
         />
         <div className="mt-5">
-          <div className={mutedCardClassName}>
+          <SurfaceInset appearance="admin" className={mutedCardClassName}>
             <div className="admin-icon-label-row admin-label-muted mb-3">
               <LoaderCircle className={`size-3.5 ${runnerHealthy ? "" : "text-[var(--danger)]"}`} />
               Media Studio runner
             </div>
             <div className="grid gap-2 text-sm text-[var(--muted-strong)]">
-              <div className={`grid gap-2 sm:grid-cols-2 ${adminInsetClassName}`}>
+              <SurfaceInset appearance="admin" density="compact" className={`grid gap-2 sm:grid-cols-2 ${adminInsetClassName}`}>
                 <div className="grid gap-1">
                   <span className="admin-label-muted">Last heartbeat</span>
                   <span className="font-medium text-[var(--foreground)]">
@@ -140,76 +140,76 @@ export default async function JobsPage({
                 </div>
                 <div className="grid justify-items-end gap-1 text-right">
                   <span className="admin-label-muted">Runner status</span>
-                  <span className={`font-medium ${runnerHealthy ? "text-[var(--accent-strong)]" : "text-[var(--danger)]"}`}>
-                    {runnerHealth === "healthy" ? "Healthy" : runnerHealth === "paused" ? "Paused" : "Needs attention"}
-                  </span>
-                </div>
-              </div>
+                    <span className={`font-medium ${runnerHealthy ? "text-[var(--accent-strong)]" : "text-[var(--danger)]"}`}>
+                      {runnerHealth === "healthy" ? "Healthy" : runnerHealth === "paused" ? "Paused" : "Needs attention"}
+                    </span>
+                  </div>
+              </SurfaceInset>
               <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-                <div className={adminInsetClassName}>
+                <SurfaceInset appearance="admin" density="compact" className={adminInsetClassName}>
                   <div className="admin-label-muted">Attached to</div>
                   <div className="mt-1 text-[var(--foreground)]">{healthData?.runner_attached_to ?? "Media Studio API"}</div>
-                </div>
-                <div className={adminInsetClassName}>
+                </SurfaceInset>
+                <SurfaceInset appearance="admin" density="compact" className={adminInsetClassName}>
                   <div className="admin-label-muted">Mode</div>
                   <div className="mt-1 text-[var(--foreground)] capitalize">{healthData?.runner_mode ?? "embedded"}</div>
-                </div>
-                <div className={adminInsetClassName}>
+                </SurfaceInset>
+                <SurfaceInset appearance="admin" density="compact" className={adminInsetClassName}>
                   <div className="admin-label-muted">Launch</div>
                   <div className="mt-1 text-[var(--foreground)]">
                     {healthData?.runner_launch_mode === "supervised"
                       ? (healthData?.supervisor ?? "Supervised")
                       : "Manual"}
                   </div>
-                </div>
-                <div className={adminInsetClassName}>
+                </SurfaceInset>
+                <SurfaceInset appearance="admin" density="compact" className={adminInsetClassName}>
                   <div className="admin-label-muted">Process</div>
                   <div className="mt-1 font-mono text-[var(--foreground)]">{healthData?.runner_process_name ?? "media-studio-runner"}</div>
-                </div>
-                <div className={adminInsetClassName}>
+                </SurfaceInset>
+                <SurfaceInset appearance="admin" density="compact" className={adminInsetClassName}>
                   <div className="admin-label-muted">Running</div>
                   <div className="mt-1 text-[var(--foreground)]">{healthData?.running_jobs ?? recentRunningCount}</div>
-                </div>
-                <div className={adminInsetClassName}>
+                </SurfaceInset>
+                <SurfaceInset appearance="admin" density="compact" className={adminInsetClassName}>
                   <div className="admin-label-muted">Queued</div>
                   <div className="mt-1 text-[var(--foreground)]">{healthData?.queued_jobs ?? recentQueuedCount}</div>
-                </div>
+                </SurfaceInset>
               </div>
               <div className="grid gap-2 sm:grid-cols-3">
-                <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
+                <SurfaceInset appearance="admin" density="compact" className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
                   <span>Jobs running at once</span>
                   <span className="font-medium text-[var(--foreground)]">{Math.max(1, queueSettings?.max_concurrent_jobs ?? 10)}</span>
-                </div>
-                <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
+                </SurfaceInset>
+                <SurfaceInset appearance="admin" density="compact" className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
                   <span>Retry limit</span>
                   <span className="font-medium text-[var(--foreground)]">{Math.max(1, queueSettings?.max_retry_attempts ?? 3)}</span>
-                </div>
-                <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
+                </SurfaceInset>
+                <SurfaceInset appearance="admin" density="compact" className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
                   <span>Heartbeat</span>
                   <span className="font-medium text-[var(--foreground)]">
                     {healthData?.heartbeat_age_seconds != null
                       ? `${healthData.heartbeat_age_seconds}s / ${healthData?.heartbeat_max_age_seconds ?? "?"}s`
                       : "Waiting"}
                   </span>
-                </div>
+                </SurfaceInset>
               </div>
               {healthData?.issues?.length ? (
-                <div className="admin-danger-callout px-3 py-3 text-sm text-[var(--danger)]">
+                <CalloutPanel appearance="admin" tone="danger" className="px-3 py-3 text-sm text-[var(--danger)]">
                   {healthData.issues[0]}
-                </div>
+                </CalloutPanel>
               ) : null}
               <RuntimeControls />
               {availableCredits != null ? (
-                <div className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
+                <SurfaceInset appearance="admin" density="compact" className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
                   <span className="inline-flex items-center gap-2 text-[var(--foreground)]">
                     <Coins className="size-4 text-[var(--accent-strong)]" />
                     Credits left
                   </span>
                   <span className="font-medium text-[var(--accent-strong)]">{availableCredits.toFixed(1)}</span>
-                </div>
+                </SurfaceInset>
               ) : null}
             </div>
-          </div>
+          </SurfaceInset>
         </div>
       </Panel>
 
@@ -223,7 +223,7 @@ export default async function JobsPage({
           />
 
           <div className="mt-5 grid gap-5">
-            <div className={`${adminInsetClassName} text-sm leading-6 text-[var(--muted-strong)]`}>
+            <SurfaceInset appearance="admin" density="compact" className={`${adminInsetClassName} text-sm leading-6 text-[var(--muted-strong)]`}>
               <div>
                 Showing{" "}
                 <span className="font-medium text-[var(--foreground)]">
@@ -232,7 +232,7 @@ export default async function JobsPage({
                 </span>{" "}
                 of <span className="font-medium text-[var(--foreground)]">{totalBatches}</span> jobs.
               </div>
-            </div>
+            </SurfaceInset>
 
             {visibleBatches.length ? (
               visibleBatches.map((batch) => {
@@ -242,13 +242,17 @@ export default async function JobsPage({
                 return <JobsBatchCard key={batch.batch_id} batch={batch} assets={relatedAssets} />;
               })
             ) : (
-              <div className={`${adminDashedCardClassName} py-8 leading-7`}>
-                No media batches are published to the dashboard yet.
-              </div>
+              <EmptyState
+                appearance="admin"
+                className={`${adminDashedCardClassName} py-8`}
+                eyebrow="Queue"
+                title="No media batches yet"
+                description="No media batches are published to the dashboard yet."
+              />
             )}
 
             {totalBatches > 0 ? (
-              <div className={`${adminInsetClassName} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
+              <SurfaceInset appearance="admin" density="compact" className={`${adminInsetClassName} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="admin-label-muted">Show</span>
                   {JOBS_PER_PAGE_OPTIONS.map((option) => (
@@ -306,7 +310,7 @@ export default async function JobsPage({
                     Showing all <span className="font-medium text-[var(--foreground)]">{totalBatches}</span> jobs.
                   </div>
                 )}
-              </div>
+              </SurfaceInset>
             ) : null}
           </div>
         </Panel>

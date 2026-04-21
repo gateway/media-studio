@@ -35,6 +35,14 @@ import {
 
 import { CollapsibleSubsection } from "@/components/collapsible-sections";
 import { Panel, PanelHeader } from "@/components/panel";
+import {
+  CalloutPanel,
+  PropertyStack,
+  PropertyStackItem,
+  SurfaceInset,
+  surfaceCardClassName,
+  surfaceInsetClassName,
+} from "@/components/ui/surface-primitives";
 import { StatusPill } from "@/components/status-pill";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import {
@@ -502,11 +510,13 @@ export function MediaModelsConsole({
   const parameterRows = useMemo(() => modelParameterRows(selectedModel), [selectedModel]);
   const optionBadges = useMemo(() => modelOptionPills(selectedModel), [selectedModel]);
   const rootClassName = isStudio ? adminThemeLayoutOverflowClassName : adminThemeLayoutClassName;
-  const modelPanelClassName = "admin-surface-panel";
-  const surfaceCardClassName = "admin-surface-card p-5";
-  const accentCardClassName = "admin-surface-panel p-5";
-  const softAccentCardClassName =
-    "admin-surface-inset px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]";
+  const modelPanelClassName = surfaceCardClassName({ appearance: "admin", className: "px-5 py-5" });
+  const contentCardClassName = surfaceCardClassName({ appearance: "admin", className: "px-5 py-5" });
+  const accentCardClassName = surfaceCardClassName({ appearance: "admin", tone: "accent", className: "px-5 py-5" });
+  const softAccentCardClassName = surfaceInsetClassName({
+    appearance: "admin",
+    className: "text-sm leading-7 text-[var(--muted-strong)]",
+  });
 
   useEffect(() => {
     if (!initialSelectedModelKey) {
@@ -652,6 +662,8 @@ export function MediaModelsConsole({
 
   async function saveEnhancementConfig() {
     setIsSaving(true);
+    // The global provider form is the source of truth for operator credentials and
+    // provider defaults. Per-model helper profiles layer on top of this config.
     const payload: Record<string, unknown> = {
       model_key: GLOBAL_ENHANCEMENT_CONFIG_KEY,
       label: enhancementForm.label,
@@ -696,6 +708,8 @@ export function MediaModelsConsole({
   async function saveModelEnhancementProfile() {
     setIsSaving(true);
     const existingConfig = localEnhancementConfigs.find((config) => config.model_key === selectedEnhancementModelKey) ?? null;
+    // Model-level helper profiles inherit the provider wiring from the global
+    // config so this form only overrides prompts and feature toggles per model.
     const payload = {
       model_key: selectedEnhancementModelKey,
       label: enhancementProfileForm.label || `${selectedEnhancementModelKey} enhancement`,
@@ -733,6 +747,8 @@ export function MediaModelsConsole({
     if (!silent) {
       clearNotice();
     }
+    // Probe the exact provider/model pair currently shown in the form so the save
+    // path cannot claim a provider works when only a different model was tested.
     const payload = {
       provider_kind: providerKind,
       model_key: GLOBAL_ENHANCEMENT_CONFIG_KEY,
@@ -1084,7 +1100,23 @@ export function MediaModelsConsole({
                   )}
                 </div>
                 {enhancementForm.providerKind === "openrouter" ? (
-                  <div className="grid gap-3">
+                  <form
+                    className="grid gap-3"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void probeEnhancementProvider("openrouter");
+                    }}
+                  >
+                    <input
+                      type="text"
+                      name="username"
+                      value="openrouter"
+                      autoComplete="username"
+                      readOnly
+                      tabIndex={-1}
+                      aria-hidden="true"
+                      className="sr-only"
+                    />
                     <div className="admin-icon-label-row admin-label-muted">
                       <KeyRound className="size-3.5" />
                       OpenRouter.ai
@@ -1119,11 +1151,12 @@ export function MediaModelsConsole({
                               ? "Stored on the server. Enter a new key to replace it."
                               : "OpenRouter API key"
                         }
+                        autoComplete="current-password"
                         className=""
                         type="password"
                       />
                       <AdminButton
-                        onClick={() => void probeEnhancementProvider("openrouter")}
+                        type="submit"
                         disabled={isProbingProvider}
                         variant="primary"
                         size="compact"
@@ -1182,7 +1215,7 @@ export function MediaModelsConsole({
                         {filteredOpenRouterCatalog.length} image-ready models
                       </div>
                     </div>
-                  </div>
+                  </form>
                 ) : null}
                 {enhancementForm.providerKind === "local_openai" ? (
                   <div className="grid gap-3">
@@ -1293,7 +1326,7 @@ export function MediaModelsConsole({
           title="Media Output Folder"
           description="Open the folder where Media Studio saves finished files on this machine."
         />
-        <div className={cn(surfaceCardClassName, "mt-5")}>
+        <div className={cn(contentCardClassName, "mt-5")}>
           <div className="admin-icon-label-row admin-label-muted">
             <FolderOpen className="size-3.5" />
             Media output folder
@@ -1345,8 +1378,10 @@ export function MediaModelsConsole({
           >
             <div className="grid gap-3">
               {modelAvailabilityRows.map(({ model, enabled }) => (
-                <div
+                <SurfaceInset
                   key={`availability-${model.key}`}
+                  appearance="admin"
+                  density="compact"
                   className="admin-row-surface"
                 >
                   <div className="min-w-0 grid gap-1">
@@ -1363,7 +1398,7 @@ export function MediaModelsConsole({
                     ariaLabel={`${enabled ? "Disable" : "Enable"} ${model.label}`}
                     onToggle={() => void saveModelAvailability(model.key, !enabled)}
                   />
-                </div>
+                </SurfaceInset>
               ))}
             </div>
           </CollapsibleSubsection>
@@ -1428,12 +1463,12 @@ export function MediaModelsConsole({
                 <div className="px-3 py-3 text-sm leading-7 text-[var(--muted-strong)]">No published capability details.</div>
               )}
             </div>
-            <div className={surfaceCardClassName}>
+            <div className={contentCardClassName}>
               <div className="admin-icon-label-row admin-label-muted">
                 <Clapperboard className="size-3.5" />
                 Queue Controls
               </div>
-              <div className="admin-row-surface mt-4">
+              <SurfaceInset appearance="admin" density="compact" className="admin-row-surface mt-4">
                 <div className="grid gap-1">
                   <div className="flex items-center gap-2">
                     <span className="admin-label-muted">
@@ -1453,7 +1488,7 @@ export function MediaModelsConsole({
                   ariaLabel={`${(currentQueuePolicy?.enabled ?? true) ? "Disable" : "Enable"} ${selectedModel?.label ?? selectedModelKey}`}
                   onToggle={() => void saveModelAvailability(selectedModelKey, !(currentQueuePolicy?.enabled ?? true))}
                 />
-              </div>
+              </SurfaceInset>
               <div className="mt-4 text-sm leading-6 text-[var(--muted-strong)]">
                 Set how many results this model can create in one run. Studio caps this at 10, and the queue will process any excess over the active runner slots as queued jobs.
               </div>
@@ -1616,14 +1651,14 @@ export function MediaModelsConsole({
           )}
         />
         <div className="mt-5 grid gap-4">
-          <div className={softAccentCardClassName}>
+          <CalloutPanel tone="accent" className={softAccentCardClassName}>
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">Prompt placeholder rules</div>
             <p className="mt-2">
               Use <span className="font-medium text-[var(--foreground)]">{"{{field_key}}"}</span> for text fields and{" "}
               <span className="font-medium text-[var(--foreground)]">{"[[image_slot_key]]"}</span> for image slots. A preset cannot save
               unless every configured field and slot appears in the prompt, and no unused fields remain.
             </p>
-          </div>
+          </CalloutPanel>
 
           <div ref={presetListRef} className="grid gap-3">
             {visiblePresets.length ? (
@@ -1649,35 +1684,25 @@ export function MediaModelsConsole({
                     </AdminButton>
                   )}
                 >
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
-                    <div className="grid gap-3">
-                      {presetThumbnailVisual(preset) ? (
-                        <div className="admin-preview-frame h-28 w-28 overflow-hidden">
-                          <img src={presetThumbnailVisual(preset) ?? ""} alt={preset.label} className="h-full w-full object-cover" />
-                        </div>
-                      ) : null}
-                      <div className="grid gap-2 text-sm leading-6">
-                        <div>
-                          <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[var(--muted-strong)]">Preset key</div>
-                          <div className="text-[var(--foreground)]">{preset.key}</div>
-                        </div>
-                        <div>
-                          <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[var(--muted-strong)]">Status</div>
-                          <div className="text-[var(--foreground)]">{preset.status === "active" ? "Enabled" : "Disabled"}</div>
-                        </div>
-                        <div>
-                          <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[var(--muted-strong)]">Available in</div>
-                          <div className="text-[var(--foreground)]">{presetModelLabels(preset)}</div>
-                        </div>
-                        <div>
-                          <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[var(--muted-strong)]">Inputs</div>
-                          <div className="text-[var(--foreground)]">
-                            {`${preset.input_schema_json?.length ?? 0} text field${(preset.input_schema_json?.length ?? 0) === 1 ? "" : "s"} · ${preset.input_slots_json?.length ?? 0} image slot${(preset.input_slots_json?.length ?? 0) === 1 ? "" : "s"}`}
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
+                      <div className="grid gap-3">
+                        {presetThumbnailVisual(preset) ? (
+                          <div className="admin-preview-frame h-28 w-28 overflow-hidden">
+                            <img src={presetThumbnailVisual(preset) ?? ""} alt={preset.label} className="h-full w-full object-cover" />
                           </div>
-                        </div>
+                        ) : null}
+                        <PropertyStack appearance="admin" className="text-sm leading-6">
+                          <PropertyStackItem appearance="admin" label="Preset key" value={preset.key} />
+                          <PropertyStackItem appearance="admin" label="Status" value={preset.status === "active" ? "Enabled" : "Disabled"} />
+                          <PropertyStackItem appearance="admin" label="Available in" value={presetModelLabels(preset)} />
+                          <PropertyStackItem
+                            appearance="admin"
+                            label="Inputs"
+                            value={`${preset.input_schema_json?.length ?? 0} text field${(preset.input_schema_json?.length ?? 0) === 1 ? "" : "s"} · ${preset.input_slots_json?.length ?? 0} image slot${(preset.input_slots_json?.length ?? 0) === 1 ? "" : "s"}`}
+                          />
+                        </PropertyStack>
                       </div>
-                    </div>
-                    <div className="grid gap-4">
+                      <div className="grid gap-4">
                       {preset.input_schema_json?.length ? (
                         <div className="grid gap-2">
                           <div className="admin-label-muted">Text fields</div>
@@ -1685,10 +1710,15 @@ export function MediaModelsConsole({
                             {preset.input_schema_json.map((field, index) => {
                               const item = field as Record<string, unknown>;
                               return (
-                                <div key={`${preset.preset_id}-field-${String(item.key ?? index)}`} className="admin-surface-inset px-3 py-2.5 text-sm leading-6">
+                                <SurfaceInset
+                                  key={`${preset.preset_id}-field-${String(item.key ?? index)}`}
+                                  appearance="admin"
+                                  density="compact"
+                                  className="px-3 py-2.5 text-sm leading-6"
+                                >
                                   <div className="text-[var(--foreground)]">{String(item.label ?? item.key ?? `Field ${index + 1}`)}</div>
                                   <div className="text-[var(--muted-strong)]">{presetFieldKeyToken(String(item.key ?? ""))}</div>
-                                </div>
+                                </SurfaceInset>
                               );
                             })}
                           </div>
@@ -1701,10 +1731,15 @@ export function MediaModelsConsole({
                             {preset.input_slots_json.map((slot, index) => {
                               const item = slot as Record<string, unknown>;
                               return (
-                                <div key={`${preset.preset_id}-slot-${String(item.key ?? index)}`} className="admin-surface-inset px-3 py-2.5 text-sm leading-6">
+                                <SurfaceInset
+                                  key={`${preset.preset_id}-slot-${String(item.key ?? index)}`}
+                                  appearance="admin"
+                                  density="compact"
+                                  className="px-3 py-2.5 text-sm leading-6"
+                                >
                                   <div className="text-[var(--foreground)]">{String(item.label ?? item.key ?? `Slot ${index + 1}`)}</div>
                                   <div className="text-[var(--muted-strong)]">{presetSlotKeyToken(String(item.key ?? ""))}</div>
-                                </div>
+                                </SurfaceInset>
                               );
                             })}
                           </div>
@@ -1721,9 +1756,9 @@ export function MediaModelsConsole({
                 </CollapsibleSubsection>
               ))
             ) : (
-              <div className="admin-surface-dashed px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]">
+              <CalloutPanel tone="muted" className="text-sm leading-7 text-[var(--muted-strong)]">
                 No structured presets have been added yet.
-              </div>
+              </CalloutPanel>
             )}
           </div>
 

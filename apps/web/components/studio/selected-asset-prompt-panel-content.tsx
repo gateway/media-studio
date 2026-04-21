@@ -2,6 +2,7 @@
 
 import { Image as ImageIcon } from "lucide-react";
 
+import { SurfaceInset } from "@/components/ui/surface-primitives";
 import type { StructuredPresetImageSlot, StructuredPresetTextField } from "@/lib/media-studio-helpers";
 
 type SelectedAssetPromptPanelContentProps = {
@@ -25,7 +26,7 @@ export function SelectedAssetPromptPanelContent({
   presetFields,
   presetInputValues,
   prompt,
-  promptContainerClassName = "rounded-[18px] border border-white/7 bg-black/16 px-4 py-3",
+  promptContainerClassName = "surface-inset rounded-[18px] px-4 py-3",
 }: SelectedAssetPromptPanelContentProps) {
   if (!structuredPresetActive) {
     return (
@@ -40,43 +41,43 @@ export function SelectedAssetPromptPanelContent({
   return (
     <div className="grid gap-4">
       <div className="grid gap-2 sm:grid-cols-2">
-        <div className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
+        <SurfaceInset appearance="studio" density="compact" className="rounded-[16px]">
           <div className="text-sm text-white/56">Preset</div>
           <div className="mt-1 text-sm font-medium text-white/92">{presetLabel || "Preset"}</div>
-        </div>
-        <div className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
+        </SurfaceInset>
+        <SurfaceInset appearance="studio" density="compact" className="rounded-[16px]">
           <div className="text-sm text-white/56">Description</div>
           <div className="mt-1 text-sm font-medium text-white/92">
             {presetDescription?.trim() || "No preset description was saved."}
           </div>
-        </div>
+        </SurfaceInset>
       </div>
       {presetSlots.length ? (
         <div className="grid gap-3">
           {presetSlots.map((slot) => {
             const rawItems = Array.isArray(presetSlotValues[slot.key]) ? (presetSlotValues[slot.key] as unknown[]) : [];
             return (
-              <div key={slot.key} className="rounded-[18px] border border-white/7 bg-black/16 p-3">
-                <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/56">
+              <SurfaceInset key={slot.key} appearance="studio" density="compact" className="rounded-[18px]">
+                <div className="flex items-center gap-2 surface-label-muted">
                   <ImageIcon className="size-3.5 text-[rgba(208,255,72,0.88)]" />
                   {slot.label}
                 </div>
                 {slot.helpText ? <div className="mt-1 text-sm leading-6 text-white/60">{slot.helpText}</div> : null}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-[14px] bg-white/[0.03] px-3 py-2.5">
+                  <SurfaceInset appearance="studio" density="compact" className="rounded-[14px] border-transparent">
                     <div className="text-[0.72rem] uppercase tracking-[0.12em] text-white/48">Requirement</div>
                     <div className="mt-1 text-sm font-medium text-white/88">{slot.required ? "Required" : "Optional"}</div>
-                  </div>
-                  <div className="rounded-[14px] bg-white/[0.03] px-3 py-2.5">
+                  </SurfaceInset>
+                  <SurfaceInset appearance="studio" density="compact" className="rounded-[14px] border-transparent">
                     <div className="text-[0.72rem] uppercase tracking-[0.12em] text-white/48">Saved input</div>
                     <div className="mt-1 text-sm font-medium text-white/88">
                       {rawItems.length > 0
                         ? `${rawItems.length} ${rawItems.length === 1 ? "reference" : "references"} attached`
                         : "No media recorded"}
                     </div>
-                  </div>
+                  </SurfaceInset>
                 </div>
-              </div>
+              </SurfaceInset>
             );
           })}
         </div>
@@ -84,12 +85,12 @@ export function SelectedAssetPromptPanelContent({
       {presetFields.length ? (
         <div className="grid gap-2 sm:grid-cols-2">
           {presetFields.map((field) => (
-            <div key={field.key} className="rounded-[16px] border border-white/7 bg-black/16 px-3 py-3">
+            <SurfaceInset key={field.key} appearance="studio" density="compact" className="rounded-[16px]">
               <div className="text-sm text-white/56">{field.label}</div>
               <div className="mt-1 text-sm font-medium text-white/92">
                 {presetInputValues[field.key] || field.defaultValue || "Not provided"}
               </div>
-            </div>
+            </SurfaceInset>
           ))}
         </div>
       ) : null}

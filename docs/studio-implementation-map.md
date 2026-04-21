@@ -8,6 +8,8 @@ This document describes the current internal ownership after the Studio monolith
   Top-level Studio orchestrator. It wires gallery, selection, polling, composer, project context, inspector overlays, and browser-specific affordances.
 - `apps/web/components/media-models-console.tsx`
   Admin-facing model settings surface. It now delegates network persistence helpers to `apps/web/lib/media-model-admin.ts` and stays focused on page composition and form state.
+- `apps/web/components/ui/surface-primitives.tsx`
+  Shared visual shell primitives for Studio/admin cards, insets, info rows, section headers, overlays, and empty states.
 
 ## Composer ownership
 
@@ -48,12 +50,12 @@ This document describes the current internal ownership after the Studio monolith
 
 ## Verification surface
 
-- `scripts/studio_browser_asset_revision_smoke.mjs`
-  Synthetic completed-asset revision restore smoke for Kling i2v and Nano image-edit.
-- `scripts/studio_browser_retry_restore_smoke.mjs`
-  Failed-job retry restore smoke.
-- `scripts/studio_browser_standard_slots_smoke.mjs`
-  Standard slot desktop/mobile smoke.
+- `apps/web/lib/studio-composer-restore.test.ts`
+  Covers completed-asset revision and retry restore controller behavior.
+- `apps/web/lib/studio-attachment-staging.test.ts`
+  Covers ordered image insert and replace semantics.
+- `apps/web/lib/media-studio-helpers.test.ts`
+  Covers standard slot contracts, enhancement preview helpers, retry planning, and staged-media derivation.
 
 ## Refactor rule
 
@@ -64,3 +66,7 @@ Further cleanup should preserve:
 - queue semantics
 - model visibility behavior
 - visible user-facing copy unless the task is explicitly product copy
+
+Comment-worthy invariants now belong in the extracted helpers and controller boundaries above. Keep `media-studio.tsx` focused on orchestration instead of re-inlining restore, staging, or admin request rules.
+
+Visual cleanup should follow the same rule: keep one-off layout utilities inline, but move repeated shells, rows, overlays, and preview frames into shared primitives or semantic classes instead of duplicating raw arbitrary-value Tailwind strings.

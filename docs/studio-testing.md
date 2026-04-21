@@ -10,64 +10,35 @@ Use these commands when tightening the Studio client without changing public beh
 `release:verify` now runs:
 - API tests
 - web tests, lint, typecheck, production build
-- the main browser smoke
-- the preset/image-slot browser smoke
-- the prompt-only enhancement browser smoke
 
-## Browser Smokes
+## Committed Verification
 
-- `npm run smoke:studio-browser`
-  - covers basic Studio load, model selection, generate path, lightbox, favorite toggle, filters, and duplicate-card checks
-- `npm run smoke:studio-browser-standard-slots`
-  - covers the standard explicit slot contract for non-Seedance, non-Nano models
-  - verifies:
-    - `Kling 3.0 i2v` renders `Start frame` and `End frame optional`
-    - gallery image drag into both frame slots
-    - `Kling 3.0 Motion Control` renders `Source image` and `Driving video`
-    - wrong-type image drag is rejected for `Driving video`
-    - gallery video drag fills `Driving video`
-    - reference-library replacement preserves the motion source-image slot and does not disturb the driving video
-    - mobile explicit-slot visibility for `Kling 3.0 i2v` and `Kling 3.0 Motion Control`
-- `npm run smoke:studio-browser-preset`
-  - covers Nano preset selection, preset image-slot upload, and queue-card creation
-- `npm run smoke:studio-browser-enhance`
-  - covers prompt-only enhancement for `nano-banana-2`, enhancement preview loading, and using the rewritten prompt back in the composer
-  - `release:verify` forces the isolated temp API onto the built-in enhancement path so this smoke stays deterministic without mutating a real local database
-- `npm run smoke:studio-browser-retry`
-  - seeds a deterministic failed Nano job through the webdriver-only Studio test hook
-  - verifies `Retry in Studio` restores the composer prompt, model, and staged image refs
-- `npm run smoke:studio-browser-reference-backfill`
-  - opens the reference library and runs the explicit `Scan uploads` flow
-  - verifies the backfill summary banner appears and the library reload completes
-- `node scripts/studio_browser_seedance_smoke.mjs`
-  - covers Seedance no-submit validation wiring
-  - verifies:
-    - `Start frame` local file drop
-    - `End frame` rejection until `Start frame` exists
-    - `End frame` file drop after `Start frame`
-    - gallery image drag into `Image refs`
-    - gallery video drag into `Video refs`
-    - local dropped `.mp4` with empty MIME into `Video refs`
-    - audio ref file-input staging
-    - invalid vs valid control-route validation responses
+Committed Studio confidence lives in deterministic checks:
 
-All browser smokes default to `http://127.0.0.1:3000` and write artifacts under `output/browser-smoke/`.
+- `npm --workspace apps/web run test`
+  - helper and controller coverage for slot contracts, restore flows, staged attachments, admin persistence helpers, routing helpers, and UI primitives
+- `npm --workspace apps/web run lint`
+- `npm --workspace apps/web run typecheck`
+- `npm --workspace apps/web run build`
+- API pytest coverage via `./scripts/run-quality-gates`
 
-## Provider-Backed Smoke
+## Local-Only Smoke Checklist
 
-- `npm run smoke:studio-live`
+Browser and live smoke tooling is developer-owned and intentionally untracked. Keep any local helpers under `temp/local-smoke/` and keep artifacts under `output/browser-smoke/` or `output/live-smoke/`.
 
-This is intentionally separate from `release:verify` because it uses live provider capacity and can take longer.
+Use this manual checklist when you want extra local confidence beyond the committed gates:
 
-The live smoke covers:
-- `Nano Banana 2` text-to-image
-- `Nano Banana Pro` preset submit with an image slot
-- `Kling 2.6 I2V` with `5s` and `sound: false`
-- `Kling 3.0 I2V` with `5s` and `sound: false`
-
-It defaults to `http://127.0.0.1:3000`, uses `docs/images/media-studio.jpg` as the preset image fixture, and writes a JSON report under `output/live-smoke/`.
+- base Studio load, model selection, and duplicate-card sanity
+- standard slot flows for non-Seedance, non-Nano models
+  - `Kling 3.0 i2v` shows both `Start frame` and `End frame`
+  - `Kling 3.0 Motion Control` shows one image slot and one video slot
+- retry / `Create Revision` restore
+  - prompt, model, and source/reference media restore correctly
+- prompt enhancement with a staged image
+- Nano preset image-slot flow
+- optional provider-backed live submit when validating real model execution
 
 ## Notes
 
-- The browser smokes are for wiring regressions, not provider completion latency.
-- The live smoke is the release-confidence check when model submission, polling, and publish handoff need to be validated end to end.
+- The committed repo contract is deterministic and GitHub-safe.
+- Local smoke is still useful during development, but it is not part of tracked repo automation.

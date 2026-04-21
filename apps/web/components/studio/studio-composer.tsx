@@ -6,6 +6,7 @@ import type { FloatingComposerStatus } from "@/lib/media-studio-contract";
 import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
 import { IconButton } from "@/components/ui/icon-button";
 import { ToastBanner } from "@/components/ui/toast-banner";
+import { overlayBackdropClassName, overlayPanelClassName } from "@/components/ui/surfaces";
 import { cn } from "@/lib/utils";
 
 type StudioComposerProps = {
@@ -48,7 +49,7 @@ export function StudioComposer({
     <div
       className={cn(
         mobileComposerExpanded
-          ? "fixed inset-0 z-[110] flex items-stretch overflow-y-auto bg-[rgba(6,8,7,0.84)] p-0 [webkit-overflow-scrolling:touch] lg:inset-auto lg:block lg:overflow-visible lg:bg-transparent lg:p-0"
+          ? cn(overlayBackdropClassName, "z-[110] flex items-stretch bg-[rgba(6,8,7,0.84)] p-0 lg:inset-auto lg:block lg:overflow-visible lg:bg-transparent lg:p-0")
           : immersive
             ? "fixed bottom-4 left-4 right-4 z-[70] md:bottom-6 md:left-6 md:right-6"
             : "absolute bottom-4 left-4 right-4 z-20 md:bottom-6 md:left-6 md:right-6",
@@ -83,11 +84,12 @@ export function StudioComposer({
           />
         </div>
       ) : null}
-      <div
-        className={cn(
-          "border border-white/10 bg-[rgba(21,24,23,0.9)] shadow-[0_28px_70px_rgba(0,0,0,0.42)] backdrop-blur-2xl",
-          mobileComposerExpanded
-            ? cn(
+        <div
+          className={cn(
+            overlayPanelClassName,
+            "border-white/10 bg-[rgba(21,24,23,0.9)] backdrop-blur-2xl",
+            mobileComposerExpanded
+              ? cn(
                 "w-screen max-w-none self-stretch flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden rounded-none border-x-0 border-b-0 px-4 pb-4 pt-6 shadow-[0_32px_80px_rgba(0,0,0,0.48)] lg:mx-auto lg:mt-auto lg:h-auto lg:min-h-0 lg:max-h-[calc(100dvh-1.5rem)] lg:w-full lg:rounded-[34px] lg:border-x lg:border-b lg:px-4 lg:py-4",
                 immersive ? "lg:max-w-[1480px]" : "lg:max-w-[1240px]",
               )

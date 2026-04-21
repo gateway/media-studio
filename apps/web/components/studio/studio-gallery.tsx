@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Clapperboard, Heart, Image as ImageIcon, LoaderCircle, Play } from "lucide-react";
 
+import { EmptyState } from "@/components/ui/surface-primitives";
 import { mediaThumbnailUrl, prettifyModelLabel } from "@/lib/media-studio-helpers";
 import { galleryTileSizeBand, type GalleryTile } from "@/lib/studio-gallery";
 import type { MediaAsset } from "@/lib/types";
@@ -56,13 +57,13 @@ export function StudioGallery({
           immersive ? "min-h-dvh pb-[270px] pt-0 md:pb-[290px]" : "min-h-[920px] pt-20",
         )}
       >
-        <div className="mx-4 w-full max-w-xl rounded-[32px] border border-white/10 bg-[rgba(11,14,13,0.9)] px-8 py-10 text-center text-white shadow-[0_24px_80px_rgba(0,0,0,0.24)] backdrop-blur-xl">
-          <div className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-[rgba(216,141,67,0.82)]">Gallery Empty</div>
-          <h2 className="mt-4 text-2xl font-semibold tracking-[-0.02em] text-white">Your studio is ready for the first render.</h2>
-          <p className="mt-3 text-sm leading-6 text-white/68">
-            Pick a model, write a prompt, and generate your first image or video. Finished results will appear here.
-          </p>
-        </div>
+        <EmptyState
+          appearance="studio"
+          eyebrow="Gallery Empty"
+          title="Your studio is ready for the first render."
+          description="Pick a model, write a prompt, and generate your first image or video. Finished results will appear here."
+          className="mx-4 w-full max-w-xl text-center backdrop-blur-xl"
+        />
       </div>
     );
   }

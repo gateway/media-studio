@@ -9,6 +9,7 @@ import {
   optionShortLabel,
   type StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
+import { InfoRow, SurfaceCard, SurfaceInset } from "@/components/ui/surface-primitives";
 import type { MediaAsset } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
@@ -63,40 +64,24 @@ export function StudioInspectorInfo({
   }
 
   return (
-    <div className={cn("rounded-[22px] border border-white/8 bg-white/[0.03] p-4", className)}>
-      <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
-        Information
-      </div>
+    <SurfaceCard appearance="studio" density="compact" className={cn("rounded-[22px]", className)}>
+      <div className="surface-label-muted">Information</div>
       <div className="mt-3 grid gap-2">
-        <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-          <span className="text-sm text-white/56">Date</span>
-          <span className="text-sm font-medium text-white/92">{formatDateTime(selectedAsset.created_at)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-          <span className="text-sm text-white/56">Status</span>
-          <span className="text-sm font-medium uppercase tracking-[0.08em] text-white/92">
-            {selectedAsset.status ?? "stored"}
-          </span>
-        </div>
-        <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-          <span className="text-sm text-white/56">Model</span>
-          <span className="text-sm font-medium text-white/92">{selectedAsset.model_key ?? "Unknown"}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-          <span className="text-sm text-white/56">Preset</span>
-          <span className="text-sm font-medium text-white/92">{selectedAsset.preset_key ?? "builtin"}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-          <span className="text-sm text-white/56">Type</span>
-          <span className="text-sm font-medium text-white/92">
-            {selectedAsset.generation_kind ?? selectedAsset.task_mode ?? "asset"}
-          </span>
-        </div>
+        <InfoRow appearance="studio" label="Date" value={formatDateTime(selectedAsset.created_at)} />
+        <InfoRow
+          appearance="studio"
+          label="Status"
+          value={selectedAsset.status ?? "stored"}
+          valueClassName="uppercase tracking-[0.08em]"
+        />
+        <InfoRow appearance="studio" label="Model" value={selectedAsset.model_key ?? "Unknown"} />
+        <InfoRow appearance="studio" label="Preset" value={selectedAsset.preset_key ?? "builtin"} />
+        <InfoRow appearance="studio" label="Type" value={selectedAsset.generation_kind ?? selectedAsset.task_mode ?? "asset"} />
         {selectedAsset.project_id ? (
           <button
             type="button"
             onClick={() => onOpenProject?.(String(selectedAsset.project_id))}
-            className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3 text-left transition hover:bg-white/[0.05]"
+            className="surface-info-row text-left transition hover:bg-white/[0.05]"
           >
             <span className="text-sm text-white/56">Project</span>
             <span className="text-sm font-medium text-[rgba(255,183,107,0.96)]">
@@ -104,16 +89,13 @@ export function StudioInspectorInfo({
             </span>
           </button>
         ) : (
-          <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-            <span className="text-sm text-white/56">Project</span>
-            <span className="text-sm font-medium text-white/92">Global</span>
-          </div>
+          <InfoRow appearance="studio" label="Project" value="Global" />
         )}
         <button
           type="button"
           onClick={() => void onToggleFavorite(selectedAsset)}
           disabled={favoriteAssetIdBusy === selectedAsset.asset_id}
-          className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3 text-left transition hover:bg-white/[0.05] disabled:opacity-60"
+          className="surface-info-row text-left transition hover:bg-white/[0.05] disabled:opacity-60"
         >
           <span className="text-sm text-white/56">Favorite</span>
           <span
@@ -130,7 +112,7 @@ export function StudioInspectorInfo({
           type="button"
           onClick={() => void copyAssetLink()}
           data-testid="studio-inspector-copy-link"
-          className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3 text-left transition hover:bg-white/[0.05]"
+          className="surface-info-row text-left transition hover:bg-white/[0.05]"
           title={copyLinkStatus === "copied" ? "Link copied" : copyLinkStatus === "error" ? "Copy failed" : "Copy link"}
         >
           <span className="text-sm text-white/56">Link</span>
@@ -145,16 +127,16 @@ export function StudioInspectorInfo({
           </span>
         </button>
         {optionEntries.map(([key, value]) => (
-          <div key={key} className="flex items-center justify-between gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-            <span className="text-sm text-white/56">{optionShortLabel(key)}</span>
-            <span className="text-sm font-medium text-white/92">
-              {displayChoiceLabel(key, {}, value) || formatOptionValue(value)}
-            </span>
-          </div>
+          <InfoRow
+            key={key}
+            appearance="studio"
+            label={optionShortLabel(key)}
+            value={displayChoiceLabel(key, {}, value) || formatOptionValue(value)}
+          />
         ))}
         {referencePreviews.length ? (
-          <div className="rounded-[18px] bg-white/[0.03] p-3">
-            <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
+          <SurfaceInset appearance="studio" density="compact" className="rounded-[18px]">
+            <div className="flex items-center gap-2 surface-label-muted">
               <ImageIcon className="size-3.5 text-[rgba(208,255,72,0.88)]" />
               References
             </div>
@@ -166,7 +148,7 @@ export function StudioInspectorInfo({
                   onClick={() => onOpenReference?.(reference)}
                   className="grid w-[5.25rem] shrink-0 gap-2 text-left transition hover:opacity-95"
                 >
-                  <span className="overflow-hidden rounded-[16px] border border-white/10 bg-black/18">
+                  <span className="surface-preview-frame">
                     {reference.kind === "videos" ? (
                       reference.posterUrl ? (
                         <span className="relative block">
@@ -205,9 +187,9 @@ export function StudioInspectorInfo({
                 </button>
               ))}
             </div>
-          </div>
+          </SurfaceInset>
         ) : null}
       </div>
-    </div>
+    </SurfaceCard>
   );
 }

@@ -6,29 +6,16 @@ import { cn } from "@/lib/utils";
 export type FeedbackIntent = "healthy" | "warning" | "danger" | "working";
 
 export function feedbackToneClassName(tone: FeedbackIntent, appearance: "admin" | "studio") {
-  if (appearance === "admin") {
-    if (tone === "healthy") {
-      return "border-[var(--ui-feedback-healthy-border)] bg-[var(--ui-feedback-healthy-surface)] text-[var(--ui-feedback-healthy-text)]";
-    }
-    if (tone === "danger") {
-      return "border-[var(--ui-feedback-danger-border)] bg-[var(--ui-feedback-danger-surface)] text-[var(--ui-feedback-danger-text)]";
-    }
-    if (tone === "working") {
-      return "border-[var(--ui-feedback-working-border)] bg-[var(--ui-feedback-working-surface)] text-[var(--ui-feedback-working-text)]";
-    }
-    return "border-[var(--ui-feedback-warning-border)] bg-[var(--ui-feedback-warning-surface)] text-[var(--ui-feedback-warning-text)]";
-  }
-
   if (tone === "healthy") {
-    return "border-[var(--ms-feedback-healthy-border)] bg-[var(--ms-feedback-healthy-surface)] text-[var(--ms-feedback-healthy-text)]";
+    return "border-[var(--feedback-healthy-border)] bg-[var(--feedback-healthy-surface)] text-[var(--feedback-healthy-text)]";
   }
   if (tone === "danger") {
-    return "border-[var(--ms-feedback-danger-border)] bg-[var(--ms-feedback-danger-surface)] text-[var(--ms-feedback-danger-text)]";
+    return "border-[var(--feedback-danger-border)] bg-[var(--feedback-danger-surface)] text-[var(--feedback-danger-text)]";
   }
   if (tone === "working") {
-    return "border-[var(--ms-feedback-working-border)] bg-[var(--ms-feedback-working-surface)] text-[var(--ms-feedback-working-text)]";
+    return "border-[var(--feedback-working-border)] bg-[var(--feedback-working-surface)] text-[var(--feedback-working-text)]";
   }
-  return "border-[var(--ms-feedback-warning-border)] bg-[var(--ms-feedback-warning-surface)] text-[var(--ms-feedback-warning-text)]";
+  return "border-[var(--feedback-warning-border)] bg-[var(--feedback-warning-surface)] text-[var(--feedback-warning-text)]";
 }
 
 function defaultTitle(tone: FeedbackIntent) {
@@ -71,8 +58,8 @@ export function ToastBanner({
       {...props}
       className={cn(
         appearance === "admin"
-          ? "rounded-[20px] border px-4 py-3 shadow-[var(--ui-shadow-floating-notice)] backdrop-blur-xl"
-          : "rounded-[20px] border px-4 py-3 shadow-[var(--ms-shadow-floating-notice)] backdrop-blur-xl",
+          ? "rounded-[20px] border px-4 py-3 shadow-[var(--shadow-floating-notice)] backdrop-blur-xl"
+          : "rounded-[20px] border px-4 py-3 shadow-[var(--shadow-floating-notice)] backdrop-blur-xl",
         feedbackToneClassName(tone, appearance),
         className,
       )}

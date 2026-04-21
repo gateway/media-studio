@@ -5,10 +5,10 @@ import { AlertTriangle, Image as ImageIcon, RotateCcw, Trash2, X } from "lucide-
 import { StatusPill } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
-import { overlayBackdropClassName, overlayPanelClassName, softPanelClassName } from "@/components/ui/surfaces";
+import { CalloutPanel, OverlayShell, PropertyStack, PropertyStackItem, SurfaceCard } from "@/components/ui/surface-primitives";
 import type { StudioReferencePreview } from "@/lib/media-studio-helpers";
 import type { MediaJob } from "@/lib/types";
-import { cn, formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 
 type StudioFailedJobInspectorProps = {
   job: MediaJob;
@@ -32,9 +32,12 @@ export function StudioFailedJobInspector({
   statusLabel,
 }: StudioFailedJobInspectorProps) {
   return (
-    <div data-testid="studio-failed-job-inspector" className={cn(overlayBackdropClassName, "z-[120] bg-[rgba(6,8,7,0.86)]")}>
-      <div className="min-h-dvh p-0 lg:p-6">
-        <div className={cn("grid min-h-dvh content-start gap-4 px-3 pb-6 pt-3 [touch-action:pan-y] lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:max-h-[calc(100dvh-3rem)] lg:grid-cols-[minmax(0,1fr)_360px] lg:overflow-hidden lg:rounded-[34px] lg:px-6 lg:pb-6 lg:pt-6", overlayPanelClassName)}>
+    <OverlayShell
+      backdropClassName="z-[120] bg-[rgba(6,8,7,0.86)]"
+      innerClassName="min-h-dvh p-0 lg:p-6"
+      panelClassName="grid min-h-dvh content-start gap-4 px-3 pb-6 pt-3 [touch-action:pan-y] lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:max-h-[calc(100dvh-3rem)] lg:grid-cols-[minmax(0,1fr)_360px] lg:overflow-hidden lg:px-6 lg:pb-6 lg:pt-6"
+    >
+        <div data-testid="studio-failed-job-inspector" className="contents">
           <div className="grid min-h-0 content-start gap-4 lg:grid-rows-[minmax(0,1fr)_auto]">
             <div className="relative overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_55%),linear-gradient(180deg,#111514,#181d1b)]">
               <IconButton
@@ -44,7 +47,7 @@ export function StudioFailedJobInspector({
                 aria-label="Close failed job inspector"
               />
               <div className="flex min-h-[48vh] items-center justify-center p-4 sm:p-6 lg:h-full">
-                <div className="grid max-w-[24rem] gap-4 rounded-[28px] border border-[rgba(255,139,139,0.18)] bg-[rgba(40,16,14,0.42)] px-6 py-8 text-center text-white/78">
+                <CalloutPanel tone="danger" className="grid max-w-[24rem] gap-4 rounded-[28px] px-6 py-8 text-center text-white/78">
                   <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(255,139,139,0.24)] bg-[rgba(255,139,139,0.1)] text-[#ff8b8b]">
                     <AlertTriangle className="size-7" />
                   </div>
@@ -54,7 +57,7 @@ export function StudioFailedJobInspector({
                       No output image was published for this failed job. The saved prompt and provider error are still available below.
                     </p>
                   </div>
-                </div>
+                </CalloutPanel>
               </div>
               <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4">
                 <div className="pointer-events-auto flex items-center gap-2" />
@@ -71,7 +74,7 @@ export function StudioFailedJobInspector({
                 </div>
               </div>
             </div>
-            <div className={cn("p-4 text-white", softPanelClassName)}>
+            <SurfaceCard appearance="studio" density="compact" className="p-4 text-white">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">Prompt</div>
               </div>
@@ -80,7 +83,7 @@ export function StudioFailedJobInspector({
                   {prompt ?? "No prompt text was stored for this failed job."}
                 </p>
               </div>
-            </div>
+            </SurfaceCard>
           </div>
           <div className="grid min-h-0 gap-4 rounded-[28px] bg-[rgba(255,255,255,0.04)] p-4 text-white lg:grid lg:overflow-y-auto lg:p-5">
             <div className="flex items-center justify-between gap-3">
@@ -102,12 +105,12 @@ export function StudioFailedJobInspector({
               <RotateCcw className="size-4" />
               Retry in Studio
             </Button>
-            <div className="min-w-0 rounded-[22px] border border-[rgba(255,139,139,0.16)] bg-[rgba(73,20,20,0.24)] p-4">
+            <CalloutPanel tone="danger" className="min-w-0 rounded-[22px]">
               <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[#ffb8b8]">Provider Error</div>
               <p className="mt-3 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-white/84">
                 {job.error ?? "The media provider did not return a more specific failure message."}
               </p>
-            </div>
+            </CalloutPanel>
             {imageReferences.length ? (
               <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
                 <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
@@ -137,29 +140,13 @@ export function StudioFailedJobInspector({
                 </div>
               </div>
             ) : null}
-            <div className="grid gap-2 rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
-              <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                <span className="pt-0.5 text-sm text-white/56">Job ID</span>
-                <span className="min-w-0 break-words text-right text-sm font-medium text-white/92 [overflow-wrap:anywhere]">
-                  {job.job_id}
-                </span>
-              </div>
-              <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                <span className="pt-0.5 text-sm text-white/56">Provider Task</span>
-                <span className="min-w-0 break-words text-right text-sm font-medium text-white/92 [overflow-wrap:anywhere]">
-                  {job.provider_task_id ?? "Not assigned"}
-                </span>
-              </div>
-              <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-3 rounded-[16px] bg-white/[0.03] px-3 py-3">
-                <span className="pt-0.5 text-sm text-white/56">Mode</span>
-                <span className="min-w-0 break-words text-right text-sm font-medium text-white/92 [overflow-wrap:anywhere]">
-                  {job.task_mode ?? "Unknown"}
-                </span>
-              </div>
-            </div>
+            <PropertyStack appearance="studio" className="rounded-[22px]">
+              <PropertyStackItem appearance="studio" label="Job ID" value={job.job_id} valueClassName="break-words text-right [overflow-wrap:anywhere]" />
+              <PropertyStackItem appearance="studio" label="Provider Task" value={job.provider_task_id ?? "Not assigned"} valueClassName="break-words text-right [overflow-wrap:anywhere]" />
+              <PropertyStackItem appearance="studio" label="Mode" value={job.task_mode ?? "Unknown"} valueClassName="break-words text-right [overflow-wrap:anywhere]" />
+            </PropertyStack>
           </div>
         </div>
-      </div>
-    </div>
+    </OverlayShell>
   );
 }

@@ -29,6 +29,8 @@
   Shared selected-asset prompt and preset-details body used by both desktop and mobile inspector wrappers.
 - `apps/web/components/studio/studio-standard-slot-rail.tsx`
   Shared explicit slot renderer for standard slot-contract models across desktop and mobile.
+- `apps/web/components/ui/surface-primitives.tsx`
+  Shared Studio/admin presentation primitives. Use these for repeated shells and rows before adding more feature-local visual class strings.
 
 ## Remaining top-level responsibilities
 
@@ -115,12 +117,24 @@ Further extraction should keep these unchanged:
 - gallery ordering
 - visible button text
 
+## Frontend styling rule
+
+- Keep layout-only utilities such as `flex`, `grid`, `gap`, and breakpoint classes inline when they are local and obvious.
+- Move repeated visual treatments into shared primitives or semantic classes:
+  - cards
+  - insets
+  - info rows
+  - overlay shells
+  - preview frames
+  - empty states
+- Do not reintroduce parallel Studio/admin token families for the same semantic role when a shared UI token can be overridden by appearance.
+
 ## Verification
 
 See [docs/studio-testing.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/studio-testing.md) for the current Studio gates:
 
 - fast quality gates
-- release verification with browser smoke coverage
-- provider-backed live smoke for real Nano/Kling runs
+- deterministic release verification
+- local-only smoke guidance for developer-owned browser and provider checks
 
 For the full submit, queue, publish, retry, and reference-library backfill lifecycle, see [docs/request-lifecycle.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/request-lifecycle.md).

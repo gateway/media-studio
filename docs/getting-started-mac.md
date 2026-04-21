@@ -56,7 +56,7 @@ The shared Python virtualenv includes editable installs of:
 
 Test-only packages are installed later only when you run the quality or release verification scripts.
 
-Test tooling such as Vitest and browser smoke tooling are also kept out of the normal user path. They only get installed when you run the quality or release verification workflow.
+Committed verification tooling such as Vitest stays out of the normal user path until you run the quality or release verification workflow.
 
 ## 3. Add the required KIE API key
 

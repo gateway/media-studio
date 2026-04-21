@@ -183,14 +183,10 @@ Helper tests:
 
 - `apps/web/lib/media-studio-helpers.test.ts`
 
-Browser smoke:
-
-- `npm run smoke:studio-browser-standard-slots`
-
-This smoke covers:
+Local developer smoke should stay untracked. When validating this contract manually, cover:
 
 - desktop `Kling 3.0 i2v`
-  - both frame slots visible
+  - both frame slots visible before either is filled
   - gallery image drag into start frame
   - gallery image drag into end frame
 - desktop `Kling 3.0 Motion Control`
@@ -198,7 +194,6 @@ This smoke covers:
   - driving-video slot visible
   - wrong-type image drop rejected for driving video
   - gallery video drag accepted for driving video
-  - reference-library replacement preserves source image and driving video
 - mobile
   - `Kling 3.0 i2v` slot visibility
   - `Kling 3.0 Motion Control` slot visibility

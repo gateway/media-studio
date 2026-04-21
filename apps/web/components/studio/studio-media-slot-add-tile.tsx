@@ -96,15 +96,15 @@ export function StudioMediaSlotAddTile({
   return (
     <div className={cn("flex shrink-0 flex-col gap-2", wrapperClassName)}>
       {label ? (
-        <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{label}</div>
+        <div className="studio-slot-label">{label}</div>
       ) : null}
       <label
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "relative flex h-[82px] w-[82px] cursor-pointer items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.06] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]",
-          isDragActive ? "border-[rgba(216,141,67,0.42)] bg-[rgba(24,28,26,0.95)]" : "",
+          "studio-slot-tile",
+          isDragActive ? "studio-slot-tile-drag-active" : "",
           disabled ? "cursor-not-allowed opacity-45 hover:border-white/10 hover:bg-white/[0.06]" : "",
           tileClassName,
         )}

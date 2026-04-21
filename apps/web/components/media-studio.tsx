@@ -873,6 +873,9 @@ export function MediaStudio({
         setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
         return;
       }
+      // Standard slots can be backed by the dedicated source asset or by a plain
+      // staged image attachment, so replacement has to clear whichever path owns
+      // this slot before the reference library inserts the new media.
       if (currentSlot?.source === "asset") {
         clearSourceAsset();
       }
@@ -1377,6 +1380,8 @@ export function MediaStudio({
   ) {
     if (slot.kind === "image") {
       const currentSlot = orderedImageInputs[slot.slotIndex] ?? null;
+      // Replacing an image slot has to clear a source-asset-backed slot before the
+      // file add runs, otherwise the ordered attachment insert would duplicate it.
       if (replaceFilled && currentSlot?.source === "asset") {
         clearSourceAsset();
       }
@@ -2601,6 +2606,9 @@ export function MediaStudio({
       setFormMessage({ tone: "warning", text: `${asset.prompt_summary ? "Image" : "Selected asset"} assigned to ${nextSlot.label}.` });
       return;
     }
+    // Plain source-image flows keep one dedicated source asset outside the generic
+    // attachment strip so slot zero is not duplicated when explicit slot contracts
+    // later stage image attachments into ordered positions.
     stageSourceAsset(asset);
     if (animate && asset.generation_kind !== "video") {
       const currentModelSupportsAnimate = Boolean(

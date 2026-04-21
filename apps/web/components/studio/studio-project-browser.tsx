@@ -17,7 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
-import { overlayBackdropClassName, overlayPanelClassName, softPanelClassName } from "@/components/ui/surfaces";
+import { CalloutPanel, MediaBrowserCard, OverlayHeader, OverlayShell, SurfaceInputShell } from "@/components/ui/surface-primitives";
 import type { MediaProject } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
@@ -73,19 +73,17 @@ function ProjectCard({
   const coverUrl = projectCoverUrl(project);
 
   return (
-    <div
+    <MediaBrowserCard
       data-testid={`studio-project-card-${project.project_id}`}
-      className={cn(
-        softPanelClassName,
-        "grid gap-2 rounded-[18px] p-2 text-left shadow-[0_18px_40px_rgba(0,0,0,0.24)]",
-        selected && !archived ? "ring-1 ring-[rgba(208,255,72,0.32)]" : null,
-        archived ? "opacity-80" : null,
-      )}
+      appearance="studio"
+      selected={selected && !archived}
+      muted={archived}
+      className="shadow-[0_18px_40px_rgba(0,0,0,0.24)]"
     >
       <button
         type="button"
         onClick={onOpen}
-        className="group relative aspect-square overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.05] text-left transition hover:border-[rgba(208,255,72,0.24)]"
+        className="media-browser-card-thumbnail group relative aspect-square text-left"
       >
         {coverUrl ? (
           <img
@@ -101,21 +99,21 @@ function ProjectCard({
           </div>
         )}
       </button>
-      <div className="min-w-0 px-0.5">
-        <div className="truncate text-[0.78rem] font-semibold tracking-[-0.01em] text-white/92">{project.name}</div>
-        <div className="mt-0.5 line-clamp-2 min-h-[2rem] text-[0.64rem] leading-4 text-white/48">
+      <div className="media-browser-card-copy">
+        <div className="media-browser-card-title truncate">{project.name}</div>
+        <div className="media-browser-card-description line-clamp-2 min-h-[2rem]">
           {project.description?.trim() || "No description yet."}
         </div>
       </div>
-      <div className="px-0.5 text-[0.62rem] leading-4 text-white/42">
+      <div className="media-browser-card-meta">
         Updated {project.updated_at ? formatDateTime(project.updated_at) : "recently"}
       </div>
       {project.hidden_from_global_gallery ? (
-        <div className="px-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[rgba(255,183,107,0.88)]">
+        <div className="media-browser-card-meta font-semibold uppercase tracking-[0.14em] text-[rgba(255,183,107,0.88)]">
           Hidden from main gallery
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="media-browser-card-actions">
         <Button
           onClick={onOpen}
           variant="primary"
@@ -170,7 +168,7 @@ function ProjectCard({
           )}
         </div>
       </div>
-    </div>
+    </MediaBrowserCard>
   );
 }
 
@@ -348,43 +346,41 @@ export function StudioProjectBrowser({
   }
 
   return (
-    <div className={cn(overlayBackdropClassName, "z-[121]")}>
-      <div className="min-h-dvh p-0 lg:p-6">
-        <div
-          className={cn(
-            "flex min-h-dvh min-w-0 flex-col lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:max-h-[calc(100dvh-3rem)] lg:overflow-hidden lg:rounded-[34px]",
-            overlayPanelClassName,
-          )}
-        >
+    <OverlayShell
+      backdropClassName="z-[121]"
+      panelClassName="flex min-h-dvh min-w-0 flex-col lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:max-h-[calc(100dvh-3rem)] lg:overflow-hidden"
+    >
+        <div className="flex min-h-dvh min-w-0 flex-col">
           <div className="flex items-center justify-between gap-3 border-b border-white/8 px-4 py-4 md:px-6">
-            <div>
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[rgba(208,255,72,0.94)]">
-                Projects
-              </div>
-              <div className="mt-1 text-sm text-white/68">
-                Create a workspace, enter it, and keep its outputs and attached references grouped together.
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                data-testid="studio-project-create-button"
-                variant="subtle"
-                size="compact"
-                onClick={beginCreate}
-                className="h-10 rounded-full px-4 text-[0.68rem] tracking-[0.12em]"
-              >
-                <Plus className="mr-1.5 size-3.5" />
-                Create Project
-              </Button>
-              <IconButton icon={X} onClick={onClose} aria-label="Close projects" className="h-10 w-10" />
-            </div>
+            <OverlayHeader
+              appearance="studio"
+              eyebrow="Projects"
+              title="Projects"
+              description="Create a workspace, enter it, and keep its outputs and attached references grouped together."
+              actions={(
+                <div className="flex items-center gap-2">
+                  <Button
+                    data-testid="studio-project-create-button"
+                    variant="subtle"
+                    size="compact"
+                    onClick={beginCreate}
+                    className="h-10 rounded-full px-4 text-[0.68rem] tracking-[0.12em]"
+                  >
+                    <Plus className="mr-1.5 size-3.5" />
+                    Create Project
+                  </Button>
+                  <IconButton icon={X} onClick={onClose} aria-label="Close projects" className="h-10 w-10" />
+                </div>
+              )}
+              className="w-full border-0 pb-0"
+            />
           </div>
 
           <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 md:px-6 md:py-6">
             {error ? (
-              <div className="mb-4 rounded-[18px] border border-[rgba(201,102,82,0.22)] bg-[rgba(201,102,82,0.08)] px-4 py-3 text-sm text-[#ffb5a6]">
+              <CalloutPanel tone="danger" className="mb-4 rounded-[18px] px-4 py-3 text-sm">
                 {error}
-              </div>
+              </CalloutPanel>
             ) : null}
 
             <section className="mb-5">
@@ -408,9 +404,9 @@ export function StudioProjectBrowser({
                   ))}
                 </div>
               ) : (
-                <div className="rounded-[20px] border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-sm leading-6 text-white/58">
+                <CalloutPanel tone="muted" className="rounded-[20px] px-4 py-8 text-sm leading-6 text-white/58">
                   No projects yet. Create one and Studio will start assigning new work to it.
-                </div>
+                </CalloutPanel>
               )}
             </section>
 
@@ -441,45 +437,43 @@ export function StudioProjectBrowser({
             ) : null}
           </div>
         </div>
-      </div>
 
       {dialogOpen ? (
-        <div className={cn(overlayBackdropClassName, "z-[122]")}>
-          <div className="flex min-h-dvh items-center justify-center p-4">
-            <div className={cn("w-full max-w-[36rem] rounded-[28px] p-5 md:p-6", overlayPanelClassName)}>
-              <div className="mb-5 flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[rgba(208,255,72,0.94)]">
-                    {mode === "create" ? "Create Project" : "Edit Project"}
-                  </div>
-                  <div className="mt-1 text-sm text-white/68">
-                    Add a name, a description, and an optional image to make the workspace easier to recognize.
-                  </div>
-                </div>
-                <IconButton icon={X} onClick={closeDialog} aria-label="Close project dialog" className="h-10 w-10" />
-              </div>
+        <OverlayShell backdropClassName="z-[122]" innerClassName="flex min-h-dvh items-center justify-center p-4" panelClassName="w-full max-w-[36rem] p-5 md:p-6">
+              <OverlayHeader
+                appearance="studio"
+                eyebrow={mode === "create" ? "Create Project" : "Edit Project"}
+                title={mode === "create" ? "Create Project" : "Edit Project"}
+                description="Add a name, a description, and an optional image to make the workspace easier to recognize."
+                actions={<IconButton icon={X} onClick={closeDialog} aria-label="Close project dialog" className="h-10 w-10" />}
+                className="mb-5 border-0 pb-0"
+              />
 
               <div className="grid gap-4">
                 <label className="grid gap-2">
                   <span className="text-sm font-medium text-white/76">Name</span>
-                  <input
-                    data-testid="studio-project-name-input"
-                    value={draft.name}
-                    onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                    className="h-11 rounded-[16px] border border-white/10 bg-white/[0.04] px-4 text-sm text-white outline-none transition focus:border-[rgba(208,255,72,0.28)]"
-                    placeholder="Campaign launch, client brief, concept board..."
-                  />
+                  <SurfaceInputShell className="px-4">
+                    <input
+                      data-testid="studio-project-name-input"
+                      value={draft.name}
+                      onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                      className="surface-input-control h-11 text-sm"
+                      placeholder="Campaign launch, client brief, concept board..."
+                    />
+                  </SurfaceInputShell>
                 </label>
                 <label className="grid gap-2">
                   <span className="text-sm font-medium text-white/76">Description</span>
-                  <textarea
-                    data-testid="studio-project-description-input"
-                    value={draft.description}
-                    onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
-                    rows={5}
-                    className="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-white outline-none transition focus:border-[rgba(208,255,72,0.28)]"
-                    placeholder="What content belongs in this workspace, what references it uses, and what the goal is."
-                  />
+                  <SurfaceInputShell className="px-4 py-3">
+                    <textarea
+                      data-testid="studio-project-description-input"
+                      value={draft.description}
+                      onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
+                      rows={5}
+                      className="surface-input-control resize-none text-sm leading-6"
+                      placeholder="What content belongs in this workspace, what references it uses, and what the goal is."
+                    />
+                  </SurfaceInputShell>
                 </label>
 
                 <button
@@ -520,8 +514,8 @@ export function StudioProjectBrowser({
 
                 <div className="grid gap-2">
                   <span className="text-sm font-medium text-white/76">Image (optional)</span>
-                  <div className="flex items-start gap-4 rounded-[18px] border border-white/10 bg-white/[0.03] p-4">
-                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.05]">
+                  <CalloutPanel tone="default" className="flex items-start gap-4 rounded-[18px] p-4">
+                    <div className="media-browser-card-thumbnail h-24 w-24 shrink-0">
                       {coverPreviewUrl ? (
                         <img src={coverPreviewUrl} alt="Project cover preview" className="h-full w-full object-cover" />
                       ) : (
@@ -565,10 +559,10 @@ export function StudioProjectBrowser({
                         onChange={(event) => handleCoverFileChange(event.target.files?.[0] ?? null)}
                       />
                     </div>
-                  </div>
+                  </CalloutPanel>
                 </div>
 
-                {error ? <div className="text-sm text-[#ff9c8f]">{error}</div> : null}
+                {error ? <CalloutPanel tone="danger" className="text-sm">{error}</CalloutPanel> : null}
                 <div className="flex flex-wrap gap-2">
                   <Button
                     data-testid={mode === "create" ? "studio-project-submit-create" : "studio-project-submit-save"}
@@ -594,10 +588,8 @@ export function StudioProjectBrowser({
                   </Button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
+        </OverlayShell>
       ) : null}
-    </div>
+    </OverlayShell>
   );
 }

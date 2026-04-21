@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
-import { overlayBackdropClassName, overlayPanelClassName, softPanelClassName } from "@/components/ui/surfaces";
+import { CalloutPanel, MediaBrowserCard, OverlayHeader, OverlayShell } from "@/components/ui/surface-primitives";
 import { ToastBanner } from "@/components/ui/toast-banner";
 import type { MediaReference } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
@@ -132,42 +132,47 @@ export function StudioReferenceLibrary({
   }
 
   return (
-    <div data-testid="studio-reference-library" className={cn(overlayBackdropClassName, "z-[119]")}>
-      <div className="min-h-dvh p-0 lg:p-6">
-        <div className={cn("flex min-h-dvh min-w-0 flex-col lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:max-h-[calc(100dvh-3rem)] lg:overflow-hidden lg:rounded-[34px]", overlayPanelClassName)}>
-          <div className="flex items-center justify-between gap-3 border-b border-white/8 px-4 py-4 md:px-6">
-            <div>
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[rgba(208,255,72,0.94)]">
-                Reference Library
+    <OverlayShell
+      backdropClassName="z-[119]"
+      panelClassName="flex min-h-dvh min-w-0 flex-col lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:max-h-[calc(100dvh-3rem)] lg:overflow-hidden"
+    >
+      <div data-testid="studio-reference-library" className="flex min-h-dvh min-w-0 flex-col">
+        <div className="border-b border-white/8 px-4 py-4 md:px-6">
+          <OverlayHeader
+            appearance="studio"
+            eyebrow="Reference Library"
+            title="Reference Library"
+            description={title}
+            actions={(
+              <div className="flex items-center gap-2">
+                <Button
+                  data-testid="studio-reference-library-scan"
+                  onClick={() => void triggerBackfill()}
+                  disabled={backfilling}
+                  variant="subtle"
+                  size="compact"
+                  className="h-10 gap-2 rounded-full text-[0.68rem] tracking-[0.14em]"
+                >
+                  {backfilling ? (
+                    <>
+                      <LoaderCircle className="mr-2 size-3.5 animate-spin" />
+                      Scanning
+                    </>
+                  ) : (
+                    "Scan uploads"
+                  )}
+                </Button>
+                <IconButton
+                  icon={X}
+                  onClick={onClose}
+                  aria-label="Close reference library"
+                  className="h-10 w-10"
+                />
               </div>
-              <div className="mt-1 text-sm text-white/68">{title}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                data-testid="studio-reference-library-scan"
-                onClick={() => void triggerBackfill()}
-                disabled={backfilling}
-                variant="subtle"
-                size="compact"
-                className="h-10 gap-2 rounded-full text-[0.68rem] tracking-[0.14em]"
-              >
-                {backfilling ? (
-                  <>
-                    <LoaderCircle className="mr-2 size-3.5 animate-spin" />
-                    Scanning
-                  </>
-                ) : (
-                  "Scan uploads"
-                )}
-              </Button>
-              <IconButton
-                icon={X}
-                onClick={onClose}
-                aria-label="Close reference library"
-                className="h-10 w-10"
-              />
-            </div>
-          </div>
+            )}
+            className="border-0 pb-0"
+          />
+        </div>
           <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 md:px-6 md:py-6">
             {backfillSummary ? (
               <ToastBanner
@@ -188,15 +193,16 @@ export function StudioReferenceLibrary({
             ) : items.length ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                 {items.map((item) => (
-                  <div
+                  <MediaBrowserCard
                     key={item.reference_id}
                     data-testid={`studio-reference-library-item-${item.reference_id}`}
-                    className={cn(softPanelClassName, "grid gap-2 rounded-[18px] p-2 text-left shadow-[0_18px_40px_rgba(0,0,0,0.24)]")}
+                    appearance="studio"
+                    className="shadow-[0_18px_40px_rgba(0,0,0,0.24)]"
                   >
                     <button
                       type="button"
                       onClick={() => setPreviewItem(item)}
-                      className="group relative aspect-square overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.05] text-left transition hover:border-[rgba(216,141,67,0.28)]"
+                      className="media-browser-card-thumbnail group relative aspect-square text-left"
                     >
                       {item.thumb_url ?? item.stored_url ? (
                         <img
@@ -212,7 +218,7 @@ export function StudioReferenceLibrary({
                         </div>
                       )}
                     </button>
-                    <div className="min-w-0 px-0.5">
+                    <div className="media-browser-card-copy">
                       <div className="truncate text-[0.72rem] font-semibold tracking-[-0.01em] text-white/92">
                         {item.original_filename ?? item.reference_id}
                       </div>
@@ -220,7 +226,7 @@ export function StudioReferenceLibrary({
                         {item.width && item.height ? `${item.width}×${item.height}` : "Unknown size"} · {Math.max(1, Math.round(item.file_size_bytes / 1024))} KB
                       </div>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="media-browser-card-actions">
                       <Button
                         onClick={() => onSelect(item)}
                         variant="primary"
@@ -240,14 +246,14 @@ export function StudioReferenceLibrary({
                         title="Delete from library"
                       />
                     </div>
-                    <div className="px-0.5 text-[0.62rem] leading-4 text-white/42">
+                    <div className="media-browser-card-meta">
                       Last used {item.last_used_at ? formatDateTime(item.last_used_at) : "never"}
                     </div>
-                  </div>
+                  </MediaBrowserCard>
                 ))}
               </div>
             ) : (
-              <div className="rounded-[26px] border border-dashed border-white/10 bg-[rgba(18,22,20,0.92)] px-5 py-8 text-sm leading-7 text-white/62">
+              <CalloutPanel tone="muted" className="rounded-[26px] px-5 py-8 text-sm leading-7 text-white/62">
                 <div>No reference media is available yet.</div>
                 <div className="mt-2">Upload and run an image first, or scan your existing uploads to populate the library.</div>
                 <Button
@@ -267,10 +273,9 @@ export function StudioReferenceLibrary({
                     "Scan existing uploads"
                   )}
                 </Button>
-              </div>
+              </CalloutPanel>
             )}
           </div>
-        </div>
       </div>
       {previewItem ? (
         <StudioImageLightbox
@@ -281,6 +286,6 @@ export function StudioReferenceLibrary({
           onClose={() => setPreviewItem(null)}
         />
       ) : null}
-    </div>
+    </OverlayShell>
   );
 }
