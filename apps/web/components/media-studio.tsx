@@ -3724,6 +3724,7 @@ export function MediaStudio({
                     downloadActionLabel={downloadActionLabel}
                     showImageActions={selectedAsset.generation_kind === "image"}
                     showReviseAction={Boolean(selectedAssetRevisionPlan?.targetModel)}
+                    showDesktopActions={false}
                     onDownload={() => void handleAssetDownload(selectedAsset)}
                     onDismiss={() => void dismissAsset(selectedAsset.asset_id)}
                     onAnimate={() => useAssetAsSource(selectedAsset, true)}
@@ -3825,6 +3826,7 @@ export function MediaStudio({
                   downloadActionLabel={downloadActionLabel}
                   showImageActions={selectedAsset.generation_kind === "image"}
                   showReviseAction={Boolean(selectedAssetRevisionPlan?.targetModel)}
+                  showMobileActions={false}
                   onDownload={() => void handleAssetDownload(selectedAsset)}
                   onDismiss={() => void dismissAsset(selectedAsset.asset_id)}
                   onAnimate={() => useAssetAsSource(selectedAsset, true)}

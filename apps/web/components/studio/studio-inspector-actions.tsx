@@ -10,6 +10,8 @@ type StudioInspectorActionsProps = {
   downloadActionLabel: string;
   showImageActions: boolean;
   showReviseAction?: boolean;
+  showMobileActions?: boolean;
+  showDesktopActions?: boolean;
   onDownload: () => void;
   onDismiss: () => void;
   onAnimate: () => void;
@@ -22,6 +24,8 @@ export function StudioInspectorActions({
   downloadActionLabel,
   showImageActions,
   showReviseAction = false,
+  showMobileActions = true,
+  showDesktopActions = true,
   onDownload,
   onDismiss,
   onAnimate,
@@ -56,6 +60,7 @@ export function StudioInspectorActions({
         </div>
       </div>
 
+      {showMobileActions ? (
       <div className="studio-action-panel lg:hidden">
         {showReviseAction && onRevise ? (
           <Button
@@ -91,7 +96,9 @@ export function StudioInspectorActions({
           </>
         ) : null}
       </div>
+      ) : null}
 
+      {showDesktopActions ? (
       <div className="hidden content-start gap-3 self-start lg:grid">
         {showReviseAction && onRevise ? (
           <Button
@@ -127,6 +134,7 @@ export function StudioInspectorActions({
           </>
         ) : null}
       </div>
+      ) : null}
     </>
   );
 }
