@@ -1053,6 +1053,7 @@ export function buildStudioReferencePreviews({
   const sourceAssetId = asset?.source_asset_id ?? job?.source_asset_id ?? null;
   const sourceAsset =
     sourceAssetId != null ? findMediaAssetById(sourceAssetId, localAssets, favoriteAssets) ?? null : null;
+  const presetSlotPreviews: StudioReferencePreview[] = [];
 
   function pushPreview(
     key: string,
@@ -1072,7 +1073,25 @@ export function buildStudioReferencePreviews({
     previews.push({ key, label, url: normalizedUrl, kind, posterUrl: posterUrl ?? null });
   }
 
-  if (sourceAsset) {
+  for (const slot of presetSlots ?? []) {
+    const rawItems = Array.isArray(presetSlotValues?.[slot.key]) ? (presetSlotValues?.[slot.key] as unknown[]) : [];
+    rawItems.forEach((item, index) => {
+      const preview = structuredPresetSlotPreviewUrl(item, localAssets, favoriteAssets);
+      const label = rawItems.length > 1 ? `${slot.label} ${index + 1}` : slot.label;
+      if (!preview?.url) {
+        return;
+      }
+      presetSlotPreviews.push({
+        key: `slot:${slot.key}:${index}`,
+        label,
+        kind: "images",
+        url: preview.url,
+        posterUrl: null,
+      });
+    });
+  }
+
+  if (sourceAsset && presetSlotPreviews.length === 0) {
     const sourceKind = sourceAsset.generation_kind === "video" ? "videos" : "images";
     pushPreview(
       `source:${sourceAsset.asset_id}`,
@@ -1085,14 +1104,9 @@ export function buildStudioReferencePreviews({
     );
   }
 
-  for (const slot of presetSlots ?? []) {
-    const rawItems = Array.isArray(presetSlotValues?.[slot.key]) ? (presetSlotValues?.[slot.key] as unknown[]) : [];
-    rawItems.forEach((item, index) => {
-      const preview = structuredPresetSlotPreviewUrl(item, localAssets, favoriteAssets);
-      const label = rawItems.length > 1 ? `${slot.label} ${index + 1}` : slot.label;
-      pushPreview(`slot:${slot.key}:${index}`, label, "images", preview?.url);
-    });
-  }
+  presetSlotPreviews.forEach((preview) => {
+    pushPreview(preview.key, preview.label, preview.kind, preview.url, preview.posterUrl);
+  });
 
   let referenceIndex = 0;
   let consumedImplicitPrimary = false;

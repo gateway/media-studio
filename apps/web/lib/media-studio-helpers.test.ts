@@ -405,7 +405,7 @@ describe("media-studio-helpers Seedance support", () => {
     ).toBe("Create a premium selfie of [image reference 1] with cinematic lighting.");
   });
 
-  it("builds inspector reference previews from source assets, slot values, and normalized request images without duplicates", () => {
+  it("hides the generic source preview when preset image slots are present in inspector references", () => {
     const sourceAsset = {
       asset_id: "asset-source",
       generation_kind: "image",
@@ -437,13 +437,6 @@ describe("media-studio-helpers Seedance support", () => {
         favoriteAssets: null,
       }),
     ).toEqual([
-      {
-        key: "source:asset-source",
-        label: "Source image",
-        url: "/api/control/files/outputs/thumb/source.webp",
-        kind: "images",
-        posterUrl: null,
-      },
       {
         key: "slot:wardrobe:0",
         label: "Wardrobe",
