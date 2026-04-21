@@ -1054,6 +1054,7 @@ export function buildStudioReferencePreviews({
   const sourceAsset =
     sourceAssetId != null ? findMediaAssetById(sourceAssetId, localAssets, favoriteAssets) ?? null : null;
   const presetSlotPreviews: StudioReferencePreview[] = [];
+  const hideImplicitPrimaryFromPresetSlots = (presetSlots?.length ?? 0) > 0;
 
   function pushPreview(
     key: string,
@@ -1124,6 +1125,9 @@ export function buildStudioReferencePreviews({
     const pathValue = typeof item.path === "string" ? item.path : null;
     const role = typeof item.role === "string" ? item.role : null;
     const kind = studioReferenceKind(item.media_type ?? collectionKey.slice(0, -1));
+    if (hideImplicitPrimaryFromPresetSlots && role == null) {
+      return;
+    }
     if (role == null && sourceAssetId == null && !consumedImplicitPrimary) {
       pushPreview(
         `job-${collectionKey.slice(0, -1)}:${index}`,

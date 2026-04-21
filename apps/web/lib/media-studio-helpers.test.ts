@@ -454,6 +454,34 @@ describe("media-studio-helpers Seedance support", () => {
     ]);
   });
 
+  it("hides implicit primary request images when preset slots already define the reference preview", () => {
+    expect(
+      buildStudioReferencePreviews({
+        asset: { source_asset_id: null } as never,
+        job: {
+          source_asset_id: null,
+          normalized_request: {
+            images: [{ path: "reference-media/images/person.png", role: null }],
+          },
+        } as never,
+        presetSlots: [{ key: "person", label: "Person", helpText: "", required: true, maxFiles: 1 }],
+        presetSlotValues: {
+          person: [{ path: "reference-media/images/person.png" }],
+        },
+        localAssets: [],
+        favoriteAssets: null,
+      }),
+    ).toEqual([
+      {
+        key: "slot:person:0",
+        label: "Person",
+        url: "/api/control/files/reference-media/images/person.png",
+        kind: "images",
+        posterUrl: null,
+      },
+    ]);
+  });
+
   it("builds retryable failed-job reference inputs excluding the main source image", () => {
     const sourceAsset = {
       asset_id: "asset-source",
