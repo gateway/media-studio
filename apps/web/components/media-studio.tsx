@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { usePathname, useRouter } from "next/navigation";
 import {
   Check,
-  CircleDollarSign,
   Coins,
   Clapperboard,
   Copy,
@@ -688,7 +687,6 @@ export function MediaStudio({
     enhancementPreviewVisual,
     compactOptionEntries,
     estimatedCredits,
-    estimatedCostUsd,
     formattedRemainingCredits,
     generateButtonLabel,
     modelMaxOutputs,
@@ -2955,7 +2953,6 @@ export function MediaStudio({
                   {selectedProjectMetric}
                   {formattedRemainingCredits ? <StudioMetricPill icon={Coins} value={formattedRemainingCredits} /> : null}
                   {estimatedCredits ? <StudioMetricPill icon={Coins} value={estimatedCredits} accent="highlight" /> : null}
-                  {estimatedCostUsd ? <StudioMetricPill icon={CircleDollarSign} value={estimatedCostUsd} accent="highlight" /> : null}
                 </div>
               ) : null
             }
@@ -3001,7 +2998,6 @@ export function MediaStudio({
                   currentModelLabel={currentModel?.label ?? "Select a model"}
                   formattedRemainingCredits={formattedRemainingCredits}
                   estimatedCredits={estimatedCredits}
-                  estimatedCostUsd={estimatedCostUsd}
                   structuredPresetActive={structuredPresetActive}
                   presetLabel={currentPreset?.label ?? null}
                   externalTopContent={

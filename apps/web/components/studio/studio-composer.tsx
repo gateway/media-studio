@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, CircleDollarSign, Coins } from "lucide-react";
+import { ChevronDown, Coins } from "lucide-react";
 
 import type { FloatingComposerStatus } from "@/lib/media-studio-contract";
 import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
@@ -16,7 +16,6 @@ type StudioComposerProps = {
   currentModelLabel: string;
   formattedRemainingCredits: string | null;
   estimatedCredits: string | null;
-  estimatedCostUsd: string | null;
   structuredPresetActive: boolean;
   presetLabel: string | null;
   externalTopContent?: React.ReactNode;
@@ -34,7 +33,6 @@ export function StudioComposer({
   currentModelLabel,
   formattedRemainingCredits,
   estimatedCredits,
-  estimatedCostUsd,
   structuredPresetActive,
   presetLabel,
   externalTopContent,
@@ -104,7 +102,6 @@ export function StudioComposer({
               <div className="mt-3 flex flex-wrap gap-2">
                 {formattedRemainingCredits ? <StudioMetricPill icon={Coins} value={formattedRemainingCredits} /> : null}
                 {estimatedCredits ? <StudioMetricPill icon={Coins} value={estimatedCredits} accent="highlight" /> : null}
-                {estimatedCostUsd ? <StudioMetricPill icon={CircleDollarSign} value={estimatedCostUsd} accent="highlight" /> : null}
               </div>
             ) : null}
             {hasSidebar ? (
