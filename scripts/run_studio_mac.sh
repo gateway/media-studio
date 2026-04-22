@@ -80,6 +80,7 @@ LAUNCHER_PID_FILE="$RUNTIME_DIR/media-studio-launcher.pid"
 STUDIO_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/studio"
 SETTINGS_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/settings"
 API_HEALTH_URL="http://$API_ACCESS_HOST:$API_PORT/health"
+WEB_READY_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/icon.svg"
 
 mkdir -p "$RUNTIME_DIR"
 : >"$API_LOG"
@@ -352,7 +353,7 @@ if ! wait_for_url "$API_HEALTH_URL" 90 1; then
   echo " - $API_LOG"
   exit 1
 fi
-if ! wait_for_url "$STUDIO_URL" 90 1; then
+if ! wait_for_url "$WEB_READY_URL" 90 1; then
   echo
   echo "The Media Studio web app did not become ready. Check:"
   echo " - $WEB_LOG"

@@ -32,7 +32,7 @@ TEXT_TOKEN_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
 IMAGE_TOKEN_RE = re.compile(r"\[\[\s*([a-zA-Z0-9_]+)\s*\]\]")
 NANO_PRESET_MODELS = {"nano-banana-2", "nano-banana-pro"}
 GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
-ENHANCEMENT_PROVIDER_TIMEOUT_SECONDS = 25
+ENHANCEMENT_PROVIDER_TIMEOUT_SECONDS = 75
 _reference_media_backfill_lock = Lock()
 logger = logging.getLogger(__name__)
 REFERENCE_MEDIA_ROOT = settings.data_root / "reference-media"
@@ -962,6 +962,10 @@ def _resolved_enhancement_config(model_key: str) -> Dict[str, Any]:
     ).model_dump()
 
 
+def _normalize_enhanced_prompt_text(value: Any) -> str:
+    return " ".join(str(value or "").split()).strip().casefold()
+
+
 def _candidate_enhancement_image_paths(request: ValidateRequest, bundle: Dict[str, Any]) -> List[str]:
     paths: List[str] = []
     for item in bundle.get("raw_request", {}).get("images", []) or []:
@@ -1056,6 +1060,13 @@ def build_enhancement_preview(request: EnhancePreviewRequest) -> Dict[str, Any]:
             enhancement = _run_external_enhancement(enhancement_config, preview_request, bundle)
         except enhancement_provider.EnhancementProviderError as exc:
             raise ServiceError(str(exc)) from exc
+    raw_prompt = str(bundle.get("final_prompt") or preview_request.prompt or "").strip()
+    enhanced_prompt = str(enhancement.get("final_prompt_used") or enhancement.get("enhanced_prompt") or "").strip()
+    # Treat no-op rewrites as provider failures so Studio does not present an unchanged prompt as a successful enhancement.
+    if enhanced_prompt and _normalize_enhanced_prompt_text(enhanced_prompt) == _normalize_enhanced_prompt_text(raw_prompt):
+        raise ServiceError(
+            "Enhancement provider returned the original prompt unchanged. Update the enhancement prompt in Models or switch the enhancement model in Settings."
+        )
     return {
         "prompt_context": enhancement.get("context") or bundle["prompt_context"],
         "enhancement": enhancement,

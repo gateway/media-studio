@@ -59,6 +59,7 @@ import {
   selectedPromptObjects,
 } from "@/lib/studio-gallery";
 import { readStudioComposerDraft, writeStudioComposerDraft } from "@/lib/studio-composer-draft";
+import { hasSavedEnhancementSystemPrompt } from "@/lib/studio-enhancement";
 import type {
   MediaAsset,
   MediaBatch,
@@ -350,6 +351,10 @@ export function useStudioComposer({
       ? Boolean(currentModelEnhancementConfig.supports_image_analysis)
       : Boolean(globalEnhancementConfig?.supports_image_analysis);
   const enhanceEnabledForModel = enhanceSupportsText || enhanceSupportsImage;
+  const enhanceHasSavedSystemPrompt = hasSavedEnhancementSystemPrompt(
+    currentModelEnhancementConfig,
+    globalEnhancementConfig,
+  );
   const enhanceProviderKind = activeEnhancementEngineConfig?.provider_kind ?? "builtin";
   const enhanceCredentialConfigured = Boolean(
     activeEnhancementEngineConfig?.provider_credential_source || activeEnhancementEngineConfig?.provider_api_key_configured,
@@ -422,11 +427,15 @@ export function useStudioComposer({
   const enhanceModeLabel = enhanceSupportsText && enhanceSupportsImage ? "Prompt + image guidance" : enhanceSupportsImage ? "Image-guided only" : "Prompt only";
   const enhanceReadinessLabel = !enhanceEnabledForModel
     ? "Enhancement unavailable for this model"
+    : !enhanceHasSavedSystemPrompt
+      ? "Save an enhancement prompt in Models"
     : enhanceConfiguredForModel
       ? `${enhanceProviderLabel} ready`
       : "Set up enhancement in Settings";
   const enhanceHelperText = !enhanceEnabledForModel
     ? "This model does not have prompt enhancement enabled."
+    : !enhanceHasSavedSystemPrompt
+      ? "Save an enhancement system prompt for this model in Models before using Enhance."
     : enhanceConfiguredForModel
       ? `${enhanceModeLabel} with ${enhanceProviderLabel}${enhanceProviderModelId ? ` · ${enhanceProviderModelId}` : ""}.`
       : "Enhancement is available for this model, but it still needs provider setup in Settings.";
@@ -1473,6 +1482,12 @@ export function useStudioComposer({
       setEnhanceError("This model does not have enhancement enabled.");
       return;
     }
+    if (!enhanceHasSavedSystemPrompt) {
+      setEnhanceDialogOpen(true);
+      setEnhancePreview(null);
+      setEnhanceError("Save an enhancement system prompt in Models before using Enhance.");
+      return;
+    }
     if (!enhanceConfiguredForModel) {
       setEnhanceDialogOpen(true);
       setEnhancePreview(null);
@@ -1502,7 +1517,7 @@ export function useStudioComposer({
     setEnhanceError(null);
     showActivity({ tone: "warning", message: "Building the enhancement preview.", spinning: true });
     const controller = new AbortController();
-    const requestTimeout = window.setTimeout(() => controller.abort(), 35000);
+    const requestTimeout = window.setTimeout(() => controller.abort(), 90000);
     try {
       const response = await fetch("/api/control/media-enhance", {
         method: "POST",
@@ -1788,6 +1803,7 @@ export function useStudioComposer({
       seedanceComposer,
       effectiveSeedanceMode,
       enhanceEnabledForModel,
+      enhanceHasSavedSystemPrompt,
       enhanceConfiguredForModel,
       enhanceSetupHref,
       enhanceProviderLabel,

@@ -10,6 +10,9 @@ import httpx
 
 from .settings import settings
 
+ENHANCEMENT_HTTP_TIMEOUT_SECONDS = 80.0
+ENHANCEMENT_MAX_COMPLETION_TOKENS = 900
+
 
 class EnhancementProviderError(Exception):
     pass
@@ -47,7 +50,11 @@ def _openrouter_headers(api_key: str) -> Dict[str, str]:
 
 
 def _http_client() -> httpx.Client:
-    return httpx.Client(timeout=20.0, follow_redirects=True)
+    return httpx.Client(timeout=ENHANCEMENT_HTTP_TIMEOUT_SECONDS, follow_redirects=True)
+
+
+def _normalize_enhancement_prompt(text: Optional[str]) -> str:
+    return " ".join(str(text or "").split()).strip().casefold()
 
 
 def _supports_images_from_modalities(modalities: List[str]) -> bool:
@@ -191,6 +198,7 @@ def run_openai_compatible_enhancement(
         "model": model_id,
         "messages": messages,
         "temperature": 0.3,
+        "max_tokens": ENHANCEMENT_MAX_COMPLETION_TOKENS,
         "response_format": {"type": "json_object"},
     }
     with _http_client() as client:
@@ -200,13 +208,20 @@ def run_openai_compatible_enhancement(
     payload = response.json()
     raw_text = _extract_message_text(payload)
     parsed = _parse_enhancement_response(raw_text)
+    enhanced_prompt = str(parsed.get("enhanced_prompt") or "").strip()
+    if not enhanced_prompt:
+        raise EnhancementProviderError("Enhancement provider returned an empty enhanced prompt.")
+    if _normalize_enhancement_prompt(enhanced_prompt) == _normalize_enhancement_prompt(prompt):
+        raise EnhancementProviderError(
+            "Enhancement provider returned the original prompt unchanged. Update the enhancement prompt in Models or switch the enhancement model in Settings."
+        )
     warnings = parsed.get("warnings")
     return {
         "provider_kind": provider_kind,
         "provider_model_id": model_id,
         "provider_base_url": base_url,
-        "enhanced_prompt": parsed.get("enhanced_prompt") or prompt,
-        "final_prompt_used": parsed.get("enhanced_prompt") or prompt,
+        "enhanced_prompt": enhanced_prompt,
+        "final_prompt_used": enhanced_prompt,
         "image_analysis": parsed.get("image_analysis"),
         "warnings": warnings if isinstance(warnings, list) else [],
         "raw_response": payload,

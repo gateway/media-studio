@@ -23,6 +23,7 @@ describe("web proxy route protection", () => {
   });
 
   it("recognizes private-network and TailScale hostnames", () => {
+    expect(isTrustedPrivateNetworkHostname("0.0.0.0")).toBe(true);
     expect(isTrustedPrivateNetworkHostname("192.168.1.20")).toBe(true);
     expect(isTrustedPrivateNetworkHostname("10.0.0.5")).toBe(true);
     expect(isTrustedPrivateNetworkHostname("100.88.12.34")).toBe(true);

@@ -49,6 +49,7 @@ export function isTrustedPrivateNetworkHostname(value: string | null | undefined
     return false;
   }
   return (
+    normalized === "0.0.0.0" ||
     isPrivateIpv4Address(normalized) ||
     isPrivateIpv6Address(normalized) ||
     normalized.endsWith(TAILSCALE_HOST_SUFFIX)

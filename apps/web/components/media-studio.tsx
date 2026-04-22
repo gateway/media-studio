@@ -660,6 +660,7 @@ export function MediaStudio({
     seedanceComposer,
     effectiveSeedanceMode,
     enhanceEnabledForModel,
+    enhanceHasSavedSystemPrompt,
     enhanceConfiguredForModel,
     enhanceSetupHref,
     enhanceProviderLabel,
@@ -3236,9 +3237,15 @@ export function MediaStudio({
                               type="button"
                               data-testid="studio-open-enhance-dialog"
                               onClick={openEnhanceDialog}
-                              aria-label="Open enhance dialog"
-                              title="Open enhance dialog"
-                              className="absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white/72 transition hover:border-[rgba(216,141,67,0.32)] hover:bg-[rgba(216,141,67,0.14)] hover:text-white"
+                              aria-label={enhanceHasSavedSystemPrompt ? "Open enhance dialog" : "Enhance unavailable until a model prompt is saved"}
+                              title={enhanceHasSavedSystemPrompt ? "Open enhance dialog" : "Save an enhancement system prompt in Models"}
+                              disabled={!enhanceHasSavedSystemPrompt}
+                              className={cn(
+                                "absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border transition",
+                                enhanceHasSavedSystemPrompt
+                                  ? "border-white/10 bg-white/[0.06] text-white/72 hover:border-[rgba(216,141,67,0.32)] hover:bg-[rgba(216,141,67,0.14)] hover:text-white"
+                                  : "cursor-not-allowed border-white/8 bg-white/[0.03] text-white/28",
+                              )}
                             >
                               <Sparkles className="size-4" />
                             </button>
@@ -3548,7 +3555,7 @@ export function MediaStudio({
 
                 <div className="grid gap-3">
                   {enhanceConfiguredForModel ? (
-                    <button type="button" data-testid="studio-enhance-run-button" onClick={() => void requestEnhancementPreview()} disabled={enhanceBusy} className="inline-flex w-full items-center justify-center gap-3 rounded-[22px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 py-4 text-[0.98rem] font-semibold text-[#162300] shadow-[0_18px_34px_rgba(156,204,33,0.22)] disabled:opacity-60">
+                    <button type="button" data-testid="studio-enhance-run-button" onClick={() => void requestEnhancementPreview()} disabled={enhanceBusy || !enhanceHasSavedSystemPrompt} className="inline-flex w-full items-center justify-center gap-3 rounded-[22px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 py-4 text-[0.98rem] font-semibold text-[#162300] shadow-[0_18px_34px_rgba(156,204,33,0.22)] disabled:opacity-60">
                       {enhanceBusy ? <LoaderCircle className="size-4.5 animate-spin" /> : <Sparkles className="size-4.5" />}
                       {enhanceBusy ? "Enhancing..." : "Enhance"}
                     </button>

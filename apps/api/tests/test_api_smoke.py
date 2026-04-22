@@ -1083,6 +1083,52 @@ def test_enhance_preview_returns_timeout_error_when_provider_stalls(client, app_
     assert "timed out" in response.text.lower()
 
 
+def test_enhance_preview_rejects_unchanged_provider_output(client, app_modules, monkeypatch) -> None:
+    client.post(
+        "/media/enhancement-configs",
+        json={
+            "model_key": "nano-banana-2",
+            "label": "nano enhancement",
+            "provider_kind": "openrouter",
+            "provider_label": "OpenRouter.ai",
+            "provider_model_id": "qwen/qwen3.5-35b-a3b",
+            "provider_supports_images": False,
+            "supports_text_enhancement": True,
+            "supports_image_analysis": False,
+            "system_prompt": "Rewrite the prompt.",
+        },
+    )
+
+    def noop_enhancement(**kwargs):
+        prompt = kwargs["prompt"]
+        return {
+            "provider_kind": "openrouter",
+            "provider_model_id": "qwen/qwen3.5-35b-a3b",
+            "enhanced_prompt": prompt,
+            "final_prompt_used": prompt,
+            "image_analysis": None,
+            "warnings": [],
+        }
+
+    monkeypatch.setattr(
+        app_modules["service"].enhancement_provider,
+        "run_openai_compatible_enhancement",
+        noop_enhancement,
+    )
+
+    response = client.post(
+        "/media/enhance/preview",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "portrait in neon rain",
+            "enhance": True,
+        },
+    )
+    assert response.status_code == 400, response.text
+    assert "unchanged" in response.text.lower()
+
+
 def test_dismissed_jobs_are_excluded_from_batch_responses(client, app_modules) -> None:
     store = app_modules["store"]
 
