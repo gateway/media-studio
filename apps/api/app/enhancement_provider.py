@@ -71,6 +71,8 @@ def _openai_compatible_headers(api_key: Optional[str]) -> Dict[str, str]:
 
 def _image_path_to_data_url(image_path: str) -> str:
     path = Path(image_path)
+    if not path.is_absolute():
+        path = settings.data_root / path
     if not path.exists():
         raise EnhancementProviderError(f"Image for enhancement was not found: {image_path}")
     mime_type = mimetypes.guess_type(path.name)[0] or "image/png"
@@ -83,6 +85,9 @@ def _extract_message_text(payload: Dict[str, Any]) -> str:
     if not choices:
         raise EnhancementProviderError("Enhancement provider returned no choices.")
     message = choices[0].get("message") or {}
+    refusal = message.get("refusal")
+    if isinstance(refusal, str) and refusal.strip():
+        raise EnhancementProviderError(f"Enhancement provider refused the request: {refusal.strip()}")
     content = message.get("content")
     if isinstance(content, str):
         return content.strip()
@@ -92,6 +97,11 @@ def _extract_message_text(payload: Dict[str, Any]) -> str:
             if isinstance(item, dict) and item.get("type") == "text":
                 chunks.append(str(item.get("text") or "").strip())
         return "\n".join(chunk for chunk in chunks if chunk).strip()
+    reasoning = message.get("reasoning")
+    if isinstance(reasoning, str) and reasoning.strip():
+        raise EnhancementProviderError(
+            "Enhancement provider returned reasoning tokens without a final answer. Disable reasoning for this provider or switch the enhancement model in Settings."
+        )
     return ""
 
 
@@ -201,6 +211,9 @@ def run_openai_compatible_enhancement(
         "max_tokens": ENHANCEMENT_MAX_COMPLETION_TOKENS,
         "response_format": {"type": "json_object"},
     }
+    if provider_kind == "openrouter":
+        # Enhancement previews need the final JSON answer, not a reasoning transcript that burns the token budget.
+        request_body["reasoning"] = {"effort": "none", "exclude": True}
     with _http_client() as client:
         response = client.post(endpoint, headers=_openai_compatible_headers(api_key), json=request_body)
     if response.status_code >= 400:

@@ -92,7 +92,14 @@ function StatusRow({
   );
 }
 
-export default async function SetupPage() {
+export default async function SetupPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = (searchParams ? await searchParams : {}) ?? {};
+  const currentProjectId =
+    typeof resolvedSearchParams.project === "string" ? resolvedSearchParams.project : null;
   const snapshot = await getMediaDashboardSnapshot();
   const credits = await getControlApiJson<Record<string, any>>("/media/credits");
   const health = (snapshot.status.data ?? {}) as Record<string, any>;
@@ -114,6 +121,7 @@ export default async function SetupPage() {
   return (
     <StudioAdminShell
       section="setup"
+      currentProjectId={currentProjectId}
       eyebrow="Getting Started"
       title="Set Up Media Studio"
       description="Follow the steps below. Run one setup script, add your KIE API key, and start the API and web app."

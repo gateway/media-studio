@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { buildStudioScopedHref } from "@/lib/studio-navigation";
 import { cn } from "@/lib/utils";
 
 type StudioAdminShellProps = {
@@ -10,6 +11,7 @@ type StudioAdminShellProps = {
   eyebrow?: string;
   children: ReactNode;
   aside?: ReactNode;
+  currentProjectId?: string | null;
 };
 
 const navItems = [
@@ -29,6 +31,7 @@ export function StudioAdminShell({
   eyebrow = "Studio Admin",
   children,
   aside,
+  currentProjectId = null,
 }: StudioAdminShellProps) {
   return (
     <div className="admin-theme-root mx-auto flex min-h-screen w-full max-w-[1560px] flex-col gap-8 px-4 pb-10 pt-8 sm:px-6 lg:px-8">
@@ -39,7 +42,7 @@ export function StudioAdminShell({
             return (
               <Link
                 key={item.key}
-                href={item.href}
+                href={buildStudioScopedHref(item.href, currentProjectId)}
                 className={cn(
                   "text-sm font-semibold tracking-[-0.01em] transition",
                   active ? "text-[var(--ms-accent)]" : "text-white/66 hover:text-white",

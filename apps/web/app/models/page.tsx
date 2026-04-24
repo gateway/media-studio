@@ -5,7 +5,7 @@ import { getMediaDashboardSnapshot } from "@/lib/control-api";
 export default async function MediaModelsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ model?: string }>;
+  searchParams?: Promise<{ model?: string; project?: string }>;
 }) {
   const snapshot = await getMediaDashboardSnapshot();
   const resolvedSearchParams = (await searchParams) ?? {};
@@ -13,6 +13,7 @@ export default async function MediaModelsPage({
   return (
     <StudioAdminShell
       section="models"
+      currentProjectId={resolvedSearchParams.project ?? null}
       eyebrow="Studio Admin"
       title="Models"
       description="Choose a Studio model, then manage everything tied to that model in one place: capabilities, output limits, and prompt helper instructions."

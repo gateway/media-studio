@@ -147,7 +147,12 @@ function buildPricingScenarioRows(rule: Record<string, unknown>, model: MediaMod
   return rows;
 }
 
-export default async function PricingPage() {
+export default async function PricingPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ project?: string }>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
   const snapshot = await getMediaDashboardSnapshot();
   const pricing = snapshot.pricing.data;
   const models = snapshot.models.data?.models ?? [];
@@ -166,6 +171,7 @@ export default async function PricingPage() {
   return (
     <StudioAdminShell
       section="pricing"
+      currentProjectId={resolvedSearchParams.project ?? null}
       eyebrow="Studio Admin"
       title="Pricing"
       description="Review the current KIE-backed pricing catalog, see how the Studio calculates request totals, and verify the same estimate snapshot that gets saved with submitted jobs."

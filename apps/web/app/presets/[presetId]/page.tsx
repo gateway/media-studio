@@ -9,7 +9,7 @@ export default async function EditMediaPresetPage({
   searchParams,
 }: {
   params: Promise<{ presetId: string }>;
-  searchParams?: Promise<{ returnTo?: string }>;
+  searchParams?: Promise<{ returnTo?: string; project?: string }>;
 }) {
   const snapshot = await getMediaDashboardSnapshot();
   const resolvedParams = await params;
@@ -23,6 +23,7 @@ export default async function EditMediaPresetPage({
   return (
     <StudioAdminShell
       section="presets"
+      currentProjectId={resolvedSearchParams.project ?? null}
       eyebrow="Studio Admin"
       title="Edit Preset"
       description="Update preset scope, prompt structure, and inputs from the dedicated Presets admin route."

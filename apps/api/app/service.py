@@ -1049,6 +1049,7 @@ def _run_external_enhancement(config: Dict[str, Any], request: EnhancePreviewReq
 
 
 def build_enhancement_preview(request: EnhancePreviewRequest) -> Dict[str, Any]:
+    started_at = perf_counter()
     preview_request = request.model_copy(update={"prompt_policy": request.prompt_policy or "preview"})
     bundle = build_validation_bundle(preview_request)
     enhancement_config = _resolved_enhancement_config(preview_request.model_key)
@@ -1059,6 +1060,15 @@ def build_enhancement_preview(request: EnhancePreviewRequest) -> Dict[str, Any]:
         try:
             enhancement = _run_external_enhancement(enhancement_config, preview_request, bundle)
         except enhancement_provider.EnhancementProviderError as exc:
+            duration_ms = int((perf_counter() - started_at) * 1000)
+            logger.warning(
+                "enhancement_preview_failed provider=%s provider_model=%s media_model=%s duration_ms=%s error=%s",
+                provider_kind,
+                enhancement_config.get("provider_model_id") or "-",
+                preview_request.model_key,
+                duration_ms,
+                str(exc),
+            )
             raise ServiceError(str(exc)) from exc
     raw_prompt = str(bundle.get("final_prompt") or preview_request.prompt or "").strip()
     enhanced_prompt = str(enhancement.get("final_prompt_used") or enhancement.get("enhanced_prompt") or "").strip()
@@ -1067,6 +1077,15 @@ def build_enhancement_preview(request: EnhancePreviewRequest) -> Dict[str, Any]:
         raise ServiceError(
             "Enhancement provider returned the original prompt unchanged. Update the enhancement prompt in Models or switch the enhancement model in Settings."
         )
+    duration_ms = int((perf_counter() - started_at) * 1000)
+    logger.info(
+        "enhancement_preview_ready provider=%s provider_model=%s media_model=%s duration_ms=%s image_count=%s",
+        provider_kind,
+        enhancement.get("provider_model_id") or enhancement_config.get("provider_model_id") or "-",
+        preview_request.model_key,
+        duration_ms,
+        len(_candidate_enhancement_image_paths(preview_request, bundle)),
+    )
     return {
         "prompt_context": enhancement.get("context") or bundle["prompt_context"],
         "enhancement": enhancement,

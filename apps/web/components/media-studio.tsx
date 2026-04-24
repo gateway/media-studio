@@ -131,6 +131,7 @@ import {
   jobPhaseMessage,
   type MultiShotParseResult,
 } from "@/lib/media-studio-helpers";
+import { buildStudioScopedHref } from "@/lib/studio-navigation";
 import type { MediaAsset, MediaBatch, MediaEnhancePreviewResponse, MediaJob, MediaProject, MediaReference, MediaValidationResponse } from "@/lib/types";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import { installStudioDebugConsole, studioDebug } from "@/lib/studio-debug";
@@ -301,13 +302,15 @@ export function MediaStudio({
 
   function studioHrefForProject(projectId: string | null, assetId?: string | number | null) {
     const params = new URLSearchParams();
-    if (projectId) {
-      params.set("project", String(projectId));
-    }
     if (assetId != null) {
       params.set("asset", String(assetId));
     }
-    return params.size ? `${pathname}?${params.toString()}` : pathname;
+    const baseHref = buildStudioScopedHref(pathname, projectId);
+    if (!params.size) {
+      return baseHref;
+    }
+    const separator = baseHref.includes("?") ? "&" : "?";
+    return `${baseHref}${separator}${params.toString()}`;
   }
 
   function openProjectWorkspace(projectId: string | null) {
@@ -2964,7 +2967,7 @@ export function MediaStudio({
             onOpenPresets={() => setPresetBrowserOpen(true)}
             onOpenLibrary={openContextualReferenceLibrary}
             showLibraryButton={canOpenReferenceLibrary}
-            onOpenSettings={() => void router.push("/settings")}
+            onOpenSettings={() => void router.push(buildStudioScopedHref("/settings", selectedProjectId))}
           />
 
           <StudioGallery

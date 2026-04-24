@@ -25,9 +25,10 @@ const JOBS_PER_PAGE_OPTIONS = [20, 50, 100] as const;
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ page?: string; perPage?: string }>;
+  searchParams?: Promise<{ page?: string; perPage?: string; project?: string }>;
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
+  const currentProjectId = resolvedSearchParams.project?.trim() || null;
   const requestedPerPage = resolvedSearchParams.perPage?.trim().toLowerCase();
   const perPage =
     requestedPerPage === "all"
@@ -106,6 +107,9 @@ export default async function JobsPage({
     if (nextPage > 1) {
       params.set("page", String(nextPage));
     }
+    if (currentProjectId) {
+      params.set("project", currentProjectId);
+    }
     const query = params.toString();
     return query ? `/jobs?${query}` : "/jobs";
   };
@@ -113,6 +117,7 @@ export default async function JobsPage({
   return (
     <StudioAdminShell
       section="jobs"
+      currentProjectId={currentProjectId}
       eyebrow="Studio Admin"
       title="Jobs"
       description="Follow queued runs, retries, completed outputs, and the saved estimate snapshot captured when each batch was submitted."

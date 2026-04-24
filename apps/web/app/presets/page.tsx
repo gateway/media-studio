@@ -2,12 +2,18 @@ import { MediaModelsConsole } from "@/components/media-models-console";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { getMediaDashboardSnapshot } from "@/lib/control-api";
 
-export default async function MediaPresetsPage() {
+export default async function MediaPresetsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ project?: string }>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
   const snapshot = await getMediaDashboardSnapshot();
 
   return (
     <StudioAdminShell
       section="presets"
+      currentProjectId={resolvedSearchParams.project ?? null}
       eyebrow="Studio Admin"
       title="Presets"
       description="Manage structured Studio presets in one place, then assign them to Nano Banana 2 and Nano Banana Pro as needed."

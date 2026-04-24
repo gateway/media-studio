@@ -3,12 +3,18 @@ import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { StudioDebugSettings } from "@/components/studio-debug-settings";
 import { getMediaDashboardSnapshot } from "@/lib/control-api";
 
-export default async function StudioSettingsPage() {
+export default async function StudioSettingsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ project?: string }>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
   const snapshot = await getMediaDashboardSnapshot();
 
   return (
     <StudioAdminShell
       section="settings"
+      currentProjectId={resolvedSearchParams.project ?? null}
       eyebrow="Studio Admin"
       title="Settings"
       description="Manage the Studio scheduler, enhancement provider, output path, supported models, and presets from one system view."
