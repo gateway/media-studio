@@ -2106,6 +2106,14 @@ export function MediaStudio({
     Boolean(selectedReferencePreview) ||
     Boolean(referenceLibraryTarget);
 
+  const isTypingTarget = useCallback((target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+    const tagName = target.tagName.toLowerCase();
+    return target.isContentEditable || tagName === "input" || tagName === "textarea" || tagName === "select";
+  }, []);
+
   useEffect(() => {
     if (!lockingOverlayOpen) {
       return;
@@ -2171,14 +2179,6 @@ export function MediaStudio({
       return;
     }
 
-    const isTypingTarget = (target: EventTarget | null) => {
-      if (!(target instanceof HTMLElement)) {
-        return false;
-      }
-      const tagName = target.tagName.toLowerCase();
-      return target.isContentEditable || tagName === "input" || tagName === "textarea" || tagName === "select";
-    };
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
         return;
@@ -2218,6 +2218,49 @@ export function MediaStudio({
     selectedAsset,
     setSelectedAssetId,
     visibleGalleryAssetIds,
+    isTypingTarget,
+  ]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+      if (isTypingTarget(event.target) || lockingOverlayOpen) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (key === "p") {
+        event.preventDefault();
+        setPresetBrowserOpen(true);
+        return;
+      }
+      if (key === "g") {
+        event.preventDefault();
+        setProjectBrowserOpen(true);
+        return;
+      }
+      if (key === "s") {
+        event.preventDefault();
+        void router.push(buildStudioScopedHref("/settings", selectedProjectId));
+        return;
+      }
+      if (key === "i" && canOpenReferenceLibrary) {
+        event.preventDefault();
+        openContextualReferenceLibrary();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    canOpenReferenceLibrary,
+    isTypingTarget,
+    lockingOverlayOpen,
+    openContextualReferenceLibrary,
+    router,
+    selectedProjectId,
   ]);
 
   const navigateSelectedGalleryAsset = useCallback(
