@@ -285,16 +285,9 @@ describe("studio-composer-restore", () => {
       "Reference 2",
       "images",
     );
-    expect(dependencies.addRestoredFiles).toHaveBeenNthCalledWith(1, [referenceFileA], {
-      role: undefined,
+    expect(dependencies.addRestoredFiles).toHaveBeenNthCalledWith(1, [referenceFileA, referenceFileB], {
       allowedKinds: ["images"],
       insertImageIndex: 0,
-      replaceImageIndex: null,
-    });
-    expect(dependencies.addRestoredFiles).toHaveBeenNthCalledWith(2, [referenceFileB], {
-      role: undefined,
-      allowedKinds: ["images"],
-      insertImageIndex: 1,
       replaceImageIndex: null,
     });
     expect(dependencies.setFormMessage).toHaveBeenCalledWith({ tone: "danger", text: "Partial" });

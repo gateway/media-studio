@@ -190,11 +190,47 @@ async function restoreReferenceInputs(
   preserveReferenceRoles: boolean,
   dependencies: RestoreComposerDependencies,
 ) {
+  const useOrderedGenericImageInsert = (reference: NonNullable<StudioRetryReferenceInputs>[number]) =>
+    !preserveReferenceRoles && reference.kind === "images" && reference.role === "reference";
+
+  const bulkRestorableGenericImageReferences = (referenceInputs ?? []).filter(
+    (reference) => useOrderedGenericImageInsert(reference) && reference.assetId == null,
+  );
+  let restoredBulkGenericImageCount = 0;
+  if (bulkRestorableGenericImageReferences.length) {
+    const restoredFiles: File[] = [];
+    for (const reference of bulkRestorableGenericImageReferences) {
+      try {
+        restoredFiles.push(
+          await (dependencies.fetchReferenceFile ?? fetchReferenceFile)(
+            reference.url,
+            reference.label,
+            reference.kind,
+          ),
+        );
+      } catch {
+        // Missing references should not block the main restore flow.
+      }
+    }
+    if (restoredFiles.length) {
+      restoredBulkGenericImageCount = restoredFiles.length;
+      await dependencies.addRestoredFiles(restoredFiles, {
+        allowedKinds: ["images"],
+        insertImageIndex: 0,
+        replaceImageIndex: null,
+      });
+    }
+  }
+
   let genericImageInsertIndex = 0;
   for (const reference of referenceInputs ?? []) {
+    if (useOrderedGenericImageInsert(reference) && reference.assetId == null) {
+      genericImageInsertIndex = Math.max(genericImageInsertIndex, restoredBulkGenericImageCount);
+      continue;
+    }
     const restoreRole =
       preserveReferenceRoles || reference.role !== "reference" ? reference.role : null;
-    const shouldUseOrderedImageInsert = !preserveReferenceRoles && reference.kind === "images" && reference.role === "reference";
+    const shouldUseOrderedImageInsert = useOrderedGenericImageInsert(reference);
     if (reference.assetId != null) {
       const asset = findMediaAssetById(reference.assetId, dependencies.localAssets, dependencies.favoriteAssets);
       if (asset) {
