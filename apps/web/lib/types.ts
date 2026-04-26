@@ -1089,6 +1089,13 @@ export type MediaModelSummary = {
   defaults?: Record<string, unknown>;
   capability_summary?: string[];
   spend_notes?: string[];
+  studio_support_status?: "fully_supported" | "generic_supported" | "unsupported";
+  studio_supported_input_patterns?: string[];
+  studio_unsupported_input_patterns?: string[];
+  studio_hidden_reason?: string | null;
+  studio_support_summary?: string | null;
+  studio_unsupported_option_keys?: string[];
+  studio_exposed?: boolean;
 };
 
 export type MediaModelDetailResponse = {

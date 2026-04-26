@@ -29,10 +29,12 @@ import type {
   MediaValidationResponse,
 } from "@/lib/types";
 import { isRecord } from "@/lib/utils";
+import { HIDDEN_STUDIO_OPTION_KEYS, optionChoices, supportedModelInputPatterns } from "@/lib/studio-model-support";
 
 import { toControlApiDataPreviewPath, toControlApiProxyPath } from "./media-paths";
 
 export { isRecord } from "@/lib/utils";
+export { HIDDEN_STUDIO_OPTION_KEYS, optionChoices, supportedModelInputPatterns } from "@/lib/studio-model-support";
 
 export type StudioChoice = {
   value: string;
@@ -284,7 +286,6 @@ export function applyPromptReferenceMention(
   };
 }
 
-export const HIDDEN_STUDIO_OPTION_KEYS = new Set<string>();
 export const MULTI_SHOT_MODEL_KEYS = new Set(["kling-3.0-t2v", "kling-3.0-i2v"]);
 export const SEEDANCE_MODEL_KEYS = new Set(["seedance-2.0"]);
 
@@ -344,20 +345,6 @@ export function resolveStudioPresetTargetModel(
 
 export function isSeedanceModel(modelKey: string | null | undefined) {
   return Boolean(modelKey && SEEDANCE_MODEL_KEYS.has(modelKey));
-}
-
-function specInputPatterns(model: MediaModelSummary | null) {
-  const rawPrompt = (model?.prompt as Record<string, unknown> | undefined) ?? undefined;
-  const byPattern =
-    (rawPrompt?.default_profile_keys_by_input_pattern as Record<string, unknown> | undefined) ?? undefined;
-  if (byPattern && typeof byPattern === "object") {
-    return Object.keys(byPattern).filter(Boolean);
-  }
-  return [];
-}
-
-export function supportedModelInputPatterns(model: MediaModelSummary | null) {
-  return Array.from(new Set([...(model?.input_patterns ?? []), ...specInputPatterns(model)]));
 }
 
 export function modelSupportsImageDrivenInputs(model: MediaModelSummary | null) {
@@ -435,13 +422,18 @@ export function resolveStandardComposerSlots({
   }
 
   const usesExplicitImageSlots =
-    maxImageInputs > 0 &&
-    maxImageInputs <= 2 &&
+    patterns.has("first_last_frames") &&
+    maxImageInputs === 2 &&
+    maxVideoInputs === 0 &&
+    maxAudioInputs === 0;
+
+  const usesExplicitSingleImageSlot =
+    maxImageInputs === 1 &&
     maxVideoInputs === 0 &&
     maxAudioInputs === 0 &&
-    (patterns.has("single_image") || patterns.has("image_edit") || patterns.has("first_last_frames"));
+    (patterns.has("single_image") || patterns.has("image_edit"));
 
-  if (!usesExplicitImageSlots) {
+  if (!usesExplicitImageSlots && !usesExplicitSingleImageSlot) {
     return {
       slots: [],
       summaryLabel: null,
@@ -449,7 +441,7 @@ export function resolveStandardComposerSlots({
     };
   }
 
-  const slots: StudioComposerSlot[] = patterns.has("first_last_frames")
+  const slots: StudioComposerSlot[] = usesExplicitImageSlots
     ? [
         {
           id: "slot-start-frame",
@@ -1617,36 +1609,6 @@ export function pickerMenuHeightCap(pickerId: string) {
     return 520;
   }
   return 360;
-}
-
-export function optionChoices(schema: Record<string, unknown>, currentValue: unknown) {
-  if (Array.isArray(schema.allowed)) {
-    return schema.allowed as unknown[];
-  }
-  if (Array.isArray(schema.enum)) {
-    return schema.enum as unknown[];
-  }
-  if (Array.isArray(schema.allowed_values)) {
-    return schema.allowed_values as unknown[];
-  }
-  if (Array.isArray(schema.choices)) {
-    return schema.choices as unknown[];
-  }
-  if (schema.type === "bool" || schema.type === "boolean" || typeof currentValue === "boolean" || typeof schema.default === "boolean") {
-    return [true, false] as unknown[];
-  }
-  if (
-    (schema.type === "int_range" || schema.type === "float_range" || schema.type === "number_range") &&
-    typeof schema.min === "number" &&
-    typeof schema.max === "number"
-  ) {
-    const min = Number(schema.min);
-    const max = Number(schema.max);
-    if (Number.isFinite(min) && Number.isFinite(max) && max >= min && max - min <= 20) {
-      return Array.from({ length: max - min + 1 }, (_, index) => min + index);
-    }
-  }
-  return [] as unknown[];
 }
 
 export function serializeOptionChoice(value: unknown) {

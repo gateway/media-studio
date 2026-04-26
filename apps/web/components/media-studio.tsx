@@ -244,6 +244,9 @@ export function MediaStudio({
   const enabledStudioModels = useMemo(
     () =>
       models.filter((model) => {
+        if (model.studio_exposed === false) {
+          return false;
+        }
         const policy = queuePolicies.find((entry) => entry.model_key === model.key);
         return policy?.enabled ?? true;
       }),

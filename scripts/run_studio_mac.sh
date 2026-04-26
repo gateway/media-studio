@@ -81,6 +81,7 @@ STUDIO_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/studio"
 SETTINGS_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/settings"
 API_HEALTH_URL="http://$API_ACCESS_HOST:$API_PORT/health"
 WEB_READY_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/icon.svg"
+UPDATE_EXISTING_KIE_API="${MEDIA_STUDIO_UPDATE_KIE_API:-ask}"
 
 mkdir -p "$RUNTIME_DIR"
 : >"$API_LOG"
@@ -201,6 +202,26 @@ require_command open
 require_command lsof
 require_command python3
 
+prompt_yes_no() {
+  local label="$1"
+  local default_answer="${2:-N}"
+  local reply=""
+  read -r -p "$label [$default_answer]: " reply
+  if [[ -z "$reply" ]]; then
+    reply="$default_answer"
+  fi
+  [[ "$reply" =~ ^[Yy]$ ]]
+}
+
+print_kie_upgrade_banner() {
+  local message="$1"
+  echo "************************************************************"
+  echo "********** KIE-API UPDATE AVAILABLE ***********************"
+  echo "************************************************************"
+  echo "$message"
+  echo "************************************************************"
+}
+
 kie_repo_preflight() {
   if ! kie_repo_is_git_checkout "$KIE_ROOT"; then
     return 0
@@ -231,11 +252,45 @@ kie_repo_preflight() {
     return 0
   fi
 
-  echo "Warning: local kie-api checkout is behind $kie_upstream by $kie_behind commit(s)."
+  print_kie_upgrade_banner "Local kie-api checkout is behind $kie_upstream by $kie_behind commit(s)."
   if [[ "$kie_dirty" == "true" ]]; then
     echo "Local kie-api changes are present, so startup will not try to update it."
+    echo "Update it manually when ready:"
+    echo "  git -C \"$KIE_ROOT\" fetch --prune origin && git -C \"$KIE_ROOT\" pull --ff-only"
+    echo
+    return 0
+  fi
+
+  local should_update="false"
+  case "$UPDATE_EXISTING_KIE_API" in
+    true|yes|1|always)
+      should_update="true"
+      ;;
+    false|no|0|never)
+      should_update="false"
+      ;;
+    ask|*)
+      if [[ -t 0 ]]; then
+        echo "A newer kie-api checkout usually means newer models, specs, and runtime fixes."
+        if prompt_yes_no "Update kie-api now before starting Studio?" "Y"; then
+          should_update="true"
+        fi
+      else
+        echo "Startup is non-interactive, so Studio will keep the current kie-api checkout."
+      fi
+      ;;
+  esac
+
+  if [[ "$should_update" == "true" ]]; then
+    echo "Updating kie-api checkout..."
+    if kie_repo_update_ff_only "$KIE_ROOT"; then
+      echo "kie-api updated successfully."
+    else
+      echo "Warning: kie-api update failed. Studio will continue with the current checkout."
+    fi
   else
-    echo "If you want the latest model registry and runtime changes first, run:"
+    echo "Keeping the current kie-api checkout."
+    echo "You can update it later with:"
     echo "  git -C \"$KIE_ROOT\" fetch --prune origin && git -C \"$KIE_ROOT\" pull --ff-only"
   fi
   echo

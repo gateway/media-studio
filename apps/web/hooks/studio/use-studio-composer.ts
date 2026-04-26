@@ -278,12 +278,16 @@ export function useStudioComposer({
     () => new Map(queuePolicies.map((policy) => [policy.model_key, policy])),
     [queuePolicies],
   );
+  const studioReadyModels = useMemo(
+    () => models.filter((model) => model.studio_exposed !== false),
+    [models],
+  );
   const enabledModels = useMemo(
-    () => models.filter((model) => queuePolicyByModelKey.get(model.key)?.enabled ?? true),
-    [models, queuePolicyByModelKey],
+    () => studioReadyModels.filter((model) => queuePolicyByModelKey.get(model.key)?.enabled ?? true),
+    [queuePolicyByModelKey, studioReadyModels],
   );
   const [modelKey, setModelKey] = useState(
-    initialDraftRef.current?.modelKey ?? enabledModels[0]?.key ?? models[0]?.key ?? "nano-banana-2",
+    initialDraftRef.current?.modelKey ?? enabledModels[0]?.key ?? studioReadyModels[0]?.key ?? models[0]?.key ?? "nano-banana-2",
   );
   const [selectedPresetId, setSelectedPresetId] = useState(initialDraftRef.current?.selectedPresetId ?? "");
   const [selectedPromptIds, setSelectedPromptIds] = useState<string[]>(initialDraftRef.current?.selectedPromptIds ?? []);
@@ -312,8 +316,8 @@ export function useStudioComposer({
   const [openPicker, setOpenPicker] = useState<string | null>(null);
   const [lastNanoPresetModelKey, setLastNanoPresetModelKey] = useState(
     initialDraftRef.current?.lastNanoPresetModelKey ??
-      (isNanoPresetModel(enabledModels[0]?.key ?? models[0]?.key ?? null)
-        ? (enabledModels[0]?.key ?? models[0]?.key ?? "nano-banana-2")
+      (isNanoPresetModel(enabledModels[0]?.key ?? studioReadyModels[0]?.key ?? models[0]?.key ?? null)
+        ? (enabledModels[0]?.key ?? studioReadyModels[0]?.key ?? models[0]?.key ?? "nano-banana-2")
         : "nano-banana-2"),
   );
 
@@ -371,6 +375,7 @@ export function useStudioComposer({
   const enhanceSetupHref = "/settings#prompt-enhancement";
   const currentQueuePolicy = queuePolicyByModelKey.get(modelKey) ?? null;
   const currentModelEnabled = currentQueuePolicy?.enabled ?? true;
+  const currentModelExposed = currentModel?.studio_exposed !== false;
   const seedanceComposer = isSeedanceModel(modelKey);
   const maxConcurrentJobs = Math.max(1, queueSettings?.max_concurrent_jobs ?? 10);
   const modelMaxOutputs = Math.max(1, currentQueuePolicy?.max_outputs_per_run ?? 1);
@@ -525,6 +530,32 @@ export function useStudioComposer({
   ]);
 
   useEffect(() => {
+    if (currentModelExposed) {
+      return;
+    }
+    const fallbackKey = enabledModels[0]?.key ?? studioReadyModels[0]?.key ?? models[0]?.key ?? "nano-banana-2";
+    if (fallbackKey === modelKey) {
+      return;
+    }
+    setModelKey(fallbackKey);
+    setSelectedPresetId("");
+    setSelectedPromptIds([]);
+    setValidation(null);
+    setFormMessage({
+      tone: "warning",
+      text: currentModel?.studio_hidden_reason || "Studio hid that model because its current input contract is not supported yet.",
+    });
+  }, [
+    currentModel?.studio_hidden_reason,
+    currentModelExposed,
+    enabledModels,
+    modelKey,
+    models,
+    setFormMessage,
+    studioReadyModels,
+  ]);
+
+  useEffect(() => {
     if (currentModelEnabled) {
       return;
     }
@@ -540,7 +571,7 @@ export function useStudioComposer({
       tone: "warning",
       text: "That model is disabled in Settings, so Studio switched to an enabled model.",
     });
-  }, [currentModelEnabled, enabledModels, modelKey, models, setFormMessage]);
+  }, [currentModelEnabled, enabledModels, modelKey, models, setFormMessage, studioReadyModels]);
   useEffect(() => {
     if (sourceAssetId == null) {
       setStagedSourceAssetSnapshot(null);

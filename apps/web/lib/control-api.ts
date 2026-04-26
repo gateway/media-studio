@@ -44,6 +44,7 @@ import type {
 } from "@/lib/types";
 import { toControlApiDataPreviewPath, toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-paths";
 import { INITIAL_ASSET_PAGE_SIZE } from "@/lib/media-studio-contract";
+import { deriveStudioModelSupport } from "@/lib/studio-model-support";
 export { toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-paths";
 
 export const CONTROL_API_BASE_URL =
@@ -201,7 +202,7 @@ function deriveGenerationKind(model: Record<string, any>) {
 
 export function mapModelRecord(model: Record<string, any>): MediaModelSummary {
   const raw = model.raw ?? {};
-  return {
+  const mappedModel: MediaModelSummary = {
     key: model.key,
     label: model.label,
     provider_model: model.provider_model,
@@ -217,6 +218,17 @@ export function mapModelRecord(model: Record<string, any>): MediaModelSummary {
     defaults: raw.defaults ?? {},
     capability_summary: model.media_types ?? [],
     spend_notes: [],
+  };
+  const support = deriveStudioModelSupport(mappedModel);
+  return {
+    ...mappedModel,
+    studio_support_status: support.status,
+    studio_supported_input_patterns: support.supportedInputPatterns,
+    studio_unsupported_input_patterns: support.unsupportedInputPatterns,
+    studio_hidden_reason: support.hiddenReason,
+    studio_support_summary: support.supportSummary,
+    studio_unsupported_option_keys: support.unsupportedOptionKeys,
+    studio_exposed: support.exposed,
   };
 }
 

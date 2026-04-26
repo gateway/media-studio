@@ -55,6 +55,7 @@ import {
   upsertQueuePolicyEntry,
 } from "@/lib/media-model-admin";
 import { presetThumbnailVisual, STUDIO_NANO_MAX_OUTPUTS } from "@/lib/media-studio-helpers";
+import { supportedModelInputPatterns } from "@/lib/studio-model-support";
 import type {
   LlmPreset,
   MediaEnhancementConfig,
@@ -211,7 +212,7 @@ const DEFAULT_OPENROUTER_ENHANCEMENT_MODEL = "qwen/qwen3.5-35b-a3b";
 const GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__";
 
 function modelInputPills(model: MediaModelSummary | null) {
-  const patterns = new Set(model?.input_patterns ?? []);
+  const patterns = new Set(supportedModelInputPatterns(model));
   const pills: Array<{ key: string; label: string; icon: typeof ImageIcon }> = [];
   const imageMax = Number((model?.image_inputs as Record<string, unknown> | undefined)?.required_max ?? 0);
   const videoMax = Number((model?.video_inputs as Record<string, unknown> | undefined)?.required_max ?? 0);
@@ -229,6 +230,26 @@ function modelInputPills(model: MediaModelSummary | null) {
     pills.push({ key: "none", label: "No inputs", icon: Box });
   }
   return pills;
+}
+
+function studioSupportLabel(model: MediaModelSummary | null) {
+  if (model?.studio_support_status === "generic_supported") {
+    return "Generic support";
+  }
+  if (model?.studio_support_status === "unsupported") {
+    return "Hidden until ready";
+  }
+  return "Fully supported";
+}
+
+function studioSupportTone(model: MediaModelSummary | null): "success" | "warning" | "danger" {
+  if (model?.studio_support_status === "generic_supported") {
+    return "warning";
+  }
+  if (model?.studio_support_status === "unsupported") {
+    return "danger";
+  }
+  return "success";
 }
 
 function modelTaskModePills(model: MediaModelSummary | null) {
@@ -1428,6 +1449,28 @@ export function MediaModelsConsole({
         <div className="mt-4 max-w-[780px] text-sm leading-7 text-[var(--muted-strong)]">
           Everything below belongs to <span className="font-medium text-[var(--foreground)]">{selectedModel?.label ?? selectedModelKey}</span>, so you can review the model, decide how many outputs it can create at once, and tune how Enhance rewrites prompts for it.
         </div>
+        {selectedModel ? (
+          <div className="mt-5 grid gap-4">
+            <PropertyStack appearance="admin" className="grid gap-3 sm:grid-cols-3">
+              <PropertyStackItem appearance="admin" label="Studio support" value={studioSupportLabel(selectedModel)} />
+              <PropertyStackItem
+                appearance="admin"
+                label="Studio exposure"
+                value={selectedModel.studio_exposed === false ? "Hidden from Studio" : "Visible in Studio"}
+              />
+              <PropertyStackItem
+                appearance="admin"
+                label="Input patterns"
+                value={(selectedModel.studio_supported_input_patterns ?? selectedModel.input_patterns ?? []).join(", ") || "Not detected"}
+              />
+            </PropertyStack>
+            {selectedModel.studio_support_summary ? (
+              <CalloutPanel appearance="admin" tone={studioSupportTone(selectedModel)}>
+                <div className="text-sm leading-6 text-[var(--foreground)]">{selectedModel.studio_support_summary}</div>
+              </CalloutPanel>
+            ) : null}
+          </div>
+        ) : null}
         <div className="mt-5 grid gap-4">
           <div className="grid gap-4">
             <div className="admin-icon-label-row admin-label-muted">

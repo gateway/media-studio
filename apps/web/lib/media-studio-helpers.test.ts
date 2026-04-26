@@ -243,6 +243,22 @@ describe("media-studio-helpers Seedance support", () => {
     });
   });
 
+  it("falls back to the generic attachment rail for multi-image edit models", () => {
+    const layout = resolveStandardComposerSlots({
+      model: {
+        input_patterns: ["image_edit"],
+        image_inputs: { required_max: 16 },
+        video_inputs: { required_max: 0 },
+        audio_inputs: { required_max: 0 },
+      } as never,
+      attachments: [],
+      sourceAsset: null,
+    });
+
+    expect(layout.usesExplicitSlots).toBe(false);
+    expect(layout.slots).toEqual([]);
+  });
+
   it("classifies dragged media files by extension when mime is empty", () => {
     expect(classifyFile(new File(["video"], "dragged-ref.mp4"))).toBe("videos");
     expect(classifyFile(new File(["audio"], "dragged-ref.wav"))).toBe("audios");
