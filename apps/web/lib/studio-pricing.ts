@@ -1,5 +1,6 @@
-import type { MediaValidationResponse } from "@/lib/types";
+import type { MediaAsset, MediaValidationResponse } from "@/lib/types";
 import { formatCreditsAmount, formatUsdAmount, isRecord } from "@/lib/utils";
+import type { AttachmentRecord } from "@/lib/media-studio-contract";
 
 function pricingOptionValue(value: unknown) {
   if (value == null) {
@@ -27,6 +28,30 @@ function pricingNumber(value: unknown) {
 function multiplyPricingValue(value: unknown, multiplier: number) {
   const numericValue = pricingNumber(value);
   return numericValue != null ? numericValue * multiplier : null;
+}
+
+export function deriveStudioPricingOptions({
+  modelKey,
+  options,
+  attachments = [],
+  sourceAsset = null,
+}: {
+  modelKey: string | null | undefined;
+  options: Record<string, unknown>;
+  attachments?: Array<Pick<AttachmentRecord, "kind">>;
+  sourceAsset?: Pick<MediaAsset, "generation_kind"> | null;
+}) {
+  const derived = { ...options };
+
+  if (modelKey === "seedance-2.0") {
+    const hasVideoInput =
+      attachments.some((attachment) => attachment.kind === "videos") ||
+      sourceAsset?.generation_kind === "video";
+    const resolution = pricingOptionValue(options.resolution ?? "720p");
+    derived.pricing_variant = `${resolution}_${hasVideoInput ? "with_video_input" : "no_video_input"}`;
+  }
+
+  return derived;
 }
 
 export function estimateFromPricingSnapshot(

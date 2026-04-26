@@ -51,7 +51,7 @@ import {
   type PresetSlotState,
 } from "@/lib/media-studio-helpers";
 import { applyAttachmentInsertOrReplace, buildStagedAttachments } from "@/lib/studio-attachment-staging";
-import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
+import { deriveStudioPricingOptions, estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import {
   createOptimisticBatch,
   findMediaAssetById,
@@ -676,15 +676,19 @@ export function useStudioComposer({
     : "Reference uploads can be mentioned in the prompt with @image1, @video1, or @audio1 once staged.";
   const compactOptionEntries = optionEntries(currentModel);
   const optionSignature = useMemo(() => JSON.stringify(optionValues), [optionValues]);
-  const pricingOptions = useMemo(
-    () =>
-      buildNormalizedStudioOptions(
-        currentModel,
-        optionValues,
-        isRecord(currentPreset?.default_options_json) ? currentPreset.default_options_json : null,
-      ),
-    [currentModel, currentPreset?.default_options_json, optionValues],
-  );
+  const pricingOptions = useMemo(() => {
+    const normalized = buildNormalizedStudioOptions(
+      currentModel,
+      optionValues,
+      isRecord(currentPreset?.default_options_json) ? currentPreset.default_options_json : null,
+    );
+    return deriveStudioPricingOptions({
+      modelKey,
+      options: normalized,
+      attachments,
+      sourceAsset: currentSourceAsset,
+    });
+  }, [attachments, currentModel, currentPreset?.default_options_json, currentSourceAsset, modelKey, optionValues]);
   const selectedPromptSignature = useMemo(() => selectedPromptIds.join("|"), [selectedPromptIds]);
   const attachmentSignature = useMemo(
     () =>

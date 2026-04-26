@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
+import { deriveStudioPricingOptions, estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 
 describe("studio-pricing", () => {
   it("applies multipliers and output count from the pricing snapshot", () => {
@@ -54,6 +54,52 @@ describe("studio-pricing", () => {
 
     expect(estimate.estimatedCredits).toBeCloseTo(32);
     expect(estimate.estimatedCostUsd).toBeCloseTo(0.16);
+  });
+
+  it("derives Seedance pricing variants from staged video inputs", () => {
+    const derived = deriveStudioPricingOptions({
+      modelKey: "seedance-2.0",
+      options: { duration: 8, resolution: "720p" },
+      attachments: [{ kind: "videos" }] as never,
+      sourceAsset: null,
+    });
+
+    expect(derived.pricing_variant).toBe("720p_with_video_input");
+  });
+
+  it("applies derived Seedance pricing variants to the local estimate", () => {
+    const derived = deriveStudioPricingOptions({
+      modelKey: "seedance-2.0",
+      options: { duration: 8, resolution: "720p" },
+      attachments: [{ kind: "videos" }] as never,
+      sourceAsset: null,
+    });
+
+    const estimate = estimateFromPricingSnapshot(
+      {
+        rules: [
+          {
+            model_key: "seedance-2.0",
+            base_credits: 19,
+            base_cost_usd: 0.095,
+            multipliers: {
+              duration: {
+                "8": 8,
+              },
+              pricing_variant: {
+                "720p_with_video_input": 25 / 19,
+              },
+            },
+          },
+        ],
+      },
+      "seedance-2.0",
+      derived,
+      1,
+    );
+
+    expect(estimate.estimatedCredits).toBeCloseTo(200);
+    expect(estimate.estimatedCostUsd).toBeCloseTo(1);
   });
 
   it("prefers validation pricing over the local estimate when available", () => {
