@@ -175,7 +175,10 @@ describe("studio-composer-restore", () => {
       dependencies,
     });
 
-    expect(dependencies.addGalleryAssetAsAttachment).toHaveBeenCalledWith(referenceAsset, "reference", ["images"]);
+    expect(dependencies.addGalleryAssetAsAttachment).toHaveBeenCalledWith(referenceAsset, null, ["images"], {
+      insertImageIndex: 0,
+      replaceImageIndex: null,
+    });
     expect(dependencies.addRestoredFiles).toHaveBeenCalledTimes(1);
   });
 
@@ -223,5 +226,77 @@ describe("studio-composer-restore", () => {
     expect(dependencies.addRestoredFiles).toHaveBeenCalledTimes(1);
     expect(dependencies.revealComposer).toHaveBeenCalledWith({ focusPresetField: false });
     expect(dependencies.setFormMessage).toHaveBeenCalledWith({ tone: "warning", text: "Success" });
+  });
+
+  it("restores multiple path-backed image references for reference-only image edit jobs", async () => {
+    const referenceFileA = new File(["image-a"], "reference-a.png", { type: "image/png" });
+    const referenceFileB = new File(["image-b"], "reference-b.png", { type: "image/png" });
+    const dependencies = createDependencies({
+      fetchReferenceFile: vi
+        .fn()
+        .mockResolvedValueOnce(referenceFileA)
+        .mockResolvedValueOnce(referenceFileB),
+    });
+
+    await restoreComposerFromPlan({
+      plan: {
+        targetModel: { key: "gpt-image-2-image-to-image" } as never,
+        targetPreset: null,
+        projectId: null,
+        selectedPromptIds: [],
+        prompt: "Retry",
+        presetInputValues: {},
+        optionValues: { aspect_ratio: "9:16", resolution: "2K" },
+        outputCount: 1,
+        primaryInput: null,
+        referenceInputs: [
+          {
+            assetId: null,
+            url: "/api/control/files/uploads/media-studio/source-a.png",
+            kind: "images",
+            role: "reference",
+            label: "Reference 1",
+          },
+          {
+            assetId: null,
+            url: "/api/control/files/reference-media/images/source-b.png",
+            kind: "images",
+            role: "reference",
+            label: "Reference 2",
+          },
+        ],
+        presetSlotRestores: [],
+      },
+      missingModelMessage: "Missing model",
+      successMessage: "Success",
+      partialFailureMessage: "Partial",
+      dependencies,
+    });
+
+    expect(dependencies.fetchReferenceFile).toHaveBeenNthCalledWith(
+      1,
+      "/api/control/files/uploads/media-studio/source-a.png",
+      "Reference 1",
+      "images",
+    );
+    expect(dependencies.fetchReferenceFile).toHaveBeenNthCalledWith(
+      2,
+      "/api/control/files/reference-media/images/source-b.png",
+      "Reference 2",
+      "images",
+    );
+    expect(dependencies.addRestoredFiles).toHaveBeenNthCalledWith(1, [referenceFileA], {
+      role: undefined,
+      allowedKinds: ["images"],
+      insertImageIndex: 0,
+      replaceImageIndex: null,
+    });
+    expect(dependencies.addRestoredFiles).toHaveBeenNthCalledWith(2, [referenceFileB], {
+      role: undefined,
+      allowedKinds: ["images"],
+      insertImageIndex: 1,
+      replaceImageIndex: null,
+    });
+    expect(dependencies.setFormMessage).toHaveBeenCalledWith({ tone: "danger", text: "Partial" });
   });
 });

@@ -9,6 +9,7 @@ import {
   buildStudioJobPrimaryInput,
   buildStudioJobReferenceInputs,
   buildStudioRetryRestorePlan,
+  isSeedanceModel,
 } from "@/lib/media-studio-helpers";
 import type { MediaAsset } from "@/lib/types";
 
@@ -59,6 +60,10 @@ type RestoreComposerDependencies = {
     asset: MediaAsset | null,
     role?: NonNullable<AttachmentRecord["role"]> | null,
     allowedKinds?: AttachmentRecord["kind"][],
+    extraConfig?: {
+      insertImageIndex?: number | null;
+      replaceImageIndex?: number | null;
+    },
   ) => Promise<void> | void;
   assignPresetSlotAsset: (slotKey: string, asset: MediaAsset | null) => void;
   assignPresetSlotFile: (slotKey: string, file: File | null) => void;
@@ -182,13 +187,24 @@ async function restorePresetSlotInputs(
 
 async function restoreReferenceInputs(
   referenceInputs: StudioRetryReferenceInputs,
+  preserveReferenceRoles: boolean,
   dependencies: RestoreComposerDependencies,
 ) {
+  let genericImageInsertIndex = 0;
   for (const reference of referenceInputs ?? []) {
+    const restoreRole =
+      preserveReferenceRoles || reference.role !== "reference" ? reference.role : null;
+    const shouldUseOrderedImageInsert = !preserveReferenceRoles && reference.kind === "images" && reference.role === "reference";
     if (reference.assetId != null) {
       const asset = findMediaAssetById(reference.assetId, dependencies.localAssets, dependencies.favoriteAssets);
       if (asset) {
-        await dependencies.addGalleryAssetAsAttachment(asset, reference.role, [reference.kind]);
+        await dependencies.addGalleryAssetAsAttachment(asset, restoreRole, [reference.kind], {
+          insertImageIndex: shouldUseOrderedImageInsert ? genericImageInsertIndex : null,
+          replaceImageIndex: null,
+        });
+        if (shouldUseOrderedImageInsert) {
+          genericImageInsertIndex += 1;
+        }
         continue;
       }
     }
@@ -199,9 +215,14 @@ async function restoreReferenceInputs(
         reference.kind,
       );
       await dependencies.addRestoredFiles([file], {
-        role: reference.role ?? undefined,
+        role: restoreRole ?? undefined,
         allowedKinds: [reference.kind],
+        insertImageIndex: shouldUseOrderedImageInsert ? genericImageInsertIndex : null,
+        replaceImageIndex: null,
       });
+      if (shouldUseOrderedImageInsert) {
+        genericImageInsertIndex += 1;
+      }
     } catch {
       // Missing references should not block the main restore flow.
     }
@@ -286,7 +307,11 @@ export async function restoreComposerFromPlan({
   );
 
   await restorePresetSlotInputs(plan, dependencies);
-  await restoreReferenceInputs(plan?.referenceInputs ?? fallbackReferenceInputs ?? [], dependencies);
+  await restoreReferenceInputs(
+    plan?.referenceInputs ?? fallbackReferenceInputs ?? [],
+    isSeedanceModel(targetModel.key),
+    dependencies,
+  );
 
   // A missing primary input is the one restore failure that should downgrade the
   // final message. Reference/preset misses stay non-blocking so the user can still

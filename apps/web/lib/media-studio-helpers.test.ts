@@ -949,6 +949,77 @@ describe("media-studio-helpers Seedance support", () => {
     });
   });
 
+  it("keeps reference-only image edit inputs as restoreable references", () => {
+    const model = {
+      key: "gpt-image-2-image-to-image",
+      defaults: { resolution: "2K" },
+      input_patterns: ["image_edit"],
+      inputs: { image: { required_max: 16 } },
+    } as never;
+
+    expect(
+      buildStudioRetryRestorePlan({
+        job: {
+          model_key: "gpt-image-2-image-to-image",
+          selected_system_prompt_ids: [],
+          final_prompt_used: "Edit the scene",
+          requested_outputs: 1,
+          resolved_options: { aspect_ratio: "9:16", resolution: "2K" },
+          normalized_request: {
+            images: [
+              {
+                path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/uploads/media-studio/source-a.png",
+                media_type: "image",
+                role: "reference",
+              },
+              {
+                path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/reference-media/images/source-b.png",
+                media_type: "image",
+                role: "reference",
+              },
+            ],
+          },
+        } as never,
+        batch: null,
+        models: [model],
+        presets: [],
+        localAssets: [],
+        favoriteAssets: null,
+      }),
+    ).toEqual({
+      targetModel: model,
+      targetPreset: null,
+      projectId: null,
+      selectedPromptIds: [],
+      prompt: "Edit the scene",
+      presetInputValues: {},
+      optionValues: { resolution: "2K", aspect_ratio: "9:16" },
+      outputCount: 1,
+      primaryInput: null,
+      referenceInputs: [
+        {
+          key: "job-reference:images:0",
+          label: "Reference 1",
+          url: "/api/control/files/uploads/media-studio/source-a.png",
+          posterUrl: null,
+          assetId: null,
+          kind: "images",
+          role: "reference",
+        },
+        {
+          key: "job-reference:images:1",
+          label: "Reference 2",
+          url: "/api/control/files/reference-media/images/source-b.png",
+          posterUrl: null,
+          assetId: null,
+          kind: "images",
+          role: "reference",
+        },
+      ],
+      presetSlotRestores: [],
+    });
+  });
+
   it("filters Studio preset browser entries to active Nano presets", () => {
     expect(
       isStudioPresetVisible({
