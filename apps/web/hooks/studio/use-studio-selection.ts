@@ -80,6 +80,11 @@ export function useStudioSelection({
   const [selectedMediaLightboxOpen, setSelectedMediaLightboxOpen] = useState(false);
   const [mobileInspectorPromptOpen, setMobileInspectorPromptOpen] = useState(false);
   const [mobileInspectorInfoOpen, setMobileInspectorInfoOpen] = useState(false);
+  const hydratedJobCallbackRef = useRef(onHydratedJob);
+
+  useEffect(() => {
+    hydratedJobCallbackRef.current = onHydratedJob;
+  }, [onHydratedJob]);
 
   const selectedAsset = findMediaAssetById(selectedAssetId, localAssets, favoriteAssets) ?? null;
   const selectedAssetCachedJob = useMemo(() => {
@@ -210,13 +215,13 @@ export function useStudioSelection({
           return;
         }
         setSelectedAssetHydratedJob(payload.job);
-        onHydratedJob?.(payload.job);
+        hydratedJobCallbackRef.current?.(payload.job);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [onHydratedJob, selectedAsset?.asset_id, selectedAsset?.job_id]);
+  }, [selectedAsset?.asset_id, selectedAsset?.job_id]);
 
   function resetInspector() {
     setSelectedMediaLightboxOpen(false);

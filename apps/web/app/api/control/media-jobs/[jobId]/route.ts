@@ -8,11 +8,29 @@ export async function GET(
   context: { params: Promise<{ jobId: string }> },
 ) {
   const { jobId } = await context.params;
-  const result = await postControlApiJson<MediaJobResponse>(
-    `/media/jobs/${jobId}/poll`,
-    { wait: false },
-    "admin",
-  );
+  const currentJob = await getControlApiJson<Record<string, unknown>>(`/media/jobs/${jobId}`, "read");
+  if (!currentJob.ok || !currentJob.data) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: currentJob.error ?? "Unable to read the current media job state.",
+      },
+      { status: 502 },
+    );
+  }
+
+  const currentStatus = String(currentJob.data.status ?? "").toLowerCase();
+  const shouldPoll = currentStatus === "queued" || currentStatus === "submitted" || currentStatus === "running" || currentStatus === "processing";
+  const result = shouldPoll
+    ? await postControlApiJson<MediaJobResponse>(
+        `/media/jobs/${jobId}/poll`,
+        { wait: false },
+        "admin",
+      )
+    : {
+        ok: true as const,
+        data: currentJob.data,
+      };
 
   if (!result.ok || !result.data) {
     return NextResponse.json(
