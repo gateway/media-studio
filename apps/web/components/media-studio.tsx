@@ -2729,6 +2729,28 @@ export function MediaStudio({
     return payload.asset;
   }
 
+  async function fetchJobStateById(jobId: string | number) {
+    const response = await fetch(`/api/control/media-jobs/${jobId}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    const payload = (await response.json().catch(() => null)) as
+      | {
+          ok?: boolean;
+          job?: MediaJob | null;
+          batch?: MediaBatch | null;
+        }
+      | null;
+    if (!response.ok || !payload?.ok || !payload.job) {
+      throw new Error("Unable to load the selected media job.");
+    }
+    return {
+      job: payload.job,
+      batch: payload.batch ?? null,
+    };
+  }
+
   async function retryFailedJobInStudio(job: MediaJob | null) {
     if (!job) {
       return;
@@ -2792,9 +2814,51 @@ export function MediaStudio({
     if (!asset) {
       return;
     }
+    let revisionJob = selectedAssetJob;
+    let revisionBatch = selectedAssetBatch;
+
+    if (asset.job_id) {
+      try {
+        const latestState = await fetchJobStateById(asset.job_id);
+        revisionJob = latestState.job;
+        revisionBatch = latestState.batch ?? revisionBatch;
+        setLocalJobs((current) => [
+          latestState.job,
+          ...current.filter((job) => job.job_id !== latestState.job.job_id),
+        ]);
+        if (latestState.batch) {
+          upsertBatch(latestState.batch);
+        }
+      } catch {
+        // Fall back to the currently cached job when the refresh endpoint is unavailable.
+      }
+    }
+
+    const revisionPlan =
+      buildStudioRetryRestorePlan({
+        job: revisionJob,
+        batch: revisionBatch,
+        models,
+        presets,
+        localAssets,
+        favoriteAssets,
+      }) ?? selectedAssetRevisionPlan;
+    const revisionPrimaryInput = buildStudioJobPrimaryInput({
+      job: revisionJob,
+      localAssets,
+      favoriteAssets,
+    });
+    const revisionReferenceInputs = buildStudioJobReferenceInputs({
+      job: revisionJob,
+      localAssets,
+      favoriteAssets,
+    });
+
     await restoreStudioComposerFromPlan({
-      plan: selectedAssetRevisionPlan,
-      sourceAssetId: selectedAssetJob?.source_asset_id ?? asset.source_asset_id ?? null,
+      plan: revisionPlan,
+      fallbackPrimaryInput: revisionPrimaryInput,
+      fallbackReferenceInputs: revisionReferenceInputs,
+      sourceAssetId: revisionJob?.source_asset_id ?? selectedAssetJob?.source_asset_id ?? asset.source_asset_id ?? null,
       missingModelMessage: "Studio could not reconstruct this asset into an editable composer state.",
       successMessage: "Loaded this asset back into Studio with its original prompt, references, and settings.",
       partialFailureMessage: "Loaded this asset prompt and settings, but Studio could not restage some of the original reference media.",
