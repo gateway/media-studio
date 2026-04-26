@@ -290,6 +290,49 @@ describe("studio-composer-restore", () => {
       insertImageIndex: 0,
       replaceImageIndex: null,
     });
-    expect(dependencies.setFormMessage).toHaveBeenCalledWith({ tone: "danger", text: "Partial" });
+    expect(dependencies.setFormMessage).toHaveBeenCalledWith({ tone: "warning", text: "Success" });
+  });
+
+  it("clears the asset-scoped Studio URL when restoring from the asset inspector", async () => {
+    const referenceFile = new File(["image"], "reference.png", { type: "image/png" });
+    const dependencies = createDependencies({
+      selectedProjectId: "project-1",
+      fetchReferenceFile: vi.fn().mockResolvedValue(referenceFile),
+    });
+
+    await restoreComposerFromPlan({
+      plan: {
+        targetModel: { key: "gpt-image-2-image-to-image" } as never,
+        targetPreset: null,
+        projectId: "project-1",
+        selectedPromptIds: [],
+        prompt: "Retry",
+        presetInputValues: {},
+        optionValues: {},
+        outputCount: 1,
+        primaryInput: null,
+        referenceInputs: [
+          {
+            assetId: null,
+            url: "/api/control/files/reference-media/images/reference.png",
+            kind: "images",
+            role: "reference",
+            label: "Reference 1",
+          },
+        ],
+        presetSlotRestores: [],
+      },
+      missingModelMessage: "Missing model",
+      successMessage: "Success",
+      partialFailureMessage: "Partial",
+      closeAssetInspector: true,
+      dependencies,
+    });
+
+    expect(dependencies.replaceStudioHistory).toHaveBeenCalledWith("project-1");
+    expect(dependencies.setSelectedAssetId).toHaveBeenCalledWith(null);
+    expect(dependencies.setSelectedMediaLightboxOpen).toHaveBeenCalledWith(false);
+    expect(dependencies.setSelectedReferencePreview).toHaveBeenCalledWith(null);
+    expect(dependencies.revealComposer).toHaveBeenCalledWith({ focusPresetField: false });
   });
 });

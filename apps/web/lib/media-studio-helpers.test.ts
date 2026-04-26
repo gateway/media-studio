@@ -1020,6 +1020,83 @@ describe("media-studio-helpers Seedance support", () => {
     });
   });
 
+  it("prefers original same-origin media over uploaded provider urls for revision restores", () => {
+    const model = {
+      key: "gpt-image-2-image-to-image",
+      defaults: { resolution: "2K" },
+      input_patterns: ["image_edit"],
+      inputs: { image: { required_max: 16 } },
+    } as never;
+
+    const plan = buildStudioRetryRestorePlan({
+      job: {
+        model_key: "gpt-image-2-image-to-image",
+        selected_system_prompt_ids: [],
+        final_prompt_used: "Edit the scene",
+        requested_outputs: 1,
+        resolved_options: { aspect_ratio: "9:16", resolution: "2K" },
+        prepared: {
+          normalized_request: {
+            images: [
+              {
+                url: "https://tempfile.redpandaai.co/kieai/183531/images/user-uploads/source-a.png",
+                media_type: "image",
+                role: "reference",
+              },
+              {
+                url: "https://tempfile.redpandaai.co/kieai/183531/images/user-uploads/source-b.png",
+                media_type: "image",
+                role: "reference",
+              },
+            ],
+            debug: {
+              original_media: {
+                images: [
+                  {
+                    path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/uploads/media-studio/source-a.png",
+                    media_type: "image",
+                    role: "reference",
+                  },
+                  {
+                    path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/reference-media/images/source-b.png",
+                    media_type: "image",
+                    role: "reference",
+                  },
+                ],
+              },
+            },
+          },
+        },
+      } as never,
+      batch: null,
+      models: [model],
+      presets: [],
+      localAssets: [],
+      favoriteAssets: null,
+    });
+
+    expect(plan?.referenceInputs).toEqual([
+      {
+        key: "job-reference:images:0",
+        label: "Reference 1",
+        url: "/api/control/files/uploads/media-studio/source-a.png",
+        posterUrl: null,
+        assetId: null,
+        kind: "images",
+        role: "reference",
+      },
+      {
+        key: "job-reference:images:1",
+        label: "Reference 2",
+        url: "/api/control/files/reference-media/images/source-b.png",
+        posterUrl: null,
+        assetId: null,
+        kind: "images",
+        role: "reference",
+      },
+    ]);
+  });
+
   it("filters Studio preset browser entries to active Nano presets", () => {
     expect(
       isStudioPresetVisible({

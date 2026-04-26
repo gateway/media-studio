@@ -197,6 +197,7 @@ async function restoreReferenceInputs(
     (reference) => useOrderedGenericImageInsert(reference) && reference.assetId == null,
   );
   let restoredBulkGenericImageCount = 0;
+  let restoredReferenceCount = 0;
   if (bulkRestorableGenericImageReferences.length) {
     const restoredFiles: File[] = [];
     for (const reference of bulkRestorableGenericImageReferences) {
@@ -214,6 +215,7 @@ async function restoreReferenceInputs(
     }
     if (restoredFiles.length) {
       restoredBulkGenericImageCount = restoredFiles.length;
+      restoredReferenceCount += restoredFiles.length;
       await dependencies.addRestoredFiles(restoredFiles, {
         allowedKinds: ["images"],
         insertImageIndex: 0,
@@ -241,6 +243,7 @@ async function restoreReferenceInputs(
         if (shouldUseOrderedImageInsert) {
           genericImageInsertIndex += 1;
         }
+        restoredReferenceCount += 1;
         continue;
       }
     }
@@ -259,10 +262,13 @@ async function restoreReferenceInputs(
       if (shouldUseOrderedImageInsert) {
         genericImageInsertIndex += 1;
       }
+      restoredReferenceCount += 1;
     } catch {
       // Missing references should not block the main restore flow.
     }
   }
+
+  return restoredReferenceCount;
 }
 
 export async function restoreComposerFromPlan({
@@ -300,6 +306,8 @@ export async function restoreComposerFromPlan({
   dependencies.clearComposer();
   if (targetProjectId !== dependencies.selectedProjectId) {
     dependencies.setSelectedProjectId(targetProjectId);
+  }
+  if (targetProjectId !== dependencies.selectedProjectId || closeAssetInspector) {
     dependencies.replaceStudioHistory(targetProjectId);
   }
   dependencies.setModelKey(targetModel.key);
@@ -343,18 +351,21 @@ export async function restoreComposerFromPlan({
   );
 
   await restorePresetSlotInputs(plan, dependencies);
-  await restoreReferenceInputs(
+  const restoredReferenceInputCount = await restoreReferenceInputs(
     plan?.referenceInputs ?? fallbackReferenceInputs ?? [],
     isSeedanceModel(targetModel.key),
     dependencies,
   );
 
-  // A missing primary input is the one restore failure that should downgrade the
-  // final message. Reference/preset misses stay non-blocking so the user can still
-  // land back in the composer with the recoverable parts of the request intact.
+  const expectsPrimaryInput = sourceAssetId != null || Boolean(plan?.primaryInput ?? fallbackPrimaryInput);
+  const restoreSucceeded = restoredPrimaryInput || (!expectsPrimaryInput && restoredReferenceInputCount > 0);
+
+  // A missing expected primary input is the one restore failure that should downgrade
+  // the final message. Reference-only edit jobs, such as GPT Image 2 I2I, succeed
+  // when their ordered image references are restored.
   dependencies.setFormMessage({
-    tone: restoredPrimaryInput ? "warning" : "danger",
-    text: restoredPrimaryInput ? successMessage : partialFailureMessage,
+    tone: restoreSucceeded ? "warning" : "danger",
+    text: restoreSucceeded ? successMessage : partialFailureMessage,
   });
   dependencies.revealComposer({ focusPresetField: Boolean(targetPreset) });
 }

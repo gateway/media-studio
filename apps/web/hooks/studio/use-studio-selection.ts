@@ -81,6 +81,7 @@ export function useStudioSelection({
   const [mobileInspectorPromptOpen, setMobileInspectorPromptOpen] = useState(false);
   const [mobileInspectorInfoOpen, setMobileInspectorInfoOpen] = useState(false);
   const hydratedJobCallbackRef = useRef(onHydratedJob);
+  const hydratedInitialSelectedAssetIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     hydratedJobCallbackRef.current = onHydratedJob;
@@ -156,11 +157,17 @@ export function useStudioSelection({
 
   useEffect(() => {
     if (!initialSelectedAssetId) {
+      hydratedInitialSelectedAssetIdRef.current = null;
+      return;
+    }
+    const normalizedInitialAssetId = String(initialSelectedAssetId);
+    if (hydratedInitialSelectedAssetIdRef.current === normalizedInitialAssetId) {
       return;
     }
     const matchedAsset = findMediaAssetById(initialSelectedAssetId, localAssets, favoriteAssets);
     if (matchedAsset) {
       setSelectedAssetId(matchedAsset.asset_id);
+      hydratedInitialSelectedAssetIdRef.current = normalizedInitialAssetId;
     }
   }, [favoriteAssets, initialSelectedAssetId, localAssets]);
 

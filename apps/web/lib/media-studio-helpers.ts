@@ -1038,6 +1038,38 @@ function normalizedRequestMediaEntries(job?: MediaJob | null) {
   );
 }
 
+function normalizedOriginalMediaEntry(
+  job: MediaJob | null | undefined,
+  collectionKey: NormalizedRequestMediaKey,
+  index: number,
+) {
+  const originalItems = normalizedRequestOriginalMedia(job, collectionKey);
+  const item = originalItems[index];
+  return isRecord(item) ? item : null;
+}
+
+function normalizedMediaUrl(
+  item: Record<string, unknown>,
+  originalItem: Record<string, unknown> | null,
+  asset: MediaAsset | null,
+  kind: "images" | "videos" | "audios",
+) {
+  const urlValue = typeof item.url === "string" ? item.url : null;
+  const pathValue = typeof item.path === "string" ? item.path : null;
+  const originalPathValue = typeof originalItem?.path === "string" ? originalItem.path : null;
+  const originalUrlValue = typeof originalItem?.url === "string" ? originalItem.url : null;
+
+  return (
+    (kind === "videos" ? mediaPlaybackUrl(asset) : null) ??
+    mediaDisplayUrl(asset) ??
+    mediaThumbnailUrl(asset) ??
+    toControlApiDataPreviewPath(originalPathValue) ??
+    originalUrlValue ??
+    toControlApiDataPreviewPath(pathValue) ??
+    urlValue
+  );
+}
+
 function normalizedReferenceLabel(role: string | null, fallbackIndex: number, referenceIndex: number) {
   if (role === "first_frame") {
     return "First frame";
@@ -1152,10 +1184,9 @@ export function buildStudioReferencePreviews({
       return;
     }
     const imageAsset = assetId != null ? findMediaAssetById(assetId, localAssets, favoriteAssets) ?? null : null;
-    const urlValue = typeof item.url === "string" ? item.url : null;
-    const pathValue = typeof item.path === "string" ? item.path : null;
     const role = typeof item.role === "string" ? item.role : null;
     const kind = studioReferenceKind(item.media_type ?? collectionKey.slice(0, -1));
+    const originalItem = normalizedOriginalMediaEntry(job, collectionKey, index);
     if (hideImplicitPrimaryFromPresetSlots && role == null) {
       return;
     }
@@ -1164,11 +1195,7 @@ export function buildStudioReferencePreviews({
         `job-${collectionKey.slice(0, -1)}:${index}`,
         kind === "videos" ? "Source video" : kind === "audios" ? "Source audio" : "Source image",
         kind,
-        (kind === "videos" ? mediaPlaybackUrl(imageAsset) : null) ??
-          mediaDisplayUrl(imageAsset) ??
-          mediaThumbnailUrl(imageAsset) ??
-          urlValue ??
-          toControlApiDataPreviewPath(pathValue),
+        normalizedMediaUrl(item, originalItem, imageAsset, kind),
         kind === "videos"
           ? mediaThumbnailUrl(imageAsset) ?? mediaDisplayUrl(imageAsset) ?? null
           : null,
@@ -1186,11 +1213,7 @@ export function buildStudioReferencePreviews({
       `job-${collectionKey.slice(0, -1)}:${index}`,
       normalizedReferenceLabel(role, index + 1, Math.max(referenceIndex, 1)),
       kind,
-      (kind === "videos" ? mediaPlaybackUrl(imageAsset) : null) ??
-        mediaDisplayUrl(imageAsset) ??
-        mediaThumbnailUrl(imageAsset) ??
-        urlValue ??
-        toControlApiDataPreviewPath(pathValue),
+      normalizedMediaUrl(item, originalItem, imageAsset, kind),
       kind === "videos"
         ? mediaThumbnailUrl(imageAsset) ?? mediaDisplayUrl(imageAsset) ?? null
         : null,
@@ -1240,14 +1263,9 @@ export function buildStudioJobReferenceInputs({
       referenceIndex += 1;
     }
     const asset = assetId != null ? findMediaAssetById(assetId, localAssets, favoriteAssets) ?? null : null;
-    const urlValue = typeof item.url === "string" ? item.url : null;
     const pathValue = typeof item.path === "string" ? item.path : null;
-    const url =
-      (kind === "videos" ? mediaPlaybackUrl(asset) : null) ??
-      mediaDisplayUrl(asset) ??
-      mediaThumbnailUrl(asset) ??
-      urlValue ??
-      toControlApiDataPreviewPath(pathValue);
+    const originalItem = normalizedOriginalMediaEntry(job, collectionKey, index);
+    const url = normalizedMediaUrl(item, originalItem, asset, kind);
     if (!url) {
       return;
     }
