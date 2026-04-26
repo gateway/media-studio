@@ -98,6 +98,9 @@ The exact pricing and request rules can change over time, so the app also expose
 
 - `/pricing` in the dashboard
 - `GET /media/pricing` in the control API
+- `POST /media/pricing/estimate` for the server-side estimate used by Generate and saved job summaries
+
+On API startup, Media Studio can refresh a stale KIE pricing snapshot once, using `MEDIA_PRICING_CACHE_HOURS` as the freshness window. If live refresh fails, it keeps the bundled/cached KIE snapshot and surfaces the refresh error plus coverage warnings on `/pricing`. See [docs/pricing-integration.md](docs/pricing-integration.md).
 
 ## What You Need Before Setup
 

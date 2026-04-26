@@ -64,6 +64,10 @@ def normalize_pricing_snapshot(
         "refresh_error": refresh_error,
         "is_authoritative": is_authoritative,
         "pricing_status": aggregate_status,
+        "priced_model_keys": _string_list(resolved.get("priced_model_keys")),
+        "missing_model_keys": _string_list(resolved.get("missing_model_keys")),
+        "unmapped_source_rows": _dict_list(resolved.get("unmapped_source_rows")),
+        "is_stale": bool(resolved.get("is_stale", False)),
     }
 
 
@@ -135,6 +139,18 @@ def attach_pricing_summary(
 
 def _dict_copy(value: Any) -> Dict[str, Any]:
     return dict(value) if isinstance(value, dict) else {}
+
+
+def _dict_list(value: Any) -> List[Dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [dict(item) for item in value if isinstance(item, dict)]
+
+
+def _string_list(value: Any) -> List[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item).strip()]
 
 
 def _number_or_none(value: Any) -> Optional[float]:

@@ -1,5 +1,6 @@
 import pytest
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -64,6 +65,15 @@ def test_pricing_endpoint_returns_normalized_snapshot(client) -> None:
     assert payload["source_url"] == "https://kie.ai/pricing"
     assert payload["rules"]
     assert any(rule["model_key"] == "nano-banana-2" for rule in payload["rules"])
+    assert any(rule["model_key"] == "gpt-image-2-text-to-image" for rule in payload["rules"])
+    gpt_rule = next(rule for rule in payload["rules"] if rule["model_key"] == "gpt-image-2-text-to-image")
+    assert gpt_rule["pricing_status"] == "observed_site_pricing"
+    assert gpt_rule["base_credits"] == pytest.approx(6.0)
+    assert payload["priced_model_keys"]
+    assert "gpt-image-2-text-to-image" in payload["priced_model_keys"]
+    assert payload["missing_model_keys"] == []
+    assert isinstance(payload["unmapped_source_rows"], list)
+    assert payload["is_stale"] is False
     assert payload["is_authoritative"] is False
 
 
@@ -86,6 +96,102 @@ def test_pricing_estimate_applies_output_count_and_option_multipliers(client) ->
     assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(0.06)
     assert summary["total"]["estimated_credits"] == pytest.approx(36.0)
     assert summary["total"]["estimated_cost_usd"] == pytest.approx(0.18)
+
+
+def test_pricing_estimate_returns_gpt_image_2_observed_totals(client) -> None:
+    response = client.post(
+        "/media/pricing/estimate",
+        json={
+            "model_key": "gpt-image-2-text-to-image",
+            "task_mode": "text_to_image",
+            "prompt": "A product photograph of a matte black desk lamp.",
+            "options": {"aspect_ratio": "16:9", "resolution": "4K"},
+            "output_count": 2,
+        },
+    )
+    assert response.status_code == 200, response.text
+    summary = response.json()["pricing_summary"]
+    assert summary["pricing_status"] == "observed_site_pricing"
+    assert summary["pricing_source_kind"] == "site_pricing_page_api"
+    assert summary["per_output"]["estimated_credits"] == pytest.approx(16.0)
+    assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(0.08)
+    assert summary["total"]["estimated_credits"] == pytest.approx(32.0)
+    assert summary["total"]["estimated_cost_usd"] == pytest.approx(0.16)
+
+
+def test_pricing_startup_refreshes_when_snapshot_is_stale(app_modules, monkeypatch) -> None:
+    adapter = app_modules["main"].kie_adapter
+    calls = {"refresh": 0}
+
+    monkeypatch.setattr(
+        adapter,
+        "pricing_snapshot",
+        lambda force_refresh=False: {
+            "refreshed_at": "2000-01-01T00:00:00+00:00",
+            "rules": [],
+            "notes": [],
+            "cache_status": "resource_snapshot",
+        },
+    )
+
+    def fake_refresh():
+        calls["refresh"] += 1
+        return {"refreshed_at": datetime.now(timezone.utc).isoformat(), "rules": [], "is_stale": False}
+
+    monkeypatch.setattr(adapter, "refresh_pricing_snapshot", fake_refresh)
+
+    snapshot = adapter.refresh_pricing_snapshot_if_stale()
+
+    assert calls["refresh"] == 1
+    assert snapshot["is_stale"] is False
+
+
+def test_pricing_startup_keeps_fresh_snapshot(app_modules, monkeypatch) -> None:
+    adapter = app_modules["main"].kie_adapter
+    calls = {"refresh": 0}
+    fresh_snapshot = {
+        "refreshed_at": datetime.now(timezone.utc).isoformat(),
+        "rules": [],
+        "notes": [],
+        "cache_status": "resource_snapshot",
+    }
+
+    monkeypatch.setattr(adapter, "pricing_snapshot", lambda force_refresh=False: dict(fresh_snapshot))
+    monkeypatch.setattr(adapter, "refresh_pricing_snapshot", lambda: calls.__setitem__("refresh", calls["refresh"] + 1))
+
+    snapshot = adapter.refresh_pricing_snapshot_if_stale()
+
+    assert calls["refresh"] == 0
+    assert snapshot["is_stale"] is False
+
+
+def test_pricing_refresh_falls_back_to_cached_snapshot(app_modules, monkeypatch) -> None:
+    adapter = app_modules["main"].kie_adapter
+    original_import_module = adapter.importlib.import_module
+
+    def fake_import_module(name: str):
+        if name == "kie_api.services.pricing_refresh":
+            raise RuntimeError("network unavailable")
+        return original_import_module(name)
+
+    monkeypatch.setattr(
+        adapter,
+        "pricing_snapshot",
+        lambda force_refresh=False: {
+            "refreshed_at": "2000-01-01T00:00:00+00:00",
+            "rules": [{"model_key": "gpt-image-2-text-to-image"}],
+            "notes": [],
+            "cache_status": "resource_snapshot",
+        },
+    )
+    monkeypatch.setattr(adapter.importlib, "import_module", fake_import_module)
+
+    snapshot = adapter.refresh_pricing_snapshot()
+
+    assert snapshot["refresh_error"] == "network unavailable"
+    assert snapshot["cache_status"] == "resource_snapshot"
+    assert snapshot["is_stale"] is True
+    assert "Pricing refresh failed: network unavailable" in snapshot["notes"]
 
 
 def test_seedance_validate_returns_prompt_context_and_reference_guide(client) -> None:

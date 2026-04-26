@@ -973,6 +973,9 @@ export type MediaPricingResponse = {
   refresh_error?: string | null;
   is_authoritative?: boolean;
   pricing_status?: string | null;
+  priced_model_keys?: string[];
+  missing_model_keys?: string[];
+  unmapped_source_rows?: Record<string, unknown>[];
   snapshot?: Record<string, unknown> | null;
 };
 

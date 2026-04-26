@@ -1,4 +1,4 @@
-import { Coins, ExternalLink, RefreshCcw, Sparkles } from "lucide-react";
+import { AlertTriangle, Coins, ExternalLink, RefreshCcw, Sparkles } from "lucide-react";
 
 import { PricingRefreshAction } from "@/app/pricing/pricing-refresh-action";
 import { adminThemeLayoutClassName } from "@/components/admin-theme";
@@ -11,6 +11,7 @@ import { Panel, PanelHeader } from "@/components/panel";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { CalloutPanel, SurfaceInset } from "@/components/ui/surface-primitives";
 import { getMediaDashboardSnapshot } from "@/lib/control-api";
+import { getPricingCoverageWarnings } from "@/lib/pricing-coverage";
 import { estimateFromPricingSnapshot } from "@/lib/studio-pricing";
 import type { MediaModelSummary } from "@/lib/types";
 import { formatCreditsAmount, formatDateTime, formatUsdAmount, isRecord, toFiniteNumber } from "@/lib/utils";
@@ -167,6 +168,8 @@ export default async function PricingPage({
   const sourceUrl = pricing?.source_url ?? null;
   const pricingStatus = pricing?.pricing_status ?? "unknown";
   const authoritative = Boolean(pricing?.is_authoritative);
+  const pricedModelCount = pricing?.priced_model_keys?.length ?? rules.length;
+  const coverageWarnings = getPricingCoverageWarnings(pricing);
 
   return (
     <StudioAdminShell
@@ -214,7 +217,7 @@ export default async function PricingPage({
             </SurfaceInset>
             <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
               <div className="admin-label-muted">Models covered</div>
-              <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">{rules.length}</div>
+              <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">{pricedModelCount}</div>
             </SurfaceInset>
           </div>
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
@@ -259,6 +262,19 @@ export default async function PricingPage({
             <CalloutPanel appearance="admin" tone="muted" className="mt-4 text-sm leading-7 text-[var(--muted-strong)]">
               {pricing.notes[0]}
             </CalloutPanel>
+          ) : null}
+          {coverageWarnings.length ? (
+            <div className="mt-4 grid gap-3">
+              {coverageWarnings.map((warning) => (
+                <CalloutPanel key={warning.key} appearance="admin" tone="warning" className={adminInsetCardClassName}>
+                  <div className="admin-icon-label-row admin-label-muted">
+                    <AlertTriangle className="size-3.5" />
+                    {warning.title}
+                  </div>
+                  <p className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">{warning.detail}</p>
+                </CalloutPanel>
+              ))}
+            </div>
           ) : null}
         </Panel>
 

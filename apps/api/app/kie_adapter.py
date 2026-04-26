@@ -4,6 +4,7 @@ import importlib
 import sys
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
 from urllib.parse import urlparse
@@ -128,19 +129,24 @@ def pricing_snapshot(*, force_refresh: bool = False) -> Dict[str, Any]:
         and _pricing_snapshot_cache_expires_at is not None
         and datetime.now(timezone.utc) < _pricing_snapshot_cache_expires_at
     ):
-        return dict(_pricing_snapshot_cache)
+        cached = dict(_pricing_snapshot_cache)
+        cached["is_stale"] = _pricing_snapshot_is_stale(cached)
+        return cached
 
     try:
         payload = _dump(get_kie_module().registry.loader.load_latest_pricing_snapshot())
         normalized = normalize_pricing_snapshot(payload, cache_status="resource_snapshot")
+        normalized["is_stale"] = _pricing_snapshot_is_stale(normalized)
         _pricing_snapshot_cache = normalized
         _pricing_snapshot_cache_expires_at = _next_pricing_cache_expiry()
         return dict(normalized)
     except Exception:
-        return normalize_pricing_snapshot(
+        normalized = normalize_pricing_snapshot(
             {"refreshed_at": None, "source_kind": "unavailable", "rules": []},
             cache_status="unavailable",
         )
+        normalized["is_stale"] = True
+        return normalized
 
 
 def refresh_pricing_snapshot() -> Dict[str, Any]:
@@ -155,6 +161,7 @@ def refresh_pricing_snapshot() -> Dict[str, Any]:
             _dump(snapshot),
             cache_status="refreshed_live",
         )
+        normalized["is_stale"] = False
         _pricing_snapshot_cache = normalized
         _pricing_snapshot_cache_expires_at = _next_pricing_cache_expiry()
         return dict(normalized)
@@ -162,10 +169,19 @@ def refresh_pricing_snapshot() -> Dict[str, Any]:
         fallback = pricing_snapshot(force_refresh=False)
         fallback["refresh_error"] = str(exc)
         fallback["cache_status"] = fallback.get("cache_status") or "resource_snapshot"
+        fallback["is_stale"] = _pricing_snapshot_is_stale(fallback)
         notes = [str(note) for note in fallback.get("notes") or []]
         notes.append(f"Pricing refresh failed: {exc}")
         fallback["notes"] = notes
         return fallback
+
+
+def refresh_pricing_snapshot_if_stale() -> Dict[str, Any]:
+    snapshot = pricing_snapshot(force_refresh=False)
+    if _pricing_snapshot_is_stale(snapshot):
+        return refresh_pricing_snapshot()
+    snapshot["is_stale"] = False
+    return snapshot
 
 
 def get_credit_balance() -> Dict[str, Any]:
@@ -292,6 +308,32 @@ def _next_pricing_cache_expiry() -> datetime:
     return datetime.now(timezone.utc) + timedelta(
         hours=max(1, settings.media_pricing_cache_hours)
     )
+
+
+def _pricing_snapshot_is_stale(snapshot: Dict[str, Any]) -> bool:
+    observed_at = _pricing_snapshot_observed_at(snapshot)
+    if observed_at is None:
+        return True
+    if observed_at.hour == 0 and observed_at.minute == 0 and observed_at.second == 0 and observed_at.microsecond == 0:
+        return observed_at.date() < datetime.now(timezone.utc).date()
+    max_age = timedelta(hours=max(1, settings.media_pricing_cache_hours))
+    return datetime.now(timezone.utc) - observed_at > max_age
+
+
+def _pricing_snapshot_observed_at(snapshot: Dict[str, Any]) -> Optional[datetime]:
+    raw_value = snapshot.get("refreshed_at") or snapshot.get("released_on")
+    if not raw_value:
+        return None
+    text = str(raw_value).strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _trusted_callback_output_urls(value: Any) -> Iterable[str]:

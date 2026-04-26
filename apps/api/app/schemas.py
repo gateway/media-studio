@@ -118,6 +118,10 @@ class PricingResponse(BaseModel):
     refresh_error: Optional[str] = None
     is_authoritative: bool = False
     pricing_status: Optional[str] = None
+    priced_model_keys: List[str] = Field(default_factory=list)
+    missing_model_keys: List[str] = Field(default_factory=list)
+    unmapped_source_rows: List[Dict[str, Any]] = Field(default_factory=list)
+    is_stale: bool = False
 
 
 class PricingEstimateResponse(BaseModel):

@@ -33,3 +33,7 @@ The API should load that repo through configuration instead of hardcoding import
 - The dashboard consumes a normalized pricing catalog from `GET /media/pricing`.
 - The Studio requests server-side estimates from `POST /media/pricing/estimate` so model options like duration, resolution, audio, or output count can change the displayed total immediately.
 - Validation and submit flows should persist the same pricing summary used by the UI so job history remains explainable even if upstream rates change later.
+- API startup can refresh stale pricing once through `kie-api` when `MEDIA_PRICING_REFRESH_ON_STARTUP` is enabled, using `MEDIA_PRICING_CACHE_HOURS` as the freshness window.
+- Pricing coverage metadata from `kie-api` is passed through to the admin page so missing model prices, unmapped source rows, stale cache state, and refresh errors are visible to operators.
+
+See [pricing-integration.md](pricing-integration.md) for the current KIE pricing contract.

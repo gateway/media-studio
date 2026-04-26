@@ -28,6 +28,34 @@ describe("studio-pricing", () => {
     expect(estimate.estimatedCostUsd).toBe(0.18);
   });
 
+  it("calculates GPT Image 2 observed resolution pricing from the snapshot", () => {
+    const estimate = estimateFromPricingSnapshot(
+      {
+        rules: [
+          {
+            model_key: "gpt-image-2-text-to-image",
+            pricing_status: "observed_site_pricing",
+            base_credits: 6,
+            base_cost_usd: 0.03,
+            multipliers: {
+              resolution: {
+                "1k": 1,
+                "2k": 10 / 6,
+                "4k": 16 / 6,
+              },
+            },
+          },
+        ],
+      },
+      "gpt-image-2-text-to-image",
+      { resolution: "4K" },
+      2,
+    );
+
+    expect(estimate.estimatedCredits).toBeCloseTo(32);
+    expect(estimate.estimatedCostUsd).toBeCloseTo(0.16);
+  });
+
   it("prefers validation pricing over the local estimate when available", () => {
     const display = resolveStudioPricingDisplay(
       {

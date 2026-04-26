@@ -520,9 +520,15 @@ export function mapPricingResponseRecord(payload: Record<string, any>): MediaPri
     notes: payload.notes ?? [],
     rules: payload.rules ?? [],
     cache_status: payload.cache_status ?? null,
+    is_stale: Boolean(payload.is_stale),
     refresh_error: payload.refresh_error ?? null,
     is_authoritative: Boolean(payload.is_authoritative),
     pricing_status: payload.pricing_status ?? null,
+    priced_model_keys: Array.isArray(payload.priced_model_keys) ? payload.priced_model_keys.map(String) : [],
+    missing_model_keys: Array.isArray(payload.missing_model_keys) ? payload.missing_model_keys.map(String) : [],
+    unmapped_source_rows: Array.isArray(payload.unmapped_source_rows)
+      ? payload.unmapped_source_rows.filter((entry: unknown): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object" && !Array.isArray(entry))
+      : [],
     snapshot: payload,
   };
 }

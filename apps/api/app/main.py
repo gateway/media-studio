@@ -72,6 +72,8 @@ async def lifespan(_: FastAPI):
     settings.downloads_dir.mkdir(parents=True, exist_ok=True)
     settings.outputs_dir.mkdir(parents=True, exist_ok=True)
     store.bootstrap_schema()
+    if settings.media_pricing_refresh_on_startup:
+        kie_adapter.refresh_pricing_snapshot_if_stale()
     if settings.media_background_poll_enabled:
         runner.start()
     yield

@@ -59,6 +59,7 @@ class AppSettings(BaseModel):
     media_background_poll_enabled: bool = True
     media_poll_seconds: int = 6
     media_pricing_cache_hours: int = 6
+    media_pricing_refresh_on_startup: bool = True
     media_studio_supervisor: Optional[str] = None
     control_api_token: str = "media-studio-local-control-token"
     kie_api_key: Optional[str] = None
@@ -100,6 +101,7 @@ settings = AppSettings(
     media_background_poll_enabled=_env_bool("MEDIA_BACKGROUND_POLL_ENABLED", True),
     media_poll_seconds=int(os.getenv("MEDIA_POLL_SECONDS", "6")),
     media_pricing_cache_hours=int(os.getenv("MEDIA_PRICING_CACHE_HOURS", "6")),
+    media_pricing_refresh_on_startup=_env_bool("MEDIA_PRICING_REFRESH_ON_STARTUP", True),
     media_studio_supervisor=os.getenv("MEDIA_STUDIO_SUPERVISOR"),
     control_api_token=_resolve_control_api_token(_env_str("MEDIA_STUDIO_APP_ENV", "development")),
     kie_api_key=os.getenv("KIE_API_KEY"),
