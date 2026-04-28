@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { buildStudioScopedHref } from "@/lib/studio-navigation";
+import { MEDIA_STUDIO_VERSION } from "@/lib/app-version";
 import { cn } from "@/lib/utils";
 
 type StudioAdminShellProps = {
@@ -52,7 +53,15 @@ export function StudioAdminShell({
               </Link>
             );
           })}
-          {aside ? <div className="ml-auto">{aside}</div> : null}
+          <div className="ml-auto flex items-center gap-3">
+            {aside ? aside : null}
+            <span
+              className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-white/54"
+              title="Media Studio version"
+            >
+              {MEDIA_STUDIO_VERSION}
+            </span>
+          </div>
         </div>
         <div className="space-y-3">
           <div className="admin-page-eyebrow">{eyebrow}</div>
