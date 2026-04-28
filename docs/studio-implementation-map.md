@@ -22,6 +22,8 @@ This document describes the current internal ownership after the Studio monolith
   - failed job `Retry in Studio`
   - completed asset `Create Revision`
 
+For the structured preset contract, placeholder syntax, image-slot payloads, import/export behavior, and preset restore flow, see [docs/studio-preset-system.md](docs/studio-preset-system.md).
+
 ## Selected asset inspector
 
 - `apps/web/components/studio/studio-inspector-info.tsx`

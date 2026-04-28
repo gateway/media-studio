@@ -49,10 +49,15 @@ data/backups/
 # `temp/local-smoke/` is the home for developer-only smoke helpers that should never be tracked.
 .playwright-cli/
 artifacts/
+docs/reviews/
+docs/API_SECURITY_FULL_REPORT.md
+docs/review-remediation-plan.md
 logs/
 tmp/
 temp/
 output/
+outputs/
+outputs/security_profile.json
 *.log
 *.pid
 *.pid.lock

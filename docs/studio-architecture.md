@@ -103,9 +103,11 @@ That controller owns:
 
 `MediaStudio` only decides when to invoke restore and what success/failure copy to show.
 
-For the concrete rules, slot types, replacement semantics, and verification path, see [docs/studio-standard-composer-slots.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/studio-standard-composer-slots.md).
+For the concrete rules, slot types, replacement semantics, and verification path, see [docs/studio-standard-composer-slots.md](docs/studio-standard-composer-slots.md).
 
-For the current implementation ownership map after the monolith-reduction pass, see [docs/studio-implementation-map.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/studio-implementation-map.md).
+For structured preset records, text placeholders, image slots, import/export, and retry/revision restore behavior, see [docs/studio-preset-system.md](docs/studio-preset-system.md).
+
+For the current implementation ownership map after the monolith-reduction pass, see [docs/studio-implementation-map.md](docs/studio-implementation-map.md).
 
 ## Refactor rule
 
@@ -131,10 +133,10 @@ Further extraction should keep these unchanged:
 
 ## Verification
 
-See [docs/studio-testing.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/studio-testing.md) for the current Studio gates:
+See [docs/studio-testing.md](docs/studio-testing.md) for the current Studio gates:
 
 - fast quality gates
 - deterministic release verification
 - local-only smoke guidance for developer-owned browser and provider checks
 
-For the full submit, queue, publish, retry, and reference-library backfill lifecycle, see [docs/request-lifecycle.md](/Users/evilone/Documents/Development/Video-Image-APIs/media-studio/docs/request-lifecycle.md).
+For the full submit, queue, publish, retry, and reference-library backfill lifecycle, see [docs/request-lifecycle.md](docs/request-lifecycle.md).

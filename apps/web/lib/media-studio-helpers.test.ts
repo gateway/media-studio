@@ -600,7 +600,7 @@ describe("media-studio-helpers Seedance support", () => {
           normalized_request: {
             images: [
               {
-                path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/reference-media/images/legacy-ref.png",
+                path: "/fixtures/media-studio/data/reference-media/images/legacy-ref.png",
                 media_type: "image",
                 role: "reference",
               },
@@ -830,7 +830,7 @@ describe("media-studio-helpers Seedance support", () => {
           normalized_request: {
             images: [
               {
-                path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/reference-media/images/legacy-ref.png",
+                path: "/fixtures/media-studio/data/reference-media/images/legacy-ref.png",
                 role: "reference",
                 media_type: "image",
               },
@@ -858,7 +858,7 @@ describe("media-studio-helpers Seedance support", () => {
           normalized_request: {
             images: [
               {
-                path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/reference-media/images/legacy-source.png",
+                path: "/fixtures/media-studio/data/reference-media/images/legacy-source.png",
                 role: null,
                 media_type: "image",
               },
@@ -968,12 +968,12 @@ describe("media-studio-helpers Seedance support", () => {
           normalized_request: {
             images: [
               {
-                path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/uploads/media-studio/source-a.png",
+                path: "/fixtures/media-studio/data/uploads/media-studio/source-a.png",
                 media_type: "image",
                 role: "reference",
               },
               {
-                path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/reference-media/images/source-b.png",
+                path: "/fixtures/media-studio/data/reference-media/images/source-b.png",
                 media_type: "image",
                 role: "reference",
               },
@@ -1053,12 +1053,12 @@ describe("media-studio-helpers Seedance support", () => {
               original_media: {
                 images: [
                   {
-                    path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/uploads/media-studio/source-a.png",
+                    path: "/fixtures/media-studio/data/uploads/media-studio/source-a.png",
                     media_type: "image",
                     role: "reference",
                   },
                   {
-                    path: "/Users/evilone/Documents/Development/Video-Image-APIs/temp/media-studio/data/reference-media/images/source-b.png",
+                    path: "/fixtures/media-studio/data/reference-media/images/source-b.png",
                     media_type: "image",
                     role: "reference",
                   },
