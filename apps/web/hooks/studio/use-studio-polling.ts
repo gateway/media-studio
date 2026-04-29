@@ -14,6 +14,20 @@ type InFlightFeedback = {
 
 export const STUDIO_POLL_INTERVAL_MS = 5000;
 
+export function isPollableJobStatus(status: string | null | undefined) {
+  return ["queued", "submitted", "running", "processing"].includes(String(status ?? "").toLowerCase());
+}
+
+export function shouldWatchBatch(batch: MediaBatch) {
+  if (!batch.batch_id || ["completed", "failed", "partial_failure", "cancelled"].includes(String(batch.status ?? "").toLowerCase())) {
+    return false;
+  }
+  if (batch.queued_count > 0 || batch.running_count > 0) {
+    return true;
+  }
+  return (batch.jobs ?? []).some((job) => isPollableJobStatus(job.status));
+}
+
 export function completedBatchJobIds(batch: MediaBatch) {
   return (batch.jobs ?? [])
     .filter((job) => {
@@ -142,6 +156,8 @@ type UseStudioPollingParams = {
   setSourceAssetId: React.Dispatch<React.SetStateAction<string | number | null>>;
   startRefresh: (callback: () => void) => void;
   refreshRoute: () => void;
+  watchJobs?: MediaJob[];
+  watchBatches?: MediaBatch[];
 };
 
 type UseStudioPollingResult = {
@@ -180,6 +196,8 @@ export function useStudioPolling({
   setSourceAssetId,
   startRefresh,
   refreshRoute,
+  watchJobs = [],
+  watchBatches = [],
 }: UseStudioPollingParams): UseStudioPollingResult {
   const [favoriteAssetIdBusy, setFavoriteAssetIdBusy] = useState<string | number | null>(null);
   const lastJobFeedbackSignatureRef = useRef<Map<string, string>>(new Map());
@@ -249,6 +267,23 @@ export function useStudioPolling({
       inFlightBatchPollsRef.current.clear();
     };
   }, []);
+
+  useEffect(() => {
+    for (const batch of watchBatches) {
+      if (!shouldWatchBatch(batch)) {
+        continue;
+      }
+      activeBatchPollsRef.current.add(batch.batch_id);
+      scheduleBatchPoll(batch.batch_id);
+    }
+    for (const job of watchJobs) {
+      if (job.batch_id || !isPollableJobStatus(job.status)) {
+        continue;
+      }
+      activeJobPollsRef.current.add(job.job_id);
+      scheduleJobPoll(job.job_id);
+    }
+  }, [watchBatches, watchJobs]);
 
   async function pollJob(jobId: string) {
     activeJobPollsRef.current.add(jobId);

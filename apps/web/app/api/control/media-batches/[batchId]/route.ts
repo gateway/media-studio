@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getControlApiJson, getMediaBatch, postControlApiJson, sendControlApiJson, mapBatchRecord, mapJobRecord } from "@/lib/control-api";
 import type { MediaBatchResponse } from "@/lib/types";
 
-const ACTIVE_BATCH_JOB_STATUSES = new Set(["submitted", "running", "processing"]);
+const ACTIVE_BATCH_JOB_STATUSES = new Set(["queued", "submitted", "running", "processing"]);
 
 export async function GET(
   _request: Request,

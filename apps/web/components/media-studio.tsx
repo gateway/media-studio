@@ -1038,6 +1038,8 @@ export function MediaStudio({
     startRefresh,
     refreshRoute: () => router.refresh(),
     refreshCreditBalance,
+    watchBatches: localBatches,
+    watchJobs: localJobs,
   });
   const { favoriteAssetIdBusy } = polling.state;
   const { pollJob, pollBatch, retryJob, dismissJob, dismissAsset, toggleAssetFavorite } = polling.actions;

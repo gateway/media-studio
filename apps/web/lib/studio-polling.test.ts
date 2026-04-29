@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { completedBatchJobIds, resolvePublishHandoffFeedback, STUDIO_POLL_INTERVAL_MS } from "@/hooks/studio/use-studio-polling";
+import {
+  completedBatchJobIds,
+  isPollableJobStatus,
+  resolvePublishHandoffFeedback,
+  shouldWatchBatch,
+  STUDIO_POLL_INTERVAL_MS,
+} from "@/hooks/studio/use-studio-polling";
 
 describe("studio polling cadence", () => {
   it("uses the slower five-second poll interval", () => {
@@ -46,5 +52,34 @@ describe("completedBatchJobIds", () => {
         ],
       } as never),
     ).toEqual(["job-1", "job-2"]);
+  });
+});
+
+describe("poll watcher classification", () => {
+  it("treats queued, submitted, running, and processing jobs as pollable", () => {
+    expect(["queued", "submitted", "running", "processing"].map(isPollableJobStatus)).toEqual([true, true, true, true]);
+    expect(isPollableJobStatus("failed")).toBe(false);
+    expect(isPollableJobStatus("completed")).toBe(false);
+  });
+
+  it("watches hydrated open batches but skips terminal batches", () => {
+    expect(
+      shouldWatchBatch({
+        batch_id: "batch-open",
+        status: "processing",
+        queued_count: 1,
+        running_count: 0,
+        jobs: [{ job_id: "job-queued", status: "queued" }],
+      } as never),
+    ).toBe(true);
+    expect(
+      shouldWatchBatch({
+        batch_id: "batch-failed",
+        status: "failed",
+        queued_count: 0,
+        running_count: 0,
+        jobs: [{ job_id: "job-failed", status: "failed" }],
+      } as never),
+    ).toBe(false);
   });
 });

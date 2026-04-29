@@ -53,8 +53,9 @@ describe("control media-batches route", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(postControlApiJson).toHaveBeenCalledTimes(1);
+    expect(postControlApiJson).toHaveBeenCalledTimes(2);
     expect(postControlApiJson).toHaveBeenCalledWith("/media/jobs/job-running/poll", { wait: false }, "admin");
+    expect(postControlApiJson).toHaveBeenCalledWith("/media/jobs/job-queued/poll", { wait: false }, "admin");
     expect(getMediaBatch).toHaveBeenCalledWith("batch-1");
     expect(payload).toEqual({
       ok: true,
