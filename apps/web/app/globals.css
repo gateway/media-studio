@@ -558,7 +558,6 @@ textarea {
 
 .callout-panel-warning {
   border-color: var(--feedback-warning-border);
-  background: var(--feedback-warning-surface);
   color: var(--feedback-warning-text);
 }
 
