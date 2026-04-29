@@ -12,6 +12,7 @@ import {
   Image as ImageIcon,
   ImagePlus,
   LoaderCircle,
+  type LucideIcon,
   Monitor,
   Play,
   Sparkles,
@@ -132,7 +133,16 @@ import {
   type MultiShotParseResult,
 } from "@/lib/media-studio-helpers";
 import { buildStudioScopedHref } from "@/lib/studio-navigation";
-import type { MediaAsset, MediaBatch, MediaEnhancePreviewResponse, MediaJob, MediaProject, MediaReference, MediaValidationResponse } from "@/lib/types";
+import type {
+  MediaAsset,
+  MediaBatch,
+  MediaEnhancePreviewResponse,
+  MediaJob,
+  MediaModelSummary,
+  MediaProject,
+  MediaReference,
+  MediaValidationResponse,
+} from "@/lib/types";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import { installStudioDebugConsole, studioDebug } from "@/lib/studio-debug";
 import { readStudioComposerDraft } from "@/lib/studio-composer-draft";
@@ -176,6 +186,19 @@ function composerModelLabel(label: string | null | undefined) {
   if (!label) return "Model";
   if (label === "Seedance 2.0 Standard") return "Seedance 2.0";
   return label;
+}
+
+function composerModelIcon(model: MediaModelSummary | null | undefined): LucideIcon {
+  if (!model) {
+    return Clapperboard;
+  }
+  const taskModes = model.task_modes ?? [];
+  const capabilities = model.capability_summary ?? [];
+  const isVideoModel =
+    model.generation_kind === "video" ||
+    taskModes.some((mode) => mode.includes("video") || mode === "motion_control") ||
+    capabilities.includes("video");
+  return isVideoModel ? Clapperboard : ImageIcon;
 }
 
 type ReferenceLibraryTarget =
@@ -251,6 +274,10 @@ export function MediaStudio({
         return policy?.enabled ?? true;
       }),
     [models, queuePolicies],
+  );
+  const modelIconByKey = useMemo(
+    () => new Map(models.map((model) => [model.key, composerModelIcon(model)])),
+    [models],
   );
   const selectedProject = useMemo(
     () => localProjects.find((project) => project.project_id === selectedProjectId) ?? null,
@@ -3390,7 +3417,8 @@ export function MediaStudio({
                           onToggle={() => setOpenPicker(openPicker === "model" ? null : "model")}
                           onClose={() => setOpenPicker(null)}
                           widthClassName={pickerWidth("model")}
-                          icon={Clapperboard}
+                          icon={composerModelIcon(currentModel)}
+                          choiceIcon={(choice) => modelIconByKey.get(choice.value) ?? Clapperboard}
                           label={composerModelLabel(currentModel?.label)}
                           selectedValue={modelKey ?? ""}
                           menuTitle="Model"
