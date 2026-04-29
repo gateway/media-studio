@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
+import logging
 from typing import List, Optional
 
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
@@ -56,6 +57,8 @@ from .schemas import (
 )
 from .settings import settings
 
+logger = logging.getLogger(__name__)
+
 
 def _not_found(name: str) -> HTTPException:
     return HTTPException(status_code=404, detail="%s not found" % name)
@@ -74,6 +77,18 @@ async def lifespan(_: FastAPI):
     store.bootstrap_schema()
     if settings.media_pricing_refresh_on_startup:
         kie_adapter.refresh_pricing_snapshot_if_stale()
+    try:
+        diagnostics = kie_adapter.model_diagnostics()
+        logger.info(
+            "KIE model source loaded: module=%s spec=%s exposed=%s hidden=%s pricing=%s",
+            diagnostics.get("kie_api_module_path"),
+            diagnostics.get("kie_spec_version"),
+            diagnostics.get("kie_models_studio_exposed"),
+            diagnostics.get("kie_models_studio_hidden"),
+            diagnostics.get("pricing_version"),
+        )
+    except Exception as exc:
+        logger.warning("KIE model startup diagnostics failed: %s", exc)
     if settings.media_background_poll_enabled:
         runner.start()
     yield
@@ -96,6 +111,15 @@ async def enforce_control_access(request: Request, call_next):
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     pricing = kie_adapter.pricing_snapshot()
+    diagnostics = {}
+    try:
+        diagnostics = kie_adapter.model_diagnostics()
+    except Exception as exc:
+        diagnostics = {}
+        pricing = dict(pricing)
+        notes = [str(note) for note in pricing.get("notes") or []]
+        notes.append(f"KIE model diagnostics failed: {exc}")
+        pricing["notes"] = notes
     queue_settings = store.get_queue_settings()
     issues: List[str] = []
     runner_active = runner.is_running()
@@ -136,6 +160,12 @@ def health() -> HealthResponse:
         running_jobs=store.running_job_count(),
         last_scheduler_tick=runner.last_tick,
         pricing_source=pricing["source"],
+        pricing_version=pricing.get("version"),
+        kie_api_module_path=diagnostics.get("kie_api_module_path"),
+        kie_spec_version=diagnostics.get("kie_spec_version"),
+        kie_models_total=int(diagnostics.get("kie_models_total") or 0),
+        kie_models_studio_exposed=int(diagnostics.get("kie_models_studio_exposed") or 0),
+        kie_models_studio_hidden=int(diagnostics.get("kie_models_studio_hidden") or 0),
         issues=issues,
     )
 

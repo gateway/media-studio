@@ -61,7 +61,7 @@ PY
 )"
     while IFS='=' read -r name value; do
       [[ -n "$name" ]] || continue
-      if declare -p "$name" >/dev/null 2>&1; then
+      if declare -p "$name" >/dev/null 2>&1 && [[ -n "${!name:-}" ]]; then
         continue
       fi
       export "$name=$value"

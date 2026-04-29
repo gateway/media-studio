@@ -269,6 +269,12 @@ function modelTaskModePills(model: MediaModelSummary | null) {
 }
 
 function modelOptionPills(model: MediaModelSummary | null) {
+  if (Array.isArray(model?.studio_dynamic_options) && model.studio_dynamic_options.length) {
+    return model.studio_dynamic_options.map((option) => ({
+      key: option.key,
+      label: option.label || option.key.replaceAll("_", " "),
+    }));
+  }
   return Object.entries(model?.options ?? {}).map(([key]) => ({
     key,
     label:
@@ -406,7 +412,11 @@ function modelParameterRows(model: MediaModelSummary | null) {
     });
   }
 
-  for (const [key, option] of Object.entries(options ?? {})) {
+  const optionRows = Array.isArray(model.studio_dynamic_options) && model.studio_dynamic_options.length
+    ? model.studio_dynamic_options.map((option) => [option.key, option] as const)
+    : Object.entries(options ?? {});
+
+  for (const [key, option] of optionRows) {
     const optionRecord = option as Record<string, unknown>;
     const allowed = formatAllowed(optionRecord.allowed);
     const range =
@@ -419,7 +429,7 @@ function modelParameterRows(model: MediaModelSummary | null) {
         : null;
     const optionIcon = modelOptionIcon(key);
     rows.push({
-      name: key,
+      name: typeof optionRecord.label === "string" && optionRecord.label ? optionRecord.label : key,
       required: optionRecord.required ? "Yes" : "No",
       description: [allowed, range ? `range: ${range}` : null, defaultValue]
         .filter(Boolean)
@@ -1451,7 +1461,7 @@ export function MediaModelsConsole({
         </div>
         {selectedModel ? (
           <div className="mt-5 grid gap-4">
-            <PropertyStack appearance="admin" className="grid gap-3 sm:grid-cols-3">
+            <PropertyStack appearance="admin" className="grid gap-3 sm:grid-cols-4">
               <PropertyStackItem appearance="admin" label="Studio support" value={studioSupportLabel(selectedModel)} />
               <PropertyStackItem
                 appearance="admin"
@@ -1463,10 +1473,22 @@ export function MediaModelsConsole({
                 label="Input patterns"
                 value={(selectedModel.studio_supported_input_patterns ?? selectedModel.input_patterns ?? []).join(", ") || "Not detected"}
               />
+              <PropertyStackItem
+                appearance="admin"
+                label="KIE spec"
+                value={selectedModel.kie_spec_version ?? "Not reported"}
+              />
             </PropertyStack>
             {selectedModel.studio_support_summary ? (
               <CalloutPanel appearance="admin" tone={studioSupportTone(selectedModel)}>
                 <div className="text-sm leading-6 text-[var(--foreground)]">{selectedModel.studio_support_summary}</div>
+              </CalloutPanel>
+            ) : null}
+            {selectedModel.studio_unsupported_option_keys?.length ? (
+              <CalloutPanel appearance="admin" tone="warning">
+                <div className="text-sm leading-6 text-[var(--foreground)]">
+                  Unsupported Studio controls: {selectedModel.studio_unsupported_option_keys.join(", ")}
+                </div>
               </CalloutPanel>
             ) : null}
           </div>

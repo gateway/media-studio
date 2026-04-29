@@ -43,6 +43,10 @@ export function deriveStudioPricingOptions({
 }) {
   const derived = { ...options };
 
+  if (modelKey === "kling-3.0-t2v" || modelKey === "kling-3.0-i2v") {
+    Object.assign(derived, deriveKling30PricingOptions(options));
+  }
+
   if (modelKey === "seedance-2.0") {
     const hasVideoInput =
       attachments.some((attachment) => attachment.kind === "videos") ||
@@ -52,6 +56,13 @@ export function deriveStudioPricingOptions({
   }
 
   return derived;
+}
+
+function deriveKling30PricingOptions(options: Record<string, unknown>) {
+  const mode = pricingOptionValue(options.mode ?? "std");
+  const resolution = mode === "std" ? "720p" : mode === "pro" ? "1080p" : mode;
+  const sound = pricingOptionValue(options.sound ?? true);
+  return { pricing_variant: `${resolution}_${sound}` };
 }
 
 export function estimateFromPricingSnapshot(
@@ -72,13 +83,18 @@ export function estimateFromPricingSnapshot(
   let estimatedCredits = pricingNumber(rule.base_credits);
   let estimatedCostUsd = pricingNumber(rule.base_cost_usd);
 
+  const pricingOptions =
+    modelKey === "kling-3.0-t2v" || modelKey === "kling-3.0-i2v"
+      ? { ...options, ...deriveKling30PricingOptions(options) }
+      : options;
+
   const multipliers = isRecord(rule.multipliers) ? rule.multipliers : null;
   if (multipliers) {
     for (const [optionKey, valueMap] of Object.entries(multipliers)) {
       if (!isRecord(valueMap)) {
         continue;
       }
-      const multiplier = pricingNumber(valueMap[pricingOptionValue(options[optionKey])]);
+      const multiplier = pricingNumber(valueMap[pricingOptionValue(pricingOptions[optionKey])]);
       if (multiplier == null) {
         continue;
       }

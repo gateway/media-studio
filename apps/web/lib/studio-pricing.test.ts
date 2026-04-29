@@ -67,6 +67,15 @@ describe("studio-pricing", () => {
     expect(derived.pricing_variant).toBe("720p_with_video_input");
   });
 
+  it("derives Kling 3.0 pricing variants from mode and sound", () => {
+    const derived = deriveStudioPricingOptions({
+      modelKey: "kling-3.0-t2v",
+      options: { duration: 5, mode: "4K", sound: true },
+    });
+
+    expect(derived.pricing_variant).toBe("4k_true");
+  });
+
   it("applies derived Seedance pricing variants to the local estimate", () => {
     const derived = deriveStudioPricingOptions({
       modelKey: "seedance-2.0",
@@ -100,6 +109,34 @@ describe("studio-pricing", () => {
 
     expect(estimate.estimatedCredits).toBeCloseTo(200);
     expect(estimate.estimatedCostUsd).toBeCloseTo(1);
+  });
+
+  it("applies Kling 3.0 4K pricing variants to the local estimate", () => {
+    const estimate = estimateFromPricingSnapshot(
+      {
+        rules: [
+          {
+            model_key: "kling-3.0-t2v",
+            base_credits: 14,
+            base_cost_usd: 0.07,
+            multipliers: {
+              duration: {
+                "5": 5,
+              },
+              pricing_variant: {
+                "4k_true": 67 / 14,
+              },
+            },
+          },
+        ],
+      },
+      "kling-3.0-t2v",
+      { duration: 5, mode: "4K", sound: true },
+      1,
+    );
+
+    expect(estimate.estimatedCredits).toBeCloseTo(335);
+    expect(estimate.estimatedCostUsd).toBeCloseTo(1.675);
   });
 
   it("prefers validation pricing over the local estimate when available", () => {

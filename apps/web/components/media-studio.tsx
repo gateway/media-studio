@@ -3475,6 +3475,30 @@ export function MediaStudio({
                         resolvedValue == null || resolvedValue === ""
                           ? choices[0]?.label ?? "Select"
                           : displayChoiceLabel(optionKey, schema, resolvedValue);
+                      if (!choices.length && schema.type === "int_range") {
+                        const min = typeof schema.min === "number" ? schema.min : undefined;
+                        const max = typeof schema.max === "number" ? schema.max : undefined;
+                        const numericValue = Number(resolvedValue ?? min ?? 0);
+                        return (
+                          <label
+                            key={optionKey}
+                            className="flex h-10 w-[calc(50%-0.25rem)] items-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.045] px-3 text-[0.72rem] text-white/78 sm:w-[112px]"
+                          >
+                            <span className="truncate capitalize">{optionKey.replaceAll("_", " ")}</span>
+                            <input
+                              type="number"
+                              min={min}
+                              max={max}
+                              value={Number.isFinite(numericValue) ? numericValue : ""}
+                              onChange={(event) => {
+                                const parsed = Number(event.currentTarget.value);
+                                updateOption(optionKey, Number.isFinite(parsed) ? parsed : event.currentTarget.value);
+                              }}
+                              className="min-w-0 flex-1 bg-transparent text-right text-white outline-none"
+                            />
+                          </label>
+                        );
+                      }
                       return (
                         <PillSelect
                           key={optionKey}

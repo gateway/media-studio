@@ -37,6 +37,12 @@ class HealthResponse(BaseModel):
     running_jobs: int = 0
     last_scheduler_tick: Optional[str] = None
     pricing_source: Optional[str] = None
+    pricing_version: Optional[str] = None
+    kie_api_module_path: Optional[str] = None
+    kie_spec_version: Optional[str] = None
+    kie_models_total: int = 0
+    kie_models_studio_exposed: int = 0
+    kie_models_studio_hidden: int = 0
     issues: List[str] = Field(default_factory=list)
 
 
@@ -99,8 +105,18 @@ class ModelSummary(BaseModel):
     provider_model: Optional[str] = None
     task_modes: List[str] = Field(default_factory=list)
     media_types: List[str] = Field(default_factory=list)
+    input_patterns: List[str] = Field(default_factory=list)
     supports_output_count: bool = True
     raw: Dict[str, Any] = Field(default_factory=dict)
+    studio_exposed: bool = True
+    studio_support_status: Optional[str] = None
+    studio_supported_input_patterns: List[str] = Field(default_factory=list)
+    studio_unsupported_input_patterns: List[str] = Field(default_factory=list)
+    studio_unsupported_option_keys: List[str] = Field(default_factory=list)
+    studio_dynamic_options: List[Dict[str, Any]] = Field(default_factory=list)
+    studio_hidden_reason: Optional[str] = None
+    studio_support_summary: Optional[str] = None
+    kie_spec_version: Optional[str] = None
 
 
 class PricingResponse(BaseModel):

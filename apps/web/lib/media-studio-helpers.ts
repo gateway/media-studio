@@ -1493,6 +1493,26 @@ export function modelInputLimit(
 }
 
 export function optionEntries(model: MediaModelSummary | null) {
+  if (Array.isArray(model?.studio_dynamic_options) && model.studio_dynamic_options.length) {
+    return model.studio_dynamic_options
+      .filter((option) => option && !option.hidden_from_studio && option.key && !HIDDEN_STUDIO_OPTION_KEYS.has(option.key))
+      .map((option) => {
+        const schema: Record<string, unknown> = {
+          type: option.type,
+          allowed: option.allowed,
+          default: option.default,
+          min: option.min,
+          max: option.max,
+          required: option.required,
+          label: option.label,
+          help_text: option.help_text,
+          ui_group: option.ui_group,
+          ui_order: option.ui_order,
+          advanced: option.advanced,
+        };
+        return [option.key, schema] as [string, Record<string, unknown>];
+      });
+  }
   if (!model?.options || !isRecord(model.options)) {
     return [] as Array<[string, Record<string, unknown>]>;
   }

@@ -8,18 +8,24 @@ Current policy choice:
 
 - unknown or unsupported model shapes should be hidden from Studio until Media Studio explicitly supports them
 - admin surfaces should still show them and explain why they are hidden
-- scope is a Safe v1, not a full composer rewrite
+- KIE remains the source of truth for provider validation, payload building, pricing, and option values
+- Studio can auto-render known option-control types from the API contract, but not new media-slot workflows
 
 ## Implementation Direction
 
-### 1. Add a canonical compatibility classifier
+### 1. Canonical compatibility classifier
 
-Create one shared model-classification layer that takes a `kie-api` model spec and returns:
+The Media Studio API classifies each `kie-api` model spec and returns:
 
-- support status
-- recognized input pattern(s)
-- unsupported reason(s)
-- whether the model is safe to expose in Studio
+- `studio_exposed`
+- `studio_support_status`
+- `studio_supported_input_patterns`
+- `studio_unsupported_input_patterns`
+- `studio_unsupported_option_keys`
+- `studio_hidden_reason`
+- `studio_support_summary`
+- `studio_dynamic_options`
+- `kie_spec_version`
 
 Supported v1 patterns:
 
@@ -31,16 +37,16 @@ Supported v1 patterns:
 - motion control
 - current Seedance-style multimodal reference flow
 
-### 2. Extend model payloads with Studio support metadata
+### 2. Dynamic option rendering
 
-Add additive support metadata to `/media/models` and `/media/models/{model_key}` such as:
+Composer controls come from `studio_dynamic_options` when present:
 
-- `studio_support_status`
-- `studio_supported_input_patterns`
-- `studio_hidden_reason`
-- `studio_exposed`
+- `enum` options render as picker choices
+- `bool` options render as true/false choices
+- `int_range` options render as compact choices or a bounded numeric input
+- `string` options are hidden unless KIE explicitly marks a text control with `ui_control: text`
 
-Mirror those fields into the web model types and mapping layer.
+The web-side classifier remains only a fallback for older API responses.
 
 ### 3. Gate Studio exposure safely
 
@@ -48,13 +54,20 @@ Mirror those fields into the web model types and mapping layer.
 - Keep all discovered models visible in `/models`
 - Clearly label unsupported models in admin with the hidden reason
 
-### 4. Reduce hardcoded UI assumptions
+### 4. Provider update workflow
 
-Route Studio composer behavior through the classifier and normalized pattern set instead of relying on scattered model-key heuristics.
+When KIE adds higher resolutions, longer durations, new aspect ratios, or enum values that fit existing controls:
 
-Keep existing special flows like Seedance intact for now, but classify them explicitly through the same support system.
+- update the KIE spec and pricing snapshot if needed
+- sync packaged KIE specs
+- start Media Studio against that KIE checkout
+- verify `/media/models` includes the new `studio_dynamic_options` values
+- verify `/media/pricing/estimate` prices the new option value
+- browser-smoke `/models` and `/studio`
 
-### 5. Add operator verification
+When KIE adds a new input pattern, media slot, task mode, or unsupported option type, keep the model visible in `/models` but hidden from the Studio composer until a workflow is implemented.
+
+### 5. Operator verification
 
 In `/models`, surface:
 
@@ -62,6 +75,9 @@ In `/models`, surface:
 - support status
 - hidden/exposed state
 - unsupported reason
+- KIE spec fingerprint
+- dynamic Studio options
+- pricing coverage warnings
 
 This should be the first place to check whether a new `kie-api` model is ready for Studio.
 
@@ -70,8 +86,10 @@ This should be the first place to check whether a new `kie-api` model is ready f
 - classifier tests for all currently supported pattern families
 - classifier test for at least one unknown/new pattern
 - API tests asserting new support metadata on model responses
+- API tests asserting dynamic options include new KIE enum/range values
 - web tests asserting unsupported models are hidden from the Studio picker
 - admin tests asserting unsupported models remain visible in `/models`
+- web tests asserting `studio_dynamic_options` drives composer defaults and option choices
 - regression checks for existing supported models:
   - Nano Banana
   - Kling 2.6

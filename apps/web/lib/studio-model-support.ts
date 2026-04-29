@@ -83,13 +83,26 @@ function visibleOptionEntries(model: MediaModelSummary | null) {
   }
   return Object.entries(model.options).filter(
     (entry): entry is [string, Record<string, unknown>] =>
-      !HIDDEN_STUDIO_OPTION_KEYS.has(entry[0]) && isRecord(entry[1]),
+      !HIDDEN_STUDIO_OPTION_KEYS.has(entry[0]) && isRecord(entry[1]) && entry[1].hidden_from_studio !== true,
   );
+}
+
+function supportsStudioOptionControl(schema: Record<string, unknown>) {
+  if (optionChoices(schema, schema.default).length > 0) {
+    return true;
+  }
+  if (schema.type === "int_range" && (typeof schema.min === "number" || typeof schema.max === "number")) {
+    return true;
+  }
+  if (schema.type === "string") {
+    return schema.ui_control === "text";
+  }
+  return false;
 }
 
 function deriveUnsupportedOptionKeys(model: MediaModelSummary | null) {
   return visibleOptionEntries(model)
-    .filter(([, schema]) => optionChoices(schema, schema.default).length === 0)
+    .filter(([, schema]) => !supportsStudioOptionControl(schema))
     .map(([optionKey]) => optionKey)
     .sort((left, right) => left.localeCompare(right));
 }

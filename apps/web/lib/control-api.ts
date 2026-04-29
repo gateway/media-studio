@@ -202,6 +202,7 @@ function deriveGenerationKind(model: Record<string, any>) {
 
 export function mapModelRecord(model: Record<string, any>): MediaModelSummary {
   const raw = model.raw ?? {};
+  const dynamicOptions = Array.isArray(model.studio_dynamic_options) ? model.studio_dynamic_options : [];
   const mappedModel: MediaModelSummary = {
     key: model.key,
     label: model.label,
@@ -213,12 +214,34 @@ export function mapModelRecord(model: Record<string, any>): MediaModelSummary {
     input_constraints: raw.input_constraints ?? null,
     options: raw.options ?? null,
     prompt: raw.prompt ?? null,
-    input_patterns: deriveInputPatterns(model),
+    input_patterns: Array.isArray(model.input_patterns) && model.input_patterns.length
+      ? model.input_patterns
+      : deriveInputPatterns(model),
     generation_kind: deriveGenerationKind(model),
     defaults: raw.defaults ?? {},
     capability_summary: model.media_types ?? [],
     spend_notes: [],
+    studio_support_status: model.studio_support_status,
+    studio_supported_input_patterns: Array.isArray(model.studio_supported_input_patterns)
+      ? model.studio_supported_input_patterns
+      : undefined,
+    studio_unsupported_input_patterns: Array.isArray(model.studio_unsupported_input_patterns)
+      ? model.studio_unsupported_input_patterns
+      : undefined,
+    studio_hidden_reason: model.studio_hidden_reason ?? null,
+    studio_support_summary: model.studio_support_summary ?? null,
+    studio_unsupported_option_keys: Array.isArray(model.studio_unsupported_option_keys)
+      ? model.studio_unsupported_option_keys
+      : undefined,
+    studio_dynamic_options: dynamicOptions,
+    studio_exposed: typeof model.studio_exposed === "boolean" ? model.studio_exposed : undefined,
+    kie_spec_version: model.kie_spec_version ?? null,
   };
+
+  if (mappedModel.studio_support_status && typeof mappedModel.studio_exposed === "boolean") {
+    return mappedModel;
+  }
+
   const support = deriveStudioModelSupport(mappedModel);
   return {
     ...mappedModel,

@@ -35,3 +35,5 @@ For GPT Image 2, the current KIE site-pricing snapshot exposes observed, non-aut
 - `4K`: 16 credits / $0.08 per output
 
 These rows are `observed_site_pricing`, not verified actual billed-credit reconciliation. Actual-vs-estimated billing reconciliation is a later slice.
+
+For video models, Media Studio passes request options to `/media/pricing/estimate` and treats the server response as canonical. The current KIE snapshot includes Kling 3.0 720P/1080P/4K mode pricing and Seedance 2.0 480p/720p/1080p pricing variants, including the Seedance with-video-input distinction.

@@ -1098,7 +1098,25 @@ export type MediaModelSummary = {
   studio_hidden_reason?: string | null;
   studio_support_summary?: string | null;
   studio_unsupported_option_keys?: string[];
+  studio_dynamic_options?: StudioDynamicOption[];
   studio_exposed?: boolean;
+  kie_spec_version?: string | null;
+};
+
+export type StudioDynamicOption = {
+  key: string;
+  type: "enum" | "bool" | "int_range" | "string" | string;
+  label?: string | null;
+  help_text?: string | null;
+  ui_group?: string | null;
+  ui_order?: number | null;
+  advanced?: boolean;
+  required?: boolean;
+  default?: unknown;
+  allowed?: unknown[];
+  min?: number | null;
+  max?: number | null;
+  hidden_from_studio?: boolean;
 };
 
 export type MediaModelDetailResponse = {

@@ -28,6 +28,10 @@ def test_health_endpoint(client) -> None:
     assert payload["runner_active"] is False
     assert payload["runner_health"] == "needs_attention"
     assert isinstance(payload["heartbeat_max_age_seconds"], int)
+    assert payload["kie_spec_version"]
+    assert payload["kie_models_total"] >= 1
+    assert payload["kie_models_studio_exposed"] >= 1
+    assert payload["pricing_version"]
 
 
 def test_health_endpoint_reports_paused_when_queue_disabled(client) -> None:
@@ -48,6 +52,17 @@ def test_models_endpoint(client) -> None:
     items = response.json()
     assert items
     assert any(item["key"] == "nano-banana-2" for item in items)
+    kling = next(item for item in items if item["key"] == "kling-3.0-t2v")
+    seedance = next(item for item in items if item["key"] == "seedance-2.0")
+    assert "4K" in kling["raw"]["options"]["mode"]["allowed"]
+    assert "1080p" in seedance["raw"]["options"]["resolution"]["allowed"]
+    assert kling["studio_exposed"] is True
+    assert kling["studio_support_status"] == "fully_supported"
+    assert kling["kie_spec_version"]
+    kling_options = {item["key"]: item for item in kling["studio_dynamic_options"]}
+    assert "4K" in kling_options["mode"]["allowed"]
+    seedance_options = {item["key"]: item for item in seedance["studio_dynamic_options"]}
+    assert "1080p" in seedance_options["resolution"]["allowed"]
 
 
 def test_kie_adapter_prefers_configured_repo(app_modules) -> None:
@@ -117,6 +132,23 @@ def test_pricing_estimate_returns_gpt_image_2_observed_totals(client) -> None:
     assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(0.08)
     assert summary["total"]["estimated_credits"] == pytest.approx(32.0)
     assert summary["total"]["estimated_cost_usd"] == pytest.approx(0.16)
+
+
+def test_pricing_estimate_returns_kling_4k_observed_totals(client) -> None:
+    response = client.post(
+        "/media/pricing/estimate",
+        json={
+            "model_key": "kling-3.0-t2v",
+            "task_mode": "text_to_video",
+            "prompt": "A high detail cinematic product reveal.",
+            "options": {"duration": 5, "mode": "4K", "sound": True},
+            "output_count": 1,
+        },
+    )
+    assert response.status_code == 200, response.text
+    summary = response.json()["pricing_summary"]
+    assert summary["per_output"]["estimated_credits"] == pytest.approx(335.0)
+    assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(1.675)
 
 
 def test_pricing_startup_refreshes_when_snapshot_is_stale(app_modules, monkeypatch) -> None:

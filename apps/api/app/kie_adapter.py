@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, Optional
 
 from urllib.parse import urlparse
 
+from .model_support import derive_studio_model_support, spec_fingerprint
 from .pricing import normalize_pricing_snapshot
 from .settings import settings
 
@@ -83,40 +84,91 @@ def _dump(value: Any) -> Dict[str, Any]:
     return dict(value)
 
 
+def _media_types_for_spec(spec: Any) -> list[str]:
+    return [
+        media_type
+        for media_type, input_spec in spec.inputs.items()
+        if (input_spec.required_max or 0) > 0 or input_spec.required_min > 0
+    ]
+
+
+def _input_patterns_for_spec(spec: Any) -> list[str]:
+    by_pattern = getattr(spec.prompt, "default_profile_keys_by_input_pattern", {}) or {}
+    dynamic_patterns = [str(key.value if hasattr(key, "value") else key) for key in by_pattern.keys()]
+    if dynamic_patterns:
+        return dynamic_patterns
+    if spec.key == "kling-2.6-i2v":
+        return ["single_image"]
+    if spec.key == "kling-2.6-t2v":
+        return ["prompt_only"]
+    if spec.key == "kling-3.0-i2v":
+        return ["single_image", "first_last_frames"]
+    if spec.key == "kling-3.0-motion":
+        return ["motion_control"]
+    if spec.key == "kling-3.0-t2v":
+        return ["prompt_only"]
+    if spec.key in {"nano-banana-2", "nano-banana-pro"}:
+        return ["prompt_only", "single_image", "image_edit"]
+    return []
+
+
+def _registry_spec_version() -> str:
+    registry = get_registry()
+    return spec_fingerprint([spec.model_dump(mode="json") for spec in registry.iter_models()])
+
+
+def _enrich_model_item(item: Dict[str, Any], spec_version: str) -> Dict[str, Any]:
+    enriched = dict(item)
+    enriched.update(derive_studio_model_support(enriched))
+    enriched["kie_spec_version"] = spec_version
+    return enriched
+
+
+def model_diagnostics() -> Dict[str, Any]:
+    registry = get_registry()
+    raw_specs = [spec.model_dump(mode="json") for spec in registry.iter_models()]
+    spec_version = spec_fingerprint(raw_specs)
+    model_items = [_enrich_model_item(_base_model_item(spec), spec_version) for spec in registry.iter_models()]
+    exposed_count = sum(1 for item in model_items if item.get("studio_exposed") is not False)
+    module_file = getattr(get_kie_module(), "__file__", None)
+    pricing = pricing_snapshot(force_refresh=False)
+    return {
+        "kie_api_module_path": str(Path(module_file).resolve()) if module_file else None,
+        "kie_spec_version": spec_version,
+        "kie_models_total": len(model_items),
+        "kie_models_studio_exposed": exposed_count,
+        "kie_models_studio_hidden": len(model_items) - exposed_count,
+        "pricing_version": pricing.get("version"),
+        "pricing_source": pricing.get("source"),
+    }
+
+
+def _base_model_item(spec: Any) -> Dict[str, Any]:
+    return {
+        "key": spec.key,
+        "label": spec.label,
+        "provider_model": spec.provider_model,
+        "task_modes": [mode.value for mode in spec.task_modes],
+        "media_types": _media_types_for_spec(spec),
+        "input_patterns": _input_patterns_for_spec(spec),
+        "supports_output_count": True,
+        "raw": spec.model_dump(mode="json"),
+    }
+
+
 def list_models() -> list:
     registry = get_registry()
+    spec_version = _registry_spec_version()
     items = []
     for spec in registry.iter_models():
-        media_types = []
-        for media_type, input_spec in spec.inputs.items():
-            if (input_spec.required_max or 0) > 0 or input_spec.required_min > 0:
-                media_types.append(media_type)
-        items.append(
-            {
-                "key": spec.key,
-                "label": spec.label,
-                "provider_model": spec.provider_model,
-                "task_modes": [mode.value for mode in spec.task_modes],
-                "media_types": media_types,
-                "supports_output_count": True,
-                "raw": spec.model_dump(mode="json"),
-            }
-        )
+        items.append(_enrich_model_item(_base_model_item(spec), spec_version))
     items.sort(key=lambda item: item["label"].lower())
     return items
 
 
 def get_model(model_key: str) -> Dict[str, Any]:
     spec = get_registry().get_model(model_key)
-    return {
-        "key": spec.key,
-        "label": spec.label,
-        "provider_model": spec.provider_model,
-        "task_modes": [mode.value for mode in spec.task_modes],
-        "media_types": [key for key, input_spec in spec.inputs.items() if (input_spec.required_max or 0) > 0 or input_spec.required_min > 0],
-        "supports_output_count": True,
-        "raw": spec.model_dump(mode="json"),
-    }
+    return _enrich_model_item(_base_model_item(spec), _registry_spec_version())
 
 
 def pricing_snapshot(*, force_refresh: bool = False) -> Dict[str, Any]:

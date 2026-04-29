@@ -10,6 +10,7 @@ import {
   classifyFile,
   detectPromptReferenceMention,
   deriveSeedanceComposerMode,
+  buildNormalizedStudioOptions,
   inferInputPattern,
   insertImageAttachments,
   isPresetSlotFilled,
@@ -18,6 +19,7 @@ import {
   modelSupportsFirstLastFrames,
   modelSupportsImageDrivenInputs,
   modelSupportsMotionControl,
+  optionEntries,
   orderedImageInputKey,
   orderedImageInputVisual,
   renderStructuredPresetPrompt,
@@ -101,6 +103,37 @@ describe("media-studio-helpers Seedance support", () => {
         null,
       ),
     ).toBe("first_last_frames");
+  });
+
+  it("uses API-provided dynamic options when available", () => {
+    const model = {
+      key: "kling-3.0-t2v",
+      studio_dynamic_options: [
+        {
+          key: "mode",
+          type: "enum",
+          label: "Mode",
+          allowed: ["std", "pro", "4K"],
+          default: "std",
+        },
+        {
+          key: "duration",
+          type: "enum",
+          label: "Duration",
+          allowed: [5, 10, 15],
+          default: 5,
+        },
+      ],
+      options: {
+        mode: { type: "enum", allowed: ["std"], default: "std" },
+      },
+    } as never;
+
+    expect(optionEntries(model).map(([key, schema]) => [key, schema.allowed])).toEqual([
+      ["mode", ["std", "pro", "4K"]],
+      ["duration", [5, 10, 15]],
+    ]);
+    expect(buildNormalizedStudioOptions(model, {}, null)).toMatchObject({ mode: "std", duration: 5 });
   });
 
   it("treats prompt-only video models as having no image-driven inputs", () => {
