@@ -727,7 +727,7 @@ textarea {
   width: 100%;
   border: 0;
   border-radius: 18px;
-  background-color: #151818;
+  background-color: #303333;
   padding: 0.75rem 1rem;
   color: #f7f6f0;
   outline: none;
@@ -822,7 +822,7 @@ textarea {
 }
 
 .admin-model-select > button {
-  background-color: #1a1d1d;
+  background-color: #303333;
 }
 
 .admin-model-select > button:hover {
