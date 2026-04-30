@@ -56,7 +56,7 @@ export function StudioAdminShell({
           <div className="ml-auto flex items-center gap-3">
             {aside ? aside : null}
             <span
-              className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-white/54"
+              className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-white/54"
               title="Media Studio version"
             >
               {MEDIA_STUDIO_VERSION}
