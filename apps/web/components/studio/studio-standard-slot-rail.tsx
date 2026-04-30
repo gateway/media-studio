@@ -80,7 +80,7 @@ export function StudioStandardSlotRail({
 
         return (
           <div key={slot.id} className={mobile ? "shrink-0" : "flex w-[96px] flex-col gap-2"}>
-            {!preview ? renderSlotLabel(slot) : null}
+            {renderSlotLabel(slot)}
             <div className={mobile ? "h-[72px] w-[72px]" : "relative h-[82px] w-[82px]"}>
               {preview ? (
                 <div
