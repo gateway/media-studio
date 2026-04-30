@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 export type PillSelectChoice = {
   value: string;
   label: string;
+  groupLabel?: string;
+  groupOrder?: number;
 };
 
 export function pillSelectButtonClassName(appearance: "admin" | "studio") {
@@ -36,6 +38,7 @@ type PillSelectProps = {
   choices: PillSelectChoice[];
   selectedValue?: string;
   menuTitle?: string;
+  selectedChoiceFirst?: boolean;
   onSelect: (value: string) => void;
   className?: string;
 };
@@ -53,6 +56,7 @@ export function PillSelect({
   choices,
   selectedValue,
   menuTitle,
+  selectedChoiceFirst,
   onSelect,
   className,
 }: PillSelectProps) {
@@ -69,10 +73,21 @@ export function PillSelect({
     choices.find((choice) => choice.label === label) ??
     null;
   const SelectedIcon = selectedChoice ? choiceIcon?.(selectedChoice) ?? Icon : Icon;
+  const showSelectedChoiceFirst = selectedChoiceFirst ?? appearance === "studio";
   const fallbackChoices =
-    appearance === "studio" && selectedChoice
+    appearance === "studio" && showSelectedChoiceFirst && selectedChoice
       ? choices.filter((choice) => choice.value !== selectedChoice.value)
       : choices;
+  const groupedFallbackChoices = fallbackChoices
+    .map((choice, index) => ({ choice, index }))
+    .sort((left, right) => {
+      const leftOrder = left.choice.groupOrder ?? 0;
+      const rightOrder = right.choice.groupOrder ?? 0;
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+      return left.index - right.index;
+    });
 
   const updateScrollIndicators = useCallback(() => {
     const menu = menuRef.current;
@@ -182,7 +197,7 @@ export function PillSelect({
               </div>
             ) : null}
 
-            {appearance === "studio" && selectedChoice ? (
+            {appearance === "studio" && showSelectedChoiceFirst && selectedChoice ? (
               <button
                 type="button"
                 data-testid={`studio-picker-option-${pickerId}-${selectedChoice.value || "empty"}`}
@@ -203,30 +218,44 @@ export function PillSelect({
             ) : null}
 
             <div className="grid gap-1">
-              {fallbackChoices.map((choice) => {
+              {groupedFallbackChoices.map(({ choice }, index) => {
                 const ChoiceIcon = choiceIcon?.(choice) ?? Icon;
+                const previousChoice = groupedFallbackChoices[index - 1]?.choice ?? null;
+                const showGroupLabel =
+                  appearance === "studio" &&
+                  Boolean(choice.groupLabel) &&
+                  choice.groupLabel !== previousChoice?.groupLabel;
+                const isSelected = choice.value === selectedValue;
                 return (
-                  <button
-                    key={`${pickerId}:${choice.value}`}
-                    type="button"
-                    data-testid={`studio-picker-option-${pickerId}-${choice.value || "empty"}`}
-                    onClick={() => {
-                      onSelect(choice.value);
-                      onClose();
-                    }}
-                    className={cn(
-                      appearance === "studio"
-                        ? "flex items-center gap-2 rounded-[12px] px-2.5 py-2.5 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white"
-                        : "admin-select-option",
-                    )}
-                  >
-                    {appearance === "studio" && ChoiceIcon ? (
-                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] border border-[var(--action-subtle-border)] bg-white/[0.04] text-white/88">
-                        <ChoiceIcon className="size-3.5 text-white/72" />
-                      </span>
+                  <div key={`${pickerId}:${choice.value}`} className="grid gap-1">
+                    {showGroupLabel ? (
+                      <div className={cn("px-2.5 pb-0.5 text-[0.56rem] font-semibold uppercase tracking-[0.18em] text-white/34", index > 0 ? "pt-2" : "pt-0")}>
+                        {choice.groupLabel}
+                      </div>
                     ) : null}
-                    <span className="min-w-0 flex-1 truncate">{choice.label}</span>
-                  </button>
+                    <button
+                      type="button"
+                      data-testid={`studio-picker-option-${pickerId}-${choice.value || "empty"}`}
+                      onClick={() => {
+                        onSelect(choice.value);
+                        onClose();
+                      }}
+                      className={cn(
+                        appearance === "studio"
+                          ? "flex items-center gap-2 rounded-[12px] px-2.5 py-2.5 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white"
+                          : "admin-select-option",
+                        appearance === "studio" && isSelected ? "bg-white/[0.08] text-white" : "",
+                      )}
+                    >
+                      {appearance === "studio" && ChoiceIcon ? (
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] border border-[var(--action-subtle-border)] bg-white/[0.04] text-white/88">
+                          <ChoiceIcon className="size-3.5 text-white/72" />
+                        </span>
+                      ) : null}
+                      <span className="min-w-0 flex-1 truncate">{choice.label}</span>
+                      {appearance === "studio" && isSelected ? <Check className="size-3.5 shrink-0 text-white/50" /> : null}
+                    </button>
+                  </div>
                 );
               })}
             </div>

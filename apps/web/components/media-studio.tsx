@@ -201,6 +201,16 @@ function composerModelIcon(model: MediaModelSummary | null | undefined): LucideI
   return isVideoModel ? Clapperboard : ImageIcon;
 }
 
+function composerModelChoice(model: MediaModelSummary) {
+  const isVideoModel = composerModelIcon(model) === Clapperboard;
+  return {
+    value: model.key,
+    label: composerModelLabel(model.label),
+    groupLabel: isVideoModel ? "Video" : "Images",
+    groupOrder: isVideoModel ? 2 : 1,
+  };
+}
+
 type ReferenceLibraryTarget =
   | { type: "attachment"; title: string; role?: "first_frame" | "last_frame" | "reference" | null; allowedKinds?: AttachmentRecord["kind"][] }
   | { type: "standard-slot"; title: string; slotIndex: number; label: string; allowedKinds?: AttachmentRecord["kind"][] }
@@ -1052,10 +1062,7 @@ export function MediaStudio({
     const supportedModelKeys = new Set(studioPresetSupportedModels(currentPreset));
     return models
       .filter((model) => supportedModelKeys.has(model.key))
-      .map((model) => ({
-        value: model.key,
-        label: composerModelLabel(model.label),
-      }));
+      .map(composerModelChoice);
   }, [currentPreset, models, structuredPresetActive]);
   const showStructuredPresetModelPicker = structuredPresetActive && structuredPresetModelChoices.length > 1;
   const selectedProjectMetric = selectedProject ? (
@@ -3427,11 +3434,9 @@ export function MediaStudio({
                           choices={
                             structuredPresetActive && showStructuredPresetModelPicker
                               ? structuredPresetModelChoices
-                              : enabledStudioModels.map((model) => ({
-                                  value: model.key,
-                                  label: composerModelLabel(model.label),
-                                }))
+                              : enabledStudioModels.map(composerModelChoice)
                           }
+                          selectedChoiceFirst={false}
                           onSelect={(value) => {
                             if (structuredPresetActive && showStructuredPresetModelPicker) {
                               setModelKey(value);
