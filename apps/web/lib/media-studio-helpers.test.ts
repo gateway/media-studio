@@ -8,6 +8,7 @@ import {
   buildStudioRetryRestorePlan,
   buildStudioReferencePreviews,
   classifyFile,
+  compatibleStructuredImagePresetModels,
   detectPromptReferenceMention,
   deriveSeedanceComposerMode,
   buildNormalizedStudioOptions,
@@ -16,6 +17,7 @@ import {
   isPresetSlotFilled,
   isStudioPresetVisible,
   mediaDownloadName,
+  modelSupportsStructuredImagePreset,
   modelSupportsFirstLastFrames,
   modelSupportsImageDrivenInputs,
   modelSupportsMotionControl,
@@ -30,6 +32,7 @@ import {
   resolveEnhancementPreviewVisual,
   seedanceReferenceTokenGuide,
   studioPresetSupportedModels,
+  presetRequiresImageInput,
 } from "./media-studio-helpers";
 
 describe("media-studio-helpers Seedance support", () => {
@@ -134,6 +137,67 @@ describe("media-studio-helpers Seedance support", () => {
       ["duration", [5, 10, 15]],
     ]);
     expect(buildNormalizedStudioOptions(model, {}, null)).toMatchObject({ mode: "std", duration: 5 });
+  });
+
+  it("classifies structured image preset compatibility from model input contracts", () => {
+    const nano = {
+      key: "nano-banana-2",
+      generation_kind: "image",
+      task_modes: ["text_to_image", "image_edit"],
+      input_patterns: ["prompt_only", "single_image", "image_edit"],
+      image_inputs: { required_min: 0, required_max: 8 },
+    } as never;
+    const gptTextToImage = {
+      key: "gpt-image-2-text-to-image",
+      generation_kind: "image",
+      task_modes: ["text_to_image"],
+      input_patterns: ["prompt_only"],
+      image_inputs: { required_min: 0, required_max: 0 },
+    } as never;
+    const gptImageToImage = {
+      key: "gpt-image-2-image-to-image",
+      generation_kind: "image",
+      task_modes: ["image_edit"],
+      input_patterns: ["single_image"],
+      image_inputs: { required_min: 1, required_max: 16 },
+    } as never;
+    const kling = {
+      key: "kling-3.0-i2v",
+      generation_kind: "video",
+      task_modes: ["image_to_video"],
+      input_patterns: ["single_image"],
+      image_inputs: { required_min: 1, required_max: 2 },
+    } as never;
+
+    expect(modelSupportsStructuredImagePreset(nano, false)).toBe(true);
+    expect(modelSupportsStructuredImagePreset(nano, true)).toBe(true);
+    expect(modelSupportsStructuredImagePreset(gptTextToImage, false)).toBe(true);
+    expect(modelSupportsStructuredImagePreset(gptTextToImage, true)).toBe(false);
+    expect(modelSupportsStructuredImagePreset(gptImageToImage, false)).toBe(false);
+    expect(modelSupportsStructuredImagePreset(gptImageToImage, true)).toBe(true);
+    expect(modelSupportsStructuredImagePreset(kling, true)).toBe(false);
+
+    expect(compatibleStructuredImagePresetModels([nano, gptTextToImage, gptImageToImage, kling], false).map((model) => model.key)).toEqual([
+      "nano-banana-2",
+      "gpt-image-2-text-to-image",
+    ]);
+    expect(compatibleStructuredImagePresetModels([nano, gptTextToImage, gptImageToImage, kling], true).map((model) => model.key)).toEqual([
+      "nano-banana-2",
+      "gpt-image-2-image-to-image",
+    ]);
+  });
+
+  it("detects whether a structured preset requires image input", () => {
+    expect(
+      presetRequiresImageInput({
+        input_slots_json: [{ key: "reference", required: true }],
+      } as never),
+    ).toBe(true);
+    expect(
+      presetRequiresImageInput({
+        input_slots_json: [{ key: "reference", required: false }],
+      } as never),
+    ).toBe(false);
   });
 
   it("treats prompt-only video models as having no image-driven inputs", () => {
@@ -1130,11 +1194,11 @@ describe("media-studio-helpers Seedance support", () => {
     ]);
   });
 
-  it("filters Studio preset browser entries to active Nano presets", () => {
+  it("filters Studio preset browser entries to active structured image presets", () => {
     expect(
       isStudioPresetVisible({
         status: "active",
-        applies_to_models: ["nano-banana-2", "kling-2.6-i2v"],
+        applies_to_models: ["gpt-image-2-text-to-image", "kling-2.6-i2v"],
       } as never),
     ).toBe(true);
 
@@ -1153,24 +1217,26 @@ describe("media-studio-helpers Seedance support", () => {
     ).toBe(false);
   });
 
-  it("resolves Studio preset target model using the preferred Nano model when supported", () => {
+  it("resolves Studio preset target model using the preferred structured image model when supported", () => {
     const preset = {
       status: "active",
-      applies_to_models: ["nano-banana-2", "nano-banana-pro"],
+      applies_to_models: ["nano-banana-2", "gpt-image-2-image-to-image"],
     } as never;
 
-    expect(studioPresetSupportedModels(preset)).toEqual(["nano-banana-2", "nano-banana-pro"]);
-    expect(resolveStudioPresetTargetModel(preset, "nano-banana-pro", "nano-banana-2")).toBe("nano-banana-pro");
+    expect(studioPresetSupportedModels(preset)).toEqual(["nano-banana-2", "gpt-image-2-image-to-image"]);
+    expect(resolveStudioPresetTargetModel(preset, "gpt-image-2-image-to-image", "nano-banana-2")).toBe(
+      "gpt-image-2-image-to-image",
+    );
     expect(resolveStudioPresetTargetModel(preset, "kling-2.6-i2v", "nano-banana-2")).toBe("nano-banana-2");
   });
 
-  it("falls back to the first allowed Nano model when no preferred model is supported", () => {
+  it("falls back to the first allowed structured image model when no preferred model is supported", () => {
     const preset = {
       status: "active",
-      applies_to_models: ["nano-banana-pro"],
+      applies_to_models: ["gpt-image-2-text-to-image"],
     } as never;
 
-    expect(resolveStudioPresetTargetModel(preset, "kling-2.6-i2v", "seedance-2.0")).toBe("nano-banana-pro");
+    expect(resolveStudioPresetTargetModel(preset, "kling-2.6-i2v", "seedance-2.0")).toBe("gpt-image-2-text-to-image");
   });
 
   it("resolves the retry preset by key or preset id", () => {

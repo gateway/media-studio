@@ -340,7 +340,7 @@ def _seed_default_presets(connection: sqlite3.Connection) -> None:
             "model_key": "nano-banana-2",
             "source_kind": "custom",
             "base_builtin_key": None,
-            "applies_to_models_json": json.dumps(["nano-banana-2", "nano-banana-pro"]),
+            "applies_to_models_json": json.dumps(["nano-banana-2", "nano-banana-pro", "gpt-image-2-image-to-image"]),
             "applies_to_task_modes_json": json.dumps(["image_edit"]),
             "applies_to_input_patterns_json": json.dumps(["single_image", "image_edit"]),
             "prompt_template": "Create a polished 3D caricature portrait of {{subject_style}} using [[person]]. Keep the likeness recognizable, exaggerate the defining features in a flattering way, and preserve a premium cinematic render finish.",
@@ -391,7 +391,7 @@ def _seed_default_presets(connection: sqlite3.Connection) -> None:
             "model_key": "nano-banana-2",
             "source_kind": "custom",
             "base_builtin_key": None,
-            "applies_to_models_json": json.dumps(["nano-banana-2", "nano-banana-pro"]),
+            "applies_to_models_json": json.dumps(["nano-banana-2", "nano-banana-pro", "gpt-image-2-image-to-image"]),
             "applies_to_task_modes_json": json.dumps(["image_edit"]),
             "applies_to_input_patterns_json": json.dumps(["single_image", "image_edit"]),
             "prompt_template": "Create a premium selfie of [[person]] standing beside {{character_name}} from {{movie_name}}. Make the shot feel candid, cinematic, and believable with natural framing and polished lighting.",
@@ -480,7 +480,7 @@ def _migrate_multi_model_seed_presets(connection: sqlite3.Connection) -> None:
         canonical["preset_id"] = shared_id
         canonical["key"] = shared_key
         canonical["model_key"] = "nano-banana-2"
-        canonical["applies_to_models_json"] = ["nano-banana-2", "nano-banana-pro"]
+        canonical["applies_to_models_json"] = ["nano-banana-2", "nano-banana-pro", "gpt-image-2-image-to-image"]
         canonical["applies_to_task_modes_json"] = ["image_edit"]
         canonical["applies_to_input_patterns_json"] = ["single_image", "image_edit"]
         canonical["updated_at"] = utcnow_iso()
@@ -489,6 +489,24 @@ def _migrate_multi_model_seed_presets(connection: sqlite3.Connection) -> None:
             f"DELETE FROM media_presets WHERE preset_id IN ({', '.join(['?'] * len(legacy_ids))})",
             legacy_ids,
         )
+
+
+def _migrate_gpt_image_seed_preset_scopes(connection: sqlite3.Connection) -> None:
+    shared_ids = (
+        "media-preset-3d-caricature-style-nano-banana-shared",
+        "media-preset-selfie-with-movie-character-nano-banana-shared",
+    )
+    for preset_id in shared_ids:
+        row = connection.execute("SELECT * FROM media_presets WHERE preset_id = ?", (preset_id,)).fetchone()
+        if not row:
+            continue
+        preset = decode_row(row)
+        scoped_models = list(preset.get("applies_to_models_json") or [])
+        if "gpt-image-2-image-to-image" in scoped_models:
+            continue
+        preset["applies_to_models_json"] = [*scoped_models, "gpt-image-2-image-to-image"]
+        preset["updated_at"] = utcnow_iso()
+        insert_or_update(connection, "media_presets", "preset_id", preset)
 
 
 def _seed_default_model_queue_policies(connection: sqlite3.Connection) -> None:
@@ -868,6 +886,7 @@ def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
     )
     _migrate_multi_model_seed_presets(connection)
     _seed_default_presets(connection)
+    _migrate_gpt_image_seed_preset_scopes(connection)
     _seed_default_model_queue_policies(connection)
 
 

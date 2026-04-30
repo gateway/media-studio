@@ -30,7 +30,6 @@ from .schemas import (
 
 TEXT_TOKEN_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
 IMAGE_TOKEN_RE = re.compile(r"\[\[\s*([a-zA-Z0-9_]+)\s*\]\]")
-NANO_PRESET_MODELS = {"nano-banana-2", "nano-banana-pro"}
 GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
 ENHANCEMENT_PROVIDER_TIMEOUT_SECONDS = 75
 _reference_media_backfill_lock = Lock()
@@ -44,6 +43,70 @@ REFERENCE_THUMBS_ROOT = REFERENCE_MEDIA_ROOT / "thumbs"
 
 class ServiceError(Exception):
     pass
+
+
+def _input_limit(model: Dict[str, Any], media_kind: str, field: str) -> int:
+    raw = model.get("raw") if isinstance(model.get("raw"), dict) else {}
+    inputs = raw.get("inputs") if isinstance(raw.get("inputs"), dict) else {}
+    spec = inputs.get(media_kind) if isinstance(inputs.get(media_kind), dict) else {}
+    value = spec.get(field)
+    return int(value or 0)
+
+
+def _model_has_video_or_audio_inputs(model: Dict[str, Any]) -> bool:
+    return (
+        _input_limit(model, "video", "required_max") > 0
+        or _input_limit(model, "video", "required_min") > 0
+        or _input_limit(model, "audio", "required_max") > 0
+        or _input_limit(model, "audio", "required_min") > 0
+    )
+
+
+def _model_supports_structured_preset(model: Dict[str, Any], *, requires_image: bool) -> bool:
+    if model.get("studio_exposed") is False or _model_has_video_or_audio_inputs(model):
+        return False
+    task_modes = {str(value) for value in model.get("task_modes") or []}
+    input_patterns = {str(value) for value in model.get("input_patterns") or []}
+    image_min = _input_limit(model, "image", "required_min")
+    image_max = _input_limit(model, "image", "required_max")
+
+    if requires_image:
+        return image_max > 0 and (
+            "image_edit" in task_modes
+            or "single_image" in input_patterns
+            or "image_edit" in input_patterns
+        )
+
+    return image_min == 0 and (
+        "text_to_image" in task_modes
+        or "image_generation" in task_modes
+        or "prompt_only" in input_patterns
+    )
+
+
+def _preset_requires_image(image_slots: List[Dict[str, Any]]) -> bool:
+    return any(bool(slot.get("required")) for slot in image_slots)
+
+
+def _compatible_preset_model_keys(image_slots: List[Dict[str, Any]]) -> set[str]:
+    requires_image = _preset_requires_image(image_slots)
+    return {
+        str(model.get("key"))
+        for model in kie_adapter.list_models()
+        if model.get("key") and _model_supports_structured_preset(model, requires_image=requires_image)
+    }
+
+
+def _model_accepts_preset_image_values(model_key: str) -> bool:
+    return _model_key_supports_structured_preset(model_key, requires_image=True)
+
+
+def _model_key_supports_structured_preset(model_key: str, *, requires_image: bool) -> bool:
+    try:
+        model = kie_adapter.get_model(model_key)
+    except Exception:
+        return False
+    return _model_supports_structured_preset(model, requires_image=requires_image)
 
 
 def validate_preset_payload(payload: PresetUpsertRequest) -> Dict[str, Any]:
@@ -61,14 +124,13 @@ def validate_preset_payload(payload: PresetUpsertRequest) -> Dict[str, Any]:
     if len(text_keys) != len(set(text_keys)) or len(slot_keys) != len(set(slot_keys)):
         raise ServiceError("Preset keys must be unique.")
     applies_to_models = [str(value).strip() for value in payload.applies_to_models if str(value).strip()]
-    invalid_models = [value for value in applies_to_models if value not in NANO_PRESET_MODELS]
+    compatible_models = _compatible_preset_model_keys(image_slots)
+    invalid_models = [value for value in applies_to_models if value not in compatible_models]
     if invalid_models:
         raise ServiceError("Unsupported preset model scope: %s" % ", ".join(sorted(invalid_models)))
     if not applies_to_models:
-        raise ServiceError("Select at least one Nano Banana model for this preset.")
-    model_key = payload.model_key or applies_to_models[0]
-    if model_key not in applies_to_models:
-        applies_to_models = [model_key, *[value for value in applies_to_models if value != model_key]]
+        raise ServiceError("Select at least one compatible image model for this preset.")
+    model_key = payload.model_key if payload.model_key in applies_to_models else applies_to_models[0]
     return {
         "key": payload.key,
         "label": payload.label,
@@ -806,6 +868,8 @@ def _resolve_preset(request: ValidateRequest) -> Tuple[Optional[Dict[str, Any]],
         raise ServiceError("Preset is not available for the selected model.")
     text_fields = preset.get("input_schema_json", [])
     slots = preset.get("input_slots_json", [])
+    if not _model_key_supports_structured_preset(request.model_key, requires_image=_preset_requires_image(slots)):
+        raise ServiceError("Preset is not compatible with the selected model.")
     text_values = {}
     for field in text_fields:
         key = field["key"]
@@ -822,6 +886,8 @@ def _resolve_preset(request: ValidateRequest) -> Tuple[Optional[Dict[str, Any]],
             raise ServiceError("Missing required preset image slot: %s" % key)
         if refs:
             image_slot_values[key] = refs
+    if image_slot_values and not _model_accepts_preset_image_values(request.model_key):
+        raise ServiceError("Preset image slots are not available for the selected model.")
     prompt = _render_preset_prompt(preset["prompt_template"] or "", text_values, image_slot_values)
     return preset, text_values, image_slot_values, prompt
 

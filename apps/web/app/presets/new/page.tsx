@@ -16,7 +16,7 @@ export default async function NewMediaPresetPage({
       currentProjectId={resolvedSearchParams.project ?? null}
       eyebrow="Studio Admin"
       title="New Preset"
-      description="Create a reusable structured preset for Studio and assign which Nano Banana models it should appear in."
+      description="Create a reusable structured preset for Studio and assign which compatible image models it should appear in."
     >
       <MediaPresetEditorScreen
         models={snapshot.models.data?.models ?? []}

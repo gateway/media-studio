@@ -84,7 +84,6 @@ import {
   isImageMimeType,
   isLikelyMobileSaveDevice,
   isMobileDownloadDevice,
-  isNanoPresetModel,
   isRecord,
   mediaDisplayUrl,
   mediaDownloadName,

@@ -303,10 +303,49 @@ const STUDIO_PICKER_WIDTHS: Record<string, string> = {
   google_search: "w-[calc(50%-0.25rem)] sm:w-[112px]",
 };
 
-const NANO_PRESET_MODEL_KEYS = ["nano-banana-2", "nano-banana-pro"] as const;
+const STRUCTURED_IMAGE_PRESET_MODEL_KEYS = [
+  "nano-banana-2",
+  "nano-banana-pro",
+  "gpt-image-2-text-to-image",
+  "gpt-image-2-image-to-image",
+] as const;
 
-export function isNanoPresetModel(modelKey: string | null | undefined) {
-  return modelKey === "nano-banana-2" || modelKey === "nano-banana-pro";
+export function isStructuredImagePresetModel(modelKey: string | null | undefined) {
+  return STRUCTURED_IMAGE_PRESET_MODEL_KEYS.includes(modelKey as (typeof STRUCTURED_IMAGE_PRESET_MODEL_KEYS)[number]);
+}
+
+export function modelSupportsStructuredImagePreset(model: MediaModelSummary | null | undefined, requiresImage: boolean) {
+  if (!model || model.studio_exposed === false) {
+    return false;
+  }
+  const taskModes = new Set(model.task_modes ?? []);
+  const inputPatterns = new Set(supportedModelInputPatterns(model));
+  const imageInputs = model.image_inputs ?? {};
+  const videoInputs = model.video_inputs ?? {};
+  const audioInputs = model.audio_inputs ?? {};
+  const imageMin = Number(imageInputs.required_min ?? 0) || 0;
+  const imageMax = Number(imageInputs.required_max ?? 0) || 0;
+  const hasVideoOrAudioInputs =
+    Number(videoInputs.required_min ?? 0) > 0 ||
+    Number(videoInputs.required_max ?? 0) > 0 ||
+    Number(audioInputs.required_min ?? 0) > 0 ||
+    Number(audioInputs.required_max ?? 0) > 0;
+  if (hasVideoOrAudioInputs || model.generation_kind === "video") {
+    return false;
+  }
+  if (requiresImage) {
+    return imageMax > 0 && (taskModes.has("image_edit") || inputPatterns.has("single_image") || inputPatterns.has("image_edit"));
+  }
+  return imageMin === 0 && (taskModes.has("text_to_image") || taskModes.has("image_generation") || inputPatterns.has("prompt_only"));
+}
+
+export function presetRequiresImageInput(preset: MediaPreset | null | undefined) {
+  const slots = ((preset?.input_slots_json as Array<Record<string, unknown>> | undefined) ?? []);
+  return slots.some((slot) => Boolean(slot.required));
+}
+
+export function compatibleStructuredImagePresetModels(models: MediaModelSummary[], requiresImage: boolean) {
+  return models.filter((model) => modelSupportsStructuredImagePreset(model, requiresImage));
 }
 
 export function studioPresetSupportedModels(preset: MediaPreset | null | undefined) {
@@ -315,7 +354,7 @@ export function studioPresetSupportedModels(preset: MediaPreset | null | undefin
     : preset?.model_key
       ? [preset.model_key]
       : [];
-  return Array.from(new Set(scopedModels.filter((modelKey): modelKey is string => isNanoPresetModel(modelKey))));
+  return Array.from(new Set(scopedModels.filter((modelKey): modelKey is string => isStructuredImagePresetModel(modelKey))));
 }
 
 export function isStudioPresetVisible(preset: MediaPreset | null | undefined) {
@@ -334,10 +373,10 @@ export function resolveStudioPresetTargetModel(
   if (!supportedModels.length) {
     return null;
   }
-  if (preferredModelKey && supportedModels.includes(preferredModelKey as (typeof NANO_PRESET_MODEL_KEYS)[number])) {
+  if (preferredModelKey && supportedModels.includes(preferredModelKey as (typeof STRUCTURED_IMAGE_PRESET_MODEL_KEYS)[number])) {
     return preferredModelKey;
   }
-  if (fallbackModelKey && supportedModels.includes(fallbackModelKey as (typeof NANO_PRESET_MODEL_KEYS)[number])) {
+  if (fallbackModelKey && supportedModels.includes(fallbackModelKey as (typeof STRUCTURED_IMAGE_PRESET_MODEL_KEYS)[number])) {
     return fallbackModelKey;
   }
   return supportedModels[0] ?? null;

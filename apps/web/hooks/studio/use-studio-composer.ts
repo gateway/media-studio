@@ -15,7 +15,7 @@ import {
   displayChoiceLabel,
   inferInputPattern,
   isCoarsePointerDevice,
-  isNanoPresetModel,
+  isStructuredImagePresetModel,
   isPresetSlotFilled,
   isSeedanceModel,
   isRecord,
@@ -28,6 +28,7 @@ import {
   modelSupportsFirstLastFrames,
   modelSupportsImageDrivenInputs,
   modelSupportsMotionControl,
+  modelSupportsStructuredImagePreset,
   modelInputLimit,
   MULTI_SHOT_MODEL_KEYS,
   normalizeStructuredPresetImageSlots,
@@ -314,9 +315,9 @@ export function useStudioComposer({
   const [mobileComposerCollapsed, setMobileComposerCollapsed] = useState(true);
   const [outputCount, setOutputCount] = useState(initialDraftRef.current?.outputCount ?? 1);
   const [openPicker, setOpenPicker] = useState<string | null>(null);
-  const [lastNanoPresetModelKey, setLastNanoPresetModelKey] = useState(
+  const [lastStructuredPresetModelKey, setLastStructuredPresetModelKey] = useState(
     initialDraftRef.current?.lastNanoPresetModelKey ??
-      (isNanoPresetModel(enabledModels[0]?.key ?? studioReadyModels[0]?.key ?? models[0]?.key ?? null)
+      (isStructuredImagePresetModel(enabledModels[0]?.key ?? studioReadyModels[0]?.key ?? models[0]?.key ?? null)
         ? (enabledModels[0]?.key ?? studioReadyModels[0]?.key ?? models[0]?.key ?? "nano-banana-2")
         : "nano-banana-2"),
   );
@@ -376,6 +377,8 @@ export function useStudioComposer({
   const currentQueuePolicy = queuePolicyByModelKey.get(modelKey) ?? null;
   const currentModelEnabled = currentQueuePolicy?.enabled ?? true;
   const currentModelExposed = currentModel?.studio_exposed !== false;
+  const currentModelSupportsStructuredPresets =
+    modelSupportsStructuredImagePreset(currentModel, false) || modelSupportsStructuredImagePreset(currentModel, true);
   const seedanceComposer = isSeedanceModel(modelKey);
   const maxConcurrentJobs = Math.max(1, queueSettings?.max_concurrent_jobs ?? 10);
   const modelMaxOutputs = Math.max(1, currentQueuePolicy?.max_outputs_per_run ?? 1);
@@ -512,11 +515,11 @@ export function useStudioComposer({
       attachments,
       stagedSourceAssetSnapshot,
       outputCount,
-      lastNanoPresetModelKey,
+      lastNanoPresetModelKey: lastStructuredPresetModelKey,
     });
   }, [
     attachments,
-    lastNanoPresetModelKey,
+    lastStructuredPresetModelKey,
     modelKey,
     optionValues,
     outputCount,
@@ -583,11 +586,11 @@ export function useStudioComposer({
   }, [resolvedSourceAsset, sourceAssetId]);
 
   useEffect(() => {
-    if (!isNanoPresetModel(modelKey)) {
+    if (!currentModelSupportsStructuredPresets) {
       return;
     }
-    setLastNanoPresetModelKey(modelKey);
-  }, [modelKey]);
+    setLastStructuredPresetModelKey(modelKey);
+  }, [currentModelSupportsStructuredPresets, modelKey]);
   function stageSourceAsset(asset: MediaAsset | null) {
     setStagedSourceAssetSnapshot(asset);
     setSourceAssetId(asset?.asset_id ?? null);
@@ -601,7 +604,9 @@ export function useStudioComposer({
   const structuredPresetTextFields = useMemo(() => normalizeStructuredPresetTextFields(currentPreset), [currentPreset]);
   const structuredPresetImageSlots = useMemo(() => normalizeStructuredPresetImageSlots(currentPreset), [currentPreset]);
   const structuredPresetActive =
-    isNanoPresetModel(modelKey) && Boolean(currentPreset) && (structuredPresetTextFields.length > 0 || structuredPresetImageSlots.length > 0);
+    currentModelSupportsStructuredPresets &&
+    Boolean(currentPreset) &&
+    (structuredPresetTextFields.length > 0 || structuredPresetImageSlots.length > 0);
   const effectiveSeedanceMode = seedanceComposer ? inferInputPattern(currentModel, attachments, currentSourceAsset) : "prompt_only";
   const inputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
   const modelHasImageDrivenInputs = modelSupportsImageDrivenInputs(currentModel);
@@ -637,7 +642,7 @@ export function useStudioComposer({
     () => presets.filter((preset) => isStudioPresetVisible(preset)),
     [presets],
   );
-  const modelPresets = isNanoPresetModel(modelKey)
+  const modelPresets = currentModelSupportsStructuredPresets
     ? availableStudioPresets.filter((preset) => studioPresetSupportedModels(preset).includes(modelKey))
     : [];
   const structuredPresetPromptPreview = structuredPresetActive
@@ -1375,7 +1380,7 @@ export function useStudioComposer({
     }
 
     const nextModelKey =
-      resolveStudioPresetTargetModel(targetPreset, options.preferredModelKey ?? modelKey, lastNanoPresetModelKey) ?? modelKey;
+      resolveStudioPresetTargetModel(targetPreset, options.preferredModelKey ?? modelKey, lastStructuredPresetModelKey) ?? modelKey;
     if (nextModelKey !== modelKey) {
       setModelKey(nextModelKey);
     }

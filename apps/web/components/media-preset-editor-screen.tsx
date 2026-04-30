@@ -14,6 +14,7 @@ import { AdminActionNotice } from "@/components/admin-action-notice";
 import { CollapsibleSubsection } from "@/components/collapsible-sections";
 import { Panel } from "@/components/panel";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
+import { compatibleStructuredImagePresetModels } from "@/lib/media-studio-helpers";
 import type { MediaModelSummary, MediaPreset } from "@/lib/types";
 import { slugifyKey } from "@/lib/utils";
 
@@ -253,9 +254,8 @@ export function MediaPresetEditorScreen({
   const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
 
   const generatedPresetKey = presetForm.key || slugifyKey(presetForm.label);
-  const selectedNanoModels = models.filter(
-    (model) => model.key === "nano-banana-2" || model.key === "nano-banana-pro",
-  );
+  const requiresImagePresetModel = presetForm.imageSlots.some((slot) => slot.required);
+  const compatiblePresetModels = compatibleStructuredImagePresetModels(models, requiresImagePresetModel);
   const returnToPresetsHref = normalizeReturnToHref(initialReturnTo);
   const returnActionLabel = returnToPresetsHref === "/studio" ? "Back to Studio" : "Back to presets";
   const sectionEyebrowClassName = "admin-label-accent";
@@ -272,12 +272,11 @@ export function MediaPresetEditorScreen({
       showNotice("danger", presetError ?? "Preset name is required.");
       return;
     }
-    const scopedModels = Array.from(new Set(presetForm.appliesToModels)).filter(
-      (value) => value === "nano-banana-2" || value === "nano-banana-pro",
-    );
+    const compatibleModelKeys = new Set(compatiblePresetModels.map((model) => model.key));
+    const scopedModels = Array.from(new Set(presetForm.appliesToModels)).filter((value) => compatibleModelKeys.has(value));
     if (!scopedModels.length) {
       setIsSaving(false);
-      showNotice("danger", "Select at least one Nano Banana model for this preset.");
+      showNotice("danger", "Select at least one compatible image model for this preset.");
       return;
     }
     const payload = {
@@ -603,7 +602,7 @@ export function MediaPresetEditorScreen({
                       Available in
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {selectedNanoModels.map((model) => (
+                      {compatiblePresetModels.map((model) => (
                         <label
                           key={model.key}
                           className="admin-toggle-row text-sm"

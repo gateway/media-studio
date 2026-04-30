@@ -357,6 +357,78 @@ def test_create_and_list_preset(client) -> None:
     assert any(item["preset_id"] == preset["preset_id"] for item in list_response.json())
 
 
+def test_prompt_only_preset_allows_gpt_text_to_image(client) -> None:
+    response = client.post(
+        "/media/presets",
+        json={
+            "key": "prompt-only-gpt",
+            "label": "Prompt Only GPT",
+            "model_key": "gpt-image-2-text-to-image",
+            "source_kind": "custom",
+            "applies_to_models": ["gpt-image-2-text-to-image"],
+            "prompt_template": "Create a portrait of {{subject}}.",
+            "input_schema_json": [{"key": "subject", "label": "Subject", "required": True}],
+            "input_slots_json": [],
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["applies_to_models_json"] == ["gpt-image-2-text-to-image"]
+
+
+def test_prompt_only_preset_rejects_gpt_image_to_image(client) -> None:
+    response = client.post(
+        "/media/presets",
+        json={
+            "key": "prompt-only-gpt-i2i",
+            "label": "Prompt Only GPT I2I",
+            "model_key": "gpt-image-2-image-to-image",
+            "source_kind": "custom",
+            "applies_to_models": ["gpt-image-2-image-to-image"],
+            "prompt_template": "Create a portrait of {{subject}}.",
+            "input_schema_json": [{"key": "subject", "label": "Subject", "required": True}],
+            "input_slots_json": [],
+        },
+    )
+    assert response.status_code == 400
+    assert "Unsupported preset model scope" in response.text
+
+
+def test_required_image_preset_allows_gpt_image_to_image(client) -> None:
+    response = client.post(
+        "/media/presets",
+        json={
+            "key": "image-gpt-i2i",
+            "label": "Image GPT I2I",
+            "model_key": "gpt-image-2-image-to-image",
+            "source_kind": "custom",
+            "applies_to_models": ["gpt-image-2-image-to-image"],
+            "prompt_template": "Use [[reference]] to create {{scene}}.",
+            "input_schema_json": [{"key": "scene", "label": "Scene", "required": True}],
+            "input_slots_json": [{"key": "reference", "label": "Reference", "required": True}],
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["applies_to_models_json"] == ["gpt-image-2-image-to-image"]
+
+
+def test_required_image_preset_rejects_gpt_text_to_image(client) -> None:
+    response = client.post(
+        "/media/presets",
+        json={
+            "key": "image-gpt-t2i",
+            "label": "Image GPT T2I",
+            "model_key": "gpt-image-2-text-to-image",
+            "source_kind": "custom",
+            "applies_to_models": ["gpt-image-2-text-to-image"],
+            "prompt_template": "Use [[reference]] to create {{scene}}.",
+            "input_schema_json": [{"key": "scene", "label": "Scene", "required": True}],
+            "input_slots_json": [{"key": "reference", "label": "Reference", "required": True}],
+        },
+    )
+    assert response.status_code == 400
+    assert "Unsupported preset model scope" in response.text
+
+
 def test_seeded_shared_nano_presets_exist(client) -> None:
     response = client.get("/media/presets")
     assert response.status_code == 200
@@ -370,8 +442,16 @@ def test_seeded_shared_nano_presets_exist(client) -> None:
         "selfie-with-movie-character-nano-banana",
     }
     for preset in shared.values():
-        assert sorted(preset["applies_to_models"]) == ["nano-banana-2", "nano-banana-pro"]
-        assert sorted(preset["applies_to_models_json"]) == ["nano-banana-2", "nano-banana-pro"]
+        assert sorted(preset["applies_to_models"]) == [
+            "gpt-image-2-image-to-image",
+            "nano-banana-2",
+            "nano-banana-pro",
+        ]
+        assert sorted(preset["applies_to_models_json"]) == [
+            "gpt-image-2-image-to-image",
+            "nano-banana-2",
+            "nano-banana-pro",
+        ]
 
 
 def test_validate_and_submit_job(client) -> None:
@@ -420,6 +500,36 @@ def test_validate_and_submit_job(client) -> None:
     payload = submit_response.json()
     assert payload["batch"]["requested_outputs"] == 2
     assert len(payload["jobs"]) == 2
+
+
+def test_gpt_image_to_image_preset_requires_image_slot_value(client) -> None:
+    preset = client.post(
+        "/media/presets",
+        json={
+            "key": "gpt-i2i-required-image",
+            "label": "GPT I2I Required Image",
+            "model_key": "gpt-image-2-image-to-image",
+            "source_kind": "custom",
+            "applies_to_models": ["gpt-image-2-image-to-image"],
+            "prompt_template": "Use [[ref]] to create {{scene}}.",
+            "input_schema_json": [{"key": "scene", "label": "Scene", "required": True}],
+            "input_slots_json": [{"key": "ref", "label": "Ref", "required": True}],
+        },
+    ).json()
+
+    validate_response = client.post(
+        "/media/validate",
+        json={
+            "model_key": "gpt-image-2-image-to-image",
+            "task_mode": "image_edit",
+            "preset_id": preset["preset_id"],
+            "preset_text_values": {"scene": "a studio portrait"},
+            "preset_image_slots": {},
+            "options": {"aspect_ratio": "4:3", "resolution": "1K"},
+        },
+    )
+    assert validate_response.status_code == 400
+    assert "Missing required preset image slot: ref" in validate_response.text
 
 
 def test_single_batch_endpoint_includes_jobs(client) -> None:
@@ -661,7 +771,7 @@ def test_favorite_asset_accepts_json_body_false(client, app_modules) -> None:
     assert favorite_off_response.json()["favorited"] is False
 
 
-def test_create_fails_when_no_nano_model_scope_selected(client) -> None:
+def test_create_fails_when_no_structured_image_model_scope_selected(client) -> None:
     response = client.post(
         "/media/presets",
         json={
@@ -676,7 +786,7 @@ def test_create_fails_when_no_nano_model_scope_selected(client) -> None:
         },
     )
     assert response.status_code == 400
-    assert "Select at least one Nano Banana model" in response.text
+    assert "Select at least one compatible image model" in response.text
 
 
 def test_validate_fails_when_preset_scope_excludes_selected_model(client) -> None:
