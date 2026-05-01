@@ -305,6 +305,14 @@ function inferBatchJobGenerationKind(job: MediaJob, batch: MediaBatch, previewAs
   return "image";
 }
 
+function galleryTileCreatedAt(tile: GalleryTile) {
+  return tile.asset?.created_at ?? tile.job?.created_at ?? tile.batch?.created_at ?? "";
+}
+
+function sortGalleryTilesByCreatedAt(tiles: GalleryTile[]) {
+  return [...tiles].sort((left, right) => galleryTileCreatedAt(right).localeCompare(galleryTileCreatedAt(left)));
+}
+
 export function buildGalleryTiles(
   assets: MediaAsset[],
   latestAsset: MediaAsset | null,
@@ -391,7 +399,7 @@ export function buildGalleryTiles(
   }
 
   if (!source.length) {
-    return tiles;
+    return sortGalleryTilesByCreatedAt(tiles);
   }
 
   for (const asset of source) {
@@ -407,7 +415,7 @@ export function buildGalleryTiles(
     });
   }
 
-  return tiles;
+  return sortGalleryTilesByCreatedAt(tiles);
 }
 
 export function createOptimisticBatch({

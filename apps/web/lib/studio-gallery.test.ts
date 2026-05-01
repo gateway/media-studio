@@ -235,6 +235,51 @@ describe("studio-gallery", () => {
     expect(tiles[0]?.label).toBe("Failed output");
   });
 
+  it("orders failed cards by creation time instead of pinning them before newer assets", () => {
+    const newerAsset = {
+      asset_id: "asset-newer",
+      job_id: "job-newer",
+      model_key: "gpt-image-2-text-to-image",
+      created_at: "2026-04-06T00:10:00Z",
+    } as never;
+
+    const tiles = buildGalleryTiles(
+      [newerAsset],
+      null,
+      [
+        {
+          batch_id: "batch-failed-old",
+          status: "failed",
+          model_key: "gpt-image-2-text-to-image",
+          requested_outputs: 1,
+          queued_count: 0,
+          running_count: 0,
+          completed_count: 0,
+          failed_count: 1,
+          cancelled_count: 0,
+          created_at: "2026-04-06T00:00:00Z",
+          updated_at: "2026-04-06T00:05:00Z",
+          jobs: [
+            {
+              job_id: "job-failed-old",
+              batch_id: "batch-failed-old",
+              model_key: "gpt-image-2-text-to-image",
+              status: "failed",
+              error: "Provider policy rejected the generation.",
+              created_at: "2026-04-06T00:00:00Z",
+            },
+          ],
+        } as never,
+      ],
+      [newerAsset],
+      [],
+      false,
+      false,
+    );
+
+    expect(tiles.map((tile) => tile.asset?.asset_id ?? tile.job?.job_id)).toEqual(["asset-newer", "job-failed-old"]);
+  });
+
   it("keeps a failed sibling tile visible after refresh when batch jobs are only present in the jobs feed", () => {
     const publishedAsset = {
       asset_id: "asset-batch-1",
