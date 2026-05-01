@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -34,6 +35,17 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
             "SELECT enabled, max_outputs_per_run FROM media_model_queue_policies WHERE model_key = ?",
             ("seedance-2.0",),
         ).fetchone()
+        preset_rows = connection.execute(
+            """
+            SELECT applies_to_models_json
+            FROM media_presets
+            WHERE preset_id IN (?, ?)
+            """,
+            (
+                "media-preset-3d-caricature-style-nano-banana-shared",
+                "media-preset-selfie-with-movie-character-nano-banana-shared",
+            ),
+        ).fetchall()
     finally:
         connection.close()
     assert row is not None
@@ -41,12 +53,17 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert int(row[1] or 0) == 1
 
     status = store.get_schema_status(clean_db)
-    assert status["schema_version"] == 3
-    assert status["latest_version"] == 3
-    assert len(status["applied_migrations"]) == 3
+    assert len(preset_rows) == 2
+    for preset_row in preset_rows:
+        assert "gpt-image-2-image-to-image" in json.loads(preset_row[0])
+
+    assert status["schema_version"] == 4
+    assert status["latest_version"] == 4
+    assert len(status["applied_migrations"]) == 4
     assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
     assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
     assert status["applied_migrations"][2]["migration_id"] == "20260419_003_project_visibility_flags"
+    assert status["applied_migrations"][3]["migration_id"] == "20260501_004_default_model_release_updates"
     assert status["pending_migrations"] == []
 
 
@@ -100,6 +117,74 @@ def test_bootstrap_schema_upgrades_legacy_seedance_default_policy(app_modules, t
     assert int(row[1] or 0) == 1
 
 
+def test_bootstrap_schema_updates_v3_default_model_release_settings(app_modules, tmp_path: Path) -> None:
+    db_admin = app_modules["db_admin"]
+    store = app_modules["store"]
+    legacy_db = db_admin.create_clean_database(tmp_path / "legacy-defaults.sqlite")
+
+    connection = sqlite3.connect(legacy_db)
+    try:
+        connection.execute(
+            "DELETE FROM schema_migrations WHERE migration_id = ?",
+            ("20260501_004_default_model_release_updates",),
+        )
+        connection.execute("UPDATE schema_meta SET value = ? WHERE key = ?", ("3", "schema_version"))
+        connection.execute(
+            "UPDATE schema_meta SET value = ? WHERE key = ?",
+            ("20260419_003_project_visibility_flags", "last_migration_id"),
+        )
+        connection.execute(
+            """
+            UPDATE media_presets
+            SET applies_to_models_json = ?
+            WHERE preset_id IN (?, ?)
+            """,
+            (
+                json.dumps(["nano-banana-2", "nano-banana-pro"]),
+                "media-preset-3d-caricature-style-nano-banana-shared",
+                "media-preset-selfie-with-movie-character-nano-banana-shared",
+            ),
+        )
+        connection.execute("DELETE FROM media_model_queue_policies WHERE model_key = ?", ("seedance-2.0",))
+        connection.commit()
+    finally:
+        connection.close()
+
+    store.bootstrap_schema(legacy_db)
+
+    connection = sqlite3.connect(legacy_db)
+    try:
+        preset_rows = connection.execute(
+            """
+            SELECT applies_to_models_json
+            FROM media_presets
+            WHERE preset_id IN (?, ?)
+            """,
+            (
+                "media-preset-3d-caricature-style-nano-banana-shared",
+                "media-preset-selfie-with-movie-character-nano-banana-shared",
+            ),
+        ).fetchall()
+        seedance_policy = connection.execute(
+            "SELECT enabled, max_outputs_per_run FROM media_model_queue_policies WHERE model_key = ?",
+            ("seedance-2.0",),
+        ).fetchone()
+    finally:
+        connection.close()
+
+    assert len(preset_rows) == 2
+    for preset_row in preset_rows:
+        assert sorted(json.loads(preset_row[0])) == [
+            "gpt-image-2-image-to-image",
+            "nano-banana-2",
+            "nano-banana-pro",
+        ]
+    assert seedance_policy is not None
+    assert int(seedance_policy[0] or 0) == 1
+    assert int(seedance_policy[1] or 0) == 1
+    assert store.get_schema_status(legacy_db)["schema_version"] == 4
+
+
 def test_backup_database_copies_existing_database(app_modules, tmp_path: Path) -> None:
     db_admin = app_modules["db_admin"]
     source_db = db_admin.create_clean_database(tmp_path / "source.sqlite")
@@ -148,11 +233,12 @@ def test_bootstrap_schema_creates_backup_before_upgrading_existing_database(app_
     assert _count_rows(backup_path, "media_jobs") == 1
 
     status = store.get_schema_status(legacy_db)
-    assert status["schema_version"] == 3
+    assert status["schema_version"] == 4
     assert status["pending_migrations"] == []
     assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
     assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
     assert status["applied_migrations"][2]["migration_id"] == "20260419_003_project_visibility_flags"
+    assert status["applied_migrations"][3]["migration_id"] == "20260501_004_default_model_release_updates"
 
 
 def test_deduplicate_assets_by_job_id_keeps_latest_asset(app_modules) -> None:

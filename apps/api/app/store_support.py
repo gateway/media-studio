@@ -550,6 +550,11 @@ def _seed_default_model_queue_policies(connection: sqlite3.Connection) -> None:
         )
 
 
+def _apply_default_model_release_updates(connection: sqlite3.Connection) -> None:
+    _migrate_gpt_image_seed_preset_scopes(connection)
+    _seed_default_model_queue_policies(connection)
+
+
 def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
     connection.executescript(
         """
@@ -913,6 +918,12 @@ MIGRATIONS = [
             "hidden_from_global_gallery",
             "INTEGER NOT NULL DEFAULT 0",
         ),
+    ),
+    SchemaMigration(
+        migration_id="20260501_004_default_model_release_updates",
+        version=4,
+        description="Enable GPT Image 2 on built-in image presets and preserve Seedance 2 default availability.",
+        apply=_apply_default_model_release_updates,
     ),
 ]
 
