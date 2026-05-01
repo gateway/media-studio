@@ -21,8 +21,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body className={`${sora.variable} ${plexMono.variable}`}>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${sora.variable} ${plexMono.variable}`} suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }
