@@ -3,7 +3,9 @@
 import { Pencil, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { EmptyState, MediaBrowserCard, OverlayHeader, OverlayShell, SurfaceInset } from "@/components/ui/surface-primitives";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
+import { EmptyState, MediaBrowserCard, OverlayHeader, OverlayShell } from "@/components/ui/surface-primitives";
 import { presetThumbnailVisual, prettifyModelLabel, studioPresetSupportedModels } from "@/lib/media-studio-helpers";
 import type { MediaModelSummary, MediaPreset } from "@/lib/types";
 
@@ -65,65 +67,74 @@ export function StudioPresetBrowser({
         </div>
         <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 md:px-6 md:py-6">
           {presets.length ? (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {presets.map((preset) => {
-                  const modelScope = studioPresetSupportedModels(preset, models)
-                    .map((modelKey) => prettifyModelLabel(modelKey))
-                    .join(", ");
-                  const thumb = presetThumbnailVisual(preset);
-                  return (
-                    <MediaBrowserCard
-                      key={preset.preset_id}
-                      appearance="studio"
-                      interactive
-                      className="relative rounded-[26px] bg-[rgba(18,22,20,0.92)] shadow-[0_22px_54px_rgba(0,0,0,0.28)] hover:-translate-y-0.5 hover:border-[rgba(216,141,67,0.28)] hover:bg-[rgba(22,26,24,0.98)]"
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+              {presets.map((preset) => {
+                const modelScope = studioPresetSupportedModels(preset, models)
+                  .map((modelKey) => prettifyModelLabel(modelKey))
+                  .join(", ");
+                const thumb = presetThumbnailVisual(preset);
+                return (
+                  <MediaBrowserCard
+                    key={preset.preset_id}
+                    data-testid={`studio-preset-browser-card-${preset.preset_id}`}
+                    appearance="studio"
+                    interactive
+                    className="shadow-[0_18px_40px_rgba(0,0,0,0.24)]"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onSelectPreset(preset)}
+                      className="media-browser-card-thumbnail group relative aspect-square text-left"
                     >
-                      <button
+                      {thumb ? (
+                        <img
+                          src={thumb}
+                          alt={preset.label}
+                          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-white/58">
+                          <Sparkles className="size-6" />
+                        </div>
+                      )}
+                    </button>
+                    <div className="media-browser-card-copy">
+                      <div className="media-browser-card-title truncate">{preset.label}</div>
+                      <div className="media-browser-card-description line-clamp-2 min-h-[2rem]">
+                        {preset.description ?? "No description added yet."}
+                      </div>
+                    </div>
+                    <div className="media-browser-card-meta">
+                      Available for {modelScope || "No model scope"}
+                    </div>
+                    <div className="media-browser-card-meta">
+                      {presetInputSummary(preset)}
+                    </div>
+                    <div className="media-browser-card-actions">
+                      <Button
                         type="button"
                         data-testid={`studio-preset-browser-item-${preset.preset_id}`}
                         onClick={() => onSelectPreset(preset)}
-                        className="grid w-full content-start gap-4 p-4 text-left"
+                        variant="primary"
+                        size="compact"
+                        className="h-8 min-w-0 rounded-full px-3 text-[0.62rem] tracking-[0.12em] text-[#172200]"
                       >
-                        <div className="flex items-start gap-4 pr-12">
-                          {thumb ? (
-                            <div className="media-browser-card-thumbnail surface-preview-frame h-[84px] w-[84px] shrink-0 rounded-[20px]">
-                              <img src={thumb} alt={preset.label} className="h-full w-full object-cover" loading="lazy" decoding="async" />
-                            </div>
-                          ) : (
-                            <div className="media-browser-card-thumbnail surface-preview-frame flex h-[84px] w-[84px] shrink-0 items-center justify-center rounded-[20px] text-white/58">
-                              <Sparkles className="size-5" />
-                            </div>
-                          )}
-                          <div className="media-browser-card-copy min-w-0 flex-1">
-                            <div className="media-browser-card-title text-sm tracking-[-0.02em]">{preset.label}</div>
-                            <div className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/46">
-                              Available for {modelScope || "No model scope"}
-                            </div>
-                            <p className="mt-2 line-clamp-3 text-sm leading-6 text-white/66">
-                              {preset.description ?? "No description added yet."}
-                            </p>
-                          </div>
-                        </div>
-                        <SurfaceInset appearance="studio" density="compact" className="flex items-center justify-between gap-3 rounded-[18px] text-xs leading-5 text-white/62">
-                          <span>{presetInputSummary(preset)}</span>
-                          <span className="shrink-0 text-[rgba(208,255,72,0.88)]">Use preset</span>
-                        </SurfaceInset>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          router.push(`/presets/${preset.preset_id}?returnTo=${encodeURIComponent(studioReturnToHref)}`);
-                        }}
-                        className="overlay-close-button absolute right-4 top-4 h-9 w-9 bg-white/[0.05] text-white/72 hover:border-[rgba(208,255,72,0.38)] hover:bg-white/[0.09] hover:text-[rgba(208,255,72,0.94)]"
+                        <Sparkles className="mr-1.5 size-3.5" />
+                        Use preset
+                      </Button>
+                      <IconButton
+                        icon={Pencil}
+                        onClick={() => router.push(`/presets/${preset.preset_id}?returnTo=${encodeURIComponent(studioReturnToHref)}`)}
+                        className="h-8 w-8 rounded-full"
                         aria-label={`Edit ${preset.label}`}
                         title="Edit preset"
-                      >
-                        <Pencil className="size-4" />
-                      </button>
-                    </MediaBrowserCard>
-                  );
-                })}
+                      />
+                    </div>
+                  </MediaBrowserCard>
+                );
+              })}
             </div>
           ) : (
             <EmptyState
