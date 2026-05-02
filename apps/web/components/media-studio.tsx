@@ -1058,7 +1058,7 @@ export function MediaStudio({
     if (!structuredPresetActive) {
       return [];
     }
-    const supportedModelKeys = new Set(studioPresetSupportedModels(currentPreset));
+    const supportedModelKeys = new Set(studioPresetSupportedModels(currentPreset, models));
     return models
       .filter((model) => supportedModelKeys.has(model.key))
       .map(composerModelChoice);
@@ -3765,6 +3765,7 @@ export function MediaStudio({
       {presetBrowserOpen ? (
         <StudioPresetBrowser
           presets={availableStudioPresets}
+          models={models}
           onClose={() => setPresetBrowserOpen(false)}
           onSelectPreset={(preset) => loadPresetIntoStudio(preset.preset_id ?? preset.key)}
         />

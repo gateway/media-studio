@@ -133,6 +133,29 @@ def test_import_reference_media_upload_stores_file_and_deduplicates(client, app_
     assert second_payload["thumb_path"] == first_payload["thumb_path"]
 
 
+def test_import_reference_media_upload_rejects_empty_file(client) -> None:
+    response = client.post(
+        "/media/reference-media/import",
+        files={"file": ("empty.png", b"", "image/png")},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Choose a reference file to import."
+
+
+def test_import_reference_media_upload_rejects_oversize_and_cleans_temp(client, app_modules, monkeypatch) -> None:
+    main = app_modules["main"]
+    service = app_modules["service"]
+    monkeypatch.setattr(main.settings, "media_reference_import_max_bytes", 4)
+
+    response = client.post(
+        "/media/reference-media/import",
+        files={"file": ("large.png", b"12345", "image/png")},
+    )
+
+    assert response.status_code == 413
+    assert list(service.settings.uploads_dir.glob("reference-import-*.upload")) == []
+
+
 def test_delete_reference_media_hides_item_without_removing_record(client, app_modules) -> None:
     file_path = app_modules["service"].settings.data_root / "reference-media" / "images" / "delete-me.png"
     file_path.parent.mkdir(parents=True, exist_ok=True)

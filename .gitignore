@@ -58,6 +58,8 @@ temp/
 output/
 outputs/
 outputs/security_profile.json
+test-results/
+playwright-report/
 *.log
 *.pid
 *.pid.lock

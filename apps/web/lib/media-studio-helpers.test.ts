@@ -1195,48 +1195,105 @@ describe("media-studio-helpers Seedance support", () => {
   });
 
   it("filters Studio preset browser entries to active structured image presets", () => {
+    const models = [
+      {
+        key: "gpt-image-2-text-to-image",
+        generation_kind: "image",
+        task_modes: ["text_to_image"],
+        input_patterns: ["prompt_only"],
+        image_inputs: { required_min: 0, required_max: 0 },
+      },
+      {
+        key: "kling-2.6-i2v",
+        generation_kind: "video",
+        task_modes: ["image_to_video"],
+        input_patterns: ["single_image"],
+        image_inputs: { required_min: 1, required_max: 1 },
+      },
+    ] as never;
+
     expect(
       isStudioPresetVisible({
         status: "active",
         applies_to_models: ["gpt-image-2-text-to-image", "kling-2.6-i2v"],
-      } as never),
+      } as never, models),
     ).toBe(true);
 
     expect(
       isStudioPresetVisible({
         status: "archived",
         applies_to_models: ["nano-banana-2"],
-      } as never),
+      } as never, models),
     ).toBe(false);
 
     expect(
       isStudioPresetVisible({
         status: "active",
         applies_to_models: ["kling-2.6-i2v"],
-      } as never),
+      } as never, models),
     ).toBe(false);
   });
 
   it("resolves Studio preset target model using the preferred structured image model when supported", () => {
+    const models = [
+      {
+        key: "nano-banana-2",
+        generation_kind: "image",
+        task_modes: ["text_to_image", "image_edit"],
+        input_patterns: ["prompt_only", "single_image"],
+        image_inputs: { required_min: 0, required_max: 4 },
+      },
+      {
+        key: "gpt-image-2-image-to-image",
+        generation_kind: "image",
+        task_modes: ["image_edit"],
+        input_patterns: ["single_image"],
+        image_inputs: { required_min: 1, required_max: 16 },
+      },
+      {
+        key: "kling-2.6-i2v",
+        generation_kind: "video",
+        task_modes: ["image_to_video"],
+        input_patterns: ["single_image"],
+        image_inputs: { required_min: 1, required_max: 1 },
+      },
+    ] as never;
     const preset = {
       status: "active",
+      input_slots_json: [{ key: "reference", required: true }],
       applies_to_models: ["nano-banana-2", "gpt-image-2-image-to-image"],
     } as never;
 
-    expect(studioPresetSupportedModels(preset)).toEqual(["nano-banana-2", "gpt-image-2-image-to-image"]);
-    expect(resolveStudioPresetTargetModel(preset, "gpt-image-2-image-to-image", "nano-banana-2")).toBe(
+    expect(studioPresetSupportedModels(preset, models)).toEqual(["nano-banana-2", "gpt-image-2-image-to-image"]);
+    expect(resolveStudioPresetTargetModel(preset, "gpt-image-2-image-to-image", "nano-banana-2", models)).toBe(
       "gpt-image-2-image-to-image",
     );
-    expect(resolveStudioPresetTargetModel(preset, "kling-2.6-i2v", "nano-banana-2")).toBe("nano-banana-2");
+    expect(resolveStudioPresetTargetModel(preset, "kling-2.6-i2v", "nano-banana-2", models)).toBe("nano-banana-2");
   });
 
   it("falls back to the first allowed structured image model when no preferred model is supported", () => {
+    const models = [
+      {
+        key: "future-image-renderer",
+        generation_kind: "image",
+        task_modes: ["text_to_image"],
+        input_patterns: ["prompt_only"],
+        image_inputs: { required_min: 0, required_max: 0 },
+      },
+      {
+        key: "seedance-2.0",
+        generation_kind: "video",
+        task_modes: ["text_to_video"],
+        input_patterns: ["prompt_only"],
+        image_inputs: { required_min: 0, required_max: 0 },
+      },
+    ] as never;
     const preset = {
       status: "active",
-      applies_to_models: ["gpt-image-2-text-to-image"],
+      applies_to_models: ["future-image-renderer"],
     } as never;
 
-    expect(resolveStudioPresetTargetModel(preset, "kling-2.6-i2v", "seedance-2.0")).toBe("gpt-image-2-text-to-image");
+    expect(resolveStudioPresetTargetModel(preset, "kling-2.6-i2v", "seedance-2.0", models)).toBe("future-image-renderer");
   });
 
   it("resolves the retry preset by key or preset id", () => {

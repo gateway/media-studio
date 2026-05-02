@@ -394,7 +394,11 @@ class ValidateRequest(BaseModel):
     selected_system_prompt_ids: List[str] = Field(default_factory=list)
     source_asset_id: Optional[str] = None
     project_id: Optional[str] = None
-    output_count: int = 1
+    output_count: int = Field(
+        default=1,
+        ge=MODEL_QUEUE_MAX_OUTPUTS_PER_RUN_MIN,
+        le=MODEL_QUEUE_MAX_OUTPUTS_PER_RUN_MAX,
+    )
     enhance: Optional[bool] = None
     prompt_policy: Optional[str] = None
     prompt_profile_key: Optional[str] = None

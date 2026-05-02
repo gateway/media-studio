@@ -1,21 +1,6 @@
-import { spawn } from "node:child_process";
-
 import { registerReferenceMediaFile, resolveReferenceMedia } from "@/lib/reference-media-storage";
 
 export type MediaIntent = "validate" | "submit" | "enhance";
-
-export function triggerDashboardIndexRefresh() {
-  try {
-    const child = spawn(process.execPath, ["./scripts/dashboard-index-refresh.mjs"], {
-      cwd: process.cwd(),
-      detached: true,
-      stdio: "ignore",
-    });
-    child.unref();
-  } catch {
-    // Helpful, not required.
-  }
-}
 
 async function readFormText(value: FormDataEntryValue | null) {
   if (typeof value === "string") {

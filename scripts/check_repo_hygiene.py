@@ -38,12 +38,19 @@ BLOCKED_PREFIXES = (
     "data/downloads/",
     "data/outputs/",
     "data/backups/",
+    "docs/reviews/",
     "artifacts/",
     "logs/",
     "tmp/",
     "temp/",
     "output/",
+    "test-results/",
+    "playwright-report/",
 )
+BLOCKED_EXACT = {
+    "docs/API_SECURITY_FULL_REPORT.md",
+    "docs/review-remediation-plan.md",
+}
 ALLOWED_EXACT = {
     ".env.example",
 }
@@ -53,6 +60,8 @@ def is_blocked(rel_path: str) -> bool:
     if rel_path in ALLOWED_EXACT:
         return False
     if rel_path in BLOCKED_PATTERNS:
+        return True
+    if rel_path in BLOCKED_EXACT:
         return True
     if rel_path.startswith(".env.") and rel_path != ".env.example":
         return True

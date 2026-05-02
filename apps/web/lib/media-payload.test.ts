@@ -27,6 +27,12 @@ beforeEach(() => {
 });
 
 describe("buildMediaPayloadFromFormData", () => {
+  it("does not expose a dashboard index refresh side effect", async () => {
+    const shared = await import("../app/api/control/media/shared");
+
+    expect("triggerDashboardIndexRefresh" in shared).toBe(false);
+  });
+
   it("maps structured preset files into preset_image_slots", async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "media-studio-web-"));
     cleanupRoots.push(tempRoot);

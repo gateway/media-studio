@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { postControlApiJson, mapBatchRecord, mapJobRecord, mapValidationResponseRecord } from "@/lib/control-api";
 import type { MediaBatch, MediaJobResponse, MediaValidationResponse } from "@/lib/types";
 
-import { buildMediaPayloadFromFormData, triggerDashboardIndexRefresh } from "./shared";
+import { buildMediaPayloadFromFormData } from "./shared";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -31,7 +31,6 @@ export async function POST(request: Request) {
         : null;
     const job = jobs[0] ?? null;
 
-    triggerDashboardIndexRefresh();
     return NextResponse.json({
       ok: true,
       success: "Media job queued.",

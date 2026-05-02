@@ -303,7 +303,7 @@ const STUDIO_PICKER_WIDTHS: Record<string, string> = {
   google_search: "w-[calc(50%-0.25rem)] sm:w-[112px]",
 };
 
-const STRUCTURED_IMAGE_PRESET_MODEL_KEYS = [
+const LEGACY_STRUCTURED_IMAGE_PRESET_MODEL_KEYS = [
   "nano-banana-2",
   "nano-banana-pro",
   "gpt-image-2-text-to-image",
@@ -311,7 +311,7 @@ const STRUCTURED_IMAGE_PRESET_MODEL_KEYS = [
 ] as const;
 
 export function isStructuredImagePresetModel(modelKey: string | null | undefined) {
-  return STRUCTURED_IMAGE_PRESET_MODEL_KEYS.includes(modelKey as (typeof STRUCTURED_IMAGE_PRESET_MODEL_KEYS)[number]);
+  return LEGACY_STRUCTURED_IMAGE_PRESET_MODEL_KEYS.includes(modelKey as (typeof LEGACY_STRUCTURED_IMAGE_PRESET_MODEL_KEYS)[number]);
 }
 
 export function modelSupportsStructuredImagePreset(model: MediaModelSummary | null | undefined, requiresImage: boolean) {
@@ -348,35 +348,45 @@ export function compatibleStructuredImagePresetModels(models: MediaModelSummary[
   return models.filter((model) => modelSupportsStructuredImagePreset(model, requiresImage));
 }
 
-export function studioPresetSupportedModels(preset: MediaPreset | null | undefined) {
+export function studioPresetSupportedModels(preset: MediaPreset | null | undefined, models?: MediaModelSummary[]) {
   const scopedModels = preset?.applies_to_models?.length
     ? preset.applies_to_models
     : preset?.model_key
       ? [preset.model_key]
       : [];
-  return Array.from(new Set(scopedModels.filter((modelKey): modelKey is string => isStructuredImagePresetModel(modelKey))));
+  const uniqueScopedModels = Array.from(new Set(scopedModels.filter((modelKey): modelKey is string => Boolean(modelKey))));
+  if (models?.length) {
+    const requiresImage = presetRequiresImageInput(preset);
+    const modelByKey = new Map(models.map((model) => [model.key, model]));
+    return uniqueScopedModels.filter((modelKey) => {
+      const model = modelByKey.get(modelKey);
+      return model ? modelSupportsStructuredImagePreset(model, requiresImage) : false;
+    });
+  }
+  return uniqueScopedModels.filter((modelKey) => isStructuredImagePresetModel(modelKey));
 }
 
-export function isStudioPresetVisible(preset: MediaPreset | null | undefined) {
+export function isStudioPresetVisible(preset: MediaPreset | null | undefined, models?: MediaModelSummary[]) {
   if (!preset) {
     return false;
   }
-  return String(preset.status ?? "").toLowerCase() === "active" && studioPresetSupportedModels(preset).length > 0;
+  return String(preset.status ?? "").toLowerCase() === "active" && studioPresetSupportedModels(preset, models).length > 0;
 }
 
 export function resolveStudioPresetTargetModel(
   preset: MediaPreset | null | undefined,
   preferredModelKey: string | null | undefined,
   fallbackModelKey?: string | null | undefined,
+  models?: MediaModelSummary[],
 ) {
-  const supportedModels = studioPresetSupportedModels(preset);
+  const supportedModels = studioPresetSupportedModels(preset, models);
   if (!supportedModels.length) {
     return null;
   }
-  if (preferredModelKey && supportedModels.includes(preferredModelKey as (typeof STRUCTURED_IMAGE_PRESET_MODEL_KEYS)[number])) {
+  if (preferredModelKey && supportedModels.includes(preferredModelKey)) {
     return preferredModelKey;
   }
-  if (fallbackModelKey && supportedModels.includes(fallbackModelKey as (typeof STRUCTURED_IMAGE_PRESET_MODEL_KEYS)[number])) {
+  if (fallbackModelKey && supportedModels.includes(fallbackModelKey)) {
     return fallbackModelKey;
   }
   return supportedModels[0] ?? null;

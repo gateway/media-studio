@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 import logging
+from pathlib import Path
+import tempfile
 from typing import List, Optional
 
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
@@ -66,6 +69,10 @@ def _not_found(name: str) -> HTTPException:
 
 def _bad_request(message: str) -> HTTPException:
     return HTTPException(status_code=400, detail=message)
+
+
+def _payload_too_large(message: str) -> HTTPException:
+    return HTTPException(status_code=413, detail=message)
 
 
 @asynccontextmanager
@@ -374,12 +381,35 @@ def register_reference_media(payload: ReferenceMediaRegisterRequest):
 @app.post("/media/reference-media/import", response_model=ReferenceMediaRecord)
 async def import_reference_media(file: UploadFile = File(...)):
     filename = str(file.filename or "").strip()
-    source_bytes = await file.read()
-    if not source_bytes:
+    settings.uploads_dir.mkdir(parents=True, exist_ok=True)
+    digest = sha256()
+    size_bytes = 0
+    with tempfile.NamedTemporaryFile(
+        prefix="reference-import-",
+        suffix=".upload",
+        dir=settings.uploads_dir,
+        delete=False,
+    ) as temp_file:
+        temp_path = Path(temp_file.name)
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            size_bytes += len(chunk)
+            if size_bytes > settings.media_reference_import_max_bytes:
+                temp_file.close()
+                temp_path.unlink(missing_ok=True)
+                raise _payload_too_large("Reference media file exceeds the maximum import size.")
+            digest.update(chunk)
+            temp_file.write(chunk)
+    if not size_bytes:
+        temp_path.unlink(missing_ok=True)
         raise _bad_request("Choose a reference file to import.")
     try:
-        record = service.import_reference_media_bytes(
-            source_bytes=source_bytes,
+        record = service.import_reference_media_streamed_upload(
+            source_digest=digest.hexdigest(),
+            source_size_bytes=size_bytes,
+            temp_path=temp_path,
             source_name=filename or None,
             source_mime_type=file.content_type,
         )

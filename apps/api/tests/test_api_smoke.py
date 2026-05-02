@@ -115,6 +115,54 @@ def test_pricing_estimate_applies_output_count_and_option_multipliers(client) ->
     assert summary["total"]["estimated_cost_usd"] == pytest.approx(0.18)
 
 
+def test_output_count_rejects_global_bounds(client) -> None:
+    too_low = client.post(
+        "/media/validate",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "A neon storefront portrait in the rain.",
+            "output_count": 0,
+        },
+    )
+    assert too_low.status_code == 422
+
+    too_high = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "A neon storefront portrait in the rain.",
+            "output_count": 11,
+        },
+    )
+    assert too_high.status_code == 422
+
+
+def test_output_count_respects_model_queue_policy_for_validate_estimate_and_submit(client) -> None:
+    policy_response = client.patch("/media/queue/policies/nano-banana-2", json={"max_outputs_per_run": 1})
+    assert policy_response.status_code == 200, policy_response.text
+
+    payload = {
+        "model_key": "nano-banana-2",
+        "task_mode": "text_to_image",
+        "prompt": "A neon storefront portrait in the rain.",
+        "output_count": 2,
+    }
+
+    validate_response = client.post("/media/validate", json=payload)
+    assert validate_response.status_code == 400
+    assert "limit of 1" in validate_response.json()["detail"]
+
+    estimate_response = client.post("/media/pricing/estimate", json=payload)
+    assert estimate_response.status_code == 400
+    assert "limit of 1" in estimate_response.json()["detail"]
+
+    submit_response = client.post("/media/jobs", json=payload)
+    assert submit_response.status_code == 400
+    assert "limit of 1" in submit_response.json()["detail"]
+
+
 def test_pricing_estimate_returns_gpt_image_2_observed_totals(client) -> None:
     response = client.post(
         "/media/pricing/estimate",
@@ -914,7 +962,7 @@ def test_delete_preset_archives_instead_of_hard_delete(client) -> None:
     assert all(item["preset_id"] != preset["preset_id"] for item in list_response.json())
 
 
-def test_runner_drains_queue_over_ten_outputs(client, app_modules) -> None:
+def test_runner_drains_queue_at_global_max_outputs(client, app_modules) -> None:
     client.patch("/media/queue/settings", json={"max_concurrent_jobs": 2})
     submit_response = client.post(
         "/media/jobs",
@@ -922,7 +970,7 @@ def test_runner_drains_queue_over_ten_outputs(client, app_modules) -> None:
             "model_key": "nano-banana-2",
             "task_mode": "text_to_image",
             "prompt": "Blade Runner inspired neon archive district with chrome rain and off-world market lights.",
-            "output_count": 12,
+            "output_count": 10,
         },
     )
     assert submit_response.status_code == 200, submit_response.text
@@ -934,18 +982,18 @@ def test_runner_drains_queue_over_ten_outputs(client, app_modules) -> None:
     runner.tick()
     batch = store.get_batch(batch_id)
     assert batch["completed_count"] == 2
-    assert batch["queued_count"] == 10
+    assert batch["queued_count"] == 8
     assert batch["running_count"] == 0
 
-    for _ in range(5):
+    for _ in range(4):
         runner.tick()
 
     batch = store.get_batch(batch_id)
-    assert batch["completed_count"] == 12
+    assert batch["completed_count"] == 10
     assert batch["queued_count"] == 0
     assert batch["running_count"] == 0
     assert batch["status"] == "completed"
-    assert len(store.list_assets(limit=20)) == 12
+    assert len(store.list_assets(limit=20)) == 10
 
 
 def test_enhancement_system_prompt_supports_user_prompt_placeholder(client, app_modules, monkeypatch) -> None:

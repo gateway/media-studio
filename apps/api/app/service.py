@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import mimetypes
 import re
+import shutil
 from hashlib import sha256
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
@@ -86,6 +87,19 @@ def _model_supports_structured_preset(model: Dict[str, Any], *, requires_image: 
 
 def _preset_requires_image(image_slots: List[Dict[str, Any]]) -> bool:
     return any(bool(slot.get("required")) for slot in image_slots)
+
+
+def _enforce_output_count_policy(request: ValidateRequest) -> None:
+    try:
+        policy = store.get_model_queue_policy(request.model_key)
+    except Exception:
+        logger.debug("model queue policy unavailable for output count validation", exc_info=True)
+        return
+    if not policy:
+        return
+    max_outputs = int(policy.get("max_outputs_per_run") or 1)
+    if request.output_count > max_outputs:
+        raise ServiceError("Output count exceeds the selected model limit of %s per run." % max_outputs)
 
 
 def _compatible_preset_model_keys(image_slots: List[Dict[str, Any]]) -> set[str]:
@@ -770,6 +784,88 @@ def import_reference_media_bytes(
     return store.create_or_reuse_reference_media(payload, increment_usage=True)
 
 
+def import_reference_media_file(
+    *,
+    source_path: Path,
+    source_digest: str,
+    source_size_bytes: int,
+    source_name: Optional[str] = None,
+    source_mime_type: Optional[str] = None,
+) -> Dict[str, Any]:
+    if source_size_bytes <= 0:
+        raise ServiceError("Choose a reference file to import.")
+
+    kind = _reference_kind_from_source(source_mime_type, source_name)
+    existing = store.get_reference_media_by_hash(kind, source_digest, source_size_bytes)
+    if existing:
+        existing_path = settings.data_root / str(existing.get("stored_path") or "")
+        if existing.get("stored_path") and existing_path.exists():
+            return store.mark_reference_media_used(str(existing["reference_id"]))
+
+    extension = _reference_extension_from_source(kind, source_name, source_mime_type)
+    root = _reference_root_for_kind(kind)
+    root.mkdir(parents=True, exist_ok=True)
+    stored_path = root / f"{source_digest}{extension}"
+    if not stored_path.exists():
+        shutil.move(str(source_path), stored_path)
+
+    width, height, duration_seconds = _probe_reference_media_metadata(stored_path, kind)
+    thumb_path = _write_reference_thumb(stored_path, source_digest) if kind == "image" else None
+    mime_type = source_mime_type or mimetypes.guess_type(source_name or stored_path.name)[0]
+
+    payload = {
+        "kind": kind,
+        "status": "active",
+        "original_filename": source_name or stored_path.name,
+        "stored_path": _relative_data_path(stored_path),
+        "mime_type": mime_type,
+        "file_size_bytes": source_size_bytes,
+        "sha256": source_digest,
+        "width": width,
+        "height": height,
+        "duration_seconds": duration_seconds,
+        "thumb_path": thumb_path,
+        "poster_path": None,
+        "usage_count": 1,
+        "metadata_json": {},
+    }
+
+    if existing:
+        updated_existing = store.mark_reference_media_used(str(existing["reference_id"]))
+        return store.create_or_update_reference_media(
+            {
+                **updated_existing,
+                **payload,
+                "reference_id": updated_existing["reference_id"],
+                "usage_count": updated_existing["usage_count"],
+                "last_used_at": updated_existing.get("last_used_at"),
+            }
+        )
+
+    return store.create_or_reuse_reference_media(payload, increment_usage=True)
+
+
+def import_reference_media_streamed_upload(
+    *,
+    source_digest: str,
+    source_size_bytes: int,
+    temp_path: Path,
+    source_name: Optional[str] = None,
+    source_mime_type: Optional[str] = None,
+) -> Dict[str, Any]:
+    try:
+        return import_reference_media_file(
+            source_path=temp_path,
+            source_digest=source_digest,
+            source_size_bytes=source_size_bytes,
+            source_name=source_name,
+            source_mime_type=source_mime_type,
+        )
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
 def _sha256_file(file_path: Path) -> str:
     digest = sha256()
     with file_path.open("rb") as handle:
@@ -893,6 +989,7 @@ def _resolve_preset(request: ValidateRequest) -> Tuple[Optional[Dict[str, Any]],
 
 
 def build_validation_bundle(request: ValidateRequest) -> Dict[str, Any]:
+    _enforce_output_count_policy(request)
     preset, text_values, image_slot_values, final_prompt = _resolve_preset(request)
     resolved_image_slot_values = {
         key: [_ref_to_kie(ref) for ref in refs]

@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 
 import { EmptyState, MediaBrowserCard, OverlayHeader, OverlayShell, SurfaceInset } from "@/components/ui/surface-primitives";
 import { presetThumbnailVisual, prettifyModelLabel, studioPresetSupportedModels } from "@/lib/media-studio-helpers";
-import type { MediaPreset } from "@/lib/types";
+import type { MediaModelSummary, MediaPreset } from "@/lib/types";
 
 type StudioPresetBrowserProps = {
   presets: MediaPreset[];
+  models: MediaModelSummary[];
   onClose: () => void;
   onSelectPreset: (preset: MediaPreset) => void;
 };
@@ -21,6 +22,7 @@ function presetInputSummary(preset: MediaPreset) {
 
 export function StudioPresetBrowser({
   presets,
+  models,
   onClose,
   onSelectPreset,
 }: StudioPresetBrowserProps) {
@@ -65,7 +67,7 @@ export function StudioPresetBrowser({
           {presets.length ? (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {presets.map((preset) => {
-                  const modelScope = studioPresetSupportedModels(preset)
+                  const modelScope = studioPresetSupportedModels(preset, models)
                     .map((modelKey) => prettifyModelLabel(modelKey))
                     .join(", ");
                   const thumb = presetThumbnailVisual(preset);

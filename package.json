@@ -25,9 +25,11 @@
     "dev": "npm run dev:web",
     "build:web": "npm --workspace apps/web run build",
     "lint:web": "npm --workspace apps/web run lint",
-    "typecheck:web": "npm --workspace apps/web run typecheck"
+    "typecheck:web": "npm --workspace apps/web run typecheck",
+    "smoke:studio": "node ./scripts/smoke_studio_playwright.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "vitest": "^3.2.4"
   }
 }

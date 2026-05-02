@@ -28,6 +28,16 @@ def _env_bool(name: str, default: bool) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value.strip())
+    except ValueError:
+        return default
+
+
 def _resolve_control_api_token(app_env: str) -> str:
     configured = os.getenv("MEDIA_STUDIO_CONTROL_API_TOKEN", "").strip()
     normalized_env = app_env.strip().lower()
@@ -68,6 +78,7 @@ class AppSettings(BaseModel):
     local_openai_base_url: str = "http://127.0.0.1:8080/v1"
     local_openai_api_key: Optional[str] = None
     media_auto_backup_before_migration: bool = True
+    media_reference_import_max_bytes: int = 104_857_600
 
     @property
     def uploads_dir(self) -> Path:
@@ -110,4 +121,5 @@ settings = AppSettings(
     local_openai_base_url=os.getenv("MEDIA_LOCAL_OPENAI_BASE_URL", "http://127.0.0.1:8080/v1"),
     local_openai_api_key=os.getenv("MEDIA_LOCAL_OPENAI_API_KEY"),
     media_auto_backup_before_migration=_env_bool("MEDIA_AUTO_BACKUP_BEFORE_MIGRATION", True),
+    media_reference_import_max_bytes=_env_int("MEDIA_REFERENCE_IMPORT_MAX_BYTES", 104_857_600),
 )

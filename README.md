@@ -89,7 +89,7 @@ The macOS and Windows onboarding scripts handle the normal setup path for you: d
 - **Queue And Job Tracking** keeps pending, running, completed, and failed work visible.
 - **Retry And Restore** brings failed jobs or old assets back into the composer instead of making you rebuild requests by hand.
 - **Local Data Ownership** keeps your database, uploads, downloads, outputs, presets, and project metadata on disk.
-- **Version Display** shows the current Media Studio build in the admin navigation and Settings page.
+- **Version Display** shows the current Media Studio build in the admin navigation.
 
 ## Useful Docs
 

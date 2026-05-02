@@ -15,7 +15,6 @@ import {
   displayChoiceLabel,
   inferInputPattern,
   isCoarsePointerDevice,
-  isStructuredImagePresetModel,
   isPresetSlotFilled,
   isSeedanceModel,
   isRecord,
@@ -317,9 +316,10 @@ export function useStudioComposer({
   const [openPicker, setOpenPicker] = useState<string | null>(null);
   const [lastStructuredPresetModelKey, setLastStructuredPresetModelKey] = useState(
     initialDraftRef.current?.lastNanoPresetModelKey ??
-      (isStructuredImagePresetModel(enabledModels[0]?.key ?? studioReadyModels[0]?.key ?? models[0]?.key ?? null)
-        ? (enabledModels[0]?.key ?? studioReadyModels[0]?.key ?? models[0]?.key ?? "nano-banana-2")
-        : "nano-banana-2"),
+      (enabledModels.find((model) => modelSupportsStructuredImagePreset(model, false) || modelSupportsStructuredImagePreset(model, true)) ??
+        studioReadyModels.find((model) => modelSupportsStructuredImagePreset(model, false) || modelSupportsStructuredImagePreset(model, true)) ??
+        models.find((model) => modelSupportsStructuredImagePreset(model, false) || modelSupportsStructuredImagePreset(model, true)))?.key ??
+      "nano-banana-2",
   );
 
   const currentModel = models.find((model) => model.key === modelKey) ?? null;
@@ -639,11 +639,11 @@ export function useStudioComposer({
   const multiShotScriptError = multiShotsEnabled ? multiShotScript.errors[0] ?? null : null;
   const selectedPromptList = selectedPromptObjects(selectedPromptIds, prompts);
   const availableStudioPresets = useMemo(
-    () => presets.filter((preset) => isStudioPresetVisible(preset)),
-    [presets],
+    () => presets.filter((preset) => isStudioPresetVisible(preset, models)),
+    [models, presets],
   );
   const modelPresets = currentModelSupportsStructuredPresets
-    ? availableStudioPresets.filter((preset) => studioPresetSupportedModels(preset).includes(modelKey))
+    ? availableStudioPresets.filter((preset) => studioPresetSupportedModels(preset, models).includes(modelKey))
     : [];
   const structuredPresetPromptPreview = structuredPresetActive
     ? renderStructuredPresetPrompt(currentPreset?.prompt_template ?? "", presetInputValues, presetSlotStates, structuredPresetImageSlots)
@@ -1380,7 +1380,7 @@ export function useStudioComposer({
     }
 
     const nextModelKey =
-      resolveStudioPresetTargetModel(targetPreset, options.preferredModelKey ?? modelKey, lastStructuredPresetModelKey) ?? modelKey;
+      resolveStudioPresetTargetModel(targetPreset, options.preferredModelKey ?? modelKey, lastStructuredPresetModelKey, models) ?? modelKey;
     if (nextModelKey !== modelKey) {
       setModelKey(nextModelKey);
     }
