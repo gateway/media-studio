@@ -211,6 +211,7 @@ function composerModelChoice(model: MediaModelSummary) {
 }
 
 type ReferenceLibraryTarget =
+  | { type: "browse"; title: string }
   | { type: "attachment"; title: string; role?: "first_frame" | "last_frame" | "reference" | null; allowedKinds?: AttachmentRecord["kind"][] }
   | { type: "standard-slot"; title: string; slotIndex: number; label: string; allowedKinds?: AttachmentRecord["kind"][] }
   | { type: "preset-slot"; title: string; slotKey: string };
@@ -817,7 +818,10 @@ export function MediaStudio({
 
   function openContextualReferenceLibrary() {
     if (!canOpenReferenceLibrary) {
-      setFormMessage({ tone: "warning", text: "This model is text-to-video only, so Studio is hiding image inputs." });
+      openReferenceLibrary({
+        type: "browse",
+        title: "Reference Library",
+      });
       return;
     }
     if (structuredPresetActive && structuredPresetImageSlots.length) {
@@ -901,6 +905,13 @@ export function MediaStudio({
     const target = referenceLibraryTarget;
     setReferenceLibraryTarget(null);
     if (!target) {
+      return;
+    }
+    if (target.type === "browse") {
+      setFormMessage({
+        tone: "warning",
+        text: "This model cannot use image references. Switch to a model with image inputs to stage a library image.",
+      });
       return;
     }
     if (target.type === "preset-slot") {
@@ -2284,7 +2295,7 @@ export function MediaStudio({
         void router.push(buildStudioScopedHref("/settings", selectedProjectId));
         return;
       }
-      if (key === "i" && canOpenReferenceLibrary) {
+      if (key === "i") {
         event.preventDefault();
         openContextualReferenceLibrary();
       }
@@ -2293,7 +2304,6 @@ export function MediaStudio({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
-    canOpenReferenceLibrary,
     isTypingTarget,
     lockingOverlayOpen,
     openContextualReferenceLibrary,
@@ -3111,7 +3121,6 @@ export function MediaStudio({
             onOpenProjects={() => setProjectBrowserOpen(true)}
             onOpenPresets={() => setPresetBrowserOpen(true)}
             onOpenLibrary={openContextualReferenceLibrary}
-            showLibraryButton={canOpenReferenceLibrary}
             onOpenSettings={() => void router.push(buildStudioScopedHref("/settings", selectedProjectId))}
           />
 

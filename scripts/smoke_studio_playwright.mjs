@@ -170,6 +170,11 @@ async function run() {
 
     await page.goto(`${webBaseUrl}/studio`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("studio-gallery").waitFor({ timeout: 45_000 });
+    await page.getByTestId("studio-filter-library").waitFor({ timeout: 10_000 });
+    await page.mouse.click(24, 500);
+    await page.keyboard.press("i");
+    await page.getByTestId("studio-reference-library").waitFor({ timeout: 10_000 });
+    await page.getByRole("button", { name: "Close reference library" }).click();
     await page.getByTestId("studio-picker-model").click();
     await page.getByText("Images", { exact: true }).first().waitFor({ timeout: 10_000 });
     await page.getByText("Video", { exact: true }).first().waitFor({ timeout: 10_000 });
