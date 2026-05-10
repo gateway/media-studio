@@ -31,11 +31,19 @@ Friendlier macOS launchers call the same production-style path:
 - `Start Media Studio.command`
 - `Stop Media Studio.command`
 
+Explicit platform scripts are available when you do not want to use npm aliases:
+
+- macOS: `./scripts/run_studio_mac.sh` and `./scripts/stop_studio_mac.sh`
+- Windows: `powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1` and `powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1`
+- Linux: `./scripts/run_studio_linux.sh` and `./scripts/stop_studio_linux.sh`
+
 Stop from any platform with:
 
 ```bash
 npm run stop:studio
 ```
+
+In production mode the shared launcher also checks whether the sibling `kie-api` checkout is behind GitHub, offers a fast-forward update when the checkout is clean, checks migration status, and creates a local database backup before pending migrations.
 
 ## Alternate Ports
 

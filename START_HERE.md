@@ -98,6 +98,8 @@ Stop it later with:
 npm run stop:studio
 ```
 
+Those commands use the same shared launcher as the platform scripts. On startup it checks whether the sibling `kie-api` checkout has newer releases, offers to fast-forward it when safe, checks database migration status, creates a database backup before pending migrations, refreshes the production web build if needed, starts the API and web app together, waits for readiness, and opens Studio.
+
 If you ever close that launcher window by mistake or the local app feels stuck, the easiest reset is:
 
 - double-click `Stop Media Studio.command`
@@ -109,6 +111,18 @@ If you prefer Terminal but still want the same production-style local run, use:
 
 ```bash
 ./scripts/run_studio_mac.sh
+```
+
+Equivalent explicit platform scripts are:
+
+```bash
+./scripts/run_studio_linux.sh
+./scripts/stop_studio_linux.sh
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1
 ```
 
 ## Developer mode

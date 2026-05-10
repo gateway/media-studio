@@ -258,13 +258,13 @@ Write-Host " - OpenRouter: $openRouterStatus"
 Write-Host " - Local OpenAI base URL: $(Get-EnvValue 'MEDIA_LOCAL_OPENAI_BASE_URL')"
 Write-Host ""
 Write-Host "Next commands"
-Write-Host " - Studio: npm run start:studio"
-Write-Host " - Stop later: npm run stop:studio"
+Write-Host " - Studio: powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1"
+Write-Host " - Stop later: powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1"
 Write-Host " - Setup page: http://127.0.0.1:3000/setup"
 Write-Host ""
 
 $launchNow = Read-Host "Open Media Studio in a new PowerShell window now? [y/N]"
 if ($launchNow -match '^[Yy]$') {
-  Start-DevWindow "npm run start:studio"
+  Start-DevWindow "powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1"
   Write-Host "Opening one PowerShell window for the API and web app."
 }

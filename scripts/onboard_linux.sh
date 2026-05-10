@@ -141,12 +141,12 @@ echo " - OpenRouter: $openrouter_status"
 echo " - Local OpenAI base URL: $(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
 echo
 echo "Next commands"
-echo " - Studio: npm run start:studio"
-echo " - Stop later: npm run stop:studio"
+echo " - Studio: ./scripts/run_studio_linux.sh"
+echo " - Stop later: ./scripts/stop_studio_linux.sh"
 echo " - Setup page: http://127.0.0.1:3000/setup"
 echo
 
 if prompt_yes_no "Start Media Studio now in this terminal?" "N"; then
   cd "$MEDIA_ROOT"
-  exec npm run start:studio
+  exec ./scripts/run_studio_linux.sh
 fi

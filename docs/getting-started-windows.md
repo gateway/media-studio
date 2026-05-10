@@ -58,7 +58,7 @@ These are optional. Users can still generate media without them.
 Manual start commands:
 
 ```powershell
-npm run start:studio
+powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1
 ```
 
 Then open:
@@ -66,16 +66,16 @@ Then open:
 - `http://127.0.0.1:3000/setup`
 - `http://127.0.0.1:3000/studio`
 
-`npm run start:studio` starts the API and web app together in one PowerShell window, refreshes the production web build if needed, writes runtime logs under `data\runtime\`, waits for readiness, and opens Studio. Stop it with:
+The Windows start script starts the API and web app together in one PowerShell window, checks the sibling `kie-api` checkout for new releases, offers a fast-forward update when safe, checks migration safety, creates a database backup before pending migrations, refreshes the production web build if needed, writes runtime logs under `data\runtime\`, waits for readiness, and opens Studio. Stop it with:
 
 ```powershell
-npm run stop:studio
+powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1
 ```
 
 If `8000` or `3000` is already in use by another app, startup automatically chooses the next open local ports and wires the web app to the selected API port for that launch. To force a specific pair, run with explicit ports:
 
 ```powershell
-npm run start:studio -- --api-port 8010 --web-port 3010
+powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1 --api-port 8010 --web-port 3010
 ```
 
 ## 7. Back up or rebuild local state

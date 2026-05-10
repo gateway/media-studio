@@ -73,11 +73,17 @@ The Linux onboarding script handles the same normal setup path as macOS and Wind
 npm run start:studio
 ```
 
-`npm run start:studio` starts the API and web app together in production mode, checks the local database before migrations, refreshes the production web build if needed, writes runtime logs under `data/runtime/`, waits for readiness, and opens Studio. Stop it with:
+`npm run start:studio` starts the API and web app together in production mode, checks the sibling `kie-api` checkout for new releases, offers a fast-forward update when safe, checks the local database before migrations, creates a migration backup when needed, refreshes the production web build if needed, writes runtime logs under `data/runtime/`, waits for readiness, and opens Studio. Stop it with:
 
 ```bash
 npm run stop:studio
 ```
+
+Platform-specific wrappers are also available:
+
+- macOS: `./scripts/run_studio_mac.sh` and `./scripts/stop_studio_mac.sh`
+- Windows: `powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1` and `powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1`
+- Linux: `./scripts/run_studio_linux.sh` and `./scripts/stop_studio_linux.sh`
 
 If the default ports are busy, Studio automatically chooses the next open API and web ports for that launch. To force a specific pair, pass explicit ports:
 

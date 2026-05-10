@@ -33,21 +33,21 @@ The onboarding script will:
 Start Studio:
 
 ```bash
-npm run start:studio
+./scripts/run_studio_linux.sh
 ```
 
 Stop Studio:
 
 ```bash
-npm run stop:studio
+./scripts/stop_studio_linux.sh
 ```
 
-The start command runs the API and web app together in one terminal, checks migration safety, refreshes the production web build if needed, writes logs under `data/runtime/`, waits for readiness, and opens Studio.
+The start command runs the API and web app together in one terminal, checks the sibling `kie-api` checkout for new releases, offers a fast-forward update when safe, checks migration safety, creates a database backup before pending migrations, refreshes the production web build if needed, writes logs under `data/runtime/`, waits for readiness, and opens Studio.
 
 Alternate ports:
 
 ```bash
-npm run start:studio -- --api-port 8010 --web-port 3010
+./scripts/run_studio_linux.sh --api-port 8010 --web-port 3010
 ```
 
 If the default ports are busy, Studio automatically chooses the next open API and web ports for that launch. Passing explicit ports keeps startup strict: if one of those ports is busy, startup stops and asks you to choose another pair.
