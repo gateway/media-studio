@@ -168,8 +168,24 @@ function pipeWithPrefix(stream, prefix, logStream) {
   });
 }
 
+function commandDisplay(command, args) {
+  const displayCommand = process.platform === "win32" && command.toLowerCase().endsWith("npm.cmd") ? "npm" : command;
+  return [displayCommand, ...args].join(" ");
+}
+
+function windowsCommandShim(command, args) {
+  if (process.platform !== "win32" || !command.toLowerCase().endsWith("npm.cmd")) {
+    return { command, args };
+  }
+  return {
+    command: process.env.ComSpec || "cmd.exe",
+    args: ["/d", "/s", "/c", "npm", ...args],
+  };
+}
+
 function startProcess(label, command, args, env, { logFile, pidFile } = {}) {
-  const child = spawn(command, args, {
+  const invocation = windowsCommandShim(command, args);
+  const child = spawn(invocation.command, invocation.args, {
     cwd: mediaRoot,
     env,
     stdio: ["inherit", "pipe", "pipe"],
@@ -213,7 +229,8 @@ async function waitForUrl(url, timeoutMs = 90000) {
 }
 
 function spawnChecked(command, args, env, label) {
-  const result = spawnSync(command, args, {
+  const invocation = windowsCommandShim(command, args);
+  const result = spawnSync(invocation.command, invocation.args, {
     cwd: mediaRoot,
     env,
     stdio: "inherit",
@@ -222,7 +239,7 @@ function spawnChecked(command, args, env, label) {
     throw new Error(`${label} failed to start: ${result.error.message}`);
   }
   if (result.status !== 0) {
-    const commandLine = [command, ...args].join(" ");
+    const commandLine = commandDisplay(command, args);
     throw new Error(`${label} failed with exit code ${result.status ?? "unknown"}. Re-run this command for full details: ${commandLine}`);
   }
 }
