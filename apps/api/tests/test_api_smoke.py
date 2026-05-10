@@ -1851,3 +1851,40 @@ def test_finalize_job_is_idempotent_after_artifact_publish(client, app_modules, 
     assert second["status"] == "completed"
     assert publish_calls["count"] == 1
     assert store.get_job(job["job_id"])["artifact_json"]
+
+
+def test_finalize_job_marks_failed_when_artifact_publish_fails(client, app_modules, monkeypatch) -> None:
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "Artifact publish failure test.",
+            "output_count": 1,
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    job = submit_response.json()["jobs"][0]
+    store = app_modules["store"]
+    runner = app_modules["runner"].runner
+
+    store.update_job(job["job_id"], {"provider_task_id": "task-publish-fail-123", "status": "running"})
+
+    def _fake_download(_url: str, destination: str) -> None:
+        Path(destination).write_bytes(b"not a real mp4")
+
+    def _raise_publish_error(*args, **kwargs):
+        raise RuntimeError("ffprobe is required for video derivative generation")
+
+    monkeypatch.setattr(app_modules["runner"].kie_adapter, "download_output_file", _fake_download)
+    monkeypatch.setattr(app_modules["runner"].service, "publish_job_artifact", _raise_publish_error)
+
+    status = {"state": "succeeded", "output_urls": ["https://example.com/output.png"]}
+    updated = runner._finalize_job_from_status(store.get_job(job["job_id"]), status)
+
+    assert updated["status"] == "failed"
+    assert updated["finished_at"] is not None
+    assert updated["error"] == "Artifact publish failed: ffprobe is required for video derivative generation"
+    assert store.count_job_events(job["job_id"], "artifact_publish_failed") == 1
+    failed_events = [event for event in store.list_job_events(job["job_id"]) if event["event_type"] == "failed"]
+    assert any(event["payload_json"].get("reason") == "artifact_publish_failed" for event in failed_events)

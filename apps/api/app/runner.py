@@ -201,11 +201,17 @@ class MediaRunner:
                         updated = store.update_job(
                             updated["job_id"],
                             {
-                                "status": "running",
+                                "status": "failed",
                                 "error": "Artifact publish failed: %s" % exc,
+                                "finished_at": store.utcnow_iso(),
                             },
                         )
-                        store.append_job_event(updated["job_id"], "artifact_publish_retry", {"error": str(exc)})
+                        store.append_job_event(updated["job_id"], "artifact_publish_failed", {"error": str(exc)})
+                        store.append_job_event(
+                            updated["job_id"],
+                            "failed",
+                            {"error": str(exc), "reason": "artifact_publish_failed"},
+                        )
                 else:
                     updated = store.update_job(
                         updated["job_id"],
