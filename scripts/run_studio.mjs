@@ -218,8 +218,12 @@ function spawnChecked(command, args, env, label) {
     env,
     stdio: "inherit",
   });
+  if (result.error) {
+    throw new Error(`${label} failed to start: ${result.error.message}`);
+  }
   if (result.status !== 0) {
-    throw new Error(`${label} failed.`);
+    const commandLine = [command, ...args].join(" ");
+    throw new Error(`${label} failed with exit code ${result.status ?? "unknown"}. Re-run this command for full details: ${commandLine}`);
   }
 }
 
@@ -263,15 +267,25 @@ function walkFiles(root, files = []) {
 
 function ensureWebBuild(runtime) {
   const stamp = path.join(mediaRoot, "node_modules", ".package-lock.json");
-  const jszipPackage = path.join(mediaRoot, "node_modules", "jszip", "package.json");
+  const requiredPackages = [
+    path.join(mediaRoot, "node_modules", "jszip", "package.json"),
+    path.join(mediaRoot, "node_modules", "typescript", "package.json"),
+    path.join(mediaRoot, "node_modules", "tailwindcss", "package.json"),
+    path.join(mediaRoot, "node_modules", "@tailwindcss", "postcss", "package.json"),
+  ];
   const packageFiles = [
     path.join(mediaRoot, "package.json"),
     path.join(mediaRoot, "package-lock.json"),
     path.join(mediaRoot, "apps", "web", "package.json"),
   ];
-  if (!existsSync(path.join(mediaRoot, "node_modules")) || !existsSync(stamp) || !existsSync(jszipPackage) || isNewerThanAny(stamp, packageFiles)) {
+  if (
+    !existsSync(path.join(mediaRoot, "node_modules")) ||
+    !existsSync(stamp) ||
+    requiredPackages.some((packageFile) => !existsSync(packageFile)) ||
+    isNewerThanAny(stamp, packageFiles)
+  ) {
     console.log("Refreshing Media Studio web dependencies...");
-    spawnChecked(npmCommand(), ["install", "--no-fund", "--no-audit"], runtime.env, "npm install");
+    spawnChecked(npmCommand(), ["install", "--include=dev", "--no-fund", "--no-audit"], runtime.env, "npm install");
   }
 
   const buildId = path.join(mediaRoot, "apps", "web", ".next", "BUILD_ID");

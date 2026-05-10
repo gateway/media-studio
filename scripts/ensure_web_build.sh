@@ -9,6 +9,9 @@ MEDIA_ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
 BUILD_ID_FILE="$MEDIA_ROOT/apps/web/.next/BUILD_ID"
 NODE_MODULES_STAMP="$MEDIA_ROOT/node_modules/.package-lock.json"
 JSZIP_PACKAGE="$MEDIA_ROOT/node_modules/jszip/package.json"
+TYPESCRIPT_PACKAGE="$MEDIA_ROOT/node_modules/typescript/package.json"
+TAILWIND_PACKAGE="$MEDIA_ROOT/node_modules/tailwindcss/package.json"
+TAILWIND_POSTCSS_PACKAGE="$MEDIA_ROOT/node_modules/@tailwindcss/postcss/package.json"
 
 needs_build=false
 needs_install=false
@@ -25,12 +28,18 @@ elif [[ "$MEDIA_ROOT/apps/web/package.json" -nt "$NODE_MODULES_STAMP" ]]; then
   needs_install=true
 elif [[ ! -f "$JSZIP_PACKAGE" ]]; then
   needs_install=true
+elif [[ ! -f "$TYPESCRIPT_PACKAGE" ]]; then
+  needs_install=true
+elif [[ ! -f "$TAILWIND_PACKAGE" ]]; then
+  needs_install=true
+elif [[ ! -f "$TAILWIND_POSTCSS_PACKAGE" ]]; then
+  needs_install=true
 fi
 
 if [[ "$needs_install" == true ]]; then
   echo "Refreshing Media Studio web dependencies..."
   cd "$MEDIA_ROOT"
-  npm install --no-fund --no-audit
+  npm install --include=dev --no-fund --no-audit
 fi
 
 if [[ ! -f "$BUILD_ID_FILE" ]]; then

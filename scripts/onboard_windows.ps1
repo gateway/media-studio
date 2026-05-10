@@ -142,6 +142,7 @@ function Start-DevWindow {
 
 Require-Command git
 Require-Command python
+Require-Command node
 Require-Command npm
 Require-Command powershell
 
@@ -173,7 +174,7 @@ Write-Host "Installing shared Python dependencies ..."
 
 Write-Host "Installing web dependencies ..."
 Push-Location $MediaRoot
-npm install
+npm install --include=dev --no-fund --no-audit
 Pop-Location
 
 New-Item -ItemType Directory -Force -Path (Join-Path $MediaRoot "data") | Out-Null
