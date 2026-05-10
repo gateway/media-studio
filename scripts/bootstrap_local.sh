@@ -142,4 +142,5 @@ PY
 
 echo
 echo "Bootstrap complete."
-echo "Run Media Studio with:  npm run dev"
+echo "Run Media Studio with:  npm run start:studio"
+echo "Stop it later with:     npm run stop:studio"

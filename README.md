@@ -64,22 +64,28 @@ powershell -ExecutionPolicy Bypass -File .\scripts\onboard_windows.ps1
 ```bash
 git clone https://github.com/gateway/media-studio.git
 cd media-studio
-./scripts/bootstrap_local.sh
+./scripts/onboard_linux.sh
 ```
 
-Then add your `KIE_API_KEY` to `.env` and run:
+The Linux onboarding script handles the same normal setup path as macOS and Windows. For a manual start later, run:
 
 ```bash
-npm run dev
+npm run start:studio
 ```
 
-`npm run dev` starts the API and web app together. If the default ports are busy, stop the existing process or choose another pair:
+`npm run start:studio` starts the API and web app together in production mode, checks the local database before migrations, refreshes the production web build if needed, writes runtime logs under `data/runtime/`, waits for readiness, and opens Studio. Stop it with:
 
 ```bash
-npm run dev -- --api-port 8010 --web-port 3010
+npm run stop:studio
 ```
 
-The macOS and Windows onboarding scripts handle the normal setup path for you: dependencies, local environment, database, Kie API key prompt, and optional prompt enhancement setup.
+If the default ports are busy, Studio automatically chooses the next open API and web ports for that launch. To force a specific pair, pass explicit ports:
+
+```bash
+npm run start:studio -- --api-port 8010 --web-port 3010
+```
+
+The macOS, Windows, and Linux onboarding scripts handle the normal setup path for you: dependencies, local environment, database, Kie API key prompt, and optional prompt enhancement setup.
 
 ## Cool Features
 
@@ -104,10 +110,9 @@ The macOS and Windows onboarding scripts handle the normal setup path for you: d
 - [docs/getting-started-windows.md](docs/getting-started-windows.md)
 - [docs/advanced-runtime.md](docs/advanced-runtime.md)
 - [docs/pricing-integration.md](docs/pricing-integration.md)
-- [docs/request-lifecycle.md](docs/request-lifecycle.md)
 
 ## Versioning
 
 The first public release line starts at `v1.0.0`.
 
-When you ship a new build, update the root `package.json` version. The app reads that package version and displays it as `vX.Y.Z` in the admin nav and Settings page, so testers can confirm exactly which build they are running.
+When you ship a new build, update the root `package.json` version. The app reads that package version and displays it as `vX.Y.Z` in the admin nav, so testers can confirm exactly which build they are running.

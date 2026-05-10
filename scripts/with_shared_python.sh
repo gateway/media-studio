@@ -12,7 +12,7 @@ VENV_PY="$KIE_ROOT/.venv/bin/python"
 
 if [[ ! -x "$VENV_PY" ]]; then
   echo "Shared Media Studio Python runtime not found at $VENV_PY" >&2
-  echo "Run ./scripts/bootstrap_local.sh first." >&2
+  echo "Run ./scripts/onboard_mac.sh, ./scripts/onboard_linux.sh, or scripts/onboard_windows.ps1 first." >&2
   exit 1
 fi
 

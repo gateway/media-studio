@@ -6,13 +6,15 @@ If you just want to install and start generating, use:
 
 - [START_HERE.md](../START_HERE.md)
 - [getting-started-mac.md](./getting-started-mac.md)
+- [getting-started-windows.md](./getting-started-windows.md)
+- [getting-started-linux.md](./getting-started-linux.md)
 
 ## Normal Launch
 
 From the repo root:
 
 ```bash
-./scripts/run_studio_mac.sh
+npm run start:studio
 ```
 
 That starts:
@@ -20,21 +22,29 @@ That starts:
 - the FastAPI control API
 - the Next.js web app
 
-Then it waits for Studio to become ready and opens the browser to:
+Then it checks migration safety, refreshes the production web build if needed, writes logs under `data/runtime/`, waits for Studio to become ready, and opens the browser to:
 
 - `http://127.0.0.1:3000/studio`
 
-Friendlier macOS launchers:
+Friendlier macOS launchers call the same production-style path:
 
 - `Start Media Studio.command`
 - `Stop Media Studio.command`
 
-## Alternate Ports
-
-If `3000` or `8000` is already in use, launch with a different pair:
+Stop from any platform with:
 
 ```bash
-./scripts/run_studio_mac.sh --api-port 8010 --web-port 3010
+npm run stop:studio
+```
+
+## Alternate Ports
+
+If `3000` or `8000` is already in use by another app, the shared launcher automatically chooses the next open API and web ports for that launch and wires the web app to the selected API port.
+
+To force a specific pair, pass explicit ports:
+
+```bash
+npm run start:studio -- --api-port 8010 --web-port 3010
 ```
 
 If you want the same override through the macOS opener:
@@ -46,7 +56,7 @@ If you want the same override through the macOS opener:
 Stop the same pair with:
 
 ```bash
-./scripts/stop_studio_mac.sh --api-port 8010 --web-port 3010
+npm run stop:studio -- --api-port 8010 --web-port 3010
 ```
 
 The startup scripts derive the matching web-to-API base URL automatically, so you do not need to hand-edit multiple environment variables just to move to a different local port pair.
@@ -76,15 +86,15 @@ MEDIA_STUDIO_ALLOW_PRIVATE_NETWORK_ACCESS=true
 Then restart Studio:
 
 ```bash
-./scripts/stop_studio_mac.sh
-./scripts/run_studio_mac.sh
+npm run stop:studio
+npm run start:studio
 ```
 
 For an alternate port pair:
 
 ```bash
-./scripts/stop_studio_mac.sh --api-port 8010 --web-port 3010
-./scripts/run_studio_mac.sh --api-port 8010 --web-port 3010
+npm run stop:studio -- --api-port 8010 --web-port 3010
+npm run start:studio -- --api-port 8010 --web-port 3010
 ```
 
 If you are using development mode instead of the normal production-style launcher, also set:

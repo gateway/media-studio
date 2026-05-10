@@ -36,7 +36,7 @@ def ensure_shared_python(repo_root: Path, script_file: str, argv: list[str]) -> 
         shared_python = resolve_shared_python(repo_root)
         if not shared_python.exists():
             raise RuntimeError(
-                f"shared Media Studio Python runtime not found at {shared_python}. Run ./scripts/bootstrap_local.sh first."
+                f"shared Media Studio Python runtime not found at {shared_python}. Run the platform setup script first."
             )
         if Path(sys.executable).resolve() == shared_python.resolve():
             raise

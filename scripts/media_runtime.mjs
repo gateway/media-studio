@@ -1,5 +1,5 @@
 import { Socket, createServer } from "node:net";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -68,6 +68,21 @@ export function npmCommand() {
   return process.platform === "win32" ? "npm.cmd" : "npm";
 }
 
+export function runtimePaths(root = mediaRoot, env = process.env) {
+  const dataRoot = env.MEDIA_STUDIO_DATA_ROOT || path.join(root, "data");
+  const runtimeDir = path.join(dataRoot, "runtime");
+  mkdirSync(runtimeDir, { recursive: true });
+  return {
+    dataRoot,
+    runtimeDir,
+    apiLog: path.join(runtimeDir, "media-studio-api.log"),
+    webLog: path.join(runtimeDir, "media-studio-web.log"),
+    apiPidFile: path.join(runtimeDir, "media-studio-api.pid"),
+    webPidFile: path.join(runtimeDir, "media-studio-web.pid"),
+    launcherPidFile: path.join(runtimeDir, "media-studio-launcher.pid"),
+  };
+}
+
 export function runtimeAccessHost(host) {
   if (!host || host === "0.0.0.0") {
     return "127.0.0.1";
@@ -131,6 +146,20 @@ export function isPortAvailable(host, port) {
       server.listen(Number(port), host);
     });
   });
+}
+
+export async function findAvailablePort(host, preferredPort, { maxAttempts = 100, exclude = new Set() } = {}) {
+  const start = Number.parseInt(String(preferredPort), 10);
+  for (let offset = 0; offset < maxAttempts; offset += 1) {
+    const candidate = String(start + offset);
+    if (Number(candidate) > 65535 || exclude.has(candidate)) {
+      continue;
+    }
+    if (await isPortAvailable(host, candidate)) {
+      return candidate;
+    }
+  }
+  throw new Error(`Could not find an open port near ${preferredPort}.`);
 }
 
 export function withResolvedRuntimeEnv({

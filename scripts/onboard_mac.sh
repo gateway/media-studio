@@ -452,7 +452,7 @@ PY
 }
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "This onboarding flow is tuned for macOS. Use ./scripts/bootstrap_local.sh on other platforms." >&2
+  echo "This onboarding flow is tuned for macOS. Use ./scripts/onboard_linux.sh on Linux or scripts/onboard_windows.ps1 on Windows." >&2
   exit 1
 fi
 

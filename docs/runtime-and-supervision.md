@@ -44,6 +44,19 @@ All examples live in:
 
 ## Start Commands
 
+Normal local one-terminal launch:
+
+```bash
+cd /absolute/path/to/media-studio
+npm run start:studio
+```
+
+Stop that launcher:
+
+```bash
+npm run stop:studio
+```
+
 API:
 
 ```bash
@@ -63,6 +76,7 @@ Notes:
 
 - `start:api` uses [`scripts/dev_api.mjs`](../scripts/dev_api.mjs) with reload disabled
 - it loads `.env`, points at the shared KIE repo, and starts `uvicorn` without `--reload`
+- `start:studio` wraps the API and web app together with migration backup checks, production build refresh, runtime logs, PID files, and browser open
 - `npm run dev` starts both the API and web app in one terminal for local coding sessions
 
 ## PM2

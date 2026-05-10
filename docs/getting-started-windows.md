@@ -58,7 +58,7 @@ These are optional. Users can still generate media without them.
 Manual start commands:
 
 ```powershell
-npm run dev
+npm run start:studio
 ```
 
 Then open:
@@ -66,10 +66,16 @@ Then open:
 - `http://127.0.0.1:3000/setup`
 - `http://127.0.0.1:3000/studio`
 
-`npm run dev` starts the API and web app together in one PowerShell window. If `8000` or `3000` is already in use, startup stops with a clear message. Stop the existing process, change `MEDIA_STUDIO_API_PORT` or `MEDIA_STUDIO_WEB_PORT` in `.env`, or run with explicit ports:
+`npm run start:studio` starts the API and web app together in one PowerShell window, refreshes the production web build if needed, writes runtime logs under `data\runtime\`, waits for readiness, and opens Studio. Stop it with:
 
 ```powershell
-npm run dev -- --api-port 8010 --web-port 3010
+npm run stop:studio
+```
+
+If `8000` or `3000` is already in use by another app, startup automatically chooses the next open local ports and wires the web app to the selected API port for that launch. To force a specific pair, run with explicit ports:
+
+```powershell
+npm run start:studio -- --api-port 8010 --web-port 3010
 ```
 
 ## 7. Back up or rebuild local state

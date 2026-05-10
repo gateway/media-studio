@@ -49,6 +49,14 @@ cd media-studio
 powershell -ExecutionPolicy Bypass -File .\scripts\onboard_windows.ps1
 ```
 
+Linux:
+
+```bash
+git clone https://github.com/gateway/media-studio.git
+cd media-studio
+./scripts/onboard_linux.sh
+```
+
 Those scripts will:
 
 - reuse an existing sibling `../kie-api` or `../kie-ai/kie_codex_bootstrap` checkout when present
@@ -78,6 +86,18 @@ For a normal Mac user, the easiest way to reopen the app later is:
 
 That Mac launcher starts the API and web app together in one Terminal window in production mode, waits for Studio to be ready, and opens your browser directly to `/studio`.
 
+For Windows or Linux, the equivalent normal launch path is:
+
+```bash
+npm run start:studio
+```
+
+Stop it later with:
+
+```bash
+npm run stop:studio
+```
+
 If you ever close that launcher window by mistake or the local app feels stuck, the easiest reset is:
 
 - double-click `Stop Media Studio.command`
@@ -96,8 +116,7 @@ If you prefer Terminal but still want the same production-style local run, use:
 If you are editing the code and want hot reload instead of the normal user launch path, use:
 
 ```bash
-npm run dev:api
-./scripts/dev_web.sh
+npm run dev
 ```
 
 That runs the app in development mode and can show dev-only UI such as the Next.js badge or overlay.
@@ -137,12 +156,15 @@ Then open:
 Terminal launchers also accept direct overrides, for example:
 
 ```bash
-./scripts/run_studio_mac.sh --api-port 8010 --web-port 3010
+npm run start:studio -- --api-port 8010 --web-port 3010
 ```
+
+If the default ports are already busy, the shared launcher automatically picks the next open local ports for that launch.
 
 ## If you want more detail
 
 - [README.md](README.md)
 - [docs/getting-started-mac.md](docs/getting-started-mac.md)
 - [docs/getting-started-windows.md](docs/getting-started-windows.md)
+- [docs/getting-started-linux.md](docs/getting-started-linux.md)
 - [docs/runtime-and-supervision.md](docs/runtime-and-supervision.md)

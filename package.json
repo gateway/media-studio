@@ -8,6 +8,7 @@
   "scripts": {
     "setup:mac": "./scripts/onboard_mac.sh",
     "setup:windows": "powershell -ExecutionPolicy Bypass -File .\\scripts\\onboard_windows.ps1",
+    "setup:linux": "./scripts/onboard_linux.sh",
     "setup:shared-env": "./scripts/setup_shared_env.sh",
     "review:scaffold": "./scripts/scaffold_review_outputs.sh",
     "generate:api-specs": "./scripts/with_shared_python.sh ./scripts/generate_api_specs.py",
@@ -23,6 +24,9 @@
     "start:web": "npm --workspace apps/web run start",
     "build": "npm run build:web",
     "dev": "node ./scripts/run_studio.mjs",
+    "start": "npm run start:studio",
+    "start:studio": "node ./scripts/run_studio.mjs --production --open",
+    "stop:studio": "node ./scripts/stop_studio.mjs",
     "build:web": "npm --workspace apps/web run build",
     "lint:web": "npm --workspace apps/web run lint",
     "typecheck:web": "npm --workspace apps/web run typecheck",
