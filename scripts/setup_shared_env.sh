@@ -17,7 +17,6 @@ fi
 
 "$VENV_PIP" install -e "$KIE_ROOT"
 "$VENV_PIP" install -e "$MEDIA_ROOT/apps/api"
-"$VENV_PIP" install fastapi "uvicorn[standard]" python-multipart httpx "pytest-asyncio>=0.23,<1.0"
 
 MEDIA_STUDIO_DB_PATH="${MEDIA_STUDIO_DB_PATH:-$MEDIA_ROOT/data/media-studio.db}" \
 MEDIA_STUDIO_DATA_ROOT="${MEDIA_STUDIO_DATA_ROOT:-$MEDIA_ROOT/data}" \

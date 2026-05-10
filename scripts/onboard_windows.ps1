@@ -115,6 +115,19 @@ function Read-SecretOrBlank {
   }
 }
 
+function Format-ConfiguredStatus {
+  param(
+    [string]$Value,
+    [string]$ConfiguredLabel = "configured",
+    [string]$MissingLabel = "missing"
+  )
+
+  if ($Value) {
+    return $ConfiguredLabel
+  }
+  return $MissingLabel
+}
+
 function Start-DevWindow {
   param([string]$Command)
 
@@ -155,7 +168,6 @@ Write-Host "Installing shared Python dependencies ..."
 & $VenvPip install --upgrade pip setuptools wheel
 & $VenvPip install -e $KieRoot
 & $VenvPip install -e (Join-Path $MediaRoot "apps\api")
-& $VenvPip install fastapi "uvicorn[standard]" python-multipart httpx "pytest-asyncio>=0.23,<1.0"
 
 Write-Host "Installing web dependencies ..."
 Push-Location $MediaRoot
@@ -231,9 +243,15 @@ if ($localApiKey) {
 
 Write-Host ""
 Write-Host "Current setup summary"
-Write-Host " - KIE API key: $((if (Get-EnvValue 'KIE_API_KEY') { 'configured' } else { 'missing' }))"
-Write-Host " - Live submit: $((if ((Get-EnvValue 'MEDIA_ENABLE_LIVE_SUBMIT') -eq 'true') { 'enabled' } else { 'offline' }))"
-Write-Host " - OpenRouter: $((if (Get-EnvValue 'OPENROUTER_API_KEY') { 'configured' } else { 'skipped' }))"
+$kieKeyStatus = Format-ConfiguredStatus (Get-EnvValue "KIE_API_KEY") "configured" "missing"
+$liveSubmitStatus = "offline"
+if ((Get-EnvValue "MEDIA_ENABLE_LIVE_SUBMIT") -eq "true") {
+  $liveSubmitStatus = "enabled"
+}
+$openRouterStatus = Format-ConfiguredStatus (Get-EnvValue "OPENROUTER_API_KEY") "configured" "skipped"
+Write-Host " - KIE API key: $kieKeyStatus"
+Write-Host " - Live submit: $liveSubmitStatus"
+Write-Host " - OpenRouter: $openRouterStatus"
 Write-Host " - Local OpenAI base URL: $(Get-EnvValue 'MEDIA_LOCAL_OPENAI_BASE_URL')"
 Write-Host ""
 Write-Host "Next commands"
