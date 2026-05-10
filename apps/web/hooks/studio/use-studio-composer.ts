@@ -603,9 +603,17 @@ export function useStudioComposer({
 
   const structuredPresetTextFields = useMemo(() => normalizeStructuredPresetTextFields(currentPreset), [currentPreset]);
   const structuredPresetImageSlots = useMemo(() => normalizeStructuredPresetImageSlots(currentPreset), [currentPreset]);
+  const currentPresetSupportedModelKeys = useMemo(
+    () => new Set(studioPresetSupportedModels(currentPreset, models)),
+    [currentPreset, models],
+  );
+  const currentPresetCompatibleWithModel =
+    Boolean(currentPreset) && currentPresetSupportedModelKeys.has(modelKey);
+  const currentPresetDefaultOptions =
+    currentPresetCompatibleWithModel && isRecord(currentPreset?.default_options_json) ? currentPreset.default_options_json : null;
   const structuredPresetActive =
     currentModelSupportsStructuredPresets &&
-    Boolean(currentPreset) &&
+    currentPresetCompatibleWithModel &&
     (structuredPresetTextFields.length > 0 || structuredPresetImageSlots.length > 0);
   const effectiveSeedanceMode = seedanceComposer ? inferInputPattern(currentModel, attachments, currentSourceAsset) : "prompt_only";
   const inputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
@@ -665,7 +673,9 @@ export function useStudioComposer({
         }
         return null;
       })()
-    : presetRequirementMessage(currentPreset, attachments, currentSourceAsset);
+    : currentPresetCompatibleWithModel
+      ? presetRequirementMessage(currentPreset, attachments, currentSourceAsset)
+      : null;
   const firstPresetSlotPreview =
     structuredPresetImageSlots.map((slot) => presetSlotStates[slot.key]?.previewUrl).find((value) => Boolean(value)) ?? null;
   const enhancementPreviewVisual = resolveEnhancementPreviewVisual({
@@ -685,7 +695,7 @@ export function useStudioComposer({
     const normalized = buildNormalizedStudioOptions(
       currentModel,
       optionValues,
-      isRecord(currentPreset?.default_options_json) ? currentPreset.default_options_json : null,
+      currentPresetDefaultOptions,
     );
     return deriveStudioPricingOptions({
       modelKey,
@@ -693,7 +703,7 @@ export function useStudioComposer({
       attachments,
       sourceAsset: currentSourceAsset,
     });
-  }, [attachments, currentModel, currentPreset?.default_options_json, currentSourceAsset, modelKey, optionValues]);
+  }, [attachments, currentModel, currentPresetDefaultOptions, currentSourceAsset, modelKey, optionValues]);
   const selectedPromptSignature = useMemo(() => selectedPromptIds.join("|"), [selectedPromptIds]);
   const attachmentSignature = useMemo(
     () =>
@@ -755,9 +765,26 @@ export function useStudioComposer({
 
   useEffect(() => {
     setOptionValues(
-      buildNormalizedStudioOptions(currentModel, {}, isRecord(currentPreset?.default_options_json) ? currentPreset.default_options_json : null),
+      buildNormalizedStudioOptions(currentModel, {}, currentPresetDefaultOptions),
     );
-  }, [modelKey, currentPresetSelectionKey]);
+  }, [currentModel, currentPresetDefaultOptions, currentPresetSelectionKey, modelKey]);
+
+  useEffect(() => {
+    if (!selectedPresetId || currentPresetCompatibleWithModel) {
+      return;
+    }
+    setSelectedPresetId("");
+    setPresetInputValues({});
+    setPresetSlotStates((current) => {
+      for (const state of Object.values(current)) {
+        if (state?.previewUrl && state.file) {
+          URL.revokeObjectURL(state.previewUrl);
+        }
+      }
+      return {};
+    });
+    setValidation(null);
+  }, [currentPresetCompatibleWithModel, selectedPresetId]);
 
   useEffect(() => {
     if (seedanceComposer && sourceAssetId != null) {
@@ -1424,7 +1451,7 @@ export function useStudioComposer({
     const normalizedOptions = buildNormalizedStudioOptions(
       currentModel,
       optionValues,
-      isRecord(currentPreset?.default_options_json) ? currentPreset.default_options_json : null,
+      currentPresetDefaultOptions,
     );
     const sanitizedOptions = stripUnsupportedStudioOptions(modelKey, inferredInputPattern, normalizedOptions);
     const effectivePrompt = structuredPresetActive ? structuredPresetPromptPreview : prompt;
@@ -1441,12 +1468,11 @@ export function useStudioComposer({
     if (multiShotsEnabled && multiShotScript.shots.length) {
       formData.set("multi_prompt", JSON.stringify(multiShotScript.shots));
     }
-    if (selectedPresetId) {
-      const selectedPreset = presets.find((preset) => preset.preset_id === selectedPresetId || preset.key === selectedPresetId);
-      if (selectedPreset?.source_kind === "builtin") {
-        formData.set("preset_key", selectedPreset.key);
+    if (currentPresetCompatibleWithModel && currentPreset) {
+      if (currentPreset.source_kind === "builtin") {
+        formData.set("preset_key", currentPreset.key);
       } else {
-        formData.set("preset_id", selectedPresetId);
+        formData.set("preset_id", currentPreset.preset_id ?? selectedPresetId);
       }
     }
     if (projectId) {

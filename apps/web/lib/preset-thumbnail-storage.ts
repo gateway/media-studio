@@ -6,6 +6,16 @@ import path from "node:path";
 import sharp from "sharp";
 
 const PRESET_THUMBNAILS_DIR = path.resolve(process.cwd(), "..", "..", "data", "preset-thumbnails");
+const SHIPPED_PRESET_THUMBNAILS_DIR = path.resolve(
+  process.cwd(),
+  "..",
+  "..",
+  "apps",
+  "api",
+  "app",
+  "seed_assets",
+  "preset-thumbnails",
+);
 
 export function safePresetThumbnailSlug(value: string) {
   return value
@@ -55,18 +65,29 @@ export async function storePresetThumbnailBuffer({
 }
 
 export function resolvePresetThumbnailAbsolutePath(thumbnailPath: string | null | undefined) {
+  const candidatePaths = resolvePresetThumbnailCandidatePaths(thumbnailPath);
+  return candidatePaths[0] ?? null;
+}
+
+export function resolvePresetThumbnailCandidatePaths(thumbnailPath: string | null | undefined) {
   const normalized = String(thumbnailPath ?? "").trim().replace(/^\/+/, "");
   if (!normalized) {
-    return null;
+    return [];
   }
-  const safePath = normalized.replace(/^preset-thumbnails\//, "");
-  return path.join(PRESET_THUMBNAILS_DIR, safePath);
+  const safePath = path.normalize(normalized).replace(/^(\.\.(\/|\\|$))+/, "").replace(/^preset-thumbnails[\\/]/, "");
+  if (!safePath || safePath.startsWith("..")) {
+    return [];
+  }
+  return [path.join(PRESET_THUMBNAILS_DIR, safePath), path.join(SHIPPED_PRESET_THUMBNAILS_DIR, safePath)];
 }
 
 export async function readPresetThumbnailBuffer(thumbnailPath: string | null | undefined) {
-  const absolutePath = resolvePresetThumbnailAbsolutePath(thumbnailPath);
-  if (!absolutePath) {
-    return null;
+  for (const absolutePath of resolvePresetThumbnailCandidatePaths(thumbnailPath)) {
+    try {
+      return await readFile(absolutePath);
+    } catch {
+      continue;
+    }
   }
-  return readFile(absolutePath);
+  return null;
 }

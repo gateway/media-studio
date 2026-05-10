@@ -1,7 +1,6 @@
-import { access, readFile } from "node:fs/promises";
-import path from "node:path";
+import { readFile } from "node:fs/promises";
 
-const PRESET_THUMBNAILS_DIR = path.resolve(process.cwd(), "..", "..", "data", "preset-thumbnails");
+import { resolvePresetThumbnailCandidatePaths } from "@/lib/preset-thumbnail-storage";
 
 type RouteContext = {
   params: Promise<{
@@ -12,20 +11,21 @@ type RouteContext = {
 export async function GET(_request: Request, { params }: RouteContext) {
   const resolved = await params;
   const relativePath = resolved.path.join("/");
-  const safePath = path.normalize(relativePath).replace(/^(\.\.(\/|\\|$))+/, "");
-  const absolutePath = path.join(PRESET_THUMBNAILS_DIR, safePath);
 
-  try {
-    await access(absolutePath);
-    const buffer = await readFile(absolutePath);
-    return new Response(buffer, {
-      status: 200,
-      headers: {
-        "content-type": "image/webp",
-        "cache-control": "public, max-age=31536000, immutable",
-      },
-    });
-  } catch {
-    return new Response("Not found", { status: 404 });
+  for (const absolutePath of resolvePresetThumbnailCandidatePaths(relativePath)) {
+    try {
+      const buffer = await readFile(absolutePath);
+      return new Response(buffer, {
+        status: 200,
+        headers: {
+          "content-type": "image/webp",
+          "cache-control": "public, max-age=31536000, immutable",
+        },
+      });
+    } catch {
+      continue;
+    }
   }
+
+  return new Response("Not found", { status: 404 });
 }

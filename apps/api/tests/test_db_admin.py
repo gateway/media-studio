@@ -28,7 +28,7 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert _count_rows(clean_db, "media_projects") == 0
     assert _count_rows(clean_db, "media_project_references") == 0
     assert _count_rows(clean_db, "media_queue_settings") == 1
-    assert _count_rows(clean_db, "media_presets") >= 2
+    assert _count_rows(clean_db, "media_presets") >= 7
     connection = sqlite3.connect(clean_db)
     try:
         row = connection.execute(
@@ -39,10 +39,15 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
             """
             SELECT applies_to_models_json
             FROM media_presets
-            WHERE preset_id IN (?, ?)
+            WHERE preset_id IN (?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                "media-preset-2x2-pose-grid-shared",
                 "media-preset-3d-caricature-style-nano-banana-shared",
+                "media-preset-exploding-food-shared",
+                "media-preset-food-recipe-infographic-shared",
+                "media-preset-giant-animal-anywhere-shared",
+                "media-preset-photo-restoration-shared",
                 "media-preset-selfie-with-movie-character-nano-banana-shared",
             ),
         ).fetchall()
@@ -53,9 +58,9 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert int(row[1] or 0) == 1
 
     status = store.get_schema_status(clean_db)
-    assert len(preset_rows) == 2
-    for preset_row in preset_rows:
-        assert "gpt-image-2-image-to-image" in json.loads(preset_row[0])
+    assert len(preset_rows) == 7
+    assert any("gpt-image-2-image-to-image" in json.loads(preset_row[0]) for preset_row in preset_rows)
+    assert any("gpt-image-2-text-to-image" in json.loads(preset_row[0]) for preset_row in preset_rows)
 
     assert status["schema_version"] == 4
     assert status["latest_version"] == 4

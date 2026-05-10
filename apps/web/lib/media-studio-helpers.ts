@@ -366,6 +366,17 @@ export function studioPresetSupportedModels(preset: MediaPreset | null | undefin
   return uniqueScopedModels.filter((modelKey) => isStructuredImagePresetModel(modelKey));
 }
 
+export function studioPresetSupportsModel(
+  preset: MediaPreset | null | undefined,
+  modelKey: string | null | undefined,
+  models?: MediaModelSummary[],
+) {
+  if (!modelKey) {
+    return false;
+  }
+  return studioPresetSupportedModels(preset, models).includes(modelKey);
+}
+
 export function isStudioPresetVisible(preset: MediaPreset | null | undefined, models?: MediaModelSummary[]) {
   if (!preset) {
     return false;

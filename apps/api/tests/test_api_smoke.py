@@ -477,29 +477,54 @@ def test_required_image_preset_rejects_gpt_text_to_image(client) -> None:
     assert "Unsupported preset model scope" in response.text
 
 
-def test_seeded_shared_nano_presets_exist(client) -> None:
+def test_seeded_shared_presets_exist(client) -> None:
     response = client.get("/media/presets")
     assert response.status_code == 200
     presets = response.json()
-    shared = {item["key"]: item for item in presets if item["key"] in {
+    expected_keys = {
+        "2x2-pose-grid",
         "3d-caricature-style-nano-banana",
+        "exploding-food",
+        "food-recipe-infographic",
+        "giant-animal-anywhere",
+        "photo-restoration",
         "selfie-with-movie-character-nano-banana",
-    }}
-    assert set(shared.keys()) == {
+    }
+    shared = {item["key"]: item for item in presets if item["key"] in expected_keys}
+    assert set(shared.keys()) == expected_keys
+    assert not any("2way" in item["key"].lower() or "two-way" in item["key"].lower() for item in presets)
+
+    image_to_image_keys = {
+        "2x2-pose-grid",
         "3d-caricature-style-nano-banana",
+        "photo-restoration",
         "selfie-with-movie-character-nano-banana",
     }
     for preset in shared.values():
-        assert sorted(preset["applies_to_models"]) == [
-            "gpt-image-2-image-to-image",
-            "nano-banana-2",
-            "nano-banana-pro",
-        ]
-        assert sorted(preset["applies_to_models_json"]) == [
-            "gpt-image-2-image-to-image",
-            "nano-banana-2",
-            "nano-banana-pro",
-        ]
+        assert preset["thumbnail_path"]
+        assert preset["thumbnail_url"]
+        if preset["key"] in image_to_image_keys:
+            assert sorted(preset["applies_to_models"]) == [
+                "gpt-image-2-image-to-image",
+                "nano-banana-2",
+                "nano-banana-pro",
+            ]
+            assert sorted(preset["applies_to_models_json"]) == [
+                "gpt-image-2-image-to-image",
+                "nano-banana-2",
+                "nano-banana-pro",
+            ]
+        else:
+            assert sorted(preset["applies_to_models"]) == [
+                "gpt-image-2-text-to-image",
+                "nano-banana-2",
+                "nano-banana-pro",
+            ]
+            assert sorted(preset["applies_to_models_json"]) == [
+                "gpt-image-2-text-to-image",
+                "nano-banana-2",
+                "nano-banana-pro",
+            ]
 
 
 def test_validate_and_submit_job(client) -> None:
