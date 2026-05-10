@@ -20,10 +20,6 @@ export function toControlApiDataPreviewPath(pathValue: string | null | undefined
   const normalizedPath = pathValue.replaceAll("\\", "/");
   const knownRelativePrefixes = ["outputs/", "reference-media/", "downloads/", "uploads/"];
 
-  if (!normalizedPath.startsWith("/")) {
-    return toControlApiDataProxyPath(normalizedPath);
-  }
-
   for (const marker of ["/runtime/control-api/data/", "/data/"]) {
     const markerIndex = normalizedPath.indexOf(marker);
     if (markerIndex === -1) {
@@ -36,6 +32,10 @@ export function toControlApiDataPreviewPath(pathValue: string | null | undefined
     if (knownRelativePrefixes.some((prefix) => relative.startsWith(prefix))) {
       return `/api/control/files/${relative}`;
     }
+  }
+
+  if (!normalizedPath.startsWith("/")) {
+    return toControlApiDataProxyPath(normalizedPath);
   }
 
   return toControlApiDataProxyPath(normalizedPath);

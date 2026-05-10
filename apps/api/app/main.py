@@ -9,8 +9,7 @@ import tempfile
 from typing import List, Optional
 
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
 
 from . import kie_adapter, service, store
 from .control_auth import validate_control_request
@@ -104,7 +103,48 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 settings.data_root.mkdir(parents=True, exist_ok=True)
-app.mount("/media/files", StaticFiles(directory=settings.data_root, check_dir=False), name="media-files")
+
+
+def _resolve_media_file_path(file_path: str) -> Optional[Path]:
+    raw_path = str(file_path or "").replace("\\", "/")
+    relative_path = raw_path.lstrip("/")
+    known_prefixes = ("outputs/", "reference-media/", "downloads/", "uploads/", "preset-thumbnails/")
+    data_root = settings.data_root.resolve()
+    candidates: List[Path] = []
+
+    if relative_path.startswith(known_prefixes):
+        candidates.append(settings.data_root / relative_path)
+
+    normalized_data_root = data_root.as_posix().rstrip("/")
+    if raw_path.casefold().startswith((normalized_data_root + "/").casefold()):
+        candidates.append(data_root / raw_path[len(normalized_data_root) + 1 :])
+
+    marker_index = raw_path.casefold().find("/data/")
+    if marker_index >= 0:
+        marker_relative = raw_path[marker_index + len("/data/") :].lstrip("/")
+        if marker_relative.startswith(known_prefixes):
+            candidates.append(settings.data_root / marker_relative)
+
+    raw_as_path = Path(raw_path)
+    if raw_as_path.is_absolute():
+        candidates.append(raw_as_path)
+
+    for candidate in candidates:
+        resolved = candidate.resolve(strict=False)
+        try:
+            resolved.relative_to(data_root)
+        except ValueError:
+            continue
+        return resolved
+    return None
+
+
+@app.get("/media/files/{file_path:path}")
+def get_media_file(file_path: str):
+    resolved = _resolve_media_file_path(file_path)
+    if not resolved or not resolved.exists() or not resolved.is_file():
+        raise _not_found("file")
+    return FileResponse(resolved)
 
 
 @app.middleware("http")

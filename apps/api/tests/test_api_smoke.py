@@ -2,6 +2,7 @@ import pytest
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 
 def test_media_routes_require_internal_control_token(unauthenticated_client) -> None:
@@ -32,6 +33,35 @@ def test_health_endpoint(client) -> None:
     assert payload["kie_models_total"] >= 1
     assert payload["kie_models_studio_exposed"] >= 1
     assert payload["pricing_version"]
+
+
+def test_media_files_serves_relative_data_path(client, app_modules) -> None:
+    target = app_modules["main"].settings.data_root / "outputs" / "smoke-relative.txt"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("relative ok", encoding="utf-8")
+
+    response = client.get("/media/files/outputs/smoke-relative.txt")
+
+    assert response.status_code == 200
+    assert response.text == "relative ok"
+
+
+def test_media_files_serves_windows_absolute_data_path(client, app_modules) -> None:
+    target = app_modules["main"].settings.data_root / "reference-media" / "images" / "windows-ref.txt"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("windows path ok", encoding="utf-8")
+
+    windows_absolute_path = "E:/Development/media-studio/data/reference-media/images/windows-ref.txt"
+    response = client.get(f"/media/files/{quote(windows_absolute_path, safe='/')}")
+
+    assert response.status_code == 200
+    assert response.text == "windows path ok"
+
+
+def test_media_files_rejects_paths_outside_data_root(client) -> None:
+    response = client.get("/media/files/E%3A/Development/other/private.txt")
+
+    assert response.status_code == 404
 
 
 def test_health_endpoint_reports_paused_when_queue_disabled(client) -> None:
