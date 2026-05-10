@@ -50,6 +50,8 @@ BLOCKED_PREFIXES = (
 BLOCKED_EXACT = {
     "docs/API_SECURITY_FULL_REPORT.md",
     "docs/review-remediation-plan.md",
+    "scripts/audit_api_security.py",
+    "scripts/scaffold_review_outputs.sh",
 }
 ALLOWED_EXACT = {
     ".env.example",
