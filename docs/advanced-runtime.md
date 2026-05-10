@@ -56,15 +56,14 @@ The startup scripts derive the matching web-to-API base URL automatically, so yo
 If you are actively working on the code and want hot reload:
 
 ```bash
-npm run dev:api
-./scripts/dev_web.sh
+npm run dev
 ```
 
 Then open:
 
 - `http://127.0.0.1:3000/studio`
 
-Use this for development only. It runs the web app in Next.js dev mode.
+Use this for development only. It runs the API and web app together with hot reload.
 
 ## Private LAN / TailScale Access
 

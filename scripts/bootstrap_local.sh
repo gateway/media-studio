@@ -142,5 +142,4 @@ PY
 
 echo
 echo "Bootstrap complete."
-echo "Run the API with:  npm run dev:api"
-echo "Run the web with:  ./scripts/dev_web.sh"
+echo "Run Media Studio with:  npm run dev"

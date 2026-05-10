@@ -70,8 +70,13 @@ cd media-studio
 Then add your `KIE_API_KEY` to `.env` and run:
 
 ```bash
-npm run dev:api
-./scripts/dev_web.sh
+npm run dev
+```
+
+`npm run dev` starts the API and web app together. If the default ports are busy, stop the existing process or choose another pair:
+
+```bash
+npm run dev -- --api-port 8010 --web-port 3010
 ```
 
 The macOS and Windows onboarding scripts handle the normal setup path for you: dependencies, local environment, database, Kie API key prompt, and optional prompt enhancement setup.

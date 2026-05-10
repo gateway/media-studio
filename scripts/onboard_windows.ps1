@@ -255,14 +255,12 @@ Write-Host " - OpenRouter: $openRouterStatus"
 Write-Host " - Local OpenAI base URL: $(Get-EnvValue 'MEDIA_LOCAL_OPENAI_BASE_URL')"
 Write-Host ""
 Write-Host "Next commands"
-Write-Host " - API: npm run dev:api"
-Write-Host " - Web: npm run dev:web"
+Write-Host " - Studio: npm run dev"
 Write-Host " - Setup page: http://127.0.0.1:3000/setup"
 Write-Host ""
 
-$launchNow = Read-Host "Open the API and web commands in new PowerShell windows now? [y/N]"
+$launchNow = Read-Host "Open Media Studio in a new PowerShell window now? [y/N]"
 if ($launchNow -match '^[Yy]$') {
-  Start-DevWindow "npm run dev:api"
-  Start-DevWindow "npm run dev:web"
-  Write-Host "Opening PowerShell windows for the API and web app."
+  Start-DevWindow "npm run dev"
+  Write-Host "Opening one PowerShell window for the API and web app."
 }

@@ -61,9 +61,9 @@ npm run start:web
 
 Notes:
 
-- `start:api` uses [`scripts/start_api.sh`](../scripts/start_api.sh)
+- `start:api` uses [`scripts/dev_api.mjs`](../scripts/dev_api.mjs) with reload disabled
 - it loads `.env`, points at the shared KIE repo, and starts `uvicorn` without `--reload`
-- `dev:api` is still the right choice for local coding sessions
+- `npm run dev` starts both the API and web app in one terminal for local coding sessions
 
 ## PM2
 

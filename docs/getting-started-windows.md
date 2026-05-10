@@ -58,14 +58,19 @@ These are optional. Users can still generate media without them.
 Manual start commands:
 
 ```powershell
-npm run dev:api
-npm run dev:web
+npm run dev
 ```
 
 Then open:
 
 - `http://127.0.0.1:3000/setup`
 - `http://127.0.0.1:3000/studio`
+
+`npm run dev` starts the API and web app together in one PowerShell window. If `8000` or `3000` is already in use, startup stops with a clear message. Stop the existing process, change `MEDIA_STUDIO_API_PORT` or `MEDIA_STUDIO_WEB_PORT` in `.env`, or run with explicit ports:
+
+```powershell
+npm run dev -- --api-port 8010 --web-port 3010
+```
 
 ## 7. Back up or rebuild local state
 

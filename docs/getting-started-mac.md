@@ -140,11 +140,10 @@ The Mac launcher now also tries to auto-clean stale local Media Studio processes
 If you are actively working on the code and want hot reload, use:
 
 ```bash
-npm run dev:api
-./scripts/dev_web.sh
+npm run dev
 ```
 
-That path is for development only. It runs the web app in Next.js dev mode, so you may see dev-only UI such as the Next badge or overlay.
+That path is for development only. It runs the API and web app together with hot reload, so you may see dev-only UI such as the Next badge or overlay.
 
 Then open:
 
