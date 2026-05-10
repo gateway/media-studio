@@ -17,6 +17,8 @@ The shortest way to think about it:
 - `npm`
 - a `KIE_API_KEY` for live generation through Kie AI
 
+Video thumbnail and playback derivative support is installed through the shared `kie-api` Python environment. You do not need a separate FFmpeg install for normal setup.
+
 If this machine still needs Git, Python 3, or Node.js:
 
 - [docs/prerequisites.md](docs/prerequisites.md)
@@ -98,7 +100,7 @@ Stop it later with:
 npm run stop:studio
 ```
 
-Those commands use the same shared launcher as the platform scripts. On startup it checks whether the sibling `kie-api` checkout has newer releases, offers to fast-forward it when safe, checks database migration status, creates a database backup before pending migrations, refreshes the production web build if needed, starts the API and web app together, waits for readiness, and opens Studio.
+Those commands use the same shared launcher as the platform scripts. On startup it checks whether the sibling `kie-api` checkout has newer releases, offers to fast-forward it when safe, checks database migration status, creates a database backup before pending migrations, refreshes shared Python dependencies and the production web build if needed, starts the API and web app together, waits for readiness, and opens Studio.
 
 If you ever close that launcher window by mistake or the local app feels stuck, the easiest reset is:
 

@@ -323,6 +323,28 @@ function ensureWebBuild(runtime) {
   spawnChecked(npmCommand(), ["run", "build:web"], runtime.env, "web build");
 }
 
+function pythonModuleAvailable(runtime, moduleName) {
+  const result = spawnSync(runtime.pythonPath, ["-c", `import ${moduleName}`], {
+    cwd: mediaRoot,
+    env: runtime.env,
+    stdio: "ignore",
+  });
+  return result.status === 0;
+}
+
+function ensurePythonDependencies(runtime, { force = false } = {}) {
+  if (!force && pythonModuleAvailable(runtime, "imageio_ffmpeg")) {
+    return;
+  }
+  console.log("Refreshing shared Python dependencies...");
+  spawnChecked(
+    runtime.pythonPath,
+    ["-m", "pip", "install", "-e", runtime.kieRoot, "-e", path.join(mediaRoot, "apps", "api")],
+    runtime.env,
+    "shared Python dependency install",
+  );
+}
+
 function runPythonJson(scriptName, args, runtime) {
   const result = spawnSync(runtime.pythonPath, [path.join(mediaRoot, "scripts", scriptName), ...args], {
     cwd: mediaRoot,
@@ -399,25 +421,25 @@ async function promptYesNo(question, defaultAnswer = "N") {
 async function kieRepoPreflight(runtime) {
   const kieRoot = runtime.kieRoot;
   if (!existsSync(path.join(kieRoot, ".git"))) {
-    return;
+    return false;
   }
   const fetch = git(["fetch", "--quiet", "--prune", "origin"], kieRoot);
   if (fetch.status !== 0) {
     console.log("Warning: unable to check whether kie-api is up to date with GitHub.");
     console.log(`Reusing the current kie-api checkout at: ${kieRoot}`);
     console.log("");
-    return;
+    return false;
   }
   const branch = git(["rev-parse", "--abbrev-ref", "HEAD"], kieRoot).stdout.trim();
   const upstreamResult = git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], kieRoot);
   const upstream = upstreamResult.status === 0 ? upstreamResult.stdout.trim() : branch ? `origin/${branch}` : "";
   if (!upstream) {
-    return;
+    return false;
   }
   const counts = git(["rev-list", "--left-right", "--count", `${upstream}...HEAD`], kieRoot).stdout.trim().split(/\s+/);
   const behind = Number.parseInt(counts[0] || "0", 10);
   if (!behind) {
-    return;
+    return false;
   }
   const dirty = git(["status", "--porcelain", "--untracked-files=no"], kieRoot).stdout.trim().length > 0;
   console.log("************************************************************");
@@ -429,7 +451,7 @@ async function kieRepoPreflight(runtime) {
     console.log("Local kie-api changes are present, so startup will not try to update it.");
     console.log(`Update it manually with: git -C "${kieRoot}" fetch --prune origin && git -C "${kieRoot}" pull --ff-only`);
     console.log("");
-    return;
+    return false;
   }
 
   const policy = (runtime.env.MEDIA_STUDIO_UPDATE_KIE_API || "ask").toLowerCase();
@@ -440,16 +462,19 @@ async function kieRepoPreflight(runtime) {
   if (!shouldUpdate) {
     console.log("Keeping the current kie-api checkout.");
     console.log("");
-    return;
+    return false;
   }
   console.log("Updating kie-api checkout...");
   const pull = git(["pull", "--ff-only", "origin", branch], kieRoot, { stdio: "inherit" });
   if (pull.status !== 0) {
     console.log("Warning: kie-api update failed. Studio will continue with the current checkout.");
+    console.log("");
+    return false;
   } else {
     console.log("kie-api updated successfully.");
   }
   console.log("");
+  return true;
 }
 
 function openBrowser(url) {
@@ -584,7 +609,8 @@ async function main() {
   console.log("");
 
   if (options.production) {
-    await kieRepoPreflight(runtime);
+    const kieUpdated = await kieRepoPreflight(runtime);
+    ensurePythonDependencies(runtime, { force: kieUpdated });
     migrationPreflight(runtime);
     ensureWebBuild(runtime);
   }

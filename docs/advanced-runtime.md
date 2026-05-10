@@ -22,7 +22,7 @@ That starts:
 - the FastAPI control API
 - the Next.js web app
 
-Then it checks migration safety, refreshes the production web build if needed, writes logs under `data/runtime/`, waits for Studio to become ready, and opens the browser to:
+Then it checks migration safety, refreshes shared Python dependencies and the production web build if needed, writes logs under `data/runtime/`, waits for Studio to become ready, and opens the browser to:
 
 - `http://127.0.0.1:3000/studio`
 

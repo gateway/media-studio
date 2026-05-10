@@ -10,6 +10,8 @@ Make sure these are available in PowerShell:
 - `python`
 - `npm`
 
+Video thumbnails, posters, and browser-friendly playback derivatives are handled by the shared `kie-api` Python environment. If you already have a system FFmpeg install, KIE API can use it, but Windows setup does not require a separate FFmpeg install.
+
 ## 2. Clone Media Studio
 
 ```powershell
@@ -66,7 +68,7 @@ Then open:
 - `http://127.0.0.1:3000/setup`
 - `http://127.0.0.1:3000/studio`
 
-The Windows start script starts the API and web app together in one PowerShell window, checks the sibling `kie-api` checkout for new releases, offers a fast-forward update when safe, checks migration safety, creates a database backup before pending migrations, refreshes the production web build if needed, writes runtime logs under `data\runtime\`, waits for readiness, and opens Studio. Stop it with:
+The Windows start script starts the API and web app together in one PowerShell window, checks the sibling `kie-api` checkout for new releases, offers a fast-forward update when safe, checks migration safety, creates a database backup before pending migrations, refreshes shared Python dependencies and the production web build if needed, writes runtime logs under `data\runtime\`, waits for readiness, and opens Studio. Stop it with:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1

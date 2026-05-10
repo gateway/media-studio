@@ -43,6 +43,8 @@ You need:
 - a funded [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) account
 - a `KIE_API_KEY`
 
+Video thumbnails, posters, and browser-friendly playback derivatives are handled through the shared `kie-api` Python environment. A system FFmpeg install can be used when present, but it is not required for normal setup.
+
 ### macOS
 
 ```bash
@@ -73,7 +75,7 @@ The Linux onboarding script handles the same normal setup path as macOS and Wind
 npm run start:studio
 ```
 
-`npm run start:studio` starts the API and web app together in production mode, checks the sibling `kie-api` checkout for new releases, offers a fast-forward update when safe, checks the local database before migrations, creates a migration backup when needed, refreshes the production web build if needed, writes runtime logs under `data/runtime/`, waits for readiness, and opens Studio. Stop it with:
+`npm run start:studio` starts the API and web app together in production mode, checks the sibling `kie-api` checkout for new releases, offers a fast-forward update when safe, checks the local database before migrations, creates a migration backup when needed, refreshes shared Python dependencies and the production web build if needed, writes runtime logs under `data/runtime/`, waits for readiness, and opens Studio. Stop it with:
 
 ```bash
 npm run stop:studio

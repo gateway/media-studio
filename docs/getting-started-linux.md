@@ -42,7 +42,7 @@ Stop Studio:
 ./scripts/stop_studio_linux.sh
 ```
 
-The start command runs the API and web app together in one terminal, checks the sibling `kie-api` checkout for new releases, offers a fast-forward update when safe, checks migration safety, creates a database backup before pending migrations, refreshes the production web build if needed, writes logs under `data/runtime/`, waits for readiness, and opens Studio.
+The start command runs the API and web app together in one terminal, checks the sibling `kie-api` checkout for new releases, offers a fast-forward update when safe, checks migration safety, creates a database backup before pending migrations, refreshes shared Python dependencies and the production web build if needed, writes logs under `data/runtime/`, waits for readiness, and opens Studio.
 
 Alternate ports:
 

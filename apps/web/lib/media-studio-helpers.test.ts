@@ -16,7 +16,10 @@ import {
   insertImageAttachments,
   isPresetSlotFilled,
   isStudioPresetVisible,
+  mediaDisplayUrl,
   mediaDownloadName,
+  mediaPlaybackUrl,
+  mediaThumbnailUrl,
   modelSupportsStructuredImagePreset,
   modelSupportsFirstLastFrames,
   modelSupportsImageDrivenInputs,
@@ -401,6 +404,25 @@ describe("media-studio-helpers Seedance support", () => {
         imageAttachmentPreviewUrls: [],
       }),
     ).toBe("/api/control/files/outputs/thumb/source.webp");
+  });
+
+  it("keeps original video playback available when derivatives are missing", () => {
+    const asset = {
+      generation_kind: "video",
+      hero_original_path: "outputs/2026-05-10/run/original/output_01.mp4",
+      hero_web_path: null,
+      hero_thumb_path: null,
+      hero_poster_path: null,
+      hero_original_url: null,
+      hero_web_url: null,
+      hero_thumb_url: null,
+      hero_poster_url: null,
+      remote_output_url: null,
+    } as never;
+
+    expect(mediaThumbnailUrl(asset)).toBeNull();
+    expect(mediaDisplayUrl(asset)).toBeNull();
+    expect(mediaPlaybackUrl(asset)).toBe("/api/control/files/outputs/2026-05-10/run/original/output_01.mp4");
   });
 
   it("falls back to the first staged attachment preview for enhancement previews", () => {

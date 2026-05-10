@@ -3854,53 +3854,64 @@ export function MediaStudio({
                     <X className="size-5" />
                   </button>
                   <div className="flex min-h-[52vh] items-center justify-center p-4 sm:p-6 lg:h-full">
-                    {selectedAssetDisplayVisual ? (
-                      selectedAsset.generation_kind === "video" ? (
-                        <button
-                          type="button"
-                          data-testid="studio-open-lightbox"
-                          onClick={openSelectedMediaLightbox}
-                          className={cn(
-                            "relative flex h-full w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
-                          )}
-                          aria-label="Open selected video"
-                        >
-                          <img
-                            src={selectedAssetDisplayVisual}
-                            alt={selectedAsset.prompt_summary ?? "Selected media artifact"}
-                            loading="eager"
-                            fetchPriority="high"
-                            decoding="async"
-                            className="block h-full w-full rounded-[28px] object-contain"
-                          />
-                          {selectedAssetPlaybackVisual ? (
+                    {selectedAsset.generation_kind === "video" ? (
+                      selectedAssetPlaybackVisual ? (
+                        selectedAssetDisplayVisual ? (
+                          <button
+                            type="button"
+                            data-testid="studio-open-lightbox"
+                            onClick={openSelectedMediaLightbox}
+                            className={cn(
+                              "relative flex h-full w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
+                            )}
+                            aria-label="Open selected video"
+                          >
+                            <img
+                              src={selectedAssetDisplayVisual}
+                              alt={selectedAsset.prompt_summary ?? "Selected media artifact"}
+                              loading="eager"
+                              fetchPriority="high"
+                              decoding="async"
+                              className="block h-full w-full rounded-[28px] object-contain"
+                            />
                             <span className="absolute inset-0 flex items-center justify-center">
                               <span className="inline-flex h-20 w-20 items-center justify-center rounded-full border border-white/12 bg-[rgba(10,12,11,0.72)] text-white shadow-[0_24px_48px_rgba(0,0,0,0.3)] backdrop-blur-xl transition hover:scale-[1.02] hover:bg-[rgba(16,19,18,0.82)]">
                                 <Play className="ml-1 size-8" />
                               </span>
                             </span>
-                          ) : null}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          data-testid="studio-open-lightbox"
-                          onClick={openSelectedMediaLightbox}
-                          className={cn(
-                            "flex h-full w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
-                          )}
-                          aria-label="Open selected image"
-                        >
-                          <img
-                            src={selectedAssetDisplayVisual}
-                            alt={selectedAsset.prompt_summary ?? "Selected media artifact"}
-                            loading="eager"
-                            fetchPriority="high"
-                            decoding="async"
-                            className="block h-full w-full rounded-[28px] object-contain"
-                          />
-                        </button>
-                      )
+                          </button>
+                        ) : (
+                          <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]">
+                            <video
+                              src={selectedAssetPlaybackVisual}
+                              aria-label={selectedAsset.prompt_summary ?? "Selected video artifact"}
+                              controls
+                              playsInline
+                              preload="metadata"
+                              className="block h-full w-full rounded-[28px] object-contain"
+                            />
+                          </div>
+                        )
+                      ) : null
+                    ) : selectedAssetDisplayVisual ? (
+                      <button
+                        type="button"
+                        data-testid="studio-open-lightbox"
+                        onClick={openSelectedMediaLightbox}
+                        className={cn(
+                          "flex h-full w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
+                        )}
+                        aria-label="Open selected image"
+                      >
+                        <img
+                          src={selectedAssetDisplayVisual}
+                          alt={selectedAsset.prompt_summary ?? "Selected media artifact"}
+                          loading="eager"
+                          fetchPriority="high"
+                          decoding="async"
+                          className="block h-full w-full rounded-[28px] object-contain"
+                        />
+                      </button>
                     ) : null}
                   </div>
                   <StudioInspectorActions
