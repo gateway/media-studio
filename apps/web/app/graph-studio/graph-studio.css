@@ -539,6 +539,24 @@
   box-shadow: 0 14px 42px rgba(0, 0, 0, 0.35);
 }
 
+.graph-node-running,
+.graph-node-queued,
+.graph-node-processing {
+  border-color: rgba(209, 255, 71, 0.6);
+  animation: graph-node-active-pulse 1.35s ease-in-out infinite;
+}
+
+@keyframes graph-node-active-pulse {
+  0%,
+  100% {
+    box-shadow: 0 14px 42px rgba(0, 0, 0, 0.35), 0 0 0 rgba(209, 255, 71, 0);
+  }
+
+  50% {
+    box-shadow: 0 14px 42px rgba(0, 0, 0, 0.35), 0 0 0 4px rgba(209, 255, 71, 0.16);
+  }
+}
+
 .graph-node-header {
   display: flex;
   justify-content: space-between;
@@ -591,6 +609,7 @@
 
 .graph-node-preview-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
@@ -663,8 +682,13 @@
   color: rgba(247, 246, 240, 0.86);
 }
 
+.graph-node-port-input {
+  padding-left: 1rem;
+}
+
 .graph-node-port-output {
   justify-content: flex-end;
+  padding-right: 1rem;
 }
 
 .graph-port-compatible {
@@ -672,15 +696,27 @@
 }
 
 .graph-handle {
-  width: 11px;
-  height: 11px;
-  border: 2px solid #d1ff47;
+  width: 16px;
+  height: 16px;
+  border: 3px solid #d1ff47;
   background: #111413;
+  cursor: grab;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.graph-handle:hover {
+  background: #d1ff47;
+  box-shadow: 0 0 0 7px rgba(209, 255, 71, 0.16);
+  transform: scale(1.08);
 }
 
 .graph-handle-compatible {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   border-color: #f7f6f0;
   background: #d1ff47;
   box-shadow: 0 0 0 5px rgba(209, 255, 71, 0.16);

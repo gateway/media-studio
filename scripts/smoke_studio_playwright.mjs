@@ -247,7 +247,7 @@ async function run() {
     if (!(await modelPrompt.isDisabled())) {
       throw new Error("Connected model prompt field was not disabled.");
     }
-    await page.getByRole("button", { name: "Open Image Library" }).click();
+    await page.getByRole("button", { name: "Drop image or choose from library" }).click();
     await page.getByTestId("graph-image-library-modal").waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");
     await page.getByTestId("graph-image-library-modal").waitFor({ state: "hidden", timeout: 10_000 });

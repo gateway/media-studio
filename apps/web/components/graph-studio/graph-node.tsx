@@ -108,11 +108,14 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const definition = data.definition;
   const status = data.status ?? "idle";
   const isLoadImage = definition.type === "media.load_image";
-  const showPreview = Boolean(data.mediaPreview) || isLoadImage || Boolean(definition.ui?.show_preview);
+  const isSaveImage = definition.type === "media.save_image";
+  const showPreview = Boolean(data.mediaPreview) || isLoadImage || isSaveImage;
   const connectedInputPorts = new Set(data.connectedInputPorts ?? []);
   const activeConnection = data.activeConnection ?? null;
   const connectableFieldIds = new Set(definition.fields.filter((field) => field.connectable || field.port_type).map((field) => field.id));
   const visibleFields = definition.fields.filter((field) => !field.hidden && field.type !== "asset_picker" && field.type !== "reference_media_picker");
+  const visibleInputPorts = definition.ports.inputs.filter((port) => !port.advanced && !connectableFieldIds.has(port.id));
+  const visibleOutputPorts = definition.ports.outputs.filter((port) => !port.advanced);
   const inputHandleClass = (port: GraphNodeData["definition"]["ports"]["inputs"][number]) => {
     const accepts = port.accepts?.length ? port.accepts : [port.type];
     const compatible = activeConnection?.from === "output" && accepts.includes(activeConnection.portType);
@@ -169,7 +172,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
           <div className="graph-node-title">{definition.title}</div>
           <div className="graph-node-kind">{definition.category}</div>
         </div>
-        <span className="graph-node-status">{status}</span>
+        {status !== "idle" ? <span className="graph-node-status">{status}</span> : null}
       </div>
       <div className="graph-node-body">
         {showPreview ? (
@@ -195,29 +198,15 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
               </button>
             ) : (
               <div className="graph-node-preview-empty">
-                <span>No preview yet</span>
+                <span>{isSaveImage ? "Image output preview" : "No preview yet"}</span>
               </div>
             )}
           </div>
         ) : null}
-        {isLoadImage ? (
-          <button
-            className="graph-node-library-button nodrag"
-            type="button"
-            onMouseDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation();
-              openNodeImageLibrary(id, data);
-            }}
-          >
-            Open Image Library
-          </button>
-        ) : null}
-        {definition.ports.inputs.filter((port) => !connectableFieldIds.has(port.id)).map((port) => (
+        {visibleInputPorts.map((port) => (
           <div className={`graph-node-port-row graph-node-port-input ${activeConnection?.from === "output" && inputHandleClass(port).includes("graph-handle-compatible") ? "graph-port-compatible" : ""}`} key={port.id}>
             <Handle id={port.id} type="target" position={Position.Left} className={inputHandleClass(port)} {...inputHandleProps(port.id)} />
             <span>{port.label}</span>
-            <small>{port.type}</small>
           </div>
         ))}
         {visibleFields.map((field) => {
@@ -234,10 +223,9 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
             </label>
           );
         })}
-        {definition.ports.outputs.map((port) => (
+        {visibleOutputPorts.map((port) => (
           <div className={`graph-node-port-row graph-node-port-output ${activeConnection?.from === "input" && outputHandleClass(port).includes("graph-handle-compatible") ? "graph-port-compatible" : ""}`} key={port.id}>
             <span>{port.label}</span>
-            <small>{port.type}</small>
             <Handle id={port.id} type="source" position={Position.Right} className={outputHandleClass(port)} isConnectableStart isConnectableEnd={false} />
           </div>
         ))}

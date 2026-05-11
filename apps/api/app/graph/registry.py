@@ -182,7 +182,7 @@ class GraphNodeRegistry:
                 "kie_spec_version": model.get("kie_spec_version"),
             },
             execution={"executor": "kie.model", "mode": "async", "cacheable": True, "output_node": False, "retryable": True},
-            ui={"default_size": {"width": 360, "height": 520}, "accent": "blue", "icon": "sparkles", "show_preview": True},
+            ui={"default_size": {"width": 360, "height": 440}, "accent": "blue", "icon": "sparkles"},
             ports={
                 "inputs": [
                     GraphNodePort(id="prompt", label="Prompt", type="text", required=False, max=1, accepts=["text"]),
