@@ -68,7 +68,32 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
     response = client.get("/media/graph/node-definitions")
     assert response.status_code == 200, response.text
     node_types = {item["type"] for item in response.json()["items"]}
-    assert {"media.load_image", "model.kie.nano_banana_pro", "media.save_image"}.issubset(node_types)
+    assert {"prompt.text", "media.load_image", "model.kie.nano_banana_pro", "media.save_image"}.issubset(node_types)
+
+
+def test_graph_prompt_text_can_feed_model_prompt(client, app_modules) -> None:
+    reference_id = _create_reference_image(app_modules)
+    workflow = _workflow(reference_id)
+    workflow["nodes"].insert(
+        1,
+        {
+            "id": "prompt",
+            "type": "prompt.text",
+            "position": {"x": 180, "y": -260},
+            "fields": {"text": "Create a cinematic editorial image from the source."},
+        },
+    )
+    model_node = next(node for node in workflow["nodes"] if node["id"] == "model")
+    model_node["fields"].pop("prompt")
+    workflow["edges"].append({"id": "edge-prompt-model", "source": "prompt", "source_port": "text", "target": "model", "target_port": "prompt"})
+
+    create_response = client.post("/media/graph/workflows", json=workflow)
+    assert create_response.status_code == 200, create_response.text
+    workflow_id = create_response.json()["workflow_id"]
+
+    validation = client.post(f"/media/graph/workflows/{workflow_id}/validate", json=workflow)
+    assert validation.status_code == 200, validation.text
+    assert validation.json()["valid"] is True
 
 
 def test_graph_validation_rejects_invalid_connections(client, app_modules) -> None:

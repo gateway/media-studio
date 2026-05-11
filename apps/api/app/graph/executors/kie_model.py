@@ -22,7 +22,8 @@ class KieModelExecutor(GraphExecutor):
         definition = registry.get_definition(node.type)
         model_key = str(definition.source.get("model_key") or "nano-banana-pro")
         image_refs = context.inputs_for(node, "image_refs")
-        prompt = str(node.fields.get("prompt") or "").strip()
+        prompt_inputs = context.inputs_for(node, "prompt")
+        prompt = str(prompt_inputs[0].value if prompt_inputs else node.fields.get("prompt") or "").strip()
         if not prompt:
             raise ValueError("Model node prompt is required.")
         option_keys = {field.id for field in definition.fields if field.id != "prompt"}

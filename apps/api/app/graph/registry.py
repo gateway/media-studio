@@ -67,6 +67,31 @@ class GraphNodeRegistry:
     def _build_definitions(self) -> List[GraphNodeDefinition]:
         definitions = [
             GraphNodeDefinition(
+                type="prompt.text",
+                title="Prompt Text",
+                description="Reusable text prompt that can feed one or more model prompt inputs.",
+                category="Prompt",
+                search_aliases=["prompt", "text", "caption", "description"],
+                tags=["prompt", "text", "utility"],
+                source={"kind": "system"},
+                execution={"executor": "prompt.text", "mode": "sync", "cacheable": True, "output_node": False},
+                ui={"default_size": {"width": 340, "height": 260}, "accent": "purple", "icon": "text"},
+                ports={
+                    "inputs": [],
+                    "outputs": [GraphNodePort(id="text", label="Text", type="text")],
+                },
+                fields=[
+                    GraphNodeField(
+                        id="text",
+                        label="Prompt",
+                        type="textarea",
+                        required=True,
+                        default="",
+                        placeholder="Write a reusable prompt...",
+                    )
+                ],
+            ),
+            GraphNodeDefinition(
                 type="media.load_image",
                 title="Load Image",
                 description="Load an existing Media Studio asset or reference image.",
@@ -133,7 +158,7 @@ class GraphNodeRegistry:
                 id="prompt",
                 label="Prompt",
                 type="textarea",
-                required=True,
+                required=False,
                 default="",
                 placeholder="Describe the image to generate or edit...",
                 connectable=True,
@@ -160,6 +185,7 @@ class GraphNodeRegistry:
             ui={"default_size": {"width": 360, "height": 520}, "accent": "blue", "icon": "sparkles", "show_preview": True},
             ports={
                 "inputs": [
+                    GraphNodePort(id="prompt", label="Prompt", type="text", required=False, max=1, accepts=["text"]),
                     GraphNodePort(
                         id="image_refs",
                         label="Reference Images",

@@ -208,18 +208,31 @@ async function run() {
     await page.goto(`${webBaseUrl}/graph-studio`, { waitUntil: "domcontentloaded" });
     const graphCanvas = page.getByTestId("graph-canvas");
     await graphCanvas.waitFor({ timeout: 45_000 });
-    await page.getByTestId("graph-node-palette").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-template-nano-image-pipeline").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-reference-list").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-asset-list").waitFor({ timeout: 15_000 });
+    await page.getByTestId("graph-node-prompt.text").waitFor({ timeout: 15_000 });
+    await page.getByTestId("graph-node-media.load_image").waitFor({ timeout: 15_000 });
+    const graphModelNode = page.getByTestId("graph-node-model.kie.nano_banana_pro");
+    await graphModelNode.waitFor({ timeout: 15_000 });
+    const modelPrompt = graphModelNode.getByPlaceholder("Describe the image to generate or edit...");
+    if (!(await modelPrompt.isDisabled())) {
+      throw new Error("Connected model prompt field was not disabled.");
+    }
+    await page.getByRole("button", { name: "Open Image Library" }).click();
+    await page.getByTestId("graph-image-library-modal").waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await page.getByTestId("graph-image-library-modal").waitFor({ state: "hidden", timeout: 10_000 });
     await page.getByText("Load Image", { exact: true }).first().waitFor({ timeout: 15_000 });
     await page.getByText("Save Image", { exact: true }).first().waitFor({ timeout: 15_000 });
     await page.keyboard.press("Space");
     await page.getByTestId("graph-node-search-modal").waitFor({ timeout: 10_000 });
+    await page.getByText("Prompt Text", { exact: true }).first().waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");
     await page.getByTestId("graph-node-search-modal").waitFor({ state: "hidden", timeout: 10_000 });
     await graphCanvas.click({ button: "right", position: { x: 780, y: 300 } });
     await page.getByTestId("graph-context-menu").waitFor({ timeout: 10_000 });
+    await page.getByText("Add Node", { exact: true }).waitFor({ timeout: 10_000 });
 
     if (consoleErrors.length) {
       throw new Error(`Console errors during Studio smoke:\n${consoleErrors.join("\n")}`);

@@ -221,7 +221,8 @@
 }
 
 .graph-context-menu,
-.graph-node-search-modal {
+.graph-node-search-modal,
+.graph-image-library-modal {
   position: fixed;
   z-index: 80;
   display: grid;
@@ -250,6 +251,43 @@
   margin: 0;
 }
 
+.graph-image-library-modal {
+  left: 50%;
+  top: 70px;
+  width: min(760px, calc(100vw - 48px));
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+  transform: translateX(-50%);
+}
+
+.graph-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.graph-modal-header button,
+.graph-node-library-button,
+.graph-node-preview-empty {
+  color: #f7f6f0;
+  background: #242827;
+  border: 1px solid rgba(247, 246, 240, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.graph-modal-header button,
+.graph-node-library-button {
+  padding: 0.55rem 0.7rem;
+}
+
+.graph-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
 .graph-console {
   overflow: auto;
   border-top: 1px solid rgba(247, 246, 240, 0.12);
@@ -261,7 +299,7 @@
 }
 
 .graph-node {
-  width: 340px;
+  width: 100%;
   overflow: hidden;
   border: 1px solid rgba(247, 246, 240, 0.14);
   border-radius: 8px;
@@ -298,9 +336,65 @@
   padding: 0.8rem 0.9rem 0.95rem;
 }
 
+.graph-node-preview {
+  overflow: hidden;
+  width: 100%;
+  min-height: 120px;
+  border: 1px solid rgba(247, 246, 240, 0.1);
+  border-radius: 8px;
+  background: #0e1110;
+}
+
+.graph-node-preview img,
+.graph-node-preview video {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  background: #0e1110;
+}
+
+.graph-node-preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 120px;
+  color: rgba(247, 246, 240, 0.68);
+  line-height: 1.25;
+}
+
+.graph-node-library-button {
+  width: 100%;
+}
+
+.graph-node-resize-handle {
+  width: 10px;
+  height: 10px;
+  border-color: #d1ff47;
+  background: #0e1110;
+}
+
+.graph-node-resize-line {
+  border-color: transparent;
+}
+
 .graph-node-field textarea {
   min-height: 110px;
   resize: vertical;
+}
+
+.graph-node-field-connectable {
+  position: relative;
+  padding-left: 0.35rem;
+}
+
+.graph-node-field-connected .graph-node-field-control {
+  color: rgba(247, 246, 240, 0.5);
+  background: #202424;
+  border-color: rgba(247, 246, 240, 0.06);
+  cursor: not-allowed;
 }
 
 .graph-node-port-row {
@@ -326,6 +420,7 @@
 .react-flow__edge-path {
   stroke: #d1ff47;
   stroke-width: 2;
+  cursor: pointer;
 }
 
 .react-flow__controls,

@@ -1,5 +1,11 @@
 import type { Edge, Node } from "@xyflow/react";
 
+export type GraphMediaPreview = {
+  mediaType: "image" | "video";
+  url: string;
+  label?: string | null;
+};
+
 export type GraphNodePort = {
   id: string;
   label: string;
@@ -25,6 +31,8 @@ export type GraphNodeField = {
   help_text?: string | null;
   advanced?: boolean;
   hidden?: boolean;
+  connectable?: boolean;
+  port_type?: string | null;
 };
 
 export type GraphNodeDefinition = {
@@ -46,9 +54,15 @@ export type GraphNodeDefinition = {
 export type GraphNodeData = {
   definition: GraphNodeDefinition;
   fields: Record<string, unknown>;
+  mediaPreview?: GraphMediaPreview | null;
+  outputSnapshot?: Record<string, unknown>;
+  connectedInputPorts?: string[];
   status?: string;
   progress?: number | null;
   onFieldChange: (nodeId: string, fieldId: string, value: unknown) => void;
+  onSetFields?: (nodeId: string, fields: Record<string, unknown>) => void;
+  onOpenImageLibrary?: (nodeId: string) => void;
+  onImageDrop?: (nodeId: string, file: File) => void;
 };
 
 export type GraphWorkflowPayload = {
@@ -86,6 +100,7 @@ export type GraphRun = {
     status: string;
     progress?: number | null;
     error?: string | null;
+    output_snapshot_json?: Record<string, unknown>;
   }>;
 };
 

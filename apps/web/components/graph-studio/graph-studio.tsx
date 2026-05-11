@@ -15,11 +15,12 @@ import {
 } from "@xyflow/react";
 import { Play, Save, Search, Upload, Workflow } from "lucide-react";
 
-import { GraphNode } from "./graph-node";
 import type { MediaAsset, MediaReference } from "@/lib/types";
-import type { GraphNodeDefinition, GraphRun, GraphRunEvent, GraphWorkflowPayload, StudioEdge, StudioNode } from "./types";
+import { GraphNode } from "./graph-node";
+import type { GraphMediaPreview, GraphNodeData, GraphNodeDefinition, GraphRun, GraphRunEvent, GraphWorkflowPayload, StudioEdge, StudioNode } from "./types";
 
 const nodeTypes = { graphNode: GraphNode };
+type GraphNodeHandlers = Pick<GraphNodeData, "onFieldChange" | "onSetFields" | "onOpenImageLibrary" | "onImageDrop">;
 
 function defaultFields(definition: GraphNodeDefinition) {
   const fields: Record<string, unknown> = {};
@@ -31,17 +32,22 @@ function defaultFields(definition: GraphNodeDefinition) {
   return fields;
 }
 
-function createNode(definition: GraphNodeDefinition, position: { x: number; y: number }, onFieldChange: StudioNode["data"]["onFieldChange"]): StudioNode {
+function createNode(definition: GraphNodeDefinition, position: { x: number; y: number }, handlers: GraphNodeHandlers): StudioNode {
+  const defaultSize = (definition.ui?.default_size ?? {}) as { width?: number; height?: number };
   return {
     id: `${definition.type}-${crypto.randomUUID().slice(0, 8)}`,
     type: "graphNode",
     position,
+    style: {
+      width: defaultSize.width ?? 340,
+      minHeight: defaultSize.height ?? undefined,
+    },
     data: {
       definition,
       fields: defaultFields(definition),
       status: "idle",
       progress: null,
-      onFieldChange,
+      ...handlers,
     },
   };
 }
@@ -96,6 +102,61 @@ function isTextEntryTarget(target: EventTarget | null) {
   return target.isContentEditable || tagName === "input" || tagName === "textarea" || tagName === "select";
 }
 
+function previewFromReference(reference: MediaReference | undefined): GraphMediaPreview | null {
+  if (!reference) return null;
+  const url = reference.thumb_url ?? reference.poster_url ?? reference.stored_url;
+  if (!url) return null;
+  return {
+    mediaType: reference.kind === "video" ? "video" : "image",
+    url,
+    label: reference.original_filename ?? reference.reference_id,
+  };
+}
+
+function previewFromAsset(asset: MediaAsset | undefined): GraphMediaPreview | null {
+  if (!asset) return null;
+  const url = asset.hero_thumb_url ?? asset.hero_poster_url ?? asset.hero_web_url ?? asset.hero_original_url;
+  if (!url) return null;
+  return {
+    mediaType: asset.generation_kind === "video" ? "video" : "image",
+    url,
+    label: asset.prompt_summary ?? String(asset.asset_id),
+  };
+}
+
+function firstOutputRef(snapshot: Record<string, unknown> | undefined): { asset_id?: string; reference_id?: string } | null {
+  if (!snapshot) return null;
+  for (const port of ["image", "asset", "video"]) {
+    const refs = snapshot[port];
+    if (Array.isArray(refs) && refs[0] && typeof refs[0] === "object") {
+      return refs[0] as { asset_id?: string; reference_id?: string };
+    }
+  }
+  return null;
+}
+
+function graphMediaDragPayload(payload: { source: "reference" | "asset"; id: string; mediaType?: string | null }) {
+  return JSON.stringify(payload);
+}
+
+function readGraphMediaDragPayload(dataTransfer: DataTransfer): { source: "reference" | "asset"; id: string; mediaType?: string | null } | null {
+  const raw = dataTransfer.getData("application/x-media-studio-graph-media");
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { source?: unknown; id?: unknown; mediaType?: unknown };
+    if ((parsed.source === "reference" || parsed.source === "asset") && typeof parsed.id === "string") {
+      return {
+        source: parsed.source,
+        id: parsed.id,
+        mediaType: typeof parsed.mediaType === "string" ? parsed.mediaType : null,
+      };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export function GraphStudio() {
   const [definitions, setDefinitions] = useState<GraphNodeDefinition[]>([]);
   const [search, setSearch] = useState("");
@@ -107,6 +168,7 @@ export function GraphStudio() {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [imageLibraryNodeId, setImageLibraryNodeId] = useState<string | null>(null);
 
   const appendConsole = useCallback((line: string) => {
     setConsoleLines((current) => [line, ...current].slice(0, 80));
@@ -133,6 +195,69 @@ export function GraphStudio() {
 
   const [nodes, setNodes, onNodesChange] = useNodesState<StudioNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<StudioEdge>([]);
+
+  const setNodeFields = useCallback(
+    (nodeId: string, fields: Record<string, unknown>) => {
+      setNodes((current) =>
+        current.map((node) => {
+          if (node.id !== nodeId) return node;
+          const data = node.data as StudioNode["data"];
+          return {
+            ...node,
+            data: {
+              ...data,
+              fields: {
+                ...data.fields,
+                ...fields,
+              },
+            },
+          };
+        }),
+      );
+    },
+    [setNodes],
+  );
+
+  const importImageFile = useCallback(
+    async (file: File) => {
+      const data = new FormData();
+      data.append("file", file);
+      const response = await fetch("/api/control/reference-media/import", { method: "POST", body: data });
+      if (!response.ok) {
+        throw new Error("Image import failed.");
+      }
+      const payload = (await response.json()) as { item?: MediaReference };
+      if (!payload.item?.reference_id) {
+        throw new Error("Image import did not return a reference.");
+      }
+      setReferences((current) => [payload.item as MediaReference, ...current.filter((item) => item.reference_id !== payload.item?.reference_id)].slice(0, 8));
+      return payload.item;
+    },
+    [],
+  );
+
+  const handleNodeImageDrop = useCallback(
+    async (nodeId: string, file: File) => {
+      try {
+        const reference = await importImageFile(file);
+        setNodeFields(nodeId, { reference_id: reference.reference_id, asset_id: "" });
+        appendConsole(`Attached reference ${reference.reference_id}.`);
+      } catch (error) {
+        appendConsole((error as Error).message);
+      }
+    },
+    [appendConsole, importImageFile, setNodeFields],
+  );
+
+  const nodeHandlers = useMemo<GraphNodeHandlers>(
+    () => ({
+      onFieldChange,
+      onSetFields: setNodeFields,
+      onOpenImageLibrary: (nodeId) => setImageLibraryNodeId(nodeId),
+      onImageDrop: handleNodeImageDrop,
+    }),
+    [handleNodeImageDrop, onFieldChange, setNodeFields],
+  );
 
   const definitionsByType = useMemo(() => new Map(definitions.map((definition) => [definition.type, definition])), [definitions]);
   const filteredDefinitions = useMemo(() => {
@@ -181,24 +306,34 @@ export function GraphStudio() {
 
   const addDefinitionNode = useCallback(
     (definition: GraphNodeDefinition) => {
-      setNodes((current) => [...current, createNode(definition, { x: 120 + current.length * 80, y: 120 + current.length * 60 }, onFieldChange)]);
+      setNodes((current) => [...current, createNode(definition, { x: 120 + current.length * 80, y: 120 + current.length * 60 }, nodeHandlers)]);
     },
-    [onFieldChange, setNodes],
+    [nodeHandlers, setNodes],
   );
 
   const buildStarterWorkflow = useCallback(
     (items: GraphNodeDefinition[]) => {
       const byType = new Map(items.map((definition) => [definition.type, definition]));
       const load = byType.get("media.load_image");
+      const prompt = byType.get("prompt.text");
       const model = byType.get("model.kie.nano_banana_pro");
       const save = byType.get("media.save_image");
-      if (!load || !model || !save) return false;
-      const loadNode = createNode(load, { x: 80, y: 180 }, onFieldChange);
-      const modelNode = createNode(model, { x: 450, y: 110 }, onFieldChange);
-      modelNode.data.fields.prompt = "Transform this reference into a cinematic, high-detail editorial image.";
-      const saveNode = createNode(save, { x: 880, y: 220 }, onFieldChange);
-      setNodes([loadNode, modelNode, saveNode]);
+      if (!load || !prompt || !model || !save) return false;
+      const loadNode = createNode(load, { x: 80, y: 240 }, nodeHandlers);
+      const promptNode = createNode(prompt, { x: 80, y: -60 }, nodeHandlers);
+      promptNode.data.fields.text = "Transform this reference into a cinematic, high-detail editorial image.";
+      const modelNode = createNode(model, { x: 480, y: 90 }, nodeHandlers);
+      const saveNode = createNode(save, { x: 920, y: 220 }, nodeHandlers);
+      setNodes([loadNode, promptNode, modelNode, saveNode]);
       setEdges([
+        {
+          id: "edge-prompt-model",
+          source: promptNode.id,
+          sourceHandle: "text",
+          target: modelNode.id,
+          targetHandle: "prompt",
+          animated: true,
+        },
         {
           id: "edge-load-model",
           source: loadNode.id,
@@ -218,7 +353,7 @@ export function GraphStudio() {
       ]);
       return true;
     },
-    [onFieldChange, setEdges, setNodes],
+    [nodeHandlers, setEdges, setNodes],
   );
 
   const addLoadImageNode = useCallback(
@@ -229,12 +364,12 @@ export function GraphStudio() {
         return;
       }
       setNodes((current) => {
-        const nextNode = createNode(definition, position ?? { x: 120 + current.length * 80, y: 120 + current.length * 60 }, onFieldChange);
+        const nextNode = createNode(definition, position ?? { x: 120 + current.length * 80, y: 120 + current.length * 60 }, nodeHandlers);
         nextNode.data.fields = { ...nextNode.data.fields, ...fields };
         return [...current, nextNode];
       });
     },
-    [appendConsole, definitionsByType, onFieldChange, setNodes],
+    [appendConsole, definitionsByType, nodeHandlers, setNodes],
   );
 
   useEffect(() => {
@@ -261,8 +396,10 @@ export function GraphStudio() {
       if (event.key === "Escape") {
         setSearchOpen(false);
         setContextMenu(null);
+        setImageLibraryNodeId(null);
         return;
       }
+      if (imageLibraryNodeId) return;
       if (isTextEntryTarget(event.target)) return;
       if (event.code === "Space") {
         event.preventDefault();
@@ -272,7 +409,28 @@ export function GraphStudio() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [imageLibraryNodeId]);
+
+  useEffect(() => {
+    const onOpenImageLibrary = (event: Event) => {
+      const detail = (event as CustomEvent<{ nodeId?: string }>).detail;
+      if (detail?.nodeId) {
+        setImageLibraryNodeId(detail.nodeId);
+      }
+    };
+    const onNodeImageDrop = (event: Event) => {
+      const detail = (event as CustomEvent<{ nodeId?: string; file?: File }>).detail;
+      if (detail?.nodeId && detail.file) {
+        void handleNodeImageDrop(detail.nodeId, detail.file);
+      }
+    };
+    window.addEventListener("graph-studio-open-image-library", onOpenImageLibrary);
+    window.addEventListener("graph-studio-node-image-drop", onNodeImageDrop);
+    return () => {
+      window.removeEventListener("graph-studio-open-image-library", onOpenImageLibrary);
+      window.removeEventListener("graph-studio-node-image-drop", onNodeImageDrop);
+    };
+  }, [handleNodeImageDrop]);
 
   const saveWorkflow = useCallback(async () => {
     const payload = workflowFromCanvas(workflowId, workflowName, nodes, edges);
@@ -316,6 +474,11 @@ export function GraphStudio() {
       try {
         const current = await jsonFetch<GraphRun>(`/api/control/media/graph/runs/${run.run_id}`);
         setRun(current);
+        if (current.nodes?.some((item) => item.output_snapshot_json && Object.keys(item.output_snapshot_json).length)) {
+          jsonFetch<{ assets?: MediaAsset[] }>("/api/control/media-assets?generation_kind=image&limit=20")
+            .then((payload) => setAssets(payload.assets ?? []))
+            .catch(() => undefined);
+        }
         setNodes((existing) =>
           existing.map((node) => {
             const runNode = current.nodes?.find((item) => item.node_id === node.id);
@@ -326,6 +489,7 @@ export function GraphStudio() {
                 ...(node.data as StudioNode["data"]),
                 status: runNode.status,
                 progress: runNode.progress ?? null,
+                outputSnapshot: runNode.output_snapshot_json,
               },
             };
           }),
@@ -342,25 +506,85 @@ export function GraphStudio() {
   const onDrop = useCallback(
     async (event: React.DragEvent) => {
       event.preventDefault();
+      const graphMedia = readGraphMediaDragPayload(event.dataTransfer);
+      if (graphMedia) {
+        if (graphMedia.mediaType && graphMedia.mediaType !== "image") {
+          appendConsole(`Dropped ${graphMedia.mediaType} media is waiting for the matching load node.`);
+          return;
+        }
+        addLoadImageNode(
+          graphMedia.source === "reference" ? { reference_id: graphMedia.id } : { asset_id: graphMedia.id },
+          { x: event.clientX - 260, y: event.clientY - 120 },
+        );
+        appendConsole(`Added Load Image node for ${graphMedia.id}.`);
+        return;
+      }
       const file = event.dataTransfer.files?.[0];
       if (!file || !file.type.startsWith("image/")) return;
-      const data = new FormData();
-      data.append("file", file);
-      const response = await fetch("/api/control/reference-media/import", { method: "POST", body: data });
-      if (!response.ok) {
-        appendConsole("Image import failed.");
-        return;
+      try {
+        const reference = await importImageFile(file);
+        addLoadImageNode({ reference_id: reference.reference_id }, { x: event.clientX - 260, y: event.clientY - 120 });
+        appendConsole(`Imported reference ${reference.reference_id}.`);
+      } catch (error) {
+        appendConsole((error as Error).message);
       }
-      const payload = (await response.json()) as { item?: MediaReference };
-      if (!payload.item?.reference_id) {
-        appendConsole("Image import did not return a reference.");
-        return;
-      }
-      addLoadImageNode({ reference_id: payload.item.reference_id }, { x: event.clientX - 260, y: event.clientY - 120 });
-      setReferences((current) => [payload.item as MediaReference, ...current.filter((item) => item.reference_id !== payload.item?.reference_id)].slice(0, 8));
-      appendConsole(`Imported reference ${payload.item.reference_id}.`);
     },
-    [addLoadImageNode, appendConsole],
+    [addLoadImageNode, appendConsole, importImageFile],
+  );
+
+  const resolveNodePreview = useCallback(
+    (data: StudioNode["data"]): GraphMediaPreview | null => {
+      if (data.fields.asset_id) {
+        return previewFromAsset(assets.find((asset) => String(asset.asset_id) === String(data.fields.asset_id)));
+      }
+      if (data.fields.reference_id) {
+        return previewFromReference(references.find((reference) => reference.reference_id === data.fields.reference_id));
+      }
+      const outputRef = firstOutputRef(data.outputSnapshot);
+      if (outputRef?.asset_id) {
+        return previewFromAsset(assets.find((asset) => String(asset.asset_id) === String(outputRef.asset_id)));
+      }
+      if (outputRef?.reference_id) {
+        return previewFromReference(references.find((reference) => reference.reference_id === outputRef.reference_id));
+      }
+      return null;
+    },
+    [assets, references],
+  );
+
+  const nodesForRender = useMemo<StudioNode[]>(
+    () =>
+      nodes.map((node) => {
+        const data = node.data as StudioNode["data"];
+        return {
+          ...node,
+          data: {
+            ...data,
+            ...nodeHandlers,
+            mediaPreview: resolveNodePreview(data),
+            connectedInputPorts: edges.filter((edge) => edge.target === node.id).map((edge) => String(edge.targetHandle ?? "")),
+          },
+        };
+      }),
+    [edges, nodeHandlers, nodes, resolveNodePreview],
+  );
+
+  const attachReferenceToNode = useCallback(
+    (nodeId: string, referenceId: string) => {
+      setNodeFields(nodeId, { reference_id: referenceId, asset_id: "" });
+      setImageLibraryNodeId(null);
+      appendConsole(`Attached reference ${referenceId}.`);
+    },
+    [appendConsole, setNodeFields],
+  );
+
+  const attachAssetToNode = useCallback(
+    (nodeId: string, assetId: string) => {
+      setNodeFields(nodeId, { asset_id: assetId, reference_id: "" });
+      setImageLibraryNodeId(null);
+      appendConsole(`Attached asset ${assetId}.`);
+    },
+    [appendConsole, setNodeFields],
   );
 
   return (
@@ -374,18 +598,6 @@ export function GraphStudio() {
           Workflow
           <input value={workflowName} onChange={(event) => setWorkflowName(event.target.value)} />
         </label>
-        <div className="graph-search">
-          <Search size={15} />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search nodes" />
-        </div>
-        <div className="graph-node-list" data-testid="graph-node-palette">
-          {filteredDefinitions.map((definition) => (
-            <button key={definition.type} type="button" onClick={() => addDefinitionNode(definition)}>
-              <strong>{definition.title}</strong>
-              <span>{definition.category}</span>
-            </button>
-          ))}
-        </div>
         <section className="graph-sidebar-section">
           <div className="graph-section-title">Templates</div>
           <button
@@ -403,7 +615,7 @@ export function GraphStudio() {
             <span className="graph-template-thumb" />
             <span>
               <strong>Nano image pipeline</strong>
-              <small>Load Image -&gt; Nano Banana Pro -&gt; Save Image</small>
+              <small>Prompt Text -&gt; Nano Banana Pro -&gt; Save Image</small>
             </span>
           </button>
         </section>
@@ -412,7 +624,18 @@ export function GraphStudio() {
           <div className="graph-media-list" data-testid="graph-reference-list">
             {references.length ? (
               references.map((reference) => (
-                <button key={reference.reference_id} type="button" onClick={() => addLoadImageNode({ reference_id: reference.reference_id })}>
+                <button
+                  key={reference.reference_id}
+                  type="button"
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData(
+                      "application/x-media-studio-graph-media",
+                      graphMediaDragPayload({ source: "reference", id: reference.reference_id, mediaType: reference.kind }),
+                    );
+                  }}
+                  onClick={() => addLoadImageNode({ reference_id: reference.reference_id })}
+                >
                   {reference.thumb_url || reference.stored_url ? <img src={reference.thumb_url ?? reference.stored_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
                   <span>{reference.original_filename ?? reference.reference_id}</span>
                 </button>
@@ -427,7 +650,18 @@ export function GraphStudio() {
           <div className="graph-media-list" data-testid="graph-asset-list">
             {assets.length ? (
               assets.map((asset) => (
-                <button key={String(asset.asset_id)} type="button" onClick={() => addLoadImageNode({ asset_id: String(asset.asset_id) })}>
+                <button
+                  key={String(asset.asset_id)}
+                  type="button"
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData(
+                      "application/x-media-studio-graph-media",
+                      graphMediaDragPayload({ source: "asset", id: String(asset.asset_id), mediaType: asset.generation_kind }),
+                    );
+                  }}
+                  onClick={() => addLoadImageNode({ asset_id: String(asset.asset_id) })}
+                >
                   {asset.hero_thumb_url || asset.hero_web_url ? <img src={asset.hero_thumb_url ?? asset.hero_web_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
                   <span>{asset.prompt_summary ?? String(asset.asset_id)}</span>
                 </button>
@@ -465,12 +699,16 @@ export function GraphStudio() {
           }}
         >
           <ReactFlow
-            nodes={nodes}
+            nodes={nodesForRender}
             edges={edges}
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onEdgeClick={(_event, edge) => {
+              setEdges((current) => current.filter((item) => item.id !== edge.id));
+              appendConsole(`Disconnected ${edge.sourceHandle ?? "output"} from ${edge.targetHandle ?? "input"}.`);
+            }}
             isValidConnection={edgeIsValid}
             onPaneClick={() => setContextMenu(null)}
             fitView
@@ -494,7 +732,7 @@ export function GraphStudio() {
               key={definition.type}
               type="button"
               onClick={() => {
-                setNodes((current) => [...current, createNode(definition, { x: contextMenu.x - 360, y: contextMenu.y - 90 }, onFieldChange)]);
+                setNodes((current) => [...current, createNode(definition, { x: contextMenu.x - 360, y: contextMenu.y - 90 }, nodeHandlers)]);
                 setContextMenu(null);
               }}
             >
@@ -502,6 +740,51 @@ export function GraphStudio() {
               <span>{definition.category}</span>
             </button>
           ))}
+        </div>
+      ) : null}
+      {imageLibraryNodeId ? (
+        <div className="graph-image-library-modal" data-testid="graph-image-library-modal" role="dialog" aria-label="Image library">
+          <div className="graph-modal-header">
+            <div>
+              <div className="graph-section-title">Image Library</div>
+              <strong>Select image for Load Image</strong>
+            </div>
+            <button type="button" onClick={() => setImageLibraryNodeId(null)}>
+              Close
+            </button>
+          </div>
+          <div className="graph-modal-grid">
+            <section>
+              <div className="graph-section-title">References</div>
+              <div className="graph-media-list">
+                {references.length ? (
+                  references.map((reference) => (
+                    <button key={reference.reference_id} type="button" onClick={() => attachReferenceToNode(imageLibraryNodeId, reference.reference_id)}>
+                      {reference.thumb_url || reference.stored_url ? <img src={reference.thumb_url ?? reference.stored_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
+                      <span>{reference.original_filename ?? reference.reference_id}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="graph-sidebar-empty">No reference images yet.</div>
+                )}
+              </div>
+            </section>
+            <section>
+              <div className="graph-section-title">Generated Images</div>
+              <div className="graph-media-list">
+                {assets.length ? (
+                  assets.map((asset) => (
+                    <button key={String(asset.asset_id)} type="button" onClick={() => attachAssetToNode(imageLibraryNodeId, String(asset.asset_id))}>
+                      {asset.hero_thumb_url || asset.hero_web_url ? <img src={asset.hero_thumb_url ?? asset.hero_web_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
+                      <span>{asset.prompt_summary ?? String(asset.asset_id)}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="graph-sidebar-empty">No generated image assets yet.</div>
+                )}
+              </div>
+            </section>
+          </div>
         </div>
       ) : null}
       {searchOpen ? (

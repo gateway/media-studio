@@ -11,6 +11,7 @@ from .executors.base import GraphExecutionContext, GraphExecutor
 from .executors.kie_model import KieModelExecutor
 from .executors.media_load import LoadImageExecutor
 from .executors.media_save import SaveImageExecutor
+from .executors.prompt_ops import PromptTextExecutor
 from .schemas import GraphRun, GraphRunNode, GraphWorkflow
 from .validator import validate_workflow
 
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 class GraphRuntime:
     def __init__(self) -> None:
         executors: List[GraphExecutor] = [
+            PromptTextExecutor(),
             LoadImageExecutor(),
             KieModelExecutor(),
             SaveImageExecutor(),
@@ -122,4 +124,3 @@ class GraphRuntime:
 
 
 runtime = GraphRuntime()
-
