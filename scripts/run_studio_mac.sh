@@ -82,6 +82,7 @@ SETTINGS_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/settings"
 API_HEALTH_URL="http://$API_ACCESS_HOST:$API_PORT/health"
 WEB_READY_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/icon.svg"
 UPDATE_EXISTING_KIE_API="${MEDIA_STUDIO_UPDATE_KIE_API:-ask}"
+KIE_REPO_UPDATED="false"
 
 mkdir -p "$RUNTIME_DIR"
 : >"$API_LOG"
@@ -285,6 +286,7 @@ kie_repo_preflight() {
     echo "Updating kie-api checkout..."
     if kie_repo_update_ff_only "$KIE_ROOT"; then
       echo "kie-api updated successfully."
+      KIE_REPO_UPDATED="true"
     else
       echo "Warning: kie-api update failed. Studio will continue with the current checkout."
     fi
@@ -294,6 +296,26 @@ kie_repo_preflight() {
     echo "  git -C \"$KIE_ROOT\" fetch --prune origin && git -C \"$KIE_ROOT\" pull --ff-only"
   fi
   echo
+}
+
+python_module_available() {
+  local module_name="$1"
+  "$KIE_ROOT/.venv/bin/python" -c "import ${module_name}" >/dev/null 2>&1
+}
+
+ensure_python_dependencies() {
+  if [[ ! -x "$KIE_ROOT/.venv/bin/python" ]]; then
+    echo "Shared KIE Python runtime not found at: $KIE_ROOT/.venv/bin/python" >&2
+    echo "Run setup first: ./scripts/onboard_mac.sh" >&2
+    exit 1
+  fi
+
+  if [[ "$KIE_REPO_UPDATED" != "true" ]] && python_module_available "imageio_ffmpeg"; then
+    return 0
+  fi
+
+  echo "Refreshing shared Python dependencies..."
+  "$KIE_ROOT/.venv/bin/python" -m pip install -e "$KIE_ROOT" -e "$MEDIA_ROOT/apps/api"
 }
 
 migration_preflight() {
@@ -374,6 +396,7 @@ if [[ "$api_running" == true || "$web_running" == true ]]; then
 fi
 
 kie_repo_preflight
+ensure_python_dependencies
 migration_preflight
 
 echo "Checking the production web build..."
