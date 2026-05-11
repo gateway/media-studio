@@ -12,6 +12,7 @@ import {
   detectPromptReferenceMention,
   deriveSeedanceComposerMode,
   buildNormalizedStudioOptions,
+  displayOptionControlLabel,
   inferInputPattern,
   insertImageAttachments,
   isPresetSlotFilled,
@@ -142,6 +143,12 @@ describe("media-studio-helpers Seedance support", () => {
       ["duration", [5, 10, 15]],
     ]);
     expect(buildNormalizedStudioOptions(model, {}, null)).toMatchObject({ mode: "std", duration: 5 });
+  });
+
+  it("labels duration controls with the option name and value", () => {
+    expect(displayOptionControlLabel("duration", "5s")).toBe("Duration 5s");
+    expect(displayOptionControlLabel("duration", "Select")).toBe("Duration");
+    expect(displayOptionControlLabel("sound", "Off")).toBe("Off");
   });
 
   it("classifies structured image preset compatibility from model input contracts", () => {

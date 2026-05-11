@@ -75,6 +75,7 @@ import {
   buildChoiceList,
   classifyFile,
   displayChoiceLabel,
+  displayOptionControlLabel,
   detectPromptReferenceMention,
   getMobileShareBlob,
   HIDDEN_STUDIO_OPTION_KEYS,
@@ -3583,7 +3584,7 @@ export function MediaStudio({
                           widthClassName={pickerWidth(optionKey)}
                           icon={Icon}
                           choiceIcon={(choice) => optionIcon(optionKey, parseOptionChoice(schema, choice.value))}
-                          label={resolvedLabel}
+                          label={displayOptionControlLabel(optionKey, resolvedLabel)}
                           selectedValue={serializeOptionChoice(resolvedValue ?? "")}
                           menuTitle={optionKey.replaceAll("_", " ")}
                           choices={

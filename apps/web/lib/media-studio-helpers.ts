@@ -293,7 +293,7 @@ const STUDIO_PICKER_WIDTHS: Record<string, string> = {
   model: "w-full sm:w-[224px]",
   preset: "w-full sm:w-[162px]",
   "output-count": "w-[calc(50%-0.25rem)] sm:w-[90px]",
-  duration: "w-[calc(50%-0.25rem)] sm:w-[92px]",
+  duration: "w-[calc(50%-0.25rem)] sm:w-[124px]",
   aspect_ratio: "w-[calc(50%-0.25rem)] sm:w-[100px]",
   sound: "w-[calc(50%-0.25rem)] sm:w-[96px]",
   audio: "w-[calc(50%-0.25rem)] sm:w-[96px]",
@@ -1974,6 +1974,13 @@ export function displayChoiceLabel(optionKey: string, _schema: Record<string, un
     return value.replaceAll("_", " ");
   }
   return String(value);
+}
+
+export function displayOptionControlLabel(optionKey: string, valueLabel: string) {
+  if (optionKey === "duration") {
+    return valueLabel.toLowerCase() === "select" ? "Duration" : `Duration ${valueLabel}`;
+  }
+  return valueLabel;
 }
 
 export function studioOptionChoices(

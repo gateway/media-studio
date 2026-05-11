@@ -91,6 +91,11 @@ def test_models_endpoint(client) -> None:
     assert kling["kie_spec_version"]
     kling_options = {item["key"]: item for item in kling["studio_dynamic_options"]}
     assert "4K" in kling_options["mode"]["allowed"]
+    for model_key in ["kling-2.6-t2v", "kling-2.6-i2v", "kling-3.0-t2v", "kling-3.0-i2v", "seedance-2.0"]:
+        model = next(item for item in items if item["key"] == model_key)
+        options = {item["key"]: item for item in model["studio_dynamic_options"]}
+        assert options["duration"]["label"] == "Duration"
+        assert options["duration"]["required"] is True
     seedance_options = {item["key"]: item for item in seedance["studio_dynamic_options"]}
     assert "1080p" in seedance_options["resolution"]["allowed"]
 
