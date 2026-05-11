@@ -54,7 +54,7 @@
 
 .graph-sidebar-floating-toggle {
   position: fixed;
-  top: 14px;
+  top: 64px;
   left: 14px;
   z-index: 100;
   margin-left: 0;
@@ -460,12 +460,25 @@
 
 .graph-console {
   overflow: auto;
-  border-top: 1px solid rgba(247, 246, 240, 0.12);
   background: #090b0a;
   padding: 0.75rem 1rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.78rem;
   color: rgba(247, 246, 240, 0.78);
+}
+
+.graph-console-resizer {
+  cursor: ns-resize;
+  background:
+    linear-gradient(180deg, transparent 0 2px, rgba(247, 246, 240, 0.16) 2px 3px, transparent 3px),
+    #111413;
+}
+
+.graph-console-resizer:hover,
+.graph-console-resizer:active {
+  background:
+    linear-gradient(180deg, transparent 0 2px, rgba(209, 255, 71, 0.5) 2px 3px, transparent 3px),
+    #151817;
 }
 
 .graph-node {
@@ -608,11 +621,43 @@
   justify-content: flex-end;
 }
 
+.graph-port-compatible {
+  color: #f7f6f0;
+}
+
 .graph-handle {
   width: 11px;
   height: 11px;
   border: 2px solid #d1ff47;
   background: #111413;
+}
+
+.graph-handle-compatible {
+  width: 14px;
+  height: 14px;
+  border-color: #f7f6f0;
+  background: #d1ff47;
+  box-shadow: 0 0 0 5px rgba(209, 255, 71, 0.16);
+}
+
+.graph-handle-image {
+  border-color: #d1ff47;
+}
+
+.graph-handle-video {
+  border-color: #61dafb;
+}
+
+.graph-handle-text {
+  border-color: #f6d8a8;
+}
+
+.graph-handle-job {
+  border-color: #c3a6ff;
+}
+
+.graph-handle-asset {
+  border-color: #ffb5a6;
 }
 
 .react-flow__edge-path {
@@ -621,9 +666,55 @@
   cursor: pointer;
 }
 
+.graph-edge-image .react-flow__edge-path {
+  stroke: #d1ff47;
+}
+
+.graph-edge-video .react-flow__edge-path {
+  stroke: #61dafb;
+}
+
+.graph-edge-text .react-flow__edge-path {
+  stroke: #f6d8a8;
+}
+
+.graph-edge-job .react-flow__edge-path {
+  stroke: #c3a6ff;
+}
+
+.graph-edge-asset .react-flow__edge-path {
+  stroke: #ffb5a6;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:focus .react-flow__edge-path {
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px rgba(209, 255, 71, 0.35));
+}
+
 .react-flow__controls,
 .react-flow__minimap {
   background: #171b1a;
   border: 1px solid rgba(247, 246, 240, 0.12);
 }
 
+.react-flow__controls button {
+  width: 28px;
+  height: 28px;
+  color: #f7f6f0;
+  background: #202423;
+  border-bottom: 1px solid rgba(247, 246, 240, 0.08);
+}
+
+.react-flow__controls button:hover {
+  background: #303333;
+}
+
+.react-flow__controls svg {
+  fill: currentColor;
+}
+
+.react-flow__minimap {
+  overflow: hidden;
+  border-radius: 8px;
+}

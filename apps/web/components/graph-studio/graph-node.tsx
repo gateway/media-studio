@@ -110,8 +110,18 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const isLoadImage = definition.type === "media.load_image";
   const showPreview = Boolean(data.mediaPreview) || isLoadImage || Boolean(definition.ui?.show_preview);
   const connectedInputPorts = new Set(data.connectedInputPorts ?? []);
+  const activeConnection = data.activeConnection ?? null;
   const connectableFieldIds = new Set(definition.fields.filter((field) => field.connectable || field.port_type).map((field) => field.id));
   const visibleFields = definition.fields.filter((field) => !field.hidden && field.type !== "asset_picker" && field.type !== "reference_media_picker");
+  const inputHandleClass = (port: GraphNodeData["definition"]["ports"]["inputs"][number]) => {
+    const accepts = port.accepts?.length ? port.accepts : [port.type];
+    const compatible = activeConnection?.from === "output" && accepts.includes(activeConnection.portType);
+    return `graph-handle graph-handle-${port.type} ${compatible ? "graph-handle-compatible" : ""}`;
+  };
+  const outputHandleClass = (port: GraphNodeData["definition"]["ports"]["outputs"][number]) => {
+    const compatible = activeConnection?.from === "input" && port.type === activeConnection.portType;
+    return `graph-handle graph-handle-${port.type} ${compatible ? "graph-handle-compatible" : ""}`;
+  };
   return (
     <div
       className={`graph-node graph-node-${status}`}
@@ -197,8 +207,8 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
           </button>
         ) : null}
         {definition.ports.inputs.filter((port) => !connectableFieldIds.has(port.id)).map((port) => (
-          <div className="graph-node-port-row graph-node-port-input" key={port.id}>
-            <Handle id={port.id} type="target" position={Position.Left} className={`graph-handle graph-handle-${port.type}`} />
+          <div className={`graph-node-port-row graph-node-port-input ${activeConnection?.from === "output" && inputHandleClass(port).includes("graph-handle-compatible") ? "graph-port-compatible" : ""}`} key={port.id}>
+            <Handle id={port.id} type="target" position={Position.Left} className={inputHandleClass(port)} />
             <span>{port.label}</span>
             <small>{port.type}</small>
           </div>
@@ -208,7 +218,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
           const fieldPort = definition.ports.inputs.find((port) => port.id === field.id);
           return (
             <label className={`graph-node-field ${fieldPort ? "graph-node-field-connectable" : ""} ${fieldConnected ? "graph-node-field-connected" : ""}`} key={field.id}>
-              {fieldPort ? <Handle id={fieldPort.id} type="target" position={Position.Left} className={`graph-handle graph-handle-${fieldPort.type}`} /> : null}
+              {fieldPort ? <Handle id={fieldPort.id} type="target" position={Position.Left} className={inputHandleClass(fieldPort)} /> : null}
               <span>
                 {field.label}
                 {field.required ? " *" : ""}
@@ -218,10 +228,10 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
           );
         })}
         {definition.ports.outputs.map((port) => (
-          <div className="graph-node-port-row graph-node-port-output" key={port.id}>
+          <div className={`graph-node-port-row graph-node-port-output ${activeConnection?.from === "input" && outputHandleClass(port).includes("graph-handle-compatible") ? "graph-port-compatible" : ""}`} key={port.id}>
             <span>{port.label}</span>
             <small>{port.type}</small>
-            <Handle id={port.id} type="source" position={Position.Right} className={`graph-handle graph-handle-${port.type}`} />
+            <Handle id={port.id} type="source" position={Position.Right} className={outputHandleClass(port)} />
           </div>
         ))}
       </div>

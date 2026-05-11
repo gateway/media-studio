@@ -57,6 +57,10 @@ export type GraphNodeData = {
   mediaPreview?: GraphMediaPreview | null;
   outputSnapshot?: Record<string, unknown>;
   connectedInputPorts?: string[];
+  activeConnection?: {
+    portType: string;
+    from: "input" | "output";
+  } | null;
   status?: string;
   progress?: number | null;
   onFieldChange: (nodeId: string, fieldId: string, value: unknown) => void;

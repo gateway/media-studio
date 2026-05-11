@@ -1,19 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   Background,
   Controls,
   MiniMap,
   ReactFlow,
   addEdge,
+  reconnectEdge,
   useEdgesState,
   useNodesState,
   type Connection,
   type Edge,
   type Node,
 } from "@xyflow/react";
-import { PanelLeftClose, PanelLeftOpen, Play, Save, Search, Upload, Workflow } from "lucide-react";
+import { Map as MapIcon, PanelLeftClose, PanelLeftOpen, Play, Search, Upload, Workflow } from "lucide-react";
 
 import type { MediaAsset, MediaReference } from "@/lib/types";
 import { GraphNode } from "./graph-node";
@@ -21,6 +22,15 @@ import type { GraphMediaPreview, GraphNodeData, GraphNodeDefinition, GraphRun, G
 
 const nodeTypes = { graphNode: GraphNode };
 type GraphNodeHandlers = Pick<GraphNodeData, "onFieldChange" | "onSetFields" | "onOpenImageLibrary" | "onImageDrop">;
+type ActiveConnection = NonNullable<GraphNodeData["activeConnection"]>;
+type ConnectMenuState = {
+  x: number;
+  y: number;
+  connection: ActiveConnection & {
+    nodeId: string | null;
+    handleId: string | null;
+  };
+};
 
 function defaultFields(definition: GraphNodeDefinition) {
   const fields: Record<string, unknown> = {};
@@ -139,6 +149,21 @@ function graphMediaDragPayload(payload: { source: "reference" | "asset"; id: str
   return JSON.stringify(payload);
 }
 
+function edgeClassForPortType(portType: string | null | undefined) {
+  return portType ? `graph-edge graph-edge-${portType}` : "graph-edge";
+}
+
+function edgeStyleForPortType(portType: string | null | undefined) {
+  const colors: Record<string, string> = {
+    image: "#d1ff47",
+    video: "#61dafb",
+    text: "#f6d8a8",
+    job: "#c3a6ff",
+    asset: "#ffb5a6",
+  };
+  return { stroke: colors[portType ?? ""] ?? "#d1ff47", strokeWidth: 2 };
+}
+
 function readGraphMediaDragPayload(dataTransfer: DataTransfer): { source: "reference" | "asset"; id: string; mediaType?: string | null } | null {
   const raw = dataTransfer.getData("application/x-media-studio-graph-media");
   if (!raw) return null;
@@ -171,7 +196,12 @@ export function GraphStudio() {
   const [imageLibraryNodeId, setImageLibraryNodeId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [consoleOpen, setConsoleOpen] = useState(true);
+  const [consoleHeight, setConsoleHeight] = useState(170);
+  const [showMiniMap, setShowMiniMap] = useState(false);
   const [workflowMenuOpen, setWorkflowMenuOpen] = useState(false);
+  const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
+  const [activeConnectionStart, setActiveConnectionStart] = useState<{ nodeId: string | null; handleId: string | null } | null>(null);
+  const [connectMenu, setConnectMenu] = useState<ConnectMenuState | null>(null);
 
   const appendConsole = useCallback((line: string) => {
     setConsoleLines((current) => [line, ...current].slice(0, 80));
@@ -287,24 +317,124 @@ export function GraphStudio() {
     [nodes],
   );
 
+  const portTypeForHandle = useCallback(
+    (nodeId: string | null | undefined, handleId: string | null | undefined, handleKind: "source" | "target") => {
+      if (!nodeId || !handleId) return null;
+      const node = nodes.find((item) => item.id === nodeId);
+      if (!node) return null;
+      const definition = (node.data as StudioNode["data"]).definition;
+      const ports = handleKind === "source" ? definition.ports.outputs : definition.ports.inputs;
+      return ports.find((port) => port.id === handleId)?.type ?? null;
+    },
+    [nodes],
+  );
+
+  const compatibleDefinitionsForConnection = useCallback(
+    (connection: ActiveConnection) =>
+      definitions.filter((definition) => {
+        const ports = connection.from === "output" ? definition.ports.inputs : definition.ports.outputs;
+        return ports.some((port) => {
+          const accepts = port.accepts?.length ? port.accepts : [port.type];
+          return connection.from === "output" ? accepts.includes(connection.portType) : port.type === connection.portType;
+        });
+      }),
+    [definitions],
+  );
+
   const onConnect = useCallback(
     (connection: Connection) => {
       if (!edgeIsValid(connection)) {
         appendConsole("Connection rejected: incompatible ports.");
         return;
       }
+      const sourcePortType = portTypeForHandle(connection.source, connection.sourceHandle, "source");
       setEdges((current) =>
         addEdge(
           {
             ...connection,
             id: `edge-${connection.source}-${connection.sourceHandle}-${connection.target}-${connection.targetHandle}`,
             animated: true,
+            className: edgeClassForPortType(sourcePortType),
+            style: edgeStyleForPortType(sourcePortType),
+            reconnectable: true,
           },
           current,
         ),
       );
     },
-    [appendConsole, edgeIsValid, setEdges],
+    [appendConsole, edgeIsValid, portTypeForHandle, setEdges],
+  );
+
+  const onConnectStart = useCallback(
+    (_event: MouseEvent | TouchEvent, params: { nodeId: string | null; handleId: string | null; handleType: "source" | "target" | null }) => {
+      const from = params.handleType === "target" ? "input" : "output";
+      const handleKind = params.handleType === "target" ? "target" : "source";
+      const portType = portTypeForHandle(params.nodeId, params.handleId, handleKind);
+      if (!portType) return;
+      setActiveConnection({ from, portType });
+      setActiveConnectionStart({ nodeId: params.nodeId, handleId: params.handleId });
+      setConnectMenu(null);
+    },
+    [portTypeForHandle],
+  );
+
+  const onConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent, connectionState: { isValid: boolean | null; toHandle?: unknown }) => {
+      if (connectionState.isValid || connectionState.toHandle || !activeConnection) {
+        setActiveConnection(null);
+        setActiveConnectionStart(null);
+        return;
+      }
+      const mouseEvent = "clientX" in event ? event : null;
+      if (!mouseEvent) {
+        setActiveConnection(null);
+        setActiveConnectionStart(null);
+        return;
+      }
+      setConnectMenu({
+        x: mouseEvent.clientX,
+        y: mouseEvent.clientY,
+        connection: {
+          ...activeConnection,
+          nodeId: activeConnectionStart?.nodeId ?? null,
+          handleId: activeConnectionStart?.handleId ?? null,
+        },
+      });
+      setActiveConnection(null);
+      setActiveConnectionStart(null);
+    },
+    [activeConnection, activeConnectionStart],
+  );
+
+  const onReconnect = useCallback(
+    (oldEdge: StudioEdge, newConnection: Connection) => {
+      if (!edgeIsValid(newConnection)) {
+        return;
+      }
+      const sourcePortType = portTypeForHandle(newConnection.source, newConnection.sourceHandle, "source");
+      setEdges((current) =>
+        reconnectEdge(oldEdge, newConnection, current).map((edge) =>
+          edge.id === oldEdge.id
+            ? {
+                ...edge,
+                className: edgeClassForPortType(sourcePortType),
+                style: edgeStyleForPortType(sourcePortType),
+                reconnectable: true,
+              }
+            : edge,
+        ),
+      );
+    },
+    [edgeIsValid, portTypeForHandle, setEdges],
+  );
+
+  const onReconnectEnd = useCallback(
+    (_event: MouseEvent | TouchEvent, edge: StudioEdge, _handleType: string, connectionState: { isValid: boolean | null; toHandle?: unknown }) => {
+      if (connectionState.isValid || connectionState.toHandle) return;
+      setEdges((current) => current.filter((item) => item.id !== edge.id));
+      appendConsole("Connection removed.");
+    },
+    [appendConsole, setEdges],
   );
 
   const addDefinitionNode = useCallback(
@@ -312,6 +442,41 @@ export function GraphStudio() {
       setNodes((current) => [...current, createNode(definition, { x: 120 + current.length * 80, y: 120 + current.length * 60 }, nodeHandlers)]);
     },
     [nodeHandlers, setNodes],
+  );
+
+  const addDefinitionNodeFromConnectMenu = useCallback(
+    (definition: GraphNodeDefinition) => {
+      if (!connectMenu) return;
+      const newNode = createNode(definition, { x: connectMenu.x - 360, y: connectMenu.y - 90 }, nodeHandlers);
+      setNodes((current) => [...current, newNode]);
+      if (connectMenu.connection.from === "output" && connectMenu.connection.nodeId && connectMenu.connection.handleId) {
+        const targetPort = definition.ports.inputs.find((port) => {
+          const accepts = port.accepts?.length ? port.accepts : [port.type];
+          return accepts.includes(connectMenu.connection.portType);
+        });
+        if (targetPort) {
+          setEdges((current) =>
+            addEdge(
+              {
+                id: `edge-${connectMenu.connection.nodeId}-${connectMenu.connection.handleId}-${newNode.id}-${targetPort.id}`,
+                source: connectMenu.connection.nodeId ?? "",
+                sourceHandle: connectMenu.connection.handleId,
+                target: newNode.id,
+                targetHandle: targetPort.id,
+                animated: true,
+                className: edgeClassForPortType(connectMenu.connection.portType),
+                style: edgeStyleForPortType(connectMenu.connection.portType),
+                reconnectable: true,
+              },
+              current,
+            ),
+          );
+        }
+      }
+      setConnectMenu(null);
+      setActiveConnection(null);
+    },
+    [connectMenu, nodeHandlers, setEdges, setNodes],
   );
 
   const buildStarterWorkflow = useCallback(
@@ -336,6 +501,9 @@ export function GraphStudio() {
           target: modelNode.id,
           targetHandle: "prompt",
           animated: true,
+          className: edgeClassForPortType("text"),
+          style: edgeStyleForPortType("text"),
+          reconnectable: true,
         },
         {
           id: "edge-load-model",
@@ -344,6 +512,9 @@ export function GraphStudio() {
           target: modelNode.id,
           targetHandle: "image_refs",
           animated: true,
+          className: edgeClassForPortType("image"),
+          style: edgeStyleForPortType("image"),
+          reconnectable: true,
         },
         {
           id: "edge-model-save",
@@ -352,6 +523,9 @@ export function GraphStudio() {
           target: saveNode.id,
           targetHandle: "image",
           animated: true,
+          className: edgeClassForPortType("image"),
+          style: edgeStyleForPortType("image"),
+          reconnectable: true,
         },
       ]);
       return true;
@@ -401,6 +575,7 @@ export function GraphStudio() {
         setContextMenu(null);
         setImageLibraryNodeId(null);
         setWorkflowMenuOpen(false);
+        setConnectMenu(null);
         return;
       }
       if (imageLibraryNodeId) return;
@@ -441,16 +616,17 @@ export function GraphStudio() {
     };
   }, [handleNodeImageDrop]);
 
-  const saveWorkflow = useCallback(async () => {
-    const payload = workflowFromCanvas(workflowId, workflowName, nodes, edges);
+  const saveWorkflow = useCallback(async (nextName = workflowName, nextWorkflowId = workflowId) => {
+    const payload = workflowFromCanvas(nextWorkflowId, nextName, nodes, edges);
     const record = await jsonFetch<{ workflow_id: string }>(
-      workflowId ? `/api/control/media/graph/workflows/${workflowId}` : "/api/control/media/graph/workflows",
+      nextWorkflowId ? `/api/control/media/graph/workflows/${nextWorkflowId}` : "/api/control/media/graph/workflows",
       {
-        method: workflowId ? "PATCH" : "POST",
+        method: nextWorkflowId ? "PATCH" : "POST",
         body: JSON.stringify(payload),
       },
     );
     setWorkflowId(record.workflow_id);
+    setWorkflowName(nextName);
     appendConsole(`Saved workflow ${record.workflow_id}.`);
     return record.workflow_id;
   }, [appendConsole, edges, nodes, workflowId, workflowName]);
@@ -471,10 +647,15 @@ export function GraphStudio() {
   const renameWorkflow = useCallback(() => {
     const nextName = window.prompt("Rename workflow", workflowName);
     if (!nextName?.trim()) return;
-    setWorkflowName(nextName.trim());
-    appendConsole(`Renamed workflow to ${nextName.trim()}.`);
+    const trimmedName = nextName.trim();
+    if (workflowId) {
+      void saveWorkflow(trimmedName, workflowId).then(() => appendConsole(`Renamed workflow to ${trimmedName}.`));
+    } else {
+      setWorkflowName(trimmedName);
+      appendConsole(`Renamed workflow to ${trimmedName}.`);
+    }
     setWorkflowMenuOpen(false);
-  }, [appendConsole, workflowName]);
+  }, [appendConsole, saveWorkflow, workflowId, workflowName]);
 
   const closeWorkflow = useCallback(() => {
     setWorkflowId(null);
@@ -485,6 +666,22 @@ export function GraphStudio() {
     setConsoleLines(["Graph Studio ready."]);
     setWorkflowMenuOpen(false);
   }, [setEdges, setNodes]);
+
+  const startConsoleResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const startY = event.clientY;
+    const startHeight = consoleHeight;
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      const delta = startY - moveEvent.clientY;
+      setConsoleHeight(Math.max(80, Math.min(420, startHeight + delta)));
+    };
+    const onPointerUp = () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+  }, [consoleHeight]);
 
   const validateWorkflow = useCallback(async () => {
     const id = workflowId ?? (await saveWorkflow());
@@ -601,12 +798,13 @@ export function GraphStudio() {
           data: {
             ...data,
             ...nodeHandlers,
+            activeConnection,
             mediaPreview: resolveNodePreview(data),
             connectedInputPorts: edges.filter((edge) => edge.target === node.id).map((edge) => String(edge.targetHandle ?? "")),
           },
         };
       }),
-    [edges, nodeHandlers, nodes, resolveNodePreview],
+    [activeConnection, edges, nodeHandlers, nodes, resolveNodePreview],
   );
 
   const attachReferenceToNode = useCallback(
@@ -659,7 +857,10 @@ export function GraphStudio() {
               type="button"
               aria-label="Collapse graph sidebar"
               title="Collapse sidebar"
-              onClick={() => setSidebarCollapsed(true)}
+              onClick={() => {
+                setWorkflowMenuOpen(false);
+                setSidebarCollapsed(true);
+              }}
             >
               <PanelLeftClose size={17} />
             </button>
@@ -751,7 +952,7 @@ export function GraphStudio() {
           </>
         ) : null}
       </aside>
-      <main className={`graph-main ${consoleOpen ? "" : "graph-main-console-collapsed"}`}>
+      <main className={`graph-main ${consoleOpen ? "" : "graph-main-console-collapsed"}`} style={consoleOpen ? { gridTemplateRows: `auto minmax(0, 1fr) 6px ${consoleHeight}px` } : undefined}>
         <div className="graph-toolbar">
           <div className="graph-workflow-tabs" data-testid="graph-workflow-tabs">
             <button
@@ -790,13 +991,22 @@ export function GraphStudio() {
                 <button type="button" role="menuitem" onClick={closeWorkflow}>
                   Close
                 </button>
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={showMiniMap}
+                  onClick={() => {
+                    setShowMiniMap((current) => !current);
+                    setWorkflowMenuOpen(false);
+                  }}
+                >
+                  <MapIcon size={14} />
+                  {showMiniMap ? "Hide Minimap" : "Show Minimap"}
+                </button>
               </div>
             ) : null}
           </div>
           <div className="graph-toolbar-actions">
-            <button type="button" onClick={saveWorkflow}>
-              <Save size={16} /> Save
-            </button>
             <button type="button" onClick={validateWorkflow}>Validate</button>
           </div>
           <div className="graph-toolbar-spacer" />
@@ -823,30 +1033,58 @@ export function GraphStudio() {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onConnectStart={onConnectStart}
+            onConnectEnd={onConnectEnd}
+            onReconnect={onReconnect}
+            onReconnectEnd={onReconnectEnd}
             onEdgeClick={(_event, edge) => {
               setEdges((current) => current.filter((item) => item.id !== edge.id));
               appendConsole(`Disconnected ${edge.sourceHandle ?? "output"} from ${edge.targetHandle ?? "input"}.`);
             }}
             isValidConnection={edgeIsValid}
+            defaultEdgeOptions={{ reconnectable: true, interactionWidth: 28 }}
+            edgesReconnectable
+            reconnectRadius={18}
+            connectionLineStyle={activeConnection ? edgeStyleForPortType(activeConnection.portType) : undefined}
+            proOptions={{ hideAttribution: true }}
             onPaneClick={() => {
               setContextMenu(null);
               setWorkflowMenuOpen(false);
+              setConnectMenu(null);
             }}
             fitView
           >
             <Background />
-            <MiniMap pannable zoomable />
+            {showMiniMap ? <MiniMap pannable zoomable /> : null}
             <Controls />
           </ReactFlow>
         </div>
         {consoleOpen ? (
-          <section className="graph-console" data-testid="graph-console">
-            {consoleLines.map((line, index) => (
-              <div key={`${line}-${index}`}>{line}</div>
-            ))}
-          </section>
+          <>
+            <div className="graph-console-resizer" data-testid="graph-console-resizer" onPointerDown={startConsoleResize} />
+            <section className="graph-console" data-testid="graph-console">
+              {consoleLines.map((line, index) => (
+                <div key={`${line}-${index}`}>{line}</div>
+              ))}
+            </section>
+          </>
         ) : null}
       </main>
+      {connectMenu ? (
+        <div className="graph-context-menu graph-connect-menu" data-testid="graph-connect-menu" style={{ left: connectMenu.x, top: connectMenu.y }}>
+          <div className="graph-section-title">Compatible Nodes</div>
+          {compatibleDefinitionsForConnection(connectMenu.connection).length ? (
+            compatibleDefinitionsForConnection(connectMenu.connection).map((definition) => (
+              <button key={definition.type} type="button" onClick={() => addDefinitionNodeFromConnectMenu(definition)}>
+                <strong>{definition.title}</strong>
+                <span>{definition.category}</span>
+              </button>
+            ))
+          ) : (
+            <div className="graph-sidebar-empty">No compatible nodes yet.</div>
+          )}
+        </div>
+      ) : null}
       {contextMenu ? (
         <div className="graph-context-menu" data-testid="graph-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
           <div className="graph-section-title">Add Node</div>
