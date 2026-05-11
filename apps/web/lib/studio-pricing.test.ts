@@ -139,6 +139,34 @@ describe("studio-pricing", () => {
     expect(estimate.estimatedCostUsd).toBeCloseTo(1.675);
   });
 
+  it("applies Kling 3.0 per-second duration multipliers to the local estimate", () => {
+    const estimate = estimateFromPricingSnapshot(
+      {
+        rules: [
+          {
+            model_key: "kling-3.0-i2v",
+            base_credits: 14,
+            base_cost_usd: 0.07,
+            multipliers: {
+              duration: {
+                "7": 7,
+              },
+              pricing_variant: {
+                "4k_false": 67 / 14,
+              },
+            },
+          },
+        ],
+      },
+      "kling-3.0-i2v",
+      { duration: 7, mode: "4K", sound: false },
+      1,
+    );
+
+    expect(estimate.estimatedCredits).toBeCloseTo(469);
+    expect(estimate.estimatedCostUsd).toBeCloseTo(2.345);
+  });
+
   it("prefers validation pricing over the local estimate when available", () => {
     const display = resolveStudioPricingDisplay(
       {

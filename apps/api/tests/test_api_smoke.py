@@ -236,6 +236,24 @@ def test_pricing_estimate_returns_kling_4k_observed_totals(client) -> None:
     assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(1.675)
 
 
+def test_pricing_estimate_returns_kling_30_i2v_per_second_totals(client) -> None:
+    response = client.post(
+        "/media/pricing/estimate",
+        json={
+            "model_key": "kling-3.0-i2v",
+            "task_mode": "image_to_video",
+            "prompt": "A cinematic camera push from the reference frame.",
+            "images": [{"path": "/tmp/reference.png", "role": "first_frame"}],
+            "options": {"duration": 7, "mode": "4K", "sound": False},
+            "output_count": 1,
+        },
+    )
+    assert response.status_code == 200, response.text
+    summary = response.json()["pricing_summary"]
+    assert summary["per_output"]["estimated_credits"] == pytest.approx(469.0)
+    assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(2.345)
+
+
 def test_pricing_startup_refreshes_when_snapshot_is_stale(app_modules, monkeypatch) -> None:
     adapter = app_modules["main"].kie_adapter
     calls = {"refresh": 0}

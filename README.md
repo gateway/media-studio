@@ -1,10 +1,15 @@
 # Media Studio
 
-Media Studio is a local AI image and video workspace for Kie AI models.
+Media Studio is a local AI image and video workspace for the Kie AI model marketplace.
 
-It gives you one place to generate images, generate videos, revise old work, build reusable presets, manage references, track jobs, and keep a local gallery of everything you make. Your prompts, presets, projects, references, database, uploads, and outputs stay on your machine.
+Media Studio gives you one place to generate images, generate videos, revise old work, build reusable presets, manage references, track jobs, and keep a local gallery of everything you make. Your prompts, presets, projects, references, database, uploads, and outputs stay on your machine.
 
-Media Studio uses [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) for model execution, so you need a funded Kie account and a `KIE_API_KEY` before live generation will work.
+Media Studio uses [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42), a model marketplace that puts many image and video providers behind one credit-based API. Instead of keeping separate subscriptions for every model provider, you fund one account and spend credits only when you generate.
+
+You can start with as little as $5 funded into your Kie AI account.
+Media Studio is not affiliated with Kie AI; however, we do have an affiliate code that buys us a coffee if you use it: [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
+
+> **Pricing disclaimer:** Prices shown in Media Studio are estimates based on the latest pricing data available from Kie AI and the options selected in Studio. Kie can change model pricing, rules, and credit costs at any time. The final charge is determined by Kie, so confirm current Kie pricing before large runs.
 
 ![Media Studio gallery and prompt workspace](docs/images/media-studio.jpg)
 
@@ -33,7 +38,7 @@ Current model surfaces include:
 
 Model availability, request rules, and pricing can change as Kie updates its platform. Media Studio exposes pricing in the dashboard at `/pricing`, and the Generate button uses server-side pricing estimates from the control API.
 
-## Easy Setup
+## Install And Run
 
 You need:
 
@@ -47,13 +52,36 @@ Video thumbnails, posters, and browser-friendly playback derivatives are handled
 
 ### macOS
 
+Install:
+
 ```bash
 git clone https://github.com/gateway/media-studio.git
 cd media-studio
 ./scripts/onboard_mac.sh
 ```
 
+Run:
+
+```bash
+./scripts/run_studio_mac.sh
+```
+
+Stop:
+
+```bash
+./scripts/stop_studio_mac.sh
+```
+
+Restart:
+
+```bash
+./scripts/stop_studio_mac.sh
+./scripts/run_studio_mac.sh
+```
+
 ### Windows
+
+Install:
 
 ```powershell
 git clone https://github.com/gateway/media-studio.git
@@ -61,7 +89,28 @@ cd media-studio
 powershell -ExecutionPolicy Bypass -File .\scripts\onboard_windows.ps1
 ```
 
+Run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1
+```
+
+Stop:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1
+```
+
+Restart:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1
+```
+
 ### Linux
+
+Install:
 
 ```bash
 git clone https://github.com/gateway/media-studio.git
@@ -69,31 +118,36 @@ cd media-studio
 ./scripts/onboard_linux.sh
 ```
 
-The Linux onboarding script handles the same normal setup path as macOS and Windows. For a manual start later, run:
+Run:
 
 ```bash
-npm run start:studio
+./scripts/run_studio_linux.sh
 ```
 
-`npm run start:studio` starts the API and web app together in production mode, checks the sibling `kie-api` checkout for new releases, offers a fast-forward update when safe, checks the local database before migrations, creates a migration backup when needed, refreshes shared Python dependencies and the production web build if needed, writes runtime logs under `data/runtime/`, waits for readiness, and opens Studio. Stop it with:
+Stop:
 
 ```bash
-npm run stop:studio
+./scripts/stop_studio_linux.sh
 ```
 
-Platform-specific wrappers are also available:
+Restart:
 
-- macOS: `./scripts/run_studio_mac.sh` and `./scripts/stop_studio_mac.sh`
-- Windows: `powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1` and `powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1`
-- Linux: `./scripts/run_studio_linux.sh` and `./scripts/stop_studio_linux.sh`
+```bash
+./scripts/stop_studio_linux.sh
+./scripts/run_studio_linux.sh
+```
+
+### What The Runner Does
+
+The macOS, Windows, and Linux onboarding scripts handle the normal setup path for you: dependencies, local environment, database, Kie API key prompt, and optional prompt enhancement setup.
+
+The run scripts start the API and web app together in production mode, check the sibling `kie-api` checkout for new releases, offer a fast-forward update when safe, check the local database before migrations, create a migration backup when needed, refresh shared Python dependencies and the production web build if needed, write runtime logs under `data/runtime/`, wait for readiness, and open Studio.
 
 If the default ports are busy, Studio automatically chooses the next open API and web ports for that launch. To force a specific pair, pass explicit ports:
 
 ```bash
 npm run start:studio -- --api-port 8010 --web-port 3010
 ```
-
-The macOS, Windows, and Linux onboarding scripts handle the normal setup path for you: dependencies, local environment, database, Kie API key prompt, and optional prompt enhancement setup.
 
 ## Cool Features
 
@@ -109,6 +163,20 @@ The macOS, Windows, and Linux onboarding scripts handle the normal setup path fo
 - **Retry And Restore** brings failed jobs or old assets back into the composer instead of making you rebuild requests by hand.
 - **Local Data Ownership** keeps your database, uploads, downloads, outputs, presets, and project metadata on disk.
 - **Version Display** shows the current Media Studio build in the admin navigation.
+
+## Presets
+
+Presets are reusable creative workflows. A preset can hold a prompt template, editable text fields, required image slots, model defaults, and a thumbnail, so you can run a repeatable style or workflow without rebuilding the prompt every time.
+
+You can:
+
+- Create your own presets from the Presets page.
+- Use structured fields and image slots for guided workflows.
+- Choose which compatible image models a preset can run on.
+- Import presets shared by someone else.
+- Export your own presets as portable bundles.
+
+If you build presets you want to share with other users, let us know. We would love to collect good community presets and add them to the project.
 
 ## Useful Docs
 

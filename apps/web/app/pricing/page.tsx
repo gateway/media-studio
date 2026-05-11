@@ -196,6 +196,16 @@ export default async function PricingPage({
               </div>
             }
           />
+          <CalloutPanel appearance="admin" tone="warning" className="mt-5 text-sm leading-7 text-[var(--feedback-warning-text)]">
+            <div className="admin-icon-label-row">
+              <AlertTriangle className="size-3.5" />
+              Pricing estimates are planning numbers
+            </div>
+            <p className="mt-3 text-[var(--muted-strong)]">
+              Media Studio estimates costs from the latest Kie pricing data it can load, but Kie can change model rules, pricing, and
+              credit costs at any time. Treat Studio pricing as a preflight estimate and confirm current Kie pricing before large runs.
+            </p>
+          </CalloutPanel>
           <div className="mt-5 grid gap-3 lg:grid-cols-4">
             <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
               <div className="admin-label-muted">Catalog status</div>
