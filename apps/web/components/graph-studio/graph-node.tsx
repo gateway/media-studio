@@ -94,13 +94,13 @@ function FieldControl({
     <input
       className={commonClass}
       type={field.type === "integer" || field.type === "float" || field.type === "number" ? "number" : "text"}
-    value={String(value ?? field.default ?? "")}
-    placeholder={field.placeholder ?? ""}
-    min={field.min ?? undefined}
-    max={field.max ?? undefined}
-    disabled={disabled}
-    onChange={(event) => onFieldChange(nodeId, field.id, event.target.value)}
-  />
+      value={String(value ?? field.default ?? "")}
+      placeholder={field.placeholder ?? ""}
+      min={field.min ?? undefined}
+      max={field.max ?? undefined}
+      disabled={disabled}
+      onChange={(event) => onFieldChange(nodeId, field.id, event.target.value)}
+    />
   );
 }
 
@@ -111,6 +111,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const showPreview = Boolean(data.mediaPreview) || isLoadImage || Boolean(definition.ui?.show_preview);
   const connectedInputPorts = new Set(data.connectedInputPorts ?? []);
   const connectableFieldIds = new Set(definition.fields.filter((field) => field.connectable || field.port_type).map((field) => field.id));
+  const visibleFields = definition.fields.filter((field) => !field.hidden && field.type !== "asset_picker" && field.type !== "reference_media_picker");
   return (
     <div
       className={`graph-node graph-node-${status}`}
@@ -201,18 +202,18 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
             <small>{port.type}</small>
           </div>
         ))}
-        {definition.fields.map((field) => {
+        {visibleFields.map((field) => {
           const fieldConnected = connectedInputPorts.has(field.id);
           const fieldPort = definition.ports.inputs.find((port) => port.id === field.id);
           return (
-          <label className={`graph-node-field ${fieldPort ? "graph-node-field-connectable" : ""} ${fieldConnected ? "graph-node-field-connected" : ""}`} key={field.id}>
-            {fieldPort ? <Handle id={fieldPort.id} type="target" position={Position.Left} className={`graph-handle graph-handle-${fieldPort.type}`} /> : null}
-            <span>
-              {field.label}
-              {field.required ? " *" : ""}
-            </span>
-            <FieldControl nodeId={id} field={field} value={data.fields[field.id]} disabled={fieldConnected} onFieldChange={data.onFieldChange} />
-          </label>
+            <label className={`graph-node-field ${fieldPort ? "graph-node-field-connectable" : ""} ${fieldConnected ? "graph-node-field-connected" : ""}`} key={field.id}>
+              {fieldPort ? <Handle id={fieldPort.id} type="target" position={Position.Left} className={`graph-handle graph-handle-${fieldPort.type}`} /> : null}
+              <span>
+                {field.label}
+                {field.required ? " *" : ""}
+              </span>
+              <FieldControl nodeId={id} field={field} value={data.fields[field.id]} disabled={fieldConnected} onFieldChange={data.onFieldChange} />
+            </label>
           );
         })}
         {definition.ports.outputs.map((port) => (

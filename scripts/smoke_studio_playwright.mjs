@@ -211,6 +211,10 @@ async function run() {
     await page.getByTestId("graph-template-nano-image-pipeline").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-reference-list").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-asset-list").waitFor({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Collapse graph sidebar" }).click();
+    await page.getByRole("button", { name: "Expand graph sidebar" }).waitFor({ timeout: 10_000 });
+    await page.getByRole("button", { name: "Expand graph sidebar" }).click();
+    await page.getByRole("button", { name: "Collapse graph sidebar" }).waitFor({ timeout: 10_000 });
     await page.getByTestId("graph-node-prompt.text").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-node-media.load_image").waitFor({ timeout: 15_000 });
     const graphModelNode = page.getByTestId("graph-node-model.kie.nano_banana_pro");

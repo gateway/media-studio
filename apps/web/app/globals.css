@@ -11,6 +11,10 @@
   color: #f7f6f0;
 }
 
+.graph-studio-shell-sidebar-collapsed {
+  grid-template-columns: 0 minmax(0, 1fr) !important;
+}
+
 .graph-sidebar {
   border-right: 1px solid rgba(247, 246, 240, 0.12);
   background: #151817;
@@ -31,6 +35,47 @@
   font-weight: 800;
   letter-spacing: 0.02em;
   margin-bottom: 18px;
+}
+
+.graph-sidebar-toggle,
+.graph-sidebar-floating-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-left: auto;
+  color: #f7f6f0;
+  background: #242827;
+  border: 1px solid rgba(247, 246, 240, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.graph-sidebar-floating-toggle {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 100;
+  margin-left: 0;
+}
+
+.graph-studio-shell-sidebar-collapsed .graph-sidebar {
+  width: 0;
+  padding: 0;
+  border-right: 0;
+  background: transparent;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.graph-studio-shell-sidebar-collapsed .graph-sidebar-title {
+  justify-content: center;
+  margin-bottom: 0;
+}
+
+.graph-studio-shell-sidebar-collapsed .graph-sidebar-toggle {
+  margin-left: 0;
 }
 
 .graph-workflow-name,
@@ -378,6 +423,26 @@
 
 .graph-node-resize-line {
   border-color: transparent;
+}
+
+.react-flow__node,
+.react-flow__node:focus,
+.react-flow__node:focus-visible,
+.react-flow__node.selected {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__resize-control.line {
+  border-color: transparent !important;
+}
+
+.react-flow__resize-control.handle {
+  width: 11px !important;
+  height: 11px !important;
+  border: 1px solid #0e1110 !important;
+  border-radius: 3px !important;
+  background: #d1ff47 !important;
 }
 
 .graph-node-field textarea {

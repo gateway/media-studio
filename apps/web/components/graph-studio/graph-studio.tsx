@@ -13,7 +13,7 @@ import {
   type Edge,
   type Node,
 } from "@xyflow/react";
-import { Play, Save, Search, Upload, Workflow } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Play, Save, Search, Upload, Workflow } from "lucide-react";
 
 import type { MediaAsset, MediaReference } from "@/lib/types";
 import { GraphNode } from "./graph-node";
@@ -169,6 +169,7 @@ export function GraphStudio() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [imageLibraryNodeId, setImageLibraryNodeId] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const appendConsole = useCallback((line: string) => {
     setConsoleLines((current) => [line, ...current].slice(0, 80));
@@ -588,12 +589,45 @@ export function GraphStudio() {
   );
 
   return (
-    <div className="graph-studio-shell" onDrop={onDrop} onDragOver={(event) => event.preventDefault()}>
+    <div
+      className={`graph-studio-shell ${sidebarCollapsed ? "graph-studio-shell-sidebar-collapsed" : ""}`}
+      style={sidebarCollapsed ? { gridTemplateColumns: "0 minmax(0, 1fr)" } : undefined}
+      onDrop={onDrop}
+      onDragOver={(event) => event.preventDefault()}
+    >
+      {sidebarCollapsed ? (
+        <button
+          className="graph-sidebar-floating-toggle"
+          type="button"
+          aria-label="Expand graph sidebar"
+          title="Expand sidebar"
+          onClick={() => setSidebarCollapsed(false)}
+        >
+          <PanelLeftOpen size={17} />
+        </button>
+      ) : null}
       <aside className="graph-sidebar">
         <div className="graph-sidebar-title">
-          <Workflow size={18} />
-          <span>Graph Studio</span>
+          {!sidebarCollapsed ? (
+            <>
+              <Workflow size={18} />
+              <span>Graph Studio</span>
+            </>
+          ) : null}
+          {!sidebarCollapsed ? (
+            <button
+              className="graph-sidebar-toggle"
+              type="button"
+              aria-label="Collapse graph sidebar"
+              title="Collapse sidebar"
+              onClick={() => setSidebarCollapsed(true)}
+            >
+              <PanelLeftClose size={17} />
+            </button>
+          ) : null}
         </div>
+        {!sidebarCollapsed ? (
+          <>
         <label className="graph-workflow-name">
           Workflow
           <input value={workflowName} onChange={(event) => setWorkflowName(event.target.value)} />
@@ -675,6 +709,8 @@ export function GraphStudio() {
           <Upload size={16} />
           Drop an image on the canvas to import it as a Load Image node.
         </div>
+          </>
+        ) : null}
       </aside>
       <main className="graph-main">
         <div className="graph-toolbar">
