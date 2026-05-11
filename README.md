@@ -176,6 +176,16 @@ You can:
 - Import presets shared by someone else.
 - Export your own presets as portable bundles.
 
+Current built-in presets include:
+
+- **2x2 Pose Grid** - generate four fresh pose and camera variations from one person reference.
+- **3D Caricature Style** - turn a portrait into a polished 3D caricature while keeping the likeness.
+- **Exploding Food** - create high-end commercial food photography with suspended pieces and particles.
+- **Food Recipe Infographic** - build clean recipe infographic layouts from a food name.
+- **Giant Animal Anywhere** - place a huge cute animal into a real-world location.
+- **Photo Restoration** - colorize and clean old photos from one uploaded source image.
+- **Selfie with Movie Character** - place your portrait into a cinematic selfie with a named character.
+
 If you build presets you want to share with other users, let us know. We would love to collect good community presets and add them to the project.
 
 ## Useful Docs
@@ -189,6 +199,6 @@ If you build presets you want to share with other users, let us know. We would l
 
 ## Versioning
 
-The first public release line starts at `v1.0.0`.
+The first public release line starts at `v1.0.0`. The current build is `v1.0.1`.
 
 When you ship a new build, update the root `package.json` version. The app reads that package version and displays it as `vX.Y.Z` in the admin nav, so testers can confirm exactly which build they are running.
