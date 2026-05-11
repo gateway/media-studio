@@ -16,6 +16,7 @@ import {
 import { Play, Save, Search, Upload, Workflow } from "lucide-react";
 
 import { GraphNode } from "./graph-node";
+import type { MediaAsset, MediaReference } from "@/lib/types";
 import type { GraphNodeDefinition, GraphRun, GraphRunEvent, GraphWorkflowPayload, StudioEdge, StudioNode } from "./types";
 
 const nodeTypes = { graphNode: GraphNode };
@@ -89,6 +90,12 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+function isTextEntryTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tagName = target.tagName.toLowerCase();
+  return target.isContentEditable || tagName === "input" || tagName === "textarea" || tagName === "select";
+}
+
 export function GraphStudio() {
   const [definitions, setDefinitions] = useState<GraphNodeDefinition[]>([]);
   const [search, setSearch] = useState("");
@@ -96,6 +103,10 @@ export function GraphStudio() {
   const [workflowName, setWorkflowName] = useState("Nano Image Pipeline");
   const [consoleLines, setConsoleLines] = useState<string[]>(["Graph Studio ready."]);
   const [run, setRun] = useState<GraphRun | null>(null);
+  const [references, setReferences] = useState<MediaReference[]>([]);
+  const [assets, setAssets] = useState<MediaAsset[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const appendConsole = useCallback((line: string) => {
     setConsoleLines((current) => [line, ...current].slice(0, 80));
@@ -175,42 +186,93 @@ export function GraphStudio() {
     [onFieldChange, setNodes],
   );
 
+  const buildStarterWorkflow = useCallback(
+    (items: GraphNodeDefinition[]) => {
+      const byType = new Map(items.map((definition) => [definition.type, definition]));
+      const load = byType.get("media.load_image");
+      const model = byType.get("model.kie.nano_banana_pro");
+      const save = byType.get("media.save_image");
+      if (!load || !model || !save) return false;
+      const loadNode = createNode(load, { x: 80, y: 180 }, onFieldChange);
+      const modelNode = createNode(model, { x: 450, y: 110 }, onFieldChange);
+      modelNode.data.fields.prompt = "Transform this reference into a cinematic, high-detail editorial image.";
+      const saveNode = createNode(save, { x: 880, y: 220 }, onFieldChange);
+      setNodes([loadNode, modelNode, saveNode]);
+      setEdges([
+        {
+          id: "edge-load-model",
+          source: loadNode.id,
+          sourceHandle: "image",
+          target: modelNode.id,
+          targetHandle: "image_refs",
+          animated: true,
+        },
+        {
+          id: "edge-model-save",
+          source: modelNode.id,
+          sourceHandle: "image",
+          target: saveNode.id,
+          targetHandle: "image",
+          animated: true,
+        },
+      ]);
+      return true;
+    },
+    [onFieldChange, setEdges, setNodes],
+  );
+
+  const addLoadImageNode = useCallback(
+    (fields: Record<string, unknown>, position?: { x: number; y: number }) => {
+      const definition = definitionsByType.get("media.load_image");
+      if (!definition) {
+        appendConsole("Load Image node is not available.");
+        return;
+      }
+      setNodes((current) => {
+        const nextNode = createNode(definition, position ?? { x: 120 + current.length * 80, y: 120 + current.length * 60 }, onFieldChange);
+        nextNode.data.fields = { ...nextNode.data.fields, ...fields };
+        return [...current, nextNode];
+      });
+    },
+    [appendConsole, definitionsByType, onFieldChange, setNodes],
+  );
+
   useEffect(() => {
     jsonFetch<{ items: GraphNodeDefinition[] }>("/api/control/media/graph/node-definitions")
       .then((payload) => {
         setDefinitions(payload.items);
-        const byType = new Map(payload.items.map((definition) => [definition.type, definition]));
-        const load = byType.get("media.load_image");
-        const model = byType.get("model.kie.nano_banana_pro");
-        const save = byType.get("media.save_image");
-        if (load && model && save) {
-          const loadNode = createNode(load, { x: 80, y: 180 }, onFieldChange);
-          const modelNode = createNode(model, { x: 450, y: 110 }, onFieldChange);
-          modelNode.data.fields.prompt = "Transform this reference into a cinematic, high-detail editorial image.";
-          const saveNode = createNode(save, { x: 880, y: 220 }, onFieldChange);
-          setNodes([loadNode, modelNode, saveNode]);
-          setEdges([
-            {
-              id: "edge-load-model",
-              source: loadNode.id,
-              sourceHandle: "image",
-              target: modelNode.id,
-              targetHandle: "image_refs",
-              animated: true,
-            },
-            {
-              id: "edge-model-save",
-              source: modelNode.id,
-              sourceHandle: "image",
-              target: saveNode.id,
-              targetHandle: "image",
-              animated: true,
-            },
-          ]);
-        }
+        buildStarterWorkflow(payload.items);
       })
       .catch((error) => appendConsole(`Failed to load node definitions: ${error.message}`));
-  }, [appendConsole, onFieldChange, setEdges, setNodes]);
+  }, [appendConsole, buildStarterWorkflow]);
+
+  useEffect(() => {
+    Promise.all([
+      jsonFetch<{ items?: MediaReference[] }>("/api/control/reference-media?kind=image&limit=8").catch(() => ({ items: [] })),
+      jsonFetch<{ assets?: MediaAsset[] }>("/api/control/media-assets?generation_kind=image&limit=8").catch(() => ({ assets: [] })),
+    ]).then(([referencePayload, assetPayload]) => {
+      setReferences(referencePayload.items ?? []);
+      setAssets(assetPayload.assets ?? []);
+    });
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSearchOpen(false);
+        setContextMenu(null);
+        return;
+      }
+      if (isTextEntryTarget(event.target)) return;
+      if (event.code === "Space") {
+        event.preventDefault();
+        setSearchOpen(true);
+        setContextMenu(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const saveWorkflow = useCallback(async () => {
     const payload = workflowFromCanvas(workflowId, workflowName, nodes, edges);
@@ -284,20 +346,21 @@ export function GraphStudio() {
       if (!file || !file.type.startsWith("image/")) return;
       const data = new FormData();
       data.append("file", file);
-      const response = await fetch("/api/control/media/reference-media/import", { method: "POST", body: data });
+      const response = await fetch("/api/control/reference-media/import", { method: "POST", body: data });
       if (!response.ok) {
         appendConsole("Image import failed.");
         return;
       }
-      const reference = (await response.json()) as { reference_id: string };
-      const definition = definitionsByType.get("media.load_image");
-      if (!definition) return;
-      const nextNode = createNode(definition, { x: event.clientX - 260, y: event.clientY - 120 }, onFieldChange);
-      nextNode.data.fields.reference_id = reference.reference_id;
-      setNodes((current) => [...current, nextNode]);
-      appendConsole(`Imported reference ${reference.reference_id}.`);
+      const payload = (await response.json()) as { item?: MediaReference };
+      if (!payload.item?.reference_id) {
+        appendConsole("Image import did not return a reference.");
+        return;
+      }
+      addLoadImageNode({ reference_id: payload.item.reference_id }, { x: event.clientX - 260, y: event.clientY - 120 });
+      setReferences((current) => [payload.item as MediaReference, ...current.filter((item) => item.reference_id !== payload.item?.reference_id)].slice(0, 8));
+      appendConsole(`Imported reference ${payload.item.reference_id}.`);
     },
-    [appendConsole, definitionsByType, onFieldChange, setNodes],
+    [addLoadImageNode, appendConsole],
   );
 
   return (
@@ -323,6 +386,57 @@ export function GraphStudio() {
             </button>
           ))}
         </div>
+        <section className="graph-sidebar-section">
+          <div className="graph-section-title">Templates</div>
+          <button
+            className="graph-template-card"
+            data-testid="graph-template-nano-image-pipeline"
+            type="button"
+            onClick={() => {
+              if (buildStarterWorkflow(definitions)) {
+                setWorkflowName("Nano Image Pipeline");
+                setWorkflowId(null);
+                appendConsole("Loaded Nano image pipeline template.");
+              }
+            }}
+          >
+            <span className="graph-template-thumb" />
+            <span>
+              <strong>Nano image pipeline</strong>
+              <small>Load Image -&gt; Nano Banana Pro -&gt; Save Image</small>
+            </span>
+          </button>
+        </section>
+        <section className="graph-sidebar-section">
+          <div className="graph-section-title">Recent References</div>
+          <div className="graph-media-list" data-testid="graph-reference-list">
+            {references.length ? (
+              references.map((reference) => (
+                <button key={reference.reference_id} type="button" onClick={() => addLoadImageNode({ reference_id: reference.reference_id })}>
+                  {reference.thumb_url || reference.stored_url ? <img src={reference.thumb_url ?? reference.stored_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
+                  <span>{reference.original_filename ?? reference.reference_id}</span>
+                </button>
+              ))
+            ) : (
+              <div className="graph-sidebar-empty">No reference images yet.</div>
+            )}
+          </div>
+        </section>
+        <section className="graph-sidebar-section">
+          <div className="graph-section-title">Recent Images</div>
+          <div className="graph-media-list" data-testid="graph-asset-list">
+            {assets.length ? (
+              assets.map((asset) => (
+                <button key={String(asset.asset_id)} type="button" onClick={() => addLoadImageNode({ asset_id: String(asset.asset_id) })}>
+                  {asset.hero_thumb_url || asset.hero_web_url ? <img src={asset.hero_thumb_url ?? asset.hero_web_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
+                  <span>{asset.prompt_summary ?? String(asset.asset_id)}</span>
+                </button>
+              ))
+            ) : (
+              <div className="graph-sidebar-empty">No image assets yet.</div>
+            )}
+          </div>
+        </section>
         <div className="graph-drop-hint">
           <Upload size={16} />
           Drop an image on the canvas to import it as a Load Image node.
@@ -341,7 +455,15 @@ export function GraphStudio() {
             {run ? `${run.status} ${run.error ? `- ${run.error}` : ""}` : "No run yet"}
           </div>
         </div>
-        <div className="graph-canvas" data-testid="graph-canvas">
+        <div
+          className="graph-canvas"
+          data-testid="graph-canvas"
+          onContextMenu={(event) => {
+            event.preventDefault();
+            setContextMenu({ x: event.clientX, y: event.clientY });
+            setSearchOpen(false);
+          }}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -350,6 +472,7 @@ export function GraphStudio() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             isValidConnection={edgeIsValid}
+            onPaneClick={() => setContextMenu(null)}
             fitView
           >
             <Background />
@@ -363,6 +486,47 @@ export function GraphStudio() {
           ))}
         </section>
       </main>
+      {contextMenu ? (
+        <div className="graph-context-menu" data-testid="graph-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
+          <div className="graph-section-title">Add Node</div>
+          {definitions.map((definition) => (
+            <button
+              key={definition.type}
+              type="button"
+              onClick={() => {
+                setNodes((current) => [...current, createNode(definition, { x: contextMenu.x - 360, y: contextMenu.y - 90 }, onFieldChange)]);
+                setContextMenu(null);
+              }}
+            >
+              <strong>{definition.title}</strong>
+              <span>{definition.category}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {searchOpen ? (
+        <div className="graph-node-search-modal" data-testid="graph-node-search-modal" role="dialog" aria-label="Node search">
+          <div className="graph-search">
+            <Search size={15} />
+            <input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search nodes" />
+          </div>
+          <div className="graph-node-list">
+            {filteredDefinitions.map((definition) => (
+              <button
+                key={definition.type}
+                type="button"
+                onClick={() => {
+                  addDefinitionNode(definition);
+                  setSearchOpen(false);
+                }}
+              >
+                <strong>{definition.title}</strong>
+                <span>{definition.category}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
