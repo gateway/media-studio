@@ -704,22 +704,28 @@
   transition:
     background 120ms ease,
     border-color 120ms ease,
-    box-shadow 120ms ease,
-    transform 120ms ease;
+    box-shadow 120ms ease;
 }
 
 .graph-handle:hover {
   background: #d1ff47;
   box-shadow: 0 0 0 7px rgba(209, 255, 71, 0.16);
-  transform: scale(1.08);
 }
 
 .graph-handle-compatible {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-color: #f7f6f0;
   background: #d1ff47;
   box-shadow: 0 0 0 5px rgba(209, 255, 71, 0.16);
+}
+
+.react-flow__handle {
+  cursor: grab !important;
+}
+
+.react-flow__handle:active {
+  cursor: grabbing !important;
 }
 
 .graph-handle-image {

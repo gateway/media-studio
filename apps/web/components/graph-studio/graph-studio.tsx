@@ -34,6 +34,7 @@ type ConnectMenuState = {
 };
 type SidebarDialog = "workflows" | "nodes" | "images";
 type PendingInputRewire = {
+  edgeId: string;
   source: string;
   sourceHandle: string | null;
   oldTarget: string;
@@ -379,6 +380,7 @@ export function GraphStudio() {
       const normalizedConnection = pendingRewire
         ? {
             ...connection,
+            id: pendingRewire.edgeId,
             source: pendingRewire.source,
             sourceHandle: pendingRewire.sourceHandle,
             target:
@@ -391,25 +393,24 @@ export function GraphStudio() {
                 : connection.targetHandle,
           }
         : connection;
-      if (!edgeIsValid(normalizedConnection)) {
+      if (!edgeIsValid(normalizedConnection as StudioEdge)) {
         appendConsole("Connection rejected: incompatible ports.");
         pendingInputRewire.current = null;
         return;
       }
       const sourcePortType = portTypeForHandle(normalizedConnection.source, normalizedConnection.sourceHandle, "source");
-      setEdges((current) =>
-        addEdge(
-          {
-            ...normalizedConnection,
-            id: `edge-${normalizedConnection.source}-${normalizedConnection.sourceHandle}-${normalizedConnection.target}-${normalizedConnection.targetHandle}`,
-            animated: false,
-            className: edgeClassForPortType(sourcePortType),
-            style: edgeStyleForPortType(sourcePortType),
-            reconnectable: true,
-          },
-          current,
-        ),
-      );
+      setEdges((current) => {
+        const withoutRewiredEdge = pendingRewire ? current.filter((edge) => edge.id !== pendingRewire.edgeId) : current;
+        const nextEdge: StudioEdge = {
+          ...normalizedConnection,
+          id: `edge-${normalizedConnection.source}-${normalizedConnection.sourceHandle}-${normalizedConnection.target}-${normalizedConnection.targetHandle}`,
+          animated: false,
+          className: edgeClassForPortType(sourcePortType),
+          style: edgeStyleForPortType(sourcePortType),
+          reconnectable: true,
+        };
+        return addEdge(nextEdge, withoutRewiredEdge);
+      });
       pendingInputRewire.current = null;
     },
     [appendConsole, edgeIsValid, portTypeForHandle, setEdges],
@@ -428,13 +429,13 @@ export function GraphStudio() {
         const portType = portTypeForHandle(existingEdge.source, existingEdge.sourceHandle, "source");
         if (!portType) return;
         pendingInputRewire.current = {
+          edgeId: existingEdge.id,
           source: existingEdge.source,
           sourceHandle: existingEdge.sourceHandle ?? null,
           oldTarget: existingEdge.target,
           oldTargetHandle: existingEdge.targetHandle ?? null,
           portType,
         };
-        setEdges((current) => current.filter((edge) => edge.id !== existingEdge.id));
         setActiveConnection({ from: "output", portType });
         setActiveConnectionStart({ nodeId: existingEdge.source, handleId: existingEdge.sourceHandle ?? null });
         setConnectMenu(null);
@@ -452,7 +453,9 @@ export function GraphStudio() {
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: { isValid: boolean | null; toHandle?: unknown }) => {
       if (pendingInputRewire.current && !connectionState.isValid) {
+        const edgeId = pendingInputRewire.current.edgeId;
         pendingInputRewire.current = null;
+        setEdges((current) => current.filter((edge) => edge.id !== edgeId));
         setActiveConnection(null);
         setActiveConnectionStart(null);
         appendConsole("Connection removed.");
