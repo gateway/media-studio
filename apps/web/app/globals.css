@@ -124,7 +124,6 @@
 .graph-template-card,
 .graph-media-list button,
 .graph-context-menu button,
-.graph-workflow-menu button,
 .graph-toolbar button {
   color: #f7f6f0;
   background: #242827;
@@ -270,12 +269,23 @@
 .graph-workflow-tab {
   min-width: 0;
   max-width: 100%;
+  padding-right: 0.8rem !important;
 }
 
 .graph-workflow-tab span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.graph-workflow-tab::after {
+  content: "";
+  width: 0;
+  height: 0;
+  margin-left: 0.1rem;
+  border-top: 4px solid rgba(247, 246, 240, 0.72);
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
 }
 
 .graph-workflow-tab-active {
@@ -286,23 +296,46 @@
 .graph-workflow-menu {
   position: absolute;
   left: 0;
-  top: calc(100% + 8px);
+  top: calc(100% + 6px);
   z-index: 90;
   display: grid;
-  width: 180px;
-  gap: 0.35rem;
-  padding: 0.45rem;
-  border: 1px solid rgba(247, 246, 240, 0.14);
+  width: 196px;
+  gap: 0.15rem;
+  padding: 0.35rem;
+  border: 1px solid rgba(247, 246, 240, 0.16);
   border-radius: 8px;
-  background: #171b1a;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.42);
+  background: #202423;
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(247, 246, 240, 0.05);
 }
 
 .graph-workflow-menu button {
+  display: flex;
+  align-items: center;
   justify-content: flex-start;
   width: 100%;
-  padding: 0.55rem 0.65rem;
+  min-height: 34px;
+  padding: 0.45rem 0.6rem !important;
+  color: rgba(247, 246, 240, 0.9);
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
   text-align: left;
+  cursor: pointer;
+}
+
+.graph-workflow-menu button:hover,
+.graph-workflow-menu button:focus-visible {
+  color: #f7f6f0;
+  background: #303333 !important;
+  outline: none;
+}
+
+.graph-workflow-menu button + button {
+  border-top: 1px solid rgba(247, 246, 240, 0.06);
 }
 
 .graph-toolbar-actions {
