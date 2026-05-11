@@ -1552,6 +1552,29 @@ export function modelInputLimit(
   return Math.max(0, Math.trunc(parsed));
 }
 
+export function modelSupportsImageToVideoAnimation(model: MediaModelSummary | null) {
+  if (!model || model.studio_exposed === false || model.generation_kind !== "video") {
+    return false;
+  }
+  return model.task_modes?.includes("image_to_video") || modelInputLimit(model, "image_inputs") > 0;
+}
+
+export function resolveImageToVideoAnimationModel(
+  models: MediaModelSummary[],
+  currentModel: MediaModelSummary | null,
+) {
+  if (modelSupportsImageToVideoAnimation(currentModel)) {
+    return currentModel;
+  }
+  const supportedModels = models.filter(modelSupportsImageToVideoAnimation);
+  return (
+    supportedModels.find((model) => model.key === "kling-2.6-i2v") ??
+    supportedModels.find((model) => model.key === "kling-3.0-i2v") ??
+    supportedModels[0] ??
+    null
+  );
+}
+
 export function optionEntries(model: MediaModelSummary | null) {
   if (Array.isArray(model?.studio_dynamic_options) && model.studio_dynamic_options.length) {
     return model.studio_dynamic_options

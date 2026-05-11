@@ -20,6 +20,7 @@ import {
   mediaDownloadName,
   mediaPlaybackUrl,
   mediaThumbnailUrl,
+  modelSupportsImageToVideoAnimation,
   modelSupportsStructuredImagePreset,
   modelSupportsFirstLastFrames,
   modelSupportsImageDrivenInputs,
@@ -30,6 +31,7 @@ import {
   renderStructuredPresetPrompt,
   resolveStandardComposerSlots,
   resolveComposerSourceAsset,
+  resolveImageToVideoAnimationModel,
   resolveStudioRetryPreset,
   resolveStudioPresetTargetModel,
   resolveEnhancementPreviewVisual,
@@ -188,6 +190,43 @@ describe("media-studio-helpers Seedance support", () => {
       "nano-banana-2",
       "gpt-image-2-image-to-image",
     ]);
+  });
+
+  it("resolves an image-to-video target for Animate from prompt-only image models", () => {
+    const gptTextToImage = {
+      key: "gpt-image-2-text-to-image",
+      generation_kind: "image",
+      task_modes: ["text_to_image"],
+      image_inputs: { required_max: 0 },
+    } as never;
+    const kling26 = {
+      key: "kling-2.6-i2v",
+      generation_kind: "video",
+      task_modes: ["image_to_video"],
+      image_inputs: { required_max: 1 },
+      studio_exposed: true,
+    } as never;
+    const kling30 = {
+      key: "kling-3.0-i2v",
+      generation_kind: "video",
+      task_modes: ["image_to_video"],
+      image_inputs: { required_max: 2 },
+      studio_exposed: true,
+    } as never;
+    const hiddenVideo = {
+      key: "hidden-i2v",
+      generation_kind: "video",
+      task_modes: ["image_to_video"],
+      image_inputs: { required_max: 1 },
+      studio_exposed: false,
+    } as never;
+
+    expect(modelSupportsImageToVideoAnimation(gptTextToImage)).toBe(false);
+    expect(modelSupportsImageToVideoAnimation(kling26)).toBe(true);
+    expect(modelSupportsImageToVideoAnimation(hiddenVideo)).toBe(false);
+    expect(resolveImageToVideoAnimationModel([gptTextToImage, hiddenVideo, kling30, kling26], gptTextToImage)).toBe(kling26);
+    expect(resolveImageToVideoAnimationModel([gptTextToImage, kling30], kling30)).toBe(kling30);
+    expect(resolveImageToVideoAnimationModel([gptTextToImage, hiddenVideo], gptTextToImage)).toBeNull();
   });
 
   it("detects whether a structured preset requires image input", () => {

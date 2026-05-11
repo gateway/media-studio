@@ -95,6 +95,7 @@ import {
   mediaVariantUrl,
   mobileSaveActionLabel,
   modelInputLimit,
+  resolveImageToVideoAnimationModel,
   MULTI_SHOT_MODEL_KEYS,
   normalizeStructuredPresetImageSlots,
   normalizeStructuredPresetTextFields,
@@ -650,6 +651,15 @@ export function MediaStudio({
   useEffect(() => {
     setSelectedReferencePreview(null);
   }, [selectedAssetId]);
+
+  const closeAssetInspector = useCallback(() => {
+    resetInspector();
+    setSelectedFailedJobId(null);
+    if (typeof window !== "undefined") {
+      window.history.replaceState(window.history.state, "", buildStudioScopedHref(pathname, selectedProjectId));
+    }
+  }, [pathname, resetInspector, selectedProjectId]);
+
   const composer = useStudioComposer({
     models,
     presets,
@@ -2271,6 +2281,26 @@ export function MediaStudio({
   ]);
 
   useEffect(() => {
+    if (!selectedAsset || selectedMediaLightboxOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      closeAssetInspector();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeAssetInspector, selectedAsset, selectedMediaLightboxOpen]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
         return;
@@ -2642,8 +2672,23 @@ export function MediaStudio({
     if (!asset) {
       return;
     }
-    if (!seedanceComposer && !structuredPresetActive && !canUseSourceAsset && !explicitVideoImageSlots && !dedicatedImageReferenceRailActive) {
+    if (!animate && !seedanceComposer && !structuredPresetActive && !canUseSourceAsset && !explicitVideoImageSlots && !dedicatedImageReferenceRailActive) {
       setFormMessage({ tone: "warning", text: "The selected model is text-to-video only, so Studio is hiding source image inputs." });
+      return;
+    }
+    if (animate && asset.generation_kind === "image") {
+      const animateTargetModel = resolveImageToVideoAnimationModel(models, currentModel);
+      if (!animateTargetModel) {
+        setFormMessage({ tone: "warning", text: "No image-to-video model is available for this image." });
+        return;
+      }
+      stageSourceAsset(asset);
+      if (animateTargetModel.key !== modelKey) {
+        setModelKey(animateTargetModel.key);
+      }
+      closeAssetInspector();
+      setMobileComposerCollapsed(!isCoarsePointerDevice());
+      setFormMessage({ tone: "warning", text: "The selected image is now staged for the animate flow." });
       return;
     }
     if (explicitMotionControlSlots) {
@@ -2654,15 +2699,13 @@ export function MediaStudio({
           removeAttachment(motionControlVideoAttachment.id);
         }
         void addGalleryAssetAsAttachment(asset, null, ["videos"]);
-        setSelectedMediaLightboxOpen(false);
-        setSelectedAssetId(null);
+        closeAssetInspector();
         setFormMessage({ tone: "warning", text: "The selected asset is now staged as the driving video." });
         return;
       }
       stageSourceAsset(asset);
-      setSelectedMediaLightboxOpen(false);
+      closeAssetInspector();
       setMobileComposerCollapsed(!isCoarsePointerDevice());
-      setSelectedAssetId(null);
       setFormMessage({ tone: "warning", text: "The selected asset is now staged as the source image." });
       return;
     }
@@ -2676,8 +2719,7 @@ export function MediaStudio({
             ? "first_frame"
             : "reference";
       void addGalleryAssetAsAttachment(asset, role);
-      setSelectedMediaLightboxOpen(false);
-      setSelectedAssetId(null);
+      closeAssetInspector();
       setFormMessage({
         tone: "warning",
         text:
@@ -2694,8 +2736,7 @@ export function MediaStudio({
           return !slotState?.assetId && !slotState?.file;
         }) ?? structuredPresetImageSlots[0];
       assignPresetSlotAsset(nextSlot.key, asset);
-      setSelectedMediaLightboxOpen(false);
-      setSelectedAssetId(null);
+      closeAssetInspector();
       setFormMessage({ tone: "warning", text: `${asset.prompt_summary ? "Image" : "Selected asset"} assigned to ${nextSlot.label}.` });
       return;
     }
@@ -2703,19 +2744,9 @@ export function MediaStudio({
     // attachment strip so slot zero is not duplicated when explicit slot contracts
     // later stage image attachments into ordered positions.
     stageSourceAsset(asset);
-    if (animate && asset.generation_kind !== "video") {
-      const currentModelSupportsAnimate = Boolean(
-        currentModel?.generation_kind === "video" &&
-          (currentModel?.task_modes?.includes("image_to_video") || maxImageInputs > 0),
-      );
-      if (!currentModelSupportsAnimate) {
-        setModelKey("kling-2.6-i2v");
-      }
-    }
-    setSelectedMediaLightboxOpen(false);
+    closeAssetInspector();
     // Desktop keeps the docked composer anchored to the viewport.
     setMobileComposerCollapsed(!isCoarsePointerDevice());
-    setSelectedAssetId(null);
     setFormMessage({
       tone: "warning",
       text: animate
@@ -3848,7 +3879,7 @@ export function MediaStudio({
                 <div className="relative overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_55%),linear-gradient(180deg,#111514,#181d1b)]">
                   <button
                     type="button"
-                    onClick={resetInspector}
+                    onClick={closeAssetInspector}
                     className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/24 text-white/78 transition hover:text-white"
                   >
                     <X className="size-5" />
