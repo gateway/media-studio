@@ -205,6 +205,12 @@ async function run() {
     await generateButton.click();
     await page.locator('[data-testid="studio-gallery-card"], [data-testid="studio-gallery-batch-card"]').first().waitFor({ timeout: 45_000 });
 
+    await page.goto(`${webBaseUrl}/graph-studio`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("graph-canvas").waitFor({ timeout: 45_000 });
+    await page.getByTestId("graph-node-palette").waitFor({ timeout: 15_000 });
+    await page.getByText("Load Image", { exact: true }).first().waitFor({ timeout: 15_000 });
+    await page.getByText("Save Image", { exact: true }).first().waitFor({ timeout: 15_000 });
+
     if (consoleErrors.length) {
       throw new Error(`Console errors during Studio smoke:\n${consoleErrors.join("\n")}`);
     }

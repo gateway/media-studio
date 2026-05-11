@@ -38,6 +38,14 @@ JSON_FIELDS = {
     "payload_json",
     "provider_capabilities_json",
     "metadata_json",
+    "workflow_json",
+    "compiled_graph_json",
+    "definition_json",
+    "definitions_json",
+    "node_snapshot_json",
+    "input_snapshot_json",
+    "output_snapshot_json",
+    "error_json",
 }
 
 MIGRATION_TABLES = {"schema_meta", "schema_migrations"}
@@ -1180,6 +1188,107 @@ def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
     _seed_default_model_queue_policies(connection)
 
 
+def _apply_graph_studio_schema(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """
+            CREATE TABLE IF NOT EXISTS graph_workflows (
+                workflow_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                schema_version INTEGER NOT NULL DEFAULT 1,
+                workflow_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS graph_workflow_versions (
+                version_id TEXT PRIMARY KEY,
+                workflow_id TEXT NOT NULL,
+                version_number INTEGER NOT NULL,
+                workflow_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(workflow_id) REFERENCES graph_workflows(workflow_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS graph_templates (
+                template_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                tags_json TEXT NOT NULL DEFAULT '[]',
+                thumbnail_path TEXT,
+                workflow_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS graph_runs (
+                run_id TEXT PRIMARY KEY,
+                workflow_id TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'queued',
+                schema_version INTEGER NOT NULL DEFAULT 1,
+                workflow_json TEXT NOT NULL DEFAULT '{}',
+                compiled_graph_json TEXT NOT NULL DEFAULT '{}',
+                output_snapshot_json TEXT NOT NULL DEFAULT '{}',
+                error TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                started_at TEXT,
+                finished_at TEXT,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(workflow_id) REFERENCES graph_workflows(workflow_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS graph_run_nodes (
+                run_node_id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL,
+                node_id TEXT NOT NULL,
+                node_type TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'queued',
+                progress REAL,
+                input_snapshot_json TEXT NOT NULL DEFAULT '{}',
+                output_snapshot_json TEXT NOT NULL DEFAULT '{}',
+                error TEXT,
+                started_at TEXT,
+                finished_at TEXT,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(run_id, node_id),
+                FOREIGN KEY(run_id) REFERENCES graph_runs(run_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS graph_run_events (
+                event_id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL,
+                node_id TEXT,
+                event_type TEXT NOT NULL,
+                payload_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(run_id) REFERENCES graph_runs(run_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS graph_node_definitions_cache (
+                cache_id TEXT PRIMARY KEY,
+                source_fingerprint TEXT,
+                definitions_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_graph_run_events_run_created
+        ON graph_run_events(run_id, created_at)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_graph_runs_workflow_created
+        ON graph_runs(workflow_id, created_at)
+        """
+    )
+
+
 MIGRATIONS = [
     SchemaMigration(
         migration_id="20260419_001_tracked_baseline",
@@ -1209,6 +1318,12 @@ MIGRATIONS = [
         version=4,
         description="Enable GPT Image 2 on built-in image presets and preserve Seedance 2 default availability.",
         apply=_apply_default_model_release_updates,
+    ),
+    SchemaMigration(
+        migration_id="20260511_005_graph_studio",
+        version=5,
+        description="Add Graph Studio workflow, template, run, event, and node definition tables.",
+        apply=_apply_graph_studio_schema,
     ),
 ]
 

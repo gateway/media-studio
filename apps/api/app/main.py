@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from . import kie_adapter, service, store
 from .control_auth import validate_control_request
+from .graph.routes import router as graph_router
 from .runner import runner
 from .schemas import (
     AssetListResponse,
@@ -102,6 +103,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app.include_router(graph_router)
 settings.data_root.mkdir(parents=True, exist_ok=True)
 
 

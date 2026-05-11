@@ -1,4 +1,222 @@
+@import "@xyflow/react/dist/style.css";
+
 @import "tailwindcss";
+
+.graph-studio-shell {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  height: 100vh;
+  min-height: 760px;
+  background: #0e1110;
+  color: #f7f6f0;
+}
+
+.graph-sidebar {
+  border-right: 1px solid rgba(247, 246, 240, 0.12);
+  background: #151817;
+  padding: 18px;
+  overflow: auto;
+}
+
+.graph-sidebar-title,
+.graph-toolbar,
+.graph-search,
+.graph-drop-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.graph-sidebar-title {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  margin-bottom: 18px;
+}
+
+.graph-workflow-name,
+.graph-node-field {
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.76rem;
+  color: rgba(247, 246, 240, 0.72);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.graph-workflow-name input,
+.graph-search input,
+.graph-node-field-control {
+  width: 100%;
+  color: #f7f6f0;
+  background: #303333;
+  border: 1px solid rgba(247, 246, 240, 0.09);
+  border-radius: 8px;
+  outline: none;
+  padding: 0.7rem 0.75rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.graph-search {
+  margin: 16px 0;
+  padding: 0.15rem 0.55rem;
+  background: #303333;
+  border: 1px solid rgba(247, 246, 240, 0.09);
+  border-radius: 8px;
+}
+
+.graph-search input {
+  border: 0;
+  padding-left: 0;
+}
+
+.graph-node-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.graph-node-list button,
+.graph-toolbar button {
+  color: #f7f6f0;
+  background: #242827;
+  border: 1px solid rgba(247, 246, 240, 0.12);
+  border-radius: 8px;
+  padding: 0.75rem 0.8rem;
+  cursor: pointer;
+}
+
+.graph-node-list button {
+  display: grid;
+  text-align: left;
+  gap: 0.2rem;
+}
+
+.graph-node-list span,
+.graph-drop-hint,
+.graph-node-kind,
+.graph-node-port-row small {
+  color: rgba(247, 246, 240, 0.58);
+  font-size: 0.72rem;
+}
+
+.graph-drop-hint {
+  margin-top: 18px;
+  line-height: 1.35;
+}
+
+.graph-main {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) 180px;
+}
+
+.graph-toolbar {
+  min-height: 58px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(247, 246, 240, 0.12);
+  background: #111413;
+}
+
+.graph-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.graph-run-status {
+  margin-left: auto;
+  color: rgba(247, 246, 240, 0.72);
+  font-size: 0.84rem;
+}
+
+.graph-canvas {
+  min-height: 0;
+  background: #0e1110;
+}
+
+.graph-console {
+  overflow: auto;
+  border-top: 1px solid rgba(247, 246, 240, 0.12);
+  background: #090b0a;
+  padding: 0.75rem 1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  color: rgba(247, 246, 240, 0.78);
+}
+
+.graph-node {
+  width: 340px;
+  overflow: hidden;
+  border: 1px solid rgba(247, 246, 240, 0.14);
+  border-radius: 8px;
+  background: #171b1a;
+  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.35);
+}
+
+.graph-node-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  background: #202524;
+  border-bottom: 1px solid rgba(247, 246, 240, 0.1);
+}
+
+.graph-node-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.graph-node-status {
+  align-self: start;
+  border: 1px solid rgba(209, 255, 71, 0.25);
+  color: #d1ff47;
+  border-radius: 999px;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.68rem;
+}
+
+.graph-node-body {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.8rem 0.9rem 0.95rem;
+}
+
+.graph-node-field textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.graph-node-port-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 26px;
+  color: rgba(247, 246, 240, 0.86);
+}
+
+.graph-node-port-output {
+  justify-content: flex-end;
+}
+
+.graph-handle {
+  width: 11px;
+  height: 11px;
+  border: 2px solid #d1ff47;
+  background: #111413;
+}
+
+.react-flow__edge-path {
+  stroke: #d1ff47;
+  stroke-width: 2;
+}
+
+.react-flow__controls,
+.react-flow__minimap {
+  background: #171b1a;
+  border: 1px solid rgba(247, 246, 240, 0.12);
+}
 
 :root {
   --ms-surface-primary: rgba(12, 15, 14, 0.94);

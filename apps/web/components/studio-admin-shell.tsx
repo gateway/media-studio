@@ -6,7 +6,7 @@ import { MEDIA_STUDIO_VERSION } from "@/lib/app-version";
 import { cn } from "@/lib/utils";
 
 type StudioAdminShellProps = {
-  section: "setup" | "studio" | "settings" | "models" | "presets" | "jobs" | "pricing";
+  section: "setup" | "studio" | "graph" | "settings" | "models" | "presets" | "jobs" | "pricing";
   title: string;
   description: string;
   eyebrow?: string;
@@ -17,6 +17,7 @@ type StudioAdminShellProps = {
 
 const navItems = [
   { key: "studio", label: "Studio", href: "/studio" },
+  { key: "graph", label: "Graph", href: "/graph-studio" },
   { key: "settings", label: "Settings", href: "/settings" },
   { key: "models", label: "Models", href: "/models" },
   { key: "presets", label: "Presets", href: "/presets" },

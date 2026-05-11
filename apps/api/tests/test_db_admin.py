@@ -62,13 +62,14 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert any("gpt-image-2-image-to-image" in json.loads(preset_row[0]) for preset_row in preset_rows)
     assert any("gpt-image-2-text-to-image" in json.loads(preset_row[0]) for preset_row in preset_rows)
 
-    assert status["schema_version"] == 4
-    assert status["latest_version"] == 4
-    assert len(status["applied_migrations"]) == 4
+    assert status["schema_version"] == status["latest_version"]
+    assert status["latest_version"] == 5
+    assert len(status["applied_migrations"]) == 5
     assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
     assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
     assert status["applied_migrations"][2]["migration_id"] == "20260419_003_project_visibility_flags"
     assert status["applied_migrations"][3]["migration_id"] == "20260501_004_default_model_release_updates"
+    assert status["applied_migrations"][4]["migration_id"] == "20260511_005_graph_studio"
     assert status["pending_migrations"] == []
 
 
@@ -130,8 +131,8 @@ def test_bootstrap_schema_updates_v3_default_model_release_settings(app_modules,
     connection = sqlite3.connect(legacy_db)
     try:
         connection.execute(
-            "DELETE FROM schema_migrations WHERE migration_id = ?",
-            ("20260501_004_default_model_release_updates",),
+            "DELETE FROM schema_migrations WHERE migration_id IN (?, ?)",
+            ("20260501_004_default_model_release_updates", "20260511_005_graph_studio"),
         )
         connection.execute("UPDATE schema_meta SET value = ? WHERE key = ?", ("3", "schema_version"))
         connection.execute(
@@ -187,7 +188,8 @@ def test_bootstrap_schema_updates_v3_default_model_release_settings(app_modules,
     assert seedance_policy is not None
     assert int(seedance_policy[0] or 0) == 1
     assert int(seedance_policy[1] or 0) == 1
-    assert store.get_schema_status(legacy_db)["schema_version"] == 4
+    status = store.get_schema_status(legacy_db)
+    assert status["schema_version"] == status["latest_version"] == 5
 
 
 def test_backup_database_copies_existing_database(app_modules, tmp_path: Path) -> None:
@@ -238,12 +240,13 @@ def test_bootstrap_schema_creates_backup_before_upgrading_existing_database(app_
     assert _count_rows(backup_path, "media_jobs") == 1
 
     status = store.get_schema_status(legacy_db)
-    assert status["schema_version"] == 4
+    assert status["schema_version"] == status["latest_version"] == 5
     assert status["pending_migrations"] == []
     assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
     assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
     assert status["applied_migrations"][2]["migration_id"] == "20260419_003_project_visibility_flags"
     assert status["applied_migrations"][3]["migration_id"] == "20260501_004_default_model_release_updates"
+    assert status["applied_migrations"][4]["migration_id"] == "20260511_005_graph_studio"
 
 
 def test_deduplicate_assets_by_job_id_keeps_latest_asset(app_modules) -> None:
