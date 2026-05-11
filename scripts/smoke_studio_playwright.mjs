@@ -208,6 +208,17 @@ async function run() {
     await page.goto(`${webBaseUrl}/graph-studio`, { waitUntil: "domcontentloaded" });
     const graphCanvas = page.getByTestId("graph-canvas");
     await graphCanvas.waitFor({ timeout: 45_000 });
+    await page.getByTestId("graph-run-button").waitFor({ timeout: 15_000 });
+    await page.getByTestId("graph-workflow-tabs").click();
+    await page.getByTestId("graph-workflow-menu").waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await page.getByTestId("graph-workflow-menu").waitFor({ state: "hidden", timeout: 10_000 });
+    await page.getByTestId("graph-console").waitFor({ timeout: 15_000 });
+    await graphCanvas.click({ position: { x: 420, y: 260 } });
+    await page.keyboard.press("c");
+    await page.getByTestId("graph-console").waitFor({ state: "hidden", timeout: 10_000 });
+    await page.keyboard.press("c");
+    await page.getByTestId("graph-console").waitFor({ timeout: 10_000 });
     await page.getByTestId("graph-template-nano-image-pipeline").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-reference-list").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-asset-list").waitFor({ timeout: 15_000 });

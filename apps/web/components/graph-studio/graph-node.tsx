@@ -143,6 +143,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
         isVisible={selected}
         minWidth={260}
         minHeight={180}
+        keepAspectRatio={false}
         handleClassName="graph-node-resize-handle"
         lineClassName="graph-node-resize-line"
       />

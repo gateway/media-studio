@@ -170,6 +170,8 @@ export function GraphStudio() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [imageLibraryNodeId, setImageLibraryNodeId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(true);
+  const [workflowMenuOpen, setWorkflowMenuOpen] = useState(false);
 
   const appendConsole = useCallback((line: string) => {
     setConsoleLines((current) => [line, ...current].slice(0, 80));
@@ -398,10 +400,16 @@ export function GraphStudio() {
         setSearchOpen(false);
         setContextMenu(null);
         setImageLibraryNodeId(null);
+        setWorkflowMenuOpen(false);
         return;
       }
       if (imageLibraryNodeId) return;
       if (isTextEntryTarget(event.target)) return;
+      if (event.key.toLowerCase() === "c") {
+        event.preventDefault();
+        setConsoleOpen((current) => !current);
+        return;
+      }
       if (event.code === "Space") {
         event.preventDefault();
         setSearchOpen(true);
@@ -446,6 +454,37 @@ export function GraphStudio() {
     appendConsole(`Saved workflow ${record.workflow_id}.`);
     return record.workflow_id;
   }, [appendConsole, edges, nodes, workflowId, workflowName]);
+
+  const saveWorkflowAs = useCallback(async () => {
+    const nextName = `${workflowName || "Workflow"} Copy`;
+    const payload = workflowFromCanvas(null, nextName, nodes, edges);
+    const record = await jsonFetch<{ workflow_id: string }>("/api/control/media/graph/workflows", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    setWorkflowName(nextName);
+    setWorkflowId(record.workflow_id);
+    appendConsole(`Saved workflow ${record.workflow_id}.`);
+    setWorkflowMenuOpen(false);
+  }, [appendConsole, edges, nodes, workflowName]);
+
+  const renameWorkflow = useCallback(() => {
+    const nextName = window.prompt("Rename workflow", workflowName);
+    if (!nextName?.trim()) return;
+    setWorkflowName(nextName.trim());
+    appendConsole(`Renamed workflow to ${nextName.trim()}.`);
+    setWorkflowMenuOpen(false);
+  }, [appendConsole, workflowName]);
+
+  const closeWorkflow = useCallback(() => {
+    setWorkflowId(null);
+    setWorkflowName("New workflow");
+    setRun(null);
+    setNodes([]);
+    setEdges([]);
+    setConsoleLines(["Graph Studio ready."]);
+    setWorkflowMenuOpen(false);
+  }, [setEdges, setNodes]);
 
   const validateWorkflow = useCallback(async () => {
     const id = workflowId ?? (await saveWorkflow());
@@ -712,18 +751,61 @@ export function GraphStudio() {
           </>
         ) : null}
       </aside>
-      <main className="graph-main">
+      <main className={`graph-main ${consoleOpen ? "" : "graph-main-console-collapsed"}`}>
         <div className="graph-toolbar">
-          <button type="button" onClick={saveWorkflow}>
-            <Save size={16} /> Save
-          </button>
-          <button type="button" onClick={validateWorkflow}>Validate</button>
-          <button type="button" onClick={runWorkflow}>
-            <Play size={16} /> Run
-          </button>
+          <div className="graph-workflow-tabs" data-testid="graph-workflow-tabs">
+            <button
+              className="graph-workflow-tab graph-workflow-tab-active"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={workflowMenuOpen}
+              onClick={() => setWorkflowMenuOpen((current) => !current)}
+            >
+              <Workflow size={15} />
+              <span>{workflowName || "Untitled workflow"}</span>
+            </button>
+            {workflowMenuOpen ? (
+              <div className="graph-workflow-menu" data-testid="graph-workflow-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    void saveWorkflow().then(() => setWorkflowMenuOpen(false));
+                  }}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    void saveWorkflowAs();
+                  }}
+                >
+                  Save As
+                </button>
+                <button type="button" role="menuitem" onClick={renameWorkflow}>
+                  Rename
+                </button>
+                <button type="button" role="menuitem" onClick={closeWorkflow}>
+                  Close
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <div className="graph-toolbar-actions">
+            <button type="button" onClick={saveWorkflow}>
+              <Save size={16} /> Save
+            </button>
+            <button type="button" onClick={validateWorkflow}>Validate</button>
+          </div>
+          <div className="graph-toolbar-spacer" />
           <div className="graph-run-status" data-testid="graph-run-status">
             {run ? `${run.status} ${run.error ? `- ${run.error}` : ""}` : "No run yet"}
           </div>
+          <button className="graph-run-button" type="button" data-testid="graph-run-button" onClick={runWorkflow}>
+            <Play size={16} /> Run
+          </button>
         </div>
         <div
           className="graph-canvas"
@@ -746,7 +828,10 @@ export function GraphStudio() {
               appendConsole(`Disconnected ${edge.sourceHandle ?? "output"} from ${edge.targetHandle ?? "input"}.`);
             }}
             isValidConnection={edgeIsValid}
-            onPaneClick={() => setContextMenu(null)}
+            onPaneClick={() => {
+              setContextMenu(null);
+              setWorkflowMenuOpen(false);
+            }}
             fitView
           >
             <Background />
@@ -754,11 +839,13 @@ export function GraphStudio() {
             <Controls />
           </ReactFlow>
         </div>
-        <section className="graph-console" data-testid="graph-console">
-          {consoleLines.map((line, index) => (
-            <div key={`${line}-${index}`}>{line}</div>
-          ))}
-        </section>
+        {consoleOpen ? (
+          <section className="graph-console" data-testid="graph-console">
+            {consoleLines.map((line, index) => (
+              <div key={`${line}-${index}`}>{line}</div>
+            ))}
+          </section>
+        ) : null}
       </main>
       {contextMenu ? (
         <div className="graph-context-menu" data-testid="graph-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
