@@ -92,6 +92,17 @@ export type GraphWorkflowPayload = {
   metadata?: Record<string, unknown>;
 };
 
+export type GraphWorkflowRecord = {
+  workflow_id: string;
+  name: string;
+  description?: string | null;
+  status?: string;
+  schema_version?: number;
+  workflow_json?: GraphWorkflowPayload;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 export type GraphRun = {
   run_id: string;
   workflow_id: string;

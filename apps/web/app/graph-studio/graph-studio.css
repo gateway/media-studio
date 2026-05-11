@@ -4,22 +4,22 @@
 
 .graph-studio-shell {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: 58px minmax(0, 1fr);
   height: 100vh;
   min-height: 760px;
   background: #0e1110;
   color: #f7f6f0;
 }
 
-.graph-studio-shell-sidebar-collapsed {
-  grid-template-columns: 0 minmax(0, 1fr) !important;
-}
-
 .graph-sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
   border-right: 1px solid rgba(247, 246, 240, 0.12);
-  background: #151817;
-  padding: 18px;
-  overflow: auto;
+  background: #101312;
+  padding: 10px 8px;
+  overflow: hidden;
 }
 
 .graph-sidebar-title,
@@ -31,51 +31,26 @@
   gap: 0.6rem;
 }
 
-.graph-sidebar-title {
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  margin-bottom: 18px;
-}
-
-.graph-sidebar-toggle,
-.graph-sidebar-floating-toggle {
+.graph-sidebar-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  margin-left: auto;
+  width: 42px;
+  height: 42px;
   color: #f7f6f0;
-  background: #242827;
+  background: transparent;
   border: 1px solid rgba(247, 246, 240, 0.12);
   border-radius: 8px;
   cursor: pointer;
 }
 
-.graph-sidebar-floating-toggle {
-  position: fixed;
-  top: 64px;
-  left: 14px;
-  z-index: 100;
-  margin-left: 0;
-}
-
-.graph-studio-shell-sidebar-collapsed .graph-sidebar {
-  width: 0;
-  padding: 0;
-  border-right: 0;
-  background: transparent;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.graph-studio-shell-sidebar-collapsed .graph-sidebar-title {
-  justify-content: center;
-  margin-bottom: 0;
-}
-
-.graph-studio-shell-sidebar-collapsed .graph-sidebar-toggle {
-  margin-left: 0;
+.graph-sidebar-icon:hover,
+.graph-sidebar-icon:focus-visible,
+.graph-sidebar-icon-active {
+  color: #111413;
+  background: #d1ff47;
+  border-color: rgba(209, 255, 71, 0.8);
+  outline: none;
 }
 
 .graph-workflow-name,
@@ -392,7 +367,8 @@
 
 .graph-context-menu,
 .graph-node-search-modal,
-.graph-image-library-modal {
+.graph-image-library-modal,
+.graph-library-modal {
   position: fixed;
   z-index: 80;
   display: grid;
@@ -430,6 +406,14 @@
   transform: translateX(-50%);
 }
 
+.graph-library-modal {
+  left: 72px;
+  top: 60px;
+  width: min(760px, calc(100vw - 96px));
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+}
+
 .graph-modal-header {
   display: flex;
   align-items: center;
@@ -450,6 +434,68 @@
 .graph-modal-header button,
 .graph-node-library-button {
   padding: 0.55rem 0.7rem;
+}
+
+.graph-dialog-categories,
+.graph-dialog-category,
+.graph-dialog-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.graph-dialog-categories {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.graph-dialog-category {
+  align-content: start;
+}
+
+.graph-dialog-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+  width: 100%;
+  min-height: 58px;
+  color: #f7f6f0;
+  background: #242827;
+  border: 1px solid rgba(247, 246, 240, 0.12);
+  border-radius: 8px;
+  padding: 0.55rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.graph-dialog-row:hover,
+.graph-dialog-row:focus-visible {
+  background: #303333;
+  border-color: rgba(209, 255, 71, 0.24);
+  outline: none;
+}
+
+.graph-dialog-row small {
+  display: block;
+  margin-top: 0.18rem;
+  overflow: hidden;
+  color: rgba(247, 246, 240, 0.58);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-dialog-row-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  color: #d1ff47;
+  background: #151817;
+  border: 1px solid rgba(247, 246, 240, 0.1);
+  border-radius: 8px;
 }
 
 .graph-modal-grid {

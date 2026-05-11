@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   Background,
+  ConnectionMode,
   Controls,
   MiniMap,
   ReactFlow,
@@ -14,11 +15,11 @@ import {
   type Edge,
   type Node,
 } from "@xyflow/react";
-import { Map as MapIcon, PanelLeftClose, PanelLeftOpen, Play, Search, Upload, Workflow } from "lucide-react";
+import { Blocks, Images, Map as MapIcon, Play, Search, Workflow, X } from "lucide-react";
 
 import type { MediaAsset, MediaReference } from "@/lib/types";
 import { GraphNode } from "./graph-node";
-import type { GraphMediaPreview, GraphNodeData, GraphNodeDefinition, GraphRun, GraphRunEvent, GraphWorkflowPayload, StudioEdge, StudioNode } from "./types";
+import type { GraphMediaPreview, GraphNodeData, GraphNodeDefinition, GraphRun, GraphRunEvent, GraphWorkflowPayload, GraphWorkflowRecord, StudioEdge, StudioNode } from "./types";
 
 const nodeTypes = { graphNode: GraphNode };
 type GraphNodeHandlers = Pick<GraphNodeData, "onFieldChange" | "onSetFields" | "onOpenImageLibrary" | "onImageDrop">;
@@ -30,6 +31,14 @@ type ConnectMenuState = {
     nodeId: string | null;
     handleId: string | null;
   };
+};
+type SidebarDialog = "workflows" | "nodes" | "images";
+type PendingInputRewire = {
+  source: string;
+  sourceHandle: string | null;
+  oldTarget: string;
+  oldTargetHandle: string | null;
+  portType: string;
 };
 
 function defaultFields(definition: GraphNodeDefinition) {
@@ -191,10 +200,11 @@ export function GraphStudio() {
   const [run, setRun] = useState<GraphRun | null>(null);
   const [references, setReferences] = useState<MediaReference[]>([]);
   const [assets, setAssets] = useState<MediaAsset[]>([]);
+  const [workflows, setWorkflows] = useState<GraphWorkflowRecord[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [imageLibraryNodeId, setImageLibraryNodeId] = useState<string | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarDialog, setSidebarDialog] = useState<SidebarDialog | null>(null);
   const [consoleOpen, setConsoleOpen] = useState(true);
   const [consoleHeight, setConsoleHeight] = useState(170);
   const [showMiniMap, setShowMiniMap] = useState(false);
@@ -202,9 +212,15 @@ export function GraphStudio() {
   const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
   const [activeConnectionStart, setActiveConnectionStart] = useState<{ nodeId: string | null; handleId: string | null } | null>(null);
   const [connectMenu, setConnectMenu] = useState<ConnectMenuState | null>(null);
+  const pendingInputRewire = useRef<PendingInputRewire | null>(null);
 
   const appendConsole = useCallback((line: string) => {
     setConsoleLines((current) => [line, ...current].slice(0, 80));
+  }, []);
+
+  const refreshWorkflows = useCallback(async () => {
+    const payload = await jsonFetch<{ items?: GraphWorkflowRecord[] }>("/api/control/media/graph/workflows");
+    setWorkflows(payload.items ?? []);
   }, []);
 
   const onFieldChange = useCallback((nodeId: string, fieldId: string, value: unknown) => {
@@ -293,6 +309,15 @@ export function GraphStudio() {
   );
 
   const definitionsByType = useMemo(() => new Map(definitions.map((definition) => [definition.type, definition])), [definitions]);
+  const definitionsByCategory = useMemo(
+    () =>
+      definitions.reduce<Record<string, GraphNodeDefinition[]>>((groups, definition) => {
+        const key = definition.category || "Other";
+        groups[key] = [...(groups[key] ?? []), definition];
+        return groups;
+      }, {}),
+    [definitions],
+  );
   const filteredDefinitions = useMemo(() => {
     const needle = search.trim().toLowerCase();
     if (!needle) return definitions;
@@ -307,6 +332,13 @@ export function GraphStudio() {
       const source = nodes.find((node) => node.id === connection.source);
       const target = nodes.find((node) => node.id === connection.target);
       if (!source || !target || !connection.sourceHandle || !connection.targetHandle) return false;
+      const targetAlreadyConnected = edges.some(
+        (edge) =>
+          edge.target === connection.target &&
+          edge.targetHandle === connection.targetHandle &&
+          edge.id !== ("id" in connection ? connection.id : undefined),
+      );
+      if (targetAlreadyConnected) return false;
       const sourceDef = (source.data as StudioNode["data"]).definition;
       const targetDef = (target.data as StudioNode["data"]).definition;
       const sourcePort = sourceDef.ports.outputs.find((port) => port.id === connection.sourceHandle);
@@ -314,7 +346,7 @@ export function GraphStudio() {
       if (!sourcePort || !targetPort) return false;
       return (targetPort.accepts?.length ? targetPort.accepts : [targetPort.type]).includes(sourcePort.type);
     },
-    [nodes],
+    [edges, nodes],
   );
 
   const portTypeForHandle = useCallback(
@@ -343,16 +375,33 @@ export function GraphStudio() {
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      if (!edgeIsValid(connection)) {
+      const pendingRewire = pendingInputRewire.current;
+      const normalizedConnection = pendingRewire
+        ? {
+            ...connection,
+            source: pendingRewire.source,
+            sourceHandle: pendingRewire.sourceHandle,
+            target:
+              connection.target === pendingRewire.oldTarget && connection.targetHandle === pendingRewire.oldTargetHandle
+                ? connection.source
+                : connection.target,
+            targetHandle:
+              connection.target === pendingRewire.oldTarget && connection.targetHandle === pendingRewire.oldTargetHandle
+                ? connection.sourceHandle
+                : connection.targetHandle,
+          }
+        : connection;
+      if (!edgeIsValid(normalizedConnection)) {
         appendConsole("Connection rejected: incompatible ports.");
+        pendingInputRewire.current = null;
         return;
       }
-      const sourcePortType = portTypeForHandle(connection.source, connection.sourceHandle, "source");
+      const sourcePortType = portTypeForHandle(normalizedConnection.source, normalizedConnection.sourceHandle, "source");
       setEdges((current) =>
         addEdge(
           {
-            ...connection,
-            id: `edge-${connection.source}-${connection.sourceHandle}-${connection.target}-${connection.targetHandle}`,
+            ...normalizedConnection,
+            id: `edge-${normalizedConnection.source}-${normalizedConnection.sourceHandle}-${normalizedConnection.target}-${normalizedConnection.targetHandle}`,
             animated: true,
             className: edgeClassForPortType(sourcePortType),
             style: edgeStyleForPortType(sourcePortType),
@@ -361,26 +410,56 @@ export function GraphStudio() {
           current,
         ),
       );
+      pendingInputRewire.current = null;
     },
     [appendConsole, edgeIsValid, portTypeForHandle, setEdges],
   );
 
   const onConnectStart = useCallback(
     (_event: MouseEvent | TouchEvent, params: { nodeId: string | null; handleId: string | null; handleType: "source" | "target" | null }) => {
-      const from = params.handleType === "target" ? "input" : "output";
-      const handleKind = params.handleType === "target" ? "target" : "source";
-      const portType = portTypeForHandle(params.nodeId, params.handleId, handleKind);
+      if (params.handleType === "target") {
+        const existingEdge = edges.find((edge) => edge.target === params.nodeId && edge.targetHandle === params.handleId);
+        if (!existingEdge) {
+          pendingInputRewire.current = null;
+          setActiveConnection(null);
+          setActiveConnectionStart(null);
+          return;
+        }
+        const portType = portTypeForHandle(existingEdge.source, existingEdge.sourceHandle, "source");
+        if (!portType) return;
+        pendingInputRewire.current = {
+          source: existingEdge.source,
+          sourceHandle: existingEdge.sourceHandle ?? null,
+          oldTarget: existingEdge.target,
+          oldTargetHandle: existingEdge.targetHandle ?? null,
+          portType,
+        };
+        setEdges((current) => current.filter((edge) => edge.id !== existingEdge.id));
+        setActiveConnection({ from: "output", portType });
+        setActiveConnectionStart({ nodeId: existingEdge.source, handleId: existingEdge.sourceHandle ?? null });
+        setConnectMenu(null);
+        return;
+      }
+      const portType = portTypeForHandle(params.nodeId, params.handleId, "source");
       if (!portType) return;
-      setActiveConnection({ from, portType });
+      setActiveConnection({ from: "output", portType });
       setActiveConnectionStart({ nodeId: params.nodeId, handleId: params.handleId });
       setConnectMenu(null);
     },
-    [portTypeForHandle],
+    [edges, portTypeForHandle, setEdges],
   );
 
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: { isValid: boolean | null; toHandle?: unknown }) => {
+      if (pendingInputRewire.current && !connectionState.isValid) {
+        pendingInputRewire.current = null;
+        setActiveConnection(null);
+        setActiveConnectionStart(null);
+        appendConsole("Connection removed.");
+        return;
+      }
       if (connectionState.isValid || connectionState.toHandle || !activeConnection) {
+        pendingInputRewire.current = null;
         setActiveConnection(null);
         setActiveConnectionStart(null);
         return;
@@ -403,12 +482,12 @@ export function GraphStudio() {
       setActiveConnection(null);
       setActiveConnectionStart(null);
     },
-    [activeConnection, activeConnectionStart],
+    [activeConnection, activeConnectionStart, appendConsole],
   );
 
   const onReconnect = useCallback(
     (oldEdge: StudioEdge, newConnection: Connection) => {
-      if (!edgeIsValid(newConnection)) {
+      if (!edgeIsValid({ ...newConnection, id: oldEdge.id } as StudioEdge)) {
         return;
       }
       const sourcePortType = portTypeForHandle(newConnection.source, newConnection.sourceHandle, "source");
@@ -549,6 +628,61 @@ export function GraphStudio() {
     [appendConsole, definitionsByType, nodeHandlers, setNodes],
   );
 
+  const loadWorkflowRecord = useCallback(
+    (record: GraphWorkflowRecord) => {
+      const workflow = record.workflow_json;
+      if (!workflow) {
+        appendConsole(`Workflow ${record.workflow_id} has no saved graph data.`);
+        return;
+      }
+
+      const savedNodes = workflow.nodes
+        .map((savedNode) => {
+          const definition = definitionsByType.get(savedNode.type);
+          if (!definition) return null;
+          const node = createNode(definition, savedNode.position, nodeHandlers);
+          return {
+            ...node,
+            id: savedNode.id,
+            data: {
+              ...node.data,
+              fields: {
+                ...node.data.fields,
+                ...savedNode.fields,
+              },
+            },
+          };
+        })
+        .filter((node): node is StudioNode => Boolean(node));
+
+      const savedNodeById = new Map(workflow.nodes.map((node) => [node.id, node]));
+      const savedEdges = workflow.edges.map((edge) => {
+        const sourceNode = savedNodeById.get(edge.source);
+        const sourceType = sourceNode ? definitionsByType.get(sourceNode.type)?.ports.outputs.find((port) => port.id === edge.source_port)?.type : null;
+        return {
+          id: edge.id,
+          source: edge.source,
+          sourceHandle: edge.source_port,
+          target: edge.target,
+          targetHandle: edge.target_port,
+          animated: true,
+          className: edgeClassForPortType(sourceType),
+          style: edgeStyleForPortType(sourceType),
+          reconnectable: true,
+        };
+      });
+
+      setWorkflowId(record.workflow_id);
+      setWorkflowName(record.name || workflow.name || "Untitled workflow");
+      setRun(null);
+      setNodes(savedNodes);
+      setEdges(savedEdges);
+      setSidebarDialog(null);
+      appendConsole(`Loaded workflow ${record.name || record.workflow_id}.`);
+    },
+    [appendConsole, definitionsByType, nodeHandlers, setEdges, setNodes],
+  );
+
   useEffect(() => {
     jsonFetch<{ items: GraphNodeDefinition[] }>("/api/control/media/graph/node-definitions")
       .then((payload) => {
@@ -557,6 +691,10 @@ export function GraphStudio() {
       })
       .catch((error) => appendConsole(`Failed to load node definitions: ${error.message}`));
   }, [appendConsole, buildStarterWorkflow]);
+
+  useEffect(() => {
+    refreshWorkflows().catch((error) => appendConsole(`Failed to load workflows: ${error.message}`));
+  }, [appendConsole, refreshWorkflows]);
 
   useEffect(() => {
     Promise.all([
@@ -574,6 +712,7 @@ export function GraphStudio() {
         setSearchOpen(false);
         setContextMenu(null);
         setImageLibraryNodeId(null);
+        setSidebarDialog(null);
         setWorkflowMenuOpen(false);
         setConnectMenu(null);
         return;
@@ -589,6 +728,7 @@ export function GraphStudio() {
         event.preventDefault();
         setSearchOpen(true);
         setContextMenu(null);
+        setSidebarDialog(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -627,9 +767,10 @@ export function GraphStudio() {
     );
     setWorkflowId(record.workflow_id);
     setWorkflowName(nextName);
+    refreshWorkflows().catch(() => undefined);
     appendConsole(`Saved workflow ${record.workflow_id}.`);
     return record.workflow_id;
-  }, [appendConsole, edges, nodes, workflowId, workflowName]);
+  }, [appendConsole, edges, nodes, refreshWorkflows, workflowId, workflowName]);
 
   const saveWorkflowAs = useCallback(async () => {
     const nextName = `${workflowName || "Workflow"} Copy`;
@@ -640,9 +781,10 @@ export function GraphStudio() {
     });
     setWorkflowName(nextName);
     setWorkflowId(record.workflow_id);
+    refreshWorkflows().catch(() => undefined);
     appendConsole(`Saved workflow ${record.workflow_id}.`);
     setWorkflowMenuOpen(false);
-  }, [appendConsole, edges, nodes, workflowName]);
+  }, [appendConsole, edges, nodes, refreshWorkflows, workflowName]);
 
   const renameWorkflow = useCallback(() => {
     const nextName = window.prompt("Rename workflow", workflowName);
@@ -827,130 +969,41 @@ export function GraphStudio() {
 
   return (
     <div
-      className={`graph-studio-shell ${sidebarCollapsed ? "graph-studio-shell-sidebar-collapsed" : ""}`}
-      style={sidebarCollapsed ? { gridTemplateColumns: "0 minmax(0, 1fr)" } : undefined}
+      className="graph-studio-shell"
       onDrop={onDrop}
       onDragOver={(event) => event.preventDefault()}
     >
-      {sidebarCollapsed ? (
+      <aside className="graph-sidebar" aria-label="Graph Studio tools">
         <button
-          className="graph-sidebar-floating-toggle"
+          className={`graph-sidebar-icon ${sidebarDialog === "workflows" ? "graph-sidebar-icon-active" : ""}`}
+          data-testid="graph-sidebar-workflows-button"
           type="button"
-          aria-label="Expand graph sidebar"
-          title="Expand sidebar"
-          onClick={() => setSidebarCollapsed(false)}
+          aria-label="Open workflows"
+          title="Workflows"
+          onClick={() => setSidebarDialog((current) => (current === "workflows" ? null : "workflows"))}
         >
-          <PanelLeftOpen size={17} />
+          <Workflow size={19} />
         </button>
-      ) : null}
-      <aside className="graph-sidebar">
-        <div className="graph-sidebar-title">
-          {!sidebarCollapsed ? (
-            <>
-              <Workflow size={18} />
-              <span>Graph Studio</span>
-            </>
-          ) : null}
-          {!sidebarCollapsed ? (
-            <button
-              className="graph-sidebar-toggle"
-              type="button"
-              aria-label="Collapse graph sidebar"
-              title="Collapse sidebar"
-              onClick={() => {
-                setWorkflowMenuOpen(false);
-                setSidebarCollapsed(true);
-              }}
-            >
-              <PanelLeftClose size={17} />
-            </button>
-          ) : null}
-        </div>
-        {!sidebarCollapsed ? (
-          <>
-        <label className="graph-workflow-name">
-          Workflow
-          <input value={workflowName} onChange={(event) => setWorkflowName(event.target.value)} />
-        </label>
-        <section className="graph-sidebar-section">
-          <div className="graph-section-title">Templates</div>
-          <button
-            className="graph-template-card"
-            data-testid="graph-template-nano-image-pipeline"
-            type="button"
-            onClick={() => {
-              if (buildStarterWorkflow(definitions)) {
-                setWorkflowName("Nano Image Pipeline");
-                setWorkflowId(null);
-                appendConsole("Loaded Nano image pipeline template.");
-              }
-            }}
-          >
-            <span className="graph-template-thumb" />
-            <span>
-              <strong>Nano image pipeline</strong>
-              <small>Prompt Text -&gt; Nano Banana Pro -&gt; Save Image</small>
-            </span>
-          </button>
-        </section>
-        <section className="graph-sidebar-section">
-          <div className="graph-section-title">Recent References</div>
-          <div className="graph-media-list" data-testid="graph-reference-list">
-            {references.length ? (
-              references.map((reference) => (
-                <button
-                  key={reference.reference_id}
-                  type="button"
-                  draggable
-                  onDragStart={(event) => {
-                    event.dataTransfer.setData(
-                      "application/x-media-studio-graph-media",
-                      graphMediaDragPayload({ source: "reference", id: reference.reference_id, mediaType: reference.kind }),
-                    );
-                  }}
-                  onClick={() => addLoadImageNode({ reference_id: reference.reference_id })}
-                >
-                  {reference.thumb_url || reference.stored_url ? <img src={reference.thumb_url ?? reference.stored_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
-                  <span>{reference.original_filename ?? reference.reference_id}</span>
-                </button>
-              ))
-            ) : (
-              <div className="graph-sidebar-empty">No reference images yet.</div>
-            )}
-          </div>
-        </section>
-        <section className="graph-sidebar-section">
-          <div className="graph-section-title">Recent Images</div>
-          <div className="graph-media-list" data-testid="graph-asset-list">
-            {assets.length ? (
-              assets.map((asset) => (
-                <button
-                  key={String(asset.asset_id)}
-                  type="button"
-                  draggable
-                  onDragStart={(event) => {
-                    event.dataTransfer.setData(
-                      "application/x-media-studio-graph-media",
-                      graphMediaDragPayload({ source: "asset", id: String(asset.asset_id), mediaType: asset.generation_kind }),
-                    );
-                  }}
-                  onClick={() => addLoadImageNode({ asset_id: String(asset.asset_id) })}
-                >
-                  {asset.hero_thumb_url || asset.hero_web_url ? <img src={asset.hero_thumb_url ?? asset.hero_web_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
-                  <span>{asset.prompt_summary ?? String(asset.asset_id)}</span>
-                </button>
-              ))
-            ) : (
-              <div className="graph-sidebar-empty">No image assets yet.</div>
-            )}
-          </div>
-        </section>
-        <div className="graph-drop-hint">
-          <Upload size={16} />
-          Drop an image on the canvas to import it as a Load Image node.
-        </div>
-          </>
-        ) : null}
+        <button
+          className={`graph-sidebar-icon ${sidebarDialog === "nodes" ? "graph-sidebar-icon-active" : ""}`}
+          data-testid="graph-sidebar-nodes-button"
+          type="button"
+          aria-label="Open nodes"
+          title="Nodes"
+          onClick={() => setSidebarDialog((current) => (current === "nodes" ? null : "nodes"))}
+        >
+          <Blocks size={19} />
+        </button>
+        <button
+          className={`graph-sidebar-icon ${sidebarDialog === "images" ? "graph-sidebar-icon-active" : ""}`}
+          data-testid="graph-sidebar-images-button"
+          type="button"
+          aria-label="Open images"
+          title="Images"
+          onClick={() => setSidebarDialog((current) => (current === "images" ? null : "images"))}
+        >
+          <Images size={19} />
+        </button>
       </aside>
       <main className={`graph-main ${consoleOpen ? "" : "graph-main-console-collapsed"}`} style={consoleOpen ? { gridTemplateRows: `auto minmax(0, 1fr) 6px ${consoleHeight}px` } : undefined}>
         <div className="graph-toolbar">
@@ -1042,6 +1095,7 @@ export function GraphStudio() {
               appendConsole(`Disconnected ${edge.sourceHandle ?? "output"} from ${edge.targetHandle ?? "input"}.`);
             }}
             isValidConnection={edgeIsValid}
+            connectionMode={ConnectionMode.Loose}
             defaultEdgeOptions={{ reconnectable: true, interactionWidth: 28 }}
             edgesReconnectable
             reconnectRadius={18}
@@ -1070,6 +1124,150 @@ export function GraphStudio() {
           </>
         ) : null}
       </main>
+      {sidebarDialog ? (
+        <div className="graph-library-modal" data-testid={`graph-${sidebarDialog}-modal`} role="dialog" aria-label={sidebarDialog}>
+          <div className="graph-modal-header">
+            <div>
+              <div className="graph-section-title">{sidebarDialog}</div>
+              <strong>{sidebarDialog === "workflows" ? "Workflows" : sidebarDialog === "nodes" ? "Nodes" : "Images"}</strong>
+            </div>
+            <button type="button" aria-label="Close graph dialog" onClick={() => setSidebarDialog(null)}>
+              <X size={16} />
+            </button>
+          </div>
+          {sidebarDialog === "workflows" ? (
+            <div className="graph-dialog-list">
+              <button
+                className="graph-dialog-row"
+                data-testid="graph-template-nano-image-pipeline"
+                type="button"
+                onClick={() => {
+                  if (buildStarterWorkflow(definitions)) {
+                    setWorkflowName("Nano Image Pipeline");
+                    setWorkflowId(null);
+                    setRun(null);
+                    setSidebarDialog(null);
+                    appendConsole("Loaded Nano image pipeline template.");
+                  }
+                }}
+              >
+                <span className="graph-template-thumb" />
+                <span>
+                  <strong>Nano image pipeline</strong>
+                  <small>Prompt Text -&gt; Nano Banana Pro -&gt; Save Image</small>
+                </span>
+              </button>
+              {workflows.length ? (
+                workflows.map((workflow) => (
+                  <button className="graph-dialog-row" key={workflow.workflow_id} type="button" onClick={() => loadWorkflowRecord(workflow)}>
+                    <span className="graph-dialog-row-icon">
+                      <Workflow size={17} />
+                    </span>
+                    <span>
+                      <strong>{workflow.name || "Untitled workflow"}</strong>
+                      <small>{workflow.updated_at ? new Date(workflow.updated_at).toLocaleString() : workflow.workflow_id}</small>
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <div className="graph-sidebar-empty">No saved workflows yet.</div>
+              )}
+            </div>
+          ) : null}
+          {sidebarDialog === "nodes" ? (
+            <div className="graph-dialog-categories">
+              {Object.entries(definitionsByCategory).map(([category, items]) => (
+                <section className="graph-dialog-category" key={category}>
+                  <div className="graph-section-title">{category}</div>
+                  <div className="graph-dialog-list">
+                    {items.map((definition) => (
+                      <button
+                        className="graph-dialog-row"
+                        key={definition.type}
+                        type="button"
+                        onClick={() => {
+                          addDefinitionNode(definition);
+                          setSidebarDialog(null);
+                        }}
+                      >
+                        <span className="graph-dialog-row-icon">
+                          <Blocks size={17} />
+                        </span>
+                        <span>
+                          <strong>{definition.title}</strong>
+                          <small>{definition.description ?? definition.type}</small>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          ) : null}
+          {sidebarDialog === "images" ? (
+            <div className="graph-modal-grid">
+              <section>
+                <div className="graph-section-title">Reference Images</div>
+                <div className="graph-media-list" data-testid="graph-reference-list">
+                  {references.length ? (
+                    references.map((reference) => (
+                      <button
+                        key={reference.reference_id}
+                        type="button"
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData(
+                            "application/x-media-studio-graph-media",
+                            graphMediaDragPayload({ source: "reference", id: reference.reference_id, mediaType: reference.kind }),
+                          );
+                        }}
+                        onClick={() => {
+                          addLoadImageNode({ reference_id: reference.reference_id });
+                          setSidebarDialog(null);
+                        }}
+                      >
+                        {reference.thumb_url || reference.stored_url ? <img src={reference.thumb_url ?? reference.stored_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
+                        <span>{reference.original_filename ?? reference.reference_id}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="graph-sidebar-empty">No reference images yet.</div>
+                  )}
+                </div>
+              </section>
+              <section>
+                <div className="graph-section-title">Generated Images</div>
+                <div className="graph-media-list" data-testid="graph-asset-list">
+                  {assets.length ? (
+                    assets.map((asset) => (
+                      <button
+                        key={String(asset.asset_id)}
+                        type="button"
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData(
+                            "application/x-media-studio-graph-media",
+                            graphMediaDragPayload({ source: "asset", id: String(asset.asset_id), mediaType: asset.generation_kind }),
+                          );
+                        }}
+                        onClick={() => {
+                          addLoadImageNode({ asset_id: String(asset.asset_id) });
+                          setSidebarDialog(null);
+                        }}
+                      >
+                        {asset.hero_thumb_url || asset.hero_web_url ? <img src={asset.hero_thumb_url ?? asset.hero_web_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
+                        <span>{asset.prompt_summary ?? String(asset.asset_id)}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="graph-sidebar-empty">No generated image assets yet.</div>
+                  )}
+                </div>
+              </section>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {connectMenu ? (
         <div className="graph-context-menu graph-connect-menu" data-testid="graph-connect-menu" style={{ left: connectMenu.x, top: connectMenu.y }}>
           <div className="graph-section-title">Compatible Nodes</div>
@@ -1110,8 +1308,8 @@ export function GraphStudio() {
               <div className="graph-section-title">Image Library</div>
               <strong>Select image for Load Image</strong>
             </div>
-            <button type="button" onClick={() => setImageLibraryNodeId(null)}>
-              Close
+            <button type="button" aria-label="Close image library" onClick={() => setImageLibraryNodeId(null)}>
+              <X size={16} />
             </button>
           </div>
           <div className="graph-modal-grid">
