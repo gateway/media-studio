@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+import json
 import re
 import shutil
+import subprocess
 from hashlib import sha256
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
@@ -27,6 +29,12 @@ from .schemas import (
     PresetUpsertRequest,
     SystemPromptUpsertRequest,
     ValidateRequest,
+)
+from .graph.media_probe import (
+    AUDIO_MAX_FILE_BYTES,
+    audio_extension_supported,
+    probe_audio,
+    probe_video,
 )
 
 TEXT_TOKEN_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
@@ -627,6 +635,10 @@ def _reference_extension_from_source(kind: str, source_name: Optional[str], sour
         return ".wav"
     if kind == "audio" and "mpeg" in normalized:
         return ".mp3"
+    if kind == "audio" and "mp4" in normalized:
+        return ".m4a"
+    if kind == "audio" and "aac" in normalized:
+        return ".aac"
     if "jpeg" in normalized:
         return ".jpg"
     if "png" in normalized:
@@ -666,15 +678,88 @@ def _write_reference_thumb(source_path: Path, digest: str) -> Optional[str]:
     return _relative_data_path(thumb_path)
 
 
-def _probe_reference_media_metadata(file_path: Path, kind: str) -> Tuple[Optional[int], Optional[int], Optional[float]]:
+def _write_reference_video_poster_and_thumb(source_path: Path, digest: str) -> Tuple[Optional[str], Optional[str]]:
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        return None, None
+    REFERENCE_THUMBS_ROOT.mkdir(parents=True, exist_ok=True)
+    poster_path = REFERENCE_THUMBS_ROOT / f"{digest}-poster.jpg"
+    try:
+        if not poster_path.exists():
+            subprocess.run(
+                [
+                    ffmpeg,
+                    "-y",
+                    "-ss",
+                    "0",
+                    "-i",
+                    str(source_path),
+                    "-frames:v",
+                    "1",
+                    "-q:v",
+                    "3",
+                    str(poster_path),
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=30,
+                check=True,
+            )
+        thumb_path = _write_reference_thumb(poster_path, digest)
+        return thumb_path, _relative_data_path(poster_path)
+    except Exception:
+        logger.debug("reference video poster generation failed", exc_info=True)
+        return None, None
+
+
+def _ensure_video_reference_previews(record: Dict[str, Any]) -> Dict[str, Any]:
+    if str(record.get("kind") or "") != "video":
+        return record
+    if record.get("thumb_path") and record.get("poster_path"):
+        return record
+    stored_path = str(record.get("stored_path") or "")
+    digest = str(record.get("sha256") or "")
+    if not stored_path or not digest:
+        return record
+    source_path = settings.data_root / stored_path
+    if not source_path.exists():
+        return record
+    thumb_path, poster_path = _write_reference_video_poster_and_thumb(source_path, digest)
+    if not thumb_path and not poster_path:
+        return record
+    return store.create_or_update_reference_media(
+        {
+            **record,
+            "thumb_path": record.get("thumb_path") or thumb_path,
+            "poster_path": record.get("poster_path") or poster_path,
+        }
+    )
+
+
+def _probe_reference_media_metadata(file_path: Path, kind: str) -> Tuple[Optional[int], Optional[int], Optional[float], Dict[str, Any]]:
+    if kind == "video":
+        try:
+            metadata = probe_video(file_path)
+            return (
+                metadata.get("width"),
+                metadata.get("height"),
+                metadata.get("duration_seconds"),
+                metadata,
+            )
+        except Exception:
+            logger.debug("reference video metadata probe failed", exc_info=True)
+            return None, None, None, {}
+    if kind == "audio":
+        metadata = probe_audio(file_path)
+        return None, None, metadata.get("duration_seconds"), metadata
     if kind != "image":
-        return None, None, None
+        return None, None, None, {}
     try:
         with Image.open(file_path) as image:
             width, height = image.size
-        return width, height, None
+        return width, height, None, {}
     except Exception:
-        return None, None, None
+        return None, None, None, {}
 
 
 def _reference_media_path_exists(relative_path: Optional[str]) -> bool:
@@ -734,12 +819,17 @@ def import_reference_media_bytes(
 
     kind = _reference_kind_from_source(source_mime_type, source_name)
     file_size_bytes = len(source_bytes)
+    if kind == "audio":
+        if file_size_bytes > AUDIO_MAX_FILE_BYTES:
+            raise ServiceError("Audio reference files must be 100 MB or smaller.")
+        if not audio_extension_supported(source_name, source_mime_type):
+            raise ServiceError("Audio reference files must be wav, mp3, m4a, or aac.")
     digest = sha256(source_bytes).hexdigest()
     existing = store.get_reference_media_by_hash(kind, digest, file_size_bytes)
     if existing:
         existing_path = settings.data_root / str(existing.get("stored_path") or "")
         if existing.get("stored_path") and existing_path.exists():
-            return store.mark_reference_media_used(str(existing["reference_id"]))
+            return _ensure_video_reference_previews(store.mark_reference_media_used(str(existing["reference_id"])))
 
     extension = _reference_extension_from_source(kind, source_name, source_mime_type)
     root = _reference_root_for_kind(kind)
@@ -748,8 +838,14 @@ def import_reference_media_bytes(
     if not stored_path.exists():
         stored_path.write_bytes(source_bytes)
 
-    width, height, duration_seconds = _probe_reference_media_metadata(stored_path, kind)
+    try:
+        width, height, duration_seconds, metadata_json = _probe_reference_media_metadata(stored_path, kind)
+    except ValueError as exc:
+        raise ServiceError(str(exc)) from exc
     thumb_path = _write_reference_thumb(stored_path, digest) if kind == "image" else None
+    poster_path = None
+    if kind == "video":
+        thumb_path, poster_path = _write_reference_video_poster_and_thumb(stored_path, digest)
     mime_type = source_mime_type or mimetypes.guess_type(source_name or stored_path.name)[0]
 
     payload = {
@@ -764,14 +860,14 @@ def import_reference_media_bytes(
         "height": height,
         "duration_seconds": duration_seconds,
         "thumb_path": thumb_path,
-        "poster_path": None,
+        "poster_path": poster_path,
         "usage_count": 1,
-        "metadata_json": {},
+        "metadata_json": metadata_json,
     }
 
     if existing:
         updated_existing = store.mark_reference_media_used(str(existing["reference_id"]))
-        return store.create_or_update_reference_media(
+        return _ensure_video_reference_previews(store.create_or_update_reference_media(
             {
                 **updated_existing,
                 **payload,
@@ -779,7 +875,7 @@ def import_reference_media_bytes(
                 "usage_count": updated_existing["usage_count"],
                 "last_used_at": updated_existing.get("last_used_at"),
             }
-        )
+        ))
 
     return store.create_or_reuse_reference_media(payload, increment_usage=True)
 
@@ -796,11 +892,16 @@ def import_reference_media_file(
         raise ServiceError("Choose a reference file to import.")
 
     kind = _reference_kind_from_source(source_mime_type, source_name)
+    if kind == "audio":
+        if source_size_bytes > AUDIO_MAX_FILE_BYTES:
+            raise ServiceError("Audio reference files must be 100 MB or smaller.")
+        if not audio_extension_supported(source_name, source_mime_type):
+            raise ServiceError("Audio reference files must be wav, mp3, m4a, or aac.")
     existing = store.get_reference_media_by_hash(kind, source_digest, source_size_bytes)
     if existing:
         existing_path = settings.data_root / str(existing.get("stored_path") or "")
         if existing.get("stored_path") and existing_path.exists():
-            return store.mark_reference_media_used(str(existing["reference_id"]))
+            return _ensure_video_reference_previews(store.mark_reference_media_used(str(existing["reference_id"])))
 
     extension = _reference_extension_from_source(kind, source_name, source_mime_type)
     root = _reference_root_for_kind(kind)
@@ -809,8 +910,14 @@ def import_reference_media_file(
     if not stored_path.exists():
         shutil.move(str(source_path), stored_path)
 
-    width, height, duration_seconds = _probe_reference_media_metadata(stored_path, kind)
+    try:
+        width, height, duration_seconds, metadata_json = _probe_reference_media_metadata(stored_path, kind)
+    except ValueError as exc:
+        raise ServiceError(str(exc)) from exc
     thumb_path = _write_reference_thumb(stored_path, source_digest) if kind == "image" else None
+    poster_path = None
+    if kind == "video":
+        thumb_path, poster_path = _write_reference_video_poster_and_thumb(stored_path, source_digest)
     mime_type = source_mime_type or mimetypes.guess_type(source_name or stored_path.name)[0]
 
     payload = {
@@ -825,14 +932,14 @@ def import_reference_media_file(
         "height": height,
         "duration_seconds": duration_seconds,
         "thumb_path": thumb_path,
-        "poster_path": None,
+        "poster_path": poster_path,
         "usage_count": 1,
-        "metadata_json": {},
+        "metadata_json": metadata_json,
     }
 
     if existing:
         updated_existing = store.mark_reference_media_used(str(existing["reference_id"]))
-        return store.create_or_update_reference_media(
+        return _ensure_video_reference_previews(store.create_or_update_reference_media(
             {
                 **updated_existing,
                 **payload,
@@ -840,7 +947,7 @@ def import_reference_media_file(
                 "usage_count": updated_existing["usage_count"],
                 "last_used_at": updated_existing.get("last_used_at"),
             }
-        )
+        ))
 
     return store.create_or_reuse_reference_media(payload, increment_usage=True)
 
@@ -904,7 +1011,7 @@ def backfill_reference_media() -> Dict[str, Any]:
                 relative_path = str(file_path.relative_to(settings.data_root)).replace("\\", "/")
                 file_size_bytes = file_path.stat().st_size
                 existing = store.get_reference_media_by_hash(kind, digest, file_size_bytes)
-                width, height, duration_seconds = _probe_reference_media_metadata(file_path, kind)
+                width, height, duration_seconds, probed_metadata = _probe_reference_media_metadata(file_path, kind)
                 record = store.create_or_reuse_reference_media(
                     {
                         "kind": kind,
@@ -920,7 +1027,7 @@ def backfill_reference_media() -> Dict[str, Any]:
                         "thumb_path": None,
                         "poster_path": None,
                         "usage_count": 0,
-                        "metadata_json": {"backfilled": True},
+                        "metadata_json": {"backfilled": True, **probed_metadata},
                     },
                     increment_usage=False,
                 )
@@ -1332,6 +1439,39 @@ def _fake_output_image(target_path: Path, label: str) -> None:
     image.save(target_path)
 
 
+def _fake_output_video(target_path: Path) -> None:
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg:
+        subprocess.run(
+            [
+                ffmpeg,
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=0x101414:s=640x360:d=1",
+                "-an",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+                str(target_path),
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return
+    target_path.write_bytes(
+        b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom"
+        b"\x00\x00\x00\x08free"
+        b"\x00\x00\x00\x08mdat"
+    )
+
+
 def _relative_media_path(artifact: Dict[str, Any], path_value: Optional[str]) -> Optional[str]:
     if not path_value:
         return None
@@ -1473,6 +1613,12 @@ def publish_job_artifact(job: Dict[str, Any], output_path: Path, remote_output_u
 
 
 def simulate_job_completion(job: Dict[str, Any], downloads_dir: Path) -> Dict[str, Any]:
-    output_path = downloads_dir / ("%s.png" % job["job_id"])
-    _fake_output_image(output_path, job.get("final_prompt_used") or job.get("raw_prompt") or job["model_key"])
+    task_mode = str(job.get("task_mode") or "").lower()
+    model_key = str(job.get("model_key") or "").lower()
+    if "video" in task_mode or "i2v" in model_key or "t2v" in model_key:
+        output_path = downloads_dir / ("%s.mp4" % job["job_id"])
+        _fake_output_video(output_path)
+    else:
+        output_path = downloads_dir / ("%s.png" % job["job_id"])
+        _fake_output_image(output_path, job.get("final_prompt_used") or job.get("raw_prompt") or job["model_key"])
     return publish_job_artifact(job, output_path)

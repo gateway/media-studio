@@ -450,6 +450,14 @@ def create_or_update_graph_workflow(payload: Dict[str, Any]) -> Dict[str, Any]:
     payload = payload.copy()
     if not payload.get("workflow_id"):
         payload["workflow_id"] = new_id("graphwf")
+    workflow_json = payload.get("workflow_json")
+    if isinstance(workflow_json, dict):
+        payload["workflow_json"] = {
+            **workflow_json,
+            "workflow_id": payload["workflow_id"],
+            "name": payload.get("name") or workflow_json.get("name") or "Untitled Graph",
+            "description": payload.get("description") if payload.get("description") is not None else workflow_json.get("description"),
+        }
     payload.setdefault("schema_version", 1)
     payload.setdefault("status", "active")
     record = _upsert_table("graph_workflows", "workflow_id", payload)
@@ -509,6 +517,14 @@ def create_or_update_graph_template(payload: Dict[str, Any]) -> Dict[str, Any]:
     return _upsert_table("graph_templates", "template_id", payload)
 
 
+def archive_graph_template(template_id: str) -> Dict[str, Any]:
+    record = get_graph_template(template_id)
+    if record is None:
+        raise KeyError("template not found")
+    record["status"] = "archived"
+    return create_or_update_graph_template(record)
+
+
 def create_graph_run(payload: Dict[str, Any], node_payloads: List[Dict[str, Any]]) -> Dict[str, Any]:
     now = utcnow_iso()
     run = payload.copy()
@@ -516,6 +532,7 @@ def create_graph_run(payload: Dict[str, Any], node_payloads: List[Dict[str, Any]
     run.setdefault("status", "queued")
     run.setdefault("schema_version", 1)
     run.setdefault("created_at", now)
+    run.setdefault("metrics_json", {})
     run["updated_at"] = now
     run = _upsert_table("graph_runs", "run_id", run)
     with get_connection() as connection:
@@ -526,6 +543,7 @@ def create_graph_run(payload: Dict[str, Any], node_payloads: List[Dict[str, Any]
             node.setdefault("status", "queued")
             node.setdefault("input_snapshot_json", {})
             node.setdefault("output_snapshot_json", {})
+            node.setdefault("metrics_json", {})
             node["updated_at"] = now
             _insert_or_update(connection, "graph_run_nodes", "run_node_id", node)
     return get_graph_run(run["run_id"])  # type: ignore
@@ -536,6 +554,20 @@ def list_graph_runs(limit: int = 100) -> List[Dict[str, Any]]:
         rows = connection.execute(
             "SELECT * FROM graph_runs ORDER BY created_at DESC LIMIT ?",
             (limit,),
+        ).fetchall()
+    return [_decode_row(row) for row in rows]
+
+
+def list_graph_runs_for_workflow(workflow_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT * FROM graph_runs
+            WHERE workflow_id = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (workflow_id, limit),
         ).fetchall()
     return [_decode_row(row) for row in rows]
 
@@ -551,6 +583,48 @@ def update_graph_run(run_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     current.update(payload)
     current["updated_at"] = utcnow_iso()
     return _upsert_table("graph_runs", "run_id", current)
+
+
+def mark_interrupted_graph_runs() -> int:
+    now = utcnow_iso()
+    message = "Graph run was interrupted before completion. Start a new run to retry."
+    with get_connection() as connection:
+        rows = connection.execute(
+            "SELECT run_id FROM graph_runs WHERE status IN ('queued', 'running')"
+        ).fetchall()
+        run_ids = [str(row["run_id"]) for row in rows]
+        for run_id in run_ids:
+            connection.execute(
+                """
+                UPDATE graph_runs
+                SET status = 'failed',
+                    error = COALESCE(NULLIF(error, ''), ?),
+                    finished_at = COALESCE(finished_at, ?),
+                    updated_at = ?
+                WHERE run_id = ?
+                """,
+                (message, now, now, run_id),
+            )
+            connection.execute(
+                """
+                UPDATE graph_run_nodes
+                SET status = 'failed',
+                    error = COALESCE(NULLIF(error, ''), ?),
+                    finished_at = COALESCE(finished_at, ?),
+                    updated_at = ?
+                WHERE run_id = ?
+                  AND status IN ('queued', 'running')
+                """,
+                (message, now, now, run_id),
+            )
+            connection.execute(
+                """
+                INSERT INTO graph_run_events (event_id, run_id, event_type, payload_json, created_at)
+                VALUES (?, ?, 'run.failed', ?, ?)
+                """,
+                (new_id("grevent"), run_id, _encode({"error": message, "interrupted": True}), now),
+            )
+    return len(run_ids)
 
 
 def list_graph_run_nodes(run_id: str) -> List[Dict[str, Any]]:
@@ -614,18 +688,75 @@ def list_graph_run_events(run_id: str, after_event_id: Optional[str] = None) -> 
         marker = None
         with get_connection() as connection:
             marker = connection.execute(
-                "SELECT created_at FROM graph_run_events WHERE event_id = ? AND run_id = ?",
+                "SELECT rowid FROM graph_run_events WHERE event_id = ? AND run_id = ?",
                 (after_event_id, run_id),
             ).fetchone()
         if marker:
-            clause += " AND created_at > ?"
-            params.append(marker["created_at"])
+            clause += " AND rowid > ?"
+            params.append(marker["rowid"])
     with get_connection() as connection:
         rows = connection.execute(
-            f"SELECT * FROM graph_run_events WHERE {clause} ORDER BY created_at ASC, event_id ASC",
+            f"SELECT * FROM graph_run_events WHERE {clause} ORDER BY rowid ASC",
             params,
         ).fetchall()
     return [_decode_row(row) for row in rows]
+
+
+def create_graph_artifact(payload: Dict[str, Any]) -> Dict[str, Any]:
+    artifact = payload.copy()
+    artifact.setdefault("artifact_id", new_id("gartifact"))
+    artifact.setdefault("created_at", utcnow_iso())
+    artifact.setdefault("metadata_json", {})
+    artifact.setdefault("transform_params_json", {})
+    artifact.setdefault("value_json", {})
+    return _upsert_table("graph_artifacts", "artifact_id", artifact)
+
+
+def list_graph_artifacts_for_run(run_id: str) -> List[Dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT * FROM graph_artifacts
+            WHERE run_id = ?
+            ORDER BY created_at ASC, node_id ASC, output_port ASC, output_index ASC
+            """,
+            (run_id,),
+        ).fetchall()
+    return [_decode_row(row) for row in rows]
+
+
+def list_graph_artifacts_for_node_run(run_id: str, node_id: str) -> List[Dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT * FROM graph_artifacts
+            WHERE run_id = ? AND node_id = ?
+            ORDER BY output_port ASC, output_index ASC, created_at ASC
+            """,
+            (run_id, node_id),
+        ).fetchall()
+    return [_decode_row(row) for row in rows]
+
+
+def latest_completed_graph_run_node_output(workflow_id: str, node_id: str) -> Optional[Dict[str, Any]]:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT grn.*
+            FROM graph_run_nodes grn
+            INNER JOIN graph_runs gr ON gr.run_id = grn.run_id
+            WHERE gr.workflow_id = ?
+              AND grn.node_id = ?
+              AND gr.status = 'completed'
+              AND grn.status = 'completed'
+              AND grn.output_snapshot_json IS NOT NULL
+              AND grn.output_snapshot_json != '{}'
+            ORDER BY COALESCE(gr.finished_at, gr.updated_at, gr.created_at) DESC
+            LIMIT 1
+            """,
+            (workflow_id, node_id),
+        ).fetchone()
+    return _decode_row(row) if row else None
 
 
 def cache_graph_node_definitions(source_fingerprint: str, definitions: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -863,9 +994,11 @@ def list_assets(
     if favorites_only:
         clauses.append("favorited = 1")
     if media_type == "image":
-        clauses.append("hero_thumb_path IS NOT NULL")
+        clauses.append("generation_kind = 'image'")
     if media_type == "video":
-        clauses.append("hero_poster_path IS NOT NULL")
+        clauses.append("generation_kind = 'video'")
+    if media_type == "audio":
+        clauses.append("generation_kind = 'audio'")
     if model_key:
         clauses.append("model_key = ?")
         params.append(model_key)

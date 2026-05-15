@@ -3,11 +3,30 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from .. import kie_adapter, store
+from .definition_validator import validate_node_definitions
 from .schemas import GraphNodeDefinition, GraphNodeField, GraphNodePort
+from .system_nodes import system_node_definitions
+
+
+SUPPORTED_GRAPH_MODEL_INPUTS = {"image", "video", "audio"}
+VIDEO_TASK_MODE_HINTS = {
+    "image_to_video",
+    "text_to_video",
+    "video_to_video",
+    "motion_control",
+    "i2v",
+    "t2v",
+    "v2v",
+}
+AUDIO_TASK_MODE_HINTS = {"text_to_audio", "video_to_audio", "audio_generation"}
 
 
 def _title_from_key(value: str) -> str:
     return " ".join(part.capitalize() for part in value.replace("_", " ").replace("-", " ").split())
+
+
+def _slug(value: str) -> str:
+    return "".join(character if character.isalnum() else "_" for character in value.lower()).strip("_")
 
 
 def _field_from_option(key: str, spec: Dict[str, Any]) -> Optional[GraphNodeField]:
@@ -38,6 +57,119 @@ def _field_from_option(key: str, spec: Dict[str, Any]) -> Optional[GraphNodeFiel
     )
 
 
+def _model_task_modes(model: Dict[str, Any]) -> List[str]:
+    raw = model.get("raw") or {}
+    task_modes = model.get("task_modes") or raw.get("task_modes") or []
+    return [str(item).lower() for item in task_modes if item is not None]
+
+
+def _graph_model_output_media_type(model: Dict[str, Any]) -> str:
+    task_modes = set(_model_task_modes(model))
+    model_key = str(model.get("key") or "").lower()
+    raw = model.get("raw") or {}
+    provider_model = str(raw.get("provider_model") or "").lower()
+    hint_text = " ".join([model_key, provider_model])
+    if task_modes.intersection(VIDEO_TASK_MODE_HINTS) or any(
+        hint in hint_text for hint in ("image-to-video", "text-to-video", "video-to-video", "i2v", "t2v", "v2v")
+    ):
+        return "video"
+    if task_modes.intersection(AUDIO_TASK_MODE_HINTS) or "audio" in hint_text:
+        return "audio"
+    media_types = set(str(item).lower() for item in (model.get("media_types") or []))
+    if "video" in media_types:
+        return "video"
+    if "audio" in media_types:
+        return "audio"
+    return "image"
+
+
+def _layout_ui(definition: GraphNodeDefinition) -> GraphNodeDefinition:
+    ui = dict(definition.ui or {})
+    default_size = ui.get("default_size") if isinstance(ui.get("default_size"), dict) else {}
+    default_width = int(default_size.get("width") or 320)
+    default_height = int(default_size.get("height") or 260)
+    visible_fields = [field for field in definition.fields if not field.hidden]
+    visible_ports = [
+        port
+        for port in [*definition.ports.get("inputs", []), *definition.ports.get("outputs", [])]
+        if not port.advanced
+    ]
+    textarea_count = sum(1 for field in visible_fields if field.type == "textarea")
+    preview = bool(ui.get("preview")) or definition.type.startswith("media.load_") or definition.type.startswith("media.save_")
+    computed_min_height = 132 + len(visible_fields) * 52 + len(visible_ports) * 28 + textarea_count * 70 + (140 if preview else 0)
+    computed_min_width = 260 if preview else 240
+    if definition.category.startswith("Models/"):
+        computed_min_width = max(computed_min_width, 340)
+        computed_min_height = max(computed_min_height, 440)
+    if definition.type == "preset.render" or definition.type.startswith("preset.render."):
+        computed_min_width = max(computed_min_width, 340)
+        computed_min_height = max(computed_min_height, 380)
+
+    min_width = max(computed_min_width, int(ui.get("min_width") or 0))
+    min_height = max(computed_min_height, int(ui.get("min_height") or 0))
+    default_width = max(default_width, min_width)
+    default_height = max(default_height, min_height)
+    accent = str(ui.get("accent") or "blue")
+    ui["default_size"] = {"width": default_width, "height": default_height}
+    ui.setdefault("min_size", {"width": min_width, "height": min_height})
+    ui.setdefault("max_size", {"width": max(default_width, 860), "height": max(default_height, 1200)})
+    ui.setdefault("color", accent)
+    ui.setdefault("accent", accent)
+    ui.setdefault("icon", "info")
+    ui.setdefault("preview", preview)
+    ui.setdefault("field_layout", "stack")
+    definition.ui = ui
+    return definition
+
+
+def _model_image_ports(model_key: str, raw_inputs: Dict[str, Any], output_media_type: str) -> List[GraphNodePort]:
+    image_input = raw_inputs.get("image") or {}
+    required_min = int(image_input.get("required_min") or 0)
+    required_max = int(image_input.get("required_max") or 0)
+    if required_min <= 0 and required_max <= 0:
+        return []
+    normalized_key = model_key.lower()
+    if output_media_type == "video" and required_max == 2 and "i2v" in normalized_key:
+        return [
+            GraphNodePort(
+                id="start_frame",
+                label="Start Frame",
+                type="image",
+                min=1,
+                max=1,
+                required=True,
+                accepts=["image"],
+                description="First image frame sent to the image-to-video model.",
+            ),
+            GraphNodePort(
+                id="end_frame",
+                label="End Frame",
+                type="image",
+                min=1 if required_min >= 2 else 0,
+                max=1,
+                required=required_min >= 2,
+                accepts=["image"],
+                description="Optional final image frame sent after the start frame.",
+            ),
+        ]
+    label = "Reference Images"
+    if output_media_type == "video" and required_max == 1:
+        label = "Reference Image"
+    return [
+        GraphNodePort(
+            id="image_refs",
+            label=label,
+            type="image",
+            array=True,
+            min=required_min,
+            max=required_max or None,
+            required=bool(required_min),
+            accepts=["image"],
+            description=f"Accepts {required_max or 'multiple'} image reference{'s' if (required_max or 0) != 1 else ''}.",
+        )
+    ]
+
+
 class GraphNodeRegistry:
     def __init__(self) -> None:
         self._definitions: Optional[List[GraphNodeDefinition]] = None
@@ -65,72 +197,49 @@ class GraphNodeRegistry:
         return {definition.type: definition for definition in self.list_definitions()}
 
     def _build_definitions(self) -> List[GraphNodeDefinition]:
-        definitions = [
-            GraphNodeDefinition(
-                type="prompt.text",
-                title="Prompt Text",
-                description="Reusable text prompt that can feed one or more model prompt inputs.",
-                category="Prompt",
-                search_aliases=["prompt", "text", "caption", "description"],
-                tags=["prompt", "text", "utility"],
-                source={"kind": "system"},
-                execution={"executor": "prompt.text", "mode": "sync", "cacheable": True, "output_node": False},
-                ui={"default_size": {"width": 340, "height": 260}, "accent": "purple", "icon": "text"},
-                ports={
-                    "inputs": [],
-                    "outputs": [GraphNodePort(id="text", label="Text", type="text")],
-                },
-                fields=[
-                    GraphNodeField(
-                        id="text",
-                        label="Prompt",
-                        type="textarea",
-                        required=True,
-                        default="",
-                        placeholder="Write a reusable prompt...",
-                    )
-                ],
-            ),
-            GraphNodeDefinition(
-                type="media.load_image",
-                title="Load Image",
-                description="Load an existing Media Studio asset or reference image.",
-                category="Media",
-                search_aliases=["asset", "reference", "input", "image"],
-                tags=["media", "image", "input"],
-                source={"kind": "system"},
-                execution={"executor": "media.load_image", "mode": "sync", "cacheable": True, "output_node": False},
-                ui={"default_size": {"width": 280, "height": 260}, "accent": "green", "icon": "image"},
-                ports={
-                    "inputs": [],
-                    "outputs": [GraphNodePort(id="image", label="Image", type="image")],
-                },
-                fields=[
-                    GraphNodeField(id="asset_id", label="Asset ID", type="asset_picker", required=False),
-                    GraphNodeField(id="reference_id", label="Reference ID", type="reference_media_picker", required=False),
-                ],
-            ),
-            GraphNodeDefinition(
-                type="media.save_image",
-                title="Save Image",
-                description="Expose an image as a normal Media Studio graph output.",
-                category="Media",
-                search_aliases=["save", "output", "asset"],
-                tags=["media", "image", "output"],
-                source={"kind": "system"},
-                execution={"executor": "media.save_image", "mode": "sync", "cacheable": False, "output_node": True},
-                ui={"default_size": {"width": 260, "height": 180}, "accent": "yellow", "icon": "save"},
-                ports={
-                    "inputs": [GraphNodePort(id="image", label="Image", type="image", required=True, min=1, max=1, accepts=["image"])],
-                    "outputs": [GraphNodePort(id="asset", label="Asset", type="asset")],
-                },
-                fields=[GraphNodeField(id="label", label="Label", type="text", required=False)],
-            ),
-        ]
-        model = self._nano_banana_pro_model()
-        if model:
-            definitions.append(self._kie_model_definition(model))
+        definitions = system_node_definitions()
+        seen_model_nodes = {definition.type for definition in definitions}
+        for model in self._graph_supported_models():
+            definition = self._kie_model_definition(model)
+            if definition.type in seen_model_nodes:
+                continue
+            definitions.append(definition)
+            seen_model_nodes.add(definition.type)
+        for preset in store.list_presets():
+            if str(preset.get("status") or "active") != "active":
+                continue
+            definitions.append(self._preset_render_definition(preset))
+        definitions = [_layout_ui(definition) for definition in definitions]
+        validate_node_definitions(definitions)
         return definitions
+
+    def _graph_supported_models(self) -> List[Dict[str, Any]]:
+        models = kie_adapter.list_models()
+        supported: List[Dict[str, Any]] = []
+        for model in models:
+            if model.get("studio_exposed") is False:
+                continue
+            output_media_type = _graph_model_output_media_type(model)
+            media_types = set(str(item).lower() for item in (model.get("media_types") or []))
+            task_modes = set(_model_task_modes(model))
+            raw = model.get("raw") or {}
+            hint_text = f"{str(model.get('key') or '').lower()} {str(raw.get('provider_model') or '').lower()}"
+            has_media_hint = (
+                bool(media_types.intersection({"image", "video", "audio"}))
+                or bool(task_modes.intersection(VIDEO_TASK_MODE_HINTS | AUDIO_TASK_MODE_HINTS))
+                or any(hint in hint_text for hint in ("image-to-video", "text-to-video", "video-to-video", "i2v", "t2v", "v2v"))
+            )
+            if output_media_type not in {"image", "video", "audio"} or not has_media_hint:
+                continue
+            raw_inputs = (model.get("raw") or {}).get("inputs") or {}
+            unknown_input_types = set(raw_inputs.keys()).difference(SUPPORTED_GRAPH_MODEL_INPUTS)
+            if unknown_input_types:
+                continue
+            supported.append(model)
+        nano = self._nano_banana_pro_model()
+        if nano and not any(item.get("key") == nano.get("key") for item in supported):
+            supported.insert(0, nano)
+        return supported
 
     def _nano_banana_pro_model(self) -> Optional[Dict[str, Any]]:
         models = kie_adapter.list_models()
@@ -151,8 +260,11 @@ class GraphNodeRegistry:
 
     def _kie_model_definition(self, model: Dict[str, Any]) -> GraphNodeDefinition:
         raw = model.get("raw") or {}
-        image_inputs = (raw.get("inputs") or {}).get("image") or {}
-        max_images = int(image_inputs.get("required_max") or 0)
+        raw_inputs = raw.get("inputs") or {}
+        model_key = str(model.get("key") or "unknown-model")
+        output_media_type = _graph_model_output_media_type(model)
+        node_type = "model.kie.nano_banana_pro" if model_key in {"nano-banana-pro", "nanobanana-pro", "nano_banana_pro"} else f"model.kie.{_slug(model_key)}"
+        allowed_input_media_types = {"image"} if output_media_type == "image" else {"image", "video", "audio"} if output_media_type == "video" else {"audio", "video"}
         fields = [
             GraphNodeField(
                 id="prompt",
@@ -169,37 +281,171 @@ class GraphNodeRegistry:
             field = _field_from_option(str(key), option if isinstance(option, dict) else {})
             if field:
                 fields.append(field)
+        input_ports = [GraphNodePort(id="prompt", label="Prompt", type="text", required=False, max=1, accepts=["text"])]
+        input_ports.extend(_model_image_ports(model_key, raw_inputs, output_media_type))
+        for media_type in ("image", "video", "audio"):
+            if media_type == "image":
+                continue
+            if media_type not in allowed_input_media_types:
+                continue
+            media_input = raw_inputs.get(media_type) or {}
+            required_min = int(media_input.get("required_min") or 0)
+            required_max = int(media_input.get("required_max") or 0)
+            if required_min <= 0 and required_max <= 0:
+                continue
+            input_ports.append(
+                GraphNodePort(
+                    id=f"{media_type}_refs",
+                    label=f"{_title_from_key(media_type)} Refs" if media_type != "image" else "Reference Images",
+                    type=media_type,
+                    array=True,
+                    min=required_min,
+                    max=required_max or None,
+                    required=bool(required_min),
+                    accepts=[media_type],
+                )
+            )
+        max_images = sum((port.max or 0) for port in input_ports if port.type == "image") or int((raw_inputs.get("image") or {}).get("required_max") or 0)
         return GraphNodeDefinition(
-            type="model.kie.nano_banana_pro",
-            title=str(model.get("label") or "Nano Banana Pro"),
-            description="KIE image model node for prompt-guided image generation and editing.",
-            category="Models/Image",
-            search_aliases=["nano", "banana", "pro", "image", "edit", "generation"],
-            tags=["model", "image", "kie"],
+            type=node_type,
+            title=str(model.get("label") or _title_from_key(model_key)),
+            description=f"KIE {output_media_type} model node using Media Studio validation, pricing, submit, and polling.",
+            help_text="Runs a KIE model. Credits are estimated from current fields and connected media before Run.",
+            category=f"Models/{_title_from_key(output_media_type)}",
+            search_aliases=[part for part in [*_slug(model_key).split("_"), output_media_type, "kie", "model"] if part],
+            tags=["model", output_media_type, "kie"],
             source={
                 "kind": "kie_model",
-                "model_key": model.get("key"),
+                "model_key": model_key,
                 "kie_spec_version": model.get("kie_spec_version"),
+                "output_media_type": output_media_type,
+                "task_modes": model.get("task_modes") or [],
             },
             execution={"executor": "kie.model", "mode": "async", "cacheable": True, "output_node": False, "retryable": True},
-            ui={"default_size": {"width": 360, "height": 440}, "accent": "blue", "icon": "sparkles"},
+            limits={
+                "max_input_images": max_images or None,
+                "input_contract": {
+                    "images": [
+                        {
+                            "id": port.id,
+                            "label": port.label,
+                            "required": port.required,
+                            "min": port.min,
+                            "max": port.max,
+                            "description": port.description,
+                        }
+                        for port in input_ports
+                        if port.type == "image"
+                    ],
+                    "videos": [
+                        {
+                            "id": port.id,
+                            "label": port.label,
+                            "required": port.required,
+                            "min": port.min,
+                            "max": port.max,
+                            "description": port.description,
+                        }
+                        for port in input_ports
+                        if port.type == "video"
+                    ],
+                    "audios": [
+                        {
+                            "id": port.id,
+                            "label": port.label,
+                            "required": port.required,
+                            "min": port.min,
+                            "max": port.max,
+                            "description": port.description,
+                        }
+                        for port in input_ports
+                        if port.type == "audio"
+                    ],
+                },
+                "output_count": {"default": 1, "max": 1},
+            },
+            ui={"default_size": {"width": 380, "height": 560}, "accent": "cyan" if output_media_type == "video" else "blue", "icon": "video" if output_media_type == "video" else "sparkles"},
             ports={
-                "inputs": [
-                    GraphNodePort(id="prompt", label="Prompt", type="text", required=False, max=1, accepts=["text"]),
-                    GraphNodePort(
-                        id="image_refs",
-                        label="Reference Images",
-                        type="image",
-                        array=True,
-                        min=int(image_inputs.get("required_min") or 0),
-                        max=max_images or None,
-                        required=bool(image_inputs.get("required_min") or 0),
-                        accepts=["image"],
-                    )
-                ],
+                "inputs": input_ports,
                 "outputs": [
-                    GraphNodePort(id="image", label="Image", type="image"),
+                    GraphNodePort(id=output_media_type, label=_title_from_key(output_media_type), type=output_media_type),
                     GraphNodePort(id="job", label="Job", type="job", advanced=True),
+                ],
+            },
+            fields=fields,
+        )
+
+    def _preset_render_definition(self, preset: Dict[str, Any]) -> GraphNodeDefinition:
+        preset_id = str(preset.get("preset_id") or "")
+        preset_key = str(preset.get("key") or preset_id)
+        input_ports = []
+        for slot in preset.get("input_slots_json") or []:
+            key = str(slot.get("key") or "").strip()
+            if not key:
+                continue
+            input_ports.append(
+                GraphNodePort(
+                    id=f"slot__{_slug(key)}",
+                    label=str(slot.get("label") or _title_from_key(key)),
+                    type="image",
+                    array=True,
+                    min=1 if slot.get("required") else 0,
+                    max=int(slot.get("max_files") or 1),
+                    required=bool(slot.get("required")),
+                    accepts=["image"],
+                )
+            )
+        fields = [
+            GraphNodeField(id="preset_id", label="Preset", type="text", required=False, default=preset_id, hidden=True),
+        ]
+        for field in preset.get("input_schema_json") or []:
+            key = str(field.get("key") or "").strip()
+            if not key:
+                continue
+            fields.append(
+                GraphNodeField(
+                    id=f"text__{_slug(key)}",
+                    label=str(field.get("label") or _title_from_key(key)),
+                    type="textarea" if field.get("multiline") else "text",
+                    required=bool(field.get("required")),
+                    default=field.get("default_value") or "",
+                    placeholder=field.get("placeholder"),
+                    help_text=field.get("help_text") or field.get("description"),
+                )
+            )
+        for group in preset.get("choice_groups_json") or []:
+            key = str(group.get("key") or group.get("id") or "").strip()
+            choices = group.get("choices") or group.get("options") or []
+            if not key or not choices:
+                continue
+            fields.append(
+                GraphNodeField(
+                    id=f"choice__{_slug(key)}",
+                    label=str(group.get("label") or _title_from_key(key)),
+                    type="select",
+                    required=bool(group.get("required")),
+                    default=group.get("default"),
+                    options=choices,
+                )
+            )
+        return GraphNodeDefinition(
+            type=f"preset.render.{_slug(preset_key or preset_id)}",
+            title=str(preset.get("label") or preset_key or "Render Preset"),
+            description=str(preset.get("description") or "Render this structured Media Studio preset."),
+            category="Preset",
+            search_aliases=["preset", "render", preset_key, str(preset.get("label") or "")],
+            tags=["preset", "prompt", "image"],
+            source={"kind": "preset", "preset_id": preset_id, "preset_key": preset_key},
+            execution={"executor": "preset.render", "mode": "sync", "cacheable": True, "output_node": False},
+            limits={"max_input_images": 8},
+            ui={"default_size": {"width": 360, "height": 460}, "accent": "purple", "icon": "preset"},
+            ports={
+                "inputs": input_ports,
+                "outputs": [
+                    GraphNodePort(id="prompt", label="Prompt", type="text"),
+                    GraphNodePort(id="image_refs", label="Image Refs", type="image", array=True),
+                    GraphNodePort(id="preset", label="Preset", type="json"),
+                    GraphNodePort(id="recommended_models", label="Recommended Models", type="json", advanced=True),
                 ],
             },
             fields=fields,

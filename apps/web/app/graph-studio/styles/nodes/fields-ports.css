@@ -1,0 +1,238 @@
+.graph-node-library-button {
+  width: 100%;
+}
+
+.graph-node-resize-handle {
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  background: transparent;
+  opacity: 0;
+  pointer-events: auto;
+}
+
+.graph-node-resize-line {
+  border-color: transparent;
+}
+
+.graph-node > .react-flow__resize-control {
+  position: absolute !important;
+  z-index: 12;
+}
+
+.react-flow__node.selected .graph-node-resize-handle,
+.react-flow__node:hover .graph-node-resize-handle {
+  opacity: 0;
+}
+
+.react-flow__node.selected .graph-node-resize-handle.bottom.right,
+.react-flow__node:hover .graph-node-resize-handle.bottom.right {
+  border-color: transparent;
+  cursor: nwse-resize;
+  opacity: 0;
+}
+
+.react-flow__node.selected .graph-node-resize-handle.bottom.right:hover,
+.react-flow__node:hover .graph-node-resize-handle.bottom.right:hover {
+  border-color: transparent;
+  opacity: 0;
+}
+
+.react-flow__node,
+.react-flow__node:focus,
+.react-flow__node:focus-visible,
+.react-flow__node.selected {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.graph-canvas .react-flow__pane {
+  z-index: 1;
+}
+
+.graph-canvas .react-flow__renderer {
+  z-index: 2;
+}
+
+.graph-canvas .react-flow__viewport {
+  z-index: 3;
+}
+
+.graph-canvas .react-flow__nodes {
+  z-index: 6;
+  pointer-events: auto;
+}
+
+.graph-canvas .react-flow__edges {
+  z-index: 5;
+}
+
+.react-flow__resize-control.line {
+  border-color: transparent !important;
+  pointer-events: none !important;
+}
+
+.react-flow__resize-control.handle {
+  width: 0 !important;
+  height: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  opacity: 0;
+  pointer-events: none !important;
+}
+
+.react-flow__resize-control.handle.bottom.right {
+  width: 38px !important;
+  height: 38px !important;
+  right: -19px !important;
+  bottom: -19px !important;
+  border-color: transparent !important;
+  cursor: nwse-resize;
+  opacity: 0;
+  pointer-events: auto !important;
+}
+
+.react-flow__node:has(.graph-node-collapsed) .react-flow__resize-control.handle.bottom.right {
+  width: 18px !important;
+  height: 18px !important;
+  right: -9px !important;
+  bottom: -9px !important;
+}
+
+.graph-node-field textarea {
+  min-height: 110px;
+  height: 100%;
+  flex: 1;
+  resize: vertical;
+  scrollbar-width: none;
+}
+
+.graph-node-field:has(textarea) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 110px;
+  min-height: 110px;
+}
+
+.graph-node-field:has(textarea) .graph-node-field-control {
+  min-height: 0;
+}
+
+.graph-node-field-connectable {
+  position: relative;
+  padding-left: 0.35rem;
+}
+
+.graph-node-field-connected .graph-node-field-control {
+  color: rgba(247, 246, 240, 0.5);
+  background: #202424;
+  border-color: rgba(247, 246, 240, 0.06);
+  cursor: not-allowed;
+}
+
+.graph-node-port-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 26px;
+  color: rgba(247, 246, 240, 0.86);
+}
+
+.graph-node-port-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, auto);
+  align-items: start;
+  gap: 0.65rem;
+  min-height: 28px;
+}
+
+.graph-node-port-stack {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.graph-node-port-stack-outputs {
+  justify-items: end;
+}
+
+.graph-node-port-input {
+  padding-left: 1rem;
+}
+
+.graph-node-port-output {
+  justify-content: flex-end;
+  padding-right: 1rem;
+}
+
+.graph-port-compatible {
+  color: var(--graph-text);
+}
+
+.graph-handle {
+  --graph-handle-size: 18px;
+  box-sizing: border-box;
+  width: var(--graph-handle-size);
+  height: var(--graph-handle-size);
+  z-index: 3;
+  border: 3px solid var(--graph-node-handle, var(--graph-accent));
+  border-radius: 999px;
+  background: var(--graph-panel);
+  cursor: grab;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.graph-handle::before {
+  position: absolute;
+  inset: -14px;
+  z-index: -1;
+  display: block;
+  border-radius: 999px;
+  background: transparent;
+  content: "";
+}
+
+.graph-node-port-input .graph-handle,
+.graph-node-field-connectable .graph-handle {
+  left: -12px !important;
+}
+
+.graph-node-port-output .graph-handle {
+  right: -12px !important;
+}
+
+.graph-handle:hover {
+  background: var(--graph-node-handle, var(--graph-accent));
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--graph-node-handle, var(--graph-accent)) 16%, transparent);
+}
+
+.graph-handle-compatible {
+  width: var(--graph-handle-size);
+  height: var(--graph-handle-size);
+  border-color: var(--graph-text);
+  background: var(--graph-node-handle, var(--graph-accent));
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--graph-node-handle, var(--graph-accent)) 16%, transparent);
+}
+
+.graph-canvas .react-flow__handle.graph-handle-connected {
+  background: var(--graph-node-handle, var(--graph-accent));
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.5),
+    0 0 0 6px color-mix(in srgb, var(--graph-node-handle, var(--graph-accent)) 14%, transparent);
+  cursor: grab;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.react-flow__handle {
+  cursor: grab !important;
+}
+
+.react-flow__handle:active {
+  cursor: grabbing !important;
+}

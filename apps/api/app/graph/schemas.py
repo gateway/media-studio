@@ -33,6 +33,7 @@ class GraphNodeField(BaseModel):
     hidden: bool = False
     connectable: bool = False
     port_type: Optional[str] = None
+    visible_if: Optional[Dict[str, Any]] = None
 
 
 class GraphNodeDefinition(BaseModel):
@@ -40,11 +41,13 @@ class GraphNodeDefinition(BaseModel):
     type: str
     title: str
     description: Optional[str] = None
+    help_text: Optional[str] = None
     category: str
     search_aliases: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
     source: Dict[str, Any] = Field(default_factory=dict)
     execution: Dict[str, Any] = Field(default_factory=dict)
+    limits: Dict[str, Any] = Field(default_factory=dict)
     ui: Dict[str, Any] = Field(default_factory=dict)
     ports: Dict[str, List[GraphNodePort]] = Field(default_factory=lambda: {"inputs": [], "outputs": []})
     fields: List[GraphNodeField] = Field(default_factory=list)
@@ -115,6 +118,29 @@ class GraphOutputRef(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+class GraphArtifact(BaseModel):
+    artifact_id: str
+    workflow_id: str
+    run_id: str
+    node_id: str
+    node_type: str
+    output_port: str
+    output_index: int = 0
+    kind: str
+    media_type: Optional[str] = None
+    asset_id: Optional[str] = None
+    reference_id: Optional[str] = None
+    job_id: Optional[str] = None
+    value_json: Dict[str, Any] = Field(default_factory=dict)
+    parent_artifact_id: Optional[str] = None
+    parent_asset_id: Optional[str] = None
+    parent_reference_id: Optional[str] = None
+    transform_type: Optional[str] = None
+    transform_params_json: Dict[str, Any] = Field(default_factory=dict)
+    metadata_json: Dict[str, Any] = Field(default_factory=dict)
+    created_at: Optional[str] = None
+
+
 class GraphError(BaseModel):
     code: str
     message: str
@@ -127,6 +153,23 @@ class GraphError(BaseModel):
 class GraphValidationResult(BaseModel):
     valid: bool
     errors: List[GraphError] = Field(default_factory=list)
+    warnings: List[GraphError] = Field(default_factory=list)
+
+
+class GraphEstimateNode(BaseModel):
+    node_id: str
+    node_type: str
+    model_key: Optional[str] = None
+    task_mode: Optional[str] = None
+    output_count: int = 1
+    pricing_summary: Dict[str, Any] = Field(default_factory=dict)
+    assumptions: List[str] = Field(default_factory=list)
+    warnings: List[GraphError] = Field(default_factory=list)
+
+
+class GraphEstimateResponse(BaseModel):
+    pricing_summary: Dict[str, Any] = Field(default_factory=dict)
+    nodes: Dict[str, GraphEstimateNode] = Field(default_factory=dict)
     warnings: List[GraphError] = Field(default_factory=list)
 
 
@@ -155,6 +198,7 @@ class GraphRun(BaseModel):
     workflow_json: Dict[str, Any] = Field(default_factory=dict)
     compiled_graph_json: Dict[str, Any] = Field(default_factory=dict)
     output_snapshot_json: Dict[str, Any] = Field(default_factory=dict)
+    metrics_json: Dict[str, Any] = Field(default_factory=dict)
     error: Optional[str] = None
     nodes: List["GraphRunNode"] = Field(default_factory=list)
     created_at: Optional[str] = None
@@ -172,6 +216,8 @@ class GraphRunNode(BaseModel):
     progress: Optional[float] = None
     input_snapshot_json: Dict[str, Any] = Field(default_factory=dict)
     output_snapshot_json: Dict[str, Any] = Field(default_factory=dict)
+    artifacts: List[GraphArtifact] = Field(default_factory=list)
+    metrics_json: Dict[str, Any] = Field(default_factory=dict)
     error: Optional[str] = None
     started_at: Optional[str] = None
     finished_at: Optional[str] = None
@@ -205,6 +251,10 @@ class GraphRunListResponse(BaseModel):
 
 class GraphRunEventsResponse(BaseModel):
     items: List[GraphRunEvent] = Field(default_factory=list)
+
+
+class GraphArtifactsResponse(BaseModel):
+    items: List[GraphArtifact] = Field(default_factory=list)
 
 
 class GraphTemplateListResponse(BaseModel):

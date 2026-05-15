@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+import json
+import time
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
+from starlette.responses import StreamingResponse
 
 from .. import store
+from .pricing import estimate_graph_workflow
 from .registry import registry
 from .runtime import runtime
 from .schemas import (
+    GraphArtifact,
+    GraphArtifactsResponse,
+    GraphEstimateResponse,
     GraphNodeDefinition,
     GraphNodeDefinitionsResponse,
     GraphRun,
@@ -37,17 +44,20 @@ def _bad_request(message: str) -> HTTPException:
 
 def _workflow_from_record(record: dict) -> GraphWorkflow:
     workflow_json = dict(record.get("workflow_json") or {})
-    workflow_json.setdefault("workflow_id", record["workflow_id"])
-    workflow_json.setdefault("name", record.get("name") or "Untitled Graph")
-    workflow_json.setdefault("description", record.get("description"))
+    workflow_json["workflow_id"] = record["workflow_id"]
+    workflow_json["name"] = record.get("name") or workflow_json.get("name") or "Untitled Graph"
+    workflow_json["description"] = record.get("description") if record.get("description") is not None else workflow_json.get("description")
     return GraphWorkflow(**workflow_json)
 
 
 def _shape_run(record: dict) -> GraphRun:
-    return GraphRun(
-        **record,
-        nodes=[item for item in (runtime._shape_run(record).nodes)],
-    )
+    shaped = runtime._shape_run(record)
+    artifacts_by_node: dict[str, list[GraphArtifact]] = {}
+    for artifact in store.list_graph_artifacts_for_run(record["run_id"]):
+        artifacts_by_node.setdefault(str(artifact["node_id"]), []).append(GraphArtifact(**artifact))
+    for node in shaped.nodes:
+        node.artifacts = artifacts_by_node.get(node.node_id, [])
+    return shaped
 
 
 @router.get("/node-definitions", response_model=GraphNodeDefinitionsResponse)
@@ -66,6 +76,11 @@ def get_node_definition(node_type: str) -> GraphNodeDefinition:
 @router.post("/node-definitions/refresh", response_model=GraphNodeDefinitionsResponse)
 def refresh_node_definitions() -> GraphNodeDefinitionsResponse:
     return GraphNodeDefinitionsResponse(items=registry.list_definitions(refresh=True))
+
+
+@router.post("/estimate", response_model=GraphEstimateResponse)
+def estimate_workflow(payload: GraphWorkflow) -> GraphEstimateResponse:
+    return estimate_graph_workflow(payload)
 
 
 @router.get("/workflows", response_model=GraphWorkflowListResponse)
@@ -125,7 +140,8 @@ def validate_saved_workflow(workflow_id: str, payload: Optional[GraphWorkflow] =
     record = store.get_graph_workflow(workflow_id)
     if not record:
         raise _not_found("workflow")
-    return validate_workflow(payload or _workflow_from_record(record))
+    workflow = payload.model_copy(update={"workflow_id": workflow_id}) if payload else _workflow_from_record(record)
+    return validate_workflow(workflow)
 
 
 @router.post("/workflows/{workflow_id}/runs", response_model=GraphRun)
@@ -133,11 +149,18 @@ def create_run(workflow_id: str, payload: Optional[GraphRunCreateRequest] = None
     record = store.get_graph_workflow(workflow_id)
     if not record:
         raise _not_found("workflow")
-    workflow = payload.workflow if payload and payload.workflow else _workflow_from_record(record)
+    workflow = payload.workflow.model_copy(update={"workflow_id": workflow_id}) if payload and payload.workflow else _workflow_from_record(record)
     try:
         return runtime.create_run(workflow_id, workflow, start=True)
     except ValueError as exc:
         raise _bad_request(str(exc))
+
+
+@router.get("/workflows/{workflow_id}/runs", response_model=GraphRunListResponse)
+def list_workflow_runs(workflow_id: str, limit: int = Query(default=50, ge=1, le=250)) -> GraphRunListResponse:
+    if not store.get_graph_workflow(workflow_id):
+        raise _not_found("workflow")
+    return GraphRunListResponse(items=[_shape_run(item) for item in store.list_graph_runs_for_workflow(workflow_id, limit=limit)])
 
 
 @router.get("/runs", response_model=GraphRunListResponse)
@@ -158,6 +181,43 @@ def list_run_events(run_id: str, after_event_id: Optional[str] = Query(default=N
     if not store.get_graph_run(run_id):
         raise _not_found("graph run")
     return GraphRunEventsResponse(items=store.list_graph_run_events(run_id, after_event_id=after_event_id))
+
+
+@router.get("/runs/{run_id}/artifacts", response_model=GraphArtifactsResponse)
+def list_run_artifacts(run_id: str) -> GraphArtifactsResponse:
+    if not store.get_graph_run(run_id):
+        raise _not_found("graph run")
+    return GraphArtifactsResponse(items=[GraphArtifact(**item) for item in store.list_graph_artifacts_for_run(run_id)])
+
+
+@router.get("/runs/{run_id}/events/stream")
+def stream_run_events(run_id: str, after_event_id: Optional[str] = Query(default=None)) -> StreamingResponse:
+    if not store.get_graph_run(run_id):
+        raise _not_found("graph run")
+
+    def event_stream():
+        last_event_id = after_event_id
+        idle_ticks = 0
+        while True:
+            events = store.list_graph_run_events(run_id, after_event_id=last_event_id)
+            if events:
+                idle_ticks = 0
+                for event in events:
+                    last_event_id = event["event_id"]
+                    yield (
+                        f"id: {event['event_id']}\n"
+                        f"event: {event['event_type']}\n"
+                        f"data: {json.dumps(event, default=str)}\n\n"
+                    )
+            run = store.get_graph_run(run_id)
+            if run and run.get("status") in {"completed", "failed", "cancelled"} and not events:
+                break
+            idle_ticks += 1
+            if idle_ticks % 20 == 0:
+                yield ": keepalive\n\n"
+            time.sleep(0.5)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.post("/runs/{run_id}/cancel", response_model=GraphRun)
@@ -185,6 +245,14 @@ def create_template(payload: GraphTemplate) -> GraphTemplateRecord:
         }
     )
     return GraphTemplateRecord(**record)
+
+
+@router.delete("/templates/{template_id}", response_model=GraphTemplateRecord)
+def delete_template(template_id: str) -> GraphTemplateRecord:
+    try:
+        return GraphTemplateRecord(**store.archive_graph_template(template_id))
+    except KeyError:
+        raise _not_found("template")
 
 
 @router.post("/templates/{template_id}/instantiate", response_model=GraphWorkflowRecord)

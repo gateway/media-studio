@@ -42,6 +42,25 @@ def _render_enhancement_template(
     return rendered, used_user_prompt_placeholder
 
 
+def render_prompt_node_template(template: Optional[str], *, user_prompt: str, has_image: bool, mode: str) -> tuple[str, bool]:
+    raw = (template or "").strip()
+    if not raw:
+        return "", False
+    replacements = {
+        "{user_prompt}": user_prompt or "",
+        "[user_prompt]": user_prompt or "",
+        "{has_image}": "true" if has_image else "false",
+        "[has_image]": "true" if has_image else "false",
+        "{mode}": mode or "custom",
+        "[mode]": mode or "custom",
+    }
+    rendered = raw
+    used_user_prompt_placeholder = any(placeholder in rendered for placeholder in ("{user_prompt}", "[user_prompt]"))
+    for placeholder, value in replacements.items():
+        rendered = rendered.replace(placeholder, value)
+    return rendered, used_user_prompt_placeholder
+
+
 def _openrouter_headers(api_key: str) -> Dict[str, str]:
     return {
         "Authorization": f"Bearer {api_key}",
@@ -180,6 +199,90 @@ def _build_rewrite_messages(
         {"role": "system", "content": effective_system_prompt},
         {"role": "user", "content": content},
     ]
+
+
+def build_prompt_node_messages(
+    *,
+    mode: str,
+    system_prompt: Optional[str],
+    user_prompt: str,
+    image_instruction: Optional[str],
+    image_paths: List[str],
+) -> List[Dict[str, Any]]:
+    rendered_system_prompt, used_user_prompt_placeholder = render_prompt_node_template(
+        system_prompt,
+        user_prompt=user_prompt,
+        has_image=bool(image_paths),
+        mode=mode,
+    )
+    effective_system_prompt = rendered_system_prompt or (
+        "You are a Media Studio prompt assistant. Return one production-ready prompt as plain text. "
+        "Be specific, visual, and concise enough for image or video generation."
+    )
+    mode_instruction = {
+        "rewrite_prompt": "Rewrite the user text into a stronger media-generation prompt.",
+        "describe_image": "Describe the image as a detailed media-generation prompt.",
+        "custom": "Follow the system prompt and produce the requested text output.",
+    }.get(mode, "Follow the system prompt and produce the requested text output.")
+    user_text = f"Task: {mode_instruction}\n"
+    if user_prompt and not used_user_prompt_placeholder:
+        user_text += f"User prompt: {user_prompt}\n"
+    if image_paths:
+        user_text += f"Image instruction: {(image_instruction or 'Use the image as visual context.').strip()}\n"
+    else:
+        user_text += "Image instruction: no image is attached.\n"
+    user_text += "Return only the final prompt text. Do not include labels, markdown fences, or commentary."
+    content: List[Dict[str, Any]] = [{"type": "text", "text": user_text}]
+    for image_path in image_paths:
+        content.append({"type": "image_url", "image_url": {"url": _image_path_to_data_url(image_path)}})
+    return [{"role": "system", "content": effective_system_prompt}, {"role": "user", "content": content}]
+
+
+def run_openai_compatible_prompt_node(
+    *,
+    provider_kind: str,
+    base_url: str,
+    api_key: Optional[str],
+    model_id: str,
+    mode: str,
+    system_prompt: Optional[str],
+    user_prompt: str,
+    image_instruction: Optional[str],
+    image_paths: List[str],
+    temperature: float = 0.3,
+    max_tokens: int = 1200,
+) -> Dict[str, Any]:
+    endpoint = f"{base_url.rstrip('/')}/chat/completions"
+    messages = build_prompt_node_messages(
+        mode=mode,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        image_instruction=image_instruction,
+        image_paths=image_paths,
+    )
+    request_body = {
+        "model": model_id,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    if provider_kind == "openrouter":
+        request_body["reasoning"] = {"effort": "none", "exclude": True}
+    with _http_client() as client:
+        response = client.post(endpoint, headers=_openai_compatible_headers(api_key), json=request_body)
+    if response.status_code >= 400:
+        raise EnhancementProviderError(f"{provider_kind} prompt node failed with {response.status_code}.")
+    payload = response.json()
+    generated_text = _extract_message_text(payload).strip()
+    if not generated_text:
+        raise EnhancementProviderError("Prompt node provider returned an empty response.")
+    return {
+        "provider_kind": provider_kind,
+        "provider_model_id": model_id,
+        "provider_base_url": base_url,
+        "generated_text": generated_text,
+        "warnings": [],
+    }
 
 
 def run_openai_compatible_enhancement(

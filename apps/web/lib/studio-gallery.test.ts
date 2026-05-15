@@ -164,7 +164,7 @@ describe("studio-gallery", () => {
     expect(tiles.some((tile) => tile.asset?.asset_id === "asset-published-1" && tile.batch == null)).toBe(true);
   });
 
-  it("keeps a publishing tile visible after a batch completes until the asset is available", () => {
+  it("does not keep a stale publishing tile after a completed job has no visible asset", () => {
     const tiles = buildGalleryTiles(
       [],
       null,
@@ -184,6 +184,40 @@ describe("studio-gallery", () => {
             {
               job_id: "job-2",
               status: "completed",
+              final_status: { state: "succeeded" },
+            },
+          ],
+        } as never,
+      ],
+      [],
+      [],
+      false,
+      false,
+    );
+
+    expect(tiles.some((tile) => tile.job?.job_id === "job-2")).toBe(false);
+  });
+
+  it("keeps an active publishing tile visible while the provider output is being promoted", () => {
+    const tiles = buildGalleryTiles(
+      [],
+      null,
+      [
+        {
+          batch_id: "batch-1",
+          status: "processing",
+          requested_outputs: 1,
+          queued_count: 0,
+          running_count: 1,
+          completed_count: 0,
+          failed_count: 0,
+          cancelled_count: 0,
+          created_at: "2026-04-04T00:00:00Z",
+          updated_at: "2026-04-04T00:00:00Z",
+          jobs: [
+            {
+              job_id: "job-2",
+              status: "running",
               final_status: { state: "succeeded" },
             },
           ],

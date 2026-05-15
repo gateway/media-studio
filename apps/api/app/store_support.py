@@ -45,7 +45,10 @@ JSON_FIELDS = {
     "node_snapshot_json",
     "input_snapshot_json",
     "output_snapshot_json",
+    "metrics_json",
     "error_json",
+    "transform_params_json",
+    "value_json",
 }
 
 MIGRATION_TABLES = {"schema_meta", "schema_migrations"}
@@ -311,7 +314,9 @@ def upsert_table(table: str, pk_field: str, payload: Dict[str, Any]) -> Dict[str
 
 
 def insert_or_update(connection: sqlite3.Connection, table: str, pk_field: str, payload: Dict[str, Any]) -> None:
-    columns = sorted(payload.keys())
+    existing_columns = table_columns(connection, table)
+    resolved = {key: value for key, value in payload.items() if key in existing_columns}
+    columns = sorted(resolved.keys())
     placeholders = ", ".join(["?"] * len(columns))
     updates = ", ".join(
         ["%s = excluded.%s" % (column, column) for column in columns if column != pk_field]
@@ -319,7 +324,7 @@ def insert_or_update(connection: sqlite3.Connection, table: str, pk_field: str, 
     connection.execute(
         "INSERT INTO %s (%s) VALUES (%s) ON CONFLICT(%s) DO UPDATE SET %s"
         % (table, ", ".join(columns), placeholders, pk_field, updates),
-        [encode_value(payload[column]) for column in columns],
+        [encode_value(resolved[column]) for column in columns],
     )
 
 
@@ -1231,6 +1236,7 @@ def _apply_graph_studio_schema(connection: sqlite3.Connection) -> None:
                 workflow_json TEXT NOT NULL DEFAULT '{}',
                 compiled_graph_json TEXT NOT NULL DEFAULT '{}',
                 output_snapshot_json TEXT NOT NULL DEFAULT '{}',
+                metrics_json TEXT NOT NULL DEFAULT '{}',
                 error TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 started_at TEXT,
@@ -1248,6 +1254,7 @@ def _apply_graph_studio_schema(connection: sqlite3.Connection) -> None:
                 progress REAL,
                 input_snapshot_json TEXT NOT NULL DEFAULT '{}',
                 output_snapshot_json TEXT NOT NULL DEFAULT '{}',
+                metrics_json TEXT NOT NULL DEFAULT '{}',
                 error TEXT,
                 started_at TEXT,
                 finished_at TEXT,
@@ -1266,6 +1273,30 @@ def _apply_graph_studio_schema(connection: sqlite3.Connection) -> None:
                 FOREIGN KEY(run_id) REFERENCES graph_runs(run_id)
             );
 
+            CREATE TABLE IF NOT EXISTS graph_artifacts (
+                artifact_id TEXT PRIMARY KEY,
+                workflow_id TEXT NOT NULL,
+                run_id TEXT NOT NULL,
+                node_id TEXT NOT NULL,
+                node_type TEXT NOT NULL,
+                output_port TEXT NOT NULL,
+                output_index INTEGER NOT NULL DEFAULT 0,
+                kind TEXT NOT NULL,
+                media_type TEXT,
+                asset_id TEXT,
+                reference_id TEXT,
+                job_id TEXT,
+                value_json TEXT NOT NULL DEFAULT '{}',
+                parent_artifact_id TEXT,
+                parent_asset_id TEXT,
+                parent_reference_id TEXT,
+                transform_type TEXT,
+                transform_params_json TEXT NOT NULL DEFAULT '{}',
+                metadata_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(run_id) REFERENCES graph_runs(run_id)
+            );
+
             CREATE TABLE IF NOT EXISTS graph_node_definitions_cache (
                 cache_id TEXT PRIMARY KEY,
                 source_fingerprint TEXT,
@@ -1275,6 +1306,8 @@ def _apply_graph_studio_schema(connection: sqlite3.Connection) -> None:
             );
         """
     )
+    ensure_column(connection, "graph_runs", "metrics_json", "TEXT NOT NULL DEFAULT '{}'")
+    ensure_column(connection, "graph_run_nodes", "metrics_json", "TEXT NOT NULL DEFAULT '{}'")
     connection.execute(
         """
         CREATE INDEX IF NOT EXISTS idx_graph_run_events_run_created
@@ -1285,6 +1318,84 @@ def _apply_graph_studio_schema(connection: sqlite3.Connection) -> None:
         """
         CREATE INDEX IF NOT EXISTS idx_graph_runs_workflow_created
         ON graph_runs(workflow_id, created_at)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_graph_artifacts_run
+        ON graph_artifacts(run_id, node_id, output_port, output_index)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_graph_artifacts_workflow_node_created
+        ON graph_artifacts(workflow_id, node_id, created_at DESC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_graph_artifacts_reference_id
+        ON graph_artifacts(reference_id)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_graph_artifacts_asset_id
+        ON graph_artifacts(asset_id)
+        """
+    )
+
+
+def _apply_graph_artifacts_schema(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """
+            CREATE TABLE IF NOT EXISTS graph_artifacts (
+                artifact_id TEXT PRIMARY KEY,
+                workflow_id TEXT NOT NULL,
+                run_id TEXT NOT NULL,
+                node_id TEXT NOT NULL,
+                node_type TEXT NOT NULL,
+                output_port TEXT NOT NULL,
+                output_index INTEGER NOT NULL DEFAULT 0,
+                kind TEXT NOT NULL,
+                media_type TEXT,
+                asset_id TEXT,
+                reference_id TEXT,
+                job_id TEXT,
+                value_json TEXT NOT NULL DEFAULT '{}',
+                parent_artifact_id TEXT,
+                parent_asset_id TEXT,
+                parent_reference_id TEXT,
+                transform_type TEXT,
+                transform_params_json TEXT NOT NULL DEFAULT '{}',
+                metadata_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(run_id) REFERENCES graph_runs(run_id)
+            );
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_graph_artifacts_run
+        ON graph_artifacts(run_id, node_id, output_port, output_index)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_graph_artifacts_workflow_node_created
+        ON graph_artifacts(workflow_id, node_id, created_at DESC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_graph_artifacts_reference_id
+        ON graph_artifacts(reference_id)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_graph_artifacts_asset_id
+        ON graph_artifacts(asset_id)
         """
     )
 
@@ -1324,6 +1435,21 @@ MIGRATIONS = [
         version=5,
         description="Add Graph Studio workflow, template, run, event, and node definition tables.",
         apply=_apply_graph_studio_schema,
+    ),
+    SchemaMigration(
+        migration_id="20260512_006_graph_run_metrics",
+        version=6,
+        description="Add Graph Studio aggregate and per-node run metrics columns.",
+        apply=lambda connection: (
+            ensure_column(connection, "graph_runs", "metrics_json", "TEXT NOT NULL DEFAULT '{}'"),
+            ensure_column(connection, "graph_run_nodes", "metrics_json", "TEXT NOT NULL DEFAULT '{}'"),
+        ),
+    ),
+    SchemaMigration(
+        migration_id="20260512_007_graph_artifacts",
+        version=7,
+        description="Add Graph Studio artifact lineage table and indexes for existing workflow databases.",
+        apply=_apply_graph_artifacts_schema,
     ),
 ]
 

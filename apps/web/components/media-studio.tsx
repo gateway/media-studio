@@ -147,6 +147,7 @@ import type {
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import { installStudioDebugConsole, studioDebug } from "@/lib/studio-debug";
 import { readStudioComposerDraft } from "@/lib/studio-composer-draft";
+import { resolveStudioShortcutAction } from "@/lib/studio-shortcuts";
 import { cn, formatDateTime, truncate } from "@/lib/utils";
 
 declare global {
@@ -2306,27 +2307,28 @@ export function MediaStudio({
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
         return;
       }
-      if (isTypingTarget(event.target) || lockingOverlayOpen) {
-        return;
-      }
-
-      const key = event.key.toLowerCase();
-      if (key === "p") {
+      const action = resolveStudioShortcutAction({
+        key: event.key,
+        hasModifier: false,
+        typing: isTypingTarget(event.target),
+        overlayOpen: lockingOverlayOpen,
+      });
+      if (action === "open-graph") {
         event.preventDefault();
-        setPresetBrowserOpen(true);
+        void router.push("/graph-studio");
         return;
       }
-      if (key === "g") {
+      if (action === "open-projects") {
         event.preventDefault();
         setProjectBrowserOpen(true);
         return;
       }
-      if (key === "s") {
+      if (action === "open-settings") {
         event.preventDefault();
         void router.push(buildStudioScopedHref("/settings", selectedProjectId));
         return;
       }
-      if (key === "i") {
+      if (action === "open-library") {
         event.preventDefault();
         openContextualReferenceLibrary();
       }

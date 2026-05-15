@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import Dict, List, Set
+import json
+from typing import Any, Dict, List, Set
 
 from .. import store
+from .execution_cache import cached_artifacts_available, cached_output_for_node, cached_output_media_available
 from .registry import registry
 from .schemas import GraphError, GraphValidationResult, GraphWorkflow, GraphWorkflowEdge, GraphWorkflowNode
 
@@ -12,10 +14,55 @@ def _port_map(definition, direction: str) -> Dict[str, object]:
     return {port.id: port for port in definition.ports.get(direction, [])}
 
 
+def _port_accepts(source_type: str, target_port: object) -> bool:
+    target_type = getattr(target_port, "type", "")
+    if source_type == "any" or target_type == "any":
+        return True
+    accepted = getattr(target_port, "accepts", None) or [target_type]
+    return source_type in accepted or "any" in accepted
+
+
+def _empty_field(value: Any) -> bool:
+    return value is None or value == "" or value == [] or value == {}
+
+
+def _dict_field(value: Any) -> Dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
+def _slug(value: str) -> str:
+    return "".join(character if character.isalnum() else "_" for character in value.lower()).strip("_")
+
+
+def _preset_id_for_node(node: GraphWorkflowNode, definition) -> str:
+    preset_id = str(node.fields.get("preset_id") or "").strip()
+    if preset_id:
+        return preset_id
+    if node.type.startswith("preset.render."):
+        return str(definition.source.get("preset_id") or "").strip()
+    return ""
+
+
+def _node_execution_mode(node: GraphWorkflowNode) -> str:
+    execution = node.metadata.get("execution") if isinstance(node.metadata.get("execution"), dict) else {}
+    mode = str(execution.get("mode") or "enabled")
+    return mode if mode in {"enabled", "frozen", "bypassed", "muted"} else "enabled"
+
+
 def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
     definitions = registry.definitions_by_type()
     errors: List[GraphError] = []
     warnings: List[GraphError] = []
+    workflow_id = workflow.workflow_id or str(workflow.metadata.get("workflow_id") or "")
+    frozen_cache_by_node_id: Dict[str, Dict[str, Any] | None] = {}
 
     node_ids: Set[str] = set()
     nodes_by_id: Dict[str, GraphWorkflowNode] = {}
@@ -29,21 +76,71 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
         if not definition:
             errors.append(GraphError(code="missing_node_type", message=f"Unknown node type: {node.type}", node_id=node.id))
             continue
+        execution_mode = _node_execution_mode(node)
+        if execution_mode == "frozen":
+            cached = cached_output_for_node(workflow_id, node) if workflow_id else None
+            frozen_cache_by_node_id[node.id] = cached
+            cached_run_id = str(cached.get("run_id") or "") if cached else None
+            if cached and not cached_artifacts_available(node, cached_run_id):
+                errors.append(
+                    GraphError(
+                        code="frozen_artifact_missing",
+                        message="Frozen node references cached artifacts that no longer exist.",
+                        node_id=node.id,
+                    )
+                )
+            elif cached and not cached_output_media_available(cached.get("output_snapshot_json") or {}):
+                errors.append(
+                    GraphError(
+                        code="frozen_media_missing",
+                        message="Frozen node references cached media that no longer exists.",
+                        node_id=node.id,
+                    )
+                )
+        if execution_mode == "bypassed" and not isinstance(definition.execution.get("bypass_mode"), dict):
+            errors.append(
+                GraphError(
+                    code="unsupported_bypass",
+                    message="This node type does not support bypass.",
+                    node_id=node.id,
+                )
+            )
+        if execution_mode in {"muted", "bypassed", "frozen"}:
+            continue
         for field in definition.fields:
-            if field.required and field.id not in node.fields:
+            if field.required and _empty_field(node.fields.get(field.id)):
                 errors.append(
                     GraphError(code="missing_required_field", message=f"Missing required field: {field.label}", node_id=node.id, field_id=field.id)
                 )
-        if node.type == "media.load_image" and not node.fields.get("asset_id") and not node.fields.get("reference_id"):
-            errors.append(GraphError(code="missing_media_reference", message="Load Image needs an asset or reference image.", node_id=node.id))
         if node.fields.get("asset_id") and not store.get_asset(str(node.fields["asset_id"])):
             errors.append(GraphError(code="missing_asset", message="Referenced asset does not exist.", node_id=node.id, field_id="asset_id"))
         if node.fields.get("reference_id") and not store.get_reference_media(str(node.fields["reference_id"])):
             errors.append(GraphError(code="missing_reference_media", message="Referenced reference media does not exist.", node_id=node.id, field_id="reference_id"))
+        preset_id = _preset_id_for_node(node, definition)
+        if (node.type == "preset.render" or node.type.startswith("preset.render.")) and preset_id:
+            preset = store.get_preset(preset_id)
+            if not preset:
+                errors.append(GraphError(code="missing_preset", message="Referenced preset does not exist.", node_id=node.id, field_id="preset_id"))
+            else:
+                text_values = _dict_field(node.fields.get("text_values") or node.fields.get("text_values_json"))
+                for field in preset.get("input_schema_json") or []:
+                    key = str(field.get("key") or "").strip()
+                    dynamic_value = node.fields.get(f"text__{_slug(key)}")
+                    if key and dynamic_value is not None and dynamic_value != "":
+                        text_values[key] = dynamic_value
+                missing_text = [
+                    str(field.get("key"))
+                    for field in (preset.get("input_schema_json") or [])
+                    if field.get("required") and not str(text_values.get(str(field.get("key"))) or field.get("default_value") or "").strip()
+                ]
+                for key in missing_text:
+                    errors.append(GraphError(code="missing_preset_text", message=f"Missing required preset text field: {key}", node_id=node.id, field_id="text_values_json"))
 
     edge_ids: Set[str] = set()
     incoming_by_target_port: Dict[tuple[str, str], int] = defaultdict(int)
+    available_incoming_by_target_port: Dict[tuple[str, str], int] = defaultdict(int)
     outgoing: Dict[str, List[str]] = defaultdict(list)
+    outgoing_by_source_port: Dict[tuple[str, str], int] = defaultdict(int)
     indegree: Dict[str, int] = {node.id: 0 for node in workflow.nodes}
     for edge in workflow.edges:
         if edge.id in edge_ids:
@@ -68,24 +165,141 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
             errors.append(GraphError(code="missing_target_port", message=f"Unknown target port: {edge.target_port}", edge_id=edge.id, port_id=edge.target_port))
             continue
         source_type = getattr(source_port, "type", "")
-        accepted = getattr(target_port, "accepts", None) or [getattr(target_port, "type", "")]
-        if source_type not in accepted:
+        if not _port_accepts(source_type, target_port):
             errors.append(GraphError(code="incompatible_edge", message=f"Cannot connect {source_type} to {getattr(target_port, 'type', '')}.", edge_id=edge.id))
+        if _node_execution_mode(source) == "muted":
+            if getattr(target_port, "required", False):
+                errors.append(
+                    GraphError(
+                        code="muted_required_dependency",
+                        message="Required input depends on a muted node.",
+                        node_id=target.id,
+                        edge_id=edge.id,
+                        port_id=edge.target_port,
+                    )
+                )
+            else:
+                warnings.append(
+                    GraphError(
+                        code="muted_optional_dependency",
+                        message="Optional input depends on a muted node and will receive no data.",
+                        node_id=target.id,
+                        edge_id=edge.id,
+                        port_id=edge.target_port,
+                    )
+                )
+        source_mode = _node_execution_mode(source)
+        target_mode = _node_execution_mode(target)
+        source_has_available_output = source_mode != "muted" and not (source_mode == "frozen" and not frozen_cache_by_node_id.get(source.id))
+        if source_mode == "frozen" and not frozen_cache_by_node_id.get(source.id) and target_mode in {"enabled", "bypassed"}:
+            if getattr(target_port, "required", False):
+                errors.append(
+                    GraphError(
+                        code="frozen_dependency_missing",
+                        message="Required input depends on a muted node with no cached output.",
+                        node_id=target.id,
+                        edge_id=edge.id,
+                        port_id=edge.target_port,
+                    )
+                )
+            else:
+                warnings.append(
+                    GraphError(
+                        code="frozen_optional_dependency_missing",
+                        message="Optional input depends on a muted node with no cached output and will receive no data.",
+                        node_id=target.id,
+                        edge_id=edge.id,
+                        port_id=edge.target_port,
+                    )
+                )
+        if source.type in {"media.load_image", "media.load_video", "media.load_audio"} and not source.fields.get("asset_id") and not source.fields.get("reference_id"):
+            if getattr(target_port, "required", False):
+                errors.append(
+                    GraphError(
+                        code="missing_media_reference",
+                        message="Load media needs an asset or reference media for this required input.",
+                        node_id=source.id,
+                        edge_id=edge.id,
+                    )
+                )
+            else:
+                warnings.append(
+                    GraphError(
+                        code="empty_optional_media_input",
+                        message="Empty Load Image is connected to an optional input and will be skipped.",
+                        node_id=source.id,
+                        edge_id=edge.id,
+                    )
+                )
         key = (edge.target, edge.target_port)
         incoming_by_target_port[key] += 1
+        if source_has_available_output:
+            available_incoming_by_target_port[key] += 1
         max_count = getattr(target_port, "max", None)
-        if max_count is not None and incoming_by_target_port[key] > max_count:
+        if not getattr(target_port, "array", False) and incoming_by_target_port[key] > 1:
+            errors.append(GraphError(code="input_cardinality_exceeded", message="Only one edge can connect to this input.", edge_id=edge.id, port_id=edge.target_port))
+        elif max_count is not None and incoming_by_target_port[key] > max_count:
             errors.append(GraphError(code="input_cardinality_exceeded", message="Too many edges connected to input.", edge_id=edge.id, port_id=edge.target_port))
         outgoing[edge.source].append(edge.target)
+        outgoing_by_source_port[(edge.source, edge.source_port)] += 1
         indegree[edge.target] = indegree.get(edge.target, 0) + 1
 
     for node in workflow.nodes:
         definition = definitions.get(node.type)
         if not definition:
             continue
+        execution_mode = _node_execution_mode(node)
+        if execution_mode == "muted":
+            continue
+        if execution_mode == "bypassed":
+            bypass_mode = definition.execution.get("bypass_mode") if isinstance(definition.execution.get("bypass_mode"), dict) else {}
+            input_port = str(bypass_mode.get("input") or "")
+            if not input_port or available_incoming_by_target_port[(node.id, input_port)] < 1:
+                errors.append(
+                    GraphError(
+                        code="missing_bypass_input",
+                        message="Bypassed node needs a compatible input to pass through.",
+                        node_id=node.id,
+                        port_id=input_port or None,
+                    )
+                )
+            continue
+        if execution_mode == "frozen":
+            continue
         for port in definition.ports.get("inputs", []):
-            if port.required and incoming_by_target_port[(node.id, port.id)] < max(1, port.min):
+            if port.required and available_incoming_by_target_port[(node.id, port.id)] < max(1, port.min):
                 errors.append(GraphError(code="missing_required_input", message=f"Missing required input: {port.label}", node_id=node.id, port_id=port.id))
+        if definition.source.get("kind") == "kie_model":
+            media_output_ports = [port for port in definition.ports.get("outputs", []) if getattr(port, "type", "") in {"image", "video", "audio"}]
+            if media_output_ports and not any(outgoing_by_source_port[(node.id, port.id)] > 0 for port in media_output_ports):
+                labels = ", ".join(getattr(port, "label", port.id) for port in media_output_ports)
+                errors.append(
+                    GraphError(
+                        code="model_output_unconnected",
+                        message=f"Connect the model output before running. Unused output: {labels}.",
+                        node_id=node.id,
+                        port_id=media_output_ports[0].id,
+                    )
+                )
+        preset_id = _preset_id_for_node(node, definition)
+        if (node.type == "preset.render" or node.type.startswith("preset.render.")) and preset_id:
+            preset = store.get_preset(preset_id)
+            if preset:
+                slot_values = _dict_field(node.fields.get("image_slots") or node.fields.get("image_slots_json"))
+                connected_count = incoming_by_target_port[(node.id, "image_refs")]
+                has_connected_refs = connected_count > 0
+                for slot in preset.get("input_slots_json") or []:
+                    key = str(slot.get("key") or "").strip()
+                    dynamic_connected_count = incoming_by_target_port[(node.id, f"slot__{_slug(key)}")]
+                    if slot.get("required") and not slot_values.get(key) and not has_connected_refs and dynamic_connected_count <= 0:
+                        errors.append(
+                            GraphError(
+                                code="missing_preset_image_slot",
+                                message=f"Missing required preset image slot: {key}",
+                                node_id=node.id,
+                                port_id="image_refs",
+                            )
+                        )
 
     visited_count = 0
     queue = deque([node_id for node_id, count in indegree.items() if count == 0])

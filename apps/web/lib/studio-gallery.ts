@@ -369,8 +369,7 @@ export function buildGalleryTiles(
       if (job.status === "failed") {
         return true;
       }
-      const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
-      return finalState === "succeeded";
+      return false;
     });
     for (const job of pendingJobs) {
       if (seenJobIds.has(job.job_id)) {
