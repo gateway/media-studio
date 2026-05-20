@@ -44,6 +44,14 @@ export type GraphNodeLayoutOptions = {
   textareaCount?: number;
 };
 
+export function graphNodeUsesContentAutoHeight(definitionOrType: GraphNodeDefinition | string) {
+  const type = typeof definitionOrType === "string" ? definitionOrType : definitionOrType.type;
+  if (type === "display.any") return false;
+  if (type.startsWith("media.load_") || type.startsWith("media.save_") || type.startsWith("preview.")) return false;
+  if (typeof definitionOrType !== "string" && definitionOrType.ui?.preview) return false;
+  return true;
+}
+
 function numberOrNull(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
@@ -116,9 +124,11 @@ export function computeGraphNodeLayout(
   const contentMinHeight = 132 + fieldCount * 52 + portCount * 28 + dynamicTextareaCount * 70 + (hasPreview ? 140 : 0);
   const previewSizeFloor = mediaPreviewSizeFloor(definition);
   const minWidth = Math.max(contentMinWidth, previewSizeFloor?.width ?? 0, Math.floor(minSize.width ?? 240));
-  const minHeight = Math.max(170, previewSizeFloor?.height ?? 0, Math.floor(minSize.height ?? contentMinHeight));
-  const maxWidth = Math.max(minWidth, Math.floor(maxSize.width ?? 860));
-  const maxHeight = Math.max(minHeight, Math.floor(maxSize.height ?? 1200));
+  const minHeight = Math.max(170, previewSizeFloor?.height ?? 0, Math.floor(contentMinHeight), Math.floor(minSize.height ?? 0));
+  const fallbackMaxWidth = hasPreview ? 2400 : 860;
+  const fallbackMaxHeight = hasPreview ? 2400 : 1200;
+  const maxWidth = Math.max(minWidth, Math.floor(maxSize.width ?? fallbackMaxWidth));
+  const maxHeight = Math.max(minHeight, Math.floor(maxSize.height ?? fallbackMaxHeight));
   const styleMetadata = ((metadata?.style ?? {}) as { width?: unknown; height?: unknown }) ?? {};
   const requestedWidth = numberOrNull(styleMetadata.width) ?? defaultSize.width ?? minWidth;
   const requestedHeight = numberOrNull(styleMetadata.height) ?? defaultSize.height ?? minHeight;

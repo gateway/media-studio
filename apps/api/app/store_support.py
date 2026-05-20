@@ -14,7 +14,12 @@ from .db import get_connection
 JSON_FIELDS = {
     "default_options_json",
     "rules_json",
+    "output_contract_json",
     "input_schema_json",
+    "input_variables_json",
+    "custom_fields_json",
+    "image_input_json",
+    "validation_warnings_json",
     "input_slots_json",
     "choice_groups_json",
     "applies_to_models_json",
@@ -49,6 +54,7 @@ JSON_FIELDS = {
     "error_json",
     "transform_params_json",
     "value_json",
+    "usage_json",
 }
 
 MIGRATION_TABLES = {"schema_meta", "schema_migrations"}
@@ -74,6 +80,9 @@ def _json_default(column: str) -> Any:
     if column.endswith("_json"):
         if column in {
             "input_slots_json",
+            "input_variables_json",
+            "custom_fields_json",
+            "validation_warnings_json",
             "choice_groups_json",
             "applies_to_models_json",
             "applies_to_task_modes_json",
@@ -743,6 +752,550 @@ def _seed_default_presets(connection: sqlite3.Connection) -> None:
         insert_or_update(connection, "media_presets", "preset_id", row)
 
 
+def _prompt_recipe_variable(
+    key: str,
+    label: str,
+    *,
+    required: bool = False,
+    default_value: str = "",
+    description: str = "",
+) -> Dict[str, Any]:
+    return {
+        "key": key,
+        "token": "{{%s}}" % key,
+        "label": label,
+        "enabled": True,
+        "required": required,
+        "default_value": default_value,
+        "description": description,
+    }
+
+
+def _seed_default_prompt_recipes(connection: sqlite3.Connection) -> None:
+    now = utcnow_iso()
+    seed_rows = [
+        {
+            "recipe_id": "prompt-recipe-storyboard-director-3x3",
+            "key": "storyboard-director-3x3",
+            "label": "Storyboard Director - 3x3 Grid",
+            "description": "Turns a creative brief and optional ordered references into one polished 3x3 storyboard-sheet image prompt.",
+            "category": "image",
+            "status": "active",
+            "system_prompt_template": (
+                "You are an expert cinematic storyboard director and image prompt writer.\n\n"
+                "Transform the creative brief into one polished image-generation prompt for a professional storyboard sheet.\n\n"
+                "CREATIVE BRIEF:\n{{user_prompt}}\n\n"
+                "SOURCE PROMPT:\n{{source_prompt}}\n\n"
+                "REFERENCE ANALYSIS:\n{{image_analysis}}\n\n"
+                "STYLE DIRECTION:\n{{style_direction}}\n\n"
+                "ASPECT RATIO:\n{{aspect_ratio}}\n\n"
+                "Create a final prompt for a clean 16:9 storyboard image.\n"
+                "Default format: a cinematic 3x3 grid of nine panels with clear borders, readable panel numbers, and short captions below each panel.\n\n"
+                "The final prompt must include the main subject, setting and atmosphere, visual style, a clear storyboard title, panel-by-panel action progression, "
+                "camera variety, and continuity of character, wardrobe, props, lighting, and mood across all nine panels.\n"
+                "If references are provided, preserve the relevant identity, face, body, styling, product, or scene details consistently across every panel.\n\n"
+                "Return only the final image-generation prompt. Do not explain. Do not use markdown."
+            ),
+            "image_analysis_prompt": "Describe this image for use as a character or scene reference. Focus on identity, pose, clothing, lighting, camera angle, setting, and consistency details.",
+            "user_prompt_placeholder": "{{user_prompt}}",
+            "output_format": "single_prompt",
+            "output_contract_json": {"type": "text", "description": "A single 3x3 storyboard image prompt."},
+            "input_variables_json": [
+                _prompt_recipe_variable("user_prompt", "User Prompt", required=True, description="Creative direction supplied by the user."),
+                _prompt_recipe_variable("source_prompt", "Source Prompt", default_value="No source prompt provided.", description="Optional upstream prompt or prior direction to preserve."),
+                _prompt_recipe_variable("image_analysis", "Image Analysis", default_value="No reference images provided.", description="Optional description of connected reference images."),
+                _prompt_recipe_variable("style_direction", "Style Direction", default_value="cinematic realism", description="Short style or genre direction."),
+                _prompt_recipe_variable("aspect_ratio", "Aspect Ratio", default_value="16:9", description="Target storyboard aspect ratio."),
+            ],
+            "custom_fields_json": [],
+            "image_input_json": {"enabled": True, "required": False, "mode": "both", "analysis_variable": "image_analysis", "max_files": 4},
+            "default_options_json": {"temperature": 0.35, "max_output_tokens": 1800, "strict_output": True},
+            "rules_json": {"return_only_final_output": True, "allow_markdown": False, "allow_external_variables": True},
+            "validation_warnings_json": [],
+            "source_kind": "builtin",
+            "version": "1",
+            "priority": 500,
+            "created_at": now,
+            "updated_at": now,
+        },
+        {
+            "recipe_id": "prompt-recipe-image-prompt-director",
+            "key": "image-prompt-director",
+            "label": "Image Prompt Director",
+            "description": "Expands a creative brief and optional ordered references into one production-ready image prompt.",
+            "category": "image",
+            "status": "active",
+            "system_prompt_template": (
+                "You are a senior image prompt director.\n\n"
+                "Turn the creative brief into one final image-generation prompt that is visually specific, production-ready, and internally consistent.\n\n"
+                "USER PROMPT:\n{{user_prompt}}\n\n"
+                "SOURCE PROMPT:\n{{source_prompt}}\n\n"
+                "REFERENCE ANALYSIS:\n{{image_analysis}}\n\n"
+                "STYLE DIRECTION:\n{{style_direction}}\n\n"
+                "ASPECT RATIO:\n{{aspect_ratio}}\n\n"
+                "If references are provided, preserve the important identity, styling, product, or scene details while making the output feel intentional rather than descriptive.\n\n"
+                "Return only the final prompt. Do not explain. Do not use markdown."
+            ),
+            "image_analysis_prompt": "Describe the provided reference images for downstream prompt generation. Focus on identity, styling, composition, lighting, environment, props, and continuity details that should be preserved.",
+            "user_prompt_placeholder": "{{user_prompt}}",
+            "output_format": "single_prompt",
+            "output_contract_json": {"type": "text", "description": "A single image prompt."},
+            "input_variables_json": [
+                _prompt_recipe_variable("user_prompt", "User Prompt", required=True, description="Creative direction supplied by the user."),
+                _prompt_recipe_variable("source_prompt", "Source Prompt", default_value="No source prompt provided.", description="Optional prompt to preserve or rewrite."),
+                _prompt_recipe_variable("image_analysis", "Image Analysis", default_value="No reference images provided.", description="Reference-image analysis injected by the graph runtime."),
+                _prompt_recipe_variable("style_direction", "Style Direction", default_value="cinematic realism", description="Short style or genre direction."),
+                _prompt_recipe_variable("aspect_ratio", "Aspect Ratio", default_value="1:1", description="Target image aspect ratio."),
+            ],
+            "custom_fields_json": [],
+            "image_input_json": {"enabled": True, "required": False, "mode": "both", "analysis_variable": "image_analysis", "max_files": 4},
+            "default_options_json": {"temperature": 0.4, "max_output_tokens": 1500, "strict_output": True},
+            "rules_json": {"return_only_final_output": True, "allow_markdown": False, "allow_external_variables": True},
+            "validation_warnings_json": [],
+            "source_kind": "builtin",
+            "version": "1",
+            "priority": 490,
+            "created_at": now,
+            "updated_at": now,
+        },
+        {
+            "recipe_id": "prompt-recipe-video-director-multi-shot-json",
+            "key": "video-director-multi-shot-json",
+            "label": "Video Director - Multi Shot JSON",
+            "description": "Creates a structured set of video prompts for multiple shots from a brief and optional ordered references.",
+            "category": "video",
+            "status": "active",
+            "system_prompt_template": (
+                "You are a cinematic video director.\n\n"
+                "Convert the creative brief into {{shot_count}} coherent video shots that feel like one sequence.\n\n"
+                "USER PROMPT:\n{{user_prompt}}\n\n"
+                "SOURCE PROMPT:\n{{source_prompt}}\n\n"
+                "REFERENCE ANALYSIS:\n{{image_analysis}}\n\n"
+                "STYLE DIRECTION:\n{{style_direction}}\n\n"
+                "DURATION PER SHOT:\n{{duration_seconds}}\n\n"
+                "Return strict JSON with a `shots` array. Each shot must include `shot_number`, `title`, `duration_seconds`, `camera`, `action`, `motion`, "
+                "`continuity_notes`, and a strong final `prompt` for video generation. Preserve identity and continuity across the whole batch."
+            ),
+            "image_analysis_prompt": "Describe the image as video source material, focusing on subject identity, setting, camera angle, motion potential, and continuity details.",
+            "user_prompt_placeholder": "{{user_prompt}}",
+            "output_format": "structured_shot_sequence",
+            "output_contract_json": {
+                "type": "object",
+                "required": ["shots"],
+                "properties": {
+                    "shots": {
+                        "type": "array",
+                        "items": {"type": "object", "required": ["shot_number", "duration_seconds", "prompt", "camera", "action"]},
+                    }
+                },
+            },
+            "input_variables_json": [
+                _prompt_recipe_variable("user_prompt", "User Prompt", required=True, description="Creative direction supplied by the user."),
+                _prompt_recipe_variable("source_prompt", "Source Prompt", default_value="No source prompt provided.", description="Optional upstream prompt or previous image prompt."),
+                _prompt_recipe_variable("image_analysis", "Image Analysis", default_value="No reference images provided.", description="Optional visual context."),
+                _prompt_recipe_variable("style_direction", "Style Direction", default_value="cinematic realism", description="Short style or genre direction."),
+                _prompt_recipe_variable("shot_count", "Shot Count", default_value="4", description="Number of video prompts to create."),
+                _prompt_recipe_variable("duration_seconds", "Duration Seconds", default_value="5", description="Duration for each generated shot."),
+            ],
+            "custom_fields_json": [],
+            "image_input_json": {"enabled": True, "required": False, "mode": "both", "analysis_variable": "image_analysis", "max_files": 4},
+            "default_options_json": {"temperature": 0.35, "max_output_tokens": 2600, "strict_output": True},
+            "rules_json": {"return_only_final_output": True, "allow_markdown": False, "allow_json": True, "validate_json_output": False, "allow_external_variables": True},
+            "validation_warnings_json": [],
+            "source_kind": "builtin",
+            "version": "1",
+            "priority": 480,
+            "created_at": now,
+            "updated_at": now,
+        },
+        {
+            "recipe_id": "prompt-recipe-image-analysis-character-reference",
+            "key": "image-analysis-character-reference",
+            "label": "Image Analysis - Character Reference",
+            "description": "Analyzes one or more reference images into compact character continuity notes.",
+            "category": "analysis",
+            "status": "active",
+            "system_prompt_template": (
+                "You are a reference analyst for downstream image and video prompt generation.\n\n"
+                "USER PROMPT:\n{{user_prompt}}\n\n"
+                "REFERENCE ANALYSIS:\n{{image_analysis}}\n\n"
+                "Return a concise character continuity reference covering subject identity, face, hair, body, clothing, pose, lighting, camera, props, and important details."
+            ),
+            "image_analysis_prompt": "Describe the attached image set as a reusable character reference for image and video generation. Focus on identity, facial features, body shape, clothing, styling, props, environment, and details that should remain consistent.",
+            "user_prompt_placeholder": "{{user_prompt}}",
+            "output_format": "image_analysis",
+            "output_contract_json": {"type": "object", "properties": {"description": {"type": "string"}, "subject": {"type": "string"}, "important_details": {"type": "array"}}},
+            "input_variables_json": [
+                _prompt_recipe_variable("user_prompt", "User Prompt", default_value="Describe the character and continuity-critical details.", description="Optional focus for the analysis."),
+                _prompt_recipe_variable("image_analysis", "Image Analysis", description="Reference-image analysis injected by the graph runtime."),
+            ],
+            "custom_fields_json": [],
+            "image_input_json": {"enabled": True, "required": True, "mode": "analyze_then_inject", "analysis_variable": "image_analysis", "max_files": 4},
+            "default_options_json": {"temperature": 0.2, "max_output_tokens": 1200, "strict_output": False},
+            "rules_json": {"return_only_final_output": True, "allow_markdown": True, "allow_json": True, "allow_external_variables": True},
+            "validation_warnings_json": [],
+            "source_kind": "builtin",
+            "version": "1",
+            "priority": 470,
+            "created_at": now,
+            "updated_at": now,
+        },
+        {
+            "recipe_id": "prompt-recipe-storyboard-shot-sequence-3x3",
+            "key": "storyboard-shot-sequence-3x3",
+            "label": "Storyboard Shot Sequence - 3x3",
+            "description": "Creates nine coherent storyboard panel prompts as a structured shot sequence.",
+            "category": "image",
+            "status": "active",
+            "system_prompt_template": (
+                "You are an expert cinematic storyboard director.\n\n"
+                "Convert the creative brief into a nine-panel storyboard sequence.\n\n"
+                "USER PROMPT:\n{{user_prompt}}\n\n"
+                "SOURCE PROMPT:\n{{source_prompt}}\n\n"
+                "REFERENCE ANALYSIS:\n{{image_analysis}}\n\n"
+                "STYLE DIRECTION:\n{{style_direction}}\n\n"
+                "ASPECT RATIO:\n{{aspect_ratio}}\n\n"
+                "Return strict JSON with a `shots` array containing {{shot_count}} storyboard panels. Each panel must include `shot_number`, `title`, `caption`, "
+                "`camera`, `action`, `continuity_notes`, and a strong standalone `prompt` for image generation. Preserve continuity across every panel."
+            ),
+            "image_analysis_prompt": "Describe the provided reference images for a storyboard sequence. Focus on identity, environment, props, mood, camera potential, and continuity details that should remain stable across multiple panels.",
+            "user_prompt_placeholder": "{{user_prompt}}",
+            "output_format": "structured_shot_sequence",
+            "output_contract_json": {
+                "type": "object",
+                "required": ["shots"],
+                "properties": {
+                    "shots": {
+                        "type": "array",
+                        "items": {"type": "object", "required": ["shot_number", "title", "caption", "prompt"]},
+                    }
+                },
+            },
+            "input_variables_json": [
+                _prompt_recipe_variable("user_prompt", "User Prompt", required=True, description="Creative direction supplied by the user."),
+                _prompt_recipe_variable("source_prompt", "Source Prompt", default_value="No source prompt provided.", description="Optional upstream prompt or previous direction."),
+                _prompt_recipe_variable("image_analysis", "Image Analysis", default_value="No reference images provided.", description="Reference-image analysis injected by the graph runtime."),
+                _prompt_recipe_variable("style_direction", "Style Direction", default_value="cinematic realism", description="Short style or genre direction."),
+                _prompt_recipe_variable("shot_count", "Shot Count", default_value="9", description="Number of storyboard panels to create."),
+                _prompt_recipe_variable("aspect_ratio", "Aspect Ratio", default_value="16:9", description="Target aspect ratio for each panel prompt."),
+            ],
+            "custom_fields_json": [],
+            "image_input_json": {"enabled": True, "required": False, "mode": "both", "analysis_variable": "image_analysis", "max_files": 4},
+            "default_options_json": {"temperature": 0.35, "max_output_tokens": 2800, "strict_output": True},
+            "rules_json": {"return_only_final_output": True, "allow_markdown": False, "allow_json": True, "validate_json_output": False, "allow_external_variables": True},
+            "validation_warnings_json": [],
+            "source_kind": "builtin",
+            "version": "1",
+            "priority": 465,
+            "created_at": now,
+            "updated_at": now,
+        },
+        {
+            "recipe_id": "prompt-recipe-prompt-shortener",
+            "key": "prompt-shortener",
+            "label": "Prompt Shortener",
+            "description": "Compresses a long prompt while preserving the important visual details.",
+            "category": "utility",
+            "status": "active",
+            "system_prompt_template": (
+                "Rewrite the source prompt into a shorter production prompt while preserving subject identity, required action, visual style, and constraints.\n\n"
+                "SOURCE PROMPT:\n{{source_prompt}}\n\nTARGET FORMAT:\n{{output_format}}\n\nReturn only the shortened prompt."
+            ),
+            "image_analysis_prompt": "",
+            "user_prompt_placeholder": "{{user_prompt}}",
+            "output_format": "single_prompt",
+            "output_contract_json": {"type": "text", "description": "A shortened prompt."},
+            "input_variables_json": [
+                _prompt_recipe_variable("source_prompt", "Source Prompt", required=True, description="Prompt to shorten."),
+                _prompt_recipe_variable("output_format", "Output Format", default_value="plain text", description="Preferred output style."),
+            ],
+            "custom_fields_json": [],
+            "image_input_json": {"enabled": False, "required": False, "mode": "none", "analysis_variable": "image_analysis", "max_files": 0},
+            "default_options_json": {"temperature": 0.25, "max_output_tokens": 800, "strict_output": True},
+            "rules_json": {"return_only_final_output": True, "allow_markdown": False, "allow_external_variables": True},
+            "validation_warnings_json": [],
+            "source_kind": "builtin",
+            "version": "1",
+            "priority": 460,
+            "created_at": now,
+            "updated_at": now,
+        },
+    ]
+    for row in seed_rows:
+        existing = connection.execute(
+            "SELECT source_kind FROM prompt_recipes WHERE recipe_id = ?",
+            (row["recipe_id"],),
+        ).fetchone()
+        if existing and str(existing["source_kind"] or "") != "builtin":
+            continue
+        insert_or_update(connection, "prompt_recipes", "recipe_id", row)
+
+
+def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
+    now = utcnow_iso()
+    seed_rows = [
+        {
+            "template_id": "graph-template-prompt-recipe-text-single-prompt",
+            "name": "Prompt Recipe - Text Single Prompt",
+            "description": "Generic Prompt Recipe node driving a single text output plus JSON inspection.",
+            "status": "active",
+            "tags_json": ["graph-studio", "prompt-recipes", "smoke"],
+            "workflow_json": {
+                "schema_version": 1,
+                "name": "Prompt Recipe - Text Single Prompt",
+                "nodes": [
+                    {
+                        "id": "recipe",
+                        "type": "prompt.recipe",
+                        "position": {"x": 0, "y": 0},
+                        "fields": {
+                            "recipe_id": "prompt-recipe-image-prompt-director",
+                            "user_prompt": "Turn this into a premium cinematic portrait prompt for a lone explorer on a rainy neon street.",
+                            "provider": "openrouter",
+                            "model_id": "openai/gpt-4o-mini",
+                            "external_variables_json": '{"aspect_ratio":"16:9","style_direction":"cinematic realism"}',
+                        },
+                    },
+                    {"id": "display", "type": "display.any", "position": {"x": 520, "y": 0}, "fields": {}},
+                    {"id": "inspect", "type": "debug.inspect", "position": {"x": 900, "y": 0}, "fields": {}},
+                ],
+                "edges": [
+                    {"id": "edge-recipe-display", "source": "recipe", "source_port": "text", "target": "display", "target_port": "value"},
+                    {"id": "edge-recipe-inspect", "source": "recipe", "source_port": "result", "target": "inspect", "target_port": "value"},
+                ],
+            },
+            "created_at": now,
+            "updated_at": now,
+        },
+        {
+            "template_id": "graph-template-prompt-recipe-single-image-director",
+            "name": "Prompt Recipe - Single Image Director",
+            "description": "Single-image director workflow using the Image Prompt Director dynamic node.",
+            "status": "active",
+            "tags_json": ["graph-studio", "prompt-recipes", "smoke"],
+            "workflow_json": {
+                "schema_version": 1,
+                "name": "Prompt Recipe - Single Image Director",
+                "nodes": [
+                    {"id": "load_image_1", "type": "media.load_image", "position": {"x": -320, "y": 0}, "fields": {}},
+                    {
+                        "id": "recipe",
+                        "type": "prompt.recipe",
+                        "position": {"x": 60, "y": 0},
+                        "fields": {
+                            "recipe_id": "prompt-recipe-image-prompt-director",
+                            "recipe_category": "image",
+                            "user_prompt": "Create a polished cinematic portrait prompt using the reference as the main identity.",
+                            "provider": "openrouter",
+                            "model_id": "openai/gpt-4o-mini",
+                            "model_supports_images": True,
+                            "style_direction": "cinematic realism",
+                            "aspect_ratio": "16:9",
+                        },
+                    },
+                    {"id": "display", "type": "display.any", "position": {"x": 560, "y": 0}, "fields": {}},
+                    {"id": "inspect", "type": "debug.inspect", "position": {"x": 920, "y": 0}, "fields": {}},
+                ],
+                "edges": [
+                    {"id": "edge-load1-recipe", "source": "load_image_1", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+                    {"id": "edge-recipe-display", "source": "recipe", "source_port": "text", "target": "display", "target_port": "value"},
+                    {"id": "edge-recipe-inspect", "source": "recipe", "source_port": "result", "target": "inspect", "target_port": "value"},
+                ],
+            },
+            "created_at": now,
+            "updated_at": now,
+        },
+        {
+            "template_id": "graph-template-prompt-recipe-multi-image-director",
+            "name": "Prompt Recipe - Multi Image Director",
+            "description": "Multi-image director workflow proving ordered image references into one final prompt.",
+            "status": "active",
+            "tags_json": ["graph-studio", "prompt-recipes", "smoke"],
+            "workflow_json": {
+                "schema_version": 1,
+                "name": "Prompt Recipe - Multi Image Director",
+                "nodes": [
+                    {"id": "load_image_1", "type": "media.load_image", "position": {"x": -420, "y": -220}, "fields": {}},
+                    {"id": "load_image_2", "type": "media.load_image", "position": {"x": -420, "y": 0}, "fields": {}},
+                    {"id": "load_image_3", "type": "media.load_image", "position": {"x": -420, "y": 220}, "fields": {}},
+                    {
+                        "id": "recipe",
+                        "type": "prompt.recipe",
+                        "position": {"x": 40, "y": -40},
+                        "fields": {
+                            "recipe_id": "prompt-recipe-image-prompt-director",
+                            "recipe_category": "image",
+                            "user_prompt": "Use the ordered references to create one prompt that preserves face, body styling, and product continuity.",
+                            "provider": "openrouter",
+                            "model_id": "openai/gpt-4o-mini",
+                            "model_supports_images": True,
+                            "style_direction": "premium editorial realism",
+                            "aspect_ratio": "16:9",
+                        },
+                    },
+                    {"id": "display", "type": "display.any", "position": {"x": 580, "y": -40}, "fields": {}},
+                    {"id": "inspect", "type": "debug.inspect", "position": {"x": 960, "y": -40}, "fields": {}},
+                ],
+                "edges": [
+                    {"id": "edge-load1-recipe", "source": "load_image_1", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+                    {"id": "edge-load2-recipe", "source": "load_image_2", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+                    {"id": "edge-load3-recipe", "source": "load_image_3", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+                    {"id": "edge-recipe-display", "source": "recipe", "source_port": "text", "target": "display", "target_port": "value"},
+                    {"id": "edge-recipe-inspect", "source": "recipe", "source_port": "result", "target": "inspect", "target_port": "value"},
+                ],
+            },
+            "created_at": now,
+            "updated_at": now,
+        },
+        {
+            "template_id": "graph-template-prompt-recipe-video-director-batch",
+            "name": "Prompt Recipe - Video Director Batch",
+            "description": "Structured multi-shot video prompt batch with Prompt Parse fanout.",
+            "status": "active",
+            "tags_json": ["graph-studio", "prompt-recipes", "smoke"],
+            "workflow_json": {
+                "schema_version": 1,
+                "name": "Prompt Recipe - Video Director Batch",
+                "nodes": [
+                    {"id": "load_image_1", "type": "media.load_image", "position": {"x": -520, "y": -160}, "fields": {}},
+                    {"id": "load_image_2", "type": "media.load_image", "position": {"x": -520, "y": 80}, "fields": {}},
+                    {
+                        "id": "recipe",
+                        "type": "prompt.recipe",
+                        "position": {"x": -40, "y": -40},
+                        "fields": {
+                            "recipe_id": "prompt-recipe-video-director-multi-shot-json",
+                            "recipe_category": "video",
+                            "user_prompt": "Create four cinematic video prompts for an escalating sci-fi escape sequence.",
+                            "provider": "openrouter",
+                            "model_id": "openai/gpt-4o-mini",
+                            "model_supports_images": True,
+                            "style_direction": "cinematic sci-fi realism",
+                            "shot_count": "4",
+                            "duration_seconds": "5",
+                        },
+                    },
+                    {"id": "parse", "type": "prompt.parse", "position": {"x": 420, "y": -40}, "fields": {}},
+                    {"id": "display_1", "type": "display.any", "position": {"x": 820, "y": -360}, "fields": {}},
+                    {"id": "display_2", "type": "display.any", "position": {"x": 820, "y": -120}, "fields": {}},
+                    {"id": "display_3", "type": "display.any", "position": {"x": 820, "y": 120}, "fields": {}},
+                    {"id": "display_4", "type": "display.any", "position": {"x": 820, "y": 360}, "fields": {}},
+                    {"id": "inspect", "type": "debug.inspect", "position": {"x": 1220, "y": -40}, "fields": {}},
+                ],
+                "edges": [
+                    {"id": "edge-load1-recipe", "source": "load_image_1", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+                    {"id": "edge-load2-recipe", "source": "load_image_2", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+                    {"id": "edge-recipe-parse", "source": "recipe", "source_port": "result", "target": "parse", "target_port": "result"},
+                    {"id": "edge-parse-display1", "source": "parse", "source_port": "prompt_1", "target": "display_1", "target_port": "value"},
+                    {"id": "edge-parse-display2", "source": "parse", "source_port": "prompt_2", "target": "display_2", "target_port": "value"},
+                    {"id": "edge-parse-display3", "source": "parse", "source_port": "prompt_3", "target": "display_3", "target_port": "value"},
+                    {"id": "edge-parse-display4", "source": "parse", "source_port": "prompt_4", "target": "display_4", "target_port": "value"},
+                    {"id": "edge-recipe-inspect", "source": "recipe", "source_port": "result", "target": "inspect", "target_port": "value"},
+                ],
+            },
+            "created_at": now,
+            "updated_at": now,
+        },
+        {
+            "template_id": "graph-template-prompt-recipe-storyboard-3x3",
+            "name": "Prompt Recipe - Storyboard 3x3",
+            "description": "Nine-panel storyboard prompt fanout using a structured storyboard shot-sequence recipe.",
+            "status": "active",
+            "tags_json": ["graph-studio", "prompt-recipes", "smoke"],
+            "workflow_json": {
+                "schema_version": 1,
+                "name": "Prompt Recipe - Storyboard 3x3",
+                "nodes": [
+                    {"id": "load_image_1", "type": "media.load_image", "position": {"x": -620, "y": -120}, "fields": {}},
+                    {"id": "load_image_2", "type": "media.load_image", "position": {"x": -620, "y": 140}, "fields": {}},
+                    {
+                        "id": "recipe",
+                        "type": "prompt.recipe",
+                        "position": {"x": -120, "y": 0},
+                        "fields": {
+                            "recipe_id": "prompt-recipe-storyboard-shot-sequence-3x3",
+                            "recipe_category": "image",
+                            "user_prompt": "Create a nine-panel storyboard about a lone operative stealing critical data from a collapsing alien fortress.",
+                            "provider": "openrouter",
+                            "model_id": "openai/gpt-4o-mini",
+                            "model_supports_images": True,
+                            "style_direction": "cinematic sci-fi realism",
+                            "shot_count": "9",
+                            "aspect_ratio": "16:9",
+                        },
+                    },
+                    {"id": "parse", "type": "prompt.parse", "position": {"x": 360, "y": 0}, "fields": {}},
+                    {"id": "inspect", "type": "debug.inspect", "position": {"x": 1880, "y": 0}, "fields": {}},
+                    {"id": "display_1", "type": "display.any", "position": {"x": 760, "y": -520}, "fields": {}},
+                    {"id": "display_2", "type": "display.any", "position": {"x": 1160, "y": -520}, "fields": {}},
+                    {"id": "display_3", "type": "display.any", "position": {"x": 1560, "y": -520}, "fields": {}},
+                    {"id": "display_4", "type": "display.any", "position": {"x": 760, "y": -160}, "fields": {}},
+                    {"id": "display_5", "type": "display.any", "position": {"x": 1160, "y": -160}, "fields": {}},
+                    {"id": "display_6", "type": "display.any", "position": {"x": 1560, "y": -160}, "fields": {}},
+                    {"id": "display_7", "type": "display.any", "position": {"x": 760, "y": 200}, "fields": {}},
+                    {"id": "display_8", "type": "display.any", "position": {"x": 1160, "y": 200}, "fields": {}},
+                    {"id": "display_9", "type": "display.any", "position": {"x": 1560, "y": 200}, "fields": {}},
+                ],
+                "edges": [
+                    {"id": "edge-load1-recipe", "source": "load_image_1", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+                    {"id": "edge-load2-recipe", "source": "load_image_2", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+                    {"id": "edge-recipe-parse", "source": "recipe", "source_port": "result", "target": "parse", "target_port": "result"},
+                    {"id": "edge-recipe-inspect", "source": "recipe", "source_port": "result", "target": "inspect", "target_port": "value"},
+                    {"id": "edge-parse-display1", "source": "parse", "source_port": "prompt_1", "target": "display_1", "target_port": "value"},
+                    {"id": "edge-parse-display2", "source": "parse", "source_port": "prompt_2", "target": "display_2", "target_port": "value"},
+                    {"id": "edge-parse-display3", "source": "parse", "source_port": "prompt_3", "target": "display_3", "target_port": "value"},
+                    {"id": "edge-parse-display4", "source": "parse", "source_port": "prompt_4", "target": "display_4", "target_port": "value"},
+                    {"id": "edge-parse-display5", "source": "parse", "source_port": "prompt_5", "target": "display_5", "target_port": "value"},
+                    {"id": "edge-parse-display6", "source": "parse", "source_port": "prompt_6", "target": "display_6", "target_port": "value"},
+                    {"id": "edge-parse-display7", "source": "parse", "source_port": "prompt_7", "target": "display_7", "target_port": "value"},
+                    {"id": "edge-parse-display8", "source": "parse", "source_port": "prompt_8", "target": "display_8", "target_port": "value"},
+                    {"id": "edge-parse-display9", "source": "parse", "source_port": "prompt_9", "target": "display_9", "target_port": "value"},
+                ],
+            },
+            "created_at": now,
+            "updated_at": now,
+        },
+        {
+            "template_id": "graph-template-prompt-recipe-analysis-only",
+            "name": "Prompt Recipe - Analysis Only",
+            "description": "Analysis-only Prompt Recipe workflow with text display and JSON inspection.",
+            "status": "active",
+            "tags_json": ["graph-studio", "prompt-recipes", "smoke"],
+            "workflow_json": {
+                "schema_version": 1,
+                "name": "Prompt Recipe - Analysis Only",
+                "nodes": [
+                    {"id": "load_image_1", "type": "media.load_image", "position": {"x": -320, "y": 0}, "fields": {}},
+                    {
+                        "id": "recipe",
+                        "type": "prompt.recipe",
+                        "position": {"x": 80, "y": 0},
+                        "fields": {
+                            "recipe_id": "prompt-recipe-image-analysis-character-reference",
+                            "recipe_category": "analysis",
+                            "user_prompt": "Describe the character and continuity-critical details.",
+                            "provider": "openrouter",
+                            "model_id": "openai/gpt-4o-mini",
+                            "model_supports_images": True,
+                        },
+                    },
+                    {"id": "display", "type": "display.any", "position": {"x": 560, "y": 0}, "fields": {}},
+                    {"id": "inspect", "type": "debug.inspect", "position": {"x": 940, "y": 0}, "fields": {}},
+                ],
+                "edges": [
+                    {"id": "edge-load1-recipe", "source": "load_image_1", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+                    {"id": "edge-recipe-display", "source": "recipe", "source_port": "text", "target": "display", "target_port": "value"},
+                    {"id": "edge-recipe-inspect", "source": "recipe", "source_port": "result", "target": "inspect", "target_port": "value"},
+                ],
+            },
+            "created_at": now,
+            "updated_at": now,
+        },
+    ]
+    for row in seed_rows:
+        insert_or_update(connection, "graph_templates", "template_id", row)
+
+
 def _migrate_multi_model_seed_presets(connection: sqlite3.Connection) -> None:
     duplicate_groups = [
         (
@@ -853,6 +1406,209 @@ def _apply_default_model_release_updates(connection: sqlite3.Connection) -> None
     _seed_default_model_queue_policies(connection)
 
 
+def _ensure_prompt_recipe_schema(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS prompt_recipes (
+            recipe_id TEXT PRIMARY KEY,
+            key TEXT NOT NULL UNIQUE,
+            label TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            category TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            system_prompt_template TEXT NOT NULL,
+            image_analysis_prompt TEXT DEFAULT '',
+            user_prompt_placeholder TEXT DEFAULT '{{user_prompt}}',
+            output_format TEXT NOT NULL DEFAULT 'single_prompt',
+            output_contract_json TEXT NOT NULL DEFAULT '{}',
+            input_variables_json TEXT NOT NULL DEFAULT '[]',
+            custom_fields_json TEXT NOT NULL DEFAULT '[]',
+            image_input_json TEXT NOT NULL DEFAULT '{}',
+            validation_warnings_json TEXT NOT NULL DEFAULT '[]',
+            default_options_json TEXT NOT NULL DEFAULT '{}',
+            rules_json TEXT NOT NULL DEFAULT '{}',
+            thumbnail_path TEXT,
+            thumbnail_url TEXT,
+            notes TEXT DEFAULT '',
+            source_kind TEXT NOT NULL DEFAULT 'custom',
+            version TEXT NOT NULL DEFAULT '1',
+            priority INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    ensure_column(connection, "prompt_recipes", "description", "TEXT DEFAULT ''")
+    ensure_column(connection, "prompt_recipes", "category", "TEXT NOT NULL DEFAULT 'utility'")
+    ensure_column(connection, "prompt_recipes", "status", "TEXT NOT NULL DEFAULT 'active'")
+    ensure_column(connection, "prompt_recipes", "system_prompt_template", "TEXT NOT NULL DEFAULT ''")
+    ensure_column(connection, "prompt_recipes", "image_analysis_prompt", "TEXT DEFAULT ''")
+    ensure_column(connection, "prompt_recipes", "user_prompt_placeholder", "TEXT DEFAULT '{{user_prompt}}'")
+    ensure_column(connection, "prompt_recipes", "output_format", "TEXT NOT NULL DEFAULT 'single_prompt'")
+    ensure_column(connection, "prompt_recipes", "output_contract_json", "TEXT NOT NULL DEFAULT '{}'")
+    ensure_column(connection, "prompt_recipes", "input_variables_json", "TEXT NOT NULL DEFAULT '[]'")
+    ensure_column(connection, "prompt_recipes", "custom_fields_json", "TEXT NOT NULL DEFAULT '[]'")
+    ensure_column(connection, "prompt_recipes", "image_input_json", "TEXT NOT NULL DEFAULT '{}'")
+    ensure_column(connection, "prompt_recipes", "validation_warnings_json", "TEXT NOT NULL DEFAULT '[]'")
+    ensure_column(connection, "prompt_recipes", "default_options_json", "TEXT NOT NULL DEFAULT '{}'")
+    ensure_column(connection, "prompt_recipes", "rules_json", "TEXT NOT NULL DEFAULT '{}'")
+    ensure_column(connection, "prompt_recipes", "thumbnail_path", "TEXT")
+    ensure_column(connection, "prompt_recipes", "thumbnail_url", "TEXT")
+    ensure_column(connection, "prompt_recipes", "notes", "TEXT DEFAULT ''")
+    ensure_column(connection, "prompt_recipes", "source_kind", "TEXT NOT NULL DEFAULT 'custom'")
+    ensure_column(connection, "prompt_recipes", "version", "TEXT NOT NULL DEFAULT '1'")
+    ensure_column(connection, "prompt_recipes", "priority", "INTEGER NOT NULL DEFAULT 0")
+
+
+def _apply_prompt_recipes_schema(connection: sqlite3.Connection) -> None:
+    _ensure_prompt_recipe_schema(connection)
+    _seed_default_prompt_recipes(connection)
+
+
+def _apply_prompt_recipe_validation_warnings_schema(connection: sqlite3.Connection) -> None:
+    ensure_column(connection, "prompt_recipes", "validation_warnings_json", "TEXT NOT NULL DEFAULT '[]'")
+
+
+def _apply_prompt_recipe_drafting_config_schema(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS media_prompt_recipe_drafting_configs (
+            config_key TEXT PRIMARY KEY,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            provider_kind TEXT NOT NULL DEFAULT 'openrouter',
+            provider_label TEXT,
+            provider_model_id TEXT,
+            provider_base_url TEXT,
+            provider_supports_images INTEGER NOT NULL DEFAULT 0,
+            provider_status TEXT,
+            provider_last_tested_at TEXT,
+            provider_capabilities_json TEXT NOT NULL DEFAULT '{}',
+            temperature REAL NOT NULL DEFAULT 0.2,
+            max_tokens INTEGER NOT NULL DEFAULT 1800,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
+def _apply_prompt_recipe_drafting_enabled_schema(connection: sqlite3.Connection) -> None:
+    ensure_column(connection, "media_prompt_recipe_drafting_configs", "enabled", "INTEGER NOT NULL DEFAULT 1")
+
+
+def _apply_graph_prompt_recipe_seed_refresh(connection: sqlite3.Connection) -> None:
+    _seed_default_prompt_recipes(connection)
+    _seed_default_graph_templates(connection)
+
+
+def _apply_prompt_recipe_graph_runtime_refresh(connection: sqlite3.Connection) -> None:
+    _seed_default_prompt_recipes(connection)
+    _seed_default_graph_templates(connection)
+
+
+def _apply_prompt_recipe_smoke_template_provider_refresh(connection: sqlite3.Connection) -> None:
+    _seed_default_graph_templates(connection)
+
+
+def _apply_external_llm_usage_schema(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS media_external_llm_usage (
+            usage_event_id TEXT PRIMARY KEY,
+            provider_kind TEXT NOT NULL,
+            provider_model_id TEXT NOT NULL,
+            provider_response_id TEXT,
+            source_kind TEXT NOT NULL,
+            workflow_id TEXT,
+            run_id TEXT,
+            node_id TEXT,
+            recipe_id TEXT,
+            model_key TEXT,
+            task_mode TEXT,
+            usage_json TEXT NOT NULL DEFAULT '{}',
+            prompt_tokens INTEGER,
+            completion_tokens INTEGER,
+            total_tokens INTEGER,
+            reasoning_tokens INTEGER,
+            cached_tokens INTEGER,
+            cache_write_tokens INTEGER,
+            cost_usd REAL,
+            metadata_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_media_external_llm_usage_provider_response
+        ON media_external_llm_usage(provider_kind, provider_response_id)
+        WHERE provider_response_id IS NOT NULL AND provider_response_id != ''
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_media_external_llm_usage_created_at
+        ON media_external_llm_usage(created_at DESC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_media_external_llm_usage_run_node
+        ON media_external_llm_usage(run_id, node_id, created_at DESC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_media_external_llm_usage_workflow_created
+        ON media_external_llm_usage(workflow_id, created_at DESC)
+        """
+    )
+
+
+def _apply_graph_rollout_hardening_cleanup(connection: sqlite3.Connection) -> None:
+    now = utcnow_iso()
+    canonical_smoke_workflow_names = [
+        "Prompt Recipe - Text Single Prompt",
+        "Prompt Recipe - Single Image Director",
+        "Prompt Recipe - Multi Image Director",
+        "Prompt Recipe - Video Director Batch",
+        "Prompt Recipe - Storyboard 3x3",
+        "Prompt Recipe - Analysis Only",
+        "Display Any Smoke",
+        "Reference Badge Smoke",
+    ]
+    for name in canonical_smoke_workflow_names:
+        rows = connection.execute(
+            """
+            SELECT workflow_id
+            FROM graph_workflows
+            WHERE name = ? AND status != 'archived'
+            ORDER BY updated_at DESC, workflow_id DESC
+            """,
+            (name,),
+        ).fetchall()
+        for row in rows[1:]:
+            connection.execute(
+                """
+                UPDATE graph_workflows
+                SET status = 'archived', updated_at = ?
+                WHERE workflow_id = ?
+                """,
+                (now, row["workflow_id"]),
+            )
+
+    for name in ("Prompt Recipe - Single Image Director Copy", "Live Prompt Recipe Smoke"):
+        connection.execute(
+            """
+            UPDATE graph_workflows
+            SET status = 'archived', updated_at = ?
+            WHERE name = ? AND status != 'archived'
+            """,
+            (now, name),
+        )
+
+
 def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
     connection.executescript(
         """
@@ -898,6 +1654,34 @@ def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
                 notes TEXT,
                 version TEXT NOT NULL DEFAULT 'v1',
                 priority INTEGER NOT NULL DEFAULT 100,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS prompt_recipes (
+                recipe_id TEXT PRIMARY KEY,
+                key TEXT NOT NULL UNIQUE,
+                label TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                category TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                system_prompt_template TEXT NOT NULL,
+                image_analysis_prompt TEXT DEFAULT '',
+                user_prompt_placeholder TEXT DEFAULT '{{user_prompt}}',
+                output_format TEXT NOT NULL DEFAULT 'single_prompt',
+                output_contract_json TEXT NOT NULL DEFAULT '{}',
+                input_variables_json TEXT NOT NULL DEFAULT '[]',
+                custom_fields_json TEXT NOT NULL DEFAULT '[]',
+                image_input_json TEXT NOT NULL DEFAULT '{}',
+                validation_warnings_json TEXT NOT NULL DEFAULT '[]',
+                default_options_json TEXT NOT NULL DEFAULT '{}',
+                rules_json TEXT NOT NULL DEFAULT '{}',
+                thumbnail_path TEXT,
+                thumbnail_url TEXT,
+                notes TEXT DEFAULT '',
+                source_kind TEXT NOT NULL DEFAULT 'custom',
+                version TEXT NOT NULL DEFAULT '1',
+                priority INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
@@ -1123,6 +1907,7 @@ def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
     ensure_column(connection, "media_presets", "notes", "TEXT")
     ensure_column(connection, "media_presets", "version", "TEXT NOT NULL DEFAULT 'v1'")
     ensure_column(connection, "media_presets", "priority", "INTEGER NOT NULL DEFAULT 100")
+    _ensure_prompt_recipe_schema(connection)
     ensure_column(connection, "media_enhancement_configs", "provider_kind", "TEXT NOT NULL DEFAULT 'builtin'")
     ensure_column(connection, "media_enhancement_configs", "provider_label", "TEXT")
     ensure_column(connection, "media_enhancement_configs", "provider_model_id", "TEXT")
@@ -1189,6 +1974,7 @@ def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
     )
     _migrate_multi_model_seed_presets(connection)
     _seed_default_presets(connection)
+    _seed_default_prompt_recipes(connection)
     _migrate_gpt_image_seed_preset_scopes(connection)
     _seed_default_model_queue_policies(connection)
 
@@ -1344,6 +2130,7 @@ def _apply_graph_studio_schema(connection: sqlite3.Connection) -> None:
         ON graph_artifacts(asset_id)
         """
     )
+    _seed_default_graph_templates(connection)
 
 
 def _apply_graph_artifacts_schema(connection: sqlite3.Connection) -> None:
@@ -1450,6 +2237,60 @@ MIGRATIONS = [
         version=7,
         description="Add Graph Studio artifact lineage table and indexes for existing workflow databases.",
         apply=_apply_graph_artifacts_schema,
+    ),
+    SchemaMigration(
+        migration_id="20260516_008_prompt_recipes",
+        version=8,
+        description="Add Prompt Recipes library table and seeded recipe examples.",
+        apply=_apply_prompt_recipes_schema,
+    ),
+    SchemaMigration(
+        migration_id="20260516_009_prompt_recipe_validation_warnings",
+        version=9,
+        description="Persist Prompt Recipe validation warnings for UI guidance.",
+        apply=_apply_prompt_recipe_validation_warnings_schema,
+    ),
+    SchemaMigration(
+        migration_id="20260516_010_prompt_recipe_drafting_config",
+        version=10,
+        description="Add dedicated Prompt Recipe drafting model defaults and runtime settings.",
+        apply=_apply_prompt_recipe_drafting_config_schema,
+    ),
+    SchemaMigration(
+        migration_id="20260517_011_graph_prompt_recipe_seed_refresh",
+        version=11,
+        description="Refresh built-in Prompt Recipes for Graph Studio and seed Prompt Recipe smoke templates.",
+        apply=_apply_graph_prompt_recipe_seed_refresh,
+    ),
+    SchemaMigration(
+        migration_id="20260517_012_prompt_recipe_graph_runtime_refresh",
+        version=12,
+        description="Refresh built-in Prompt Recipes after graph runtime default and validation updates.",
+        apply=_apply_prompt_recipe_graph_runtime_refresh,
+    ),
+    SchemaMigration(
+        migration_id="20260517_013_prompt_recipe_smoke_template_provider_refresh",
+        version=13,
+        description="Refresh built-in Prompt Recipe smoke templates with explicit provider defaults.",
+        apply=_apply_prompt_recipe_smoke_template_provider_refresh,
+    ),
+    SchemaMigration(
+        migration_id="20260517_014_external_llm_usage",
+        version=14,
+        description="Persist actual external LLM usage and spend for OpenRouter-backed Studio flows.",
+        apply=_apply_external_llm_usage_schema,
+    ),
+    SchemaMigration(
+        migration_id="20260517_015_graph_rollout_hardening_cleanup",
+        version=15,
+        description="Archive duplicate Prompt Recipe smoke workflows and rollout-only dev copies.",
+        apply=_apply_graph_rollout_hardening_cleanup,
+    ),
+    SchemaMigration(
+        migration_id="20260519_016_prompt_recipe_drafting_enabled",
+        version=16,
+        description="Persist whether Prompt Recipe drafting is enabled for recipe editors.",
+        apply=_apply_prompt_recipe_drafting_enabled_schema,
     ),
 ]
 

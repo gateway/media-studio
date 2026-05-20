@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import StreamingResponse
 
 from .. import store
+from .normalization import materialize_workflow_defaults
 from .pricing import estimate_graph_workflow
 from .registry import registry
 from .runtime import runtime
@@ -21,6 +22,8 @@ from .schemas import (
     GraphRunCreateRequest,
     GraphRunEventsResponse,
     GraphRunListResponse,
+    GraphRunStatusNode,
+    GraphRunStatusResponse,
     GraphTemplate,
     GraphTemplateListResponse,
     GraphTemplateRecord,
@@ -47,7 +50,20 @@ def _workflow_from_record(record: dict) -> GraphWorkflow:
     workflow_json["workflow_id"] = record["workflow_id"]
     workflow_json["name"] = record.get("name") or workflow_json.get("name") or "Untitled Graph"
     workflow_json["description"] = record.get("description") if record.get("description") is not None else workflow_json.get("description")
-    return GraphWorkflow(**workflow_json)
+    return materialize_workflow_defaults(GraphWorkflow(**workflow_json))
+
+
+def _workflow_record(record: dict) -> GraphWorkflowRecord:
+    workflow = _workflow_from_record(record)
+    return GraphWorkflowRecord(
+        **{
+            **record,
+            "name": workflow.name,
+            "description": workflow.description,
+            "schema_version": workflow.schema_version,
+            "workflow_json": workflow.model_dump(mode="json"),
+        }
+    )
 
 
 def _shape_run(record: dict) -> GraphRun:
@@ -58,6 +74,37 @@ def _shape_run(record: dict) -> GraphRun:
     for node in shaped.nodes:
         node.artifacts = artifacts_by_node.get(node.node_id, [])
     return shaped
+
+
+def _shape_run_status(record: dict) -> GraphRunStatusResponse:
+    nodes = [
+        GraphRunStatusNode(
+            run_node_id=str(item["run_node_id"]),
+            run_id=str(item["run_id"]),
+            node_id=str(item["node_id"]),
+            node_type=str(item["node_type"]),
+            status=str(item.get("status") or "queued"),
+            progress=item.get("progress"),
+            has_output_snapshot=bool(item.get("output_snapshot_json")),
+            error=item.get("error"),
+            started_at=item.get("started_at"),
+            finished_at=item.get("finished_at"),
+            updated_at=item.get("updated_at"),
+        )
+        for item in store.list_graph_run_nodes(record["run_id"])
+    ]
+    return GraphRunStatusResponse(
+        run_id=str(record["run_id"]),
+        workflow_id=str(record["workflow_id"]),
+        status=str(record.get("status") or "queued"),
+        error=record.get("error"),
+        latest_event_id=store.latest_graph_run_event_id(str(record["run_id"])),
+        created_at=record.get("created_at"),
+        started_at=record.get("started_at"),
+        finished_at=record.get("finished_at"),
+        updated_at=record.get("updated_at"),
+        nodes=nodes,
+    )
 
 
 @router.get("/node-definitions", response_model=GraphNodeDefinitionsResponse)
@@ -80,23 +127,24 @@ def refresh_node_definitions() -> GraphNodeDefinitionsResponse:
 
 @router.post("/estimate", response_model=GraphEstimateResponse)
 def estimate_workflow(payload: GraphWorkflow) -> GraphEstimateResponse:
-    return estimate_graph_workflow(payload)
+    return estimate_graph_workflow(materialize_workflow_defaults(payload))
 
 
 @router.get("/workflows", response_model=GraphWorkflowListResponse)
 def list_workflows() -> GraphWorkflowListResponse:
-    return GraphWorkflowListResponse(items=[GraphWorkflowRecord(**item) for item in store.list_graph_workflows()])
+    return GraphWorkflowListResponse(items=[_workflow_record(item) for item in store.list_graph_workflows()])
 
 
 @router.post("/workflows", response_model=GraphWorkflowRecord)
 def create_workflow(payload: GraphWorkflow) -> GraphWorkflowRecord:
+    workflow = materialize_workflow_defaults(payload)
     record = store.create_or_update_graph_workflow(
         {
-            "workflow_id": payload.workflow_id,
-            "name": payload.name,
-            "description": payload.description,
-            "schema_version": payload.schema_version,
-            "workflow_json": payload.model_dump(mode="json"),
+            "workflow_id": workflow.workflow_id,
+            "name": workflow.name,
+            "description": workflow.description,
+            "schema_version": workflow.schema_version,
+            "workflow_json": workflow.model_dump(mode="json"),
         }
     )
     return GraphWorkflowRecord(**record)
@@ -107,7 +155,7 @@ def get_workflow(workflow_id: str) -> GraphWorkflowRecord:
     record = store.get_graph_workflow(workflow_id)
     if not record:
         raise _not_found("workflow")
-    return GraphWorkflowRecord(**record)
+    return _workflow_record(record)
 
 
 @router.patch("/workflows/{workflow_id}", response_model=GraphWorkflowRecord)
@@ -115,13 +163,14 @@ def update_workflow(workflow_id: str, payload: GraphWorkflow) -> GraphWorkflowRe
     current = store.get_graph_workflow(workflow_id)
     if not current:
         raise _not_found("workflow")
+    workflow = materialize_workflow_defaults(payload.model_copy(update={"workflow_id": workflow_id}))
     record = store.create_or_update_graph_workflow(
         {
             **current,
-            "name": payload.name,
-            "description": payload.description,
-            "schema_version": payload.schema_version,
-            "workflow_json": payload.model_dump(mode="json"),
+            "name": workflow.name,
+            "description": workflow.description,
+            "schema_version": workflow.schema_version,
+            "workflow_json": workflow.model_dump(mode="json"),
         }
     )
     return GraphWorkflowRecord(**record)
@@ -140,7 +189,11 @@ def validate_saved_workflow(workflow_id: str, payload: Optional[GraphWorkflow] =
     record = store.get_graph_workflow(workflow_id)
     if not record:
         raise _not_found("workflow")
-    workflow = payload.model_copy(update={"workflow_id": workflow_id}) if payload else _workflow_from_record(record)
+    workflow = (
+        materialize_workflow_defaults(payload.model_copy(update={"workflow_id": workflow_id}))
+        if payload
+        else _workflow_from_record(record)
+    )
     return validate_workflow(workflow)
 
 
@@ -149,7 +202,11 @@ def create_run(workflow_id: str, payload: Optional[GraphRunCreateRequest] = None
     record = store.get_graph_workflow(workflow_id)
     if not record:
         raise _not_found("workflow")
-    workflow = payload.workflow.model_copy(update={"workflow_id": workflow_id}) if payload and payload.workflow else _workflow_from_record(record)
+    workflow = (
+        materialize_workflow_defaults(payload.workflow.model_copy(update={"workflow_id": workflow_id}))
+        if payload and payload.workflow
+        else _workflow_from_record(record)
+    )
     try:
         return runtime.create_run(workflow_id, workflow, start=True)
     except ValueError as exc:
@@ -174,6 +231,14 @@ def get_run(run_id: str) -> GraphRun:
     if not record:
         raise _not_found("graph run")
     return _shape_run(record)
+
+
+@router.get("/runs/{run_id}/status", response_model=GraphRunStatusResponse)
+def get_run_status(run_id: str) -> GraphRunStatusResponse:
+    record = store.get_graph_run(run_id)
+    if not record:
+        raise _not_found("graph run")
+    return _shape_run_status(record)
 
 
 @router.get("/runs/{run_id}/events", response_model=GraphRunEventsResponse)
@@ -229,11 +294,16 @@ def cancel_run(run_id: str) -> GraphRun:
 
 @router.get("/templates", response_model=GraphTemplateListResponse)
 def list_templates() -> GraphTemplateListResponse:
-    return GraphTemplateListResponse(items=[GraphTemplateRecord(**item) for item in store.list_graph_templates()])
+    items: List[GraphTemplateRecord] = []
+    for item in store.list_graph_templates():
+        workflow = materialize_workflow_defaults(GraphWorkflow(**(item.get("workflow_json") or {})))
+        items.append(GraphTemplateRecord(**{**item, "workflow_json": workflow.model_dump(mode="json")}))
+    return GraphTemplateListResponse(items=items)
 
 
 @router.post("/templates", response_model=GraphTemplateRecord)
 def create_template(payload: GraphTemplate) -> GraphTemplateRecord:
+    workflow = materialize_workflow_defaults(GraphWorkflow(**payload.workflow_json))
     record = store.create_or_update_graph_template(
         {
             "template_id": payload.template_id,
@@ -241,7 +311,7 @@ def create_template(payload: GraphTemplate) -> GraphTemplateRecord:
             "description": payload.description,
             "tags_json": payload.tags,
             "thumbnail_path": payload.thumbnail_path,
-            "workflow_json": payload.workflow_json,
+            "workflow_json": workflow.model_dump(mode="json"),
         }
     )
     return GraphTemplateRecord(**record)
@@ -260,14 +330,15 @@ def instantiate_template(template_id: str) -> GraphWorkflowRecord:
     template = store.get_graph_template(template_id)
     if not template:
         raise _not_found("template")
-    workflow = dict(template.get("workflow_json") or {})
-    workflow.pop("workflow_id", None)
-    workflow.setdefault("name", template.get("name") or "Template Workflow")
+    workflow_payload = dict(template.get("workflow_json") or {})
+    workflow_payload.pop("workflow_id", None)
+    workflow_payload.setdefault("name", template.get("name") or "Template Workflow")
+    workflow = materialize_workflow_defaults(GraphWorkflow(**workflow_payload))
     record = store.create_or_update_graph_workflow(
         {
-            "name": workflow.get("name") or template.get("name") or "Template Workflow",
+            "name": workflow.name or template.get("name") or "Template Workflow",
             "description": template.get("description"),
-            "workflow_json": workflow,
+            "workflow_json": workflow.model_dump(mode="json"),
         }
     )
     return GraphWorkflowRecord(**record)

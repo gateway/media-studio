@@ -20,6 +20,23 @@
   min-height: 0;
 }
 
+.react-flow__node:has(.graph-display-any) .react-flow__resize-control.handle.bottom.right,
+.react-flow__node:has(.graph-node-field textarea) .react-flow__resize-control.handle.bottom.right {
+  width: 44px !important;
+  height: 44px !important;
+  right: -22px !important;
+  bottom: -22px !important;
+  z-index: 80;
+}
+
+.react-flow__node:has(.graph-display-any) .graph-node-port-input .graph-handle {
+  left: -9px !important;
+}
+
+.react-flow__node:has(.graph-display-any) .graph-node-port-output .graph-handle {
+  right: -9px !important;
+}
+
 .graph-node-preview {
   position: relative;
   display: flex;
@@ -138,16 +155,23 @@
 }
 
 .graph-display-any {
-  display: grid;
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
   gap: 0.65rem;
-  min-height: 160px;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .graph-display-any-empty {
+  box-sizing: border-box;
   display: flex;
+  flex: 1 1 0;
   align-items: center;
   justify-content: center;
-  min-height: 150px;
+  min-height: 0;
   padding: 0.8rem;
   border: 1px solid rgba(247, 246, 240, 0.08);
   background: rgba(0, 0, 0, 0.18);
@@ -158,17 +182,24 @@
 
 .graph-display-any-media-single,
 .graph-display-any-media-grid {
+  box-sizing: border-box;
+  flex: 1 1 0;
+  min-height: 0;
   display: grid;
   gap: 0.45rem;
+  overflow: hidden;
 }
 
 .graph-display-any-media-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
 }
 
 .graph-display-any-media-item {
+  box-sizing: border-box;
   width: 100%;
-  min-height: 110px;
+  height: 100%;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
   border: 1px solid rgba(247, 246, 240, 0.08);
@@ -181,7 +212,7 @@
 .graph-display-any-media-item video {
   width: 100%;
   height: 100%;
-  min-height: 110px;
+  min-height: 0;
   display: block;
   object-fit: contain;
 }
@@ -191,17 +222,83 @@
 }
 
 .graph-display-any-text {
-  max-height: 260px;
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
   margin: 0;
   padding: 0.7rem;
   overflow: auto;
+  scrollbar-width: none;
   border: 1px solid rgba(247, 246, 240, 0.08);
   background: rgba(0, 0, 0, 0.2);
   color: rgba(247, 246, 240, 0.86);
   font-size: 0.68rem;
   line-height: 1.45;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  pointer-events: auto;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.graph-display-any-text-wrap {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.graph-display-any-text-wrap .graph-display-any-text {
+  height: 100%;
+  padding-right: 2.85rem;
+}
+
+.graph-display-any-copy {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: 1px solid rgba(247, 246, 240, 0.2);
+  border-radius: 999px;
+  background: rgba(14, 17, 16, 0.9);
+  color: rgba(247, 246, 240, 0.82);
+  cursor: pointer;
+}
+
+.graph-display-any-copy:hover {
+  border-color: rgba(209, 255, 71, 0.62);
+  color: var(--graph-accent);
+}
+
+.graph-display-any-copy[data-status="copied"] {
+  border-color: rgba(184, 255, 159, 0.42);
+  color: #b8ff9f;
+}
+
+.graph-display-any-copy[data-status="error"] {
+  border-color: rgba(255, 181, 166, 0.38);
+  color: #ffb5a6;
+}
+
+.graph-display-any-text::-webkit-scrollbar {
+  display: none;
+}
+
+.graph-display-any-has-media .graph-display-any-text {
+  flex: 1 1 150px;
+  max-height: none;
+}
+
+.graph-display-any-text-only .graph-display-any-text {
+  height: 100%;
 }
 
 .graph-node-preview img,
@@ -221,6 +318,16 @@
   padding: 0.5rem 0.6rem;
   color: #ffb4b4;
   background: rgba(255, 77, 79, 0.08);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.graph-node-warning {
+  border: 1px solid rgba(255, 204, 102, 0.28);
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  color: var(--graph-warning);
+  background: rgba(255, 204, 102, 0.08);
   font-size: 0.74rem;
   line-height: 1.35;
 }

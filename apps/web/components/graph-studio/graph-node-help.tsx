@@ -11,7 +11,7 @@ const HELP_POPOVER_WIDTH = 320;
 const HELP_POPOVER_MARGIN = 12;
 const HELP_POPOVER_OFFSET = 8;
 
-export function GraphNodeHelp({ definition }: { definition: GraphNodeDefinition }) {
+export function GraphNodeHelp({ definition, fields }: { definition: GraphNodeDefinition; fields?: Record<string, unknown> }) {
   const [hovered, setHovered] = useState(false);
   const [popoverHovered, setPopoverHovered] = useState(false);
   const [pinned, setPinned] = useState(false);
@@ -20,7 +20,7 @@ export function GraphNodeHelp({ definition }: { definition: GraphNodeDefinition 
   const closeHoverRef = useRef<number | null>(null);
   const popoverId = useId();
   const open = hovered || popoverHovered || pinned;
-  const helpContent = buildGraphNodeHelpContent(definition);
+  const helpContent = buildGraphNodeHelpContent(definition, fields);
   const updatePopoverPosition = useCallback(() => {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;

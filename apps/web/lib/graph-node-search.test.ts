@@ -4,6 +4,7 @@ import { rankGraphNodeDefinitions } from "@/components/graph-studio/hooks/use-gr
 import { graphExecutionModeClass, graphExecutionModeLabel, normalizeGraphExecutionMode } from "@/components/graph-studio/utils/graph-node-execution";
 import {
   computeGraphGroupBounds,
+  graphGroupsForCanvas,
   moveGraphGroupBounds,
   moveGraphGroupNodes,
   pruneGraphGroupMembership,
@@ -126,9 +127,9 @@ const definitions: GraphNodeDefinition[] = [
     search_aliases: ["display", "preview", "inspect", "view", "any", "json", "text", "media"],
     source: { kind: "system" },
     ui: {
-      default_size: { width: 340, height: 320 },
-      min_size: { width: 280, height: 240 },
-      max_size: { width: 760, height: 720 },
+      default_size: { width: 460, height: 520 },
+      min_size: { width: 360, height: 320 },
+      max_size: { width: 2400, height: 3200 },
       color: "blue",
       accent: "blue",
       icon: "info",
@@ -172,8 +173,8 @@ const definitions: GraphNodeDefinition[] = [
     type: "prompt.llm",
     title: "LLM Prompt",
     category: "Prompt",
-    search_aliases: ["llm", "openrouter", "vision", "image describe", "prompt enhance"],
-    source: { kind: "external_llm", providers: ["studio_default", "openrouter", "local_openai"] },
+    search_aliases: ["llm", "openrouter", "codex", "vision", "image describe", "prompt enhance"],
+    source: { kind: "external_llm", providers: ["studio_default", "openrouter", "codex_local", "local_openai"] },
     ui: {
       default_size: { width: 420, height: 720 },
       min_size: { width: 360, height: 560 },
@@ -200,6 +201,82 @@ const definitions: GraphNodeDefinition[] = [
       { id: "system_prompt", label: "System Prompt", type: "textarea" },
       { id: "user_prompt", label: "User Prompt", type: "textarea", connectable: true, port_type: "text" },
     ],
+  },
+  {
+    type: "prompt.recipe",
+    title: "Prompt Recipe",
+    category: "Prompt",
+    search_aliases: ["prompt recipe", "recipe", "director", "analysis", "storyboard", "video director", "image director"],
+    source: { kind: "external_llm", providers: ["studio_default", "openrouter", "codex_local", "local_openai"], recipe_backed: true },
+    ui: {
+      default_size: { width: 420, height: 760 },
+      min_size: { width: 360, height: 560 },
+      max_size: { width: 860, height: 1240 },
+      color: "text",
+      accent: "purple",
+      icon: "sparkles",
+      preview: false,
+    },
+    ports: {
+      inputs: [
+        { id: "user_prompt", label: "User Prompt", type: "text", accepts: ["text"] },
+        { id: "image_refs", label: "Image Refs", type: "image", accepts: ["image"], array: true, max: 8 },
+      ],
+      outputs: [
+        { id: "text", label: "Text", type: "text" },
+        { id: "result", label: "Result", type: "json" },
+      ],
+    },
+    fields: [
+      { id: "recipe_category", label: "Recipe Category", type: "select", default: "all", options: [{ label: "All Categories", value: "all" }, { label: "Image", value: "image" }] },
+      { id: "recipe_id", label: "Prompt Recipe", type: "prompt_recipe_picker", required: true },
+    ],
+  },
+  {
+    type: "internal.hidden_debug",
+    title: "Internal Hidden Debug",
+    category: "Debug",
+    search_aliases: ["hidden", "debug"],
+    source: { kind: "system", hidden_in_search: true },
+    ui: {
+      default_size: { width: 320, height: 280 },
+      min_size: { width: 260, height: 220 },
+      max_size: { width: 860, height: 1200 },
+      color: "orange",
+      accent: "orange",
+      icon: "bug",
+      preview: false,
+    },
+    ports: {
+      inputs: [{ id: "value", label: "Value", type: "json", accepts: ["json"] }],
+      outputs: [{ id: "json", label: "JSON", type: "json" }],
+    },
+    fields: [],
+  },
+  {
+    type: "prompt.parse",
+    title: "Prompt Parse",
+    category: "Prompt",
+    search_aliases: ["prompt parse", "split prompts", "fanout", "json parse"],
+    source: { kind: "system" },
+    ui: {
+      default_size: { width: 340, height: 520 },
+      min_size: { width: 280, height: 360 },
+      max_size: { width: 640, height: 860 },
+      color: "json",
+      accent: "purple",
+      icon: "json",
+      preview: false,
+    },
+    ports: {
+      inputs: [{ id: "result", label: "Result", type: "json", accepts: ["json"], required: true }],
+      outputs: [
+        { id: "prompt_1", label: "Prompt 1", type: "text" },
+        { id: "prompt_2", label: "Prompt 2", type: "text" },
+        { id: "result", label: "Result", type: "json" },
+      ],
+    },
+    fields: [],
   },
   {
     type: "model.kie.kling_2_6_i2v",
@@ -350,9 +427,11 @@ const definitions: GraphNodeDefinition[] = [
     ports: {
       inputs: [
         { id: "prompt", label: "Prompt", type: "text", accepts: ["text"] },
-        { id: "image_refs", label: "Reference Images", type: "image", accepts: ["image"], array: true },
-        { id: "video_refs", label: "Video Refs", type: "video", accepts: ["video"], array: true },
-        { id: "audio_refs", label: "Audio Refs", type: "audio", accepts: ["audio"], array: true },
+        { id: "start_frame", label: "Start Frame", type: "image", accepts: ["image"], max: 1 },
+        { id: "end_frame", label: "End Frame", type: "image", accepts: ["image"], max: 1 },
+        { id: "reference_images", label: "Reference Images", type: "image", accepts: ["image"], array: true },
+        { id: "reference_videos", label: "Reference Videos", type: "video", accepts: ["video"], array: true },
+        { id: "reference_audios", label: "Reference Audio", type: "audio", accepts: ["audio"], array: true },
       ],
       outputs: [{ id: "video", label: "Video", type: "video" }],
     },
@@ -412,6 +491,8 @@ describe("graph node search", () => {
       "image.transform",
       "debug.inspect",
       "prompt.llm",
+      "prompt.parse",
+      "prompt.recipe",
       "video.combine",
     ]);
     expect(rankGraphNodeDefinitions(definitions, "c:models").map((item) => item.definition.type)).toEqual([
@@ -455,15 +536,22 @@ describe("graph node search", () => {
 
   it("finds the LLM prompt node by provider and vision aliases", () => {
     expect(rankGraphNodeDefinitions(definitions, "openrouter prompt")[0].definition.type).toBe("prompt.llm");
-    expect(rankGraphNodeDefinitions(definitions, "vision prompt")[0].definition.type).toBe("prompt.llm");
+    expect(rankGraphNodeDefinitions(definitions, "vision prompt").map((item) => item.definition.type)).toContain("prompt.llm");
     expect(rankGraphNodeDefinitions(definitions, "image describe").map((item) => item.definition.type)).toContain("prompt.llm");
     expect(rankGraphNodeDefinitions(definitions, "pass through text").map((item) => item.definition.type)).toContain("prompt.text");
     expect(rankGraphNodeDefinitions(definitions, "o:text").map((item) => item.definition.type)).toContain("prompt.llm");
     expect(rankGraphNodeDefinitions(definitions, "o:text").map((item) => item.definition.type)).toContain("prompt.text");
     expect(rankGraphNodeDefinitions(definitions, "i:text").map((item) => item.definition.type)).toContain("prompt.text");
     expect(rankGraphNodeDefinitions(definitions, "i:image").map((item) => item.definition.type)).toContain("prompt.llm");
+    expect(rankGraphNodeDefinitions(definitions, "prompt recipe")[0].definition.type).toBe("prompt.recipe");
+    expect(rankGraphNodeDefinitions(definitions, "image prompt director").map((item) => item.definition.type)).toContain("prompt.recipe");
+    expect(rankGraphNodeDefinitions(definitions, "prompt parse").map((item) => item.definition.type)).toContain("prompt.parse");
     expect(rankGraphNodeDefinitions(definitions, "display any")[0].definition.type).toBe("display.any");
     expect(rankGraphNodeDefinitions(definitions, "i:json").map((item) => item.definition.type)).toContain("display.any");
+  });
+
+  it("hides hidden internal definitions from node search", () => {
+    expect(rankGraphNodeDefinitions(definitions, "hidden").map((item) => item.definition.type)).not.toContain("internal.hidden_debug");
   });
 });
 
@@ -656,6 +744,33 @@ describe("graph pricing helpers", () => {
     expect(graphNodePricingLabel({ ...estimate.nodes.model, warnings: [{ code: "missing_model_pricing", message: "missing" }] })).toBe("price ?");
     expect(graphPricingNeedsConfirmation({ ...estimate, pricing_summary: { ...estimate.pricing_summary, has_unknown_pricing: true } }, 200)).toBe(true);
   });
+
+  it("renders usd-only external estimates without fake credits", () => {
+    const estimate = {
+      pricing_summary: {
+        total: { estimated_credits: null, estimated_cost_usd: 0.0184 },
+        has_numeric_estimate: true,
+        has_unknown_pricing: false,
+        is_authoritative: false,
+        pricing_status: "estimated_external_llm",
+      },
+      nodes: {
+        recipe: {
+          node_id: "recipe",
+          node_type: "prompt.recipe",
+          pricing_summary: {
+            total: { estimated_credits: null, estimated_cost_usd: 0.0184 },
+            has_numeric_estimate: true,
+            pricing_status: "estimated_external_llm",
+          },
+        },
+      },
+      warnings: [],
+    };
+    expect(graphEstimateToolbarLabel(estimate)).toBe("Graph $0.02 estimated");
+    expect(graphNodePricingLabel(estimate.nodes.recipe)).toBe("$0.02");
+    expect(graphPricingNeedsConfirmation(estimate, 200)).toBe(false);
+  });
 });
 
 describe("graph node execution metadata", () => {
@@ -783,8 +898,8 @@ describe("graph workflow transfer", () => {
 describe("graph groups", () => {
   it("computes bounds and serializes persisted group metadata", () => {
     const nodes = [
-      { id: "a", position: { x: 100, y: 120 }, style: { width: 200, height: 160 }, data: {} },
-      { id: "b", position: { x: 420, y: 260 }, style: { width: 180, height: 140 }, data: {} },
+      { id: "a", position: { x: 100, y: 120 }, style: { width: 200, height: 160 }, data: { executionMode: "frozen" } },
+      { id: "b", position: { x: 420, y: 260 }, style: { width: 180, height: 140 }, data: { executionMode: "frozen" } },
     ] as StudioNode[];
     expect(computeGraphGroupBounds(nodes, ["a", "b"])).toMatchObject({ x: 58, y: 78, width: 584, height: 364 });
     expect(
@@ -811,6 +926,26 @@ describe("graph groups", () => {
         execution: { mode: "frozen" },
       },
     ]);
+  });
+
+  it("derives displayed and persisted group execution mode from member nodes", () => {
+    const nodes = [
+      { id: "a", position: { x: 100, y: 120 }, style: { width: 200, height: 160 }, data: { executionMode: "enabled" } },
+      { id: "b", position: { x: 420, y: 260 }, style: { width: 180, height: 140 }, data: { executionMode: "enabled" } },
+    ] as StudioNode[];
+    const groups = [
+      {
+        id: "group_1",
+        title: "Branch",
+        color: "blue",
+        node_ids: ["a", "b"],
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        execution: { mode: "frozen" as const },
+      },
+    ];
+
+    expect(graphGroupsForCanvas(groups, nodes)[0].execution).toEqual({ mode: "enabled" });
+    expect(serializeGraphGroups(groups, nodes)[0].execution).toEqual({ mode: "enabled" });
   });
 
   it("reads persisted groups from workflow metadata and normalizes invalid execution modes", () => {
@@ -919,6 +1054,21 @@ describe("graph run event display", () => {
         { nodes: [{ node_id: "model_1", status: "running" }] } as any,
       ).model_1,
     ).toMatchObject({ label: "Submitted", detail: "Provider job created", tone: "active" });
+  });
+
+  it("labels frozen skipped nodes as muted instead of disabled", () => {
+    expect(
+      formatGraphRunEventForConsole(
+        { event_type: "node.skipped", node_id: "model_1", payload_json: { execution_mode: "frozen", reason: "missing_cached_output" } } as any,
+        [node],
+      ),
+    ).toBe("Muted: Nano branch - No cached output");
+
+    expect(
+      graphNodeActivitiesFromRunEvents([], {
+        nodes: [{ node_id: "model_1", status: "skipped", metrics_json: { execution_mode: "frozen", skip_reason: "missing_cached_output" } }],
+      } as any).model_1,
+    ).toMatchObject({ label: "Muted", detail: "No cached output", tone: "muted" });
   });
 });
 

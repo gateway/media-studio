@@ -18,6 +18,10 @@ export function isPollableJobStatus(status: string | null | undefined) {
   return ["queued", "submitted", "running", "processing"].includes(String(status ?? "").toLowerCase());
 }
 
+export function isStudioPollingVisible(visibilityState?: string | null) {
+  return String(visibilityState ?? "visible").toLowerCase() === "visible";
+}
+
 export function shouldWatchBatch(batch: MediaBatch) {
   if (!batch.batch_id || ["completed", "failed", "partial_failure", "cancelled"].includes(String(batch.status ?? "").toLowerCase())) {
     return false;
@@ -208,6 +212,7 @@ export function useStudioPolling({
   const inFlightBatchPollsRef = useRef<Set<string>>(new Set());
   const jobPollTimersRef = useRef<Map<string, number>>(new Map());
   const batchPollTimersRef = useRef<Map<string, number>>(new Map());
+  const documentVisibleRef = useRef(isStudioPollingVisible(typeof document === "undefined" ? "visible" : document.visibilityState));
 
   function clearJobPoll(jobId: string) {
     activeJobPollsRef.current.delete(jobId);
@@ -230,7 +235,7 @@ export function useStudioPolling({
   }
 
   function scheduleJobPoll(jobId: string) {
-    if (!activeJobPollsRef.current.has(jobId) || jobPollTimersRef.current.has(jobId)) {
+    if (!documentVisibleRef.current || !activeJobPollsRef.current.has(jobId) || jobPollTimersRef.current.has(jobId)) {
       return;
     }
     const timer = window.setTimeout(() => {
@@ -241,7 +246,7 @@ export function useStudioPolling({
   }
 
   function scheduleBatchPoll(batchId: string) {
-    if (!activeBatchPollsRef.current.has(batchId) || batchPollTimersRef.current.has(batchId)) {
+    if (!documentVisibleRef.current || !activeBatchPollsRef.current.has(batchId) || batchPollTimersRef.current.has(batchId)) {
       return;
     }
     const timer = window.setTimeout(() => {
@@ -265,6 +270,34 @@ export function useStudioPolling({
       activeBatchPollsRef.current.clear();
       inFlightJobPollsRef.current.clear();
       inFlightBatchPollsRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisibilityChange = () => {
+      documentVisibleRef.current = isStudioPollingVisible(document.visibilityState);
+      if (!documentVisibleRef.current) {
+        for (const timer of jobPollTimersRef.current.values()) {
+          window.clearTimeout(timer);
+        }
+        jobPollTimersRef.current.clear();
+        for (const timer of batchPollTimersRef.current.values()) {
+          window.clearTimeout(timer);
+        }
+        batchPollTimersRef.current.clear();
+        return;
+      }
+      for (const jobId of activeJobPollsRef.current) {
+        scheduleJobPoll(jobId);
+      }
+      for (const batchId of activeBatchPollsRef.current) {
+        scheduleBatchPoll(batchId);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 
@@ -358,6 +391,9 @@ export function useStudioPolling({
       return;
     } finally {
       inFlightJobPollsRef.current.delete(jobId);
+    }
+    if (!documentVisibleRef.current) {
+      return;
     }
     scheduleJobPoll(jobId);
   }
@@ -455,6 +491,9 @@ export function useStudioPolling({
       return;
     } finally {
       inFlightBatchPollsRef.current.delete(batchId);
+    }
+    if (!documentVisibleRef.current) {
+      return;
     }
     scheduleBatchPoll(batchId);
   }

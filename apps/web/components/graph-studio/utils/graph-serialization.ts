@@ -1,8 +1,9 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { GraphGroup, GraphNodeData, GraphNodeDefinition, GraphWorkflowPayload, StudioNode } from "../types";
-import { computeGraphNodeLayout } from "./graph-node-layout";
+import { computeGraphNodeLayout, graphNodeUsesContentAutoHeight } from "./graph-node-layout";
 import { normalizeGraphExecutionMode } from "./graph-node-execution";
+import { graphVisibleFieldMetrics } from "./graph-node-fields";
 import { serializeGraphGroups } from "./graph-groups";
 import { graphPortIdFromHandle } from "./graph-port-handles";
 
@@ -14,6 +15,7 @@ export type GraphNodeHandlers = Pick<
   | "onImageDrop"
   | "onInputRewireStart"
   | "onToggleCollapsed"
+  | "onToggleAdvancedExpanded"
   | "onOpenPreview"
   | "onStartRenameNode"
   | "onRenameNodeDraftChange"
@@ -32,22 +34,35 @@ export function defaultGraphFields(definition: GraphNodeDefinition) {
 }
 
 export function createGraphNode(definition: GraphNodeDefinition, position: { x: number; y: number }, handlers: GraphNodeHandlers): StudioNode {
-  const layout = computeGraphNodeLayout(definition);
+  const fields = defaultGraphFields(definition);
+  const metrics = graphVisibleFieldMetrics(definition, fields, [], {
+    advancedExpanded: false,
+    previewHeaderFieldIds: definition.type === "media.save_image" || definition.type === "media.save_video" || definition.type === "media.save_audio" ? ["project_id"] : [],
+    extraLayoutRows: definition.type === "prompt.recipe" && String(fields.recipe_id ?? "").trim() ? 2 : 0,
+  });
+  const layout = computeGraphNodeLayout(definition, undefined, {
+    visibleFieldCount: metrics.layoutFieldCount,
+    visiblePortCount: definition.ports.inputs.filter((port) => !port.advanced).length + definition.ports.outputs.filter((port) => !port.advanced).length,
+    textareaCount: metrics.textareaCount,
+  });
+  const height = definition.fields.some((field) => field.advanced) ? layout.minHeight : layout.height;
   return {
     id: `${definition.type}-${crypto.randomUUID().slice(0, 8)}`,
     type: "graphNode",
     position,
     style: {
       width: layout.width,
-      height: layout.height,
+      height,
       minHeight: layout.minHeight,
     },
     data: {
       definition,
-      fields: defaultGraphFields(definition),
+      fields,
       status: "idle",
       progress: null,
       executionMode: "enabled",
+      advancedExpanded: false,
+      autoSizedHeight: height,
       ...handlers,
     },
   };
@@ -67,10 +82,19 @@ export function workflowFromCanvas(workflowId: string | null, name: string, node
       metadata: {
         style: {
           width: typeof node.width === "number" ? node.width : node.style?.width,
-          height: typeof node.height === "number" ? node.height : node.style?.height,
+          height: (() => {
+            const data = node.data as StudioNode["data"];
+            const currentHeight = typeof node.height === "number" ? node.height : node.style?.height;
+            const autoSizedHeight = typeof data.autoSizedHeight === "number" ? data.autoSizedHeight : null;
+            if (!graphNodeUsesContentAutoHeight(data.definition) && typeof currentHeight === "number" && autoSizedHeight != null && Math.abs(currentHeight - autoSizedHeight) <= 2) {
+              return undefined;
+            }
+            return currentHeight;
+          })(),
         },
         ui: {
           collapsed: Boolean((node.data as StudioNode["data"]).collapsed),
+          advancedExpanded: Boolean((node.data as StudioNode["data"]).advancedExpanded),
           accentColor: (node.data as StudioNode["data"]).accentColor ?? null,
           nodeColor: (node.data as StudioNode["data"]).nodeColor ?? null,
           nodeHeaderColor: (node.data as StudioNode["data"]).nodeHeaderColor ?? null,

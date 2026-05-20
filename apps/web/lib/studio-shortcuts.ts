@@ -1,4 +1,4 @@
-export type StudioShortcutAction = "open-graph" | "open-projects" | "open-settings" | "open-library" | null;
+export type StudioShortcutAction = "open-graph" | "open-projects" | "open-presets" | "open-settings" | "open-library" | null;
 
 export function resolveStudioShortcutAction({
   key,
@@ -16,9 +16,11 @@ export function resolveStudioShortcutAction({
   }
   switch (key.toLowerCase()) {
     case "g":
+      return "open-projects";
+    case "n":
       return "open-graph";
     case "p":
-      return "open-projects";
+      return "open-presets";
     case "s":
       return "open-settings";
     case "i":

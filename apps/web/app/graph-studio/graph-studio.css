@@ -2,6 +2,8 @@
 @import "./styles/shell-sidebar.css";
 @import "./styles/toolbar.css";
 @import "./styles/canvas-groups.css";
-@import "./styles/dialogs-history.css";
+@import "./styles/dialogs-shells.css";
+@import "./styles/dialogs-library.css";
+@import "./styles/history-preview.css";
 @import "./styles/console.css";
 @import "./styles/nodes-wires.css";

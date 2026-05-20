@@ -50,7 +50,7 @@ export function PricingRefreshAction() {
 
   return (
     <>
-      <AdminButton variant="primary" size="compact" onClick={() => void handleRefresh()} disabled={busy}>
+      <AdminButton variant="subtle" size="compact" onClick={() => void handleRefresh()} disabled={busy}>
         <RefreshCcw className={cn("mr-2 size-3.5", busy ? "animate-[spin_1.1s_linear_infinite]" : "")} />
         {busy ? "Refreshing" : "Refresh pricing"}
       </AdminButton>

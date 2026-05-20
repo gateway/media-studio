@@ -513,6 +513,111 @@ textarea {
   color: var(--accent-strong);
 }
 
+.studio-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--action-subtle-border);
+  border-radius: 14px;
+  background: rgba(14, 18, 15, 0.99);
+  color: color-mix(in srgb, var(--text-primary) 92%, transparent);
+  box-shadow: 0 14px 24px rgba(0, 0, 0, 0.26);
+}
+
+.studio-badge-compact {
+  min-height: 2rem;
+  padding-inline: 0.75rem;
+  font-size: 0.64rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.studio-badge-accent {
+  border-color: var(--accent-border);
+  background: color-mix(in srgb, var(--accent-soft) 64%, rgba(14, 18, 15, 0.99));
+  color: #f4ffd3;
+}
+
+.studio-badge-project {
+  border-color: rgba(255, 183, 107, 0.28);
+  background: rgba(29, 18, 10, 0.96);
+  color: #ffe2ba;
+}
+
+.studio-badge-danger {
+  border-color: var(--action-danger-border);
+  background: var(--action-danger-surface);
+  color: var(--action-danger-text);
+}
+
+.studio-badge-icon {
+  display: inline-flex;
+  height: 1.25rem;
+  width: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(216, 255, 46, 0.18);
+  color: #d8ff2e;
+}
+
+.studio-badge-icon-accent {
+  background: rgba(216, 255, 46, 0.22);
+  color: #d8ff2e;
+}
+
+.studio-badge-icon-project {
+  background: rgba(255, 183, 107, 0.18);
+  color: #ffb76b;
+}
+
+.studio-badge-icon-danger {
+  background: rgba(201, 102, 82, 0.18);
+  color: var(--action-danger-text);
+}
+
+.studio-meta-label {
+  font-size: 0.875rem;
+  color: color-mix(in srgb, var(--text-primary) 56%, transparent);
+}
+
+.studio-meta-value {
+  color: color-mix(in srgb, var(--text-primary) 92%, transparent);
+  font-weight: 500;
+}
+
+.studio-meta-value-accent {
+  color: rgba(255, 183, 107, 0.96);
+  font-weight: 500;
+}
+
+.studio-caption {
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  color: color-mix(in srgb, var(--text-primary) 70%, transparent);
+}
+
+.studio-preview-fallback {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--surface-inset-bg) 86%, white 4%);
+  color: color-mix(in srgb, var(--text-primary) 72%, transparent);
+}
+
+.studio-preview-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text-primary);
+}
+
 .admin-icon-label-row {
   display: flex;
   align-items: center;

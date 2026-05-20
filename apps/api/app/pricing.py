@@ -92,6 +92,12 @@ def summarize_estimated_cost(
     )
     pricing_source_kind = _string_or_none(resolved.get("pricing_source_kind"))
     pricing_status = _string_or_none(resolved.get("pricing_status"))
+    is_known = bool(resolved.get("is_known"))
+    has_numeric_estimate = bool(
+        resolved.get("has_numeric_estimate")
+        or total_credits is not None
+        or total_cost_usd is not None
+    )
     return {
         "model_key": resolved.get("model_key"),
         "output_count": resolved_output_count,
@@ -100,12 +106,9 @@ def summarize_estimated_cost(
         "pricing_version": resolved.get("pricing_version"),
         "pricing_source_kind": pricing_source_kind,
         "pricing_status": pricing_status,
-        "is_known": bool(resolved.get("is_known")),
-        "has_numeric_estimate": bool(
-            resolved.get("has_numeric_estimate")
-            or total_credits is not None
-            or total_cost_usd is not None
-        ),
+        "is_known": is_known,
+        "has_numeric_estimate": has_numeric_estimate,
+        "has_unknown_pricing": bool(resolved.get("has_unknown_pricing")) or (not is_known and not has_numeric_estimate),
         "is_authoritative": bool(resolved.get("is_authoritative"))
         or pricing_is_authoritative(pricing_source_kind, pricing_status),
         "per_output": {

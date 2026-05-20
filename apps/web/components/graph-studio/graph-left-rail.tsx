@@ -1,20 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { Blocks, GalleryHorizontalEnd, History, Images, Map as MapIcon, Workflow } from "lucide-react";
+import { Blocks, GalleryHorizontalEnd, History, Images, Map as MapIcon, SquareTerminal, Workflow } from "lucide-react";
 
 type SidebarDialog = "workflows" | "nodes" | "images" | "runs";
 
 export function GraphLeftRail({
   sidebarDialog,
   showMiniMap,
+  consoleOpen,
   onToggleDialog,
   onToggleMiniMap,
+  onToggleConsole,
 }: {
   sidebarDialog: SidebarDialog | null;
   showMiniMap: boolean;
+  consoleOpen: boolean;
   onToggleDialog: (dialog: SidebarDialog) => void;
   onToggleMiniMap: () => void;
+  onToggleConsole: () => void;
 }) {
   return (
     <aside className="graph-sidebar" aria-label="Graph Studio tools">
@@ -76,6 +80,16 @@ export function GraphLeftRail({
         onClick={onToggleMiniMap}
       >
         <MapIcon size={19} />
+      </button>
+      <button
+        className={`graph-sidebar-icon ${consoleOpen ? "graph-sidebar-icon-active" : ""}`}
+        data-testid="graph-sidebar-console-button"
+        type="button"
+        aria-label={consoleOpen ? "Hide console" : "Show console"}
+        title={consoleOpen ? "Hide console" : "Show console"}
+        onClick={onToggleConsole}
+      >
+        <SquareTerminal size={19} />
       </button>
     </aside>
   );

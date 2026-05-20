@@ -1,8 +1,8 @@
 "use client";
 
-import { CircleDollarSign, Coins, LoaderCircle, Plus, Play, TriangleAlert, Workflow, X } from "lucide-react";
+import { CircleDollarSign, Coins, LoaderCircle, Plus, Play, Redo2, TriangleAlert, Undo2, Workflow, X } from "lucide-react";
 import { GraphRunDiagnostics } from "./graph-run-diagnostics";
-import type { GraphEstimateResponse, GraphRun, GraphWorkspaceTab } from "./types";
+import type { GraphEstimateResponse, GraphRun, GraphRunTransportMetrics, GraphWorkspaceTab } from "./types";
 import { graphEstimateToolbarLabel, graphPricingWarningLabel } from "./utils/graph-pricing";
 
 function compactCreditText(value: string) {
@@ -26,6 +26,7 @@ export function GraphToolbar({
   renameDialogOpen,
   renameDraft,
   run,
+  transportMetrics,
   creditText,
   creditsUnavailable,
   graphPricing,
@@ -33,6 +34,10 @@ export function GraphToolbar({
   onSwitchTab,
   onNewTab,
   onCloseTab,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
   onSave,
   onSaveAs,
   onExportWorkflow,
@@ -43,6 +48,7 @@ export function GraphToolbar({
   onCommitRename,
   onCancelRename,
   onRun,
+  onCancelRun,
 }: {
   workflowName: string;
   tabs?: GraphWorkspaceTab[];
@@ -51,6 +57,7 @@ export function GraphToolbar({
   renameDialogOpen: boolean;
   renameDraft: string;
   run: GraphRun | null;
+  transportMetrics: GraphRunTransportMetrics;
   creditText: string;
   creditsUnavailable: boolean;
   graphPricing: GraphEstimateResponse | null;
@@ -58,6 +65,10 @@ export function GraphToolbar({
   onSwitchTab?: (tabId: string) => void;
   onNewTab?: () => void;
   onCloseTab?: (tabId: string) => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   onExportWorkflow: () => void;
@@ -68,8 +79,10 @@ export function GraphToolbar({
   onCommitRename: () => void;
   onCancelRename: () => void;
   onRun: () => void;
+  onCancelRun?: () => void;
 }) {
   const runActive = Boolean(run && !["completed", "failed", "cancelled"].includes(run.status));
+  const runCancelling = run?.status === "cancelling";
   const pricingWarning = graphPricingWarningLabel(graphPricing);
   const creditLabel = compactCreditText(creditText);
   const pricingLabel = graphEstimateToolbarLabel(graphPricing);
@@ -130,6 +143,28 @@ export function GraphToolbar({
           <Plus size={14} />
         </button>
       </div>
+      <div className="graph-toolbar-actions">
+        <button
+          className="graph-toolbar-history-button"
+          type="button"
+          aria-label="Undo graph change"
+          title="Undo (Cmd/Ctrl+Z)"
+          disabled={!canUndo}
+          onClick={onUndo}
+        >
+          <Undo2 size={14} />
+        </button>
+        <button
+          className="graph-toolbar-history-button"
+          type="button"
+          aria-label="Redo graph change"
+          title="Redo (Cmd/Ctrl+Shift+Z / Ctrl+Y)"
+          disabled={!canRedo}
+          onClick={onRedo}
+        >
+          <Redo2 size={14} />
+        </button>
+      </div>
       {renameDialogOpen ? (
         <div className="graph-rename-modal" role="dialog" aria-modal="true" aria-label="Rename workflow" data-testid="graph-rename-dialog">
           <div className="graph-modal-header">
@@ -164,7 +199,7 @@ export function GraphToolbar({
         </div>
       ) : null}
       <div className="graph-toolbar-spacer" />
-      <GraphRunDiagnostics run={run} />
+      <GraphRunDiagnostics run={run} transportMetrics={transportMetrics} />
       <div
         className={`graph-credit-balance ${creditsUnavailable ? "graph-credit-balance-muted" : ""}`}
         data-testid="graph-credit-balance"
@@ -189,10 +224,24 @@ export function GraphToolbar({
           </small>
         ) : null}
       </div>
-      <button className={`graph-run-button ${runActive ? "graph-run-button-processing" : ""}`} type="button" data-testid="graph-run-button" disabled={runActive} aria-busy={runActive} onClick={onRun}>
-        {runActive ? <LoaderCircle size={18} /> : <Play size={18} />}
-        {runActive ? "Processing" : "Run"}
-      </button>
+      {runActive ? (
+        <button
+          className={`graph-run-button graph-run-button-cancel ${runCancelling ? "graph-run-button-processing" : ""}`}
+          type="button"
+          data-testid="graph-cancel-button"
+          disabled={runCancelling}
+          aria-busy={runCancelling}
+          onClick={onCancelRun}
+        >
+          {runCancelling ? <LoaderCircle size={18} /> : <X size={18} />}
+          {runCancelling ? "Cancelling" : "Cancel"}
+        </button>
+      ) : (
+        <button className="graph-run-button" type="button" data-testid="graph-run-button" onClick={onRun}>
+          <Play size={18} />
+          Run
+        </button>
+      )}
     </div>
   );
 }

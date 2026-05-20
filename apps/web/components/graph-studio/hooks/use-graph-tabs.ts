@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { GraphWorkspaceTab } from "../types";
-import { applyGraphTabSnapshot, graphTabCloseTarget, graphTabOpenWorkflowTarget, type GraphTabSnapshot } from "../utils/graph-tabs";
-
-const GRAPH_TABS_STORAGE_KEY = "media-studio:graph-studio:tabs";
+import {
+  applyGraphTabSnapshot,
+  clearLegacyWorkspaceSnapshot,
+  graphTabCloseTarget,
+  graphTabOpenWorkflowTarget,
+  readGraphTabSession,
+  type GraphTabSnapshot,
+  writeGraphTabSession,
+} from "../utils/graph-tabs";
 
 function newTab(name = "New workflow"): GraphWorkspaceTab {
   return {
@@ -11,6 +17,7 @@ function newTab(name = "New workflow"): GraphWorkspaceTab {
     workflow_id: null,
     workflow_name: name,
     workflow_json: null,
+    saved_workflow_signature: null,
     run_id: null,
     dirty: false,
     updated_at: new Date().toISOString(),
@@ -21,28 +28,19 @@ function newTabFromSnapshot(snapshot: GraphTabSnapshot): GraphWorkspaceTab {
   return applyGraphTabSnapshot(newTab(snapshot.workflowName), snapshot);
 }
 
-function readTabs(): { active_tab_id: string; tabs: GraphWorkspaceTab[] } | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(GRAPH_TABS_STORAGE_KEY) || "null") as { active_tab_id?: string; tabs?: GraphWorkspaceTab[] } | null;
-    if (!parsed?.active_tab_id || !Array.isArray(parsed.tabs) || !parsed.tabs.length) return null;
-    return { active_tab_id: parsed.active_tab_id, tabs: parsed.tabs };
-  } catch {
-    return null;
-  }
-}
-
 export function useGraphTabs() {
-  const restored = typeof window !== "undefined" ? readTabs() : null;
+  const restored = typeof window !== "undefined" ? readGraphTabSession() : null;
   const initial = restored ?? (() => {
     const tab = newTab("Nano Image Pipeline");
-    return { active_tab_id: tab.tab_id, tabs: [tab] };
+    return { active_tab_id: tab.tab_id, tabs: [tab], restored: false };
   })();
   const [tabs, setTabs] = useState<GraphWorkspaceTab[]>(initial.tabs);
   const [activeTabId, setActiveTabId] = useState(initial.active_tab_id);
+  const [sessionRestored] = useState(Boolean(initial.restored));
 
   useEffect(() => {
-    window.localStorage.setItem(GRAPH_TABS_STORAGE_KEY, JSON.stringify({ schema_version: 1, active_tab_id: activeTabId, tabs }));
+    writeGraphTabSession(activeTabId, tabs);
+    clearLegacyWorkspaceSnapshot();
   }, [activeTabId, tabs]);
 
   const updateActiveTab = useCallback((snapshot: GraphTabSnapshot) => {
@@ -93,5 +91,5 @@ export function useGraphTabs() {
     return tabs.find((tab) => tab.tab_id === tabId) ?? null;
   }, [tabs]);
 
-  return { tabs, activeTabId, updateActiveTab, openBlankTab, openWorkflowTab, closeTab, switchTab };
+  return { tabs, activeTabId, sessionRestored, updateActiveTab, openBlankTab, openWorkflowTab, closeTab, switchTab };
 }

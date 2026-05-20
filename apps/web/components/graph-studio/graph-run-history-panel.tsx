@@ -2,6 +2,7 @@
 
 import { History, Pin, RotateCcw, Search } from "lucide-react";
 
+import { formatUsdAmount } from "@/lib/utils";
 import type { GraphArtifact, GraphRun } from "./types";
 import { formatGraphTimestamp } from "./utils/graph-time";
 
@@ -15,6 +16,11 @@ function runDuration(run: GraphRun): string {
 
 function outputCount(run: GraphRun): number {
   return run.nodes?.reduce((total, node) => total + (node.artifacts?.length ?? 0), 0) ?? 0;
+}
+
+function actualCost(run: GraphRun): number | null {
+  const value = run.metrics_json?.actual_cost_usd;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 export function GraphRunHistoryPanel({
@@ -36,6 +42,11 @@ export function GraphRunHistoryPanel({
   onRestoreRun: (run: GraphRun) => void;
   onPinArtifact: (artifact: GraphArtifact) => void;
 }) {
+  const selectedRun = selectedRunId ? runs.find((run) => run.run_id === selectedRunId) ?? null : null;
+  const selectedRunSpendNodes = (selectedRun?.nodes ?? []).filter((node) => {
+    const cost = node.metrics_json?.actual_cost_usd;
+    return typeof cost === "number" && Number.isFinite(cost) && cost > 0;
+  });
   return (
     <div className="graph-run-history-panel">
       <div className="graph-run-history-actions">
@@ -55,6 +66,7 @@ export function GraphRunHistoryPanel({
             </span>
             <span className="graph-run-history-meta">
               {runDuration(run)} · {run.nodes?.length ?? 0} nodes · {outputCount(run)} artifacts
+              {actualCost(run) != null ? ` · ${formatUsdAmount(actualCost(run))}` : ""}
             </span>
           </button>
           <button type="button" aria-label={`Restore run ${run.run_id}`} title="Restore run snapshot" onClick={() => onRestoreRun(run)}>
@@ -64,6 +76,26 @@ export function GraphRunHistoryPanel({
       ))}
       {selectedRunId ? (
         <section className="graph-artifact-browser">
+          {selectedRunSpendNodes.length ? (
+            <>
+              <div className="graph-section-title">LLM spend</div>
+              {selectedRunSpendNodes.map((node) => (
+                <div className="graph-artifact-row" key={`spend-${node.node_id}`}>
+                  <Search size={13} />
+                  <span>
+                    <strong>{node.node_id}</strong>
+                    <small>
+                      {node.node_type}
+                      {typeof node.metrics_json?.total_tokens === "number"
+                        ? ` · ${node.metrics_json.total_tokens.toLocaleString()} tokens`
+                        : ""}
+                    </small>
+                  </span>
+                  <strong>{formatUsdAmount(node.metrics_json?.actual_cost_usd ?? null) ?? "n/a"}</strong>
+                </div>
+              ))}
+            </>
+          ) : null}
           <div className="graph-section-title">Artifacts</div>
           {artifacts.length ? (
             artifacts.map((artifact) => (

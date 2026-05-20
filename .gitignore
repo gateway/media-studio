@@ -74,5 +74,7 @@ playwright-report/
 apps/api/.mypy_cache/
 apps/api/.ruff_cache/
 apps/api/*.egg-info/
+apps/api/media_studio.db
 apps/web/.turbo/
 apps/web/tsconfig.tsbuildinfo
+tmp-graph-studio.png

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 
 import type { GraphEstimateResponse } from "./types";
@@ -12,8 +13,9 @@ export function GraphPricingConfirmation({
 }: {
   state: { estimate: GraphEstimateResponse; resolve: (confirmed: boolean) => void } | null;
   availableCredits: number | null;
-  onAnswer: (confirmed: boolean) => void;
+  onAnswer: (confirmed: boolean, rememberChoice?: boolean) => void;
 }) {
+  const [rememberChoice, setRememberChoice] = useState(false);
   if (!state) return null;
   const total = state.estimate.pricing_summary?.total?.estimated_credits;
   const overCredit = availableCredits != null && total != null && total > availableCredits;
@@ -25,7 +27,14 @@ export function GraphPricingConfirmation({
       <div className="graph-pricing-modal" role="dialog" aria-modal="true" aria-label="Confirm graph pricing">
         <div className="graph-modal-header">
           <strong><AlertTriangle size={16} /> Confirm run cost</strong>
-          <button type="button" aria-label="Cancel run" onClick={() => onAnswer(false)}><X size={16} /></button>
+          <button
+            type="button"
+            aria-label="Cancel run"
+            onClick={() => {
+              setRememberChoice(false);
+              onAnswer(false);
+            }}
+          ><X size={16} /></button>
         </div>
         <p>{warningText}</p>
         <div className="graph-pricing-modal-summary">{graphEstimateToolbarLabel(state.estimate)}</div>
@@ -34,9 +43,29 @@ export function GraphPricingConfirmation({
             {state.estimate.warnings.slice(0, 4).map((warning, index) => <li key={`${warning.code}-${index}`}>{warning.message}</li>)}
           </ul>
         ) : null}
+        <label className="graph-pricing-modal-optout">
+          <input
+            type="checkbox"
+            checked={rememberChoice}
+            onChange={(event) => setRememberChoice(event.target.checked)}
+          />
+          <span>Do not show this again</span>
+        </label>
         <div className="graph-rename-actions">
-          <button type="button" onClick={() => onAnswer(false)}>Cancel</button>
-          <button type="button" onClick={() => onAnswer(true)}>Run anyway</button>
+          <button
+            type="button"
+            onClick={() => {
+              setRememberChoice(false);
+              onAnswer(false);
+            }}
+          >Cancel</button>
+          <button
+            type="button"
+            onClick={() => {
+              onAnswer(true, rememberChoice);
+              setRememberChoice(false);
+            }}
+          >Run anyway</button>
         </div>
       </div>
     </div>

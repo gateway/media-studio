@@ -1,0 +1,198 @@
+.graph-run-diagnostics {
+  display: flex;
+  align-items: center;
+  gap: 0.24rem;
+  min-width: 0;
+  max-width: min(430px, 36vw);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.graph-run-diagnostics div {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0.18rem 0.36rem;
+  border: 1px solid rgba(247, 246, 240, 0.08);
+  border-radius: 999px;
+  background: rgba(247, 246, 240, 0.05);
+}
+
+.graph-run-diagnostics strong {
+  overflow: hidden;
+  color: var(--graph-text);
+  font-size: 0.68rem;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-run-diagnostics small {
+  overflow: hidden;
+  color: rgba(247, 246, 240, 0.62);
+  font-size: 0.58rem;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-run-diagnostics-error {
+  border-color: rgba(255, 146, 146, 0.24) !important;
+  background: rgba(122, 30, 30, 0.22) !important;
+}
+
+.graph-run-diagnostics-failed {
+  color: #ffb4b4;
+}
+
+.graph-context-menu,
+.graph-node-context-menu,
+.graph-node-search-modal,
+.graph-node-search-popover,
+.graph-image-library-modal,
+.graph-library-modal,
+.graph-rename-modal {
+  position: fixed;
+  z-index: 80;
+  display: grid;
+  gap: 0.65rem;
+  width: 280px;
+  padding: 0.75rem;
+  border: 1px solid rgba(247, 246, 240, 0.14);
+  border-radius: 8px;
+  background: #171b1a;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.graph-context-menu button {
+  display: grid;
+  gap: 0.18rem;
+  text-align: left;
+}
+
+.graph-node-context-menu {
+  z-index: 140;
+  width: 196px;
+  gap: 0.34rem;
+  padding: 0.42rem;
+  border-radius: 7px;
+}
+
+.graph-node-context-title {
+  padding: 0.16rem 0.18rem 0.28rem;
+  color: rgba(247, 246, 240, 0.68);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.graph-node-context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.36rem;
+  min-height: 27px;
+  padding: 0.32rem 0.42rem;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  text-align: left;
+}
+
+.graph-node-context-menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.graph-node-context-menu button:disabled:hover,
+.graph-node-context-menu button:disabled:focus-visible {
+  border-color: rgba(247, 246, 240, 0.1);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.graph-node-context-menu button:hover,
+.graph-node-context-menu button:focus-visible {
+  border-color: rgba(209, 255, 71, 0.38);
+  background: var(--graph-panel-hover);
+  outline: none;
+}
+
+.graph-node-context-section {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.1rem 0.1rem 0.34rem;
+  border-bottom: 1px solid rgba(247, 246, 240, 0.08);
+}
+
+.graph-node-context-section > span {
+  color: var(--graph-text-muted);
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.graph-group-context-menu .graph-node-context-title {
+  display: flex;
+  align-items: center;
+  gap: 0.32rem;
+}
+
+.graph-group-title-input {
+  width: 100%;
+  min-height: 28px;
+  padding: 0.32rem 0.44rem;
+  border: 1px solid var(--graph-border);
+  border-radius: 6px;
+  color: var(--graph-text);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.68rem;
+}
+
+.graph-node-color-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.24rem;
+}
+
+.graph-node-execution-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.24rem;
+}
+
+.graph-node-execution-choice {
+  justify-content: center;
+  min-height: 23px !important;
+  padding: 0.2rem 0.28rem !important;
+  color: rgba(247, 246, 240, 0.78);
+  font-size: 0.56rem !important;
+  font-weight: 900;
+}
+
+.graph-node-execution-choice-active {
+  border-color: rgba(209, 255, 71, 0.55) !important;
+  color: var(--graph-accent);
+  background: var(--graph-panel-hover) !important;
+}
+
+.graph-node-color-choice {
+  position: relative;
+  min-height: 23px !important;
+  padding: 0 !important;
+  border-color: color-mix(in srgb, var(--graph-node-choice-color) 54%, rgba(247, 246, 240, 0.16)) !important;
+  background: var(--graph-node-choice-surface) !important;
+}
+
+.graph-node-color-choice::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 999px;
+  background: var(--graph-node-choice-color);
+}

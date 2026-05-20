@@ -26,7 +26,6 @@ export default async function MediaStudioPage({
       presets={snapshot.presets.data?.presets ?? []}
       prompts={snapshot.prompts.data?.prompts ?? []}
       enhancementConfigs={snapshot.enhancementConfigs.data?.configs ?? []}
-      llmPresets={snapshot.llmPresets.data?.presets ?? []}
       queueSettings={snapshot.queueSettings.data?.settings ?? null}
       queuePolicies={snapshot.queuePolicies.data?.policies ?? []}
       projects={snapshot.projects.data?.projects ?? []}

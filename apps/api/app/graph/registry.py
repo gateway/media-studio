@@ -29,6 +29,15 @@ def _slug(value: str) -> str:
     return "".join(character if character.isalnum() else "_" for character in value.lower()).strip("_")
 
 
+def _normalized_model_key(value: str) -> str:
+    return str(value or "").strip().lower().replace("_", "-")
+
+
+def _is_seedance_model(model_key: str) -> bool:
+    normalized = _normalized_model_key(model_key)
+    return normalized == "seedance-2.0" or normalized.startswith("seedance-2.0")
+
+
 def _field_from_option(key: str, spec: Dict[str, Any]) -> Optional[GraphNodeField]:
     if spec.get("hidden_from_studio"):
         return None
@@ -88,11 +97,11 @@ def _layout_ui(definition: GraphNodeDefinition) -> GraphNodeDefinition:
     default_size = ui.get("default_size") if isinstance(ui.get("default_size"), dict) else {}
     default_width = int(default_size.get("width") or 320)
     default_height = int(default_size.get("height") or 260)
-    visible_fields = [field for field in definition.fields if not field.hidden]
+    visible_fields = [field for field in definition.fields if not field.hidden and field.visible_if is None]
     visible_ports = [
         port
         for port in [*definition.ports.get("inputs", []), *definition.ports.get("outputs", [])]
-        if not port.advanced
+        if not port.advanced and port.visible_if is None
     ]
     textarea_count = sum(1 for field in visible_fields if field.type == "textarea")
     preview = bool(ui.get("preview")) or definition.type.startswith("media.load_") or definition.type.startswith("media.save_")
@@ -104,6 +113,9 @@ def _layout_ui(definition: GraphNodeDefinition) -> GraphNodeDefinition:
     if definition.type == "preset.render" or definition.type.startswith("preset.render."):
         computed_min_width = max(computed_min_width, 340)
         computed_min_height = max(computed_min_height, 380)
+    if definition.type == "prompt.recipe" or definition.type.startswith("prompt.recipe."):
+        computed_min_width = max(computed_min_width, 360)
+        computed_min_height = max(computed_min_height, 420)
 
     min_width = max(computed_min_width, int(ui.get("min_width") or 0))
     min_height = max(computed_min_height, int(ui.get("min_height") or 0))
@@ -129,6 +141,41 @@ def _model_image_ports(model_key: str, raw_inputs: Dict[str, Any], output_media_
     if required_min <= 0 and required_max <= 0:
         return []
     normalized_key = model_key.lower()
+    if _is_seedance_model(model_key):
+        image_limit = required_max or None
+        return [
+            GraphNodePort(
+                id="start_frame",
+                label="Start Frame",
+                type="image",
+                min=0,
+                max=1,
+                required=False,
+                accepts=["image"],
+                description="Optional first frame. Seedance uses this as the opening anchor image.",
+            ),
+            GraphNodePort(
+                id="end_frame",
+                label="End Frame",
+                type="image",
+                min=0,
+                max=1,
+                required=False,
+                accepts=["image"],
+                description="Optional final frame. Seedance uses this as the closing anchor image.",
+            ),
+            GraphNodePort(
+                id="reference_images",
+                label="Reference Images",
+                type="image",
+                array=True,
+                min=0,
+                max=image_limit,
+                required=False,
+                accepts=["image"],
+                description="Additional reference images. Total Seedance image inputs across start, end, and references must stay within provider limits.",
+            ),
+        ]
     if output_media_type == "video" and required_max == 2 and "i2v" in normalized_key:
         return [
             GraphNodePort(
@@ -173,6 +220,9 @@ def _model_image_ports(model_key: str, raw_inputs: Dict[str, Any], output_media_
 class GraphNodeRegistry:
     def __init__(self) -> None:
         self._definitions: Optional[List[GraphNodeDefinition]] = None
+
+    def invalidate(self) -> None:
+        self._definitions = None
 
     def list_definitions(self, *, refresh: bool = False) -> List[GraphNodeDefinition]:
         if self._definitions is None or refresh:
@@ -293,16 +343,24 @@ class GraphNodeRegistry:
             required_max = int(media_input.get("required_max") or 0)
             if required_min <= 0 and required_max <= 0:
                 continue
+            port_id = f"{media_type}_refs"
+            port_label = f"{_title_from_key(media_type)} Refs" if media_type != "image" else "Reference Images"
+            description = None
+            if _is_seedance_model(model_key):
+                port_id = f"reference_{media_type}s"
+                port_label = "Reference Videos" if media_type == "video" else "Reference Audio"
+                description = f"Optional Seedance reference {_title_from_key(media_type).lower()} inputs."
             input_ports.append(
                 GraphNodePort(
-                    id=f"{media_type}_refs",
-                    label=f"{_title_from_key(media_type)} Refs" if media_type != "image" else "Reference Images",
+                    id=port_id,
+                    label=port_label,
                     type=media_type,
                     array=True,
                     min=required_min,
                     max=required_max or None,
                     required=bool(required_min),
                     accepts=[media_type],
+                    description=description,
                 )
             )
         max_images = sum((port.max or 0) for port in input_ports if port.type == "image") or int((raw_inputs.get("image") or {}).get("required_max") or 0)
@@ -450,6 +508,5 @@ class GraphNodeRegistry:
             },
             fields=fields,
         )
-
 
 registry = GraphNodeRegistry()

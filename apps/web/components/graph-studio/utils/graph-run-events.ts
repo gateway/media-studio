@@ -26,6 +26,17 @@ function metricDetail(metrics: Record<string, unknown> | undefined) {
   return formatSeconds(metrics.duration_seconds);
 }
 
+function skippedActivity(executionMode: unknown, skipReason: unknown): GraphNodeActivity {
+  if (executionMode === "frozen") {
+    return {
+      label: "Muted",
+      detail: skipReason === "missing_cached_output" ? "No cached output" : "No output generated",
+      tone: "muted",
+    };
+  }
+  return { label: "Disabled", detail: "No output generated", tone: "muted" };
+}
+
 function eventActivity(event: GraphRunEvent): GraphNodeActivity | null {
   const payload = event.payload_json ?? {};
   const metrics = typeof payload.metrics === "object" && payload.metrics ? (payload.metrics as Record<string, unknown>) : undefined;
@@ -47,13 +58,15 @@ function eventActivity(event: GraphRunEvent): GraphNodeActivity | null {
     case "node.bypassed":
       return { label: "Bypassed", detail: "Passed inputs through", tone: "muted" };
     case "node.skipped":
-      return { label: "Disabled", detail: "No output generated", tone: "muted" };
+      return skippedActivity(payload.execution_mode, payload.reason);
     case "asset.created":
       return { label: "Saved asset", detail: "Added to gallery", tone: "success" };
     case "asset.reused":
       return { label: "Reused asset", detail: "Already in gallery", tone: "muted" };
     case "node.failed":
       return { label: "Failed", detail: typeof payload.error === "string" ? payload.error : null, tone: "error" };
+    case "node.cancelled":
+      return { label: "Cancelled", detail: typeof payload.message === "string" ? payload.message : "Run stopped", tone: "warning" };
     default:
       return null;
   }
@@ -65,8 +78,9 @@ function statusActivity(status: string, metrics?: Record<string, unknown>, error
   if (status === "completed") return { label: "Completed", detail: metricDetail(metrics), tone: "success" };
   if (status === "cached") return { label: "Cached", detail: metricDetail(metrics), tone: "muted" };
   if (status === "bypassed") return { label: "Bypassed", detail: "Passed inputs through", tone: "muted" };
-  if (status === "skipped") return { label: "Disabled", detail: "No output generated", tone: "muted" };
+  if (status === "skipped") return skippedActivity(metrics?.execution_mode, metrics?.skip_reason);
   if (status === "failed") return { label: "Failed", detail: error ?? null, tone: "error" };
+  if (status === "cancelled") return { label: "Cancelled", detail: "Run stopped", tone: "warning" };
   return null;
 }
 
@@ -93,7 +107,9 @@ export function formatGraphRunEventForConsole(event: GraphRunEvent, nodes: Studi
   if (event.event_type === "run.validating") return "Checking workflow";
   if (event.event_type === "run.compiled") return "Workflow compiled";
   if (event.event_type === "run.started") return "Run started";
+  if (event.event_type === "run.cancelling") return "Run cancelling";
   if (event.event_type === "run.completed") return "Run completed";
+  if (event.event_type === "run.cancelled") return "Run cancelled";
   if (event.event_type === "run.failed") return "Run failed";
   return event.event_type;
 }

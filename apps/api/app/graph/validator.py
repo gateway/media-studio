@@ -6,8 +6,15 @@ from typing import Any, Dict, List, Set
 
 from .. import store
 from .execution_cache import cached_artifacts_available, cached_output_for_node, cached_output_media_available
+from .normalization import materialize_workflow_defaults
 from .registry import registry
 from .schemas import GraphError, GraphValidationResult, GraphWorkflow, GraphWorkflowEdge, GraphWorkflowNode
+from .validator_prompt_recipe import (
+    validate_prompt_recipe_node_setup,
+    validate_prompt_recipe_runtime,
+)
+
+GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
 
 
 def _port_map(definition, direction: str) -> Dict[str, object]:
@@ -57,12 +64,38 @@ def _node_execution_mode(node: GraphWorkflowNode) -> str:
     return mode if mode in {"enabled", "frozen", "bypassed", "muted"} else "enabled"
 
 
+def _prompt_node_provider_supports_images(node: GraphWorkflowNode) -> bool | None:
+    requested_provider = str(node.fields.get("provider") or "studio_default").strip()
+    if requested_provider == "studio_default":
+        config = store.get_enhancement_config(GLOBAL_ENHANCEMENT_CONFIG_KEY) or {}
+        provider_kind = str(config.get("provider_kind") or "builtin").strip()
+        if provider_kind == "builtin":
+            return None
+        if config.get("provider_supports_images") is None:
+            return None
+        return bool(config.get("provider_supports_images"))
+    capabilities = _dict_field(node.fields.get("provider_capabilities_json"))
+    for key in ("supports_image_input", "supports_images"):
+        value = capabilities.get(key)
+        if isinstance(value, bool):
+            return value
+    explicit = node.fields.get("provider_supports_images")
+    if isinstance(explicit, bool):
+        return explicit
+    legacy = node.fields.get("model_supports_images")
+    if isinstance(legacy, bool):
+        return legacy
+    return None
+
+
 def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
+    workflow = materialize_workflow_defaults(workflow)
     definitions = registry.definitions_by_type()
     errors: List[GraphError] = []
     warnings: List[GraphError] = []
     workflow_id = workflow.workflow_id or str(workflow.metadata.get("workflow_id") or "")
     frozen_cache_by_node_id: Dict[str, Dict[str, Any] | None] = {}
+    prompt_recipe_context_by_node_id: Dict[str, Dict[str, Any]] = {}
 
     node_ids: Set[str] = set()
     nodes_by_id: Dict[str, GraphWorkflowNode] = {}
@@ -135,6 +168,10 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                 ]
                 for key in missing_text:
                     errors.append(GraphError(code="missing_preset_text", message=f"Missing required preset text field: {key}", node_id=node.id, field_id="text_values_json"))
+        if node.type == "prompt.recipe" or node.type.startswith("prompt.recipe."):
+            prompt_recipe_context = validate_prompt_recipe_node_setup(node, definition, errors=errors)
+            if prompt_recipe_context:
+                prompt_recipe_context_by_node_id[node.id] = prompt_recipe_context
 
     edge_ids: Set[str] = set()
     incoming_by_target_port: Dict[tuple[str, str], int] = defaultdict(int)
@@ -269,6 +306,27 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
         for port in definition.ports.get("inputs", []):
             if port.required and available_incoming_by_target_port[(node.id, port.id)] < max(1, port.min):
                 errors.append(GraphError(code="missing_required_input", message=f"Missing required input: {port.label}", node_id=node.id, port_id=port.id))
+        if node.type == "prompt.llm" and available_incoming_by_target_port[(node.id, "image")] > 0:
+            supports_images = _prompt_node_provider_supports_images(node)
+            image_field_id = "model_id" if str(node.fields.get("provider") or "studio_default").strip() != "studio_default" else "provider"
+            if supports_images is None:
+                errors.append(
+                    GraphError(
+                        code="prompt_llm_image_capability_unknown",
+                        message="Refresh and reselect the LLM model before using image input.",
+                        node_id=node.id,
+                        field_id=image_field_id,
+                    )
+                )
+            elif not supports_images:
+                errors.append(
+                    GraphError(
+                        code="prompt_llm_model_not_image_capable",
+                        message="The selected LLM Prompt model is not marked as image-capable.",
+                        node_id=node.id,
+                        field_id=image_field_id,
+                    )
+                )
         if definition.source.get("kind") == "kie_model":
             media_output_ports = [port for port in definition.ports.get("outputs", []) if getattr(port, "type", "") in {"image", "video", "audio"}]
             if media_output_ports and not any(outgoing_by_source_port[(node.id, port.id)] > 0 for port in media_output_ports):
@@ -300,6 +358,18 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                                 port_id="image_refs",
                             )
                         )
+        if node.type == "prompt.recipe" or node.type.startswith("prompt.recipe."):
+            prompt_recipe_context = prompt_recipe_context_by_node_id.get(node.id)
+            if prompt_recipe_context:
+                validate_prompt_recipe_runtime(
+                    node,
+                    prompt_recipe_context=prompt_recipe_context,
+                    incoming_by_target_port=incoming_by_target_port,
+                    available_incoming_by_target_port=available_incoming_by_target_port,
+                    empty_field=_empty_field,
+                    errors=errors,
+                    warnings=warnings,
+                )
 
     visited_count = 0
     queue = deque([node_id for node_id, count in indegree.items() if count == 0])

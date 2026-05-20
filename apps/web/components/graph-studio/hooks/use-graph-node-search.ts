@@ -59,6 +59,10 @@ function definitionSource(definition: GraphNodeDefinition) {
   return typeof sourceKind === "string" ? sourceKind : "system";
 }
 
+export function graphDefinitionHiddenInSearch(definition: GraphNodeDefinition) {
+  return Boolean(definition.source && typeof definition.source === "object" && definition.source.hidden_in_search);
+}
+
 function scoreDefinition(definition: GraphNodeDefinition, terms: string[]) {
   if (!terms.length) return 100;
   const title = normalize(definition.title);
@@ -87,6 +91,7 @@ export function rankGraphNodeDefinitions(
   const parsed = parseQuery(query);
   return definitions
     .filter((definition) => {
+      if (graphDefinitionHiddenInSearch(definition)) return false;
       if (connection?.from === "output" && !graphDefinitionAcceptsInput(definition, connection.portType)) return false;
       if (connection?.from === "input" && !graphDefinitionEmitsOutput(definition, connection.portType)) return false;
       if (parsed.inputTypes.length && !parsed.inputTypes.every((portType) => graphDefinitionAcceptsInput(definition, portType))) return false;

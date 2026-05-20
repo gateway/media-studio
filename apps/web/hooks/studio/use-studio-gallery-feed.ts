@@ -17,6 +17,18 @@ import {
 } from "@/lib/studio-gallery";
 import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
 
+export function isDefaultStudioGalleryQuery({
+  favoritesOnly,
+  galleryKindFilter,
+  galleryModelFilter,
+}: {
+  favoritesOnly: boolean;
+  galleryKindFilter: GalleryKindFilter;
+  galleryModelFilter: string;
+}) {
+  return !favoritesOnly && galleryKindFilter === "all" && galleryModelFilter === "all";
+}
+
 type UseStudioGalleryFeedParams = {
   batches: MediaBatch[];
   jobs: MediaJob[];
@@ -383,7 +395,7 @@ export function useStudioGalleryFeed({
   }, [assets, initialAssetLimit, initialAssetsHasMore, initialAssetsNextOffset]);
 
   useEffect(() => {
-    if (favoritesOnly) {
+    if (favoritesOnly || isDefaultStudioGalleryQuery({ favoritesOnly, galleryKindFilter, galleryModelFilter })) {
       return;
     }
     let cancelled = false;
@@ -495,7 +507,15 @@ export function useStudioGalleryFeed({
   }, [activeProjectId, favoritesOnly, galleryKindFilter, galleryModelFilter]);
 
   useEffect(() => {
-    if (favoritesOnly || !assetFeedHasMore || assetFeedNextOffset == null || loadingMoreAssets || prefetchingAssetPage || prefetchedAssetPage) {
+    if (
+      favoritesOnly ||
+      !galleryScrollArmed ||
+      !assetFeedHasMore ||
+      assetFeedNextOffset == null ||
+      loadingMoreAssets ||
+      prefetchingAssetPage ||
+      prefetchedAssetPage
+    ) {
       return;
     }
     let cancelled = false;
@@ -525,11 +545,22 @@ export function useStudioGalleryFeed({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [activeProjectId, assetFeedHasMore, assetFeedNextOffset, assetPageLimit, favoritesOnly, loadingMoreAssets, prefetchedAssetPage, prefetchingAssetPage]);
+  }, [
+    activeProjectId,
+    assetFeedHasMore,
+    assetFeedNextOffset,
+    assetPageLimit,
+    favoritesOnly,
+    galleryScrollArmed,
+    loadingMoreAssets,
+    prefetchedAssetPage,
+    prefetchingAssetPage,
+  ]);
 
   useEffect(() => {
     if (
       !favoritesOnly ||
+      !galleryScrollArmed ||
       !favoriteAssetFeedHasMore ||
       favoriteAssetFeedNextOffset == null ||
       loadingMoreFavoriteAssets ||
@@ -574,6 +605,7 @@ export function useStudioGalleryFeed({
     favoriteAssetFeedHasMore,
     favoriteAssetFeedNextOffset,
     favoritesOnly,
+    galleryScrollArmed,
     galleryKindFilter,
     galleryModelFilter,
     activeProjectId,

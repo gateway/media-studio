@@ -22,6 +22,7 @@ import {
   surfaceInsetClassName,
 } from "@/components/ui/surface-primitives";
 import { feedbackToneClassName } from "@/components/ui/toast-banner";
+import { formatUsdAmount } from "@/lib/utils";
 
 describe("ui primitives", () => {
   it("keeps studio and admin button variants token-backed through shared action variables", () => {
@@ -85,5 +86,10 @@ describe("ui primitives", () => {
   it("keeps admin inset and empty-state helpers routed through shared surface contracts", () => {
     expect(adminInsetSurfaceClassName).toContain("surface-inset");
     expect(adminDashedCardClassName).toContain("surface-empty-state");
+  });
+
+  it("does not round small positive USD amounts down to zero", () => {
+    expect(formatUsdAmount(0.00035396)).toBe("<$0.01");
+    expect(formatUsdAmount(0.0123)).toBe("$0.01");
   });
 });

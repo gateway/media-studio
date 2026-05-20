@@ -2,6 +2,8 @@
 
 import { FolderOpen } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+
 type StudioLibraryButtonProps = {
   onClick: () => void;
   label?: string;
@@ -14,14 +16,16 @@ export function StudioLibraryButton({
   testId,
 }: StudioLibraryButtonProps) {
   return (
-    <button
-      type="button"
+    <Button
       data-testid={testId}
       onClick={onClick}
-      className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-white/68 transition hover:border-[rgba(216,141,67,0.24)] hover:text-white"
+      appearance="studio"
+      variant="subtle"
+      size="compact"
+      className="h-8 gap-2 rounded-full px-3 text-[0.64rem] tracking-[0.14em]"
     >
-      <FolderOpen className="size-3.5 text-[rgba(208,255,72,0.88)]" />
+      <FolderOpen className="size-3.5 text-[var(--accent-strong)]" />
       <span>{label}</span>
-    </button>
+    </Button>
   );
 }

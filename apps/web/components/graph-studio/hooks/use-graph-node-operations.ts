@@ -6,6 +6,7 @@ import type { StudioNode } from "../types";
 import { defaultGraphFields } from "../utils/graph-serialization";
 import { nextToggledExecutionMode } from "../utils/graph-selection";
 import type { GraphExecutionMode } from "../utils/graph-node-execution";
+import { graphNodeDataWithExecutionMode } from "../utils/graph-node-runtime";
 
 type SetNodes = (updater: (current: StudioNode[]) => StudioNode[]) => void;
 type SetEdges = (updater: (current: Edge[]) => Edge[]) => void;
@@ -56,10 +57,7 @@ export function useGraphNodeOperations({
           const data = node.data as StudioNode["data"];
           return {
             ...node,
-            data: {
-              ...data,
-              executionMode: mode,
-            },
+            data: graphNodeDataWithExecutionMode(data, mode),
           };
         }),
       );
@@ -77,8 +75,7 @@ export function useGraphNodeOperations({
           return {
             ...node,
             data: {
-              ...data,
-              executionMode: "frozen",
+              ...graphNodeDataWithExecutionMode(data, "frozen"),
               executionCache: { cachedRunId: runId, cachedArtifactIds: artifactIds },
             },
           };

@@ -1,7 +1,7 @@
 "use client";
 
 import { Handle, NodeResizer, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 import { GraphNodeFieldControl } from "./graph-node-field";
@@ -9,24 +9,30 @@ import { GraphNodeDisplayAny } from "./graph-node-display-any";
 import { GraphNodeHelp } from "./graph-node-help";
 import { GraphNodeMediaPreview, dropNodeImage, readGraphMediaDragPayload } from "./graph-node-media-preview";
 import type { GraphNodeData, StudioNode } from "./types";
-import { computeGraphNodeLayout } from "./utils/graph-node-layout";
+import { computeGraphNodeLayout, graphNodeUsesContentAutoHeight } from "./utils/graph-node-layout";
 import { graphExecutionModeClass, graphExecutionModeLabel, normalizeGraphExecutionMode } from "./utils/graph-node-execution";
-import { visibleGraphFields } from "./utils/graph-node-fields";
+import { graphVisibleFieldMetrics } from "./utils/graph-node-fields";
 import { visibleGraphInputPorts, visibleGraphOutputPorts } from "./utils/graph-node-ports";
 import { inputGraphHandleId, outputGraphHandleId } from "./utils/graph-port-handles";
 import { graphPortAccepts } from "./utils/graph-port-compatibility";
-import { graphNodeHasTracingBorder, graphNodeStatusClass } from "./utils/graph-node-status";
+import { graphNodeHasTracingBorder, graphNodeStatusClass, graphNodeStatusForExecutionMode } from "./utils/graph-node-status";
 import { graphNodePricingLabel } from "./utils/graph-pricing";
+import { graphPromptAdvancedSummary, graphPromptNodeHeaderSummary, graphPromptRuntimeFieldOverride } from "./utils/graph-prompt-provider";
+import { graphPromptRecipeFieldOverride, graphPromptRecipeImageWarning, graphPromptRecipeSelectionSummary } from "./utils/graph-prompt-recipe";
 
 export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const updateNodeInternals = useUpdateNodeInternals();
+  const nodeHeaderRef = useRef<HTMLDivElement | null>(null);
+  const nodeBodyRef = useRef<HTMLDivElement | null>(null);
+  const lastMeasuredHeightRef = useRef<number | null>(null);
   const definition = data.definition;
-  const status = data.status ?? "idle";
-  const statusClass = graphNodeStatusClass(status);
   const executionMode = normalizeGraphExecutionMode(data.executionMode);
+  const status = graphNodeStatusForExecutionMode(data.status, executionMode);
+  const statusClass = graphNodeStatusClass(status);
   const executionClass = graphExecutionModeClass(executionMode);
   const hasTracingBorder = graphNodeHasTracingBorder(status);
   const collapsed = Boolean(data.collapsed);
+  const advancedExpanded = Boolean(data.advancedExpanded);
   const isLoadImage = definition.type === "media.load_image";
   const isDisplayAny = definition.type === "display.any";
   const isLoadMedia = definition.type === "media.load_image" || definition.type === "media.load_video" || definition.type === "media.load_audio";
@@ -39,23 +45,39 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const inputConnectionCount = (portId: string) => connectedInputPortIds.filter((inputPortId) => inputPortId === portId).length;
   const activeConnection = data.activeConnection ?? null;
   const connectableFieldIds = new Set(definition.fields.filter((field) => field.connectable || field.port_type).map((field) => field.id));
-  const visibleFields = visibleGraphFields(definition, data.fields, connectedInputPortIds).filter((field) => field.type !== "asset_picker" && field.type !== "reference_media_picker");
-  const previewHeaderFields = isSaveMedia ? visibleFields.filter((field) => field.id === "project_id") : [];
-  const bodyFields = visibleFields.filter((field) => !previewHeaderFields.some((previewField) => previewField.id === field.id));
+  const fieldMetrics = graphVisibleFieldMetrics(definition, data.fields, connectedInputPortIds, {
+    advancedExpanded,
+    previewHeaderFieldIds: isSaveMedia ? ["project_id"] : [],
+    extraLayoutRows: definition.type === "prompt.recipe" && graphPromptRecipeSelectionSummary(definition, data.fields) ? 2 : 0,
+  });
+  const previewHeaderFields = fieldMetrics.previewHeaderFields;
+  const primaryBodyFields = fieldMetrics.primaryBodyFields.filter((field) => field.type !== "asset_picker" && field.type !== "reference_media_picker");
+  const advancedBodyFields = fieldMetrics.advancedBodyFields.filter((field) => field.type !== "asset_picker" && field.type !== "reference_media_picker");
   const visibleInputPorts = visibleGraphInputPorts(definition, data.fields).filter((port) => !connectableFieldIds.has(port.id));
   const collapsedInputPorts = visibleGraphInputPorts(definition, data.fields);
   const effectiveOutputPorts = visibleGraphOutputPorts(definition, data.fields);
   const inputPortKey = collapsedInputPorts.map((port) => port.id).join("|");
   const outputPortKey = effectiveOutputPorts.map((port) => port.id).join("|");
+  const connectedInputPortKey = connectedInputPortIds.join("|");
+  const contentMeasureKey = [
+    advancedExpanded ? "advanced" : "basic",
+    fieldMetrics.layoutFieldCount,
+    fieldMetrics.textareaCount,
+    connectedInputPortKey,
+  ].join("|");
   const nodeLayout = computeGraphNodeLayout(definition, undefined, {
-    visibleFieldCount: visibleFields.length,
+    visibleFieldCount: fieldMetrics.layoutFieldCount,
     visiblePortCount: visibleInputPorts.length + effectiveOutputPorts.length,
-    textareaCount: visibleFields.filter((field) => field.type === "textarea").length,
+    textareaCount: fieldMetrics.textareaCount,
   });
   const pricingLabel = graphNodePricingLabel(data.pricingEstimate);
   const showPricingBadge = Boolean(pricingLabel && definition.source?.kind === "kie_model");
   const activityTone = data.activityTone ?? "muted";
   const referenceBadges = data.referenceBadges ?? [];
+  const promptRecipeSummary = definition.type === "prompt.recipe" ? graphPromptRecipeSelectionSummary(definition, data.fields) : null;
+  const promptRecipeImageWarning = definition.type === "prompt.recipe" ? graphPromptRecipeImageWarning(definition, data.fields, connectedInputPortIds) : null;
+  const promptHeaderSummary = graphPromptNodeHeaderSummary(definition.type, data.fields);
+  const activityLabel = status === "idle" ? null : data.activityLabel;
   const collapsedHeight = 54;
   const nodeStyle = {
     ...nodeLayout.style,
@@ -68,7 +90,36 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => updateNodeInternals(id));
     return () => window.cancelAnimationFrame(frame);
-  }, [collapsed, id, inputPortKey, outputPortKey, updateNodeInternals]);
+  }, [advancedExpanded, collapsed, id, inputPortKey, outputPortKey, updateNodeInternals]);
+  useLayoutEffect(() => {
+    if (collapsed || !graphNodeUsesContentAutoHeight(definition)) {
+      lastMeasuredHeightRef.current = null;
+      return;
+    }
+    const header = nodeHeaderRef.current;
+    const body = nodeBodyRef.current;
+    if (!header || !body) return;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const requiredHeight = Math.ceil(header.offsetHeight + body.scrollHeight + 2);
+      if (requiredHeight <= 0) return;
+      if (lastMeasuredHeightRef.current != null && Math.abs(lastMeasuredHeightRef.current - requiredHeight) <= 2) return;
+      lastMeasuredHeightRef.current = requiredHeight;
+      data.onEnsureNodeHeight?.(id, requiredHeight);
+    };
+    measure();
+    const observer = new ResizeObserver(() => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(measure);
+    });
+    observer.observe(header);
+    observer.observe(body);
+    return () => {
+      observer.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [collapsed, contentMeasureKey, data.fields, data.onEnsureNodeHeight, data.outputSnapshot, data.errorMessage, id, inputPortKey, outputPortKey]);
   const inputHandleClass = (port: GraphNodeData["definition"]["ports"]["inputs"][number]) => {
     const compatible = activeConnection?.from === "output" && graphPortAccepts(activeConnection.portType, port);
     const connected = connectedInputPorts.has(port.id);
@@ -101,6 +152,42 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
       onPointerDownCapture: connected ? startRewire : undefined,
     };
   };
+  const renderField = (field: GraphNodeData["definition"]["fields"][number]) => {
+    const fieldConnected = connectedInputPorts.has(field.id);
+    const fieldPort = definition.ports.inputs.find((port) => port.id === field.id);
+    const fieldOverride = graphPromptRecipeFieldOverride(definition, data.fields, field);
+    const runtimeFieldOverride = graphPromptRuntimeFieldOverride(definition.type, data.fields, field);
+    const fieldLabel = fieldOverride?.label ?? field.label;
+    const fieldHelpText = fieldOverride?.helpText ?? runtimeFieldOverride?.helpText ?? field.help_text;
+    return (
+      <label
+        className={`graph-node-field ${fieldPort ? "graph-node-field-connectable" : ""} ${fieldConnected ? "graph-node-field-connected nodrag nopan" : ""}`}
+        key={field.id}
+        data-graph-node-id={fieldPort ? id : undefined}
+        data-input-port={fieldPort?.id}
+        data-rewire-port={fieldPort && fieldConnected ? fieldPort.id : undefined}
+        {...(fieldPort ? inputRewireGestureProps(fieldPort.id) : {})}
+      >
+        {fieldPort ? <Handle id={inputGraphHandleId(fieldPort.id)} type="target" position={Position.Left} className={inputHandleClass(fieldPort)} {...inputHandleProps(fieldPort)} /> : null}
+        <span>
+          {fieldLabel}
+          {field.required ? " *" : ""}
+        </span>
+        <GraphNodeFieldControl
+          nodeId={id}
+          definition={definition}
+          nodeFields={data.fields}
+          field={field}
+          value={data.fields[field.id]}
+          disabled={fieldConnected}
+          onFieldChange={data.onFieldChange}
+          onSetFields={data.onSetFields}
+        />
+        {fieldHelpText ? <small className="graph-node-field-note">{fieldHelpText}</small> : null}
+      </label>
+    );
+  };
+  const advancedSummary = graphPromptAdvancedSummary(definition.type, data.fields);
   return (
     <div
       className={`graph-node ${statusClass} ${executionClass} ${hasTracingBorder ? "graph-node-tracing" : ""} ${showPreview ? "graph-node-media-container" : ""} ${collapsed ? "graph-node-collapsed" : ""}`}
@@ -169,8 +256,8 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
           ) : null}
         </div>
       ) : null}
-      <div className="graph-node-header">
-        <div>
+      <div className="graph-node-header" ref={nodeHeaderRef}>
+        <div className="graph-node-header-text">
           {data.isRenamingTitle ? (
             <input
               className="graph-node-title-input nodrag nopan"
@@ -202,13 +289,15 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
               {displayTitle}
             </div>
           )}
-          <div className="graph-node-kind">{definition.category}</div>
+          <div className="graph-node-kind" title={promptHeaderSummary ?? definition.category}>
+            {promptHeaderSummary ?? definition.category}
+          </div>
         </div>
         <div className="graph-node-header-actions">
-          <GraphNodeHelp definition={definition} />
+          <GraphNodeHelp definition={definition} fields={data.fields} />
           {pricingLabel && !showPricingBadge ? <span className="graph-node-status graph-node-price-chip">{pricingLabel}</span> : null}
           {executionMode !== "enabled" ? <span className="graph-node-status graph-node-execution-chip">{graphExecutionModeLabel(executionMode)}</span> : null}
-          {status !== "idle" ? <span className={`graph-node-status graph-node-activity-chip graph-node-activity-chip-${activityTone}`}>{data.activityLabel || status}</span> : null}
+          {status !== "idle" ? <span className={`graph-node-status graph-node-activity-chip graph-node-activity-chip-${activityTone}`}>{activityLabel || status}</span> : null}
           {activityTime ? <span className="graph-node-status graph-node-time-chip">{activityTime}</span> : null}
           <button
             className="graph-node-collapse-toggle nodrag nopan"
@@ -260,7 +349,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
           </div>
         ) : null}
       </div>
-      {!collapsed ? <div className="graph-node-body">
+      {!collapsed ? <div className="graph-node-body" ref={nodeBodyRef}>
         {visibleInputPorts.length || effectiveOutputPorts.length ? (
           <div className="graph-node-port-band">
             <div className="graph-node-port-stack graph-node-port-stack-inputs">
@@ -298,34 +387,52 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
             {previewHeaderFields.map((field) => (
               <label className="graph-node-field graph-node-field-compact" key={field.id}>
                 <span>{field.label}</span>
-                <GraphNodeFieldControl nodeId={id} field={field} value={data.fields[field.id]} onFieldChange={data.onFieldChange} />
+                <GraphNodeFieldControl
+                  nodeId={id}
+                  definition={definition}
+                  nodeFields={data.fields}
+                  field={field}
+                  value={data.fields[field.id]}
+                  onFieldChange={data.onFieldChange}
+                  onSetFields={data.onSetFields}
+                />
               </label>
             ))}
           </div>
         ) : null}
         {showPreview ? <GraphNodeMediaPreview nodeId={id} data={data} isLoadMedia={isLoadMedia} isSaveMedia={isSaveMedia} /> : null}
         {isDisplayAny ? <GraphNodeDisplayAny data={data} /> : null}
-        {bodyFields.map((field) => {
-          const fieldConnected = connectedInputPorts.has(field.id);
-          const fieldPort = definition.ports.inputs.find((port) => port.id === field.id);
-          return (
-            <label
-              className={`graph-node-field ${fieldPort ? "graph-node-field-connectable" : ""} ${fieldConnected ? "graph-node-field-connected nodrag nopan" : ""}`}
-              key={field.id}
-              data-graph-node-id={fieldPort ? id : undefined}
-              data-input-port={fieldPort?.id}
-              data-rewire-port={fieldPort && fieldConnected ? fieldPort.id : undefined}
-              {...(fieldPort ? inputRewireGestureProps(fieldPort.id) : {})}
+        {promptRecipeSummary ? (
+          <div className="graph-node-inline-summary">
+            <strong>{promptRecipeSummary.title}</strong>
+            <span>{promptRecipeSummary.subtitle}</span>
+            <p>{promptRecipeSummary.description}</p>
+            <ul>
+              {promptRecipeSummary.details.map((detail) => <li key={detail}>{detail}</li>)}
+            </ul>
+          </div>
+        ) : null}
+        {promptRecipeImageWarning ? <div className="graph-node-warning">{promptRecipeImageWarning}</div> : null}
+        {primaryBodyFields.map(renderField)}
+        {advancedBodyFields.length ? (
+          <div className="graph-node-advanced">
+            <button
+              className="graph-node-advanced-toggle nodrag nopan"
+              type="button"
+              aria-expanded={advancedExpanded}
+              data-testid="graph-node-advanced-toggle"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                data.onToggleAdvancedExpanded?.(id);
+              }}
             >
-              {fieldPort ? <Handle id={inputGraphHandleId(fieldPort.id)} type="target" position={Position.Left} className={inputHandleClass(fieldPort)} {...inputHandleProps(fieldPort)} /> : null}
-              <span>
-                {field.label}
-                {field.required ? " *" : ""}
-              </span>
-              <GraphNodeFieldControl nodeId={id} field={field} value={data.fields[field.id]} disabled={fieldConnected} onFieldChange={data.onFieldChange} />
-            </label>
-          );
-        })}
+              <span>Advanced</span>
+              <small>{advancedSummary}</small>
+            </button>
+            {advancedExpanded ? <div className="graph-node-advanced-fields">{advancedBodyFields.map(renderField)}</div> : null}
+          </div>
+        ) : null}
         {data.errorMessage ? <div className="graph-node-error">{data.errorMessage}</div> : null}
       </div> : null}
     </div>

@@ -1,14 +1,15 @@
-import { MediaModelsConsole } from "@/components/media-models-console";
+import { PresetsTabs } from "@/components/prompt-recipes/presets-tabs";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { getMediaDashboardSnapshot } from "@/lib/control-api";
 
-export default async function MediaPresetsPage({
+export default async function PresetsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ project?: string }>;
+  searchParams?: Promise<{ project?: string; tab?: string }>;
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const snapshot = await getMediaDashboardSnapshot();
+  const activeTab = resolvedSearchParams.tab === "prompt-recipes" ? "prompt-recipes" : "media";
 
   return (
     <StudioAdminShell
@@ -16,23 +17,16 @@ export default async function MediaPresetsPage({
       currentProjectId={resolvedSearchParams.project ?? null}
       eyebrow="Studio Admin"
       title="Presets"
-      description="Manage structured Studio presets in one place, then assign them to Nano Banana 2 and Nano Banana Pro as needed."
+      description="Manage reusable Media Presets and Prompt Recipes from one admin area while keeping their data models separate."
     >
-      <MediaModelsConsole
+      <PresetsTabs
+        activeTab={activeTab}
         models={snapshot.models.data?.models ?? []}
         presets={snapshot.presets.data?.presets ?? []}
+        promptRecipes={snapshot.promptRecipes.data?.recipes ?? []}
         enhancementConfigs={snapshot.enhancementConfigs.data?.configs ?? []}
-        llmPresets={snapshot.llmPresets.data?.presets ?? []}
         queueSettings={snapshot.queueSettings.data?.settings ?? null}
         queuePolicies={snapshot.queuePolicies.data?.policies ?? []}
-        sections={{
-          queue: false,
-          enhancementProvider: false,
-          modelHelper: false,
-          studioSettings: false,
-          modelPanel: false,
-          presets: true,
-        }}
       />
     </StudioAdminShell>
   );

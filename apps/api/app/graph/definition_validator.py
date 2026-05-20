@@ -29,6 +29,8 @@ SUPPORTED_GRAPH_FIELD_TYPES = {
     "int_range",
     "number",
     "preset_picker",
+    "provider_model_picker",
+    "prompt_recipe_picker",
     "reference_media_picker",
     "select",
     "text",
@@ -111,6 +113,11 @@ def validate_node_definition(definition: GraphNodeDefinition) -> None:
             for accepted_type in port.accepts:
                 if accepted_type not in SUPPORTED_GRAPH_PORT_TYPES:
                     errors.append(f"{definition.type}: port {port.id} accepts unsupported type {accepted_type}")
+            if port.visible_if is not None:
+                if not isinstance(port.visible_if, dict) or not isinstance(port.visible_if.get("field"), str) or not port.visible_if.get("field"):
+                    errors.append(f"{definition.type}: port {port.id} visible_if must declare a field")
+                elif port.visible_if.get("field") not in {candidate.id for candidate in definition.fields}:
+                    errors.append(f"{definition.type}: port {port.id} visible_if references unknown field {port.visible_if.get('field')}")
 
     seen_fields: set[str] = set()
     for field in definition.fields:

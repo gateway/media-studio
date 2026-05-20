@@ -9,6 +9,7 @@ import type { MediaAsset } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type StudioGalleryProps = {
+  apiHealthy: boolean;
   immersive: boolean;
   galleryTiles: GalleryTile[];
   activeGalleryHasMore: boolean;
@@ -24,6 +25,7 @@ type StudioGalleryProps = {
 };
 
 export function StudioGallery({
+  apiHealthy,
   immersive,
   galleryTiles,
   activeGalleryHasMore,
@@ -37,6 +39,10 @@ export function StudioGallery({
   onDragAsset,
   onToggleFavorite,
 }: StudioGalleryProps) {
+  function failedBatchSummary(_jobError: string | null | undefined) {
+    return "Render failed. Open this tile to review the issue and retry in Studio.";
+  }
+
   function tileBandClassName(tile: GalleryTile) {
     const band = galleryTileSizeBand(tile);
     if (band === "tall") {
@@ -59,9 +65,13 @@ export function StudioGallery({
       >
         <EmptyState
           appearance="studio"
-          eyebrow="Gallery Empty"
-          title="Your studio is ready for the first render."
-          description="Pick a model, write a prompt, and generate your first image or video. Finished results will appear here."
+          eyebrow={apiHealthy ? "Gallery Empty" : "Studio Starting"}
+          title={apiHealthy ? "Start your first render." : "Media Studio is connecting."}
+          description={
+            apiHealthy
+              ? "Pick a model, write a prompt, and generate your first image or video. Finished work will appear here."
+              : "This page is up, but the media backend is still coming online. Once it is ready, your recent renders and tools will appear here."
+          }
           className="mx-4 w-full max-w-xl text-center backdrop-blur-xl"
         />
       </div>
@@ -165,7 +175,7 @@ export function StudioGallery({
                   </div>
                   {batchJob?.status === "failed" ? (
                     <div className="max-w-[18rem] text-[0.74rem] leading-5 text-[rgba(255,214,214,0.92)]">
-                      {batchJob?.error ?? "The media job failed before a finished asset was published."}
+                      {failedBatchSummary(batchJob?.error)}
                     </div>
                   ) : null}
                 </div>

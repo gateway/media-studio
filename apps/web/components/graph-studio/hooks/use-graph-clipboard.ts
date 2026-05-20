@@ -17,6 +17,8 @@ type GraphClipboardNode = {
   definition: GraphNodeDefinition;
   fields: Record<string, unknown>;
   collapsed?: boolean;
+  advancedExpanded?: boolean;
+  autoSizedHeight?: number | null;
   accentColor?: string | null;
   nodeColor?: string | null;
   nodeHeaderColor?: string | null;
@@ -73,6 +75,8 @@ export function useGraphClipboard({
           definition: data.definition,
           fields: cloneRecord(data.fields),
           collapsed: data.collapsed,
+          advancedExpanded: data.advancedExpanded,
+          autoSizedHeight: data.autoSizedHeight ?? null,
           accentColor: data.accentColor ?? null,
           nodeColor: data.nodeColor ?? null,
           nodeHeaderColor: data.nodeHeaderColor ?? null,
@@ -112,6 +116,8 @@ export function useGraphClipboard({
           definition: node.definition,
           fields: cloneRecord(node.fields),
           collapsed: node.collapsed,
+          advancedExpanded: node.advancedExpanded,
+          autoSizedHeight: node.autoSizedHeight ?? null,
           accentColor: node.accentColor ?? null,
           nodeColor: node.nodeColor ?? null,
           nodeHeaderColor: node.nodeHeaderColor ?? null,

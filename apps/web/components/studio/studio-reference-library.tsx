@@ -4,6 +4,7 @@ import { Image as ImageIcon, LoaderCircle, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
+import { StudioStatusCallout } from "@/components/studio/studio-status-callout";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { CalloutPanel, MediaBrowserCard, OverlayHeader, OverlayShell } from "@/components/ui/surface-primitives";
@@ -253,27 +254,31 @@ export function StudioReferenceLibrary({
                 ))}
               </div>
             ) : (
-              <CalloutPanel tone="muted" className="rounded-[26px] px-5 py-8 text-sm leading-7 text-white/62">
-                <div>No reference media is available yet.</div>
-                <div className="mt-2">Upload and run an image first, or scan your existing uploads to populate the library.</div>
-                <Button
-                  data-testid="studio-reference-library-scan-empty"
-                  onClick={() => void triggerBackfill()}
-                  disabled={backfilling}
-                  variant="primary"
-                  size="compact"
-                  className="mt-4 h-10 rounded-full text-[0.68rem] tracking-[0.12em] text-[#172200]"
-                >
-                  {backfilling ? (
-                    <>
-                      <LoaderCircle className="mr-2 size-3.5 animate-spin" />
-                      Scanning uploads
-                    </>
-                  ) : (
-                    "Scan existing uploads"
-                  )}
-                </Button>
-              </CalloutPanel>
+              <StudioStatusCallout
+                tone="muted"
+                title="No reference media is available yet."
+                description="Upload and run an image first, or scan your existing uploads to populate the library."
+                action={(
+                  <Button
+                    data-testid="studio-reference-library-scan-empty"
+                    onClick={() => void triggerBackfill()}
+                    disabled={backfilling}
+                    variant="primary"
+                    size="compact"
+                    className="h-10 rounded-full text-[0.68rem] tracking-[0.12em] text-[#172200]"
+                  >
+                    {backfilling ? (
+                      <>
+                        <LoaderCircle className="mr-2 size-3.5 animate-spin" />
+                        Scanning uploads
+                      </>
+                    ) : (
+                      "Scan existing uploads"
+                    )}
+                  </Button>
+                )}
+                className="rounded-[26px] py-8"
+              />
             )}
           </div>
       </div>

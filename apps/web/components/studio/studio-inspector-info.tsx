@@ -4,12 +4,19 @@ import { useEffect, useState } from "react";
 import { Check, Copy, Heart, Image as ImageIcon, Play, Volume2 } from "lucide-react";
 
 import {
+  studioCaptionClassName,
+  studioMetaLabelClassName,
+  studioMetaValueClassName,
+  studioPreviewFallbackClassName,
+  studioPreviewOverlayClassName,
+} from "@/components/studio/studio-theme";
+import {
   displayChoiceLabel,
   formatOptionValue,
   optionShortLabel,
   type StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
-import { InfoRow, SurfaceCard, SurfaceInset } from "@/components/ui/surface-primitives";
+import { InfoRow, SurfaceCard, SurfaceInset, infoRowClassName } from "@/components/ui/surface-primitives";
 import type { MediaAsset } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
@@ -81,10 +88,10 @@ export function StudioInspectorInfo({
           <button
             type="button"
             onClick={() => onOpenProject?.(String(selectedAsset.project_id))}
-            className="surface-info-row text-left transition hover:bg-white/[0.05]"
+            className={infoRowClassName({ interactive: true, className: "text-left" })}
           >
-            <span className="text-sm text-white/56">Project</span>
-            <span className="text-sm font-medium text-[rgba(255,183,107,0.96)]">
+            <span className={studioMetaLabelClassName()}>Project</span>
+            <span className={studioMetaValueClassName({ tone: "accent", className: "text-sm" })}>
               {projectLabel?.trim() || String(selectedAsset.project_id)}
             </span>
           </button>
@@ -95,9 +102,9 @@ export function StudioInspectorInfo({
           type="button"
           onClick={() => void onToggleFavorite(selectedAsset)}
           disabled={favoriteAssetIdBusy === selectedAsset.asset_id}
-          className="surface-info-row text-left transition hover:bg-white/[0.05] disabled:opacity-60"
+          className={infoRowClassName({ interactive: true, className: "text-left disabled:opacity-60" })}
         >
-          <span className="text-sm text-white/56">Favorite</span>
+          <span className={studioMetaLabelClassName()}>Favorite</span>
           <span
             className={cn(
               "inline-flex items-center gap-2 text-sm font-medium",
@@ -112,11 +119,11 @@ export function StudioInspectorInfo({
           type="button"
           onClick={() => void copyAssetLink()}
           data-testid="studio-inspector-copy-link"
-          className="surface-info-row text-left transition hover:bg-white/[0.05]"
+          className={infoRowClassName({ interactive: true, className: "text-left" })}
           title={copyLinkStatus === "copied" ? "Link copied" : copyLinkStatus === "error" ? "Copy failed" : "Copy link"}
         >
-          <span className="text-sm text-white/56">Link</span>
-          <span className="inline-flex items-center text-sm font-medium text-white/82">
+          <span className={studioMetaLabelClassName()}>Link</span>
+          <span className={studioMetaValueClassName({ className: "inline-flex items-center text-sm" })}>
             {copyLinkStatus === "copied" ? (
               <Check className="size-4 text-[#b8ff9f]" />
             ) : copyLinkStatus === "error" ? (
@@ -159,19 +166,19 @@ export function StudioInspectorInfo({
                             loading="lazy"
                             decoding="async"
                           />
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/28">
+                          <span className={studioPreviewOverlayClassName()}>
                             <Play className="size-4 text-white" />
                           </span>
                         </span>
                       ) : (
-                        <span className="flex h-[5.25rem] w-[5.25rem] items-center justify-center bg-white/[0.05] text-white/72">
+                        <span className={studioPreviewFallbackClassName({ className: "h-[5.25rem] w-[5.25rem]" })}>
                           <Play className="size-4.5" />
                         </span>
                       )
                     ) : reference.kind === "audios" ? (
-                      <span className="flex h-[5.25rem] w-[5.25rem] flex-col items-center justify-center gap-1 bg-white/[0.05] text-white/72">
+                      <span className={studioPreviewFallbackClassName({ className: "h-[5.25rem] w-[5.25rem] flex-col gap-1" })}>
                         <Volume2 className="size-4.5" />
-                        <span className="text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58">Audio</span>
+                        <span className="text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-[var(--text-dim)]">Audio</span>
                       </span>
                     ) : (
                       <img
@@ -183,7 +190,7 @@ export function StudioInspectorInfo({
                       />
                     )}
                   </span>
-                  <span className="line-clamp-2 text-xs leading-5 text-white/70">{reference.label}</span>
+                  <span className={studioCaptionClassName({ className: "line-clamp-2 text-xs leading-5" })}>{reference.label}</span>
                 </button>
               ))}
             </div>

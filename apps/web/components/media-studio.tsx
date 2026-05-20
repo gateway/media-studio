@@ -21,22 +21,21 @@ import {
 } from "lucide-react";
 
 import { useGlobalActivity } from "@/components/global-activity";
-import { CollapsibleSubsection } from "@/components/collapsible-sections";
 import { MediaModelsConsole } from "@/components/media-models-console";
 import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
 import { StudioGallery } from "@/components/studio/studio-gallery";
 import { StudioFailedJobInspector } from "@/components/studio/studio-failed-job-inspector";
 import { StudioHeaderChrome } from "@/components/studio/studio-header-chrome";
-import { StudioInspectorInfo } from "@/components/studio/studio-inspector-info";
+import { StudioEnhanceDialog } from "@/components/studio/studio-enhance-dialog";
 import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
+import { StudioAssetInspector } from "@/components/studio/studio-asset-inspector";
 import { StudioMediaSlotAddTile, studioMediaSlotAddTileIcon } from "@/components/studio/studio-media-slot-add-tile";
 import { StudioMobileInputsGroup, StudioMobileInputsSection } from "@/components/studio/studio-mobile-inputs-section";
 import { StudioComposer } from "@/components/studio/studio-composer";
 import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
 import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
-import { SelectedAssetPromptPanelContent } from "@/components/studio/selected-asset-prompt-panel-content";
 import { StudioReferenceLibrary } from "@/components/studio/studio-reference-library";
 import { restoreComposerFromPlan as restoreStudioComposerFromPlan } from "@/components/studio/studio-composer-restore";
 import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
@@ -47,7 +46,6 @@ import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
 import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
 import { useStudioPolling } from "@/hooks/studio/use-studio-polling";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
-import { StudioInspectorActions } from "@/components/studio/studio-inspector-actions";
 import {
   type AssetPagePayload,
   type AttachmentRecord,
@@ -225,7 +223,6 @@ export function MediaStudio({
   presets,
   prompts,
   enhancementConfigs,
-  llmPresets,
   queueSettings,
   queuePolicies,
   projects,
@@ -272,6 +269,8 @@ export function MediaStudio({
   const composerShellRef = useRef<HTMLDivElement | null>(null);
   const lastComposerDebugSignatureRef = useRef<string | null>(null);
   const copyPromptStatusTimerRef = useRef<number | null>(null);
+  const settleRefreshTimerRef = useRef<number | null>(null);
+  const settleRefreshPendingRef = useRef(false);
   const pollJobProxyRef = useRef<(jobId: string) => Promise<void>>(async () => {});
   const pollBatchProxyRef = useRef<(batchId: string) => Promise<void>>(async () => {});
   const openEnhanceDialogProxyRef = useRef<() => void>(() => undefined);
@@ -306,7 +305,7 @@ export function MediaStudio({
     setSelectedProjectId(initialSelectedProjectId);
   }, [initialSelectedProjectId]);
 
-  async function refreshCreditBalance() {
+  const refreshCreditBalance = useCallback(async () => {
     try {
       const response = await fetch("/api/control/media/credits", {
         method: "GET",
@@ -335,13 +334,24 @@ export function MediaStudio({
     } catch {
       // Balance refresh is best-effort; do not surface transient credit fetch noise in Studio.
     }
-  }
-  const refreshStudioDataWithSettleDelay = () => {
+  }, []);
+  const refreshRoute = useCallback(() => {
     startRefresh(() => router.refresh());
-    window.setTimeout(() => {
-      startRefresh(() => router.refresh());
+  }, [router, startRefresh]);
+  const refreshStudioDataWithSettleDelay = useCallback(() => {
+    if (!settleRefreshPendingRef.current) {
+      settleRefreshPendingRef.current = true;
+      refreshRoute();
+    }
+    if (settleRefreshTimerRef.current != null) {
+      window.clearTimeout(settleRefreshTimerRef.current);
+    }
+    settleRefreshTimerRef.current = window.setTimeout(() => {
+      settleRefreshTimerRef.current = null;
+      settleRefreshPendingRef.current = false;
+      refreshRoute();
     }, 1400);
-  };
+  }, [refreshRoute]);
 
   function studioHrefForProject(projectId: string | null, assetId?: string | number | null) {
     const params = new URLSearchParams();
@@ -468,6 +478,9 @@ export function MediaStudio({
     return () => {
       if (copyPromptStatusTimerRef.current != null) {
         window.clearTimeout(copyPromptStatusTimerRef.current);
+      }
+      if (settleRefreshTimerRef.current != null) {
+        window.clearTimeout(settleRefreshTimerRef.current);
       }
     };
   }, []);
@@ -1068,7 +1081,7 @@ export function MediaStudio({
     setSelectedFailedJobId,
     setSourceAssetId,
     startRefresh,
-    refreshRoute: () => router.refresh(),
+    refreshRoute,
     refreshCreditBalance,
     watchBatches: localBatches,
     watchJobs: localJobs,
@@ -2323,6 +2336,11 @@ export function MediaStudio({
         setProjectBrowserOpen(true);
         return;
       }
+      if (action === "open-presets") {
+        event.preventDefault();
+        setPresetBrowserOpen(true);
+        return;
+      }
       if (action === "open-settings") {
         event.preventDefault();
         void router.push(buildStudioScopedHref("/settings", selectedProjectId));
@@ -3159,6 +3177,7 @@ export function MediaStudio({
           />
 
           <StudioGallery
+            apiHealthy={apiHealthy}
             immersive={immersive}
             galleryTiles={galleryTiles}
             activeGalleryHasMore={activeGalleryHasMore}
@@ -3194,7 +3213,7 @@ export function MediaStudio({
                   presetLabel={currentPreset?.label ?? null}
                   externalTopContent={
                     multiImageReferenceStrip || seedanceReferenceStrip ? (
-                      <div className="hidden space-y-3 lg:block">
+                      <div className="hidden space-y-3 md:block">
                         {multiImageReferenceStrip ?? seedanceReferenceStrip}
                       </div>
                     ) : null
@@ -3664,146 +3683,33 @@ export function MediaStudio({
         </div>
       </div>
 
-      {enhanceDialogOpen ? (
-        <div data-testid="studio-enhance-dialog" className="fixed inset-0 z-[125] bg-[rgba(6,8,7,0.7)] backdrop-blur-md">
-          <div className="absolute inset-0 p-3 md:p-6">
-            <div className="grid h-full gap-4 rounded-[34px] border border-white/8 bg-[linear-gradient(180deg,rgba(16,20,18,0.96),rgba(10,13,12,0.96))] p-4 shadow-[0_40px_100px_rgba(0,0,0,0.5)] lg:grid-cols-[minmax(0,1fr)_320px] lg:p-6">
-              <div className="grid min-h-0 gap-4 overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_55%),linear-gradient(180deg,#111514,#181d1b)] p-4 lg:p-6">
-                <div className="relative overflow-hidden rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01)),radial-gradient(circle_at_top,rgba(216,141,67,0.12),transparent_36%),rgba(5,7,6,0.86)]">
-                  {enhancementPreviewVisual ? (
-                    <div className="flex min-h-[260px] items-center justify-center p-4 sm:min-h-[340px] sm:p-5">
-                      <img
-                        src={enhancementPreviewVisual}
-                        alt="Enhancement reference"
-                        className="max-h-[50vh] w-auto max-w-full rounded-[24px] object-contain shadow-[0_24px_70px_rgba(0,0,0,0.42)]"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex min-h-[260px] items-center justify-center px-6 text-center text-sm text-white/56 sm:min-h-[340px]">
-                      No image reference is staged for this enhancement preview.
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
-                    <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">User prompt</div>
-                    <pre className="mt-3 whitespace-pre-wrap text-sm leading-7 text-white/78">
-                      {(structuredPresetActive ? structuredPresetPromptPreview : prompt) || "No prompt entered yet."}
-                    </pre>
-                  </div>
-                  <div className="rounded-[22px] border border-[rgba(216,141,67,0.14)] bg-[rgba(216,141,67,0.05)] p-4">
-                    <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[#ffd7af]">Enhanced prompt</div>
-                    <pre data-testid="studio-enhance-preview-text" className="mt-3 whitespace-pre-wrap text-sm leading-7 text-white/88">
-                      {enhancePreview?.final_prompt_used || enhancePreview?.enhanced_prompt || (enhanceBusy ? "Enhancing prompt..." : "Run enhance to preview the rewritten prompt.")}
-                    </pre>
-                  </div>
-                  <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4 xl:col-span-2">
-                    <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">Image analysis</div>
-                    <div className="mt-3 whitespace-pre-wrap text-sm leading-7 text-white/76">
-                      {enhanceImageAnalysisText ? (
-                        enhanceImageAnalysisText
-                      ) : enhancementPreviewVisual ? (
-                        "No image analysis output is available for this preview yet."
-                      ) : (
-                        "No image reference is staged, so there is nothing to analyze."
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid auto-rows-max gap-4 overflow-y-auto rounded-[28px] bg-[rgba(255,255,255,0.04)] p-4 text-white lg:p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-white/54">Enhance prompt</div>
-                    <div className="mt-1 text-base font-semibold text-white">{currentModel?.label ?? "Unknown model"}</div>
-                    <div className="mt-1 text-sm text-white/66">Preview the rewrite, then send it back to the composer.</div>
-                  </div>
-                  <button type="button" onClick={() => setEnhanceDialogOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/24 text-white/78 transition hover:text-white">
-                    <X className="size-5" />
-                  </button>
-                </div>
-
-                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">Preview summary</div>
-                    <div className="mt-3 grid gap-3 text-sm leading-6 text-white/74">
-                      <div>
-                        <span className="text-white/48">Model:</span> {currentModel?.label ?? "Unknown model"}
-                      </div>
-                      <div>
-                        <span className="text-white/48">Enhancement provider:</span> {enhanceProviderLabel}
-                      </div>
-                      <div>
-                        <span className="text-white/48">Enhancement model:</span> {enhanceProviderModelId ?? "Not selected"}
-                      </div>
-                      <div>
-                        <span className="text-white/48">Enhancement mode:</span> {enhanceModeLabel}
-                      </div>
-                      <div>
-                        <span className="text-white/48">Readiness:</span> {enhanceReadinessLabel}
-                      </div>
-                      <div>
-                        <span className="text-white/48">Preset:</span> {currentPreset?.label ?? "No preset selected"}
-                      </div>
-                    <div>
-                      <span className="text-white/48">Image reference:</span> {enhancementPreviewVisual ? "Attached" : "None"}
-                    </div>
-                    <div>
-                      <span className="text-white/48">Image analysis:</span>{" "}
-                      {enhanceImageAnalysisStatus}
-                    </div>
-                  </div>
-                </div>
-
-                {enhanceError ? (
-                  <div className="rounded-[20px] border border-[rgba(201,102,82,0.22)] bg-[rgba(201,102,82,0.08)] px-4 py-3 text-sm text-[#ffb5a6]">
-                    {enhanceError}
-                  </div>
-                ) : null}
-                {enhancePreview?.warnings?.length ? (
-                  <div className="rounded-[20px] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/72">
-                    {enhancePreview.warnings.join(" ")}
-                  </div>
-                ) : null}
-
-                <div className="grid gap-3">
-                  {enhanceConfiguredForModel ? (
-                    <button type="button" data-testid="studio-enhance-run-button" onClick={() => void requestEnhancementPreview()} disabled={enhanceBusy || !enhanceHasSavedSystemPrompt} className="inline-flex w-full items-center justify-center gap-3 rounded-[22px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 py-4 text-[0.98rem] font-semibold text-[#162300] shadow-[0_18px_34px_rgba(156,204,33,0.22)] disabled:opacity-60">
-                      {enhanceBusy ? <LoaderCircle className="size-4.5 animate-spin" /> : <Sparkles className="size-4.5" />}
-                      {enhanceBusy ? "Enhancing..." : "Enhance"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      data-testid="studio-enhance-setup-button"
-                      onClick={openEnhancementSetup}
-                      className="inline-flex w-full items-center justify-center gap-3 rounded-[22px] border border-[rgba(216,141,67,0.24)] bg-[rgba(216,141,67,0.12)] px-5 py-4 text-[0.9rem] font-semibold text-[#ffd7af] transition hover:border-[rgba(216,141,67,0.36)] hover:text-white"
-                    >
-                      <Sparkles className="size-4.5" />
-                      Set up enhancement
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    data-testid="studio-enhance-use-prompt-button"
-                    onClick={() => {
-                      applyEnhancementPrompt();
-                    }}
-                    disabled={!enhancePreview?.final_prompt_used && !enhancePreview?.enhanced_prompt}
-                    className="inline-flex w-full items-center justify-center gap-3 rounded-[20px] border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-semibold text-white/86 disabled:opacity-60"
-                  >
-                    Use Prompt
-                  </button>
-                  <button type="button" onClick={() => setEnhanceDialogOpen(false)} className="inline-flex w-full items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-white/76">
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <StudioEnhanceDialog
+        open={enhanceDialogOpen}
+        previewVisual={enhancementPreviewVisual}
+        userPrompt={(structuredPresetActive ? structuredPresetPromptPreview : prompt) || ""}
+        enhancedPrompt={enhancePreview?.final_prompt_used || enhancePreview?.enhanced_prompt || null}
+        imageAnalysisText={enhanceImageAnalysisText}
+        currentModelLabel={currentModel?.label ?? null}
+        currentPresetLabel={currentPreset?.label ?? null}
+        providerLabel={enhanceProviderLabel}
+        providerModelId={enhanceProviderModelId ?? null}
+        modeLabel={enhanceModeLabel}
+        readinessLabel={enhanceReadinessLabel}
+        imageAnalysisStatus={enhanceImageAnalysisStatus}
+        configuredForModel={enhanceConfiguredForModel}
+        hasSavedSystemPrompt={enhanceHasSavedSystemPrompt}
+        busy={enhanceBusy}
+        error={enhanceError}
+        warnings={enhancePreview?.warnings ?? []}
+        onClose={() => setEnhanceDialogOpen(false)}
+        onRequestPreview={() => {
+          void requestEnhancementPreview();
+        }}
+        onOpenSetup={openEnhancementSetup}
+        onUsePrompt={() => {
+          applyEnhancementPrompt();
+        }}
+      />
 
       {presetBrowserOpen ? (
         <StudioPresetBrowser
@@ -3864,9 +3770,16 @@ export function MediaStudio({
                   models={models}
                   presets={presets}
                   enhancementConfigs={enhancementConfigs}
-                  llmPresets={llmPresets}
                   initialSelectedModelKey={modelKey}
                   variant="studio"
+                  sections={{
+                    queue: false,
+                    enhancementProvider: false,
+                    modelHelper: true,
+                    studioSettings: false,
+                    modelPanel: true,
+                    presets: false,
+                  }}
                 />
               </div>
             </div>
@@ -3875,225 +3788,42 @@ export function MediaStudio({
       ) : null}
 
       {selectedAsset ? (
-        <div data-testid="studio-inspector" className="fixed inset-0 z-[120] overflow-y-auto overscroll-contain bg-[rgba(6,8,7,0.86)] backdrop-blur-md [webkit-overflow-scrolling:touch]">
-          <div className="min-h-dvh p-0 lg:p-6">
-            <div className="grid min-h-dvh content-start gap-4 bg-[linear-gradient(180deg,rgba(16,20,18,0.98),rgba(10,13,12,0.98))] px-3 pb-6 pt-3 shadow-[0_40px_100px_rgba(0,0,0,0.5)] [touch-action:pan-y] lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:max-h-[calc(100dvh-3rem)] lg:grid-cols-[minmax(0,1fr)_360px] lg:overflow-hidden lg:rounded-[34px] lg:border lg:border-white/8 lg:px-6 lg:pb-6 lg:pt-6">
-              <div className="grid min-h-0 content-start gap-4 lg:grid-rows-[minmax(0,1fr)_auto]">
-                <div className="relative overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_55%),linear-gradient(180deg,#111514,#181d1b)]">
-                  <button
-                    type="button"
-                    onClick={closeAssetInspector}
-                    className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/24 text-white/78 transition hover:text-white"
-                  >
-                    <X className="size-5" />
-                  </button>
-                  <div className="flex min-h-[52vh] items-center justify-center p-4 sm:p-6 lg:h-full">
-                    {selectedAsset.generation_kind === "video" ? (
-                      selectedAssetPlaybackVisual ? (
-                        selectedAssetDisplayVisual ? (
-                          <button
-                            type="button"
-                            data-testid="studio-open-lightbox"
-                            onClick={openSelectedMediaLightbox}
-                            className={cn(
-                              "relative flex h-full w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
-                            )}
-                            aria-label="Open selected video"
-                          >
-                            <img
-                              src={selectedAssetDisplayVisual}
-                              alt={selectedAsset.prompt_summary ?? "Selected media artifact"}
-                              loading="eager"
-                              fetchPriority="high"
-                              decoding="async"
-                              className="block h-full w-full rounded-[28px] object-contain"
-                            />
-                            <span className="absolute inset-0 flex items-center justify-center">
-                              <span className="inline-flex h-20 w-20 items-center justify-center rounded-full border border-white/12 bg-[rgba(10,12,11,0.72)] text-white shadow-[0_24px_48px_rgba(0,0,0,0.3)] backdrop-blur-xl transition hover:scale-[1.02] hover:bg-[rgba(16,19,18,0.82)]">
-                                <Play className="ml-1 size-8" />
-                              </span>
-                            </span>
-                          </button>
-                        ) : (
-                          <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]">
-                            <video
-                              src={selectedAssetPlaybackVisual}
-                              aria-label={selectedAsset.prompt_summary ?? "Selected video artifact"}
-                              controls
-                              playsInline
-                              preload="metadata"
-                              className="block h-full w-full rounded-[28px] object-contain"
-                            />
-                          </div>
-                        )
-                      ) : null
-                    ) : selectedAssetDisplayVisual ? (
-                      <button
-                        type="button"
-                        data-testid="studio-open-lightbox"
-                        onClick={openSelectedMediaLightbox}
-                        className={cn(
-                          "flex h-full w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,9,8,0.48)] shadow-[0_22px_60px_rgba(0,0,0,0.4)]",
-                        )}
-                        aria-label="Open selected image"
-                      >
-                        <img
-                          src={selectedAssetDisplayVisual}
-                          alt={selectedAsset.prompt_summary ?? "Selected media artifact"}
-                          loading="eager"
-                          fetchPriority="high"
-                          decoding="async"
-                          className="block h-full w-full rounded-[28px] object-contain"
-                        />
-                      </button>
-                    ) : null}
-                  </div>
-                  <StudioInspectorActions
-                    canDownload={Boolean(mediaDownloadUrl(selectedAsset))}
-                    downloadActionLabel={downloadActionLabel}
-                    showImageActions={selectedAsset.generation_kind === "image"}
-                    showReviseAction={Boolean(selectedAssetRevisionPlan?.targetModel)}
-                    showDesktopActions={false}
-                    onDownload={() => void handleAssetDownload(selectedAsset)}
-                    onDismiss={() => void dismissAsset(selectedAsset.asset_id)}
-                    onAnimate={() => useAssetAsSource(selectedAsset, true)}
-                    onUseImage={() => useAssetAsSource(selectedAsset, false)}
-                    onRevise={() => void reviseSelectedAssetInStudio(selectedAsset)}
-                  />
-
-                </div>
-
-                <div className="hidden rounded-[24px] border border-white/8 bg-[rgba(255,255,255,0.04)] p-4 text-white lg:block">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
-                      {selectedAssetStructuredPresetActive ? "Preset Details" : "Prompt"}
-                    </div>
-                    {!selectedAssetStructuredPresetActive ? (
-                      <button
-                        type="button"
-                        onClick={() => void copyPromptFromAsset(selectedAssetPrompt)}
-                        className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white/76"
-                      >
-                        {copyPromptStatus === "copied" ? (
-                          <Check className="size-3.5 text-[#b8ff9f]" />
-                        ) : (
-                          <Copy className="size-3.5" />
-                        )}
-                        {copyPromptStatus === "copied" ? "Copied" : copyPromptStatus === "error" ? "Copy failed" : "Copy"}
-                      </button>
-                    ) : null}
-                  </div>
-                  <SelectedAssetPromptPanelContent
-                    structuredPresetActive={selectedAssetStructuredPresetActive}
-                    presetLabel={selectedAssetPreset?.label || selectedAsset.preset_key || "Preset"}
-                    presetDescription={selectedAssetPreset?.description ?? null}
-                    presetSlots={selectedAssetPresetSlots}
-                    presetSlotValues={selectedAssetPresetSlotValues}
-                    presetFields={selectedAssetPresetFields}
-                    presetInputValues={selectedAssetPresetInputValues}
-                    prompt={selectedAssetPrompt}
-                    promptContainerClassName="max-h-[14rem] overflow-y-auto rounded-[18px] border border-white/7 bg-black/16 px-4 py-3 pr-2"
-                  />
-                </div>
-
-                <div className="lg:hidden">
-                  <CollapsibleSubsection
-                    title={selectedAssetStructuredPresetActive ? "Preset Details" : "Prompt"}
-                    description={selectedAssetStructuredPresetActive ? "Open the preset source images and text values for this asset." : "Open the saved prompt for this asset."}
-                    tone="media"
-                    badge={
-                      !selectedAssetStructuredPresetActive ? (
-                        <button
-                          type="button"
-                          onClick={() => void copyPromptFromAsset(selectedAssetPrompt)}
-                          className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-white/76"
-                        >
-                          {copyPromptStatus === "copied" ? (
-                            <Check className="size-3.5 text-[#b8ff9f]" />
-                          ) : (
-                            <Copy className="size-3.5" />
-                          )}
-                          {copyPromptStatus === "copied" ? "Copied" : copyPromptStatus === "error" ? "Copy failed" : "Copy"}
-                        </button>
-                      ) : undefined
-                    }
-                    open={mobileInspectorPromptOpen}
-                    onOpenChange={setMobileInspectorPromptOpen}
-                    className="rounded-[24px] !border-white/10 !bg-[rgba(16,19,18,0.98)] px-4 py-4 text-white shadow-[0_18px_38px_rgba(0,0,0,0.26)]"
-                    titleClassName="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/72"
-                    descriptionClassName="mt-1 text-sm text-white/74"
-                    iconClassName="text-white/64"
-                    bodyClassName="mt-3"
-                  >
-                    <SelectedAssetPromptPanelContent
-                      structuredPresetActive={selectedAssetStructuredPresetActive}
-                      presetLabel={selectedAssetPreset?.label || selectedAsset.preset_key || "Preset"}
-                      presetDescription={selectedAssetPreset?.description ?? null}
-                      presetSlots={selectedAssetPresetSlots}
-                      presetSlotValues={selectedAssetPresetSlotValues}
-                      presetFields={selectedAssetPresetFields}
-                      presetInputValues={selectedAssetPresetInputValues}
-                      prompt={selectedAssetPrompt}
-                    />
-                  </CollapsibleSubsection>
-                  </div>
-                </div>
-
-                <div className="hidden min-h-0 content-start gap-4 rounded-[28px] bg-[rgba(255,255,255,0.04)] p-4 text-white lg:grid lg:overflow-y-auto lg:p-5">
-                <StudioInspectorInfo
-                  selectedAsset={selectedAsset}
-                  favoriteAssetIdBusy={favoriteAssetIdBusy}
-                  onToggleFavorite={toggleAssetFavorite}
-                  projectLabel={selectedAssetProject?.name ?? null}
-                  onOpenProject={openProjectWorkspace}
-                  referencePreviews={selectedAssetReferencePreviews}
-                  onOpenReference={setSelectedReferencePreview}
-                />
-
-                <StudioInspectorActions
-                  canDownload={false}
-                  downloadActionLabel={downloadActionLabel}
-                  showImageActions={selectedAsset.generation_kind === "image"}
-                  showReviseAction={Boolean(selectedAssetRevisionPlan?.targetModel)}
-                  showMobileActions={false}
-                  onDownload={() => void handleAssetDownload(selectedAsset)}
-                  onDismiss={() => void dismissAsset(selectedAsset.asset_id)}
-                  onAnimate={() => useAssetAsSource(selectedAsset, true)}
-                  onUseImage={() => useAssetAsSource(selectedAsset, false)}
-                  onRevise={() => void reviseSelectedAssetInStudio(selectedAsset)}
-                />
-              </div>
-
-              <div className="lg:hidden">
-                <CollapsibleSubsection
-                  title="Selected asset"
-                  description="Open the metadata and actions for this asset."
-                  tone="media"
-                  badge={<StatusPill label={selectedAsset.status ?? "stored"} tone={toneForStatus(selectedAsset.status)} />}
-                  open={mobileInspectorInfoOpen}
-                  onOpenChange={setMobileInspectorInfoOpen}
-                    className="rounded-[24px] !border-white/10 !bg-[rgba(16,19,18,0.98)] px-4 py-4 text-white shadow-[0_18px_38px_rgba(0,0,0,0.26)]"
-                  titleClassName="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-white/72"
-                  descriptionClassName="mt-1 text-sm text-white/74"
-                  iconClassName="text-white/64"
-                  bodyClassName="mt-3"
-                >
-                  <div className="grid gap-4">
-                    <StudioInspectorInfo
-                      selectedAsset={selectedAsset}
-                      favoriteAssetIdBusy={favoriteAssetIdBusy}
-                      onToggleFavorite={toggleAssetFavorite}
-                      projectLabel={selectedAssetProject?.name ?? null}
-                      onOpenProject={openProjectWorkspace}
-                      referencePreviews={selectedAssetReferencePreviews}
-                      onOpenReference={setSelectedReferencePreview}
-                    />
-                  </div>
-                </CollapsibleSubsection>
-              </div>
-            </div>
-          </div>
-        </div>
+        <StudioAssetInspector
+          selectedAsset={selectedAsset}
+          selectedAssetDisplayVisual={selectedAssetDisplayVisual}
+          selectedAssetPlaybackVisual={selectedAssetPlaybackVisual}
+          selectedAssetPrompt={selectedAssetPrompt}
+          selectedAssetStructuredPresetActive={selectedAssetStructuredPresetActive}
+          selectedAssetPresetLabel={selectedAssetPreset?.label || selectedAsset.preset_key || "Preset"}
+          selectedAssetPresetDescription={selectedAssetPreset?.description ?? null}
+          selectedAssetPresetSlots={selectedAssetPresetSlots}
+          selectedAssetPresetSlotValues={selectedAssetPresetSlotValues}
+          selectedAssetPresetFields={selectedAssetPresetFields}
+          selectedAssetPresetInputValues={selectedAssetPresetInputValues}
+          selectedAssetProjectLabel={selectedAssetProject?.name ?? null}
+          selectedAssetReferencePreviews={selectedAssetReferencePreviews}
+          favoriteAssetIdBusy={favoriteAssetIdBusy}
+          copyPromptStatus={copyPromptStatus}
+          mobileInspectorPromptOpen={mobileInspectorPromptOpen}
+          mobileInspectorInfoOpen={mobileInspectorInfoOpen}
+          downloadActionLabel={downloadActionLabel}
+          showReviseAction={Boolean(selectedAssetRevisionPlan?.targetModel)}
+          onClose={closeAssetInspector}
+          onOpenLightbox={openSelectedMediaLightbox}
+          onCopyPrompt={() => {
+            void copyPromptFromAsset(selectedAssetPrompt);
+          }}
+          onToggleFavorite={toggleAssetFavorite}
+          onOpenProject={openProjectWorkspace}
+          onOpenReference={setSelectedReferencePreview}
+          onMobileInspectorPromptOpenChange={setMobileInspectorPromptOpen}
+          onMobileInspectorInfoOpenChange={setMobileInspectorInfoOpen}
+          onDownload={() => void handleAssetDownload(selectedAsset)}
+          onDismiss={() => void dismissAsset(selectedAsset.asset_id)}
+          onAnimate={() => useAssetAsSource(selectedAsset, true)}
+          onUseImage={() => useAssetAsSource(selectedAsset, false)}
+          onRevise={() => void reviseSelectedAssetInStudio(selectedAsset)}
+        />
       ) : null}
 
       {selectedFailedJob ? (

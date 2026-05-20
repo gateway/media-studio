@@ -370,6 +370,8 @@ export function useStudioComposer({
     enhanceEnabledForModel &&
     (enhanceProviderKind === "openrouter"
       ? enhanceCredentialConfigured
+      : enhanceProviderKind === "codex_local"
+        ? enhanceModelSelected
       : enhanceProviderKind === "local_openai"
         ? enhanceBaseUrlConfigured || enhanceCredentialConfigured || enhanceModelSelected
         : false);
@@ -411,9 +413,11 @@ export function useStudioComposer({
     activeEnhancementEngineConfig?.provider_label ??
     (activeEnhancementEngineConfig?.provider_kind === "openrouter"
       ? "OpenRouter.ai"
+      : activeEnhancementEngineConfig?.provider_kind === "codex_local"
+        ? "Codex Local"
       : activeEnhancementEngineConfig?.provider_kind === "local_openai"
         ? "Local OpenAI-Compatible"
-        : "Built-in helper");
+        : "Media Studio default");
   const enhanceProviderModelId =
     enhancePreview?.provider_model_id ??
     activeEnhancementEngineConfig?.provider_model_id ??

@@ -1,6 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import {
+  adminSectionStackClassName,
+  studioAdminNavClassName,
+  studioAdminPageIntroClassName,
+  studioAdminShellClassName,
+} from "@/components/admin-theme";
 import { buildStudioScopedHref } from "@/lib/studio-navigation";
 import { MEDIA_STUDIO_VERSION } from "@/lib/app-version";
 import { cn } from "@/lib/utils";
@@ -36,9 +42,9 @@ export function StudioAdminShell({
   currentProjectId = null,
 }: StudioAdminShellProps) {
   return (
-    <div className="admin-theme-root mx-auto flex min-h-screen w-full max-w-[1560px] flex-col gap-8 px-4 pb-10 pt-8 sm:px-6 lg:px-8">
-      <div className="space-y-5">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-white/8 pb-3">
+    <div className={studioAdminShellClassName}>
+      <div className={adminSectionStackClassName}>
+        <div className={studioAdminNavClassName}>
           {navItems.map((item) => {
             const active = item.key === section;
             return (
@@ -47,7 +53,7 @@ export function StudioAdminShell({
                 href={buildStudioScopedHref(item.href, currentProjectId)}
                 className={cn(
                   "text-sm font-semibold tracking-[-0.01em] transition",
-                  active ? "text-[var(--ms-accent)]" : "text-white/66 hover:text-white",
+                  active ? "text-[var(--ms-accent)]" : "text-[var(--muted-strong)] hover:text-[var(--foreground)]",
                 )}
               >
                 {item.label}
@@ -57,14 +63,14 @@ export function StudioAdminShell({
           <div className="ml-auto flex items-center gap-3">
             {aside ? aside : null}
             <span
-              className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-white/54"
+              className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]"
               title="Media Studio version"
             >
               {MEDIA_STUDIO_VERSION}
             </span>
           </div>
         </div>
-        <div className="space-y-3">
+        <div className={studioAdminPageIntroClassName}>
           <div className="admin-page-eyebrow">{eyebrow}</div>
           <h1 className="admin-page-title sm:text-[2.4rem]">
             {title}

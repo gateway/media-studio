@@ -9,6 +9,8 @@ export function useGraphKeyboardShortcuts({
   imageLibraryNodeId,
   copySelectedNodes,
   pasteCopiedNodes,
+  undoGraphChange,
+  redoGraphChange,
   toggleGraphNodeExecutionMode,
   setConsoleOpen,
   setNodeSearch,
@@ -25,6 +27,8 @@ export function useGraphKeyboardShortcuts({
   imageLibraryNodeId: string | null;
   copySelectedNodes: () => void;
   pasteCopiedNodes: () => void;
+  undoGraphChange: () => boolean;
+  redoGraphChange: () => boolean;
   toggleGraphNodeExecutionMode: (nodeIds: string[], mode: GraphExecutionMode) => void;
   setConsoleOpen: (updater: (current: boolean) => boolean) => void;
   setNodeSearch: (value: null) => void;
@@ -42,6 +46,20 @@ export function useGraphKeyboardShortcuts({
       const isCopyPasteModifier = event.metaKey || event.ctrlKey;
       if (isCopyPasteModifier && !isTextEntryTarget(event.target)) {
         const key = event.key.toLowerCase();
+        if (key === "z") {
+          event.preventDefault();
+          if (event.shiftKey) {
+            redoGraphChange();
+          } else {
+            undoGraphChange();
+          }
+          return;
+        }
+        if (key === "y") {
+          event.preventDefault();
+          redoGraphChange();
+          return;
+        }
         if (key === "c") {
           event.preventDefault();
           copySelectedNodes();
@@ -93,6 +111,7 @@ export function useGraphKeyboardShortcuts({
     nodes,
     openNodeSearchCentered,
     pasteCopiedNodes,
+    redoGraphChange,
     setConsoleOpen,
     setImageLibraryNodeId,
     setNodeContextMenu,
@@ -102,5 +121,6 @@ export function useGraphKeyboardShortcuts({
     setSidebarDialog,
     setWorkflowMenuOpen,
     toggleGraphNodeExecutionMode,
+    undoGraphChange,
   ]);
 }

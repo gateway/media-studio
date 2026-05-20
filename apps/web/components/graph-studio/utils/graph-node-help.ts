@@ -1,4 +1,5 @@
 import type { GraphNodeDefinition, GraphNodeField, GraphNodePort } from "../types";
+import { graphPromptRecipeSelectionSummary } from "./graph-prompt-recipe";
 
 export type GraphNodeHelpContent = {
   summary: string;
@@ -79,7 +80,24 @@ function taskModeText(definition: GraphNodeDefinition) {
   return `${outputType} model for ${modes.join(" or ").toLowerCase()}.`;
 }
 
-export function buildGraphNodeHelpContent(definition: GraphNodeDefinition): GraphNodeHelpContent {
+export function buildGraphNodeHelpContent(definition: GraphNodeDefinition, fields?: Record<string, unknown>): GraphNodeHelpContent {
+  if (definition.type === "prompt.recipe") {
+    const summary = graphPromptRecipeSelectionSummary(definition, fields ?? {});
+    if (summary) {
+      return {
+        summary: summary.description,
+        lines: [summary.subtitle, ...summary.details],
+      };
+    }
+    return {
+      summary: definition.help_text || definition.description || "Prompt Recipe node.",
+      lines: [
+        "Pick a recipe category, then choose a saved Prompt Recipe.",
+        "Only the fields used by that recipe will appear.",
+        "Open Prompt Recipes to inspect the full system prompt.",
+      ],
+    };
+  }
   const isKieModel = definition.source?.kind === "kie_model";
   if (!isKieModel) {
     const inputs = definition.ports.inputs.filter((port) => !port.advanced).slice(0, 4);

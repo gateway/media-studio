@@ -4,11 +4,14 @@
   --graph-panel-muted: #202423;
   --graph-panel-raised: #242827;
   --graph-panel-hover: #303333;
+  --graph-panel-subtle: rgba(247, 246, 240, 0.03);
   --graph-text: #f7f6f0;
   --graph-text-soft: rgba(247, 246, 240, 0.72);
   --graph-text-muted: rgba(247, 246, 240, 0.58);
+  --graph-text-faint: rgba(247, 246, 240, 0.5);
   --graph-border: rgba(247, 246, 240, 0.12);
   --graph-border-soft: rgba(247, 246, 240, 0.09);
+  --graph-border-faint: rgba(247, 246, 240, 0.06);
   --graph-accent: #d1ff47;
   --graph-accent-strong: rgba(209, 255, 71, 0.8);
   --graph-cyan: #60d2ff;
@@ -264,4 +267,80 @@
 .graph-drop-hint {
   margin-top: 18px;
   line-height: 1.35;
+}
+
+.graph-unsupported-shell {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--graph-bg);
+  color: var(--graph-text);
+}
+
+.graph-unsupported-panel {
+  display: grid;
+  gap: 0.9rem;
+  width: min(560px, 100%);
+  padding: 1.6rem;
+  border: 1px solid var(--graph-border);
+  border-radius: 12px;
+  background: var(--graph-panel);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+}
+
+.graph-unsupported-eyebrow {
+  color: var(--graph-accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.graph-unsupported-panel h1 {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.graph-unsupported-panel p {
+  color: var(--graph-text-soft);
+  line-height: 1.5;
+}
+
+.graph-unsupported-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  color: var(--graph-text-muted);
+  font-size: 0.76rem;
+}
+
+.graph-unsupported-metrics strong {
+  color: var(--graph-text);
+}
+
+.graph-unsupported-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.graph-unsupported-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0.68rem 0.92rem;
+  border: 1px solid var(--graph-border);
+  border-radius: var(--graph-control-radius);
+  color: var(--graph-text);
+  background: var(--graph-panel-raised);
+  text-decoration: none;
+}
+
+.graph-unsupported-actions a:hover,
+.graph-unsupported-actions a:focus-visible {
+  border-color: var(--graph-accent-strong);
+  color: var(--graph-panel);
+  background: var(--graph-accent);
+  outline: none;
 }

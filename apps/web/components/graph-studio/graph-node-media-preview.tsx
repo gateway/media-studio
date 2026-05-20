@@ -65,7 +65,7 @@ export function GraphNodeMediaPreview({
                 data.onOpenPreview?.(item, previews);
               }}
             >
-              {item.mediaType === "image" ? <img src={item.url} alt={item.label ?? `Graph image ${index + 1}`} /> : <span>{item.mediaType}</span>}
+              {item.mediaType === "image" ? <img src={item.fullUrl ?? item.url} alt={item.label ?? `Graph image ${index + 1}`} /> : <span>{item.mediaType}</span>}
             </button>
           ))}
         </div>
@@ -91,7 +91,7 @@ export function GraphNodeMediaPreview({
               ) : preview.mediaType === "audio" ? (
                 <audio src={preview.url} controls />
               ) : (
-                <img src={preview.url} alt={preview.label ?? "Graph node preview"} />
+                <img src={preview.fullUrl ?? preview.url} alt={preview.label ?? "Graph node preview"} />
               )}
             </button>
             {isLoadMedia ? (

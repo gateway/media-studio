@@ -17,6 +17,12 @@ export function normalizeGraphNodeStatus(status: string | null | undefined): Gra
   return KNOWN_STATUSES.has(status) ? (status as GraphNodeVisualStatus) : "unknown";
 }
 
+export function graphNodeStatusForExecutionMode(status: string | null | undefined, executionMode: string | null | undefined): GraphNodeVisualStatus {
+  const normalizedStatus = normalizeGraphNodeStatus(status);
+  if ((executionMode == null || executionMode === "enabled") && normalizedStatus === "skipped") return "idle";
+  return normalizedStatus;
+}
+
 export function graphNodeStatusClass(status: string | null | undefined): string {
   return `graph-node-${normalizeGraphNodeStatus(status)}`;
 }

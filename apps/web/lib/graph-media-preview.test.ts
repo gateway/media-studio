@@ -23,7 +23,7 @@ describe("graph media previews", () => {
     expect(preview?.posterUrl).toBe("/api/control/files/reference-media/thumbs/video-poster.jpg");
   });
 
-  it("keeps thumbnails as the graph preview URL for image references", () => {
+  it("uses stored full image URLs for image references and keeps thumbnails out of the primary preview", () => {
     const preview = previewFromReference({
       reference_id: "ref-image",
       kind: "image",
@@ -37,7 +37,8 @@ describe("graph media previews", () => {
     } as MediaReference);
 
     expect(preview?.mediaType).toBe("image");
-    expect(preview?.url).toBe("/api/control/files/reference-media/thumbs/image.webp");
+    expect(preview?.url).toBe("/api/control/files/reference-media/images/image.png");
+    expect(preview?.fullUrl).toBe("/api/control/files/reference-media/images/image.png");
   });
 
   it("keeps video asset preview playable and stores its poster separately", () => {

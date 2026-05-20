@@ -3,9 +3,15 @@
 import { AlertTriangle, Image as ImageIcon, RotateCcw, Trash2, X } from "lucide-react";
 
 import { StatusPill } from "@/components/status-pill";
+import { StudioStatusCallout } from "@/components/studio/studio-status-callout";
+import {
+  studioCaptionClassName,
+  studioMetaValueClassName,
+  studioPreviewFallbackClassName,
+} from "@/components/studio/studio-theme";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
-import { CalloutPanel, OverlayShell, PropertyStack, PropertyStackItem, SurfaceCard } from "@/components/ui/surface-primitives";
+import { CalloutPanel, OverlayShell, PropertyStack, PropertyStackItem, SurfaceCard, SurfaceInset } from "@/components/ui/surface-primitives";
 import type { StudioReferencePreview } from "@/lib/media-studio-helpers";
 import type { MediaJob } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
@@ -47,17 +53,17 @@ export function StudioFailedJobInspector({
                 aria-label="Close failed job inspector"
               />
               <div className="flex min-h-[48vh] items-center justify-center p-4 sm:p-6 lg:h-full">
-                <CalloutPanel tone="danger" className="grid max-w-[24rem] gap-4 rounded-[28px] px-6 py-8 text-center text-white/78">
-                  <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(255,139,139,0.24)] bg-[rgba(255,139,139,0.1)] text-[#ff8b8b]">
-                    <AlertTriangle className="size-7" />
-                  </div>
-                  <div>
-                    <div className="text-base font-semibold text-white">Failed media job</div>
-                    <p className="mt-2 text-sm leading-7 text-white/64">
-                      No output image was published for this failed job. The saved prompt and provider error are still available below.
-                    </p>
-                  </div>
-                </CalloutPanel>
+                <StudioStatusCallout
+                  tone="danger"
+                  title="Failed media job"
+                  description="No output image was published for this failed job. The saved prompt and provider error are still available below."
+                  icon={(
+                    <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(255,139,139,0.24)] bg-[rgba(255,139,139,0.1)] text-[#ff8b8b]">
+                      <AlertTriangle className="size-7" />
+                    </div>
+                  )}
+                  className="max-w-[24rem] rounded-[28px] px-6 py-8"
+                />
               </div>
               <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4">
                 <div className="pointer-events-auto flex items-center gap-2" />
@@ -76,20 +82,20 @@ export function StudioFailedJobInspector({
             </div>
             <SurfaceCard appearance="studio" density="compact" className="p-4 text-white">
               <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">Prompt</div>
+                <div className="surface-label-muted">Prompt</div>
               </div>
-              <div className="max-h-[14rem] overflow-y-auto rounded-[18px] border border-white/7 bg-black/16 px-4 py-3 pr-2">
+              <SurfaceInset appearance="studio" density="compact" className="max-h-[14rem] overflow-y-auto rounded-[18px] bg-[rgba(0,0,0,0.16)] pr-2">
                 <p className="whitespace-pre-wrap text-sm leading-7 text-white/78">
                   {prompt ?? "No prompt text was stored for this failed job."}
                 </p>
-              </div>
+              </SurfaceInset>
             </SurfaceCard>
           </div>
           <div className="grid min-h-0 gap-4 rounded-[28px] bg-[rgba(255,255,255,0.04)] p-4 text-white lg:grid lg:overflow-y-auto lg:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-white/54">Failed job</div>
-                <div className="mt-1 text-sm text-white/76">
+                <div className="surface-label-muted">Failed job</div>
+                <div className={studioMetaValueClassName({ className: "mt-1 text-sm text-[var(--text-muted)]" })}>
                   {job.model_key ?? "Unknown model"} • {formatDateTime(job.created_at)}
                 </div>
               </div>
@@ -112,8 +118,8 @@ export function StudioFailedJobInspector({
               </p>
             </CalloutPanel>
             {imageReferences.length ? (
-              <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
-                <div className="flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
+              <SurfaceInset appearance="studio" density="compact" className="rounded-[22px]">
+                <div className="flex items-center gap-2 surface-label-muted">
                   <ImageIcon className="size-3.5 text-[rgba(208,255,72,0.88)]" />
                   References
                 </div>
@@ -125,7 +131,7 @@ export function StudioFailedJobInspector({
                       onClick={() => onOpenReference(reference)}
                       className="grid w-[5.5rem] shrink-0 gap-2 text-left transition hover:opacity-95"
                     >
-                      <span className="overflow-hidden rounded-[16px] border border-white/10 bg-black/18">
+                      <span className={studioPreviewFallbackClassName({ className: "overflow-hidden rounded-[16px] border border-[var(--border-soft)] bg-[rgba(0,0,0,0.18)]" })}>
                         <img
                           src={reference.url}
                           alt={reference.label}
@@ -134,11 +140,11 @@ export function StudioFailedJobInspector({
                           decoding="async"
                         />
                       </span>
-                      <span className="line-clamp-2 text-xs leading-5 text-white/70">{reference.label}</span>
+                      <span className={studioCaptionClassName({ className: "line-clamp-2 text-xs leading-5" })}>{reference.label}</span>
                     </button>
                   ))}
                 </div>
-              </div>
+              </SurfaceInset>
             ) : null}
             <PropertyStack appearance="studio" className="rounded-[22px]">
               <PropertyStackItem appearance="studio" label="Job ID" value={job.job_id} valueClassName="break-words text-right [overflow-wrap:anywhere]" />

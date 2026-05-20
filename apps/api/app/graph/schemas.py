@@ -16,6 +16,7 @@ class GraphNodePort(BaseModel):
     accepts: List[str] = Field(default_factory=list)
     description: Optional[str] = None
     advanced: bool = False
+    visible_if: Optional[Dict[str, Any]] = None
 
 
 class GraphNodeField(BaseModel):
@@ -224,6 +225,20 @@ class GraphRunNode(BaseModel):
     updated_at: Optional[str] = None
 
 
+class GraphRunStatusNode(BaseModel):
+    run_node_id: str
+    run_id: str
+    node_id: str
+    node_type: str
+    status: str = "queued"
+    progress: Optional[float] = None
+    has_output_snapshot: bool = False
+    error: Optional[str] = None
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
 class GraphRunEvent(BaseModel):
     event_id: str
     run_id: str
@@ -251,6 +266,19 @@ class GraphRunListResponse(BaseModel):
 
 class GraphRunEventsResponse(BaseModel):
     items: List[GraphRunEvent] = Field(default_factory=list)
+
+
+class GraphRunStatusResponse(BaseModel):
+    run_id: str
+    workflow_id: str
+    status: str = "queued"
+    error: Optional[str] = None
+    latest_event_id: Optional[str] = None
+    created_at: Optional[str] = None
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    nodes: List[GraphRunStatusNode] = Field(default_factory=list)
 
 
 class GraphArtifactsResponse(BaseModel):

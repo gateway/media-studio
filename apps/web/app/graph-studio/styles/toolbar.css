@@ -169,6 +169,18 @@
   margin-left: 0.35rem;
 }
 
+.graph-toolbar-history-button {
+  justify-content: center;
+  width: 30px;
+  min-width: 30px;
+  padding: 0 !important;
+}
+
+.graph-toolbar-history-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
 .graph-toolbar-spacer {
   flex: 1 1 auto;
   min-width: 1rem;
@@ -255,6 +267,12 @@
   border-color: rgba(49, 209, 88, 0.55) !important;
   background: var(--graph-success) !important;
   cursor: wait !important;
+}
+
+.graph-run-button-cancel {
+  border-color: rgba(255, 204, 102, 0.4) !important;
+  background: var(--graph-warning) !important;
+  color: var(--graph-panel) !important;
 }
 
 .graph-run-button-processing svg {

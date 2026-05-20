@@ -2,6 +2,7 @@
 
 import { Image as ImageIcon } from "lucide-react";
 
+import { studioMetaLabelClassName, studioMetaValueClassName } from "@/components/studio/studio-theme";
 import { SurfaceInset } from "@/components/ui/surface-primitives";
 import type { StructuredPresetImageSlot, StructuredPresetTextField } from "@/lib/media-studio-helpers";
 
@@ -42,12 +43,12 @@ export function SelectedAssetPromptPanelContent({
     <div className="grid gap-4">
       <div className="grid gap-2 sm:grid-cols-2">
         <SurfaceInset appearance="studio" density="compact" className="rounded-[16px]">
-          <div className="text-sm text-white/56">Preset</div>
-          <div className="mt-1 text-sm font-medium text-white/92">{presetLabel || "Preset"}</div>
+          <div className={studioMetaLabelClassName()}>Preset</div>
+          <div className={studioMetaValueClassName({ className: "mt-1 text-sm" })}>{presetLabel || "Preset"}</div>
         </SurfaceInset>
         <SurfaceInset appearance="studio" density="compact" className="rounded-[16px]">
-          <div className="text-sm text-white/56">Description</div>
-          <div className="mt-1 text-sm font-medium text-white/92">
+          <div className={studioMetaLabelClassName()}>Description</div>
+          <div className={studioMetaValueClassName({ className: "mt-1 text-sm" })}>
             {presetDescription?.trim() || "No preset description was saved."}
           </div>
         </SurfaceInset>
@@ -65,12 +66,12 @@ export function SelectedAssetPromptPanelContent({
                 {slot.helpText ? <div className="mt-1 text-sm leading-6 text-white/60">{slot.helpText}</div> : null}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <SurfaceInset appearance="studio" density="compact" className="rounded-[14px] border-transparent">
-                    <div className="text-[0.72rem] uppercase tracking-[0.12em] text-white/48">Requirement</div>
-                    <div className="mt-1 text-sm font-medium text-white/88">{slot.required ? "Required" : "Optional"}</div>
+                    <div className={studioMetaLabelClassName({ className: "text-[0.72rem] uppercase tracking-[0.12em]" })}>Requirement</div>
+                    <div className={studioMetaValueClassName({ className: "mt-1 text-sm" })}>{slot.required ? "Required" : "Optional"}</div>
                   </SurfaceInset>
                   <SurfaceInset appearance="studio" density="compact" className="rounded-[14px] border-transparent">
-                    <div className="text-[0.72rem] uppercase tracking-[0.12em] text-white/48">Saved input</div>
-                    <div className="mt-1 text-sm font-medium text-white/88">
+                    <div className={studioMetaLabelClassName({ className: "text-[0.72rem] uppercase tracking-[0.12em]" })}>Saved input</div>
+                    <div className={studioMetaValueClassName({ className: "mt-1 text-sm" })}>
                       {rawItems.length > 0
                         ? `${rawItems.length} ${rawItems.length === 1 ? "reference" : "references"} attached`
                         : "No media recorded"}
@@ -86,8 +87,8 @@ export function SelectedAssetPromptPanelContent({
         <div className="grid gap-2 sm:grid-cols-2">
           {presetFields.map((field) => (
             <SurfaceInset key={field.key} appearance="studio" density="compact" className="rounded-[16px]">
-              <div className="text-sm text-white/56">{field.label}</div>
-              <div className="mt-1 text-sm font-medium text-white/92">
+              <div className={studioMetaLabelClassName()}>{field.label}</div>
+              <div className={studioMetaValueClassName({ className: "mt-1 text-sm" })}>
                 {presetInputValues[field.key] || field.defaultValue || "Not provided"}
               </div>
             </SurfaceInset>

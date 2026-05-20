@@ -1,7 +1,9 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import type { MediaAsset, MediaReference } from "@/lib/types";
 import { creditBalanceFromPayload, jsonFetch } from "../utils/graph-api";
+
+const MEDIA_LIBRARY_REFRESH_TTL_MS = 4000;
 
 function mergeAssets(current: MediaAsset[], next: MediaAsset[]) {
   const byId = new Map(current.map((asset) => [String(asset.asset_id), asset]));
@@ -14,6 +16,13 @@ export function useGraphMediaLibrary() {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [availableCredits, setAvailableCredits] = useState<number | null>(null);
   const [creditsUnavailable, setCreditsUnavailable] = useState(false);
+  const imageAssetsPromiseRef = useRef<Promise<void> | null>(null);
+  const referenceMediaPromiseRef = useRef<Promise<void> | null>(null);
+  const mediaLibraryPromiseRef = useRef<Promise<void> | null>(null);
+  const imageAssetsFetchedAtRef = useRef(0);
+  const referenceMediaFetchedAtRef = useRef(0);
+  const imageAssetsLoadedRef = useRef(false);
+  const referenceMediaLoadedRef = useRef(false);
 
   const refreshCredits = useCallback(async () => {
     try {
@@ -25,9 +34,26 @@ export function useGraphMediaLibrary() {
     }
   }, []);
 
-  const refreshImageAssets = useCallback(async () => {
-    const payload = await jsonFetch<{ assets?: MediaAsset[] }>("/api/control/media-assets?limit=40");
-    setAssets((current) => mergeAssets(current, payload.assets ?? []));
+  const refreshImageAssets = useCallback(async (options?: { force?: boolean }) => {
+    const force = options?.force ?? false;
+    const freshEnough =
+      imageAssetsLoadedRef.current &&
+      Date.now() - imageAssetsFetchedAtRef.current < MEDIA_LIBRARY_REFRESH_TTL_MS;
+    if (!force && freshEnough) {
+      return;
+    }
+    if (!force && imageAssetsPromiseRef.current) {
+      return imageAssetsPromiseRef.current;
+    }
+    imageAssetsPromiseRef.current = (async () => {
+      const payload = await jsonFetch<{ assets?: MediaAsset[] }>("/api/control/media-assets?limit=40");
+      setAssets((current) => mergeAssets(current, payload.assets ?? []));
+      imageAssetsLoadedRef.current = true;
+      imageAssetsFetchedAtRef.current = Date.now();
+    })().finally(() => {
+      imageAssetsPromiseRef.current = null;
+    });
+    return imageAssetsPromiseRef.current;
   }, []);
 
   const refreshAssetsByIds = useCallback(async (assetIds: string[]) => {
@@ -45,19 +71,41 @@ export function useGraphMediaLibrary() {
     setAssets((current) => mergeAssets(current, found));
   }, []);
 
-  const refreshReferenceMedia = useCallback(async () => {
-    const payload = await jsonFetch<{ items?: MediaReference[] }>("/api/control/reference-media?limit=40");
-    setReferences(payload.items ?? []);
+  const refreshReferenceMedia = useCallback(async (options?: { force?: boolean }) => {
+    const force = options?.force ?? false;
+    const freshEnough =
+      referenceMediaLoadedRef.current &&
+      Date.now() - referenceMediaFetchedAtRef.current < MEDIA_LIBRARY_REFRESH_TTL_MS;
+    if (!force && freshEnough) {
+      return;
+    }
+    if (!force && referenceMediaPromiseRef.current) {
+      return referenceMediaPromiseRef.current;
+    }
+    referenceMediaPromiseRef.current = (async () => {
+      const payload = await jsonFetch<{ items?: MediaReference[] }>("/api/control/reference-media?limit=40");
+      setReferences(payload.items ?? []);
+      referenceMediaLoadedRef.current = true;
+      referenceMediaFetchedAtRef.current = Date.now();
+    })().finally(() => {
+      referenceMediaPromiseRef.current = null;
+    });
+    return referenceMediaPromiseRef.current;
   }, []);
 
-  const refreshMediaLibrary = useCallback(async () => {
-    const [referencePayload, assetPayload] = await Promise.all([
-      jsonFetch<{ items?: MediaReference[] }>("/api/control/reference-media?limit=40").catch(() => ({ items: [] })),
-      jsonFetch<{ assets?: MediaAsset[] }>("/api/control/media-assets?limit=40").catch(() => ({ assets: [] })),
-    ]);
-    setReferences(referencePayload.items ?? []);
-    setAssets((current) => mergeAssets(current, assetPayload.assets ?? []));
-  }, []);
+  const refreshMediaLibrary = useCallback(async (options?: { force?: boolean }) => {
+    const force = options?.force ?? false;
+    if (!force && mediaLibraryPromiseRef.current) {
+      return mediaLibraryPromiseRef.current;
+    }
+    mediaLibraryPromiseRef.current = Promise.all([
+      refreshReferenceMedia({ force }).catch(() => undefined),
+      refreshImageAssets({ force }).catch(() => undefined),
+    ]).then(() => undefined).finally(() => {
+      mediaLibraryPromiseRef.current = null;
+    });
+    return mediaLibraryPromiseRef.current;
+  }, [refreshImageAssets, refreshReferenceMedia]);
 
   const importImageFile = useCallback(async (file: File) => {
     const data = new FormData();
@@ -71,6 +119,8 @@ export function useGraphMediaLibrary() {
       throw new Error("Image import did not return a reference.");
     }
     setReferences((current) => [payload.item as MediaReference, ...current.filter((item) => item.reference_id !== payload.item?.reference_id)].slice(0, 40));
+    referenceMediaLoadedRef.current = true;
+    referenceMediaFetchedAtRef.current = Date.now();
     return payload.item;
   }, []);
 

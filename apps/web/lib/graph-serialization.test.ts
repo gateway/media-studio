@@ -122,6 +122,114 @@ describe("graph workflow serialization", () => {
     });
   });
 
+  it("drops stale provider-backed model metadata when the saved provider no longer matches", () => {
+    const promptRecipeDefinition: GraphNodeDefinition = {
+      type: "prompt.recipe",
+      title: "Prompt Recipe",
+      category: "Prompt",
+      fields: [],
+      ports: { inputs: [], outputs: [] },
+    };
+    const hydrated = hydrateGraphWorkflowForCanvas({
+      workflow: {
+        schema_version: 1,
+        workflow_id: "workflow-1",
+        name: "Hydrate prompt provider",
+        nodes: [
+          {
+            id: "recipe",
+            type: "prompt.recipe",
+            position: { x: 10, y: 20 },
+            fields: {
+              provider: "codex_local",
+              model_id: "qwen/qwen3.6",
+              provider_model_label: "Qwen 3.6",
+              provider_capabilities_json: { provider: "openrouter", model_id: "qwen/qwen3.6", model_label: "Qwen 3.6" },
+            },
+          },
+        ],
+        edges: [],
+      },
+      definitionsByType: new Map([[promptRecipeDefinition.type, promptRecipeDefinition]]),
+      handlers: { onFieldChange: vi.fn() },
+    });
+    expect(hydrated.nodes[0].data.fields).toMatchObject({
+      provider: "codex_local",
+      model_id: "",
+      provider_model_label: "",
+      provider_capabilities_json: {},
+    });
+  });
+
+  it("does not persist auto-grown display node heights back into workflow metadata", () => {
+    const node = {
+      id: "display-1",
+      position: { x: 0, y: 0 },
+      data: {
+        definition: { type: "display.any" },
+        fields: {},
+        autoSizedHeight: 1765,
+      },
+      style: {
+        width: 360,
+        height: 1765,
+        minHeight: 1765,
+      },
+    } as StudioNode;
+
+    const workflow = workflowFromCanvas("workflow-1", "Display", [node], []);
+    expect(workflow.nodes[0].metadata?.style).toMatchObject({
+      width: 360,
+    });
+    expect(workflow.nodes[0].metadata?.style?.height).toBeUndefined();
+  });
+
+  it("persists manual media node size and restores it without inflating min height", () => {
+    const loadDefinition: GraphNodeDefinition = {
+      type: "media.load_image",
+      title: "Load Image",
+      category: "Media",
+      fields: [],
+      ports: { inputs: [], outputs: [{ id: "image", label: "Image", type: "image" }] },
+      ui: {
+        preview: true,
+      },
+    };
+
+    const node = {
+      id: "load-1",
+      position: { x: 120, y: 80 },
+      data: {
+        definition: loadDefinition,
+        fields: {},
+        autoSizedHeight: 404,
+      },
+      style: {
+        width: 520,
+        height: 680,
+        minHeight: 404,
+      },
+    } as StudioNode;
+
+    const workflow = workflowFromCanvas("workflow-1", "Media resize", [node], []);
+    expect(workflow.nodes[0].metadata?.style).toMatchObject({
+      width: 520,
+      height: 680,
+    });
+
+    const hydrated = hydrateGraphWorkflowForCanvas({
+      workflow,
+      definitionsByType: new Map([[loadDefinition.type, loadDefinition]]),
+      handlers: { onFieldChange: vi.fn() },
+    });
+
+    expect(hydrated.nodes[0].style).toMatchObject({
+      width: 520,
+      height: 680,
+    });
+    expect(Number(hydrated.nodes[0].style?.minHeight)).toBeLessThan(680);
+  });
+
   it("bundles referenced media and remaps reference ids on import", async () => {
     vi.stubGlobal(
       "fetch",

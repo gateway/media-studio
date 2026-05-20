@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import { resolveStudioShortcutAction } from "./studio-shortcuts";
 
 describe("studio shortcuts", () => {
-  it("maps gallery shortcuts to Graph Studio and projects", () => {
-    expect(resolveStudioShortcutAction({ key: "g", hasModifier: false, typing: false, overlayOpen: false })).toBe("open-graph");
-    expect(resolveStudioShortcutAction({ key: "p", hasModifier: false, typing: false, overlayOpen: false })).toBe("open-projects");
+  it("maps gallery shortcuts to projects, presets, and Graph Studio", () => {
+    expect(resolveStudioShortcutAction({ key: "g", hasModifier: false, typing: false, overlayOpen: false })).toBe("open-projects");
+    expect(resolveStudioShortcutAction({ key: "p", hasModifier: false, typing: false, overlayOpen: false })).toBe("open-presets");
+    expect(resolveStudioShortcutAction({ key: "n", hasModifier: false, typing: false, overlayOpen: false })).toBe("open-graph");
   });
 
   it("keeps shortcuts out of form fields, overlays, and modifier chords", () => {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import time
 import shutil
 import subprocess
@@ -14,7 +15,10 @@ from app.graph.definition_validator import (
     compatible_node_definitions,
     validate_node_definition,
 )
-from app.graph.schemas import GraphNodeDefinition, GraphNodeField, GraphNodePort
+from app.graph.schemas import GraphOutputRef
+from app.graph.executors.prompt_ops import _normalize_prompt_recipe_result
+from app.graph.normalization import materialize_workflow_defaults
+from app.graph.schemas import GraphNodeDefinition, GraphNodeField, GraphNodePort, GraphWorkflow
 
 PNG_1X1_BYTES = (
     b"\x89PNG\r\n\x1a\n"
@@ -25,18 +29,22 @@ PNG_1X1_BYTES = (
 
 
 def _create_reference_image(app_modules) -> str:
+    return _create_named_reference_image(app_modules, name="graph-source.png", sha="graph-source-hash")
+
+
+def _create_named_reference_image(app_modules, *, name: str, sha: str | None = None) -> str:
     data_root = app_modules["main"].settings.data_root
-    target = data_root / "reference-media" / "images" / "graph-source.png"
+    target = data_root / "reference-media" / "images" / name
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(PNG_1X1_BYTES)
     record = app_modules["store"].create_or_reuse_reference_media(
         {
             "kind": "image",
-            "original_filename": "graph-source.png",
-            "stored_path": "reference-media/images/graph-source.png",
+            "original_filename": name,
+            "stored_path": f"reference-media/images/{name}",
             "mime_type": "image/png",
             "file_size_bytes": len(PNG_1X1_BYTES),
-            "sha256": "graph-source-hash",
+            "sha256": sha or f"sha-{name}",
             "width": 1,
             "height": 1,
             "metadata_json": {},
@@ -66,6 +74,18 @@ def _create_grid_reference_image(app_modules) -> str:
     record = app_modules["service"].import_reference_media_bytes(
         source_bytes=buffer.getvalue(),
         source_name="graph-grid.png",
+        source_mime_type="image/png",
+    )
+    return record["reference_id"]
+
+
+def _create_colored_reference_image(app_modules, *, name: str, color: tuple[int, int, int]) -> str:
+    image = Image.new("RGB", (2, 2), color)
+    buffer = BytesIO()
+    image.save(buffer, "PNG")
+    record = app_modules["service"].import_reference_media_bytes(
+        source_bytes=buffer.getvalue(),
+        source_name=name,
         source_mime_type="image/png",
     )
     return record["reference_id"]
@@ -385,6 +405,8 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
         "debug.metadata",
         "preset.render",
         "prompt.concat",
+        "prompt.recipe",
+        "prompt.parse",
         "media.save_images",
     }.issubset(node_types)
     assert not {
@@ -413,6 +435,9 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
     assert display_any_input["array"] is False
     assert display_any_input["max"] == 1
     assert {"value", "json"} == {port["id"] for port in display_any["ports"]["outputs"]}
+    assert display_any["ui"]["default_size"] == {"width": 460, "height": 520}
+    assert display_any["ui"]["min_size"] == {"width": 360, "height": 320}
+    assert display_any["ui"]["max_size"] == {"width": 2400, "height": 3200}
     video_extract = next(item for item in items if item["type"] == "video.extract")
     assert next(field for field in video_extract["fields"] if field["id"] == "operation")["default"] == "poster_frame"
     video_combine = next(item for item in items if item["type"] == "video.combine")
@@ -448,9 +473,15 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
     assert any(port["id"] == "end_frame" and port["label"] == "End Frame" and port["required"] is False and port["max"] == 1 for port in kling_3_inputs)
     assert not any(port["id"] == "image_refs" for port in kling_3_inputs)
     seedance = next(item for item in items if item["type"] == "model.kie.seedance_2_0")
-    assert any(port["id"] == "image_refs" and port["array"] is True and port["max"] == 9 for port in seedance["ports"]["inputs"])
-    assert any(port["id"] == "video_refs" and port["array"] is True and port["max"] == 3 for port in seedance["ports"]["inputs"])
-    assert any(port["id"] == "audio_refs" and port["array"] is True and port["max"] == 3 for port in seedance["ports"]["inputs"])
+    seedance_inputs = seedance["ports"]["inputs"]
+    assert any(port["id"] == "start_frame" and port["type"] == "image" and port["max"] == 1 for port in seedance_inputs)
+    assert any(port["id"] == "end_frame" and port["type"] == "image" and port["max"] == 1 for port in seedance_inputs)
+    assert any(port["id"] == "reference_images" and port["array"] is True and port["max"] == 9 for port in seedance_inputs)
+    assert any(port["id"] == "reference_videos" and port["array"] is True and port["max"] == 3 for port in seedance_inputs)
+    assert any(port["id"] == "reference_audios" and port["array"] is True and port["max"] == 3 for port in seedance_inputs)
+    assert not any(port["id"] == "image_refs" for port in seedance_inputs)
+    assert not any(port["id"] == "video_refs" for port in seedance_inputs)
+    assert not any(port["id"] == "audio_refs" for port in seedance_inputs)
     save_video = next(item for item in items if item["type"] == "media.save_video")
     assert any(field["id"] == "format" and field["default"] == "source_original" for field in save_video["fields"])
     assert any(port["id"] == "video" and port["type"] == "video" for port in save_video["ports"]["outputs"])
@@ -486,6 +517,9 @@ def test_graph_prompt_llm_definition_exposes_provider_image_and_text_contract(cl
     assert prompt_text_fields["mode"]["default"] == "replace"
     assert prompt_text_fields["text"]["connectable"] is True
     assert prompt_text_fields["text"]["port_type"] == "text"
+    assert prompt_text["ui"]["default_size"] == {"width": 420, "height": 420}
+    assert prompt_text["ui"]["min_size"] == {"width": 340, "height": 320}
+    assert prompt_text["ui"]["max_size"] == {"width": 1100, "height": 1400}
 
     definition = next(item for item in response.json()["items"] if item["type"] == "prompt.llm")
     assert definition["category"] == "Prompt"
@@ -497,8 +531,19 @@ def test_graph_prompt_llm_definition_exposes_provider_image_and_text_contract(cl
     fields = {field["id"]: field for field in definition["fields"]}
     assert fields["provider"]["default"] == "studio_default"
     assert fields["model_id"]["visible_if"] == {"field": "provider", "not_equals": "studio_default"}
-    assert fields["model_supports_images"]["type"] == "boolean"
+    assert fields["model_id"]["type"] == "provider_model_picker"
+    assert fields["provider_model_label"]["hidden"] is True
+    assert fields["provider_supports_images"]["hidden"] is True
+    assert fields["provider_capabilities_json"]["hidden"] is True
+    assert fields["temperature"]["required"] is False
+    assert fields["temperature"]["default"] == ""
+    assert fields["temperature"]["visible_if"] == {"field": "provider", "not_equals": "codex_local"}
+    assert fields["max_tokens"]["required"] is False
+    assert fields["max_tokens"]["default"] == ""
+    assert fields["max_tokens"]["visible_if"] == {"field": "provider", "not_equals": "codex_local"}
     assert "[user_prompt]" in fields["system_prompt"]["help_text"]
+    provider_options = {item["value"] for item in fields["provider"]["options"]}
+    assert "codex_local" in provider_options
 
 
 def test_graph_prompt_llm_runs_text_only_image_and_connected_prompt_workflows(client, app_modules, monkeypatch) -> None:
@@ -530,15 +575,13 @@ def test_graph_prompt_llm_runs_text_only_image_and_connected_prompt_workflows(cl
                     "position": {"x": 0, "y": 0},
                     "fields": {
                         "provider": "local_openai",
-                        "model_id": "local-text-model",
-                        "mode": "rewrite_prompt",
-                        "system_prompt": "Make [user_prompt] cinematic.",
-                        "user_prompt": "a neon city street",
-                        "temperature": 0.2,
-                        "max_tokens": 256,
-                    },
-                }
-            ],
+                    "model_id": "local-text-model",
+                    "mode": "rewrite_prompt",
+                    "system_prompt": "Make [user_prompt] cinematic.",
+                    "user_prompt": "a neon city street",
+                },
+            }
+        ],
             "edges": [],
         },
         {
@@ -553,7 +596,8 @@ def test_graph_prompt_llm_runs_text_only_image_and_connected_prompt_workflows(cl
                     "fields": {
                         "provider": "local_openai",
                         "model_id": "local-vision-model",
-                        "model_supports_images": True,
+                        "provider_supports_images": True,
+                        "provider_capabilities_json": {"supports_images": True, "input_modalities": ["text", "image"]},
                         "mode": "describe_image",
                         "system_prompt": "Describe the attached image for a video model.",
                         "image_instruction": "Call out subject, composition, lighting, and style.",
@@ -613,9 +657,78 @@ def test_graph_prompt_llm_runs_text_only_image_and_connected_prompt_workflows(cl
     assert len(saved_workflow_ids) == 3
     assert calls[0]["image_paths"] == []
     assert calls[0]["user_prompt"] == "a neon city street"
+    assert calls[0]["temperature"] is None
+    assert calls[0]["max_tokens"] is None
     assert len(calls[1]["image_paths"]) == 1
     assert calls[1]["mode"] == "describe_image"
     assert calls[2]["user_prompt"] == "turn this into sci-fi fantasy"
+
+
+def test_graph_prompt_llm_runs_with_codex_local_provider(client, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.graph.executors.prompt_ops.enhancement_provider.run_codex_local_prompt_node",
+        lambda **kwargs: {
+            "provider_kind": "codex_local",
+            "provider_model_id": kwargs["model_id"],
+            "generated_text": "codex local prompt output",
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+            "warnings": [],
+        },
+    )
+
+    workflow = {
+        "schema_version": 1,
+        "name": "LLM Prompt codex local smoke",
+        "nodes": [
+            {
+                "id": "llm",
+                "type": "prompt.llm",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "provider": "codex_local",
+                    "model_id": "gpt-5.4",
+                    "mode": "rewrite_prompt",
+                    "system_prompt": "Make [user_prompt] sharper.",
+                    "user_prompt": "a foggy harbor at sunrise",
+                },
+            }
+        ],
+        "edges": [],
+    }
+
+    final_payload = _run_graph_workflow(client, workflow)
+    assert final_payload["status"] == "completed", final_payload.get("error")
+    llm_node = next(node for node in final_payload["nodes"] if node["node_id"] == "llm")
+    assert llm_node["output_snapshot_json"]["text"][0]["value"] == "codex local prompt output"
+
+
+def test_graph_estimate_treats_codex_local_prompt_nodes_as_subscription_included(client) -> None:
+    workflow = {
+        "schema_version": 1,
+        "name": "Codex pricing smoke",
+        "nodes": [
+            {
+                "id": "llm",
+                "type": "prompt.llm",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "provider": "codex_local",
+                    "model_id": "gpt-5.4",
+                    "mode": "rewrite_prompt",
+                    "system_prompt": "Rewrite [user_prompt].",
+                    "user_prompt": "cinematic skyline",
+                },
+            }
+        ],
+        "edges": [],
+    }
+
+    response = client.post("/media/graph/estimate", json=workflow)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["pricing_summary"]["pricing_status"] == "subscription_included"
+    assert payload["pricing_summary"]["has_unknown_pricing"] is False
+    assert payload["nodes"]["llm"]["pricing_summary"]["pricing_status"] == "subscription_included"
 
 
 def test_graph_prompt_text_accepts_connected_text_input(client) -> None:
@@ -648,6 +761,842 @@ def test_graph_prompt_text_accepts_connected_text_input(client) -> None:
     assert inspected_values == ["upstream prompt", "upstream prompt\n\ntyped suffix"]
 
 
+def test_graph_prompt_recipe_definitions_include_generic_node_catalog_and_hidden_legacy_nodes(client, app_modules) -> None:
+    store = app_modules["store"]
+    store.create_or_update_prompt_recipe(
+        {
+            "recipe_id": "prompt-recipe-archived-graph-test",
+            "key": "archived-graph-test",
+            "label": "Archived Graph Test",
+            "description": "Archived graph recipe definition smoke",
+            "category": "utility",
+            "status": "archived",
+            "system_prompt_template": "SOURCE PROMPT:\n{{source_prompt}}\n\nReturn only the shortened prompt.",
+            "image_analysis_prompt": "",
+            "user_prompt_placeholder": "{{user_prompt}}",
+            "output_format": "single_prompt",
+            "output_contract_json": {"type": "text"},
+            "input_variables_json": [
+                {
+                    "key": "source_prompt",
+                    "token": "{{source_prompt}}",
+                    "label": "Source Prompt",
+                    "enabled": True,
+                    "required": True,
+                    "default_value": "",
+                    "description": "Prompt to shorten.",
+                }
+            ],
+            "custom_fields_json": [],
+            "image_input_json": {"enabled": False, "required": False, "mode": "none", "analysis_variable": "image_analysis", "max_files": 0},
+            "default_options_json": {"temperature": 0.2, "max_output_tokens": 800},
+            "rules_json": {"allow_external_variables": True, "return_only_final_output": True},
+            "validation_warnings_json": [],
+            "source_kind": "custom",
+            "version": "1",
+            "priority": 1,
+        }
+    )
+
+    response = client.post("/media/graph/node-definitions/refresh")
+    assert response.status_code == 200, response.text
+    items = response.json()["items"]
+
+    generic = next(item for item in items if item["type"] == "prompt.recipe")
+    assert generic["source"]["kind"] == "external_llm"
+    assert generic["source"]["recipe_backed"] is True
+    assert any(field["id"] == "recipe_category" for field in generic["fields"])
+    assert any(field["id"] == "recipe_id" and field["type"] == "prompt_recipe_picker" for field in generic["fields"])
+    assert any(field["id"] == "provider" and field["advanced"] is True for field in generic["fields"])
+    assert any(field["id"] == "temperature" and field["advanced"] is True for field in generic["fields"])
+    assert any(field["id"] == "max_tokens" and field["advanced"] is True for field in generic["fields"])
+    assert generic["source"]["recipe_catalog"]
+    assert any(item["recipe_id"] == "prompt-recipe-archived-graph-test" and item["status"] == "archived" for item in generic["source"]["recipe_catalog"])
+    assert any(item["recipe_id"] == "prompt-recipe-image-prompt-director" and item["selection_summary"]["title"] == "Image Prompt Director" for item in generic["source"]["recipe_catalog"])
+    assert any(port["id"] == "image_refs" and port["type"] == "image" and port["array"] is True and port["max"] == 4 for port in generic["ports"]["inputs"])
+    assert not any(item["type"].startswith("prompt.recipe.") for item in items)
+
+    parse = next(item for item in items if item["type"] == "prompt.parse")
+    parse_output_ids = {port["id"] for port in parse["ports"]["outputs"]}
+    assert {"result", "prompt_1", "prompt_12"}.issubset(parse_output_ids)
+
+
+def test_graph_prompt_recipe_legacy_nodes_normalize_to_generic_workflows(client) -> None:
+    workflow = {
+        "schema_version": 1,
+        "name": "Prompt Recipe legacy normalization",
+        "nodes": [
+            {
+                "id": "recipe",
+                "type": "prompt.recipe.image_prompt_director",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "user_prompt": "Create a cinematic portrait prompt.",
+                    "style_direction": "cinematic realism",
+                    "aspect_ratio": "16:9",
+                    "provider": "openrouter",
+                    "model_id": "openai/gpt-4o-mini",
+                },
+            }
+        ],
+        "edges": [],
+    }
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    payload = created.json()
+    recipe_node = next(node for node in payload["workflow_json"]["nodes"] if node["id"] == "recipe")
+    assert recipe_node["type"] == "prompt.recipe"
+    assert recipe_node["fields"]["recipe_id"] == "prompt-recipe-image-prompt-director"
+    assert recipe_node["fields"]["recipe_category"] == "image"
+
+    templates = client.get("/media/graph/templates")
+    assert templates.status_code == 200, templates.text
+    single_image_template = next(item for item in templates.json()["items"] if item["template_id"] == "graph-template-prompt-recipe-single-image-director")
+    template_recipe = next(node for node in single_image_template["workflow_json"]["nodes"] if node["id"] == "recipe")
+    assert template_recipe["type"] == "prompt.recipe"
+    assert template_recipe["fields"]["recipe_id"] == "prompt-recipe-image-prompt-director"
+
+
+def test_graph_prompt_recipe_runs_text_multi_image_and_structured_parse_workflows(client, app_modules, monkeypatch) -> None:
+    store = app_modules["store"]
+    data_root = app_modules["main"].settings.data_root
+    red_ref = _create_colored_reference_image(app_modules, name="prompt-recipe-red.png", color=(255, 0, 0))
+    green_ref = _create_colored_reference_image(app_modules, name="prompt-recipe-green.png", color=(0, 255, 0))
+    blue_ref = _create_colored_reference_image(app_modules, name="prompt-recipe-blue.png", color=(0, 0, 255))
+    ordered_ref_ids = [green_ref, red_ref, blue_ref]
+    expected_image_urls = []
+    for reference_id in ordered_ref_ids:
+        record = store.get_reference_media(reference_id)
+        assert record is not None
+        stored_path = data_root / str(record["stored_path"])
+        mime_type = str(record["mime_type"] or "image/png")
+        encoded = base64.b64encode(stored_path.read_bytes()).decode("ascii")
+        expected_image_urls.append(f"data:{mime_type};base64,{encoded}")
+
+    calls = []
+
+    def fake_chat(**kwargs):
+        calls.append(kwargs)
+        if kwargs["error_context"] == "prompt recipe image analysis":
+            return {
+                "provider_kind": kwargs["provider_kind"],
+                "provider_model_id": kwargs["model_id"],
+                "generated_text": "Reference analysis for prompt recipe smoke.",
+                "warnings": [],
+            }
+        if kwargs["response_format"]:
+            return {
+                "provider_kind": kwargs["provider_kind"],
+                "provider_model_id": kwargs["model_id"],
+                "generated_text": '{"shots":[{"shot_number":1,"title":"Shot 1","caption":"Start","camera":"wide","action":"advance","prompt":"Prompt 1"},{"shot_number":2,"title":"Shot 2","caption":"Turn","camera":"medium","action":"pivot","prompt":"Prompt 2"},{"shot_number":3,"title":"Shot 3","caption":"Rush","camera":"close","action":"run","prompt":"Prompt 3"},{"shot_number":4,"title":"Shot 4","caption":"Exit","camera":"tracking","action":"escape","prompt":"Prompt 4"}]}',
+                "warnings": [],
+            }
+        return {
+            "provider_kind": kwargs["provider_kind"],
+            "provider_model_id": kwargs["model_id"],
+            "generated_text": "Prompt recipe final text output.",
+            "warnings": [],
+        }
+
+    monkeypatch.setattr("app.graph.executors.prompt_ops.enhancement_provider.run_openai_compatible_chat", fake_chat)
+
+    text_workflow = {
+        "schema_version": 1,
+        "name": "Prompt Recipe text smoke",
+        "nodes": [
+            {
+                "id": "recipe",
+                "type": "prompt.recipe",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "recipe_id": "prompt-recipe-image-prompt-director",
+                    "user_prompt": "Create a cinematic portrait prompt for a lone explorer.",
+                    "external_variables_json": '{"aspect_ratio":"16:9","style_direction":"cinematic realism"}',
+                    "provider": "local_openai",
+                    "model_id": "local-text-model",
+                    "temperature": 0.2,
+                    "max_tokens": 600,
+                },
+            }
+        ],
+        "edges": [],
+    }
+    text_payload = _run_graph_workflow(client, text_workflow)
+    assert text_payload["status"] == "completed", text_payload.get("error")
+    recipe_node = next(node for node in text_payload["nodes"] if node["node_id"] == "recipe")
+    assert recipe_node["output_snapshot_json"]["text"][0]["value"] == "Prompt recipe final text output."
+
+    multi_image_workflow = {
+        "schema_version": 1,
+        "name": "Prompt Recipe multi image smoke",
+        "nodes": [
+            {"id": "load_green", "type": "media.load_image", "position": {"x": -400, "y": -200}, "fields": {"reference_id": green_ref}},
+            {"id": "load_red", "type": "media.load_image", "position": {"x": -400, "y": 0}, "fields": {"reference_id": red_ref}},
+            {"id": "load_blue", "type": "media.load_image", "position": {"x": -400, "y": 200}, "fields": {"reference_id": blue_ref}},
+            {
+                "id": "recipe",
+                "type": "prompt.recipe",
+                "position": {"x": 40, "y": 0},
+                "fields": {
+                    "recipe_id": "prompt-recipe-image-prompt-director",
+                    "recipe_category": "image",
+                    "user_prompt": "Use the references in order for face, body, and product continuity.",
+                    "style_direction": "premium editorial realism",
+                    "aspect_ratio": "16:9",
+                    "provider": "local_openai",
+                    "model_id": "local-vision-model",
+                    "provider_supports_images": True,
+                    "provider_capabilities_json": {"supports_images": True, "input_modalities": ["text", "image"]},
+                    "temperature": 0.25,
+                    "max_tokens": 800,
+                },
+            },
+        ],
+        "edges": [
+            {"id": "edge-green", "source": "load_green", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+            {"id": "edge-red", "source": "load_red", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+            {"id": "edge-blue", "source": "load_blue", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+        ],
+    }
+    multi_payload = _run_graph_workflow(client, multi_image_workflow)
+    assert multi_payload["status"] == "completed", multi_payload.get("error")
+    multi_recipe_node = next(node for node in multi_payload["nodes"] if node["node_id"] == "recipe")
+    assert multi_recipe_node["metrics_json"]["image_count"] == 3
+
+    structured_workflow = {
+        "schema_version": 1,
+        "name": "Prompt Recipe parse smoke",
+        "nodes": [
+            {"id": "load_green", "type": "media.load_image", "position": {"x": -400, "y": -100}, "fields": {"reference_id": green_ref}},
+            {
+                "id": "recipe",
+                "type": "prompt.recipe",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "recipe_id": "prompt-recipe-video-director-multi-shot-json",
+                    "recipe_category": "video",
+                    "user_prompt": "Create four prompts for a cinematic escape scene.",
+                    "style_direction": "cinematic sci-fi realism",
+                    "shot_count": "4",
+                    "duration_seconds": "5",
+                    "provider": "local_openai",
+                    "model_id": "local-vision-model",
+                    "provider_supports_images": True,
+                    "provider_capabilities_json": {"supports_images": True, "input_modalities": ["text", "image"]},
+                    "temperature": 0.2,
+                    "max_tokens": 1200,
+                },
+            },
+            {"id": "parse", "type": "prompt.parse", "position": {"x": 420, "y": 0}, "fields": {}},
+        ],
+        "edges": [
+            {"id": "edge-green-recipe", "source": "load_green", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+            {"id": "edge-recipe-parse", "source": "recipe", "source_port": "result", "target": "parse", "target_port": "result"},
+        ],
+    }
+    structured_payload = _run_graph_workflow(client, structured_workflow)
+    assert structured_payload["status"] == "completed", structured_payload.get("error")
+    parse_node = next(node for node in structured_payload["nodes"] if node["node_id"] == "parse")
+    assert parse_node["output_snapshot_json"]["prompt_1"][0]["value"] == "Prompt 1"
+    assert parse_node["output_snapshot_json"]["prompt_4"][0]["value"] == "Prompt 4"
+    recipe_result = next(node for node in structured_payload["nodes"] if node["node_id"] == "recipe")
+    assert "Shot 1" in recipe_result["output_snapshot_json"]["text"][0]["value"]
+    assert "Prompt 4" in recipe_result["output_snapshot_json"]["text"][0]["value"]
+    assert recipe_result["output_snapshot_json"]["result"][0]["value"]["prompts"] == ["Prompt 1", "Prompt 2", "Prompt 3", "Prompt 4"]
+
+    assert len(calls) == 5
+    text_call = calls[0]
+    assert text_call["error_context"] == "prompt recipe execution"
+    assert text_call["response_format"] is None
+    assert isinstance(text_call["messages"][1]["content"], list)
+    assert len([item for item in text_call["messages"][1]["content"] if item["type"] == "image_url"]) == 0
+    assert "16:9" in str(text_call["messages"][0]["content"])
+    assert "cinematic realism" in str(text_call["messages"][0]["content"])
+
+    multi_analysis_call = calls[1]
+    multi_final_call = calls[2]
+    assert multi_analysis_call["error_context"] == "prompt recipe image analysis"
+    assert multi_final_call["error_context"] == "prompt recipe execution"
+    analysis_urls = [item["image_url"]["url"] for item in multi_analysis_call["messages"][1]["content"] if item["type"] == "image_url"]
+    final_urls = [item["image_url"]["url"] for item in multi_final_call["messages"][1]["content"] if item["type"] == "image_url"]
+    assert analysis_urls == expected_image_urls
+    assert final_urls == expected_image_urls
+
+    structured_final_call = calls[4]
+    assert structured_final_call["response_format"] == {"type": "json_object"}
+
+
+def test_graph_prompt_recipe_validation_rejects_inactive_missing_variables_and_image_capability(client, app_modules) -> None:
+    store = app_modules["store"]
+    reference_id = _create_reference_image(app_modules)
+    store.create_or_update_prompt_recipe(
+        {
+            "recipe_id": "prompt-recipe-inactive-validation-test",
+            "key": "inactive-validation-test",
+            "label": "Inactive Validation Test",
+            "description": "Inactive graph validation recipe",
+            "category": "utility",
+            "status": "archived",
+            "system_prompt_template": "USER:\n{{user_prompt}}\n\nReturn only the final prompt.",
+            "image_analysis_prompt": "",
+            "user_prompt_placeholder": "{{user_prompt}}",
+            "output_format": "single_prompt",
+            "output_contract_json": {"type": "text"},
+            "input_variables_json": [
+                {
+                    "key": "user_prompt",
+                    "token": "{{user_prompt}}",
+                    "label": "User Prompt",
+                    "enabled": True,
+                    "required": True,
+                    "default_value": "",
+                    "description": "Creative direction.",
+                }
+            ],
+            "custom_fields_json": [],
+            "image_input_json": {"enabled": False, "required": False, "mode": "none", "analysis_variable": "image_analysis", "max_files": 0},
+            "default_options_json": {"temperature": 0.2, "max_output_tokens": 800},
+            "rules_json": {"allow_external_variables": True, "return_only_final_output": True},
+            "validation_warnings_json": [],
+            "source_kind": "custom",
+            "version": "1",
+            "priority": 1,
+        }
+    )
+    client.post("/media/graph/node-definitions/refresh")
+
+    invalid_generic = {
+        "schema_version": 1,
+        "name": "Prompt Recipe invalid generic",
+        "nodes": [
+            {
+                "id": "recipe",
+                "type": "prompt.recipe",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "recipe_id": "prompt-recipe-image-prompt-director",
+                    "provider": "local_openai",
+                    "model_id": "local-text-model",
+                    "external_variables_json": '{"aspect_ratio":"16:9","style_direction":"cinematic realism"',
+                },
+            }
+        ],
+        "edges": [],
+    }
+    created = client.post("/media/graph/workflows", json=invalid_generic)
+    assert created.status_code == 200, created.text
+    validation = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=invalid_generic)
+    assert validation.status_code == 200, validation.text
+    payload = validation.json()
+    assert payload["valid"] is False
+    assert any(error["code"] == "invalid_prompt_recipe_external_variables" for error in payload["errors"])
+    assert any(error["code"] == "missing_prompt_recipe_variable" for error in payload["errors"])
+
+    inactive_workflow = {
+        "schema_version": 1,
+        "name": "Prompt Recipe inactive validation",
+        "nodes": [
+            {
+                "id": "recipe",
+                "type": "prompt.recipe",
+                "position": {"x": 0, "y": 0},
+                "fields": {"recipe_id": "prompt-recipe-inactive-validation-test", "recipe_category": "utility", "user_prompt": "ignored"},
+            },
+        ],
+        "edges": [],
+    }
+    created = client.post("/media/graph/workflows", json=inactive_workflow)
+    assert created.status_code == 200, created.text
+    validation = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=inactive_workflow)
+    assert validation.status_code == 200, validation.text
+    payload = validation.json()
+    assert payload["valid"] is False
+    assert any(error["code"] == "inactive_prompt_recipe" for error in payload["errors"])
+
+    too_many_images = {
+        "schema_version": 1,
+        "name": "Prompt Recipe too many images",
+        "nodes": [
+            {"id": "load_1", "type": "media.load_image", "position": {"x": -480, "y": -160}, "fields": {"reference_id": reference_id}},
+            {"id": "load_2", "type": "media.load_image", "position": {"x": -480, "y": 0}, "fields": {"reference_id": reference_id}},
+            {"id": "load_3", "type": "media.load_image", "position": {"x": -480, "y": 160}, "fields": {"reference_id": reference_id}},
+            {"id": "load_4", "type": "media.load_image", "position": {"x": -480, "y": 320}, "fields": {"reference_id": reference_id}},
+            {"id": "load_5", "type": "media.load_image", "position": {"x": -480, "y": 480}, "fields": {"reference_id": reference_id}},
+            {
+                "id": "recipe",
+                "type": "prompt.recipe",
+                "position": {"x": 0, "y": 120},
+                "fields": {
+                    "recipe_id": "prompt-recipe-image-prompt-director",
+                    "recipe_category": "image",
+                    "user_prompt": "Use all references.",
+                    "provider": "local_openai",
+                    "model_id": "local-text-model",
+                    "style_direction": "cinematic realism",
+                    "aspect_ratio": "16:9",
+                },
+            },
+        ],
+        "edges": [
+            {"id": "edge-1", "source": "load_1", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+            {"id": "edge-2", "source": "load_2", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+            {"id": "edge-3", "source": "load_3", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+            {"id": "edge-4", "source": "load_4", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+            {"id": "edge-5", "source": "load_5", "source_port": "image", "target": "recipe", "target_port": "image_refs"},
+        ],
+    }
+    created = client.post("/media/graph/workflows", json=too_many_images)
+    assert created.status_code == 200, created.text
+    validation = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=too_many_images)
+    assert validation.status_code == 200, validation.text
+    payload = validation.json()
+    assert payload["valid"] is False
+    assert any(error["code"] == "prompt_recipe_image_limit_exceeded" for error in payload["errors"])
+
+    image_capability_workflow = {
+        "schema_version": 1,
+        "name": "Prompt Recipe image capability",
+        "nodes": [
+            {"id": "load", "type": "media.load_image", "position": {"x": -320, "y": 0}, "fields": {"reference_id": reference_id}},
+            {
+                "id": "recipe",
+                "type": "prompt.recipe",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "recipe_id": "prompt-recipe-image-prompt-director",
+                    "recipe_category": "image",
+                    "user_prompt": "Create a refined prompt from the image.",
+                    "provider": "local_openai",
+                    "model_id": "local-text-model",
+                    "provider_supports_images": False,
+                    "provider_capabilities_json": {"supports_images": False, "input_modalities": ["text"]},
+                    "style_direction": "cinematic realism",
+                    "aspect_ratio": "16:9",
+                },
+            },
+        ],
+        "edges": [{"id": "edge-load-recipe", "source": "load", "source_port": "image", "target": "recipe", "target_port": "image_refs"}],
+    }
+    created = client.post("/media/graph/workflows", json=image_capability_workflow)
+    assert created.status_code == 200, created.text
+    validation = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=image_capability_workflow)
+    assert validation.status_code == 200, validation.text
+    payload = validation.json()
+    assert payload["valid"] is False
+    assert any(error["code"] == "prompt_recipe_model_not_image_capable" for error in payload["errors"])
+
+
+def test_graph_prompt_recipe_validation_warns_when_image_recipe_has_no_image_refs(client, app_modules) -> None:
+    workflow = {
+        "schema_version": 1,
+        "name": "Prompt Recipe missing image refs warning",
+        "nodes": [
+            {
+                "id": "recipe",
+                "type": "prompt.recipe",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "recipe_id": "prompt-recipe-image-prompt-director",
+                    "recipe_category": "image",
+                    "user_prompt": "Use [image reference 1] as the identity source.",
+                    "provider": "codex_local",
+                    "model_id": "gpt-5.4",
+                    "provider_supports_images": True,
+                    "style_direction": "cinematic realism",
+                    "aspect_ratio": "16:9",
+                },
+            }
+        ],
+        "edges": [],
+    }
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    validation = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=workflow)
+    assert validation.status_code == 200, validation.text
+    payload = validation.json()
+    assert any(warning["code"] == "prompt_recipe_images_not_connected" for warning in payload["warnings"])
+    assert any(warning["code"] == "prompt_recipe_image_reference_unwired" for warning in payload["warnings"])
+
+
+def test_graph_prompt_recipe_validation_blocks_missing_required_custom_field(client, app_modules) -> None:
+    store = app_modules["store"]
+    store.create_or_update_prompt_recipe(
+        {
+            "recipe_id": "prompt-recipe-required-custom-field-test",
+            "key": "required_custom_field_test",
+            "label": "Required Custom Field Test",
+            "description": "Graph validation custom field test",
+            "category": "utility",
+            "status": "active",
+            "system_prompt_template": "USER:\n{{user_prompt}}\nMOOD:\n{{mood}}\nReturn one prompt.",
+            "image_analysis_prompt": "",
+            "user_prompt_placeholder": "{{user_prompt}}",
+            "output_format": "single_prompt",
+            "output_contract_json": {"type": "text"},
+            "input_variables_json": [
+                {
+                    "key": "user_prompt",
+                    "token": "{{user_prompt}}",
+                    "label": "User Prompt",
+                    "enabled": True,
+                    "required": True,
+                    "default_value": "Make a poster.",
+                    "description": "Creative direction.",
+                }
+            ],
+            "custom_fields_json": [
+                {"key": "mood", "label": "Mood", "type": "text", "default_value": "", "required": True, "options": []}
+            ],
+            "image_input_json": {"enabled": False, "required": False, "mode": "none", "analysis_variable": "image_analysis", "max_files": 0},
+            "default_options_json": {"temperature": 0.2, "max_output_tokens": 800},
+            "rules_json": {"allow_external_variables": False, "return_only_final_output": True},
+            "validation_warnings_json": [],
+            "source_kind": "custom",
+            "version": "1",
+            "priority": 1,
+        }
+    )
+    client.post("/media/graph/node-definitions/refresh")
+    workflow = {
+        "schema_version": 1,
+        "name": "Prompt Recipe required custom validation",
+        "nodes": [
+            {
+                "id": "recipe",
+                "type": "prompt.recipe",
+                "position": {"x": 0, "y": 0},
+                "fields": {"recipe_id": "prompt-recipe-required-custom-field-test", "recipe_category": "utility"},
+            }
+        ],
+        "edges": [],
+    }
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    validation = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=workflow)
+    assert validation.status_code == 200, validation.text
+    payload = validation.json()
+    assert payload["valid"] is False
+    assert any(error["code"] == "missing_prompt_recipe_custom_field" for error in payload["errors"])
+
+
+def test_graph_kie_poll_interval_backs_off_for_long_jobs() -> None:
+    from app.graph.executors.kie_model import _adaptive_graph_kie_poll_interval
+
+    assert _adaptive_graph_kie_poll_interval(0) == 0.5
+    assert _adaptive_graph_kie_poll_interval(20) == 1.0
+    assert _adaptive_graph_kie_poll_interval(60) == 2.0
+    assert _adaptive_graph_kie_poll_interval(240) == 4.0
+
+
+def test_graph_prompt_llm_validation_requires_confirmed_image_capability(client, app_modules) -> None:
+    reference_id = _create_reference_image(app_modules)
+    workflow = {
+        "schema_version": 1,
+        "name": "LLM Prompt image capability validation",
+        "nodes": [
+            {"id": "load", "type": "media.load_image", "position": {"x": -320, "y": 0}, "fields": {"reference_id": reference_id}},
+            {
+                "id": "llm",
+                "type": "prompt.llm",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "provider": "local_openai",
+                    "model_id": "local-unknown-model",
+                    "mode": "describe_image",
+                    "system_prompt": "Describe the attached image.",
+                },
+            },
+        ],
+        "edges": [{"id": "edge-load-llm", "source": "load", "source_port": "image", "target": "llm", "target_port": "image"}],
+    }
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    validation = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=workflow)
+    assert validation.status_code == 200, validation.text
+    payload = validation.json()
+    assert payload["valid"] is False
+    assert any(error["code"] == "prompt_llm_image_capability_unknown" for error in payload["errors"])
+
+
+def test_prompt_recipe_result_normalization_keeps_structured_json_and_readable_text() -> None:
+    structured = _normalize_prompt_recipe_result(
+        {"output_format": "structured_shot_sequence"},
+        '{"shots":[{"shot_number":1,"title":"Arrival","camera":"wide","action":"enter","prompt":"Prompt 1"}]}',
+    )
+    assert structured["parsed_json"]["shots"][0]["prompt"] == "Prompt 1"
+    assert "Arrival" in structured["final_text"]
+    assert "Prompt 1" in structured["final_text"]
+
+    prompt_batch = _normalize_prompt_recipe_result(
+        {"output_format": "json_prompt_batch"},
+        '{"prompts":["Prompt 1","Prompt 2"],"notes":"Fast montage"}',
+    )
+    assert prompt_batch["prompts"] == ["Prompt 1", "Prompt 2"]
+    assert "Prompt 1" in prompt_batch["final_text"]
+    assert "Prompt 2" in prompt_batch["final_text"]
+
+    image_analysis = _normalize_prompt_recipe_result(
+        {"output_format": "image_analysis"},
+        '{"subject":"Explorer","composition":"wide frame","lighting":"foggy dawn"}',
+    )
+    assert image_analysis["parsed_json"]["subject"] == "Explorer"
+    assert "Subject: Explorer" in image_analysis["final_text"]
+    assert "Lighting: foggy dawn" in image_analysis["final_text"]
+
+    structured_without_prompt_array = _normalize_prompt_recipe_result(
+        {"output_format": "structured_shot_sequence"},
+        '{"shots":[{"shot_number":1,"title":"Arrival","camera":"wide","action":"enter"}]}',
+    )
+    assert structured_without_prompt_array["prompts"]
+    assert "Arrival" in structured_without_prompt_array["prompts"][0]
+    assert "Camera: wide" in structured_without_prompt_array["final_text"]
+
+
+def test_graph_cancel_stops_downstream_after_current_node(client, app_modules, monkeypatch) -> None:
+    from app.graph.runtime import runtime
+
+    downstream_calls: list[str] = []
+
+    def fake_prompt_text_execute(node, context):
+        if node.id == "first":
+            deadline = time.time() + 1
+            while not context.is_cancel_requested() and time.time() < deadline:
+                time.sleep(0.01)
+            return {"text": [GraphOutputRef(kind="value", value="first node output", metadata={"type": "text"})]}
+        downstream_calls.append(node.id)
+        return {"text": [GraphOutputRef(kind="value", value="second node output", metadata={"type": "text"})]}
+
+    monkeypatch.setattr(runtime.executors["prompt.text"], "execute", fake_prompt_text_execute)
+
+    workflow = {
+        "schema_version": 1,
+        "name": "Cancel between nodes",
+        "nodes": [
+            {"id": "first", "type": "prompt.text", "position": {"x": 0, "y": 0}, "fields": {"text": "first"}},
+            {"id": "second", "type": "prompt.text", "position": {"x": 280, "y": 0}, "fields": {"text": "second"}},
+        ],
+        "edges": [{"id": "edge-first-second", "source": "first", "source_port": "text", "target": "second", "target_port": "text"}],
+    }
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    run_response = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/runs", json={})
+    assert run_response.status_code == 200, run_response.text
+    run_id = run_response.json()["run_id"]
+
+    running_payload = None
+    for _ in range(80):
+        current = client.get(f"/media/graph/runs/{run_id}")
+        assert current.status_code == 200, current.text
+        running_payload = current.json()
+        node_statuses = {item["node_id"]: item["status"] for item in running_payload["nodes"]}
+        if node_statuses.get("first") == "running":
+            break
+        time.sleep(0.02)
+    assert running_payload is not None
+
+    cancel_response = client.post(f"/media/graph/runs/{run_id}/cancel")
+    assert cancel_response.status_code == 200, cancel_response.text
+    assert cancel_response.json()["status"] == "cancelling"
+
+    final_payload = None
+    for _ in range(120):
+        current = client.get(f"/media/graph/runs/{run_id}")
+        assert current.status_code == 200, current.text
+        final_payload = current.json()
+        if final_payload["status"] in {"cancelled", "failed", "completed"}:
+            break
+        time.sleep(0.02)
+    assert final_payload is not None
+    assert final_payload["status"] == "cancelled"
+    nodes_by_id = {item["node_id"]: item for item in final_payload["nodes"]}
+    assert nodes_by_id["first"]["status"] == "completed"
+    assert nodes_by_id["second"]["status"] == "cancelled"
+    assert downstream_calls == []
+
+
+def test_graph_cancel_finalizes_queued_run_without_worker(client) -> None:
+    from app.graph.runtime import runtime
+
+    workflow = {
+        "schema_version": 1,
+        "name": "Cancel queued graph run",
+        "nodes": [
+            {"id": "prompt", "type": "prompt.text", "position": {"x": 0, "y": 0}, "fields": {"text": "queued cancel"}},
+        ],
+        "edges": [],
+    }
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    run = runtime.create_run(created.json()["workflow_id"], GraphWorkflow(**workflow), start=False)
+
+    cancel_response = client.post(f"/media/graph/runs/{run.run_id}/cancel")
+    assert cancel_response.status_code == 200, cancel_response.text
+    assert cancel_response.json()["status"] == "cancelled"
+    nodes_by_id = {item["node_id"]: item for item in cancel_response.json()["nodes"]}
+    assert nodes_by_id["prompt"]["status"] == "cancelled"
+
+
+def test_graph_cancel_cancels_kie_batch_and_marks_run_cancelled(client, app_modules, monkeypatch) -> None:
+    reference_id = _create_reference_image(app_modules)
+
+    monkeypatch.setattr(app_modules["service"], "build_validation_bundle", lambda request: {"validation": "ok"})
+
+    def fake_submit_jobs(request):
+        return app_modules["store"].create_batch_and_jobs(
+            {"project_id": None, "status": "processing", "model_key": request.model_key, "task_mode": request.task_mode},
+            [
+                {
+                    "model_key": request.model_key,
+                    "task_mode": request.task_mode,
+                    "prompt_text": request.prompt,
+                    "status": "running",
+                    "output_count": request.output_count,
+                    "options_json": request.options,
+                    "resolved_options_json": {},
+                    "prompt_context_json": {},
+                    "validation_json": {},
+                    "preflight_json": {},
+                    "normalized_request_json": {},
+                    "prepared_json": {},
+                    "submit_response_json": {},
+                    "final_status_json": {},
+                    "artifact_json": {},
+                }
+            ],
+        )
+
+    monkeypatch.setattr(app_modules["service"], "submit_jobs", fake_submit_jobs)
+    monkeypatch.setattr(app_modules["runner"].runner, "tick", lambda: None)
+
+    workflow = {
+        "schema_version": 1,
+        "name": "Cancel active KIE run",
+        "nodes": [
+            {"id": "load", "type": "media.load_image", "position": {"x": 0, "y": 0}, "fields": {"reference_id": reference_id}},
+            {
+                "id": "model",
+                "type": "model.kie.nano_banana_pro",
+                "position": {"x": 320, "y": 0},
+                "fields": {"prompt": "Create a clean studio beauty shot.", "resolution": "1K"},
+            },
+            {"id": "save", "type": "media.save_image", "position": {"x": 680, "y": 0}, "fields": {"label": "Final"}},
+        ],
+        "edges": [
+            {"id": "edge-load-model", "source": "load", "source_port": "image", "target": "model", "target_port": "image_refs"},
+            {"id": "edge-model-save", "source": "model", "source_port": "image", "target": "save", "target_port": "image"},
+        ],
+    }
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    run_response = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/runs", json={})
+    assert run_response.status_code == 200, run_response.text
+    run_id = run_response.json()["run_id"]
+
+    submitted_batch_id = None
+    for _ in range(120):
+        events = app_modules["store"].list_graph_run_events(run_id)
+        for event in events:
+            if event["event_type"] == "kie.submitted":
+                submitted_batch_id = str((event.get("payload_json") or {}).get("batch_id") or "")
+                break
+        if submitted_batch_id:
+            break
+        time.sleep(0.02)
+    assert submitted_batch_id
+
+    cancel_response = client.post(f"/media/graph/runs/{run_id}/cancel")
+    assert cancel_response.status_code == 200, cancel_response.text
+    assert cancel_response.json()["status"] == "cancelling"
+
+    final_payload = None
+    for _ in range(160):
+        current = client.get(f"/media/graph/runs/{run_id}")
+        assert current.status_code == 200, current.text
+        final_payload = current.json()
+        if final_payload["status"] in {"cancelled", "failed", "completed"}:
+            break
+        time.sleep(0.02)
+    assert final_payload is not None
+    assert final_payload["status"] == "cancelled"
+
+    nodes_by_id = {item["node_id"]: item for item in final_payload["nodes"]}
+    assert nodes_by_id["load"]["status"] == "completed"
+    assert nodes_by_id["model"]["status"] == "cancelled"
+    assert nodes_by_id["save"]["status"] == "cancelled"
+
+    batch = app_modules["store"].get_batch(submitted_batch_id)
+    assert batch is not None
+    assert batch["status"] == "cancelled"
+    jobs = app_modules["store"].list_jobs_for_batches([submitted_batch_id], include_dismissed=True)
+    assert jobs
+    assert jobs[0]["status"] == "cancelled"
+
+
+def test_builtin_prompt_recipe_seed_defaults_are_refreshed(client, app_modules) -> None:
+    store = app_modules["store"]
+
+    image_director = store.get_prompt_recipe_by_key("image-prompt-director")
+    assert image_director is not None
+    image_director_defaults = {str(item["key"]): str(item.get("default_value") or "") for item in image_director["input_variables_json"]}
+    assert image_director_defaults["source_prompt"] == "No source prompt provided."
+    assert image_director_defaults["image_analysis"] == "No reference images provided."
+
+    video_director = store.get_prompt_recipe_by_key("video-director-multi-shot-json")
+    assert video_director is not None
+    video_director_defaults = {str(item["key"]): str(item.get("default_value") or "") for item in video_director["input_variables_json"]}
+    assert video_director_defaults["source_prompt"] == "No source prompt provided."
+    assert video_director_defaults["image_analysis"] == "No reference images provided."
+
+
+def test_graph_prompt_recipe_template_instantiation_materializes_defaults_and_runs(client, monkeypatch) -> None:
+    def fake_chat(**kwargs):
+        return {
+            "provider_kind": kwargs["provider_kind"],
+            "provider_model_id": kwargs["model_id"],
+            "generated_text": "Prompt recipe template output.",
+            "warnings": [],
+        }
+
+    monkeypatch.setattr("app.graph.executors.prompt_ops.enhancement_provider.run_openai_compatible_chat", fake_chat)
+
+    instantiate = client.post("/media/graph/templates/graph-template-prompt-recipe-text-single-prompt/instantiate")
+    assert instantiate.status_code == 200, instantiate.text
+    workflow_id = instantiate.json()["workflow_id"]
+
+    record = client.get(f"/media/graph/workflows/{workflow_id}")
+    assert record.status_code == 200, record.text
+    workflow_json = record.json()["workflow_json"]
+    recipe_node = next(node for node in workflow_json["nodes"] if node["type"] == "prompt.recipe")
+    assert recipe_node["fields"]["provider"] == "openrouter"
+    assert recipe_node["fields"]["model_id"] == "openai/gpt-4o-mini"
+    assert recipe_node["fields"]["temperature"] == ""
+    assert recipe_node["fields"]["max_tokens"] == ""
+    assert recipe_node["fields"]["external_variables_json"] == '{"aspect_ratio":"16:9","style_direction":"cinematic realism"}'
+    recipe_node["fields"]["provider"] = "local_openai"
+    recipe_node["fields"]["model_id"] = "local-text-model"
+
+    updated = client.patch(f"/media/graph/workflows/{workflow_id}", json=workflow_json)
+    assert updated.status_code == 200, updated.text
+
+    run_response = client.post(f"/media/graph/workflows/{workflow_id}/runs", json={})
+    assert run_response.status_code == 200, run_response.text
+    run_id = run_response.json()["run_id"]
+
+    final_payload = None
+    for _ in range(80):
+        current = client.get(f"/media/graph/runs/{run_id}")
+        assert current.status_code == 200, current.text
+        final_payload = current.json()
+        if final_payload["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.1)
+
+    assert final_payload is not None
+    assert final_payload["status"] == "completed", final_payload.get("error")
+    run_recipe_node = next(node for node in final_payload["nodes"] if node["node_id"] == recipe_node["id"])
+    assert run_recipe_node["output_snapshot_json"]["text"][0]["value"] == "Prompt recipe template output."
+
+
 def test_graph_display_any_passes_through_and_inspects_text(client) -> None:
     workflow = {
         "schema_version": 1,
@@ -672,7 +1621,20 @@ def test_graph_display_any_passes_through_and_inspects_text(client) -> None:
     assert inspect_node["output_snapshot_json"]["json"][0]["value"][0]["value"] == "display this"
 
 
-def test_graph_estimate_warns_for_prompt_llm_unknown_external_pricing(client) -> None:
+def test_graph_estimate_prices_openrouter_prompt_llm_nodes(client, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.graph.pricing.enhancement_provider.list_openrouter_models",
+        lambda force_refresh=False: [
+            {
+                "id": "openai/gpt-4o-mini",
+                "label": "GPT-4o mini",
+                "provider": "openrouter",
+                "supports_images": True,
+                "input_modalities": ["text", "image"],
+                "raw": {"pricing": {"prompt": "0.0000004", "completion": "0.0000016"}},
+            }
+        ],
+    )
     workflow = {
         "schema_version": 1,
         "name": "LLM pricing",
@@ -684,6 +1646,79 @@ def test_graph_estimate_warns_for_prompt_llm_unknown_external_pricing(client) ->
                 "fields": {
                     "provider": "openrouter",
                     "model_id": "openai/gpt-4o-mini",
+                    "mode": "rewrite_prompt",
+                    "system_prompt": "Rewrite [user_prompt].",
+                    "user_prompt": "a robot painter",
+                },
+            }
+        ],
+        "edges": [],
+    }
+    response = client.post("/media/graph/estimate", json=workflow)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["pricing_summary"]["has_unknown_pricing"] is False
+    assert payload["pricing_summary"]["pricing_status"] == "estimated_external_llm"
+    assert payload["pricing_summary"]["total"]["estimated_cost_usd"] > 0
+    assert payload["nodes"]["llm"]["pricing_summary"]["pricing_status"] == "estimated_external_llm"
+    assert payload["nodes"]["llm"]["pricing_summary"]["estimated_completion_tokens"] > 0
+    assert not any(warning["code"] == "unknown_external_llm_pricing" for warning in payload["warnings"])
+
+
+def test_graph_estimate_prices_openrouter_prompt_recipe_nodes(client, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.graph.pricing.enhancement_provider.list_openrouter_models",
+        lambda force_refresh=False: [
+            {
+                "id": "openai/gpt-4o-mini",
+                "label": "GPT-4o mini",
+                "provider": "openrouter",
+                "supports_images": True,
+                "input_modalities": ["text", "image"],
+                "raw": {"pricing": {"prompt": "0.0000004", "completion": "0.0000016"}},
+            }
+        ],
+    )
+    workflow = {
+        "schema_version": 1,
+        "name": "Prompt recipe pricing",
+        "nodes": [
+            {
+                "id": "recipe",
+                "type": "prompt.recipe",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "recipe_id": "prompt-recipe-prompt-shortener",
+                    "provider": "openrouter",
+                    "model_id": "openai/gpt-4o-mini",
+                    "source_prompt": "Shorten this into one concise prompt.",
+                },
+            }
+        ],
+        "edges": [],
+    }
+    response = client.post("/media/graph/estimate", json=workflow)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["pricing_summary"]["has_unknown_pricing"] is False
+    assert payload["pricing_summary"]["pricing_status"] == "estimated_external_llm"
+    assert payload["pricing_summary"]["total"]["estimated_cost_usd"] > 0
+    assert payload["nodes"]["recipe"]["pricing_summary"]["pricing_status"] == "estimated_external_llm"
+    assert payload["nodes"]["recipe"]["pricing_summary"]["estimated_request_count"] == 1
+
+
+def test_graph_estimate_keeps_local_prompt_nodes_unknown(client) -> None:
+    workflow = {
+        "schema_version": 1,
+        "name": "Local LLM pricing",
+        "nodes": [
+            {
+                "id": "llm",
+                "type": "prompt.llm",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "provider": "local_openai",
+                    "model_id": "qwen/local-vl",
                     "mode": "rewrite_prompt",
                     "system_prompt": "Rewrite [user_prompt].",
                     "user_prompt": "a robot painter",
@@ -940,6 +1975,20 @@ def test_graph_template_can_be_archived_from_workflow_panel(client) -> None:
     assert template_id not in {item["template_id"] for item in list_response.json()["items"]}
 
 
+def test_graph_prompt_recipe_smoke_templates_are_seeded(client) -> None:
+    response = client.get("/media/graph/templates")
+    assert response.status_code == 200, response.text
+    names = {item["name"] for item in response.json()["items"]}
+    assert {
+        "Prompt Recipe - Text Single Prompt",
+        "Prompt Recipe - Single Image Director",
+        "Prompt Recipe - Multi Image Director",
+        "Prompt Recipe - Video Director Batch",
+        "Prompt Recipe - Storyboard 3x3",
+        "Prompt Recipe - Analysis Only",
+    }.issubset(names)
+
+
 def test_graph_validation_rejects_invalid_connections(client, app_modules) -> None:
     reference_id = _create_reference_image(app_modules)
     workflow = _workflow(reference_id)
@@ -1151,6 +2200,37 @@ def test_graph_run_events_after_event_id_does_not_skip_same_timestamp_events(cli
 
     assert response.status_code == 200, response.text
     assert [event["event_type"] for event in response.json()["items"]] == ["node.second"]
+
+
+def test_graph_run_status_endpoint_reports_latest_event_and_output_presence(client, app_modules) -> None:
+    from app.graph.runtime import runtime
+    from app.graph.schemas import GraphWorkflow
+
+    reference_id = _create_reference_image(app_modules)
+    workflow = _workflow(reference_id)
+    create_response = client.post("/media/graph/workflows", json=workflow)
+    assert create_response.status_code == 200, create_response.text
+    run = runtime.create_run(create_response.json()["workflow_id"], GraphWorkflow(**workflow), start=False)
+    app_modules["store"].update_graph_run_node(
+        run.run_id,
+        "model",
+        {
+            "status": "completed",
+            "progress": 1,
+            "output_snapshot_json": {"images": [{"reference_id": reference_id}]},
+        },
+    )
+    event = app_modules["store"].append_graph_run_event(run.run_id, "node.completed", {"node_id": "model"}, node_id="model")
+
+    response = client.get(f"/media/graph/runs/{run.run_id}/status")
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["run_id"] == run.run_id
+    assert payload["latest_event_id"] == event["event_id"]
+    model_node = next(item for item in payload["nodes"] if item["node_id"] == "model")
+    assert model_node["status"] == "completed"
+    assert model_node["has_output_snapshot"] is True
 
 
 def test_graph_load_image_nano_save_runs_offline_and_creates_asset(client, app_modules) -> None:
@@ -1591,7 +2671,10 @@ def test_graph_seedance_audio_reference_workflow_runs_offline(client, app_module
     output_reference_id = _create_reference_video(app_modules, name="graph-seedance-output.mp4")
     output_reference = app_modules["store"].get_reference_media(output_reference_id)
 
+    captured_request = {}
+
     def fake_submit_jobs(request):
+        captured_request["request"] = request
         batch, jobs = app_modules["store"].create_batch_and_jobs(
             {"model_key": request.model_key, "task_mode": request.task_mode, "requested_outputs": 1, "request_summary_json": {}},
             [
@@ -1656,9 +2739,9 @@ def test_graph_seedance_audio_reference_workflow_runs_offline(client, app_module
             },
         ],
         "edges": [
-            {"id": "edge-image-model", "source": "load-image", "source_port": "image", "target": "model", "target_port": "image_refs"},
-            {"id": "edge-video-model", "source": "load-video", "source_port": "video", "target": "model", "target_port": "video_refs"},
-            {"id": "edge-audio-model", "source": "load-audio", "source_port": "audio", "target": "model", "target_port": "audio_refs"},
+            {"id": "edge-image-model", "source": "load-image", "source_port": "image", "target": "model", "target_port": "reference_images"},
+            {"id": "edge-video-model", "source": "load-video", "source_port": "video", "target": "model", "target_port": "reference_videos"},
+            {"id": "edge-audio-model", "source": "load-audio", "source_port": "audio", "target": "model", "target_port": "reference_audios"},
             {"id": "edge-prompt-model", "source": "prompt", "source_port": "text", "target": "model", "target_port": "prompt"},
             {"id": "edge-model-save", "source": "model", "source_port": "video", "target": "save", "target_port": "video"},
         ],
@@ -1672,6 +2755,33 @@ def test_graph_seedance_audio_reference_workflow_runs_offline(client, app_module
     asset = app_modules["store"].get_asset(output_ref["asset_id"])
     assert asset["generation_kind"] == "video"
     assert asset["model_key"] in {"seedance-2.0", "graph-derived"}
+    request = captured_request["request"]
+    assert request.task_mode == "reference_to_video"
+    assert [item.role for item in request.images] == ["reference"]
+    assert [item.role for item in request.videos] == ["reference"]
+    assert [item.role for item in request.audios] == ["reference"]
+
+
+def test_graph_materialize_workflow_defaults_remaps_legacy_seedance_ports() -> None:
+    workflow = {
+        "schema_version": 1,
+        "name": "Legacy Seedance ports",
+        "nodes": [
+            {"id": "image", "type": "media.load_image", "position": {"x": 0, "y": 0}, "fields": {"reference_id": "ref-image"}},
+            {"id": "video", "type": "media.load_video", "position": {"x": 0, "y": 180}, "fields": {"reference_id": "ref-video"}},
+            {"id": "audio", "type": "media.load_audio", "position": {"x": 0, "y": 360}, "fields": {"reference_id": "ref-audio"}},
+            {"id": "model", "type": "model.kie.seedance_2_0", "position": {"x": 360, "y": 120}, "fields": {"duration": 5}},
+        ],
+        "edges": [
+            {"id": "edge-image", "source": "image", "source_port": "image", "target": "model", "target_port": "image_refs"},
+            {"id": "edge-video", "source": "video", "source_port": "video", "target": "model", "target_port": "video_refs"},
+            {"id": "edge-audio", "source": "audio", "source_port": "audio", "target": "model", "target_port": "audio_refs"},
+        ],
+    }
+
+    normalized = materialize_workflow_defaults(GraphWorkflow.model_validate(workflow))
+    target_ports = {edge.target_port for edge in normalized.edges}
+    assert target_ports == {"reference_images", "reference_videos", "reference_audios"}
 
 
 def test_graph_video_combine_hard_cut_outputs_reference_video(client, app_modules) -> None:
@@ -2557,3 +3667,78 @@ def test_graph_dynamic_preset_node_renders_fields_and_slots(client, app_modules)
     validation = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=workflow)
     assert validation.status_code == 200, validation.text
     assert validation.json()["valid"] is True
+
+
+def test_graph_node_definitions_auto_invalidate_after_prompt_recipe_save(client) -> None:
+    initial = client.get("/media/graph/node-definitions")
+    assert initial.status_code == 200, initial.text
+
+    created = client.post(
+        "/prompt-recipes",
+        json={
+            "key": "auto_refresh_prompt_recipe",
+            "label": "Auto Refresh Prompt Recipe",
+            "description": "Created after the definition cache was primed.",
+            "category": "utility",
+            "status": "active",
+            "system_prompt_template": "Turn {{user_prompt}} into one stronger prompt.",
+            "image_analysis_prompt": "",
+            "user_prompt_placeholder": "{{user_prompt}}",
+            "output_format": "single_prompt",
+            "output_contract_json": {"type": "text"},
+            "input_variables": [{"key": "user_prompt", "label": "User Prompt", "enabled": True, "required": True, "default_value": "", "description": ""}],
+            "custom_fields": [],
+            "image_input": {"enabled": False, "required": False, "mode": "none", "analysis_variable": "image_analysis", "max_files": 0},
+            "default_options_json": {"temperature": 0.2, "max_output_tokens": 800},
+            "rules_json": {"allow_external_variables": True, "return_only_final_output": True},
+            "notes": "",
+            "source_kind": "custom",
+            "version": "1",
+            "priority": 0,
+        },
+    )
+    assert created.status_code == 200, created.text
+
+    refreshed = client.get("/media/graph/node-definitions")
+    assert refreshed.status_code == 200, refreshed.text
+    prompt_definition = next(item for item in refreshed.json()["items"] if item["type"] == "prompt.recipe")
+    recipe_picker = next(field for field in prompt_definition["fields"] if field["id"] == "recipe_id")
+    assert any(option["label"] == "Auto Refresh Prompt Recipe" for option in recipe_picker["options"])
+
+
+def test_graph_node_definitions_auto_invalidate_after_preset_save(client) -> None:
+    initial = client.get("/media/graph/node-definitions")
+    assert initial.status_code == 200, initial.text
+
+    created = client.post(
+        "/media/presets",
+        json={
+            "key": "auto-refresh-preset",
+            "label": "Auto Refresh Preset",
+            "description": "Created after the definition cache was primed.",
+            "status": "active",
+            "model_key": "nano-banana-2",
+            "source_kind": "custom",
+            "applies_to_models": ["nano-banana-2"],
+            "applies_to_task_modes": [],
+            "applies_to_input_patterns": [],
+            "prompt_template": "Create a {{style}} portrait from [[subject]].",
+            "system_prompt_template": "",
+            "default_options_json": {},
+            "input_schema_json": [{"key": "style", "label": "Style", "required": True}],
+            "input_slots_json": [{"key": "subject", "label": "Subject", "required": True, "max_files": 1}],
+            "choice_groups_json": [],
+            "thumbnail_path": None,
+            "thumbnail_url": None,
+            "notes": "",
+            "requires_image": True,
+            "requires_video": False,
+            "requires_audio": False,
+        },
+    )
+    assert created.status_code == 200, created.text
+
+    refreshed = client.get("/media/graph/node-definitions")
+    assert refreshed.status_code == 200, refreshed.text
+    node_types = {item["type"] for item in refreshed.json()["items"]}
+    assert "preset.render.auto_refresh_preset" in node_types

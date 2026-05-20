@@ -49,7 +49,7 @@ function assetOutputDimensions(asset: MediaAsset): { width: number | null; heigh
 export function previewFromReference(reference: MediaReference | undefined): GraphMediaPreview | null {
   if (!reference) return null;
   const mediaType = reference.kind === "video" ? "video" : reference.kind === "audio" ? "audio" : "image";
-  const url = mediaType === "image" ? reference.thumb_url ?? reference.poster_url ?? reference.stored_url : reference.stored_url;
+  const url = mediaType === "image" ? reference.stored_url ?? reference.poster_url ?? reference.thumb_url : reference.stored_url;
   if (!url) return null;
   const width = reference.width ?? null;
   const height = reference.height ?? null;
@@ -70,7 +70,7 @@ export function previewFromAsset(asset: MediaAsset | undefined): GraphMediaPrevi
   const url =
     mediaType === "video"
       ? asset.hero_web_url ?? asset.hero_original_url ?? asset.hero_poster_url ?? asset.hero_thumb_url
-      : asset.hero_thumb_url ?? asset.hero_poster_url ?? asset.hero_web_url ?? asset.hero_original_url;
+      : asset.hero_web_url ?? asset.hero_original_url ?? asset.hero_poster_url ?? asset.hero_thumb_url;
   if (!url) return null;
   const dimensions = assetOutputDimensions(asset);
   return {
@@ -135,6 +135,8 @@ export function nodeUiFromMetadata(metadata?: Record<string, unknown>) {
   const cachedArtifactIds = asRecord(execution?.cached_artifact_ids);
   return {
     collapsed: Boolean(ui?.collapsed),
+    advancedExpanded: ui?.advancedExpanded === true,
+    hasSavedAdvancedExpanded: ui ? Object.prototype.hasOwnProperty.call(ui, "advancedExpanded") : false,
     accentColor: typeof ui?.accentColor === "string" ? ui.accentColor : null,
     nodeColor: typeof ui?.nodeColor === "string" ? ui.nodeColor : null,
     nodeHeaderColor: typeof ui?.nodeHeaderColor === "string" ? ui.nodeHeaderColor : null,

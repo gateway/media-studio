@@ -16,13 +16,14 @@ import {
   type Connection,
   type Edge,
 } from "@xyflow/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 
 import { NODE_COLOR_CHOICES } from "./graph-studio-constants";
 import { GraphEdge } from "./graph-edge";
 import { GraphGroupFrame } from "./graph-group-frame";
 import { GraphNode } from "./graph-node";
 import type { GraphGroup, StudioEdge, StudioNode } from "./types";
+import { graphCanvasInteractionConfig } from "./utils/graph-canvas-interaction";
 import { graphEdgeStyleForPortType } from "./utils/graph-node-layout";
 import { isTextEntryTarget } from "./utils/graph-media-preview";
 import { contextMenuTargetNodeIds, paneContextMenuTargetNodeIds } from "./utils/graph-selection";
@@ -44,6 +45,8 @@ const EDGE_CLICK_IGNORED_TARGETS = [
   "select",
 ].join(", ");
 const EDGE_SELECTION_SUPPRESS_MS = 450;
+const DEFAULT_EDGE_OPTIONS = { type: "graphEdge", reconnectable: true, interactionWidth: 28 } as const;
+const PRO_OPTIONS = { hideAttribution: true } as const;
 
 function nearestGraphEdgeIdFromPoint(clientX: number, clientY: number) {
   let nearestEdgeId: string | null = null;
@@ -150,6 +153,13 @@ export function GraphCanvas({
   const [deleteEdgeId, setDeleteEdgeId] = useState<string | null>(null);
   const connectionWasActive = useRef(false);
   const suppressEdgeSelectionUntil = useRef(0);
+  const interactionConfig = useMemo(() => graphCanvasInteractionConfig(), []);
+  const defaultEdgeOptions = useMemo(() => DEFAULT_EDGE_OPTIONS, []);
+  const proOptions = useMemo(() => PRO_OPTIONS, []);
+  const connectionLineStyle = useMemo(
+    () => (activeConnection ? graphEdgeStyleForPortType(activeConnection.portType) : undefined),
+    [activeConnection?.portType],
+  );
   const isEdgeSelectionSuppressed = () => Date.now() < suppressEdgeSelectionUntil.current;
   const renderedEdges = useMemo(
     () =>
@@ -188,6 +198,78 @@ export function GraphCanvas({
       window.clearTimeout(delayed);
     };
   }, [activeConnection, setEdges]);
+
+  const handleNodeClick = useCallback(
+    (event: ReactMouseEvent, node: StudioNode) => {
+      if (!event.shiftKey && !event.metaKey && !event.ctrlKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const selectedIds = new Set(nodes.filter((item) => item.selected).map((item) => item.id));
+      if (selectedIds.has(node.id)) {
+        selectedIds.delete(node.id);
+      } else {
+        selectedIds.add(node.id);
+      }
+      setNodes((current) => current.map((item) => ({ ...item, selected: selectedIds.has(item.id) })));
+    },
+    [nodes, setNodes],
+  );
+
+  const handleNodeContextMenu = useCallback(
+    (event: ReactMouseEvent, node: StudioNode) => {
+      if (isTextEntryTarget(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      const nodeIds = contextMenuTargetNodeIds(nodes, node.id);
+      if (!node.selected) {
+        setNodes((current) => current.map((item) => ({ ...item, selected: item.id === node.id })));
+      }
+      setNodeContextMenu({ nodeIds, anchorNodeId: node.id, x: event.clientX, y: event.clientY });
+      setNodeSearch(null);
+      setWorkflowMenuOpen(false);
+    },
+    [nodes, setNodeContextMenu, setNodeSearch, setNodes, setWorkflowMenuOpen],
+  );
+
+  const handleEdgeClick = useCallback(
+    (event: ReactMouseEvent, edge: StudioEdge) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (isEdgeSelectionSuppressed()) {
+        setDeleteEdgeId(null);
+        setEdges((current) => current.map((item) => (item.selected ? { ...item, selected: false } : item)));
+        return;
+      }
+      setDeleteEdgeId(edge.id);
+    },
+    [setEdges],
+  );
+
+  const handlePaneClick = useCallback(
+    (event: ReactMouseEvent) => {
+      if (isEdgeSelectionSuppressed()) {
+        setDeleteEdgeId(null);
+        return;
+      }
+      const nearestEdgeId = nearestGraphEdgeIdFromPoint(event.clientX, event.clientY);
+      if (nearestEdgeId) {
+        setDeleteEdgeId(nearestEdgeId);
+        setNodeSearch(null);
+        setWorkflowMenuOpen(false);
+        setNodeContextMenu(null);
+        setGroupContextMenu(null);
+        return;
+      }
+      setDeleteEdgeId(null);
+      setNodeSearch(null);
+      setWorkflowMenuOpen(false);
+      setNodeContextMenu(null);
+      setGroupContextMenu(null);
+    },
+    [setGroupContextMenu, setNodeContextMenu, setNodeSearch, setWorkflowMenuOpen],
+  );
 
   return (
     <div
@@ -244,42 +326,9 @@ export function GraphCanvas({
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onNodeClick={(event, node) => {
-          if (!event.shiftKey && !event.metaKey && !event.ctrlKey) return;
-          event.preventDefault();
-          event.stopPropagation();
-          const selectedIds = new Set(nodes.filter((item) => item.selected).map((item) => item.id));
-          if (selectedIds.has(node.id)) {
-            selectedIds.delete(node.id);
-          } else {
-            selectedIds.add(node.id);
-          }
-          setNodes((current) => current.map((item) => ({ ...item, selected: selectedIds.has(item.id) })));
-        }}
-        onNodeContextMenu={(event, node) => {
-          if (isTextEntryTarget(event.target)) {
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          const nodeIds = contextMenuTargetNodeIds(nodes, node.id);
-          if (!node.selected) {
-            setNodes((current) => current.map((item) => ({ ...item, selected: item.id === node.id })));
-          }
-          setNodeContextMenu({ nodeIds, anchorNodeId: node.id, x: event.clientX, y: event.clientY });
-          setNodeSearch(null);
-          setWorkflowMenuOpen(false);
-        }}
-        onEdgeClick={(event, edge) => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (isEdgeSelectionSuppressed()) {
-            setDeleteEdgeId(null);
-            setEdges((current) => current.map((item) => (item.selected ? { ...item, selected: false } : item)));
-            return;
-          }
-          setDeleteEdgeId(edge.id);
-        }}
+        onNodeClick={handleNodeClick}
+        onNodeContextMenu={handleNodeContextMenu}
+        onEdgeClick={handleEdgeClick}
         onConnect={onConnect}
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
@@ -287,38 +336,19 @@ export function GraphCanvas({
         onReconnectEnd={onReconnectEnd}
         isValidConnection={isValidConnection}
         connectionMode={ConnectionMode.Loose}
-        defaultEdgeOptions={{ type: "graphEdge", reconnectable: true, interactionWidth: 28 }}
+        defaultEdgeOptions={defaultEdgeOptions}
         edgesReconnectable
         reconnectRadius={26}
-        connectionLineStyle={activeConnection ? graphEdgeStyleForPortType(activeConnection.portType) : undefined}
-        selectionKeyCode={["Meta", "Control"]}
-        multiSelectionKeyCode={["Meta", "Control"]}
+        connectionLineStyle={connectionLineStyle}
+        selectionKeyCode={interactionConfig.selectionKeyCode}
+        multiSelectionKeyCode={interactionConfig.multiSelectionKeyCode}
         selectionMode={SelectionMode.Partial}
-        selectionOnDrag
-        panOnDrag={[1, 2]}
+        selectionOnDrag={interactionConfig.selectionOnDrag}
+        panOnDrag={interactionConfig.panOnDrag}
         minZoom={0.12}
         maxZoom={2}
-        proOptions={{ hideAttribution: true }}
-        onPaneClick={(event) => {
-          if (isEdgeSelectionSuppressed()) {
-            setDeleteEdgeId(null);
-            return;
-          }
-          const nearestEdgeId = nearestGraphEdgeIdFromPoint(event.clientX, event.clientY);
-          if (nearestEdgeId) {
-            setDeleteEdgeId(nearestEdgeId);
-            setNodeSearch(null);
-            setWorkflowMenuOpen(false);
-            setNodeContextMenu(null);
-            setGroupContextMenu(null);
-            return;
-          }
-          setDeleteEdgeId(null);
-          setNodeSearch(null);
-          setWorkflowMenuOpen(false);
-          setNodeContextMenu(null);
-          setGroupContextMenu(null);
-        }}
+        proOptions={proOptions}
+        onPaneClick={handlePaneClick}
         fitView
       >
         <ViewportPortal>

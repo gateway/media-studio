@@ -233,6 +233,61 @@ describe("studio-gallery", () => {
     expect(tiles[0]?.label).toBe("Publishing output");
   });
 
+  it("pins queued and processing batch tiles ahead of published assets", () => {
+    const olderAsset = {
+      asset_id: "asset-older",
+      job_id: "job-older",
+      model_key: "gpt-image-2-image-to-image",
+      created_at: "2026-04-04T00:00:00Z",
+    } as never;
+
+    const tiles = buildGalleryTiles(
+      [olderAsset],
+      null,
+      [
+        {
+          batch_id: "batch-live-1",
+          status: "processing",
+          model_key: "gpt-image-2-image-to-image",
+          requested_outputs: 2,
+          queued_count: 1,
+          running_count: 1,
+          completed_count: 0,
+          failed_count: 0,
+          cancelled_count: 0,
+          created_at: "2026-04-06T00:10:00Z",
+          updated_at: "2026-04-06T00:10:00Z",
+          jobs: [
+            {
+              job_id: "job-running-1",
+              batch_id: "batch-live-1",
+              model_key: "gpt-image-2-image-to-image",
+              status: "running",
+              created_at: "2026-04-06T00:10:00Z",
+            },
+            {
+              job_id: "job-queued-1",
+              batch_id: "batch-live-1",
+              model_key: "gpt-image-2-image-to-image",
+              status: "queued",
+              created_at: "2026-04-06T00:10:01Z",
+            },
+          ],
+        } as never,
+      ],
+      [olderAsset],
+      [],
+      false,
+      false,
+    );
+
+    expect(tiles.map((tile) => tile.job?.job_id ?? tile.asset?.asset_id)).toEqual([
+      "job-queued-1",
+      "job-running-1",
+      "asset-older",
+    ]);
+  });
+
   it("keeps a failed tile visible when the provider returns an error and no asset is published", () => {
     const tiles = buildGalleryTiles(
       [],
@@ -312,6 +367,51 @@ describe("studio-gallery", () => {
     );
 
     expect(tiles.map((tile) => tile.asset?.asset_id ?? tile.job?.job_id)).toEqual(["asset-newer", "job-failed-old"]);
+  });
+
+  it("keeps published assets ahead of failed no-output cards even when the failed job is newer", () => {
+    const olderAsset = {
+      asset_id: "asset-older",
+      job_id: "job-older",
+      model_key: "gpt-image-2-text-to-image",
+      created_at: "2026-04-06T00:00:00Z",
+    } as never;
+
+    const tiles = buildGalleryTiles(
+      [olderAsset],
+      null,
+      [
+        {
+          batch_id: "batch-failed-new",
+          status: "failed",
+          model_key: "gpt-image-2-text-to-image",
+          requested_outputs: 1,
+          queued_count: 0,
+          running_count: 0,
+          completed_count: 0,
+          failed_count: 1,
+          cancelled_count: 0,
+          created_at: "2026-04-06T00:10:00Z",
+          updated_at: "2026-04-06T00:10:00Z",
+          jobs: [
+            {
+              job_id: "job-failed-new",
+              batch_id: "batch-failed-new",
+              model_key: "gpt-image-2-text-to-image",
+              status: "failed",
+              error: "Provider policy rejected the generation.",
+              created_at: "2026-04-06T00:10:00Z",
+            },
+          ],
+        } as never,
+      ],
+      [olderAsset],
+      [],
+      false,
+      false,
+    );
+
+    expect(tiles.map((tile) => tile.asset?.asset_id ?? tile.job?.job_id)).toEqual(["asset-older", "job-failed-new"]);
   });
 
   it("keeps a failed sibling tile visible after refresh when batch jobs are only present in the jobs feed", () => {

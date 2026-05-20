@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import Dict, List
 
+from .normalization import materialize_workflow_defaults
 from .registry import registry
 from .schemas import GraphCompiledGraph, GraphCompiledNode, GraphWorkflow
 from .validator import validate_workflow
@@ -13,6 +14,7 @@ class GraphCompileError(ValueError):
 
 
 def compile_workflow(workflow: GraphWorkflow) -> GraphCompiledGraph:
+    workflow = materialize_workflow_defaults(workflow)
     validation = validate_workflow(workflow)
     if not validation.valid:
         raise GraphCompileError("; ".join(error.message for error in validation.errors))

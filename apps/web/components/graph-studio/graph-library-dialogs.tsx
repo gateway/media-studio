@@ -8,7 +8,7 @@ import { GraphNodeTypeBadge } from "./components/graph-node-type-badge";
 import { GraphRunHistoryPanel } from "./graph-run-history-panel";
 import { GraphTemplateBrowser } from "./graph-template-browser";
 import type { GraphArtifact, GraphNodeDefinition, GraphRun, GraphTemplateRecord, GraphWorkflowRecord } from "./types";
-import { rankGraphNodeDefinitions } from "./hooks/use-graph-node-search";
+import { graphDefinitionHiddenInSearch, rankGraphNodeDefinitions } from "./hooks/use-graph-node-search";
 import { graphMediaDragPayload } from "./utils/graph-media-preview";
 import { formatGraphTimestamp } from "./utils/graph-time";
 
@@ -69,7 +69,13 @@ export function GraphLibraryDialog({
   const imageAssets = assets.filter((asset) => asset.generation_kind === "image");
   const filteredDefinitionsByCategory = useMemo(() => {
     const query = nodeLibraryQuery.trim();
-    if (!query) return definitionsByCategory;
+    if (!query) {
+      return Object.entries(definitionsByCategory).reduce<Record<string, GraphNodeDefinition[]>>((groups, [category, items]) => {
+        const visibleItems = items.filter((definition) => !graphDefinitionHiddenInSearch(definition));
+        if (visibleItems.length) groups[category] = visibleItems;
+        return groups;
+      }, {});
+    }
     return rankGraphNodeDefinitions(definitions, query).reduce<Record<string, GraphNodeDefinition[]>>((groups, item) => {
       const category = item.definition.category || "Other";
       groups[category] = [...(groups[category] ?? []), item.definition];

@@ -2,6 +2,7 @@ import type { Node } from "@xyflow/react";
 
 import type { GraphGroup, GraphWorkflowPayload, StudioNode } from "../types";
 import { normalizeGraphExecutionMode, type GraphExecutionMode } from "./graph-node-execution";
+import { graphNodeDataWithExecutionMode } from "./graph-node-runtime";
 
 const GROUP_PADDING = 42;
 const MIN_GROUP_SIZE = 180;
@@ -62,6 +63,15 @@ export function selectedNodeIdsForGroup(nodes: Node[]): string[] {
   return nodes.filter((node) => node.selected).map((node) => node.id);
 }
 
+export function groupExecutionModeForNodes(nodes: Node[], nodeIds: string[], fallback: GraphExecutionMode = "enabled"): GraphExecutionMode {
+  const ids = new Set(nodeIds);
+  const modes = nodes
+    .filter((node) => ids.has(node.id))
+    .map((node) => normalizeGraphExecutionMode((node.data as StudioNode["data"] | undefined)?.executionMode));
+  if (!modes.length) return normalizeGraphExecutionMode(fallback);
+  return modes.every((mode) => mode === modes[0]) ? modes[0] : "enabled";
+}
+
 export function computeGraphGroupBounds(nodes: Node[], nodeIds: string[], fallback?: GraphGroup["bounds"]): GraphGroup["bounds"] {
   const ids = new Set(nodeIds);
   const members = nodes.filter((node) => ids.has(node.id));
@@ -92,7 +102,7 @@ export function graphGroupsForCanvas(groups: GraphGroup[], nodes: Node[]): Graph
       ...group,
       color: graphGroupColorChoiceId(group.color),
       bounds: group.bounds,
-      execution: group.execution ? { mode: normalizeGraphExecutionMode(group.execution.mode) } : null,
+      execution: { mode: groupExecutionModeForNodes(nodes, group.node_ids, normalizeGraphExecutionMode(group.execution?.mode)) },
     }));
 }
 
@@ -176,7 +186,7 @@ export function serializeGraphGroups(groups: GraphGroup[], nodes: StudioNode[]):
     color: group.color,
     node_ids: group.node_ids,
     bounds: group.bounds,
-    execution: group.execution?.mode ? { mode: normalizeGraphExecutionMode(group.execution.mode) } : null,
+    execution: { mode: groupExecutionModeForNodes(nodes, group.node_ids, normalizeGraphExecutionMode(group.execution?.mode)) },
   }));
 }
 
@@ -202,10 +212,7 @@ export function applyExecutionModeToNodes(nodes: StudioNode[], nodeIds: string[]
     if (!ids.has(node.id)) return node;
     return {
       ...node,
-      data: {
-        ...(node.data as StudioNode["data"]),
-        executionMode: mode,
-      },
+      data: graphNodeDataWithExecutionMode(node.data as StudioNode["data"], mode),
     };
   });
 }

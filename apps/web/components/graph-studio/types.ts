@@ -22,6 +22,13 @@ export type GraphNodePort = {
   accepts?: string[];
   description?: string | null;
   advanced?: boolean;
+  visible_if?: {
+    field?: string;
+    equals?: unknown;
+    not_equals?: unknown;
+    in?: unknown[];
+    not_in?: unknown[];
+  } | null;
 };
 
 export type GraphNodeField = {
@@ -90,6 +97,8 @@ export type GraphNodeData = {
     from: "input" | "output";
   } | null;
   collapsed?: boolean;
+  advancedExpanded?: boolean;
+  autoSizedHeight?: number | null;
   accentColor?: string | null;
   nodeColor?: string | null;
   nodeHeaderColor?: string | null;
@@ -114,6 +123,8 @@ export type GraphNodeData = {
   onImageDrop?: (nodeId: string, file: File) => void;
   onInputRewireStart?: (nodeId: string, portId: string, point: { clientX: number; clientY: number; pointerId?: number }) => void;
   onToggleCollapsed?: (nodeId: string) => void;
+  onToggleAdvancedExpanded?: (nodeId: string) => void;
+  onEnsureNodeHeight?: (nodeId: string, requiredHeight: number) => void;
   onOpenPreview?: (preview: GraphMediaPreview, collection?: GraphMediaPreview[]) => void;
   onStartRenameNode?: (nodeId: string) => void;
   onRenameNodeDraftChange?: (value: string) => void;
@@ -214,6 +225,8 @@ export type GraphWorkspaceTab = {
   workflow_id?: string | null;
   workflow_name: string;
   workflow_json?: GraphWorkflowPayload | null;
+  saved_workflow_signature?: string | null;
+  workflow_updated_at?: string | null;
   run_id?: string | null;
   console_lines?: string[];
   dirty?: boolean;
@@ -229,6 +242,8 @@ export type GraphRun = {
   output_snapshot_json?: Record<string, unknown>;
   metrics_json?: Record<string, unknown>;
   nodes?: Array<{
+    run_node_id?: string;
+    run_id?: string;
     node_id: string;
     node_type: string;
     status: string;
@@ -237,11 +252,49 @@ export type GraphRun = {
     output_snapshot_json?: Record<string, unknown>;
     artifacts?: GraphArtifact[];
     metrics_json?: Record<string, unknown>;
+    started_at?: string | null;
+    finished_at?: string | null;
+    updated_at?: string | null;
   }>;
   created_at?: string | null;
   started_at?: string | null;
   finished_at?: string | null;
   updated_at?: string | null;
+};
+
+export type GraphRunStatusNode = {
+  run_node_id: string;
+  run_id: string;
+  node_id: string;
+  node_type: string;
+  status: string;
+  progress?: number | null;
+  has_output_snapshot?: boolean;
+  error?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type GraphRunStatusSnapshot = {
+  run_id: string;
+  workflow_id: string;
+  status: string;
+  error?: string | null;
+  latest_event_id?: string | null;
+  nodes: GraphRunStatusNode[];
+  created_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type GraphRunTransportMetrics = {
+  statusRequests: number;
+  fullRunRequests: number;
+  eventRequests: number;
+  streamConnections: number;
+  streamErrors: number;
 };
 
 export type GraphRunEvent = {

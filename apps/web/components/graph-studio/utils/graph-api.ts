@@ -1,6 +1,7 @@
 export async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
+    cache: init?.cache ?? "no-store",
     headers: {
       ...(init?.headers ?? {}),
       ...(init?.body ? { "Content-Type": "application/json" } : {}),

@@ -56,8 +56,8 @@ export function StudioComposer({
       {externalTopContent ? (
         <div
           className={cn(
-            "mb-3 w-full",
-            mobileComposerExpanded ? "hidden lg:block lg:mx-auto" : "mx-auto",
+            "pointer-events-auto mb-3 hidden w-full md:block",
+            mobileComposerExpanded ? "md:hidden" : "mx-auto",
             immersive ? "max-w-[1480px]" : "max-w-[1240px]",
           )}
         >
@@ -68,7 +68,7 @@ export function StudioComposer({
         <div
           className={cn(
             "pointer-events-none mb-3 w-full transition duration-300 ease-out",
-            mobileComposerExpanded ? "hidden lg:block lg:mx-auto" : "mx-auto",
+            mobileComposerExpanded ? "hidden md:block md:mx-auto" : "mx-auto",
             immersive ? "max-w-[1480px]" : "max-w-[1240px]",
             floatingComposerStatus.visible ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0",
           )}
@@ -88,13 +88,13 @@ export function StudioComposer({
             "border-white/10 bg-[rgba(21,24,23,0.9)] backdrop-blur-2xl",
             mobileComposerExpanded
               ? cn(
-                "w-screen max-w-none self-stretch flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden rounded-none border-x-0 border-b-0 px-4 pb-4 pt-6 shadow-[0_32px_80px_rgba(0,0,0,0.48)] lg:mx-auto lg:mt-auto lg:h-auto lg:min-h-0 lg:max-h-[calc(100dvh-1.5rem)] lg:w-full lg:rounded-[34px] lg:border-x lg:border-b lg:px-4 lg:py-4",
-                immersive ? "lg:max-w-[1480px]" : "lg:max-w-[1240px]",
+                "w-screen max-w-none self-stretch flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden rounded-none border-x-0 border-b-0 px-4 pb-4 pt-6 shadow-[0_32px_80px_rgba(0,0,0,0.48)] md:mx-auto md:mt-auto md:h-auto md:min-h-0 md:max-h-[calc(100dvh-1.5rem)] md:w-full md:rounded-[34px] md:border-x md:border-b md:px-4 md:py-4",
+                immersive ? "md:max-w-[1480px]" : "md:max-w-[1240px]",
               )
             : cn("mx-auto w-full rounded-[34px] px-4 py-[17px]", immersive ? "max-w-[1480px]" : "max-w-[1240px]"),
         )}
       >
-        <div className="sticky top-0 z-10 -mx-4 mb-4 flex items-start justify-between gap-3 border-b border-white/8 bg-[rgba(21,24,23,0.96)] px-4 pb-4 pt-1 backdrop-blur-xl lg:hidden">
+        <div className="sticky top-0 z-10 -mx-4 mb-4 flex items-start justify-between gap-3 border-b border-white/8 bg-[rgba(21,24,23,0.96)] px-4 pb-4 pt-1 backdrop-blur-xl md:hidden">
           <div className="min-w-0 flex-1">
             <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/46">Prompt composer</div>
             <div className="mt-2 text-[0.95rem] font-semibold tracking-[-0.03em] text-white/92">{currentModelLabel}</div>
@@ -120,18 +120,18 @@ export function StudioComposer({
         </div>
         <div
           className={cn(
-            mobileComposerCollapsed ? "hidden lg:block" : "block",
-            mobileComposerExpanded ? "min-h-0 flex-1 overflow-y-auto pr-0 lg:pr-1" : "",
+            mobileComposerCollapsed ? "hidden md:block" : "block",
+            mobileComposerExpanded ? "min-h-0 flex-1 overflow-y-auto pr-0 md:pr-1" : "",
           )}
         >
-          <div className={cn("grid gap-4 lg:items-stretch", hasSidebar ? "lg:grid-cols-[220px_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)]")}>
+          <div className={cn("grid gap-4 md:items-stretch", hasSidebar ? "md:grid-cols-[220px_minmax(0,1fr)]" : "md:grid-cols-[minmax(0,1fr)]")}>
             {hasSidebar ? (
-              <div className="hidden lg:flex lg:items-end lg:justify-between lg:gap-3 lg:order-none lg:grid lg:min-h-full lg:content-start lg:justify-stretch">
+              <div className="hidden md:flex md:items-end md:justify-between md:gap-3 md:order-none md:grid md:min-h-full md:content-start md:justify-stretch">
                 {sourceAttachmentStrip}
               </div>
             ) : null}
             <div className="grid gap-3">
-              {mobileInputsContent ? <div className="lg:hidden">{mobileInputsContent}</div> : null}
+              {mobileInputsContent ? <div className="md:hidden">{mobileInputsContent}</div> : null}
               <div>
                 {children}
               </div>

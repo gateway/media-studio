@@ -11,8 +11,10 @@ from typing import List, Optional
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
-from . import kie_adapter, service, store
+from . import codex_local_provider, kie_adapter, service, store
 from .control_auth import validate_control_request
+from .graph.cancellation import cancel_batch_jobs
+from .graph.registry import registry
 from .graph.routes import router as graph_router
 from .runner import runner
 from .schemas import (
@@ -29,6 +31,9 @@ from .schemas import (
     EnhancementProviderProbeResponse,
     EnhancementConfigUpsertRequest,
     FavoriteAssetRequest,
+    ExternalLlmUsageListResponse,
+    ExternalLlmUsageRecord,
+    ExternalLlmUsageSummaryResponse,
     HealthResponse,
     JobRecord,
     JobEventRecord,
@@ -45,6 +50,12 @@ from .schemas import (
     PresetUpsertRequest,
     PricingResponse,
     PricingEstimateResponse,
+    PromptRecipeRecord,
+    PromptRecipeDraftRequest,
+    PromptRecipeDraftResponse,
+    PromptRecipeDraftingConfigRecord,
+    PromptRecipeDraftingConfigUpsertRequest,
+    PromptRecipeUpsertRequest,
     PromptContextRequest,
     PromptContextResponse,
     QueueSettingsResponse,
@@ -73,6 +84,10 @@ def _bad_request(message: str) -> HTTPException:
 
 def _payload_too_large(message: str) -> HTTPException:
     return HTTPException(status_code=413, detail=message)
+
+
+def _invalidate_graph_node_definitions() -> None:
+    registry.invalidate()
 
 
 @asynccontextmanager
@@ -190,6 +205,21 @@ def health() -> HealthResponse:
     runner_health = "paused"
     if queue_settings["queue_enabled"]:
         runner_health = "healthy" if runner_active and not issues else "needs_attention"
+    enhancement_configs = store.list_enhancement_configs()
+    prompt_recipe_config = store.get_prompt_recipe_drafting_config()
+    local_openai_configs = [
+        item
+        for item in enhancement_configs
+        if str(item.get("provider_kind") or "").strip() == "local_openai"
+    ]
+    if prompt_recipe_config and str(prompt_recipe_config.get("provider_kind") or "").strip() == "local_openai":
+        local_openai_configs.append(prompt_recipe_config)
+    local_openai_configured = any(
+        bool(item.get("provider_base_url") or item.get("provider_base_url_configured") or item.get("provider_model_id"))
+        for item in local_openai_configs
+    )
+    local_openai_ready = any(str(item.get("provider_status") or "").strip() == "connected" for item in local_openai_configs)
+    codex_status = codex_local_provider.codex_local_status()
     return HealthResponse(
         status="ok",
         app=settings.app_name,
@@ -198,6 +228,11 @@ def health() -> HealthResponse:
         kie_api_key_configured=bool(settings.kie_api_key),
         live_submit_enabled=settings.media_enable_live_submit,
         openrouter_api_key_configured=bool(settings.openrouter_api_key),
+        local_openai_configured=local_openai_configured,
+        local_openai_ready=local_openai_ready,
+        codex_local_command_available=bool(codex_status.get("command_available")),
+        codex_local_login_configured=bool(codex_status.get("login_configured")),
+        codex_local_ready=bool(codex_status.get("ready")),
         runner_name=runner.display_name,
         runner_mode=runner.mode,
         runner_attached_to=runner.attached_to,
@@ -262,6 +297,22 @@ def estimate_pricing(payload: ValidateRequest):
         raise _bad_request(str(exc))
 
 
+@app.get("/media/external-llm-usage/summary", response_model=ExternalLlmUsageSummaryResponse)
+def get_external_llm_usage_summary():
+    return ExternalLlmUsageSummaryResponse(**store.get_external_llm_usage_summary())
+
+
+@app.get("/media/external-llm-usage", response_model=ExternalLlmUsageListResponse)
+def list_external_llm_usage(
+    limit: int = Query(default=50, ge=1, le=250),
+    offset: int = Query(default=0, ge=0),
+    source_kind: Optional[str] = Query(default=None),
+):
+    items = [ExternalLlmUsageRecord(**item) for item in store.list_external_llm_usage(limit=limit, offset=offset, source_kind=source_kind)]
+    total = store.count_external_llm_usage(source_kind=source_kind)
+    return ExternalLlmUsageListResponse(items=items, total=total, limit=limit, offset=offset)
+
+
 @app.get("/media/credits", response_model=CreditsResponse)
 def get_credits():
     payload = kie_adapter.get_credit_balance()
@@ -304,7 +355,9 @@ def get_preset(preset_id: str):
 @app.post("/media/presets", response_model=PresetRecord)
 def create_preset(payload: PresetUpsertRequest):
     try:
-        return PresetRecord(**service.upsert_preset(payload))
+        record = PresetRecord(**service.upsert_preset(payload))
+        _invalidate_graph_node_definitions()
+        return record
     except service.ServiceError as exc:
         raise _bad_request(str(exc))
 
@@ -312,7 +365,9 @@ def create_preset(payload: PresetUpsertRequest):
 @app.patch("/media/presets/{preset_id}", response_model=PresetRecord)
 def update_preset(preset_id: str, payload: PresetUpsertRequest):
     try:
-        return PresetRecord(**service.upsert_preset(payload, preset_id))
+        record = PresetRecord(**service.upsert_preset(payload, preset_id))
+        _invalidate_graph_node_definitions()
+        return record
     except service.ServiceError as exc:
         raise _bad_request(str(exc))
 
@@ -320,9 +375,62 @@ def update_preset(preset_id: str, payload: PresetUpsertRequest):
 @app.delete("/media/presets/{preset_id}")
 def delete_preset(preset_id: str):
     try:
-        return PresetRecord(**store.delete_preset(preset_id))
+        record = PresetRecord(**store.delete_preset(preset_id))
+        _invalidate_graph_node_definitions()
+        return record
     except FileNotFoundError:
         raise _not_found("preset")
+
+
+@app.get("/prompt-recipes", response_model=List[PromptRecipeRecord])
+def list_prompt_recipes(status: Optional[str] = Query(default=None), category: Optional[str] = Query(default=None)):
+    return [PromptRecipeRecord(**item) for item in store.list_prompt_recipes(status=status, category=category)]
+
+
+@app.get("/prompt-recipes/{recipe_id}", response_model=PromptRecipeRecord)
+def get_prompt_recipe(recipe_id: str):
+    record = store.get_prompt_recipe(recipe_id)
+    if not record:
+        raise _not_found("prompt recipe")
+    return PromptRecipeRecord(**record)
+
+
+@app.post("/prompt-recipes", response_model=PromptRecipeRecord)
+def create_prompt_recipe(payload: PromptRecipeUpsertRequest):
+    try:
+        record = PromptRecipeRecord(**service.upsert_prompt_recipe(payload))
+        _invalidate_graph_node_definitions()
+        return record
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
+
+
+@app.patch("/prompt-recipes/{recipe_id}", response_model=PromptRecipeRecord)
+def update_prompt_recipe(recipe_id: str, payload: PromptRecipeUpsertRequest):
+    try:
+        record = PromptRecipeRecord(**service.upsert_prompt_recipe(payload, recipe_id))
+        _invalidate_graph_node_definitions()
+        return record
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
+
+
+@app.delete("/prompt-recipes/{recipe_id}", response_model=PromptRecipeRecord)
+def delete_prompt_recipe(recipe_id: str):
+    try:
+        record = PromptRecipeRecord(**store.delete_prompt_recipe(recipe_id))
+        _invalidate_graph_node_definitions()
+        return record
+    except FileNotFoundError:
+        raise _not_found("prompt recipe")
+
+
+@app.post("/prompt-recipes/draft", response_model=PromptRecipeDraftResponse)
+def draft_prompt_recipe(payload: PromptRecipeDraftRequest):
+    try:
+        return PromptRecipeDraftResponse(**service.generate_prompt_recipe_draft(payload))
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
 
 
 @app.get("/media/projects", response_model=ProjectListResponse)
@@ -605,6 +713,70 @@ def probe_enhancement_provider(payload: EnhancementProviderProbeRequest):
         raise _bad_request(str(exc))
 
 
+@app.post("/media/shared-provider-catalog/probe", response_model=EnhancementProviderProbeResponse)
+def probe_shared_provider_catalog(payload: EnhancementProviderProbeRequest):
+    try:
+        bundle = service.probe_shared_provider_catalog(
+            {
+                "provider_kind": payload.provider_kind,
+                "selected_model_id": payload.selected_model_id,
+                "base_url": payload.base_url,
+                "require_images": payload.require_images,
+                "probe_mode": payload.probe_mode,
+            }
+        )
+        selected_model = bundle.get("selected_model")
+        available_models = bundle.get("available_models") or []
+        return EnhancementProviderProbeResponse(
+            ok=True,
+            provider=str(bundle.get("provider")),
+            credential_source=(str(bundle.get("credential_source")) if bundle.get("credential_source") else None),
+            selected_model=EnhancementProviderModel(**selected_model) if selected_model else None,
+            available_models=[EnhancementProviderModel(**item) for item in available_models],
+        )
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
+
+
+@app.get("/media/prompt-recipe-drafting-config", response_model=PromptRecipeDraftingConfigRecord)
+def get_prompt_recipe_drafting_config():
+    record = store.get_prompt_recipe_drafting_config()
+    return PromptRecipeDraftingConfigRecord(**service.public_prompt_recipe_drafting_config(record))
+
+
+@app.patch("/media/prompt-recipe-drafting-config", response_model=PromptRecipeDraftingConfigRecord)
+def update_prompt_recipe_drafting_config(payload: PromptRecipeDraftingConfigUpsertRequest):
+    try:
+        return PromptRecipeDraftingConfigRecord(**service.upsert_prompt_recipe_drafting_config(payload))
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
+
+
+@app.post("/media/prompt-recipe-drafting-config/probe", response_model=EnhancementProviderProbeResponse)
+def probe_prompt_recipe_drafting_config(payload: EnhancementProviderProbeRequest):
+    try:
+        bundle = service.probe_prompt_recipe_drafting_provider(
+            {
+                "provider_kind": payload.provider_kind,
+                "provider_model_id": payload.selected_model_id,
+                "provider_base_url": payload.base_url,
+                "require_images": payload.require_images,
+                "probe_mode": payload.probe_mode,
+            }
+        )
+        selected_model = bundle.get("selected_model")
+        available_models = bundle.get("available_models") or []
+        return EnhancementProviderProbeResponse(
+            ok=True,
+            provider=str(bundle.get("provider")),
+            credential_source=(str(bundle.get("credential_source")) if bundle.get("credential_source") else None),
+            selected_model=EnhancementProviderModel(**selected_model) if selected_model else None,
+            available_models=[EnhancementProviderModel(**item) for item in available_models],
+        )
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
+
+
 @app.post("/media/prompt-context", response_model=PromptContextResponse)
 def get_prompt_context(payload: PromptContextRequest):
     try:
@@ -730,10 +902,7 @@ def cancel_batch(batch_id: str):
     batch = store.get_batch(batch_id)
     if not batch:
         raise _not_found("batch")
-    for job in store.list_jobs(include_dismissed=True):
-        if job["batch_id"] == batch_id and job["status"] in ("queued", "submitted", "running"):
-            store.update_job(job["job_id"], {"status": "cancelled", "finished_at": store.utcnow_iso()})
-            store.append_job_event(job["job_id"], "cancelled", {"batch_id": batch_id})
+    cancel_batch_jobs(batch_id)
     return BatchRecord(**store.recompute_batch_counts(batch_id))
 
 

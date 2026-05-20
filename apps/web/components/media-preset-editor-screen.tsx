@@ -9,11 +9,13 @@ import {
   AdminInput,
   AdminTextarea,
   AdminToggle,
+  adminButtonIconLabelClassName,
 } from "@/components/admin-controls";
 import { AdminActionNotice } from "@/components/admin-action-notice";
 import { CollapsibleSubsection } from "@/components/collapsible-sections";
-import { Panel } from "@/components/panel";
+import { Panel, PanelHeader } from "@/components/panel";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
+import { invalidateGraphNodeDefinitions } from "@/lib/graph-node-definitions-sync";
 import { compatibleStructuredImagePresetModels } from "@/lib/media-studio-helpers";
 import type { MediaModelSummary, MediaPreset } from "@/lib/types";
 import { slugifyKey } from "@/lib/utils";
@@ -258,9 +260,6 @@ export function MediaPresetEditorScreen({
   const compatiblePresetModels = compatibleStructuredImagePresetModels(models, requiresImagePresetModel);
   const returnToPresetsHref = normalizeReturnToHref(initialReturnTo);
   const returnActionLabel = returnToPresetsHref === "/studio" ? "Back to Studio" : "Back to presets";
-  const sectionEyebrowClassName = "admin-label-accent";
-  const sectionTitleClassName = "admin-section-title";
-  const sectionDescriptionClassName = "admin-section-description";
   const accentCardClassName = "admin-surface-accent p-4 sm:p-5";
 
   async function savePreset() {
@@ -331,6 +330,7 @@ export function MediaPresetEditorScreen({
       showNotice("danger", result.error ?? "Unable to save the preset.");
       return;
     }
+    await invalidateGraphNodeDefinitions(presetForm.presetId ? "media-preset-updated" : "media-preset-created");
     setPresetForm(buildPresetForm(result.preset, defaultModelKey));
     setIsSaving(false);
     showNotice("healthy", presetForm.presetId ? "Preset updated." : "Preset created.");
@@ -382,6 +382,7 @@ export function MediaPresetEditorScreen({
       showNotice("danger", result.error ?? "Unable to archive the preset.");
       return;
     }
+    await invalidateGraphNodeDefinitions("media-preset-archived");
     setIsSaving(false);
     showNotice("healthy", "Preset archived.");
     router.push(returnToPresetsHref);
@@ -423,25 +424,19 @@ export function MediaPresetEditorScreen({
       {message ? <AdminActionNotice tone={message.tone} text={message.text} /> : null}
 
       <Panel>
-        <div className="flex flex-col gap-4 border-b border-white/6 pb-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-2">
-            <p className={sectionEyebrowClassName}>Preset Settings</p>
-            <div>
-              <h2 className={sectionTitleClassName}>{presetForm.presetId ? presetForm.label || "Edit preset" : "Create preset"}</h2>
-              <p className={sectionDescriptionClassName}>
-                Define the preset basics, scope, prompt template, and structured inputs using the same admin system as the Studio admin pages.
-              </p>
-            </div>
-          </div>
-          <div className="shrink-0">
+        <PanelHeader
+          eyebrow="Preset Settings"
+          title={presetForm.presetId ? presetForm.label || "Edit preset" : "Create preset"}
+          description="Define the preset basics, scope, prompt template, and structured inputs using the same admin system as the Studio admin pages."
+          action={
             <AdminButton variant="subtle" onClick={() => router.push(returnToPresetsHref)}>
-              <span className="inline-flex items-center gap-2">
+              <span className={adminButtonIconLabelClassName}>
                 <ArrowLeft className="size-3.5" />
                 {returnActionLabel}
               </span>
             </AdminButton>
-          </div>
-        </div>
+          }
+        />
 
         <div className="mt-5 grid gap-5">
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">

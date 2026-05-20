@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { CalloutPanel, MediaBrowserCard, OverlayHeader, OverlayShell, SurfaceInputShell } from "@/components/ui/surface-primitives";
+import { StudioStatusCallout } from "@/components/studio/studio-status-callout";
 import type { MediaProject } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
@@ -404,9 +405,12 @@ export function StudioProjectBrowser({
                   ))}
                 </div>
               ) : (
-                <CalloutPanel tone="muted" className="rounded-[20px] px-4 py-8 text-sm leading-6 text-white/58">
-                  No projects yet. Create one and Studio will start assigning new work to it.
-                </CalloutPanel>
+                <StudioStatusCallout
+                  tone="muted"
+                  title="No projects yet."
+                  description="Create one and Studio will start assigning new work to it."
+                  className="rounded-[20px] py-8"
+                />
               )}
             </section>
 
