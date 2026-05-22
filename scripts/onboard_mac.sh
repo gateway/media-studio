@@ -610,11 +610,11 @@ fi
 
 echo
 echo "Current setup summary"
-echo " - KIE API key: $( [[ -n "$(env_value KIE_API_KEY)" ]] && echo Ready || echo Not\\ set\\ up )"
-echo " - Live submit: $( [[ "$(env_value MEDIA_ENABLE_LIVE_SUBMIT)" == "true" ]] && echo Ready || echo Not\\ set\\ up )"
-echo " - Codex Local: $( [[ "$(codex_local_status_label)" == "ready" ]] && echo Ready || ([[ "$(codex_local_status_label)" == "login needed" ]] && echo Connecting || echo Not\\ set\\ up) )"
-echo " - OpenRouter: $( [[ -n "$(env_value OPENROUTER_API_KEY)" ]] && echo Ready || echo Not\\ set\\ up )"
-echo " - Local OpenAI-compatible: $( [[ -n "$(env_value MEDIA_LOCAL_OPENAI_BASE_URL)" ]] && echo Connecting || echo Not\\ set\\ up )"
+echo " - KIE API key: $( [[ -n "$(env_value KIE_API_KEY)" ]] && echo Ready || echo "Not set up" )"
+echo " - Live submit: $( [[ "$(env_value MEDIA_ENABLE_LIVE_SUBMIT)" == "true" ]] && echo Ready || echo "Not set up" )"
+echo " - Codex Local: $( [[ "$(codex_local_status_label)" == "ready" ]] && echo Ready || ([[ "$(codex_local_status_label)" == "login needed" ]] && echo Connecting || echo "Not set up") )"
+echo " - OpenRouter: $( [[ -n "$(env_value OPENROUTER_API_KEY)" ]] && echo Ready || echo "Not set up" )"
+echo " - Local OpenAI-compatible: $( [[ -n "$(env_value MEDIA_LOCAL_OPENAI_BASE_URL)" ]] && echo Connecting || echo "Not set up" )"
 echo
 echo "Next steps"
 echo " - Start later: Start Media Studio.command"

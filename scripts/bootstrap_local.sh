@@ -32,15 +32,31 @@ fi
 
 if kie_repo_is_git_checkout "$KIE_ROOT"; then
   if kie_repo_refresh_remote "$KIE_ROOT"; then
-    declare -A KIE_STATUS=()
+    kie_status_state=""
+    kie_status_upstream=""
+    kie_status_behind="0"
+    kie_status_dirty="false"
     while IFS='=' read -r key value; do
       [[ -n "$key" ]] || continue
-      KIE_STATUS["$key"]="$value"
+      case "$key" in
+        state)
+          kie_status_state="$value"
+          ;;
+        upstream)
+          kie_status_upstream="$value"
+          ;;
+        behind)
+          kie_status_behind="$value"
+          ;;
+        dirty)
+          kie_status_dirty="$value"
+          ;;
+      esac
     done < <(kie_repo_status_summary "$KIE_ROOT")
 
-    if [[ "${KIE_STATUS[state]:-}" == "ok" && "${KIE_STATUS[behind]:-0}" != "0" ]]; then
-      echo "Existing kie-api checkout is behind ${KIE_STATUS[upstream]:-origin} by ${KIE_STATUS[behind]} commit(s)."
-      if [[ "${KIE_STATUS[dirty]:-false}" == "true" ]]; then
+    if [[ "$kie_status_state" == "ok" && "$kie_status_behind" != "0" ]]; then
+      echo "Existing kie-api checkout is behind ${kie_status_upstream:-origin} by ${kie_status_behind} commit(s)."
+      if [[ "$kie_status_dirty" == "true" ]]; then
         echo "Local kie-api changes are present, so bootstrap will not update it automatically."
         echo "Update it manually when ready:"
         echo "  git -C \"$KIE_ROOT\" fetch --prune origin && git -C \"$KIE_ROOT\" pull --ff-only"
@@ -113,7 +129,7 @@ MEDIA_PRICING_CACHE_HOURS=6
 KIE_API_KEY=
 OPENROUTER_API_KEY=
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-MEDIA_LOCAL_OPENAI_BASE_URL=http://127.0.0.1:8080/v1
+MEDIA_LOCAL_OPENAI_BASE_URL=
 MEDIA_LOCAL_OPENAI_API_KEY=
 EOF
   echo "Created .env with local defaults and a unique control token."

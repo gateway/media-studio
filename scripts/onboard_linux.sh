@@ -170,11 +170,11 @@ fi
 
 echo
 echo "Current setup summary"
-echo " - KIE API key: $( [[ \"$kie_status\" == \"configured\" ]] && echo Ready || echo Not\\ set\\ up )"
-echo " - Live submit: $( [[ \"$live_status\" == \"enabled\" ]] && echo Ready || echo Not\\ set\\ up )"
-echo " - Codex Local: $( [[ \"$(codex_local_status_label)\" == \"ready\" ]] && echo Ready || ([[ \"$(codex_local_status_label)\" == \"login needed\" ]] && echo Connecting || echo Not\\ set\\ up) )"
-echo " - OpenRouter: $( [[ \"$openrouter_status\" == \"configured\" ]] && echo Ready || echo Not\\ set\\ up )"
-echo " - Local OpenAI-compatible: $( [[ -n "$(env_value MEDIA_LOCAL_OPENAI_BASE_URL)" ]] && echo Connecting || echo Not\\ set\\ up )"
+echo " - KIE API key: $( [[ \"$kie_status\" == \"configured\" ]] && echo Ready || echo "Not set up" )"
+echo " - Live submit: $( [[ \"$live_status\" == \"enabled\" ]] && echo Ready || echo "Not set up" )"
+echo " - Codex Local: $( [[ \"$(codex_local_status_label)\" == \"ready\" ]] && echo Ready || ([[ \"$(codex_local_status_label)\" == \"login needed\" ]] && echo Connecting || echo "Not set up") )"
+echo " - OpenRouter: $( [[ \"$openrouter_status\" == \"configured\" ]] && echo Ready || echo "Not set up" )"
+echo " - Local OpenAI-compatible: $( [[ -n "$(env_value MEDIA_LOCAL_OPENAI_BASE_URL)" ]] && echo Connecting || echo "Not set up" )"
 echo " - Local OpenAI base URL: $(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
 echo
 echo "Next commands"
