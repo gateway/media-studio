@@ -292,6 +292,17 @@ def cancel_run(run_id: str) -> GraphRun:
     return runtime.cancel_run(run_id)
 
 
+@router.post("/runs/{run_id}/recover", response_model=GraphRun)
+def recover_run(run_id: str) -> GraphRun:
+    if not store.get_graph_run(run_id):
+        raise _not_found("graph run")
+    runtime.recover_run(run_id, start=True)
+    record = store.get_graph_run(run_id)
+    if not record:
+        raise _not_found("graph run")
+    return _shape_run(record)
+
+
 @router.get("/templates", response_model=GraphTemplateListResponse)
 def list_templates() -> GraphTemplateListResponse:
     items: List[GraphTemplateRecord] = []

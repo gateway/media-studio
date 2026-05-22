@@ -79,7 +79,7 @@ function ProjectCard({
       appearance="studio"
       selected={selected && !archived}
       muted={archived}
-      className="shadow-[0_18px_40px_rgba(0,0,0,0.24)]"
+      className="studio-project-card-shadow"
     >
       <button
         type="button"
@@ -95,7 +95,7 @@ function ProjectCard({
             decoding="async"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-white/44">
+          <div className="flex h-full w-full items-center justify-center text-[var(--text-subtle)]">
             <Folder className="size-8" />
           </div>
         )}
@@ -110,7 +110,7 @@ function ProjectCard({
         Updated {project.updated_at ? formatDateTime(project.updated_at) : "recently"}
       </div>
       {project.hidden_from_global_gallery ? (
-        <div className="media-browser-card-meta font-semibold uppercase tracking-[0.14em] text-[rgba(255,183,107,0.88)]">
+        <div className="media-browser-card-meta studio-project-hidden-note font-semibold uppercase tracking-[0.14em]">
           Hidden from main gallery
         </div>
       ) : null}
@@ -119,7 +119,7 @@ function ProjectCard({
           onClick={onOpen}
           variant="primary"
           size="compact"
-          className="h-8 min-w-0 rounded-full px-3 text-[0.62rem] tracking-[0.12em] text-[#172200]"
+          className="studio-project-primary-text h-8 min-w-0 rounded-full px-3 text-[0.62rem] tracking-[0.12em]"
         >
           <FolderOpen className="mr-1.5 size-3.5" />
           Open
@@ -142,7 +142,7 @@ function ProjectCard({
                 disabled={busy === `delete:${project.project_id}`}
                 tone="danger"
                 iconClassName={busy === `delete:${project.project_id}` ? "animate-spin" : undefined}
-                className="h-8 w-8 rounded-full bg-[rgba(40,16,14,0.68)] text-[#ffb5a6]"
+                className="studio-danger-icon-button h-8 w-8 rounded-full"
                 aria-label={`Delete ${project.name}`}
                 title="Delete permanently"
               />
@@ -352,7 +352,7 @@ export function StudioProjectBrowser({
       panelClassName="flex min-h-dvh min-w-0 flex-col lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:max-h-[calc(100dvh-3rem)] lg:overflow-hidden"
     >
         <div className="flex min-h-dvh min-w-0 flex-col">
-          <div className="flex items-center justify-between gap-3 border-b border-white/8 px-4 py-4 md:px-6">
+          <div className="studio-project-header-row flex items-center justify-between gap-3 px-4 py-4 md:px-6">
             <OverlayHeader
               appearance="studio"
               eyebrow="Projects"
@@ -385,7 +385,7 @@ export function StudioProjectBrowser({
             ) : null}
 
             <section className="mb-5">
-              <div className="mb-3 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
+              <div className="studio-meta-label mb-3">
                 Active Projects
               </div>
               {activeProjects.length ? (
@@ -416,7 +416,7 @@ export function StudioProjectBrowser({
 
             {archivedProjects.length ? (
               <section>
-                <div className="mb-3 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/54">
+                <div className="studio-meta-label mb-3">
                   Archived
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
@@ -455,7 +455,7 @@ export function StudioProjectBrowser({
 
               <div className="grid gap-4">
                 <label className="grid gap-2">
-                  <span className="text-sm font-medium text-white/76">Name</span>
+                  <span className="studio-field-label">Name</span>
                   <SurfaceInputShell className="px-4">
                     <input
                       data-testid="studio-project-name-input"
@@ -467,7 +467,7 @@ export function StudioProjectBrowser({
                   </SurfaceInputShell>
                 </label>
                 <label className="grid gap-2">
-                  <span className="text-sm font-medium text-white/76">Description</span>
+                  <span className="studio-field-label">Description</span>
                   <SurfaceInputShell className="px-4 py-3">
                     <textarea
                       data-testid="studio-project-description-input"
@@ -489,11 +489,11 @@ export function StudioProjectBrowser({
                       hiddenFromGlobalGallery: !current.hiddenFromGlobalGallery,
                     }))
                   }
-                  className="flex items-start justify-between gap-4 rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-4 text-left transition hover:bg-white/[0.05]"
+                  className="studio-project-toggle-row flex items-start justify-between gap-4 rounded-[18px] px-4 py-4 text-left transition"
                 >
                   <div>
-                    <div className="text-sm font-medium text-white/86">Hide from main gallery</div>
-                    <div className="mt-1 text-sm leading-6 text-white/58">
+                    <div className="text-sm font-medium text-[var(--text-primary)]">Hide from main gallery</div>
+                    <div className="mt-1 text-sm leading-6 text-[var(--text-muted)]">
                       Keep this project and its media out of the global gallery and global filters. It will only show inside the project workspace.
                     </div>
                   </div>
@@ -501,35 +501,35 @@ export function StudioProjectBrowser({
                     className={cn(
                       "mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full border transition",
                       draft.hiddenFromGlobalGallery
-                        ? "border-[rgba(216,141,67,0.48)] bg-[rgba(216,141,67,0.22)]"
-                        : "border-white/12 bg-white/[0.06]",
+                        ? "studio-project-toggle-active"
+                        : "studio-project-toggle",
                     )}
                   >
                     <span
                       className={cn(
                         "m-[2px] h-5 w-5 rounded-full transition",
                         draft.hiddenFromGlobalGallery
-                          ? "translate-x-[20px] bg-[rgba(255,183,107,0.98)]"
-                          : "translate-x-0 bg-white/82",
+                          ? "studio-project-toggle-thumb-active translate-x-[20px]"
+                          : "studio-project-toggle-thumb translate-x-0",
                       )}
                     />
                   </div>
                 </button>
 
                 <div className="grid gap-2">
-                  <span className="text-sm font-medium text-white/76">Image (optional)</span>
+                  <span className="studio-field-label">Image (optional)</span>
                   <CalloutPanel tone="default" className="flex items-start gap-4 rounded-[18px] p-4">
                     <div className="media-browser-card-thumbnail h-24 w-24 shrink-0">
                       {coverPreviewUrl ? (
                         <img src={coverPreviewUrl} alt="Project cover preview" className="h-full w-full object-cover" />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-white/42">
+                        <div className="studio-project-cover-empty flex h-full w-full items-center justify-center">
                           <ImageIcon className="size-6" />
                         </div>
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm leading-6 text-white/62">
+                      <div className="text-sm leading-6 text-[var(--text-muted)]">
                         Upload an image to use as the project cover. This is only for organization and visual identity.
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -574,7 +574,7 @@ export function StudioProjectBrowser({
                     size="compact"
                     onClick={() => void handleSubmit()}
                     disabled={busyAction != null}
-                    className="h-10 rounded-full px-4 text-[0.68rem] tracking-[0.12em] text-[#172200]"
+                    className="studio-project-primary-text h-10 rounded-full px-4 text-[0.68rem] tracking-[0.12em]"
                   >
                     {busyAction === "create" || busyAction?.startsWith("save:") ? (
                       <LoaderCircle className="mr-1.5 size-3.5 animate-spin" />

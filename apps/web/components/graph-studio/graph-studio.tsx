@@ -22,6 +22,8 @@ import { NODE_COLOR_CHOICES } from "./graph-studio-constants";
 import { useGraphClipboard } from "./hooks/use-graph-clipboard";
 import { useGraphConsole } from "./hooks/use-graph-console";
 import { useGraphConnections } from "./hooks/use-graph-connections";
+import { useGraphContextMenus } from "./hooks/use-graph-context-menus";
+import { useGraphDefinitionHydration } from "./hooks/use-graph-definition-hydration";
 import { useGraphKeyboardShortcuts } from "./hooks/use-graph-keyboard-shortcuts";
 import { useGraphGroups } from "./hooks/use-graph-groups";
 import { useGraphMediaLibrary } from "./hooks/use-graph-media-library";
@@ -32,11 +34,13 @@ import { useGraphPricingEstimate } from "./hooks/use-graph-pricing-estimate";
 import { GraphProviderModelCatalogProvider, useGraphProviderModelCatalog } from "./hooks/use-graph-provider-model-catalog";
 import { useGraphRunHistory } from "./hooks/use-graph-run-history";
 import { useGraphStudioSupport } from "./hooks/use-graph-studio-support";
+import { useGraphTabWorkspace } from "./hooks/use-graph-tab-workspace";
 import { useGraphTabs } from "./hooks/use-graph-tabs";
 import { useGraphTemplates } from "./hooks/use-graph-templates";
 import { useGraphUndoHistory } from "./hooks/use-graph-undo-history";
 import { useGraphRunLifecycle, type GraphValidationError } from "./hooks/use-graph-run-lifecycle";
 import { useGraphWorkflowActions } from "./hooks/use-graph-workflow-actions";
+import { useGraphWorkflowMenuState } from "./hooks/use-graph-workflow-menu-state";
 import { useGraphWorkflowTransfer } from "./hooks/use-graph-workflow-transfer";
 import type { GraphGroup, GraphMediaPreview, GraphNodeDefinition, GraphRun, GraphRunEvent, GraphWorkflowPayload, GraphWorkflowRecord, StudioEdge, StudioNode } from "./types";
 import { jsonFetch } from "./utils/graph-api";
@@ -44,7 +48,7 @@ import { graphGroupsForCanvas } from "./utils/graph-groups";
 import { assetIdsFromGraphRun, readGraphMediaDragPayload } from "./utils/graph-media-preview";
 import { graphEdgeClassForPortType, graphEdgeStyleForPortType, computeGraphNodeLayout } from "./utils/graph-node-layout";
 import { suppressGraphEdgeSelectionChanges } from "./utils/graph-edge-selection";
-import { graphVisibleFieldMetrics } from "./utils/graph-node-fields";
+import { graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "./utils/graph-node-fields";
 import { graphNodeDataWithRunState, graphRunNodeStateMatchesExecutionMode } from "./utils/graph-node-runtime";
 import { visibleGraphInputPorts, visibleGraphOutputPorts } from "./utils/graph-node-ports";
 import { inputGraphHandleId, outputGraphHandleId } from "./utils/graph-port-handles";
@@ -52,7 +56,7 @@ import { graphPromptRecipeSelectionSummary } from "./utils/graph-prompt-recipe";
 import { formatGraphRunEventsForConsole, graphNodeActivitiesFromRunEvents } from "./utils/graph-run-events";
 import { createGraphNode as createNode, workflowFromCanvas as buildWorkflowPayload, type GraphNodeHandlers } from "./utils/graph-serialization";
 import type { GraphHistorySnapshot } from "./utils/graph-history";
-import { blankGraphWorkflowPayload, graphWorkflowDirtyState, graphWorkflowSnapshotSignature, graphWorkflowSnapshotsMatch, shouldReloadSavedWorkflowRecordOnRestore, writeGraphTabSession } from "./utils/graph-tabs";
+import { graphWorkflowDirtyState, graphWorkflowSnapshotSignature, graphWorkflowSnapshotsMatch, shouldReloadSavedWorkflowRecordOnRestore } from "./utils/graph-tabs";
 import { hydrateGraphWorkflowForCanvas } from "./utils/graph-workflow-hydration";
 export function GraphStudio() {
   const [mounted, setMounted] = useState(false);
@@ -69,7 +73,6 @@ export function GraphStudio() {
 
 function GraphStudioClient() {
   const { screenToFlowPosition } = useReactFlow<StudioNode, StudioEdge>();
-  const [definitions, setDefinitions] = useState<GraphNodeDefinition[]>([]);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [workflowName, setWorkflowName] = useState("Nano Image Pipeline");
   const { consoleLines, setConsoleLines, appendConsole } = useGraphConsole();
@@ -97,26 +100,50 @@ function GraphStudioClient() {
   const [consoleOpen, setConsoleOpen] = useState(true);
   const [consoleHeight, setConsoleHeight] = useState(170);
   const [showMiniMap, setShowMiniMap] = useState(false);
-  const [workflowMenuOpen, setWorkflowMenuOpen] = useState(false);
-  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
-  const [renameDraft, setRenameDraft] = useState("");
+  const {
+    workflowMenuOpen,
+    setWorkflowMenuOpen,
+    renameDialogOpen,
+    setRenameDialogOpen,
+    renameDraft,
+    setRenameDraft,
+    closeWorkflowMenu,
+    toggleWorkflowMenu,
+  } = useGraphWorkflowMenuState();
   const [historyReady, setHistoryReady] = useState(false);
   const [groups, setGroups] = useState<GraphGroup[]>([]);
-  const [nodeContextMenu, setNodeContextMenu] = useState<{ nodeIds: string[]; anchorNodeId: string; x: number; y: number } | null>(null);
-  const [groupContextMenu, setGroupContextMenu] = useState<{ groupId: string; x: number; y: number } | null>(null);
-  const [groupTitleDraft, setGroupTitleDraft] = useState("");
+  const {
+    nodeContextMenu,
+    setNodeContextMenu,
+    groupContextMenu,
+    setGroupContextMenu,
+    groupTitleDraft,
+    setGroupTitleDraft,
+    closeGroupContextMenu,
+    closeContextMenus,
+  } = useGraphContextMenus({ groups });
   const [renamingNodeId, setRenamingNodeId] = useState<string | null>(null);
   const [nodeRenameDraft, setNodeRenameDraft] = useState("");
-  const definitionsLoadStarted = useRef(false);
-  const canvasHydrated = useRef(false);
-  const latestDefinitionsRevision = useRef<string | null>(null);
   const activeTab = useMemo(() => tabs.find((tab) => tab.tab_id === activeTabId) ?? null, [activeTabId, tabs]);
 
   const openCanvasNodeSearch = useCallback((x: number, y: number, connection?: Parameters<typeof openNodeSearch>[2]) => {
-    openNodeSearch(x, y, connection); setWorkflowMenuOpen(false); setNodeContextMenu(null); setGroupContextMenu(null);
-  }, [openNodeSearch]);
+    openNodeSearch(x, y, connection);
+    closeWorkflowMenu();
+    closeContextMenus();
+  }, [closeContextMenus, closeWorkflowMenu, openNodeSearch]);
   const [nodes, setNodes, onNodesChange] = useNodesState<StudioNode>([]);
+  const nodesRef = useRef<StudioNode[]>([]);
   const [edges, setEdges, applyEdgesChange] = useEdgesState<StudioEdge>([]);
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+  const {
+    definitions,
+    definitionsLoadStarted,
+    canvasHydrated,
+    latestDefinitionsRevision,
+    reloadNodeDefinitions,
+  } = useGraphDefinitionHydration({ setNodes });
   const providerModelCatalog = useGraphProviderModelCatalog({ nodes, appendConsole });
   const onEdgesChange = useCallback(
     (changes: Parameters<typeof applyEdgesChange>[0]) => {
@@ -233,8 +260,7 @@ function GraphStudioClient() {
           ...data.fields,
           [fieldId]: value,
         };
-        const previewHeaderFieldIds =
-          data.definition.type === "media.save_image" || data.definition.type === "media.save_video" || data.definition.type === "media.save_audio" ? ["project_id"] : [];
+        const previewHeaderFieldIds = graphPreviewHeaderFieldIds(data.definition);
         const metrics = graphVisibleFieldMetrics(data.definition, nextFields, data.connectedInputPorts ?? [], {
           advancedExpanded: Boolean(data.advancedExpanded),
           previewHeaderFieldIds,
@@ -276,8 +302,7 @@ function GraphStudioClient() {
             ...data.fields,
             ...fields,
           };
-          const previewHeaderFieldIds =
-            data.definition.type === "media.save_image" || data.definition.type === "media.save_video" || data.definition.type === "media.save_audio" ? ["project_id"] : [];
+          const previewHeaderFieldIds = graphPreviewHeaderFieldIds(data.definition);
           const metrics = graphVisibleFieldMetrics(data.definition, nextFields, data.connectedInputPorts ?? [], {
             advancedExpanded: Boolean(data.advancedExpanded),
             previewHeaderFieldIds,
@@ -337,8 +362,7 @@ function GraphStudioClient() {
           if (node.id !== nodeId) return node;
           const data = node.data as StudioNode["data"];
           const nextExpanded = !data.advancedExpanded;
-          const previewHeaderFieldIds =
-            data.definition.type === "media.save_image" || data.definition.type === "media.save_video" || data.definition.type === "media.save_audio" ? ["project_id"] : [];
+          const previewHeaderFieldIds = graphPreviewHeaderFieldIds(data.definition);
           const metrics = graphVisibleFieldMetrics(data.definition, data.fields, data.connectedInputPorts ?? [], {
             advancedExpanded: nextExpanded,
             previewHeaderFieldIds,
@@ -418,14 +442,14 @@ function GraphStudioClient() {
 
   const startNodeRename = useCallback(
     (nodeId: string) => {
-      const node = nodes.find((item) => item.id === nodeId);
+      const node = nodesRef.current.find((item) => item.id === nodeId);
       if (!node) return;
       const data = node.data as StudioNode["data"];
       setNodeRenameDraft(data.customTitle?.trim() || data.definition.title);
       setRenamingNodeId(nodeId);
-      setNodeContextMenu(null);
+      closeContextMenus();
     },
-    [nodes],
+    [closeContextMenus],
   );
 
   const commitNodeRename = useCallback(() => {
@@ -459,7 +483,7 @@ function GraphStudioClient() {
     setNodes,
     setEdges,
     appendConsole,
-    closeContextMenu: () => setNodeContextMenu(null),
+    closeContextMenu: closeContextMenus,
   });
   const { createGroupFromSelection, renameGroup, setGroupColor, deleteGroup, setGroupExecutionMode } = useGraphGroups({
     groups,
@@ -532,67 +556,6 @@ function GraphStudioClient() {
       setNodes((current) => [...current, createNode(definition, { x: 120 + current.length * 80, y: 120 + current.length * 60 }, nodeHandlers)]);
     },
     [nodeHandlers, setNodes],
-  );
-
-  const applyDefinitionRefresh = useCallback(
-    (items: GraphNodeDefinition[]) => {
-      setDefinitions(items);
-      const byType = new Map(items.map((definition) => [definition.type, definition]));
-      setNodes((current) =>
-        current.map((node) => {
-          const nextDefinition = byType.get((node.data as StudioNode["data"]).definition.type);
-          if (!nextDefinition) {
-            return node;
-          }
-          const data = node.data as StudioNode["data"];
-          const previewHeaderFieldIds =
-            nextDefinition.type === "media.save_image" || nextDefinition.type === "media.save_video" || nextDefinition.type === "media.save_audio"
-              ? ["project_id"]
-              : [];
-          const metrics = graphVisibleFieldMetrics(nextDefinition, data.fields, data.connectedInputPorts ?? [], {
-            advancedExpanded: Boolean(data.advancedExpanded),
-            previewHeaderFieldIds,
-            extraLayoutRows: nextDefinition.type === "prompt.recipe" && graphPromptRecipeSelectionSummary(nextDefinition, data.fields) ? 2 : 0,
-          });
-          const visibleInputPorts = visibleGraphInputPorts(nextDefinition, data.fields).filter(
-            (port) => !nextDefinition.fields.some((field) => (field.connectable || field.port_type) && field.id === port.id),
-          );
-          const visibleOutputPorts = visibleGraphOutputPorts(nextDefinition, data.fields);
-          const nextLayout = computeGraphNodeLayout(nextDefinition, undefined, {
-            visibleFieldCount: metrics.layoutFieldCount,
-            visiblePortCount: visibleInputPorts.length + visibleOutputPorts.length,
-            textareaCount: metrics.textareaCount,
-          });
-          const currentHeight =
-            typeof node.height === "number" ? node.height : typeof node.style?.height === "number" ? node.style.height : nextLayout.minHeight;
-          return {
-            ...node,
-            style: {
-              ...node.style,
-              minHeight: nextLayout.minHeight,
-              height: Math.max(currentHeight, nextLayout.minHeight),
-            },
-            data: {
-              ...data,
-              definition: nextDefinition,
-            },
-          };
-        }),
-      );
-    },
-    [setNodes],
-  );
-
-  const reloadNodeDefinitions = useCallback(
-    async (refresh = false) => {
-      const payload = refresh
-        ? await jsonFetch<{ items: GraphNodeDefinition[] }>("/api/control/media/graph/node-definitions/refresh", { method: "POST" })
-        : await jsonFetch<{ items: GraphNodeDefinition[] }>("/api/control/media/graph/node-definitions");
-      applyDefinitionRefresh(payload.items);
-      latestDefinitionsRevision.current = readGraphNodeDefinitionsRevision()?.changedAt ?? latestDefinitionsRevision.current;
-      return payload.items;
-    },
-    [applyDefinitionRefresh],
   );
 
   const addDefinitionNodeFromSearch = useCallback(
@@ -740,12 +703,11 @@ function GraphStudioClient() {
         workflowUpdatedAt: historySnapshot.workflowUpdatedAt ?? null,
       });
       setSidebarDialog(null);
-      setWorkflowMenuOpen(false);
+      closeWorkflowMenu();
       setNodeSearch(null);
-      setNodeContextMenu(null);
-      setGroupContextMenu(null);
+      closeContextMenus();
     },
-    [hydrateWorkflowPayload],
+    [closeContextMenus, closeWorkflowMenu, hydrateWorkflowPayload],
   );
   const { canUndo, canRedo, undo, redo } = useGraphUndoHistory({
     enabled: historyReady,
@@ -809,6 +771,7 @@ function GraphStudioClient() {
           savedWorkflowSignature: graphWorkflowSnapshotSignature(savedWorkflow),
           workflowUpdatedAt: record.updated_at ?? null,
           runId: null,
+          runStatus: null,
           dirty: false,
         },
         {
@@ -818,6 +781,7 @@ function GraphStudioClient() {
           savedWorkflowSignature: activeTab?.saved_workflow_signature ?? null,
           workflowUpdatedAt,
           runId: run?.run_id ?? null,
+          runStatus: run?.status ?? null,
           consoleLines,
           dirty: graphWorkflowDirtyState({
             workflowId,
@@ -877,6 +841,7 @@ function GraphStudioClient() {
               savedWorkflowSignature: restoredSavedWorkflowSignature,
               workflowUpdatedAt: restoredWorkflowUpdatedAt,
               runId: activeTab.run_id ?? null,
+              runStatus: activeTab.run_status ?? null,
               consoleLines: activeTab.console_lines ?? ["Graph Studio ready."],
               dirty: false,
             });
@@ -1129,54 +1094,6 @@ function GraphStudioClient() {
     refreshCredits, refreshImageAssets, refreshAssetsByIds, refreshReferenceMedia, setConsoleLines, appendConsole, confirmPricingForRun,
   });
 
-  useEffect(() => {
-    if (!canvasHydrated.current || !activeTab) return;
-    const currentWorkflow = workflowFromCanvas(workflowId, workflowName, nodes, edges);
-    const computedDirty = graphWorkflowDirtyState({
-      workflowId,
-      workflowName,
-      workflow: currentWorkflow,
-      savedWorkflowSignature: activeTab.saved_workflow_signature ?? null,
-      dirtyFallback:
-        Boolean(activeTab.dirty) ||
-        activeTab.workflow_id !== workflowId ||
-        activeTab.workflow_name !== workflowName,
-    });
-    const nextSavedWorkflowSignature =
-      workflowId && !computedDirty
-        ? graphWorkflowSnapshotSignature(currentWorkflow)
-        : workflowId
-          ? activeTab.saved_workflow_signature ?? null
-          : null;
-    const activeSnapshot = {
-      workflowId,
-      workflowName,
-      workflow: currentWorkflow,
-      savedWorkflowSignature: nextSavedWorkflowSignature,
-      workflowUpdatedAt,
-      runId: run?.run_id ?? null,
-      consoleLines,
-      dirty: computedDirty,
-    };
-    const nextTabs = tabs.map((tab) =>
-      tab.tab_id === activeTabId
-        ? {
-            ...tab,
-            workflow_id: activeSnapshot.workflowId,
-            workflow_name: activeSnapshot.workflowName,
-            workflow_json: activeSnapshot.workflow,
-            saved_workflow_signature: activeSnapshot.savedWorkflowSignature ?? null,
-            workflow_updated_at: activeSnapshot.workflowUpdatedAt ?? null,
-            run_id: activeSnapshot.runId ?? null,
-            console_lines: activeSnapshot.consoleLines,
-            dirty: activeSnapshot.dirty,
-            updated_at: new Date().toISOString(),
-          }
-        : tab,
-    );
-    writeGraphTabSession(activeTabId, nextTabs);
-  }, [activeTab, activeTabId, consoleLines, edges, nodes, run?.run_id, tabs, workflowFromCanvas, workflowId, workflowName, workflowUpdatedAt]);
-
   const onDrop = useCallback(
     async (event: ReactDragEvent) => {
       event.preventDefault();
@@ -1239,76 +1156,28 @@ function GraphStudioClient() {
     [appendConsole, hydrateWorkflowPayload, workflowUpdatedAt],
   );
 
-  const snapshotActiveTab = useCallback(
-    () => {
-      const workflow = workflowFromCanvas(workflowId, workflowName, nodes, edges);
-      const dirty = graphWorkflowDirtyState({
-        workflowId,
-        workflowName,
-        workflow,
-        savedWorkflowSignature: activeTab?.saved_workflow_signature ?? null,
-        dirtyFallback: Boolean(activeTab?.dirty),
-      });
-      updateActiveTab({
-        workflowId,
-        workflowName,
-        workflow,
-        savedWorkflowSignature:
-          workflowId && !dirty
-            ? graphWorkflowSnapshotSignature(workflow)
-            : workflowId
-              ? activeTab?.saved_workflow_signature ?? null
-              : null,
-        workflowUpdatedAt,
-        runId: run?.run_id ?? null,
-        consoleLines,
-        dirty,
-      });
-    },
-    [activeTab?.dirty, activeTab?.saved_workflow_signature, consoleLines, edges, nodes, run?.run_id, updateActiveTab, workflowFromCanvas, workflowId, workflowName, workflowUpdatedAt],
-  );
-
-  const switchWorkflowTab = useCallback((tabId: string) => { snapshotActiveTab(); const tab = switchTab(tabId); if (tab?.workflow_json) { hydrateWorkflowPayload(tab.workflow_json, { workflowId: tab.workflow_id ?? null, workflowName: tab.workflow_name, workflowUpdatedAt: tab.workflow_updated_at ?? null }); setConsoleLines(tab.console_lines?.length ? tab.console_lines : ["Graph Studio ready."]); if (tab.run_id) void hydrateLastRun(tab.run_id); } else closeWorkflow(); }, [closeWorkflow, hydrateLastRun, hydrateWorkflowPayload, setConsoleLines, snapshotActiveTab, switchTab]);
-
-  const closeWorkflowTab = useCallback((tabId: string) => {
-    const workflow = workflowFromCanvas(workflowId, workflowName, nodes, edges);
-    const dirty = graphWorkflowDirtyState({
-      workflowId,
-      workflowName,
-      workflow,
-      savedWorkflowSignature: activeTab?.saved_workflow_signature ?? null,
-      dirtyFallback: Boolean(activeTab?.dirty),
-    });
-    const snapshot = {
-      workflowId,
-      workflowName,
-      workflow,
-      savedWorkflowSignature:
-        workflowId && !dirty
-          ? graphWorkflowSnapshotSignature(workflow)
-          : workflowId
-            ? activeTab?.saved_workflow_signature ?? null
-            : null,
-      workflowUpdatedAt,
-      runId: run?.run_id ?? null,
-      consoleLines,
-      dirty,
-    };
-    const result = closeTab(tabId, snapshot);
-    if (result.closedActive && result.nextActiveTab.workflow_json) {
-      hydrateWorkflowPayload(result.nextActiveTab.workflow_json, {
-        workflowId: result.nextActiveTab.workflow_id ?? null,
-        workflowName: result.nextActiveTab.workflow_name,
-        workflowUpdatedAt: result.nextActiveTab.workflow_updated_at ?? null,
-      });
-      setConsoleLines(result.nextActiveTab.console_lines?.length ? result.nextActiveTab.console_lines : ["Graph Studio ready."]);
-    }
-    else if (result.closedActive) closeWorkflow();
-  }, [activeTab?.dirty, activeTab?.saved_workflow_signature, closeTab, closeWorkflow, consoleLines, edges, hydrateWorkflowPayload, nodes, run?.run_id, setConsoleLines, workflowFromCanvas, workflowId, workflowName, workflowUpdatedAt]);
-
-  const openNewWorkflowTab = useCallback(() => { snapshotActiveTab(); openBlankTab(); closeWorkflow(); }, [closeWorkflow, openBlankTab, snapshotActiveTab]);
-
-  const closeActiveWorkflow = useCallback(() => { const workflow = blankGraphWorkflowPayload(); updateActiveTab({ workflowId: null, workflowName: workflow.name, workflow, savedWorkflowSignature: null, workflowUpdatedAt: null, runId: null, consoleLines: ["Graph Studio ready."], dirty: false }); closeWorkflow(); }, [closeWorkflow, updateActiveTab]);
+  const { switchWorkflowTab, closeWorkflowTab, openNewWorkflowTab, closeActiveWorkflow } = useGraphTabWorkspace({
+    activeTab,
+    activeTabId,
+    tabs,
+    workflowId,
+    workflowName,
+    workflowUpdatedAt,
+    nodes,
+    edges,
+    run,
+    consoleLines,
+    canvasHydrated: canvasHydrated.current,
+    workflowFromCanvas,
+    updateActiveTab,
+    switchTab,
+    closeTab,
+    openBlankTab,
+    hydrateWorkflowPayload,
+    hydrateLastRun,
+    closeWorkflow,
+    setConsoleLines,
+  });
 
   return (
     <GraphProviderModelCatalogProvider value={providerModelCatalog}>
@@ -1340,7 +1209,7 @@ function GraphStudioClient() {
           }
           creditsUnavailable={creditsUnavailable}
           graphPricing={graphEstimate}
-          onToggleWorkflowMenu={() => setWorkflowMenuOpen((current) => !current)}
+        onToggleWorkflowMenu={toggleWorkflowMenu}
           onSwitchTab={switchWorkflowTab}
           onNewTab={openNewWorkflowTab}
           onCloseTab={closeWorkflowTab}
@@ -1360,13 +1229,14 @@ function GraphStudioClient() {
                 ),
                 workflowUpdatedAt: record.updated_at ?? null,
                 runId: run?.run_id ?? null,
+                runStatus: run?.status ?? null,
                 consoleLines,
                 dirty: false,
               });
-              setWorkflowMenuOpen(false);
+              closeWorkflowMenu();
             });
           }}
-          onSaveAs={() => { void saveWorkflowAs().then((record) => { const savedWorkflow = workflowFromCanvas(record.workflow_id, record.name || `${workflowName || "Workflow"} Copy`, nodes, edges); setWorkflowUpdatedAt(record.updated_at ?? null); updateActiveTab({ workflowId: record.workflow_id, workflowName: record.name || `${workflowName || "Workflow"} Copy`, workflow: savedWorkflow, savedWorkflowSignature: graphWorkflowSnapshotSignature(savedWorkflow), workflowUpdatedAt: record.updated_at ?? null, runId: run?.run_id ?? null, consoleLines, dirty: false }); }); }}
+          onSaveAs={() => { void saveWorkflowAs().then((record) => { const savedWorkflow = workflowFromCanvas(record.workflow_id, record.name || `${workflowName || "Workflow"} Copy`, nodes, edges); setWorkflowUpdatedAt(record.updated_at ?? null); updateActiveTab({ workflowId: record.workflow_id, workflowName: record.name || `${workflowName || "Workflow"} Copy`, workflow: savedWorkflow, savedWorkflowSignature: graphWorkflowSnapshotSignature(savedWorkflow), workflowUpdatedAt: record.updated_at ?? null, runId: run?.run_id ?? null, runStatus: run?.status ?? null, consoleLines, dirty: false }); }); }}
           onExportWorkflow={exportWorkflow}
           onExportBundle={() => { void exportWorkflowBundle(); }}
           onOpenRename={() => openRenameWorkflow(setRenameDraft)}
@@ -1380,7 +1250,7 @@ function GraphStudioClient() {
                 const savedWorkflowUpdatedAt = record?.updated_at ?? workflowUpdatedAt;
                 const savedWorkflow = workflowFromCanvas(savedWorkflowId ?? null, nextName, nodes, edges);
                 setWorkflowUpdatedAt(savedWorkflowUpdatedAt ?? null);
-                updateActiveTab({ workflowId: savedWorkflowId ?? null, workflowName: nextName, workflow: savedWorkflow, savedWorkflowSignature: graphWorkflowSnapshotSignature(savedWorkflow), workflowUpdatedAt: savedWorkflowUpdatedAt ?? null, runId: run?.run_id ?? null, consoleLines, dirty: false });
+                updateActiveTab({ workflowId: savedWorkflowId ?? null, workflowName: nextName, workflow: savedWorkflow, savedWorkflowSignature: graphWorkflowSnapshotSignature(savedWorkflow), workflowUpdatedAt: savedWorkflowUpdatedAt ?? null, runId: run?.run_id ?? null, runStatus: run?.status ?? null, consoleLines, dirty: false });
               }
             });
           }}
@@ -1502,7 +1372,8 @@ function GraphStudioClient() {
         onSetNodeColor={setGraphNodeColor}
         onClearNodes={clearGraphNodes}
         onCreateGroup={() => {
-          createGroupFromSelection(); setNodeContextMenu(null);
+          createGroupFromSelection();
+          closeContextMenus();
         }}
         onRenameNode={startNodeRename}
         onGroupTitleDraftChange={setGroupTitleDraft}
@@ -1510,7 +1381,7 @@ function GraphStudioClient() {
         onSetGroupColor={setGroupColor}
         onSetGroupExecutionMode={setGroupExecutionMode}
         onDeleteGroup={deleteGroup}
-        onCloseGroupContext={() => setGroupContextMenu(null)}
+        onCloseGroupContext={closeGroupContextMenu}
         onCloseImageLibrary={() => setImageLibraryNodeId(null)}
         onAttachReference={attachReferenceToNode}
         onAttachAsset={attachAssetToNode}

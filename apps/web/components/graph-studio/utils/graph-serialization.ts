@@ -3,7 +3,7 @@ import type { Edge, Node } from "@xyflow/react";
 import type { GraphGroup, GraphNodeData, GraphNodeDefinition, GraphWorkflowPayload, StudioNode } from "../types";
 import { computeGraphNodeLayout, graphNodeUsesContentAutoHeight } from "./graph-node-layout";
 import { normalizeGraphExecutionMode } from "./graph-node-execution";
-import { graphVisibleFieldMetrics } from "./graph-node-fields";
+import { graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "./graph-node-fields";
 import { serializeGraphGroups } from "./graph-groups";
 import { graphPortIdFromHandle } from "./graph-port-handles";
 
@@ -37,7 +37,7 @@ export function createGraphNode(definition: GraphNodeDefinition, position: { x: 
   const fields = defaultGraphFields(definition);
   const metrics = graphVisibleFieldMetrics(definition, fields, [], {
     advancedExpanded: false,
-    previewHeaderFieldIds: definition.type === "media.save_image" || definition.type === "media.save_video" || definition.type === "media.save_audio" ? ["project_id"] : [],
+    previewHeaderFieldIds: graphPreviewHeaderFieldIds(definition),
     extraLayoutRows: definition.type === "prompt.recipe" && String(fields.recipe_id ?? "").trim() ? 2 : 0,
   });
   const layout = computeGraphNodeLayout(definition, undefined, {

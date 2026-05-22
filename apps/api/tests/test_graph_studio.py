@@ -403,6 +403,7 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
         "display.any",
         "debug.inspect",
         "debug.metadata",
+        "utility.note",
         "preset.render",
         "prompt.concat",
         "prompt.recipe",
@@ -438,6 +439,14 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
     assert display_any["ui"]["default_size"] == {"width": 460, "height": 520}
     assert display_any["ui"]["min_size"] == {"width": 360, "height": 320}
     assert display_any["ui"]["max_size"] == {"width": 2400, "height": 3200}
+    note = next(item for item in items if item["type"] == "utility.note")
+    assert note["category"] == "Utility"
+    assert note["ports"] == {"inputs": [], "outputs": []}
+    assert note["execution"]["executor"] == "utility.note"
+    assert note["ui"]["markdown_preview_field"] == "body"
+    note_body = next(field for field in note["fields"] if field["id"] == "body")
+    assert note_body["type"] == "textarea"
+    assert note_body["placeholder"] == "Write notes in Markdown..."
     video_extract = next(item for item in items if item["type"] == "video.extract")
     assert next(field for field in video_extract["fields"] if field["id"] == "operation")["default"] == "poster_frame"
     video_combine = next(item for item in items if item["type"] == "video.combine")
@@ -449,6 +458,11 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
     assert generated_model_nodes
     assert all(item["source"]["kind"] == "kie_model" for item in generated_model_nodes)
     assert all(item.get("help_text") for item in generated_model_nodes)
+    gpt_t2i = next(item for item in items if item["type"] == "model.kie.gpt_image_2_text_to_image")
+    assert gpt_t2i["category"] == "Models/Image"
+    assert gpt_t2i["source"]["output_media_type"] == "image"
+    assert any(port["id"] == "image" and port["type"] == "image" for port in gpt_t2i["ports"]["outputs"])
+    assert not any(port["type"] == "image" for port in gpt_t2i["ports"]["inputs"])
     save_image = next(item for item in items if item["type"] == "media.save_image")
     assert any(field["id"] == "project_id" and field["type"] == "select" for field in save_image["fields"])
     save_image_input = next(port for port in save_image["ports"]["inputs"] if port["id"] == "image")
@@ -472,6 +486,8 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
     assert any(port["id"] == "start_frame" and port["label"] == "Start Frame" and port["required"] is True and port["max"] == 1 for port in kling_3_inputs)
     assert any(port["id"] == "end_frame" and port["label"] == "End Frame" and port["required"] is False and port["max"] == 1 for port in kling_3_inputs)
     assert not any(port["id"] == "image_refs" for port in kling_3_inputs)
+    kling_3_motion = next(item for item in items if item["type"] == "model.kie.kling_3_0_motion")
+    assert not any(field["id"] == "background_source" for field in kling_3_motion["fields"])
     seedance = next(item for item in items if item["type"] == "model.kie.seedance_2_0")
     seedance_inputs = seedance["ports"]["inputs"]
     assert any(port["id"] == "start_frame" and port["type"] == "image" and port["max"] == 1 for port in seedance_inputs)
@@ -489,8 +505,60 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
     assert any(field["id"] == "audio_policy" and field["default"] == "keep_video_audio" for field in save_video["fields"])
     save_audio = next(item for item in items if item["type"] == "media.save_audio")
     assert any(field["id"] == "format" and field["default"] == "source_original" for field in save_audio["fields"])
+    save_music = next(item for item in items if item["type"] == "media.save_music_track")
+    assert any(port["id"] == "track" and port["type"] == "music_track" and port["max"] == 1 for port in save_music["ports"]["inputs"])
+    assert any(port["id"] == "audio" and port["type"] == "audio" for port in save_music["ports"]["outputs"])
     audio_transform = next(item for item in items if item["type"] == "audio.transform")
     assert any(field["id"] == "operation" and field["default"] == "extract_metadata" for field in audio_transform["fields"])
+    suno = next(item for item in items if item["type"] == "model.kie.suno_generate_music")
+    assert suno["category"] == "Models/Audio"
+    assert suno["source"]["output_media_type"] == "audio"
+    assert suno["source"]["task_modes"] == ["text_to_music"]
+    assert any(port["id"] == "track_1" and port["type"] == "music_track" for port in suno["ports"]["outputs"])
+    assert any(port["id"] == "track_2" and port["type"] == "music_track" for port in suno["ports"]["outputs"])
+    assert not any(port["id"] == "cover_images" for port in suno["ports"]["outputs"])
+    assert any(port["id"] == "song_description" and port["type"] == "text" for port in suno["ports"]["inputs"])
+    assert any(port["id"] == "lyrics" and port["type"] == "text" for port in suno["ports"]["inputs"])
+    assert not any(port["id"] == "prompt" for port in suno["ports"]["inputs"])
+    assert not any(port["type"] in {"image", "video", "audio"} for port in suno["ports"]["inputs"])
+    suno_fields = {field["id"]: field for field in suno["fields"]}
+    assert "prompt" not in suno_fields
+    assert suno_fields["suno_model"]["type"] == "select"
+    assert "V5" in suno_fields["suno_model"]["options"]
+    assert suno_fields["custom_mode"]["type"] == "boolean"
+    assert suno_fields["song_description"]["type"] == "textarea"
+    assert suno_fields["song_description"]["visible_if"] == {"field": "custom_mode", "not_equals": True}
+    assert suno_fields["instrumental"]["type"] == "boolean"
+    assert suno_fields["style"]["type"] == "textarea"
+    assert suno_fields["style"]["visible_if"] == {"field": "custom_mode", "equals": True}
+    assert suno_fields["title"]["type"] == "text"
+    assert suno_fields["title"]["visible_if"] == {"field": "custom_mode", "equals": True}
+    assert suno_fields["lyrics"]["type"] == "textarea"
+    assert suno_fields["lyrics"]["visible_if"] == {"field": "custom_mode", "equals": True}
+    assert suno_fields["vocal_gender"]["options"] == ["m", "f"]
+    assert suno_fields["audio_weight"]["type"] == "float"
+
+
+def test_graph_note_node_runs_without_ports(client) -> None:
+    workflow = {
+        "schema_version": 1,
+        "name": "Notes only",
+        "nodes": [
+            {
+                "id": "note",
+                "type": "utility.note",
+                "position": {"x": 0, "y": 0},
+                "fields": {"body": "# Plan\n\n- Connect source image\n- Run final model"},
+            }
+        ],
+        "edges": [],
+    }
+    final_payload = _run_graph_workflow(client, workflow)
+    assert final_payload["status"] == "completed"
+    note_node = next(node for node in final_payload["nodes"] if node["node_id"] == "note")
+    assert note_node["status"] == "completed"
+    assert note_node["output_snapshot_json"] == {}
+    assert note_node["metrics_json"]["note_character_count"] == len("# Plan\n\n- Connect source image\n- Run final model")
 
 
 def test_graph_node_definitions_include_valid_layout_metadata(client) -> None:
@@ -2067,6 +2135,71 @@ def test_graph_kling_3_i2v_validates_start_and_end_frame_ports(client, app_modul
     assert any(error["code"] == "missing_required_input" and error["port_id"] == "start_frame" for error in payload["errors"])
 
 
+def test_graph_seedance_validation_rejects_mixed_frame_and_reference_modes(client, app_modules) -> None:
+    start_reference_id = _create_named_reference_image(app_modules, name="seedance-start.png")
+    reference_id = _create_named_reference_image(app_modules, name="seedance-reference.png")
+    workflow = {
+        "schema_version": 1,
+        "name": "Seedance mixed modes",
+        "nodes": [
+            {"id": "start", "type": "media.load_image", "position": {"x": 0, "y": 0}, "fields": {"reference_id": start_reference_id}},
+            {"id": "ref", "type": "media.load_image", "position": {"x": 0, "y": 220}, "fields": {"reference_id": reference_id}},
+            {
+                "id": "model",
+                "type": "model.kie.seedance_2_0",
+                "position": {"x": 360, "y": 0},
+                "fields": {"prompt": "Animate the subject.", "duration": 5, "resolution": "720p", "aspect_ratio": "16:9"},
+            },
+            {"id": "save", "type": "media.save_video", "position": {"x": 760, "y": 0}, "fields": {"label": "Seedance"}},
+        ],
+        "edges": [
+            {"id": "edge-start-model", "source": "start", "source_port": "image", "target": "model", "target_port": "start_frame"},
+            {"id": "edge-ref-model", "source": "ref", "source_port": "image", "target": "model", "target_port": "reference_images"},
+            {"id": "edge-model-save", "source": "model", "source_port": "video", "target": "save", "target_port": "video"},
+        ],
+    }
+
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    response = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=workflow)
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["valid"] is False
+    assert any(error["code"] == "seedance_input_modes_are_mutually_exclusive" and error["node_id"] == "model" for error in payload["errors"])
+
+
+def test_graph_seedance_validation_requires_start_frame_for_end_frame(client, app_modules) -> None:
+    end_reference_id = _create_named_reference_image(app_modules, name="seedance-end.png")
+    workflow = {
+        "schema_version": 1,
+        "name": "Seedance end frame only",
+        "nodes": [
+            {"id": "end", "type": "media.load_image", "position": {"x": 0, "y": 0}, "fields": {"reference_id": end_reference_id}},
+            {
+                "id": "model",
+                "type": "model.kie.seedance_2_0",
+                "position": {"x": 360, "y": 0},
+                "fields": {"prompt": "Animate between frames.", "duration": 5, "resolution": "720p", "aspect_ratio": "16:9"},
+            },
+            {"id": "save", "type": "media.save_video", "position": {"x": 760, "y": 0}, "fields": {"label": "Seedance"}},
+        ],
+        "edges": [
+            {"id": "edge-end-model", "source": "end", "source_port": "image", "target": "model", "target_port": "end_frame"},
+            {"id": "edge-model-save", "source": "model", "source_port": "video", "target": "save", "target_port": "video"},
+        ],
+    }
+
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    response = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=workflow)
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["valid"] is False
+    assert any(error["code"] == "seedance_last_frame_requires_start_frame" and error["port_id"] == "end_frame" for error in payload["errors"])
+
+
 def test_graph_validation_rejects_unconnected_model_output(client) -> None:
     workflow = {
         "schema_version": 1,
@@ -2160,6 +2293,249 @@ def test_graph_startup_cleanup_marks_interrupted_runs_failed(client, app_modules
     assert all(node["status"] == "failed" for node in failed_nodes)
     events = client.get(f"/media/graph/runs/{run.run_id}/events").json()["items"]
     assert any(event["event_type"] == "run.failed" for event in events)
+
+
+def test_graph_recovery_completes_interrupted_kie_node_and_resumes_downstream(client, app_modules) -> None:
+    from app.graph.runtime import runtime
+    from app.graph.schemas import GraphWorkflow
+
+    workflow = {
+        "schema_version": 1,
+        "name": "Recover completed KIE job",
+        "nodes": [
+            {
+                "id": "model",
+                "type": "model.kie.nano_banana_pro",
+                "position": {"x": 0, "y": 0},
+                "fields": {"prompt": "Recovered prompt", "resolution": "1K"},
+            },
+            {"id": "save", "type": "media.save_image", "position": {"x": 360, "y": 0}, "fields": {"label": "Recovered"}},
+        ],
+        "edges": [{"id": "edge-model-save", "source": "model", "source_port": "image", "target": "save", "target_port": "image"}],
+    }
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    run = runtime.create_run(created.json()["workflow_id"], GraphWorkflow(**workflow), start=False)
+
+    batch, jobs = app_modules["store"].create_batch_and_jobs(
+        {"status": "completed", "model_key": "nano-banana-pro", "task_mode": "text_to_image", "completed_count": 1},
+        [
+            {
+                "model_key": "nano-banana-pro",
+                "task_mode": "text_to_image",
+                "status": "completed",
+                "provider_task_id": "provider-recovered-1",
+                "artifact_json": {},
+                "final_status_json": {},
+            }
+        ],
+    )
+    job = jobs[0]
+    asset = app_modules["store"].create_or_update_asset(
+        {
+            "asset_id": "asset_recovered_graph_image",
+            "job_id": job["job_id"],
+            "provider_task_id": job["provider_task_id"],
+            "model_key": "nano-banana-pro",
+            "status": "completed",
+            "generation_kind": "image",
+            "hero_original_path": "outputs/recovered/original.png",
+            "hero_web_path": "outputs/recovered/web.webp",
+            "hero_thumb_path": "outputs/recovered/thumb.webp",
+            "payload_json": {"outputs": [{"kind": "image", "role": "output", "original_path": "outputs/recovered/original.png"}]},
+        }
+    )
+    app_modules["store"].append_graph_run_event(
+        run.run_id,
+        "kie.submitted",
+        {"model_key": "nano-banana-pro", "job_id": job["job_id"], "batch_id": batch["batch_id"]},
+        node_id="model",
+    )
+    app_modules["store"].update_graph_run(run.run_id, {"status": "failed", "error": "Graph run was interrupted before completion."})
+    app_modules["store"].update_graph_run_node(run.run_id, "model", {"status": "failed", "error": "Graph run was interrupted before completion."})
+    app_modules["store"].update_graph_run_node(run.run_id, "save", {"status": "failed", "error": "Graph run was interrupted before completion."})
+
+    result = runtime.recover_run(run.run_id, start=False)
+    assert result["recovered"] is True
+    recovered_model = app_modules["store"].get_graph_run_node(run.run_id, "model")
+    assert recovered_model["status"] == "completed"
+    assert recovered_model["output_snapshot_json"]["image"][0]["asset_id"] == asset["asset_id"]
+
+    runtime.execute_run(run.run_id, resume=True)
+
+    recovered_run = client.get(f"/media/graph/runs/{run.run_id}")
+    assert recovered_run.status_code == 200, recovered_run.text
+    payload = recovered_run.json()
+    assert payload["status"] == "completed"
+    assert payload["metrics_json"]["recovered_from_interruption"] is True
+    assert payload["metrics_json"]["recovered_node_ids"] == ["model"]
+    nodes_by_id = {item["node_id"]: item for item in payload["nodes"]}
+    assert nodes_by_id["model"]["status"] == "completed"
+    assert nodes_by_id["save"]["status"] == "completed"
+    assert nodes_by_id["model"]["error"] is None
+    assert nodes_by_id["save"]["error"] is None
+    assert nodes_by_id["model"]["metrics_json"]["recovered"] is True
+    assert nodes_by_id["save"]["output_snapshot_json"]["image"][0]["asset_id"] == asset["asset_id"]
+    assert any(event["event_type"] == "run.recovered" for event in client.get(f"/media/graph/runs/{run.run_id}/events").json()["items"])
+
+
+def test_graph_recovery_resumes_existing_running_kie_job_without_resubmit(client, app_modules, monkeypatch) -> None:
+    from app.graph.runtime import runtime
+    from app.graph.schemas import GraphWorkflow
+
+    workflow = {
+        "schema_version": 1,
+        "name": "Resume running KIE job",
+        "nodes": [
+            {
+                "id": "model",
+                "type": "model.kie.nano_banana_pro",
+                "position": {"x": 0, "y": 0},
+                "fields": {"prompt": "Resume prompt", "resolution": "1K"},
+            },
+            {"id": "save", "type": "media.save_image", "position": {"x": 360, "y": 0}, "fields": {"label": "Recovered"}},
+        ],
+        "edges": [{"id": "edge-model-save", "source": "model", "source_port": "image", "target": "save", "target_port": "image"}],
+    }
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    run = runtime.create_run(created.json()["workflow_id"], GraphWorkflow(**workflow), start=False)
+    batch, jobs = app_modules["store"].create_batch_and_jobs(
+        {"status": "processing", "model_key": "nano-banana-pro", "task_mode": "text_to_image"},
+        [
+            {
+                "model_key": "nano-banana-pro",
+                "task_mode": "text_to_image",
+                "status": "running",
+                "provider_task_id": "provider-running-recovery",
+                "artifact_json": {},
+                "final_status_json": {},
+            }
+        ],
+    )
+    job = jobs[0]
+    app_modules["store"].append_graph_run_event(
+        run.run_id,
+        "kie.submitted",
+        {"model_key": "nano-banana-pro", "job_id": job["job_id"], "batch_id": batch["batch_id"]},
+        node_id="model",
+    )
+    app_modules["store"].update_graph_run(run.run_id, {"status": "failed", "error": "Graph run was interrupted before completion."})
+    app_modules["store"].update_graph_run_node(run.run_id, "model", {"status": "failed", "error": "Graph run was interrupted before completion."})
+    app_modules["store"].update_graph_run_node(run.run_id, "save", {"status": "failed", "error": "Graph run was interrupted before completion."})
+
+    def fail_resubmit(request):
+        raise AssertionError("resume should not submit a new KIE job")
+
+    def complete_existing_job():
+        app_modules["store"].create_or_update_asset(
+            {
+                "asset_id": "asset_resumed_graph_image",
+                "job_id": job["job_id"],
+                "provider_task_id": job["provider_task_id"],
+                "model_key": "nano-banana-pro",
+                "status": "completed",
+                "generation_kind": "image",
+                "hero_original_path": "outputs/resumed/original.png",
+                "hero_web_path": "outputs/resumed/web.webp",
+                "hero_thumb_path": "outputs/resumed/thumb.webp",
+                "payload_json": {"outputs": [{"kind": "image", "role": "output", "original_path": "outputs/resumed/original.png"}]},
+            }
+        )
+        app_modules["store"].update_job(job["job_id"], {"status": "completed"})
+
+    monkeypatch.setattr(app_modules["service"], "submit_jobs", fail_resubmit)
+    monkeypatch.setattr(app_modules["runner"].runner, "tick", complete_existing_job)
+
+    result = runtime.recover_run(run.run_id, start=False)
+    assert result["recovered"] is True
+    assert app_modules["store"].get_graph_run_node(run.run_id, "model")["status"] == "running"
+
+    runtime.execute_run(run.run_id, resume=True)
+
+    payload = client.get(f"/media/graph/runs/{run.run_id}").json()
+    assert payload["status"] == "completed"
+    assert payload["metrics_json"]["recovered_from_interruption"] is True
+    assert payload["metrics_json"]["resumed_node_ids"] == ["model"]
+    nodes_by_id = {item["node_id"]: item for item in payload["nodes"]}
+    assert nodes_by_id["model"]["metrics_json"]["recovered_existing_kie_job"] is True
+    assert nodes_by_id["model"]["output_snapshot_json"]["image"][0]["asset_id"] == "asset_resumed_graph_image"
+    assert nodes_by_id["save"]["status"] == "completed"
+
+
+def test_graph_recovery_marks_terminal_provider_failure(client, app_modules) -> None:
+    from app.graph.runtime import runtime
+    from app.graph.schemas import GraphWorkflow
+
+    workflow = {
+        "schema_version": 1,
+        "name": "Recover failed KIE job",
+        "nodes": [
+            {
+                "id": "model",
+                "type": "model.kie.nano_banana_pro",
+                "position": {"x": 0, "y": 0},
+                "fields": {"prompt": "Failed prompt", "resolution": "1K"},
+            },
+            {"id": "save", "type": "media.save_image", "position": {"x": 360, "y": 0}, "fields": {"label": "Failed"}},
+        ],
+        "edges": [{"id": "edge-model-save", "source": "model", "source_port": "image", "target": "save", "target_port": "image"}],
+    }
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    run = runtime.create_run(created.json()["workflow_id"], GraphWorkflow(**workflow), start=False)
+    batch, jobs = app_modules["store"].create_batch_and_jobs(
+        {"status": "partial_failure", "model_key": "nano-banana-pro", "task_mode": "text_to_image"},
+        [
+            {
+                "model_key": "nano-banana-pro",
+                "task_mode": "text_to_image",
+                "status": "failed",
+                "provider_task_id": "provider-failed-recovery",
+                "error": "Provider failed while Media Studio was offline.",
+                "artifact_json": {},
+                "final_status_json": {},
+            }
+        ],
+    )
+    job = jobs[0]
+    app_modules["store"].append_graph_run_event(
+        run.run_id,
+        "kie.submitted",
+        {"model_key": "nano-banana-pro", "job_id": job["job_id"], "batch_id": batch["batch_id"]},
+        node_id="model",
+    )
+    app_modules["store"].update_graph_run(run.run_id, {"status": "failed", "error": "Graph run was interrupted before completion."})
+    app_modules["store"].update_graph_run_node(run.run_id, "model", {"status": "failed", "error": "Graph run was interrupted before completion."})
+
+    result = runtime.recover_run(run.run_id, start=False)
+
+    assert result["recovered"] is False
+    assert result["terminal_provider_failures"] == ["model"]
+    recovered_model = app_modules["store"].get_graph_run_node(run.run_id, "model")
+    assert recovered_model["status"] == "failed"
+    assert recovered_model["error"] == "Provider failed while Media Studio was offline."
+    recovered_run = app_modules["store"].get_graph_run(run.run_id)
+    assert recovered_run["error"] == "Interrupted graph run could not recover because the submitted provider job failed."
+    assert recovered_run["metrics_json"]["terminal_provider_failure_node_ids"] == ["model"]
+
+
+def test_graph_recovery_leaves_unsubmitted_interrupted_run_for_cleanup(client, app_modules) -> None:
+    from app.graph.runtime import runtime
+    from app.graph.schemas import GraphWorkflow
+
+    reference_id = _create_reference_image(app_modules)
+    workflow = _workflow(reference_id)
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    run = runtime.create_run(created.json()["workflow_id"], GraphWorkflow(**workflow), start=False)
+
+    result = runtime.recover_run(run.run_id, start=False)
+    assert result["recovered"] is False
+
+    marked = app_modules["store"].mark_interrupted_graph_runs()
+    assert marked == 1
+    assert app_modules["store"].get_graph_run(run.run_id)["status"] == "failed"
 
 
 def test_graph_run_events_stream_endpoint_exists(client, app_modules) -> None:
@@ -2262,6 +2638,53 @@ def test_graph_load_image_nano_save_runs_offline_and_creates_asset(client, app_m
     assert any((event.get("payload_json") or {}).get("metrics") for event in events if event["event_type"] == "run.completed")
     assets = app_modules["store"].list_assets(limit=20)
     assert any(asset["model_key"] == "nano-banana-pro" for asset in assets)
+
+
+def test_graph_suno_music_model_runs_offline_and_creates_audio_asset(client, app_modules) -> None:
+    workflow = {
+        "schema_version": 1,
+        "name": "Suno music smoke",
+        "nodes": [
+            {
+                "id": "model",
+                "type": "model.kie.suno_generate_music",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "song_description": "Instrumental synth pop with warm analog bass, crisp drums, and a bright city-night melody.",
+                    "custom_mode": False,
+                    "instrumental": True,
+                    "suno_model": "V5",
+                    "audio_weight": 0.7,
+                },
+            },
+            {
+                "id": "save",
+                "type": "media.save_music_track",
+                "position": {"x": 440, "y": 0},
+                "fields": {"label": "Saved Song", "filename_prefix": "graph-song"},
+            },
+        ],
+        "edges": [
+            {"id": "edge-model-save", "source": "model", "source_port": "track_1", "target": "save", "target_port": "track"},
+        ],
+    }
+
+    final_payload = _run_graph_workflow(client, workflow)
+
+    assert final_payload["status"] == "completed", final_payload
+    model_node = next(node for node in final_payload["nodes"] if node["node_id"] == "model")
+    assert model_node["output_snapshot_json"]["track_1"][0]["media_type"] == "music_track"
+    assert model_node["output_snapshot_json"]["track_1"][0]["metadata"]["audio_asset_id"]
+    assert model_node["metrics_json"]["kie_poll_count"] >= 1
+    save_node = next(node for node in final_payload["nodes"] if node["node_id"] == "save")
+    output_ref = save_node["output_snapshot_json"]["audio"][0]
+    asset = app_modules["store"].get_asset(output_ref["asset_id"])
+    assert asset["generation_kind"] == "audio"
+    upstream_asset = app_modules["store"].get_asset(model_node["output_snapshot_json"]["track_1"][0]["metadata"]["audio_asset_id"])
+    assert upstream_asset["generation_kind"] == "audio"
+    assert upstream_asset["model_key"] == "suno-generate-music"
+    assert asset["asset_id"] == upstream_asset["asset_id"]
+    assert asset["model_key"] == "suno-generate-music"
 
 
 def test_graph_workflow_runs_endpoint_lists_only_selected_workflow_runs(client, app_modules) -> None:

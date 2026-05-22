@@ -12,6 +12,7 @@ SUPPORTED_GRAPH_PORT_TYPES = {
     "image",
     "job",
     "json",
+    "music_track",
     "reference_media",
     "text",
     "video",

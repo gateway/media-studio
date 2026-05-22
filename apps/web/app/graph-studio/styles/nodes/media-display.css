@@ -45,7 +45,7 @@
   width: 100%;
   height: 100%;
   min-height: 120px;
-  border: 1px solid rgba(247, 246, 240, 0.1);
+  border: 1px solid var(--graph-border-muted);
   border-radius: 8px;
   background: var(--graph-bg);
 }
@@ -83,6 +83,63 @@
   min-height: 0;
 }
 
+.graph-node-preview-audio-list {
+  min-height: 150px;
+  overflow: auto;
+}
+
+.graph-node-preview-audio-items {
+  display: grid;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.graph-node-preview-audio-item {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--graph-border);
+  border-radius: 7px;
+  background: #151918;
+}
+
+.graph-node-preview-audio-item span {
+  overflow: hidden;
+  color: var(--graph-text);
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-node-preview-audio-item audio {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+}
+
+.graph-node-preview-audio-card {
+  display: grid;
+  align-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  height: 100%;
+  padding: 0.6rem;
+}
+
+.graph-node-preview-audio-card img {
+  width: 100%;
+  max-height: 180px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.graph-node-preview-audio-card audio {
+  width: 100%;
+  min-width: 0;
+}
+
 .graph-node-preview-thumb {
   overflow: hidden;
   min-height: 58px;
@@ -118,7 +175,7 @@
 .graph-node-preview-actions button {
   border: 1px solid rgba(247, 246, 240, 0.22);
   border-radius: 999px;
-  background: rgba(14, 17, 16, 0.86);
+  background: var(--graph-overlay-button);
   color: var(--graph-text);
   cursor: pointer;
   font-size: 0.68rem;
@@ -127,7 +184,7 @@
 }
 
 .graph-node-preview-actions button:hover {
-  border-color: rgba(209, 255, 71, 0.62);
+  border-color: var(--graph-accent-hover);
   color: var(--graph-accent);
 }
 
@@ -138,16 +195,16 @@
   gap: 0.35rem;
   min-height: 22px;
   padding: 0.35rem 0.45rem;
-  border: 1px solid rgba(247, 246, 240, 0.08);
+  border: 1px solid var(--graph-border-hairline);
   border-radius: 8px;
   background: #202424;
 }
 
 .graph-node-media-meta span {
-  border: 1px solid rgba(247, 246, 240, 0.18);
+  border: 1px solid var(--graph-border-medium);
   border-radius: 999px;
   background: rgba(14, 17, 16, 0.52);
-  color: rgba(247, 246, 240, 0.84);
+  color: var(--graph-text-meta);
   font-size: 0.64rem;
   font-weight: 800;
   line-height: 1;
@@ -173,7 +230,7 @@
   justify-content: center;
   min-height: 0;
   padding: 0.8rem;
-  border: 1px solid rgba(247, 246, 240, 0.08);
+  border: 1px solid var(--graph-border-hairline);
   background: rgba(0, 0, 0, 0.18);
   color: rgba(247, 246, 240, 0.55);
   font-size: 0.72rem;
@@ -202,7 +259,7 @@
   min-height: 0;
   padding: 0;
   overflow: hidden;
-  border: 1px solid rgba(247, 246, 240, 0.08);
+  border: 1px solid var(--graph-border-hairline);
   background: rgba(0, 0, 0, 0.22);
   color: var(--graph-text);
   cursor: pointer;
@@ -230,9 +287,9 @@
   padding: 0.7rem;
   overflow: auto;
   scrollbar-width: none;
-  border: 1px solid rgba(247, 246, 240, 0.08);
+  border: 1px solid var(--graph-border-hairline);
   background: rgba(0, 0, 0, 0.2);
-  color: rgba(247, 246, 240, 0.86);
+  color: var(--graph-text-readable);
   font-size: 0.68rem;
   line-height: 1.45;
   cursor: text;
@@ -269,12 +326,12 @@
   border: 1px solid rgba(247, 246, 240, 0.2);
   border-radius: 999px;
   background: rgba(14, 17, 16, 0.9);
-  color: rgba(247, 246, 240, 0.82);
+  color: var(--graph-text-body);
   cursor: pointer;
 }
 
 .graph-display-any-copy:hover {
-  border-color: rgba(209, 255, 71, 0.62);
+  border-color: var(--graph-accent-hover);
   color: var(--graph-accent);
 }
 
@@ -285,7 +342,7 @@
 
 .graph-display-any-copy[data-status="error"] {
   border-color: rgba(255, 181, 166, 0.38);
-  color: #ffb5a6;
+  color: var(--graph-danger-text);
 }
 
 .graph-display-any-text::-webkit-scrollbar {
@@ -316,7 +373,7 @@
   border: 1px solid rgba(255, 77, 79, 0.28);
   border-radius: 8px;
   padding: 0.5rem 0.6rem;
-  color: #ffb4b4;
+  color: var(--graph-danger-text-strong);
   background: rgba(255, 77, 79, 0.08);
   font-size: 0.74rem;
   line-height: 1.35;
@@ -342,6 +399,6 @@
   width: 100%;
   height: 100%;
   min-height: 0;
-  color: rgba(247, 246, 240, 0.68);
+  color: var(--graph-text-panel);
   line-height: 1.25;
 }

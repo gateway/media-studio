@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { computeGraphNodeLayout, graphNodeUsesContentAutoHeight } from "@/components/graph-studio/utils/graph-node-layout";
+import { computeGraphNodeLayout, graphNodeUsesContentAutoHeight, graphPortColor } from "@/components/graph-studio/utils/graph-node-layout";
 import type { GraphNodeDefinition } from "@/components/graph-studio/types";
 
 describe("computeGraphNodeLayout", () => {
@@ -72,5 +72,9 @@ describe("computeGraphNodeLayout", () => {
     expect(layout.minHeight).toBeGreaterThanOrEqual(360);
     expect(layout.maxWidth).toBeGreaterThan(layout.minWidth);
     expect(layout.maxHeight).toBeGreaterThan(layout.minHeight);
+  });
+
+  it("uses the audio-family port color for music track wires", () => {
+    expect(graphPortColor("music_track")).toBe(graphPortColor("audio"));
   });
 });

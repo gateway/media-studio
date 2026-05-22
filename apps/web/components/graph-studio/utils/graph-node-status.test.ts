@@ -10,5 +10,6 @@ describe("graphNodeStatusForExecutionMode", () => {
   it("keeps skipped visible for currently muted nodes", () => {
     expect(graphNodeStatusForExecutionMode("skipped", "frozen")).toBe("skipped");
     expect(graphNodeStatusForExecutionMode("skipped", "muted")).toBe("skipped");
+    expect(graphNodeStatusForExecutionMode("bypassed", "bypassed")).toBe("bypassed");
   });
 });

@@ -1,4 +1,5 @@
 .DS_Store
+AGENTS.md
 
 # Local environment and developer overrides
 .env
@@ -50,6 +51,7 @@ data/backups/
 .playwright-cli/
 artifacts/
 docs/reviews/
+docs/development/
 docs/API_SECURITY_FULL_REPORT.md
 docs/review-remediation-plan.md
 logs/

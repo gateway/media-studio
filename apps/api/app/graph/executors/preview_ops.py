@@ -14,7 +14,7 @@ class _PreviewExecutor(GraphExecutor):
     def execute(self, node: GraphWorkflowNode, context: GraphExecutionContext) -> Dict[str, List[GraphOutputRef]]:
         refs = context.inputs_for(node, self.input_port)
         context.record_node_metric(node, "preview_ref_count", len(refs))
-        return {self.input_port: refs[:1] if refs else []}
+        return {self.input_port: refs}
 
 
 class PreviewImageExecutor(_PreviewExecutor):

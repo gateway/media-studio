@@ -12,7 +12,7 @@ describe("llm provider metadata", () => {
     expect(llmProviderLabel("codex_local")).toBe("Codex Local");
     expect(llmProviderBillingLabel("codex_local")).toContain("Included");
     expect(llmProviderLabel("openrouter")).toBe("OpenRouter");
-    expect(llmProviderSummary("local_openai")).toContain("OpenAI-compatible");
+    expect(llmProviderSummary("local_openai")).toContain("OpenAI-style API");
   });
 
   it("normalizes shared credential-source labels", () => {

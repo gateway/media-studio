@@ -104,10 +104,6 @@ describe("PromptRecipeDraftingSettingsPanel", () => {
 
     render(<PromptRecipeDraftingSettingsPanel initialConfig={makeConfig()} />);
 
-    await waitFor(() => {
-      expect(probePromptRecipeDraftingProviderRequest).toHaveBeenCalledTimes(1);
-    });
-
     fireEvent.click(screen.getByTestId("studio-picker-drafting-provider-kind"));
     fireEvent.click(screen.getByTestId("studio-picker-option-drafting-provider-kind-local_openai"));
 
@@ -135,6 +131,8 @@ describe("PromptRecipeDraftingSettingsPanel", () => {
         })}
       />,
     );
+
+    fireEvent.click(screen.getByRole("button", { name: /refresh models/i }));
 
     await waitFor(() => {
       expect(probePromptRecipeDraftingProviderRequest).toHaveBeenCalledWith(
@@ -210,6 +208,8 @@ describe("PromptRecipeDraftingSettingsPanel", () => {
         })}
       />,
     );
+
+    fireEvent.click(screen.getByRole("button", { name: /test endpoint/i }));
 
     await waitFor(() => {
       expect(probePromptRecipeDraftingProviderRequest).toHaveBeenCalledWith(

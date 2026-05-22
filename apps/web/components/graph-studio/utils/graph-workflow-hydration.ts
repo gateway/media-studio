@@ -1,7 +1,7 @@
 import type { GraphNodeDefinition, GraphRun, GraphWorkflowPayload, StudioEdge, StudioNode } from "../types";
 import { readGraphGroupsFromWorkflow } from "./graph-groups";
 import { computeGraphNodeLayout } from "./graph-node-layout";
-import { graphVisibleFieldMetrics } from "./graph-node-fields";
+import { graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "./graph-node-fields";
 import { graphEdgeClassForPortType, graphEdgeStyleForPortType } from "./graph-node-layout";
 import { inputGraphHandleId, outputGraphHandleId } from "./graph-port-handles";
 import { nodeUiFromMetadata } from "./graph-media-preview";
@@ -45,8 +45,7 @@ export function hydrateGraphWorkflowForCanvas({
       ...node.data.fields,
       ...savedNode.fields,
     });
-    const previewHeaderFieldIds =
-      definition.type === "media.save_image" || definition.type === "media.save_video" || definition.type === "media.save_audio" ? ["project_id"] : [];
+    const previewHeaderFieldIds = graphPreviewHeaderFieldIds(definition);
     const layoutMetrics = graphVisibleFieldMetrics(definition, mergedFields, [], {
       advancedExpanded: savedUi.advancedExpanded,
       previewHeaderFieldIds,

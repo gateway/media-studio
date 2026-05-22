@@ -50,6 +50,21 @@ export function GraphNodeMediaPreview({
   const previews = data.mediaPreviews ?? [];
   if (previews.length > 1) {
     const previewType = previews.every((item) => item.mediaType === previews[0]?.mediaType) ? previews[0]?.mediaType : "media";
+    if (previewType === "audio") {
+      return (
+        <div className="graph-node-preview graph-node-preview-strip graph-node-preview-audio-list" data-testid={`graph-node-preview-${nodeId}`}>
+          <div className="graph-node-preview-count">{previews.length} audios</div>
+          <div className="graph-node-preview-audio-items">
+            {previews.slice(0, 4).map((item, index) => (
+              <div className="graph-node-preview-audio-item nodrag" key={`${item.url}-${index}`} onMouseDown={(event) => event.stopPropagation()}>
+                <span>{item.label ?? `Audio ${index + 1}`}</span>
+                <audio src={item.url} controls preload="metadata" />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="graph-node-preview graph-node-preview-strip" data-testid={`graph-node-preview-${nodeId}`}>
         <div className="graph-node-preview-count">{previews.length} {previewType === "media" ? "items" : `${previewType}s`}</div>
@@ -89,7 +104,10 @@ export function GraphNodeMediaPreview({
               {preview.mediaType === "video" ? (
                 <video src={preview.url} poster={preview.posterUrl ?? undefined} controls muted playsInline />
               ) : preview.mediaType === "audio" ? (
-                <audio src={preview.url} controls />
+                <span className="graph-node-preview-audio-card">
+                  {preview.posterUrl ? <img src={preview.posterUrl} alt={preview.label ?? "Audio cover"} /> : null}
+                  <audio src={preview.url} controls preload="metadata" />
+                </span>
               ) : (
                 <img src={preview.fullUrl ?? preview.url} alt={preview.label ?? "Graph node preview"} />
               )}

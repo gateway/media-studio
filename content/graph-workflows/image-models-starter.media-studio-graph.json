@@ -1,0 +1,769 @@
+{
+  "kind": "media-studio.graph.workflow",
+  "schema_version": 1,
+  "exported_at": "2026-05-22T07:54:18.999Z",
+  "workflow": {
+    "schema_version": 1,
+    "workflow_id": null,
+    "name": "Image Models Starter",
+    "nodes": [
+      {
+        "id": "note_image_models",
+        "type": "utility.note",
+        "position": {
+          "x": -500,
+          "y": 20
+        },
+        "fields": {
+          "body": "### Image model starter\n\nA quick reference workflow for the main image models. Each lane has its own group, preview node, and save node.\n\n- GPT Image 2 text to image creates an image from a prompt only. \n- GPT Image 2 image to image edits one or more source images. \n- Nano Banana 2 is a fast option for image generation or image editing. \n- Nano Banana Pro is the higher-end Nano Banana option for generation or editing. \n\nRight-click a group title to enable or mute the list of nodes. Muted nodes cannot be executed during the run this allows you to only run that set of nodes.\n\nImage-to-image lanes need a source image selected in the Load Image node before running.\n\nHelpful links:\n\n- [Star Media Studio on GitHub](https://github.com/gateway/media-studio)\n- [GitHub issues](https://github.com/gateway/media-studio/issues)\n- [Model credits](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) \n- [Instagram](https://www.instagram.com/dreamingcomputers/)\n"
+        },
+        "metadata": {
+          "style": {
+            "width": 460,
+            "height": 760
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#73a7ff",
+            "nodeColor": "#151d2b",
+            "nodeHeaderColor": "#1d2a3c",
+            "customTitle": "Guide"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "gpt_t2i",
+        "type": "model.kie.gpt_image_2_text_to_image",
+        "position": {
+          "x": 120,
+          "y": 110
+        },
+        "fields": {
+          "prompt": "Create a polished concept image from this prompt. Replace this text with the image idea before running.",
+          "aspect_ratio": "auto",
+          "resolution": "1K"
+        },
+        "metadata": {
+          "style": {
+            "width": 380,
+            "height": 500
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "GPT 2 - T2I"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "preview_gpt_t2i",
+        "type": "preview.image",
+        "position": {
+          "x": 650,
+          "y": 70
+        },
+        "fields": {},
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Preview GPT T2I"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "save_gpt_t2i",
+        "type": "media.save_image",
+        "position": {
+          "x": 650,
+          "y": 560
+        },
+        "fields": {
+          "label": "GPT text-to-image result"
+        },
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Save GPT T2I"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "load_gpt_i2i",
+        "type": "media.load_image",
+        "position": {
+          "x": 1160.9915786071363,
+          "y": 130.7934037374314
+        },
+        "fields": {},
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Load GPT source image"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "gpt_i2i",
+        "type": "model.kie.gpt_image_2_image_to_image",
+        "position": {
+          "x": 1559.6876710400788,
+          "y": 76.48479315967627
+        },
+        "fields": {
+          "prompt": "Use the loaded image as the source and create a polished image-to-image result. Keep the subject recognizable unless the prompt is changed.",
+          "aspect_ratio": "auto",
+          "resolution": "1K"
+        },
+        "metadata": {
+          "style": {
+            "width": 380,
+            "height": 560
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "GPT 2 I2I"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "preview_gpt_i2i",
+        "type": "preview.image",
+        "position": {
+          "x": 2059.687671040079,
+          "y": 66.48479315967627
+        },
+        "fields": {},
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Preview GPT I2I"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "save_gpt_i2i",
+        "type": "media.save_image",
+        "position": {
+          "x": 2054.0011448458295,
+          "y": 512.4142151542442
+        },
+        "fields": {
+          "label": "GPT image-to-image result"
+        },
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Save GPT I2I"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "nano_2",
+        "type": "model.kie.nano_banana_2",
+        "position": {
+          "x": 118.76390352794962,
+          "y": 1090.084018272693
+        },
+        "fields": {
+          "prompt": "Create a fast image-model test from this prompt. Optional image refs can be connected later.",
+          "aspect_ratio": "1:1",
+          "resolution": "1K",
+          "output_format": "png"
+        },
+        "metadata": {
+          "style": {
+            "width": 380,
+            "height": 560
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Nano Banana 2"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "preview_nano_2",
+        "type": "preview.image",
+        "position": {
+          "x": 648.7639035279495,
+          "y": 1060.084018272693
+        },
+        "fields": {},
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Preview Nano 2"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "save_nano_2",
+        "type": "media.save_image",
+        "position": {
+          "x": 648.7639035279495,
+          "y": 1550.084018272693
+        },
+        "fields": {
+          "label": "Nano Banana 2 result"
+        },
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Save Nano 2"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "load_nano_pro",
+        "type": "media.load_image",
+        "position": {
+          "x": 1166.2866767233158,
+          "y": 1095.3442651233356
+        },
+        "fields": {},
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Load Nano Pro source"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "nano_pro",
+        "type": "model.kie.nano_banana_pro",
+        "position": {
+          "x": 1561.9411488012638,
+          "y": 1059.436705587136
+        },
+        "fields": {
+          "prompt": "Use the optional source image for a higher-quality Nano Banana Pro result, or disconnect the image for text-to-image.",
+          "aspect_ratio": "1:1",
+          "resolution": "1K",
+          "output_format": "png"
+        },
+        "metadata": {
+          "style": {
+            "width": 380,
+            "height": 560
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Nano Banana Pro"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "preview_nano_pro",
+        "type": "preview.image",
+        "position": {
+          "x": 2061.9411488012643,
+          "y": 1059.436705587136
+        },
+        "fields": {},
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Preview Nano Pro"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "save_nano_pro",
+        "type": "media.save_image",
+        "position": {
+          "x": 2061.9411488012643,
+          "y": 1549.4367055871357
+        },
+        "fields": {
+          "label": "Nano Banana Pro result"
+        },
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Save Nano Pro"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge_gpt_t2i_preview",
+        "source": "gpt_t2i",
+        "source_port": "image",
+        "target": "preview_gpt_t2i",
+        "target_port": "image"
+      },
+      {
+        "id": "edge_gpt_t2i_save",
+        "source": "gpt_t2i",
+        "source_port": "image",
+        "target": "save_gpt_t2i",
+        "target_port": "image"
+      },
+      {
+        "id": "edge_load_gpt_i2i",
+        "source": "load_gpt_i2i",
+        "source_port": "image",
+        "target": "gpt_i2i",
+        "target_port": "image_refs"
+      },
+      {
+        "id": "edge_gpt_i2i_preview",
+        "source": "gpt_i2i",
+        "source_port": "image",
+        "target": "preview_gpt_i2i",
+        "target_port": "image"
+      },
+      {
+        "id": "edge_gpt_i2i_save",
+        "source": "gpt_i2i",
+        "source_port": "image",
+        "target": "save_gpt_i2i",
+        "target_port": "image"
+      },
+      {
+        "id": "edge_nano_2_preview",
+        "source": "nano_2",
+        "source_port": "image",
+        "target": "preview_nano_2",
+        "target_port": "image"
+      },
+      {
+        "id": "edge_nano_2_save",
+        "source": "nano_2",
+        "source_port": "image",
+        "target": "save_nano_2",
+        "target_port": "image"
+      },
+      {
+        "id": "edge_load_nano_pro",
+        "source": "load_nano_pro",
+        "source_port": "image",
+        "target": "nano_pro",
+        "target_port": "image_refs"
+      },
+      {
+        "id": "edge_nano_pro_preview",
+        "source": "nano_pro",
+        "source_port": "image",
+        "target": "preview_nano_pro",
+        "target_port": "image"
+      },
+      {
+        "id": "edge_nano_pro_save",
+        "source": "nano_pro",
+        "source_port": "image",
+        "target": "save_nano_pro",
+        "target_port": "image"
+      }
+    ],
+    "metadata": {
+      "created_by": "graph-studio",
+      "groups": [
+        {
+          "id": "group_image_models",
+          "title": "GPT Image 2 - Text to Image",
+          "color": "blue",
+          "node_ids": [
+            "gpt_t2i",
+            "preview_gpt_t2i",
+            "save_gpt_t2i"
+          ],
+          "bounds": {
+            "x": 60,
+            "y": 20,
+            "width": 1035.1875888107293,
+            "height": 956.9636272356812
+          },
+          "execution": {
+            "mode": "enabled"
+          }
+        },
+        {
+          "id": "graphgroup-baecb265",
+          "title": "GPT Image 2 - Image to Image",
+          "color": "blue",
+          "node_ids": [
+            "load_gpt_i2i",
+            "gpt_i2i",
+            "preview_gpt_i2i",
+            "save_gpt_i2i"
+          ],
+          "bounds": {
+            "x": 1118.9915786071363,
+            "y": 24.484793159676276,
+            "width": 1365.8753552315386,
+            "height": 952.7394212553196
+          },
+          "execution": {
+            "mode": "frozen"
+          }
+        },
+        {
+          "id": "graphgroup-d9083e3f",
+          "title": "Nano Banana 2",
+          "color": "green",
+          "node_ids": [
+            "nano_2",
+            "preview_nano_2",
+            "save_nano_2"
+          ],
+          "bounds": {
+            "x": 61.279884080669156,
+            "y": 1013.4388124385099,
+            "width": 1031.8654868099343,
+            "height": 948.1934914458516
+          },
+          "execution": {
+            "mode": "frozen"
+          }
+        },
+        {
+          "id": "graphgroup-4b1103dc",
+          "title": "Nano Banana Pro",
+          "color": "green",
+          "node_ids": [
+            "load_nano_pro",
+            "nano_pro",
+            "preview_nano_pro",
+            "save_nano_pro"
+          ],
+          "bounds": {
+            "x": 1124.2866767233158,
+            "y": 1017.4367055871376,
+            "width": 1357.4278655843991,
+            "height": 938.8536498053223
+          },
+          "execution": {
+            "mode": "frozen"
+          }
+        }
+      ]
+    }
+  },
+  "node_definitions": [
+    {
+      "type": "utility.note",
+      "title": "Note",
+      "category": "Utility",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "model.kie.gpt_image_2_text_to_image",
+      "title": "GPT Image 2 Text to Image",
+      "category": "Models/Image",
+      "source": {
+        "kind": "kie_model",
+        "model_key": "gpt-image-2-text-to-image",
+        "kie_spec_version": "e1e2e6d2bda7",
+        "output_media_type": "image",
+        "task_modes": [
+          "text_to_image"
+        ]
+      },
+      "fingerprint": "e1e2e6d2bda7"
+    },
+    {
+      "type": "preview.image",
+      "title": "Preview Image",
+      "category": "Preview",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.save_image",
+      "title": "Save Image",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.load_image",
+      "title": "Load Image",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "model.kie.gpt_image_2_image_to_image",
+      "title": "GPT Image 2 Image to Image",
+      "category": "Models/Image",
+      "source": {
+        "kind": "kie_model",
+        "model_key": "gpt-image-2-image-to-image",
+        "kie_spec_version": "e1e2e6d2bda7",
+        "output_media_type": "image",
+        "task_modes": [
+          "image_edit"
+        ]
+      },
+      "fingerprint": "e1e2e6d2bda7"
+    },
+    {
+      "type": "preview.image",
+      "title": "Preview Image",
+      "category": "Preview",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.save_image",
+      "title": "Save Image",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "model.kie.nano_banana_2",
+      "title": "Nano Banana 2",
+      "category": "Models/Image",
+      "source": {
+        "kind": "kie_model",
+        "model_key": "nano-banana-2",
+        "kie_spec_version": "e1e2e6d2bda7",
+        "output_media_type": "image",
+        "task_modes": [
+          "text_to_image",
+          "image_edit"
+        ]
+      },
+      "fingerprint": "e1e2e6d2bda7"
+    },
+    {
+      "type": "preview.image",
+      "title": "Preview Image",
+      "category": "Preview",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.save_image",
+      "title": "Save Image",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.load_image",
+      "title": "Load Image",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "model.kie.nano_banana_pro",
+      "title": "Nano Banana Pro",
+      "category": "Models/Image",
+      "source": {
+        "kind": "kie_model",
+        "model_key": "nano-banana-pro",
+        "kie_spec_version": "e1e2e6d2bda7",
+        "output_media_type": "image",
+        "task_modes": [
+          "text_to_image",
+          "image_edit"
+        ]
+      },
+      "fingerprint": "e1e2e6d2bda7"
+    },
+    {
+      "type": "preview.image",
+      "title": "Preview Image",
+      "category": "Preview",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.save_image",
+      "title": "Save Image",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    }
+  ],
+  "warnings": []
+}

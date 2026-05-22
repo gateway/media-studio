@@ -290,10 +290,10 @@ def submit_request(prepared_payload: Dict[str, Any]) -> Dict[str, Any]:
     return _dump(kie_api.submit_prepared_request(prepared, get_registry()))
 
 
-def poll_task(task_id: str) -> Dict[str, Any]:
+def poll_task(task_id: str, model_key: Optional[str] = None) -> Dict[str, Any]:
     kie_api = get_kie_module()
-    client = kie_api.clients.status.StatusClient(kie_api.KieSettings())
-    return _dump(client.get_status(task_id))
+    client = kie_api.clients.status.StatusClient(kie_api.KieSettings(), registry=get_registry())
+    return _dump(client.get_status(task_id, model_key=model_key))
 
 
 def download_output_file(source_url: str, destination_path: str) -> Dict[str, Any]:

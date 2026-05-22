@@ -83,4 +83,101 @@ describe("StudioGallery", () => {
     fireEvent.click(screen.getByTestId("studio-gallery-batch-card"));
     expect(onSelectFailedJob).toHaveBeenCalledWith("job-1");
   });
+
+  it("keeps active queue tiles before completed assets", () => {
+    const tiles: GalleryTile[] = [
+      {
+        asset: {
+          asset_id: "asset-1",
+          generation_kind: "image",
+          model_key: "nano-banana-2",
+          prompt_summary: "Finished image",
+        } as never,
+        label: "Finished image",
+        batch: null,
+        job: null,
+      },
+      {
+        asset: null,
+        label: "Queued output",
+        batch: {
+          batch_id: "batch-1",
+          model_key: "gpt-image-2-image-to-image",
+          status: "queued",
+          created_at: "2026-05-19T00:00:01Z",
+        } as never,
+        job: {
+          job_id: "job-1",
+          status: "queued",
+          model_key: "gpt-image-2-image-to-image",
+          created_at: "2026-05-19T00:00:01Z",
+        } as never,
+      },
+    ];
+
+    render(
+      <StudioGallery
+        apiHealthy
+        immersive
+        galleryTiles={tiles}
+        activeGalleryHasMore={false}
+        activeGalleryLoadingMore={false}
+        selectedAssetId={null}
+        favoriteAssetIdBusy={null}
+        galleryLoadMoreRef={{ current: null }}
+        onLoadMore={() => undefined}
+        onSelectAsset={() => undefined}
+        onSelectFailedJob={() => undefined}
+        onDragAsset={() => undefined}
+        onToggleFavorite={() => undefined}
+      />,
+    );
+
+    const cards = screen.getAllByTestId(/studio-gallery-(batch-)?card/);
+    expect(cards[0]?.getAttribute("data-job-id")).toBe("job-1");
+    expect(cards[1]?.getAttribute("data-asset-id")).toBe("asset-1");
+  });
+
+  it("favorites an asset without selecting the gallery card", () => {
+    const onSelectAsset = vi.fn();
+    const onToggleFavorite = vi.fn();
+    const tiles: GalleryTile[] = [
+      {
+        asset: {
+          asset_id: "asset-1",
+          generation_kind: "image",
+          model_key: "nano-banana-2",
+          prompt_summary: "Finished image",
+          favorited: false,
+        } as never,
+        label: "Finished image",
+        batch: null,
+        job: null,
+      },
+    ];
+
+    render(
+      <StudioGallery
+        apiHealthy
+        immersive
+        galleryTiles={tiles}
+        activeGalleryHasMore={false}
+        activeGalleryLoadingMore={false}
+        selectedAssetId={null}
+        favoriteAssetIdBusy={null}
+        galleryLoadMoreRef={{ current: null }}
+        onLoadMore={() => undefined}
+        onSelectAsset={onSelectAsset}
+        onSelectFailedJob={() => undefined}
+        onDragAsset={() => undefined}
+        onToggleFavorite={onToggleFavorite}
+      />,
+    );
+
+    const favoriteButtons = screen.getAllByTestId("studio-favorite-toggle");
+    fireEvent.click(favoriteButtons[favoriteButtons.length - 1] as HTMLElement);
+
+    expect(onToggleFavorite).toHaveBeenCalledWith(expect.objectContaining({ asset_id: "asset-1" }));
+    expect(onSelectAsset).not.toHaveBeenCalled();
+  });
 });

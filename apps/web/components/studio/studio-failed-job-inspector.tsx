@@ -39,17 +39,17 @@ export function StudioFailedJobInspector({
 }: StudioFailedJobInspectorProps) {
   return (
     <OverlayShell
-      backdropClassName="z-[120] bg-[rgba(6,8,7,0.86)]"
+      backdropClassName="studio-inspector-backdrop z-[120]"
       innerClassName="min-h-dvh p-0 lg:p-6"
       panelClassName="grid min-h-dvh content-start gap-4 px-3 pb-6 pt-3 [touch-action:pan-y] lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:max-h-[calc(100dvh-3rem)] lg:grid-cols-[minmax(0,1fr)_360px] lg:overflow-hidden lg:px-6 lg:pb-6 lg:pt-6"
     >
         <div data-testid="studio-failed-job-inspector" className="contents">
           <div className="grid min-h-0 content-start gap-4 lg:grid-rows-[minmax(0,1fr)_auto]">
-            <div className="relative overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_55%),linear-gradient(180deg,#111514,#181d1b)]">
+            <div className="studio-inspector-workspace relative overflow-hidden rounded-[30px]">
               <IconButton
                 icon={X}
                 onClick={onClose}
-                className="absolute right-4 top-4 z-10 bg-black/24 text-white/78 hover:text-white"
+                className="studio-inspector-close-button absolute right-4 top-4 z-10"
                 aria-label="Close failed job inspector"
               />
               <div className="flex min-h-[48vh] items-center justify-center p-4 sm:p-6 lg:h-full">
@@ -58,7 +58,7 @@ export function StudioFailedJobInspector({
                   title="Failed media job"
                   description="No output image was published for this failed job. The saved prompt and provider error are still available below."
                   icon={(
-                    <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(255,139,139,0.24)] bg-[rgba(255,139,139,0.1)] text-[#ff8b8b]">
+                    <div className="studio-failed-icon-shell mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full">
                       <AlertTriangle className="size-7" />
                     </div>
                   )}
@@ -73,25 +73,25 @@ export function StudioFailedJobInspector({
                     data-testid="studio-failed-job-remove"
                     onClick={onDismiss}
                     tone="danger"
-                    className="h-11 w-11 bg-[rgba(40,16,14,0.76)] text-[#ffb5a6] shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
+                    className="studio-danger-icon-button h-11 w-11"
                     aria-label="Remove failed media card"
                     title="Remove failed media card"
                   />
                 </div>
               </div>
             </div>
-            <SurfaceCard appearance="studio" density="compact" className="p-4 text-white">
+            <SurfaceCard appearance="studio" density="compact" className="p-4 text-[var(--text-primary)]">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="surface-label-muted">Prompt</div>
               </div>
-              <SurfaceInset appearance="studio" density="compact" className="max-h-[14rem] overflow-y-auto rounded-[18px] bg-[rgba(0,0,0,0.16)] pr-2">
-                <p className="whitespace-pre-wrap text-sm leading-7 text-white/78">
+              <SurfaceInset appearance="studio" density="compact" className="studio-inspector-prompt-scroll max-h-[14rem] overflow-y-auto rounded-[18px] pr-2">
+                <p className="whitespace-pre-wrap text-sm leading-7 text-[var(--text-muted)]">
                   {prompt ?? "No prompt text was stored for this failed job."}
                 </p>
               </SurfaceInset>
             </SurfaceCard>
           </div>
-          <div className="grid min-h-0 gap-4 rounded-[28px] bg-[rgba(255,255,255,0.04)] p-4 text-white lg:grid lg:overflow-y-auto lg:p-5">
+          <div className="studio-inspector-panel grid min-h-0 gap-4 rounded-[28px] p-4 lg:grid lg:overflow-y-auto lg:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="surface-label-muted">Failed job</div>
@@ -106,21 +106,21 @@ export function StudioFailedJobInspector({
               onClick={onRetry}
               variant="primary"
               size="compact"
-              className="h-9 w-fit self-start rounded-full gap-2 text-[#172200]"
+              className="studio-project-primary-text h-9 w-fit self-start rounded-full gap-2"
             >
               <RotateCcw className="size-4" />
               Retry in Studio
             </Button>
             <CalloutPanel tone="danger" className="min-w-0 rounded-[22px]">
-              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[#ffb8b8]">Provider Error</div>
-              <p className="mt-3 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-white/84">
+              <div className="studio-danger-label text-[0.72rem] font-semibold uppercase tracking-[0.16em]">Provider Error</div>
+              <p className="mt-3 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-[var(--text-primary)]">
                 {job.error ?? "The media provider did not return a more specific failure message."}
               </p>
             </CalloutPanel>
             {imageReferences.length ? (
               <SurfaceInset appearance="studio" density="compact" className="rounded-[22px]">
                 <div className="flex items-center gap-2 surface-label-muted">
-                  <ImageIcon className="size-3.5 text-[rgba(208,255,72,0.88)]" />
+                  <ImageIcon className="size-3.5 text-[var(--accent-strong)]" />
                   References
                 </div>
                 <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
@@ -131,7 +131,7 @@ export function StudioFailedJobInspector({
                       onClick={() => onOpenReference(reference)}
                       className="grid w-[5.5rem] shrink-0 gap-2 text-left transition hover:opacity-95"
                     >
-                      <span className={studioPreviewFallbackClassName({ className: "overflow-hidden rounded-[16px] border border-[var(--border-soft)] bg-[rgba(0,0,0,0.18)]" })}>
+                      <span className={studioPreviewFallbackClassName({ className: "overflow-hidden rounded-[16px] border border-[var(--border-soft)]" })}>
                         <img
                           src={reference.url}
                           alt={reference.label}

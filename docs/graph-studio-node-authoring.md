@@ -4,6 +4,22 @@ This is the implementation contract for adding or changing Graph Studio nodes. G
 
 Use this guide before accepting a complex node idea.
 
+## V1 Rollout Boundary
+
+The current rollout boundary is intentionally narrow:
+
+- **System nodes** are repo-owned and static.
+- **Model nodes** are repo-owned/generated from backend model metadata.
+- **Data-backed nodes** are Prompt Recipes and Media Presets, where a saved record selects behavior but the backend still owns the graph contract.
+
+Out of scope for this release:
+
+- end-user custom executable nodes
+- arbitrary uploaded node code
+- workflow bundles that define brand-new node types
+
+That boundary is deliberate. It keeps validation, execution, pricing, run history, import/export, and browser rendering on one backend-owned contract while Graph Studio is still experimental.
+
 ## First Decision
 
 Classify the node before writing code:
@@ -13,6 +29,24 @@ Classify the node before writing code:
 - Dynamic preset node: update preset rendering and dynamic definition paths, not a one-off static node.
 - Runtime utility node: add a backend definition plus a focused executor under `apps/api/app/graph/executors/`.
 - UI-only helper: avoid this unless it is strictly presentation. If it affects workflow JSON, run output, media refs, pricing, validation, or execution, it is not UI-only.
+
+Notes and scratch-pad helpers should still be backend-owned utility nodes when they persist in workflow JSON. Keep them no-op at runtime, with no ports unless they intentionally feed data into the graph.
+
+## Current Node Ownership Model
+
+Today Graph Studio supports three real node ownership patterns:
+
+- Repo-owned static system nodes under `apps/api/app/graph/system_nodes_<family>.py`
+- Repo-owned generated nodes assembled in `apps/api/app/graph/registry.py`, such as KIE model nodes and compatibility-only dynamic nodes
+- Data-backed runtime nodes such as Prompt Recipes and Presets, where the backend still owns the execution contract and the data record selects behavior
+
+For data-backed runtime nodes, keep the frontend on backend-shaped catalog metadata whenever possible. If the UI needs recipe/preset labels, summaries, placeholder text, or compact helper lines, prefer exposing them through backend catalog payloads instead of rebuilding product strings in the browser.
+
+Graph Studio does **not** yet have a separate end-user custom-node package format, plugin loader, or importable/exportable node-definition bundle that third parties can author outside the repo. Workflow import/export preserves node usage inside a workflow, not new node-type creation.
+
+If custom user-created nodes are added later, they should still compile down to the same backend-owned `GraphNodeDefinition` + executor/validation contract rather than inventing a frontend-only node format.
+
+For the current recommended future extension path, see [docs/graph-studio-node-extension-architecture.md](graph-studio-node-extension-architecture.md).
 
 If the node touches assets, reference media, artifacts, lineage, cached outputs, pricing, or DB rows, trace upstream/downstream behavior before editing.
 
@@ -60,6 +94,7 @@ Supported port types:
 - `audio`
 - `text`
 - `json`
+- `music_track`
 - `asset`
 - `reference_media`
 - `job`

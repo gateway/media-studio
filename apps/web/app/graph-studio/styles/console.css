@@ -7,7 +7,7 @@
   background: #090b0a;
   padding: 0.62rem 0.75rem;
   font-size: 0.72rem;
-  color: rgba(247, 246, 240, 0.78);
+  color: var(--graph-text-quiet);
 }
 
 .graph-console-line {
@@ -20,7 +20,7 @@
   min-width: 0;
   min-height: 1.35rem;
   padding: 0.22rem 0.36rem;
-  border-left: 1px solid rgba(247, 246, 240, 0.08);
+  border-left: 1px solid var(--graph-border-hairline);
 }
 
 .graph-console-line::before {
@@ -34,7 +34,7 @@
 .graph-console-line p {
   margin: 0;
   overflow: hidden;
-  color: rgba(247, 246, 240, 0.78);
+  color: var(--graph-text-quiet);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -46,7 +46,7 @@
 }
 
 .graph-console-line-success::before {
-  background: #7dff9a;
+  background: var(--graph-success-bright);
 }
 
 .graph-console-line-warning::before {
@@ -54,13 +54,13 @@
 }
 
 .graph-console-line-muted::before {
-  background: rgba(247, 246, 240, 0.44);
+  background: var(--graph-text-disabled);
 }
 
 .graph-console-resizer {
   cursor: ns-resize;
   background:
-    linear-gradient(180deg, transparent 0 2px, rgba(247, 246, 240, 0.16) 2px 3px, transparent 3px),
+    linear-gradient(180deg, transparent 0 2px, var(--graph-border-hover) 2px 3px, transparent 3px),
     var(--graph-panel);
 }
 
@@ -68,5 +68,5 @@
 .graph-console-resizer:active {
   background:
     linear-gradient(180deg, transparent 0 2px, rgba(209, 255, 71, 0.5) 2px 3px, transparent 3px),
-    #151817;
+    var(--graph-panel-ink);
 }

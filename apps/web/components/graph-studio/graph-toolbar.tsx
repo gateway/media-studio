@@ -1,6 +1,7 @@
 "use client";
 
 import { CircleDollarSign, Coins, LoaderCircle, Plus, Play, Redo2, TriangleAlert, Undo2, Workflow, X } from "lucide-react";
+import { humanizeGraphRunStatus } from "@/lib/status-language";
 import { GraphRunDiagnostics } from "./graph-run-diagnostics";
 import type { GraphEstimateResponse, GraphRun, GraphRunTransportMetrics, GraphWorkspaceTab } from "./types";
 import { graphEstimateToolbarLabel, graphPricingWarningLabel } from "./utils/graph-pricing";
@@ -16,6 +17,13 @@ function compactCreditText(value: string) {
 
 function compactPricingText(value: string) {
   return value.replace(/^Graph\s+/i, "").replace(/\s*cr\b/i, "");
+}
+
+const TERMINAL_RUN_STATUSES = new Set(["completed", "failed", "cancelled"]);
+
+function graphTabRunStatusLabel(status: string | null | undefined) {
+  if (!status || TERMINAL_RUN_STATUSES.has(status)) return null;
+  return humanizeGraphRunStatus(status);
 }
 
 export function GraphToolbar({
@@ -93,9 +101,10 @@ export function GraphToolbar({
       <div className="graph-workflow-tabs" data-testid="graph-workflow-tabs">
         {(tabs?.length ? tabs : [{ tab_id: "active", workflow_name: workflowName } as GraphWorkspaceTab]).map((tab) => {
           const active = (activeTabId ?? "active") === tab.tab_id;
+          const tabRunStatus = graphTabRunStatusLabel(active ? run?.status ?? tab.run_status : tab.run_status);
           return (
             <div
-              className={`graph-workflow-tab-shell ${active ? "graph-workflow-tab-active" : ""} ${tab.dirty ? "graph-workflow-tab-dirty" : ""}`}
+              className={`graph-workflow-tab-shell ${active ? "graph-workflow-tab-active" : ""} ${tab.dirty ? "graph-workflow-tab-dirty" : ""} ${tabRunStatus ? "graph-workflow-tab-running" : ""}`}
               key={tab.tab_id}
             >
               <button
@@ -108,6 +117,11 @@ export function GraphToolbar({
               >
                 <Workflow size={15} />
                 <span>{tab.workflow_name || "Untitled workflow"}</span>
+                {tabRunStatus ? (
+                  <small className="graph-workflow-tab-status" title={`Run status: ${tabRunStatus}`}>
+                    {tabRunStatus}
+                  </small>
+                ) : null}
               </button>
               {tabs && tabs.length > 1 ? (
                 <button className="graph-workflow-tab-close" type="button" aria-label={`Close ${tab.workflow_name || "workflow"} tab`} onClick={() => onCloseTab?.(tab.tab_id)}>

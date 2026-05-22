@@ -228,6 +228,7 @@ export type GraphWorkspaceTab = {
   saved_workflow_signature?: string | null;
   workflow_updated_at?: string | null;
   run_id?: string | null;
+  run_status?: string | null;
   console_lines?: string[];
   dirty?: boolean;
   updated_at?: string | null;

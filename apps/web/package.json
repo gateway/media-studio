@@ -1,6 +1,7 @@
 {
   "name": "media-studio-web",
   "private": true,
+  "license": "SEE LICENSE IN ../../LICENSE",
   "version": "1.0.1",
   "scripts": {
     "dev": "next dev",

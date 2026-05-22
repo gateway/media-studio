@@ -56,3 +56,12 @@ class DebugMetadataExecutor(GraphExecutor):
         payload = [graph_ref_metadata(item) for item in media_refs]
         context.record_node_metric(node, "metadata_ref_count", len(payload))
         return {"json": [GraphOutputRef(kind="value", value=payload, metadata={"type": "json"})]}
+
+
+class UtilityNoteExecutor(GraphExecutor):
+    node_type = "utility.note"
+
+    def execute(self, node: GraphWorkflowNode, context: GraphExecutionContext) -> Dict[str, List[GraphOutputRef]]:
+        body = str(node.fields.get("body") or "")
+        context.record_node_metric(node, "note_character_count", len(body))
+        return {}

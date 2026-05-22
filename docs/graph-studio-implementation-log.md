@@ -2,6 +2,138 @@
 
 Use this log to keep Graph Studio implementation notes durable. Every production slice should add a short entry with the behavior changed, what failed, what was verified, and what still needs attention.
 
+## 2026-05-17 — Graph Cleanup Pass: Prompt Recipe Metadata, Registry/Validator Split, Dialog CSS Split
+
+Changed behavior:
+
+- Split the old `styles/dialogs-history.css` surface into smaller graph dialog files:
+  - `styles/dialogs-shells.css`
+  - `styles/dialogs-library.css`
+  - `styles/history-preview.css`
+- Extracted shared prompt-provider/runtime field factories into `apps/api/app/graph/prompt_node_fields.py` so prompt nodes and legacy Prompt Recipe compatibility nodes stop duplicating provider/runtime field definitions.
+- Extracted legacy Prompt Recipe compatibility node generation into `apps/api/app/graph/prompt_recipe_legacy_nodes.py`, reducing `registry.py` back toward a generator/orchestrator role.
+- Extracted Prompt Recipe-specific validation into `apps/api/app/graph/validator_prompt_recipe.py`, reducing inline recipe parsing and template-resolution logic inside `validator.py`.
+- Moved more Prompt Recipe display metadata backend-side through `prompt_recipe_catalog.py`:
+  - picker label with category
+  - selection summary
+  - field display placeholder/help text
+- Simplified the frontend Prompt Recipe helper so it consumes backend-provided recipe summary/help metadata instead of rebuilding those strings locally.
+
+Verification:
+
+- `./scripts/with_shared_python.sh -m pytest apps/api/tests/test_graph_studio.py apps/api/tests/test_api_smoke.py -q`
+- `npm --workspace apps/web run test`
+- `npm run typecheck:web`
+- `npm run lint:web`
+- `git diff --check`
+- Local Codex browser verification on `/graph-studio` after reload:
+  - prompt library still shows only the five visible prompt nodes
+  - generic `Prompt Recipe` still filters by category and shows recipe-specific inline summary/help
+
+Remaining risks:
+
+- `registry.py` and `validator.py` are smaller and cleaner, but the next real backend cleanup after this is preset-specific extraction if the Preset surface keeps growing.
+- The graph shell CSS is now split by dialog surface, but the next worthwhile frontend cleanup is still around the remaining larger node/style files rather than dialog chrome.
+
+## 2026-05-17 — Prompt Library Cleanup, One-Column Node Menu, And Larger Preview/Display Nodes
+
+Changed behavior:
+
+- Removed emitted legacy Prompt Recipe compatibility node definitions from the live node catalog. The system now uses one visible `prompt.recipe` definition plus backend normalization for any older workflow payloads that still contain `prompt.recipe.<recipe_key>`.
+- Simplified the Nodes dialog to a single stacked column so the add-node surface is easier to scan.
+- Raised the size ceilings for preview-heavy nodes:
+  - `preview.image`
+  - `preview.video`
+  - `preview.audio`
+  - `display.any`
+- Raised the default preview-bearing max-size fallback in the shared graph node layout so media-preview nodes are no longer boxed in by the old 860px width cap when no tighter backend max is declared.
+- Relaxed `display.any` text/media layout so long text can use more of the node height instead of being capped to a small percentage under media.
+
+Verification:
+
+- `./scripts/with_shared_python.sh -m pytest apps/api/tests/test_graph_studio.py apps/api/tests/test_api_smoke.py -q`
+- `npm --workspace apps/web run test`
+- `npm run typecheck:web`
+- `npm run lint:web`
+- `git diff --check`
+- Local Codex browser verification on `/graph-studio`:
+  - the Prompt library remains clean and no recipe-specific compatibility nodes appear in the add-node flow
+  - the run-history dialog still opens correctly after the one-column dialog CSS change
+  - the generic `Prompt Recipe` node still shows backend-owned summary/help metadata
+
+## 2026-05-17 — Prompt Recipe Graph Execution And Smoke Templates
+
+Changed behavior:
+
+- Added backend-owned Prompt Recipe graph execution:
+  - generic `prompt.recipe`
+  - dynamic `prompt.recipe.<recipe_key>` nodes from active Prompt Recipes
+  - `prompt.parse` for canonical multi-prompt fanout
+- Reused the shared OpenAI-compatible provider path for graph Prompt Recipes and extended it to preserve ordered multi-image inputs for recipe image modes.
+- Added graph validation for Prompt Recipe runtime semantics:
+  - missing/inactive recipe
+  - unresolved template variables
+  - image-count overflow
+  - image-capability/provider mismatch
+- Normalized Prompt Recipe output into one canonical result payload with `text`, `parsed_json`, `final_text`, `prompts`, warnings, and provider/model metadata.
+- Added graph workflow default-field materialization on save, template instantiate, validate, estimate, and run paths so saved/template workflows no longer fail just because backend definition defaults were omitted from stored node fields.
+- Refreshed built-in Prompt Recipe seed rows so optional runtime tokens such as `source_prompt` and `image_analysis` have non-empty defaults where the templates expect them.
+- Seeded and refreshed repo-tracked Prompt Recipe smoke templates:
+  - Text Single Prompt
+  - Single Image Director
+  - Multi Image Director
+  - Video Director Batch
+  - Storyboard 3x3
+  - Analysis Only
+- Updated the built-in smoke templates to carry explicit OpenRouter provider/model defaults so they can run on a clean dev database without requiring a separate saved Studio enhancement config row.
+
+Verification:
+
+- `./scripts/with_shared_python.sh -m pytest apps/api/tests/test_graph_studio.py -q` (`65 passed`)
+- Local schema upgraded through migration `20260517_013_prompt_recipe_smoke_template_provider_refresh`
+- Live control-path verification through the local app:
+  - refreshed graph node definitions
+  - instantiated `Prompt Recipe - Text Single Prompt`
+  - created a real graph run through `/api/control/media/graph/workflows/{workflow_id}/runs`
+  - run completed successfully with Prompt Recipe text output plus canonical `result` payload keys
+
+Remaining risks:
+
+- I did not use Chrome for browser smoke in this slice. The requested local Codex browser surface was not exposed as a callable tool in this session, and Computer Use is blocked from controlling the Codex app itself.
+- Full manual QA across all six Prompt Recipe smoke workflows, especially output quality review for image/video/storyboard prompts, still belongs in the next manual pass.
+
+## 2026-05-17 — Prompt Recipe Library Simplification
+
+Changed behavior:
+
+- Kept older `prompt.recipe.<recipe_key>` node types backend-loadable for compatibility, but hid them from the visible Graph Studio add/search library.
+- Simplified the Prompt category back down to one visible `prompt.recipe` node plus `prompt.parse`.
+- Added backend-owned Prompt Recipe catalog metadata to the generic node so the frontend can:
+  - filter recipes by category
+  - expose only the selected recipe's variable/custom fields
+  - render recipe-specific labels, placeholders, and helper text
+  - show a compact selected-recipe summary in node help
+- Added workflow/template normalization so older Prompt Recipe node types are rewritten to generic `prompt.recipe` with `recipe_id` and `recipe_category` before backend default materialization.
+- Added visible-if support to Prompt Recipe input ports so the generic node only shows the recipe-relevant ports.
+
+Verification:
+
+- `./scripts/with_shared_python.sh -m pytest apps/api/tests/test_graph_studio.py apps/api/tests/test_api_smoke.py -q` (`142 passed`)
+- `npm --workspace apps/web run test` (`38 files passed`, `255 tests passed`)
+- `npm run typecheck:web`
+- `npm run lint:web`
+- `git diff --check`
+- Local Codex browser verification on `/graph-studio`:
+  - the Prompt library now shows only `Prompt Text`, `LLM Prompt`, `Prompt Concat`, `Prompt Recipe`, and `Prompt Parse`
+  - selecting `Image` then `Image Prompt Director` inside the generic node filters the recipe list correctly
+  - the generic node reveals recipe-specific fields with inline helper text
+  - the existing single-image prompt workflow still renders a coherent final prompt in `Display Any`
+
+Remaining risks:
+
+- Existing already-open browser tabs can still restore stale pre-normalized workflow snapshots until they are reopened from the Workflows panel. The saved workflow/template source of truth now normalizes Prompt Recipe node types on API read.
+- Full manual prompt-quality review across all recipe categories still belongs in the next manual pass.
+
 ## 2026-05-11 — Production Hardening Pass 1
 
 Changed behavior:
@@ -1323,3 +1455,37 @@ Verification:
 - `npm run lint:web`
 - Browser-use reload smoke for `/graph-studio`: toolbar, tabs, canvas, nodes, and wires rendered; node CSS loaded; no captured console errors.
 - Browser-use wire regression smoke: deleting and reconnecting a wire left one connected edge with no selected state and no delete button.
+
+## 2026-05-17 — Text Node And Display Any Resize Hardening
+
+Changed behavior:
+
+- Reproduced the issue on a live Prompt Recipe workflow with a real loaded reference image: `Display Any` rendered the prompt output but defaulted too small for long text, and its resize target was narrower than the standard node resize zone.
+- Increased backend-owned default/min/max sizing for `display.any` so long prompt output has more room before manual resize is needed.
+- Increased backend-owned default/min/max sizing for `prompt.text` so reusable text/prompt nodes are less cramped by default.
+- Restored a larger invisible bottom-right resize hit target for `Display Any` and textarea-heavy nodes, while keeping the resize affordance visually quiet.
+
+Verification:
+
+- Local Codex browser smoke on `/graph-studio` loaded `Prompt Recipe - Single Image Director`, attached a real reference image from the Media Library, ran the workflow, and confirmed the output prompt rendered in `Display Any`.
+- `./scripts/with_shared_python.sh -m pytest apps/api/tests/test_graph_studio.py -q`
+- `npm --workspace apps/web run test`
+- `npm run typecheck:web`
+- `npm run lint:web`
+
+## 2026-05-17 — Experimental Rollout Hardening
+
+Changed behavior:
+
+- Added persisted actual OpenRouter usage tracking for successful OpenRouter-backed Studio flows, including Studio enhancement preview, Prompt Recipe drafting, Graph `prompt.llm`, and Graph `prompt.recipe` analysis/final calls.
+- Added summary/list API routes and surfaced actual OpenRouter spend in Settings, Pricing, and Graph run history while keeping KIE estimates separate.
+- Hardened Graph tab/session restore so clean saved tabs reload from the database-backed workflow record, legacy Prompt Recipe compatibility snapshots are discarded, and the browser-session cache is kept as a convenience layer instead of the workflow source of truth.
+- Froze the current v1 node-family boundary in docs: system nodes, generated model nodes, and data-backed Prompt Recipe/Preset nodes only. End-user custom executable nodes remain out of scope.
+- Added an idempotent DB cleanup migration that archives duplicate Prompt Recipe smoke workflows and rollout-only dev copies without touching arbitrary user-authored workflows.
+
+Verification:
+
+- `./scripts/with_shared_python.sh -m pytest apps/api/tests/test_api_smoke.py apps/api/tests/test_db_admin.py apps/api/tests/test_graph_studio.py -q`
+- `npm --workspace apps/web run test`
+- `npm run typecheck:web`
+- `npm run lint:web`

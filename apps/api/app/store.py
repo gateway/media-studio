@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+# Stable persistence facade for route/service callers.
+# New domain persistence should live in focused store_* modules and be re-exported
+# here only when existing callers need the compatibility surface.
+
+import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -23,6 +27,56 @@ from .store_support import (
     new_id,
     upsert_table as _upsert_table,
     utcnow_iso,
+)
+from .store_graph import (
+    append_graph_run_event,
+    archive_graph_template,
+    archive_graph_workflow,
+    cache_graph_node_definitions,
+    count_graph_workflow_versions,
+    create_graph_artifact,
+    create_graph_run,
+    create_graph_workflow_version,
+    create_or_update_graph_template,
+    create_or_update_graph_workflow,
+    get_graph_run,
+    get_graph_run_node,
+    get_graph_template,
+    get_graph_workflow,
+    latest_completed_graph_run_node_output,
+    latest_graph_run_event_id,
+    list_graph_artifacts_for_node_run,
+    list_graph_artifacts_for_run,
+    list_graph_run_events,
+    list_graph_run_nodes,
+    list_graph_runs,
+    list_graph_runs_for_workflow,
+    list_graph_templates,
+    list_graph_workflows,
+    mark_interrupted_graph_runs,
+    update_graph_run,
+    update_graph_run_node,
+)
+from .store_llm_usage import (
+    count_external_llm_usage,
+    create_external_llm_usage_event,
+    create_or_update_prompt_recipe_drafting_config,
+    get_external_llm_usage_summary,
+    get_prompt_recipe_drafting_config,
+    list_external_llm_usage,
+)
+from .store_reference_media import (
+    attach_reference_to_project,
+    create_or_reuse_reference_media,
+    create_or_update_reference_media,
+    detach_reference_from_project,
+    get_reference_media,
+    get_reference_media_by_hash,
+    get_reference_media_by_stored_path,
+    hide_reference_media,
+    list_project_references,
+    list_reference_media,
+    mark_reference_media_used,
 )
 
 
@@ -203,141 +257,6 @@ def delete_prompt_recipe(recipe_id: str) -> Dict[str, Any]:
     return create_or_update_prompt_recipe(record)
 
 
-def get_prompt_recipe_drafting_config(config_key: str = "prompt_recipe_drafting") -> Optional[Dict[str, Any]]:
-    return _get_table("media_prompt_recipe_drafting_configs", "config_key", config_key)
-
-
-def create_or_update_prompt_recipe_drafting_config(payload: Dict[str, Any]) -> Dict[str, Any]:
-    resolved = payload.copy()
-    resolved.setdefault("config_key", "prompt_recipe_drafting")
-    return _upsert_table("media_prompt_recipe_drafting_configs", "config_key", resolved)
-
-
-def _get_external_llm_usage_by_provider_response(provider_kind: str, provider_response_id: str) -> Optional[Dict[str, Any]]:
-    with get_connection() as connection:
-        row = connection.execute(
-            """
-            SELECT *
-            FROM media_external_llm_usage
-            WHERE provider_kind = ? AND provider_response_id = ?
-            LIMIT 1
-            """,
-            (provider_kind, provider_response_id),
-        ).fetchone()
-    return _decode_row(row) if row else None
-
-
-def create_external_llm_usage_event(payload: Dict[str, Any]) -> Dict[str, Any]:
-    resolved = payload.copy()
-    provider_kind = str(resolved.get("provider_kind") or "").strip()
-    provider_response_id = str(resolved.get("provider_response_id") or "").strip()
-    now = utcnow_iso()
-    existing = (
-        _get_external_llm_usage_by_provider_response(provider_kind, provider_response_id)
-        if provider_kind and provider_response_id
-        else None
-    )
-    if existing:
-        merged = existing.copy()
-        merged.update({key: value for key, value in resolved.items() if value is not None})
-        merged["updated_at"] = now
-        return _upsert_table("media_external_llm_usage", "usage_event_id", merged)
-    resolved.setdefault("usage_event_id", new_id("llmuse"))
-    resolved.setdefault("usage_json", {})
-    resolved.setdefault("metadata_json", {})
-    resolved.setdefault("created_at", now)
-    resolved["updated_at"] = now
-    return _upsert_table("media_external_llm_usage", "usage_event_id", resolved)
-
-
-def list_external_llm_usage(limit: int = 100, offset: int = 0, source_kind: Optional[str] = None) -> List[Dict[str, Any]]:
-    clauses = ["1 = 1"]
-    params: List[Any] = []
-    if source_kind:
-        clauses.append("source_kind = ?")
-        params.append(source_kind)
-    params.extend([limit, offset])
-    with get_connection() as connection:
-        rows = connection.execute(
-            """
-            SELECT *
-            FROM media_external_llm_usage
-            WHERE %s
-            ORDER BY created_at DESC, usage_event_id DESC
-            LIMIT ? OFFSET ?
-            """
-            % " AND ".join(clauses),
-            params,
-        ).fetchall()
-    return [_decode_row(row) for row in rows]
-
-
-def count_external_llm_usage(source_kind: Optional[str] = None) -> int:
-    clauses = ["1 = 1"]
-    params: List[Any] = []
-    if source_kind:
-        clauses.append("source_kind = ?")
-        params.append(source_kind)
-    with get_connection() as connection:
-        row = connection.execute(
-            "SELECT COUNT(*) AS total FROM media_external_llm_usage WHERE %s" % " AND ".join(clauses),
-            params,
-        ).fetchone()
-    return int(row["total"] if row else 0)
-
-
-def _aggregate_external_llm_usage(since: Optional[str] = None) -> Dict[str, Any]:
-    clauses = ["1 = 1"]
-    params: List[Any] = []
-    if since:
-        clauses.append("created_at >= ?")
-        params.append(since)
-    with get_connection() as connection:
-        row = connection.execute(
-            """
-            SELECT
-                COUNT(*) AS event_count,
-                COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
-                COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
-                COALESCE(SUM(total_tokens), 0) AS total_tokens,
-                COALESCE(SUM(reasoning_tokens), 0) AS reasoning_tokens,
-                COALESCE(SUM(cached_tokens), 0) AS cached_tokens,
-                COALESCE(SUM(cache_write_tokens), 0) AS cache_write_tokens,
-                COALESCE(SUM(cost_usd), 0) AS cost_usd
-            FROM media_external_llm_usage
-            WHERE %s
-            """
-            % " AND ".join(clauses),
-            params,
-        ).fetchone()
-    return {
-        "event_count": int(row["event_count"] if row else 0),
-        "prompt_tokens": int(row["prompt_tokens"] if row else 0),
-        "completion_tokens": int(row["completion_tokens"] if row else 0),
-        "total_tokens": int(row["total_tokens"] if row else 0),
-        "reasoning_tokens": int(row["reasoning_tokens"] if row else 0),
-        "cached_tokens": int(row["cached_tokens"] if row else 0),
-        "cache_write_tokens": int(row["cache_write_tokens"] if row else 0),
-        "cost_usd": float(row["cost_usd"] if row else 0.0),
-    }
-
-
-def get_external_llm_usage_summary() -> Dict[str, Any]:
-    now = datetime.now(timezone.utc)
-    start_of_today = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
-    last_7d = now - timedelta(days=7)
-    last_30d = now - timedelta(days=30)
-    return {
-        "provider_kind": "external_llm",
-        "currency": "USD",
-        "today": _aggregate_external_llm_usage(start_of_today.isoformat()),
-        "last_7d": _aggregate_external_llm_usage(last_7d.isoformat()),
-        "last_30d": _aggregate_external_llm_usage(last_30d.isoformat()),
-        "lifetime": _aggregate_external_llm_usage(),
-        "generated_at": now.isoformat(),
-    }
-
-
 def list_projects(status: Optional[str] = "active") -> List[Dict[str, Any]]:
     clauses = ["1 = 1"]
     params: List[Any] = []
@@ -398,201 +317,6 @@ def delete_project(project_id: str) -> None:
         connection.execute("DELETE FROM media_projects WHERE project_id = ?", (project_id,))
 
 
-def list_project_references(project_id: str, *, kind: Optional[str] = None, status: str = "active") -> List[Dict[str, Any]]:
-    clauses = ["mpr.project_id = ?"]
-    params: List[Any] = [project_id]
-    if status:
-        clauses.append("rm.status = ?")
-        params.append(status)
-    if kind:
-        clauses.append("rm.kind = ?")
-        params.append(kind)
-    query = """
-        SELECT rm.*
-        FROM media_project_references mpr
-        INNER JOIN reference_media rm ON rm.reference_id = mpr.reference_id
-        WHERE %s
-        ORDER BY mpr.created_at DESC, rm.last_used_at DESC, rm.created_at DESC
-    """ % " AND ".join(clauses)
-    with get_connection() as connection:
-        rows = connection.execute(query, params).fetchall()
-    return _attach_project_ids_to_reference_records([_decode_row(row) for row in rows])
-
-
-def attach_reference_to_project(project_id: str, reference_id: str) -> Dict[str, Any]:
-    now = utcnow_iso()
-    with get_connection() as connection:
-        connection.execute(
-            """
-            INSERT INTO media_project_references (project_id, reference_id, created_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT(project_id, reference_id) DO NOTHING
-            """,
-            (project_id, reference_id, now),
-        )
-    record = get_reference_media(reference_id)
-    if not record:
-        raise KeyError("reference media not found")
-    return record
-
-
-def detach_reference_from_project(project_id: str, reference_id: str) -> Dict[str, Any]:
-    with get_connection() as connection:
-        connection.execute(
-            "DELETE FROM media_project_references WHERE project_id = ? AND reference_id = ?",
-            (project_id, reference_id),
-        )
-    record = get_reference_media(reference_id)
-    if not record:
-        raise KeyError("reference media not found")
-    return record
-
-
-def _reference_project_ids(connection, reference_ids: List[str]) -> Dict[str, List[str]]:
-    if not reference_ids:
-        return {}
-    placeholders = ",".join("?" for _ in reference_ids)
-    rows = connection.execute(
-        f"""
-        SELECT project_id, reference_id
-        FROM media_project_references
-        WHERE reference_id IN ({placeholders})
-        ORDER BY created_at ASC
-        """,
-        reference_ids,
-    ).fetchall()
-    attached: Dict[str, List[str]] = {}
-    for row in rows:
-        reference_id = str(row["reference_id"])
-        attached.setdefault(reference_id, []).append(str(row["project_id"]))
-    return attached
-
-
-def _attach_project_ids_to_reference_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    if not records:
-        return records
-    reference_ids = [str(record.get("reference_id") or "").strip() for record in records]
-    reference_ids = [reference_id for reference_id in reference_ids if reference_id]
-    if not reference_ids:
-        return records
-    with get_connection() as connection:
-        attached = _reference_project_ids(connection, reference_ids)
-    hydrated: List[Dict[str, Any]] = []
-    for record in records:
-        reference_id = str(record.get("reference_id") or "").strip()
-        hydrated.append({**record, "attached_project_ids": attached.get(reference_id, [])})
-    return hydrated
-
-
-def list_reference_media(
-    *,
-    kind: Optional[str] = None,
-    status: str = "active",
-    limit: int = 100,
-    offset: int = 0,
-    project_id: Optional[str] = None,
-) -> List[Dict[str, Any]]:
-    clauses = ["1 = 1"]
-    params: List[Any] = []
-    if status:
-        clauses.append("rm.status = ?")
-        params.append(status)
-    if kind:
-        clauses.append("rm.kind = ?")
-        params.append(kind)
-    join = ""
-    if project_id:
-        join = "INNER JOIN media_project_references mpr ON mpr.reference_id = rm.reference_id"
-        clauses.append("mpr.project_id = ?")
-        params.append(project_id)
-    query = "SELECT rm.* FROM reference_media rm %s WHERE %s ORDER BY rm.last_used_at DESC, rm.created_at DESC LIMIT ? OFFSET ?" % (
-        join,
-        " AND ".join(clauses),
-    )
-    params.extend([limit, offset])
-    with get_connection() as connection:
-        rows = connection.execute(query, params).fetchall()
-    return _attach_project_ids_to_reference_records([_decode_row(row) for row in rows])
-
-
-def get_reference_media(reference_id: str) -> Optional[Dict[str, Any]]:
-    record = _get_table("reference_media", "reference_id", reference_id)
-    if not record:
-        return None
-    return _attach_project_ids_to_reference_records([record])[0]
-
-
-def get_reference_media_by_hash(kind: str, sha256: str, file_size_bytes: int) -> Optional[Dict[str, Any]]:
-    with get_connection() as connection:
-        row = connection.execute(
-            """
-            SELECT *
-            FROM reference_media
-            WHERE kind = ? AND sha256 = ? AND file_size_bytes = ?
-            LIMIT 1
-            """,
-            (kind, sha256, file_size_bytes),
-        ).fetchone()
-    return _decode_row(row) if row else None
-
-
-def get_reference_media_by_stored_path(stored_path: str) -> Optional[Dict[str, Any]]:
-    with get_connection() as connection:
-        row = connection.execute(
-            "SELECT * FROM reference_media WHERE stored_path = ? LIMIT 1",
-            (stored_path,),
-        ).fetchone()
-    return _decode_row(row) if row else None
-
-
-def create_or_update_reference_media(payload: Dict[str, Any]) -> Dict[str, Any]:
-    payload = payload.copy()
-    payload.setdefault("reference_id", new_id("ref"))
-    payload.setdefault("created_at", utcnow_iso())
-    payload.setdefault("updated_at", utcnow_iso())
-    payload.setdefault("status", "active")
-    payload.setdefault("usage_count", 0)
-    payload.setdefault("metadata_json", {})
-    return _upsert_table("reference_media", "reference_id", payload)
-
-
-def create_or_reuse_reference_media(payload: Dict[str, Any], *, increment_usage: bool = True) -> Dict[str, Any]:
-    kind = str(payload.get("kind") or "").strip()
-    sha256 = str(payload.get("sha256") or "").strip()
-    file_size_bytes = int(payload.get("file_size_bytes") or 0)
-    if kind and sha256 and file_size_bytes > 0:
-        existing = get_reference_media_by_hash(kind, sha256, file_size_bytes)
-        if existing:
-            updates: Dict[str, Any] = {"updated_at": utcnow_iso()}
-            if increment_usage:
-                updates["usage_count"] = int(existing.get("usage_count") or 0) + 1
-                updates["last_used_at"] = utcnow_iso()
-            return create_or_update_reference_media({**existing, **updates})
-    next_payload = payload.copy()
-    if increment_usage:
-        next_payload["usage_count"] = max(1, int(next_payload.get("usage_count") or 0))
-        next_payload["last_used_at"] = next_payload.get("last_used_at") or utcnow_iso()
-    return create_or_update_reference_media(next_payload)
-
-
-def mark_reference_media_used(reference_id: str, increment: int = 1) -> Dict[str, Any]:
-    current = get_reference_media(reference_id)
-    if not current:
-        raise KeyError("reference media not found")
-    current["usage_count"] = max(0, int(current.get("usage_count") or 0) + increment)
-    current["last_used_at"] = utcnow_iso()
-    return create_or_update_reference_media(current)
-
-
-def hide_reference_media(reference_id: str) -> Dict[str, Any]:
-    current = get_reference_media(reference_id)
-    if not current:
-        raise KeyError("reference media not found")
-    current["status"] = "hidden"
-    current["updated_at"] = utcnow_iso()
-    return create_or_update_reference_media(current)
-
-
 def list_system_prompts() -> List[Dict[str, Any]]:
     return _list_table("media_system_prompts", "created_at DESC, label ASC")
 
@@ -607,356 +331,6 @@ def create_or_update_system_prompt(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 def delete_system_prompt(prompt_id: str) -> None:
     _delete_table("media_system_prompts", "prompt_id", prompt_id)
-
-
-def list_graph_workflows() -> List[Dict[str, Any]]:
-    with get_connection() as connection:
-        rows = connection.execute(
-            "SELECT * FROM graph_workflows WHERE status != 'archived' ORDER BY updated_at DESC, name ASC"
-        ).fetchall()
-    return [_decode_row(row) for row in rows]
-
-
-def get_graph_workflow(workflow_id: str) -> Optional[Dict[str, Any]]:
-    return _get_table("graph_workflows", "workflow_id", workflow_id)
-
-
-def create_or_update_graph_workflow(payload: Dict[str, Any]) -> Dict[str, Any]:
-    payload = payload.copy()
-    if not payload.get("workflow_id"):
-        payload["workflow_id"] = new_id("graphwf")
-    workflow_json = payload.get("workflow_json")
-    if isinstance(workflow_json, dict):
-        payload["workflow_json"] = {
-            **workflow_json,
-            "workflow_id": payload["workflow_id"],
-            "name": payload.get("name") or workflow_json.get("name") or "Untitled Graph",
-            "description": payload.get("description") if payload.get("description") is not None else workflow_json.get("description"),
-        }
-    payload.setdefault("schema_version", 1)
-    payload.setdefault("status", "active")
-    record = _upsert_table("graph_workflows", "workflow_id", payload)
-    version_count = count_graph_workflow_versions(record["workflow_id"])
-    create_graph_workflow_version(
-        {
-            "workflow_id": record["workflow_id"],
-            "version_number": version_count + 1,
-            "workflow_json": record.get("workflow_json") or {},
-        }
-    )
-    return record
-
-
-def archive_graph_workflow(workflow_id: str) -> Dict[str, Any]:
-    record = get_graph_workflow(workflow_id)
-    if record is None:
-        raise KeyError("workflow not found")
-    record["status"] = "archived"
-    return create_or_update_graph_workflow(record)
-
-
-def count_graph_workflow_versions(workflow_id: str) -> int:
-    with get_connection() as connection:
-        row = connection.execute(
-            "SELECT COUNT(*) AS count FROM graph_workflow_versions WHERE workflow_id = ?",
-            (workflow_id,),
-        ).fetchone()
-    return int(row["count"] if row else 0)
-
-
-def create_graph_workflow_version(payload: Dict[str, Any]) -> Dict[str, Any]:
-    payload = payload.copy()
-    payload.setdefault("version_id", new_id("graphver"))
-    payload.setdefault("created_at", utcnow_iso())
-    return _upsert_table("graph_workflow_versions", "version_id", payload)
-
-
-def list_graph_templates() -> List[Dict[str, Any]]:
-    with get_connection() as connection:
-        rows = connection.execute(
-            "SELECT * FROM graph_templates WHERE status != 'archived' ORDER BY updated_at DESC, name ASC"
-        ).fetchall()
-    return [_decode_row(row) for row in rows]
-
-
-def get_graph_template(template_id: str) -> Optional[Dict[str, Any]]:
-    return _get_table("graph_templates", "template_id", template_id)
-
-
-def create_or_update_graph_template(payload: Dict[str, Any]) -> Dict[str, Any]:
-    payload = payload.copy()
-    if not payload.get("template_id"):
-        payload["template_id"] = new_id("graphtpl")
-    payload.setdefault("status", "active")
-    payload.setdefault("tags_json", [])
-    return _upsert_table("graph_templates", "template_id", payload)
-
-
-def archive_graph_template(template_id: str) -> Dict[str, Any]:
-    record = get_graph_template(template_id)
-    if record is None:
-        raise KeyError("template not found")
-    record["status"] = "archived"
-    return create_or_update_graph_template(record)
-
-
-def create_graph_run(payload: Dict[str, Any], node_payloads: List[Dict[str, Any]]) -> Dict[str, Any]:
-    now = utcnow_iso()
-    run = payload.copy()
-    run.setdefault("run_id", new_id("grun"))
-    run.setdefault("status", "queued")
-    run.setdefault("schema_version", 1)
-    run.setdefault("created_at", now)
-    run.setdefault("metrics_json", {})
-    run["updated_at"] = now
-    run = _upsert_table("graph_runs", "run_id", run)
-    with get_connection() as connection:
-        for item in node_payloads:
-            node = item.copy()
-            node.setdefault("run_node_id", new_id("grnode"))
-            node["run_id"] = run["run_id"]
-            node.setdefault("status", "queued")
-            node.setdefault("input_snapshot_json", {})
-            node.setdefault("output_snapshot_json", {})
-            node.setdefault("metrics_json", {})
-            node["updated_at"] = now
-            _insert_or_update(connection, "graph_run_nodes", "run_node_id", node)
-    return get_graph_run(run["run_id"])  # type: ignore
-
-
-def list_graph_runs(limit: int = 100) -> List[Dict[str, Any]]:
-    with get_connection() as connection:
-        rows = connection.execute(
-            "SELECT * FROM graph_runs ORDER BY created_at DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
-    return [_decode_row(row) for row in rows]
-
-
-def list_graph_runs_for_workflow(workflow_id: str, limit: int = 100) -> List[Dict[str, Any]]:
-    with get_connection() as connection:
-        rows = connection.execute(
-            """
-            SELECT * FROM graph_runs
-            WHERE workflow_id = ?
-            ORDER BY created_at DESC
-            LIMIT ?
-            """,
-            (workflow_id, limit),
-        ).fetchall()
-    return [_decode_row(row) for row in rows]
-
-
-def get_graph_run(run_id: str) -> Optional[Dict[str, Any]]:
-    return _get_table("graph_runs", "run_id", run_id)
-
-
-def update_graph_run(run_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    current = get_graph_run(run_id)
-    if not current:
-        raise KeyError("graph run not found")
-    current.update(payload)
-    current["updated_at"] = utcnow_iso()
-    return _upsert_table("graph_runs", "run_id", current)
-
-
-def mark_interrupted_graph_runs() -> int:
-    now = utcnow_iso()
-    message = "Graph run was interrupted before completion. Start a new run to retry."
-    with get_connection() as connection:
-        rows = connection.execute(
-            "SELECT run_id FROM graph_runs WHERE status IN ('queued', 'running', 'cancelling')"
-        ).fetchall()
-        run_ids = [str(row["run_id"]) for row in rows]
-        for run_id in run_ids:
-            connection.execute(
-                """
-                UPDATE graph_runs
-                SET status = 'failed',
-                    error = COALESCE(NULLIF(error, ''), ?),
-                    finished_at = COALESCE(finished_at, ?),
-                    updated_at = ?
-                WHERE run_id = ?
-                """,
-                (message, now, now, run_id),
-            )
-            connection.execute(
-                """
-                UPDATE graph_run_nodes
-                SET status = 'failed',
-                    error = COALESCE(NULLIF(error, ''), ?),
-                    finished_at = COALESCE(finished_at, ?),
-                    updated_at = ?
-                WHERE run_id = ?
-                  AND status IN ('queued', 'running', 'cancelling')
-                """,
-                (message, now, now, run_id),
-            )
-            connection.execute(
-                """
-                INSERT INTO graph_run_events (event_id, run_id, event_type, payload_json, created_at)
-                VALUES (?, ?, 'run.failed', ?, ?)
-                """,
-                (new_id("grevent"), run_id, _encode({"error": message, "interrupted": True}), now),
-            )
-    return len(run_ids)
-
-
-def list_graph_run_nodes(run_id: str) -> List[Dict[str, Any]]:
-    with get_connection() as connection:
-        rows = connection.execute(
-            "SELECT * FROM graph_run_nodes WHERE run_id = ? ORDER BY rowid ASC",
-            (run_id,),
-        ).fetchall()
-    return [_decode_row(row) for row in rows]
-
-
-def get_graph_run_node(run_id: str, node_id: str) -> Optional[Dict[str, Any]]:
-    with get_connection() as connection:
-        row = connection.execute(
-            "SELECT * FROM graph_run_nodes WHERE run_id = ? AND node_id = ? LIMIT 1",
-            (run_id, node_id),
-        ).fetchone()
-    return _decode_row(row) if row else None
-
-
-def update_graph_run_node(run_id: str, node_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    current = get_graph_run_node(run_id, node_id)
-    if not current:
-        raise KeyError("graph run node not found")
-    current.update(payload)
-    current["updated_at"] = utcnow_iso()
-    return _upsert_table("graph_run_nodes", "run_node_id", current)
-
-
-def append_graph_run_event(run_id: str, event_type: str, payload: Dict[str, Any], node_id: Optional[str] = None) -> Dict[str, Any]:
-    event_payload = {
-        "event_id": new_id("grevent"),
-        "run_id": run_id,
-        "node_id": node_id,
-        "event_type": event_type,
-        "payload_json": payload,
-        "created_at": utcnow_iso(),
-    }
-    with get_connection() as connection:
-        connection.execute(
-            """
-            INSERT INTO graph_run_events (event_id, run_id, node_id, event_type, payload_json, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                event_payload["event_id"],
-                event_payload["run_id"],
-                event_payload["node_id"],
-                event_payload["event_type"],
-                _encode(event_payload["payload_json"]),
-                event_payload["created_at"],
-            ),
-        )
-    return event_payload
-
-
-def list_graph_run_events(run_id: str, after_event_id: Optional[str] = None) -> List[Dict[str, Any]]:
-    params: List[Any] = [run_id]
-    clause = "run_id = ?"
-    if after_event_id:
-        marker = None
-        with get_connection() as connection:
-            marker = connection.execute(
-                "SELECT rowid FROM graph_run_events WHERE event_id = ? AND run_id = ?",
-                (after_event_id, run_id),
-            ).fetchone()
-        if marker:
-            clause += " AND rowid > ?"
-            params.append(marker["rowid"])
-    with get_connection() as connection:
-        rows = connection.execute(
-            f"SELECT * FROM graph_run_events WHERE {clause} ORDER BY rowid ASC",
-            params,
-        ).fetchall()
-    return [_decode_row(row) for row in rows]
-
-
-def latest_graph_run_event_id(run_id: str) -> Optional[str]:
-    with get_connection() as connection:
-        row = connection.execute(
-            """
-            SELECT event_id
-            FROM graph_run_events
-            WHERE run_id = ?
-            ORDER BY rowid DESC
-            LIMIT 1
-            """,
-            (run_id,),
-        ).fetchone()
-    return str(row["event_id"]) if row and row["event_id"] else None
-
-
-def create_graph_artifact(payload: Dict[str, Any]) -> Dict[str, Any]:
-    artifact = payload.copy()
-    artifact.setdefault("artifact_id", new_id("gartifact"))
-    artifact.setdefault("created_at", utcnow_iso())
-    artifact.setdefault("metadata_json", {})
-    artifact.setdefault("transform_params_json", {})
-    artifact.setdefault("value_json", {})
-    return _upsert_table("graph_artifacts", "artifact_id", artifact)
-
-
-def list_graph_artifacts_for_run(run_id: str) -> List[Dict[str, Any]]:
-    with get_connection() as connection:
-        rows = connection.execute(
-            """
-            SELECT * FROM graph_artifacts
-            WHERE run_id = ?
-            ORDER BY created_at ASC, node_id ASC, output_port ASC, output_index ASC
-            """,
-            (run_id,),
-        ).fetchall()
-    return [_decode_row(row) for row in rows]
-
-
-def list_graph_artifacts_for_node_run(run_id: str, node_id: str) -> List[Dict[str, Any]]:
-    with get_connection() as connection:
-        rows = connection.execute(
-            """
-            SELECT * FROM graph_artifacts
-            WHERE run_id = ? AND node_id = ?
-            ORDER BY output_port ASC, output_index ASC, created_at ASC
-            """,
-            (run_id, node_id),
-        ).fetchall()
-    return [_decode_row(row) for row in rows]
-
-
-def latest_completed_graph_run_node_output(workflow_id: str, node_id: str) -> Optional[Dict[str, Any]]:
-    with get_connection() as connection:
-        row = connection.execute(
-            """
-            SELECT grn.*
-            FROM graph_run_nodes grn
-            INNER JOIN graph_runs gr ON gr.run_id = grn.run_id
-            WHERE gr.workflow_id = ?
-              AND grn.node_id = ?
-              AND gr.status = 'completed'
-              AND grn.status = 'completed'
-              AND grn.output_snapshot_json IS NOT NULL
-              AND grn.output_snapshot_json != '{}'
-            ORDER BY COALESCE(gr.finished_at, gr.updated_at, gr.created_at) DESC
-            LIMIT 1
-            """,
-            (workflow_id, node_id),
-        ).fetchone()
-    return _decode_row(row) if row else None
-
-
-def cache_graph_node_definitions(source_fingerprint: str, definitions: List[Dict[str, Any]]) -> Dict[str, Any]:
-    payload = {
-        "cache_id": "default",
-        "source_fingerprint": source_fingerprint,
-        "definitions_json": definitions,
-        "updated_at": utcnow_iso(),
-    }
-    return _upsert_table("graph_node_definitions_cache", "cache_id", payload)
 
 
 def list_enhancement_configs() -> List[Dict[str, Any]]:
@@ -1223,6 +597,15 @@ def get_asset_by_job_id(job_id: str) -> Optional[Dict[str, Any]]:
     return _decode_row(row) if row else None
 
 
+def get_assets_by_job_id(job_id: str) -> List[Dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            "SELECT * FROM media_assets WHERE job_id = ? ORDER BY created_at ASC, asset_id ASC",
+            (job_id,),
+        ).fetchall()
+    return [_decode_row(row) for row in rows]
+
+
 def create_or_update_asset(payload: Dict[str, Any]) -> Dict[str, Any]:
     payload = payload.copy()
     payload.setdefault("asset_id", new_id("asset"))
@@ -1256,18 +639,28 @@ def deduplicate_assets_by_job_id() -> int:
     with get_connection() as connection:
         rows = connection.execute(
             """
-            SELECT rowid, asset_id, job_id
+            SELECT rowid, asset_id, job_id, remote_output_url, payload_json
             FROM media_assets
             WHERE job_id IS NOT NULL AND job_id != ''
             ORDER BY job_id ASC, created_at DESC, rowid DESC
             """
         ).fetchall()
-        keep_by_job: Dict[str, int] = {}
+        keep_by_output: Dict[str, int] = {}
         duplicate_rowids: List[int] = []
         for row in rows:
             job_id = str(row["job_id"])
-            if job_id not in keep_by_job:
-                keep_by_job[job_id] = int(row["rowid"])
+            remote_output_url = str(row["remote_output_url"] or "").strip()
+            try:
+                payload = json.loads(row["payload_json"] or "{}") if "payload_json" in row.keys() else {}
+            except (TypeError, json.JSONDecodeError):
+                payload = {}
+            output_index = ""
+            if isinstance(payload, dict):
+                output_index = str(((payload.get("graph") or {}).get("output_index")) or "").strip()
+            output_key = remote_output_url or (f"index:{output_index}" if output_index else "legacy")
+            dedupe_key = "|".join([job_id, output_key])
+            if dedupe_key not in keep_by_output:
+                keep_by_output[dedupe_key] = int(row["rowid"])
                 continue
             duplicate_rowids.append(int(row["rowid"]))
         for rowid in duplicate_rowids:

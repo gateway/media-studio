@@ -15,8 +15,9 @@ Let users keep multiple workflows open, switch between them without losing canva
 - Implemented: unsaved workflows are labeled `New workflow` until renamed or saved.
 - Implemented: tab snapshots preserve workflow JSON, selected workflow id, active run id, dirty state, and console lines.
 - Implemented: loading a saved workflow from the Workflows panel refreshes from the database-backed workflow record and restores the latest run state.
-- Remaining: latest output preview overlay state needs final per-tab smoke and polish.
-- Known caveat: browser session restore can preserve an older active-tab canvas snapshot. If the user expects the just-saved workflow and the visible canvas looks stale, close the canvas/tab and reload the workflow from the Workflows panel.
+- Implemented: saved workflow tabs now persist a `saved_workflow_signature`, and restore logic prefers the database-backed workflow record whenever the tab is not actually dirty.
+- Resolved: the old stale active-tab restore caveat is closed by comparing the live canvas snapshot against the last saved workflow signature instead of trusting a sticky tab `dirty` flag.
+- Remaining: latest output preview overlay state still needs final browser smoke and polish.
 
 ## Persistence Shape
 
@@ -47,9 +48,8 @@ Do not store media blobs, base64 payloads, or filesystem paths in tab state. Kee
 
 1. Keep extending `use-graph-tabs.ts` and `utils/graph-tabs.ts`; do not move tab behavior back into `graph-studio.tsx`.
 2. Add preview-overlay state to the tab snapshot once preview persistence needs more than run-id restore.
-3. Harden dirty-state comparison against the last saved workflow snapshot.
-4. Add browser smoke coverage for new tab, save, rename, close, reload, switch, and preview restore.
-5. Add a stale-session regression smoke: save a workflow with group/preview changes, close the workflow, reload it from Workflows, and verify the saved group/preview state appears instead of a restored older tab snapshot.
+3. Add browser smoke coverage for new tab, save, rename, close, reload, switch, and preview restore.
+4. Add a stale-session regression smoke: save a workflow with group/preview changes, close the workflow, reload it from Workflows, and verify the saved group/preview state appears instead of a restored older tab snapshot.
 
 ## Guardrails
 

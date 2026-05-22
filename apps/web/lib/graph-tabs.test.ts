@@ -80,12 +80,14 @@ describe("graph workspace tabs", () => {
       workflowName: "Live canvas",
       workflow: workflow("Live canvas"),
       runId: "run-1",
+      runStatus: "running",
       consoleLines: ["node.started", "node.completed"],
       dirty: true,
     });
     expect(updated.workflow_id).toBe("workflow-live");
     expect(updated.workflow_name).toBe("Live canvas");
     expect(updated.run_id).toBe("run-1");
+    expect(updated.run_status).toBe("running");
     expect(updated.console_lines).toEqual(["node.started", "node.completed"]);
     expect(updated.dirty).toBe(true);
     expect(updated.workflow_json?.name).toBe("Live canvas");

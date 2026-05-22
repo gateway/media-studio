@@ -19,6 +19,8 @@ if [[ ! -x "$ROOT/node_modules/.bin/vitest" ]]; then
 fi
 
 "$VENV_PY" "$ROOT/scripts/check_repo_hygiene.py"
+"$VENV_PY" "$ROOT/scripts/check_file_size_guardrails.py"
+"$VENV_PY" "$ROOT/scripts/check_style_drift.py"
 
 "$VENV_PIP" install -q -e "$ROOT/apps/api[dev]"
 

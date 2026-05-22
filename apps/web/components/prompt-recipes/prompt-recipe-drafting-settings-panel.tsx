@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { KeyRound, Server, Sparkles } from "lucide-react";
 
 import { AdminActionNotice } from "@/components/admin-action-notice";
@@ -76,7 +76,6 @@ export function PromptRecipeDraftingSettingsPanel({
   const [manualProbeKind, setManualProbeKind] = useState<SharedLlmProviderKind | null>(null);
   const [openPicker, setOpenPicker] = useState<string | null>(null);
   const [openRouterQuery, setOpenRouterQuery] = useState("");
-  const autoProbeSignatureRef = useRef<string | null>(null);
   const { notice, showNotice, clearNotice } = useAdminActionNotice();
   const { catalogs, loadProviderCatalog } = useSharedProviderModelCatalog();
   const isAutoLoadingCatalog =
@@ -89,44 +88,6 @@ export function PromptRecipeDraftingSettingsPanel({
   const visibleOpenRouterCatalog = useMemo(() => {
     return filterProviderModels("openrouter", catalogs.openrouter?.availableModels ?? [], openRouterQuery);
   }, [catalogs.openrouter?.availableModels, openRouterQuery]);
-
-  useEffect(() => {
-    if (!form.enabled) {
-      autoProbeSignatureRef.current = null;
-      return;
-    }
-    const autoProbeBaseUrl =
-      form.providerKind === "local_openai"
-        ? (form.providerBaseUrl.trim() || (form.providerBaseUrlConfigured ? "__stored__" : ""))
-        : "";
-    const canAutoProbe =
-      form.providerKind === "openrouter" ||
-      form.providerKind === "codex_local" ||
-      (form.providerKind === "local_openai" && autoProbeBaseUrl.length > 0);
-    if (!canAutoProbe) {
-      autoProbeSignatureRef.current = null;
-      return;
-    }
-    if (manualProbeKind || isAutoLoadingCatalog) {
-      return;
-    }
-    const nextSignature = JSON.stringify({
-      providerKind: form.providerKind,
-      baseUrl: autoProbeBaseUrl,
-    });
-    if (autoProbeSignatureRef.current === nextSignature) {
-      return;
-    }
-    autoProbeSignatureRef.current = nextSignature;
-    void probeProvider(true);
-  }, [
-    form.enabled,
-    form.providerBaseUrl,
-    form.providerBaseUrlConfigured,
-    form.providerKind,
-    isAutoLoadingCatalog,
-    manualProbeKind,
-  ]);
 
   async function probeProvider(silent = false) {
     if (silent) {

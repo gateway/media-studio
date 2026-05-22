@@ -16,6 +16,7 @@ export type GraphTabSnapshot = {
   savedWorkflowSignature?: string | null;
   workflowUpdatedAt?: string | null;
   runId?: string | null;
+  runStatus?: string | null;
   consoleLines?: string[];
   dirty?: boolean;
 };
@@ -52,6 +53,7 @@ export function applyGraphTabSnapshot(tab: GraphWorkspaceTab, snapshot: GraphTab
     saved_workflow_signature: snapshot.savedWorkflowSignature ?? tab.saved_workflow_signature ?? null,
     workflow_updated_at: snapshot.workflowUpdatedAt ?? tab.workflow_updated_at ?? null,
     run_id: snapshot.runId ?? null,
+    run_status: snapshot.runStatus ?? (snapshot.runId ? tab.run_status ?? null : null),
     console_lines: snapshot.consoleLines ?? tab.console_lines ?? [],
     dirty: snapshot.dirty ?? tab.dirty ?? false,
     updated_at: new Date().toISOString(),
@@ -116,6 +118,7 @@ function normalizeTab(value: unknown, schemaVersion = GRAPH_TABS_SCHEMA_VERSION)
     saved_workflow_signature: savedWorkflowSignature,
     workflow_updated_at: candidate.workflow_updated_at ?? null,
     run_id: candidate.run_id ?? null,
+    run_status: candidate.run_status ?? null,
     console_lines: normalizeConsoleLines(candidate.console_lines),
     dirty: Boolean(candidate.dirty),
     updated_at: candidate.updated_at ?? null,
@@ -151,6 +154,7 @@ function legacyWorkspaceToSession(value: unknown): GraphTabSessionState | null {
       workflowName: String(candidate.workflowName || workflow.name || "Recovered workflow"),
       workflow,
       runId: candidate.runId ?? null,
+      runStatus: null,
       dirty: false,
     },
   );

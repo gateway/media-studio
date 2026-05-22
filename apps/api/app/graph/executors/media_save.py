@@ -719,6 +719,76 @@ class SaveAudioExecutor(_SaveMediaExecutor):
         return {"asset": enhanced or result.get("asset", []), "audio": enhanced or result.get("audio", [])}
 
 
+def _music_track_value(ref: GraphOutputRef) -> Dict:
+    if ref.media_type != "music_track" or not isinstance(ref.value, dict):
+        raise ValueError("Save Music Track expected a music track input.")
+    return ref.value
+
+
+def _music_track_audio_asset_id(track: Dict, ref: GraphOutputRef) -> str:
+    audio = track.get("audio") if isinstance(track.get("audio"), dict) else {}
+    asset_id = str(audio.get("asset_id") or ref.metadata.get("audio_asset_id") or "").strip()
+    if not asset_id:
+        raise ValueError("Save Music Track could not find the generated audio asset.")
+    return asset_id
+
+
+class SaveMusicTrackExecutor(GraphExecutor):
+    node_type = "media.save_music_track"
+
+    def execute(self, node: GraphWorkflowNode, context: GraphExecutionContext) -> Dict[str, List[GraphOutputRef]]:
+        refs = context.inputs_for(node, "track")
+        if not refs:
+            raise ValueError("Save Music Track requires a music track input.")
+        if len(refs) > 1:
+            raise ValueError("Save Music Track accepts one music track at a time.")
+        project_id = str(node.fields.get("project_id") or "").strip()
+        if project_id and not store.get_project(project_id):
+            raise ValueError("Save Music Track group does not exist.")
+        source_ref = refs[0]
+        track = _music_track_value(source_ref)
+        asset_id = _music_track_audio_asset_id(track, source_ref)
+        asset = store.get_asset(asset_id)
+        if not asset:
+            raise ValueError("Save Music Track could not find the generated audio asset.")
+        if str(asset.get("generation_kind") or "") != "audio":
+            raise ValueError("Save Music Track expected an audio asset.")
+        updated_count = 0
+        if project_id and asset.get("project_id") != project_id:
+            asset = store.create_or_update_asset({**asset, "project_id": project_id})
+            updated_count = 1
+        metadata = {
+            **source_ref.metadata,
+            "project_id": project_id or asset.get("project_id"),
+            "music_track": {
+                "track_index": track.get("track_index"),
+                "title": track.get("title"),
+                "cover_image": track.get("cover_image"),
+                "include_metadata": bool(node.fields.get("include_metadata", True)),
+                "filename_prefix": str(node.fields.get("filename_prefix") or "graph-music"),
+            },
+            "lineage": {
+                "parent_job_id": source_ref.job_id,
+                "parent_asset_id": asset_id,
+                "transform_type": self.node_type,
+                "transform_params": {**dict(node.fields), "track_index": track.get("track_index")},
+            },
+        }
+        output_ref = GraphOutputRef(
+            kind="asset",
+            media_type="audio",
+            asset_id=asset["asset_id"],
+            job_id=asset.get("job_id") or source_ref.job_id,
+            metadata=metadata,
+        )
+        context.record_node_metric(node, "saved_asset_count", 0)
+        context.record_node_metric(node, "reused_asset_count", 1)
+        context.record_node_metric(node, "updated_asset_count", updated_count)
+        context.record_node_metric(node, "music_track_index", track.get("track_index"))
+        emit(context.run_id, "asset.reused", {"asset_id": asset["asset_id"], "project_id": project_id or asset.get("project_id")}, node_id=node.id)
+        return {"asset": [output_ref], "audio": [output_ref]}
+
+
 class SaveImagesExecutor(GraphExecutor):
     node_type = "media.save_images"
 

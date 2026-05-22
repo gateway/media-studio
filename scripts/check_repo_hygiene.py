@@ -38,6 +38,7 @@ BLOCKED_PREFIXES = (
     "data/downloads/",
     "data/outputs/",
     "data/backups/",
+    "docs/development/",
     "docs/reviews/",
     "artifacts/",
     "logs/",

@@ -1,0 +1,8 @@
+# Keep release/source archives free of local operator notes and generated artifacts.
+docs/development/ export-ignore
+docs/reviews/ export-ignore
+docs/API_SECURITY_FULL_REPORT.md export-ignore
+docs/review-remediation-plan.md export-ignore
+.DS_Store export-ignore
+docs/.DS_Store export-ignore
+tmp-graph-studio.png export-ignore

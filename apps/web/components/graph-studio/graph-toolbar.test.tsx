@@ -5,7 +5,7 @@ import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GraphToolbar } from "./graph-toolbar";
-import type { GraphRun, GraphRunTransportMetrics } from "./types";
+import type { GraphRun, GraphRunTransportMetrics, GraphWorkspaceTab } from "./types";
 
 afterEach(() => {
   cleanup();
@@ -73,5 +73,16 @@ describe("GraphToolbar", () => {
 
     expect(screen.getByTestId("graph-cancel-button").hasAttribute("disabled")).toBe(true);
     expect(screen.getByText("Cancelling")).toBeTruthy();
+  });
+
+  it("shows active run state on inactive workflow tabs", () => {
+    const tabs: GraphWorkspaceTab[] = [
+      { tab_id: "tab-1", workflow_name: "Current workflow", workflow_id: "workflow-1", run_id: null, run_status: null, dirty: false },
+      { tab_id: "tab-2", workflow_name: "Background workflow", workflow_id: "workflow-2", run_id: "run-2", run_status: "running", dirty: false },
+    ];
+
+    renderToolbar(null, { tabs, activeTabId: "tab-1" });
+
+    expect(screen.getByTitle("Run status: Running")).toBeTruthy();
   });
 });

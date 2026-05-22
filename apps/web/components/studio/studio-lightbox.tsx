@@ -97,6 +97,27 @@ export function StudioLightbox({
               poster={selectedAssetDisplayVisual ?? undefined}
               className="max-h-full w-auto max-w-full rounded-[28px] object-contain shadow-[0_28px_90px_rgba(0,0,0,0.48)]"
             />
+          ) : selectedAsset.generation_kind === "audio" && selectedAssetPlaybackVisual ? (
+            <div className="flex w-full max-w-3xl flex-col items-center gap-5">
+              {selectedAssetDisplayVisual ? (
+                <img
+                  src={selectedAssetDisplayVisual}
+                  alt={selectedAsset.prompt_summary ?? "Selected audio artwork"}
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
+                  className="max-h-[70vh] w-auto max-w-full rounded-[28px] object-contain shadow-[0_28px_90px_rgba(0,0,0,0.48)]"
+                />
+              ) : null}
+              <audio
+                src={selectedAssetPlaybackVisual}
+                controls
+                autoPlay
+                preload="metadata"
+                className="w-full"
+                aria-label={selectedAsset.prompt_summary ?? "Selected audio artifact"}
+              />
+            </div>
           ) : selectedAssetLightboxVisual ? (
             <img
               src={selectedAssetLightboxVisual}

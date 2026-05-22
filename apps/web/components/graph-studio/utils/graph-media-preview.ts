@@ -57,7 +57,7 @@ export function previewFromReference(reference: MediaReference | undefined): Gra
     mediaType,
     url,
     fullUrl: reference.stored_url ?? url,
-    posterUrl: mediaType === "video" ? reference.poster_url ?? reference.thumb_url ?? null : null,
+    posterUrl: mediaType === "video" || mediaType === "audio" ? reference.poster_url ?? reference.thumb_url ?? null : null,
     label: reference.original_filename ?? reference.reference_id,
     aspectLabel: closestAspectLabel(width, height),
     resolutionLabel: width && height ? `${width}x${height}` : null,
@@ -77,7 +77,7 @@ export function previewFromAsset(asset: MediaAsset | undefined): GraphMediaPrevi
     mediaType,
     url,
     fullUrl: asset.hero_original_url ?? asset.hero_web_url ?? url,
-    posterUrl: mediaType === "video" ? asset.hero_poster_url ?? asset.hero_thumb_url ?? null : null,
+    posterUrl: mediaType === "video" || mediaType === "audio" ? asset.hero_poster_url ?? asset.hero_thumb_url ?? null : null,
     label: asset.prompt_summary ?? String(asset.asset_id),
     aspectLabel: closestAspectLabel(dimensions.width, dimensions.height),
     resolutionLabel: dimensions.width && dimensions.height ? `${dimensions.width}x${dimensions.height}` : null,
@@ -86,7 +86,7 @@ export function previewFromAsset(asset: MediaAsset | undefined): GraphMediaPrevi
 
 export function firstOutputRef(snapshot: Record<string, unknown> | undefined): { asset_id?: string; reference_id?: string } | null {
   if (!snapshot) return null;
-  for (const port of ["image", "asset", "video", "audio", "value"]) {
+  for (const port of ["image", "asset", "video", "audio", "track_1", "track_2", "value"]) {
     const refs = snapshot[port];
     if (Array.isArray(refs) && refs[0] && typeof refs[0] === "object") {
       return refs[0] as { asset_id?: string; reference_id?: string };
@@ -97,7 +97,7 @@ export function firstOutputRef(snapshot: Record<string, unknown> | undefined): {
 
 export function outputRefs(snapshot: Record<string, unknown> | undefined): Array<{ asset_id?: string; reference_id?: string }> {
   if (!snapshot) return [];
-  for (const port of ["images", "assets", "audios", "image", "asset", "video", "audio", "value"]) {
+  for (const port of ["images", "assets", "audios", "image", "asset", "video", "audio", "track_1", "track_2", "value"]) {
     const refs = snapshot[port];
     if (Array.isArray(refs)) {
       return refs.filter((ref): ref is { asset_id?: string; reference_id?: string } => Boolean(ref && typeof ref === "object"));

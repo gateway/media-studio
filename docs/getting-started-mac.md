@@ -46,8 +46,9 @@ The script will:
 - create `.env` if it does not exist
 - create a clean local SQLite database with schema and default presets
 - prompt for your Kie AI API key
-- ask whether you want to enable optional prompt enhancement now
-- let you skip prompt enhancement and add it later in Settings
+- report Codex Local availability on this machine
+- optionally configure OpenRouter and a local OpenAI-compatible endpoint
+- let you skip optional LLM providers and add them later in `Settings -> LLMs`
 
 The shared Python virtualenv includes editable installs of:
 
@@ -68,21 +69,25 @@ Get a key here:
 
 If you skip this during onboarding, Media Studio stays in offline-safe mode until you add the key later.
 
-## 4. Optional prompt enhancement
+## 4. Optional LLM providers
 
-During onboarding, the macOS script now asks whether you want to enable prompt enhancement.
+During onboarding, the macOS script now surfaces the optional LLM provider paths used by prompt enhancement, Prompt Recipe drafting, and graph prompt nodes.
 
-This feature is optional. It rewrites or improves your text prompt before generation. If you skip it, you can turn it on later in `Settings`.
+These providers are optional. If you skip them, you can wire them later in `Settings -> LLMs`.
 
-If you enable it during onboarding, the recommended hosted model is:
+Provider paths:
+
+- Codex Local through your local `codex` login
+- `OPENROUTER_API_KEY` for hosted enhancement and drafting
+- `MEDIA_LOCAL_OPENAI_BASE_URL` and optional `MEDIA_LOCAL_OPENAI_API_KEY` for a local OpenAI-compatible endpoint
+
+The recommended hosted model is:
 
 - `qwen/qwen3.5-35b-a3b`
 
-- `OPENROUTER_API_KEY` for hosted prompt enhancement
-
 The onboarding helper verifies the OpenRouter key before saving it. Users can still generate media without prompt enhancement.
 
-If you ever want to switch to a local OpenAI-compatible prompt enhancement endpoint instead, add that later in `Settings`.
+If you need to revisit any provider choice later, use `http://127.0.0.1:3000/settings/llms`.
 
 ## Terminal windows and port conflicts
 

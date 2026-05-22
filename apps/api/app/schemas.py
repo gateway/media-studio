@@ -638,6 +638,7 @@ class ValidateRequest(BaseModel):
     audios: List[MediaRefInput] = Field(default_factory=list)
     options: Dict[str, Any] = Field(default_factory=dict)
     preset_id: Optional[str] = None
+    callback_url: Optional[str] = None
     preset_text_values: Dict[str, str] = Field(default_factory=dict)
     preset_image_slots: Dict[str, List[MediaRefInput]] = Field(default_factory=dict)
     selected_system_prompt_ids: List[str] = Field(default_factory=list)

@@ -16,7 +16,7 @@ def preview_image_node_definitions() -> List[GraphNodeDefinition]:
             tags=["preview", "image"],
             source={"kind": "system"},
             execution={"executor": "preview.image", "mode": "sync", "cacheable": False, "output_node": False},
-            limits={"max_inputs": 1},
+            limits={"max_inputs": 10},
             ui={
                 "default_size": {"width": 360, "height": 420},
                 "min_size": {"width": 320, "height": 320},
@@ -79,7 +79,7 @@ def preview_av_node_definitions() -> List[GraphNodeDefinition]:
                 "preview": True,
             },
             ports={
-                "inputs": [GraphNodePort(id="audio", label="Audio", type="audio", required=True, min=1, max=1, accepts=["audio"])],
+                "inputs": [GraphNodePort(id="audio", label="Audio", type="audio", array=True, required=True, min=1, max=10, accepts=["audio"])],
                 "outputs": [GraphNodePort(id="audio", label="Audio", type="audio")],
             },
             fields=[],

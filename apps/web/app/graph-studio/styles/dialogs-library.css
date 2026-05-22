@@ -21,7 +21,7 @@
   justify-content: space-between;
   gap: 0.6rem;
   margin-bottom: 0.4rem;
-  color: rgba(247, 246, 240, 0.68);
+  color: var(--graph-text-panel);
   font-size: 0.56rem;
   font-weight: 900;
   letter-spacing: 0.11em;
@@ -55,7 +55,7 @@
   align-items: center;
   gap: 0.44rem;
   width: 100%;
-  border: 1px solid rgba(247, 246, 240, 0.08);
+  border: 1px solid var(--graph-border-hairline);
   border-radius: 6px;
   background: rgba(247, 246, 240, 0.035);
   color: var(--graph-text);
@@ -67,7 +67,7 @@
 .graph-node-search-result:hover,
 .graph-node-search-result-active {
   border-color: rgba(209, 255, 71, 0.46);
-  background: rgba(209, 255, 71, 0.08);
+  background: var(--graph-accent-soft);
 }
 
 .graph-node-search-icon {
@@ -101,7 +101,7 @@
 }
 
 .graph-node-search-empty {
-  border: 1px dashed rgba(247, 246, 240, 0.14);
+  border: 1px dashed var(--graph-border-modal);
   border-radius: 6px;
   color: var(--graph-text-muted);
   font-size: 0.6rem;
@@ -238,8 +238,8 @@
   width: 38px;
   height: 38px;
   color: var(--graph-accent);
-  background: #151817;
-  border: 1px solid rgba(247, 246, 240, 0.1);
+  background: var(--graph-panel-ink);
+  border: 1px solid var(--graph-border-muted);
   border-radius: 8px;
 }
 
@@ -279,8 +279,8 @@
   min-width: 58px;
   justify-content: center;
   padding: 0.18rem 0.38rem;
-  color: rgba(247, 246, 240, 0.78);
-  border: 1px solid rgba(247, 246, 240, 0.1);
+  color: var(--graph-text-quiet);
+  border: 1px solid var(--graph-border-muted);
   border-radius: 999px;
   background: rgba(247, 246, 240, 0.055);
   font-size: 0.62rem;
@@ -330,9 +330,9 @@
   place-items: center;
   width: 30px;
   height: 30px;
-  border: 1px solid rgba(247, 246, 240, 0.1);
+  border: 1px solid var(--graph-border-muted);
   border-radius: 7px;
-  color: rgba(247, 246, 240, 0.62);
+  color: var(--graph-text-subtle);
   background: rgba(14, 17, 16, 0.48);
   cursor: pointer;
 }

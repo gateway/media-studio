@@ -169,7 +169,7 @@ export function PillSelect({
       >
         {SelectedIcon ? <SelectedIcon className={cn("shrink-0", "size-4 text-[var(--accent-strong)]")} /> : null}
         <span className="min-w-0 flex-1 truncate">{label}</span>
-        <ChevronDown className={cn("size-4 shrink-0 text-white/42 transition", open ? "rotate-180" : "", appearance === "studio" ? "size-3.5" : "")} />
+        <ChevronDown className={cn("size-4 shrink-0 transition", appearance === "studio" ? "studio-select-chevron size-3.5" : "text-white/42", open ? "rotate-180" : "")} />
       </button>
 
       {open ? (
@@ -183,8 +183,8 @@ export function PillSelect({
           )}
         >
           {canScrollUp ? (
-            <div className="pointer-events-none sticky top-0 z-10 -mx-2 -mt-2 mb-2 flex justify-center bg-gradient-to-b from-[rgba(17,20,19,0.98)] via-[rgba(17,20,19,0.92)] to-transparent px-2 pt-2">
-              <span className="inline-flex h-6 items-center gap-1 rounded-full border border-white/10 bg-[rgba(10,12,11,0.68)] px-2 text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-white/54 backdrop-blur-xl">
+            <div className="studio-select-scroll-cap pointer-events-none sticky top-0 z-10 -mx-2 -mt-2 mb-2 flex justify-center px-2 pt-2">
+              <span className="studio-select-scroll-pill inline-flex h-6 items-center gap-1 rounded-full px-2 text-[0.58rem] font-semibold uppercase tracking-[0.14em] backdrop-blur-xl">
                 <ChevronUp className="size-3" />
                 More
               </span>
@@ -192,7 +192,7 @@ export function PillSelect({
           ) : null}
           <div className="grid gap-2">
             {appearance === "studio" ? (
-              <div className="px-2 pt-1 text-[0.66rem] font-semibold uppercase tracking-[0.24em] text-white/38">
+              <div className="studio-select-title px-2 pt-1 text-[0.66rem] font-semibold uppercase tracking-[0.24em]">
                 {normalizedTitle}
               </div>
             ) : null}
@@ -205,15 +205,15 @@ export function PillSelect({
                   onSelect(selectedChoice.value);
                   onClose();
                 }}
-                className="flex items-center gap-2.5 rounded-[14px] border border-[var(--action-subtle-border)] bg-white/[0.08] px-2.5 py-2.5 text-left transition hover:border-[var(--action-warning-border)] hover:bg-white/[0.1]"
+                className="studio-select-option-current flex items-center gap-2.5 rounded-[14px] border border-[var(--action-subtle-border)] px-2.5 py-2.5 text-left transition hover:border-[var(--action-warning-border)]"
               >
                 {SelectedIcon ? (
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-[var(--action-subtle-border)] bg-white/[0.06] text-white/92">
+                  <span className="studio-select-icon-shell inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]">
                     <SelectedIcon className="size-4 text-[var(--accent-strong)]" />
                   </span>
                 ) : null}
-                <span className="min-w-0 flex-1 truncate text-[0.9rem] font-medium text-white">{selectedChoice.label}</span>
-                <Check className="size-4 shrink-0 text-white/56" />
+                <span className="min-w-0 flex-1 truncate text-[0.9rem] font-medium text-[var(--text-primary)]">{selectedChoice.label}</span>
+                <Check className="studio-select-check size-4 shrink-0" />
               </button>
             ) : null}
 
@@ -229,7 +229,7 @@ export function PillSelect({
                 return (
                   <div key={`${pickerId}:${choice.value}`} className="grid gap-1">
                     {showGroupLabel ? (
-                      <div className={cn("px-2.5 pb-0.5 text-[0.56rem] font-semibold uppercase tracking-[0.18em] text-white/34", index > 0 ? "pt-2" : "pt-0")}>
+                      <div className={cn("studio-select-group-label px-2.5 pb-0.5 text-[0.56rem] font-semibold uppercase tracking-[0.18em]", index > 0 ? "pt-2" : "pt-0")}>
                         {choice.groupLabel}
                       </div>
                     ) : null}
@@ -242,18 +242,18 @@ export function PillSelect({
                       }}
                       className={cn(
                         appearance === "studio"
-                          ? "flex items-center gap-2 rounded-[12px] px-2.5 py-2.5 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white"
+                          ? "studio-select-option flex items-center gap-2 rounded-[12px] px-2.5 py-2.5 text-left text-[0.8rem] font-medium transition"
                           : "admin-select-option",
-                        appearance === "studio" && isSelected ? "bg-white/[0.08] text-white" : "",
+                        appearance === "studio" && isSelected ? "studio-select-option-selected text-[var(--text-primary)]" : "",
                       )}
                     >
                       {appearance === "studio" && ChoiceIcon ? (
-                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] border border-[var(--action-subtle-border)] bg-white/[0.04] text-white/88">
-                          <ChoiceIcon className="size-3.5 text-white/72" />
+                        <span className="studio-select-icon-shell inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px]">
+                          <ChoiceIcon className="size-3.5 text-[var(--text-muted)]" />
                         </span>
                       ) : null}
                       <span className="min-w-0 flex-1 truncate">{choice.label}</span>
-                      {appearance === "studio" && isSelected ? <Check className="size-3.5 shrink-0 text-white/50" /> : null}
+                      {appearance === "studio" && isSelected ? <Check className="studio-select-check size-3.5 shrink-0" /> : null}
                     </button>
                   </div>
                 );
@@ -261,8 +261,8 @@ export function PillSelect({
             </div>
           </div>
           {canScrollDown ? (
-            <div className="pointer-events-none sticky bottom-0 z-10 -mx-2 -mb-2 mt-2 flex justify-center bg-gradient-to-t from-[rgba(17,20,19,0.98)] via-[rgba(17,20,19,0.92)] to-transparent px-2 pb-2">
-              <span className="inline-flex h-6 items-center gap-1 rounded-full border border-white/10 bg-[rgba(10,12,11,0.68)] px-2 text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-white/54 backdrop-blur-xl">
+            <div className="studio-select-scroll-cap-bottom pointer-events-none sticky bottom-0 z-10 -mx-2 -mb-2 mt-2 flex justify-center px-2 pb-2">
+              <span className="studio-select-scroll-pill inline-flex h-6 items-center gap-1 rounded-full px-2 text-[0.58rem] font-semibold uppercase tracking-[0.14em] backdrop-blur-xl">
                 More
                 <ChevronDown className="size-3" />
               </span>

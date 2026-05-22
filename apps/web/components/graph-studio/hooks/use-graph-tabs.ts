@@ -19,6 +19,7 @@ function newTab(name = "New workflow"): GraphWorkspaceTab {
     workflow_json: null,
     saved_workflow_signature: null,
     run_id: null,
+    run_status: null,
     dirty: false,
     updated_at: new Date().toISOString(),
   };

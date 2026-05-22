@@ -198,7 +198,7 @@ def test_bootstrap_schema_updates_v3_default_model_release_settings(app_modules,
     assert int(seedance_policy[0] or 0) == 1
     assert int(seedance_policy[1] or 0) == 1
     status = store.get_schema_status(legacy_db)
-    assert status["schema_version"] == status["latest_version"] == 15
+    assert status["schema_version"] == status["latest_version"] == 16
 
 
 def test_backup_database_copies_existing_database(app_modules, tmp_path: Path) -> None:
@@ -250,7 +250,7 @@ def test_bootstrap_schema_creates_backup_before_upgrading_existing_database(app_
     assert _count_rows(backup_path, "media_jobs") == 1
 
     status = store.get_schema_status(legacy_db)
-    assert status["schema_version"] == status["latest_version"] == 15
+    assert status["schema_version"] == status["latest_version"] == 16
     assert status["pending_migrations"] == []
     assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
     assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
@@ -334,7 +334,7 @@ def test_rollout_cleanup_migration_archives_duplicate_prompt_recipe_smoke_workfl
     assert row_map["graphwf_live_smoke_1"]["status"] == "archived"
 
     status = store.get_schema_status(legacy_db)
-    assert status["schema_version"] == status["latest_version"] == 15
+    assert status["schema_version"] == status["latest_version"] == 16
 
 
 def test_deduplicate_assets_by_job_id_keeps_latest_asset(app_modules) -> None:

@@ -11,12 +11,13 @@ import { GraphNodeMediaPreview, dropNodeImage, readGraphMediaDragPayload } from 
 import type { GraphNodeData, StudioNode } from "./types";
 import { computeGraphNodeLayout, graphNodeUsesContentAutoHeight } from "./utils/graph-node-layout";
 import { graphExecutionModeClass, graphExecutionModeLabel, normalizeGraphExecutionMode } from "./utils/graph-node-execution";
-import { graphVisibleFieldMetrics } from "./utils/graph-node-fields";
+import { graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "./utils/graph-node-fields";
 import { visibleGraphInputPorts, visibleGraphOutputPorts } from "./utils/graph-node-ports";
 import { inputGraphHandleId, outputGraphHandleId } from "./utils/graph-port-handles";
 import { graphPortAccepts } from "./utils/graph-port-compatibility";
 import { graphNodeHasTracingBorder, graphNodeStatusClass, graphNodeStatusForExecutionMode } from "./utils/graph-node-status";
 import { graphNodePricingLabel } from "./utils/graph-pricing";
+import { graphNodeHeaderKindLabel } from "./utils/graph-node-header";
 import { graphPromptAdvancedSummary, graphPromptNodeHeaderSummary, graphPromptRuntimeFieldOverride } from "./utils/graph-prompt-provider";
 import { graphPromptRecipeFieldOverride, graphPromptRecipeImageWarning, graphPromptRecipeSelectionSummary } from "./utils/graph-prompt-recipe";
 
@@ -36,7 +37,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const isLoadImage = definition.type === "media.load_image";
   const isDisplayAny = definition.type === "display.any";
   const isLoadMedia = definition.type === "media.load_image" || definition.type === "media.load_video" || definition.type === "media.load_audio";
-  const isSaveMedia = definition.type === "media.save_image" || definition.type === "media.save_video" || definition.type === "media.save_audio";
+  const isSaveMedia = definition.type === "media.save_image" || definition.type === "media.save_video" || definition.type === "media.save_audio" || definition.type === "media.save_music_track";
   const displayTitle = data.customTitle?.trim() || definition.title;
   const showPreview = !isDisplayAny && (isLoadMedia || isSaveMedia || Boolean(definition.ui?.preview));
   const connectedInputPortIds = data.connectedInputPorts ?? [];
@@ -47,7 +48,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const connectableFieldIds = new Set(definition.fields.filter((field) => field.connectable || field.port_type).map((field) => field.id));
   const fieldMetrics = graphVisibleFieldMetrics(definition, data.fields, connectedInputPortIds, {
     advancedExpanded,
-    previewHeaderFieldIds: isSaveMedia ? ["project_id"] : [],
+    previewHeaderFieldIds: graphPreviewHeaderFieldIds(definition),
     extraLayoutRows: definition.type === "prompt.recipe" && graphPromptRecipeSelectionSummary(definition, data.fields) ? 2 : 0,
   });
   const previewHeaderFields = fieldMetrics.previewHeaderFields;
@@ -77,6 +78,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const promptRecipeSummary = definition.type === "prompt.recipe" ? graphPromptRecipeSelectionSummary(definition, data.fields) : null;
   const promptRecipeImageWarning = definition.type === "prompt.recipe" ? graphPromptRecipeImageWarning(definition, data.fields, connectedInputPortIds) : null;
   const promptHeaderSummary = graphPromptNodeHeaderSummary(definition.type, data.fields);
+  const nodeKindLabel = promptHeaderSummary ?? graphNodeHeaderKindLabel(definition);
   const activityLabel = status === "idle" ? null : data.activityLabel;
   const collapsedHeight = 54;
   const nodeStyle = {
@@ -108,7 +110,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
       lastMeasuredHeightRef.current = requiredHeight;
       data.onEnsureNodeHeight?.(id, requiredHeight);
     };
-    measure();
+    frame = window.requestAnimationFrame(measure);
     const observer = new ResizeObserver(() => {
       if (frame) window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(measure);
@@ -289,8 +291,8 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
               {displayTitle}
             </div>
           )}
-          <div className="graph-node-kind" title={promptHeaderSummary ?? definition.category}>
-            {promptHeaderSummary ?? definition.category}
+          <div className="graph-node-kind" title={nodeKindLabel}>
+            {nodeKindLabel}
           </div>
         </div>
         <div className="graph-node-header-actions">

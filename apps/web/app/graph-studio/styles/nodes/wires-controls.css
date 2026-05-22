@@ -26,7 +26,7 @@
 }
 
 .graph-wire-drag-path-text {
-  stroke: #f6d8a8;
+  stroke: var(--graph-warning-soft);
 }
 
 .graph-wire-drag-path-video {
@@ -38,7 +38,7 @@
 }
 
 .graph-wire-drag-path-asset {
-  stroke: #ffb5a6;
+  stroke: var(--graph-danger-text);
 }
 
 .graph-handle-image {
@@ -50,7 +50,7 @@
 }
 
 .graph-handle-text {
-  --graph-node-handle: #f6d8a8;
+  --graph-node-handle: var(--graph-warning-soft);
 }
 
 .graph-handle-job {
@@ -58,7 +58,7 @@
 }
 
 .graph-handle-asset {
-  --graph-node-handle: #ffb5a6;
+  --graph-node-handle: var(--graph-danger-text);
 }
 
 .react-flow__edge-path {
@@ -78,7 +78,7 @@
 }
 
 .graph-edge-text .react-flow__edge-path {
-  stroke: #f6d8a8;
+  stroke: var(--graph-warning-soft);
 }
 
 .graph-edge-job .react-flow__edge-path {
@@ -86,7 +86,7 @@
 }
 
 .graph-edge-asset .react-flow__edge-path {
-  stroke: #ffb5a6;
+  stroke: var(--graph-danger-text);
 }
 
 .graph-canvas .react-flow__nodes {
@@ -140,7 +140,7 @@
 
 .react-flow__controls,
 .react-flow__minimap {
-  background: #171b1a;
+  background: var(--graph-panel-modal);
   border: 1px solid var(--graph-border);
 }
 
@@ -149,7 +149,7 @@
   height: 28px;
   color: var(--graph-text);
   background: var(--graph-panel-muted);
-  border-bottom: 1px solid rgba(247, 246, 240, 0.08);
+  border-bottom: 1px solid var(--graph-border-hairline);
 }
 
 .react-flow__controls button:hover {

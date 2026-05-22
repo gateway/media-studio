@@ -34,6 +34,170 @@ def _is_seedance_model(model_key: str) -> bool:
     return normalized in SEEDANCE_MODEL_KEYS or normalized.startswith("seedance-2.0")
 
 
+def _is_suno_model(model_key: str) -> bool:
+    normalized = _normalized_model_key(model_key)
+    return normalized.startswith("suno-") or "suno" in normalized
+
+
+def _iter_nested_dicts(value) -> List[Dict]:
+    if isinstance(value, dict):
+        items = [value]
+        for child in value.values():
+            items.extend(_iter_nested_dicts(child))
+        return items
+    if isinstance(value, list):
+        items: List[Dict] = []
+        for child in value:
+            items.extend(_iter_nested_dicts(child))
+        return items
+    return []
+
+
+def _suno_metadata_items(job: Dict) -> List[Dict]:
+    status = job.get("final_status_json") if isinstance(job.get("final_status_json"), dict) else {}
+    raw_response = status.get("raw_response") if isinstance(status.get("raw_response"), dict) else {}
+    metadata = raw_response.get("suno_output_metadata") if isinstance(raw_response, dict) else None
+    return [item for item in _iter_nested_dicts(metadata) if isinstance(item, dict)]
+
+
+def _suno_audio_url(item: Dict) -> str:
+    for key in ("audio_url", "audioUrl", "source_audio_url"):
+        value = item.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _suno_cover_url(item: Dict) -> str:
+    for key in ("image_url", "imageUrl", "cover_url", "coverUrl", "cover_image_url", "coverImageUrl"):
+        value = item.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _asset_remote_url(asset: Dict) -> str:
+    return str(asset.get("remote_output_url") or "").strip()
+
+
+def _suno_track_outputs(*, job: Dict, assets: List[Dict], batch_id: str) -> Dict[str, List[GraphOutputRef]]:
+    audio_assets = [asset for asset in assets if str(asset.get("generation_kind") or "") == "audio"]
+    if not audio_assets:
+        return {}
+    metadata_items = _suno_metadata_items(job)
+    metadata_by_audio = {_suno_audio_url(item): item for item in metadata_items if _suno_audio_url(item)}
+    outputs: Dict[str, List[GraphOutputRef]] = {}
+    for index, asset in enumerate(audio_assets[:2], start=1):
+        remote_url = _asset_remote_url(asset)
+        provider_metadata = metadata_by_audio.get(remote_url) or (metadata_items[index - 1] if index - 1 < len(metadata_items) else {})
+        cover_url = _suno_cover_url(provider_metadata)
+        track_value = {
+            "kind": "music_track",
+            "track_index": index,
+            "title": provider_metadata.get("title") or provider_metadata.get("name") or f"Music Track {index}",
+            "audio": {
+                "asset_id": asset["asset_id"],
+                "remote_output_url": remote_url or None,
+                "media_type": "audio",
+            },
+            "cover_image": {
+                "remote_output_url": cover_url or None,
+                "thumb_path": asset.get("hero_thumb_path"),
+                "poster_path": asset.get("hero_poster_path"),
+            },
+            "provider_metadata": provider_metadata,
+        }
+        outputs[f"track_{index}"] = [
+            GraphOutputRef(
+                kind="value",
+                media_type="music_track",
+                value=track_value,
+                job_id=job["job_id"],
+                metadata={
+                    "batch_id": batch_id,
+                    "track_index": index,
+                    "audio_asset_id": asset["asset_id"],
+                    "cover_image_url": cover_url or None,
+                },
+            )
+        ]
+    return outputs
+
+
+def completed_kie_job_outputs(
+    *,
+    node: GraphWorkflowNode,
+    job: Dict,
+    assets: List[Dict],
+    batch_id: str,
+) -> Dict[str, List[GraphOutputRef]]:
+    definition = registry.get_definition(node.type)
+    model_key = str(definition.source.get("model_key") or "")
+    output_media_type = str(definition.source.get("output_media_type") or "image")
+    outputs: Dict[str, List[GraphOutputRef]] = {"job": [GraphOutputRef(kind="job", job_id=job["job_id"], metadata={"batch_id": batch_id})]}
+    if _is_suno_model(model_key):
+        outputs.update(_suno_track_outputs(job=job, assets=assets, batch_id=batch_id))
+        return {key: value for key, value in outputs.items() if value}
+    for asset in assets:
+        asset_media_type = str(asset.get("generation_kind") or output_media_type)
+        output_port = "video" if asset_media_type == "video" else "audio" if asset_media_type == "audio" else "image"
+        outputs.setdefault(output_port, []).append(
+            GraphOutputRef(kind="asset", media_type=output_port, asset_id=asset["asset_id"], job_id=job["job_id"])
+        )
+    return {key: value for key, value in outputs.items() if value}
+
+
+def wait_for_existing_kie_job(
+    *,
+    node: GraphWorkflowNode,
+    context: GraphExecutionContext,
+    job_id: str,
+    batch_id: str,
+) -> Dict[str, List[GraphOutputRef]]:
+    from ...runner import runner
+
+    deadline = time.time() + 3600
+    polling_started = time.perf_counter()
+    poll_count = 0
+    sleep_seconds = 0.5
+    current = store.get_job(job_id)
+    if not current:
+        raise ValueError(f"Cannot recover KIE job {job_id}: job record not found.")
+    context.record_node_metric(node, "recovered_existing_kie_job", True)
+    context.record_node_metric(node, "batch_id", batch_id)
+    context.record_node_metric(node, "job_id", job_id)
+    emit(context.run_id, "kie.recovering", {"job_id": job_id, "batch_id": batch_id}, node_id=node.id)
+    while time.time() < deadline:
+        if context.is_cancel_requested():
+            cancel_batch_jobs(batch_id)
+            raise GraphRunCancelled(GRAPH_RUN_CANCELLED_MESSAGE)
+        current = store.get_job(job_id) or current
+        if current["status"] in {"completed", "failed", "cancelled"}:
+            break
+        runner.tick()
+        poll_count += 1
+        elapsed = time.perf_counter() - polling_started
+        sleep_seconds = _adaptive_graph_kie_poll_interval(elapsed)
+        sleep_deadline = time.perf_counter() + sleep_seconds
+        while time.perf_counter() < sleep_deadline:
+            if context.is_cancel_requested():
+                cancel_batch_jobs(batch_id)
+                raise GraphRunCancelled(GRAPH_RUN_CANCELLED_MESSAGE)
+            time.sleep(min(0.25, max(0.0, sleep_deadline - time.perf_counter())))
+    context.record_node_metric(node, "kie_recovery_polling_duration_seconds", round(time.perf_counter() - polling_started, 4))
+    context.record_node_metric(node, "kie_recovery_poll_count", poll_count)
+    context.record_node_metric(node, "kie_recovery_poll_interval_seconds", sleep_seconds)
+    current = store.get_job(job_id) or current
+    if current["status"] == "cancelled" and context.is_cancel_requested():
+        raise GraphRunCancelled(GRAPH_RUN_CANCELLED_MESSAGE)
+    if current["status"] != "completed":
+        raise ValueError(current.get("error") or f"KIE job did not complete: {current['status']}")
+    assets = store.get_assets_by_job_id(current["job_id"])
+    if not assets:
+        raise ValueError("KIE job completed without creating an asset.")
+    return completed_kie_job_outputs(node=node, job=current, assets=assets, batch_id=batch_id)
+
+
 def _to_media_ref(value: GraphOutputRef, *, role: Optional[str] = None) -> MediaRefInput:
     return MediaRefInput(asset_id=value.asset_id, reference_id=value.reference_id, role=role)
 
@@ -74,11 +238,19 @@ class KieModelExecutor(GraphExecutor):
             has_images = bool(image_refs)
             has_videos = bool(video_refs)
             has_audios = bool(audio_refs)
-        prompt_inputs = context.inputs_for(node, "prompt")
-        prompt = str(prompt_inputs[0].value if prompt_inputs else node.fields.get("prompt") or "").strip()
-        if not prompt:
+        suno_model = _is_suno_model(model_key)
+        custom_mode = bool(node.fields.get("custom_mode"))
+        instrumental = bool(node.fields.get("instrumental"))
+        if suno_model:
+            prompt_field = "lyrics" if custom_mode else "song_description"
+            prompt_inputs = context.inputs_for(node, prompt_field) or context.inputs_for(node, "prompt")
+            prompt = str(prompt_inputs[0].value if prompt_inputs else node.fields.get(prompt_field) or node.fields.get("prompt") or "").strip()
+        else:
+            prompt_inputs = context.inputs_for(node, "prompt")
+            prompt = str(prompt_inputs[0].value if prompt_inputs else node.fields.get("prompt") or "").strip()
+        if not prompt and not (suno_model and custom_mode and instrumental):
             raise ValueError("Model node prompt is required.")
-        option_keys = {field.id for field in definition.fields if field.id != "prompt"}
+        option_keys = {field.id for field in definition.fields if field.id not in {"prompt", "song_description", "lyrics"}}
         options = {key: value for key, value in node.fields.items() if key in option_keys and value is not None and value != ""}
         output_media_type = str(definition.source.get("output_media_type") or "image")
         task_modes = [str(item) for item in (definition.source.get("task_modes") or [])]
@@ -145,15 +317,10 @@ class KieModelExecutor(GraphExecutor):
             raise GraphRunCancelled(GRAPH_RUN_CANCELLED_MESSAGE)
         if current["status"] != "completed":
             raise ValueError(current.get("error") or f"KIE job did not complete: {current['status']}")
-        asset = store.get_asset_by_job_id(current["job_id"])
-        if not asset:
+        assets = store.get_assets_by_job_id(current["job_id"])
+        if not assets:
             raise ValueError("KIE job completed without creating an asset.")
-        asset_media_type = str(asset.get("generation_kind") or output_media_type)
-        output_port = "video" if asset_media_type == "video" else "audio" if asset_media_type == "audio" else "image"
-        return {
-            output_port: [GraphOutputRef(kind="asset", media_type=output_port, asset_id=asset["asset_id"], job_id=current["job_id"])],
-            "job": [GraphOutputRef(kind="job", job_id=current["job_id"], metadata={"batch_id": batch["batch_id"]})],
-        }
+        return completed_kie_job_outputs(node=node, job=current, assets=assets, batch_id=batch["batch_id"])
 
 
 def _select_task_mode(
@@ -179,7 +346,7 @@ def _select_task_mode(
     elif output_media_type == "audio":
         if has_videos:
             ordered_candidates.append("video_to_audio")
-        ordered_candidates.append("text_to_audio")
+        ordered_candidates.extend(["text_to_audio", "text_to_music", "music_generation"])
     else:
         if has_images:
             ordered_candidates.extend(["image_edit", "image_to_image", "i2i"])
@@ -194,5 +361,5 @@ def _select_task_mode(
             return "reference_to_video"
         return "image_to_video" if has_images else "text_to_video"
     if output_media_type == "audio":
-        return "text_to_audio"
+        return "text_to_music" if "suno" in normalized_model_key or "music" in normalized_model_key else "text_to_audio"
     return "image_edit" if has_images else "text_to_image"

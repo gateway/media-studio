@@ -9,6 +9,7 @@ export const GRAPH_PORT_COLORS: Record<string, string> = {
   image: "#b7f14f",
   job: "#88a4ff",
   json: "#f2a65f",
+  music_track: "#6fd0d4",
   reference_media: "#7ed7a7",
   text: "#c88cff",
   video: "#60d2ff",

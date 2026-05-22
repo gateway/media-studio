@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isDefaultStudioGalleryQuery } from "@/hooks/studio/use-studio-gallery-feed";
+import { isDefaultStudioGalleryQuery } from "@/lib/studio-gallery-feed";
 
 describe("isDefaultStudioGalleryQuery", () => {
   it("recognizes the server-backed default gallery query", () => {

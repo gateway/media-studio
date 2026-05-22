@@ -62,6 +62,55 @@ Do not add tensor or latent types unless Media Studio adds local ML execution.
 - Provider guardrails: workflow JSON stores provider/model ids only. API keys remain in Settings/env. Image input requires a provider/model marked as image-capable.
 - Pricing: external LLM token pricing is currently reported as unknown in `POST /media/graph/estimate`, so Run confirmation is required when this node is enabled.
 
+### `prompt.recipe`
+
+- Library node: `prompt.recipe`
+- Inputs:
+  - optional `user_prompt`, `source_prompt`, `previous_output`, and ordered `image_refs`
+- Fields:
+  - `recipe_category`, `recipe_id`, provider/model/runtime overrides, `external_variables_json`
+  - after recipe selection, the generic renderer exposes the selected recipe's enabled variables and custom fields with recipe-specific labels, placeholders, and helper text
+- Outputs:
+  - `text`: the primary prompt or analysis text
+  - `result`: canonical normalized recipe result JSON
+- Purpose: execute saved Prompt Recipes inside Graph Studio through the shared external-LLM backend path without creating a second frontend-owned recipe contract.
+- UX contract:
+  - users pick a category first when needed, then select a Prompt Recipe from the filtered list
+  - the node help and inline field notes come from the selected backend-owned recipe metadata
+  - recipe-specific compatibility node definitions are no longer emitted into the live node catalog; older workflow payloads are normalized to the generic node on backend read
+- Image modes:
+  - `none`
+  - `direct_reference`
+  - `analyze_then_inject`
+  - `both`
+- Validation:
+  - archived/inactive recipe references fail clearly
+  - unresolved template variables fail before execution
+  - connected image count must stay within the recipe `max_files`
+  - direct image modes require an image-capable provider/model
+- Pricing: treated as external LLM spend. Estimates stay explicit about unknown pricing and never silently become zero.
+- Result contract:
+  - `recipe_id`
+  - `recipe_key`
+  - `category`
+  - `output_format`
+  - `raw_text`
+  - `parsed_json`
+  - `final_text`
+  - `prompts`
+  - `warnings`
+  - `provider_kind`
+  - `provider_model_id`
+
+### `prompt.parse`
+
+- Category: Prompt
+- Inputs: `result` as one canonical Prompt Recipe result payload
+- Outputs: `prompt_1` through `prompt_12`, plus pass-through `result`
+- Purpose: fan out normalized multi-prompt Prompt Recipe output into fixed downstream prompt ports.
+- Supported upstream formats: `single_prompt`, `prompt_list`, `json_prompt_batch`, `image_analysis`, and `structured_shot_sequence` after they have been normalized by `prompt.recipe`.
+- Guardrail: this node only depends on the canonical Prompt Recipe result contract. It is not a generic arbitrary-JSON parser.
+
 ### `prompt.concat`
 
 - Inputs: `text_a`, `text_b`
@@ -264,7 +313,7 @@ Expected `model.kie.kling_3_0_i2v` contract:
 - Fields: prompt, `mode`, `sound`, `duration` from 3 through 15, `aspect_ratio`, `multi_shots`
 - Outputs: `video`, advanced `job`
 
-Models that accept many image references, such as Seedance 2.0, keep a generic `image_refs` array input with the provider maximum. Two-frame image-to-video models use explicit frame ports so validation can distinguish the required first frame from an optional final frame.
+Seedance 2.0 exposes explicit `start_frame` and `end_frame` ports plus separate `reference_images`, `reference_videos`, and `reference_audios` ports. These represent mutually exclusive scenarios: text-to-video with no media, image-to-video with Start/End Frames, or multimodal reference-to-video with reference media. Graph validation must reject workflows that mix Start/End Frames with reference images, videos, or audio.
 
 Expected `model.kie.nano_banana_pro` help behavior:
 
@@ -274,20 +323,14 @@ Expected `model.kie.nano_banana_pro` help behavior:
 - Settings: aspect ratio options, resolution options, and output format options.
 - Cost: estimated before Run from current settings.
 
-## Planned Prompt And Preset Nodes
+## Prompt Authoring Direction
 
-### `prompt.template`
-
-- Inputs: optional text/json/image metadata.
-- Fields: template text and variables.
-- Outputs: `text`, `json`.
-
-### `prompt.enhance`
-
-- Inputs: `prompt`, optional images/video refs.
-- Fields: enhancement profile/provider config.
-- Outputs: enhanced `text`, optional diagnostic `json`.
-- Must use existing Media Studio enhancement configuration.
+- Reusable prompt logic now lives primarily in:
+  - `prompt.text`
+  - `prompt.llm`
+  - `prompt.recipe`
+  - `prompt.parse`
+- Future prompt authoring additions should extend the backend-owned Prompt Recipe or LLM paths unless there is a clear runtime need for a new first-class node type.
 
 ## Workflow Sharing
 

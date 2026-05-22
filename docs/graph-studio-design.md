@@ -2,6 +2,8 @@
 
 Graph Studio is Media Studio's node workflow editor. It is inspired by node-graph tools, but it is not a tensor graph and it is not a clone of ComfyUI. It is a Media Studio artifact/job graph.
 
+The current Graph Studio rollout is **experimental** and intended for local workflow building with a narrower release boundary than the main Studio surface.
+
 This document locks down the UI and engineering rules we have learned from the first working slice.
 
 ## Source Of Truth
@@ -9,6 +11,7 @@ This document locks down the UI and engineering rules we have learned from the f
 - Backend-owned node definitions drive the UI.
 - Media Studio keeps one model registry, one pricing system, one asset library, one reference-media system, and one job system.
 - Graph Studio cost estimates are server-canonical through `POST /media/graph/estimate`; the browser renders estimates and warnings only.
+- Actual successful OpenRouter spend is persisted after run completion and is tracked separately from KIE estimates.
 - Graph Studio submits model work through the existing Media Studio service/KIE path.
 - Workflow JSON stores durable ids and structured fields, not raw media blobs, base64, or browser filesystem paths.
 
@@ -30,9 +33,11 @@ The current foundation is no longer only the first Nano image pipeline. Graph St
 - backend-owned node definitions with typed ports, fields, limits, execution metadata, and UI layout metadata
 - generated KIE model nodes for supported image/video/audio workflow shapes, with `model.kie.nano_banana_pro` preserved for existing workflows
 - generic and dynamic `preset.render` nodes that render existing Media Studio presets into prompt/image-ref outputs
+- one visible generic `prompt.recipe` node that executes saved Prompt Recipes into text plus canonical result JSON, with `prompt.parse` for structured multi-prompt fanout; legacy recipe-specific node types remain compatibility-only and hidden from the library
 - image utility node foundation, including resize, crop, pad, format conversion, metadata extraction, and preview
 - video utility node foundation, including load/save/preview plus ffmpeg-backed resize, trim, frame extraction, audio extraction, poster frame, and container conversion
 - audio utility foundation, including load/save/preview, ffprobe metadata, bounded save transcode, and a consolidated `audio.transform` node
+- music generation foundation for Suno/KIE: `Suno Music Generation` outputs first-class `music_track` values, and `Save Music Track` turns each track into one Studio audio asset with MP3 playback plus cover artwork on the same asset
 - graph pricing estimates with toolbar totals, per-model-node estimate chips, stale/unknown warnings, and spend-risk confirmation before run creation
 - compact node help popovers sourced from node descriptions, node `help_text`, port descriptions, and field `help_text`
 - generated video model contract hardening for KIE models whose task mode implies video output even when provider metadata lists image media
@@ -41,6 +46,7 @@ The current foundation is no longer only the first Nano image pipeline. Graph St
 - run events through SSE with polling fallback
 - node copy/paste, multi-select context actions, rename, color, resize, collapse, status visuals, execution-mode visuals, and typed wire styling
 - frontend cleanup extraction for shared Graph Studio API, media-preview, color constants, console, media-library, node-operation, clipboard, keyboard-shortcut, and run-lifecycle hook modules
+- repo-tracked Prompt Recipe smoke templates covering text-only, single-image, multi-image, structured video batch, storyboard 3x3, and analysis-only workflows
 
 The next phase should not rebuild these foundations. It should add durable artifact lineage, selective execution, multi-output handling, and group-level workflow controls.
 
@@ -86,15 +92,31 @@ Menu actions:
 - `Rename`: opens an in-app rename dialog. Do not use `window.prompt`.
 - `Close`: closes the active canvas session and returns to blank `New workflow`. Close does not delete the saved workflow.
 
-Workflow tabs are implemented as browser-session workspace state. Tabs preserve workflow JSON, workflow identity, dirty state, active run id, and console lines; saved workflows remain database-backed and closing a tab never deletes a workflow.
+Workflow tabs are implemented as browser-session workspace state. Tabs preserve workflow JSON, workflow identity, dirty state, active run id, console lines, and latest preview provenance; saved workflows remain database-backed and closing a tab never deletes a workflow.
 The workflow action menu is anchored to the active tab shell, not to the left edge of the tab strip, so opening it from a right-side tab keeps the dropdown under that tab.
 
 Important reload behavior:
 
 - Loading a saved workflow from the workflow browser is the source-of-truth reload path.
-- Browser session restore can reopen a previously active tab snapshot. If a saved workflow appears stale after recent edits, close the tab/canvas and load the saved workflow record from Workflows.
+- On reload, clean saved tabs should refresh from the database-backed workflow record instead of trusting an older local snapshot.
+- Dirty unsaved tabs can restore from browser session state, but legacy snapshots that reference removed node shapes should be discarded.
 - Closing the active workflow returns the tab to a blank `New workflow`; it does not delete the saved workflow record.
 - Save, Save As, and Rename must update the active tab snapshot with the saved workflow id/name immediately after the API write succeeds. Do not rely on React state settling later to update visible tab labels.
+- Full-screen preview overlays are transient UI. Do not restore them as open after a page reload; restore the underlying previewable node state only.
+
+## V1 Node Boundary
+
+The experimental rollout boundary is:
+
+- **System nodes**: repo-owned prompt, media utility, preview, display, debug, and control nodes
+- **Model nodes**: repo-owned/generated KIE nodes
+- **Data-backed nodes**: Prompt Recipes and Media Presets
+
+Out of scope for this release boundary:
+
+- end-user custom executable nodes
+- arbitrary uploaded node code
+- workflow import/export that creates new node types
 
 ### Nodes
 
@@ -195,6 +217,7 @@ Core types:
 - `image`
 - `video`
 - `audio`
+- `music_track`
 - `text`
 - `json`
 - `asset`
@@ -203,6 +226,12 @@ Core types:
 - arrays of those types where explicitly declared
 
 Do not add `tensor` or `latent` until Media Studio actually supports local ML execution.
+
+Music-track behavior:
+- A `music_track` is a generated song bundle, not a generic audio file. It carries the audio, cover artwork, title/duration, provider task id, and provider metadata from the model node.
+- `Suno Music Generation` exposes separate `Music Track 1` and `Music Track 2` outputs so users intentionally save or route each returned track.
+- `Save Music Track` accepts one `music_track`, saves one Studio `audio` asset with cover art attached, and outputs `audio` for downstream graph nodes.
+- Do not recreate the old loose `audio + cover_images` graph path for Suno; it makes Studio infer relationships that the graph runtime already knows.
 
 ## Presets In Graph Studio
 
@@ -252,6 +281,65 @@ Why this shape:
 - A single prompt/preset node can drive multiple model nodes.
 - Preset slots map cleanly to graph image inputs.
 - Existing preset import/export remains unchanged.
+
+## Prompt Recipes In Graph Studio
+
+Prompt Recipes now enter Graph Studio through backend-owned nodes instead of a separate browser-only contract.
+
+Node shapes:
+
+```text
+prompt.recipe
+prompt.parse
+```
+
+Purpose:
+
+- Reuse saved Prompt Recipe records from `prompt_recipes` directly in the graph runtime.
+- Keep the visible Prompt library compact: users add one `prompt.recipe` node, optionally filter by category, then select the recipe inside the node.
+- Support text-only, single-image, multi-image, analysis-first, and structured multi-prompt workflows.
+- Normalize recipe output into one canonical result payload so display/debug/fanout nodes consume one stable shape.
+- If an older workflow payload still contains `prompt.recipe.<recipe-key>`, backend normalization rewrites it to the generic `prompt.recipe` node before validation and execution.
+
+Execution rules:
+
+- Prompt Recipe variable resolution order is connected port values, typed node fields, recipe defaults, then `external_variables_json`.
+- Unresolved template variables are validation errors at graph-run time, even if the recipe authoring rules allowed external variables.
+- Image handling follows the saved recipe `image_input_json.mode` exactly:
+  - `none`
+  - `direct_reference`
+  - `analyze_then_inject`
+  - `both`
+- Media reference order into `image_refs` is preserved and becomes the ordered input list sent to the shared external-LLM provider path.
+
+Output contract:
+
+- `prompt.recipe` emits:
+  - `text`
+  - `result`
+- `result` contains:
+  - `recipe_id`
+  - `recipe_key`
+  - `category`
+  - `output_format`
+  - `raw_text`
+  - `parsed_json`
+  - `final_text`
+  - `prompts`
+  - `warnings`
+  - provider/model metadata
+- `prompt.parse` fans that canonical `result` payload into `prompt_1` through `prompt_12`.
+
+Smoke-template contract:
+
+- Graph Studio seeds these repo-tracked Prompt Recipe smoke templates:
+  - `Prompt Recipe - Text Single Prompt`
+  - `Prompt Recipe - Single Image Director`
+  - `Prompt Recipe - Multi Image Director`
+  - `Prompt Recipe - Video Director Batch`
+  - `Prompt Recipe - Storyboard 3x3`
+  - `Prompt Recipe - Analysis Only`
+- These built-in templates now carry explicit OpenRouter provider/model defaults so they do not depend on a separately saved Studio enhancement config row just to run on a clean local dev database.
 
 ## System Prompt Presets
 

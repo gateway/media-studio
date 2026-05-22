@@ -145,6 +145,8 @@ export function useStudioSelection({
   const selectedAssetLightboxVisual =
     (selectedAsset?.generation_kind === "video"
       ? selectedAssetPlaybackVisual ?? selectedAssetDisplayVisual
+      : selectedAsset?.generation_kind === "audio"
+        ? selectedAssetPlaybackVisual ?? selectedAssetDisplayVisual
       : mediaVariantUrl(selectedAsset, "original") ??
         mediaVariantUrl(selectedAsset, "web") ??
         selectedAssetDisplayVisual) ?? null;

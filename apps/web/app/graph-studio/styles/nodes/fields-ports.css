@@ -148,6 +148,113 @@
   min-height: 0;
 }
 
+.graph-node-field:has(.graph-node-markdown-preview) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 110px;
+  min-height: 110px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.graph-node-field:has(.graph-node-markdown-preview) > span {
+  color: var(--graph-text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.graph-node-markdown-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  width: 100%;
+  min-height: 110px;
+  flex: 1;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--graph-border-soft);
+  border-radius: 0.8rem;
+  background: var(--graph-panel-subtle);
+  color: var(--graph-text);
+  font: inherit;
+  line-height: 1.55;
+  text-align: left;
+  overflow: auto;
+  cursor: text;
+}
+
+.graph-node-markdown-preview h1,
+.graph-node-markdown-preview h2,
+.graph-node-markdown-preview h3,
+.graph-node-markdown-preview h4 {
+  color: var(--graph-text);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.graph-node-markdown-preview p,
+.graph-node-markdown-preview ul,
+.graph-node-markdown-preview ol,
+.graph-node-markdown-preview blockquote,
+.graph-node-markdown-preview pre {
+  margin: 0;
+}
+
+.graph-node-markdown-preview > * + * {
+  margin-top: 0;
+}
+
+.graph-node-markdown-preview ul,
+.graph-node-markdown-preview ol {
+  display: grid;
+  gap: 0.8rem;
+  padding-left: 1.35rem;
+}
+
+.graph-node-markdown-preview ul {
+  list-style: disc outside;
+}
+
+.graph-node-markdown-preview ol {
+  list-style: decimal outside;
+}
+
+.graph-node-markdown-preview li {
+  padding-left: 0.15rem;
+}
+
+.graph-node-markdown-preview code {
+  padding: 0.06rem 0.25rem;
+  border-radius: 0.3rem;
+  background: var(--graph-surface);
+  color: var(--graph-text);
+}
+
+.graph-node-markdown-preview pre {
+  padding: 0.55rem;
+  border: 1px solid var(--graph-border-soft);
+  border-radius: 0.65rem;
+  background: var(--graph-surface);
+  overflow: auto;
+}
+
+.graph-node-markdown-preview pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.graph-node-markdown-preview blockquote {
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--graph-node-accent);
+  color: var(--graph-text-muted);
+}
+
+.graph-node-markdown-preview a {
+  color: var(--graph-node-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.16rem;
+}
+
 .graph-node-field-connectable {
   position: relative;
   padding-left: 0.35rem;

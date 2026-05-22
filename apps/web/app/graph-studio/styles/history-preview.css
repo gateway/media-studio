@@ -15,8 +15,8 @@
   border: 1px solid rgba(255, 204, 102, 0.24);
   border-radius: 10px;
   color: var(--graph-text);
-  background: #171b1a;
-  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.48);
+  background: var(--graph-panel-modal);
+  box-shadow: 0 20px 70px var(--graph-shadow-surface);
 }
 
 .graph-pricing-modal .graph-modal-header strong {
@@ -28,7 +28,7 @@
 .graph-pricing-modal p,
 .graph-pricing-modal-warnings {
   margin: 0;
-  color: rgba(247, 246, 240, 0.74);
+  color: var(--graph-text-secondary);
   font-size: 0.86rem;
 }
 
@@ -42,7 +42,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
-  color: rgba(247, 246, 240, 0.82);
+  color: var(--graph-text-body);
   font-size: 0.84rem;
 }
 
@@ -85,7 +85,7 @@
   place-items: center;
   width: 42px;
   height: 42px;
-  border: 1px solid rgba(247, 246, 240, 0.18);
+  border: 1px solid var(--graph-border-medium);
   border-radius: 999px;
   color: var(--graph-text);
   background: rgba(23, 27, 26, 0.92);
@@ -100,7 +100,7 @@
   place-items: center;
   width: 46px;
   height: 58px;
-  border: 1px solid rgba(247, 246, 240, 0.16);
+  border: 1px solid var(--graph-border-hover);
   border-radius: 8px;
   color: var(--graph-text);
   background: rgba(23, 27, 26, 0.84);
@@ -131,9 +131,9 @@
   z-index: 141;
   min-width: 64px;
   padding: 0.35rem 0.55rem;
-  border: 1px solid rgba(247, 246, 240, 0.14);
+  border: 1px solid var(--graph-border-modal);
   border-radius: 999px;
-  color: rgba(247, 246, 240, 0.86);
+  color: var(--graph-text-readable);
   background: rgba(23, 27, 26, 0.88);
   font-size: 0.72rem;
   font-weight: 800;
@@ -159,10 +159,10 @@
   gap: 0.4rem;
   min-height: 31px;
   padding: 0.4rem 0.56rem;
-  border: 1px solid rgba(247, 246, 240, 0.1);
+  border: 1px solid var(--graph-border-muted);
   border-radius: 7px;
-  color: rgba(247, 246, 240, 0.82);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--graph-text-body);
+  background: var(--graph-white-faint);
   font-size: 0.72rem;
 }
 
@@ -189,20 +189,20 @@
 .graph-artifact-row small,
 .graph-run-history-meta {
   display: block;
-  color: rgba(247, 246, 240, 0.56);
+  color: var(--graph-text-faded);
   font-size: 0.64rem;
 }
 
 .graph-run-history-row-active button {
-  border-color: rgba(209, 255, 71, 0.34);
-  background: rgba(209, 255, 71, 0.08);
+  border-color: var(--graph-accent-ring);
+  background: var(--graph-accent-soft);
 }
 
 .graph-artifact-browser {
   display: grid;
   gap: 0.42rem;
   padding-top: 0.42rem;
-  border-top: 1px solid rgba(247, 246, 240, 0.08);
+  border-top: 1px solid var(--graph-border-hairline);
 }
 
 .graph-artifact-row {
@@ -211,7 +211,7 @@
   gap: 0.42rem;
   align-items: center;
   padding: 0.48rem 0.54rem;
-  border: 1px solid rgba(247, 246, 240, 0.08);
+  border: 1px solid var(--graph-border-hairline);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.035);
 }
@@ -224,5 +224,5 @@
   border: 1px solid var(--graph-border);
   border-radius: 6px;
   color: rgba(247, 246, 240, 0.76);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--graph-white-faint);
 }

@@ -1,0 +1,931 @@
+{
+  "kind": "media-studio.graph.workflow",
+  "schema_version": 1,
+  "exported_at": "2026-05-22T08:16:40.743Z",
+  "workflow": {
+    "schema_version": 1,
+    "workflow_id": null,
+    "name": "Kling 3.0 Workflows",
+    "nodes": [
+      {
+        "id": "note_kling_3",
+        "type": "utility.note",
+        "position": {
+          "x": -560,
+          "y": 20
+        },
+        "fields": {
+          "body": "### Kling 3.0 workflows\n\nA starter workflow for the three Kling 3.0 video lanes. Each lane has its own group, prompt, preview node, and save node.\n\n- Kling 3.0 text to video creates a video from a written scene prompt.\n- Kling 3.0 image to video animates a start frame. An end frame can be added when you want the video to land on a specific final image.\n- Kling 3.0 motion control uses a reference image plus a driving video to guide the generated motion.\n\nRight-click a group title to enable or mute the list of nodes. Muted nodes cannot be executed during the run this allows you to only run that set of nodes.\n\nImage-to-video and motion-control lanes need source media selected in the Load Image or Load Video nodes before running.\n\n- [Star Media Studio on GitHub](https://github.com/gateway/media-studio)\n- [GitHub issues](https://github.com/gateway/media-studio/issues)\n- [Model credits](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) \n- [Instagram](https://www.instagram.com/dreamingcomputers/)\n"
+        },
+        "metadata": {
+          "style": {
+            "width": 596,
+            "height": 658
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#75a7f5",
+            "nodeColor": "#172135",
+            "nodeHeaderColor": "#1c2e46",
+            "customTitle": "Read Me"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "prompt_kling_3_t2v",
+        "type": "prompt.text",
+        "position": {
+          "x": 101.63035191347166,
+          "y": 106.97114117152486
+        },
+        "fields": {
+          "mode": "replace",
+          "text": "Create a cinematic 5 second video clip. Replace this text with the scene idea before running."
+        },
+        "metadata": {
+          "style": {
+            "width": 340,
+            "height": 362
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#5ad0f0",
+            "nodeColor": "#13242d",
+            "nodeHeaderColor": "#17313d",
+            "customTitle": "Prompt T2V"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "kling_3_t2v",
+        "type": "model.kie.kling_3_0_t2v",
+        "position": {
+          "x": 515.6197616469086,
+          "y": 93.54468642828589
+        },
+        "fields": {
+          "prompt": "",
+          "mode": "std",
+          "sound": true,
+          "multi_shots": false,
+          "duration": 5,
+          "aspect_ratio": "16:9"
+        },
+        "metadata": {
+          "style": {
+            "width": 430,
+            "height": 740
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#5ad0f0",
+            "nodeColor": "#13242d",
+            "nodeHeaderColor": "#17313d",
+            "customTitle": "Kling 3.0 - T2V"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "preview_kling_3_t2v",
+        "type": "preview.video",
+        "position": {
+          "x": 1068.5082734169084,
+          "y": 105.5461022181457
+        },
+        "fields": {},
+        "metadata": {
+          "style": {
+            "width": 380
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#5ad0f0",
+            "nodeColor": "#13242d",
+            "nodeHeaderColor": "#17313d",
+            "customTitle": "Preview T2V"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "save_kling_3_t2v",
+        "type": "media.save_video",
+        "position": {
+          "x": 1070.8796399747462,
+          "y": 527.1996990498805
+        },
+        "fields": {
+          "filename_prefix": "kling-3-t2v",
+          "format": "source_original",
+          "codec": "auto",
+          "crf": 23,
+          "audio_policy": "keep_video_audio",
+          "audio_fit": "trim_to_video",
+          "audio_offset_seconds": 0,
+          "audio_volume": 1,
+          "video_audio_volume": 1,
+          "include_metadata": true,
+          "label": "Kling 3.0 text-to-video result"
+        },
+        "metadata": {
+          "style": {
+            "width": 380
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#5ad0f0",
+            "nodeColor": "#13242d",
+            "nodeHeaderColor": "#17313d",
+            "customTitle": "Save T2V"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "load_kling_3_i2v_start",
+        "type": "media.load_image",
+        "position": {
+          "x": 1913.1079931235456,
+          "y": 106.11652514287498
+        },
+        "fields": {
+          "asset_id": "",
+          "reference_id": ""
+        },
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Load start frame"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "load_kling_3_i2v_end",
+        "type": "media.load_image",
+        "position": {
+          "x": 1914.7177740071281,
+          "y": 528.8979045064057
+        },
+        "fields": {
+          "asset_id": "",
+          "reference_id": ""
+        },
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Load end frame"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "prompt_kling_3_i2v",
+        "type": "prompt.text",
+        "position": {
+          "x": 2317.626750520719,
+          "y": 633.0249001338548
+        },
+        "fields": {
+          "mode": "replace",
+          "text": "Animate the start frame into a cinematic 5 second video. Replace this text with the motion idea before running."
+        },
+        "metadata": {
+          "style": {
+            "width": 389,
+            "height": 665
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Prompt I2V"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "kling_3_i2v",
+        "type": "model.kie.kling_3_0_i2v",
+        "position": {
+          "x": 2758.513471487467,
+          "y": 110.45917658510832
+        },
+        "fields": {
+          "prompt": "",
+          "mode": "std",
+          "sound": true,
+          "multi_shots": false,
+          "duration": 5,
+          "aspect_ratio": "16:9"
+        },
+        "metadata": {
+          "style": {
+            "width": 467,
+            "height": 793
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Kling 3.0 - I2V"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "preview_kling_3_i2v",
+        "type": "preview.video",
+        "position": {
+          "x": 3292.0728392750116,
+          "y": 98.8787727391528
+        },
+        "fields": {},
+        "metadata": {
+          "style": {
+            "width": 380
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Preview I2V"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "save_kling_3_i2v",
+        "type": "media.save_video",
+        "position": {
+          "x": 3291.008742267854,
+          "y": 526.3726033988111
+        },
+        "fields": {
+          "filename_prefix": "kling-3-i2v",
+          "format": "source_original",
+          "codec": "auto",
+          "crf": 23,
+          "audio_policy": "keep_video_audio",
+          "audio_fit": "trim_to_video",
+          "audio_offset_seconds": 0,
+          "audio_volume": 1,
+          "video_audio_volume": 1,
+          "include_metadata": true,
+          "label": "Kling 3.0 image-to-video result"
+        },
+        "metadata": {
+          "style": {
+            "width": 380
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Save I2V"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "load_kling_3_motion_image",
+        "type": "media.load_image",
+        "position": {
+          "x": 159.60213301200363,
+          "y": 1486.656670400023
+        },
+        "fields": {
+          "asset_id": "",
+          "reference_id": ""
+        },
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#b68cff",
+            "nodeColor": "#201831",
+            "nodeHeaderColor": "#2d2145",
+            "customTitle": "Load reference image"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "load_kling_3_motion_video",
+        "type": "media.load_video",
+        "position": {
+          "x": 157.57118247414806,
+          "y": 1927.7586298618312
+        },
+        "fields": {
+          "asset_id": "",
+          "reference_id": ""
+        },
+        "metadata": {
+          "style": {
+            "width": 380
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#b68cff",
+            "nodeColor": "#201831",
+            "nodeHeaderColor": "#2d2145",
+            "customTitle": "Load driving video"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "prompt_kling_3_motion",
+        "type": "prompt.text",
+        "position": {
+          "x": 757.7268170928525,
+          "y": 2218.428925853236
+        },
+        "fields": {
+          "mode": "replace",
+          "text": "Use the reference image and driving video to create a controlled motion clip. Replace this text with the motion direction before running."
+        },
+        "metadata": {
+          "style": {
+            "width": 446,
+            "height": 492
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#b68cff",
+            "nodeColor": "#201831",
+            "nodeHeaderColor": "#2d2145",
+            "customTitle": "Prompt Motion"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "kling_3_motion",
+        "type": "model.kie.kling_3_0_motion",
+        "position": {
+          "x": 763.638571023894,
+          "y": 1568.9218629136317
+        },
+        "fields": {
+          "prompt": "",
+          "character_orientation": "image",
+          "mode": "720p"
+        },
+        "metadata": {
+          "style": {
+            "width": 430,
+            "height": 620
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#b68cff",
+            "nodeColor": "#201831",
+            "nodeHeaderColor": "#2d2145",
+            "customTitle": "Kling 3.0 - Motion"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "preview_kling_3_motion",
+        "type": "preview.video",
+        "position": {
+          "x": 1348.5878190827639,
+          "y": 1519.650507422351
+        },
+        "fields": {},
+        "metadata": {
+          "style": {
+            "width": 380
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#b68cff",
+            "nodeColor": "#201831",
+            "nodeHeaderColor": "#2d2145",
+            "customTitle": "Preview Motion"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "save_kling_3_motion",
+        "type": "media.save_video",
+        "position": {
+          "x": 1353.793232014386,
+          "y": 1964.550056292959
+        },
+        "fields": {
+          "filename_prefix": "kling-3-motion",
+          "format": "source_original",
+          "codec": "auto",
+          "crf": 23,
+          "audio_policy": "keep_video_audio",
+          "audio_fit": "trim_to_video",
+          "audio_offset_seconds": 0,
+          "audio_volume": 1,
+          "video_audio_volume": 1,
+          "include_metadata": true,
+          "label": "Kling 3.0 motion-control result"
+        },
+        "metadata": {
+          "style": {
+            "width": 380
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#b68cff",
+            "nodeColor": "#201831",
+            "nodeHeaderColor": "#2d2145",
+            "customTitle": "Save Motion"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "utility.note-3ccadeff",
+        "type": "utility.note",
+        "position": {
+          "x": 2773.7598888472653,
+          "y": 939.4439092589864
+        },
+        "fields": {
+          "body": "### Kling 3.0 Image to Video\n\nStart Frame is required but end frame is optional.\n\n"
+        },
+        "metadata": {
+          "style": {
+            "width": 363,
+            "height": 254
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#ff6b8a",
+            "nodeColor": "#29181f",
+            "nodeHeaderColor": "#3a2029",
+            "customTitle": null
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge_prompt_t2v",
+        "source": "prompt_kling_3_t2v",
+        "source_port": "text",
+        "target": "kling_3_t2v",
+        "target_port": "prompt"
+      },
+      {
+        "id": "edge_t2v_preview",
+        "source": "kling_3_t2v",
+        "source_port": "video",
+        "target": "preview_kling_3_t2v",
+        "target_port": "video"
+      },
+      {
+        "id": "edge_i2v_start",
+        "source": "load_kling_3_i2v_start",
+        "source_port": "image",
+        "target": "kling_3_i2v",
+        "target_port": "start_frame"
+      },
+      {
+        "id": "edge_i2v_end",
+        "source": "load_kling_3_i2v_end",
+        "source_port": "image",
+        "target": "kling_3_i2v",
+        "target_port": "end_frame"
+      },
+      {
+        "id": "edge_prompt_i2v",
+        "source": "prompt_kling_3_i2v",
+        "source_port": "text",
+        "target": "kling_3_i2v",
+        "target_port": "prompt"
+      },
+      {
+        "id": "edge_i2v_preview",
+        "source": "kling_3_i2v",
+        "source_port": "video",
+        "target": "preview_kling_3_i2v",
+        "target_port": "video"
+      },
+      {
+        "id": "edge_i2v_save",
+        "source": "kling_3_i2v",
+        "source_port": "video",
+        "target": "save_kling_3_i2v",
+        "target_port": "video"
+      },
+      {
+        "id": "edge_motion_image",
+        "source": "load_kling_3_motion_image",
+        "source_port": "image",
+        "target": "kling_3_motion",
+        "target_port": "image_refs"
+      },
+      {
+        "id": "edge_motion_video",
+        "source": "load_kling_3_motion_video",
+        "source_port": "video",
+        "target": "kling_3_motion",
+        "target_port": "video_refs"
+      },
+      {
+        "id": "edge_prompt_motion",
+        "source": "prompt_kling_3_motion",
+        "source_port": "text",
+        "target": "kling_3_motion",
+        "target_port": "prompt"
+      },
+      {
+        "id": "edge_motion_preview",
+        "source": "kling_3_motion",
+        "source_port": "video",
+        "target": "preview_kling_3_motion",
+        "target_port": "video"
+      },
+      {
+        "id": "edge_motion_save",
+        "source": "kling_3_motion",
+        "source_port": "video",
+        "target": "save_kling_3_motion",
+        "target_port": "video"
+      },
+      {
+        "id": "edge-kling_3_t2v-out:video-save_kling_3_t2v-in:video",
+        "source": "kling_3_t2v",
+        "source_port": "video",
+        "target": "save_kling_3_t2v",
+        "target_port": "video"
+      }
+    ],
+    "metadata": {
+      "created_by": "graph-studio",
+      "groups": [
+        {
+          "id": "group_kling_3_t2v",
+          "title": "Kling 3.0 - Text to Video",
+          "color": "blue",
+          "node_ids": [
+            "prompt_kling_3_t2v",
+            "kling_3_t2v",
+            "preview_kling_3_t2v",
+            "save_kling_3_t2v"
+          ],
+          "bounds": {
+            "x": 61.63035191347162,
+            "y": 16.971141171524874,
+            "width": 1788.817564678973,
+            "height": 1326.3932164563535
+          },
+          "execution": {
+            "mode": "enabled"
+          }
+        },
+        {
+          "id": "group_kling_3_i2v",
+          "title": "Kling 3.0 - Image to Video",
+          "color": "blue",
+          "node_ids": [
+            "load_kling_3_i2v_start",
+            "load_kling_3_i2v_end",
+            "prompt_kling_3_i2v",
+            "kling_3_i2v",
+            "preview_kling_3_i2v",
+            "save_kling_3_i2v",
+            "utility.note-3ccadeff"
+          ],
+          "bounds": {
+            "x": 1873.1079931235456,
+            "y": 16.116525142875204,
+            "width": 1877.002628752414,
+            "height": 1332.4272623772838
+          },
+          "execution": {
+            "mode": "frozen"
+          }
+        },
+        {
+          "id": "group_kling_3_motion",
+          "title": "Kling 3.0 - Motion Control",
+          "color": "blue",
+          "node_ids": [
+            "load_kling_3_motion_image",
+            "load_kling_3_motion_video",
+            "prompt_kling_3_motion",
+            "kling_3_motion",
+            "preview_kling_3_motion",
+            "save_kling_3_motion"
+          ],
+          "bounds": {
+            "x": 56.46641114696443,
+            "y": 1380.6971178214721,
+            "width": 1965.7514219253962,
+            "height": 1454.2332523281761
+          },
+          "execution": {
+            "mode": "frozen"
+          }
+        }
+      ]
+    }
+  },
+  "node_definitions": [
+    {
+      "type": "utility.note",
+      "title": "Note",
+      "category": "Utility",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "prompt.text",
+      "title": "Prompt Text",
+      "category": "Prompt",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "model.kie.kling_3_0_t2v",
+      "title": "Kling 3.0 Text to Video",
+      "category": "Models/Video",
+      "source": {
+        "kind": "kie_model",
+        "model_key": "kling-3.0-t2v",
+        "kie_spec_version": "e1e2e6d2bda7",
+        "output_media_type": "video",
+        "task_modes": [
+          "text_to_video"
+        ]
+      },
+      "fingerprint": "e1e2e6d2bda7"
+    },
+    {
+      "type": "preview.video",
+      "title": "Preview Video",
+      "category": "Preview",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.save_video",
+      "title": "Save Video",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.load_image",
+      "title": "Load Image",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.load_image",
+      "title": "Load Image",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "prompt.text",
+      "title": "Prompt Text",
+      "category": "Prompt",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "model.kie.kling_3_0_i2v",
+      "title": "Kling 3.0 Image to Video",
+      "category": "Models/Video",
+      "source": {
+        "kind": "kie_model",
+        "model_key": "kling-3.0-i2v",
+        "kie_spec_version": "e1e2e6d2bda7",
+        "output_media_type": "video",
+        "task_modes": [
+          "image_to_video"
+        ]
+      },
+      "fingerprint": "e1e2e6d2bda7"
+    },
+    {
+      "type": "preview.video",
+      "title": "Preview Video",
+      "category": "Preview",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.save_video",
+      "title": "Save Video",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.load_image",
+      "title": "Load Image",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.load_video",
+      "title": "Load Video",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "prompt.text",
+      "title": "Prompt Text",
+      "category": "Prompt",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "model.kie.kling_3_0_motion",
+      "title": "Kling 3.0 Motion Control",
+      "category": "Models/Video",
+      "source": {
+        "kind": "kie_model",
+        "model_key": "kling-3.0-motion",
+        "kie_spec_version": "e1e2e6d2bda7",
+        "output_media_type": "video",
+        "task_modes": [
+          "motion_control"
+        ]
+      },
+      "fingerprint": "e1e2e6d2bda7"
+    },
+    {
+      "type": "preview.video",
+      "title": "Preview Video",
+      "category": "Preview",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "media.save_video",
+      "title": "Save Video",
+      "category": "Media",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    },
+    {
+      "type": "utility.note",
+      "title": "Note",
+      "category": "Utility",
+      "source": {
+        "kind": "system"
+      },
+      "fingerprint": null
+    }
+  ],
+  "warnings": []
+}

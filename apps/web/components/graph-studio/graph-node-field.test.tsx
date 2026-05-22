@@ -242,4 +242,171 @@ describe("GraphNodeFieldControl", () => {
     const option = screen.getByRole("option", { name: "Local OpenAI (Not set up)" }) as HTMLOptionElement;
     expect(option.disabled).toBe(true);
   });
+
+  it("stores numeric range model fields as numbers", () => {
+    const onFieldChange = vi.fn();
+
+    renderWithCatalog(
+      <GraphNodeFieldControl
+        nodeId="music-node"
+        definition={{
+          type: "model.kie.suno_generate_music",
+          title: "Suno Music",
+          description: "Music model",
+          category: "Models/Audio",
+          source: { kind: "kie_model" },
+          execution: {},
+          limits: {},
+          ui: {},
+          ports: { inputs: [], outputs: [] },
+          fields: [],
+        }}
+        nodeFields={{}}
+        field={{
+          id: "style_weight",
+          label: "Style Weight",
+          type: "number_range",
+          default: 0.65,
+          min: 0,
+          max: 1,
+        }}
+        value={0.65}
+        onFieldChange={onFieldChange}
+        onSetFields={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "0.8" } });
+    expect(onFieldChange).toHaveBeenCalledWith("music-node", "style_weight", 0.8);
+  });
+
+  it("renders Markdown note fields as a safe preview after editing", () => {
+    const noteDefinition: GraphNodeDefinition = {
+      type: "utility.note",
+      title: "Note",
+      description: "Canvas note",
+      category: "Utility",
+      source: { kind: "system" },
+      execution: {},
+      limits: {},
+      ui: { markdown_preview_field: "body" },
+      ports: { inputs: [], outputs: [] },
+      fields: [{ id: "body", label: "Note", type: "textarea", default: "", placeholder: "Write notes in Markdown..." }],
+    };
+
+    render(
+      <GraphNodeFieldControl
+        nodeId="note-1"
+        definition={noteDefinition}
+        nodeFields={{ body: "## Shot plan\n\n- Use **Codex**\n- Save `final.png`\n\n<script>alert(1)</script>" }}
+        field={noteDefinition.fields[0]}
+        value={"## Shot plan\n\n- Use **Codex**\n- Save `final.png`\n\n<script>alert(1)</script>"}
+        onFieldChange={vi.fn()}
+        onSetFields={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Shot plan" })).toBeTruthy();
+    expect(screen.getByText("Codex")).toBeTruthy();
+    expect(screen.getByText("final.png")).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Note" })).toBeTruthy();
+    expect(document.querySelector("script")).toBeNull();
+
+    fireEvent.click(screen.getByRole("textbox", { name: "Note" }));
+    expect((screen.getByRole("textbox", { name: "Note" }) as HTMLTextAreaElement).value).toBe("## Shot plan\n\n- Use **Codex**\n- Save `final.png`\n\n<script>alert(1)</script>");
+  });
+
+  it("keeps Markdown links clickable without switching the note into edit mode", () => {
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const noteDefinition: GraphNodeDefinition = {
+      type: "utility.note",
+      title: "Note",
+      description: "Canvas note",
+      category: "Utility",
+      source: { kind: "system" },
+      execution: {},
+      limits: {},
+      ui: { markdown_preview_field: "body" },
+      ports: { inputs: [], outputs: [] },
+      fields: [{ id: "body", label: "Note", type: "textarea", default: "", placeholder: "Write notes in Markdown..." }],
+    };
+
+    render(
+      <GraphNodeFieldControl
+        nodeId="note-1"
+        definition={noteDefinition}
+        nodeFields={{ body: "[Model docs](https://docs.example.test/model)" }}
+        field={noteDefinition.fields[0]}
+        value={"[Model docs](https://docs.example.test/model)"}
+        onFieldChange={vi.fn()}
+        onSetFields={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Model docs" }));
+
+    expect(openSpy).toHaveBeenCalledWith("https://docs.example.test/model", "_blank", "noopener,noreferrer");
+    expect(screen.getByRole("link", { name: "Model docs" })).toBeTruthy();
+    expect(document.querySelector("textarea")).toBeNull();
+    openSpy.mockRestore();
+  });
+
+  it("preserves the cursor when editing Markdown note text in the middle", () => {
+    const noteDefinition: GraphNodeDefinition = {
+      type: "utility.note",
+      title: "Note",
+      description: "Canvas note",
+      category: "Utility",
+      source: { kind: "system" },
+      execution: {},
+      limits: {},
+      ui: { markdown_preview_field: "body" },
+      ports: { inputs: [], outputs: [] },
+      fields: [{ id: "body", label: "Note", type: "textarea", default: "", placeholder: "Write notes in Markdown..." }],
+    };
+    const onFieldChange = vi.fn();
+    const original = "First line\nSecond line\nThird line";
+    const next = "First edited line\nSecond line\nThird line";
+    const { rerender } = render(
+      <GraphNodeFieldControl
+        nodeId="note-1"
+        definition={noteDefinition}
+        nodeFields={{ body: original }}
+        field={noteDefinition.fields[0]}
+        value={original}
+        onFieldChange={onFieldChange}
+        onSetFields={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("textbox", { name: "Note" }));
+    const textarea = screen.getByRole("textbox", { name: "Note" }) as HTMLTextAreaElement;
+    textarea.focus();
+    textarea.setSelectionRange("First edited".length, "First edited".length);
+    fireEvent.change(textarea, {
+      target: {
+        value: next,
+        selectionStart: "First edited".length,
+        selectionEnd: "First edited".length,
+      },
+    });
+
+    expect(onFieldChange).toHaveBeenCalledWith("note-1", "body", next);
+
+    rerender(
+      <GraphNodeFieldControl
+        nodeId="note-1"
+        definition={noteDefinition}
+        nodeFields={{ body: next }}
+        field={noteDefinition.fields[0]}
+        value={next}
+        onFieldChange={onFieldChange}
+        onSetFields={vi.fn()}
+      />,
+    );
+
+    const updatedTextarea = screen.getByRole("textbox", { name: "Note" }) as HTMLTextAreaElement;
+    expect(updatedTextarea.selectionStart).toBe("First edited".length);
+    expect(updatedTextarea.selectionEnd).toBe("First edited".length);
+  });
 });

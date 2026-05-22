@@ -62,8 +62,20 @@ export { toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-pa
 
 // Keep raw control-plane payload looseness localized at this boundary and
 // normalize everything else into typed app-facing records below.
-type ControlApiRawRecord = Record<string, any>;
+type ControlApiRawRecord = Record<string, unknown>;
 type ControlApiRawList = ControlApiRawRecord[];
+
+function isControlApiRawRecord(value: unknown): value is ControlApiRawRecord {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function toControlApiRawRecord(value: unknown): ControlApiRawRecord {
+  return isControlApiRawRecord(value) ? value : {};
+}
+
+function toControlApiRawList(value: unknown): ControlApiRawList {
+  return Array.isArray(value) ? value.filter(isControlApiRawRecord) : [];
+}
 
 export const CONTROL_API_BASE_URL =
   process.env.NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL ||
@@ -195,8 +207,9 @@ export async function getControlApiFile(pathSegments: string[]) {
 }
 
 function deriveInputPatterns(model: ControlApiRawRecord): string[] {
-  const promptSpec = model.raw?.prompt;
-  const dynamicPatterns = Object.keys(promptSpec?.default_profile_keys_by_input_pattern ?? {}).filter(Boolean);
+  const raw = toControlApiRawRecord(model.raw);
+  const promptSpec = toControlApiRawRecord(raw.prompt);
+  const dynamicPatterns = Object.keys(toControlApiRawRecord(promptSpec.default_profile_keys_by_input_pattern)).filter(Boolean);
   if (dynamicPatterns.length) {
     return dynamicPatterns;
   }
@@ -219,16 +232,17 @@ function deriveGenerationKind(model: ControlApiRawRecord) {
 }
 
 export function mapModelRecord(model: ControlApiRawRecord): MediaModelSummary {
-  const raw = model.raw ?? {};
+  const raw = toControlApiRawRecord(model.raw);
+  const rawInputs = toControlApiRawRecord(raw.inputs);
   const dynamicOptions = Array.isArray(model.studio_dynamic_options) ? model.studio_dynamic_options : [];
   const mappedModel: MediaModelSummary = {
     key: model.key,
     label: model.label,
     provider_model: model.provider_model,
     task_modes: model.task_modes ?? [],
-    image_inputs: raw.inputs?.image ?? null,
-    video_inputs: raw.inputs?.video ?? null,
-    audio_inputs: raw.inputs?.audio ?? null,
+    image_inputs: rawInputs.image ?? null,
+    video_inputs: rawInputs.video ?? null,
+    audio_inputs: rawInputs.audio ?? null,
     input_constraints: raw.input_constraints ?? null,
     options: raw.options ?? null,
     prompt: raw.prompt ?? null,
@@ -254,7 +268,7 @@ export function mapModelRecord(model: ControlApiRawRecord): MediaModelSummary {
     studio_dynamic_options: dynamicOptions,
     studio_exposed: typeof model.studio_exposed === "boolean" ? model.studio_exposed : undefined,
     kie_spec_version: model.kie_spec_version ?? null,
-  };
+  } as unknown as MediaModelSummary;
 
   if (mappedModel.studio_support_status && typeof mappedModel.studio_exposed === "boolean") {
     return mappedModel;
@@ -270,7 +284,7 @@ export function mapModelRecord(model: ControlApiRawRecord): MediaModelSummary {
     studio_support_summary: support.supportSummary,
     studio_unsupported_option_keys: support.unsupportedOptionKeys,
     studio_exposed: support.exposed,
-  };
+  } as MediaModelSummary;
 }
 
 export function mapPresetRecord(preset: ControlApiRawRecord): MediaPreset {
@@ -308,7 +322,7 @@ export function mapPresetRecord(preset: ControlApiRawRecord): MediaPreset {
     priority: Number(preset.priority ?? 100),
     created_at: preset.created_at ?? null,
     updated_at: preset.updated_at ?? null,
-  };
+  } as MediaPreset;
 }
 
 export function mapPromptRecipeRecord(recipe: ControlApiRawRecord): PromptRecipe {
@@ -353,7 +367,7 @@ export function mapPromptRecipeRecord(recipe: ControlApiRawRecord): PromptRecipe
     priority: Number(recipe.priority ?? 0),
     created_at: recipe.created_at ?? null,
     updated_at: recipe.updated_at ?? null,
-  };
+  } as PromptRecipe;
 }
 
 export function mapPromptRecipeDraftPayload(recipe: ControlApiRawRecord): PromptRecipeDraftPayload {
@@ -395,7 +409,7 @@ export function mapPromptRecipeDraftPayload(recipe: ControlApiRawRecord): Prompt
     source_kind: recipe.source_kind ?? "custom",
     version: recipe.version ?? "1",
     priority: Number(recipe.priority ?? 0),
-  };
+  } as PromptRecipeDraftPayload;
 }
 
 export function mapPromptRecipeDraftingConfigRecord(config: ControlApiRawRecord): PromptRecipeDraftingConfig {
@@ -415,7 +429,7 @@ export function mapPromptRecipeDraftingConfigRecord(config: ControlApiRawRecord)
     max_tokens: Number(config.max_tokens ?? 1800),
     created_at: config.created_at ?? null,
     updated_at: config.updated_at ?? null,
-  };
+  } as PromptRecipeDraftingConfig;
 }
 
 export function mapExternalLlmUsageRecord(record: ControlApiRawRecord): ExternalLlmUsageRecord {
@@ -442,7 +456,7 @@ export function mapExternalLlmUsageRecord(record: ControlApiRawRecord): External
     metadata_json: record.metadata_json ?? {},
     created_at: record.created_at ?? null,
     updated_at: record.updated_at ?? null,
-  };
+  } as ExternalLlmUsageRecord;
 }
 
 export function mapExternalLlmUsageSummaryRecord(payload: ControlApiRawRecord): ExternalLlmUsageSummary {
@@ -467,7 +481,7 @@ export function mapExternalLlmUsageSummaryRecord(payload: ControlApiRawRecord): 
     last_30d: mapTotals(payload.last_30d),
     lifetime: mapTotals(payload.lifetime),
     generated_at: payload.generated_at ?? null,
-  };
+  } as ExternalLlmUsageSummary;
 }
 
 export function mapPromptRecord(prompt: ControlApiRawRecord): MediaSystemPrompt {
@@ -485,7 +499,7 @@ export function mapPromptRecord(prompt: ControlApiRawRecord): MediaSystemPrompt 
     notes: null,
     created_at: prompt.created_at ?? null,
     updated_at: prompt.updated_at ?? null,
-  };
+  } as MediaSystemPrompt;
 }
 
 export function mapReferenceMediaRecord(reference: ControlApiRawRecord): MediaReference {
@@ -517,7 +531,7 @@ export function mapReferenceMediaRecord(reference: ControlApiRawRecord): MediaRe
     metadata: reference.metadata_json ?? {},
     created_at: reference.created_at ?? null,
     updated_at: reference.updated_at ?? null,
-  };
+  } as MediaReference;
 }
 
 export function mapEnhancementConfigRecord(config: ControlApiRawRecord): MediaEnhancementConfig {
@@ -544,7 +558,7 @@ export function mapEnhancementConfigRecord(config: ControlApiRawRecord): MediaEn
     notes: config.notes ?? null,
     created_at: config.created_at ?? null,
     updated_at: config.updated_at ?? null,
-  };
+  } as MediaEnhancementConfig;
 }
 
 function asProxyUrl(pathValue: unknown) {
@@ -555,10 +569,11 @@ function asProxyUrl(pathValue: unknown) {
 }
 
 export function mapJobRecord(job: ControlApiRawRecord): MediaJob {
-  const artifact = job.artifact_json
+  const artifactRecord = toControlApiRawRecord(job.artifact_json);
+  const artifact = Object.keys(artifactRecord).length
     ? {
-        run_id: job.artifact_json.run_id ?? null,
-        run_dir: job.artifact_json.run_dir ?? null,
+        run_id: artifactRecord.run_id ?? null,
+        run_dir: artifactRecord.run_dir ?? null,
         hero_original_path: job.hero_original_path ?? null,
         hero_web_path: job.hero_web_path ?? null,
         hero_thumb_path: job.hero_thumb_path ?? null,
@@ -603,7 +618,7 @@ export function mapJobRecord(job: ControlApiRawRecord): MediaJob {
     error: job.error ?? null,
     artifact,
     final_status: job.final_status_json ?? null,
-  };
+  } as MediaJob;
 }
 
 export function mapAssetRecord(asset: ControlApiRawRecord): MediaAsset {
@@ -623,6 +638,7 @@ export function mapAssetRecord(asset: ControlApiRawRecord): MediaAsset {
 }
 
 export function mapBatchRecord(batch: ControlApiRawRecord, jobs: MediaJob[]): MediaBatch {
+  const requestSummary = toControlApiRawRecord(batch.request_summary_json);
   return {
     batch_id: String(batch.batch_id),
     status: String(batch.status),
@@ -640,14 +656,14 @@ export function mapBatchRecord(batch: ControlApiRawRecord, jobs: MediaJob[]): Me
     resolved_preset_key: batch.resolved_preset_key ?? null,
     preset_source: batch.preset_source ?? null,
     request_summary: {
-      ...(batch.request_summary_json ?? {}),
-      prompt_summary: batch.request_summary_json?.prompt ?? batch.request_summary_json?.prompt_summary ?? null,
+      ...requestSummary,
+      prompt_summary: requestSummary.prompt ?? requestSummary.prompt_summary ?? null,
     },
     jobs: jobs.filter((job) => job.batch_id === batch.batch_id),
     created_at: String(batch.created_at),
     updated_at: String(batch.updated_at),
     finished_at: batch.finished_at ?? null,
-  };
+  } as unknown as MediaBatch;
 }
 
 export function mapProjectRecord(project: ControlApiRawRecord): MediaProject {
@@ -663,7 +679,7 @@ export function mapProjectRecord(project: ControlApiRawRecord): MediaProject {
     cover_thumb_url: project.cover_thumb_url ? asProxyUrl(project.cover_thumb_url) : null,
     created_at: project.created_at ?? null,
     updated_at: project.updated_at ?? null,
-  };
+  } as MediaProject;
 }
 
 export function mapQueueSettingsRecord(settings: ControlApiRawRecord): MediaQueueSettings {
@@ -674,7 +690,7 @@ export function mapQueueSettingsRecord(settings: ControlApiRawRecord): MediaQueu
     max_retry_attempts: settings.max_retry_attempts,
     created_at: settings.updated_at ?? null,
     updated_at: settings.updated_at ?? null,
-  };
+  } as MediaQueueSettings;
 }
 
 export function mapQueuePolicyRecord(policy: ControlApiRawRecord): MediaModelQueuePolicy {
@@ -684,26 +700,29 @@ export function mapQueuePolicyRecord(policy: ControlApiRawRecord): MediaModelQue
     max_outputs_per_run: policy.max_outputs_per_run,
     created_at: policy.updated_at ?? null,
     updated_at: policy.updated_at ?? null,
-  };
+  } as MediaModelQueuePolicy;
 }
 
 export function mapValidationResponseRecord(payload: ControlApiRawRecord): MediaValidationResponse {
+  const validation = toControlApiRawRecord(payload.validation);
+  const promptContext = toControlApiRawRecord(payload.prompt_context);
+  const preflight = toControlApiRawRecord(payload.preflight);
   return {
     ok: true,
-    state: payload.validation?.state ?? "unknown",
-    normalized_request: payload.validation?.normalized_request ?? null,
-    prompt_context: payload.prompt_context ?? null,
-    preset_source: payload.prompt_context?.resolution_source ?? undefined,
-    selected_system_prompts: payload.prompt_context?.selected_system_prompts ?? [],
-    resolved_system_prompt: payload.prompt_context ?? null,
+    state: validation.state ?? "unknown",
+    normalized_request: validation.normalized_request ?? null,
+    prompt_context: Object.keys(promptContext).length ? promptContext : null,
+    preset_source: promptContext.resolution_source ?? undefined,
+    selected_system_prompts: promptContext.selected_system_prompts ?? [],
+    resolved_system_prompt: Object.keys(promptContext).length ? promptContext : null,
     resolved_options: payload.resolved_options ?? {},
     dynamic_options: {},
     compatibility: {},
-    validation: payload.validation ?? null,
-    preflight: payload.preflight ?? null,
-    pricing_summary: payload.pricing_summary ?? payload.preflight?.pricing_summary ?? null,
-    warnings: payload.warnings ?? payload.preflight?.warnings ?? [],
-  };
+    validation: Object.keys(validation).length ? validation : null,
+    preflight: Object.keys(preflight).length ? preflight : null,
+    pricing_summary: payload.pricing_summary ?? preflight.pricing_summary ?? null,
+    warnings: payload.warnings ?? preflight.warnings ?? [],
+  } as MediaValidationResponse;
 }
 
 export function mapPricingResponseRecord(payload: ControlApiRawRecord): MediaPricingResponse {
@@ -730,18 +749,22 @@ export function mapPricingResponseRecord(payload: ControlApiRawRecord): MediaPri
       ? payload.unmapped_source_rows.filter((entry: unknown): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object" && !Array.isArray(entry))
       : [],
     snapshot: payload,
-  };
+  } as MediaPricingResponse;
 }
 
 export function mapEnhancePreviewResponseRecord(payload: ControlApiRawRecord): MediaEnhancePreviewResponse {
+  const validation = toControlApiRawRecord(payload.validation);
+  const promptContext = toControlApiRawRecord(payload.prompt_context);
+  const preflight = toControlApiRawRecord(payload.preflight);
+  const enhancementConfig = toControlApiRawRecord(payload.enhancement_config);
   return {
     ok: true,
-    raw_prompt: payload.raw_prompt ?? payload.prompt_context?.raw_prompt ?? "",
-    normalized_request: payload.validation?.normalized_request ?? null,
-    prompt_context: payload.prompt_context ?? null,
-    preset_source: payload.prompt_context?.resolution_source ?? undefined,
-    selected_system_prompts: payload.prompt_context?.selected_system_prompts ?? [],
-    resolved_system_prompt: payload.prompt_context ?? null,
+    raw_prompt: payload.raw_prompt ?? promptContext.raw_prompt ?? "",
+    normalized_request: validation.normalized_request ?? null,
+    prompt_context: Object.keys(promptContext).length ? promptContext : null,
+    preset_source: promptContext.resolution_source ?? undefined,
+    selected_system_prompts: promptContext.selected_system_prompts ?? [],
+    resolved_system_prompt: Object.keys(promptContext).length ? promptContext : null,
     resolved_options: payload.resolved_options ?? {},
     enhancement_config: payload.enhancement_config ?? null,
     helper_capabilities: payload.helper_capabilities ?? null,
@@ -750,12 +773,12 @@ export function mapEnhancePreviewResponseRecord(payload: ControlApiRawRecord): M
     final_prompt_used: payload.final_prompt_used ?? null,
     warnings: payload.warnings ?? [],
     compatibility: {},
-    validation: payload.validation ?? null,
-    preflight: payload.preflight ?? null,
-    provider_kind: payload.provider_kind ?? payload.enhancement_config?.provider_kind ?? null,
-    provider_label: payload.provider_label ?? payload.enhancement_config?.provider_label ?? null,
-    provider_model_id: payload.provider_model_id ?? payload.enhancement_config?.provider_model_id ?? null,
-  };
+    validation: Object.keys(validation).length ? validation : null,
+    preflight: Object.keys(preflight).length ? preflight : null,
+    provider_kind: payload.provider_kind ?? enhancementConfig.provider_kind ?? null,
+    provider_label: payload.provider_label ?? enhancementConfig.provider_label ?? null,
+    provider_model_id: payload.provider_model_id ?? enhancementConfig.provider_model_id ?? null,
+  } as MediaEnhancePreviewResponse;
 }
 
 export async function getControlPlaneSnapshot() {

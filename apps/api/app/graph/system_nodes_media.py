@@ -78,6 +78,15 @@ def _save_audio_fields() -> List[GraphNodeField]:
     ]
 
 
+def _save_music_track_fields() -> List[GraphNodeField]:
+    return [
+        GraphNodeField(id="project_id", label="Group", type="select", required=False, options=_project_options(), help_text="Optional Media Studio group/project for the saved music track."),
+        GraphNodeField(id="filename_prefix", label="Filename Prefix", type="text", required=False, default="graph-music", hidden=True),
+        GraphNodeField(id="include_metadata", label="Include Metadata", type="boolean", required=False, default=True, advanced=True, hidden=True),
+        GraphNodeField(id="label", label="Label", type="text", required=False, hidden=True),
+    ]
+
+
 def media_node_definitions() -> List[GraphNodeDefinition]:
     return [
         GraphNodeDefinition(
@@ -209,12 +218,32 @@ def media_node_definitions() -> List[GraphNodeDefinition]:
             tags=["media", "audio", "output"],
             source={"kind": "system"},
             execution={"executor": "media.save_audio", "mode": "sync", "cacheable": False, "output_node": True},
-            limits={"max_inputs": 1, "media_types": ["audio"]},
+            limits={"max_inputs": 10, "media_types": ["audio"]},
             ui={"default_size": {"width": 300, "height": 260}, "accent": "yellow", "icon": "save"},
             ports={
-                "inputs": [GraphNodePort(id="audio", label="Audio", type="audio", required=True, min=1, max=1, accepts=["audio"])],
+                "inputs": [GraphNodePort(id="audio", label="Audio", type="audio", array=True, required=True, min=1, max=10, accepts=["audio"])],
                 "outputs": [GraphNodePort(id="asset", label="Asset", type="asset")],
             },
             fields=_save_audio_fields(),
+        ),
+        GraphNodeDefinition(
+            type="media.save_music_track",
+            title="Save Music Track",
+            description="Save one generated music track as a Studio audio asset with its cover artwork.",
+            category="Media",
+            search_aliases=["save", "output", "asset", "audio", "music", "song", "suno", "track"],
+            tags=["media", "audio", "music", "output"],
+            source={"kind": "system"},
+            execution={"executor": "media.save_music_track", "mode": "sync", "cacheable": False, "output_node": True},
+            limits={"max_inputs": 1, "media_types": ["music_track"], "output_contract": {"kind": "music_track"}},
+            ui={"default_size": {"width": 340, "height": 340}, "accent": "yellow", "icon": "audio", "preview": True},
+            ports={
+                "inputs": [GraphNodePort(id="track", label="Music Track", type="music_track", required=True, min=1, max=1, accepts=["music_track"])],
+                "outputs": [
+                    GraphNodePort(id="asset", label="Asset", type="asset"),
+                    GraphNodePort(id="audio", label="Audio", type="audio"),
+                ],
+            },
+            fields=_save_music_track_fields(),
         ),
     ]

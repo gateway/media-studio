@@ -2778,6 +2778,70 @@ def test_finalize_job_is_idempotent_after_artifact_publish(client, app_modules, 
     assert store.get_job(job["job_id"])["artifact_json"]
 
 
+def test_finalize_suno_job_publishes_audio_tracks_with_cover_art(client, app_modules, monkeypatch) -> None:
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "suno-generate-music",
+            "task_mode": "text_to_music",
+            "prompt": "Instrumental deep house meets drum and bass techno.",
+            "output_count": 1,
+            "options": {"suno_model": "V5", "instrumental": True},
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    job = submit_response.json()["jobs"][0]
+    store = app_modules["store"]
+    runner = app_modules["runner"].runner
+
+    store.update_job(job["job_id"], {"provider_task_id": "task-suno-multi-123", "status": "running"})
+
+    def _fake_download(source_url: str, destination: str) -> None:
+        if source_url.endswith(".mp3"):
+            Path(destination).write_bytes(b"ID3\x04\x00\x00\x00\x00\x00\x21test audio")
+            return
+        Path(destination).write_bytes(
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+            b"\x00\x00\x00\x0cIDAT\x08\x99c```\x00\x00\x00\x04\x00\x01\xf6\x178U\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+
+    monkeypatch.setattr(app_modules["runner"].kie_adapter, "download_output_file", _fake_download)
+
+    status = {
+        "state": "succeeded",
+        "output_urls": ["https://example.com/song-a.mp3", "https://example.com/song-b.mp3"],
+        "raw_response": {
+            "suno_output_metadata": [
+                {
+                    "audio_url": "https://example.com/song-a.mp3",
+                    "image_url": "https://example.com/cover-a.png",
+                    "title": "First track",
+                },
+                {
+                    "audio_url": "https://example.com/song-b.mp3",
+                    "image_url": "https://example.com/cover-b.png",
+                    "title": "Second track",
+                },
+                {"image_url": "https://example.com/cover-shared.png", "title": "Shared cover"},
+            ]
+        },
+    }
+    updated = runner._finalize_job_from_status(store.get_job(job["job_id"]), status)
+
+    assert updated["status"] == "completed"
+    assets = store.get_assets_by_job_id(job["job_id"])
+    assert [asset["generation_kind"] for asset in assets].count("audio") == 2
+    assert [asset["generation_kind"] for asset in assets].count("image") == 0
+    for asset in assets:
+        assert asset["hero_thumb_path"]
+        assert asset["hero_poster_path"]
+        assert any(output.get("role") == "cover_image" for output in asset["payload_json"]["outputs"])
+    assert store.deduplicate_assets_by_job_id() == 0
+    events = [event for event in store.list_job_events(job["job_id"]) if event["event_type"] == "completed"]
+    assert events[-1]["payload_json"]["audio_asset_ids"]
+    assert events[-1]["payload_json"]["associated_cover_count"] == 2
+
+
 def test_finalize_job_marks_failed_when_artifact_publish_fails(client, app_modules, monkeypatch) -> None:
     submit_response = client.post(
         "/media/jobs",

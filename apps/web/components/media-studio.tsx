@@ -7,10 +7,8 @@ import {
   Check,
   Coins,
   Clapperboard,
-  Copy,
   FolderPlus,
   Image as ImageIcon,
-  ImagePlus,
   LoaderCircle,
   type LucideIcon,
   Monitor,
@@ -21,9 +19,14 @@ import {
 } from "lucide-react";
 
 import { useGlobalActivity } from "@/components/global-activity";
-import { MediaModelsConsole } from "@/components/media-models-console";
-import { Panel, PanelHeader } from "@/components/panel";
-import { StatusPill } from "@/components/status-pill";
+import { StudioContextPanels } from "@/components/studio/studio-context-panels";
+import {
+  StudioMobileInputsContent,
+  StudioMultiImageReferenceStrip,
+  StudioSeedanceReferenceStrip,
+  StudioSourceAttachmentStrip,
+} from "@/components/studio/studio-composer-input-strips";
+import { StudioCreateStage } from "@/components/studio/studio-create-stage";
 import { StudioGallery } from "@/components/studio/studio-gallery";
 import { StudioFailedJobInspector } from "@/components/studio/studio-failed-job-inspector";
 import { StudioHeaderChrome } from "@/components/studio/studio-header-chrome";
@@ -31,20 +34,24 @@ import { StudioEnhanceDialog } from "@/components/studio/studio-enhance-dialog";
 import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
 import { StudioAssetInspector } from "@/components/studio/studio-asset-inspector";
-import { StudioMediaSlotAddTile, studioMediaSlotAddTileIcon } from "@/components/studio/studio-media-slot-add-tile";
-import { StudioMobileInputsGroup, StudioMobileInputsSection } from "@/components/studio/studio-mobile-inputs-section";
 import { StudioComposer } from "@/components/studio/studio-composer";
+import { StudioComposerControls } from "@/components/studio/studio-composer-controls";
 import { StudioMetricPill } from "@/components/studio/studio-metric-pill";
 import { StudioPresetBrowser } from "@/components/studio/studio-preset-browser";
+import { StudioPromptComposerBody } from "@/components/studio/studio-prompt-composer-body";
 import { StudioReferenceLibrary } from "@/components/studio/studio-reference-library";
-import { restoreComposerFromPlan as restoreStudioComposerFromPlan } from "@/components/studio/studio-composer-restore";
-import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
-import { StudioStandardSlotRail } from "@/components/studio/studio-standard-slot-rail";
+import { StudioSettingsModal } from "@/components/studio/studio-settings-modal";
+import { StudioStructuredPresetComposer } from "@/components/studio/studio-structured-preset-composer";
+import { useStudioTestHarness } from "@/components/studio/studio-test-harness";
 import { StudioProjectBrowser } from "@/components/studio/studio-project-browser";
-import { PillSelect } from "@/components/ui/pill-select";
+import { useStudioAssetActions } from "@/hooks/studio/use-studio-asset-actions";
 import { useStudioComposer } from "@/hooks/studio/use-studio-composer";
 import { useStudioGalleryFeed } from "@/hooks/studio/use-studio-gallery-feed";
+import { useStudioInspectorState } from "@/hooks/studio/use-studio-inspector-state";
 import { useStudioPolling } from "@/hooks/studio/use-studio-polling";
+import { useStudioProjectWorkspace } from "@/hooks/studio/use-studio-project-workspace";
+import { useStudioReferenceLibrary } from "@/hooks/studio/use-studio-reference-library";
+import { useStudioRestoreCoordination } from "@/hooks/studio/use-studio-restore-coordination";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
 import {
   type AssetPagePayload,
@@ -66,33 +73,18 @@ import {
 import {
   applyPromptReferenceMention,
   batchPhaseMessage,
-  buildStudioJobPrimaryInput,
-  buildStudioJobReferenceInputs,
-  buildStudioRetryRestorePlan,
-  buildStudioReferencePreviews,
-  buildChoiceList,
   classifyFile,
-  displayChoiceLabel,
-  displayOptionControlLabel,
   detectPromptReferenceMention,
-  getMobileShareBlob,
   HIDDEN_STUDIO_OPTION_KEYS,
-  inferBlobMimeType,
   inferInputPattern,
   isCoarsePointerDevice,
-  isImageMimeType,
-  isLikelyMobileSaveDevice,
   isMobileDownloadDevice,
   isRecord,
   mediaDisplayUrl,
-  mediaDownloadName,
-  mediaDownloadUrl,
-  mediaInlineUrl,
   mediaPlaybackUrl,
   mediaPreviewUrl,
   mediaThumbnailUrl,
   mediaVariantUrl,
-  mobileSaveActionLabel,
   modelInputLimit,
   resolveImageToVideoAnimationModel,
   MULTI_SHOT_MODEL_KEYS,
@@ -101,20 +93,14 @@ import {
   optionBooleanValue,
   optionChoices,
   optionEntries,
-  optionIcon,
-  orderedImageInputKey,
   orderedImageInputVisual,
   parseMultiShotScript,
-  parseOptionChoice,
-  pickerWidth,
   prefetchAssetThumbs,
   PresetSlotState,
   presetThumbnailVisual,
   prettifyModelLabel,
   renderStructuredPresetPrompt,
-  replaceFileExtension,
   sanitizeStudioOptions,
-  serializeOptionChoice,
   type StudioComposerSlot,
   studioValidationReady,
   StructuredPresetImageSlot,
@@ -138,49 +124,17 @@ import type {
   MediaEnhancePreviewResponse,
   MediaJob,
   MediaModelSummary,
-  MediaProject,
-  MediaReference,
   MediaValidationResponse,
 } from "@/lib/types";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import { installStudioDebugConsole, studioDebug } from "@/lib/studio-debug";
-import { readStudioComposerDraft } from "@/lib/studio-composer-draft";
+import {
+  buildAssetReferencePreview,
+  buildAttachmentPreview,
+  orderedImageInputPreview,
+} from "@/lib/studio-reference-previews";
 import { resolveStudioShortcutAction } from "@/lib/studio-shortcuts";
-import { cn, formatDateTime, truncate } from "@/lib/utils";
-
-declare global {
-  interface Window {
-    __mediaStudioTest?: {
-      composer?: {
-        setModel: (modelKey: string) => void;
-      };
-      gallery?: {
-        seedAssets: (assets: MediaAsset[]) => void;
-        openLightbox: (assetId: string | number) => void;
-      };
-      library?: {
-        open: () => void;
-      };
-      failedJob?: {
-        seedAndOpen: (job: MediaJob, batch?: MediaBatch | null) => void;
-      };
-      assetInspector?: {
-        seedAndOpen: (payload: {
-          asset: MediaAsset;
-          job?: MediaJob | null;
-          batch?: MediaBatch | null;
-          assets?: MediaAsset[];
-          jobs?: MediaJob[];
-        }) => void;
-      };
-      enhancement?: {
-        openDialog: () => void;
-        requestPreview: () => Promise<void>;
-        usePrompt: () => boolean;
-      };
-    };
-  }
-}
+import { cn } from "@/lib/utils";
 
 function composerModelLabel(label: string | null | undefined) {
   if (!label) return "Model";
@@ -211,12 +165,6 @@ function composerModelChoice(model: MediaModelSummary) {
   };
 }
 
-type ReferenceLibraryTarget =
-  | { type: "browse"; title: string }
-  | { type: "attachment"; title: string; role?: "first_frame" | "last_frame" | "reference" | null; allowedKinds?: AttachmentRecord["kind"][] }
-  | { type: "standard-slot"; title: string; slotIndex: number; label: string; allowedKinds?: AttachmentRecord["kind"][] }
-  | { type: "preset-slot"; title: string; slotKey: string };
-
 export function MediaStudio({
   apiHealthy,
   models,
@@ -241,7 +189,6 @@ export function MediaStudio({
   immersive = false,
   closeHref = "/media",
 }: MediaStudioProps) {
-  const initialComposerDraftRef = useRef(readStudioComposerDraft());
   const router = useRouter();
   const pathname = usePathname();
   const { showActivity } = useGlobalActivity();
@@ -252,23 +199,15 @@ export function MediaStudio({
   const [presetBrowserOpen, setPresetBrowserOpen] = useState(false);
   const [projectBrowserOpen, setProjectBrowserOpen] = useState(false);
   const [formMessage, setFormMessage] = useState<ComposerStatusMessage | null>(null);
-  const [copyPromptStatus, setCopyPromptStatus] = useState<"idle" | "copied" | "error">("idle");
   const [selectedFailedJobId, setSelectedFailedJobId] = useState<string | null>(null);
-  const [selectedReferencePreview, setSelectedReferencePreview] = useState<StudioReferencePreview | null>(null);
-  const [referenceLibraryTarget, setReferenceLibraryTarget] = useState<ReferenceLibraryTarget | null>(null);
   const [promptCursorIndex, setPromptCursorIndex] = useState<number | null>(null);
   const [promptHasFocus, setPromptHasFocus] = useState(false);
   const [promptReferenceDismissed, setPromptReferenceDismissed] = useState(false);
   const [promptReferenceActiveIndex, setPromptReferenceActiveIndex] = useState(0);
   const [pendingGalleryStep, setPendingGalleryStep] = useState<"next" | null>(null);
-  const [localProjects, setLocalProjects] = useState<MediaProject[]>(projects);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialSelectedProjectId);
-  const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(
-    initialComposerDraftRef.current?.sourceAssetId ?? null,
-  );
+  const [sourceAssetId, setSourceAssetId] = useState<string | number | null>(null);
   const composerShellRef = useRef<HTMLDivElement | null>(null);
   const lastComposerDebugSignatureRef = useRef<string | null>(null);
-  const copyPromptStatusTimerRef = useRef<number | null>(null);
   const settleRefreshTimerRef = useRef<number | null>(null);
   const settleRefreshPendingRef = useRef(false);
   const pollJobProxyRef = useRef<(jobId: string) => Promise<void>>(async () => {});
@@ -291,19 +230,28 @@ export function MediaStudio({
     () => new Map(models.map((model) => [model.key, composerModelIcon(model)])),
     [models],
   );
-  const selectedProject = useMemo(
-    () => localProjects.find((project) => project.project_id === selectedProjectId) ?? null,
-    [localProjects, selectedProjectId],
-  );
+  const {
+    localProjects,
+    selectedProjectId,
+    selectedProject,
+    setLocalProjects,
+    setSelectedProjectId,
+    studioHrefForProject,
+    openProjectWorkspace,
+    createProjectInStudio,
+    updateProjectInStudio,
+    archiveProjectInStudio,
+    unarchiveProjectInStudio,
+    deleteProjectInStudio,
+  } = useStudioProjectWorkspace({
+    projects,
+    initialSelectedProjectId,
+    onBeforeProjectChange: clearGallerySelection,
+    onCloseProjectBrowser: () => setProjectBrowserOpen(false),
+  });
   useEffect(() => {
     setLocalRemainingCredits(remainingCredits ?? null);
   }, [remainingCredits]);
-  useEffect(() => {
-    setLocalProjects(projects);
-  }, [projects]);
-  useEffect(() => {
-    setSelectedProjectId(initialSelectedProjectId);
-  }, [initialSelectedProjectId]);
 
   const refreshCreditBalance = useCallback(async () => {
     try {
@@ -353,132 +301,8 @@ export function MediaStudio({
     }, 1400);
   }, [refreshRoute]);
 
-  function studioHrefForProject(projectId: string | null, assetId?: string | number | null) {
-    const params = new URLSearchParams();
-    if (assetId != null) {
-      params.set("asset", String(assetId));
-    }
-    const baseHref = buildStudioScopedHref(pathname, projectId);
-    if (!params.size) {
-      return baseHref;
-    }
-    const separator = baseHref.includes("?") ? "&" : "?";
-    return `${baseHref}${separator}${params.toString()}`;
-  }
-
-  function openProjectWorkspace(projectId: string | null) {
-    clearGallerySelection();
-    setProjectBrowserOpen(false);
-    setSelectedProjectId(projectId);
-    void router.push(studioHrefForProject(projectId, null));
-  }
-
-  async function createProjectInStudio(draft: {
-    name: string;
-    description: string;
-    hiddenFromGlobalGallery?: boolean;
-    coverAssetId?: string | null;
-    coverReferenceId?: string | null;
-  }) {
-    const response = await fetch("/api/control/media/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        name: draft.name,
-        description: draft.description,
-        hidden_from_global_gallery: Boolean(draft.hiddenFromGlobalGallery),
-        ...(draft.coverAssetId !== undefined ? { cover_asset_id: draft.coverAssetId } : {}),
-        ...(draft.coverReferenceId !== undefined ? { cover_reference_id: draft.coverReferenceId } : {}),
-      }),
-    });
-    const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
-    if (!response.ok || !payload.project) {
-      throw new Error(payload.error ?? payload.detail ?? "Unable to create the project.");
-    }
-    setLocalProjects((current) => [payload.project as MediaProject, ...current.filter((item) => item.project_id !== payload.project?.project_id)]);
-    openProjectWorkspace(String(payload.project.project_id));
-  }
-
-  async function updateProjectInStudio(projectId: string, draft: {
-    name: string;
-    description: string;
-    hiddenFromGlobalGallery?: boolean;
-    coverAssetId?: string | null;
-    coverReferenceId?: string | null;
-  }) {
-    const response = await fetch(`/api/control/media/projects/${projectId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        name: draft.name,
-        description: draft.description,
-        hidden_from_global_gallery: Boolean(draft.hiddenFromGlobalGallery),
-        ...(draft.coverAssetId !== undefined ? { cover_asset_id: draft.coverAssetId } : {}),
-        ...(draft.coverReferenceId !== undefined ? { cover_reference_id: draft.coverReferenceId } : {}),
-      }),
-    });
-    const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
-    if (!response.ok || !payload.project) {
-      throw new Error(payload.error ?? payload.detail ?? "Unable to update the project.");
-    }
-    setLocalProjects((current) =>
-      current.map((item) => (item.project_id === projectId ? (payload.project as MediaProject) : item)),
-    );
-  }
-
-  async function archiveProjectInStudio(projectId: string) {
-    const response = await fetch(`/api/control/media/projects/${projectId}/archive`, {
-      method: "POST",
-      headers: { Accept: "application/json" },
-    });
-    const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
-    if (!response.ok || !payload.project) {
-      throw new Error(payload.error ?? payload.detail ?? "Unable to archive the project.");
-    }
-    setLocalProjects((current) =>
-      current.map((item) =>
-        item.project_id === projectId ? (payload.project as MediaProject) : item,
-      ),
-    );
-    if (selectedProjectId === projectId) {
-      openProjectWorkspace(null);
-    }
-  }
-
-  async function unarchiveProjectInStudio(projectId: string) {
-    const response = await fetch(`/api/control/media/projects/${projectId}/unarchive`, {
-      method: "POST",
-      headers: { Accept: "application/json" },
-    });
-    const payload = (await response.json()) as { project?: MediaProject | null; detail?: string; error?: string };
-    if (!response.ok || !payload.project) {
-      throw new Error(payload.error ?? payload.detail ?? "Unable to restore the project.");
-    }
-    setLocalProjects((current) =>
-      current.map((item) => (item.project_id === projectId ? (payload.project as MediaProject) : item)),
-    );
-  }
-
-  async function deleteProjectInStudio(projectId: string) {
-    const response = await fetch(`/api/control/media/projects/${projectId}?permanent=true`, {
-      method: "DELETE",
-      headers: { Accept: "application/json" },
-    });
-    const payload = (await response.json()) as { ok?: boolean; detail?: string; error?: string };
-    if (!response.ok) {
-      throw new Error(payload.error ?? payload.detail ?? "Unable to delete the project.");
-    }
-    setLocalProjects((current) => current.filter((item) => item.project_id !== projectId));
-    if (selectedProjectId === projectId) {
-      openProjectWorkspace(null);
-    }
-  }
-
   useEffect(() => {
     return () => {
-      if (copyPromptStatusTimerRef.current != null) {
-        window.clearTimeout(copyPromptStatusTimerRef.current);
-      }
       if (settleRefreshTimerRef.current != null) {
         window.clearTimeout(settleRefreshTimerRef.current);
       }
@@ -559,99 +383,8 @@ export function MediaStudio({
     selectedAssetPlaybackVisual,
     selectedAssetLightboxVisual,
   } = selection.derived;
-  const selectedFailedJob = useMemo(() => {
-    if (!selectedFailedJobId) {
-      return null;
-    }
-    const directMatch = localJobs.find((job) => job.job_id === selectedFailedJobId) ?? null;
-    if (directMatch) {
-      return directMatch;
-    }
-    for (const batch of localBatches) {
-      const match = (batch.jobs ?? []).find((job) => job.job_id === selectedFailedJobId) ?? null;
-      if (match) {
-        return match;
-      }
-    }
-    return null;
-  }, [localBatches, localJobs, selectedFailedJobId]);
-  const selectedFailedJobBatch = useMemo(() => {
-    if (!selectedFailedJob?.batch_id) {
-      return null;
-    }
-    return localBatches.find((batch) => batch.batch_id === selectedFailedJob.batch_id) ?? null;
-  }, [localBatches, selectedFailedJob?.batch_id]);
-  const selectedAssetBatch = useMemo(() => {
-    if (!selectedAssetJob?.batch_id) {
-      return null;
-    }
-    return localBatches.find((batch) => batch.batch_id === selectedAssetJob.batch_id) ?? null;
-  }, [localBatches, selectedAssetJob?.batch_id]);
-  const selectedAssetProject = useMemo(() => {
-    if (!selectedAsset?.project_id) {
-      return null;
-    }
-    return localProjects.find((project) => project.project_id === selectedAsset.project_id) ?? null;
-  }, [localProjects, selectedAsset?.project_id]);
-  const selectedFailedJobPrompt =
-    selectedFailedJob?.final_prompt_used ?? selectedFailedJob?.enhanced_prompt ?? selectedFailedJob?.raw_prompt ?? null;
-  const selectedFailedJobReferenceInputs = useMemo(
-    () => buildStudioJobReferenceInputs({ job: selectedFailedJob, localAssets, favoriteAssets }),
-    [favoriteAssets, localAssets, selectedFailedJob],
-  );
-  const selectedFailedJobPrimaryInput = useMemo(
-    () => buildStudioJobPrimaryInput({ job: selectedFailedJob, localAssets, favoriteAssets }),
-    [favoriteAssets, localAssets, selectedFailedJob],
-  );
-  const selectedFailedJobRetryPlan = useMemo(
-    () =>
-      buildStudioRetryRestorePlan({
-        job: selectedFailedJob,
-        batch: selectedFailedJobBatch,
-        models,
-        presets,
-        localAssets,
-        favoriteAssets,
-      }),
-    [favoriteAssets, localAssets, models, presets, selectedFailedJob, selectedFailedJobBatch],
-  );
   const mobileAddTileClassName = "h-[58px] w-[58px] rounded-[18px]";
   const mobileAddTilePlusIconClassName = "size-5";
-  const selectedFailedJobImageReferences = useMemo(
-    () => (selectedFailedJobRetryPlan?.referenceInputs ?? []).filter((reference) => reference.kind === "images"),
-    [selectedFailedJobRetryPlan],
-  );
-  const selectedAssetReferencePreviews = useMemo(
-    () =>
-      buildStudioReferencePreviews({
-        asset: selectedAsset,
-        job: selectedAssetJob,
-        presetSlots: selectedAssetPresetSlots,
-        presetSlotValues: selectedAssetPresetSlotValues,
-        localAssets,
-        favoriteAssets,
-      }),
-    [
-      favoriteAssets,
-      localAssets,
-      selectedAsset,
-      selectedAssetJob,
-      selectedAssetPresetSlotValues,
-      selectedAssetPresetSlots,
-    ],
-  );
-  const selectedAssetRevisionPlan = useMemo(
-    () =>
-      buildStudioRetryRestorePlan({
-        job: selectedAssetJob,
-        batch: selectedAssetBatch,
-        models,
-        presets,
-        localAssets,
-        favoriteAssets,
-      }),
-    [favoriteAssets, localAssets, models, presets, selectedAssetBatch, selectedAssetJob],
-  );
   const { lightboxVideoRef } = selection.refs;
   const {
     setSelectedAssetId,
@@ -662,18 +395,42 @@ export function MediaStudio({
     openSelectedMediaLightbox,
     closeSelectedMediaLightbox,
   } = selection.actions;
+  const inspector = useStudioInspectorState({
+    pathname,
+    selectedProjectId,
+    selectedFailedJobId,
+    selectedAsset,
+    selectedAssetJob,
+    selectedAssetPresetSlots,
+    selectedAssetPresetSlotValues,
+    localJobs,
+    localBatches,
+    localAssets,
+    favoriteAssets,
+    localProjects,
+    models,
+    presets,
+    resetInspector,
+    setSelectedFailedJobId,
+  });
+  const {
+    selectedFailedJob,
+    selectedFailedJobBatch,
+    selectedAssetBatch,
+    selectedAssetProject,
+    selectedFailedJobPrompt,
+    selectedFailedJobReferenceInputs,
+    selectedFailedJobPrimaryInput,
+    selectedFailedJobRetryPlan,
+    selectedFailedJobImageReferences,
+    selectedAssetReferencePreviews,
+    selectedAssetRevisionPlan,
+    closeAssetInspector,
+  } = inspector;
 
   useEffect(() => {
     setSelectedReferencePreview(null);
   }, [selectedAssetId]);
-
-  const closeAssetInspector = useCallback(() => {
-    resetInspector();
-    setSelectedFailedJobId(null);
-    if (typeof window !== "undefined") {
-      window.history.replaceState(window.history.state, "", buildStudioScopedHref(pathname, selectedProjectId));
-    }
-  }, [pathname, resetInspector, selectedProjectId]);
 
   const composer = useStudioComposer({
     models,
@@ -822,221 +579,7 @@ export function MediaStudio({
     openEnhanceDialog,
     showFloatingComposerBanner,
     submitMedia,
-    pickerWidth,
-    buildChoiceList,
-    displayChoiceLabel,
-    parseOptionChoice,
-    serializeOptionChoice,
   } = composer.actions;
-
-  function openReferencePreview(preview: StudioReferencePreview | null) {
-    if (!preview?.url) {
-      return;
-    }
-    setSelectedReferencePreview(preview);
-  }
-
-  function openReferenceLibrary(target: ReferenceLibraryTarget) {
-    setOpenPicker(null);
-    setReferenceLibraryTarget(target);
-  }
-
-  function openContextualReferenceLibrary() {
-    if (!canOpenReferenceLibrary) {
-      openReferenceLibrary({
-        type: "browse",
-        title: "Reference Library",
-      });
-      return;
-    }
-    if (structuredPresetActive && structuredPresetImageSlots.length) {
-      const targetSlot =
-        structuredPresetImageSlots.find((slot) => {
-          const slotState = presetSlotStates[slot.key];
-          return !slotState?.assetId && !slotState?.referenceId && !slotState?.file;
-        }) ?? structuredPresetImageSlots[0];
-      openReferenceLibrary({
-        type: "preset-slot",
-        title: `Pick a reusable image for ${targetSlot.label}.`,
-        slotKey: targetSlot.key,
-      });
-      return;
-    }
-    if (seedanceComposer) {
-      if (!seedanceFirstFrameAttachment) {
-        openReferenceLibrary({
-          type: "attachment",
-          title: "Pick a reusable image for the Seedance start frame.",
-          role: "first_frame",
-          allowedKinds: ["images"],
-        });
-        return;
-      }
-      if (effectiveSeedanceMode === "first_last_frames" && !seedanceLastFrameAttachment) {
-        openReferenceLibrary({
-          type: "attachment",
-          title: "Pick a reusable image for the Seedance end frame.",
-          role: "last_frame",
-          allowedKinds: ["images"],
-        });
-        return;
-      }
-      openReferenceLibrary({
-        type: "attachment",
-        title: "Pick a reusable image for Seedance reference guidance.",
-        role: "reference",
-        allowedKinds: ["images"],
-      });
-      return;
-    }
-    const nextStandardImageSlot =
-      standardComposerSlots.find((slot) => slot.kind === "image" && !slot.filled) ??
-      standardComposerSlots.find((slot) => slot.kind === "image") ??
-      null;
-    if (standardComposerLayout.usesExplicitSlots && nextStandardImageSlot) {
-      openReferenceLibrary({
-        type: "standard-slot",
-        title:
-          nextStandardImageSlot.role === "end_frame"
-            ? "Pick a reusable image for the end frame."
-            : nextStandardImageSlot.role === "start_frame"
-              ? "Pick a reusable image for the start frame."
-              : "Pick a reusable image for this input.",
-        slotIndex: nextStandardImageSlot.slotIndex,
-        label: nextStandardImageSlot.label,
-        allowedKinds: ["images"],
-      });
-      return;
-    }
-    openReferenceLibrary({
-      type: "attachment",
-      title: dedicatedImageReferenceRailActive
-        ? "Pick a reusable image reference for Nano Banana."
-        : "Pick a reusable image from your reference library.",
-      role: dedicatedImageReferenceRailActive ? "reference" : undefined,
-      allowedKinds: ["images"],
-    });
-  }
-
-  async function handleReferenceLibrarySelect(reference: MediaReference) {
-    try {
-      await fetch(`/api/control/reference-media/${reference.reference_id}/use`, {
-        method: "POST",
-        credentials: "same-origin",
-      });
-    } catch {
-      // Helpful, not required for staging.
-    }
-    const target = referenceLibraryTarget;
-    setReferenceLibraryTarget(null);
-    if (!target) {
-      return;
-    }
-    if (target.type === "browse") {
-      setFormMessage({
-        tone: "warning",
-        text: "This model cannot use image references. Switch to a model with image inputs to stage a library image.",
-      });
-      return;
-    }
-    if (target.type === "preset-slot") {
-      assignPresetSlotReference(target.slotKey, reference);
-      setFormMessage({ tone: "healthy", text: "Reference image loaded into the preset slot." });
-      return;
-    }
-    if (target.type === "standard-slot") {
-      const currentSlot = orderedImageInputs[target.slotIndex] ?? null;
-      if (target.slotIndex > orderedImageInputs.length) {
-        setFormMessage({ tone: "warning", text: "Fill the earlier image slot first." });
-        return;
-      }
-      // Standard slots can be backed by the dedicated source asset or by a plain
-      // staged image attachment, so replacement has to clear whichever path owns
-      // this slot before the reference library inserts the new media.
-      if (currentSlot?.source === "asset") {
-        clearSourceAsset();
-      }
-      addReferenceMediaAsAttachment(reference, {
-        allowedKinds: target.allowedKinds,
-        insertImageIndex: Math.min(target.slotIndex, orderedImageInputs.length),
-        replaceImageIndex: target.slotIndex,
-      });
-      setFormMessage({ tone: "healthy", text: `Reference image loaded into ${target.label}.` });
-      return;
-    }
-    addReferenceMediaAsAttachment(reference, {
-      role: target.role ?? undefined,
-      allowedKinds: target.allowedKinds,
-    });
-    setFormMessage({ tone: "healthy", text: "Reference image loaded from the library." });
-  }
-
-  function buildAttachmentPreview(
-    attachment: AttachmentRecord | null | undefined,
-    label: string,
-    previewKey = label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-  ): StudioReferencePreview | null {
-    const url = attachment?.previewUrl ?? attachment?.referenceRecord?.stored_url ?? null;
-    if (!url) {
-      return null;
-    }
-    return {
-      key: `attachment:${attachment?.id ?? previewKey}`,
-      label,
-      url,
-      kind: attachment?.kind ?? "images",
-      posterUrl: attachment?.kind === "videos" ? attachment?.referenceRecord?.poster_url ?? null : undefined,
-    };
-  }
-
-  function orderedImageInputPreview(slot: (typeof orderedImageInputs)[number] | null, label: string, key: string) {
-    if (!slot) {
-      return null;
-    }
-    if (slot.source === "asset") {
-      return buildAssetReferencePreview(slot.asset, label);
-    }
-    if (slot.source === "reference") {
-      return {
-        key: `reference:${slot.reference.reference_id}:${key}`,
-        label,
-        url: slot.reference.stored_url ?? slot.previewUrl ?? "",
-        kind: "images" as const,
-        posterUrl: null,
-      } satisfies StudioReferencePreview;
-    }
-    return buildAttachmentPreview(slot.attachment as AttachmentRecord, label, key);
-  }
-
-  function buildAssetReferencePreview(asset: MediaAsset | null | undefined, label: string): StudioReferencePreview | null {
-    if (!asset) {
-      return null;
-    }
-    const kind =
-      asset.generation_kind === "video"
-        ? ("videos" as const)
-        : asset.generation_kind === "audio"
-          ? ("audios" as const)
-          : ("images" as const);
-    const posterUrl =
-      kind === "videos" ? mediaThumbnailUrl(asset) ?? mediaDisplayUrl(asset) ?? null : null;
-    const url =
-      (kind === "videos" ? mediaPlaybackUrl(asset) : null) ??
-      mediaInlineUrl(asset) ??
-      mediaDisplayUrl(asset) ??
-      mediaThumbnailUrl(asset) ??
-      null;
-    if (!url) {
-      return null;
-    }
-    return {
-      key: `asset:${asset.asset_id}`,
-      label,
-      url,
-      kind,
-      posterUrl,
-    };
-  }
 
   useEffect(() => {
     installStudioDebugConsole();
@@ -1088,7 +631,11 @@ export function MediaStudio({
   });
   const { favoriteAssetIdBusy } = polling.state;
   const { pollJob, pollBatch, retryJob, dismissJob, dismissAsset, toggleAssetFavorite } = polling.actions;
-  const downloadActionLabel = hasMounted ? mobileSaveActionLabel() : "Download";
+  const { copyPromptStatus, downloadActionLabel, copyPromptFromAsset, downloadAsset } = useStudioAssetActions({
+    hasMounted,
+    onMessage: setFormMessage,
+    showActivity,
+  });
   const mobileComposerExpanded = !mobileComposerCollapsed;
   const structuredPresetModelChoices = useMemo(() => {
     if (!structuredPresetActive) {
@@ -1101,14 +648,14 @@ export function MediaStudio({
   }, [currentPreset, models, structuredPresetActive]);
   const showStructuredPresetModelPicker = structuredPresetActive && structuredPresetModelChoices.length > 1;
   const selectedProjectMetric = selectedProject ? (
-    <div className="hidden md:flex items-center overflow-hidden rounded-[14px] border border-[rgba(255,183,107,0.28)] bg-[rgba(29,18,10,0.96)] text-[#ffe2ba] shadow-[0_14px_24px_rgba(0,0,0,0.28)]">
+    <div className="studio-project-metric hidden md:flex items-center overflow-hidden rounded-[14px]">
       <button
         type="button"
         onClick={() => openProjectWorkspace(selectedProject.project_id)}
-        className="inline-flex h-10 items-center gap-2 px-3 text-[0.72rem] font-semibold transition hover:bg-[rgba(255,183,107,0.08)]"
+        className="inline-flex h-10 items-center gap-2 px-3 text-[0.72rem] font-semibold transition"
         aria-label={`Open project ${selectedProject.name}`}
       >
-        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[rgba(255,183,107,0.18)] text-[#ffb76b]">
+        <span className="studio-project-metric-icon inline-flex h-5 w-5 items-center justify-center rounded-full">
           <FolderPlus className="size-3.5" />
         </span>
         <span>{selectedProject.name}</span>
@@ -1119,7 +666,7 @@ export function MediaStudio({
           event.stopPropagation();
           openProjectWorkspace(null);
         }}
-        className="inline-flex h-10 items-center justify-center border-l border-[rgba(255,183,107,0.2)] px-3 text-[rgba(255,191,132,0.96)] transition hover:bg-[rgba(255,183,107,0.12)] hover:text-white"
+        className="studio-project-metric-close inline-flex h-10 items-center justify-center px-3 transition"
         aria-label="Exit project workspace"
         title="Exit project workspace"
       >
@@ -1179,91 +726,6 @@ export function MediaStudio({
   }
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.navigator.webdriver) {
-      return;
-    }
-    window.__mediaStudioTest = {
-      ...(window.__mediaStudioTest ?? {}),
-      composer: {
-        setModel: (nextModelKey) => setModelKey(nextModelKey),
-      },
-      gallery: {
-        seedAssets: (seedAssets) => {
-          setLocalAssets(seedAssets);
-          setSelectedFailedJobId(null);
-          setSelectedAssetId(null);
-          setSelectedMediaLightboxOpen(false);
-          activateGalleryKindFilter("all");
-          setGalleryModelFilter("all");
-        },
-        openLightbox: (assetId) => {
-          setSelectedFailedJobId(null);
-          setSelectedAssetId(assetId);
-          setSelectedMediaLightboxOpen(true);
-        },
-      },
-      library: {
-        open: () => openContextualReferenceLibrary(),
-      },
-      failedJob: {
-        seedAndOpen: (job, batch = null) => {
-          if (batch) {
-            gallery.actions.setLocalBatches((current) =>
-              [batch, ...current.filter((entry) => entry.batch_id !== batch.batch_id)].slice(0, 12),
-            );
-          }
-          setLocalJobs((current) => [job, ...current.filter((entry) => entry.job_id !== job.job_id)].slice(0, 24));
-          setSelectedFailedJobId(job.job_id);
-        },
-      },
-      assetInspector: {
-        seedAndOpen: ({ asset, job = null, batch = null, assets = [], jobs = [] }) => {
-          const nextAssets = [asset, ...assets];
-          setLocalAssets((current) => [
-            ...nextAssets,
-            ...current.filter((entry) => !nextAssets.some((seeded) => String(seeded.asset_id) === String(entry.asset_id))),
-          ]);
-          if (batch) {
-            gallery.actions.setLocalBatches((current) =>
-              [batch, ...current.filter((entry) => entry.batch_id !== batch.batch_id)].slice(0, 12),
-            );
-          }
-          const nextJobs = [...(job ? [job] : []), ...jobs];
-          if (nextJobs.length) {
-            setLocalJobs((current) => [
-              ...nextJobs,
-              ...current.filter((entry) => !nextJobs.some((seeded) => seeded.job_id === entry.job_id)),
-            ].slice(0, 24));
-          }
-          setSelectedFailedJobId(null);
-          setSelectedMediaLightboxOpen(false);
-          setSelectedAssetId(asset.asset_id);
-          activateGalleryKindFilter("all");
-          setGalleryModelFilter("all");
-        },
-      },
-      enhancement: {
-        openDialog: () => openEnhanceDialogProxyRef.current(),
-        requestPreview: () => requestEnhancementPreviewProxyRef.current(),
-        usePrompt: () => applyEnhancementPromptProxyRef.current(),
-      },
-    };
-    return () => {
-      if (!window.__mediaStudioTest) {
-        return;
-      }
-      delete window.__mediaStudioTest.composer;
-      delete window.__mediaStudioTest.gallery;
-      delete window.__mediaStudioTest.library;
-      delete window.__mediaStudioTest.failedJob;
-      delete window.__mediaStudioTest.assetInspector;
-      delete window.__mediaStudioTest.enhancement;
-      if (Object.keys(window.__mediaStudioTest).length === 0) {
-        delete window.__mediaStudioTest;
-      }
-    };
-  }, []);
-  useEffect(() => {
     pollJobProxyRef.current = pollJob;
     pollBatchProxyRef.current = pollBatch;
   }, [pollBatch, pollJob]);
@@ -1274,6 +736,57 @@ export function MediaStudio({
     maxImageInputs > 1 &&
     maxVideoInputs === 0 &&
     maxAudioInputs === 0;
+  const standardComposerSlots = standardComposerLayout.slots.filter((slot) => slot.visible);
+  const standardComposerSectionTitle = standardComposerSlots.some((slot) => slot.role === "driving_video")
+    ? "Motion inputs"
+    : standardComposerSlots.some((slot) => slot.role === "start_frame" || slot.role === "end_frame")
+      ? "Frames"
+      : standardComposerSlots.length > 0
+        ? "Input"
+        : "Inputs";
+  const {
+    selectedReferencePreview,
+    referenceLibraryTarget,
+    setSelectedReferencePreview,
+    setReferenceLibraryTarget,
+    openReferencePreview,
+    openContextualReferenceLibrary,
+    handleReferenceLibrarySelect,
+  } = useStudioReferenceLibrary({
+    canOpenReferenceLibrary,
+    structuredPresetActive,
+    structuredPresetImageSlots,
+    presetSlotStates,
+    seedanceComposer,
+    seedanceFirstFrameAttachment,
+    seedanceLastFrameAttachment,
+    effectiveSeedanceMode,
+    standardComposerUsesExplicitSlots: standardComposerLayout.usesExplicitSlots,
+    standardComposerSlots,
+    orderedImageInputCount: orderedImageInputs.length,
+    dedicatedImageReferenceRailActive,
+    setOpenPicker,
+    setFormMessage,
+    assignPresetSlotReference,
+    clearSourceAsset,
+    addReferenceMediaAsAttachment,
+    orderedImageInputSourceAt: (slotIndex) => orderedImageInputs[slotIndex]?.source ?? null,
+  });
+  useStudioTestHarness({
+    setModelKey,
+    setLocalAssets,
+    setLocalJobs,
+    setLocalBatches: gallery.actions.setLocalBatches,
+    setSelectedFailedJobId,
+    setSelectedAssetId,
+    setSelectedMediaLightboxOpen,
+    activateGalleryKindFilter,
+    setGalleryModelFilter,
+    openContextualReferenceLibrary,
+    openEnhanceDialogRef: openEnhanceDialogProxyRef,
+    requestEnhancementPreviewRef: requestEnhancementPreviewProxyRef,
+    applyEnhancementPromptRef: applyEnhancementPromptProxyRef,
+  });
   const promptReferenceMention =
     dedicatedImageReferenceRailActive && promptHasFocus
       ? detectPromptReferenceMention(prompt, promptCursorIndex ?? promptInputRef.current?.selectionStart ?? prompt.length)
@@ -1330,56 +843,18 @@ export function MediaStudio({
   }
 
   const multiImageReferenceStrip = dedicatedImageReferenceRailActive ? (
-    <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-3 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/44">Image references</div>
-        {imageLimitLabel ? (
-          <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/62">
-            {imageLimitLabel}
-          </div>
-        ) : null}
-      </div>
-      <div className="flex min-w-0 items-start gap-3 overflow-x-auto overflow-y-hidden pb-1">
-        {orderedImageInputs.map((slot, slotIndex) => {
-          const slotVisual = orderedImageInputVisual(slot);
-          const slotLabel = `Image reference ${slotIndex + 1}`;
-          const slotPreview = orderedImageInputPreview(slot, slotLabel, `multi-image-${slotIndex + 1}`);
-          return (
-            <div key={orderedImageInputKey(slot, slotIndex)} className="flex shrink-0 flex-col gap-2">
-              {slotPreview ? (
-                <StudioStagedMediaTile
-                  preview={slotPreview}
-                  visualUrl={slotVisual}
-                  onOpenPreview={openReferencePreview}
-                  onRemove={() => clearOrderedImageInput(slot)}
-                  className="h-[82px] w-[82px]"
-                  tileClassName="border-[rgba(216,141,67,0.2)]"
-                  testId={`studio-multi-image-slot-${slotIndex + 1}`}
-                />
-              ) : null}
-            </div>
-          );
-        })}
-
-        {canAddMoreImages ? (
-          <StudioMediaSlotAddTile
-            accept="image/*"
-            multiple
-            isDragActive={isDragActive}
-            testId="studio-multi-image-input"
-            onDragOver={(event) => {
-              event.preventDefault();
-              setIsDragActive(true);
-            }}
-            onDragLeave={() => setIsDragActive(false)}
-            onDrop={(event) => void handleSourceTileDrop(event, orderedImageInputs.length)}
-            onPickFiles={(fileList, input) => {
-              addImageFilesToOrderedSlot(fileList, orderedImageInputs.length, input);
-            }}
-          />
-        ) : null}
-      </div>
-    </div>
+    <StudioMultiImageReferenceStrip
+      imageLimitLabel={imageLimitLabel}
+      orderedImageInputs={orderedImageInputs}
+      canAddMoreImages={canAddMoreImages}
+      isDragActive={isDragActive}
+      buildOrderedImageInputPreview={orderedImageInputPreview}
+      onOpenPreview={openReferencePreview}
+      onClearOrderedImageInput={clearOrderedImageInput}
+      onSetDragActive={setIsDragActive}
+      onDropIntoSlot={(event, slotIndex) => void handleSourceTileDrop(event, slotIndex)}
+      onAddImageFilesToOrderedSlot={addImageFilesToOrderedSlot}
+    />
   ) : null;
   const genericSourceInputsAvailable =
     !structuredPresetActive &&
@@ -1401,15 +876,6 @@ export function MediaStudio({
       motionControlVideoAttachment?.referenceRecord?.thumb_url ??
       motionControlVideoAttachment?.referenceRecord?.stored_url ??
       null;
-  const standardComposerSlots = standardComposerLayout.slots.filter((slot) => slot.visible);
-  const standardComposerSectionTitle = standardComposerSlots.some((slot) => slot.role === "driving_video")
-    ? "Motion inputs"
-    : standardComposerSlots.some((slot) => slot.role === "start_frame" || slot.role === "end_frame")
-      ? "Frames"
-      : standardComposerSlots.length > 0
-        ? "Input"
-        : "Inputs";
-
   function standardComposerSlotPreview(slot: StudioComposerSlot, previewKey: string) {
     if (slot.kind === "image") {
       return orderedImageInputPreview(orderedImageInputs[slot.slotIndex] ?? null, slot.label, previewKey);
@@ -1480,688 +946,106 @@ export function MediaStudio({
   const sourceAttachmentStrip = !structuredPresetActive &&
     !dedicatedImageReferenceRailActive &&
     (seedanceComposer || standardComposerLayout.usesExplicitSlots || genericSourceInputsAvailable) ? (
-    <div className="flex flex-wrap gap-3">
-      {seedanceComposer ? (
-        <>
-          {[
-            { label: "Start frame", role: "first_frame", attachment: seedanceFirstFrameAttachment },
-            { label: "End frame", role: "last_frame", attachment: seedanceLastFrameAttachment },
-          ].map((slot, slotIndex) => {
-            const attachment = slot.attachment;
-            const attachmentPreview = attachment
-              ? buildAttachmentPreview(attachment, slot.label, `seedance-${slot.role}`)
-              : null;
-            return (
-            <div key={`seedance-slot-${slot.role}`} className="flex flex-col gap-2">
-              {!attachment ? (
-                <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/46">{slot.label}</div>
-              ) : null}
-              <div data-testid={`seedance-slot-${slot.role}`} className="relative h-[82px] w-[82px]">
-                {attachment && attachmentPreview ? (
-                  <div
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setIsDragActive(true);
-                    }}
-                    onDragLeave={() => setIsDragActive(false)}
-                    onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
-                    className="h-full w-full"
-                  >
-                    <StudioStagedMediaTile
-                      preview={attachmentPreview}
-                      visualUrl={attachment.previewUrl}
-                      onOpenPreview={openReferencePreview}
-                      onRemove={() => removeAttachment(attachment.id)}
-                      replaceControl={
-                        <label className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white">
-                          <ImagePlus className="size-3.5" />
-                          <input
-                            type="file"
-                            accept="image/*"
-                            data-testid={`seedance-slot-input-${slot.role}`}
-                            className="hidden"
-                            onChange={(event) => {
-                              if (slot.role === "last_frame" && !seedanceFirstFrameAttachment) {
-                                setFormMessage({ tone: "warning", text: "Add a start frame before the end frame." });
-                                resetFileInputValue(event.currentTarget);
-                                return;
-                              }
-                              removeAttachment(attachment.id);
-                              addFiles(event.target.files, {
-                                role: slot.role as "first_frame" | "last_frame",
-                                allowedKinds: ["images"],
-                              });
-                              resetFileInputValue(event.currentTarget);
-                            }}
-                          />
-                        </label>
-                      }
-                      className="h-full w-full"
-                      testId={`seedance-slot-filled-${slot.role}`}
-                    />
-                  </div>
-                ) : (
-                  <StudioMediaSlotAddTile
-                    accept="image/*"
-                    isDragActive={isDragActive}
-                    testId={`seedance-slot-input-${slot.role}`}
-                    required={slot.role === "first_frame"}
-                    wrapperClassName="h-full w-full"
-                    tileClassName="h-full w-full"
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setIsDragActive(true);
-                    }}
-                    onDragLeave={() => setIsDragActive(false)}
-                    onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
-                    onPickFiles={(fileList, input) => {
-                      if (slot.role === "last_frame" && !seedanceFirstFrameAttachment) {
-                        setFormMessage({ tone: "warning", text: "Add a start frame before the end frame." });
-                        resetFileInputValue(input);
-                        return;
-                      }
-                      addFiles(fileList, {
-                        role: slot.role as "first_frame" | "last_frame",
-                        allowedKinds: ["images"],
-                      });
-                      resetFileInputValue(input);
-                    }}
-                  />
-                )}
-              </div>
-            </div>
-          )})}
-        </>
-      ) : standardComposerLayout.usesExplicitSlots ? (
-        <StudioStandardSlotRail
-          slots={standardComposerSlots}
-          isDragActive={isDragActive}
-          mobileAddTileClassName={mobileAddTileClassName}
-          mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
-          buildPreview={(slot, testIdPrefix) => standardComposerSlotPreview(slot, testIdPrefix)}
-          resolveVisualUrl={(slot) => standardComposerSlotVisual(slot)}
-          isAssetBackedImageSlot={(slot) => slot.kind === "image" && orderedImageInputs[slot.slotIndex]?.source === "asset"}
-          onSetDragActive={setIsDragActive}
-          onSlotDrop={(event, slot) => void handleSourceTileDrop(event, slot.slotIndex, slot)}
-          onOpenPreview={openReferencePreview}
-          onClearSlot={clearStandardComposerSlot}
-          onPickFiles={addFilesToStandardComposerSlot}
-        />
-      ) : (
-        <>
-          {canUseSourceAsset && currentSourceAsset ? (
-            <StudioStagedMediaTile
-              preview={
-                buildAssetReferencePreview(currentSourceAsset, currentSourceAsset.prompt_summary ?? "Source asset") ??
-                {
-                  key: `asset:${currentSourceAsset.asset_id}`,
-                  label: currentSourceAsset.prompt_summary ?? "Source asset",
-                  url: mediaThumbnailUrl(currentSourceAsset) ?? "",
-                  kind: currentSourceAsset.generation_kind === "video" ? "videos" : "images",
-                  posterUrl: mediaThumbnailUrl(currentSourceAsset) ?? null,
-                }
-              }
-              visualUrl={mediaThumbnailUrl(currentSourceAsset) ?? mediaDisplayUrl(currentSourceAsset)}
-              onOpenPreview={openReferencePreview}
-              onRemove={() => clearSourceAsset()}
-              className="h-[82px] w-[82px]"
-              tileClassName="border-[rgba(216,141,67,0.24)]"
-              testId="studio-source-asset-tile"
-            />
-          ) : null}
-
-          {attachments.slice(0, 4).map((attachment) => (
-            <StudioStagedMediaTile
-              key={attachment.id}
-              preview={
-                buildAttachmentPreview(attachment, attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference", attachment.id) ?? {
-                  key: `attachment:${attachment.id}`,
-                  label: attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
-                  url: attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
-                  kind: attachment.kind,
-                  posterUrl: attachment.referenceRecord?.poster_url ?? null,
-                }
-              }
-              visualUrl={attachment.kind === "audios" ? null : attachment.previewUrl ?? attachment.referenceRecord?.thumb_url ?? attachment.referenceRecord?.stored_url ?? null}
-              footerLabel={attachment.kind === "images" ? "Image" : attachment.kind === "videos" ? "Video" : "Audio"}
-              onOpenPreview={openReferencePreview}
-              onRemove={() => removeAttachment(attachment.id)}
-              className="h-[82px] w-[82px]"
-              testId={`studio-attachment-tile-${attachment.id}`}
-            />
-          ))}
-
-          {attachments.length > 4 ? (
-            <div className="flex h-[82px] w-[82px] items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.04] text-center text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/58">
-              +{attachments.length - 4} more
-            </div>
-          ) : null}
-
-          {genericSourceAddTileVisible ? (
-            <StudioMediaSlotAddTile
-              accept="image/*,video/*,audio/*"
-              multiple
-              disabled={!genericSourceAddTileVisible}
-              isDragActive={isDragActive}
-              testId="studio-source-input"
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsDragActive(true);
-              }}
-              onDragLeave={() => setIsDragActive(false)}
-              onDrop={(event) => void handleSourceTileDrop(event)}
-              onPickFiles={(fileList, input) => {
-                addFiles(fileList);
-                resetFileInputValue(input);
-              }}
-            />
-          ) : null}
-        </>
-      )}
-      {(imageLimitLabel || maxVideoInputs > 0 || maxAudioInputs > 0) &&
-      !explicitVideoImageSlots &&
-      !explicitMotionControlSlots &&
-      !seedanceComposer ? (
-        <div className="flex min-h-[82px] min-w-[120px] flex-col justify-center rounded-[24px] border border-white/10 bg-white/[0.04] px-3 py-2">
-          {imageLimitLabel ? (
-            <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/62">{imageLimitLabel}</div>
-          ) : null}
-          {maxVideoInputs > 0 ? (
-            <div className="mt-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/44">
-              {stagedVideoCount} / {maxVideoInputs} videos
-            </div>
-          ) : null}
-          {maxAudioInputs > 0 ? (
-            <div className="mt-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/44">
-              {stagedAudioCount} / {maxAudioInputs} audio
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
+    <StudioSourceAttachmentStrip
+      seedanceComposer={seedanceComposer}
+      standardComposerUsesExplicitSlots={standardComposerLayout.usesExplicitSlots}
+      genericSourceInputsAvailable={genericSourceInputsAvailable}
+      isDragActive={isDragActive}
+      seedanceFirstFrameAttachment={seedanceFirstFrameAttachment}
+      seedanceLastFrameAttachment={seedanceLastFrameAttachment}
+      standardComposerSlots={standardComposerSlots}
+      orderedImageInputs={orderedImageInputs}
+      currentSourceAsset={currentSourceAsset}
+      canUseSourceAsset={canUseSourceAsset}
+      attachments={attachments}
+      genericSourceAddTileVisible={genericSourceAddTileVisible}
+      imageLimitLabel={imageLimitLabel}
+      maxVideoInputs={maxVideoInputs}
+      maxAudioInputs={maxAudioInputs}
+      explicitVideoImageSlots={explicitVideoImageSlots}
+      explicitMotionControlSlots={explicitMotionControlSlots}
+      stagedVideoCount={stagedVideoCount}
+      stagedAudioCount={stagedAudioCount}
+      mobileAddTileClassName={mobileAddTileClassName}
+      mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
+      buildAttachmentPreview={buildAttachmentPreview}
+      buildAssetReferencePreview={buildAssetReferencePreview}
+      standardComposerSlotPreview={standardComposerSlotPreview}
+      standardComposerSlotVisual={standardComposerSlotVisual}
+      onSetDragActive={setIsDragActive}
+      onSetFormWarning={(text) => setFormMessage({ tone: "warning", text })}
+      onDropIntoSourceSlot={(event, slotIndex, slot) => void handleSourceTileDrop(event, slotIndex, slot)}
+      onOpenPreview={openReferencePreview}
+      onRemoveAttachment={removeAttachment}
+      onClearSourceAsset={clearSourceAsset}
+      onClearStandardComposerSlot={clearStandardComposerSlot}
+      onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
+      onAddFiles={addFiles}
+      onResetFileInput={resetFileInputValue}
+    />
   ) : null;
   const seedanceReferenceStrip =
     seedanceComposer ? (
-      <div className="rounded-[26px] border border-white/10 bg-[rgba(21,24,23,0.84)] px-4 py-3 shadow-[0_22px_54px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
-        <div className="mb-3 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/44">Seedance References</div>
-        <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.3fr)_minmax(260px,0.85fr)_minmax(260px,0.85fr)]">
-          {[
-            {
-              key: "images",
-              label: "Image refs",
-              tokenHint: "image@",
-              attachments: seedanceReferenceImages,
-              accept: "image/*",
-              maxLabel: "9",
-              tileClassName: "h-[82px] w-[82px]",
-              addTileClassName: "h-[82px] w-[82px] rounded-[22px]",
-              plusIconClassName: "size-4.5",
-              maxVisibleTiles: 4,
-            },
-            {
-              key: "videos",
-              label: "Video refs",
-              tokenHint: "video@",
-              attachments: seedanceReferenceVideos,
-              accept: "video/*",
-              maxLabel: "3",
-              tileClassName: "h-[82px] w-[82px]",
-              addTileClassName: "h-[82px] w-[82px] rounded-[22px]",
-              plusIconClassName: "size-4.5",
-              maxVisibleTiles: 3,
-            },
-            {
-              key: "audios",
-              label: "Audio refs",
-              tokenHint: "audio@",
-              attachments: seedanceReferenceAudios,
-              accept: "audio/*",
-              maxLabel: "3",
-              tileClassName: "h-[82px] w-[82px]",
-              addTileClassName: "h-[82px] w-[82px] rounded-[22px]",
-              plusIconClassName: "size-4.5",
-              maxVisibleTiles: 3,
-            },
-          ].map((group) => (
-            <div
-              key={group.key}
-              data-testid={`seedance-group-${group.key}`}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsDragActive(true);
-              }}
-              onDragLeave={() => setIsDragActive(false)}
-              onDrop={(event) =>
-                void handleSeedanceReferenceDrop(event, group.key as "images" | "videos" | "audios")
-              }
-              className={cn(
-                "relative rounded-[20px] border border-white/8 bg-white/[0.035] px-3 py-2.5 transition",
-                isDragActive ? "border-[rgba(216,141,67,0.3)] bg-[rgba(32,38,35,0.9)]" : "",
-              )}
-            >
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-white/52">
-                    {group.label} <span className="text-white/32">- {group.tokenHint}</span>
-                  </div>
-                </div>
-                <div className="shrink-0 rounded-full border border-white/8 bg-black/18 px-1.5 py-0.5 text-[0.52rem] font-semibold uppercase tracking-[0.12em] text-white/42">
-                  {group.attachments.length}
-                  {` / ${group.maxLabel}`}
-                </div>
-              </div>
-              <div className="scrollbar-none flex flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden pb-0.5">
-                {group.attachments.slice(0, group.maxVisibleTiles).map((attachment) => (
-                  <StudioStagedMediaTile
-                    key={attachment.id}
-                    preview={
-                      buildAttachmentPreview(attachment, attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference", `${group.key}-${attachment.id}`) ?? {
-                        key: `attachment:${attachment.id}`,
-                        label: attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
-                        url: attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
-                        kind: attachment.kind,
-                        posterUrl: attachment.referenceRecord?.poster_url ?? null,
-                      }
-                    }
-                    visualUrl={attachment.kind === "audios" ? null : attachment.previewUrl ?? attachment.referenceRecord?.thumb_url ?? attachment.referenceRecord?.stored_url ?? null}
-                    onOpenPreview={openReferencePreview}
-                    onRemove={() => removeAttachment(attachment.id)}
-                    className={cn("shrink-0", group.tileClassName)}
-                    testId={`seedance-group-tile-${group.key}-${attachment.id}`}
-                  />
-                ))}
-                {group.attachments.length < Number(group.maxLabel) ? (
-                  <label className={cn("flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]", group.addTileClassName)}>
-                    {(() => {
-                      const AddIcon = studioMediaSlotAddTileIcon(
-                        group.key === "videos" ? "video" : group.key === "audios" ? "audio" : "image",
-                      );
-                      return <AddIcon className={group.plusIconClassName} />;
-                    })()}
-                    <input
-                      type="file"
-                      multiple
-                      accept={group.accept}
-                      data-testid={`seedance-group-input-${group.key}`}
-                      className="hidden"
-                      onChange={(event) => {
-                        addFiles(event.target.files, {
-                          role: "reference",
-                          allowedKinds: [group.key as "images" | "videos" | "audios"],
-                        });
-                        resetFileInputValue(event.currentTarget);
-                      }}
-                    />
-                  </label>
-                ) : null}
-                {group.attachments.length > group.maxVisibleTiles ? (
-                  <div className={cn("flex shrink-0 items-center justify-center border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58", group.addTileClassName)}>
-                    +{group.attachments.length - group.maxVisibleTiles}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <StudioSeedanceReferenceStrip
+        isDragActive={isDragActive}
+        referenceImages={seedanceReferenceImages}
+        referenceVideos={seedanceReferenceVideos}
+        referenceAudios={seedanceReferenceAudios}
+        buildAttachmentPreview={buildAttachmentPreview}
+        onSetDragActive={setIsDragActive}
+        onReferenceDrop={(event, kind) => void handleSeedanceReferenceDrop(event, kind)}
+        onOpenPreview={openReferencePreview}
+        onRemoveAttachment={removeAttachment}
+        onAddFiles={addFiles}
+        onResetFileInput={resetFileInputValue}
+      />
     ) : null;
   const mobileInputsSection = !structuredPresetActive ? (
-    dedicatedImageReferenceRailActive ? (
-      <StudioMobileInputsSection title="Image references" summary={imageLimitLabel}>
-        <div className="flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
-          {orderedImageInputs.map((slot, slotIndex) => {
-            const slotVisual = orderedImageInputVisual(slot);
-            const slotLabel = `Image reference ${slotIndex + 1}`;
-            const slotPreview = orderedImageInputPreview(slot, slotLabel, `mobile-multi-image-${slotIndex + 1}`);
-            return slotPreview ? (
-              <StudioStagedMediaTile
-                key={orderedImageInputKey(slot, slotIndex)}
-                preview={slotPreview}
-                visualUrl={slotVisual}
-                onOpenPreview={openReferencePreview}
-                onRemove={() => clearOrderedImageInput(slot)}
-                className="h-[72px] w-[72px] shrink-0"
-                tileClassName="border-[rgba(216,141,67,0.2)]"
-                testId={`studio-mobile-multi-image-slot-${slotIndex + 1}`}
-              />
-            ) : null;
-          })}
-          {canAddMoreImages ? (
-            <StudioMediaSlotAddTile
-              accept="image/*"
-              multiple
-              isDragActive={isDragActive}
-              testId="studio-mobile-multi-image-input"
-              wrapperClassName="shrink-0"
-              tileClassName={mobileAddTileClassName}
-              plusIconClassName={mobileAddTilePlusIconClassName}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsDragActive(true);
-              }}
-              onDragLeave={() => setIsDragActive(false)}
-              onDrop={(event) => void handleSourceTileDrop(event, orderedImageInputs.length)}
-              onPickFiles={(fileList, input) => {
-                addImageFilesToOrderedSlot(fileList, orderedImageInputs.length, input);
-              }}
-            />
-          ) : null}
-        </div>
-      </StudioMobileInputsSection>
-    ) : seedanceComposer ? (
-      <StudioMobileInputsSection title="Inputs">
-        <div className="grid gap-3">
-          <StudioMobileInputsGroup
-            label="Frames"
-            summary={
-              effectiveSeedanceMode === "first_last_frames"
-                ? `${seedanceFirstFrameAttachment ? 1 : 0}/${seedanceLastFrameAttachment ? 2 : 1}`
-                : seedanceFirstFrameAttachment
-                  ? "1/1"
-                  : "0/1"
-            }
-          >
-            <div className="scrollbar-none flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
-              {[
-                { label: "Start frame", role: "first_frame", attachment: seedanceFirstFrameAttachment },
-                ...(effectiveSeedanceMode === "first_last_frames"
-                  ? [{ label: "End frame", role: "last_frame", attachment: seedanceLastFrameAttachment }]
-                  : []),
-              ].map((slot, slotIndex) => {
-                const attachmentPreview = slot.attachment
-                  ? buildAttachmentPreview(slot.attachment, slot.label, `mobile-seedance-${slot.role}`)
-                  : null;
-                return (
-                  <div key={`mobile-seedance-${slot.role}`} className="shrink-0">
-                    {slot.attachment && attachmentPreview ? (
-                      <div
-                        onDragOver={(event) => {
-                          event.preventDefault();
-                          setIsDragActive(true);
-                        }}
-                        onDragLeave={() => setIsDragActive(false)}
-                        onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
-                        className="h-[72px] w-[72px]"
-                      >
-                        <StudioStagedMediaTile
-                          preview={attachmentPreview}
-                          visualUrl={slot.attachment.previewUrl}
-                          onOpenPreview={openReferencePreview}
-                          onRemove={() => removeAttachment(slot.attachment?.id ?? "")}
-                          className="h-[72px] w-[72px]"
-                          testId={`studio-mobile-seedance-slot-${slot.role}`}
-                        />
-                      </div>
-                    ) : (
-                      <StudioMediaSlotAddTile
-                        accept="image/*"
-                        isDragActive={isDragActive}
-                        testId={`studio-mobile-seedance-slot-input-${slot.role}`}
-                        required={slot.role === "first_frame"}
-                        wrapperClassName="shrink-0"
-                        tileClassName={mobileAddTileClassName}
-                        plusIconClassName={mobileAddTilePlusIconClassName}
-                        onDragOver={(event) => {
-                          event.preventDefault();
-                          setIsDragActive(true);
-                        }}
-                        onDragLeave={() => setIsDragActive(false)}
-                        onDrop={(event) => void handleSourceTileDrop(event, slotIndex)}
-                        onPickFiles={(fileList, input) => {
-                          if (slot.role === "last_frame" && !seedanceFirstFrameAttachment) {
-                            setFormMessage({ tone: "warning", text: "Add a start frame before the end frame." });
-                            resetFileInputValue(input);
-                            return;
-                          }
-                          addFiles(fileList, {
-                            role: slot.role as "first_frame" | "last_frame",
-                            allowedKinds: ["images"],
-                          });
-                          resetFileInputValue(input);
-                        }}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </StudioMobileInputsGroup>
-
-          {[
-            {
-              key: "images",
-              label: "Image refs",
-              tokenHint: "image@",
-              attachments: seedanceReferenceImages,
-              accept: "image/*",
-              maxLabel: "9",
-              tileClassName: "h-[72px] w-[72px]",
-              addTileClassName: mobileAddTileClassName,
-              plusIconClassName: mobileAddTilePlusIconClassName,
-              maxVisibleTiles: 4,
-            },
-            {
-              key: "videos",
-              label: "Video refs",
-              tokenHint: "video@",
-              attachments: seedanceReferenceVideos,
-              accept: "video/*",
-              maxLabel: "3",
-              tileClassName: "h-[72px] w-[72px]",
-              addTileClassName: mobileAddTileClassName,
-              plusIconClassName: mobileAddTilePlusIconClassName,
-              maxVisibleTiles: 3,
-            },
-            {
-              key: "audios",
-              label: "Audio refs",
-              tokenHint: "audio@",
-              attachments: seedanceReferenceAudios,
-              accept: "audio/*",
-              maxLabel: "3",
-              tileClassName: "h-[72px] w-[72px]",
-              addTileClassName: mobileAddTileClassName,
-              plusIconClassName: mobileAddTilePlusIconClassName,
-              maxVisibleTiles: 3,
-            },
-          ].map((group) => (
-            <StudioMobileInputsGroup
-              key={`mobile-${group.key}`}
-              label={`${group.label} - ${group.tokenHint}`}
-              summary={`${group.attachments.length} / ${group.maxLabel}`}
-            >
-              <div
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setIsDragActive(true);
-                }}
-                onDragLeave={() => setIsDragActive(false)}
-                onDrop={(event) =>
-                  void handleSeedanceReferenceDrop(event, group.key as "images" | "videos" | "audios")
-                }
-                className={cn(
-                  "rounded-[18px] border border-white/8 bg-white/[0.025] p-2 transition",
-                  isDragActive ? "border-[rgba(216,141,67,0.3)] bg-[rgba(32,38,35,0.9)]" : "",
-                )}
-              >
-                <div className="scrollbar-none flex min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden pb-1">
-                  {group.attachments.slice(0, group.maxVisibleTiles).map((attachment) => (
-                    <StudioStagedMediaTile
-                      key={attachment.id}
-                      preview={
-                        buildAttachmentPreview(
-                          attachment,
-                          attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
-                          `mobile-${group.key}-${attachment.id}`,
-                        ) ?? {
-                          key: `attachment:${attachment.id}`,
-                          label: attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
-                          url: attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
-                          kind: attachment.kind,
-                          posterUrl: attachment.referenceRecord?.poster_url ?? null,
-                        }
-                      }
-                      visualUrl={
-                        attachment.kind === "audios"
-                          ? null
-                          : attachment.previewUrl ?? attachment.referenceRecord?.thumb_url ?? attachment.referenceRecord?.stored_url ?? null
-                      }
-                      onOpenPreview={openReferencePreview}
-                      onRemove={() => removeAttachment(attachment.id)}
-                      className={cn("shrink-0", group.tileClassName)}
-                      testId={`studio-mobile-seedance-group-tile-${group.key}-${attachment.id}`}
-                    />
-                  ))}
-                  {group.attachments.length < Number(group.maxLabel) ? (
-                    <label className={cn("flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]", group.addTileClassName)}>
-                      {(() => {
-                        const AddIcon = studioMediaSlotAddTileIcon(
-                          group.key === "videos" ? "video" : group.key === "audios" ? "audio" : "image",
-                        );
-                        return <AddIcon className={group.plusIconClassName} />;
-                      })()}
-                      <input
-                        type="file"
-                        multiple
-                        accept={group.accept}
-                        data-testid={`studio-mobile-seedance-group-input-${group.key}`}
-                        className="hidden"
-                        onChange={(event) => {
-                          addFiles(event.target.files, {
-                            role: "reference",
-                            allowedKinds: [group.key as "images" | "videos" | "audios"],
-                          });
-                          resetFileInputValue(event.currentTarget);
-                        }}
-                      />
-                    </label>
-                  ) : null}
-                  {group.attachments.length > group.maxVisibleTiles ? (
-                    <div className={cn("flex shrink-0 items-center justify-center border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58", group.addTileClassName)}>
-                      +{group.attachments.length - group.maxVisibleTiles}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </StudioMobileInputsGroup>
-          ))}
-        </div>
-      </StudioMobileInputsSection>
-    ) : standardComposerLayout.usesExplicitSlots ? (
-      <StudioMobileInputsSection
-        title={standardComposerSectionTitle}
-        summary={standardComposerLayout.summaryLabel}
-      >
-        <div className="flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
-          <StudioStandardSlotRail
-            slots={standardComposerSlots}
-            mobile
-            isDragActive={isDragActive}
-            mobileAddTileClassName={mobileAddTileClassName}
-            mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
-            buildPreview={(slot, testIdPrefix) => standardComposerSlotPreview(slot, testIdPrefix)}
-            resolveVisualUrl={(slot) => standardComposerSlotVisual(slot)}
-            isAssetBackedImageSlot={(slot) => slot.kind === "image" && orderedImageInputs[slot.slotIndex]?.source === "asset"}
-            onSetDragActive={setIsDragActive}
-            onSlotDrop={(event, slot) => void handleSourceTileDrop(event, slot.slotIndex, slot)}
-            onOpenPreview={openReferencePreview}
-            onClearSlot={clearStandardComposerSlot}
-            onPickFiles={addFilesToStandardComposerSlot}
-          />
-        </div>
-      </StudioMobileInputsSection>
-    ) : sourceAttachmentStrip ? (
-      <StudioMobileInputsSection
-        title="Inputs"
-        summary={
-          imageLimitLabel
-            ? imageLimitLabel
-            : stagedVideoCount || stagedAudioCount
-              ? `${stagedVideoCount} videos · ${stagedAudioCount} audio`
-              : null
-        }
-      >
-        <div className="flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
-          {canUseSourceAsset && currentSourceAsset ? (
-            <StudioStagedMediaTile
-              preview={
-                buildAssetReferencePreview(currentSourceAsset, currentSourceAsset.prompt_summary ?? "Source asset") ?? {
-                  key: `asset:${currentSourceAsset.asset_id}`,
-                  label: currentSourceAsset.prompt_summary ?? "Source asset",
-                  url: mediaThumbnailUrl(currentSourceAsset) ?? "",
-                  kind: currentSourceAsset.generation_kind === "video" ? "videos" : "images",
-                  posterUrl: mediaThumbnailUrl(currentSourceAsset) ?? null,
-                }
-              }
-              visualUrl={mediaThumbnailUrl(currentSourceAsset) ?? mediaDisplayUrl(currentSourceAsset)}
-              onOpenPreview={openReferencePreview}
-              onRemove={() => clearSourceAsset()}
-              className="h-[72px] w-[72px] shrink-0"
-              tileClassName="border-[rgba(216,141,67,0.24)]"
-              testId="studio-mobile-source-asset-tile"
-            />
-          ) : null}
-
-          {attachments.slice(0, 4).map((attachment) => (
-            <StudioStagedMediaTile
-              key={attachment.id}
-              preview={
-                buildAttachmentPreview(
-                  attachment,
-                  attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
-                  attachment.id,
-                ) ?? {
-                  key: `attachment:${attachment.id}`,
-                  label: attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
-                  url: attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
-                  kind: attachment.kind,
-                  posterUrl: attachment.referenceRecord?.poster_url ?? null,
-                }
-              }
-              visualUrl={
-                attachment.kind === "audios"
-                  ? null
-                  : attachment.previewUrl ?? attachment.referenceRecord?.thumb_url ?? attachment.referenceRecord?.stored_url ?? null
-              }
-              footerLabel={attachment.kind === "images" ? "Image" : attachment.kind === "videos" ? "Video" : "Audio"}
-              onOpenPreview={openReferencePreview}
-              onRemove={() => removeAttachment(attachment.id)}
-              className="h-[72px] w-[72px] shrink-0"
-              testId={`studio-mobile-attachment-tile-${attachment.id}`}
-            />
-          ))}
-
-          {attachments.length > 4 ? (
-            <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.04] text-center text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/58">
-              +{attachments.length - 4}
-            </div>
-          ) : null}
-
-          {genericSourceAddTileVisible ? (
-            <StudioMediaSlotAddTile
-              accept="image/*,video/*,audio/*"
-              multiple
-              disabled={!genericSourceAddTileVisible}
-              isDragActive={isDragActive}
-              testId="studio-mobile-source-input"
-              wrapperClassName="shrink-0"
-              tileClassName={mobileAddTileClassName}
-              plusIconClassName={mobileAddTilePlusIconClassName}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsDragActive(true);
-              }}
-              onDragLeave={() => setIsDragActive(false)}
-              onDrop={(event) => void handleSourceTileDrop(event)}
-              onPickFiles={(fileList, input) => {
-                addFiles(fileList);
-                resetFileInputValue(input);
-              }}
-            />
-          ) : null}
-        </div>
-      </StudioMobileInputsSection>
-    ) : null
+    <StudioMobileInputsContent
+      dedicatedImageReferenceRailActive={dedicatedImageReferenceRailActive}
+      seedanceComposer={seedanceComposer}
+      standardComposerUsesExplicitSlots={standardComposerLayout.usesExplicitSlots}
+      sourceAttachmentStripVisible={Boolean(sourceAttachmentStrip)}
+      effectiveSeedanceMode={effectiveSeedanceMode}
+      imageLimitLabel={imageLimitLabel}
+      orderedImageInputs={orderedImageInputs}
+      canAddMoreImages={canAddMoreImages}
+      isDragActive={isDragActive}
+      seedanceFirstFrameAttachment={seedanceFirstFrameAttachment}
+      seedanceLastFrameAttachment={seedanceLastFrameAttachment}
+      seedanceReferenceImages={seedanceReferenceImages}
+      seedanceReferenceVideos={seedanceReferenceVideos}
+      seedanceReferenceAudios={seedanceReferenceAudios}
+      standardComposerSectionTitle={standardComposerSectionTitle}
+      standardComposerSummaryLabel={standardComposerLayout.summaryLabel}
+      standardComposerSlots={standardComposerSlots}
+      currentSourceAsset={currentSourceAsset}
+      canUseSourceAsset={canUseSourceAsset}
+      attachments={attachments}
+      genericSourceAddTileVisible={genericSourceAddTileVisible}
+      stagedVideoCount={stagedVideoCount}
+      stagedAudioCount={stagedAudioCount}
+      mobileAddTileClassName={mobileAddTileClassName}
+      mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
+      buildOrderedImageInputPreview={orderedImageInputPreview}
+      buildAttachmentPreview={buildAttachmentPreview}
+      buildAssetReferencePreview={buildAssetReferencePreview}
+      standardComposerSlotPreview={standardComposerSlotPreview}
+      standardComposerSlotVisual={standardComposerSlotVisual}
+      onSetDragActive={setIsDragActive}
+      onSetFormWarning={(text) => setFormMessage({ tone: "warning", text })}
+      onDropIntoSourceSlot={(event, slotIndex, slot) => void handleSourceTileDrop(event, slotIndex, slot)}
+      onSeedanceReferenceDrop={(event, kind) => void handleSeedanceReferenceDrop(event, kind)}
+      onOpenPreview={openReferencePreview}
+      onClearOrderedImageInput={clearOrderedImageInput}
+      onClearSourceAsset={clearSourceAsset}
+      onRemoveAttachment={removeAttachment}
+      onClearStandardComposerSlot={clearStandardComposerSlot}
+      onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
+      onAddFiles={addFiles}
+      onAddImageFilesToOrderedSlot={addImageFilesToOrderedSlot}
+      onResetFileInput={resetFileInputValue}
+    />
   ) : null;
 
   useEffect(() => {
@@ -2632,63 +1516,6 @@ export function MediaStudio({
     }
   }
 
-  function fallbackCopyTextToClipboard(text: string) {
-    if (typeof document === "undefined") {
-      return false;
-    }
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "true");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    textarea.style.pointerEvents = "none";
-    textarea.style.left = "-9999px";
-    document.body.appendChild(textarea);
-    textarea.select();
-    textarea.setSelectionRange(0, textarea.value.length);
-    try {
-      return document.execCommand("copy");
-    } catch {
-      return false;
-    } finally {
-      textarea.remove();
-    }
-  }
-
-  function showCopyPromptStatus(status: "copied" | "error") {
-    setCopyPromptStatus(status);
-    if (copyPromptStatusTimerRef.current != null) {
-      window.clearTimeout(copyPromptStatusTimerRef.current);
-    }
-    copyPromptStatusTimerRef.current = window.setTimeout(() => {
-      setCopyPromptStatus("idle");
-      copyPromptStatusTimerRef.current = null;
-    }, 1800);
-  }
-
-  async function copyPromptFromAsset(promptText: string | null) {
-    if (!promptText) {
-      return;
-    }
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(promptText);
-      } else if (!fallbackCopyTextToClipboard(promptText)) {
-        throw new Error("Clipboard copy is not available in this browser.");
-      }
-      showCopyPromptStatus("copied");
-      setFormMessage({ tone: "healthy", text: "Copied the selected asset prompt." });
-    } catch {
-      if (fallbackCopyTextToClipboard(promptText)) {
-        showCopyPromptStatus("copied");
-        setFormMessage({ tone: "healthy", text: "Copied the selected asset prompt." });
-        return;
-      }
-      showCopyPromptStatus("error");
-      setFormMessage({ tone: "danger", text: "Studio could not copy the prompt on this device." });
-    }
-  }
-
   function useAssetAsSource(asset: MediaAsset | null, animate = false) {
     if (!asset) {
       return;
@@ -2813,198 +1640,27 @@ export function MediaStudio({
     removeAttachment(slot.attachment.id);
   }
 
-  async function fetchAssetById(assetId: string | number) {
-    const response = await fetch(`/api/control/media-assets/${assetId}`, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-    const payload = (await response.json().catch(() => null)) as { ok?: boolean; asset?: MediaAsset | null } | null;
-    if (!response.ok || !payload?.ok || !payload.asset) {
-      throw new Error("Unable to load the selected media asset.");
-    }
-    return payload.asset;
-  }
-
-  async function fetchJobStateById(jobId: string | number) {
-    const response = await fetch(`/api/control/media-jobs/${jobId}`, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-    const payload = (await response.json().catch(() => null)) as
-      | {
-          ok?: boolean;
-          job?: MediaJob | null;
-          batch?: MediaBatch | null;
-        }
-      | null;
-    if (!response.ok || !payload?.ok || !payload.job) {
-      throw new Error("Unable to load the selected media job.");
-    }
-    return {
-      job: payload.job,
-      batch: payload.batch ?? null,
-    };
-  }
-
-  async function retryFailedJobInStudio(job: MediaJob | null) {
-    if (!job) {
-      return;
-    }
-    await restoreStudioComposerFromPlan({
-      plan: selectedFailedJobRetryPlan,
-      fallbackPrimaryInput: selectedFailedJobPrimaryInput,
-      fallbackReferenceInputs: selectedFailedJobReferenceInputs,
-      sourceAssetId: job.source_asset_id ?? null,
-      missingModelMessage: "Studio could not find the model used by this failed job.",
-      successMessage: "Loaded the failed job back into Studio. Review it and generate again.",
-      partialFailureMessage: "Loaded the failed job prompt and settings, but Studio could not restage the original source image.",
-      closeAssetInspector: true,
-      closeFailedJobInspector: true,
-      dependencies: {
-        localAssets,
-        favoriteAssets,
-        selectedProjectId,
-        setSelectedProjectId,
-        replaceStudioHistory: (projectId) => {
-          if (typeof window !== "undefined") {
-            window.history.replaceState({}, "", studioHrefForProject(projectId, null));
-          }
-        },
-        clearComposer,
-        setModelKey,
-        applyPresetSelection,
-        setSelectedPresetId,
-        setSelectedPromptIds,
-        setPrompt,
-        setOptionValues,
-        setOutputCount,
-        setValidation,
-        setBusyState,
-        setOpenPicker,
-        setEnhanceDialogOpen,
-        setEnhancePreview,
-        setEnhanceError,
-        setIsDragActive,
-        clearSourceAsset,
-        setPresetInputValues,
-        stageSourceAsset,
-        setLocalAssets,
-        fetchAssetById,
-        addRestoredFiles,
-        addGalleryAssetAsAttachment,
-        assignPresetSlotAsset,
-        assignPresetSlotFile,
-        setSelectedFailedJobId,
-        setSelectedAssetId,
-        setSelectedMediaLightboxOpen,
-        setSelectedReferencePreview: () => setSelectedReferencePreview(null),
-        setMobileComposerCollapsed,
-        setFormMessage,
-        revealComposer,
-      },
-    });
-  }
-
-  async function reviseSelectedAssetInStudio(asset: MediaAsset | null) {
-    if (!asset) {
-      return;
-    }
-    let revisionJob = selectedAssetJob;
-    let revisionBatch = selectedAssetBatch;
-
-    if (asset.job_id) {
-      try {
-        const latestState = await fetchJobStateById(asset.job_id);
-        revisionJob = latestState.job;
-        revisionBatch = latestState.batch ?? revisionBatch;
-        setLocalJobs((current) => [
-          latestState.job,
-          ...current.filter((job) => job.job_id !== latestState.job.job_id),
-        ]);
-        if (latestState.batch) {
-          upsertBatch(latestState.batch);
-        }
-      } catch {
-        // Fall back to the currently cached job when the refresh endpoint is unavailable.
-      }
-    }
-
-    const revisionPlan =
-      buildStudioRetryRestorePlan({
-        job: revisionJob,
-        batch: revisionBatch,
-        models,
-        presets,
-        localAssets,
-        favoriteAssets,
-      }) ?? selectedAssetRevisionPlan;
-    const revisionPrimaryInput = buildStudioJobPrimaryInput({
-      job: revisionJob,
-      localAssets,
-      favoriteAssets,
-    });
-    const revisionReferenceInputs = buildStudioJobReferenceInputs({
-      job: revisionJob,
-      localAssets,
-      favoriteAssets,
-    });
-
-    await restoreStudioComposerFromPlan({
-      plan: revisionPlan,
-      fallbackPrimaryInput: revisionPrimaryInput,
-      fallbackReferenceInputs: revisionReferenceInputs,
-      sourceAssetId: revisionJob?.source_asset_id ?? selectedAssetJob?.source_asset_id ?? asset.source_asset_id ?? null,
-      missingModelMessage: "Studio could not reconstruct this asset into an editable composer state.",
-      successMessage: "Loaded this asset back into Studio with its original prompt, references, and settings.",
-      partialFailureMessage: "Loaded this asset prompt and settings, but Studio could not restage some of the original reference media.",
-      closeAssetInspector: true,
-      closeFailedJobInspector: false,
-      dependencies: {
-        localAssets,
-        favoriteAssets,
-        selectedProjectId,
-        setSelectedProjectId,
-        replaceStudioHistory: (projectId) => {
-          if (typeof window !== "undefined") {
-            window.history.replaceState({}, "", studioHrefForProject(projectId, null));
-          }
-        },
-        clearComposer,
-        setModelKey,
-        applyPresetSelection,
-        setSelectedPresetId,
-        setSelectedPromptIds,
-        setPrompt,
-        setOptionValues,
-        setOutputCount,
-        setValidation,
-        setBusyState,
-        setOpenPicker,
-        setEnhanceDialogOpen,
-        setEnhancePreview,
-        setEnhanceError,
-        setIsDragActive,
-        clearSourceAsset,
-        setPresetInputValues,
-        stageSourceAsset,
-        setLocalAssets,
-        fetchAssetById,
-        addRestoredFiles,
-        addGalleryAssetAsAttachment,
-        assignPresetSlotAsset,
-        assignPresetSlotFile,
-        setSelectedFailedJobId,
-        setSelectedAssetId,
-        setSelectedMediaLightboxOpen,
-        setSelectedReferencePreview: () => setSelectedReferencePreview(null),
-        setMobileComposerCollapsed,
-        setFormMessage,
-        revealComposer,
-      },
-    });
-  }
+  const { retryFailedJobInStudio, reviseSelectedAssetInStudio } = useStudioRestoreCoordination({
+    inspector,
+    composer,
+    selectedAssetJob,
+    models,
+    presets,
+    localAssets,
+    favoriteAssets,
+    selectedProjectId,
+    setSelectedProjectId,
+    studioHrefForProject,
+    setLocalAssets,
+    setLocalJobs,
+    upsertBatch,
+    setSelectedFailedJobId,
+    setSelectedAssetId,
+    setSelectedMediaLightboxOpen,
+    clearSelectedReferencePreview: () => setSelectedReferencePreview(null),
+    setFormMessage,
+    revealComposer,
+  });
 
   function clearGallerySelection() {
     resetInspector();
@@ -3026,130 +1682,9 @@ export function MediaStudio({
     toggleFavoritesFilter();
   }
 
-  async function handleAssetDownload(asset: MediaAsset | null) {
-    if (!asset) {
-      return;
-    }
-
-    const inlineUrl = mediaInlineUrl(asset);
-    const downloadUrl = mediaDownloadUrl(asset) ?? inlineUrl;
-    if (!downloadUrl) {
-      return;
-    }
-
-    if (isLikelyMobileSaveDevice()) {
-      const sourceUrl = new URL(inlineUrl ?? downloadUrl, window.location.origin).toString();
-      const attachmentUrl = new URL(downloadUrl, window.location.origin).toString();
-      try {
-        const response = await fetch(attachmentUrl, { credentials: "same-origin" });
-        if (!response.ok) {
-          throw new Error("Download failed");
-        }
-        const originalBlob = await response.blob();
-        const mimeType = inferBlobMimeType(asset, originalBlob);
-        if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-          const shareFileName = mediaDownloadName(asset);
-          try {
-            const shareBlob = await getMobileShareBlob(new Blob([originalBlob], { type: mimeType }));
-            const normalizedShareFileName =
-              shareBlob.type === "image/jpeg" ? replaceFileExtension(shareFileName, "jpg") : shareFileName;
-            const file = new File([shareBlob], normalizedShareFileName, {
-              type: shareBlob.type || mimeType || "application/octet-stream",
-            });
-            const shareData: ShareData = { files: [file], title: normalizedShareFileName };
-            if (typeof navigator.canShare !== "function" || navigator.canShare(shareData)) {
-              await navigator.share(shareData);
-              showActivity(
-                { tone: "healthy", message: "Opened your device share sheet." },
-                { autoHideMs: 2200 },
-              );
-              return;
-            }
-          } catch (error) {
-            if (error instanceof DOMException && error.name === "AbortError") {
-              return;
-            }
-          }
-        }
-
-        try {
-          if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-            const urlShareData: ShareData = {
-              title: mediaDownloadName(asset),
-              url: isImageMimeType(mimeType) ? sourceUrl : attachmentUrl,
-            };
-            if (typeof navigator.canShare !== "function" || navigator.canShare(urlShareData)) {
-              await navigator.share(urlShareData);
-              showActivity(
-                { tone: "healthy", message: "Opened your device share sheet." },
-                { autoHideMs: 2200 },
-              );
-              return;
-            }
-          }
-        } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError") {
-            return;
-          }
-        }
-
-        const objectUrl = URL.createObjectURL(new Blob([originalBlob], { type: mimeType }));
-        try {
-          const anchor = document.createElement("a");
-          anchor.href = objectUrl;
-          anchor.download = mediaDownloadName(asset);
-          anchor.rel = "noopener";
-          document.body.appendChild(anchor);
-          anchor.click();
-          anchor.remove();
-          showActivity(
-            { tone: "healthy", message: "Opened the media save flow for your device." },
-            { autoHideMs: 2600 },
-          );
-          return;
-        } finally {
-          window.setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
-        }
-      } catch {
-        // Fall through to the generic mobile open behavior below.
-      }
-
-      const fallbackLooksLikeImage = /\.(png|jpe?g|webp|gif)$/i.test(mediaDownloadName(asset));
-      const opened = window.open(fallbackLooksLikeImage ? sourceUrl : attachmentUrl, "_blank", "noopener,noreferrer");
-      if (!opened) {
-        window.location.assign(attachmentUrl);
-      }
-      showActivity(
-        { tone: "healthy", message: "Opened the original media so your device can save or share it." },
-        { autoHideMs: 2600 },
-      );
-      return;
-    }
-
-    const anchor = document.createElement("a");
-    anchor.href = downloadUrl;
-    anchor.download = mediaDownloadName(asset);
-    anchor.rel = "noopener";
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-  }
-
   return (
     <div className={immersive ? "min-h-dvh" : "space-y-7"}>
-      <div
-        id="create"
-        className={cn(
-          "overflow-x-hidden overflow-y-visible bg-[#121413] px-0 py-0 text-white",
-          immersive
-            ? "min-h-dvh"
-            : "rounded-[34px] border border-[rgba(22,26,24,0.9)] shadow-[0_38px_90px_rgba(19,24,21,0.3)]",
-        )}
-      >
-        <div className={cn("relative overflow-x-hidden overflow-y-visible", immersive ? "min-h-dvh" : "min-h-[920px]")}>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(216,141,67,0.16),transparent_24%),radial-gradient(circle_at_top_right,rgba(82,110,106,0.2),transparent_28%),linear-gradient(180deg,#181c1a,#111412_52%,#171917)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,9,8,0.12),rgba(7,9,8,0.52)),radial-gradient(circle_at_center,transparent_40%,rgba(4,4,4,0.42)_100%)]" />
-
+      <StudioCreateStage immersive={immersive}>
           <StudioHeaderChrome
             immersive={immersive}
             apiHealthy={apiHealthy}
@@ -3224,433 +1759,87 @@ export function MediaStudio({
                   onToggleCollapsed={() => setMobileComposerCollapsed((current) => !current)}
                 >
                   {structuredPresetActive ? (
-                    <div className="relative grid gap-3 rounded-[26px] border border-white/8 bg-white/[0.04] px-4 py-4">
-                      <div className={cn("grid gap-3", structuredPresetImageSlots.length ? "lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] lg:items-start" : "")}>
-                        <div className="rounded-[20px] border border-white/8 bg-[rgba(255,255,255,0.03)] p-4">
-                          <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/48">Preset</div>
-                          <div className="mt-2 text-base font-semibold tracking-[-0.03em] text-white/92">{currentPreset?.label}</div>
-                          {currentPreset?.description ? (
-                            <p className="mt-3 text-sm leading-7 text-white/68">{currentPreset.description}</p>
-                          ) : null}
-                        </div>
-                        {structuredPresetImageSlots.length ? (
-                          <div className="grid gap-3">
-                            {structuredPresetImageSlots.map((slot) => {
-                              const slotState = presetSlotStates[slot.key];
-                              const slotPreview = slotState?.assetId
-                                ? mediaThumbnailUrl(findMediaAssetById(slotState.assetId, localAssets, favoriteAssets) ?? null) ?? slotState.previewUrl
-                                : slotState?.referenceId
-                                  ? slotState.referenceRecord?.thumb_url ?? slotState.referenceRecord?.stored_url ?? slotState.previewUrl
-                                : slotState?.previewUrl;
-                              const presetSlotPreview =
-                                slotPreview
-                                  ? ({
-                                      key: `preset-slot:${slot.key}`,
-                                      label: slot.label,
-                                      url: slotPreview,
-                                      kind: "images",
-                                      posterUrl: null,
-                                    } satisfies StudioReferencePreview)
-                                  : null;
-                              return (
-                                <div
-                                  key={slot.key}
-                                  data-testid={`studio-preset-slot-${slot.key}`}
-                                  className="rounded-[20px] border border-white/8 bg-[rgba(255,255,255,0.03)] p-3"
-                                >
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                      <div className="text-sm font-semibold text-white/88">{slot.label}</div>
-                                      <div className="mt-1 text-xs leading-6 text-white/56">{slot.helpText || "Upload or drag an image into this slot."}</div>
-                                    </div>
-                                  </div>
-                                  <div className="mt-3 flex items-center gap-3">
-                                    <div className="relative h-[86px] w-[86px] shrink-0">
-                                      {presetSlotPreview ? (
-                                        <div
-                                          onDragOver={(event) => event.preventDefault()}
-                                          onDrop={(event) => handlePresetSlotDrop(event, slot.key)}
-                                          className="h-full w-full"
-                                        >
-                                          <StudioStagedMediaTile
-                                            preview={presetSlotPreview}
-                                            visualUrl={slotPreview}
-                                            onOpenPreview={openReferencePreview}
-                                            onRemove={() => clearPresetSlot(slot.key)}
-                                            replaceControl={
-                                              <label className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/12 bg-[rgba(11,14,13,0.88)] text-white/76 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:text-white">
-                                                <ImagePlus className="size-3.5" />
-                                                <input
-                                                  type="file"
-                                                  accept="image/*"
-                                                  data-testid={`studio-preset-slot-input-${slot.key}`}
-                                                  className="hidden"
-                                                  onChange={(event) => {
-                                                    assignPresetSlotFile(slot.key, event.target.files?.[0] ?? null);
-                                                    resetFileInputValue(event.currentTarget);
-                                                  }}
-                                                />
-                                              </label>
-                                            }
-                                            className="h-full w-full"
-                                            testId={`studio-preset-slot-filled-${slot.key}`}
-                                          />
-                                        </div>
-                                      ) : (
-                                        <label
-                                          onDragOver={(event) => event.preventDefault()}
-                                          onDrop={(event) => handlePresetSlotDrop(event, slot.key)}
-                                          className="relative flex h-full w-full cursor-pointer items-center justify-center overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.05] text-white/74"
-                                        >
-                                          <ImagePlus className="size-5" />
-                                          <input
-                                            type="file"
-                                            accept="image/*"
-                                            data-testid={`studio-preset-slot-input-${slot.key}`}
-                                            className="hidden"
-                                            onChange={(event) => {
-                                              assignPresetSlotFile(slot.key, event.target.files?.[0] ?? null);
-                                              resetFileInputValue(event.currentTarget);
-                                            }}
-                                          />
-                                        </label>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : null}
-                      </div>
-                      {structuredPresetTextFields.length ? (
-                        <div className="grid gap-3 pt-1 sm:grid-cols-2">
-                          {structuredPresetTextFields.map((field) => (
-                            <label key={field.key} className="grid gap-2">
-                              <span className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/54">{field.label}</span>
-                              <input
-                                value={presetInputValues[field.key] ?? field.defaultValue ?? ""}
-                                onChange={(event) => setPresetInputValues((current) => ({ ...current, [field.key]: event.target.value }))}
-                                placeholder={field.placeholder || field.label}
-                                className="h-12 rounded-[18px] border border-white/10 bg-[rgba(11,14,13,0.88)] px-4 text-sm text-white outline-none placeholder:text-white/32"
-                              />
-                            </label>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <>
-                      <div className="relative">
-                        <textarea
-                          data-testid="studio-prompt-input"
-                          ref={promptInputRef}
-                          value={prompt}
-                          onChange={(event) => {
-                            setPrompt(event.target.value);
-                            setPromptReferenceDismissed(false);
-                            syncPromptCursorIndex(event.currentTarget);
-                          }}
-                          onFocus={(event) => {
-                            setPromptHasFocus(true);
-                            setPromptReferenceDismissed(false);
-                            syncPromptCursorIndex(event.currentTarget);
-                          }}
-                          onBlur={() => {
-                            setPromptHasFocus(false);
-                          }}
-                          onClick={(event) => syncPromptCursorIndex(event.currentTarget)}
-                          onKeyUp={(event) => syncPromptCursorIndex(event.currentTarget)}
-                          onSelect={(event) => syncPromptCursorIndex(event.currentTarget)}
-                          onKeyDown={(event) => {
-                            if (!promptReferencePickerOpen || !promptReferenceChoices.length) {
-                              return;
-                            }
-                            if (event.key === "ArrowDown") {
-                              event.preventDefault();
-                              setPromptReferenceActiveIndex((current) => (current + 1) % promptReferenceChoices.length);
-                              return;
-                            }
-                            if (event.key === "ArrowUp") {
-                              event.preventDefault();
-                              setPromptReferenceActiveIndex((current) =>
-                                current === 0 ? promptReferenceChoices.length - 1 : current - 1,
-                              );
-                              return;
-                            }
-                            if (event.key === "Enter" || event.key === "Tab") {
-                              event.preventDefault();
-                              applyPromptReferenceChoice(promptReferenceChoices[promptReferenceActiveIndex] ?? null);
-                              return;
-                            }
-                            if (event.key === "Escape") {
-                              setPromptReferenceDismissed(true);
-                            }
-                          }}
-                          onDragOver={(event) => {
-                            if (event.dataTransfer?.files?.length) {
-                              event.preventDefault();
-                            }
-                          }}
-                          onDrop={(event) => {
-                            if (event.dataTransfer?.files?.length) {
-                              event.preventDefault();
-                              event.stopPropagation();
-                            }
-                          }}
-                          placeholder={
-                            multiShotsEnabled
-                              ? "3 | Wide shot of the skyline\n2 | Hero steps into frame on the rooftop"
-                              : "Describe the scene you imagine"
-                          }
-                          className={cn(
-                            "scrollbar-none w-full resize-none rounded-[26px] border border-white/8 bg-white/[0.04] px-4 py-[18px] text-[0.86rem] leading-6 text-white outline-none placeholder:text-white/38 focus:border-[rgba(216,141,67,0.3)]",
-                            "min-h-[146px] md:min-h-[136px]",
-                          )}
-                        />
-                        {promptReferencePickerOpen ? (
-                          <div className="absolute bottom-3 left-3 z-20 w-[min(19rem,calc(100%-4.5rem))] rounded-[18px] border border-white/10 bg-[rgba(17,20,19,0.96)] p-2 shadow-[0_18px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-                            <div className="grid gap-1">
-                              {promptReferenceChoices.map((choice, index) => (
-                                <button
-                                  key={choice.id}
-                                  type="button"
-                                  data-testid={`studio-prompt-reference-option-${index + 1}`}
-                                  onMouseDown={(event) => {
-                                    event.preventDefault();
-                                  }}
-                                  onClick={() => applyPromptReferenceChoice(choice)}
-                                  className={cn(
-                                    "flex items-center gap-3 rounded-[12px] px-2 py-2 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white",
-                                    promptReferenceActiveIndex === index ? "bg-white/[0.08] text-white" : "",
-                                  )}
-                                >
-                                  <span
-                                    className="inline-flex h-10 w-10 shrink-0 overflow-hidden rounded-[10px] border border-white/10 bg-white/[0.05] bg-cover bg-center bg-no-repeat"
-                                    style={choice.visualUrl ? { backgroundImage: `url("${choice.visualUrl}")` } : undefined}
-                                  >
-                                    {!choice.visualUrl ? (
-                                      <span className="flex h-full w-full items-center justify-center text-white/48">
-                                        <ImageIcon className="size-4" />
-                                      </span>
-                                    ) : null}
-                                  </span>
-                                  <span className="min-w-0 flex-1 truncate">{choice.label}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                        {enhanceEnabledForModel ? (
-                          enhanceConfiguredForModel ? (
-                            <button
-                              type="button"
-                              data-testid="studio-open-enhance-dialog"
-                              onClick={openEnhanceDialog}
-                              aria-label={enhanceHasSavedSystemPrompt ? "Open enhance dialog" : "Enhance unavailable until a model prompt is saved"}
-                              title={enhanceHasSavedSystemPrompt ? "Open enhance dialog" : "Save an enhancement system prompt in Models"}
-                              disabled={!enhanceHasSavedSystemPrompt}
-                              className={cn(
-                                "absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border transition",
-                                enhanceHasSavedSystemPrompt
-                                  ? "border-white/10 bg-white/[0.06] text-white/72 hover:border-[rgba(216,141,67,0.32)] hover:bg-[rgba(216,141,67,0.14)] hover:text-white"
-                                  : "cursor-not-allowed border-white/8 bg-white/[0.03] text-white/28",
-                              )}
-                            >
-                              <Sparkles className="size-4" />
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              data-testid="studio-open-enhance-setup"
-                              onClick={openEnhancementSetup}
-                              className="absolute bottom-3 right-3 inline-flex h-9 items-center justify-center rounded-full border border-[rgba(216,141,67,0.22)] bg-[rgba(216,141,67,0.12)] px-3 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#ffd7af] transition hover:border-[rgba(216,141,67,0.34)] hover:text-white"
-                            >
-                              Set up
-                            </button>
-                          )
-                        ) : null}
-                      </div>
-                    </>
-                  )}
-              <div
-                className={cn(
-                  "relative z-30 flex flex-wrap items-center gap-2 pb-1 text-[0.77rem]",
-                  structuredPresetActive ? "pt-[6px]" : "",
-                )}
-              >
-                    {!structuredPresetActive || showStructuredPresetModelPicker ? (
-                      <>
-                        <PillSelect
-                          pickerId="model"
-                          open={openPicker === "model"}
-                          onToggle={() => setOpenPicker(openPicker === "model" ? null : "model")}
-                          onClose={() => setOpenPicker(null)}
-                          widthClassName={pickerWidth("model")}
-                          icon={composerModelIcon(currentModel)}
-                          choiceIcon={(choice) => modelIconByKey.get(choice.value) ?? Clapperboard}
-                          label={composerModelLabel(currentModel?.label)}
-                          selectedValue={modelKey ?? ""}
-                          menuTitle="Model"
-                          choices={
-                            structuredPresetActive && showStructuredPresetModelPicker
-                              ? structuredPresetModelChoices
-                              : enabledStudioModels.map(composerModelChoice)
-                          }
-                          selectedChoiceFirst={false}
-                          onSelect={(value) => {
-                            if (structuredPresetActive && showStructuredPresetModelPicker) {
-                              setModelKey(value);
-                              setValidation(null);
-                              return;
-                            }
-                            setModelKey(value);
-                            setSelectedPresetId("");
-                            setSelectedPromptIds([]);
-                            setValidation(null);
-                            setPresetInputValues({});
-                            setPresetSlotStates({});
-                          }}
-                        />
-
-                        {!structuredPresetActive && (selectedPresetId || modelPresets.length) ? (
-                          <PillSelect
-                            pickerId="preset"
-                            open={openPicker === "preset"}
-                            onToggle={() => setOpenPicker(openPicker === "preset" ? null : "preset")}
-                            onClose={() => setOpenPicker(null)}
-                            widthClassName={pickerWidth("preset")}
-                            icon={Sparkles}
-                            label={
-                              modelPresets.find((preset) => preset.preset_id === selectedPresetId)?.label ??
-                              modelPresets.find((preset) => preset.key === selectedPresetId)?.label ??
-                              "Preset"
-                            }
-                            selectedValue={selectedPresetId}
-                            menuTitle="Preset"
-                            choices={[
-                              { value: "", label: "Preset" },
-                              ...modelPresets.map((preset) => ({
-                                value: preset.preset_id,
-                                label: preset.label,
-                              })),
-                            ]}
-                            onSelect={(value) => applyPresetSelection(value, { preferredModelKey: modelKey })}
-                          />
-                        ) : null}
-                      </>
-                    ) : null}
-
-                    {modelMaxOutputs > 1 ? (
-                      <PillSelect
-                        pickerId="output-count"
-                        open={openPicker === "output-count"}
-                        onToggle={() => setOpenPicker(openPicker === "output-count" ? null : "output-count")}
-                        onClose={() => setOpenPicker(null)}
-                        widthClassName={pickerWidth("output-count")}
-                        icon={Copy}
-                        label={`${outputCount}`}
-                        selectedValue={String(outputCount)}
-                        menuTitle="Outputs"
-                        choices={Array.from({ length: modelMaxOutputs }, (_, index) => ({
-                          value: String(index + 1),
-                          label: String(index + 1),
-                        }))}
-                        onSelect={(value) => setOutputCount(Math.max(1, Number(value) || 1))}
-                      />
-                    ) : null}
-
-                    {compactOptionEntries
-                      .filter(([optionKey]) => !(modelKey === "kling-3.0-i2v" && inferredInputPattern === "first_last_frames" && optionKey === "aspect_ratio"))
-                      .map(([optionKey, schema]) => {
-                      const currentValue = optionValues[optionKey];
-                      const Icon = optionIcon(optionKey, currentValue);
-                      const choices = buildChoiceList(modelKey, optionKey, schema, currentValue);
-                      const resolvedValue = currentValue ?? schema.default ?? null;
-                      const resolvedLabel =
-                        resolvedValue == null || resolvedValue === ""
-                          ? choices[0]?.label ?? "Select"
-                          : displayChoiceLabel(optionKey, schema, resolvedValue);
-                      if (!choices.length && schema.type === "int_range") {
-                        const min = typeof schema.min === "number" ? schema.min : undefined;
-                        const max = typeof schema.max === "number" ? schema.max : undefined;
-                        const numericValue = Number(resolvedValue ?? min ?? 0);
-                        return (
-                          <label
-                            key={optionKey}
-                            className="flex h-10 w-[calc(50%-0.25rem)] items-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.045] px-3 text-[0.72rem] text-white/78 sm:w-[112px]"
-                          >
-                            <span className="truncate capitalize">{optionKey.replaceAll("_", " ")}</span>
-                            <input
-                              type="number"
-                              min={min}
-                              max={max}
-                              value={Number.isFinite(numericValue) ? numericValue : ""}
-                              onChange={(event) => {
-                                const parsed = Number(event.currentTarget.value);
-                                updateOption(optionKey, Number.isFinite(parsed) ? parsed : event.currentTarget.value);
-                              }}
-                              className="min-w-0 flex-1 bg-transparent text-right text-white outline-none"
-                            />
-                          </label>
-                        );
-                      }
-                      return (
-                        <PillSelect
-                          key={optionKey}
-                          pickerId={optionKey}
-                          open={openPicker === optionKey}
-                          onToggle={() => setOpenPicker(openPicker === optionKey ? null : optionKey)}
-                          onClose={() => setOpenPicker(null)}
-                          widthClassName={pickerWidth(optionKey)}
-                          icon={Icon}
-                          choiceIcon={(choice) => optionIcon(optionKey, parseOptionChoice(schema, choice.value))}
-                          label={displayOptionControlLabel(optionKey, resolvedLabel)}
-                          selectedValue={serializeOptionChoice(resolvedValue ?? "")}
-                          menuTitle={optionKey.replaceAll("_", " ")}
-                          choices={
-                            choices.length
-                              ? choices
-                              : [
-                                  {
-                                    value: serializeOptionChoice(resolvedValue ?? ""),
-                                    label: resolvedLabel,
-                                  },
-                                ]
-                          }
-                          onSelect={(value) => updateOption(optionKey, parseOptionChoice(schema, value))}
-                        />
-                      );
-                    })}
-
-                    <div className="flex w-full items-center gap-2 sm:w-auto sm:ml-auto">
-                      <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={clearComposer}
-                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#b4d58b,#87a86a)] px-5 text-[0.76rem] font-semibold text-[#132108] shadow-[0_18px_38px_rgba(113,147,86,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_42px_rgba(113,147,86,0.24)]"
-                      >
-                        Clear
-                      </button>
-                      <button
-                        type="button"
-                        data-testid="studio-generate-button"
-                        onClick={() => void submitMedia("submit")}
-                        disabled={!canSubmit}
-                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 text-[0.76rem] font-semibold text-[#172200] shadow-[0_18px_38px_rgba(176,235,44,0.2)] transition hover:-translate-y-0.5 disabled:opacity-60"
-                      >
-                        {generateButtonLabel}
-                      </button>
-                      </div>
-                    </div>
-                  </div>
+                    <StudioStructuredPresetComposer
+                      preset={currentPreset}
+                      imageSlots={structuredPresetImageSlots}
+                      textFields={structuredPresetTextFields}
+                      slotStates={presetSlotStates}
+                      inputValues={presetInputValues}
+                      localAssets={localAssets ?? []}
+                      favoriteAssets={favoriteAssets ?? []}
+                      onPresetInputValuesChange={setPresetInputValues}
+                      onAssignSlotFile={assignPresetSlotFile}
+                      onClearSlot={clearPresetSlot}
+                      onDropSlot={handlePresetSlotDrop}
+                      onOpenPreview={openReferencePreview}
+                      onResetFileInput={resetFileInputValue}
+                    />
+	                  ) : (
+	                    <StudioPromptComposerBody
+	                      promptInputRef={promptInputRef}
+	                      prompt={prompt}
+	                      multiShotsEnabled={multiShotsEnabled}
+	                      promptReferencePickerOpen={promptReferencePickerOpen}
+	                      promptReferenceChoices={promptReferenceChoices}
+	                      promptReferenceActiveIndex={promptReferenceActiveIndex}
+	                      enhanceEnabledForModel={enhanceEnabledForModel}
+	                      enhanceConfiguredForModel={enhanceConfiguredForModel}
+	                      enhanceHasSavedSystemPrompt={enhanceHasSavedSystemPrompt}
+	                      onPromptChange={setPrompt}
+	                      onPromptFocusChange={setPromptHasFocus}
+	                      onPromptReferenceDismissedChange={setPromptReferenceDismissed}
+	                      onPromptCursorSync={syncPromptCursorIndex}
+	                      onPromptReferenceActiveIndexChange={setPromptReferenceActiveIndex}
+	                      onApplyPromptReferenceChoice={applyPromptReferenceChoice}
+	                      onOpenEnhanceDialog={openEnhanceDialog}
+	                      onOpenEnhancementSetup={openEnhancementSetup}
+	                    />
+	                  )}
+              <StudioComposerControls
+                structuredPresetActive={structuredPresetActive}
+                showStructuredPresetModelPicker={showStructuredPresetModelPicker}
+                openPicker={openPicker}
+                modelIconByKey={modelIconByKey}
+                currentModel={currentModel}
+                currentModelIcon={composerModelIcon(currentModel)}
+                currentModelLabel={composerModelLabel(currentModel?.label)}
+                modelKey={modelKey}
+                modelChoices={
+                  structuredPresetActive && showStructuredPresetModelPicker
+                    ? structuredPresetModelChoices
+                    : enabledStudioModels.map(composerModelChoice)
+                }
+                selectedPresetId={selectedPresetId}
+                modelPresets={modelPresets}
+                modelMaxOutputs={modelMaxOutputs}
+                outputCount={outputCount}
+                compactOptionEntries={compactOptionEntries}
+                optionValues={optionValues}
+                inferredInputPattern={inferredInputPattern}
+                canSubmit={canSubmit}
+                generateButtonLabel={generateButtonLabel}
+                onOpenPickerChange={setOpenPicker}
+                onModelChange={setModelKey}
+                onResetModelScopedSelection={() => {
+                  setSelectedPresetId("");
+                  setSelectedPromptIds([]);
+                  setPresetInputValues({});
+                  setPresetSlotStates({});
+                }}
+                onValidationChange={setValidation}
+                onPresetSelection={applyPresetSelection}
+                onOutputCountChange={setOutputCount}
+                onOptionChange={updateOption}
+                onClear={clearComposer}
+                onSubmit={() => void submitMedia("submit")}
+              />
 	              {(selectedPromptList.length || multiShotsEnabled) ? (
-                <div className="mt-4 grid gap-3 border-t border-white/8 pt-4">
+                <div className="mt-4 grid gap-3 border-t border-[var(--border-soft)] pt-4">
                   <div className="grid gap-2">
                     {multiShotsEnabled ? (
-                      <div className="rounded-[20px] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/74">
+                      <div className="studio-composer-muted-tile rounded-[20px] px-4 py-3 text-sm text-[var(--text-muted)]">
                         {multiShotScriptError ? (
-                          <span className="text-[#ffb5a6]">{multiShotScriptError}</span>
+                          <span className="text-[var(--feedback-danger-text)]">{multiShotScriptError}</span>
                         ) : (
                           <span>
                             Multi-shot script ready: {multiShotScript.shots.length} shot
@@ -3666,7 +1855,7 @@ export function MediaStudio({
                             key={promptItem.prompt_id}
                             type="button"
                             onClick={() => togglePrompt(promptItem.prompt_id)}
-                            className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white/78"
+                            className="studio-composer-muted-tile rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em]"
                           >
                             @{promptItem.key}
                           </button>
@@ -3680,8 +1869,7 @@ export function MediaStudio({
               </div>
             </>
           ) : null}
-        </div>
-      </div>
+      </StudioCreateStage>
 
       <StudioEnhanceDialog
         open={enhanceDialogOpen}
@@ -3744,47 +1932,13 @@ export function MediaStudio({
       ) : null}
 
       {studioSettingsOpen ? (
-        <div className="fixed inset-0 z-[118] overflow-y-auto overscroll-contain bg-[rgba(6,8,7,0.78)] backdrop-blur-md [webkit-overflow-scrolling:touch]">
-          <div className="min-h-dvh p-0 lg:p-6">
-            <div className="flex min-h-dvh min-w-0 flex-col bg-[linear-gradient(180deg,rgba(16,20,18,0.98),rgba(10,13,12,0.98))] shadow-[0_40px_100px_rgba(0,0,0,0.5)] lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:max-h-[calc(100dvh-3rem)] lg:overflow-hidden lg:rounded-[34px] lg:border lg:border-white/8">
-              <div className="flex items-center justify-between gap-3 border-b border-white/8 px-4 py-4 md:px-6">
-                <div>
-                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[rgba(208,255,72,0.94)]">
-                    Studio Settings
-                  </div>
-                  <div className="mt-1 text-sm text-white/68">
-                    Configure the current model, system prompt, and presets without leaving Studio.
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setStudioSettingsOpen(false)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/78 transition hover:border-[rgba(216,141,67,0.28)] hover:text-white"
-                  aria-label="Close studio settings"
-                >
-                  <X className="size-5" />
-                </button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 md:px-6 md:py-6">
-                <MediaModelsConsole
-                  models={models}
-                  presets={presets}
-                  enhancementConfigs={enhancementConfigs}
-                  initialSelectedModelKey={modelKey}
-                  variant="studio"
-                  sections={{
-                    queue: false,
-                    enhancementProvider: false,
-                    modelHelper: true,
-                    studioSettings: false,
-                    modelPanel: true,
-                    presets: false,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <StudioSettingsModal
+          models={models}
+          presets={presets}
+          enhancementConfigs={enhancementConfigs}
+          initialSelectedModelKey={modelKey}
+          onClose={() => setStudioSettingsOpen(false)}
+        />
       ) : null}
 
       {selectedAsset ? (
@@ -3818,7 +1972,7 @@ export function MediaStudio({
           onOpenReference={setSelectedReferencePreview}
           onMobileInspectorPromptOpenChange={setMobileInspectorPromptOpen}
           onMobileInspectorInfoOpenChange={setMobileInspectorInfoOpen}
-          onDownload={() => void handleAssetDownload(selectedAsset)}
+          onDownload={() => void downloadAsset(selectedAsset)}
           onDismiss={() => void dismissAsset(selectedAsset.asset_id)}
           onAnimate={() => useAssetAsSource(selectedAsset, true)}
           onUseImage={() => useAssetAsSource(selectedAsset, false)}
@@ -3862,93 +2016,12 @@ export function MediaStudio({
       ) : null}
 
       {!immersive ? (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_360px]">
-        <Panel>
-          <PanelHeader
-            eyebrow="Queue"
-            title="Recent jobs"
-            description="The stage above is the operator-facing create surface. This queue keeps the current Control API job state visible while runs are moving."
-          />
-          <div className="mt-5 grid gap-3">
-            {localJobs.length ? (
-              localJobs.slice(0, 6).map((job) => (
-                <div
-                  key={job.job_id}
-                  className="rounded-[22px] border border-[var(--surface-border-soft)] bg-[rgba(255,255,255,0.78)] px-4 py-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-medium tracking-[-0.02em] text-[var(--foreground)]">
-                        {job.model_key ?? "Unknown model"}
-                      </div>
-                      <p className="mt-2 text-sm leading-7 text-[var(--muted-strong)]">
-                        {truncate(job.final_prompt_used || job.enhanced_prompt || job.raw_prompt || "No prompt recorded.", 160)}
-                      </p>
-                    </div>
-                    <StatusPill label={job.status} tone={toneForStatus(job.status)} />
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2 text-xs uppercase tracking-[0.14em] text-[var(--muted-strong)]">
-                    <span>{formatDateTime(job.created_at)}</span>
-                    <span>•</span>
-                    <span>{job.provider_task_id ?? "local staging"}</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-[22px] border border-dashed border-white/10 bg-[rgba(12,15,14,0.94)] px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]">
-                No media jobs are stored yet.
-              </div>
-            )}
-          </div>
-        </Panel>
-
-        <Panel>
-          <PanelHeader
-            eyebrow="Lineage"
-            title="Current create context"
-            description="A compact view of the prompt strategy currently staged in the bottom dock."
-          />
-          <div className="mt-5 grid gap-3">
-            <div className="rounded-[20px] border border-white/10 bg-[rgba(12,15,14,0.94)] px-4 py-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">
-                Model
-              </div>
-              <div className="mt-2 text-lg font-semibold tracking-[-0.03em] text-[var(--foreground)]">
-                {currentModel?.label ?? "No model selected"}
-              </div>
-            </div>
-            <div className="rounded-[20px] border border-white/10 bg-[rgba(12,15,14,0.94)] px-4 py-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">
-                Selected prompts
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {selectedPromptList.length ? (
-                  selectedPromptList.map((promptItem) => (
-                    <span
-                      key={promptItem.prompt_id}
-                      className="rounded-full border border-[rgba(208,255,72,0.24)] bg-[rgba(208,255,72,0.12)] px-3 py-2 text-xs uppercase tracking-[0.12em] text-[var(--accent-strong)]"
-                    >
-                      @{promptItem.key}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-sm leading-7 text-[var(--muted-strong)]">No system prompts selected yet.</span>
-                )}
-              </div>
-            </div>
-            <div className="rounded-[20px] border border-white/10 bg-[rgba(12,15,14,0.94)] px-4 py-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">
-                Preflight
-              </div>
-              <div className="mt-2 text-sm leading-7 text-[var(--muted-strong)]">
-                {validation?.resolved_system_prompt?.rendered_system_prompt
-                  ? String(validation.resolved_system_prompt.rendered_system_prompt)
-                  : "Run preflight to see the rendered system prompt and resolved options before submit."}
-              </div>
-            </div>
-          </div>
-        </Panel>
-        </div>
+        <StudioContextPanels
+          localJobs={localJobs}
+          currentModel={currentModel}
+          selectedPromptList={selectedPromptList}
+          validation={validation}
+        />
       ) : null}
     </div>
   );

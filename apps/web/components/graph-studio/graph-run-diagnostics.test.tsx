@@ -96,4 +96,25 @@ describe("GraphRunDiagnostics", () => {
 
     expect(screen.getByLabelText("Codex saw 2 images")).toBeTruthy();
   });
+
+  it("shows when an interrupted run recovered provider work", () => {
+    render(
+      <GraphRunDiagnostics
+        run={makeRun({
+          status: "completed",
+          error: null,
+          metrics_json: {
+            completed_node_count: 4,
+            recovered_from_interruption: true,
+            recovered_node_ids: ["model"],
+            resumed_node_ids: ["save"],
+          },
+        })}
+        transportMetrics={{ statusRequests: 0, fullRunRequests: 0, eventRequests: 0, streamConnections: 0, streamErrors: 0 }}
+      />,
+    );
+
+    expect(screen.getByLabelText("Recovered interrupted run with 1 recovered nodes and 1 resumed nodes")).toBeTruthy();
+    expect(screen.getByText("Recovered")).toBeTruthy();
+  });
 });

@@ -14,7 +14,7 @@ from .execution_cache import cached_artifacts_available, cached_output_for_node,
 from .normalization import materialize_workflow_defaults
 from .executors.audio_ops import AudioTransformExecutor
 from .executors.base import GraphExecutionContext, GraphExecutor, GraphRunCancelled
-from .executors.debug_ops import DebugInspectExecutor, DebugMetadataExecutor, DisplayAnyExecutor
+from .executors.debug_ops import DebugInspectExecutor, DebugMetadataExecutor, DisplayAnyExecutor, UtilityNoteExecutor
 from .executors.image_ops import (
     ImageConvertFormatExecutor,
     ImageCropExecutor,
@@ -25,9 +25,9 @@ from .executors.image_ops import (
     ImageSplitExecutor,
     ImageTransformExecutor,
 )
-from .executors.kie_model import KieModelExecutor
+from .executors.kie_model import KieModelExecutor, completed_kie_job_outputs, wait_for_existing_kie_job
 from .executors.media_load import LoadAudioExecutor, LoadImageExecutor, LoadVideoExecutor
-from .executors.media_save import SaveAudioExecutor, SaveImageExecutor, SaveImagesExecutor, SaveVideoExecutor
+from .executors.media_save import SaveAudioExecutor, SaveImageExecutor, SaveImagesExecutor, SaveMusicTrackExecutor, SaveVideoExecutor
 from .executors.preset_ops import PresetRenderExecutor
 from .executors.preview_ops import PreviewAudioExecutor, PreviewImageExecutor, PreviewVideoExecutor
 from .executors.prompt_ops import PromptConcatExecutor, PromptLlmExecutor, PromptParseExecutor, PromptRecipeExecutor, PromptTextExecutor
@@ -115,6 +115,42 @@ def _bypass_outputs(node, context: GraphExecutionContext, execution: Dict) -> Di
     return {output_port: inputs}
 
 
+def _output_payload(outputs: Dict[str, List]) -> Dict[str, List[Dict]]:
+    return {key: [item.model_dump(mode="json") for item in value] for key, value in outputs.items()}
+
+
+def _is_interrupted_run(record: Dict) -> bool:
+    status = str(record.get("status") or "").strip()
+    if status in {"queued", "running", "cancelling"}:
+        return True
+    if status != "failed":
+        return False
+    error = str(record.get("error") or "").lower()
+    if "interrupted" in error:
+        return True
+    for event in store.list_graph_run_events(str(record.get("run_id") or "")):
+        if str(event.get("event_type") or "") != "run.failed":
+            continue
+        payload = event.get("payload_json") or {}
+        if payload.get("interrupted") is True:
+            return True
+    return False
+
+
+def _submitted_kie_events_by_node(run_id: str) -> Dict[str, Dict]:
+    submitted: Dict[str, Dict] = {}
+    for event in store.list_graph_run_events(run_id):
+        if str(event.get("event_type") or "") != "kie.submitted":
+            continue
+        node_id = str(event.get("node_id") or "").strip()
+        payload = event.get("payload_json") or {}
+        job_id = str(payload.get("job_id") or "").strip()
+        batch_id = str(payload.get("batch_id") or "").strip()
+        if node_id and job_id and batch_id:
+            submitted[node_id] = {"job_id": job_id, "batch_id": batch_id}
+    return submitted
+
+
 class GraphRuntime:
     def __init__(self) -> None:
         executors: List[GraphExecutor] = [
@@ -151,11 +187,13 @@ class GraphRuntime:
             DisplayAnyExecutor(),
             DebugInspectExecutor(),
             DebugMetadataExecutor(),
+            UtilityNoteExecutor(),
             KieModelExecutor(),
             SaveImageExecutor(),
             SaveImagesExecutor(),
             SaveVideoExecutor(),
             SaveAudioExecutor(),
+            SaveMusicTrackExecutor(),
         ]
         self.executors: Dict[str, GraphExecutor] = {executor.node_type: executor for executor in executors}
 
@@ -192,7 +230,186 @@ class GraphRuntime:
             thread.start()
         return self._shape_run(run)
 
-    def execute_run(self, run_id: str) -> None:
+    def recover_interrupted_runs(self, *, start: bool = True, limit: int = 100) -> int:
+        recovered = 0
+        for run in store.list_graph_runs(limit=limit):
+            if not _is_interrupted_run(run):
+                continue
+            result = self.recover_run(str(run["run_id"]), start=start)
+            if result["recovered"]:
+                recovered += 1
+        return recovered
+
+    def recover_run(self, run_id: str, *, start: bool = True) -> Dict[str, object]:
+        run = store.get_graph_run(run_id)
+        if not run or not _is_interrupted_run(run):
+            return {"recovered": False, "started": False, "run_id": run_id}
+        workflow = materialize_workflow_defaults(GraphWorkflow(**run["workflow_json"]))
+        compiled = compile_workflow(workflow)
+        nodes_by_id = {node.id: node for node in workflow.nodes}
+        run_nodes_by_id = {str(item.get("node_id") or ""): item for item in store.list_graph_run_nodes(run_id)}
+        submitted_by_node = _submitted_kie_events_by_node(run_id)
+        if not submitted_by_node:
+            return {"recovered": False, "started": False, "run_id": run_id}
+
+        context = GraphExecutionContext(run_id=run_id, workflow=workflow)
+        recovered_node_ids: List[str] = []
+        resumable_node_ids: List[str] = []
+        terminal_provider_failures: List[str] = []
+
+        for node_id in compiled.execution_order:
+            node = nodes_by_id[node_id]
+            existing = run_nodes_by_id.get(node.id) or {}
+            existing_status = str(existing.get("status") or "").strip()
+            if existing_status in {"completed", "cached", "bypassed", "skipped"}:
+                context.publish_outputs(node, output_payload_to_refs(existing.get("output_snapshot_json") or {}))
+                continue
+            submitted = submitted_by_node.get(node.id)
+            if not submitted:
+                continue
+            job_id = str(submitted["job_id"])
+            batch_id = str(submitted["batch_id"])
+            job = store.get_job(job_id)
+            if not job:
+                continue
+            metrics = {**(existing.get("metrics_json") or {}), "job_id": job_id, "batch_id": batch_id, "recovery_checked": True}
+            job_status = str(job.get("status") or "").strip()
+            if job_status == "completed":
+                assets = store.get_assets_by_job_id(job_id)
+                if not assets:
+                    continue
+                outputs = completed_kie_job_outputs(node=node, job=job, assets=assets, batch_id=batch_id)
+                outputs = register_output_artifacts(
+                    workflow_id=str(run["workflow_id"]),
+                    run_id=run_id,
+                    node=node,
+                    outputs=outputs,
+                    input_refs=context.all_inputs_for(node),
+                )
+                context.publish_outputs(node, outputs)
+                output_payload = _output_payload(outputs)
+                metrics.update(
+                    {
+                        "recovered": True,
+                        "recovery_source": "completed_media_job",
+                        "output_asset_ids": _output_asset_ids(outputs),
+                        "output_ref_count": sum(len(value) for value in outputs.values()),
+                    }
+                )
+                store.update_graph_run_node(
+                    run_id,
+                    node.id,
+                    {
+                        "status": "completed",
+                        "progress": 1,
+                        "error": None,
+                        "output_snapshot_json": output_payload,
+                        "metrics_json": metrics,
+                        "finished_at": store.utcnow_iso(),
+                    },
+                )
+                emit(run_id, "node.recovered", {"job_id": job_id, "batch_id": batch_id, "metrics": metrics, **output_payload}, node_id=node.id)
+                recovered_node_ids.append(node.id)
+                continue
+            if job_status in {"queued", "submitted", "running", "processing"}:
+                metrics.update({"recovered": True, "recovery_source": "existing_media_job"})
+                store.update_graph_run_node(
+                    run_id,
+                    node.id,
+                    {
+                        "status": "running",
+                        "progress": existing.get("progress") or 0.5,
+                        "error": None,
+                        "metrics_json": metrics,
+                    },
+                )
+                emit(run_id, "node.recovery_resumed", {"job_id": job_id, "batch_id": batch_id}, node_id=node.id)
+                resumable_node_ids.append(node.id)
+                continue
+            if job_status in {"failed", "cancelled"}:
+                message = job.get("error") or f"KIE job {job_status} while Media Studio was offline."
+                metrics.update({"recovered": False, "recovery_source": "terminal_media_job", "error": message})
+                store.update_graph_run_node(
+                    run_id,
+                    node.id,
+                    {
+                        "status": "failed",
+                        "progress": 1,
+                        "error": message,
+                        "metrics_json": metrics,
+                        "finished_at": store.utcnow_iso(),
+                    },
+                )
+                emit(run_id, "node.failed", {"error": message, "recovered_from_interruption": True}, node_id=node.id)
+                terminal_provider_failures.append(node.id)
+
+        existing_recovery_metrics = run.get("metrics_json") if isinstance(run.get("metrics_json"), dict) else {}
+        if not recovered_node_ids and not resumable_node_ids and existing_recovery_metrics.get("recovered_from_interruption") is True:
+            if start:
+                thread = threading.Thread(target=self.execute_run, kwargs={"run_id": run_id, "resume": True}, name=f"graph-recover-{run_id}", daemon=True)
+                thread.start()
+            return {
+                "recovered": True,
+                "started": start,
+                "run_id": run_id,
+                "recovered_node_ids": [],
+                "resumed_node_ids": [],
+                "continued_existing_recovery": True,
+            }
+        if not recovered_node_ids and not resumable_node_ids:
+            if terminal_provider_failures:
+                failure_metrics = {
+                    **(run.get("metrics_json") or {}),
+                    "recovered_from_interruption": False,
+                    "terminal_provider_failure_node_ids": terminal_provider_failures,
+                }
+                message = "Interrupted graph run could not recover because the submitted provider job failed."
+                store.update_graph_run(run_id, {"status": "failed", "error": message, "metrics_json": failure_metrics, "finished_at": store.utcnow_iso()})
+                emit(run_id, "run.recovery_failed", {"error": message, "terminal_provider_failures": terminal_provider_failures})
+            return {
+                "recovered": False,
+                "started": False,
+                "run_id": run_id,
+                "terminal_provider_failures": terminal_provider_failures,
+            }
+
+        recovery_metrics = {
+            **(run.get("metrics_json") or {}),
+            "recovered_from_interruption": True,
+            "recovered_node_ids": recovered_node_ids,
+            "resumed_node_ids": resumable_node_ids,
+        }
+        store.update_graph_run(
+            run_id,
+            {
+                "status": "queued" if start else "running",
+                "error": None,
+                "finished_at": None,
+                "metrics_json": recovery_metrics,
+            },
+        )
+        emit(
+            run_id,
+            "run.recovered",
+            {
+                "recovered_node_ids": recovered_node_ids,
+                "resumed_node_ids": resumable_node_ids,
+                "terminal_provider_failures": terminal_provider_failures,
+            },
+        )
+        if start:
+            thread = threading.Thread(target=self.execute_run, kwargs={"run_id": run_id, "resume": True}, name=f"graph-recover-{run_id}", daemon=True)
+            thread.start()
+        return {
+            "recovered": True,
+            "started": start,
+            "run_id": run_id,
+            "recovered_node_ids": recovered_node_ids,
+            "resumed_node_ids": resumable_node_ids,
+            "terminal_provider_failures": terminal_provider_failures,
+        }
+
+    def execute_run(self, run_id: str, *, resume: bool = False) -> None:
         run = store.get_graph_run(run_id)
         if not run:
             return
@@ -204,11 +421,21 @@ class GraphRuntime:
             if not validation.valid:
                 raise ValueError("; ".join(error.message for error in validation.errors))
             compiled = compile_workflow(workflow)
-            store.update_graph_run(run_id, {"status": "running", "started_at": store.utcnow_iso(), "compiled_graph_json": compiled.model_dump(mode="json")})
+            store.update_graph_run(
+                run_id,
+                {
+                    "status": "running",
+                    "error": None,
+                    "started_at": run.get("started_at") or store.utcnow_iso(),
+                    "finished_at": None,
+                    "compiled_graph_json": compiled.model_dump(mode="json"),
+                },
+            )
             emit(run_id, "run.compiled", {"node_count": len(workflow.nodes), "edge_count": len(workflow.edges)})
-            emit(run_id, "run.started")
+            emit(run_id, "run.resumed" if resume else "run.started", {"recovered": True} if resume else {})
             context = GraphExecutionContext(run_id=run_id, workflow=workflow)
             nodes_by_id = {node.id: node for node in workflow.nodes}
+            existing_run_nodes = {str(item.get("node_id") or ""): item for item in store.list_graph_run_nodes(run_id)} if resume else {}
             active_node_id = None
             node_metrics_by_id: Dict[str, Dict] = {}
             for node_id in compiled.execution_order:
@@ -217,6 +444,15 @@ class GraphRuntime:
                 active_node_id = node.id
                 execution_mode = _node_execution_mode(node)
                 definition = compiled.node_definitions.get(node.type)
+                existing_run_node = existing_run_nodes.get(node.id)
+                if resume and existing_run_node:
+                    existing_status = str(existing_run_node.get("status") or "").strip()
+                    if existing_status in {"completed", "cached", "bypassed", "skipped"}:
+                        outputs = output_payload_to_refs(existing_run_node.get("output_snapshot_json") or {})
+                        context.publish_outputs(node, outputs)
+                        node_metrics_by_id[node.id] = dict(existing_run_node.get("metrics_json") or {})
+                        active_node_id = None
+                        continue
                 if execution_mode == "muted":
                     context.publish_outputs(node, {})
                     node_metrics = {"execution_mode": "muted", "output_ref_count": 0}
@@ -227,6 +463,7 @@ class GraphRuntime:
                         {
                             "status": "skipped",
                             "progress": 1,
+                            "error": None,
                             "output_snapshot_json": {},
                             "metrics_json": node_metrics,
                             "finished_at": store.utcnow_iso(),
@@ -244,13 +481,14 @@ class GraphRuntime:
                         store.update_graph_run_node(
                             run_id,
                             node.id,
-                            {
-                                "status": "skipped",
-                                "progress": 1,
-                                "output_snapshot_json": {},
-                                "metrics_json": node_metrics,
-                                "finished_at": store.utcnow_iso(),
-                            },
+                        {
+                            "status": "skipped",
+                            "progress": 1,
+                            "error": None,
+                            "output_snapshot_json": {},
+                            "metrics_json": node_metrics,
+                            "finished_at": store.utcnow_iso(),
+                        },
                         )
                         emit(run_id, "node.skipped", {"execution_mode": "frozen", "reason": "missing_cached_output", "metrics": node_metrics}, node_id=node.id)
                         active_node_id = None
@@ -262,7 +500,7 @@ class GraphRuntime:
                         raise ValueError(f"Frozen node {node.id} references cached media that no longer exists.")
                     outputs = output_payload_to_refs(cached.get("output_snapshot_json") or {})
                     context.publish_outputs(node, outputs)
-                    output_payload = {key: [item.model_dump(mode="json") for item in value] for key, value in outputs.items()}
+                    output_payload = _output_payload(outputs)
                     node_metrics = {
                         "execution_mode": "frozen",
                         "cached": True,
@@ -276,6 +514,7 @@ class GraphRuntime:
                         {
                             "status": "cached",
                             "progress": 1,
+                            "error": None,
                             "output_snapshot_json": output_payload,
                             "metrics_json": node_metrics,
                             "finished_at": store.utcnow_iso(),
@@ -287,7 +526,7 @@ class GraphRuntime:
                 if execution_mode == "bypassed":
                     outputs = _bypass_outputs(node, context, definition.execution if definition else {})
                     context.publish_outputs(node, outputs)
-                    output_payload = {key: [item.model_dump(mode="json") for item in value] for key, value in outputs.items()}
+                    output_payload = _output_payload(outputs)
                     node_metrics = {
                         "execution_mode": "bypassed",
                         "output_ref_count": sum(len(value) for value in outputs.values()),
@@ -299,6 +538,7 @@ class GraphRuntime:
                         {
                             "status": "bypassed",
                             "progress": 1,
+                            "error": None,
                             "output_snapshot_json": output_payload,
                             "metrics_json": node_metrics,
                             "finished_at": store.utcnow_iso(),
@@ -321,7 +561,16 @@ class GraphRuntime:
                 store.update_graph_run_node(run_id, node.id, {"status": "running", "started_at": store.utcnow_iso(), "progress": 0.1})
                 emit(run_id, "node.started", {"node_type": node.type}, node_id=node.id)
                 input_refs = context.all_inputs_for(node)
-                outputs = executor.execute(node, context)
+                if resume and node.type.startswith("model.kie.") and existing_run_node:
+                    metrics = existing_run_node.get("metrics_json") or {}
+                    job_id = str(metrics.get("job_id") or "").strip()
+                    batch_id = str(metrics.get("batch_id") or "").strip()
+                    if job_id and batch_id:
+                        outputs = wait_for_existing_kie_job(node=node, context=context, job_id=job_id, batch_id=batch_id)
+                    else:
+                        outputs = executor.execute(node, context)
+                else:
+                    outputs = executor.execute(node, context)
                 node_duration = round(time.perf_counter() - node_started_monotonic, 4)
                 outputs = register_output_artifacts(
                     workflow_id=str(run["workflow_id"]),
@@ -331,7 +580,7 @@ class GraphRuntime:
                     input_refs=input_refs,
                 )
                 context.publish_outputs(node, outputs)
-                output_payload = {key: [item.model_dump(mode="json") for item in value] for key, value in outputs.items()}
+                output_payload = _output_payload(outputs)
                 node_metrics = {
                     **context.node_metrics.get(node.id, {}),
                     "duration_seconds": node_duration,
@@ -345,6 +594,7 @@ class GraphRuntime:
                     {
                         "status": "completed",
                         "progress": 1,
+                        "error": None,
                         "output_snapshot_json": output_payload,
                         "metrics_json": node_metrics,
                         "finished_at": store.utcnow_iso(),
@@ -353,9 +603,12 @@ class GraphRuntime:
                 emit(run_id, "node.completed", {**output_payload, "metrics": node_metrics}, node_id=node.id)
                 active_node_id = None
                 context.raise_if_cancel_requested()
-            output_snapshot = {
-                node_id: {port: [item.model_dump(mode="json") for item in refs] for port, refs in outputs.items()}
-                for node_id, outputs in context.node_outputs.items()
+            output_snapshot = {node_id: _output_payload(outputs) for node_id, outputs in context.node_outputs.items()}
+            prior_run_metrics = run.get("metrics_json") if isinstance(run.get("metrics_json"), dict) else {}
+            recovery_metrics = {
+                key: prior_run_metrics[key]
+                for key in ("recovered_from_interruption", "recovered_node_ids", "resumed_node_ids")
+                if key in prior_run_metrics
             }
             store.update_graph_run(
                 run_id,
@@ -370,6 +623,7 @@ class GraphRuntime:
                         "failed_node_count": 0,
                         "node_metrics": node_metrics_by_id,
                         "output_asset_ids": sorted({asset_id for metrics in node_metrics_by_id.values() for asset_id in metrics.get("output_asset_ids", [])}),
+                        **recovery_metrics,
                         **_aggregate_usage_metrics(node_metrics_by_id),
                     },
                     "finished_at": store.utcnow_iso(),

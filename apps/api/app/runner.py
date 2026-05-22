@@ -1,14 +1,101 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 import threading
 import time
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 from . import kie_adapter, service, store
 from .settings import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _download_suffix_from_url(source_url: str) -> str:
+    parsed_path = urlparse(source_url).path
+    mime_type = mimetypes.guess_type(parsed_path or source_url)[0] or ""
+    suffix = ""
+    if "." in parsed_path:
+        suffix = "." + parsed_path.rsplit(".", 1)[-1].lower()
+    if suffix in {".mp4", ".mov", ".webm", ".mkv", ".avi", ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".jpg", ".jpeg", ".png", ".webp", ".gif"}:
+        return suffix
+    if mime_type.startswith("video/"):
+        return ".mp4"
+    if mime_type.startswith("audio/"):
+        return ".mp3"
+    if mime_type.startswith("image/"):
+        return ".jpg"
+    return ".bin"
+
+
+def _unique_urls(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    urls: list[str] = []
+    for value in values:
+        url = str(value or "").strip()
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        urls.append(url)
+    return urls
+
+
+def _iter_nested_dicts(value: Any) -> list[Dict[str, Any]]:
+    if isinstance(value, dict):
+        items = [value]
+        for child in value.values():
+            items.extend(_iter_nested_dicts(child))
+        return items
+    if isinstance(value, list):
+        items: list[Dict[str, Any]] = []
+        for child in value:
+            items.extend(_iter_nested_dicts(child))
+        return items
+    return []
+
+
+def _suno_audio_urls_from_status(status: Dict[str, Any]) -> list[str]:
+    urls = [url for url in status.get("output_urls") or [] if isinstance(url, str)]
+    raw_response = status.get("raw_response") if isinstance(status.get("raw_response"), dict) else {}
+    metadata = raw_response.get("suno_output_metadata") if isinstance(raw_response, dict) else None
+    for item in _iter_nested_dicts(metadata):
+        for key in ("audio_url", "audioUrl", "source_audio_url"):
+            value = item.get(key)
+            if isinstance(value, str):
+                urls.append(value)
+    return _unique_urls(urls)
+
+
+def _suno_cover_image_urls_from_status(status: Dict[str, Any]) -> list[dict[str, Any]]:
+    raw_response = status.get("raw_response") if isinstance(status.get("raw_response"), dict) else {}
+    candidates: list[dict[str, Any]] = []
+    metadata = raw_response.get("suno_output_metadata") if isinstance(raw_response, dict) else None
+    for item in _iter_nested_dicts(metadata):
+        audio_url = str(item.get("audio_url") or item.get("audioUrl") or "").strip()
+        for key in ("image_url", "imageUrl", "cover_url", "coverUrl", "cover_image_url", "coverImageUrl"):
+            value = item.get(key)
+            if isinstance(value, str) and value.strip():
+                candidates.append({"url": value.strip(), "audio_url": audio_url, "metadata": item})
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
+    for candidate in candidates:
+        url = candidate["url"]
+        if url in seen:
+            continue
+        seen.add(url)
+        unique.append(candidate)
+    return unique
+
+
+def _suno_cover_by_audio_url(status: Dict[str, Any]) -> dict[str, dict[str, Any]]:
+    covers: dict[str, dict[str, Any]] = {}
+    for cover in _suno_cover_image_urls_from_status(status):
+        audio_url = str(cover.get("audio_url") or "").strip()
+        if audio_url and audio_url not in covers:
+            covers[audio_url] = cover
+    return covers
 
 
 class MediaRunner:
@@ -186,38 +273,90 @@ class MediaRunner:
                             "error": None,
                         },
                     )
-                output_urls = status.get("output_urls") or []
-                if output_urls:
-                    source_url = output_urls[0]
-                    suffix = ".mp4" if ".mp4" in source_url.lower() else ".bin"
-                    destination = settings.downloads_dir / f"{updated['job_id']}{suffix}"
-                    kie_adapter.download_output_file(source_url, str(destination))
-                    try:
-                        asset = service.publish_job_artifact(updated, destination, source_url)
-                        updated = store.update_job(updated["job_id"], {"status": "completed", "finished_at": store.utcnow_iso(), "error": None})
-                        store.append_job_event(updated["job_id"], "completed", {"asset_id": asset["asset_id"]})
-                    except Exception as exc:
-                        logger.exception("media artifact publish failed", extra={"job_id": updated["job_id"]})
-                        updated = store.update_job(
-                            updated["job_id"],
-                            {
-                                "status": "failed",
-                                "error": "Artifact publish failed: %s" % exc,
-                                "finished_at": store.utcnow_iso(),
-                            },
-                        )
-                        store.append_job_event(updated["job_id"], "artifact_publish_failed", {"error": str(exc)})
-                        store.append_job_event(
-                            updated["job_id"],
-                            "failed",
-                            {"error": str(exc), "reason": "artifact_publish_failed"},
-                        )
-                else:
+                is_suno_job = "suno" in str(updated.get("model_key") or "").lower()
+                output_urls = _suno_audio_urls_from_status(status) if is_suno_job else status.get("output_urls") or []
+                output_urls = _unique_urls([url for url in output_urls if isinstance(url, str)])
+                if not output_urls:
                     updated = store.update_job(
                         updated["job_id"],
                         {"status": "failed", "error": "No output URLs returned.", "finished_at": store.utcnow_iso()},
                     )
                     store.append_job_event(updated["job_id"], "failed", {"error": "No output URLs returned."})
+                    return updated
+                try:
+                    asset_ids: list[str] = []
+                    audio_asset_ids: list[str] = []
+                    associated_cover_count = 0
+                    suno_covers_by_audio_url = _suno_cover_by_audio_url(status) if is_suno_job else {}
+                    for output_index, source_url in enumerate(output_urls, start=1):
+                        suffix = _download_suffix_from_url(source_url)
+                        destination = settings.downloads_dir / f"{updated['job_id']}-output-{output_index}{suffix}"
+                        kie_adapter.download_output_file(source_url, str(destination))
+                        associated_outputs: list[dict[str, Any]] = []
+                        if is_suno_job:
+                            cover = suno_covers_by_audio_url.get(source_url)
+                            if cover:
+                                cover_url = str(cover.get("url") or "").strip()
+                                cover_suffix = _download_suffix_from_url(cover_url)
+                                cover_destination = settings.downloads_dir / f"{updated['job_id']}-output-{output_index}-cover{cover_suffix}"
+                                try:
+                                    kie_adapter.download_output_file(cover_url, str(cover_destination))
+                                    associated_outputs.append(
+                                        {
+                                            "path": cover_destination,
+                                            "remote_output_url": cover_url,
+                                            "role": "cover_image",
+                                            "metadata": {
+                                                "associated_audio_url": source_url,
+                                                "provider_metadata": cover.get("metadata"),
+                                            },
+                                        }
+                                    )
+                                    associated_cover_count += 1
+                                except Exception as exc:
+                                    logger.warning(
+                                        "media audio cover publish failed",
+                                        extra={"job_id": updated["job_id"], "cover_url": cover_url, "error": str(exc)},
+                                    )
+                                    store.append_job_event(
+                                        updated["job_id"],
+                                        "audio_cover_publish_failed",
+                                        {"error": str(exc), "cover_url": cover_url},
+                                    )
+                        asset = service.publish_job_artifact(
+                            updated,
+                            destination,
+                            source_url,
+                            output_index=output_index,
+                            output_role="output",
+                            output_metadata=suno_covers_by_audio_url.get(source_url, {}).get("metadata") if is_suno_job else None,
+                            associated_outputs=associated_outputs,
+                        )
+                        asset_ids.append(asset["asset_id"])
+                        if asset.get("generation_kind") == "audio":
+                            audio_asset_ids.append(asset["asset_id"])
+                    updated = store.update_job(updated["job_id"], {"status": "completed", "finished_at": store.utcnow_iso(), "error": None})
+                    store.append_job_event(
+                        updated["job_id"],
+                        "completed",
+                        {"asset_ids": asset_ids, "audio_asset_ids": audio_asset_ids, "associated_cover_count": associated_cover_count},
+                    )
+                except Exception as exc:
+                    logger.exception("media artifact publish failed", extra={"job_id": updated["job_id"]})
+                    updated = store.update_job(
+                        updated["job_id"],
+                        {
+                            "status": "failed",
+                            "error": "Artifact publish failed: %s" % exc,
+                            "finished_at": store.utcnow_iso(),
+                        },
+                    )
+                    store.append_job_event(updated["job_id"], "artifact_publish_failed", {"error": str(exc)})
+                    store.append_job_event(
+                        updated["job_id"],
+                        "failed",
+                        {"error": str(exc), "reason": "artifact_publish_failed"},
+                    )
                 return updated
             if state == "failed":
                 updated = store.update_job(
@@ -237,7 +376,7 @@ class MediaRunner:
             store.recompute_batch_counts(repaired["batch_id"])
             return
         try:
-            status = kie_adapter.poll_task(job["provider_task_id"])
+            status = kie_adapter.poll_task(job["provider_task_id"], model_key=job.get("model_key"))
             updated = self._finalize_job_from_status(job, status)
             store.recompute_batch_counts(updated["batch_id"])
         except Exception as exc:

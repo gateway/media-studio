@@ -383,6 +383,30 @@ const definitions: GraphNodeDefinition[] = [
     ],
   },
   {
+    type: "media.save_music_track",
+    title: "Save Music Track",
+    category: "Media",
+    search_aliases: ["save", "output", "asset", "audio", "music", "song", "suno", "track"],
+    source: { kind: "system" },
+    ui: {
+      default_size: { width: 340, height: 340 },
+      min_size: { width: 280, height: 300 },
+      max_size: { width: 860, height: 1200 },
+      color: "yellow",
+      accent: "yellow",
+      icon: "audio",
+      preview: true,
+    },
+    ports: {
+      inputs: [{ id: "track", label: "Music Track", type: "music_track", accepts: ["music_track"], required: true }],
+      outputs: [
+        { id: "asset", label: "Asset", type: "asset" },
+        { id: "audio", label: "Audio", type: "audio" },
+      ],
+    },
+    fields: [{ id: "project_id", label: "Group", type: "select" }],
+  },
+  {
     type: "audio.transform",
     title: "Audio Transform",
     category: "Audio",
@@ -524,6 +548,7 @@ describe("graph node search", () => {
     expect(rankGraphNodeDefinitions(definitions, "merge video")[0].definition.type).toBe("video.combine");
     expect(rankGraphNodeDefinitions(definitions, "load audio")[0].definition.type).toBe("media.load_audio");
     expect(rankGraphNodeDefinitions(definitions, "save audio")[0].definition.type).toBe("media.save_audio");
+    expect(rankGraphNodeDefinitions(definitions, "save music")[0].definition.type).toBe("media.save_music_track");
     expect(rankGraphNodeDefinitions(definitions, "audio transform")[0].definition.type).toBe("audio.transform");
     expect(rankGraphNodeDefinitions(definitions, "seedance audio")[0].definition.type).toBe("model.kie.seedance_2_0");
     expect(rankGraphNodeDefinitions(definitions, "o:video").map((item) => item.definition.type)).toContain("model.kie.kling_2_6_i2v");
@@ -532,6 +557,7 @@ describe("graph node search", () => {
     expect(rankGraphNodeDefinitions(definitions, "i:audio").map((item) => item.definition.type)).toContain("media.save_audio");
     expect(rankGraphNodeDefinitions(definitions, "i:audio").map((item) => item.definition.type)).toContain("media.save_video");
     expect(rankGraphNodeDefinitions(definitions, "i:audio").map((item) => item.definition.type)).toContain("model.kie.seedance_2_0");
+    expect(rankGraphNodeDefinitions(definitions, "i:music_track").map((item) => item.definition.type)).toContain("media.save_music_track");
   });
 
   it("finds the LLM prompt node by provider and vision aliases", () => {

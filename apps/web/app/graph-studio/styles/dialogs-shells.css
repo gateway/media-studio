@@ -19,9 +19,9 @@
   min-width: 0;
   min-height: 28px;
   padding: 0.18rem 0.36rem;
-  border: 1px solid rgba(247, 246, 240, 0.08);
+  border: 1px solid var(--graph-border-hairline);
   border-radius: 999px;
-  background: rgba(247, 246, 240, 0.05);
+  background: var(--graph-surface-soft);
 }
 
 .graph-run-diagnostics strong {
@@ -35,7 +35,7 @@
 
 .graph-run-diagnostics small {
   overflow: hidden;
-  color: rgba(247, 246, 240, 0.62);
+  color: var(--graph-text-subtle);
   font-size: 0.58rem;
   line-height: 1;
   text-overflow: ellipsis;
@@ -48,7 +48,7 @@
 }
 
 .graph-run-diagnostics-failed {
-  color: #ffb4b4;
+  color: var(--graph-danger-text-strong);
 }
 
 .graph-context-menu,
@@ -64,9 +64,9 @@
   gap: 0.65rem;
   width: 280px;
   padding: 0.75rem;
-  border: 1px solid rgba(247, 246, 240, 0.14);
+  border: 1px solid var(--graph-border-modal);
   border-radius: 8px;
-  background: #171b1a;
+  background: var(--graph-panel-modal);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
 }
 
@@ -86,7 +86,7 @@
 
 .graph-node-context-title {
   padding: 0.16rem 0.18rem 0.28rem;
-  color: rgba(247, 246, 240, 0.68);
+  color: var(--graph-text-panel);
   font-size: 0.58rem;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -111,7 +111,7 @@
 
 .graph-node-context-menu button:disabled:hover,
 .graph-node-context-menu button:disabled:focus-visible {
-  border-color: rgba(247, 246, 240, 0.1);
+  border-color: var(--graph-border-muted);
   background: rgba(255, 255, 255, 0.025);
 }
 
@@ -126,7 +126,7 @@
   display: grid;
   gap: 0.3rem;
   padding: 0.1rem 0.1rem 0.34rem;
-  border-bottom: 1px solid rgba(247, 246, 240, 0.08);
+  border-bottom: 1px solid var(--graph-border-hairline);
 }
 
 .graph-node-context-section > span {
@@ -170,7 +170,7 @@
   justify-content: center;
   min-height: 23px !important;
   padding: 0.2rem 0.28rem !important;
-  color: rgba(247, 246, 240, 0.78);
+  color: var(--graph-text-quiet);
   font-size: 0.56rem !important;
   font-weight: 900;
 }
@@ -185,7 +185,7 @@
   position: relative;
   min-height: 23px !important;
   padding: 0 !important;
-  border-color: color-mix(in srgb, var(--graph-node-choice-color) 54%, rgba(247, 246, 240, 0.16)) !important;
+  border-color: color-mix(in srgb, var(--graph-node-choice-color) 54%, var(--graph-border-hover)) !important;
   background: var(--graph-node-choice-surface) !important;
 }
 

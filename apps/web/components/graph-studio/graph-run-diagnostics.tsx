@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, ArrowDownUp, Clock3, Coins, Image as ImageIcon, Network, Package, TriangleAlert } from "lucide-react";
+import { Activity, ArrowDownUp, Clock3, Coins, Image as ImageIcon, Network, Package, RotateCcw, TriangleAlert } from "lucide-react";
 
 import { formatUsdAmount } from "@/lib/utils";
 import { humanizeGraphRunStatus } from "@/lib/status-language";
@@ -86,12 +86,24 @@ export function GraphRunDiagnostics({
   const totalTransportRequests =
     transportMetrics.statusRequests + transportMetrics.fullRunRequests + transportMetrics.eventRequests;
   const codexImages = codexImageCount(run);
+  const recoveredNodeIds = Array.isArray(metrics.recovered_node_ids) ? metrics.recovered_node_ids.map(String) : [];
+  const resumedNodeIds = Array.isArray(metrics.resumed_node_ids) ? metrics.resumed_node_ids.map(String) : [];
+  const recoveredFromInterruption = metrics.recovered_from_interruption === true;
   return (
     <section className={`graph-run-diagnostics graph-run-diagnostics-${run.status}`} data-testid="graph-run-diagnostics">
       <div aria-label={`Status ${humanizeGraphRunStatus(run.status)}`} title={`Status: ${humanizeGraphRunStatus(run.status)}`}>
         <Activity size={13} aria-hidden="true" />
         <strong>{humanizeGraphRunStatus(run.status)}</strong>
       </div>
+      {recoveredFromInterruption ? (
+        <div
+          aria-label={`Recovered interrupted run with ${recoveredNodeIds.length} recovered nodes and ${resumedNodeIds.length} resumed nodes`}
+          title={`Recovered interrupted run. Recovered nodes: ${recoveredNodeIds.length}. Resumed nodes: ${resumedNodeIds.length}.`}
+        >
+          <RotateCcw size={13} aria-hidden="true" />
+          <strong>Recovered</strong>
+        </div>
+      ) : null}
       {duration ? (
         <div aria-label={`Duration ${duration}`} title={`Duration: ${duration}`}>
           <Clock3 size={13} aria-hidden="true" />

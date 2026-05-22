@@ -6,19 +6,28 @@ import json
 import re
 import shutil
 import subprocess
-from hashlib import sha256
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
-from threading import Lock
 from collections import Counter
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageDraw
 
 from . import enhancement_provider, external_llm_usage, kie_adapter, store
 from .pricing import attach_pricing_summary
+from .service_errors import ServiceError
+from .service_provider_config import (
+    GLOBAL_ENHANCEMENT_CONFIG_KEY,
+    PROMPT_RECIPE_DRAFTING_CONFIG_KEY,
+    PROMPT_RECIPE_DRAFTING_DEFAULT_MAX_TOKENS,
+    PROMPT_RECIPE_DRAFTING_DEFAULT_TEMPERATURE,
+    PROMPT_RECIPE_DRAFTING_PROVIDERS,
+    provider_credential_source as _provider_credential_source,
+    public_prompt_recipe_drafting_config,
+    shared_provider_runtime as _shared_provider_runtime,
+)
 from .settings import settings
 from .schemas import (
     EnhancePreviewRequest,
@@ -26,7 +35,6 @@ from .schemas import (
     JobSubmitRequest,
     MediaRefInput,
     PromptRecipeDraftRequest,
-    PromptRecipeDraftingConfigRecord,
     PromptRecipeDraftingConfigUpsertRequest,
     ProjectUpsertRequest,
     PresetUpsertRequest,
@@ -34,550 +42,32 @@ from .schemas import (
     SystemPromptUpsertRequest,
     ValidateRequest,
 )
-from .graph.media_probe import (
-    AUDIO_MAX_FILE_BYTES,
-    audio_extension_supported,
-    probe_audio,
-    probe_video,
+from .service_preset_validation import (
+    _enforce_output_count_policy,
+    _model_accepts_preset_image_values,
+    _model_key_supports_structured_preset,
+    _preset_requires_image,
+    upsert_preset,
+    validate_preset_payload,
+)
+from .service_prompt_recipe_validation import (
+    _normalize_prompt_recipe_draft_payload,
+    upsert_prompt_recipe,
+    validate_prompt_recipe_payload,
+)
+from .service_reference_media import (
+    backfill_reference_media,
+    import_reference_media_bytes,
+    import_reference_media_file,
+    import_reference_media_streamed_upload,
+    list_available_reference_media,
+    sanitize_reference_media_record,
 )
 
-TEXT_TOKEN_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
-IMAGE_TOKEN_RE = re.compile(r"\[\[\s*([a-zA-Z0-9_]+)\s*\]\]")
-PROMPT_RECIPE_TOKEN_RE = re.compile(r"\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}")
-PROMPT_RECIPE_ANY_TOKEN_RE = re.compile(r"\{\{([^}]+)\}\}")
-PROMPT_RECIPE_KEY_RE = re.compile(r"^[a-z][a-z0-9_]*$")
-PROMPT_RECIPE_IMAGE_REFERENCE_RE = re.compile(
-    r"\[\[\s*image[_\s-]*reference\s*(\d+)\s*\]\]|\[\s*image\s+reference\s+(\d+)\s*\]|@image\s*(\d+)",
-    re.IGNORECASE,
-)
-PROMPT_RECIPE_CATEGORIES = {"image", "video", "analysis", "utility"}
-PROMPT_RECIPE_STATUSES = {"active", "inactive", "archived"}
-PROMPT_RECIPE_OUTPUT_FORMATS = {
-    "single_prompt",
-    "prompt_list",
-    "json_prompt_batch",
-    "image_analysis",
-    "structured_shot_sequence",
-}
-PROMPT_RECIPE_FIELD_TYPES = {"text", "textarea", "number", "select", "boolean"}
-PROMPT_RECIPE_IMAGE_MODES = {"none", "direct_reference", "analyze_then_inject", "both"}
-PROMPT_RECIPE_SOURCE_KINDS = {"custom", "imported", "builtin", "built_in_override"}
-PROMPT_RECIPE_RESERVED_VARIABLES = {
-    "user_prompt": "User Prompt",
-    "image_analysis": "Image Analysis",
-    "source_prompt": "Source Prompt",
-    "source_image_prompt": "Source Image Prompt",
-    "previous_output": "Previous Output",
-    "shot_count": "Shot Count",
-    "duration_seconds": "Duration Seconds",
-    "aspect_ratio": "Aspect Ratio",
-    "output_format": "Output Format",
-    "style_direction": "Style Direction",
-}
-GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
-PROMPT_RECIPE_DRAFTING_CONFIG_KEY = "prompt_recipe_drafting"
-PROMPT_RECIPE_DRAFTING_PROVIDERS = {"openrouter", "local_openai", "codex_local"}
-PROMPT_RECIPE_DRAFTING_DEFAULT_TEMPERATURE = 0.2
-PROMPT_RECIPE_DRAFTING_DEFAULT_MAX_TOKENS = 1800
 ENHANCEMENT_PROVIDER_TIMEOUT_SECONDS = 75
-_reference_media_backfill_lock = Lock()
 logger = logging.getLogger(__name__)
-REFERENCE_MEDIA_ROOT = settings.data_root / "reference-media"
-REFERENCE_IMAGES_ROOT = REFERENCE_MEDIA_ROOT / "images"
-REFERENCE_VIDEOS_ROOT = REFERENCE_MEDIA_ROOT / "videos"
-REFERENCE_AUDIOS_ROOT = REFERENCE_MEDIA_ROOT / "audios"
-REFERENCE_THUMBS_ROOT = REFERENCE_MEDIA_ROOT / "thumbs"
 
 
-class ServiceError(Exception):
-    pass
-
-
-def _input_limit(model: Dict[str, Any], media_kind: str, field: str) -> int:
-    raw = model.get("raw") if isinstance(model.get("raw"), dict) else {}
-    inputs = raw.get("inputs") if isinstance(raw.get("inputs"), dict) else {}
-    spec = inputs.get(media_kind) if isinstance(inputs.get(media_kind), dict) else {}
-    value = spec.get(field)
-    return int(value or 0)
-
-
-def _model_has_video_or_audio_inputs(model: Dict[str, Any]) -> bool:
-    return (
-        _input_limit(model, "video", "required_max") > 0
-        or _input_limit(model, "video", "required_min") > 0
-        or _input_limit(model, "audio", "required_max") > 0
-        or _input_limit(model, "audio", "required_min") > 0
-    )
-
-
-def _model_supports_structured_preset(model: Dict[str, Any], *, requires_image: bool) -> bool:
-    if model.get("studio_exposed") is False or _model_has_video_or_audio_inputs(model):
-        return False
-    task_modes = {str(value) for value in model.get("task_modes") or []}
-    input_patterns = {str(value) for value in model.get("input_patterns") or []}
-    image_min = _input_limit(model, "image", "required_min")
-    image_max = _input_limit(model, "image", "required_max")
-
-    if requires_image:
-        return image_max > 0 and (
-            "image_edit" in task_modes
-            or "single_image" in input_patterns
-            or "image_edit" in input_patterns
-        )
-
-    return image_min == 0 and (
-        "text_to_image" in task_modes
-        or "image_generation" in task_modes
-        or "prompt_only" in input_patterns
-    )
-
-
-def _preset_requires_image(image_slots: List[Dict[str, Any]]) -> bool:
-    return any(bool(slot.get("required")) for slot in image_slots)
-
-
-def _enforce_output_count_policy(request: ValidateRequest) -> None:
-    try:
-        policy = store.get_model_queue_policy(request.model_key)
-    except Exception:
-        logger.debug("model queue policy unavailable for output count validation", exc_info=True)
-        return
-    if not policy:
-        return
-    max_outputs = int(policy.get("max_outputs_per_run") or 1)
-    if request.output_count > max_outputs:
-        raise ServiceError("Output count exceeds the selected model limit of %s per run." % max_outputs)
-
-
-def _compatible_preset_model_keys(image_slots: List[Dict[str, Any]]) -> set[str]:
-    requires_image = _preset_requires_image(image_slots)
-    return {
-        str(model.get("key"))
-        for model in kie_adapter.list_models()
-        if model.get("key") and _model_supports_structured_preset(model, requires_image=requires_image)
-    }
-
-
-def _model_accepts_preset_image_values(model_key: str) -> bool:
-    return _model_key_supports_structured_preset(model_key, requires_image=True)
-
-
-def _model_key_supports_structured_preset(model_key: str, *, requires_image: bool) -> bool:
-    try:
-        model = kie_adapter.get_model(model_key)
-    except Exception:
-        return False
-    return _model_supports_structured_preset(model, requires_image=requires_image)
-
-
-def validate_preset_payload(payload: PresetUpsertRequest) -> Dict[str, Any]:
-    template = payload.prompt_template or ""
-    text_tokens = sorted(set(TEXT_TOKEN_RE.findall(template)))
-    image_tokens = sorted(set(IMAGE_TOKEN_RE.findall(template)))
-    text_fields = [dict(field) for field in payload.input_schema_json]
-    image_slots = [dict(slot) for slot in payload.input_slots_json]
-    text_keys = sorted([field["key"] for field in text_fields])
-    slot_keys = sorted([slot["key"] for slot in image_slots])
-    if text_tokens != text_keys:
-        raise ServiceError("Prompt template text tokens must exactly match configured text field keys.")
-    if image_tokens != slot_keys:
-        raise ServiceError("Prompt template image slot tokens must exactly match configured image slot keys.")
-    if len(text_keys) != len(set(text_keys)) or len(slot_keys) != len(set(slot_keys)):
-        raise ServiceError("Preset keys must be unique.")
-    applies_to_models = [str(value).strip() for value in payload.applies_to_models if str(value).strip()]
-    compatible_models = _compatible_preset_model_keys(image_slots)
-    invalid_models = [value for value in applies_to_models if value not in compatible_models]
-    if invalid_models:
-        raise ServiceError("Unsupported preset model scope: %s" % ", ".join(sorted(invalid_models)))
-    if not applies_to_models:
-        raise ServiceError("Select at least one compatible image model for this preset.")
-    model_key = payload.model_key if payload.model_key in applies_to_models else applies_to_models[0]
-    return {
-        "key": payload.key,
-        "label": payload.label,
-        "description": payload.description,
-        "status": payload.status,
-        "model_key": model_key,
-        "source_kind": payload.source_kind,
-        "base_builtin_key": payload.base_builtin_key,
-        "applies_to_models_json": applies_to_models,
-        "applies_to_task_modes_json": payload.applies_to_task_modes,
-        "applies_to_input_patterns_json": payload.applies_to_input_patterns,
-        "prompt_template": payload.prompt_template or "",
-        "system_prompt_template": payload.system_prompt_template or "",
-        "system_prompt_ids_json": payload.system_prompt_ids,
-        "default_options_json": payload.default_options_json,
-        "rules_json": payload.rules_json,
-        "requires_image": payload.requires_image,
-        "requires_video": payload.requires_video,
-        "requires_audio": payload.requires_audio,
-        "input_schema_json": text_fields,
-        "input_slots_json": image_slots,
-        "choice_groups_json": payload.choice_groups_json,
-        "thumbnail_path": payload.thumbnail_path,
-        "thumbnail_url": payload.thumbnail_url,
-        "notes": payload.notes,
-        "version": payload.version,
-        "priority": payload.priority,
-    }
-
-
-def upsert_preset(payload: PresetUpsertRequest, preset_id: Optional[str] = None) -> Dict[str, Any]:
-    record = validate_preset_payload(payload)
-    if preset_id:
-        record["preset_id"] = preset_id
-    return store.create_or_update_preset(record)
-
-
-def _clean_prompt_recipe_key(value: str, label: str) -> str:
-    key = str(value or "").strip()
-    if not key:
-        raise ServiceError("%s is required." % label)
-    if not PROMPT_RECIPE_KEY_RE.match(key):
-        raise ServiceError("%s must start with a lowercase letter and use only lowercase letters, numbers, and underscores." % label)
-    return key
-
-
-def _slugify_prompt_recipe_key(value: str) -> str:
-    return re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower())).strip("_")
-
-
-def _highest_prompt_recipe_image_reference_index(*values: str) -> int:
-    highest = 0
-    for value in values:
-        for match in PROMPT_RECIPE_IMAGE_REFERENCE_RE.finditer(str(value or "")):
-            raw_index = next((group for group in match.groups() if group), "0")
-            try:
-                highest = max(highest, int(raw_index))
-            except ValueError:
-                continue
-    return highest
-
-
-def _prompt_recipe_variable(key: str, *, required: bool = False) -> Dict[str, Any]:
-    return {
-        "key": key,
-        "token": "{{%s}}" % key,
-        "label": PROMPT_RECIPE_RESERVED_VARIABLES.get(key, key.replace("_", " ").title()),
-        "enabled": True,
-        "required": required,
-        "default_value": "",
-        "description": "",
-    }
-
-
-def _prompt_recipe_validation_warnings(
-    *,
-    template_tokens: List[str],
-    variable_by_key: Dict[str, Dict[str, Any]],
-    custom_keys: set[str],
-    unknown_tokens: List[str],
-    allow_external_variables: bool,
-    image_input: Dict[str, Any],
-    image_analysis_prompt: str,
-) -> List[str]:
-    warnings: List[str] = []
-    token_set = set(template_tokens)
-    enabled_variable_keys = {key for key, variable in variable_by_key.items() if bool(variable.get("enabled", True))}
-    unused_enabled = sorted(enabled_variable_keys - token_set)
-    if unused_enabled:
-        warnings.append("Enabled variables are not used in the template: %s." % ", ".join(unused_enabled))
-    disabled_used = sorted([key for key, variable in variable_by_key.items() if key in token_set and not bool(variable.get("enabled", True))])
-    if disabled_used:
-        warnings.append("Template uses variables that are disabled in the recipe: %s." % ", ".join(disabled_used))
-    if unknown_tokens and allow_external_variables:
-        warnings.append("Template uses external variables that future graph nodes must provide: %s." % ", ".join(unknown_tokens))
-    if "image_analysis" in token_set and not bool(image_input.get("enabled")):
-        warnings.append("Template uses image_analysis, but image input is disabled.")
-    if bool(image_input.get("enabled")) and image_input.get("mode") in {"analyze_then_inject", "both"} and not image_analysis_prompt.strip():
-        warnings.append("Image input is enabled for analysis, but no image analysis prompt is configured.")
-    if custom_keys - token_set:
-        warnings.append("Custom fields are configured but not used in the template: %s." % ", ".join(sorted(custom_keys - token_set)))
-    return warnings
-
-
-def _normalize_prompt_recipe_draft_payload(raw_payload: Dict[str, Any], request: PromptRecipeDraftRequest) -> Dict[str, Any]:
-    payload = dict(raw_payload)
-    if "system_prompt_template" not in payload:
-        template_value = payload.get("template") or payload.get("system_prompt")
-        if template_value is not None:
-            payload["system_prompt_template"] = template_value
-    if "image_input" not in payload and payload.get("image_input_mode"):
-        payload["image_input"] = {
-            "enabled": str(payload.get("image_input_mode") or "none").strip() != "none",
-            "required": False,
-            "mode": payload.get("image_input_mode"),
-            "analysis_variable": "image_analysis",
-            "max_files": 1,
-        }
-    label = str(payload.get("label") or "").strip()
-    key = str(payload.get("key") or "").strip()
-    if not key and label:
-        payload["key"] = _slugify_prompt_recipe_key(label)
-    payload.setdefault("description", "")
-    payload.setdefault("status", "inactive")
-    payload.setdefault("source_kind", "custom")
-    payload.setdefault("version", "1")
-    payload.setdefault("priority", 0)
-    payload.setdefault("user_prompt_placeholder", "{{user_prompt}}")
-    payload.setdefault("image_analysis_prompt", "")
-    payload.setdefault("category", str(request.category or "utility").strip() or "utility")
-    payload.setdefault("output_format", str(request.output_format or "single_prompt").strip() or "single_prompt")
-    if request.category and not payload.get("category"):
-        payload["category"] = request.category
-    if request.output_format and not payload.get("output_format"):
-        payload["output_format"] = request.output_format
-    if request.image_input_mode and not payload.get("image_input"):
-        payload["image_input"] = {
-            "enabled": request.image_input_mode != "none",
-            "required": False,
-            "mode": request.image_input_mode,
-            "analysis_variable": "image_analysis",
-            "max_files": 1 if request.image_input_mode != "none" else 0,
-        }
-    payload.setdefault(
-        "image_input",
-        {
-            "enabled": False,
-            "required": False,
-            "mode": "none",
-            "analysis_variable": "image_analysis",
-            "max_files": 0,
-        },
-    )
-    raw_variables = payload.get("input_variables_json", payload.get("input_variables"))
-    if isinstance(raw_variables, list):
-        normalized_variables: List[Dict[str, Any]] = []
-        for item in raw_variables:
-            if isinstance(item, str):
-                variable_key = _slugify_prompt_recipe_key(item)
-                if variable_key:
-                    normalized_variables.append(_prompt_recipe_variable(variable_key, required=variable_key == "user_prompt"))
-            elif isinstance(item, dict):
-                variable_key = _slugify_prompt_recipe_key(
-                    str(item.get("key") or item.get("name") or item.get("id") or item.get("token") or "").replace("{", "").replace("}", "")
-                )
-                if not variable_key:
-                    continue
-                explicit_label = str(item.get("label") or item.get("title") or "").strip()
-                normalized_variables.append(
-                    {
-                        "key": variable_key,
-                        "token": str(item.get("token") or "{{%s}}" % variable_key),
-                        "label": explicit_label or PROMPT_RECIPE_RESERVED_VARIABLES.get(variable_key, variable_key.replace("_", " ").title()),
-                        "enabled": bool(item.get("enabled", True)),
-                        "required": bool(item.get("required", variable_key == "user_prompt")),
-                        "default_value": str(item.get("default_value") or item.get("defaultValue") or item.get("default") or ""),
-                        "description": str(item.get("description") or item.get("prompt") or ""),
-                    }
-                )
-        payload["input_variables"] = normalized_variables
-        payload["input_variables_json"] = normalized_variables
-    elif isinstance(raw_variables, str):
-        variable_key = _slugify_prompt_recipe_key(raw_variables)
-        normalized_variables = [_prompt_recipe_variable(variable_key, required=variable_key == "user_prompt")] if variable_key else []
-        payload["input_variables"] = normalized_variables
-        payload["input_variables_json"] = normalized_variables
-    else:
-        payload["input_variables"] = []
-        payload["input_variables_json"] = []
-
-    raw_custom_fields = payload.get("custom_fields_json", payload.get("custom_fields"))
-    if not isinstance(raw_custom_fields, list):
-        payload["custom_fields"] = []
-        payload["custom_fields_json"] = []
-
-    raw_output_contract = payload.get("output_contract_json", payload.get("output_contract"))
-    if not isinstance(raw_output_contract, dict):
-        payload["output_contract"] = {}
-        payload["output_contract_json"] = {}
-
-    raw_default_options = payload.get("default_options_json", payload.get("default_options"))
-    if not isinstance(raw_default_options, dict):
-        payload["default_options"] = {}
-        payload["default_options_json"] = {}
-
-    raw_rules = payload.get("rules_json", payload.get("rules"))
-    if isinstance(raw_rules, list):
-        normalized_rules: Dict[str, Any] = {}
-        for item in raw_rules:
-            rule_key = _slugify_prompt_recipe_key(item) if isinstance(item, str) else ""
-            if rule_key:
-                normalized_rules[rule_key] = True
-        payload["rules"] = normalized_rules
-        payload["rules_json"] = normalized_rules
-    elif not isinstance(raw_rules, dict):
-        payload["rules"] = {}
-        payload["rules_json"] = {}
-    raw_notes = payload.get("notes")
-    if isinstance(raw_notes, list):
-        payload["notes"] = "\n".join(str(item).strip() for item in raw_notes if str(item).strip())
-    elif not isinstance(raw_notes, str):
-        payload["notes"] = ""
-    return payload
-
-
-def validate_prompt_recipe_payload(payload: PromptRecipeUpsertRequest, recipe_id: Optional[str] = None) -> Dict[str, Any]:
-    key = _clean_prompt_recipe_key(payload.key, "Recipe key")
-    label = str(payload.label or "").strip()
-    if not label:
-        raise ServiceError("Recipe label is required.")
-    category = str(payload.category or "").strip()
-    if category not in PROMPT_RECIPE_CATEGORIES:
-        raise ServiceError("Prompt recipe category is invalid.")
-    status = str(payload.status or "active").strip()
-    if status not in PROMPT_RECIPE_STATUSES:
-        raise ServiceError("Prompt recipe status is invalid.")
-    output_format = str(payload.output_format or "single_prompt").strip()
-    if output_format not in PROMPT_RECIPE_OUTPUT_FORMATS:
-        raise ServiceError("Prompt recipe output format is invalid.")
-    source_kind = str(payload.source_kind or "custom").strip()
-    if source_kind not in PROMPT_RECIPE_SOURCE_KINDS:
-        raise ServiceError("Prompt recipe source kind is invalid.")
-    template = str(payload.system_prompt_template or "").strip()
-    if not template:
-        raise ServiceError("System prompt template is required.")
-    duplicate = store.get_prompt_recipe_by_key(key)
-    if duplicate and duplicate.get("recipe_id") != recipe_id:
-        raise ServiceError("A prompt recipe with this key already exists.")
-
-    malformed_tokens = [
-        match.group(1).strip()
-        for match in PROMPT_RECIPE_ANY_TOKEN_RE.finditer(template)
-        if not PROMPT_RECIPE_KEY_RE.match(match.group(1).strip())
-    ]
-    if malformed_tokens:
-        raise ServiceError("Invalid prompt recipe variable token: %s" % ", ".join(sorted(set(malformed_tokens))))
-    template_tokens = sorted(set(PROMPT_RECIPE_TOKEN_RE.findall(template)))
-    variables = [item.model_dump() if hasattr(item, "model_dump") else dict(item) for item in payload.input_variables_json]
-    variable_by_key: Dict[str, Dict[str, Any]] = {}
-    for variable in variables:
-        variable_key = _clean_prompt_recipe_key(str(variable.get("key") or ""), "Variable key")
-        variable["key"] = variable_key
-        variable["token"] = "{{%s}}" % variable_key
-        variable["label"] = str(variable.get("label") or PROMPT_RECIPE_RESERVED_VARIABLES.get(variable_key) or variable_key.replace("_", " ").title()).strip()
-        variable_by_key[variable_key] = variable
-    if not variable_by_key:
-        variable_by_key["user_prompt"] = _prompt_recipe_variable("user_prompt", required=True)
-    for token in template_tokens:
-        if token in PROMPT_RECIPE_RESERVED_VARIABLES and token not in variable_by_key:
-            variable_by_key[token] = _prompt_recipe_variable(token, required=token == "user_prompt")
-
-    custom_fields = [item.model_dump() if hasattr(item, "model_dump") else dict(item) for item in payload.custom_fields_json]
-    custom_keys: set[str] = set()
-    for field in custom_fields:
-        field_key = _clean_prompt_recipe_key(str(field.get("key") or ""), "Custom field key")
-        if field_key in PROMPT_RECIPE_RESERVED_VARIABLES:
-            raise ServiceError("Custom field key conflicts with reserved variable: %s" % field_key)
-        if field_key in variable_by_key:
-            raise ServiceError("Custom field key conflicts with an input variable: %s" % field_key)
-        if field_key in custom_keys:
-            raise ServiceError("Custom field keys must be unique.")
-        field_type = str(field.get("type") or "text")
-        if field_type not in PROMPT_RECIPE_FIELD_TYPES:
-            raise ServiceError("Custom field type is invalid for %s." % field_key)
-        options = field.get("options") or []
-        if field_type == "select" and not [str(value).strip() for value in options if str(value).strip()]:
-            raise ServiceError("Select custom field %s must define options." % field_key)
-        normalized_options = [str(value).strip() for value in options if str(value).strip()]
-        if field_type == "select" and len(set(normalized_options)) != len(normalized_options):
-            raise ServiceError("Select custom field %s has duplicate options." % field_key)
-        field["key"] = field_key
-        field["type"] = field_type
-        field["label"] = str(field.get("label") or field_key.replace("_", " ").title()).strip()
-        field["options"] = normalized_options
-        custom_keys.add(field_key)
-
-    allowed_tokens = set(variable_by_key.keys()) | custom_keys
-    allow_external_variables = bool(payload.rules_json.get("allow_external_variables", True))
-    unknown_tokens = sorted(set(template_tokens) - allowed_tokens)
-    if unknown_tokens and not allow_external_variables:
-        raise ServiceError("Unknown prompt recipe variables are not allowed: %s" % ", ".join(unknown_tokens))
-
-    image_input = payload.image_input_json.model_dump() if hasattr(payload.image_input_json, "model_dump") else dict(payload.image_input_json)
-    image_mode = str(image_input.get("mode") or "none")
-    if image_mode not in PROMPT_RECIPE_IMAGE_MODES:
-        raise ServiceError("Prompt recipe image input mode is invalid.")
-    image_input["mode"] = image_mode
-    image_input["enabled"] = bool(image_input.get("enabled", False))
-    image_input["required"] = bool(image_input.get("required", False))
-    image_input["analysis_variable"] = _clean_prompt_recipe_key(str(image_input.get("analysis_variable") or "image_analysis"), "Image analysis variable")
-    try:
-        image_input["max_files"] = max(0, int(image_input.get("max_files") or (1 if image_input["enabled"] else 0)))
-    except (TypeError, ValueError):
-        raise ServiceError("Prompt recipe image Max Files must be a number.")
-    image_analysis_prompt = payload.image_analysis_prompt or ""
-    analysis_variable = str(image_input["analysis_variable"])
-    token_set = set(template_tokens)
-    if not image_input["enabled"]:
-        if image_input["required"]:
-            raise ServiceError("Image input cannot be required while image input is turned off.")
-        if image_mode != "none":
-            raise ServiceError("Image input mode must be none when image input is turned off.")
-    if image_input["enabled"]:
-        if image_mode == "none":
-            raise ServiceError("Choose an image input mode when image input is turned on.")
-        if image_input["max_files"] < 1:
-            raise ServiceError("Prompt recipe image Max Files must be at least 1 when image input is turned on.")
-    if "image_analysis" in token_set and analysis_variable != "image_analysis":
-        raise ServiceError("Template uses {{image_analysis}}, but the configured image analysis variable is {{%s}}." % analysis_variable)
-    if analysis_variable in token_set:
-        if not image_input["enabled"]:
-            raise ServiceError("Template uses {{%s}}, but image input is turned off." % analysis_variable)
-        if image_mode not in {"analyze_then_inject", "both"}:
-            raise ServiceError("Template uses {{%s}}, so image input mode must analyze images." % analysis_variable)
-    if image_input["enabled"] and image_mode in {"analyze_then_inject", "both"} and not image_analysis_prompt.strip():
-        raise ServiceError("Image analysis mode needs an Image Analysis Prompt.")
-    highest_image_reference = _highest_prompt_recipe_image_reference_index(template, image_analysis_prompt)
-    if highest_image_reference:
-        if not image_input["enabled"]:
-            raise ServiceError("Recipe text mentions image reference %s, but image input is turned off." % highest_image_reference)
-        if image_input["max_files"] < highest_image_reference:
-            raise ServiceError(
-                "Recipe text mentions image reference %s, but image Max Files is %s."
-                % (highest_image_reference, image_input["max_files"])
-            )
-    validation_warnings = _prompt_recipe_validation_warnings(
-        template_tokens=template_tokens,
-        variable_by_key=variable_by_key,
-        custom_keys=custom_keys,
-        unknown_tokens=unknown_tokens,
-        allow_external_variables=allow_external_variables,
-        image_input=image_input,
-        image_analysis_prompt=image_analysis_prompt,
-    )
-
-    return {
-        "key": key,
-        "label": label,
-        "description": payload.description or "",
-        "category": category,
-        "status": status,
-        "system_prompt_template": template,
-        "image_analysis_prompt": image_analysis_prompt,
-        "user_prompt_placeholder": payload.user_prompt_placeholder or "{{user_prompt}}",
-        "output_format": output_format,
-        "output_contract_json": payload.output_contract_json,
-        "input_variables_json": list(variable_by_key.values()),
-        "custom_fields_json": custom_fields,
-        "image_input_json": image_input,
-        "validation_warnings_json": validation_warnings,
-        "default_options_json": payload.default_options_json,
-        "rules_json": {**payload.rules_json, "allow_external_variables": allow_external_variables},
-        "thumbnail_path": payload.thumbnail_path,
-        "thumbnail_url": payload.thumbnail_url,
-        "notes": payload.notes or "",
-        "source_kind": source_kind,
-        "version": payload.version or "1",
-        "priority": payload.priority,
-    }
-
-
-def upsert_prompt_recipe(payload: PromptRecipeUpsertRequest, recipe_id: Optional[str] = None) -> Dict[str, Any]:
-    record = validate_prompt_recipe_payload(payload, recipe_id)
-    if recipe_id:
-        record["recipe_id"] = recipe_id
-    return store.create_or_update_prompt_recipe(record)
 
 
 def upsert_system_prompt(payload: SystemPromptUpsertRequest, prompt_id: Optional[str] = None) -> Dict[str, Any]:
@@ -745,93 +235,6 @@ def public_enhancement_config(record: Dict[str, Any]) -> Dict[str, Any]:
     payload["provider_base_url_configured"] = bool(stored_base_url)
     payload["provider_credential_source"] = credential_source
     return EnhancementConfigRecord(**payload).model_dump()
-
-
-def _provider_credential_source(provider_kind: str, api_key: str) -> Optional[str]:
-    if api_key:
-        return "stored"
-    if provider_kind == "openrouter" and settings.openrouter_api_key:
-        return "env"
-    if provider_kind == "local_openai" and settings.local_openai_api_key:
-        return "env"
-    if provider_kind == "codex_local":
-        return enhancement_provider.codex_local_provider.CODEX_LOCAL_PROVIDER_CREDENTIAL_SOURCE
-    return None
-
-
-def _drafting_config_credential_source(provider_kind: str) -> Optional[str]:
-    global_config = store.get_enhancement_config(GLOBAL_ENHANCEMENT_CONFIG_KEY) or {}
-    matching_global = global_config if str(global_config.get("provider_kind") or "").strip() == provider_kind else {}
-    return _provider_credential_source(provider_kind, str(matching_global.get("provider_api_key") or "").strip())
-
-
-def _shared_provider_runtime(
-    provider_kind: str,
-    *,
-    stored_base_url: Optional[str] = None,
-    stored_api_key: Optional[str] = None,
-) -> Dict[str, Any]:
-    if provider_kind not in PROMPT_RECIPE_DRAFTING_PROVIDERS:
-        raise ServiceError("Unsupported drafting provider.")
-    if provider_kind == "codex_local":
-        return {
-            "api_key": "",
-            "base_url": enhancement_provider.codex_local_provider.CODEX_LOCAL_PROVIDER_BASE_URL,
-            "credential_source": _provider_credential_source(provider_kind, ""),
-        }
-    global_config = store.get_enhancement_config(GLOBAL_ENHANCEMENT_CONFIG_KEY) or {}
-    matching_global = global_config if str(global_config.get("provider_kind") or "").strip() == provider_kind else {}
-    api_key = str(stored_api_key or matching_global.get("provider_api_key") or "").strip()
-    if not api_key:
-        if provider_kind == "openrouter":
-            api_key = str(settings.openrouter_api_key or "").strip()
-        else:
-            api_key = str(settings.local_openai_api_key or "").strip()
-    if provider_kind == "openrouter":
-        base_url = str(stored_base_url or matching_global.get("provider_base_url") or settings.openrouter_base_url).strip()
-    else:
-        base_url = str(stored_base_url or matching_global.get("provider_base_url") or settings.local_openai_base_url).strip()
-        if not base_url:
-            raise ServiceError("Local OpenAI-compatible base URL is required.")
-    credential_source = _provider_credential_source(provider_kind, str(matching_global.get("provider_api_key") or "").strip())
-    if stored_api_key:
-        credential_source = "stored"
-    return {
-        "api_key": api_key,
-        "base_url": base_url,
-        "credential_source": credential_source,
-    }
-
-
-def _default_prompt_recipe_drafting_config() -> Dict[str, Any]:
-    runtime = _shared_provider_runtime("openrouter")
-    return PromptRecipeDraftingConfigRecord(
-        config_key=PROMPT_RECIPE_DRAFTING_CONFIG_KEY,
-        enabled=True,
-        provider_kind="openrouter",
-        provider_model_id=None,
-        provider_base_url_configured=False,
-        provider_credential_source=runtime.get("credential_source"),
-        provider_supports_images=False,
-        provider_capabilities_json={},
-        temperature=PROMPT_RECIPE_DRAFTING_DEFAULT_TEMPERATURE,
-        max_tokens=PROMPT_RECIPE_DRAFTING_DEFAULT_MAX_TOKENS,
-    ).model_dump()
-
-
-def public_prompt_recipe_drafting_config(record: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    if not record:
-        return _default_prompt_recipe_drafting_config()
-    provider_kind = str(record.get("provider_kind") or "openrouter").strip()
-    stored_base_url = str(record.get("provider_base_url") or "").strip()
-    payload = record.copy()
-    payload.pop("provider_base_url", None)
-    payload["provider_base_url_configured"] = bool(stored_base_url)
-    payload["provider_credential_source"] = _drafting_config_credential_source(provider_kind)
-    payload.setdefault("enabled", True)
-    payload.setdefault("temperature", PROMPT_RECIPE_DRAFTING_DEFAULT_TEMPERATURE)
-    payload.setdefault("max_tokens", PROMPT_RECIPE_DRAFTING_DEFAULT_MAX_TOKENS)
-    return PromptRecipeDraftingConfigRecord(**payload).model_dump()
 
 
 def upsert_prompt_recipe_drafting_config(payload: PromptRecipeDraftingConfigUpsertRequest) -> Dict[str, Any]:
@@ -1296,469 +699,6 @@ def _collect_system_prompts(ids: List[str]) -> List[Dict[str, Any]]:
     return prompts
 
 
-def _reference_kind_for_path(file_path: Path) -> Optional[str]:
-    mime_type, _ = mimetypes.guess_type(file_path.name)
-    normalized = str(mime_type or "").lower()
-    if normalized.startswith("image/"):
-        return "image"
-    if normalized.startswith("video/"):
-        return "video"
-    if normalized.startswith("audio/"):
-        return "audio"
-    return None
-
-
-def _reference_kind_from_source(source_mime_type: Optional[str], source_name: Optional[str]) -> str:
-    normalized = str(source_mime_type or "").lower().strip()
-    if normalized.startswith("video/"):
-        return "video"
-    if normalized.startswith("audio/"):
-        return "audio"
-    if normalized.startswith("image/"):
-        return "image"
-    guessed, _ = mimetypes.guess_type(source_name or "")
-    guessed = str(guessed or "").lower()
-    if guessed.startswith("video/"):
-        return "video"
-    if guessed.startswith("audio/"):
-        return "audio"
-    return "image"
-
-
-def _reference_extension_from_source(kind: str, source_name: Optional[str], source_mime_type: Optional[str]) -> str:
-    explicit = Path(source_name or "").suffix.lower()
-    if explicit:
-        return explicit
-    normalized = str(source_mime_type or "").lower()
-    if kind == "video" and "mp4" in normalized:
-        return ".mp4"
-    if kind == "audio" and "wav" in normalized:
-        return ".wav"
-    if kind == "audio" and "mpeg" in normalized:
-        return ".mp3"
-    if kind == "audio" and "mp4" in normalized:
-        return ".m4a"
-    if kind == "audio" and "aac" in normalized:
-        return ".aac"
-    if "jpeg" in normalized:
-        return ".jpg"
-    if "png" in normalized:
-        return ".png"
-    if "webp" in normalized:
-        return ".webp"
-    if kind == "video":
-        return ".mp4"
-    if kind == "audio":
-        return ".wav"
-    return ".png"
-
-
-def _reference_root_for_kind(kind: str) -> Path:
-    if kind == "video":
-        return REFERENCE_VIDEOS_ROOT
-    if kind == "audio":
-        return REFERENCE_AUDIOS_ROOT
-    return REFERENCE_IMAGES_ROOT
-
-
-def _relative_data_path(path_value: Path) -> str:
-    return str(path_value.relative_to(settings.data_root)).replace("\\", "/")
-
-
-def _write_reference_thumb(source_path: Path, digest: str) -> Optional[str]:
-    REFERENCE_THUMBS_ROOT.mkdir(parents=True, exist_ok=True)
-    thumb_path = REFERENCE_THUMBS_ROOT / f"{digest}.webp"
-    if not thumb_path.exists():
-        with Image.open(source_path) as image:
-            normalized = ImageOps.exif_transpose(image)
-            if normalized.mode not in {"RGB", "RGBA"}:
-                normalized = normalized.convert("RGB")
-            resampling = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.LANCZOS)
-            normalized.thumbnail((512, 512), resampling)
-            normalized.save(thumb_path, "WEBP", quality=82, method=6)
-    return _relative_data_path(thumb_path)
-
-
-def _write_reference_video_poster_and_thumb(source_path: Path, digest: str) -> Tuple[Optional[str], Optional[str]]:
-    ffmpeg = shutil.which("ffmpeg")
-    if not ffmpeg:
-        return None, None
-    REFERENCE_THUMBS_ROOT.mkdir(parents=True, exist_ok=True)
-    poster_path = REFERENCE_THUMBS_ROOT / f"{digest}-poster.jpg"
-    try:
-        if not poster_path.exists():
-            subprocess.run(
-                [
-                    ffmpeg,
-                    "-y",
-                    "-ss",
-                    "0",
-                    "-i",
-                    str(source_path),
-                    "-frames:v",
-                    "1",
-                    "-q:v",
-                    "3",
-                    str(poster_path),
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=30,
-                check=True,
-            )
-        thumb_path = _write_reference_thumb(poster_path, digest)
-        return thumb_path, _relative_data_path(poster_path)
-    except Exception:
-        logger.debug("reference video poster generation failed", exc_info=True)
-        return None, None
-
-
-def _ensure_video_reference_previews(record: Dict[str, Any]) -> Dict[str, Any]:
-    if str(record.get("kind") or "") != "video":
-        return record
-    if record.get("thumb_path") and record.get("poster_path"):
-        return record
-    stored_path = str(record.get("stored_path") or "")
-    digest = str(record.get("sha256") or "")
-    if not stored_path or not digest:
-        return record
-    source_path = settings.data_root / stored_path
-    if not source_path.exists():
-        return record
-    thumb_path, poster_path = _write_reference_video_poster_and_thumb(source_path, digest)
-    if not thumb_path and not poster_path:
-        return record
-    return store.create_or_update_reference_media(
-        {
-            **record,
-            "thumb_path": record.get("thumb_path") or thumb_path,
-            "poster_path": record.get("poster_path") or poster_path,
-        }
-    )
-
-
-def _probe_reference_media_metadata(file_path: Path, kind: str) -> Tuple[Optional[int], Optional[int], Optional[float], Dict[str, Any]]:
-    if kind == "video":
-        try:
-            metadata = probe_video(file_path)
-            return (
-                metadata.get("width"),
-                metadata.get("height"),
-                metadata.get("duration_seconds"),
-                metadata,
-            )
-        except Exception:
-            logger.debug("reference video metadata probe failed", exc_info=True)
-            return None, None, None, {}
-    if kind == "audio":
-        metadata = probe_audio(file_path)
-        return None, None, metadata.get("duration_seconds"), metadata
-    if kind != "image":
-        return None, None, None, {}
-    try:
-        with Image.open(file_path) as image:
-            width, height = image.size
-        return width, height, None, {}
-    except Exception:
-        return None, None, None, {}
-
-
-def _reference_media_path_exists(relative_path: Optional[str]) -> bool:
-    if not relative_path:
-        return False
-    return (settings.data_root / relative_path).exists()
-
-
-def sanitize_reference_media_record(record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    stored_path = str(record.get("stored_path") or "").strip()
-    if not stored_path or not _reference_media_path_exists(stored_path):
-        return None
-
-    normalized = dict(record)
-    thumb_path = str(normalized.get("thumb_path") or "").strip()
-    poster_path = str(normalized.get("poster_path") or "").strip()
-    if thumb_path and not _reference_media_path_exists(thumb_path):
-        normalized["thumb_path"] = None
-    if poster_path and not _reference_media_path_exists(poster_path):
-        normalized["poster_path"] = None
-    return normalized
-
-
-def list_available_reference_media(*, kind: Optional[str], limit: int, offset: int, project_id: Optional[str] = None) -> List[Dict[str, Any]]:
-    page_size = max(limit * 2, 40)
-    skipped_live_offset = 0
-    raw_offset = 0
-    items: List[Dict[str, Any]] = []
-
-    while len(items) < limit:
-        batch = store.list_reference_media(kind=kind, limit=page_size, offset=raw_offset, project_id=project_id)
-        if not batch:
-            break
-        raw_offset += len(batch)
-        for record in batch:
-            normalized = sanitize_reference_media_record(record)
-            if normalized is None:
-                continue
-            if skipped_live_offset < offset:
-                skipped_live_offset += 1
-                continue
-            items.append(normalized)
-            if len(items) >= limit:
-                break
-
-    return items
-
-
-def import_reference_media_bytes(
-    *,
-    source_bytes: bytes,
-    source_name: Optional[str] = None,
-    source_mime_type: Optional[str] = None,
-) -> Dict[str, Any]:
-    if not source_bytes:
-        raise ServiceError("Choose a reference file to import.")
-
-    kind = _reference_kind_from_source(source_mime_type, source_name)
-    file_size_bytes = len(source_bytes)
-    if kind == "audio":
-        if file_size_bytes > AUDIO_MAX_FILE_BYTES:
-            raise ServiceError("Audio reference files must be 100 MB or smaller.")
-        if not audio_extension_supported(source_name, source_mime_type):
-            raise ServiceError("Audio reference files must be wav, mp3, m4a, or aac.")
-    digest = sha256(source_bytes).hexdigest()
-    existing = store.get_reference_media_by_hash(kind, digest, file_size_bytes)
-    if existing:
-        existing_path = settings.data_root / str(existing.get("stored_path") or "")
-        if existing.get("stored_path") and existing_path.exists():
-            return _ensure_video_reference_previews(store.mark_reference_media_used(str(existing["reference_id"])))
-
-    extension = _reference_extension_from_source(kind, source_name, source_mime_type)
-    root = _reference_root_for_kind(kind)
-    root.mkdir(parents=True, exist_ok=True)
-    stored_path = root / f"{digest}{extension}"
-    if not stored_path.exists():
-        stored_path.write_bytes(source_bytes)
-
-    try:
-        width, height, duration_seconds, metadata_json = _probe_reference_media_metadata(stored_path, kind)
-    except ValueError as exc:
-        raise ServiceError(str(exc)) from exc
-    thumb_path = _write_reference_thumb(stored_path, digest) if kind == "image" else None
-    poster_path = None
-    if kind == "video":
-        thumb_path, poster_path = _write_reference_video_poster_and_thumb(stored_path, digest)
-    mime_type = source_mime_type or mimetypes.guess_type(source_name or stored_path.name)[0]
-
-    payload = {
-        "kind": kind,
-        "status": "active",
-        "original_filename": source_name or stored_path.name,
-        "stored_path": _relative_data_path(stored_path),
-        "mime_type": mime_type,
-        "file_size_bytes": file_size_bytes,
-        "sha256": digest,
-        "width": width,
-        "height": height,
-        "duration_seconds": duration_seconds,
-        "thumb_path": thumb_path,
-        "poster_path": poster_path,
-        "usage_count": 1,
-        "metadata_json": metadata_json,
-    }
-
-    if existing:
-        updated_existing = store.mark_reference_media_used(str(existing["reference_id"]))
-        return _ensure_video_reference_previews(store.create_or_update_reference_media(
-            {
-                **updated_existing,
-                **payload,
-                "reference_id": updated_existing["reference_id"],
-                "usage_count": updated_existing["usage_count"],
-                "last_used_at": updated_existing.get("last_used_at"),
-            }
-        ))
-
-    return store.create_or_reuse_reference_media(payload, increment_usage=True)
-
-
-def import_reference_media_file(
-    *,
-    source_path: Path,
-    source_digest: str,
-    source_size_bytes: int,
-    source_name: Optional[str] = None,
-    source_mime_type: Optional[str] = None,
-) -> Dict[str, Any]:
-    if source_size_bytes <= 0:
-        raise ServiceError("Choose a reference file to import.")
-
-    kind = _reference_kind_from_source(source_mime_type, source_name)
-    if kind == "audio":
-        if source_size_bytes > AUDIO_MAX_FILE_BYTES:
-            raise ServiceError("Audio reference files must be 100 MB or smaller.")
-        if not audio_extension_supported(source_name, source_mime_type):
-            raise ServiceError("Audio reference files must be wav, mp3, m4a, or aac.")
-    existing = store.get_reference_media_by_hash(kind, source_digest, source_size_bytes)
-    if existing:
-        existing_path = settings.data_root / str(existing.get("stored_path") or "")
-        if existing.get("stored_path") and existing_path.exists():
-            return _ensure_video_reference_previews(store.mark_reference_media_used(str(existing["reference_id"])))
-
-    extension = _reference_extension_from_source(kind, source_name, source_mime_type)
-    root = _reference_root_for_kind(kind)
-    root.mkdir(parents=True, exist_ok=True)
-    stored_path = root / f"{source_digest}{extension}"
-    if not stored_path.exists():
-        shutil.move(str(source_path), stored_path)
-
-    try:
-        width, height, duration_seconds, metadata_json = _probe_reference_media_metadata(stored_path, kind)
-    except ValueError as exc:
-        raise ServiceError(str(exc)) from exc
-    thumb_path = _write_reference_thumb(stored_path, source_digest) if kind == "image" else None
-    poster_path = None
-    if kind == "video":
-        thumb_path, poster_path = _write_reference_video_poster_and_thumb(stored_path, source_digest)
-    mime_type = source_mime_type or mimetypes.guess_type(source_name or stored_path.name)[0]
-
-    payload = {
-        "kind": kind,
-        "status": "active",
-        "original_filename": source_name or stored_path.name,
-        "stored_path": _relative_data_path(stored_path),
-        "mime_type": mime_type,
-        "file_size_bytes": source_size_bytes,
-        "sha256": source_digest,
-        "width": width,
-        "height": height,
-        "duration_seconds": duration_seconds,
-        "thumb_path": thumb_path,
-        "poster_path": poster_path,
-        "usage_count": 1,
-        "metadata_json": metadata_json,
-    }
-
-    if existing:
-        updated_existing = store.mark_reference_media_used(str(existing["reference_id"]))
-        return _ensure_video_reference_previews(store.create_or_update_reference_media(
-            {
-                **updated_existing,
-                **payload,
-                "reference_id": updated_existing["reference_id"],
-                "usage_count": updated_existing["usage_count"],
-                "last_used_at": updated_existing.get("last_used_at"),
-            }
-        ))
-
-    return store.create_or_reuse_reference_media(payload, increment_usage=True)
-
-
-def import_reference_media_streamed_upload(
-    *,
-    source_digest: str,
-    source_size_bytes: int,
-    temp_path: Path,
-    source_name: Optional[str] = None,
-    source_mime_type: Optional[str] = None,
-) -> Dict[str, Any]:
-    try:
-        return import_reference_media_file(
-            source_path=temp_path,
-            source_digest=source_digest,
-            source_size_bytes=source_size_bytes,
-            source_name=source_name,
-            source_mime_type=source_mime_type,
-        )
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
-
-
-def _sha256_file(file_path: Path) -> str:
-    digest = sha256()
-    with file_path.open("rb") as handle:
-        while True:
-            chunk = handle.read(1024 * 1024)
-            if not chunk:
-                break
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def iter_existing_upload_files() -> Iterable[Path]:
-    uploads_dir = settings.uploads_dir
-    if not uploads_dir.exists():
-        return []
-    return (path for path in uploads_dir.rglob("*") if path.is_file())
-
-
-def backfill_reference_media() -> Dict[str, Any]:
-    started = perf_counter()
-    scanned = 0
-    imported = 0
-    reused = 0
-    skipped = 0
-    errors: List[str] = []
-
-    with _reference_media_backfill_lock:
-        for file_path in iter_existing_upload_files():
-            scanned += 1
-            kind = _reference_kind_for_path(file_path)
-            if not kind:
-                skipped += 1
-                continue
-            try:
-                digest = _sha256_file(file_path)
-                relative_path = str(file_path.relative_to(settings.data_root)).replace("\\", "/")
-                file_size_bytes = file_path.stat().st_size
-                existing = store.get_reference_media_by_hash(kind, digest, file_size_bytes)
-                width, height, duration_seconds, probed_metadata = _probe_reference_media_metadata(file_path, kind)
-                record = store.create_or_reuse_reference_media(
-                    {
-                        "kind": kind,
-                        "status": "active",
-                        "original_filename": file_path.name,
-                        "stored_path": relative_path,
-                        "mime_type": mimetypes.guess_type(file_path.name)[0],
-                        "file_size_bytes": file_size_bytes,
-                        "sha256": digest,
-                        "width": width,
-                        "height": height,
-                        "duration_seconds": duration_seconds,
-                        "thumb_path": None,
-                        "poster_path": None,
-                        "usage_count": 0,
-                        "metadata_json": {"backfilled": True, **probed_metadata},
-                    },
-                    increment_usage=False,
-                )
-                if existing or record.get("stored_path") != relative_path:
-                    reused += 1
-                else:
-                    imported += 1
-            except Exception as exc:
-                skipped += 1
-                errors.append(f"{file_path}: {exc}")
-
-    duration_seconds = round(perf_counter() - started, 3)
-    result = {
-        "scanned": scanned,
-        "imported": imported,
-        "reused": reused,
-        "skipped": skipped,
-        "errors": errors,
-        "duration_seconds": duration_seconds,
-    }
-    logger.info(
-        "reference_media_backfill scanned=%s imported=%s reused=%s skipped=%s errors=%s duration_seconds=%s",
-        scanned,
-        imported,
-        reused,
-        skipped,
-        len(errors),
-        duration_seconds,
-    )
-    return result
 
 
 def _resolve_preset(request: ValidateRequest) -> Tuple[Optional[Dict[str, Any]], Dict[str, str], Dict[str, List[Dict[str, Any]]], Optional[str]]:
@@ -1823,6 +763,7 @@ def build_validation_bundle(request: ValidateRequest) -> Dict[str, Any]:
         "videos": merged_videos,
         "audios": [_ref_to_kie(item.model_dump()) for item in request.audios],
         "options": request.options,
+        "callback_url": request.callback_url or _default_kie_callback_url(request.model_key),
         "prompt_profile_key": request.prompt_profile_key,
         "system_prompt_override": request.system_prompt_override,
         "prompt_policy": request.prompt_policy or ("ask" if request.enhance else "off"),
@@ -1876,6 +817,24 @@ def build_validation_bundle(request: ValidateRequest) -> Dict[str, Any]:
         "text_values": text_values,
         "image_slot_values": resolved_image_slot_values,
     }
+
+
+def _default_kie_callback_url(model_key: str) -> Optional[str]:
+    try:
+        model = kie_adapter.get_model(model_key)
+        raw = model.get("raw") or {}
+        transport = raw.get("transport") if isinstance(raw.get("transport"), dict) else {}
+        if not transport.get("callback_supported"):
+            return None
+    except Exception:
+        return None
+    configured_base = str(settings.media_studio_public_api_base_url or "").strip()
+    if configured_base:
+        base_url = configured_base.rstrip("/")
+    else:
+        host = settings.api_host if settings.api_host not in {"0.0.0.0", "::"} else "127.0.0.1"
+        base_url = f"http://{host}:{settings.api_port}"
+    return f"{base_url}/media/providers/kie/callback"
 
 
 def _resolved_enhancement_config(model_key: str) -> Dict[str, Any]:
@@ -2195,6 +1154,32 @@ def _fake_output_video(target_path: Path) -> None:
     )
 
 
+def _fake_output_audio(target_path: Path) -> None:
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg:
+        subprocess.run(
+            [
+                ffmpeg,
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=1",
+                "-c:a",
+                "libmp3lame",
+                "-q:a",
+                "6",
+                str(target_path),
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return
+    target_path.write_bytes(b"ID3\x04\x00\x00\x00\x00\x00\x21Media Studio audio placeholder")
+
+
 def _relative_media_path(artifact: Dict[str, Any], path_value: Optional[str]) -> Optional[str]:
     if not path_value:
         return None
@@ -2218,6 +1203,10 @@ def _infer_output_kind(job: Dict[str, Any], output_path: Path, remote_output_url
             return "video"
         if header.startswith(b"\x1a\x45\xdf\xa3"):
             return "video"
+        if header.startswith(b"ID3") or (len(header) >= 2 and header[0] == 0xFF and (header[1] & 0xE0) == 0xE0):
+            return "audio"
+        if header.startswith(b"RIFF") and b"WAVE" in header[:16]:
+            return "audio"
         if header.startswith(b"\x89PNG\r\n\x1a\n"):
             return "image"
         if header.startswith(b"\xff\xd8\xff"):
@@ -2230,19 +1219,27 @@ def _infer_output_kind(job: Dict[str, Any], output_path: Path, remote_output_url
         mime_type = mimetypes.guess_type(candidate or "")[0] or ""
         if mime_type.startswith("video/"):
             return "video"
+        if mime_type.startswith("audio/"):
+            return "audio"
         if mime_type.startswith("image/"):
             return "image"
     suffix = output_path.suffix.lower()
     if suffix in {".mp4", ".mov", ".webm", ".mkv", ".avi"}:
         return "video"
+    if suffix in {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}:
+        return "audio"
     if suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
         return "image"
     task_mode = str(job.get("task_mode") or "").lower()
     if "video" in task_mode:
         return "video"
+    if "audio" in task_mode or "music" in task_mode:
+        return "audio"
     model_key = str(job.get("model_key") or "").lower()
     if "video" in model_key or "i2v" in model_key or "t2v" in model_key:
         return "video"
+    if "audio" in model_key or "music" in model_key or "suno" in model_key:
+        return "audio"
     return "image"
 
 
@@ -2250,6 +1247,18 @@ def _normalized_output_source_path(job: Dict[str, Any], output_path: Path, remot
     output_kind = _infer_output_kind(job, output_path, remote_output_url)
     if output_kind == "video" and output_path.suffix.lower() not in {".mp4", ".mov", ".webm", ".mkv", ".avi"}:
         normalized = output_path.with_suffix(".mp4")
+        if not normalized.exists():
+            output_path.replace(normalized)
+        return normalized
+    if output_kind == "audio" and output_path.suffix.lower() not in {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}:
+        extension = ".mp3"
+        try:
+            header = output_path.read_bytes()[:32]
+        except OSError:
+            header = b""
+        if header.startswith(b"RIFF") and b"WAVE" in header[:16]:
+            extension = ".wav"
+        normalized = output_path.with_suffix(extension)
         if not normalized.exists():
             output_path.replace(normalized)
         return normalized
@@ -2272,19 +1281,90 @@ def _normalized_output_source_path(job: Dict[str, Any], output_path: Path, remot
     return output_path
 
 
-def publish_job_artifact(job: Dict[str, Any], output_path: Path, remote_output_url: Optional[str] = None) -> Dict[str, Any]:
-    existing_asset = store.get_asset_by_job_id(job["job_id"])
+def _find_existing_job_asset(
+    job_id: str,
+    *,
+    remote_output_url: Optional[str],
+    output_index: Optional[int],
+    output_role: str,
+) -> Optional[Dict[str, Any]]:
+    for asset in store.get_assets_by_job_id(job_id):
+        asset_remote_url = str(asset.get("remote_output_url") or "").strip()
+        if remote_output_url and asset_remote_url == remote_output_url:
+            return asset
+        payload = asset.get("payload_json") if isinstance(asset.get("payload_json"), dict) else {}
+        graph_payload = payload.get("graph") if isinstance(payload, dict) else {}
+        if not isinstance(graph_payload, dict):
+            continue
+        if graph_payload.get("output_role") != output_role:
+            continue
+        if output_index is not None and graph_payload.get("output_index") == output_index:
+            return asset
+    return None
+
+
+def publish_job_artifact(
+    job: Dict[str, Any],
+    output_path: Path,
+    remote_output_url: Optional[str] = None,
+    *,
+    output_index: Optional[int] = None,
+    output_role: str = "output",
+    output_metadata: Optional[Dict[str, Any]] = None,
+    associated_outputs: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    existing_asset = _find_existing_job_asset(
+        job["job_id"],
+        remote_output_url=remote_output_url,
+        output_index=output_index,
+        output_role=output_role,
+    )
     normalized_output_path = _normalized_output_source_path(job, output_path, remote_output_url)
     output_kind = _infer_output_kind(job, normalized_output_path, remote_output_url)
     payload = job["submit_response_json"]
     status = job["final_status_json"]
+    artifact_graph_payload = {
+        "output_index": output_index,
+        "output_role": output_role,
+        "remote_output_url": remote_output_url,
+    }
+    if output_metadata:
+        artifact_graph_payload["output_metadata"] = output_metadata
+    artifact_slug = job["job_id"]
+    if output_index is not None or output_role != "output":
+        safe_role = re.sub(r"[^a-zA-Z0-9_-]+", "-", output_role or "output").strip("-") or "output"
+        artifact_slug = f"{job['job_id']}-{safe_role}-{output_index or 1}"
+    artifact_outputs = [
+        {
+            "kind": output_kind,
+            "role": output_role,
+            "source_path": str(normalized_output_path),
+            "source_url": remote_output_url,
+            "metadata": output_metadata or {},
+        }
+    ]
+    for associated in associated_outputs or []:
+        associated_path = Path(str(associated.get("path") or ""))
+        if not associated_path.exists():
+            continue
+        associated_url = str(associated.get("remote_output_url") or "").strip() or None
+        associated_kind = _infer_output_kind(job, associated_path, associated_url)
+        artifact_outputs.append(
+            {
+                "kind": associated_kind,
+                "role": str(associated.get("role") or "related"),
+                "source_path": str(associated_path),
+                "source_url": associated_url,
+                "metadata": associated.get("metadata") if isinstance(associated.get("metadata"), dict) else {},
+            }
+        )
     artifact = kie_adapter.create_run_artifact(
         {
             "status": "succeeded",
             "model_key": job["model_key"],
             "task_mode": job.get("task_mode"),
             "provider_model": (job["validation_json"].get("normalized_request") or {}).get("provider_model"),
-            "slug": job["job_id"],
+            "slug": artifact_slug,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "prompts": {
                 "raw": job.get("raw_prompt"),
@@ -2292,7 +1372,7 @@ def publish_job_artifact(job: Dict[str, Any], output_path: Path, remote_output_u
                 "final_used": job.get("final_prompt_used"),
                 "prompt_profile": job["prompt_context_json"].get("resolved_profile_key"),
             },
-            "outputs": [{"kind": output_kind, "role": "output", "source_path": str(normalized_output_path)}],
+            "outputs": artifact_outputs,
             "options": job["resolved_options_json"],
             "provider_trace": {
                 "task_id": job.get("provider_task_id"),
@@ -2302,8 +1382,28 @@ def publish_job_artifact(job: Dict[str, Any], output_path: Path, remote_output_u
             "final_status_response": status,
         }
     )
+    artifact["graph"] = artifact_graph_payload
     output = artifact["outputs"][0]
-    generation_kind = "video" if output_kind == "video" else "image"
+    associated_cover_output = next(
+        (
+            item
+            for item in artifact.get("outputs", [])[1:]
+            if item.get("kind") == "image" and str(item.get("role") or "").lower() in {"cover", "cover_image", "artwork", "poster"}
+        ),
+        None,
+    )
+    generation_kind = output_kind if output_kind in {"video", "audio"} else "image"
+    associated_cover_thumb_path = None
+    associated_cover_display_path = None
+    if associated_cover_output:
+        associated_cover_thumb_path = _relative_media_path(
+            artifact,
+            associated_cover_output.get("thumb_path") or associated_cover_output.get("web_path") or associated_cover_output.get("original_path"),
+        )
+        associated_cover_display_path = _relative_media_path(
+            artifact,
+            associated_cover_output.get("web_path") or associated_cover_output.get("thumb_path") or associated_cover_output.get("original_path"),
+        )
     asset_payload = {
         "job_id": job["job_id"],
         "project_id": job.get("project_id"),
@@ -2320,8 +1420,8 @@ def publish_job_artifact(job: Dict[str, Any], output_path: Path, remote_output_u
         "run_json_path": _relative_media_path(artifact, "run.json"),
         "hero_original_path": _relative_media_path(artifact, output.get("original_path")),
         "hero_web_path": _relative_media_path(artifact, output.get("web_path")),
-        "hero_thumb_path": _relative_media_path(artifact, output.get("thumb_path")),
-        "hero_poster_path": _relative_media_path(artifact, output.get("poster_path")),
+        "hero_thumb_path": associated_cover_thumb_path or _relative_media_path(artifact, output.get("thumb_path")),
+        "hero_poster_path": associated_cover_display_path or _relative_media_path(artifact, output.get("poster_path")),
         "remote_output_url": remote_output_url,
         "preset_key": job.get("resolved_preset_key"),
         "preset_source": job.get("preset_source"),
@@ -2341,6 +1441,9 @@ def simulate_job_completion(job: Dict[str, Any], downloads_dir: Path) -> Dict[st
     if "video" in task_mode or "i2v" in model_key or "t2v" in model_key:
         output_path = downloads_dir / ("%s.mp4" % job["job_id"])
         _fake_output_video(output_path)
+    elif "audio" in task_mode or "music" in task_mode or "suno" in model_key:
+        output_path = downloads_dir / ("%s.mp3" % job["job_id"])
+        _fake_output_audio(output_path)
     else:
         output_path = downloads_dir / ("%s.png" % job["job_id"])
         _fake_output_image(output_path, job.get("final_prompt_used") or job.get("raw_prompt") or job["model_key"])

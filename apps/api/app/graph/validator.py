@@ -88,6 +88,50 @@ def _prompt_node_provider_supports_images(node: GraphWorkflowNode) -> bool | Non
     return None
 
 
+def _validate_seedance_input_mode(
+    node: GraphWorkflowNode,
+    definition,
+    *,
+    available_incoming_by_target_port: Dict[tuple[str, str], int],
+    errors: List[GraphError],
+) -> None:
+    source = definition.source if isinstance(definition.source, dict) else {}
+    if source.get("kind") != "kie_model" or str(source.get("model_key") or "") != "seedance-2.0":
+        return
+
+    start_count = available_incoming_by_target_port[(node.id, "start_frame")]
+    end_count = available_incoming_by_target_port[(node.id, "end_frame")]
+    reference_counts = {
+        "reference_images": available_incoming_by_target_port[(node.id, "reference_images")]
+        + available_incoming_by_target_port[(node.id, "image_refs")],
+        "reference_videos": available_incoming_by_target_port[(node.id, "reference_videos")]
+        + available_incoming_by_target_port[(node.id, "video_refs")],
+        "reference_audios": available_incoming_by_target_port[(node.id, "reference_audios")]
+        + available_incoming_by_target_port[(node.id, "audio_refs")],
+    }
+    has_frame_mode = start_count > 0 or end_count > 0
+    has_reference_mode = any(count > 0 for count in reference_counts.values())
+
+    if end_count > 0 and start_count == 0:
+        errors.append(
+            GraphError(
+                code="seedance_last_frame_requires_start_frame",
+                message="Seedance 2.0 needs a Start Frame when an End Frame is connected.",
+                node_id=node.id,
+                port_id="end_frame",
+            )
+        )
+    if has_frame_mode and has_reference_mode:
+        errors.append(
+            GraphError(
+                code="seedance_input_modes_are_mutually_exclusive",
+                message="Seedance 2.0 can use Start/End Frames or multimodal references, but not both in the same run.",
+                node_id=node.id,
+                port_id="start_frame" if start_count > 0 else "end_frame",
+            )
+        )
+
+
 def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
     workflow = materialize_workflow_defaults(workflow)
     definitions = registry.definitions_by_type()
@@ -328,6 +372,12 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                     )
                 )
         if definition.source.get("kind") == "kie_model":
+            _validate_seedance_input_mode(
+                node,
+                definition,
+                available_incoming_by_target_port=available_incoming_by_target_port,
+                errors=errors,
+            )
             media_output_ports = [port for port in definition.ports.get("outputs", []) if getattr(port, "type", "") in {"image", "video", "audio"}]
             if media_output_ports and not any(outgoing_by_source_port[(node.id, port.id)] > 0 for port in media_output_ports):
                 labels = ", ".join(getattr(port, "label", port.id) for port in media_output_ports)

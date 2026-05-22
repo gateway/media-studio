@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef } from "react";
 
+import { GraphMarkdownNoteField } from "./graph-markdown-note";
 import { GraphNodeProviderModelField } from "./graph-node-provider-model-field";
 import { useGraphProviderModelCatalogContext, type GraphProviderKind } from "./hooks/use-graph-provider-model-catalog";
 import type { GraphNodeData } from "./types";
@@ -127,6 +128,7 @@ function GraphNodeTextareaField({
   const override = graphPromptRecipeFieldOverride(definition, nodeFields, field);
   const runtimeOverride = graphPromptRuntimeFieldOverride(definition.type, nodeFields, field);
   const placeholder = override?.placeholder ?? runtimeOverride?.placeholder ?? field.placeholder ?? "";
+  const markdownPreviewField = typeof definition.ui?.markdown_preview_field === "string" ? definition.ui.markdown_preview_field : null;
 
   useLayoutEffect(() => {
     const selection = selectionRef.current;
@@ -136,6 +138,18 @@ function GraphNodeTextareaField({
     const end = Math.min(selection.end, textarea.value.length);
     textarea.setSelectionRange(start, end);
   }, [textValue]);
+
+  if (markdownPreviewField === field.id) {
+    return (
+      <GraphMarkdownNoteField
+        value={textValue}
+        placeholder={placeholder}
+        disabled={disabled}
+        className={className}
+        onChange={(nextValue) => onFieldChange(nodeId, field.id, nextValue)}
+      />
+    );
+  }
 
   return (
     <textarea
@@ -297,7 +311,7 @@ export function GraphNodeFieldControl({
       </select>
     );
   }
-  const numeric = field.type === "integer" || field.type === "float" || field.type === "number" || field.type === "int_range" || field.type === "float_range";
+  const numeric = field.type === "integer" || field.type === "float" || field.type === "number" || field.type === "int_range" || field.type === "float_range" || field.type === "number_range";
   return (
     <input
       className={commonClass}
@@ -307,7 +321,14 @@ export function GraphNodeFieldControl({
       min={field.min ?? undefined}
       max={field.max ?? undefined}
       disabled={disabled}
-      onChange={(event) => onFieldChange(nodeId, field.id, event.target.value)}
+      onChange={(event) => {
+        if (!numeric) {
+          onFieldChange(nodeId, field.id, event.target.value);
+          return;
+        }
+        const rawValue = event.target.value;
+        onFieldChange(nodeId, field.id, rawValue === "" ? "" : Number(rawValue));
+      }}
     />
   );
 }

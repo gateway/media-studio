@@ -5,7 +5,7 @@
   gap: 0.75rem;
   padding: 0.65rem 0.75rem;
   background: var(--graph-node-header-bg, #202524);
-  border-bottom: 1px solid color-mix(in srgb, var(--graph-node-accent, #73a7ff) 22%, rgba(247, 246, 240, 0.08));
+  border-bottom: 1px solid color-mix(in srgb, var(--graph-node-accent, #73a7ff) 22%, var(--graph-border-hairline));
 }
 
 .react-flow__node:has(.graph-node-collapsed) {
@@ -54,14 +54,14 @@
   height: 16px;
   padding: 0;
   background: transparent;
-  border: 1px solid rgba(247, 246, 240, 0.18);
+  border: 1px solid var(--graph-border-medium);
   border-radius: 999px;
   color: var(--graph-text-muted);
   cursor: help;
 }
 
 .graph-node-help:hover {
-  border-color: color-mix(in srgb, var(--graph-node-accent, var(--graph-accent)) 62%, rgba(247, 246, 240, 0.18));
+  border-color: color-mix(in srgb, var(--graph-node-accent, var(--graph-accent)) 62%, var(--graph-border-medium));
   color: var(--graph-node-accent, var(--graph-accent));
 }
 
@@ -74,10 +74,10 @@
   max-height: min(260px, calc(100vh - 24px));
   overflow: auto;
   padding: 0.65rem 0.7rem;
-  border: 1px solid rgba(247, 246, 240, 0.14);
+  border: 1px solid var(--graph-border-modal);
   border-radius: 8px;
-  color: rgba(247, 246, 240, 0.78);
-  background: #101312;
+  color: var(--graph-text-quiet);
+  background: var(--graph-panel-dark);
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.72),
     0 16px 38px rgba(0, 0, 0, 0.58);
@@ -153,7 +153,7 @@
   border-radius: 999px;
   background: var(--graph-node-handle, var(--graph-node-accent, var(--graph-accent)));
   box-shadow:
-    0 0 0 3px rgba(0, 0, 0, 0.35),
+    0 0 0 3px var(--graph-shadow-soft),
     inset 0 0 0 3px rgba(17, 20, 19, 0.58),
     0 0 0 5px color-mix(in srgb, var(--graph-node-handle, var(--graph-node-accent, var(--graph-accent))) 14%, transparent);
   pointer-events: none;
@@ -228,7 +228,7 @@
   align-self: center;
   display: inline-flex;
   align-items: center;
-  border: 1px solid rgba(209, 255, 71, 0.25);
+  border: 1px solid var(--graph-accent-border);
   color: var(--graph-accent);
   border-radius: 999px;
   min-height: 1.15rem;
@@ -243,8 +243,8 @@
 }
 
 .graph-node-time-chip {
-  border-color: rgba(247, 246, 240, 0.18);
-  color: rgba(247, 246, 240, 0.74);
+  border-color: var(--graph-border-medium);
+  color: var(--graph-text-secondary);
 }
 
 .graph-node-activity-chip-active {
@@ -254,7 +254,7 @@
 
 .graph-node-activity-chip-success {
   border-color: rgba(49, 209, 88, 0.32);
-  color: #7dff9a;
+  color: var(--graph-success-bright);
 }
 
 .graph-node-activity-chip-warning {
@@ -276,7 +276,7 @@
   margin-left: 0.3rem;
   border: 1px solid rgba(247, 246, 240, 0.2);
   border-radius: 999px;
-  color: rgba(247, 246, 240, 0.62);
+  color: var(--graph-text-subtle);
   cursor: help;
   font-size: 0.58rem;
   line-height: 1;
@@ -284,5 +284,5 @@
 
 .graph-node-execution-chip {
   border-color: rgba(247, 246, 240, 0.22);
-  color: rgba(247, 246, 240, 0.78);
+  color: var(--graph-text-quiet);
 }

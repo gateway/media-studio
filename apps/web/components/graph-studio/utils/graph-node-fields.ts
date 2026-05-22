@@ -10,6 +10,12 @@ export type GraphVisibleFieldMetrics = {
   layoutFieldCount: number;
 };
 
+const GRAPH_SAVE_NODE_TYPES = new Set(["media.save_image", "media.save_video", "media.save_audio", "media.save_music_track"]);
+
+export function graphPreviewHeaderFieldIds(definition: GraphNodeDefinition): string[] {
+  return GRAPH_SAVE_NODE_TYPES.has(definition.type) ? ["project_id"] : [];
+}
+
 export function graphFieldValue(fields: Record<string, unknown>, id: string, definition: GraphNodeDefinition) {
   if (fields[id] != null && fields[id] !== "") return fields[id];
   return definition.fields.find((field) => field.id === id)?.default;
