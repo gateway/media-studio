@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from typing import Any, Dict, List, Optional
 
 from .. import kie_adapter, store
@@ -50,6 +51,16 @@ def _is_suno_model(model_key: str) -> bool:
 def _is_supported_graph_model_option(model_key: str, option_key: str) -> bool:
     blocked = UNSUPPORTED_GRAPH_MODEL_OPTIONS.get(_normalized_model_key(model_key), set())
     return option_key not in blocked
+
+
+def _list_active_presets_for_graph() -> List[Dict[str, Any]]:
+    try:
+        presets = store.list_presets()
+    except sqlite3.OperationalError as exc:
+        if "no such table: media_presets" not in str(exc):
+            raise
+        presets = []
+    return [preset for preset in presets if str(preset.get("status") or "active") == "active"]
 
 
 def _visible_condition_from_option(spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -374,9 +385,7 @@ class GraphNodeRegistry:
                 continue
             definitions.append(definition)
             seen_model_nodes.add(definition.type)
-        for preset in store.list_presets():
-            if str(preset.get("status") or "active") != "active":
-                continue
+        for preset in _list_active_presets_for_graph():
             definitions.append(self._preset_render_definition(preset))
         definitions = [_layout_ui(definition) for definition in definitions]
         validate_node_definitions(definitions)

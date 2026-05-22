@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from typing import List
 
 from .schemas import GraphNodeDefinition, GraphNodeField, GraphNodePort
@@ -8,9 +9,15 @@ from .. import store
 
 
 def _preset_options() -> List[dict[str, str]]:
+    try:
+        presets = store.list_presets()
+    except sqlite3.OperationalError as exc:
+        if "no such table: media_presets" not in str(exc):
+            raise
+        presets = []
     return [
         {"value": str(item["preset_id"]), "label": str(item.get("label") or item.get("key") or item["preset_id"])}
-        for item in store.list_presets()
+        for item in presets
         if str(item.get("status") or "active") == "active"
     ]
 
