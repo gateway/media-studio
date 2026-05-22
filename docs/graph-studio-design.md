@@ -551,7 +551,7 @@ Goal:
 - Make Graph Studio feel like a multi-workflow workspace.
 
 Implemented foundation:
-- Implement open workflow tabs from `docs/graph-studio-tabs-todo.md`.
+- Add workflow tabs for keeping multiple workflows open in one workspace.
 - Add template save/load/instantiate with thumbnails.
 - Add dirty-state tracking.
 - Restore open tabs from browser session.
