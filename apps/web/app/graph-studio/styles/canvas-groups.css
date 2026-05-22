@@ -1,0 +1,103 @@
+.graph-canvas {
+  position: relative;
+  min-height: 0;
+  background: var(--graph-bg);
+}
+
+.graph-group-frame {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 68%, var(--graph-border-medium));
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 11%, rgba(28, 32, 30, 0.74)), color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 7%, rgba(18, 21, 20, 0.68))),
+    color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 5%, rgba(13, 15, 14, 0.62));
+  box-shadow: inset 0 0 0 1px var(--graph-surface-faint);
+  cursor: move;
+}
+
+.graph-group-frame-title {
+  position: absolute;
+  z-index: 2;
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  gap: 0.42rem;
+  min-height: 32px;
+  padding: 0.38rem 0.7rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 42%, var(--graph-border-modal));
+  border-radius: 10px 10px 0 0;
+  color: rgba(247, 246, 240, 0.88);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 9%, rgba(35, 40, 38, 0.82)), rgba(17, 20, 19, 0.76)),
+    rgba(32, 37, 36, 0.78);
+  backdrop-filter: blur(1px);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.graph-group-frame-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.graph-group-frame-title-input {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 48%, var(--graph-border-medium));
+  border-radius: 6px;
+  outline: none;
+  background: var(--graph-overlay-button);
+  color: rgba(247, 246, 240, 0.94);
+  font: inherit;
+  font-weight: 900;
+  letter-spacing: 0;
+  padding: 0.16rem 0.34rem;
+}
+
+.graph-group-frame-title small {
+  padding: 0.12rem 0.38rem;
+  border: 1px solid color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 42%, var(--graph-border-modal));
+  border-radius: 999px;
+  color: var(--graph-text-body);
+  background: color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 12%, rgba(17, 20, 19, 0.84));
+  font-size: 0.54rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.graph-group-frame-muted {
+  opacity: 0.5;
+  filter: grayscale(0.8);
+}
+
+.graph-group-frame-bypassed {
+  border-style: dashed;
+  box-shadow: inset 0 0 0 1px rgba(178, 140, 255, 0.18);
+}
+
+.graph-group-frame-frozen {
+  opacity: 0.62;
+  filter: grayscale(0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(96, 210, 255, 0.18),
+    inset 0 0 0 999px rgba(12, 13, 13, 0.18);
+}
+
+.graph-group-resize-handle {
+  position: absolute;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  pointer-events: auto;
+  background: transparent;
+  cursor: nwse-resize;
+  transform: translate(-50%, -50%);
+}

@@ -1,0 +1,288 @@
+.graph-node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  background: var(--graph-node-header-bg, #202524);
+  border-bottom: 1px solid color-mix(in srgb, var(--graph-node-accent, #73a7ff) 22%, var(--graph-border-hairline));
+}
+
+.react-flow__node:has(.graph-node-collapsed) {
+  height: 54px !important;
+}
+
+.graph-node-collapsed {
+  height: 54px;
+  min-height: 54px;
+}
+
+.graph-node-collapsed .graph-node-header {
+  position: relative;
+  z-index: 24;
+  box-sizing: border-box;
+  height: 100%;
+  border-bottom: 0;
+  overflow: visible;
+}
+
+.graph-node-header-text {
+  min-width: 0;
+  display: grid;
+  gap: 0.16rem;
+}
+
+.graph-node-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 1.35rem;
+}
+
+.graph-node-help-wrap {
+  position: relative;
+  display: inline-flex;
+  z-index: 90;
+}
+
+.graph-node-help {
+  display: inline-flex;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--graph-border-medium);
+  border-radius: 999px;
+  color: var(--graph-text-muted);
+  cursor: help;
+}
+
+.graph-node-help:hover {
+  border-color: color-mix(in srgb, var(--graph-node-accent, var(--graph-accent)) 62%, var(--graph-border-medium));
+  color: var(--graph-node-accent, var(--graph-accent));
+}
+
+.graph-node-help-popover {
+  position: fixed;
+  z-index: 260;
+  display: grid;
+  gap: 0.35rem;
+  width: min(320px, 72vw);
+  max-height: min(260px, calc(100vh - 24px));
+  overflow: auto;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--graph-border-modal);
+  border-radius: 8px;
+  color: var(--graph-text-quiet);
+  background: var(--graph-panel-dark);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.72),
+    0 16px 38px rgba(0, 0, 0, 0.58);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: left;
+  pointer-events: auto;
+}
+
+.graph-node-help-popover strong {
+  color: var(--graph-text);
+  font-size: 0.78rem;
+}
+
+.graph-node-collapsed-handles {
+  position: absolute;
+  inset: 0;
+  z-index: 31;
+  pointer-events: none;
+}
+
+.graph-node-collapsed-handle-stack {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  gap: 0.24rem;
+  transform: translateY(-50%);
+}
+
+.graph-node-collapsed-handle-stack-inputs {
+  left: 0;
+}
+
+.graph-node-collapsed-handle-stack-outputs {
+  right: 0;
+}
+
+.graph-node-collapsed-handle-stack-pin {
+  gap: 0;
+  width: 0;
+  height: 0;
+}
+
+.graph-node-collapsed-handle-row {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.graph-node-collapsed-handle-row .graph-handle-collapsed-pin {
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  transform: translate(-50%, -50%) !important;
+}
+
+.graph-node-collapsed-handle-row .graph-handle-collapsed-pin::before {
+  inset: -14px;
+}
+
+.graph-node-collapsed-pin-visual {
+  position: absolute;
+  top: 50%;
+  z-index: 32;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--graph-node-handle, var(--graph-node-accent, var(--graph-accent)));
+  border-radius: 999px;
+  background: var(--graph-node-handle, var(--graph-node-accent, var(--graph-accent)));
+  box-shadow:
+    0 0 0 3px var(--graph-shadow-soft),
+    inset 0 0 0 3px rgba(17, 20, 19, 0.58),
+    0 0 0 5px color-mix(in srgb, var(--graph-node-handle, var(--graph-node-accent, var(--graph-accent))) 14%, transparent);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.graph-node-collapsed-pin-visual-input {
+  left: -7px;
+}
+
+.graph-node-collapsed-pin-visual-output {
+  right: -7px;
+}
+
+.graph-node-collapse-toggle {
+  position: relative;
+  z-index: 28;
+  align-self: center;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--graph-node-accent, var(--graph-accent));
+  border-radius: 999px;
+  background: var(--graph-panel);
+  box-shadow: 0 0 0 3px rgba(247, 246, 240, 0.03);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.graph-node-collapse-toggle:hover {
+  background: var(--graph-node-accent, var(--graph-accent));
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--graph-node-accent, var(--graph-accent)) 16%, transparent);
+}
+
+.graph-node-collapsed .graph-node-collapse-toggle {
+  background: var(--graph-node-accent, var(--graph-accent));
+  transform: scale(0.9);
+}
+
+.graph-node-title {
+  overflow: hidden;
+  font-weight: 800;
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-node-kind {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-node-title-input {
+  width: 100%;
+  min-width: 120px;
+  color: var(--graph-text);
+  background: var(--graph-panel-hover);
+  border: 1px solid rgba(209, 255, 71, 0.36);
+  border-radius: 6px;
+  outline: none;
+  padding: 0.28rem 0.4rem;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.graph-node-status {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--graph-accent-border);
+  color: var(--graph-accent);
+  border-radius: 999px;
+  min-height: 1.15rem;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.graph-node-price-chip {
+  border-color: rgba(96, 210, 255, 0.28);
+  color: var(--graph-cyan);
+}
+
+.graph-node-time-chip {
+  border-color: var(--graph-border-medium);
+  color: var(--graph-text-secondary);
+}
+
+.graph-node-activity-chip-active {
+  border-color: rgba(96, 210, 255, 0.32);
+  color: var(--graph-cyan);
+}
+
+.graph-node-activity-chip-success {
+  border-color: rgba(49, 209, 88, 0.32);
+  color: var(--graph-success-bright);
+}
+
+.graph-node-activity-chip-warning {
+  border-color: rgba(255, 204, 102, 0.38);
+  color: var(--graph-warning);
+}
+
+.graph-node-activity-chip-error {
+  border-color: rgba(255, 101, 101, 0.42);
+  color: #ff7b7b;
+}
+
+.graph-node-field-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  margin-left: 0.3rem;
+  border: 1px solid rgba(247, 246, 240, 0.2);
+  border-radius: 999px;
+  color: var(--graph-text-subtle);
+  cursor: help;
+  font-size: 0.58rem;
+  line-height: 1;
+}
+
+.graph-node-execution-chip {
+  border-color: rgba(247, 246, 240, 0.22);
+  color: var(--graph-text-quiet);
+}

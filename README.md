@@ -21,6 +21,19 @@ Media Studio is not affiliated with Kie AI; however, we do have an affiliate cod
 - A local-first workflow: generated files and runtime data live in your local `data/` folder.
 - A Kie-powered model layer, with pricing and model support pulled through the local control API.
 
+## Experimental Surfaces
+
+Graph Studio and Prompt Recipe graph execution are available for local workflow building, with a narrower release boundary than the main Studio surface.
+
+- Graph Studio lets you build node-based workflows with media loaders, prompt nodes, model nodes, preview nodes, save nodes, groups, notes, run diagnostics, and reusable workflow templates.
+- Current graph model lanes include image, video, audio/music, Prompt Recipe, and utility nodes where the backend owns validation, pricing, execution, and saved run history.
+- Graph workflows can be saved locally, exported as portable templates, and loaded back into another Media Studio install.
+- Saved workflows are database-backed; browser tab state is only a session convenience layer.
+- Prompt Recipes are a supported data-backed graph surface.
+- End-user custom executable nodes are **not** part of the current release boundary.
+
+Media Studio also now tracks **actual OpenRouter spend** for successful OpenRouter-backed Studio runs. That accounting is shown separately from the KIE credit and USD estimates used for KIE-powered image/video jobs.
+
 ## Supported Models
 
 Current model surfaces include:
@@ -139,7 +152,7 @@ Restart:
 
 ### What The Runner Does
 
-The macOS, Windows, and Linux onboarding scripts handle the normal setup path for you: dependencies, local environment, database, Kie API key prompt, and optional prompt enhancement setup.
+The macOS, Windows, and Linux onboarding scripts handle the normal setup path for you: dependencies, local environment, database, Kie API key prompt, and optional LLM provider setup for Codex Local, OpenRouter, or a local OpenAI-compatible endpoint.
 
 The run scripts start the API and web app together in production mode, check the sibling `kie-api` checkout for new releases, offer a fast-forward update when safe, check the local database before migrations, create a migration backup when needed, refresh shared Python dependencies and the production web build if needed, write runtime logs under `data/runtime/`, wait for readiness, and open Studio.
 
@@ -155,13 +168,33 @@ npm run start:studio -- --api-port 8010 --web-port 3010
 - **Projects** keep work organized without losing the global gallery.
 - **Reference Library** stores reusable image inputs and supports project-scoped references.
 - **Structured Presets** let you build reusable prompt workflows with text fields and image slots.
+- **Prompt Recipes** let you build reusable LLM director templates for Graph Studio and future orchestration flows.
+- **Graph Studio** is an experimental node graph for chaining prompts, recipes, model runs, previews, saves, notes, and reusable workflow templates.
 - **Import And Export Presets** makes preset sharing portable between installs.
 - **Model-Aware Inputs** show the slots each model actually needs, including first frame, last frame, reference images, motion-control video, and Seedance multimodal references.
-- **Prompt Enhancement** can improve prompts through OpenRouter or a local OpenAI-compatible endpoint.
+- **Prompt Enhancement** can improve prompts through OpenRouter, the local Codex App Server session, or a local OpenAI-compatible endpoint.
 - **Pricing Estimates** show expected cost before generation and save pricing summaries with jobs.
+- **Actual OpenRouter Spend Tracking** records successful OpenRouter-backed Studio usage separately from KIE estimates.
 - **Queue And Job Tracking** keeps pending, running, completed, and failed work visible.
 - **Retry And Restore** brings failed jobs or old assets back into the composer instead of making you rebuild requests by hand.
 - **Local Data Ownership** keeps your database, uploads, downloads, outputs, presets, and project metadata on disk.
+
+## Codex Local Provider
+
+Media Studio can now use a local Codex App Server session, authenticated through the operator's local Codex login, as a subscription-backed text + vision provider for:
+
+- Studio prompt enhancement
+- Prompt Recipe drafting
+- Graph `prompt.llm`
+- Graph `prompt.recipe`
+
+Current rollout assumptions:
+
+- `codex_local` is **stateless per request**
+- it is treated as **included in your Codex / ChatGPT plan**
+- Media Studio does **not** assign a USD estimate or spend ledger entry to `codex_local`
+- image generation is **not** part of the current Codex Local rollout boundary
+- provider setup and shared LLM defaults now live under `/settings/llms`
 - **Version Display** shows the current Media Studio build in the admin navigation.
 
 ## Presets
@@ -188,14 +221,55 @@ Current built-in presets include:
 
 If you build presets you want to share with other users, let us know. We would love to collect good community presets and add them to the project.
 
+## Keyboard Shortcuts
+
+Studio shortcuts work when you are not typing in a form field and no blocking overlay is open.
+
+| Key | Studio action |
+| --- | --- |
+| `G` | Open Projects |
+| `N` | Open Graph Studio |
+| `P` | Open Presets |
+| `S` | Open Settings |
+| `I` | Open Reference Library |
+| `ArrowLeft` / `ArrowRight` | Move through selected gallery assets |
+| `Escape` | Close the asset inspector or lightbox |
+| `ArrowUp` / `ArrowDown` | Move through prompt reference suggestions while they are open |
+| `Enter` / `Tab` | Insert the selected prompt reference suggestion |
+
+Graph Studio shortcuts work when you are not typing in a node field.
+
+| Key | Graph Studio action |
+| --- | --- |
+| `Space` | Open node search |
+| `C` | Toggle the bottom console |
+| `Cmd/Ctrl+Z` | Undo |
+| `Cmd/Ctrl+Shift+Z` / `Ctrl+Y` | Redo |
+| `Cmd/Ctrl+C` | Copy selected nodes |
+| `Cmd/Ctrl+V` | Paste copied nodes |
+| `Cmd/Ctrl+M` | Mute selected nodes |
+| `Escape` | Close search, menus, previews, side panels, and rename mode |
+| `Shift` or `Cmd/Ctrl` + click | Add or remove nodes from the current selection |
+| `ArrowLeft` / `ArrowRight` | Move through media preview overlay items |
+
 ## Useful Docs
 
 - [START_HERE.md](START_HERE.md)
 - [docs/prerequisites.md](docs/prerequisites.md)
 - [docs/getting-started-mac.md](docs/getting-started-mac.md)
+- [docs/getting-started-linux.md](docs/getting-started-linux.md)
 - [docs/getting-started-windows.md](docs/getting-started-windows.md)
 - [docs/advanced-runtime.md](docs/advanced-runtime.md)
 - [docs/pricing-integration.md](docs/pricing-integration.md)
+- [docs/release-packaging.md](docs/release-packaging.md)
+
+## License
+
+Media Studio is source-available for non-commercial use under the terms in [LICENSE](LICENSE) and [ADDITIONAL_TERMS.md](ADDITIONAL_TERMS.md).
+
+You may install it, run it, study it, modify it, and use it to make creative work for non-commercial purposes. Commercial use requires prior written approval. For commercial licensing, contact [@gateway on X](https://x.com/gateway).
+
+AI coding assistants may be used to understand, debug, modify, or contribute to this project within the allowed license scope. They may not be used to copy substantial parts of this codebase into another project, train a model on it, or recreate it for redistribution without prior written permission.
 
 ## Versioning
 

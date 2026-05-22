@@ -2,6 +2,7 @@
 
 import { Image as ImageIcon, Play, Volume2, X } from "lucide-react";
 
+import { studioPreviewFallbackClassName, studioPreviewOverlayClassName } from "@/components/studio/studio-theme";
 import type { StudioReferencePreview } from "@/lib/media-studio-helpers";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +51,7 @@ export function StudioStagedMediaTile({
                 decoding="async"
                 className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
               />
-              <span className="absolute inset-0 flex items-center justify-center bg-black/28">
+              <span className={studioPreviewOverlayClassName()}>
                 <Play className="size-4 text-white" />
               </span>
             </>
@@ -63,19 +64,19 @@ export function StudioStagedMediaTile({
                 preload="metadata"
                 className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
               />
-              <span className="absolute inset-0 flex items-center justify-center bg-black/28">
+              <span className={studioPreviewOverlayClassName()}>
                 <Play className="size-4 text-white" />
               </span>
             </>
           ) : (
-            <span className="flex h-full w-full items-center justify-center bg-white/[0.05] text-white/72">
+            <span className={studioPreviewFallbackClassName()}>
               <Play className="size-5" />
             </span>
           )
         ) : preview.kind === "audios" ? (
-          <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-white/[0.05] text-white/72">
+          <span className={studioPreviewFallbackClassName({ className: "flex-col gap-1" })}>
             <Volume2 className="size-5" />
-            <span className="text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-white/58">Audio</span>
+            <span className="text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-[var(--text-dim)]">Audio</span>
           </span>
         ) : mediaVisual ? (
           <img
@@ -87,7 +88,7 @@ export function StudioStagedMediaTile({
             className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
           />
         ) : (
-          <span className="flex h-full w-full items-center justify-center bg-white/[0.05] text-white/72">
+          <span className={studioPreviewFallbackClassName()}>
             <ImageIcon className="size-5" />
           </span>
         )}

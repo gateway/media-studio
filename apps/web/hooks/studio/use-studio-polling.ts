@@ -1,138 +1,27 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 
 import { FLOATING_COMPOSER_STATUS_MS, type ComposerStatusMessage } from "@/lib/media-studio-contract";
+import {
+  completedBatchJobIds,
+  isStudioPollingVisible,
+  resolveBatchInFlightFeedback,
+  resolveJobInFlightFeedback,
+  resolvePublishHandoffFeedback,
+  shouldWatchBatch,
+  STUDIO_POLL_INTERVAL_MS,
+} from "@/lib/studio-polling";
 import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
+import { useStudioMediaDashboardActions } from "@/hooks/studio/use-studio-media-dashboard-actions";
+import { useStudioPollScheduler } from "@/hooks/studio/use-studio-poll-scheduler";
 
-type PublishHandoffKind = "job" | "batch";
-
-type InFlightFeedback = {
-  signature: string;
-  activity: { tone: "warning" | "healthy"; message: string; spinning?: boolean };
-  activityAutoHideMs?: number;
-  formMessage: ComposerStatusMessage;
-};
-
-export const STUDIO_POLL_INTERVAL_MS = 5000;
-
-export function isPollableJobStatus(status: string | null | undefined) {
-  return ["queued", "submitted", "running", "processing"].includes(String(status ?? "").toLowerCase());
-}
-
-export function shouldWatchBatch(batch: MediaBatch) {
-  if (!batch.batch_id || ["completed", "failed", "partial_failure", "cancelled"].includes(String(batch.status ?? "").toLowerCase())) {
-    return false;
-  }
-  if (batch.queued_count > 0 || batch.running_count > 0) {
-    return true;
-  }
-  return (batch.jobs ?? []).some((job) => isPollableJobStatus(job.status));
-}
-
-export function completedBatchJobIds(batch: MediaBatch) {
-  return (batch.jobs ?? [])
-    .filter((job) => {
-      const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
-      return finalState === "succeeded" || job.status === "completed";
-    })
-    .map((job) => job.job_id);
-}
-
-export function resolvePublishHandoffFeedback(kind: PublishHandoffKind, publishedToGallery: boolean) {
-  if (kind === "job") {
-    return publishedToGallery
-      ? {
-          activity: { tone: "healthy" as const, message: "Render published. The gallery is refreshing." },
-          activityAutoHideMs: 2600,
-          finalMessage: "Render completed and the gallery is refreshing.",
-        }
-      : {
-          activity: {
-            tone: "warning" as const,
-            message: "Render finished, but Studio is still waiting for the media card to appear.",
-            spinning: true,
-          },
-          activityAutoHideMs: 4200,
-          finalMessage: "Render completed. Studio is still waiting for the media card to appear.",
-        };
-  }
-
-  return publishedToGallery
-    ? {
-        activity: { tone: "healthy" as const, message: "Batch published. The gallery is refreshing." },
-        activityAutoHideMs: 2600,
-        finalMessage: "Batch completed and the gallery is refreshing.",
-      }
-    : {
-        activity: {
-          tone: "warning" as const,
-          message: "Batch finished, but Studio is still waiting for the media cards to appear.",
-          spinning: true,
-        },
-        activityAutoHideMs: 4200,
-        finalMessage: "Batch completed. Studio is still waiting for the media cards to appear.",
-      };
-}
-
-function resolveJobInFlightFeedback(job: MediaJob): InFlightFeedback | null {
-  const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
-  if ((job.status === "running" || job.status === "processing") && finalState === "succeeded") {
-    return {
-      signature: `${job.job_id}:publishing`,
-      activity: { tone: "warning", message: "Render finished. Studio is publishing it into the gallery.", spinning: true },
-      activityAutoHideMs: 2600,
-      formMessage: { tone: "warning", text: "Render finished. Studio is publishing it into the gallery." },
-    };
-  }
-  if (job.status === "submitted" || job.status === "running" || job.status === "processing") {
-    return {
-      signature: `${job.job_id}:rendering`,
-      activity: { tone: "warning", message: "Studio is waiting for the render to finish.", spinning: true },
-      activityAutoHideMs: 2400,
-      formMessage: { tone: "warning", text: "Studio is waiting for the render to finish." },
-    };
-  }
-  if (job.status === "queued") {
-    return {
-      signature: `${job.job_id}:queued`,
-      activity: { tone: "warning", message: "Your render is queued and will start as soon as a runner is free." },
-      activityAutoHideMs: 2400,
-      formMessage: { tone: "warning", text: "Your render is queued and will start as soon as a runner is free." },
-    };
-  }
-  return null;
-}
-
-function resolveBatchInFlightFeedback(batch: MediaBatch): InFlightFeedback | null {
-  const publishingJob = (batch.jobs ?? []).find((job) => {
-    const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
-    return (job.status === "running" || job.status === "processing") && finalState === "succeeded";
-  });
-  if (publishingJob) {
-    return {
-      signature: `${batch.batch_id}:publishing`,
-      activity: { tone: "warning", message: "Render finished. Studio is publishing it into the gallery.", spinning: true },
-      activityAutoHideMs: 2600,
-      formMessage: { tone: "warning", text: "Render finished. Studio is publishing it into the gallery." },
-    };
-  }
-  if (batch.running_count > 0) {
-    return {
-      signature: `${batch.batch_id}:rendering`,
-      activity: { tone: "warning", message: "Studio is waiting for this batch to finish rendering.", spinning: true },
-      activityAutoHideMs: 2400,
-      formMessage: { tone: "warning", text: "Studio is waiting for this batch to finish rendering." },
-    };
-  }
-  if (batch.queued_count > 0) {
-    return {
-      signature: `${batch.batch_id}:queued`,
-      activity: { tone: "warning", message: "This batch is queued and will start as soon as a runner is free." },
-      activityAutoHideMs: 2400,
-      formMessage: { tone: "warning", text: "This batch is queued and will start as soon as a runner is free." },
-    };
-  }
-  return null;
-}
+export {
+  completedBatchJobIds,
+  isPollableJobStatus,
+  isStudioPollingVisible,
+  resolvePublishHandoffFeedback,
+  shouldWatchBatch,
+  STUDIO_POLL_INTERVAL_MS,
+} from "@/lib/studio-polling";
 
 type UseStudioPollingParams = {
   showActivity: (payload: { tone: "healthy" | "warning" | "danger"; message: string; spinning?: boolean }, options?: { autoHideMs?: number }) => void;
@@ -199,103 +88,19 @@ export function useStudioPolling({
   watchJobs = [],
   watchBatches = [],
 }: UseStudioPollingParams): UseStudioPollingResult {
-  const [favoriteAssetIdBusy, setFavoriteAssetIdBusy] = useState<string | number | null>(null);
   const lastJobFeedbackSignatureRef = useRef<Map<string, string>>(new Map());
   const lastBatchFeedbackSignatureRef = useRef<Map<string, string>>(new Map());
-  const activeJobPollsRef = useRef<Set<string>>(new Set());
-  const activeBatchPollsRef = useRef<Set<string>>(new Set());
-  const inFlightJobPollsRef = useRef<Set<string>>(new Set());
-  const inFlightBatchPollsRef = useRef<Set<string>>(new Set());
-  const jobPollTimersRef = useRef<Map<string, number>>(new Map());
-  const batchPollTimersRef = useRef<Map<string, number>>(new Map());
-
-  function clearJobPoll(jobId: string) {
-    activeJobPollsRef.current.delete(jobId);
-    inFlightJobPollsRef.current.delete(jobId);
-    const timer = jobPollTimersRef.current.get(jobId);
-    if (timer != null) {
-      window.clearTimeout(timer);
-      jobPollTimersRef.current.delete(jobId);
-    }
-  }
-
-  function clearBatchPoll(batchId: string) {
-    activeBatchPollsRef.current.delete(batchId);
-    inFlightBatchPollsRef.current.delete(batchId);
-    const timer = batchPollTimersRef.current.get(batchId);
-    if (timer != null) {
-      window.clearTimeout(timer);
-      batchPollTimersRef.current.delete(batchId);
-    }
-  }
-
-  function scheduleJobPoll(jobId: string) {
-    if (!activeJobPollsRef.current.has(jobId) || jobPollTimersRef.current.has(jobId)) {
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      jobPollTimersRef.current.delete(jobId);
-      void pollJob(jobId);
-    }, STUDIO_POLL_INTERVAL_MS);
-    jobPollTimersRef.current.set(jobId, timer);
-  }
-
-  function scheduleBatchPoll(batchId: string) {
-    if (!activeBatchPollsRef.current.has(batchId) || batchPollTimersRef.current.has(batchId)) {
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      batchPollTimersRef.current.delete(batchId);
-      void pollBatch(batchId);
-    }, STUDIO_POLL_INTERVAL_MS);
-    batchPollTimersRef.current.set(batchId, timer);
-  }
-
-  useEffect(() => {
-    return () => {
-      for (const timer of jobPollTimersRef.current.values()) {
-        window.clearTimeout(timer);
-      }
-      jobPollTimersRef.current.clear();
-      for (const timer of batchPollTimersRef.current.values()) {
-        window.clearTimeout(timer);
-      }
-      batchPollTimersRef.current.clear();
-      activeJobPollsRef.current.clear();
-      activeBatchPollsRef.current.clear();
-      inFlightJobPollsRef.current.clear();
-      inFlightBatchPollsRef.current.clear();
-    };
-  }, []);
-
-  useEffect(() => {
-    for (const batch of watchBatches) {
-      if (!shouldWatchBatch(batch)) {
-        continue;
-      }
-      activeBatchPollsRef.current.add(batch.batch_id);
-      scheduleBatchPoll(batch.batch_id);
-    }
-    for (const job of watchJobs) {
-      if (job.batch_id || !isPollableJobStatus(job.status)) {
-        continue;
-      }
-      activeJobPollsRef.current.add(job.job_id);
-      scheduleJobPoll(job.job_id);
-    }
-  }, [watchBatches, watchJobs]);
+  const pollScheduler = useStudioPollScheduler({
+    watchJobs,
+    watchBatches,
+    onPollJob: (jobId) => void pollJob(jobId),
+    onPollBatch: (batchId) => void pollBatch(batchId),
+  });
 
   async function pollJob(jobId: string) {
-    activeJobPollsRef.current.add(jobId);
-    const existingTimer = jobPollTimersRef.current.get(jobId);
-    if (existingTimer != null) {
-      window.clearTimeout(existingTimer);
-      jobPollTimersRef.current.delete(jobId);
-    }
-    if (inFlightJobPollsRef.current.has(jobId)) {
+    if (!pollScheduler.beginJobPoll(jobId)) {
       return;
     }
-    inFlightJobPollsRef.current.add(jobId);
     try {
       const response = await fetch(`/api/control/media-jobs/${jobId}`, {
         method: "GET",
@@ -304,7 +109,7 @@ export function useStudioPolling({
       });
       const payload = (await response.json()) as { ok?: boolean; error?: string; job?: MediaJob; batch?: MediaBatch | null };
       if (!response.ok || !payload.ok || !payload.job) {
-        clearJobPoll(jobId);
+        pollScheduler.clearJobPoll(jobId);
         setFormMessage({ tone: "danger", text: payload.error ?? "Unable to read the current media job state." });
         showFloatingComposerBanner({ tone: "danger", text: payload.error ?? "Unable to read the current media job state." }, 5200);
         return;
@@ -348,31 +153,27 @@ export function useStudioPolling({
           { tone: payload.job.status === "completed" ? "healthy" : "danger", text: finalMessage },
           payload.job.status === "completed" ? FLOATING_COMPOSER_STATUS_MS : 5600,
         );
-        clearJobPoll(jobId);
+        pollScheduler.clearJobPoll(jobId);
         return;
       }
     } catch {
-      clearJobPoll(jobId);
+      pollScheduler.clearJobPoll(jobId);
       setFormMessage({ tone: "danger", text: "The dashboard lost contact with the media job poller." });
       showFloatingComposerBanner({ tone: "danger", text: "The dashboard lost contact with the media job poller." }, 5600);
       return;
     } finally {
-      inFlightJobPollsRef.current.delete(jobId);
+      pollScheduler.finishJobPoll(jobId);
     }
-    scheduleJobPoll(jobId);
+    if (!pollScheduler.isDocumentVisible()) {
+      return;
+    }
+    pollScheduler.scheduleJobPoll(jobId);
   }
 
   async function pollBatch(batchId: string) {
-    activeBatchPollsRef.current.add(batchId);
-    const existingTimer = batchPollTimersRef.current.get(batchId);
-    if (existingTimer != null) {
-      window.clearTimeout(existingTimer);
-      batchPollTimersRef.current.delete(batchId);
-    }
-    if (inFlightBatchPollsRef.current.has(batchId)) {
+    if (!pollScheduler.beginBatchPoll(batchId)) {
       return;
     }
-    inFlightBatchPollsRef.current.add(batchId);
     try {
       const response = await fetch(`/api/control/media-batches/${batchId}`, {
         method: "GET",
@@ -381,7 +182,7 @@ export function useStudioPolling({
       });
       const payload = (await response.json()) as { ok?: boolean; error?: string; batch?: MediaBatch | null };
       if (!response.ok || !payload.ok || !payload.batch) {
-        clearBatchPoll(batchId);
+        pollScheduler.clearBatchPoll(batchId);
         setFormMessage({ tone: "danger", text: payload.error ?? "Unable to read the current media batch state." });
         showFloatingComposerBanner({ tone: "danger", text: payload.error ?? "Unable to read the current media batch state." }, 5200);
         return;
@@ -445,188 +246,55 @@ export function useStudioPolling({
           { tone: payload.batch.status === "completed" ? "healthy" : "danger", text: finalMessage },
           payload.batch.status === "completed" ? FLOATING_COMPOSER_STATUS_MS : 5600,
         );
-        clearBatchPoll(batchId);
+        pollScheduler.clearBatchPoll(batchId);
         return;
       }
     } catch {
-      clearBatchPoll(batchId);
+      pollScheduler.clearBatchPoll(batchId);
       setFormMessage({ tone: "danger", text: "The dashboard lost contact with the media queue watcher." });
       showFloatingComposerBanner({ tone: "danger", text: "The dashboard lost contact with the media queue watcher." }, 5600);
       return;
     } finally {
-      inFlightBatchPollsRef.current.delete(batchId);
+      pollScheduler.finishBatchPoll(batchId);
     }
-    scheduleBatchPoll(batchId);
-  }
-
-  async function retryJob(jobId: string, setBusyState: (value: "idle" | "validate" | "submit") => void) {
-    setFormMessage(null);
-    setBusyState("submit");
-    try {
-      const response = await fetch(`/api/control/media-jobs/${jobId}`, {
-        method: "POST",
-        headers: { Accept: "application/json" },
-      });
-      const payload = (await response.json()) as { ok?: boolean; error?: string; job?: MediaJob | null; batch?: MediaBatch | null };
-      if (!response.ok || !payload.ok || !payload.job) {
-        setFormMessage({ tone: "danger", text: payload.error ?? "Unable to retry the selected media job." });
-        return;
-      }
-      setLocalJobs((current) => [payload.job as MediaJob, ...current.filter((job) => job.job_id !== payload.job?.job_id)].slice(0, 12));
-      if (payload.batch) {
-        upsertBatch(payload.batch as MediaBatch);
-      }
-      setFormMessage({ tone: "warning", text: "Retry queued through the Control API." });
-      if (payload.batch?.batch_id) {
-        void pollBatch(payload.batch.batch_id);
-      } else {
-        void pollJob(payload.job.job_id);
-      }
-    } catch {
-      setFormMessage({ tone: "danger", text: "The dashboard could not reach the retry route." });
-    } finally {
-      setBusyState("idle");
-    }
-  }
-
-  async function dismissJob(jobId: string) {
-    setFormMessage(null);
-    try {
-      const response = await fetch(`/api/control/media-jobs/${jobId}`, {
-        method: "DELETE",
-        headers: { Accept: "application/json" },
-      });
-      const payload = (await response.json()) as { ok?: boolean; error?: string; job?: MediaJob | null };
-      if (!response.ok || !payload.ok) {
-        setFormMessage({ tone: "danger", text: payload.error ?? "Unable to remove the selected media job from the dashboard." });
-        return;
-      }
-      setLocalJobs((current) => current.filter((job) => job.job_id !== jobId));
-      setLocalBatches((current) =>
-        current.flatMap((batch) => {
-          const batchJobs = Array.isArray(batch.jobs) ? batch.jobs : [];
-          if (!batchJobs.some((job) => job.job_id === jobId)) {
-            return [batch];
-          }
-          const nextJobs = batchJobs.filter((job) => job.job_id !== jobId);
-          if (!nextJobs.length) {
-            return [];
-          }
-          const queuedCount = nextJobs.filter((job) => job.status === "queued").length;
-          const runningCount = nextJobs.filter((job) => ["submitted", "running", "processing"].includes(job.status)).length;
-          const completedCount = nextJobs.filter((job) => job.status === "completed").length;
-          const failedCount = nextJobs.filter((job) => job.status === "failed").length;
-          const cancelledCount = nextJobs.filter((job) => job.status === "cancelled").length;
-          const nextStatus =
-            failedCount === nextJobs.length
-              ? "failed"
-              : completedCount === nextJobs.length
-                ? "completed"
-                : runningCount > 0
-                  ? "processing"
-                  : queuedCount > 0
-                    ? "queued"
-                    : batch.status;
-          return [
-            {
-              ...batch,
-              status: nextStatus,
-              jobs: nextJobs,
-              queued_count: queuedCount,
-              running_count: runningCount,
-              completed_count: completedCount,
-              failed_count: failedCount,
-              cancelled_count: cancelledCount,
-            },
-          ];
-        }),
-      );
-      if (selectedFailedJobId === jobId) {
-        setSelectedFailedJobId(null);
-      }
-      setFormMessage({ tone: "healthy", text: "Removed the failed media card from the dashboard." });
-      startRefresh(refreshRoute);
-    } catch {
-      setFormMessage({ tone: "danger", text: "The dashboard could not reach the media remove route." });
-    }
-  }
-
-  async function dismissAsset(assetId: string | number) {
-    setFormMessage(null);
-    try {
-      const response = await fetch(`/api/control/media-assets/${assetId}`, {
-        method: "DELETE",
-        headers: { Accept: "application/json" },
-      });
-      const payload = (await response.json()) as { ok?: boolean; error?: string; asset?: MediaAsset | null };
-      if (!response.ok || !payload.ok) {
-        setFormMessage({ tone: "danger", text: payload.error ?? "Unable to remove the selected media asset from the dashboard." });
-        return;
-      }
-      setLocalAssets((current) => {
-        const nextAssets = current.filter((asset) => asset.asset_id !== assetId);
-        setFavoriteAssets((currentFavorites) =>
-          currentFavorites ? currentFavorites.filter((asset) => asset.asset_id !== assetId) : currentFavorites,
-        );
-        setLocalLatestAsset((currentLatest) => (currentLatest?.asset_id === assetId ? nextAssets[0] ?? null : currentLatest));
-        return nextAssets;
-      });
-      if (selectedAssetId === assetId) {
-        setSelectedAssetId(null);
-      }
-      if (sourceAssetId === assetId) {
-        setSourceAssetId(null);
-      }
-      setFormMessage({ tone: "healthy", text: "Removed the media card from the dashboard." });
-      startRefresh(refreshRoute);
-    } catch {
-      setFormMessage({ tone: "danger", text: "The dashboard could not reach the media asset remove route." });
-    }
-  }
-
-  async function toggleAssetFavorite(asset: MediaAsset | null) {
-    if (!asset || favoriteAssetIdBusy != null) {
+    if (!pollScheduler.isDocumentVisible()) {
       return;
     }
-    setFavoriteAssetIdBusy(asset.asset_id);
-    setFormMessage(null);
-    try {
-      const response = await fetch(`/api/control/media-assets/${asset.asset_id}`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ favorited: !asset.favorited }),
-      });
-      const payload = (await response.json()) as { ok?: boolean; error?: string; asset?: MediaAsset | null };
-      if (!response.ok || !payload.ok || !payload.asset) {
-        setFormMessage({ tone: "danger", text: payload.error ?? "Unable to update the favorite state for the selected media asset." });
-        return;
-      }
-      applyFavoriteAssetUpdate(payload.asset);
-      setFormMessage({
-        tone: "healthy",
-        text: payload.asset.favorited ? "Saved the media asset to favorites." : "Removed the media asset from favorites.",
-      });
-    } catch {
-      setFormMessage({ tone: "danger", text: "The dashboard could not reach the favorite route." });
-    } finally {
-      setFavoriteAssetIdBusy(null);
-    }
+    pollScheduler.scheduleBatchPoll(batchId);
   }
+
+  const mediaActions = useStudioMediaDashboardActions({
+    selectedAssetId,
+    selectedFailedJobId,
+    sourceAssetId,
+    setFormMessage,
+    setLocalJobs,
+    setLocalBatches,
+    setLocalAssets,
+    setFavoriteAssets,
+    setLocalLatestAsset,
+    setSelectedAssetId,
+    setSelectedFailedJobId,
+    setSourceAssetId,
+    applyFavoriteAssetUpdate,
+    upsertBatch,
+    pollJob,
+    pollBatch,
+    startRefresh,
+    refreshRoute,
+  });
 
   return {
     state: {
-      favoriteAssetIdBusy,
+      favoriteAssetIdBusy: mediaActions.favoriteAssetIdBusy,
     },
     actions: {
       pollJob,
       pollBatch,
-      retryJob,
-      dismissJob,
-      dismissAsset,
-      toggleAssetFavorite,
+      retryJob: mediaActions.retryJob,
+      dismissJob: mediaActions.dismissJob,
+      dismissAsset: mediaActions.dismissAsset,
+      toggleAssetFavorite: mediaActions.toggleAssetFavorite,
     },
   };
 }

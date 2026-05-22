@@ -1,6 +1,7 @@
 {
   "name": "media-studio",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "version": "1.0.1",
   "workspaces": [
     "apps/web"
@@ -12,7 +13,10 @@
     "setup:shared-env": "./scripts/setup_shared_env.sh",
     "generate:api-specs": "./scripts/with_shared_python.sh ./scripts/generate_api_specs.py",
     "quality": "./scripts/run-quality-gates",
+    "quality:file-size": "python3 ./scripts/check_file_size_guardrails.py",
+    "quality:theme-drift": "python3 ./scripts/check_style_drift.py",
     "release:verify": "./scripts/run-release-gates",
+    "release:verify:full": "./scripts/run-full-release-gates",
     "db:backup": "./scripts/backup_db.sh",
     "db:migration-status": "./scripts/migration_status.sh",
     "db:clean": "./scripts/create_clean_db.sh --output ./data/backups/media-studio-clean.sqlite --overwrite",

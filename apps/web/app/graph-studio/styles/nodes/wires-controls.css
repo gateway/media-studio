@@ -1,0 +1,166 @@
+.react-flow__edgeupdater {
+  cursor: grab;
+}
+
+.react-flow__edgeupdater:active {
+  cursor: grabbing;
+}
+
+.graph-wire-drag-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  display: block;
+  z-index: 75;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.graph-wire-drag-path {
+  fill: none;
+  stroke: var(--graph-accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.graph-wire-drag-path-text {
+  stroke: var(--graph-warning-soft);
+}
+
+.graph-wire-drag-path-video {
+  stroke: #61dafb;
+}
+
+.graph-wire-drag-path-job {
+  stroke: #c3a6ff;
+}
+
+.graph-wire-drag-path-asset {
+  stroke: var(--graph-danger-text);
+}
+
+.graph-handle-image {
+  --graph-node-handle: var(--graph-accent);
+}
+
+.graph-handle-video {
+  --graph-node-handle: #61dafb;
+}
+
+.graph-handle-text {
+  --graph-node-handle: var(--graph-warning-soft);
+}
+
+.graph-handle-job {
+  --graph-node-handle: #c3a6ff;
+}
+
+.graph-handle-asset {
+  --graph-node-handle: var(--graph-danger-text);
+}
+
+.react-flow__edge-path {
+  stroke: var(--graph-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  cursor: pointer;
+}
+
+.graph-edge-image .react-flow__edge-path {
+  stroke: var(--graph-accent);
+}
+
+.graph-edge-video .react-flow__edge-path {
+  stroke: #61dafb;
+}
+
+.graph-edge-text .react-flow__edge-path {
+  stroke: var(--graph-warning-soft);
+}
+
+.graph-edge-job .react-flow__edge-path {
+  stroke: #c3a6ff;
+}
+
+.graph-edge-asset .react-flow__edge-path {
+  stroke: var(--graph-danger-text);
+}
+
+.graph-canvas .react-flow__nodes {
+  pointer-events: none;
+}
+
+.graph-canvas .react-flow__node {
+  pointer-events: all;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:focus .react-flow__edge-path,
+.graph-edge-delete-armed .react-flow__edge-path {
+  stroke: #eaff62 !important;
+  stroke-width: 4 !important;
+  filter:
+    drop-shadow(0 0 5px rgba(234, 255, 98, 0.62))
+    drop-shadow(0 0 12px rgba(234, 255, 98, 0.28));
+}
+
+.react-flow__edge-interaction {
+  cursor: pointer;
+}
+
+.graph-edge-delete-button {
+  position: absolute;
+  z-index: 125;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(255, 90, 90, 0.82);
+  border-radius: 5px;
+  background: rgba(220, 48, 48, 0.95);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.38);
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.graph-edge-delete-button:hover,
+.graph-edge-delete-button:focus-visible {
+  background: #ff4d4f;
+  outline: 2px solid rgba(255, 255, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.react-flow__controls,
+.react-flow__minimap {
+  background: var(--graph-panel-modal);
+  border: 1px solid var(--graph-border);
+}
+
+.react-flow__controls button {
+  width: 28px;
+  height: 28px;
+  color: var(--graph-text);
+  background: var(--graph-panel-muted);
+  border-bottom: 1px solid var(--graph-border-hairline);
+}
+
+.react-flow__controls button:hover {
+  background: var(--graph-panel-hover);
+}
+
+.react-flow__controls svg {
+  fill: currentColor;
+}
+
+.react-flow__minimap {
+  overflow: hidden;
+  border-radius: 8px;
+}

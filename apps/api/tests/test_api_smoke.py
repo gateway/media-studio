@@ -20,6 +20,11 @@ def test_health_endpoint(client) -> None:
     assert payload["kie_api_key_configured"] is False
     assert payload["live_submit_enabled"] is False
     assert payload["openrouter_api_key_configured"] is False
+    assert payload["local_openai_configured"] in {True, False}
+    assert payload["local_openai_ready"] in {True, False}
+    assert payload["codex_local_command_available"] in {True, False}
+    assert payload["codex_local_login_configured"] in {True, False}
+    assert payload["codex_local_ready"] in {True, False}
     assert payload["queue_enabled"] is True
     assert payload["runner_name"] == "Media Studio Runner"
     assert payload["runner_mode"] == "embedded"
@@ -98,6 +103,130 @@ def test_models_endpoint(client) -> None:
         assert options["duration"]["required"] is True
     seedance_options = {item["key"]: item for item in seedance["studio_dynamic_options"]}
     assert "1080p" in seedance_options["resolution"]["allowed"]
+
+
+def test_external_llm_usage_summary_and_list_routes_return_actual_openrouter_spend(client, app_modules) -> None:
+    store = app_modules["store"]
+    first = store.create_external_llm_usage_event(
+        {
+            "provider_kind": "openrouter",
+            "provider_model_id": "openai/gpt-4o-mini",
+            "provider_response_id": "resp-summary-1",
+            "source_kind": "graph_prompt_llm",
+            "workflow_id": "graphwf_summary",
+            "run_id": "grun_summary",
+            "node_id": "node-summary",
+            "usage_json": {"prompt_tokens": 120, "completion_tokens": 80, "total_tokens": 200, "cost": 0.0123},
+            "prompt_tokens": 120,
+            "completion_tokens": 80,
+            "total_tokens": 200,
+            "cost_usd": 0.0123,
+            "metadata_json": {"surface": "graph"},
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    second = store.create_external_llm_usage_event(
+        {
+            "provider_kind": "openrouter",
+            "provider_model_id": "qwen/qwen3.5-35b-a3b",
+            "provider_response_id": "resp-summary-2",
+            "source_kind": "prompt_recipe_drafting",
+            "recipe_id": "recipe_summary",
+            "usage_json": {"prompt_tokens": 40, "completion_tokens": 20, "total_tokens": 60, "cost": 0.0031},
+            "prompt_tokens": 40,
+            "completion_tokens": 20,
+            "total_tokens": 60,
+            "cost_usd": 0.0031,
+            "metadata_json": {"surface": "drafting"},
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+
+    summary_response = client.get("/media/external-llm-usage/summary")
+    assert summary_response.status_code == 200, summary_response.text
+    summary = summary_response.json()
+    assert summary["provider_kind"] == "external_llm"
+    assert summary["currency"] == "USD"
+    assert summary["lifetime"]["event_count"] >= 2
+    assert summary["lifetime"]["total_tokens"] >= 260
+    assert summary["lifetime"]["cost_usd"] >= 0.0154
+
+    list_response = client.get("/media/external-llm-usage?limit=10")
+    assert list_response.status_code == 200, list_response.text
+    payload = list_response.json()
+    ids = {item["usage_event_id"] for item in payload["items"]}
+    assert first["usage_event_id"] in ids
+    assert second["usage_event_id"] in ids
+
+    filtered = client.get("/media/external-llm-usage?limit=10&source_kind=prompt_recipe_drafting")
+    assert filtered.status_code == 200, filtered.text
+    filtered_payload = filtered.json()
+    assert filtered_payload["total"] >= 1
+    assert all(item["source_kind"] == "prompt_recipe_drafting" for item in filtered_payload["items"])
+
+
+def test_external_llm_usage_deduplicates_on_provider_response_id(app_modules) -> None:
+    store = app_modules["store"]
+    store.bootstrap_schema()
+    first = store.create_external_llm_usage_event(
+        {
+            "provider_kind": "openrouter",
+            "provider_model_id": "openai/gpt-4o-mini",
+            "provider_response_id": "resp-dedupe-1",
+            "source_kind": "graph_prompt_llm",
+            "usage_json": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15, "cost": 0.001},
+            "prompt_tokens": 10,
+            "completion_tokens": 5,
+            "total_tokens": 15,
+            "cost_usd": 0.001,
+            "metadata_json": {"attempt": 1},
+        }
+    )
+    second = store.create_external_llm_usage_event(
+        {
+            "provider_kind": "openrouter",
+            "provider_model_id": "openai/gpt-4o-mini",
+            "provider_response_id": "resp-dedupe-1",
+            "source_kind": "graph_prompt_llm",
+            "usage_json": {"prompt_tokens": 11, "completion_tokens": 6, "total_tokens": 17, "cost": 0.0012},
+            "prompt_tokens": 11,
+            "completion_tokens": 6,
+            "total_tokens": 17,
+            "cost_usd": 0.0012,
+            "metadata_json": {"attempt": 2},
+        }
+    )
+
+    items = [item for item in store.list_external_llm_usage(limit=200) if item.get("provider_response_id") == "resp-dedupe-1"]
+    assert len(items) == 1
+    assert first["usage_event_id"] == second["usage_event_id"]
+    assert items[0]["prompt_tokens"] == 11
+    assert items[0]["total_tokens"] == 17
+    assert items[0]["metadata_json"]["attempt"] == 2
+
+
+def test_external_llm_usage_records_codex_local_zero_cost(app_modules) -> None:
+    store = app_modules["store"]
+    store.bootstrap_schema()
+    external_llm_usage = __import__("app.external_llm_usage", fromlist=["record_external_llm_usage"])
+
+    usage = external_llm_usage.record_external_llm_usage(
+        provider_kind="codex_local",
+        provider_model_id="gpt-5.4",
+        provider_response_id="codex-thread-usage-1",
+        source_kind="graph_prompt_recipe_final",
+        workflow_id="graphwf_codex",
+        run_id="grun_codex",
+        node_id="recipe",
+        usage={"prompt_tokens": 100, "completion_tokens": 30, "total_tokens": 130},
+        metadata_json={"image_count": 2},
+    )
+
+    assert usage is not None
+    assert usage["provider_kind"] == "codex_local"
+    assert usage["cost_usd"] == 0.0
+    assert usage["total_tokens"] == 130
+    assert usage["metadata_json"]["image_count"] == 2
 
 
 def test_kie_adapter_prefers_configured_repo(app_modules) -> None:
@@ -578,6 +707,749 @@ def test_seeded_shared_presets_exist(client) -> None:
                 "nano-banana-2",
                 "nano-banana-pro",
             ]
+
+
+def test_seeded_prompt_recipes_exist(client) -> None:
+    response = client.get("/prompt-recipes")
+    assert response.status_code == 200
+    recipes = response.json()
+    expected_keys = {
+        "storyboard-director-3x3",
+        "image-prompt-director",
+        "video-director-multi-shot-json",
+        "image-analysis-character-reference",
+        "prompt-shortener",
+    }
+    by_key = {item["key"]: item for item in recipes if item["key"] in expected_keys}
+    assert set(by_key) == expected_keys
+    assert by_key["video-director-multi-shot-json"]["category"] == "video"
+    assert by_key["video-director-multi-shot-json"]["output_format"] == "structured_shot_sequence"
+    assert by_key["video-director-multi-shot-json"]["image_input"]["enabled"] is True
+    assert by_key["prompt-shortener"]["image_input"]["mode"] == "none"
+
+
+def test_create_patch_archive_prompt_recipe(client) -> None:
+    create = client.post(
+        "/prompt-recipes",
+        json={
+            "key": "alien_fortress_director",
+            "label": "Alien Fortress Director",
+            "description": "Turns a user scene into a cinematic image prompt.",
+            "category": "image",
+            "status": "active",
+            "system_prompt_template": "USER:\n{{user_prompt}}\nSTYLE:\n{{mood}}\nReturn one prompt.",
+            "output_format": "single_prompt",
+            "input_variables": [
+                {"key": "user_prompt", "label": "User Prompt", "enabled": True, "required": True},
+            ],
+            "custom_fields": [
+                {"key": "mood", "label": "Mood", "type": "text", "default_value": "tense sci-fi"},
+            ],
+            "image_input": {
+                "enabled": False,
+                "required": False,
+                "mode": "none",
+                "analysis_variable": "image_analysis",
+                "max_files": 0,
+            },
+            "rules": {"allow_external_variables": False, "return_only_final_output": True},
+        },
+    )
+    assert create.status_code == 200, create.text
+    recipe = create.json()
+    assert recipe["recipe_id"].startswith("recipe_")
+    assert recipe["input_variables_json"][0]["token"] == "{{user_prompt}}"
+    assert recipe["custom_fields_json"][0]["key"] == "mood"
+    assert recipe["validation_warnings"] == []
+
+    get_response = client.get(f"/prompt-recipes/{recipe['recipe_id']}")
+    assert get_response.status_code == 200
+    assert get_response.json()["key"] == "alien_fortress_director"
+
+    patch = client.patch(
+        f"/prompt-recipes/{recipe['recipe_id']}",
+        json={**recipe, "label": "Alien Fortress Prompt Director", "status": "inactive"},
+    )
+    assert patch.status_code == 200, patch.text
+    assert patch.json()["label"] == "Alien Fortress Prompt Director"
+    assert patch.json()["status"] == "inactive"
+
+    archive = client.delete(f"/prompt-recipes/{recipe['recipe_id']}")
+    assert archive.status_code == 200
+    assert archive.json()["status"] == "archived"
+    list_response = client.get("/prompt-recipes")
+    assert all(item["recipe_id"] != recipe["recipe_id"] for item in list_response.json())
+    archived = client.get("/prompt-recipes?status=archived")
+    assert any(item["recipe_id"] == recipe["recipe_id"] for item in archived.json())
+
+
+def test_prompt_recipe_validation_rejects_duplicates_and_bad_tokens(client) -> None:
+    first = client.post(
+        "/prompt-recipes",
+        json={
+            "key": "duplicate_recipe",
+            "label": "Duplicate Recipe",
+            "category": "utility",
+            "system_prompt_template": "Rewrite {{source_prompt}}.",
+            "output_format": "single_prompt",
+            "input_variables": [{"key": "source_prompt", "label": "Source Prompt", "enabled": True}],
+        },
+    )
+    assert first.status_code == 200, first.text
+    duplicate = client.post(
+        "/prompt-recipes",
+        json={
+            "key": "duplicate_recipe",
+            "label": "Duplicate Recipe 2",
+            "category": "utility",
+            "system_prompt_template": "Rewrite {{source_prompt}}.",
+            "output_format": "single_prompt",
+        },
+    )
+    assert duplicate.status_code == 400
+    assert "already exists" in duplicate.text
+
+    malformed = client.post(
+        "/prompt-recipes",
+        json={
+            "key": "bad_token_recipe",
+            "label": "Bad Token Recipe",
+            "category": "utility",
+            "system_prompt_template": "Rewrite {{Bad Token}}.",
+            "output_format": "single_prompt",
+        },
+    )
+    assert malformed.status_code == 400
+    assert "Invalid prompt recipe variable token" in malformed.text
+
+
+def test_prompt_recipe_validation_blocks_unknown_tokens_when_external_variables_disabled(client) -> None:
+    response = client.post(
+        "/prompt-recipes",
+        json={
+            "key": "strict_recipe",
+            "label": "Strict Recipe",
+            "category": "utility",
+            "system_prompt_template": "Rewrite {{source_prompt}} and {{not_defined}}.",
+            "output_format": "single_prompt",
+            "input_variables": [{"key": "source_prompt", "label": "Source Prompt", "enabled": True}],
+            "rules": {"allow_external_variables": False},
+        },
+    )
+    assert response.status_code == 400
+    assert "Unknown prompt recipe variables" in response.text
+
+
+def test_prompt_recipe_returns_validation_warnings(client) -> None:
+    response = client.post(
+        "/prompt-recipes",
+        json={
+            "key": "warning_recipe",
+            "label": "Warning Recipe",
+            "category": "analysis",
+            "system_prompt_template": "Analyze {{user_prompt}} and {{external_style}}.",
+            "output_format": "image_analysis",
+            "input_variables": [
+                {"key": "user_prompt", "label": "User Prompt", "enabled": True},
+                {"key": "source_prompt", "label": "Source Prompt", "enabled": True},
+            ],
+            "image_input": {
+                "enabled": False,
+                "required": False,
+                "mode": "none",
+                "analysis_variable": "image_analysis",
+                "max_files": 0,
+            },
+            "rules": {"allow_external_variables": True},
+        },
+    )
+    assert response.status_code == 200, response.text
+    warnings = response.json()["validation_warnings"]
+    assert any("source_prompt" in warning and "not used" in warning for warning in warnings)
+    assert any("external_style" in warning and "external variables" in warning for warning in warnings)
+
+
+def test_prompt_recipe_validation_blocks_broken_image_analysis_setup(client) -> None:
+    response = client.post(
+        "/prompt-recipes",
+        json={
+            "key": "broken_image_analysis_recipe",
+            "label": "Broken Image Analysis Recipe",
+            "category": "image",
+            "system_prompt_template": "Use {{user_prompt}} and {{image_analysis}}.",
+            "output_format": "single_prompt",
+            "input_variables": [
+                {"key": "user_prompt", "label": "User Prompt", "enabled": True},
+                {"key": "image_analysis", "label": "Image Analysis", "enabled": True},
+            ],
+            "image_input": {
+                "enabled": True,
+                "required": True,
+                "mode": "both",
+                "analysis_variable": "image_analysis",
+                "max_files": 1,
+            },
+        },
+    )
+    assert response.status_code == 400
+    assert "Image Analysis Prompt" in response.text
+
+
+def test_prompt_recipe_validation_blocks_image_reference_count_mismatch(client) -> None:
+    response = client.post(
+        "/prompt-recipes",
+        json={
+            "key": "image_reference_count_recipe",
+            "label": "Image Reference Count Recipe",
+            "category": "image",
+            "system_prompt_template": "Use {{user_prompt}}, [image reference 1], and [image reference 2].",
+            "image_analysis_prompt": "Describe the references.",
+            "output_format": "single_prompt",
+            "input_variables": [{"key": "user_prompt", "label": "User Prompt", "enabled": True}],
+            "image_input": {
+                "enabled": True,
+                "required": True,
+                "mode": "both",
+                "analysis_variable": "image_analysis",
+                "max_files": 1,
+            },
+        },
+    )
+    assert response.status_code == 400
+    assert "image reference 2" in response.text
+
+
+def test_prompt_recipe_validation_blocks_duplicate_select_options(client) -> None:
+    response = client.post(
+        "/prompt-recipes",
+        json={
+            "key": "duplicate_select_options_recipe",
+            "label": "Duplicate Select Options Recipe",
+            "category": "utility",
+            "system_prompt_template": "Use {{user_prompt}} with {{mood}}.",
+            "output_format": "single_prompt",
+            "input_variables": [{"key": "user_prompt", "label": "User Prompt", "enabled": True}],
+            "custom_fields": [
+                {"key": "mood", "label": "Mood", "type": "select", "options": ["bright", "bright"]},
+            ],
+            "rules": {"allow_external_variables": False},
+        },
+    )
+    assert response.status_code == 400
+    assert "duplicate options" in response.text
+
+
+def test_prompt_recipe_drafting_config_defaults_and_save(client) -> None:
+    initial = client.get("/media/prompt-recipe-drafting-config")
+    assert initial.status_code == 200, initial.text
+    assert initial.json()["config_key"] == "prompt_recipe_drafting"
+    assert initial.json()["enabled"] is True
+    assert initial.json()["provider_kind"] == "openrouter"
+    assert initial.json()["provider_model_id"] is None
+    assert initial.json()["temperature"] == 0.2
+    assert initial.json()["max_tokens"] == 1800
+
+    update = client.patch(
+        "/media/prompt-recipe-drafting-config",
+        json={
+            "enabled": False,
+            "provider_kind": "openrouter",
+            "provider_model_id": "qwen/qwen3.5-35b-a3b",
+            "provider_label": "Qwen 3.5 35B",
+            "provider_status": "connected",
+            "temperature": 0.35,
+            "max_tokens": 1600,
+        },
+    )
+    assert update.status_code == 200, update.text
+    config = update.json()
+    assert config["enabled"] is False
+    assert config["provider_model_id"] == "qwen/qwen3.5-35b-a3b"
+    assert config["provider_label"] == "Qwen 3.5 35B"
+    assert config["provider_status"] == "connected"
+    assert config["temperature"] == 0.35
+    assert config["max_tokens"] == 1600
+
+
+def test_prompt_recipe_drafting_config_public_read_survives_local_provider_without_base_url(client, app_modules, monkeypatch) -> None:
+    monkeypatch.setattr(app_modules["service"].settings, "local_openai_base_url", "")
+
+    update = client.patch(
+        "/media/prompt-recipe-drafting-config",
+        json={
+            "provider_kind": "local_openai",
+            "provider_model_id": "local/model",
+        },
+    )
+    assert update.status_code == 200, update.text
+    assert update.json()["provider_kind"] == "local_openai"
+
+    reload = client.get("/media/prompt-recipe-drafting-config")
+    assert reload.status_code == 200, reload.text
+    assert reload.json()["provider_kind"] == "local_openai"
+    assert reload.json()["provider_model_id"] == "local/model"
+
+
+def test_prompt_recipe_drafting_config_public_read_supports_codex_local(client) -> None:
+    update = client.patch(
+        "/media/prompt-recipe-drafting-config",
+        json={
+            "provider_kind": "codex_local",
+            "provider_model_id": "gpt-5.4",
+            "provider_label": "GPT-5.4",
+        },
+    )
+    assert update.status_code == 200, update.text
+    assert update.json()["provider_kind"] == "codex_local"
+    assert update.json()["provider_model_id"] == "gpt-5.4"
+    assert update.json()["provider_credential_source"] == "codex_local_login"
+
+    reload = client.get("/media/prompt-recipe-drafting-config")
+    assert reload.status_code == 200, reload.text
+    assert reload.json()["provider_kind"] == "codex_local"
+    assert reload.json()["provider_credential_source"] == "codex_local_login"
+
+
+def test_prompt_recipe_drafting_probe_supports_codex_local(client, app_modules, monkeypatch) -> None:
+    monkeypatch.setattr(
+        app_modules["service"].enhancement_provider,
+        "load_codex_local_catalog",
+        lambda **_: {
+            "ok": True,
+            "provider": "codex_local",
+            "credential_source": "codex_local_login",
+            "selected_model": {
+                "id": "gpt-5.4",
+                "label": "GPT-5.4",
+                "provider": "codex_local",
+                "supports_images": True,
+                "input_modalities": ["text", "image"],
+                "raw": {"billing_kind": "subscription"},
+            },
+            "available_models": [
+                {
+                    "id": "gpt-5.4",
+                    "label": "GPT-5.4",
+                    "provider": "codex_local",
+                    "supports_images": True,
+                    "input_modalities": ["text", "image"],
+                    "raw": {"billing_kind": "subscription"},
+                }
+            ],
+        },
+    )
+
+    response = client.post(
+        "/media/prompt-recipe-drafting-config/probe",
+        json={"provider_kind": "codex_local", "provider_model_id": "gpt-5.4", "require_images": False},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["provider"] == "codex_local"
+    assert payload["credential_source"] == "codex_local_login"
+    assert payload["selected_model"]["id"] == "gpt-5.4"
+
+
+def test_enhancement_probe_ignores_stale_runtime_from_other_provider(client, app_modules, monkeypatch) -> None:
+    update = client.patch(
+        "/media/enhancement-configs/__studio_enhancement__",
+        json={
+            "model_key": "__studio_enhancement__",
+            "label": "Studio enhancement",
+            "helper_profile": "midctx-64k-no-thinking-q3-prefill",
+            "provider_kind": "codex_local",
+            "provider_model_id": "gpt-5.4",
+            "provider_label": "gpt-5.4",
+            "provider_base_url": "codex://app-server",
+            "provider_supports_images": True,
+            "provider_capabilities_json": {},
+            "status": "active",
+            "supports_text_enhancement": True,
+            "supports_image_analysis": True,
+            "system_prompt": "",
+            "image_analysis_prompt": "",
+            "notes": "",
+        },
+    )
+    assert update.status_code == 200, update.text
+
+    captured: dict[str, object] = {}
+
+    def _fake_probe(**kwargs):
+        captured.update(kwargs)
+        return {
+            "ok": True,
+            "provider": "openrouter",
+            "credential_source": "env",
+            "selected_model": {
+                "id": "openrouter/test-model",
+                "label": "OpenRouter Test Model",
+                "provider": "openrouter",
+                "supports_images": True,
+                "input_modalities": ["text", "image"],
+                "raw": {},
+            },
+            "available_models": [
+                {
+                    "id": "openrouter/test-model",
+                    "label": "OpenRouter Test Model",
+                    "provider": "openrouter",
+                    "supports_images": True,
+                    "input_modalities": ["text", "image"],
+                    "raw": {},
+                }
+            ],
+        }
+
+    monkeypatch.setattr(app_modules["service"].enhancement_provider, "test_openrouter_connection", _fake_probe)
+
+    response = client.post(
+        "/media/enhancement/providers/probe",
+        json={"provider_kind": "openrouter", "model_key": "__studio_enhancement__", "require_images": False},
+    )
+    assert response.status_code == 200, response.text
+    assert captured["base_url"] is None
+    assert captured["api_key"] is None
+
+
+def test_prompt_recipe_drafting_probe_ignores_stale_model_from_other_provider(client, app_modules, monkeypatch) -> None:
+    client.patch(
+        "/media/prompt-recipe-drafting-config",
+        json={"provider_kind": "openrouter", "provider_model_id": "qwen/qwen3.5-35b-a3b"},
+    )
+    captured: dict[str, object] = {}
+
+    def _fake_probe(**kwargs):
+        captured.update(kwargs)
+        return {
+            "ok": True,
+            "provider": "codex_local",
+            "credential_source": "codex_local_login",
+            "selected_model": {
+                "id": "gpt-5.4",
+                "label": "GPT-5.4",
+                "provider": "codex_local",
+                "supports_images": True,
+                "input_modalities": ["text", "image"],
+                "raw": {"billing_kind": "subscription"},
+            },
+            "available_models": [
+                {
+                    "id": "gpt-5.4",
+                    "label": "GPT-5.4",
+                    "provider": "codex_local",
+                    "supports_images": True,
+                    "input_modalities": ["text", "image"],
+                    "raw": {"billing_kind": "subscription"},
+                }
+            ],
+        }
+
+    monkeypatch.setattr(app_modules["service"].enhancement_provider, "load_codex_local_catalog", _fake_probe)
+
+    response = client.post(
+        "/media/prompt-recipe-drafting-config/probe",
+        json={"provider_kind": "codex_local", "require_images": False},
+    )
+    assert response.status_code == 200, response.text
+    assert captured["model_id"] is None
+
+
+def test_prompt_recipe_drafting_probe_returns_bad_request_for_provider_errors(client, app_modules, monkeypatch) -> None:
+    monkeypatch.setattr(
+        app_modules["service"].enhancement_provider,
+        "load_codex_local_catalog",
+        lambda **_: (_ for _ in ()).throw(app_modules["service"].enhancement_provider.EnhancementProviderError("Codex Local execution failed.")),
+    )
+
+    response = client.post(
+        "/media/prompt-recipe-drafting-config/probe",
+        json={"provider_kind": "codex_local", "require_images": False},
+    )
+    assert response.status_code == 400, response.text
+    assert "Codex Local execution failed." in response.text
+
+
+def test_shared_provider_catalog_probe_uses_shared_runtime(client, app_modules, monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_probe(**kwargs):
+        captured.update(kwargs)
+        return {
+            "ok": True,
+            "provider": "codex_local",
+            "credential_source": "codex_local_login",
+            "selected_model": {
+                "id": "gpt-5.4",
+                "label": "GPT-5.4",
+                "provider": "codex_local",
+                "supports_images": True,
+                "input_modalities": ["text", "image"],
+                "raw": {"billing_kind": "subscription"},
+            },
+            "available_models": [
+                {
+                    "id": "gpt-5.4",
+                    "label": "GPT-5.4",
+                    "provider": "codex_local",
+                    "supports_images": True,
+                    "input_modalities": ["text", "image"],
+                    "raw": {"billing_kind": "subscription"},
+                }
+            ],
+        }
+
+    monkeypatch.setattr(app_modules["service"].enhancement_provider, "load_codex_local_catalog", _fake_probe)
+
+    response = client.post(
+        "/media/shared-provider-catalog/probe",
+        json={"provider_kind": "codex_local", "selected_model_id": "gpt-5.4", "require_images": True},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["provider"] == "codex_local"
+    assert payload["selected_model"]["id"] == "gpt-5.4"
+    assert captured["model_id"] == "gpt-5.4"
+    assert captured["require_images"] is True
+
+
+def test_local_openai_provider_probes_return_bad_request_for_connection_failures(client, app_modules, monkeypatch) -> None:
+    def _fail_local_openai(**_: object):
+        raise app_modules["service"].enhancement_provider.EnhancementProviderError("Local model lookup failed: [Errno 61] Connection refused.")
+
+    monkeypatch.setattr(app_modules["service"].enhancement_provider, "test_local_openai_connection", _fail_local_openai)
+
+    enhancement_response = client.post(
+        "/media/enhancement/providers/probe",
+        json={
+            "provider_kind": "local_openai",
+            "model_key": "__studio_enhancement__",
+            "base_url": "http://127.0.0.1:8080/v1",
+            "require_images": False,
+        },
+    )
+    assert enhancement_response.status_code == 400, enhancement_response.text
+    assert "Local model lookup failed" in enhancement_response.text
+
+    drafting_response = client.post(
+        "/media/prompt-recipe-drafting-config/probe",
+        json={
+            "provider_kind": "local_openai",
+            "provider_base_url": "http://127.0.0.1:8080/v1",
+            "require_images": False,
+        },
+    )
+    assert drafting_response.status_code == 400, drafting_response.text
+    assert "Local model lookup failed" in drafting_response.text
+
+
+def test_prompt_recipe_draft_requires_configured_model(client) -> None:
+    response = client.post("/prompt-recipes/draft", json={"idea": "Create a cinematic video director recipe."})
+    assert response.status_code == 400
+    assert "Configure a Prompt Recipe Drafting model" in response.text
+
+
+def test_prompt_recipe_draft_respects_disabled_setting(client) -> None:
+    update = client.patch(
+        "/media/prompt-recipe-drafting-config",
+        json={
+            "enabled": False,
+            "provider_kind": "codex_local",
+            "provider_model_id": "gpt-5.4",
+        },
+    )
+    assert update.status_code == 200, update.text
+
+    response = client.post("/prompt-recipes/draft", json={"idea": "Create a cinematic video director recipe."})
+    assert response.status_code == 400
+    assert "Recipe drafting is turned off in AI Settings." in response.text
+
+
+def test_prompt_recipe_draft_uses_saved_default_and_validates_output(client, app_modules, monkeypatch) -> None:
+    config_response = client.patch(
+        "/media/prompt-recipe-drafting-config",
+        json={
+            "provider_kind": "openrouter",
+            "provider_model_id": "openrouter/default-model",
+            "temperature": 0.25,
+            "max_tokens": 1700,
+        },
+    )
+    assert config_response.status_code == 200, config_response.text
+
+    captured: dict[str, object] = {}
+
+    def _fake_generate(**kwargs):
+        captured.update(kwargs)
+        return {
+            "label": "Alien Fortress Director",
+            "key": "alien_fortress_director",
+            "description": "Turns scene direction into one image prompt.",
+            "category": "image",
+            "system_prompt_template": "USER:\n{{user_prompt}}\nSTYLE:\n{{style_direction}}\nReturn only the final prompt.",
+            "image_analysis_prompt": "",
+            "user_prompt_placeholder": "{{user_prompt}}",
+            "output_format": "single_prompt",
+            "output_contract": {},
+            "input_variables": [
+                {"key": "user_prompt", "label": "User Prompt", "enabled": True, "required": True},
+                {"key": "style_direction", "label": "Style Direction", "enabled": True, "required": False},
+            ],
+            "custom_fields": [],
+            "image_input": {
+                "enabled": False,
+                "required": False,
+                "mode": "none",
+                "analysis_variable": "image_analysis",
+                "max_files": 0,
+            },
+            "default_options": {"temperature": 0.3, "max_output_tokens": 1200},
+            "rules": {"allow_external_variables": False, "return_only_final_output": True},
+            "notes": "Generated from recipe drafting.",
+        }
+
+    monkeypatch.setattr(app_modules["service"].enhancement_provider, "run_openai_compatible_prompt_recipe_draft", _fake_generate)
+
+    response = client.post(
+        "/prompt-recipes/draft",
+        json={
+            "idea": "Create a director recipe that turns a user scene into one cinematic image prompt.",
+            "category": "image",
+            "output_format": "single_prompt",
+            "image_input_mode": "none",
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["draft"]["key"] == "alien_fortress_director"
+    assert payload["draft"]["status"] == "inactive"
+    assert payload["drafting_model"]["provider_model_id"] == "openrouter/default-model"
+    assert captured["model_id"] == "openrouter/default-model"
+    assert captured["category"] == "image"
+    assert captured["output_format"] == "single_prompt"
+
+
+def test_prompt_recipe_draft_override_beats_saved_default(client, app_modules, monkeypatch) -> None:
+    client.patch(
+        "/media/prompt-recipe-drafting-config",
+        json={"provider_kind": "openrouter", "provider_model_id": "openrouter/default-model"},
+    )
+    captured: dict[str, object] = {}
+
+    def _fake_generate(**kwargs):
+        captured.update(kwargs)
+        return {
+            "label": "Prompt Shortener",
+            "key": "prompt_shortener_custom",
+            "category": "utility",
+            "system_prompt_template": "Rewrite {{source_prompt}}.",
+            "output_format": "single_prompt",
+            "input_variables": [{"key": "source_prompt", "label": "Source Prompt", "enabled": True, "required": True}],
+            "custom_fields": [],
+            "image_input": {"enabled": False, "required": False, "mode": "none", "analysis_variable": "image_analysis", "max_files": 0},
+            "default_options": {},
+            "rules": {"allow_external_variables": False, "return_only_final_output": True},
+        }
+
+    monkeypatch.setattr(app_modules["service"].enhancement_provider, "run_openai_compatible_prompt_recipe_draft", _fake_generate)
+
+    response = client.post(
+        "/prompt-recipes/draft",
+        json={
+            "idea": "Create a short prompt rewriting utility.",
+            "provider_kind": "openrouter",
+            "provider_model_id": "openrouter/override-model",
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["drafting_model"]["provider_model_id"] == "openrouter/override-model"
+    assert captured["model_id"] == "openrouter/override-model"
+
+
+def test_prompt_recipe_draft_supports_codex_local_provider(client, app_modules, monkeypatch) -> None:
+    client.patch(
+        "/media/prompt-recipe-drafting-config",
+        json={"provider_kind": "codex_local", "provider_model_id": "gpt-5.4"},
+    )
+
+    captured: dict[str, object] = {}
+
+    def _fake_generate(**kwargs):
+        captured.update(kwargs)
+        return {
+            "label": "Codex Prompt Director",
+            "key": "codex_prompt_director",
+            "category": "image",
+            "system_prompt_template": "USER:\n{{user_prompt}}\nReturn the final prompt.",
+            "output_format": "single_prompt",
+            "input_variables": [{"key": "user_prompt", "label": "User Prompt", "enabled": True, "required": True}],
+            "custom_fields": [],
+            "image_input": {"enabled": False, "required": False, "mode": "none", "analysis_variable": "image_analysis", "max_files": 0},
+            "default_options": {},
+            "rules": {"allow_external_variables": False, "return_only_final_output": True},
+        }
+
+    monkeypatch.setattr(app_modules["service"].enhancement_provider, "run_codex_local_prompt_recipe_draft", _fake_generate)
+
+    response = client.post("/prompt-recipes/draft", json={"idea": "Create a Codex-backed image director recipe."})
+    assert response.status_code == 200, response.text
+    assert response.json()["drafting_model"]["provider_kind"] == "codex_local"
+    assert response.json()["drafting_model"]["provider_model_id"] == "gpt-5.4"
+    assert captured["model_id"] == "gpt-5.4"
+
+
+def test_prompt_recipe_draft_normalizes_loose_model_output(client, app_modules, monkeypatch) -> None:
+    client.patch(
+        "/media/prompt-recipe-drafting-config",
+        json={"provider_kind": "openrouter", "provider_model_id": "openrouter/default-model"},
+    )
+
+    monkeypatch.setattr(
+        app_modules["service"].enhancement_provider,
+        "run_openai_compatible_prompt_recipe_draft",
+        lambda **_: {
+            "label": "Loose Director",
+            "key": "loose_director",
+            "category": "video",
+            "system_prompt_template": "USER:\n{{user_prompt}}\nReturn JSON.",
+            "output_format": "structured_shot_sequence",
+            "input_variables_json": [
+                {"name": "user prompt", "required": True},
+                {"token": "{{shot_count}}"},
+            ],
+            "custom_fields": {},
+            "rules": ["allow_external_variables", "return_only_final_output"],
+            "default_options": [],
+            "notes": ["Generated from Codex.", "Keep strict shot order."],
+        },
+    )
+
+    response = client.post("/prompt-recipes/draft", json={"idea": "Create a loose draft."})
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["draft"]["input_variables_json"][0]["key"] == "user_prompt"
+    assert payload["draft"]["input_variables_json"][0]["label"] == "User Prompt"
+    assert payload["draft"]["input_variables_json"][1]["key"] == "shot_count"
+    assert payload["draft"]["rules_json"]["allow_external_variables"] is True
+    assert payload["draft"]["custom_fields_json"] == []
+    assert payload["draft"]["notes"] == "Generated from Codex.\nKeep strict shot order."
+
+
+def test_prompt_recipe_draft_rejects_invalid_provider_payload(client, app_modules, monkeypatch) -> None:
+    client.patch(
+        "/media/prompt-recipe-drafting-config",
+        json={"provider_kind": "openrouter", "provider_model_id": "openrouter/default-model"},
+    )
+
+    monkeypatch.setattr(
+        app_modules["service"].enhancement_provider,
+        "run_openai_compatible_prompt_recipe_draft",
+        lambda **_: {"label": "Broken Draft", "key": "broken_draft"},
+    )
+
+    response = client.post("/prompt-recipes/draft", json={"idea": "Create a broken recipe."})
+    assert response.status_code == 400
+    assert "System prompt template is required" in response.text
 
 
 def test_validate_and_submit_job(client) -> None:
@@ -1904,6 +2776,70 @@ def test_finalize_job_is_idempotent_after_artifact_publish(client, app_modules, 
     assert second["status"] == "completed"
     assert publish_calls["count"] == 1
     assert store.get_job(job["job_id"])["artifact_json"]
+
+
+def test_finalize_suno_job_publishes_audio_tracks_with_cover_art(client, app_modules, monkeypatch) -> None:
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "suno-generate-music",
+            "task_mode": "text_to_music",
+            "prompt": "Instrumental deep house meets drum and bass techno.",
+            "output_count": 1,
+            "options": {"suno_model": "V5", "instrumental": True},
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    job = submit_response.json()["jobs"][0]
+    store = app_modules["store"]
+    runner = app_modules["runner"].runner
+
+    store.update_job(job["job_id"], {"provider_task_id": "task-suno-multi-123", "status": "running"})
+
+    def _fake_download(source_url: str, destination: str) -> None:
+        if source_url.endswith(".mp3"):
+            Path(destination).write_bytes(b"ID3\x04\x00\x00\x00\x00\x00\x21test audio")
+            return
+        Path(destination).write_bytes(
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+            b"\x00\x00\x00\x0cIDAT\x08\x99c```\x00\x00\x00\x04\x00\x01\xf6\x178U\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+
+    monkeypatch.setattr(app_modules["runner"].kie_adapter, "download_output_file", _fake_download)
+
+    status = {
+        "state": "succeeded",
+        "output_urls": ["https://example.com/song-a.mp3", "https://example.com/song-b.mp3"],
+        "raw_response": {
+            "suno_output_metadata": [
+                {
+                    "audio_url": "https://example.com/song-a.mp3",
+                    "image_url": "https://example.com/cover-a.png",
+                    "title": "First track",
+                },
+                {
+                    "audio_url": "https://example.com/song-b.mp3",
+                    "image_url": "https://example.com/cover-b.png",
+                    "title": "Second track",
+                },
+                {"image_url": "https://example.com/cover-shared.png", "title": "Shared cover"},
+            ]
+        },
+    }
+    updated = runner._finalize_job_from_status(store.get_job(job["job_id"]), status)
+
+    assert updated["status"] == "completed"
+    assets = store.get_assets_by_job_id(job["job_id"])
+    assert [asset["generation_kind"] for asset in assets].count("audio") == 2
+    assert [asset["generation_kind"] for asset in assets].count("image") == 0
+    for asset in assets:
+        assert asset["hero_thumb_path"]
+        assert asset["hero_poster_path"]
+        assert any(output.get("role") == "cover_image" for output in asset["payload_json"]["outputs"])
+    assert store.deduplicate_assets_by_job_id() == 0
+    events = [event for event in store.list_job_events(job["job_id"]) if event["event_type"] == "completed"]
+    assert events[-1]["payload_json"]["audio_asset_ids"]
+    assert events[-1]["payload_json"]["associated_cover_count"] == 2
 
 
 def test_finalize_job_marks_failed_when_artifact_publish_fails(client, app_modules, monkeypatch) -> None:

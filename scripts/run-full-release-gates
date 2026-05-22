@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/shared_env.sh
+. "$SCRIPT_DIR/shared_env.sh"
+ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
+load_media_env "$ROOT"
+KIE_ROOT="$(resolve_kie_root "$ROOT")"
+
+echo "==> Running Media Studio quality gates"
+"$SCRIPT_DIR/run-quality-gates"
+
+echo "==> Verifying clean database bootstrap and migration status"
+TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/media-studio-release-gate.XXXXXX")"
+cleanup() {
+  rm -rf "$TMP_ROOT"
+}
+trap cleanup EXIT
+
+MEDIA_STUDIO_DB_PATH="$TMP_ROOT/media-studio.db" \
+MEDIA_STUDIO_DATA_ROOT="$TMP_ROOT/data" \
+MEDIA_STUDIO_KIE_API_REPO_PATH="$KIE_ROOT" \
+"$SCRIPT_DIR/with_shared_python.sh" - <<'PY'
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+repo_root = Path.cwd()
+sys.path.insert(0, str(repo_root / "apps" / "api"))
+
+from app import store  # noqa: E402
+from app.settings import settings  # noqa: E402
+
+Path(os.environ["MEDIA_STUDIO_DATA_ROOT"]).mkdir(parents=True, exist_ok=True)
+store.bootstrap_schema()
+status = store.get_schema_status(settings.db_path)
+print(json.dumps(status, indent=2, sort_keys=True))
+if not status.get("user_schema_present"):
+    raise SystemExit("Schema bootstrap did not create the user schema.")
+if status.get("pending_migrations"):
+    raise SystemExit("Fresh schema has pending migrations.")
+PY
+
+echo "==> Checking tracked diff formatting"
+git -C "$ROOT" diff --check
+
+echo "Full release verification passed."

@@ -1,0 +1,515 @@
+.graph-node-library-button {
+  width: 100%;
+}
+
+.graph-node-resize-handle {
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  background: transparent;
+  opacity: 0;
+  pointer-events: auto;
+}
+
+.graph-node-resize-line {
+  border-color: transparent;
+}
+
+.graph-node > .react-flow__resize-control {
+  position: absolute !important;
+  z-index: 12;
+}
+
+.react-flow__node.selected .graph-node-resize-handle,
+.react-flow__node:hover .graph-node-resize-handle {
+  opacity: 0;
+}
+
+.react-flow__node.selected .graph-node-resize-handle.bottom.right,
+.react-flow__node:hover .graph-node-resize-handle.bottom.right {
+  border-color: transparent;
+  cursor: nwse-resize;
+  opacity: 0;
+}
+
+.react-flow__node.selected .graph-node-resize-handle.bottom.right:hover,
+.react-flow__node:hover .graph-node-resize-handle.bottom.right:hover {
+  border-color: transparent;
+  opacity: 0;
+}
+
+.react-flow__node,
+.react-flow__node:focus,
+.react-flow__node:focus-visible,
+.react-flow__node.selected {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.graph-canvas .react-flow__pane {
+  z-index: 1;
+}
+
+.graph-canvas .react-flow__renderer {
+  z-index: 2;
+}
+
+.graph-canvas .react-flow__viewport {
+  z-index: 3;
+}
+
+.graph-canvas .react-flow__nodes {
+  z-index: 6;
+  pointer-events: auto;
+}
+
+.graph-canvas .react-flow__edges {
+  z-index: 5;
+}
+
+.react-flow__resize-control.line {
+  border-color: transparent !important;
+  pointer-events: none !important;
+  z-index: 70 !important;
+  touch-action: none;
+}
+
+.react-flow__node:has(.graph-node-media-container) .react-flow__resize-control.line.right,
+.react-flow__node:has(.graph-display-any) .react-flow__resize-control.line.right {
+  width: 30px !important;
+  right: -15px !important;
+  cursor: ew-resize;
+}
+
+.react-flow__node:has(.graph-node-media-container) .react-flow__resize-control.line.bottom,
+.react-flow__node:has(.graph-display-any) .react-flow__resize-control.line.bottom {
+  height: 30px !important;
+  bottom: -15px !important;
+  cursor: ns-resize;
+}
+
+.react-flow__resize-control.handle {
+  width: 0 !important;
+  height: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  opacity: 0;
+  pointer-events: none !important;
+  z-index: 81 !important;
+  touch-action: none;
+}
+
+.react-flow__resize-control.handle.bottom.right {
+  width: 38px !important;
+  height: 38px !important;
+  right: -19px !important;
+  bottom: -19px !important;
+  border-color: transparent !important;
+  cursor: nwse-resize;
+  opacity: 0;
+  pointer-events: auto !important;
+  z-index: 82 !important;
+}
+
+.react-flow__node:has(.graph-node-media-container) .react-flow__resize-control.handle.bottom.right,
+.react-flow__node:has(.graph-display-any) .react-flow__resize-control.handle.bottom.right {
+  width: 44px !important;
+  height: 44px !important;
+  right: -22px !important;
+  bottom: -22px !important;
+  opacity: 0.01;
+  z-index: 84 !important;
+}
+
+.react-flow__node:has(.graph-node-collapsed) .react-flow__resize-control.handle.bottom.right {
+  width: 18px !important;
+  height: 18px !important;
+  right: -9px !important;
+  bottom: -9px !important;
+}
+
+.graph-node-field textarea {
+  min-height: 110px;
+  height: 100%;
+  flex: 1;
+  resize: vertical;
+  scrollbar-width: none;
+}
+
+.graph-node-field:has(textarea) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 110px;
+  min-height: 110px;
+}
+
+.graph-node-field:has(textarea) .graph-node-field-control {
+  min-height: 0;
+}
+
+.graph-node-field:has(.graph-node-markdown-preview) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 110px;
+  min-height: 110px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.graph-node-field:has(.graph-node-markdown-preview) > span {
+  color: var(--graph-text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.graph-node-markdown-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  width: 100%;
+  min-height: 110px;
+  flex: 1;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--graph-border-soft);
+  border-radius: 0.8rem;
+  background: var(--graph-panel-subtle);
+  color: var(--graph-text);
+  font: inherit;
+  line-height: 1.55;
+  text-align: left;
+  overflow: auto;
+  cursor: text;
+}
+
+.graph-node-markdown-preview h1,
+.graph-node-markdown-preview h2,
+.graph-node-markdown-preview h3,
+.graph-node-markdown-preview h4 {
+  color: var(--graph-text);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.graph-node-markdown-preview p,
+.graph-node-markdown-preview ul,
+.graph-node-markdown-preview ol,
+.graph-node-markdown-preview blockquote,
+.graph-node-markdown-preview pre {
+  margin: 0;
+}
+
+.graph-node-markdown-preview > * + * {
+  margin-top: 0;
+}
+
+.graph-node-markdown-preview ul,
+.graph-node-markdown-preview ol {
+  display: grid;
+  gap: 0.8rem;
+  padding-left: 1.35rem;
+}
+
+.graph-node-markdown-preview ul {
+  list-style: disc outside;
+}
+
+.graph-node-markdown-preview ol {
+  list-style: decimal outside;
+}
+
+.graph-node-markdown-preview li {
+  padding-left: 0.15rem;
+}
+
+.graph-node-markdown-preview code {
+  padding: 0.06rem 0.25rem;
+  border-radius: 0.3rem;
+  background: var(--graph-surface);
+  color: var(--graph-text);
+}
+
+.graph-node-markdown-preview pre {
+  padding: 0.55rem;
+  border: 1px solid var(--graph-border-soft);
+  border-radius: 0.65rem;
+  background: var(--graph-surface);
+  overflow: auto;
+}
+
+.graph-node-markdown-preview pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.graph-node-markdown-preview blockquote {
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--graph-node-accent);
+  color: var(--graph-text-muted);
+}
+
+.graph-node-markdown-preview a {
+  color: var(--graph-node-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.16rem;
+}
+
+.graph-node-field-connectable {
+  position: relative;
+  padding-left: 0.35rem;
+}
+
+.graph-node-field-note {
+  display: block;
+  color: var(--graph-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.graph-node-inline-summary {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--graph-border-soft);
+  background: var(--graph-panel-subtle);
+  color: var(--graph-text);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.graph-node-inline-summary strong {
+  color: var(--graph-text);
+  font-size: 0.8rem;
+}
+
+.graph-node-inline-summary span,
+.graph-node-inline-summary p,
+.graph-node-inline-summary li {
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.graph-node-inline-summary ul {
+  display: grid;
+  gap: 0.18rem;
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.graph-node-advanced {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.graph-node-advanced-toggle {
+  display: grid;
+  gap: 0.18rem;
+  width: 100%;
+  padding: 0.68rem 0.78rem;
+  border: 1px solid var(--graph-border-soft);
+  background: var(--graph-panel-subtle);
+  color: var(--graph-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.graph-node-advanced-toggle span {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.graph-node-advanced-toggle small {
+  color: var(--graph-text-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.graph-node-advanced-toggle:hover,
+.graph-node-advanced-toggle:focus-visible {
+  border-color: color-mix(in srgb, var(--graph-node-accent, var(--graph-accent)) 42%, var(--graph-border-soft));
+  background: color-mix(in srgb, var(--graph-node-accent, var(--graph-accent)) 10%, var(--graph-panel-subtle));
+  outline: none;
+}
+
+.graph-node-advanced-fields {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.7rem 0.75rem 0.75rem;
+  border: 1px solid var(--graph-border-soft);
+  background: color-mix(in srgb, var(--graph-panel-subtle) 72%, transparent);
+}
+
+.graph-node-field-connected .graph-node-field-control {
+  color: var(--graph-text-faint);
+  background: var(--graph-panel-muted);
+  border-color: var(--graph-border-faint);
+  cursor: not-allowed;
+}
+
+.graph-provider-model-picker {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.graph-provider-model-picker-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  gap: 0.45rem;
+  align-items: start;
+}
+
+.graph-provider-model-search {
+  min-height: 34px;
+  padding: 0.48rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+.graph-provider-model-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  border: 1px solid var(--graph-border-soft);
+  background: var(--graph-panel-hover);
+  color: var(--graph-text);
+  border-radius: var(--graph-control-radius);
+  cursor: pointer;
+}
+
+.graph-provider-model-refresh:hover,
+.graph-provider-model-refresh:focus-visible {
+  border-color: color-mix(in srgb, var(--graph-node-accent, var(--graph-accent)) 42%, var(--graph-border-soft));
+  background: color-mix(in srgb, var(--graph-node-accent, var(--graph-accent)) 10%, var(--graph-panel-hover));
+  outline: none;
+}
+
+.graph-provider-model-refresh:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.graph-provider-model-refresh-icon-spinning {
+  animation: graph-provider-model-refresh-spin 1s linear infinite;
+}
+
+@keyframes graph-provider-model-refresh-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.graph-node-port-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 26px;
+  color: var(--graph-text);
+}
+
+.graph-node-port-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, auto);
+  align-items: start;
+  gap: 0.65rem;
+  min-height: 28px;
+}
+
+.graph-node-port-stack {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.graph-node-port-stack-outputs {
+  justify-items: end;
+}
+
+.graph-node-port-input {
+  padding-left: 1rem;
+}
+
+.graph-node-port-output {
+  justify-content: flex-end;
+  padding-right: 1rem;
+}
+
+.graph-port-compatible {
+  color: var(--graph-text);
+}
+
+.graph-handle {
+  --graph-handle-size: 18px;
+  box-sizing: border-box;
+  width: var(--graph-handle-size);
+  height: var(--graph-handle-size);
+  z-index: 3;
+  border: 3px solid var(--graph-node-handle, var(--graph-accent));
+  border-radius: 999px;
+  background: var(--graph-panel);
+  cursor: grab;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.graph-handle::before {
+  position: absolute;
+  inset: -14px;
+  z-index: -1;
+  display: block;
+  border-radius: 999px;
+  background: transparent;
+  content: "";
+}
+
+.graph-node-port-input .graph-handle,
+.graph-node-field-connectable .graph-handle {
+  left: -12px !important;
+}
+
+.graph-node-port-output .graph-handle {
+  right: -12px !important;
+}
+
+.graph-handle:hover {
+  background: var(--graph-node-handle, var(--graph-accent));
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--graph-node-handle, var(--graph-accent)) 16%, transparent);
+}
+
+.graph-handle-compatible {
+  width: var(--graph-handle-size);
+  height: var(--graph-handle-size);
+  border-color: var(--graph-text);
+  background: var(--graph-node-handle, var(--graph-accent));
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--graph-node-handle, var(--graph-accent)) 16%, transparent);
+}
+
+.graph-canvas .react-flow__handle.graph-handle-connected {
+  background: var(--graph-node-handle, var(--graph-accent));
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.5),
+    0 0 0 6px color-mix(in srgb, var(--graph-node-handle, var(--graph-accent)) 14%, transparent);
+  cursor: grab;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.react-flow__handle {
+  cursor: grab !important;
+}
+
+.react-flow__handle:active {
+  cursor: grabbing !important;
+}

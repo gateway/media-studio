@@ -131,6 +131,9 @@ export function formatUsdAmount(
   if (amount == null) {
     return fallback;
   }
+  if (amount > 0 && amount < 0.01 && minimumFractionDigits == null && maximumFractionDigits == null) {
+    return "<$0.01";
+  }
   const resolvedMinimumFractionDigits = minimumFractionDigits ?? (amount < 1 ? 2 : 0);
   const resolvedMaximumFractionDigits = maximumFractionDigits ?? (amount < 1 ? 2 : 2);
   return new Intl.NumberFormat("en-US", {

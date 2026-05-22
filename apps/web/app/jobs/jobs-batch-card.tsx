@@ -164,7 +164,7 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
               <div className="flex flex-col items-end gap-2">
                 <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-right text-xs uppercase tracking-[0.14em] text-[var(--muted-strong)]">
                   <div>{truncate(batch.batch_id, 20)}</div>
-                  <span className="text-white/20">•</span>
+                  <span className="text-[var(--surface-border-soft)]">•</span>
                   <div>{formatDateTime(batch.created_at)}</div>
                 </div>
                 <MediaBatchActions
@@ -218,7 +218,7 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
                       disabled={!canOpenLightbox}
                       className={cn(
                         "admin-preview-frame overflow-hidden transition",
-                        canOpenLightbox ? "hover:border-white/16 hover:bg-[color:var(--surface-muted)]" : "cursor-default opacity-80",
+                        canOpenLightbox ? "hover:border-[var(--surface-border)] hover:bg-[color:var(--surface-muted)]" : "cursor-default opacity-80",
                       )}
                       title={canOpenLightbox ? `Open output ${job.batch_index ?? 1}` : `Output ${job.batch_index ?? 1}`}
                     >
@@ -251,7 +251,7 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
                 <SurfaceInset key={`${job.job_id}-error`} appearance="admin" className={mutedCardClassName}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="text-sm text-[var(--foreground)]">Output {job.batch_index ?? 1}</div>
-                    <div className="text-xs uppercase tracking-[0.12em] text-white/42">
+                    <div className="text-xs uppercase tracking-[0.12em] text-[var(--muted-strong)]">
                       {formatDateTime(job.updated_at)}
                     </div>
                   </div>

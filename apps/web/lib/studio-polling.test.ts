@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   completedBatchJobIds,
   isPollableJobStatus,
+  isStudioPollingVisible,
   resolvePublishHandoffFeedback,
   shouldWatchBatch,
   STUDIO_POLL_INTERVAL_MS,
@@ -11,6 +12,12 @@ import {
 describe("studio polling cadence", () => {
   it("uses the slower five-second poll interval", () => {
     expect(STUDIO_POLL_INTERVAL_MS).toBe(5000);
+  });
+
+  it("pauses Studio polling when the page is hidden", () => {
+    expect(isStudioPollingVisible("visible")).toBe(true);
+    expect(isStudioPollingVisible("hidden")).toBe(false);
+    expect(isStudioPollingVisible(undefined)).toBe(true);
   });
 });
 

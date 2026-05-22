@@ -177,60 +177,95 @@ export type NewsHealthResponse = {
   latest_profile_snapshot?: NewsProfileSnapshot | null;
 };
 
+export type ControlApiHealthData = {
+  status?: string;
+  app?: string;
+  supervisor?: string | null;
+  kie_api_repo_connected?: boolean;
+  kie_api_key_configured?: boolean;
+  live_submit_enabled?: boolean;
+  openrouter_api_key_configured?: boolean;
+  local_openai_configured?: boolean;
+  local_openai_ready?: boolean;
+  codex_local_command_available?: boolean;
+  codex_local_login_configured?: boolean;
+  codex_local_ready?: boolean;
+  runner_name?: string;
+  runner_mode?: string;
+  runner_attached_to?: string;
+  runner_process_name?: string | null;
+  runner_launch_mode?: string;
+  runner_active?: boolean;
+  runner_health?: string;
+  heartbeat_age_seconds?: number | null;
+  heartbeat_max_age_seconds?: number | null;
+  queue_enabled?: boolean;
+  queued_jobs?: number;
+  running_jobs?: number;
+  last_scheduler_tick?: string | null;
+  pricing_source?: string | null;
+  pricing_version?: string | null;
+  kie_api_module_path?: string | null;
+  kie_spec_version?: string | null;
+  kie_models_total?: number;
+  kie_models_studio_exposed?: number;
+  kie_models_studio_hidden?: number;
+  issues?: string[];
+  desired_runtime?: Record<
+    string,
+    {
+      mode: "running" | "stopped";
+      profile?: string | null;
+      residency?: "none" | "temporary" | "pinned";
+      updated_at?: string;
+      source?: string | null;
+    }
+  >;
+  asr?: {
+    service: string;
+    status: string;
+    pid?: number | null;
+    profile?: string | null;
+    host?: string | null;
+    port?: number | null;
+    health_http?: number | null;
+    model_id?: string | null;
+    forced_aligner_id?: string | null;
+    dtype?: string | null;
+    rss_kb?: number | null;
+    mem_pct?: number | null;
+  };
+  llm?: {
+    service: string;
+    status: string;
+    pid?: number | null;
+    profile?: string | null;
+    host?: string | null;
+    port?: number | null;
+    health_http?: number | null;
+    model_path?: string | null;
+    ctx_size?: number | null;
+    rss_kb?: number | null;
+    mem_pct?: number | null;
+  };
+  tts?: {
+    service: string;
+    status: string;
+    pid?: number | null;
+    profile?: string | null;
+    host?: string | null;
+    port?: number | null;
+    health_http?: number | null;
+  };
+  open_webui?: {
+    status?: string;
+    port?: number | null;
+  };
+};
+
 export type ControlApiStatus = {
   ok?: boolean;
-  data?: {
-    desired_runtime?: Record<
-      string,
-      {
-        mode: "running" | "stopped";
-        profile?: string | null;
-        residency?: "none" | "temporary" | "pinned";
-        updated_at?: string;
-        source?: string | null;
-      }
-    >;
-    asr?: {
-      service: string;
-      status: string;
-      pid?: number | null;
-      profile?: string | null;
-      host?: string | null;
-      port?: number | null;
-      health_http?: number | null;
-      model_id?: string | null;
-      forced_aligner_id?: string | null;
-      dtype?: string | null;
-      rss_kb?: number | null;
-      mem_pct?: number | null;
-    };
-    llm?: {
-      service: string;
-      status: string;
-      pid?: number | null;
-      profile?: string | null;
-      host?: string | null;
-      port?: number | null;
-      health_http?: number | null;
-      model_path?: string | null;
-      ctx_size?: number | null;
-      rss_kb?: number | null;
-      mem_pct?: number | null;
-    };
-    tts?: {
-      service: string;
-      status: string;
-      pid?: number | null;
-      profile?: string | null;
-      host?: string | null;
-      port?: number | null;
-      health_http?: number | null;
-    };
-    open_webui?: {
-      status?: string;
-      port?: number | null;
-    };
-  };
+  data?: ControlApiHealthData;
 };
 
 export type QueueActiveJob = {
@@ -767,6 +802,176 @@ export type MediaPreset = {
   updated_at?: string | null;
 };
 
+export type PromptRecipeCategory = "image" | "video" | "analysis" | "utility";
+export type PromptRecipeStatus = "active" | "inactive" | "archived";
+export type PromptRecipeOutputFormat =
+  | "single_prompt"
+  | "prompt_list"
+  | "json_prompt_batch"
+  | "image_analysis"
+  | "structured_shot_sequence";
+export type PromptRecipeImageMode = "none" | "direct_reference" | "analyze_then_inject" | "both";
+
+export type PromptRecipeVariable = {
+  key: string;
+  token?: string | null;
+  label: string;
+  enabled?: boolean;
+  required?: boolean;
+  default_value?: string | null;
+  description?: string | null;
+};
+
+export type PromptRecipeCustomField = {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "number" | "select" | "boolean" | string;
+  placeholder?: string | null;
+  default_value?: unknown;
+  required?: boolean;
+  help_text?: string | null;
+  options?: string[];
+};
+
+export type PromptRecipeImageInput = {
+  enabled: boolean;
+  required: boolean;
+  mode: PromptRecipeImageMode | string;
+  analysis_variable: string;
+  max_files: number;
+};
+
+export type PromptRecipe = {
+  recipe_id: string;
+  key: string;
+  label: string;
+  description?: string | null;
+  category: PromptRecipeCategory | string;
+  status: PromptRecipeStatus | string;
+  system_prompt_template: string;
+  image_analysis_prompt?: string | null;
+  user_prompt_placeholder: string;
+  output_format: PromptRecipeOutputFormat | string;
+  output_contract_json?: Record<string, unknown>;
+  output_contract?: Record<string, unknown>;
+  input_variables_json?: PromptRecipeVariable[];
+  input_variables?: PromptRecipeVariable[];
+  custom_fields_json?: PromptRecipeCustomField[];
+  custom_fields?: PromptRecipeCustomField[];
+  image_input_json?: PromptRecipeImageInput;
+  image_input?: PromptRecipeImageInput;
+  validation_warnings_json?: string[];
+  validation_warnings?: string[];
+  default_options_json?: Record<string, unknown>;
+  default_options?: Record<string, unknown>;
+  rules_json?: Record<string, unknown>;
+  rules?: Record<string, unknown>;
+  thumbnail_path?: string | null;
+  thumbnail_url?: string | null;
+  notes?: string | null;
+  source_kind: "builtin" | "built_in_override" | "custom" | "imported" | string;
+  version?: string | null;
+  priority?: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type PromptRecipeDraftPayload = {
+  key: string;
+  label: string;
+  description?: string | null;
+  category: PromptRecipeCategory | string;
+  status?: PromptRecipeStatus | string;
+  system_prompt_template: string;
+  image_analysis_prompt?: string | null;
+  user_prompt_placeholder?: string;
+  output_format: PromptRecipeOutputFormat | string;
+  output_contract_json?: Record<string, unknown>;
+  output_contract?: Record<string, unknown>;
+  input_variables_json?: PromptRecipeVariable[];
+  input_variables?: PromptRecipeVariable[];
+  custom_fields_json?: PromptRecipeCustomField[];
+  custom_fields?: PromptRecipeCustomField[];
+  image_input_json?: PromptRecipeImageInput;
+  image_input?: PromptRecipeImageInput;
+  validation_warnings_json?: string[];
+  validation_warnings?: string[];
+  default_options_json?: Record<string, unknown>;
+  default_options?: Record<string, unknown>;
+  rules_json?: Record<string, unknown>;
+  rules?: Record<string, unknown>;
+  thumbnail_path?: string | null;
+  thumbnail_url?: string | null;
+  notes?: string | null;
+  source_kind?: string | null;
+  version?: string | null;
+  priority?: number;
+};
+
+export type PromptRecipeDraftingConfig = {
+  config_key: string;
+  enabled: boolean;
+  provider_kind: string;
+  provider_label?: string | null;
+  provider_model_id?: string | null;
+  provider_base_url_configured?: boolean;
+  provider_credential_source?: string | null;
+  provider_supports_images?: boolean;
+  provider_status?: string | null;
+  provider_last_tested_at?: string | null;
+  provider_capabilities_json?: Record<string, unknown>;
+  temperature: number;
+  max_tokens: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type ExternalLlmUsageTotals = {
+  event_count: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  reasoning_tokens: number;
+  cached_tokens: number;
+  cache_write_tokens: number;
+  cost_usd: number;
+};
+
+export type ExternalLlmUsageRecord = {
+  usage_event_id: string;
+  provider_kind: string;
+  provider_model_id: string;
+  provider_response_id?: string | null;
+  source_kind: string;
+  workflow_id?: string | null;
+  run_id?: string | null;
+  node_id?: string | null;
+  recipe_id?: string | null;
+  model_key?: string | null;
+  task_mode?: string | null;
+  usage_json?: Record<string, unknown>;
+  prompt_tokens?: number | null;
+  completion_tokens?: number | null;
+  total_tokens?: number | null;
+  reasoning_tokens?: number | null;
+  cached_tokens?: number | null;
+  cache_write_tokens?: number | null;
+  cost_usd?: number | null;
+  metadata_json?: Record<string, unknown>;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type ExternalLlmUsageSummary = {
+  provider_kind: string;
+  currency: string;
+  today: ExternalLlmUsageTotals;
+  last_7d: ExternalLlmUsageTotals;
+  last_30d: ExternalLlmUsageTotals;
+  lifetime: ExternalLlmUsageTotals;
+  generated_at?: string | null;
+};
+
 export type MediaSystemPrompt = {
   prompt_id: string;
   key: string;
@@ -949,11 +1154,17 @@ export type MediaProject = {
 
 export type MediaCreditsResponse = {
   ok?: boolean;
+  available_credits?: number | null;
+  remaining_credits?: number | null;
   balance?: {
     available_credits?: number | null;
     remaining_credits?: number | null;
     [key: string]: unknown;
   };
+  raw?: {
+    reason?: string | null;
+    [key: string]: unknown;
+  } | null;
 };
 
 export type MediaPricingResponse = {
@@ -999,6 +1210,44 @@ export type MediaModelsResponse = {
 export type MediaPresetsResponse = {
   ok?: boolean;
   presets?: MediaPreset[];
+};
+
+export type PromptRecipesResponse = {
+  ok?: boolean;
+  recipes?: PromptRecipe[];
+};
+
+export type PromptRecipeResponse = {
+  ok?: boolean;
+  recipe?: PromptRecipe | null;
+};
+
+export type PromptRecipeDraftResponse = {
+  ok?: boolean;
+  draft?: PromptRecipeDraftPayload | null;
+  validation_warnings?: string[];
+  drafting_model?: {
+    provider_kind: string;
+    provider_model_id: string;
+  } | null;
+};
+
+export type PromptRecipeDraftingConfigResponse = {
+  ok?: boolean;
+  config?: PromptRecipeDraftingConfig | null;
+};
+
+export type ExternalLlmUsageSummaryResponse = {
+  ok?: boolean;
+  summary?: ExternalLlmUsageSummary | null;
+};
+
+export type ExternalLlmUsageListResponse = {
+  ok?: boolean;
+  items?: ExternalLlmUsageRecord[];
+  total?: number;
+  limit?: number;
+  offset?: number;
 };
 
 export type MediaProjectsResponse = {

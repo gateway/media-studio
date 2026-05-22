@@ -28,7 +28,7 @@ type RestoreRevealOptions = {
   focusPresetField?: boolean;
 };
 
-type RestoreComposerDependencies = {
+export type RestoreComposerDependencies = {
   localAssets: MediaAsset[];
   favoriteAssets: MediaAsset[] | null;
   selectedProjectId: string | null;

@@ -130,6 +130,19 @@ function Format-ConfiguredStatus {
   return $MissingLabel
 }
 
+function Get-CodexLocalStatus {
+  $codexCommand = Get-Command codex -ErrorAction SilentlyContinue
+  $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME ".codex" }
+  $authPath = Join-Path $codexHome "auth.json"
+  if (-not $codexCommand) {
+    return "not installed"
+  }
+  if (Test-Path $authPath) {
+    return "ready"
+  }
+  return "login needed"
+}
+
 function Start-DevWindow {
   param([string]$Command)
 
@@ -151,10 +164,11 @@ Write-Host "Media Studio Windows onboarding"
 Write-Host "Workspace: $MediaRoot"
 Write-Host ""
 Write-Host "This script will:"
-Write-Host " - bootstrap the shared KIE API dependency"
-Write-Host " - create or reuse the shared Python runtime"
-Write-Host " - create .env and a clean local database"
-Write-Host " - prompt for your KIE API key and optional enhancement providers"
+Write-Host " - prepare the shared KIE dependency and Python runtime"
+Write-Host " - install or refresh the local web dependencies"
+Write-Host " - create or reuse .env, data folders, and the local database schema"
+Write-Host " - prompt for KIE, OpenRouter, and Local OpenAI setup"
+Write-Host " - check whether Codex Local is already ready on this machine"
 Write-Host ""
 
 if ((-not (Test-Path (Join-Path $KieRoot ".git"))) -and (-not (Test-Path (Join-Path $KieRoot "pyproject.toml")))) {
@@ -220,28 +234,39 @@ if ($kieKey) {
 }
 
 Write-Host ""
-Write-Host "Optional prompt enhancement providers"
-Write-Host " - OpenRouter: hosted prompt enhancement"
-Write-Host " - Local OpenAI-compatible endpoint: local enhancement stack"
+Write-Host "Optional LLM providers"
+Write-Host " - Codex Local: $(Get-CodexLocalStatus) (powers Enhance, recipe drafts, and graph prompt nodes)"
+Write-Host " - OpenRouter: hosted prompt enhancement and drafting"
+Write-Host " - Local OpenAI-compatible endpoint: self-hosted enhancement and drafting"
 Write-Host ""
 
-$openRouterKey = Read-SecretOrBlank "Optional OpenRouter API key"
-if ($openRouterKey) {
-  Set-EnvValue "OPENROUTER_API_KEY" $openRouterKey
+if ((Read-Host "Configure OpenRouter now? This is optional and can be set up later in Settings. [y/N]") -match '^[Yy]$') {
+  $openRouterKey = Read-SecretOrBlank "Optional OpenRouter API key"
+  if ($openRouterKey) {
+    Set-EnvValue "OPENROUTER_API_KEY" $openRouterKey
+  }
+} else {
+  Write-Host "Skipping OpenRouter setup. You can enable it later in Settings."
 }
 
-$currentLocalBase = Get-EnvValue "MEDIA_LOCAL_OPENAI_BASE_URL"
-if (-not $currentLocalBase) {
-  $currentLocalBase = $DefaultLocalOpenAiBaseUrl
-}
-$localBase = Read-Host "Local OpenAI-compatible base URL [$currentLocalBase]"
-if ($localBase) {
-  Set-EnvValue "MEDIA_LOCAL_OPENAI_BASE_URL" $localBase
-}
+if ((Read-Host "Configure a local OpenAI-compatible endpoint now? This is optional and can be set up later in Settings. [y/N]") -match '^[Yy]$') {
+  $currentLocalBase = Get-EnvValue "MEDIA_LOCAL_OPENAI_BASE_URL"
+  if (-not $currentLocalBase) {
+    $currentLocalBase = $DefaultLocalOpenAiBaseUrl
+  }
+  $localBase = Read-Host "Local OpenAI-compatible base URL [$currentLocalBase]"
+  if ($localBase) {
+    Set-EnvValue "MEDIA_LOCAL_OPENAI_BASE_URL" $localBase
+  } elseif (-not (Get-EnvValue "MEDIA_LOCAL_OPENAI_BASE_URL")) {
+    Set-EnvValue "MEDIA_LOCAL_OPENAI_BASE_URL" $currentLocalBase
+  }
 
-$localApiKey = Read-SecretOrBlank "Optional local OpenAI-compatible API key"
-if ($localApiKey) {
-  Set-EnvValue "MEDIA_LOCAL_OPENAI_API_KEY" $localApiKey
+  $localApiKey = Read-SecretOrBlank "Optional local OpenAI-compatible API key"
+  if ($localApiKey) {
+    Set-EnvValue "MEDIA_LOCAL_OPENAI_API_KEY" $localApiKey
+  }
+} else {
+  Write-Host "Skipping local OpenAI-compatible setup. You can enable it later in Settings."
 }
 
 Write-Host ""
@@ -252,15 +277,18 @@ if ((Get-EnvValue "MEDIA_ENABLE_LIVE_SUBMIT") -eq "true") {
   $liveSubmitStatus = "enabled"
 }
 $openRouterStatus = Format-ConfiguredStatus (Get-EnvValue "OPENROUTER_API_KEY") "configured" "skipped"
-Write-Host " - KIE API key: $kieKeyStatus"
-Write-Host " - Live submit: $liveSubmitStatus"
-Write-Host " - OpenRouter: $openRouterStatus"
+Write-Host " - KIE API key: $(if ($kieKeyStatus -eq 'configured') { 'Ready' } else { 'Not set up' })"
+Write-Host " - Live submit: $(if ($liveSubmitStatus -eq 'enabled') { 'Ready' } else { 'Not set up' })"
+Write-Host " - Codex Local: $(switch (Get-CodexLocalStatus) { 'ready' { 'Ready' } 'login needed' { 'Connecting' } default { 'Not set up' } })"
+Write-Host " - OpenRouter: $(if ($openRouterStatus -eq 'configured') { 'Ready' } else { 'Not set up' })"
+Write-Host " - Local OpenAI-compatible: $(if (Get-EnvValue 'MEDIA_LOCAL_OPENAI_BASE_URL') { 'Connecting' } else { 'Not set up' })"
 Write-Host " - Local OpenAI base URL: $(Get-EnvValue 'MEDIA_LOCAL_OPENAI_BASE_URL')"
 Write-Host ""
 Write-Host "Next commands"
 Write-Host " - Studio: powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1"
 Write-Host " - Stop later: powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1"
 Write-Host " - Setup page: http://127.0.0.1:3000/setup"
+Write-Host " - AI settings: http://127.0.0.1:3000/settings/llms"
 Write-Host ""
 
 $launchNow = Read-Host "Open Media Studio in a new PowerShell window now? [y/N]"

@@ -35,6 +35,8 @@ The script will:
 - create a clean local SQLite database with schema and default presets
 - prompt for your KIE API key and optional prompt-enhancement providers
 
+Before a public release, validate this flow on a real Windows machine with a clean clone, a fresh `.env`, and a new local database.
+
 ## 4. Add the required KIE API key
 
 Live generation requires `KIE_API_KEY`.
@@ -45,15 +47,20 @@ Get a key here:
 
 If you skip this during onboarding, Media Studio stays in offline-safe mode until you add the key later.
 
-## 5. Optional prompt enhancement providers
+## 5. Optional LLM providers
 
 You can also configure:
 
-- `OPENROUTER_API_KEY` for hosted prompt enhancement
+- local `codex` login for Codex Local
+- `OPENROUTER_API_KEY` for hosted prompt enhancement and Prompt Recipe drafting
 - `MEDIA_LOCAL_OPENAI_BASE_URL` for a local OpenAI-compatible endpoint
 - `MEDIA_LOCAL_OPENAI_API_KEY` if your local endpoint requires one
 
 These are optional. Users can still generate media without them.
+
+After onboarding, the shared provider defaults live in:
+
+- `http://127.0.0.1:3000/settings/llms`
 
 ## 6. Start the app
 

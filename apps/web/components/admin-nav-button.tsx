@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { AdminButton } from "@/components/admin-controls";
 
@@ -12,6 +12,8 @@ export function AdminNavButton({
   size = "default",
   className,
   external = false,
+  onClick,
+  ...props
 }: {
   href: string;
   children: ReactNode;
@@ -19,15 +21,20 @@ export function AdminNavButton({
   size?: "default" | "compact";
   className?: string;
   external?: boolean;
-}) {
+} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">) {
   const router = useRouter();
 
   return (
     <AdminButton
+      {...props}
       variant={variant}
       size={size}
       className={className}
-      onClick={() => {
+      onClick={(event) => {
+        onClick?.(event);
+        if (event.defaultPrevented) {
+          return;
+        }
         if (external) {
           window.open(href, "_blank", "noopener,noreferrer");
           return;

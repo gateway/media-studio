@@ -1,5 +1,4 @@
 import type {
-  LlmPreset,
   MediaAsset,
   MediaBatch,
   MediaEnhancementConfig,
@@ -19,7 +18,6 @@ export type MediaStudioProps = {
   presets: MediaPreset[];
   prompts: MediaSystemPrompt[];
   enhancementConfigs: MediaEnhancementConfig[];
-  llmPresets: LlmPreset[];
   queueSettings: MediaQueueSettings | null;
   queuePolicies: MediaModelQueuePolicy[];
   projects: MediaProject[];

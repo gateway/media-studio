@@ -1,0 +1,1623 @@
+{
+  "kind": "media-studio.graph.workflow",
+  "schema_version": 1,
+  "exported_at": "2026-05-22T06:53:40Z",
+  "workflow": {
+    "schema_version": 1,
+    "workflow_id": null,
+    "name": "Kling 2.6 Video",
+    "description": "Two-lane Kling 2.6 starter workflow for text-to-video and image-to-video clips.",
+    "nodes": [
+      {
+        "id": "note_video_models",
+        "type": "utility.note",
+        "position": {
+          "x": -577.2305647507961,
+          "y": 48.61528237539807
+        },
+        "fields": {
+          "body": "### Video model starter\n\nA quick reference workflow for the main video generation lanes. Each lane has its own group, preview node, and save node.\n\n- Kling 2.6 text to video creates a short video from a prompt only. \n- Kling 2.6 image to video animates a selected source image into a short video. \n\nRight-click a group title to enable or mute the list of nodes. Muted nodes cannot be executed during the run this allows you to only run that set of nodes.\nImage-to-video needs a source image selected in the Load Image node before running.\n\nHelpful links:\n\n- [Star Media Studio on GitHub](https://github.com/gateway/media-studio)\n- [GitHub issues](https://github.com/gateway/media-studio/issues)\n- [Model credits](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) \n- [Instagram](https://www.instagram.com/dreamingcomputers/)"
+        },
+        "metadata": {
+          "style": {
+            "width": 626,
+            "height": 680
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#75a7f5",
+            "nodeColor": "#172135",
+            "nodeHeaderColor": "#1c2e46",
+            "customTitle": "Read Me"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "load_kling_i2v_source",
+        "type": "media.load_image",
+        "position": {
+          "x": 1578.0965192223628,
+          "y": 188.3772510762933
+        },
+        "fields": {
+          "asset_id": "",
+          "reference_id": ""
+        },
+        "metadata": {
+          "style": {
+            "width": 360
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Load source image"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "kling_i2v",
+        "type": "model.kie.kling_2_6_i2v",
+        "position": {
+          "x": 1983.1786255924044,
+          "y": 141.7502110229394
+        },
+        "fields": {
+          "prompt": "Animate the selected source image into a short cinematic video clip. Replace this text with the motion idea before running. ",
+          "sound": true,
+          "duration": 5
+        },
+        "metadata": {
+          "style": {
+            "width": 420,
+            "height": 560
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Kling 2.6 - I2V"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "preview_kling_i2v",
+        "type": "preview.video",
+        "position": {
+          "x": 2453.178625592404,
+          "y": 141.7502110229394
+        },
+        "fields": {},
+        "metadata": {
+          "style": {
+            "width": 380
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Preview I2V"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "save_kling_i2v",
+        "type": "media.save_video",
+        "position": {
+          "x": 2451.632349921398,
+          "y": 553.6977792900916
+        },
+        "fields": {
+          "filename_prefix": "kling-i2v",
+          "format": "source_original",
+          "codec": "auto",
+          "crf": 23,
+          "audio_policy": "keep_video_audio",
+          "audio_fit": "trim_to_video",
+          "audio_offset_seconds": 0,
+          "audio_volume": 1,
+          "video_audio_volume": 1,
+          "include_metadata": true,
+          "label": "Kling image-to-video result"
+        },
+        "metadata": {
+          "style": {
+            "width": 380
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#f0c15a",
+            "nodeColor": "#241f14",
+            "nodeHeaderColor": "#332a18",
+            "customTitle": "Save I2V"
+          },
+          "execution": {
+            "mode": "frozen",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "kling_t2v",
+        "type": "model.kie.kling_2_6_t2v",
+        "position": {
+          "x": 532.8261438367889,
+          "y": 228.51792227414754
+        },
+        "fields": {
+          "prompt": "Create a short cinematic video clip from this prompt. Replace this text with the scene idea before running.",
+          "sound": true,
+          "aspect_ratio": "16:9",
+          "duration": 5
+        },
+        "metadata": {
+          "style": {
+            "width": 420,
+            "height": 560
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#5ad0f0",
+            "nodeColor": "#13242d",
+            "nodeHeaderColor": "#17313d",
+            "customTitle": "Kling 2.6 - T2V"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "preview_kling_t2v",
+        "type": "preview.video",
+        "position": {
+          "x": 1022.4157714781529,
+          "y": 103.1443053694737
+        },
+        "fields": {},
+        "metadata": {
+          "style": {
+            "width": 380
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#5ad0f0",
+            "nodeColor": "#13242d",
+            "nodeHeaderColor": "#17313d",
+            "customTitle": "Preview T2V"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "save_kling_t2v",
+        "type": "media.save_video",
+        "position": {
+          "x": 1019.334974605315,
+          "y": 532.1809831963851
+        },
+        "fields": {
+          "filename_prefix": "kling-t2v",
+          "format": "source_original",
+          "codec": "auto",
+          "crf": 23,
+          "audio_policy": "keep_video_audio",
+          "audio_fit": "trim_to_video",
+          "audio_offset_seconds": 0,
+          "audio_volume": 1,
+          "video_audio_volume": 1,
+          "include_metadata": true,
+          "label": "Kling text-to-video result"
+        },
+        "metadata": {
+          "style": {
+            "width": 380
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": "#5ad0f0",
+            "nodeColor": "#13242d",
+            "nodeHeaderColor": "#17313d",
+            "customTitle": "Save T2V"
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      },
+      {
+        "id": "prompt.text-dbe1dd0c",
+        "type": "prompt.text",
+        "position": {
+          "x": 114.36840237437309,
+          "y": 315.16685388783435
+        },
+        "fields": {
+          "mode": "replace",
+          "text": "Create a short cinematic video clip from this prompt. Replace this text with the scene idea before running."
+        },
+        "metadata": {
+          "style": {
+            "width": 340,
+            "height": 427
+          },
+          "ui": {
+            "collapsed": false,
+            "advancedExpanded": false,
+            "accentColor": null,
+            "nodeColor": null,
+            "nodeHeaderColor": null,
+            "customTitle": null
+          },
+          "execution": {
+            "mode": "enabled",
+            "cached_run_id": null,
+            "cached_artifact_ids": {}
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge_load_i2v_model",
+        "source": "load_kling_i2v_source",
+        "source_port": "image",
+        "target": "kling_i2v",
+        "target_port": "image_refs",
+        "metadata": {}
+      },
+      {
+        "id": "edge_i2v_preview",
+        "source": "kling_i2v",
+        "source_port": "video",
+        "target": "preview_kling_i2v",
+        "target_port": "video",
+        "metadata": {}
+      },
+      {
+        "id": "edge_i2v_save",
+        "source": "kling_i2v",
+        "source_port": "video",
+        "target": "save_kling_i2v",
+        "target_port": "video",
+        "metadata": {}
+      },
+      {
+        "id": "edge_t2v_preview",
+        "source": "kling_t2v",
+        "source_port": "video",
+        "target": "preview_kling_t2v",
+        "target_port": "video",
+        "metadata": {}
+      },
+      {
+        "id": "edge_t2v_save",
+        "source": "kling_t2v",
+        "source_port": "video",
+        "target": "save_kling_t2v",
+        "target_port": "video",
+        "metadata": {}
+      },
+      {
+        "id": "edge-prompt.text-dbe1dd0c-out:text-kling_t2v-in:prompt",
+        "source": "prompt.text-dbe1dd0c",
+        "source_port": "text",
+        "target": "kling_t2v",
+        "target_port": "prompt",
+        "metadata": {}
+      }
+    ],
+    "viewport": {},
+    "metadata": {
+      "created_by": "graph-studio",
+      "groups": [
+        {
+          "id": "group_kling_i2v",
+          "title": "Kling 2.6 - Image to Video",
+          "color": "blue",
+          "node_ids": [
+            "load_kling_i2v_source",
+            "kling_i2v",
+            "preview_kling_i2v",
+            "save_kling_i2v"
+          ],
+          "bounds": {
+            "x": 1543.178625592402,
+            "y": 51.75021102293917,
+            "width": 1433.4847016828787,
+            "height": 1273.0699852013393
+          },
+          "execution": {
+            "mode": "frozen"
+          }
+        },
+        {
+          "id": "group_kling_t2v",
+          "title": "Kling 2.6 - Text to Video",
+          "color": "blue",
+          "node_ids": [
+            "kling_t2v",
+            "preview_kling_t2v",
+            "save_kling_t2v",
+            "prompt.text-dbe1dd0c"
+          ],
+          "bounds": {
+            "x": 78.83201301615414,
+            "y": 50.56978406737109,
+            "width": 1434.2037991988507,
+            "height": 1276.9173783560811
+          },
+          "execution": {
+            "mode": "enabled"
+          }
+        }
+      ]
+    }
+  },
+  "node_definitions": [
+    {
+      "schema_version": 1,
+      "type": "utility.note",
+      "title": "Note",
+      "description": "Add a Markdown note to the workflow canvas.",
+      "help_text": "Use this as a scratch pad for instructions, reminders, or workflow notes. It has no inputs or outputs.",
+      "category": "Utility",
+      "search_aliases": [
+        "note",
+        "notes",
+        "markdown",
+        "scratchpad",
+        "notepad",
+        "comment"
+      ],
+      "tags": [
+        "utility",
+        "note",
+        "markdown"
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "execution": {
+        "executor": "utility.note",
+        "mode": "sync",
+        "cacheable": true,
+        "output_node": false
+      },
+      "limits": {
+        "max_inputs": 0
+      },
+      "ui": {
+        "default_size": {
+          "width": 360,
+          "height": 320
+        },
+        "min_size": {
+          "width": 260,
+          "height": 220
+        },
+        "max_size": {
+          "width": 1200,
+          "height": 1600
+        },
+        "accent": "yellow",
+        "icon": "text",
+        "markdown_preview_field": "body",
+        "color": "yellow",
+        "preview": false,
+        "field_layout": "stack"
+      },
+      "ports": {
+        "inputs": [],
+        "outputs": []
+      },
+      "fields": [
+        {
+          "id": "body",
+          "label": "Note",
+          "type": "textarea",
+          "required": false,
+          "default": "",
+          "placeholder": "Write notes in Markdown...",
+          "options": [],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "type": "media.load_image",
+      "title": "Load Image",
+      "description": "Load an existing Media Studio asset or reference image.",
+      "help_text": null,
+      "category": "Media",
+      "search_aliases": [
+        "asset",
+        "reference",
+        "input",
+        "image"
+      ],
+      "tags": [
+        "media",
+        "image",
+        "input"
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "execution": {
+        "executor": "media.load_image",
+        "mode": "sync",
+        "cacheable": true,
+        "output_node": false
+      },
+      "limits": {
+        "max_file_bytes": 104857600,
+        "media_types": [
+          "image"
+        ]
+      },
+      "ui": {
+        "default_size": {
+          "width": 280,
+          "height": 404
+        },
+        "accent": "green",
+        "icon": "image",
+        "min_size": {
+          "width": 260,
+          "height": 404
+        },
+        "max_size": {
+          "width": 860,
+          "height": 1200
+        },
+        "color": "green",
+        "preview": true,
+        "field_layout": "stack"
+      },
+      "ports": {
+        "inputs": [],
+        "outputs": [
+          {
+            "id": "image",
+            "label": "Image",
+            "type": "image",
+            "array": false,
+            "min": 0,
+            "max": null,
+            "required": false,
+            "accepts": [],
+            "description": null,
+            "advanced": false,
+            "visible_if": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "asset_id",
+          "label": "Asset ID",
+          "type": "asset_picker",
+          "required": false,
+          "default": null,
+          "placeholder": null,
+          "options": [],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        },
+        {
+          "id": "reference_id",
+          "label": "Reference ID",
+          "type": "reference_media_picker",
+          "required": false,
+          "default": null,
+          "placeholder": null,
+          "options": [],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "type": "model.kie.kling_2_6_i2v",
+      "title": "Kling 2.6 Image to Video",
+      "description": "KIE video model node using Media Studio validation, pricing, submit, and polling.",
+      "help_text": "Runs a KIE model. Credits are estimated from current fields and connected media before Run.",
+      "category": "Models/Video",
+      "search_aliases": [
+        "kling",
+        "2",
+        "6",
+        "i2v",
+        "video",
+        "kie",
+        "model"
+      ],
+      "tags": [
+        "model",
+        "video",
+        "kie"
+      ],
+      "source": {
+        "kind": "kie_model",
+        "model_key": "kling-2.6-i2v",
+        "kie_spec_version": "e1e2e6d2bda7",
+        "output_media_type": "video",
+        "task_modes": [
+          "image_to_video"
+        ]
+      },
+      "execution": {
+        "executor": "kie.model",
+        "mode": "async",
+        "cacheable": true,
+        "output_node": false,
+        "retryable": true
+      },
+      "limits": {
+        "max_input_images": 1,
+        "input_contract": {
+          "images": [
+            {
+              "id": "image_refs",
+              "label": "Reference Image",
+              "required": true,
+              "min": 1,
+              "max": 1,
+              "description": "Accepts 1 image reference."
+            }
+          ],
+          "videos": [],
+          "audios": []
+        },
+        "output_count": {
+          "default": 1,
+          "max": 1
+        },
+        "expected_outputs": null
+      },
+      "ui": {
+        "default_size": {
+          "width": 380,
+          "height": 560
+        },
+        "accent": "cyan",
+        "icon": "video",
+        "min_size": {
+          "width": 340,
+          "height": 442
+        },
+        "max_size": {
+          "width": 860,
+          "height": 1200
+        },
+        "color": "cyan",
+        "preview": false,
+        "field_layout": "stack"
+      },
+      "ports": {
+        "inputs": [
+          {
+            "id": "prompt",
+            "label": "Prompt",
+            "type": "text",
+            "array": false,
+            "min": 0,
+            "max": 1,
+            "required": false,
+            "accepts": [
+              "text"
+            ],
+            "description": null,
+            "advanced": false,
+            "visible_if": null
+          },
+          {
+            "id": "image_refs",
+            "label": "Reference Image",
+            "type": "image",
+            "array": true,
+            "min": 1,
+            "max": 1,
+            "required": true,
+            "accepts": [
+              "image"
+            ],
+            "description": "Accepts 1 image reference.",
+            "advanced": false,
+            "visible_if": null
+          }
+        ],
+        "outputs": [
+          {
+            "id": "video",
+            "label": "Video",
+            "type": "video",
+            "array": false,
+            "min": 0,
+            "max": null,
+            "required": false,
+            "accepts": [],
+            "description": null,
+            "advanced": false,
+            "visible_if": null
+          },
+          {
+            "id": "job",
+            "label": "Job",
+            "type": "job",
+            "array": false,
+            "min": 0,
+            "max": null,
+            "required": false,
+            "accepts": [],
+            "description": null,
+            "advanced": true,
+            "visible_if": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "type": "textarea",
+          "required": false,
+          "default": "",
+          "placeholder": "Describe the image to generate or edit...",
+          "options": [],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": false,
+          "hidden": false,
+          "connectable": true,
+          "port_type": "text",
+          "visible_if": null
+        },
+        {
+          "id": "sound",
+          "label": "Sound",
+          "type": "boolean",
+          "required": true,
+          "default": null,
+          "placeholder": null,
+          "options": [],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        },
+        {
+          "id": "duration",
+          "label": "Duration",
+          "type": "select",
+          "required": true,
+          "default": null,
+          "placeholder": null,
+          "options": [
+            5,
+            10
+          ],
+          "min": null,
+          "max": null,
+          "help_text": "Video length in seconds. Kling 2.6 supports 5s and 10s generations.",
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "type": "preview.video",
+      "title": "Preview Video",
+      "description": "Show a video in the graph without saving another output.",
+      "help_text": null,
+      "category": "Preview",
+      "search_aliases": [
+        "preview",
+        "video",
+        "view"
+      ],
+      "tags": [
+        "preview",
+        "video"
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "execution": {
+        "executor": "preview.video",
+        "mode": "sync",
+        "cacheable": false,
+        "output_node": false
+      },
+      "limits": {
+        "max_inputs": 1
+      },
+      "ui": {
+        "default_size": {
+          "width": 360,
+          "height": 400
+        },
+        "min_size": {
+          "width": 320,
+          "height": 300
+        },
+        "max_size": {
+          "width": 2400,
+          "height": 2400
+        },
+        "accent": "cyan",
+        "icon": "video",
+        "preview": true,
+        "color": "cyan",
+        "field_layout": "stack"
+      },
+      "ports": {
+        "inputs": [
+          {
+            "id": "video",
+            "label": "Video",
+            "type": "video",
+            "array": false,
+            "min": 1,
+            "max": 1,
+            "required": true,
+            "accepts": [
+              "video"
+            ],
+            "description": null,
+            "advanced": false,
+            "visible_if": null
+          }
+        ],
+        "outputs": [
+          {
+            "id": "video",
+            "label": "Video",
+            "type": "video",
+            "array": false,
+            "min": 0,
+            "max": null,
+            "required": false,
+            "accepts": [],
+            "description": null,
+            "advanced": false,
+            "visible_if": null
+          }
+        ]
+      },
+      "fields": []
+    },
+    {
+      "schema_version": 1,
+      "type": "media.save_video",
+      "title": "Save Video",
+      "description": "Expose a video as a normal Media Studio graph output.",
+      "help_text": null,
+      "category": "Media",
+      "search_aliases": [
+        "save",
+        "output",
+        "asset",
+        "video"
+      ],
+      "tags": [
+        "media",
+        "video",
+        "output"
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "execution": {
+        "executor": "media.save_video",
+        "mode": "sync",
+        "cacheable": false,
+        "output_node": true
+      },
+      "limits": {
+        "max_inputs": 2,
+        "media_types": [
+          "video",
+          "audio"
+        ],
+        "max_audio_bytes": 104857600,
+        "max_duration_seconds": 600
+      },
+      "ui": {
+        "default_size": {
+          "width": 320,
+          "height": 540
+        },
+        "accent": "yellow",
+        "icon": "save",
+        "min_size": {
+          "width": 260,
+          "height": 540
+        },
+        "max_size": {
+          "width": 860,
+          "height": 1200
+        },
+        "color": "yellow",
+        "preview": true,
+        "field_layout": "stack"
+      },
+      "ports": {
+        "inputs": [
+          {
+            "id": "video",
+            "label": "Video",
+            "type": "video",
+            "array": false,
+            "min": 1,
+            "max": 1,
+            "required": true,
+            "accepts": [
+              "video"
+            ],
+            "description": null,
+            "advanced": false,
+            "visible_if": null
+          },
+          {
+            "id": "audio",
+            "label": "Audio",
+            "type": "audio",
+            "array": false,
+            "min": 0,
+            "max": 1,
+            "required": false,
+            "accepts": [
+              "audio"
+            ],
+            "description": null,
+            "advanced": false,
+            "visible_if": null
+          }
+        ],
+        "outputs": [
+          {
+            "id": "asset",
+            "label": "Asset",
+            "type": "asset",
+            "array": false,
+            "min": 0,
+            "max": null,
+            "required": false,
+            "accepts": [],
+            "description": null,
+            "advanced": false,
+            "visible_if": null
+          },
+          {
+            "id": "video",
+            "label": "Video",
+            "type": "video",
+            "array": false,
+            "min": 0,
+            "max": null,
+            "required": false,
+            "accepts": [],
+            "description": null,
+            "advanced": false,
+            "visible_if": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "project_id",
+          "label": "Group",
+          "type": "select",
+          "required": false,
+          "default": null,
+          "placeholder": null,
+          "options": [
+            {
+              "value": "project_ab78ce28660d",
+              "label": "Sadi"
+            },
+            {
+              "value": "project_a6f9f8d497e0",
+              "label": "Hidden Project Smoke"
+            },
+            {
+              "value": "project_397443436540",
+              "label": "Project Cover Smoke"
+            },
+            {
+              "value": "project_58420ab47f22",
+              "label": "Project Smoke"
+            }
+          ],
+          "min": null,
+          "max": null,
+          "help_text": "Optional Media Studio group/project for the saved video.",
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        },
+        {
+          "id": "filename_prefix",
+          "label": "Filename Prefix",
+          "type": "text",
+          "required": false,
+          "default": "graph-video",
+          "placeholder": null,
+          "options": [],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": false,
+          "hidden": true,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        },
+        {
+          "id": "format",
+          "label": "Format",
+          "type": "select",
+          "required": true,
+          "default": "source_original",
+          "placeholder": null,
+          "options": [
+            {
+              "value": "source_original",
+              "label": "Source Original"
+            },
+            {
+              "value": "mp4_h264_browser",
+              "label": "MP4 H.264 Browser"
+            },
+            {
+              "value": "mp4_h265",
+              "label": "MP4 H.265"
+            },
+            {
+              "value": "webm_vp9",
+              "label": "WebM VP9"
+            }
+          ],
+          "min": null,
+          "max": null,
+          "help_text": "Use Source Original unless a bounded transcode is needed.",
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        },
+        {
+          "id": "codec",
+          "label": "Codec",
+          "type": "select",
+          "required": false,
+          "default": "auto",
+          "placeholder": null,
+          "options": [
+            {
+              "value": "auto",
+              "label": "Auto"
+            },
+            {
+              "value": "h264",
+              "label": "H.264"
+            },
+            {
+              "value": "h265",
+              "label": "H.265"
+            },
+            {
+              "value": "vp9",
+              "label": "VP9"
+            }
+          ],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": false,
+          "hidden": true,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        },
+        {
+          "id": "crf",
+          "label": "CRF",
+          "type": "integer",
+          "required": false,
+          "default": 23,
+          "placeholder": null,
+          "options": [],
+          "min": 0,
+          "max": 51,
+          "help_text": null,
+          "advanced": true,
+          "hidden": true,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        },
+        {
+          "id": "audio_policy",
+          "label": "Audio",
+          "type": "select",
+          "required": false,
+          "default": "keep_video_audio",
+          "placeholder": null,
+          "options": [
+            {
+              "value": "keep_video_audio",
+              "label": "Keep Video Audio"
+            },
+            {
+              "value": "replace",
+              "label": "Replace With Audio Input"
+            },
+            {
+              "value": "mix",
+              "label": "Mix With Audio Input"
+            },
+            {
+              "value": "mute",
+              "label": "Mute Video"
+            }
+          ],
+          "min": null,
+          "max": null,
+          "help_text": "Use a connected audio input to replace or mix the saved video's audio.",
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        },
+        {
+          "id": "audio_fit",
+          "label": "Audio Fit",
+          "type": "select",
+          "required": false,
+          "default": "trim_to_video",
+          "placeholder": null,
+          "options": [
+            {
+              "value": "trim_to_video",
+              "label": "Trim To Video"
+            },
+            {
+              "value": "loop_to_video",
+              "label": "Loop To Video"
+            },
+            {
+              "value": "pad_silence",
+              "label": "Pad Silence"
+            }
+          ],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": {
+            "field": "audio_policy",
+            "in": [
+              "replace",
+              "mix"
+            ]
+          }
+        },
+        {
+          "id": "audio_offset_seconds",
+          "label": "Audio Offset",
+          "type": "float",
+          "required": false,
+          "default": 0,
+          "placeholder": null,
+          "options": [],
+          "min": 0,
+          "max": 600,
+          "help_text": null,
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": {
+            "field": "audio_policy",
+            "in": [
+              "replace",
+              "mix"
+            ]
+          }
+        },
+        {
+          "id": "audio_volume",
+          "label": "Audio Volume",
+          "type": "float",
+          "required": false,
+          "default": 1,
+          "placeholder": null,
+          "options": [],
+          "min": 0,
+          "max": 4,
+          "help_text": null,
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": {
+            "field": "audio_policy",
+            "in": [
+              "replace",
+              "mix"
+            ]
+          }
+        },
+        {
+          "id": "video_audio_volume",
+          "label": "Video Audio Volume",
+          "type": "float",
+          "required": false,
+          "default": 1,
+          "placeholder": null,
+          "options": [],
+          "min": 0,
+          "max": 4,
+          "help_text": null,
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": {
+            "field": "audio_policy",
+            "equals": "mix"
+          }
+        },
+        {
+          "id": "include_metadata",
+          "label": "Include Metadata",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "placeholder": null,
+          "options": [],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": true,
+          "hidden": true,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        },
+        {
+          "id": "label",
+          "label": "Label",
+          "type": "text",
+          "required": false,
+          "default": null,
+          "placeholder": null,
+          "options": [],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": false,
+          "hidden": true,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "type": "model.kie.kling_2_6_t2v",
+      "title": "Kling 2.6 Text to Video",
+      "description": "KIE video model node using Media Studio validation, pricing, submit, and polling.",
+      "help_text": "Runs a KIE model. Credits are estimated from current fields and connected media before Run.",
+      "category": "Models/Video",
+      "search_aliases": [
+        "kling",
+        "2",
+        "6",
+        "t2v",
+        "video",
+        "kie",
+        "model"
+      ],
+      "tags": [
+        "model",
+        "video",
+        "kie"
+      ],
+      "source": {
+        "kind": "kie_model",
+        "model_key": "kling-2.6-t2v",
+        "kie_spec_version": "e1e2e6d2bda7",
+        "output_media_type": "video",
+        "task_modes": [
+          "text_to_video"
+        ]
+      },
+      "execution": {
+        "executor": "kie.model",
+        "mode": "async",
+        "cacheable": true,
+        "output_node": false,
+        "retryable": true
+      },
+      "limits": {
+        "max_input_images": null,
+        "input_contract": {
+          "images": [],
+          "videos": [],
+          "audios": []
+        },
+        "output_count": {
+          "default": 1,
+          "max": 1
+        },
+        "expected_outputs": null
+      },
+      "ui": {
+        "default_size": {
+          "width": 380,
+          "height": 560
+        },
+        "accent": "cyan",
+        "icon": "video",
+        "min_size": {
+          "width": 340,
+          "height": 466
+        },
+        "max_size": {
+          "width": 860,
+          "height": 1200
+        },
+        "color": "cyan",
+        "preview": false,
+        "field_layout": "stack"
+      },
+      "ports": {
+        "inputs": [
+          {
+            "id": "prompt",
+            "label": "Prompt",
+            "type": "text",
+            "array": false,
+            "min": 0,
+            "max": 1,
+            "required": false,
+            "accepts": [
+              "text"
+            ],
+            "description": null,
+            "advanced": false,
+            "visible_if": null
+          }
+        ],
+        "outputs": [
+          {
+            "id": "video",
+            "label": "Video",
+            "type": "video",
+            "array": false,
+            "min": 0,
+            "max": null,
+            "required": false,
+            "accepts": [],
+            "description": null,
+            "advanced": false,
+            "visible_if": null
+          },
+          {
+            "id": "job",
+            "label": "Job",
+            "type": "job",
+            "array": false,
+            "min": 0,
+            "max": null,
+            "required": false,
+            "accepts": [],
+            "description": null,
+            "advanced": true,
+            "visible_if": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "type": "textarea",
+          "required": false,
+          "default": "",
+          "placeholder": "Describe the image to generate or edit...",
+          "options": [],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": false,
+          "hidden": false,
+          "connectable": true,
+          "port_type": "text",
+          "visible_if": null
+        },
+        {
+          "id": "sound",
+          "label": "Sound",
+          "type": "boolean",
+          "required": true,
+          "default": null,
+          "placeholder": null,
+          "options": [],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        },
+        {
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "type": "select",
+          "required": true,
+          "default": null,
+          "placeholder": null,
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16"
+          ],
+          "min": null,
+          "max": null,
+          "help_text": null,
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        },
+        {
+          "id": "duration",
+          "label": "Duration",
+          "type": "select",
+          "required": true,
+          "default": null,
+          "placeholder": null,
+          "options": [
+            5,
+            10
+          ],
+          "min": null,
+          "max": null,
+          "help_text": "Video length in seconds. Kling 2.6 supports 5s and 10s generations.",
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "type": "prompt.text",
+      "title": "Prompt Text",
+      "description": "Reusable text prompt that can feed one or more model prompt inputs.",
+      "help_text": "Type prompt text here or connect upstream text. Replace passes the connected text through; append/prepend combines it with the typed prompt.",
+      "category": "Prompt",
+      "search_aliases": [
+        "prompt",
+        "text",
+        "caption",
+        "description",
+        "input",
+        "pass through"
+      ],
+      "tags": [
+        "prompt",
+        "text",
+        "utility"
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "execution": {
+        "executor": "prompt.text",
+        "mode": "sync",
+        "cacheable": true,
+        "output_node": false
+      },
+      "limits": {
+        "max_text_chars": 32000
+      },
+      "ui": {
+        "default_size": {
+          "width": 420,
+          "height": 420
+        },
+        "min_size": {
+          "width": 340,
+          "height": 320
+        },
+        "max_size": {
+          "width": 1100,
+          "height": 1400
+        },
+        "accent": "purple",
+        "icon": "text",
+        "connection_dependent_fields": {
+          "mode": "text"
+        },
+        "color": "purple",
+        "preview": false,
+        "field_layout": "stack"
+      },
+      "ports": {
+        "inputs": [
+          {
+            "id": "text",
+            "label": "Text",
+            "type": "text",
+            "array": false,
+            "min": 0,
+            "max": 1,
+            "required": false,
+            "accepts": [
+              "text"
+            ],
+            "description": "Optional upstream text from an LLM, concat, or another prompt node.",
+            "advanced": false,
+            "visible_if": null
+          }
+        ],
+        "outputs": [
+          {
+            "id": "text",
+            "label": "Text",
+            "type": "text",
+            "array": false,
+            "min": 0,
+            "max": null,
+            "required": false,
+            "accepts": [],
+            "description": "Final prompt text.",
+            "advanced": false,
+            "visible_if": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "mode",
+          "label": "Mode",
+          "type": "select",
+          "required": false,
+          "default": "replace",
+          "placeholder": null,
+          "options": [
+            {
+              "label": "Replace",
+              "value": "replace"
+            },
+            {
+              "label": "Append",
+              "value": "append"
+            },
+            {
+              "label": "Prepend",
+              "value": "prepend"
+            }
+          ],
+          "min": null,
+          "max": null,
+          "help_text": "How connected text combines with the typed prompt.",
+          "advanced": false,
+          "hidden": false,
+          "connectable": false,
+          "port_type": null,
+          "visible_if": null
+        },
+        {
+          "id": "text",
+          "label": "Prompt",
+          "type": "textarea",
+          "required": false,
+          "default": "",
+          "placeholder": "Write a reusable prompt...",
+          "options": [],
+          "min": null,
+          "max": null,
+          "help_text": "Can be typed directly or driven by a text wire.",
+          "advanced": false,
+          "hidden": false,
+          "connectable": true,
+          "port_type": "text",
+          "visible_if": null
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "Image-to-video lane intentionally keeps an empty Load Image placeholder. Select a source image before enabling/running that lane."
+  ]
+}

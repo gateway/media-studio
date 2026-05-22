@@ -6,6 +6,7 @@ import { MediaBatchActions } from "@/app/jobs/media-batch-actions";
 import { RuntimeControls } from "@/app/jobs/runtime-controls";
 import {
   adminInsetCompactClassName,
+  adminSummaryGridThreeClassName,
   adminThemeLayoutClassName,
 } from "@/components/admin-theme";
 import {
@@ -17,7 +18,7 @@ import { Panel, PanelHeader } from "@/components/panel";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { CalloutPanel, EmptyState, SurfaceInset } from "@/components/ui/surface-primitives";
 import { getMediaDashboardSnapshot, toControlApiProxyPath } from "@/lib/control-api";
-import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
+import type { ControlApiHealthData, MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
 import { formatCreditsAmount, formatDateTime, formatUsdAmount, isRecord, toFiniteNumber, truncate } from "@/lib/utils";
 
 const JOBS_PER_PAGE_OPTIONS = [20, 50, 100] as const;
@@ -55,25 +56,7 @@ export default async function JobsPage({
         : null;
   const recentQueuedCount = batches.reduce((sum, batch) => sum + Math.max(0, batch.queued_count ?? 0), 0);
   const recentRunningCount = batches.reduce((sum, batch) => sum + Math.max(0, batch.running_count ?? 0), 0);
-  const healthData = snapshot.status.data as
-    | {
-        supervisor?: string | null;
-        runner_name?: string | null;
-        runner_mode?: string | null;
-        runner_attached_to?: string | null;
-        runner_process_name?: string | null;
-        runner_launch_mode?: string | null;
-        runner_active?: boolean;
-        runner_health?: string | null;
-        heartbeat_age_seconds?: number | null;
-        heartbeat_max_age_seconds?: number | null;
-        queue_enabled?: boolean;
-        queued_jobs?: number;
-        running_jobs?: number;
-        last_scheduler_tick?: string | null;
-        issues?: string[];
-      }
-    | undefined;
+  const healthData: ControlApiHealthData | undefined = snapshot.status.data;
   const runnerHealth = healthData?.runner_health ?? (healthData?.queue_enabled ? "needs_attention" : "paused");
   const runnerHealthy = runnerHealth === "healthy";
   const totalBatches = Number(snapshot.batches.data?.total ?? batches.length);
@@ -180,7 +163,7 @@ export default async function JobsPage({
                   <div className="mt-1 text-[var(--foreground)]">{healthData?.queued_jobs ?? recentQueuedCount}</div>
                 </SurfaceInset>
               </div>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className={adminSummaryGridThreeClassName}>
                 <SurfaceInset appearance="admin" density="compact" className={`flex items-center justify-between gap-3 ${adminInsetClassName}`}>
                   <span>Jobs running at once</span>
                   <span className="font-medium text-[var(--foreground)]">{Math.max(1, queueSettings?.max_concurrent_jobs ?? 10)}</span>
@@ -224,7 +207,11 @@ export default async function JobsPage({
             eyebrow="Queue"
             title="Recent Jobs"
             description="Open a batch to inspect outputs, progress, prompt summary, and any failures tied to that run."
-            action={<AdminNavButton href="/models">Open Models</AdminNavButton>}
+            action={
+              <AdminNavButton href="/models" variant="subtle" size="compact">
+                Open Models
+              </AdminNavButton>
+            }
           />
 
           <div className="mt-5 grid gap-5">

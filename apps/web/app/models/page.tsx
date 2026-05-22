@@ -22,7 +22,6 @@ export default async function MediaModelsPage({
         models={snapshot.models.data?.models ?? []}
         presets={snapshot.presets.data?.presets ?? []}
         enhancementConfigs={snapshot.enhancementConfigs.data?.configs ?? []}
-        llmPresets={snapshot.llmPresets.data?.presets ?? []}
         queueSettings={snapshot.queueSettings.data?.settings ?? null}
         queuePolicies={snapshot.queuePolicies.data?.policies ?? []}
         initialSelectedModelKey={resolvedSearchParams.model}

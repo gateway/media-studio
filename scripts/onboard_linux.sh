@@ -64,6 +64,44 @@ prompt_yes_no() {
   [[ "$reply" =~ ^[Yy]$ ]]
 }
 
+codex_auth_path() {
+  local codex_home="${CODEX_HOME:-$HOME/.codex}"
+  printf '%s/auth.json' "$codex_home"
+}
+
+codex_local_status_label() {
+  if ! command -v codex >/dev/null 2>&1; then
+    printf 'not installed'
+    return
+  fi
+  if [[ -f "$(codex_auth_path)" ]]; then
+    printf 'ready'
+    return
+  fi
+  printf 'login needed'
+}
+
+configure_local_openai_provider() {
+  local current_local_base
+  current_local_base="$(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
+  if [[ -z "$current_local_base" ]]; then
+    current_local_base="$DEFAULT_LOCAL_OPENAI_BASE_URL"
+  fi
+  local local_base=""
+  read -r -p "Local OpenAI-compatible base URL [$current_local_base]: " local_base
+  if [[ -n "$local_base" ]]; then
+    set_env_value "MEDIA_LOCAL_OPENAI_BASE_URL" "$local_base"
+  elif [[ -z "$(env_value MEDIA_LOCAL_OPENAI_BASE_URL)" ]]; then
+    set_env_value "MEDIA_LOCAL_OPENAI_BASE_URL" "$current_local_base"
+  fi
+
+  local local_api_key=""
+  local_api_key="$(prompt_secret "Optional local OpenAI-compatible API key")"
+  if [[ -n "$local_api_key" ]]; then
+    set_env_value "MEDIA_LOCAL_OPENAI_API_KEY" "$local_api_key"
+  fi
+}
+
 require_command git
 require_command python3
 require_command npm
@@ -73,10 +111,10 @@ echo "Media Studio Linux onboarding"
 echo "Workspace: $MEDIA_ROOT"
 echo
 echo "This script will:"
-echo " - bootstrap the shared KIE API dependency"
-echo " - create or reuse the shared Python runtime"
-echo " - create .env and a clean local database"
-echo " - prompt for your KIE API key and optional enhancement providers"
+echo " - prepare the shared KIE dependency and Python runtime"
+echo " - create or reuse .env, data folders, and the local database schema"
+echo " - prompt for KIE, OpenRouter, and Local OpenAI setup"
+echo " - check whether Codex Local is already ready on this machine"
 echo
 
 "$SCRIPT_DIR/bootstrap_local.sh"
@@ -96,28 +134,25 @@ elif [[ -z "$(env_value KIE_API_KEY)" ]]; then
 fi
 
 echo
-echo "Optional prompt enhancement providers"
-echo " - OpenRouter: hosted prompt enhancement"
-echo " - Local OpenAI-compatible endpoint: local enhancement stack"
+echo "Optional LLM providers"
+echo " - Codex Local: $(codex_local_status_label) (powers Enhance, recipe drafts, and graph prompt nodes)"
+echo " - OpenRouter: hosted prompt enhancement and drafting"
+echo " - Local OpenAI-compatible endpoint: self-hosted enhancement and drafting"
 echo
 
-openrouter_key="$(prompt_secret "Optional OpenRouter API key")"
-if [[ -n "$openrouter_key" ]]; then
-  set_env_value "OPENROUTER_API_KEY" "$openrouter_key"
+if prompt_yes_no "Configure OpenRouter now? This is optional and can be set up later in Settings." "N"; then
+  openrouter_key="$(prompt_secret "Optional OpenRouter API key")"
+  if [[ -n "$openrouter_key" ]]; then
+    set_env_value "OPENROUTER_API_KEY" "$openrouter_key"
+  fi
+else
+  echo "Skipping OpenRouter setup. You can enable it later in Settings."
 fi
 
-current_local_base="$(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
-if [[ -z "$current_local_base" ]]; then
-  current_local_base="$DEFAULT_LOCAL_OPENAI_BASE_URL"
-fi
-read -r -p "Local OpenAI-compatible base URL [$current_local_base]: " local_base
-if [[ -n "$local_base" ]]; then
-  set_env_value "MEDIA_LOCAL_OPENAI_BASE_URL" "$local_base"
-fi
-
-local_api_key="$(prompt_secret "Optional local OpenAI-compatible API key")"
-if [[ -n "$local_api_key" ]]; then
-  set_env_value "MEDIA_LOCAL_OPENAI_API_KEY" "$local_api_key"
+if prompt_yes_no "Configure a local OpenAI-compatible endpoint now? This is optional and can be set up later in Settings." "N"; then
+  configure_local_openai_provider
+else
+  echo "Skipping local OpenAI-compatible setup. You can enable it later in Settings."
 fi
 
 kie_status="missing"
@@ -135,15 +170,18 @@ fi
 
 echo
 echo "Current setup summary"
-echo " - KIE API key: $kie_status"
-echo " - Live submit: $live_status"
-echo " - OpenRouter: $openrouter_status"
+echo " - KIE API key: $( [[ \"$kie_status\" == \"configured\" ]] && echo Ready || echo Not\\ set\\ up )"
+echo " - Live submit: $( [[ \"$live_status\" == \"enabled\" ]] && echo Ready || echo Not\\ set\\ up )"
+echo " - Codex Local: $( [[ \"$(codex_local_status_label)\" == \"ready\" ]] && echo Ready || ([[ \"$(codex_local_status_label)\" == \"login needed\" ]] && echo Connecting || echo Not\\ set\\ up) )"
+echo " - OpenRouter: $( [[ \"$openrouter_status\" == \"configured\" ]] && echo Ready || echo Not\\ set\\ up )"
+echo " - Local OpenAI-compatible: $( [[ -n "$(env_value MEDIA_LOCAL_OPENAI_BASE_URL)" ]] && echo Connecting || echo Not\\ set\\ up )"
 echo " - Local OpenAI base URL: $(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
 echo
 echo "Next commands"
 echo " - Studio: ./scripts/run_studio_linux.sh"
 echo " - Stop later: ./scripts/stop_studio_linux.sh"
 echo " - Setup page: http://127.0.0.1:3000/setup"
+echo " - AI settings: http://127.0.0.1:3000/settings/llms"
 echo
 
 if prompt_yes_no "Start Media Studio now in this terminal?" "N"; then

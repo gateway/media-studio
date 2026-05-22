@@ -1,0 +1,324 @@
+.graph-main {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) 180px;
+}
+
+.graph-toolbar {
+  min-height: 42px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--graph-border);
+  background: var(--graph-panel);
+}
+
+.graph-main-console-collapsed {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.graph-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+  min-height: 30px;
+  padding: 0.4rem 0.52rem;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.graph-workflow-tabs {
+  position: relative;
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 0.24rem;
+  min-width: 0;
+  max-width: min(460px, 42vw);
+  overflow: visible;
+}
+
+.graph-workflow-tab-shell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 112px;
+  max-width: 280px;
+  color: var(--graph-text);
+  background: var(--graph-panel-raised);
+  border: 1px solid var(--graph-border);
+  border-radius: 8px;
+  overflow: visible;
+  flex: 1 1 210px;
+}
+
+.graph-workflow-tab {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  padding-right: 0.35rem !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.graph-workflow-tab span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-workflow-tab-status {
+  flex: 0 0 auto;
+  max-width: 72px;
+  overflow: hidden;
+  padding: 0.18rem 0.34rem;
+  border: 1px solid rgba(209, 255, 71, 0.2);
+  border-radius: 999px;
+  color: var(--graph-accent);
+  background: var(--graph-accent-soft);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-workflow-tab-active {
+  background: var(--graph-panel-hover) !important;
+  border-color: rgba(209, 255, 71, 0.22) !important;
+}
+
+.graph-workflow-tab-running:not(.graph-workflow-tab-active) {
+  border-color: rgba(209, 255, 71, 0.18);
+}
+
+.graph-workflow-tab-dirty .graph-workflow-tab span::after {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 0.35rem;
+  border-radius: 999px;
+  background: #f0c15a;
+  vertical-align: middle;
+}
+
+.graph-workflow-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  min-width: 26px;
+  height: 100%;
+  min-height: 30px;
+  padding: 0 !important;
+  color: var(--graph-text-subtle) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-left: 1px solid var(--graph-border-faint) !important;
+  border-radius: 0 !important;
+}
+
+.graph-workflow-tab-close:hover,
+.graph-workflow-tab-close:focus-visible {
+  color: var(--graph-text) !important;
+  background: var(--graph-border-hairline) !important;
+  outline: none;
+}
+
+.graph-workflow-tab-add {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  justify-content: center;
+  padding: 0 !important;
+}
+
+.graph-workflow-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 90;
+  display: grid;
+  width: 196px;
+  gap: 0.15rem;
+  padding: 0.35rem;
+  border: 1px solid var(--graph-border-hover);
+  border-radius: 8px;
+  background: var(--graph-panel-muted);
+  box-shadow:
+    0 18px 50px var(--graph-shadow-surface),
+    inset 0 1px 0 var(--graph-surface-soft);
+}
+
+.graph-workflow-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 34px;
+  padding: 0.45rem 0.6rem !important;
+  color: var(--graph-text-bright);
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.graph-workflow-menu button:hover,
+.graph-workflow-menu button:focus-visible {
+  color: var(--graph-text);
+  background: var(--graph-panel-hover) !important;
+  outline: none;
+}
+
+.graph-workflow-menu button + button {
+  border-top: 1px solid var(--graph-border-faint);
+}
+
+.graph-hidden-file-input {
+  display: none;
+}
+
+.graph-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: 0.35rem;
+}
+
+.graph-toolbar-history-button {
+  justify-content: center;
+  width: 30px;
+  min-width: 30px;
+  padding: 0 !important;
+}
+
+.graph-toolbar-history-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.graph-toolbar-spacer {
+  flex: 1 1 auto;
+  min-width: 1rem;
+}
+
+.graph-run-status {
+  display: none;
+  max-width: min(320px, 28vw);
+  overflow: hidden;
+  color: var(--graph-text-soft);
+  font-size: 0.84rem;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-credit-balance {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  min-height: 30px;
+  padding: 0 0.44rem;
+  border: 1px solid var(--graph-border);
+  border-radius: 999px;
+  color: var(--graph-text-meta);
+  background: var(--graph-surface-faint);
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.graph-credit-balance svg,
+.graph-run-diagnostics svg {
+  flex: 0 0 auto;
+  color: var(--graph-text-faded);
+}
+
+.graph-credit-balance-muted {
+  color: rgba(247, 246, 240, 0.48);
+}
+
+.graph-pricing-balance {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  padding-right: 0.58rem;
+  line-height: 1;
+}
+
+.graph-pricing-balance small {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  margin-left: 0.08rem;
+  min-height: 18px;
+  padding: 0 0 0 0.48rem;
+  border-left: 1px solid rgba(255, 204, 102, 0.26);
+  color: var(--graph-warning);
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.graph-pricing-warning-count svg {
+  color: var(--graph-warning);
+}
+
+.graph-credit-balance-warning {
+  border-color: rgba(255, 204, 102, 0.35);
+}
+
+.graph-console-toggle-active {
+  border-color: var(--graph-accent-border) !important;
+}
+
+.graph-run-button {
+  margin-left: 0;
+  border-color: rgba(209, 255, 71, 0.35) !important;
+  background: var(--graph-accent) !important;
+  color: var(--graph-panel) !important;
+  font-weight: 800;
+}
+
+.graph-run-button-processing {
+  border-color: rgba(49, 209, 88, 0.55) !important;
+  background: var(--graph-success) !important;
+  cursor: wait !important;
+}
+
+.graph-run-button-cancel {
+  border-color: rgba(255, 204, 102, 0.4) !important;
+  background: var(--graph-warning) !important;
+  color: var(--graph-panel) !important;
+}
+
+.graph-run-button-processing svg {
+  animation: graph-run-button-spin 1s linear infinite;
+}
+
+@keyframes graph-run-button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1180px) {
+  .graph-workflow-tabs {
+    flex-basis: 45vw;
+  }
+
+  .graph-workflow-tab-shell {
+    max-width: 190px;
+    flex-basis: 170px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .graph-run-status {
+    display: block;
+  }
+}

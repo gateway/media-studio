@@ -309,8 +309,28 @@ function galleryTileCreatedAt(tile: GalleryTile) {
   return tile.asset?.created_at ?? tile.job?.created_at ?? tile.batch?.created_at ?? "";
 }
 
+function galleryTilePriority(tile: GalleryTile) {
+  const jobStatus = String(tile.job?.status ?? "").toLowerCase();
+  if (jobStatus === "queued" || jobStatus === "submitted" || jobStatus === "running" || jobStatus === "processing") {
+    return 0;
+  }
+  if (tile.asset) {
+    return 1;
+  }
+  if (jobStatus === "failed") {
+    return 2;
+  }
+  return 3;
+}
+
 function sortGalleryTilesByCreatedAt(tiles: GalleryTile[]) {
-  return [...tiles].sort((left, right) => galleryTileCreatedAt(right).localeCompare(galleryTileCreatedAt(left)));
+  return [...tiles].sort((left, right) => {
+    const priorityDelta = galleryTilePriority(left) - galleryTilePriority(right);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+    return galleryTileCreatedAt(right).localeCompare(galleryTileCreatedAt(left));
+  });
 }
 
 export function buildGalleryTiles(
@@ -369,8 +389,7 @@ export function buildGalleryTiles(
       if (job.status === "failed") {
         return true;
       }
-      const finalState = String((job.final_status as Record<string, unknown> | null | undefined)?.state ?? "").toLowerCase();
-      return finalState === "succeeded";
+      return false;
     });
     for (const job of pendingJobs) {
       if (seenJobIds.has(job.job_id)) {

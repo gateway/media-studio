@@ -30,6 +30,10 @@ export const adminInsetPanelClassName = adminInsetSurfaceClassName;
 export const adminDashedCardClassName =
   emptyStateClassName({ appearance: "admin", density: "compact", className: "px-4 py-5 text-sm text-[var(--muted-strong)]" });
 
+export const adminButtonIconLabelClassName = "inline-flex items-center gap-2";
+
+export const adminInputWithIconClassName = "admin-input flex items-center gap-2 px-3";
+
 type AdminButtonVariant = "primary" | "subtle" | "danger";
 type AdminButtonSize = "default" | "compact";
 

@@ -29,6 +29,7 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert _count_rows(clean_db, "media_project_references") == 0
     assert _count_rows(clean_db, "media_queue_settings") == 1
     assert _count_rows(clean_db, "media_presets") >= 7
+    assert _count_rows(clean_db, "prompt_recipes") >= 5
     connection = sqlite3.connect(clean_db)
     try:
         row = connection.execute(
@@ -62,13 +63,25 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert any("gpt-image-2-image-to-image" in json.loads(preset_row[0]) for preset_row in preset_rows)
     assert any("gpt-image-2-text-to-image" in json.loads(preset_row[0]) for preset_row in preset_rows)
 
-    assert status["schema_version"] == 4
-    assert status["latest_version"] == 4
-    assert len(status["applied_migrations"]) == 4
+    assert status["schema_version"] == status["latest_version"]
+    assert status["latest_version"] == 16
+    assert len(status["applied_migrations"]) == 16
     assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
     assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
     assert status["applied_migrations"][2]["migration_id"] == "20260419_003_project_visibility_flags"
     assert status["applied_migrations"][3]["migration_id"] == "20260501_004_default_model_release_updates"
+    assert status["applied_migrations"][4]["migration_id"] == "20260511_005_graph_studio"
+    assert status["applied_migrations"][5]["migration_id"] == "20260512_006_graph_run_metrics"
+    assert status["applied_migrations"][6]["migration_id"] == "20260512_007_graph_artifacts"
+    assert status["applied_migrations"][7]["migration_id"] == "20260516_008_prompt_recipes"
+    assert status["applied_migrations"][8]["migration_id"] == "20260516_009_prompt_recipe_validation_warnings"
+    assert status["applied_migrations"][9]["migration_id"] == "20260516_010_prompt_recipe_drafting_config"
+    assert status["applied_migrations"][10]["migration_id"] == "20260517_011_graph_prompt_recipe_seed_refresh"
+    assert status["applied_migrations"][11]["migration_id"] == "20260517_012_prompt_recipe_graph_runtime_refresh"
+    assert status["applied_migrations"][12]["migration_id"] == "20260517_013_prompt_recipe_smoke_template_provider_refresh"
+    assert status["applied_migrations"][13]["migration_id"] == "20260517_014_external_llm_usage"
+    assert status["applied_migrations"][14]["migration_id"] == "20260517_015_graph_rollout_hardening_cleanup"
+    assert status["applied_migrations"][15]["migration_id"] == "20260519_016_prompt_recipe_drafting_enabled"
     assert status["pending_migrations"] == []
 
 
@@ -129,10 +142,7 @@ def test_bootstrap_schema_updates_v3_default_model_release_settings(app_modules,
 
     connection = sqlite3.connect(legacy_db)
     try:
-        connection.execute(
-            "DELETE FROM schema_migrations WHERE migration_id = ?",
-            ("20260501_004_default_model_release_updates",),
-        )
+        connection.execute("DELETE FROM schema_migrations WHERE version >= ?", (4,))
         connection.execute("UPDATE schema_meta SET value = ? WHERE key = ?", ("3", "schema_version"))
         connection.execute(
             "UPDATE schema_meta SET value = ? WHERE key = ?",
@@ -187,7 +197,8 @@ def test_bootstrap_schema_updates_v3_default_model_release_settings(app_modules,
     assert seedance_policy is not None
     assert int(seedance_policy[0] or 0) == 1
     assert int(seedance_policy[1] or 0) == 1
-    assert store.get_schema_status(legacy_db)["schema_version"] == 4
+    status = store.get_schema_status(legacy_db)
+    assert status["schema_version"] == status["latest_version"] == 16
 
 
 def test_backup_database_copies_existing_database(app_modules, tmp_path: Path) -> None:
@@ -200,6 +211,7 @@ def test_backup_database_copies_existing_database(app_modules, tmp_path: Path) -
     assert backup_path.parent == tmp_path / "backups"
     assert _count_rows(backup_path, "media_queue_settings") == 1
     assert _count_rows(backup_path, "media_presets") == _count_rows(source_db, "media_presets")
+    assert _count_rows(backup_path, "prompt_recipes") == _count_rows(source_db, "prompt_recipes")
 
 
 def test_bootstrap_schema_creates_backup_before_upgrading_existing_database(app_modules, tmp_path: Path) -> None:
@@ -238,12 +250,91 @@ def test_bootstrap_schema_creates_backup_before_upgrading_existing_database(app_
     assert _count_rows(backup_path, "media_jobs") == 1
 
     status = store.get_schema_status(legacy_db)
-    assert status["schema_version"] == 4
+    assert status["schema_version"] == status["latest_version"] == 16
     assert status["pending_migrations"] == []
     assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
     assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
     assert status["applied_migrations"][2]["migration_id"] == "20260419_003_project_visibility_flags"
     assert status["applied_migrations"][3]["migration_id"] == "20260501_004_default_model_release_updates"
+    assert status["applied_migrations"][4]["migration_id"] == "20260511_005_graph_studio"
+
+
+def test_rollout_cleanup_migration_archives_duplicate_prompt_recipe_smoke_workflows(app_modules, tmp_path: Path) -> None:
+    db_admin = app_modules["db_admin"]
+    store = app_modules["store"]
+    legacy_db = db_admin.create_clean_database(tmp_path / "legacy-rollout-cleanup.sqlite")
+
+    connection = sqlite3.connect(legacy_db)
+    try:
+        connection.execute("DELETE FROM schema_migrations WHERE version >= ?", (15,))
+        connection.execute("UPDATE schema_meta SET value = ? WHERE key = ?", ("14", "schema_version"))
+        connection.execute(
+            "UPDATE schema_meta SET value = ? WHERE key = ?",
+            ("20260517_014_external_llm_usage", "last_migration_id"),
+        )
+        connection.executemany(
+            """
+            INSERT INTO graph_workflows (workflow_id, name, status, schema_version, workflow_json, created_at, updated_at)
+            VALUES (?, ?, 'active', 1, ?, ?, ?)
+            """,
+            [
+                (
+                    "graphwf_text_old",
+                    "Prompt Recipe - Text Single Prompt",
+                    json.dumps({"schema_version": 1, "name": "Prompt Recipe - Text Single Prompt", "nodes": [], "edges": []}),
+                    "2026-05-17T03:03:09.000000+00:00",
+                    "2026-05-17T03:03:09.000000+00:00",
+                ),
+                (
+                    "graphwf_text_new",
+                    "Prompt Recipe - Text Single Prompt",
+                    json.dumps({"schema_version": 1, "name": "Prompt Recipe - Text Single Prompt", "nodes": [], "edges": []}),
+                    "2026-05-17T03:27:56.000000+00:00",
+                    "2026-05-17T03:27:56.000000+00:00",
+                ),
+                (
+                    "graphwf_copy_1",
+                    "Prompt Recipe - Single Image Director Copy",
+                    json.dumps({"schema_version": 1, "name": "Prompt Recipe - Single Image Director Copy", "nodes": [], "edges": []}),
+                    "2026-05-17T05:24:54.000000+00:00",
+                    "2026-05-17T05:24:54.000000+00:00",
+                ),
+                (
+                    "graphwf_live_smoke_1",
+                    "Live Prompt Recipe Smoke",
+                    json.dumps({"schema_version": 1, "name": "Live Prompt Recipe Smoke", "nodes": [], "edges": []}),
+                    "2026-05-17T03:06:19.000000+00:00",
+                    "2026-05-17T03:06:19.000000+00:00",
+                ),
+            ],
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    store.bootstrap_schema(legacy_db)
+
+    connection = sqlite3.connect(legacy_db)
+    try:
+        rows = connection.execute(
+            """
+            SELECT workflow_id, name, status
+            FROM graph_workflows
+            WHERE workflow_id IN ('graphwf_text_old', 'graphwf_text_new', 'graphwf_copy_1', 'graphwf_live_smoke_1')
+            ORDER BY workflow_id ASC
+            """
+        ).fetchall()
+    finally:
+        connection.close()
+
+    row_map = {row[0]: {"name": row[1], "status": row[2]} for row in rows}
+    assert row_map["graphwf_text_old"]["status"] == "archived"
+    assert row_map["graphwf_text_new"]["status"] == "active"
+    assert row_map["graphwf_copy_1"]["status"] == "archived"
+    assert row_map["graphwf_live_smoke_1"]["status"] == "archived"
+
+    status = store.get_schema_status(legacy_db)
+    assert status["schema_version"] == status["latest_version"] == 16
 
 
 def test_deduplicate_assets_by_job_id_keeps_latest_asset(app_modules) -> None:

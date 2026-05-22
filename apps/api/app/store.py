@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+# Stable persistence facade for route/service callers.
+# New domain persistence should live in focused store_* modules and be re-exported
+# here only when existing callers need the compatibility surface.
+
+import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -22,6 +27,56 @@ from .store_support import (
     new_id,
     upsert_table as _upsert_table,
     utcnow_iso,
+)
+from .store_graph import (
+    append_graph_run_event,
+    archive_graph_template,
+    archive_graph_workflow,
+    cache_graph_node_definitions,
+    count_graph_workflow_versions,
+    create_graph_artifact,
+    create_graph_run,
+    create_graph_workflow_version,
+    create_or_update_graph_template,
+    create_or_update_graph_workflow,
+    get_graph_run,
+    get_graph_run_node,
+    get_graph_template,
+    get_graph_workflow,
+    latest_completed_graph_run_node_output,
+    latest_graph_run_event_id,
+    list_graph_artifacts_for_node_run,
+    list_graph_artifacts_for_run,
+    list_graph_run_events,
+    list_graph_run_nodes,
+    list_graph_runs,
+    list_graph_runs_for_workflow,
+    list_graph_templates,
+    list_graph_workflows,
+    mark_interrupted_graph_runs,
+    update_graph_run,
+    update_graph_run_node,
+)
+from .store_llm_usage import (
+    count_external_llm_usage,
+    create_external_llm_usage_event,
+    create_or_update_prompt_recipe_drafting_config,
+    get_external_llm_usage_summary,
+    get_prompt_recipe_drafting_config,
+    list_external_llm_usage,
+)
+from .store_reference_media import (
+    attach_reference_to_project,
+    create_or_reuse_reference_media,
+    create_or_update_reference_media,
+    detach_reference_from_project,
+    get_reference_media,
+    get_reference_media_by_hash,
+    get_reference_media_by_stored_path,
+    hide_reference_media,
+    list_project_references,
+    list_reference_media,
+    mark_reference_media_used,
 )
 
 
@@ -163,6 +218,45 @@ def delete_preset(preset_id: str) -> Dict[str, Any]:
     return create_or_update_preset(record)
 
 
+def list_prompt_recipes(status: Optional[str] = None, category: Optional[str] = None) -> List[Dict[str, Any]]:
+    clauses = ["1 = 1"]
+    params: List[Any] = []
+    if status and status != "all":
+        clauses.append("status = ?")
+        params.append(status)
+    elif not status:
+        clauses.append("status != 'archived'")
+    if category and category != "all":
+        clauses.append("category = ?")
+        params.append(category)
+    query = "SELECT * FROM prompt_recipes WHERE %s ORDER BY priority DESC, updated_at DESC, key ASC" % " AND ".join(clauses)
+    with get_connection() as connection:
+        rows = connection.execute(query, params).fetchall()
+    return [_decode_row(row) for row in rows]
+
+
+def get_prompt_recipe(recipe_id: str) -> Optional[Dict[str, Any]]:
+    return _get_table("prompt_recipes", "recipe_id", recipe_id)
+
+
+def get_prompt_recipe_by_key(key: str) -> Optional[Dict[str, Any]]:
+    with get_connection() as connection:
+        row = connection.execute("SELECT * FROM prompt_recipes WHERE key = ? LIMIT 1", (key,)).fetchone()
+    return _decode_row(row) if row else None
+
+
+def create_or_update_prompt_recipe(payload: Dict[str, Any]) -> Dict[str, Any]:
+    return _upsert_table("prompt_recipes", "recipe_id", payload)
+
+
+def delete_prompt_recipe(recipe_id: str) -> Dict[str, Any]:
+    record = get_prompt_recipe(recipe_id)
+    if record is None:
+        raise FileNotFoundError("prompt recipe not found")
+    record["status"] = "archived"
+    return create_or_update_prompt_recipe(record)
+
+
 def list_projects(status: Optional[str] = "active") -> List[Dict[str, Any]]:
     clauses = ["1 = 1"]
     params: List[Any] = []
@@ -221,201 +315,6 @@ def delete_project(project_id: str) -> None:
         connection.execute("UPDATE media_assets SET project_id = NULL WHERE project_id = ?", (project_id,))
         connection.execute("DELETE FROM media_project_references WHERE project_id = ?", (project_id,))
         connection.execute("DELETE FROM media_projects WHERE project_id = ?", (project_id,))
-
-
-def list_project_references(project_id: str, *, kind: Optional[str] = None, status: str = "active") -> List[Dict[str, Any]]:
-    clauses = ["mpr.project_id = ?"]
-    params: List[Any] = [project_id]
-    if status:
-        clauses.append("rm.status = ?")
-        params.append(status)
-    if kind:
-        clauses.append("rm.kind = ?")
-        params.append(kind)
-    query = """
-        SELECT rm.*
-        FROM media_project_references mpr
-        INNER JOIN reference_media rm ON rm.reference_id = mpr.reference_id
-        WHERE %s
-        ORDER BY mpr.created_at DESC, rm.last_used_at DESC, rm.created_at DESC
-    """ % " AND ".join(clauses)
-    with get_connection() as connection:
-        rows = connection.execute(query, params).fetchall()
-    return _attach_project_ids_to_reference_records([_decode_row(row) for row in rows])
-
-
-def attach_reference_to_project(project_id: str, reference_id: str) -> Dict[str, Any]:
-    now = utcnow_iso()
-    with get_connection() as connection:
-        connection.execute(
-            """
-            INSERT INTO media_project_references (project_id, reference_id, created_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT(project_id, reference_id) DO NOTHING
-            """,
-            (project_id, reference_id, now),
-        )
-    record = get_reference_media(reference_id)
-    if not record:
-        raise KeyError("reference media not found")
-    return record
-
-
-def detach_reference_from_project(project_id: str, reference_id: str) -> Dict[str, Any]:
-    with get_connection() as connection:
-        connection.execute(
-            "DELETE FROM media_project_references WHERE project_id = ? AND reference_id = ?",
-            (project_id, reference_id),
-        )
-    record = get_reference_media(reference_id)
-    if not record:
-        raise KeyError("reference media not found")
-    return record
-
-
-def _reference_project_ids(connection, reference_ids: List[str]) -> Dict[str, List[str]]:
-    if not reference_ids:
-        return {}
-    placeholders = ",".join("?" for _ in reference_ids)
-    rows = connection.execute(
-        f"""
-        SELECT project_id, reference_id
-        FROM media_project_references
-        WHERE reference_id IN ({placeholders})
-        ORDER BY created_at ASC
-        """,
-        reference_ids,
-    ).fetchall()
-    attached: Dict[str, List[str]] = {}
-    for row in rows:
-        reference_id = str(row["reference_id"])
-        attached.setdefault(reference_id, []).append(str(row["project_id"]))
-    return attached
-
-
-def _attach_project_ids_to_reference_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    if not records:
-        return records
-    reference_ids = [str(record.get("reference_id") or "").strip() for record in records]
-    reference_ids = [reference_id for reference_id in reference_ids if reference_id]
-    if not reference_ids:
-        return records
-    with get_connection() as connection:
-        attached = _reference_project_ids(connection, reference_ids)
-    hydrated: List[Dict[str, Any]] = []
-    for record in records:
-        reference_id = str(record.get("reference_id") or "").strip()
-        hydrated.append({**record, "attached_project_ids": attached.get(reference_id, [])})
-    return hydrated
-
-
-def list_reference_media(
-    *,
-    kind: Optional[str] = None,
-    status: str = "active",
-    limit: int = 100,
-    offset: int = 0,
-    project_id: Optional[str] = None,
-) -> List[Dict[str, Any]]:
-    clauses = ["1 = 1"]
-    params: List[Any] = []
-    if status:
-        clauses.append("rm.status = ?")
-        params.append(status)
-    if kind:
-        clauses.append("rm.kind = ?")
-        params.append(kind)
-    join = ""
-    if project_id:
-        join = "INNER JOIN media_project_references mpr ON mpr.reference_id = rm.reference_id"
-        clauses.append("mpr.project_id = ?")
-        params.append(project_id)
-    query = "SELECT rm.* FROM reference_media rm %s WHERE %s ORDER BY rm.last_used_at DESC, rm.created_at DESC LIMIT ? OFFSET ?" % (
-        join,
-        " AND ".join(clauses),
-    )
-    params.extend([limit, offset])
-    with get_connection() as connection:
-        rows = connection.execute(query, params).fetchall()
-    return _attach_project_ids_to_reference_records([_decode_row(row) for row in rows])
-
-
-def get_reference_media(reference_id: str) -> Optional[Dict[str, Any]]:
-    record = _get_table("reference_media", "reference_id", reference_id)
-    if not record:
-        return None
-    return _attach_project_ids_to_reference_records([record])[0]
-
-
-def get_reference_media_by_hash(kind: str, sha256: str, file_size_bytes: int) -> Optional[Dict[str, Any]]:
-    with get_connection() as connection:
-        row = connection.execute(
-            """
-            SELECT *
-            FROM reference_media
-            WHERE kind = ? AND sha256 = ? AND file_size_bytes = ?
-            LIMIT 1
-            """,
-            (kind, sha256, file_size_bytes),
-        ).fetchone()
-    return _decode_row(row) if row else None
-
-
-def get_reference_media_by_stored_path(stored_path: str) -> Optional[Dict[str, Any]]:
-    with get_connection() as connection:
-        row = connection.execute(
-            "SELECT * FROM reference_media WHERE stored_path = ? LIMIT 1",
-            (stored_path,),
-        ).fetchone()
-    return _decode_row(row) if row else None
-
-
-def create_or_update_reference_media(payload: Dict[str, Any]) -> Dict[str, Any]:
-    payload = payload.copy()
-    payload.setdefault("reference_id", new_id("ref"))
-    payload.setdefault("created_at", utcnow_iso())
-    payload.setdefault("updated_at", utcnow_iso())
-    payload.setdefault("status", "active")
-    payload.setdefault("usage_count", 0)
-    payload.setdefault("metadata_json", {})
-    return _upsert_table("reference_media", "reference_id", payload)
-
-
-def create_or_reuse_reference_media(payload: Dict[str, Any], *, increment_usage: bool = True) -> Dict[str, Any]:
-    kind = str(payload.get("kind") or "").strip()
-    sha256 = str(payload.get("sha256") or "").strip()
-    file_size_bytes = int(payload.get("file_size_bytes") or 0)
-    if kind and sha256 and file_size_bytes > 0:
-        existing = get_reference_media_by_hash(kind, sha256, file_size_bytes)
-        if existing:
-            updates: Dict[str, Any] = {"updated_at": utcnow_iso()}
-            if increment_usage:
-                updates["usage_count"] = int(existing.get("usage_count") or 0) + 1
-                updates["last_used_at"] = utcnow_iso()
-            return create_or_update_reference_media({**existing, **updates})
-    next_payload = payload.copy()
-    if increment_usage:
-        next_payload["usage_count"] = max(1, int(next_payload.get("usage_count") or 0))
-        next_payload["last_used_at"] = next_payload.get("last_used_at") or utcnow_iso()
-    return create_or_update_reference_media(next_payload)
-
-
-def mark_reference_media_used(reference_id: str, increment: int = 1) -> Dict[str, Any]:
-    current = get_reference_media(reference_id)
-    if not current:
-        raise KeyError("reference media not found")
-    current["usage_count"] = max(0, int(current.get("usage_count") or 0) + increment)
-    current["last_used_at"] = utcnow_iso()
-    return create_or_update_reference_media(current)
-
-
-def hide_reference_media(reference_id: str) -> Dict[str, Any]:
-    current = get_reference_media(reference_id)
-    if not current:
-        raise KeyError("reference media not found")
-    current["status"] = "hidden"
-    current["updated_at"] = utcnow_iso()
-    return create_or_update_reference_media(current)
 
 
 def list_system_prompts() -> List[Dict[str, Any]]:
@@ -659,9 +558,11 @@ def list_assets(
     if favorites_only:
         clauses.append("favorited = 1")
     if media_type == "image":
-        clauses.append("hero_thumb_path IS NOT NULL")
+        clauses.append("generation_kind = 'image'")
     if media_type == "video":
-        clauses.append("hero_poster_path IS NOT NULL")
+        clauses.append("generation_kind = 'video'")
+    if media_type == "audio":
+        clauses.append("generation_kind = 'audio'")
     if model_key:
         clauses.append("model_key = ?")
         params.append(model_key)
@@ -694,6 +595,15 @@ def get_asset_by_job_id(job_id: str) -> Optional[Dict[str, Any]]:
             (job_id,),
         ).fetchone()
     return _decode_row(row) if row else None
+
+
+def get_assets_by_job_id(job_id: str) -> List[Dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            "SELECT * FROM media_assets WHERE job_id = ? ORDER BY created_at ASC, asset_id ASC",
+            (job_id,),
+        ).fetchall()
+    return [_decode_row(row) for row in rows]
 
 
 def create_or_update_asset(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -729,18 +639,28 @@ def deduplicate_assets_by_job_id() -> int:
     with get_connection() as connection:
         rows = connection.execute(
             """
-            SELECT rowid, asset_id, job_id
+            SELECT rowid, asset_id, job_id, remote_output_url, payload_json
             FROM media_assets
             WHERE job_id IS NOT NULL AND job_id != ''
             ORDER BY job_id ASC, created_at DESC, rowid DESC
             """
         ).fetchall()
-        keep_by_job: Dict[str, int] = {}
+        keep_by_output: Dict[str, int] = {}
         duplicate_rowids: List[int] = []
         for row in rows:
             job_id = str(row["job_id"])
-            if job_id not in keep_by_job:
-                keep_by_job[job_id] = int(row["rowid"])
+            remote_output_url = str(row["remote_output_url"] or "").strip()
+            try:
+                payload = json.loads(row["payload_json"] or "{}") if "payload_json" in row.keys() else {}
+            except (TypeError, json.JSONDecodeError):
+                payload = {}
+            output_index = ""
+            if isinstance(payload, dict):
+                output_index = str(((payload.get("graph") or {}).get("output_index")) or "").strip()
+            output_key = remote_output_url or (f"index:{output_index}" if output_index else "legacy")
+            dedupe_key = "|".join([job_id, output_key])
+            if dedupe_key not in keep_by_output:
+                keep_by_output[dedupe_key] = int(row["rowid"])
                 continue
             duplicate_rowids.append(int(row["rowid"]))
         for rowid in duplicate_rowids:

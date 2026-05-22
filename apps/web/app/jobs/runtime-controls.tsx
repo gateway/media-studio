@@ -107,7 +107,7 @@ export function RuntimeControls() {
             </div>
             <div className="mt-3">
               <AdminButton
-                variant="primary"
+                variant="subtle"
                 size="compact"
                 onClick={() => void restartService(service.service)}
                 disabled={!service.manageable || restarting != null}

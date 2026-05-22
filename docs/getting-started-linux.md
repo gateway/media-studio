@@ -26,7 +26,8 @@ The onboarding script will:
 - create `.env`
 - create the local database
 - prompt for your KIE API key
-- optionally prompt for prompt enhancement providers
+- report Codex Local availability on this machine
+- optionally prompt for OpenRouter and local OpenAI-compatible provider setup
 
 ## Start And Stop
 

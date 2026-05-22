@@ -23,6 +23,11 @@ class HealthResponse(BaseModel):
     kie_api_key_configured: bool = False
     live_submit_enabled: bool = False
     openrouter_api_key_configured: bool = False
+    local_openai_configured: bool = False
+    local_openai_ready: bool = False
+    codex_local_command_available: bool = False
+    codex_local_login_configured: bool = False
+    codex_local_ready: bool = False
     runner_name: str = "Media Studio Runner"
     runner_mode: str = "embedded"
     runner_attached_to: str = "Media Studio API"
@@ -271,6 +276,164 @@ class PresetRecord(BaseModel):
         return merged
 
 
+class PromptRecipeVariable(BaseModel):
+    key: str
+    token: Optional[str] = None
+    label: str
+    enabled: bool = True
+    required: bool = False
+    default_value: Optional[str] = ""
+    description: Optional[str] = ""
+
+
+class PromptRecipeCustomField(BaseModel):
+    key: str
+    label: str
+    type: str = "text"
+    placeholder: Optional[str] = None
+    default_value: Optional[Any] = ""
+    required: bool = False
+    help_text: Optional[str] = None
+    options: List[str] = Field(default_factory=list)
+
+
+class PromptRecipeImageInputConfig(BaseModel):
+    enabled: bool = False
+    required: bool = False
+    mode: str = "none"
+    analysis_variable: str = "image_analysis"
+    max_files: int = 0
+
+
+class PromptRecipeUpsertRequest(BaseModel):
+    key: str
+    label: str
+    description: Optional[str] = ""
+    category: str
+    status: str = "active"
+    system_prompt_template: str
+    image_analysis_prompt: Optional[str] = ""
+    user_prompt_placeholder: str = "{{user_prompt}}"
+    output_format: str = "single_prompt"
+    output_contract_json: Dict[str, Any] = Field(default_factory=dict)
+    output_contract: Dict[str, Any] = Field(default_factory=dict)
+    input_variables_json: List[PromptRecipeVariable] = Field(default_factory=list)
+    input_variables: List[PromptRecipeVariable] = Field(default_factory=list)
+    custom_fields_json: List[PromptRecipeCustomField] = Field(default_factory=list)
+    custom_fields: List[PromptRecipeCustomField] = Field(default_factory=list)
+    image_input_json: PromptRecipeImageInputConfig = Field(default_factory=PromptRecipeImageInputConfig)
+    image_input: Optional[PromptRecipeImageInputConfig] = None
+    validation_warnings_json: List[str] = Field(default_factory=list)
+    validation_warnings: List[str] = Field(default_factory=list)
+    default_options_json: Dict[str, Any] = Field(default_factory=dict)
+    default_options: Dict[str, Any] = Field(default_factory=dict)
+    rules_json: Dict[str, Any] = Field(default_factory=dict)
+    rules: Dict[str, Any] = Field(default_factory=dict)
+    thumbnail_path: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    notes: Optional[str] = ""
+    source_kind: str = "custom"
+    version: str = "1"
+    priority: int = 0
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_alias_fields(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        merged = dict(data)
+        alias_pairs = (
+            ("output_contract", "output_contract_json"),
+            ("input_variables", "input_variables_json"),
+            ("custom_fields", "custom_fields_json"),
+            ("image_input", "image_input_json"),
+            ("validation_warnings", "validation_warnings_json"),
+            ("default_options", "default_options_json"),
+            ("rules", "rules_json"),
+        )
+        for alias, json_name in alias_pairs:
+            if json_name not in merged and alias in merged:
+                merged[json_name] = merged[alias]
+            if alias not in merged and json_name in merged:
+                merged[alias] = merged[json_name]
+        return merged
+
+
+class PromptRecipeRecord(BaseModel):
+    recipe_id: str
+    key: str
+    label: str
+    description: Optional[str] = ""
+    category: str
+    status: str = "active"
+    system_prompt_template: str
+    image_analysis_prompt: Optional[str] = ""
+    user_prompt_placeholder: str = "{{user_prompt}}"
+    output_format: str = "single_prompt"
+    output_contract_json: Dict[str, Any] = Field(default_factory=dict)
+    output_contract: Dict[str, Any] = Field(default_factory=dict)
+    input_variables_json: List[Dict[str, Any]] = Field(default_factory=list)
+    input_variables: List[Dict[str, Any]] = Field(default_factory=list)
+    custom_fields_json: List[Dict[str, Any]] = Field(default_factory=list)
+    custom_fields: List[Dict[str, Any]] = Field(default_factory=list)
+    image_input_json: Dict[str, Any] = Field(default_factory=dict)
+    image_input: Dict[str, Any] = Field(default_factory=dict)
+    validation_warnings_json: List[str] = Field(default_factory=list)
+    validation_warnings: List[str] = Field(default_factory=list)
+    default_options_json: Dict[str, Any] = Field(default_factory=dict)
+    default_options: Dict[str, Any] = Field(default_factory=dict)
+    rules_json: Dict[str, Any] = Field(default_factory=dict)
+    rules: Dict[str, Any] = Field(default_factory=dict)
+    thumbnail_path: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    notes: Optional[str] = ""
+    source_kind: str = "custom"
+    version: Optional[str] = None
+    priority: int = 0
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def mirror_alias_fields(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        merged = dict(data)
+        alias_pairs = (
+            ("output_contract", "output_contract_json"),
+            ("input_variables", "input_variables_json"),
+            ("custom_fields", "custom_fields_json"),
+            ("image_input", "image_input_json"),
+            ("validation_warnings", "validation_warnings_json"),
+            ("default_options", "default_options_json"),
+            ("rules", "rules_json"),
+        )
+        for alias, json_name in alias_pairs:
+            value = merged.get(alias) if alias in merged else merged.get(json_name)
+            if value is None:
+                value = [] if json_name in {"input_variables_json", "custom_fields_json", "validation_warnings_json"} else {}
+            merged[alias] = value
+            merged[json_name] = value
+        return merged
+
+
+class PromptRecipeDraftRequest(BaseModel):
+    idea: str
+    provider_kind: Optional[str] = None
+    provider_model_id: Optional[str] = None
+    provider_base_url: Optional[str] = None
+    category: Optional[str] = None
+    output_format: Optional[str] = None
+    image_input_mode: Optional[str] = None
+
+
+class PromptRecipeDraftResponse(BaseModel):
+    ok: bool = True
+    draft: PromptRecipeUpsertRequest
+    validation_warnings: List[str] = Field(default_factory=list)
+    drafting_model: Dict[str, str] = Field(default_factory=dict)
+
+
 class SystemPromptUpsertRequest(BaseModel):
     key: str
     label: str
@@ -354,6 +517,7 @@ class EnhancementProviderProbeRequest(BaseModel):
     base_url: Optional[str] = None
     selected_model_id: Optional[str] = None
     require_images: bool = False
+    probe_mode: str = "catalog"
 
 
 class EnhancementProviderProbeResponse(BaseModel):
@@ -362,6 +526,91 @@ class EnhancementProviderProbeResponse(BaseModel):
     credential_source: Optional[str] = None
     selected_model: Optional[EnhancementProviderModel] = None
     available_models: List[EnhancementProviderModel] = Field(default_factory=list)
+
+
+class PromptRecipeDraftingConfigUpsertRequest(BaseModel):
+    enabled: bool = True
+    provider_kind: str = "openrouter"
+    provider_label: Optional[str] = None
+    provider_model_id: Optional[str] = None
+    provider_base_url: Optional[str] = None
+    provider_supports_images: bool = False
+    provider_status: Optional[str] = None
+    provider_last_tested_at: Optional[str] = None
+    provider_capabilities_json: Dict[str, Any] = Field(default_factory=dict)
+    temperature: float = 0.2
+    max_tokens: int = 1800
+
+
+class PromptRecipeDraftingConfigRecord(BaseModel):
+    config_key: str
+    enabled: bool = True
+    provider_kind: str = "openrouter"
+    provider_label: Optional[str] = None
+    provider_model_id: Optional[str] = None
+    provider_base_url_configured: bool = False
+    provider_credential_source: Optional[str] = None
+    provider_supports_images: bool = False
+    provider_status: Optional[str] = None
+    provider_last_tested_at: Optional[str] = None
+    provider_capabilities_json: Dict[str, Any] = Field(default_factory=dict)
+    temperature: float = 0.2
+    max_tokens: int = 1800
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class ExternalLlmUsageTotals(BaseModel):
+    event_count: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    reasoning_tokens: int = 0
+    cached_tokens: int = 0
+    cache_write_tokens: int = 0
+    cost_usd: float = 0.0
+
+
+class ExternalLlmUsageRecord(BaseModel):
+    usage_event_id: str
+    provider_kind: str
+    provider_model_id: str
+    provider_response_id: Optional[str] = None
+    source_kind: str
+    workflow_id: Optional[str] = None
+    run_id: Optional[str] = None
+    node_id: Optional[str] = None
+    recipe_id: Optional[str] = None
+    model_key: Optional[str] = None
+    task_mode: Optional[str] = None
+    usage_json: Dict[str, Any] = Field(default_factory=dict)
+    prompt_tokens: Optional[int] = None
+    completion_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
+    reasoning_tokens: Optional[int] = None
+    cached_tokens: Optional[int] = None
+    cache_write_tokens: Optional[int] = None
+    cost_usd: Optional[float] = None
+    metadata_json: Dict[str, Any] = Field(default_factory=dict)
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class ExternalLlmUsageListResponse(BaseModel):
+    items: List[ExternalLlmUsageRecord] = Field(default_factory=list)
+    total: int = 0
+    limit: int = 0
+    offset: int = 0
+
+
+class ExternalLlmUsageSummaryResponse(BaseModel):
+    provider_kind: str = "external_llm"
+    currency: str = "USD"
+    today: ExternalLlmUsageTotals = Field(default_factory=ExternalLlmUsageTotals)
+    last_7d: ExternalLlmUsageTotals = Field(default_factory=ExternalLlmUsageTotals)
+    last_30d: ExternalLlmUsageTotals = Field(default_factory=ExternalLlmUsageTotals)
+    lifetime: ExternalLlmUsageTotals = Field(default_factory=ExternalLlmUsageTotals)
+    generated_at: Optional[str] = None
 
 
 class PromptContextRequest(BaseModel):
@@ -389,6 +638,7 @@ class ValidateRequest(BaseModel):
     audios: List[MediaRefInput] = Field(default_factory=list)
     options: Dict[str, Any] = Field(default_factory=dict)
     preset_id: Optional[str] = None
+    callback_url: Optional[str] = None
     preset_text_values: Dict[str, str] = Field(default_factory=dict)
     preset_image_slots: Dict[str, List[MediaRefInput]] = Field(default_factory=dict)
     selected_system_prompt_ids: List[str] = Field(default_factory=list)

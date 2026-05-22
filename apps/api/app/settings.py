@@ -71,6 +71,7 @@ class AppSettings(BaseModel):
     media_pricing_cache_hours: int = 6
     media_pricing_refresh_on_startup: bool = True
     media_studio_supervisor: Optional[str] = None
+    media_studio_public_api_base_url: Optional[str] = None
     control_api_token: str = "media-studio-local-control-token"
     kie_api_key: Optional[str] = None
     openrouter_api_key: Optional[str] = None
@@ -114,6 +115,11 @@ settings = AppSettings(
     media_pricing_cache_hours=int(os.getenv("MEDIA_PRICING_CACHE_HOURS", "6")),
     media_pricing_refresh_on_startup=_env_bool("MEDIA_PRICING_REFRESH_ON_STARTUP", True),
     media_studio_supervisor=os.getenv("MEDIA_STUDIO_SUPERVISOR"),
+    media_studio_public_api_base_url=(
+        os.getenv("MEDIA_STUDIO_PUBLIC_API_BASE_URL")
+        or os.getenv("MEDIA_STUDIO_PUBLIC_CALLBACK_BASE_URL")
+        or None
+    ),
     control_api_token=_resolve_control_api_token(_env_str("MEDIA_STUDIO_APP_ENV", "development")),
     kie_api_key=os.getenv("KIE_API_KEY"),
     openrouter_api_key=os.getenv("OPENROUTER_API_KEY"),

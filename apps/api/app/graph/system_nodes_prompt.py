@@ -1,0 +1,322 @@
+from __future__ import annotations
+
+from typing import List
+
+from .prompt_node_fields import prompt_generation_runtime_fields, prompt_provider_selection_fields
+from .schemas import GraphNodeDefinition, GraphNodeField, GraphNodePort
+from .prompt_recipe_catalog import (
+    prompt_recipe_catalog,
+    prompt_recipe_category_options,
+    prompt_recipe_dynamic_fields,
+    prompt_recipe_input_ports,
+    prompt_recipe_picker_options,
+    prompt_recipe_search_aliases,
+)
+
+def prompt_node_definitions() -> List[GraphNodeDefinition]:
+    active_recipe_catalog = prompt_recipe_catalog(status="active")
+    all_recipe_catalog = prompt_recipe_catalog(status="all")
+    max_recipe_images = max((int((recipe.get("image_input") or {}).get("max_files") or 0) for recipe in all_recipe_catalog), default=0)
+    return [
+        GraphNodeDefinition(
+            type="prompt.text",
+            title="Prompt Text",
+            description="Reusable text prompt that can feed one or more model prompt inputs.",
+            help_text="Type prompt text here or connect upstream text. Replace passes the connected text through; append/prepend combines it with the typed prompt.",
+            category="Prompt",
+            search_aliases=["prompt", "text", "caption", "description", "input", "pass through"],
+            tags=["prompt", "text", "utility"],
+            source={"kind": "system"},
+            execution={"executor": "prompt.text", "mode": "sync", "cacheable": True, "output_node": False},
+            limits={"max_text_chars": 32000},
+            ui={
+                "default_size": {"width": 420, "height": 420},
+                "min_size": {"width": 340, "height": 320},
+                "max_size": {"width": 1100, "height": 1400},
+                "accent": "purple",
+                "icon": "text",
+                "connection_dependent_fields": {"mode": "text"},
+            },
+            ports={
+                "inputs": [
+                    GraphNodePort(
+                        id="text",
+                        label="Text",
+                        type="text",
+                        required=False,
+                        max=1,
+                        accepts=["text"],
+                        description="Optional upstream text from an LLM, concat, or another prompt node.",
+                    )
+                ],
+                "outputs": [GraphNodePort(id="text", label="Text", type="text", description="Final prompt text.")],
+            },
+            fields=[
+                GraphNodeField(
+                    id="mode",
+                    label="Mode",
+                    type="select",
+                    required=False,
+                    default="replace",
+                    options=[
+                        {"label": "Replace", "value": "replace"},
+                        {"label": "Append", "value": "append"},
+                        {"label": "Prepend", "value": "prepend"},
+                    ],
+                    help_text="How connected text combines with the typed prompt.",
+                ),
+                GraphNodeField(
+                    id="text",
+                    label="Prompt",
+                    type="textarea",
+                    required=False,
+                    default="",
+                    placeholder="Write a reusable prompt...",
+                    connectable=True,
+                    port_type="text",
+                    help_text="Can be typed directly or driven by a text wire.",
+                )
+            ],
+        ),
+        GraphNodeDefinition(
+            type="prompt.llm",
+            title="LLM Prompt",
+            description="Generate or rewrite prompt text with an OpenRouter or local OpenAI-compatible model.",
+            help_text="Use text, an optional image, and a system prompt to produce final prompt text. OpenRouter models use a server-side estimate when model pricing metadata is available; local OpenAI-compatible models remain unknown until you map them.",
+            category="Prompt",
+            search_aliases=["llm", "openrouter", "local", "vision", "image describe", "prompt enhance", "gemini", "qwen"],
+            tags=["prompt", "text", "llm", "vision"],
+            source={
+                "kind": "external_llm",
+                "providers": ["studio_default", "openrouter", "codex_local", "local_openai"],
+                "supports_images": "provider_dependent",
+                "pricing": {"status": "estimated_openrouter_or_unknown_local"},
+            },
+            execution={"executor": "prompt.llm", "mode": "sync", "cacheable": False, "output_node": False},
+            limits={
+                "max_user_prompt_chars": 20000,
+                "max_system_prompt_chars": 20000,
+                "max_image_inputs": 1,
+                "max_tokens": {"min": 64, "max": 4000, "default": 1200},
+                "temperature": {"min": 0, "max": 2, "default": 0.3},
+            },
+            ui={
+                "default_size": {"width": 420, "height": 720},
+                "min_size": {"width": 360, "height": 560},
+                "max_size": {"width": 860, "height": 1200},
+                "color": "text",
+                "accent": "purple",
+                "icon": "sparkles",
+                "preview": False,
+                "field_layout": "stack",
+            },
+            ports={
+                "inputs": [
+                    GraphNodePort(
+                        id="user_prompt",
+                        label="User Prompt",
+                        type="text",
+                        required=False,
+                        max=1,
+                        accepts=["text"],
+                        description="Optional text to inject into the system prompt or send as the user request.",
+                    ),
+                    GraphNodePort(
+                        id="image",
+                        label="Image",
+                        type="image",
+                        required=False,
+                        max=1,
+                        accepts=["image"],
+                        description="Optional image context. The selected provider model must support image input.",
+                    ),
+                ],
+                "outputs": [
+                    GraphNodePort(id="text", label="Text", type="text", description="Generated prompt text."),
+                    GraphNodePort(id="metadata", label="Metadata", type="json", advanced=True, description="Provider, model, mode, and safe execution metadata."),
+                ],
+            },
+            fields=[
+                GraphNodeField(
+                    id="mode",
+                    label="Mode",
+                    type="select",
+                    required=True,
+                    default="rewrite_prompt",
+                    options=[
+                        {"label": "Rewrite Prompt", "value": "rewrite_prompt"},
+                        {"label": "Describe Image", "value": "describe_image"},
+                        {"label": "Custom", "value": "custom"},
+                    ],
+                    help_text="Controls the default task sent to the LLM.",
+                ),
+                *prompt_provider_selection_fields(),
+                GraphNodeField(
+                    id="system_prompt",
+                    label="System Prompt",
+                    type="textarea",
+                    required=True,
+                    default="Turn [user_prompt] into a vivid, production-ready image or video prompt. Preserve the core idea and add concrete visual detail.",
+                    placeholder="Use [user_prompt] or {user_prompt} where the user text should be injected.",
+                    help_text="Supports [user_prompt] or {user_prompt}. If omitted, user text is sent as the user message.",
+                ),
+                GraphNodeField(
+                    id="user_prompt",
+                    label="User Prompt",
+                    type="textarea",
+                    required=False,
+                    default="",
+                    placeholder="Optional text to rewrite or combine with the system prompt...",
+                    connectable=True,
+                    port_type="text",
+                    help_text="Typed text is used unless a text wire is connected to the User Prompt input.",
+                ),
+                GraphNodeField(
+                    id="image_instruction",
+                    label="Image Instruction",
+                    type="textarea",
+                    required=False,
+                    default="Describe the image with subject, composition, lighting, style, and details useful for media generation.",
+                    visible_if={"field": "mode", "in": ["describe_image", "custom"]},
+                    help_text="Only used when an image is connected.",
+                ),
+                *prompt_generation_runtime_fields(
+                    temperature_help="Optional override. Leave blank to use the selected provider defaults. Codex Local currently uses provider-managed runtime defaults.",
+                    temperature_placeholder="Provider default",
+                    max_tokens_placeholder="Provider default",
+                    max_tokens_help="Optional override. Leave blank to use the selected provider defaults. Codex Local currently uses provider-managed runtime defaults.",
+                    include_external_variables=False,
+                ),
+            ],
+        ),
+        GraphNodeDefinition(
+            type="prompt.concat",
+            title="Prompt Concat",
+            description="Merge multiple prompt text streams into one reusable prompt.",
+            category="Prompt",
+            search_aliases=["prompt", "concat", "join", "merge", "text"],
+            tags=["prompt", "text", "utility"],
+            source={"kind": "system"},
+            execution={"executor": "prompt.concat", "mode": "sync", "cacheable": True, "output_node": False},
+            limits={"max_text_chars": 64000, "max_inputs": 2},
+            ui={"default_size": {"width": 300, "height": 260}, "accent": "purple", "icon": "text"},
+            ports={
+                "inputs": [
+                    GraphNodePort(id="text_a", label="Text A", type="text", required=False, max=1, accepts=["text"]),
+                    GraphNodePort(id="text_b", label="Text B", type="text", required=False, max=1, accepts=["text"]),
+                ],
+                "outputs": [GraphNodePort(id="text", label="Text", type="text")],
+            },
+            fields=[
+                GraphNodeField(id="inline_text", label="Inline Text", type="textarea", required=False, default="", placeholder="Optional text to append..."),
+                GraphNodeField(id="separator", label="Separator", type="text", required=False, default="\n\n"),
+            ],
+        ),
+        GraphNodeDefinition(
+            type="prompt.recipe",
+            title="Prompt Recipe",
+            description="Run any saved Prompt Recipe from one schema-driven node.",
+            help_text="Pick a category, choose a saved Prompt Recipe, then fill only the fields that appear for that recipe. Hover info explains output shape, image handling, and what each field is for. OpenRouter-backed recipes use a pre-run estimate when model pricing metadata is available.",
+            category="Prompt",
+            search_aliases=prompt_recipe_search_aliases(active_recipe_catalog),
+            tags=["prompt", "recipe", "llm", "text", "vision"],
+            source={
+                "kind": "external_llm",
+                "providers": ["studio_default", "openrouter", "codex_local", "local_openai"],
+                "supports_images": "provider_dependent",
+                "pricing": {"status": "estimated_openrouter_or_unknown_local"},
+                "recipe_backed": True,
+                "recipe_catalog": all_recipe_catalog,
+            },
+            execution={"executor": "prompt.recipe", "mode": "sync", "cacheable": False, "output_node": False},
+            limits={
+                "max_image_inputs": max_recipe_images or 0,
+                "max_text_chars": 32000,
+                "max_tokens": {"min": 64, "max": 4000, "default": 1600},
+                "temperature": {"min": 0, "max": 2, "default": 0.35},
+            },
+            ui={
+                "default_size": {"width": 420, "height": 760},
+                "min_size": {"width": 360, "height": 560},
+                "max_size": {"width": 860, "height": 1240},
+                "color": "text",
+                "accent": "purple",
+                "icon": "sparkles",
+                "field_layout": "stack",
+            },
+            ports={
+                "inputs": prompt_recipe_input_ports(all_recipe_catalog),
+                "outputs": [
+                    GraphNodePort(id="text", label="Text", type="text", description="Primary human-readable recipe output."),
+                    GraphNodePort(id="result", label="Result", type="json", description="Canonical recipe result payload."),
+                ],
+            },
+            fields=[
+                GraphNodeField(
+                    id="recipe_category",
+                    label="Recipe Category",
+                    type="select",
+                    required=False,
+                    default="all",
+                    options=prompt_recipe_category_options(active_recipe_catalog),
+                    help_text="Filter the recipe picker by category so the node only shows the recipes you care about.",
+                ),
+                GraphNodeField(
+                    id="recipe_id",
+                    label="Prompt Recipe",
+                    type="prompt_recipe_picker",
+                    required=True,
+                    options=prompt_recipe_picker_options(active_recipe_catalog),
+                    help_text="Choose the saved Prompt Recipe to run. The fields below update to match the selected recipe.",
+                ),
+                *prompt_recipe_dynamic_fields(all_recipe_catalog),
+                *prompt_provider_selection_fields(),
+                *prompt_generation_runtime_fields(
+                    temperature_help="Optional override. Leave blank to use the saved recipe defaults when present, otherwise the provider defaults. Codex Local currently uses provider-managed runtime defaults.",
+                    temperature_placeholder="Recipe default",
+                    max_tokens_placeholder="Recipe default",
+                    max_tokens_help="Optional override. Leave blank to use the saved recipe defaults when present, otherwise the provider defaults. Codex Local currently uses provider-managed runtime defaults.",
+                    include_external_variables=True,
+                ),
+            ],
+        ),
+        GraphNodeDefinition(
+            type="prompt.parse",
+            title="Prompt Parse",
+            description="Split a Prompt Recipe result payload into reusable prompt outputs.",
+            help_text="Connect the JSON Result output from a Prompt Recipe node to fan out normalized prompt text outputs.",
+            category="Prompt",
+            search_aliases=["prompt parse", "split prompts", "recipe parse", "fanout", "json parse"],
+            tags=["prompt", "text", "json", "utility"],
+            source={"kind": "system"},
+            execution={"executor": "prompt.parse", "mode": "sync", "cacheable": True, "output_node": False},
+            limits={"max_prompts": 12},
+            ui={
+                "default_size": {"width": 340, "height": 520},
+                "min_size": {"width": 280, "height": 360},
+                "max_size": {"width": 640, "height": 860},
+                "color": "json",
+                "accent": "purple",
+                "icon": "json",
+                "field_layout": "stack",
+            },
+            ports={
+                "inputs": [
+                    GraphNodePort(
+                        id="result",
+                        label="Result",
+                        type="json",
+                        required=True,
+                        max=1,
+                        accepts=["json"],
+                        description="Canonical Prompt Recipe result payload.",
+                    )
+                ],
+                "outputs": [
+                    *[GraphNodePort(id=f"prompt_{index}", label=f"Prompt {index}", type="text", description=f"Parsed prompt {index}.") for index in range(1, 13)],
+                    GraphNodePort(id="result", label="Result", type="json", description="Original recipe result payload."),
+                ],
+            },
+            fields=[],
+        ),
+    ]

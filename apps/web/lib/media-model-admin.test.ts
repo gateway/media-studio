@@ -2,10 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   parseSavedEnhancementConfig,
+  parseSavedPromptRecipeDraftingConfig,
   probeEnhancementProviderRequest,
+  probePromptRecipeDraftingProviderRequest,
+  probeSharedProviderCatalogRequest,
   saveEnhancementConfigRequest,
   saveGlobalQueueSettingsRequest,
   saveModelQueuePolicyRequest,
+  savePromptRecipeDraftingConfigRequest,
   upsertEnhancementConfigEntry,
 } from "./media-model-admin";
 
@@ -30,6 +34,9 @@ describe("media-model-admin", () => {
     });
     expect(parseSavedEnhancementConfig({ model_key: "seedance-2.0" } as never)).toMatchObject({
       model_key: "seedance-2.0",
+    });
+    expect(parseSavedPromptRecipeDraftingConfig({ config: { config_key: "prompt_recipe_drafting" } as never })).toMatchObject({
+      config_key: "prompt_recipe_drafting",
     });
   });
 
@@ -111,6 +118,98 @@ describe("media-model-admin", () => {
 
     expect(result.ok).toBe(true);
     expect(result.settings).toMatchObject({ max_concurrent_jobs: 2, queue_enabled: true });
+  });
+
+  it("saves prompt recipe drafting config through the shared request helper", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, config: { config_key: "prompt_recipe_drafting", provider_kind: "openrouter" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await savePromptRecipeDraftingConfigRequest({
+      provider_kind: "openrouter",
+      provider_model_id: "qwen/qwen3.5-35b-a3b",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.config).toMatchObject({ config_key: "prompt_recipe_drafting", provider_kind: "openrouter" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/control/prompt-recipe-drafting-config", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider_kind: "openrouter",
+        provider_model_id: "qwen/qwen3.5-35b-a3b",
+      }),
+    });
+  });
+
+  it("probes prompt recipe drafting providers through the shared request helper", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        credential_source: "env",
+        selected_model: { id: "qwen" },
+        available_models: [{ id: "qwen" }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await probePromptRecipeDraftingProviderRequest({
+      provider_kind: "openrouter",
+      provider_model_id: "qwen",
+      provider_base_url: null,
+      require_images: false,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.credentialSource).toBe("env");
+    expect(result.selectedModel).toMatchObject({ id: "qwen" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/control/prompt-recipe-drafting-config/probe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider_kind: "openrouter",
+        provider_model_id: "qwen",
+        provider_base_url: null,
+        require_images: false,
+      }),
+    });
+  });
+
+  it("probes shared provider catalogs through the shared request helper", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        credential_source: "codex_local_login",
+        selected_model: { id: "gpt-5.4" },
+        available_models: [{ id: "gpt-5.4" }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await probeSharedProviderCatalogRequest({
+      provider_kind: "codex_local",
+      provider_model_id: "gpt-5.4",
+      provider_base_url: null,
+      require_images: true,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.credentialSource).toBe("codex_local_login");
+    expect(result.selectedModel).toMatchObject({ id: "gpt-5.4" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/control/shared-provider-catalog/probe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider_kind: "codex_local",
+        provider_model_id: "gpt-5.4",
+        provider_base_url: null,
+        require_images: true,
+      }),
+    });
   });
 
   it("clamps model queue policy saves through the shared request helper", async () => {

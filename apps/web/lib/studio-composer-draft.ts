@@ -132,7 +132,11 @@ export function readStudioComposerDraft() {
   if (typeof window === "undefined") {
     return null;
   }
-  return cloneDraft(window.__mediaStudioComposerDraft ?? null) ?? readSessionDraft();
+  try {
+    return cloneDraft(window.__mediaStudioComposerDraft ?? null) ?? readSessionDraft();
+  } catch {
+    return readSessionDraft();
+  }
 }
 
 export function writeStudioComposerDraft(draft: StudioComposerDraft | null) {
@@ -140,9 +144,14 @@ export function writeStudioComposerDraft(draft: StudioComposerDraft | null) {
     return;
   }
   window.__mediaStudioComposerDraft = cloneDraft(draft);
-  if (!draft) {
-    window.sessionStorage.removeItem(STUDIO_COMPOSER_DRAFT_STORAGE_KEY);
-    return;
+  try {
+    if (!draft) {
+      window.sessionStorage?.removeItem(STUDIO_COMPOSER_DRAFT_STORAGE_KEY);
+      return;
+    }
+    window.sessionStorage?.setItem(STUDIO_COMPOSER_DRAFT_STORAGE_KEY, JSON.stringify(buildSessionDraft(draft)));
+  } catch {
+    // Some embedded browser contexts expose storage inconsistently. The in-memory
+    // draft above keeps the current tab usable even when session persistence is unavailable.
   }
-  window.sessionStorage.setItem(STUDIO_COMPOSER_DRAFT_STORAGE_KEY, JSON.stringify(buildSessionDraft(draft)));
 }

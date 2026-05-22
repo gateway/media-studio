@@ -103,6 +103,63 @@ function printLogs(name, proc) {
   console.error(proc.logs.join("").trim());
 }
 
+async function writeFailureArtifacts({ page, consoleErrors, apiProc, webProc, error, apiBaseUrl, webBaseUrl }) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const artifactRoot = process.env.MEDIA_STUDIO_SMOKE_ARTIFACT_DIR
+    ? path.resolve(process.env.MEDIA_STUDIO_SMOKE_ARTIFACT_DIR)
+    : path.join(root, "test-results", "media-studio-smoke");
+  const artifactDir = path.join(artifactRoot, stamp);
+  await fs.mkdir(artifactDir, { recursive: true });
+
+  const metadata = {
+    created_at: new Date().toISOString(),
+    api_base_url: apiBaseUrl,
+    web_base_url: webBaseUrl,
+    current_url: page?.url?.() ?? null,
+    error: {
+      name: error?.name ?? "Error",
+      message: error?.message ?? String(error),
+      stack: error?.stack ?? null,
+    },
+  };
+
+  await fs.writeFile(path.join(artifactDir, "metadata.json"), `${JSON.stringify(metadata, null, 2)}\n`);
+  await fs.writeFile(path.join(artifactDir, "console-errors.json"), `${JSON.stringify(consoleErrors ?? [], null, 2)}\n`);
+  await fs.writeFile(path.join(artifactDir, "api.log"), (apiProc?.logs ?? []).join(""));
+  await fs.writeFile(path.join(artifactDir, "web.log"), (webProc?.logs ?? []).join(""));
+
+  if (page && !page.isClosed()) {
+    try {
+      await page.screenshot({ path: path.join(artifactDir, "failure.png"), fullPage: true });
+    } catch (screenshotError) {
+      await fs.writeFile(path.join(artifactDir, "screenshot-error.txt"), String(screenshotError));
+    }
+    try {
+      await fs.writeFile(path.join(artifactDir, "failure.html"), await page.content());
+    } catch (htmlError) {
+      await fs.writeFile(path.join(artifactDir, "html-error.txt"), String(htmlError));
+    }
+  }
+
+  console.error(`\nSmoke failure artifacts written to ${artifactDir}`);
+}
+
+async function assertNoLoadError(page, routePath) {
+  const loadError = page.getByText("This page could not load", { exact: true });
+  if ((await loadError.count()) > 0) {
+    throw new Error(`${routePath} rendered the app-level load error.`);
+  }
+}
+
+async function smokeAdminRoute(page, webBaseUrl, { path: routePath, heading, text }) {
+  await page.goto(`${webBaseUrl}${routePath}`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("heading", { name: heading }).first().waitFor({ timeout: 45_000 });
+  if (text) {
+    await page.getByText(text, { exact: false }).first().waitFor({ timeout: 15_000 });
+  }
+  await assertNoLoadError(page, routePath);
+}
+
 async function run() {
   const kieRoot = resolveKieRoot();
   const pythonPath = path.join(kieRoot, ".venv", "bin", "python");
@@ -120,6 +177,8 @@ async function run() {
   let apiProc = null;
   let webProc = null;
   let browser = null;
+  let page = null;
+  const consoleErrors = [];
 
   try {
     apiProc = startProcess(pythonPath, ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", String(apiPort)], {
@@ -157,8 +216,7 @@ async function run() {
     await waitForUrl(`${webBaseUrl}/studio`, { timeoutMs: 90_000 });
 
     browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-    const consoleErrors = [];
+    page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     page.on("console", (message) => {
       if (message.type() === "error") {
         consoleErrors.push(message.text());
@@ -167,6 +225,19 @@ async function run() {
     page.on("pageerror", (error) => {
       consoleErrors.push(error.message);
     });
+
+    const adminRoutes = [
+      { path: "/settings", heading: "Settings", text: "AI setup moved into its own route" },
+      { path: "/settings/llms", heading: "AI Settings", text: "Enhance default model" },
+      { path: "/setup", heading: "Connect Services", text: "Connect KIE" },
+      { path: "/models", heading: "Models", text: "Model Setup" },
+      { path: "/presets", heading: "Presets", text: "Media Presets" },
+      { path: "/jobs", heading: "Jobs", text: "Recent Jobs" },
+      { path: "/pricing", heading: "Pricing", text: "Live pricing context" },
+    ];
+    for (const route of adminRoutes) {
+      await smokeAdminRoute(page, webBaseUrl, route);
+    }
 
     await page.goto(`${webBaseUrl}/studio`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("studio-gallery").waitFor({ timeout: 45_000 });
@@ -205,11 +276,59 @@ async function run() {
     await generateButton.click();
     await page.locator('[data-testid="studio-gallery-card"], [data-testid="studio-gallery-batch-card"]').first().waitFor({ timeout: 45_000 });
 
+    await page.goto(`${webBaseUrl}/graph-studio`, { waitUntil: "domcontentloaded" });
+    const graphCanvas = page.getByTestId("graph-canvas");
+    await graphCanvas.waitFor({ timeout: 45_000 });
+    await page.getByTestId("graph-run-button").waitFor({ timeout: 15_000 });
+    await page.getByTestId("graph-workflow-tabs").click();
+    await page.getByTestId("graph-workflow-menu").waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await page.getByTestId("graph-workflow-menu").waitFor({ state: "hidden", timeout: 10_000 });
+    await page.getByTestId("graph-console").waitFor({ timeout: 15_000 });
+    await page.getByTestId("graph-sidebar-console-button").click();
+    await page.getByTestId("graph-console").waitFor({ state: "hidden", timeout: 10_000 });
+    await page.getByTestId("graph-sidebar-console-button").click();
+    await page.getByTestId("graph-console").waitFor({ timeout: 10_000 });
+    await page.getByTestId("graph-sidebar-workflows-button").waitFor({ timeout: 15_000 });
+    await page.getByTestId("graph-sidebar-nodes-button").waitFor({ timeout: 15_000 });
+    await page.getByTestId("graph-sidebar-images-button").waitFor({ timeout: 15_000 });
+    await page.getByTestId("graph-sidebar-workflows-button").click();
+    await page.getByTestId("graph-workflows-modal").waitFor({ timeout: 10_000 });
+    await page.getByTestId("graph-template-nano-image-pipeline").waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await page.getByTestId("graph-workflows-modal").waitFor({ state: "hidden", timeout: 10_000 });
+    await page.getByTestId("graph-sidebar-nodes-button").click();
+    await page.getByTestId("graph-nodes-modal").waitFor({ timeout: 10_000 });
+    await page.getByText("Load Image", { exact: true }).first().waitFor({ timeout: 10_000 });
+    await page.getByText("Save Image", { exact: true }).first().waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await page.getByTestId("graph-nodes-modal").waitFor({ state: "hidden", timeout: 10_000 });
+    await page.getByTestId("graph-sidebar-images-button").click();
+    await page.getByTestId("graph-images-modal").waitFor({ timeout: 10_000 });
+    await page.getByTestId("graph-reference-list").waitFor({ timeout: 10_000 });
+    await page.getByTestId("graph-asset-list").waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await page.getByTestId("graph-images-modal").waitFor({ state: "hidden", timeout: 10_000 });
+    await page.getByTestId("graph-node-prompt.text").waitFor({ timeout: 15_000 });
+    await page.getByTestId("graph-node-media.load_image").waitFor({ timeout: 15_000 });
+    const graphModelNode = page.getByTestId("graph-node-model.kie.nano_banana_pro");
+    await graphModelNode.waitFor({ timeout: 15_000 });
+    const modelPrompt = graphModelNode.getByPlaceholder("Describe the image to generate or edit...");
+    if (!(await modelPrompt.isDisabled())) {
+      throw new Error("Connected model prompt field was not disabled.");
+    }
+    await page.getByRole("button", { name: /Drop media or choose from library/i }).click();
+    await page.getByTestId("graph-image-library-modal").waitFor({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await page.getByTestId("graph-image-library-modal").waitFor({ state: "hidden", timeout: 10_000 });
+    await page.getByText("Load Image", { exact: true }).first().waitFor({ timeout: 15_000 });
+    await page.getByText("Save Image", { exact: true }).first().waitFor({ timeout: 15_000 });
     if (consoleErrors.length) {
       throw new Error(`Console errors during Studio smoke:\n${consoleErrors.join("\n")}`);
     }
     console.log("Studio browser smoke passed.");
   } catch (error) {
+    await writeFailureArtifacts({ page, consoleErrors, apiProc, webProc, error, apiBaseUrl, webBaseUrl });
     printLogs("api", apiProc);
     printLogs("web", webProc);
     throw error;
