@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from typing import Any, Dict, Iterable, List
 
 from .. import store
@@ -85,7 +86,13 @@ def _selection_summary(*, label: str, description: str, category: str, status: s
 
 def prompt_recipe_catalog(*, status: str = "all") -> List[Dict[str, Any]]:
     catalog: List[Dict[str, Any]] = []
-    for recipe in store.list_prompt_recipes(status=status):
+    try:
+        recipes = store.list_prompt_recipes(status=status)
+    except sqlite3.OperationalError as exc:
+        if "no such table: prompt_recipes" not in str(exc):
+            raise
+        recipes = []
+    for recipe in recipes:
         image_input = recipe.get("image_input_json") or {}
         category = str(recipe.get("category") or "utility").strip() or "utility"
         status_value = str(recipe.get("status") or "inactive")

@@ -46,6 +46,9 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Install media tooling
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Run quality gates
         env:
           MEDIA_STUDIO_KIE_API_REPO_PATH: ${{ github.workspace }}/kie-api
