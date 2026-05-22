@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from typing import List
 
 from .schemas import GraphNodeDefinition, GraphNodeField, GraphNodePort
@@ -38,9 +39,15 @@ SAVE_AUDIO_FORMAT_OPTIONS = [
 
 
 def _project_options() -> List[dict[str, str]]:
+    try:
+        projects = store.list_projects(status="active")
+    except sqlite3.OperationalError as exc:
+        if "no such table: media_projects" not in str(exc):
+            raise
+        projects = []
     return [
         {"value": str(item["project_id"]), "label": str(item.get("name") or item["project_id"])}
-        for item in store.list_projects(status="active")
+        for item in projects
     ]
 
 
