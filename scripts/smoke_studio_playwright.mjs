@@ -285,10 +285,9 @@ async function run() {
     await page.keyboard.press("Escape");
     await page.getByTestId("graph-workflow-menu").waitFor({ state: "hidden", timeout: 10_000 });
     await page.getByTestId("graph-console").waitFor({ timeout: 15_000 });
-    await graphCanvas.click({ position: { x: 420, y: 260 } });
-    await page.keyboard.press("c");
+    await page.getByTestId("graph-sidebar-console-button").click();
     await page.getByTestId("graph-console").waitFor({ state: "hidden", timeout: 10_000 });
-    await page.keyboard.press("c");
+    await page.getByTestId("graph-sidebar-console-button").click();
     await page.getByTestId("graph-console").waitFor({ timeout: 10_000 });
     await page.getByTestId("graph-sidebar-workflows-button").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-sidebar-nodes-button").waitFor({ timeout: 15_000 });
