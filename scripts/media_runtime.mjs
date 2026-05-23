@@ -1,5 +1,6 @@
 import { Socket, createServer } from "node:net";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -36,6 +37,36 @@ export function loadMediaEnv(root = mediaRoot, baseEnv = process.env) {
   }
 
   return resolved;
+}
+
+export function ensureMediaStudioInstallId(root = mediaRoot, baseEnv = process.env) {
+  const existingEnvValue = String(baseEnv.MEDIA_STUDIO_INSTALL_ID || "").trim();
+  if (existingEnvValue) {
+    return existingEnvValue;
+  }
+
+  const envPath = path.join(root, ".env");
+  const prefix = "MEDIA_STUDIO_INSTALL_ID=";
+  const lines = existsSync(envPath) ? readFileSync(envPath, "utf8").split(/\r?\n/) : [];
+  for (const line of lines) {
+    if (line.startsWith(prefix)) {
+      const value = line.slice(prefix.length).trim();
+      if (value) {
+        return value;
+      }
+    }
+  }
+
+  const installId = `install-${randomBytes(16).toString("hex")}`;
+  const normalizedLines = lines.filter((line, index) => index < lines.length - 1 || line.trim() !== "");
+  let insertAt = normalizedLines.length;
+  const tokenIndex = normalizedLines.findIndex((line) => line.startsWith("MEDIA_STUDIO_CONTROL_API_TOKEN="));
+  if (tokenIndex >= 0) {
+    insertAt = tokenIndex + 1;
+  }
+  normalizedLines.splice(insertAt, 0, `${prefix}${installId}`);
+  writeFileSync(envPath, `${normalizedLines.join("\n").trimEnd()}\n`);
+  return installId;
 }
 
 export function resolveKieRoot(root = mediaRoot, env = process.env) {
@@ -170,7 +201,8 @@ export function withResolvedRuntimeEnv({
   reload = true,
   env = process.env,
 } = {}) {
-  const loadedEnv = loadMediaEnv(mediaRoot, env);
+  const mediaStudioInstallId = ensureMediaStudioInstallId(mediaRoot, env);
+  const loadedEnv = loadMediaEnv(mediaRoot, { ...env, MEDIA_STUDIO_INSTALL_ID: mediaStudioInstallId });
   const kieRoot = resolveKieRoot(mediaRoot, loadedEnv);
 
   const resolvedApiHost = apiHost || loadedEnv.MEDIA_STUDIO_API_HOST || "127.0.0.1";
@@ -201,6 +233,7 @@ export function withResolvedRuntimeEnv({
       MEDIA_STUDIO_WEB_PORT: resolvedWebPort,
       MEDIA_STUDIO_SUPERVISOR: loadedEnv.MEDIA_STUDIO_SUPERVISOR || "manual",
       MEDIA_STUDIO_CONTROL_API_BASE_URL: resolvedControlApiBaseUrl,
+      MEDIA_STUDIO_INSTALL_ID: loadedEnv.MEDIA_STUDIO_INSTALL_ID || mediaStudioInstallId,
       NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL: resolvedControlApiBaseUrl,
       PORT: resolvedWebPort,
       NPM_CONFIG_FUND: loadedEnv.NPM_CONFIG_FUND || "false",

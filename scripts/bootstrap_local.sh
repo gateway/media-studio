@@ -107,11 +107,13 @@ mkdir -p "$MEDIA_ROOT/data/uploads" "$MEDIA_ROOT/data/downloads" "$MEDIA_ROOT/da
 
 if [[ ! -f "$MEDIA_ROOT/.env" ]]; then
   LOCAL_CONTROL_TOKEN="$(generate_media_studio_local_control_token)"
+  LOCAL_INSTALL_ID="$(generate_media_studio_install_id)"
   cat > "$MEDIA_ROOT/.env" <<EOF
 MEDIA_STUDIO_APP_ENV=development
 NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL=
 MEDIA_STUDIO_CONTROL_API_BASE_URL=
 MEDIA_STUDIO_CONTROL_API_TOKEN=$LOCAL_CONTROL_TOKEN
+MEDIA_STUDIO_INSTALL_ID=$LOCAL_INSTALL_ID
 MEDIA_STUDIO_ADMIN_USERNAME=
 MEDIA_STUDIO_ADMIN_PASSWORD=
 MEDIA_STUDIO_API_HOST=127.0.0.1
@@ -136,6 +138,7 @@ EOF
 fi
 
 ensure_media_env_control_token "$MEDIA_ROOT" >/dev/null
+ensure_media_env_install_id "$MEDIA_ROOT" >/dev/null
 
 echo "Bootstrapping empty Media Studio schema ..."
 MEDIA_STUDIO_DB_PATH="${MEDIA_STUDIO_DB_PATH:-$MEDIA_ROOT/data/media-studio.db}" \

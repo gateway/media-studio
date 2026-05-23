@@ -180,6 +180,7 @@ export type NewsHealthResponse = {
 export type ControlApiHealthData = {
   status?: string;
   app?: string;
+  install_id?: string;
   supervisor?: string | null;
   kie_api_repo_connected?: boolean;
   kie_api_key_configured?: boolean;

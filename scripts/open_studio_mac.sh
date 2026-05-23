@@ -2,10 +2,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MEDIA_ROOT="${MEDIA_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+# shellcheck source=scripts/shared_env.sh
+. "$SCRIPT_DIR/shared_env.sh"
+MEDIA_ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
 ENV_FILE="$MEDIA_ROOT/.env"
 CLI_API_PORT=""
 CLI_WEB_PORT=""
+CLI_API_PORT_SET=false
+CLI_WEB_PORT_SET=false
 
 usage() {
   cat <<'EOF'
@@ -19,11 +23,13 @@ while (($# > 0)); do
       shift
       [[ $# -gt 0 ]] || { echo "Missing value for --api-port" >&2; exit 1; }
       CLI_API_PORT="$1"
+      CLI_API_PORT_SET=true
       ;;
     --web-port)
       shift
       [[ $# -gt 0 ]] || { echo "Missing value for --web-port" >&2; exit 1; }
       CLI_WEB_PORT="$1"
+      CLI_WEB_PORT_SET=true
       ;;
     --help|-h)
       usage
@@ -137,29 +143,51 @@ fi
 
 api_running=false
 web_running=false
+ports_changed=false
 
 if port_is_listening "$API_PORT"; then
   api_owner="$(port_owner_command "$API_PORT")"
   api_cwd="$(port_owner_cwd "$API_PORT")"
   if ! looks_like_media_studio_process "$api_owner" "$api_cwd"; then
-    echo "Port $API_PORT is already in use by another app:" >&2
-    echo "  $api_owner" >&2
-    echo "Close that app or change MEDIA_STUDIO_API_PORT in .env, then try again." >&2
-    exit 1
+    if [[ "$CLI_API_PORT_SET" == true ]]; then
+      echo "Port $API_PORT is already in use by another app:" >&2
+      echo "  $api_owner" >&2
+      echo "Choose a different API port or remove the explicit --api-port value." >&2
+      exit 1
+    fi
+    original_api_port="$API_PORT"
+    API_PORT="$(media_find_available_port "127.0.0.1" "$((API_PORT + 1))" "$WEB_PORT")"
+    ports_changed=true
+    echo "API port $original_api_port is already in use by another app; using $API_PORT for this launch."
+    echo "  $api_owner"
+  else
+    api_running=true
   fi
-  api_running=true
 fi
 
 if port_is_listening "$WEB_PORT"; then
   web_owner="$(port_owner_command "$WEB_PORT")"
   web_cwd="$(port_owner_cwd "$WEB_PORT")"
   if ! looks_like_media_studio_process "$web_owner" "$web_cwd"; then
-    echo "Port $WEB_PORT is already in use by another app:" >&2
-    echo "  $web_owner" >&2
-    echo "Close that app or change MEDIA_STUDIO_WEB_PORT in .env, then try again." >&2
-    exit 1
+    if [[ "$CLI_WEB_PORT_SET" == true ]]; then
+      echo "Port $WEB_PORT is already in use by another app:" >&2
+      echo "  $web_owner" >&2
+      echo "Choose a different web port or remove the explicit --web-port value." >&2
+      exit 1
+    fi
+    original_web_port="$WEB_PORT"
+    WEB_PORT="$(media_find_available_port "127.0.0.1" "$((WEB_PORT + 1))" "$API_PORT")"
+    ports_changed=true
+    echo "Web port $original_web_port is already in use by another app; using $WEB_PORT for this launch."
+    echo "  $web_owner"
+  else
+    web_running=true
   fi
-  web_running=true
+fi
+
+if [[ "$ports_changed" == true ]]; then
+  echo "The selected ports are temporary. To make them permanent, set MEDIA_STUDIO_API_PORT and MEDIA_STUDIO_WEB_PORT in .env."
+  echo
 fi
 
 if [[ "$api_running" == true && "$web_running" == true ]]; then
@@ -177,4 +205,11 @@ if [[ "$api_running" == true || "$web_running" == true ]]; then
 fi
 
 cd "$MEDIA_ROOT"
-exec ./scripts/run_studio_mac.sh --api-port "$API_PORT" --web-port "$WEB_PORT"
+run_args=()
+if [[ "$CLI_API_PORT_SET" == true || "$ports_changed" == true ]]; then
+  run_args+=(--api-port "$API_PORT")
+fi
+if [[ "$CLI_WEB_PORT_SET" == true || "$ports_changed" == true ]]; then
+  run_args+=(--web-port "$WEB_PORT")
+fi
+exec ./scripts/run_studio_mac.sh "${run_args[@]}"

@@ -223,8 +223,8 @@ export default async function SetupPage({
             />
             <SetupCapabilityCard
               icon={<BrainCircuit className="size-3.5" />}
-              title="Enhance and recipe drafts"
-              description="AI Settings chooses the default model for the Enhance button and for recipe draft generation. These are defaults, not global locks."
+              title="Prompt Enhance and recipe drafts"
+              description="AI Settings chooses the default model for Prompt Enhance and for recipe draft generation. These are defaults, not global locks."
             />
             <SetupCapabilityCard
               icon={<Workflow className="size-3.5" />}
@@ -276,7 +276,7 @@ export default async function SetupPage({
             eyebrow="Optional service"
             title="Connect Codex"
             description="Uses the Codex app or CLI on this machine and your existing Codex or ChatGPT plan."
-            powers="Enhance, recipe drafts, graph prompt.llm, and graph prompt.recipe."
+            powers="Prompt Enhance, recipe drafts, graph prompt.llm, and graph prompt.recipe."
             statusLabel={readinessStatus(codexLocalReady, codexLocalCommandAvailable).label}
             statusTone={readinessStatus(codexLocalReady, codexLocalCommandAvailable).tone}
             defaultOpen={false}
@@ -284,10 +284,10 @@ export default async function SetupPage({
               <ul className="space-y-2">
                 <li className="flex items-start gap-3"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" /><span>Make sure Codex is installed on this machine.</span></li>
                 <li className="flex items-start gap-3"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" /><span>Run <code>codex login</code> and sign in.</span></li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" /><span>Open AI Settings and choose Codex Local for Enhance, recipe drafts, or graph prompt nodes.</span></li>
+                <li className="flex items-start gap-3"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" /><span>Open AI Settings and choose Codex Local for Prompt Enhance, recipe drafts, or graph prompt nodes.</span></li>
               </ul>
             }
-            note="Codex Local unlocks the Studio Enhance button, Prompt Recipe drafting, graph prompt.llm, and graph prompt.recipe without using metered OpenAI API calls."
+            note="Codex Local unlocks the Studio Prompt Enhance button, Prompt Recipe drafting, graph prompt.llm, and graph prompt.recipe without using metered OpenAI API calls."
             actionHref={aiSettingsHref}
             actionLabel="Choose Codex in AI Settings"
           />
@@ -296,7 +296,7 @@ export default async function SetupPage({
             eyebrow="Optional service"
             title="Connect OpenRouter"
             description="Hosted text and vision models billed through OpenRouter."
-            powers="Enhance, recipe drafts, and graph prompt nodes when you want hosted models."
+            powers="Prompt Enhance, recipe drafts, and graph prompt nodes when you want hosted models."
             statusLabel={readinessStatus(openRouterConfigured, openRouterConfigured).label}
             statusTone={readinessStatus(openRouterConfigured, openRouterConfigured).tone}
             defaultOpen={false}
@@ -316,7 +316,7 @@ export default async function SetupPage({
             eyebrow="Optional service"
             title="Connect Local OpenAI"
             description="Use your own local or self-hosted server if it speaks the OpenAI-style API."
-            powers="Enhance, recipe drafts, and graph prompt nodes through your own endpoint."
+            powers="Prompt Enhance, recipe drafts, and graph prompt nodes through your own endpoint."
             statusLabel={readinessStatus(localOpenAiReady, localOpenAiConfigured).label}
             statusTone={readinessStatus(localOpenAiReady, localOpenAiConfigured).tone}
             defaultOpen={false}
@@ -342,8 +342,8 @@ export default async function SetupPage({
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
             <SetupCapabilityCard
               icon={<Sparkles className="size-3.5" />}
-              title="Enhance default model"
-              description="Used when you click Enhance in Studio. Change it in AI Settings."
+              title="Prompt Enhance default model"
+              description="Used when you click Prompt Enhance in Studio. Change it in AI Settings."
             />
             <SetupCapabilityCard
               icon={<Cable className="size-3.5" />}

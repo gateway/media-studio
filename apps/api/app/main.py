@@ -228,6 +228,7 @@ def health() -> HealthResponse:
     return HealthResponse(
         status="ok",
         app=settings.app_name,
+        install_id=settings.media_studio_install_id,
         supervisor=settings.media_studio_supervisor,
         kie_api_repo_connected=bool(settings.kie_api_repo_path and settings.kie_api_repo_path.exists()),
         kie_api_key_configured=bool(settings.kie_api_key),

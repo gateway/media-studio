@@ -11,6 +11,7 @@ import {
   GRAPH_TABS_MAX_RESTORABLE_TABS,
   GRAPH_TABS_SCHEMA_VERSION,
   GRAPH_TABS_STORAGE_KEY,
+  graphTabsStorageKey,
   graphWorkflowSnapshotsMatch,
   graphTabCloseTarget,
   graphTabOpenWorkflowTarget,
@@ -147,7 +148,7 @@ describe("graph workspace tabs", () => {
 
   it("reads the current graph tab session schema from local storage", () => {
     const tabs = [tab("main", "Live workflow")];
-    writeGraphTabSession("main", tabs);
+    writeGraphTabSession(null, "main", tabs);
     const raw = JSON.parse(window.localStorage.getItem(GRAPH_TABS_STORAGE_KEY) || "null");
     expect(raw.schema_version).toBe(GRAPH_TABS_SCHEMA_VERSION);
 
@@ -155,6 +156,24 @@ describe("graph workspace tabs", () => {
     expect(restored?.active_tab_id).toBe("main");
     expect(restored?.tabs).toHaveLength(1);
     expect(restored?.tabs[0].workflow_name).toBe("Live workflow");
+  });
+
+  it("scopes graph tab sessions by install id", () => {
+    const firstScope = "install-one";
+    const secondScope = "install-two";
+    writeGraphTabSession(firstScope, "main", [tab("main", "First install workflow")]);
+    writeGraphTabSession(secondScope, "main", [tab("main", "Second install workflow")]);
+
+    expect(window.localStorage.getItem(GRAPH_TABS_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(graphTabsStorageKey(firstScope))).toContain("First install workflow");
+    expect(window.localStorage.getItem(graphTabsStorageKey(secondScope))).toContain("Second install workflow");
+    expect(readGraphTabSession(firstScope)?.tabs[0].workflow_name).toBe("First install workflow");
+    expect(readGraphTabSession(secondScope)?.tabs[0].workflow_name).toBe("Second install workflow");
+  });
+
+  it("does not migrate legacy unscoped graph tabs when an install scope is present", () => {
+    writeGraphTabSession(null, "main", [tab("main", "Old unscoped workflow")]);
+    expect(readGraphTabSession("fresh-install")).toBeNull();
   });
 
   it("caps persisted tabs and trims stored console lines", () => {
@@ -169,7 +188,7 @@ describe("graph workspace tabs", () => {
         ),
       }),
     );
-    writeGraphTabSession("tab-0", tabs);
+    writeGraphTabSession(null, "tab-0", tabs);
     const raw = JSON.parse(window.localStorage.getItem(GRAPH_TABS_STORAGE_KEY) || "null");
     expect(raw.tabs).toHaveLength(GRAPH_TABS_MAX_RESTORABLE_TABS);
     expect(raw.active_tab_id).toBe("tab-0");
@@ -191,6 +210,7 @@ describe("graph workspace tabs", () => {
     });
 
     writeGraphTabSession(
+      null,
       "main",
       [
         applyGraphTabSnapshot(tab("main", "Main"), {

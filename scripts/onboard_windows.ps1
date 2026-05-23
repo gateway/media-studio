@@ -27,11 +27,13 @@ function Ensure-EnvFile {
   }
 
 $localControlToken = "media-studio-$([guid]::NewGuid().ToString('N'))"
+$localInstallId = "install-$([guid]::NewGuid().ToString('N'))"
 $envTemplate = @"
 MEDIA_STUDIO_APP_ENV=development
 NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL=
 MEDIA_STUDIO_CONTROL_API_BASE_URL=
 MEDIA_STUDIO_CONTROL_API_TOKEN=$localControlToken
+MEDIA_STUDIO_INSTALL_ID=$localInstallId
 MEDIA_STUDIO_ADMIN_USERNAME=
 MEDIA_STUDIO_ADMIN_PASSWORD=
 MEDIA_STUDIO_API_HOST=127.0.0.1
@@ -198,6 +200,9 @@ New-Item -ItemType Directory -Force -Path (Join-Path $MediaRoot "data\outputs") 
 New-Item -ItemType Directory -Force -Path (Join-Path $MediaRoot "data\preset-thumbnails") | Out-Null
 
 Ensure-EnvFile
+if (-not (Get-EnvValue "MEDIA_STUDIO_INSTALL_ID")) {
+  Set-EnvValue "MEDIA_STUDIO_INSTALL_ID" "install-$([guid]::NewGuid().ToString('N'))"
+}
 
 Write-Host "Bootstrapping Media Studio schema ..."
 $env:MEDIA_STUDIO_DB_PATH = Get-EnvValue "MEDIA_STUDIO_DB_PATH"
@@ -285,10 +290,15 @@ Write-Host " - Local OpenAI-compatible: $(if (Get-EnvValue 'MEDIA_LOCAL_OPENAI_B
 Write-Host " - Local OpenAI base URL: $(Get-EnvValue 'MEDIA_LOCAL_OPENAI_BASE_URL')"
 Write-Host ""
 Write-Host "Next commands"
+$summaryWebPort = Get-EnvValue "MEDIA_STUDIO_WEB_PORT"
+if (-not $summaryWebPort) {
+  $summaryWebPort = "3000"
+}
 Write-Host " - Studio: powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1"
 Write-Host " - Stop later: powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1"
-Write-Host " - Setup page: http://127.0.0.1:3000/setup"
-Write-Host " - AI settings: http://127.0.0.1:3000/settings/llms"
+Write-Host " - Setup page: http://127.0.0.1:$summaryWebPort/setup"
+Write-Host " - AI settings: http://127.0.0.1:$summaryWebPort/settings/llms"
+Write-Host "If the default ports are busy, the launcher prints the actual temporary Studio URL it selected."
 Write-Host ""
 
 $launchNow = Read-Host "Open Media Studio in a new PowerShell window now? [y/N]"

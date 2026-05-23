@@ -94,24 +94,13 @@ describe("PromptRecipeDraftingSettingsPanel", () => {
     expect(await screen.findByText("Recipe drafting defaults saved.")).toBeTruthy();
   });
 
-  it("clears stale provider state when switching providers", async () => {
-    probePromptRecipeDraftingProviderRequest.mockResolvedValue({
-      ok: true,
-      credentialSource: "env",
-      selectedModel: { id: "qwen/default", label: "Qwen Default", provider: "openrouter", supports_images: false },
-      availableModels: [{ id: "qwen/default", label: "Qwen Default", provider: "openrouter", supports_images: false }],
-    });
-
+  it("keeps the configured provider visible without exposing a provider-family switcher", () => {
     render(<PromptRecipeDraftingSettingsPanel initialConfig={makeConfig()} />);
 
-    fireEvent.click(screen.getByTestId("studio-picker-drafting-provider-kind"));
-    fireEvent.click(screen.getByTestId("studio-picker-option-drafting-provider-kind-local_openai"));
-
-    await waitFor(() => {
-      expect((screen.getByLabelText("Default model") as HTMLSelectElement).value).toBe("");
-    });
-    expect((screen.getByPlaceholderText("http://127.0.0.1:8080/v1") as HTMLInputElement).value).toBe("");
-    expect(screen.getByText("Use Test endpoint to see the models from your local server.")).toBeTruthy();
+    expect(screen.queryByTestId("studio-picker-drafting-provider-kind")).toBeNull();
+    expect(screen.getByText(/AI service:/)).toBeTruthy();
+    expect(screen.getAllByText("OpenRouter").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("studio-picker-drafting-openrouter-model")).toBeTruthy();
   });
 
   it("shows Codex Local copy and hides the base URL override", async () => {

@@ -178,10 +178,15 @@ echo " - Local OpenAI-compatible: $( [[ -n "$(env_value MEDIA_LOCAL_OPENAI_BASE_
 echo " - Local OpenAI base URL: $(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
 echo
 echo "Next commands"
+summary_web_port="$(env_value MEDIA_STUDIO_WEB_PORT)"
+if [[ -z "$summary_web_port" ]]; then
+  summary_web_port="3000"
+fi
 echo " - Studio: ./scripts/run_studio_linux.sh"
 echo " - Stop later: ./scripts/stop_studio_linux.sh"
-echo " - Setup page: http://127.0.0.1:3000/setup"
-echo " - AI settings: http://127.0.0.1:3000/settings/llms"
+echo " - Setup page: http://127.0.0.1:$summary_web_port/setup"
+echo " - AI settings: http://127.0.0.1:$summary_web_port/settings/llms"
+echo "If the default ports are busy, the launcher prints the actual temporary Studio URL it selected."
 echo
 
 if prompt_yes_no "Start Media Studio now in this terminal?" "N"; then

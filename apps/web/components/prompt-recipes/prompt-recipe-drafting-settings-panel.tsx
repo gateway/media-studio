@@ -22,7 +22,6 @@ import {
   providerModelChoices,
   providerModelFallback,
   resolveSelectedProviderModel,
-  sharedProviderKindOptions,
 } from "@/lib/llm-provider-models";
 import type { PromptRecipeDraftingConfig } from "@/lib/types";
 
@@ -263,26 +262,6 @@ export function PromptRecipeDraftingSettingsPanel({
             </div>
           ) : null
         }
-        picker={renderSelect(
-          "drafting-provider-kind",
-          form.providerKind,
-          (value) =>
-            setForm((current) => ({
-              ...current,
-              providerKind: value as DraftingFormState["providerKind"],
-              providerLabel: "",
-              providerModelId: "",
-              providerCredentialSource: "",
-              providerSupportsImages: false,
-              providerStatus: "",
-              providerLastTestedAt: "",
-              providerCapabilities: {},
-              providerBaseUrlConfigured: false,
-              providerBaseUrlTouched: false,
-              providerBaseUrl: "",
-            })),
-          sharedProviderKindOptions(),
-        )}
       />
 
       {form.enabled && form.providerKind === "openrouter" ? (

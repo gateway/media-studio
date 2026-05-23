@@ -4,13 +4,11 @@ import {
   Archive,
   Folder,
   FolderOpen,
-  Image as ImageIcon,
   LoaderCircle,
   Pencil,
   Plus,
   RotateCcw,
   Trash2,
-  Upload,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -18,8 +16,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { CalloutPanel, MediaBrowserCard, OverlayHeader, OverlayShell, SurfaceInputShell } from "@/components/ui/surface-primitives";
+import {
+  GeneratedThumbnailPickerDialog,
+  type GeneratedThumbnailPickerItem,
+} from "@/components/media/generated-thumbnail-picker-dialog";
+import { generatedThumbnailPreviewUrl } from "@/components/media/generated-thumbnail-utils";
+import { ThumbnailField } from "@/components/media/thumbnail-field";
 import { StudioStatusCallout } from "@/components/studio/studio-status-callout";
-import type { MediaProject } from "@/lib/types";
+import type { MediaAsset, MediaProject } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
 type ProjectDraft = {
@@ -193,6 +197,12 @@ export function StudioProjectBrowser({
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [clearCover, setClearCover] = useState(false);
+  const [coverPickerOpen, setCoverPickerOpen] = useState(false);
+  const [coverAssets, setCoverAssets] = useState<MediaAsset[]>([]);
+  const [coverAssetsLoading, setCoverAssetsLoading] = useState(false);
+  const [coverAssetsLoadingMore, setCoverAssetsLoadingMore] = useState(false);
+  const [coverAssetsNextOffset, setCoverAssetsNextOffset] = useState<number | null>(0);
+  const [coverAssetSelectionId, setCoverAssetSelectionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeProjects = useMemo(
@@ -203,6 +213,14 @@ export function StudioProjectBrowser({
     () => projects.filter((project) => project.status === "archived"),
     [projects],
   );
+  const coverPickerItems: GeneratedThumbnailPickerItem[] = coverAssets.map((asset) => {
+    const id = String(asset.asset_id);
+    return {
+      id,
+      previewUrl: generatedThumbnailPreviewUrl(asset),
+      ariaLabel: `Use generated image ${id} as project image`,
+    };
+  });
 
   useEffect(() => {
     return () => {
@@ -221,6 +239,12 @@ export function StudioProjectBrowser({
       URL.revokeObjectURL(coverPreviewUrl);
     }
     setCoverPreviewUrl(null);
+    setCoverPickerOpen(false);
+    setCoverAssets([]);
+    setCoverAssetsLoading(false);
+    setCoverAssetsLoadingMore(false);
+    setCoverAssetsNextOffset(0);
+    setCoverAssetSelectionId(null);
     setError(null);
   }
 
@@ -242,6 +266,7 @@ export function StudioProjectBrowser({
       name: project.name,
       description: project.description ?? "",
       hiddenFromGlobalGallery: Boolean(project.hidden_from_global_gallery),
+      coverAssetId: project.cover_asset_id ?? undefined,
       coverReferenceId: project.cover_reference_id ?? undefined,
     });
     setCoverFile(null);
@@ -295,6 +320,9 @@ export function StudioProjectBrowser({
       } else if (clearCover) {
         payload.coverAssetId = null;
         payload.coverReferenceId = null;
+      } else if (draft.coverAssetId !== undefined) {
+        payload.coverAssetId = draft.coverAssetId;
+        payload.coverReferenceId = draft.coverReferenceId ?? null;
       } else if (draft.coverReferenceId !== undefined) {
         payload.coverReferenceId = draft.coverReferenceId;
       }
@@ -318,6 +346,7 @@ export function StudioProjectBrowser({
     }
     setCoverFile(file);
     setClearCover(false);
+    setDraft((current) => ({ ...current, coverAssetId: null }));
     if (coverPreviewUrl && coverPreviewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(coverPreviewUrl);
     }
@@ -326,12 +355,77 @@ export function StudioProjectBrowser({
 
   function removeCover() {
     setCoverFile(null);
-    setDraft((current) => ({ ...current, coverReferenceId: null }));
+    setDraft((current) => ({ ...current, coverAssetId: null, coverReferenceId: null }));
     setClearCover(true);
     if (coverPreviewUrl && coverPreviewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(coverPreviewUrl);
     }
     setCoverPreviewUrl(null);
+  }
+
+  async function loadCoverAssets({ append = false }: { append?: boolean } = {}) {
+    const nextOffset = append ? coverAssetsNextOffset : 0;
+    if (append && nextOffset == null) {
+      return;
+    }
+    if (append) {
+      setCoverAssetsLoadingMore(true);
+    } else {
+      setCoverAssetsLoading(true);
+      setCoverAssetsNextOffset(null);
+      setCoverPickerOpen(true);
+    }
+    try {
+      const response = await fetch(
+        `/api/control/media-assets?limit=24&offset=${append ? nextOffset ?? 0 : 0}&generation_kind=image`,
+      );
+      const result = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        assets?: MediaAsset[];
+        next_offset?: number | null;
+      };
+      if (!response.ok || result.ok === false || !Array.isArray(result.assets)) {
+        setError(result.error ?? "Unable to load generated images.");
+        return;
+      }
+      const nextAssets = result.assets.filter((asset) => Boolean(generatedThumbnailPreviewUrl(asset)));
+      setCoverAssets((current) => {
+        if (!append) {
+          return nextAssets;
+        }
+        const seen = new Set(current.map((asset) => String(asset.asset_id)));
+        return current.concat(nextAssets.filter((asset) => !seen.has(String(asset.asset_id))));
+      });
+      setCoverAssetsNextOffset(typeof result.next_offset === "number" ? result.next_offset : null);
+    } catch {
+      setError("Unable to load generated images right now.");
+    } finally {
+      if (append) {
+        setCoverAssetsLoadingMore(false);
+      } else {
+        setCoverAssetsLoading(false);
+      }
+    }
+  }
+
+  function applyCoverFromAsset(assetId: string | number) {
+    const selectedAsset = coverAssets.find((asset) => String(asset.asset_id) === String(assetId));
+    const previewUrl = generatedThumbnailPreviewUrl(selectedAsset);
+    setCoverAssetSelectionId(String(assetId));
+    setCoverFile(null);
+    setClearCover(false);
+    setDraft((current) => ({
+      ...current,
+      coverAssetId: String(assetId),
+      coverReferenceId: null,
+    }));
+    if (coverPreviewUrl && coverPreviewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(coverPreviewUrl);
+    }
+    setCoverPreviewUrl(previewUrl);
+    setCoverPickerOpen(false);
+    setCoverAssetSelectionId(null);
   }
 
   async function runProjectAction(actionKey: string, callback: () => Promise<void>) {
@@ -516,55 +610,29 @@ export function StudioProjectBrowser({
                   </div>
                 </button>
 
-                <div className="grid gap-2">
-                  <span className="studio-field-label">Image (optional)</span>
-                  <CalloutPanel tone="default" className="flex items-start gap-4 rounded-[18px] p-4">
-                    <div className="media-browser-card-thumbnail h-24 w-24 shrink-0">
-                      {coverPreviewUrl ? (
-                        <img src={coverPreviewUrl} alt="Project cover preview" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="studio-project-cover-empty flex h-full w-full items-center justify-center">
-                          <ImageIcon className="size-6" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm leading-6 text-[var(--text-muted)]">
-                        Upload an image to use as the project cover. This is only for organization and visual identity.
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button
-                          data-testid="studio-project-upload-button"
-                          variant="subtle"
-                          size="compact"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="h-9 rounded-full px-4 text-[0.66rem] tracking-[0.12em]"
-                        >
-                          <Upload className="mr-1.5 size-3.5" />
-                          {coverPreviewUrl ? "Replace image" : "Upload image"}
-                        </Button>
-                        {coverPreviewUrl ? (
-                          <Button
-                            variant="ghost"
-                            size="compact"
-                            onClick={removeCover}
-                            className="h-9 rounded-full px-4 text-[0.66rem] tracking-[0.12em]"
-                          >
-                            Remove image
-                          </Button>
-                        ) : null}
-                      </div>
-                      <input
-                        data-testid="studio-project-cover-input"
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(event) => handleCoverFileChange(event.target.files?.[0] ?? null)}
-                      />
-                    </div>
-                  </CalloutPanel>
-                </div>
+                <CalloutPanel tone="default" className="rounded-[18px] p-4">
+                  <ThumbnailField
+                    label="Image (optional)"
+                    imageUrl={coverPreviewUrl}
+                    imageAlt="Project cover preview"
+                    emptyLabel="No project image"
+                    chooseLabel="Choose from generated images"
+                    browseLabel="Browse generated images"
+                    uploadLabel={coverPreviewUrl ? "Replace image" : "Upload image"}
+                    removeLabel="Remove image"
+                    appearance="studio"
+                    aspect="square"
+                    surface={false}
+                    inputRef={fileInputRef}
+                    isBrowsing={coverAssetsLoading}
+                    onChoose={() => void loadCoverAssets()}
+                    onUploadFile={handleCoverFileChange}
+                    onRemove={removeCover}
+                  />
+                  <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
+                    Add an image to make this project easier to recognize.
+                  </p>
+                </CalloutPanel>
 
                 {error ? <CalloutPanel tone="danger" className="text-sm">{error}</CalloutPanel> : null}
                 <div className="flex flex-wrap gap-2">
@@ -594,6 +662,21 @@ export function StudioProjectBrowser({
               </div>
         </OverlayShell>
       ) : null}
+
+      <GeneratedThumbnailPickerDialog
+        open={coverPickerOpen}
+        dialogLabel="Generated image project covers"
+        title="Choose a project image"
+        description="Pick a recent generated image to use as this project cover."
+        items={coverPickerItems}
+        loading={coverAssetsLoading}
+        loadingMore={coverAssetsLoadingMore}
+        nextOffset={coverAssetsNextOffset}
+        selectionId={coverAssetSelectionId}
+        onClose={() => setCoverPickerOpen(false)}
+        onLoadMore={() => void loadCoverAssets({ append: true })}
+        onSelectItem={applyCoverFromAsset}
+      />
     </OverlayShell>
   );
 }

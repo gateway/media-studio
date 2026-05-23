@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from hashlib import sha256
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -55,6 +56,19 @@ def _resolve_control_api_token(app_env: str) -> str:
     raise RuntimeError("MEDIA_STUDIO_CONTROL_API_TOKEN is required outside development/test.")
 
 
+def _resolve_install_id(db_path: str, data_root: str) -> str:
+    configured = os.getenv("MEDIA_STUDIO_INSTALL_ID", "").strip()
+    if configured:
+        return configured
+    identity = "|".join(
+        [
+            str(Path(db_path).expanduser().resolve(strict=False)),
+            str(Path(data_root).expanduser().resolve(strict=False)),
+        ]
+    )
+    return "install-" + sha256(identity.encode("utf-8")).hexdigest()[:32]
+
+
 class AppSettings(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -71,6 +85,7 @@ class AppSettings(BaseModel):
     media_pricing_cache_hours: int = 6
     media_pricing_refresh_on_startup: bool = True
     media_studio_supervisor: Optional[str] = None
+    media_studio_install_id: str = "install-local"
     media_studio_public_api_base_url: Optional[str] = None
     control_api_token: str = "media-studio-local-control-token"
     kie_api_key: Optional[str] = None
@@ -115,6 +130,10 @@ settings = AppSettings(
     media_pricing_cache_hours=int(os.getenv("MEDIA_PRICING_CACHE_HOURS", "6")),
     media_pricing_refresh_on_startup=_env_bool("MEDIA_PRICING_REFRESH_ON_STARTUP", True),
     media_studio_supervisor=os.getenv("MEDIA_STUDIO_SUPERVISOR"),
+    media_studio_install_id=_resolve_install_id(
+        os.getenv("MEDIA_STUDIO_DB_PATH", "/tmp/media-studio.db"),
+        os.getenv("MEDIA_STUDIO_DATA_ROOT", "/tmp/media-studio-data"),
+    ),
     media_studio_public_api_base_url=(
         os.getenv("MEDIA_STUDIO_PUBLIC_API_BASE_URL")
         or os.getenv("MEDIA_STUDIO_PUBLIC_CALLBACK_BASE_URL")

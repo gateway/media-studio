@@ -16,6 +16,7 @@ def test_health_endpoint(client) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "ok"
+    assert str(payload["install_id"]).startswith("install-")
     assert payload["kie_api_repo_connected"] is True
     assert payload["kie_api_key_configured"] is False
     assert payload["live_submit_enabled"] is False

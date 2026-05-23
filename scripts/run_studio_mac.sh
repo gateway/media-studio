@@ -10,6 +10,8 @@ CLI_API_HOST=""
 CLI_API_PORT=""
 CLI_WEB_HOST=""
 CLI_WEB_PORT=""
+CLI_API_PORT_SET=false
+CLI_WEB_PORT_SET=false
 
 usage() {
   cat <<'EOF'
@@ -28,6 +30,7 @@ while (($# > 0)); do
       shift
       [[ $# -gt 0 ]] || { echo "Missing value for --api-port" >&2; exit 1; }
       CLI_API_PORT="$1"
+      CLI_API_PORT_SET=true
       ;;
     --web-host)
       shift
@@ -38,6 +41,7 @@ while (($# > 0)); do
       shift
       [[ $# -gt 0 ]] || { echo "Missing value for --web-port" >&2; exit 1; }
       CLI_WEB_PORT="$1"
+      CLI_WEB_PORT_SET=true
       ;;
     --help|-h)
       usage
@@ -53,6 +57,7 @@ while (($# > 0)); do
 done
 
 ensure_media_env_control_token "$MEDIA_ROOT" >/dev/null 2>&1 || true
+ensure_media_env_install_id "$MEDIA_ROOT" >/dev/null 2>&1 || true
 ENV_API_HOST="${MEDIA_STUDIO_API_HOST:-}"
 ENV_API_PORT="${MEDIA_STUDIO_API_PORT:-}"
 ENV_WEB_HOST="${MEDIA_STUDIO_WEB_HOST:-}"
@@ -68,8 +73,6 @@ WEB_PORT="${CLI_WEB_PORT:-${ENV_WEB_PORT:-${MEDIA_STUDIO_WEB_PORT:-3000}}}"
 DB_PATH="${ENV_DB_PATH:-${MEDIA_STUDIO_DB_PATH:-$MEDIA_ROOT/data/media-studio.db}}"
 DATA_ROOT="${ENV_DATA_ROOT:-${MEDIA_STUDIO_DATA_ROOT:-$MEDIA_ROOT/data}}"
 BACKUP_DIR="$DATA_ROOT/backups"
-WEB_ACCESS_HOST="$(media_runtime_access_host "$WEB_HOST")"
-API_ACCESS_HOST="$(media_runtime_access_host "$API_HOST")"
 RUNTIME_DIR="$MEDIA_ROOT/data/runtime"
 API_LOG="$RUNTIME_DIR/media-studio-api.log"
 WEB_LOG="$RUNTIME_DIR/media-studio-web.log"
@@ -77,10 +80,6 @@ API_PID_FILE="$RUNTIME_DIR/media-studio-api.pid"
 WEB_PID_FILE="$RUNTIME_DIR/media-studio-web.pid"
 TAIL_PID_FILE="$RUNTIME_DIR/media-studio-tail.pid"
 LAUNCHER_PID_FILE="$RUNTIME_DIR/media-studio-launcher.pid"
-STUDIO_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/studio"
-SETTINGS_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/settings"
-API_HEALTH_URL="http://$API_ACCESS_HOST:$API_PORT/health"
-WEB_READY_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/icon.svg"
 UPDATE_EXISTING_KIE_API="${MEDIA_STUDIO_UPDATE_KIE_API:-ask}"
 KIE_REPO_UPDATED="false"
 
@@ -88,24 +87,6 @@ mkdir -p "$RUNTIME_DIR"
 : >"$API_LOG"
 : >"$WEB_LOG"
 echo "$$" >"$LAUNCHER_PID_FILE"
-
-echo "Starting Media Studio in one Terminal window (production mode)..."
-echo " - API: http://127.0.0.1:$API_PORT"
-echo " - Web: http://127.0.0.1:$WEB_PORT"
-echo " - Studio: $STUDIO_URL"
-echo " - Settings: $SETTINGS_URL"
-echo " - API log: $API_LOG"
-echo " - Web log: $WEB_LOG"
-echo " - Data root: $DATA_ROOT"
-echo
-echo "Local Studio data under ./data is persistent user content and is never cleaned by this launcher."
-echo "Do not run blanket cleanup commands like 'git clean -fd' in this repo."
-echo
-echo "The launcher will open your browser to Studio when the app is ready."
-echo "To stop the app later, double-click Stop Media Studio.command."
-echo "Press Ctrl+C in this window to stop the local launcher."
-echo "You can also use Stop Media Studio.command."
-echo
 
 cleanup() {
   kill_tree() {
@@ -147,6 +128,15 @@ require_command() {
 port_is_listening() {
   local port="$1"
   lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+refresh_runtime_urls() {
+  WEB_ACCESS_HOST="$(media_runtime_access_host "$WEB_HOST")"
+  API_ACCESS_HOST="$(media_runtime_access_host "$API_HOST")"
+  STUDIO_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/studio"
+  SETTINGS_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/settings"
+  API_HEALTH_URL="http://$API_ACCESS_HOST:$API_PORT/health"
+  WEB_READY_URL="http://$WEB_ACCESS_HOST:$WEB_PORT/icon.svg"
 }
 
 port_owner_command() {
@@ -364,29 +354,53 @@ PY
 
 api_running=false
 web_running=false
+ports_changed=false
 
 if port_is_listening "$API_PORT"; then
   api_owner="$(port_owner_command "$API_PORT")"
   api_cwd="$(port_owner_cwd "$API_PORT")"
   if ! looks_like_media_studio_process "$api_owner" "$api_cwd"; then
-    echo "Port $API_PORT is already in use by another app:" >&2
-    echo "  $api_owner" >&2
-    echo "Choose a different API port with --api-port or update MEDIA_STUDIO_API_PORT in .env." >&2
-    exit 1
+    if [[ "$CLI_API_PORT_SET" == true ]]; then
+      echo "Port $API_PORT is already in use by another app:" >&2
+      echo "  $api_owner" >&2
+      echo "Choose a different API port or remove the explicit --api-port value." >&2
+      exit 1
+    fi
+    original_api_port="$API_PORT"
+    API_PORT="$(media_find_available_port "$API_HOST" "$((API_PORT + 1))" "$WEB_PORT")"
+    ports_changed=true
+    echo "API port $original_api_port is already in use by another app; using $API_PORT for this launch."
+    echo "  $api_owner"
+  else
+    api_running=true
   fi
-  api_running=true
 fi
 
 if port_is_listening "$WEB_PORT"; then
   web_owner="$(port_owner_command "$WEB_PORT")"
   web_cwd="$(port_owner_cwd "$WEB_PORT")"
   if ! looks_like_media_studio_process "$web_owner" "$web_cwd"; then
-    echo "Port $WEB_PORT is already in use by another app:" >&2
-    echo "  $web_owner" >&2
-    echo "Choose a different web port with --web-port or update MEDIA_STUDIO_WEB_PORT in .env." >&2
-    exit 1
+    if [[ "$CLI_WEB_PORT_SET" == true ]]; then
+      echo "Port $WEB_PORT is already in use by another app:" >&2
+      echo "  $web_owner" >&2
+      echo "Choose a different web port or remove the explicit --web-port value." >&2
+      exit 1
+    fi
+    original_web_port="$WEB_PORT"
+    WEB_PORT="$(media_find_available_port "$WEB_HOST" "$((WEB_PORT + 1))" "$API_PORT")"
+    ports_changed=true
+    echo "Web port $original_web_port is already in use by another app; using $WEB_PORT for this launch."
+    echo "  $web_owner"
+  else
+    web_running=true
   fi
-  web_running=true
+fi
+
+refresh_runtime_urls
+
+if [[ "$ports_changed" == true ]]; then
+  echo "The selected ports are temporary. To make them permanent, set MEDIA_STUDIO_API_PORT and MEDIA_STUDIO_WEB_PORT in .env."
+  echo
 fi
 
 if [[ "$api_running" == true || "$web_running" == true ]]; then
@@ -394,6 +408,24 @@ if [[ "$api_running" == true || "$web_running" == true ]]; then
   echo "Cleaning up the stale local processes and restarting..."
   cleanup_stale_media_studio
 fi
+
+echo "Starting Media Studio in one Terminal window (production mode)..."
+echo " - API: http://$API_ACCESS_HOST:$API_PORT"
+echo " - Web: http://$WEB_ACCESS_HOST:$WEB_PORT"
+echo " - Studio: $STUDIO_URL"
+echo " - Settings: $SETTINGS_URL"
+echo " - API log: $API_LOG"
+echo " - Web log: $WEB_LOG"
+echo " - Data root: $DATA_ROOT"
+echo
+echo "Local Studio data under ./data is persistent user content and is never cleaned by this launcher."
+echo "Do not run blanket cleanup commands like 'git clean -fd' in this repo."
+echo
+echo "The launcher will open your browser to Studio when the app is ready."
+echo "To stop the app later, double-click Stop Media Studio.command."
+echo "Press Ctrl+C in this window to stop the local launcher."
+echo "You can also use Stop Media Studio.command."
+echo
 
 kie_repo_preflight
 ensure_python_dependencies

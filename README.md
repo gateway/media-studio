@@ -28,6 +28,7 @@ Graph Studio and Prompt Recipe graph execution are available for local workflow 
 - Graph Studio lets you build node-based workflows with media loaders, prompt nodes, model nodes, preview nodes, save nodes, groups, notes, run diagnostics, and reusable workflow templates.
 - Current graph model lanes include image, video, audio/music, Prompt Recipe, and utility nodes where the backend owns validation, pricing, execution, and saved run history.
 - Graph workflows can be saved locally, exported as portable templates, and loaded back into another Media Studio install.
+- A repo-local Codex skill for building/exporting graph templates lives at `.codex/skills/media-studio-graph-builder/`.
 - Saved workflows are database-backed; browser tab state is only a session convenience layer.
 - Prompt Recipes are a supported data-backed graph surface.
 - End-user custom executable nodes are **not** part of the current release boundary.
@@ -92,7 +93,8 @@ Restart:
 ./scripts/run_studio_mac.sh
 ```
 
-### Windows
+<details>
+<summary><strong>Windows</strong></summary>
 
 Install:
 
@@ -121,7 +123,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1
 ```
 
-### Linux
+</details>
+
+<details>
+<summary><strong>Linux</strong></summary>
 
 Install:
 
@@ -149,6 +154,8 @@ Restart:
 ./scripts/stop_studio_linux.sh
 ./scripts/run_studio_linux.sh
 ```
+
+</details>
 
 ### What The Runner Does
 
@@ -221,36 +228,22 @@ Current built-in presets include:
 
 If you build presets you want to share with other users, let us know. We would love to collect good community presets and add them to the project.
 
-## Keyboard Shortcuts
+## Controls
 
-Studio shortcuts work when you are not typing in a form field and no blocking overlay is open.
+Common shortcuts:
 
-| Key | Studio action |
+| Input | Action |
 | --- | --- |
 | `G` | Open Projects |
 | `N` | Open Graph Studio |
 | `P` | Open Presets |
 | `S` | Open Settings |
-| `I` | Open Reference Library |
-| `ArrowLeft` / `ArrowRight` | Move through selected gallery assets |
-| `Escape` | Close the asset inspector or lightbox |
-| `ArrowUp` / `ArrowDown` | Move through prompt reference suggestions while they are open |
-| `Enter` / `Tab` | Insert the selected prompt reference suggestion |
-
-Graph Studio shortcuts work when you are not typing in a node field.
-
-| Key | Graph Studio action |
-| --- | --- |
-| `Space` | Open node search |
 | `C` | Toggle the bottom console |
 | `Cmd/Ctrl+Z` | Undo |
-| `Cmd/Ctrl+Shift+Z` / `Ctrl+Y` | Redo |
-| `Cmd/Ctrl+C` | Copy selected nodes |
-| `Cmd/Ctrl+V` | Paste copied nodes |
-| `Cmd/Ctrl+M` | Mute selected nodes |
-| `Escape` | Close search, menus, previews, side panels, and rename mode |
-| `Shift` or `Cmd/Ctrl` + click | Add or remove nodes from the current selection |
-| `ArrowLeft` / `ArrowRight` | Move through media preview overlay items |
+| Right-click empty Graph canvas | Open node search at the pointer |
+| Drag from an output port to an input port | Create a wire |
+
+See [keyboard and mouse controls](docs/keyboard-mouse-controls.md) for the full Studio and Graph Studio control reference.
 
 ## Useful Docs
 
@@ -259,6 +252,7 @@ Graph Studio shortcuts work when you are not typing in a node field.
 - [docs/getting-started-mac.md](docs/getting-started-mac.md)
 - [docs/getting-started-linux.md](docs/getting-started-linux.md)
 - [docs/getting-started-windows.md](docs/getting-started-windows.md)
+- [docs/keyboard-mouse-controls.md](docs/keyboard-mouse-controls.md)
 - [docs/advanced-runtime.md](docs/advanced-runtime.md)
 - [docs/pricing-integration.md](docs/pricing-integration.md)
 - [docs/release-packaging.md](docs/release-packaging.md)

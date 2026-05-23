@@ -18,6 +18,7 @@ MODEL_QUEUE_MAX_OUTPUTS_PER_RUN_MAX = 10
 class HealthResponse(BaseModel):
     status: str
     app: str
+    install_id: str
     supervisor: Optional[str] = None
     kie_api_repo_connected: bool = False
     kie_api_key_configured: bool = False

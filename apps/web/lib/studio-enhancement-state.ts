@@ -61,7 +61,7 @@ export function deriveStudioEnhancementState({
         ? "Codex Local"
       : activeEnhancementEngineConfig?.provider_kind === "local_openai"
         ? "Local OpenAI-Compatible"
-        : "Media Studio default");
+        : "Enhance helper");
   const enhanceProviderModelId =
     enhancePreview?.provider_model_id ??
     activeEnhancementEngineConfig?.provider_model_id ??

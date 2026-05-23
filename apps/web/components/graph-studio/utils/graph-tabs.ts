@@ -44,6 +44,11 @@ export function blankGraphWorkflowPayload(name = "New workflow"): GraphWorkflowP
   };
 }
 
+export function graphTabsStorageKey(scope?: string | null): string {
+  const normalizedScope = String(scope || "").trim();
+  return normalizedScope ? `${GRAPH_TABS_STORAGE_KEY}:${normalizedScope}` : GRAPH_TABS_STORAGE_KEY;
+}
+
 export function applyGraphTabSnapshot(tab: GraphWorkspaceTab, snapshot: GraphTabSnapshot): GraphWorkspaceTab {
   return {
     ...tab,
@@ -161,10 +166,11 @@ function legacyWorkspaceToSession(value: unknown): GraphTabSessionState | null {
   return { active_tab_id: tab.tab_id, tabs: [tab], restored: true };
 }
 
-export function readGraphTabSession(): GraphTabSessionState | null {
+export function readGraphTabSession(scope?: string | null): GraphTabSessionState | null {
   if (typeof window === "undefined") return null;
+  const storageKey = graphTabsStorageKey(scope);
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(GRAPH_TABS_STORAGE_KEY) || "null") as {
+    const parsed = JSON.parse(window.localStorage.getItem(storageKey) || "null") as {
       schema_version?: number;
       active_tab_id?: string;
       tabs?: unknown[];
@@ -186,6 +192,7 @@ export function readGraphTabSession(): GraphTabSessionState | null {
   } catch {
     // fall through to legacy state
   }
+  if (scope) return null;
   try {
     return legacyWorkspaceToSession(JSON.parse(window.localStorage.getItem(WORKSPACE_STORAGE_KEY) || "null"));
   } catch {
@@ -285,8 +292,12 @@ function graphTabSessionPayload(
   };
 }
 
-export function writeGraphTabSession(activeTabId: string, tabs: GraphWorkspaceTab[]): void {
+export function writeGraphTabSession(scope: string | null | undefined, activeTabId: string, tabs: GraphWorkspaceTab[]): void {
   if (typeof window === "undefined") return;
+  const storageKey = graphTabsStorageKey(scope);
+  if (scope) {
+    window.localStorage.removeItem(GRAPH_TABS_STORAGE_KEY);
+  }
   const variants: GraphTabWriteVariant[] = [
     { maxTabs: GRAPH_TABS_MAX_RESTORABLE_TABS, keepConsoleLines: true, keepInactiveConsoleLines: true },
     { maxTabs: 6, keepConsoleLines: true, keepInactiveConsoleLines: false },
@@ -295,7 +306,7 @@ export function writeGraphTabSession(activeTabId: string, tabs: GraphWorkspaceTa
   for (const variant of variants) {
     try {
       window.localStorage.setItem(
-        GRAPH_TABS_STORAGE_KEY,
+        storageKey,
         JSON.stringify(graphTabSessionPayload(activeTabId, tabs, variant)),
       );
       return;
@@ -303,7 +314,7 @@ export function writeGraphTabSession(activeTabId: string, tabs: GraphWorkspaceTa
       // fall through to smaller persistence variants
     }
   }
-  window.localStorage.removeItem(GRAPH_TABS_STORAGE_KEY);
+  window.localStorage.removeItem(storageKey);
 }
 
 export function clearLegacyWorkspaceSnapshot(): void {

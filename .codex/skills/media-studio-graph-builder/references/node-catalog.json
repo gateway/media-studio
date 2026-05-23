@@ -1,0 +1,3705 @@
+{
+  "count": 44,
+  "nodes": [
+    {
+      "category": "Prompt",
+      "fields": [
+        {
+          "default": "replace",
+          "id": "mode",
+          "label": "Mode",
+          "options": [
+            {
+              "label": "Replace",
+              "value": "replace"
+            },
+            {
+              "label": "Append",
+              "value": "append"
+            },
+            {
+              "label": "Prepend",
+              "value": "prepend"
+            }
+          ],
+          "type": "select"
+        },
+        {
+          "connectable": true,
+          "id": "text",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "text",
+          "label": "Text",
+          "max": 1,
+          "type": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "text",
+          "label": "Text",
+          "type": "text"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Prompt Text",
+      "type": "prompt.text"
+    },
+    {
+      "category": "Prompt",
+      "fields": [
+        {
+          "default": "rewrite_prompt",
+          "id": "mode",
+          "label": "Mode",
+          "options": [
+            {
+              "label": "Rewrite Prompt",
+              "value": "rewrite_prompt"
+            },
+            {
+              "label": "Describe Image",
+              "value": "describe_image"
+            },
+            {
+              "label": "Custom",
+              "value": "custom"
+            }
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "advanced": true,
+          "default": "studio_default",
+          "id": "provider",
+          "label": "Provider",
+          "options": [
+            {
+              "label": "Studio Default",
+              "value": "studio_default"
+            },
+            {
+              "label": "OpenRouter",
+              "value": "openrouter"
+            },
+            {
+              "label": "Codex Local",
+              "value": "codex_local"
+            },
+            {
+              "label": "Local OpenAI",
+              "value": "local_openai"
+            }
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "advanced": true,
+          "id": "model_id",
+          "label": "Model",
+          "type": "provider_model_picker",
+          "visible_if": {
+            "field": "provider",
+            "not_equals": "studio_default"
+          }
+        },
+        {
+          "advanced": true,
+          "hidden": true,
+          "id": "provider_model_label",
+          "label": "Provider Model Label",
+          "type": "text"
+        },
+        {
+          "advanced": true,
+          "hidden": true,
+          "id": "provider_supports_images",
+          "label": "Provider Supports Images",
+          "type": "boolean"
+        },
+        {
+          "advanced": true,
+          "hidden": true,
+          "id": "provider_capabilities_json",
+          "label": "Provider Capabilities JSON",
+          "type": "textarea"
+        },
+        {
+          "default": "Turn [user_prompt] into a vivid, production-ready image or video prompt. Preserve the core idea and add concrete visual detail.",
+          "id": "system_prompt",
+          "label": "System Prompt",
+          "required": true,
+          "type": "textarea"
+        },
+        {
+          "connectable": true,
+          "id": "user_prompt",
+          "label": "User Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "default": "Describe the image with subject, composition, lighting, style, and details useful for media generation.",
+          "id": "image_instruction",
+          "label": "Image Instruction",
+          "type": "textarea",
+          "visible_if": {
+            "field": "mode",
+            "in": [
+              "describe_image",
+              "custom"
+            ]
+          }
+        },
+        {
+          "advanced": true,
+          "id": "temperature",
+          "label": "Temperature Override",
+          "type": "float",
+          "visible_if": {
+            "field": "provider",
+            "not_equals": "codex_local"
+          }
+        },
+        {
+          "advanced": true,
+          "id": "max_tokens",
+          "label": "Max Tokens Override",
+          "type": "integer",
+          "visible_if": {
+            "field": "provider",
+            "not_equals": "codex_local"
+          }
+        }
+      ],
+      "inputs": [
+        {
+          "id": "user_prompt",
+          "label": "User Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "id": "image",
+          "label": "Image",
+          "max": 1,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "text",
+          "label": "Text",
+          "type": "text"
+        },
+        {
+          "advanced": true,
+          "id": "metadata",
+          "label": "Metadata",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "external_llm",
+        "providers": [
+          "studio_default",
+          "openrouter",
+          "codex_local",
+          "local_openai"
+        ],
+        "supports_images": "provider_dependent"
+      },
+      "title": "LLM Prompt",
+      "type": "prompt.llm"
+    },
+    {
+      "category": "Prompt",
+      "fields": [
+        {
+          "id": "inline_text",
+          "label": "Inline Text",
+          "type": "textarea"
+        },
+        {
+          "default": "\n\n",
+          "id": "separator",
+          "label": "Separator",
+          "type": "text"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "text_a",
+          "label": "Text A",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "id": "text_b",
+          "label": "Text B",
+          "max": 1,
+          "type": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "text",
+          "label": "Text",
+          "type": "text"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Prompt Concat",
+      "type": "prompt.concat"
+    },
+    {
+      "category": "Prompt",
+      "fields": [
+        {
+          "default": "all",
+          "id": "recipe_category",
+          "label": "Recipe Category",
+          "options": [
+            {
+              "label": "All Categories",
+              "value": "all"
+            },
+            {
+              "label": "Image",
+              "value": "image"
+            },
+            {
+              "label": "Video",
+              "value": "video"
+            },
+            {
+              "label": "Analysis",
+              "value": "analysis"
+            },
+            {
+              "label": "Utility",
+              "value": "utility"
+            }
+          ],
+          "type": "select"
+        },
+        {
+          "id": "recipe_id",
+          "label": "Prompt Recipe",
+          "options": [
+            {
+              "label": "Character Sheet Builder",
+              "value": "recipe_e5781e6d6e71"
+            },
+            {
+              "label": "Cleanest Storyboard Director",
+              "value": "recipe_858fe4bb1ce2"
+            },
+            {
+              "label": "Image Prompt Director",
+              "value": "prompt-recipe-image-prompt-director"
+            },
+            {
+              "label": "Storyboard Director - 3x3 Grid",
+              "value": "prompt-recipe-storyboard-director-3x3"
+            },
+            {
+              "label": "Storyboard Shot Sequence - 3x3",
+              "value": "prompt-recipe-storyboard-shot-sequence-3x3"
+            },
+            {
+              "label": "Seedance Storyboard Director",
+              "value": "recipe_1d40e1b358f9"
+            },
+            {
+              "label": "Video Director - Multi Shot JSON",
+              "value": "prompt-recipe-video-director-multi-shot-json"
+            },
+            {
+              "label": "Image Analysis - Character Reference",
+              "value": "prompt-recipe-image-analysis-character-reference"
+            },
+            {
+              "label": "Prompt Shortener",
+              "value": "prompt-recipe-prompt-shortener"
+            }
+          ],
+          "required": true,
+          "type": "prompt_recipe_picker"
+        },
+        {
+          "connectable": true,
+          "id": "user_prompt",
+          "label": "User Prompt",
+          "port_type": "text",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-image-analysis-character-reference",
+              "prompt-recipe-image-prompt-director",
+              "prompt-recipe-storyboard-director-3x3",
+              "prompt-recipe-storyboard-shot-sequence-3x3",
+              "prompt-recipe-video-director-multi-shot-json",
+              "recipe_1d40e1b358f9",
+              "recipe_858fe4bb1ce2",
+              "recipe_e5781e6d6e71"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "source_prompt",
+          "label": "Source Prompt",
+          "port_type": "text",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-image-prompt-director",
+              "prompt-recipe-prompt-shortener",
+              "prompt-recipe-storyboard-director-3x3",
+              "prompt-recipe-storyboard-shot-sequence-3x3",
+              "prompt-recipe-video-director-multi-shot-json"
+            ]
+          }
+        },
+        {
+          "id": "style_direction",
+          "label": "Style Direction",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-image-prompt-director",
+              "prompt-recipe-storyboard-director-3x3",
+              "prompt-recipe-storyboard-shot-sequence-3x3",
+              "prompt-recipe-video-director-multi-shot-json",
+              "recipe_1d40e1b358f9"
+            ]
+          }
+        },
+        {
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-image-prompt-director",
+              "prompt-recipe-storyboard-director-3x3",
+              "prompt-recipe-storyboard-shot-sequence-3x3",
+              "recipe_1d40e1b358f9"
+            ]
+          }
+        },
+        {
+          "id": "shot_count",
+          "label": "Shot Count",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-shot-sequence-3x3",
+              "prompt-recipe-video-director-multi-shot-json",
+              "recipe_1d40e1b358f9"
+            ]
+          }
+        },
+        {
+          "id": "duration_seconds",
+          "label": "Total Duration Seconds",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-video-director-multi-shot-json",
+              "recipe_1d40e1b358f9"
+            ]
+          }
+        },
+        {
+          "id": "output_format",
+          "label": "Output Format",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-prompt-shortener"
+            ]
+          }
+        },
+        {
+          "advanced": true,
+          "default": "studio_default",
+          "id": "provider",
+          "label": "Provider",
+          "options": [
+            {
+              "label": "Studio Default",
+              "value": "studio_default"
+            },
+            {
+              "label": "OpenRouter",
+              "value": "openrouter"
+            },
+            {
+              "label": "Codex Local",
+              "value": "codex_local"
+            },
+            {
+              "label": "Local OpenAI",
+              "value": "local_openai"
+            }
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "advanced": true,
+          "id": "model_id",
+          "label": "Model",
+          "type": "provider_model_picker",
+          "visible_if": {
+            "field": "provider",
+            "not_equals": "studio_default"
+          }
+        },
+        {
+          "advanced": true,
+          "hidden": true,
+          "id": "provider_model_label",
+          "label": "Provider Model Label",
+          "type": "text"
+        },
+        {
+          "advanced": true,
+          "hidden": true,
+          "id": "provider_supports_images",
+          "label": "Provider Supports Images",
+          "type": "boolean"
+        },
+        {
+          "advanced": true,
+          "hidden": true,
+          "id": "provider_capabilities_json",
+          "label": "Provider Capabilities JSON",
+          "type": "textarea"
+        },
+        {
+          "advanced": true,
+          "id": "temperature",
+          "label": "Temperature Override",
+          "type": "float",
+          "visible_if": {
+            "field": "provider",
+            "not_equals": "codex_local"
+          }
+        },
+        {
+          "advanced": true,
+          "id": "max_tokens",
+          "label": "Max Tokens Override",
+          "type": "integer",
+          "visible_if": {
+            "field": "provider",
+            "not_equals": "codex_local"
+          }
+        },
+        {
+          "advanced": true,
+          "default": "{}",
+          "id": "external_variables_json",
+          "label": "External Variables JSON",
+          "type": "textarea"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "user_prompt",
+          "label": "User Prompt",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_e5781e6d6e71",
+              "recipe_858fe4bb1ce2",
+              "prompt-recipe-image-prompt-director",
+              "prompt-recipe-storyboard-director-3x3",
+              "prompt-recipe-storyboard-shot-sequence-3x3",
+              "recipe_1d40e1b358f9",
+              "prompt-recipe-video-director-multi-shot-json",
+              "prompt-recipe-image-analysis-character-reference"
+            ]
+          }
+        },
+        {
+          "id": "source_prompt",
+          "label": "Source Prompt",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-image-prompt-director",
+              "prompt-recipe-storyboard-director-3x3",
+              "prompt-recipe-storyboard-shot-sequence-3x3",
+              "prompt-recipe-video-director-multi-shot-json",
+              "prompt-recipe-prompt-shortener"
+            ]
+          }
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Image Refs",
+          "max": 4,
+          "type": "image",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_e5781e6d6e71",
+              "recipe_858fe4bb1ce2",
+              "prompt-recipe-image-prompt-director",
+              "prompt-recipe-storyboard-director-3x3",
+              "prompt-recipe-storyboard-shot-sequence-3x3",
+              "recipe_1d40e1b358f9",
+              "prompt-recipe-video-director-multi-shot-json",
+              "prompt-recipe-image-analysis-character-reference"
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "text",
+          "label": "Text",
+          "type": "text"
+        },
+        {
+          "id": "result",
+          "label": "Result",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "external_llm",
+        "providers": [
+          "studio_default",
+          "openrouter",
+          "codex_local",
+          "local_openai"
+        ],
+        "recipe_backed": true,
+        "supports_images": "provider_dependent"
+      },
+      "title": "Prompt Recipe",
+      "type": "prompt.recipe"
+    },
+    {
+      "category": "Prompt",
+      "fields": [],
+      "inputs": [
+        {
+          "id": "result",
+          "label": "Result",
+          "max": 1,
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "prompt_1",
+          "label": "Prompt 1",
+          "type": "text"
+        },
+        {
+          "id": "prompt_2",
+          "label": "Prompt 2",
+          "type": "text"
+        },
+        {
+          "id": "prompt_3",
+          "label": "Prompt 3",
+          "type": "text"
+        },
+        {
+          "id": "prompt_4",
+          "label": "Prompt 4",
+          "type": "text"
+        },
+        {
+          "id": "prompt_5",
+          "label": "Prompt 5",
+          "type": "text"
+        },
+        {
+          "id": "prompt_6",
+          "label": "Prompt 6",
+          "type": "text"
+        },
+        {
+          "id": "prompt_7",
+          "label": "Prompt 7",
+          "type": "text"
+        },
+        {
+          "id": "prompt_8",
+          "label": "Prompt 8",
+          "type": "text"
+        },
+        {
+          "id": "prompt_9",
+          "label": "Prompt 9",
+          "type": "text"
+        },
+        {
+          "id": "prompt_10",
+          "label": "Prompt 10",
+          "type": "text"
+        },
+        {
+          "id": "prompt_11",
+          "label": "Prompt 11",
+          "type": "text"
+        },
+        {
+          "id": "prompt_12",
+          "label": "Prompt 12",
+          "type": "text"
+        },
+        {
+          "id": "result",
+          "label": "Result",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Prompt Parse",
+      "type": "prompt.parse"
+    },
+    {
+      "category": "Media",
+      "fields": [
+        {
+          "id": "asset_id",
+          "label": "Asset ID",
+          "type": "asset_picker"
+        },
+        {
+          "id": "reference_id",
+          "label": "Reference ID",
+          "type": "reference_media_picker"
+        }
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "type": "image"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Load Image",
+      "type": "media.load_image"
+    },
+    {
+      "category": "Media",
+      "fields": [
+        {
+          "id": "asset_id",
+          "label": "Asset ID",
+          "type": "asset_picker"
+        },
+        {
+          "id": "reference_id",
+          "label": "Reference ID",
+          "type": "reference_media_picker"
+        }
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Load Video",
+      "type": "media.load_video"
+    },
+    {
+      "category": "Media",
+      "fields": [
+        {
+          "id": "reference_id",
+          "label": "Reference ID",
+          "type": "reference_media_picker"
+        }
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "audio",
+          "label": "Audio",
+          "type": "audio"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Load Audio",
+      "type": "media.load_audio"
+    },
+    {
+      "category": "Media",
+      "fields": [
+        {
+          "id": "project_id",
+          "label": "Group",
+          "options": [
+            {
+              "label": "Sadi",
+              "value": "project_ab78ce28660d"
+            },
+            {
+              "label": "Hidden Project Smoke",
+              "value": "project_a6f9f8d497e0"
+            },
+            {
+              "label": "Project Cover Smoke",
+              "value": "project_397443436540"
+            },
+            {
+              "label": "Project Smoke",
+              "value": "project_58420ab47f22"
+            }
+          ],
+          "type": "select"
+        },
+        {
+          "hidden": true,
+          "id": "label",
+          "label": "Label",
+          "type": "text"
+        }
+      ],
+      "inputs": [
+        {
+          "array": true,
+          "id": "image",
+          "label": "Image",
+          "max": 25,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "array": true,
+          "id": "asset",
+          "label": "Asset",
+          "type": "asset"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Save Image",
+      "type": "media.save_image"
+    },
+    {
+      "category": "Media",
+      "fields": [
+        {
+          "id": "project_id",
+          "label": "Group",
+          "options": [
+            {
+              "label": "Sadi",
+              "value": "project_ab78ce28660d"
+            },
+            {
+              "label": "Hidden Project Smoke",
+              "value": "project_a6f9f8d497e0"
+            },
+            {
+              "label": "Project Cover Smoke",
+              "value": "project_397443436540"
+            },
+            {
+              "label": "Project Smoke",
+              "value": "project_58420ab47f22"
+            }
+          ],
+          "type": "select"
+        },
+        {
+          "hidden": true,
+          "id": "label",
+          "label": "Label",
+          "type": "text"
+        },
+        {
+          "default": "Slice {index}",
+          "id": "naming_pattern",
+          "label": "Naming Pattern",
+          "type": "text"
+        }
+      ],
+      "inputs": [
+        {
+          "array": true,
+          "id": "images",
+          "label": "Images",
+          "max": 25,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "array": true,
+          "id": "assets",
+          "label": "Assets",
+          "type": "asset"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Save Images",
+      "type": "media.save_images"
+    },
+    {
+      "category": "Media",
+      "fields": [
+        {
+          "id": "project_id",
+          "label": "Group",
+          "options": [
+            {
+              "label": "Sadi",
+              "value": "project_ab78ce28660d"
+            },
+            {
+              "label": "Hidden Project Smoke",
+              "value": "project_a6f9f8d497e0"
+            },
+            {
+              "label": "Project Cover Smoke",
+              "value": "project_397443436540"
+            },
+            {
+              "label": "Project Smoke",
+              "value": "project_58420ab47f22"
+            }
+          ],
+          "type": "select"
+        },
+        {
+          "default": "graph-video",
+          "hidden": true,
+          "id": "filename_prefix",
+          "label": "Filename Prefix",
+          "type": "text"
+        },
+        {
+          "default": "source_original",
+          "id": "format",
+          "label": "Format",
+          "options": [
+            {
+              "label": "Source Original",
+              "value": "source_original"
+            },
+            {
+              "label": "MP4 H.264 Browser",
+              "value": "mp4_h264_browser"
+            },
+            {
+              "label": "MP4 H.265",
+              "value": "mp4_h265"
+            },
+            {
+              "label": "WebM VP9",
+              "value": "webm_vp9"
+            }
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "default": "auto",
+          "hidden": true,
+          "id": "codec",
+          "label": "Codec",
+          "options": [
+            {
+              "label": "Auto",
+              "value": "auto"
+            },
+            {
+              "label": "H.264",
+              "value": "h264"
+            },
+            {
+              "label": "H.265",
+              "value": "h265"
+            },
+            {
+              "label": "VP9",
+              "value": "vp9"
+            }
+          ],
+          "type": "select"
+        },
+        {
+          "advanced": true,
+          "default": 23,
+          "hidden": true,
+          "id": "crf",
+          "label": "CRF",
+          "type": "integer"
+        },
+        {
+          "default": "keep_video_audio",
+          "id": "audio_policy",
+          "label": "Audio",
+          "options": [
+            {
+              "label": "Keep Video Audio",
+              "value": "keep_video_audio"
+            },
+            {
+              "label": "Replace With Audio Input",
+              "value": "replace"
+            },
+            {
+              "label": "Mix With Audio Input",
+              "value": "mix"
+            },
+            {
+              "label": "Mute Video",
+              "value": "mute"
+            }
+          ],
+          "type": "select"
+        },
+        {
+          "default": "trim_to_video",
+          "id": "audio_fit",
+          "label": "Audio Fit",
+          "options": [
+            {
+              "label": "Trim To Video",
+              "value": "trim_to_video"
+            },
+            {
+              "label": "Loop To Video",
+              "value": "loop_to_video"
+            },
+            {
+              "label": "Pad Silence",
+              "value": "pad_silence"
+            }
+          ],
+          "type": "select",
+          "visible_if": {
+            "field": "audio_policy",
+            "in": [
+              "replace",
+              "mix"
+            ]
+          }
+        },
+        {
+          "id": "audio_offset_seconds",
+          "label": "Audio Offset",
+          "type": "float",
+          "visible_if": {
+            "field": "audio_policy",
+            "in": [
+              "replace",
+              "mix"
+            ]
+          }
+        },
+        {
+          "default": 1,
+          "id": "audio_volume",
+          "label": "Audio Volume",
+          "type": "float",
+          "visible_if": {
+            "field": "audio_policy",
+            "in": [
+              "replace",
+              "mix"
+            ]
+          }
+        },
+        {
+          "default": 1,
+          "id": "video_audio_volume",
+          "label": "Video Audio Volume",
+          "type": "float",
+          "visible_if": {
+            "equals": "mix",
+            "field": "audio_policy"
+          }
+        },
+        {
+          "advanced": true,
+          "default": true,
+          "hidden": true,
+          "id": "include_metadata",
+          "label": "Include Metadata",
+          "type": "boolean"
+        },
+        {
+          "hidden": true,
+          "id": "label",
+          "label": "Label",
+          "type": "text"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "video"
+        },
+        {
+          "id": "audio",
+          "label": "Audio",
+          "max": 1,
+          "type": "audio"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "asset",
+          "label": "Asset",
+          "type": "asset"
+        },
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Save Video",
+      "type": "media.save_video"
+    },
+    {
+      "category": "Media",
+      "fields": [
+        {
+          "id": "project_id",
+          "label": "Group",
+          "options": [
+            {
+              "label": "Sadi",
+              "value": "project_ab78ce28660d"
+            },
+            {
+              "label": "Hidden Project Smoke",
+              "value": "project_a6f9f8d497e0"
+            },
+            {
+              "label": "Project Cover Smoke",
+              "value": "project_397443436540"
+            },
+            {
+              "label": "Project Smoke",
+              "value": "project_58420ab47f22"
+            }
+          ],
+          "type": "select"
+        },
+        {
+          "default": "graph-audio",
+          "hidden": true,
+          "id": "filename_prefix",
+          "label": "Filename Prefix",
+          "type": "text"
+        },
+        {
+          "default": "source_original",
+          "id": "format",
+          "label": "Format",
+          "options": [
+            {
+              "label": "Source Original",
+              "value": "source_original"
+            },
+            {
+              "label": "MP3",
+              "value": "mp3"
+            },
+            {
+              "label": "WAV",
+              "value": "wav"
+            },
+            {
+              "label": "M4A AAC",
+              "value": "m4a_aac"
+            }
+          ],
+          "type": "select"
+        },
+        {
+          "advanced": true,
+          "default": true,
+          "hidden": true,
+          "id": "include_metadata",
+          "label": "Include Metadata",
+          "type": "boolean"
+        },
+        {
+          "hidden": true,
+          "id": "label",
+          "label": "Label",
+          "type": "text"
+        }
+      ],
+      "inputs": [
+        {
+          "array": true,
+          "id": "audio",
+          "label": "Audio",
+          "max": 10,
+          "min": 1,
+          "required": true,
+          "type": "audio"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "asset",
+          "label": "Asset",
+          "type": "asset"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Save Audio",
+      "type": "media.save_audio"
+    },
+    {
+      "category": "Media",
+      "fields": [
+        {
+          "id": "project_id",
+          "label": "Group",
+          "options": [
+            {
+              "label": "Sadi",
+              "value": "project_ab78ce28660d"
+            },
+            {
+              "label": "Hidden Project Smoke",
+              "value": "project_a6f9f8d497e0"
+            },
+            {
+              "label": "Project Cover Smoke",
+              "value": "project_397443436540"
+            },
+            {
+              "label": "Project Smoke",
+              "value": "project_58420ab47f22"
+            }
+          ],
+          "type": "select"
+        },
+        {
+          "default": "graph-music",
+          "hidden": true,
+          "id": "filename_prefix",
+          "label": "Filename Prefix",
+          "type": "text"
+        },
+        {
+          "advanced": true,
+          "default": true,
+          "hidden": true,
+          "id": "include_metadata",
+          "label": "Include Metadata",
+          "type": "boolean"
+        },
+        {
+          "hidden": true,
+          "id": "label",
+          "label": "Label",
+          "type": "text"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "track",
+          "label": "Music Track",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "music_track"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "asset",
+          "label": "Asset",
+          "type": "asset"
+        },
+        {
+          "id": "audio",
+          "label": "Audio",
+          "type": "audio"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Save Music Track",
+      "type": "media.save_music_track"
+    },
+    {
+      "category": "Audio",
+      "fields": [
+        {
+          "default": "extract_metadata",
+          "id": "operation",
+          "label": "Operation",
+          "options": [
+            {
+              "label": "Trim",
+              "value": "trim"
+            },
+            {
+              "label": "Convert Format",
+              "value": "convert_format"
+            },
+            {
+              "label": "Normalize",
+              "value": "normalize"
+            },
+            {
+              "label": "Extract Metadata",
+              "value": "extract_metadata"
+            }
+          ],
+          "type": "select"
+        },
+        {
+          "id": "start_seconds",
+          "label": "Start",
+          "type": "float",
+          "visible_if": {
+            "equals": "trim",
+            "field": "operation"
+          }
+        },
+        {
+          "default": 5,
+          "id": "duration_seconds",
+          "label": "Duration",
+          "type": "float",
+          "visible_if": {
+            "equals": "trim",
+            "field": "operation"
+          }
+        },
+        {
+          "default": "mp3",
+          "id": "format",
+          "label": "Format",
+          "options": [
+            {
+              "label": "MP3",
+              "value": "mp3"
+            },
+            {
+              "label": "WAV",
+              "value": "wav"
+            },
+            {
+              "label": "M4A AAC",
+              "value": "m4a_aac"
+            }
+          ],
+          "type": "select",
+          "visible_if": {
+            "field": "operation",
+            "in": [
+              "trim",
+              "convert_format",
+              "normalize"
+            ]
+          }
+        },
+        {
+          "default": -16,
+          "id": "target_lufs",
+          "label": "Target LUFS",
+          "type": "float",
+          "visible_if": {
+            "equals": "normalize",
+            "field": "operation"
+          }
+        }
+      ],
+      "inputs": [
+        {
+          "id": "audio",
+          "label": "Audio",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "audio"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "audio",
+          "label": "Audio",
+          "type": "audio"
+        },
+        {
+          "id": "metadata",
+          "label": "Metadata",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Audio Transform",
+      "type": "audio.transform"
+    },
+    {
+      "category": "Image",
+      "fields": [
+        {
+          "default": "resize",
+          "id": "operation",
+          "label": "Operation",
+          "options": [
+            {
+              "label": "Resize",
+              "value": "resize"
+            },
+            {
+              "label": "Crop",
+              "value": "crop"
+            },
+            {
+              "label": "Pad",
+              "value": "pad"
+            },
+            {
+              "label": "Convert Format",
+              "value": "convert_format"
+            },
+            {
+              "label": "Extract Metadata",
+              "value": "extract_metadata"
+            }
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "default": 1024,
+          "id": "width",
+          "label": "Width",
+          "type": "integer"
+        },
+        {
+          "default": 1024,
+          "id": "height",
+          "label": "Height",
+          "type": "integer"
+        },
+        {
+          "default": "contain",
+          "id": "fit",
+          "label": "Fit",
+          "options": [
+            "contain",
+            "cover",
+            "stretch"
+          ],
+          "type": "select"
+        },
+        {
+          "id": "x",
+          "label": "X",
+          "type": "integer"
+        },
+        {
+          "id": "y",
+          "label": "Y",
+          "type": "integer"
+        },
+        {
+          "default": "#000000",
+          "id": "color",
+          "label": "Canvas Color",
+          "type": "color"
+        },
+        {
+          "default": "png",
+          "id": "format",
+          "label": "Format",
+          "options": [
+            "png",
+            "webp",
+            "jpeg"
+          ],
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "type": "image"
+        },
+        {
+          "id": "metadata",
+          "label": "Metadata",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Image Transform",
+      "type": "image.transform"
+    },
+    {
+      "category": "Image",
+      "fields": [
+        {
+          "default": 2,
+          "id": "rows",
+          "label": "Rows",
+          "required": true,
+          "type": "integer"
+        },
+        {
+          "default": 2,
+          "id": "columns",
+          "label": "Columns",
+          "required": true,
+          "type": "integer"
+        },
+        {
+          "default": "auto",
+          "id": "gutter_mode",
+          "label": "Gutter Mode",
+          "options": [
+            "none",
+            "auto",
+            "fixed"
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "id": "gutter_px",
+          "label": "Gutter px",
+          "type": "integer"
+        },
+        {
+          "default": true,
+          "id": "trim_outer_gutter",
+          "label": "Trim Outer Gutter",
+          "type": "boolean"
+        },
+        {
+          "default": "png",
+          "id": "format",
+          "label": "Format",
+          "options": [
+            "png",
+            "webp",
+            "jpeg"
+          ],
+          "required": true,
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "array": true,
+          "id": "images",
+          "label": "Images",
+          "type": "image"
+        },
+        {
+          "id": "metadata",
+          "label": "Metadata",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Grid Slice Image",
+      "type": "image.grid_slice"
+    },
+    {
+      "category": "Image",
+      "fields": [
+        {
+          "default": 4,
+          "id": "outputs",
+          "label": "Outputs",
+          "required": true,
+          "type": "integer"
+        }
+      ],
+      "inputs": [
+        {
+          "array": true,
+          "id": "images",
+          "label": "Images",
+          "max": 25,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "advanced": true,
+          "id": "image_1",
+          "label": "Image 1",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_2",
+          "label": "Image 2",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_3",
+          "label": "Image 3",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_4",
+          "label": "Image 4",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_5",
+          "label": "Image 5",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_6",
+          "label": "Image 6",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_7",
+          "label": "Image 7",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_8",
+          "label": "Image 8",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_9",
+          "label": "Image 9",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_10",
+          "label": "Image 10",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_11",
+          "label": "Image 11",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_12",
+          "label": "Image 12",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_13",
+          "label": "Image 13",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_14",
+          "label": "Image 14",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_15",
+          "label": "Image 15",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_16",
+          "label": "Image 16",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_17",
+          "label": "Image 17",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_18",
+          "label": "Image 18",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_19",
+          "label": "Image 19",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_20",
+          "label": "Image 20",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_21",
+          "label": "Image 21",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_22",
+          "label": "Image 22",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_23",
+          "label": "Image 23",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_24",
+          "label": "Image 24",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "image_25",
+          "label": "Image 25",
+          "type": "image"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Split Images",
+      "type": "image.split"
+    },
+    {
+      "category": "Preview",
+      "fields": [],
+      "inputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "type": "image"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Preview Image",
+      "type": "preview.image"
+    },
+    {
+      "category": "Video",
+      "fields": [
+        {
+          "default": "resize",
+          "id": "operation",
+          "label": "Operation",
+          "options": [
+            {
+              "label": "Resize",
+              "value": "resize"
+            },
+            {
+              "label": "Trim",
+              "value": "trim"
+            },
+            {
+              "label": "Convert Container",
+              "value": "convert_container"
+            }
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "default": 1280,
+          "id": "width",
+          "label": "Width",
+          "type": "integer"
+        },
+        {
+          "default": 720,
+          "id": "height",
+          "label": "Height",
+          "type": "integer"
+        },
+        {
+          "id": "start_seconds",
+          "label": "Start",
+          "type": "float"
+        },
+        {
+          "default": 3,
+          "id": "duration_seconds",
+          "label": "Duration",
+          "type": "float"
+        },
+        {
+          "default": "mp4",
+          "id": "format",
+          "label": "Format",
+          "options": [
+            "mp4",
+            "webm"
+          ],
+          "required": true,
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "video"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "id": "metadata",
+          "label": "Metadata",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Video Transform",
+      "type": "video.transform"
+    },
+    {
+      "category": "Video",
+      "fields": [
+        {
+          "default": 4,
+          "id": "clip_count",
+          "label": "Clip Count",
+          "required": true,
+          "type": "integer"
+        },
+        {
+          "default": "crossfade",
+          "id": "transition",
+          "label": "Transition",
+          "options": [
+            {
+              "label": "Hard Cut",
+              "value": "hard_cut"
+            },
+            {
+              "label": "Crossfade",
+              "value": "crossfade"
+            },
+            {
+              "label": "Fade To Black",
+              "value": "fade_to_black"
+            }
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "default": 0.5,
+          "id": "transition_duration_seconds",
+          "label": "Transition Seconds",
+          "type": "float",
+          "visible_if": {
+            "field": "transition",
+            "not_equals": "hard_cut"
+          }
+        },
+        {
+          "default": "first_clip",
+          "id": "resolution_policy",
+          "label": "Resolution",
+          "options": [
+            {
+              "label": "Use First Clip",
+              "value": "first_clip"
+            },
+            {
+              "label": "Custom",
+              "value": "custom"
+            }
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "default": 1080,
+          "id": "width",
+          "label": "Width",
+          "type": "integer",
+          "visible_if": {
+            "equals": "custom",
+            "field": "resolution_policy"
+          }
+        },
+        {
+          "default": 1920,
+          "id": "height",
+          "label": "Height",
+          "type": "integer",
+          "visible_if": {
+            "equals": "custom",
+            "field": "resolution_policy"
+          }
+        },
+        {
+          "default": "first_clip",
+          "id": "fps_policy",
+          "label": "FPS",
+          "options": [
+            {
+              "label": "Use First Clip",
+              "value": "first_clip"
+            },
+            {
+              "label": "24 fps",
+              "value": "fps_24"
+            },
+            {
+              "label": "30 fps",
+              "value": "fps_30"
+            },
+            {
+              "label": "60 fps",
+              "value": "fps_60"
+            }
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "default": "mp4",
+          "id": "output_format",
+          "label": "Output",
+          "options": [
+            "mp4",
+            "webm"
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "default": 18,
+          "id": "quality_crf",
+          "label": "Quality CRF",
+          "type": "integer"
+        },
+        {
+          "default": "Combined Video",
+          "id": "title",
+          "label": "Title",
+          "type": "text"
+        },
+        {
+          "advanced": true,
+          "default": "stub_v1",
+          "hidden": true,
+          "id": "audio_policy",
+          "label": "Audio Policy",
+          "options": [
+            "stub_v1"
+          ],
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "video_1",
+          "label": "Video 1",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "video"
+        },
+        {
+          "id": "video_2",
+          "label": "Video 2",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "video"
+        },
+        {
+          "id": "video_3",
+          "label": "Video 3",
+          "max": 1,
+          "type": "video"
+        },
+        {
+          "id": "video_4",
+          "label": "Video 4",
+          "max": 1,
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "video_5",
+          "label": "Video 5",
+          "max": 1,
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "video_6",
+          "label": "Video 6",
+          "max": 1,
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "video_7",
+          "label": "Video 7",
+          "max": 1,
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "video_8",
+          "label": "Video 8",
+          "max": 1,
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "video_9",
+          "label": "Video 9",
+          "max": 1,
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "video_10",
+          "label": "Video 10",
+          "max": 1,
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "video_11",
+          "label": "Video 11",
+          "max": 1,
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "video_12",
+          "label": "Video 12",
+          "max": 1,
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "audio",
+          "label": "Audio",
+          "max": 1,
+          "type": "audio"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "id": "metadata",
+          "label": "Metadata",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Video Combine",
+      "type": "video.combine"
+    },
+    {
+      "category": "Video",
+      "fields": [
+        {
+          "default": "poster_frame",
+          "id": "operation",
+          "label": "Operation",
+          "options": [
+            {
+              "label": "Poster Frame",
+              "value": "poster_frame"
+            },
+            {
+              "label": "Extract Frames",
+              "value": "extract_frames"
+            },
+            {
+              "label": "Extract Audio",
+              "value": "extract_audio"
+            },
+            {
+              "label": "Extract Metadata",
+              "value": "extract_metadata"
+            }
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "id": "at_seconds",
+          "label": "At",
+          "type": "float"
+        },
+        {
+          "default": 1,
+          "id": "fps",
+          "label": "FPS",
+          "type": "float"
+        },
+        {
+          "default": 8,
+          "id": "max_frames",
+          "label": "Max Frames",
+          "type": "integer"
+        },
+        {
+          "default": "jpg",
+          "id": "format",
+          "label": "Image Format",
+          "options": [
+            "jpg",
+            "png"
+          ],
+          "type": "select"
+        },
+        {
+          "default": "mp3",
+          "id": "audio_format",
+          "label": "Audio Format",
+          "options": [
+            "mp3",
+            "wav"
+          ],
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "video"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "type": "image"
+        },
+        {
+          "array": true,
+          "id": "images",
+          "label": "Frames",
+          "type": "image"
+        },
+        {
+          "id": "audio",
+          "label": "Audio",
+          "type": "audio"
+        },
+        {
+          "id": "metadata",
+          "label": "Metadata",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Video Extract",
+      "type": "video.extract"
+    },
+    {
+      "category": "Preview",
+      "fields": [],
+      "inputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "video"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Preview Video",
+      "type": "preview.video"
+    },
+    {
+      "category": "Preview",
+      "fields": [],
+      "inputs": [
+        {
+          "array": true,
+          "id": "audio",
+          "label": "Audio",
+          "max": 10,
+          "min": 1,
+          "required": true,
+          "type": "audio"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "audio",
+          "label": "Audio",
+          "type": "audio"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Preview Audio",
+      "type": "preview.audio"
+    },
+    {
+      "category": "Preview",
+      "fields": [],
+      "inputs": [
+        {
+          "id": "value",
+          "label": "Value",
+          "max": 1,
+          "type": "any"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "value",
+          "label": "Value",
+          "type": "any"
+        },
+        {
+          "id": "json",
+          "label": "JSON",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Display Any",
+      "type": "display.any"
+    },
+    {
+      "category": "Debug",
+      "fields": [],
+      "inputs": [
+        {
+          "array": true,
+          "id": "value",
+          "label": "Value",
+          "max": 20,
+          "type": "any"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "json",
+          "label": "JSON",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Inspect",
+      "type": "debug.inspect"
+    },
+    {
+      "category": "Debug",
+      "fields": [],
+      "inputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "max": 1,
+          "type": "image"
+        },
+        {
+          "id": "video",
+          "label": "Video",
+          "max": 1,
+          "type": "video"
+        },
+        {
+          "id": "audio",
+          "label": "Audio",
+          "max": 1,
+          "type": "audio"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "json",
+          "label": "JSON",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Metadata",
+      "type": "debug.metadata"
+    },
+    {
+      "category": "Utility",
+      "fields": [
+        {
+          "id": "body",
+          "label": "Note",
+          "type": "textarea"
+        }
+      ],
+      "inputs": [],
+      "outputs": [],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Note",
+      "type": "utility.note"
+    },
+    {
+      "category": "Preset",
+      "fields": [
+        {
+          "id": "preset_id",
+          "label": "Preset",
+          "options": [
+            {
+              "label": "3D Caricature Style",
+              "value": "media-preset-3d-caricature-style-nano-banana-shared"
+            },
+            {
+              "label": "Selfie with Movie Character",
+              "value": "media-preset-selfie-with-movie-character-nano-banana-shared"
+            },
+            {
+              "label": "Cleanest Storyboard Sheet",
+              "value": "preset_af4001299959"
+            },
+            {
+              "label": "Codex Smoke Image GPT I2I",
+              "value": "preset_f69236e8ce98"
+            },
+            {
+              "label": "Codex Smoke Prompt GPT T2I",
+              "value": "preset_de979f9911e4"
+            }
+          ],
+          "required": true,
+          "type": "preset_picker"
+        },
+        {
+          "default": "{}",
+          "id": "text_values_json",
+          "label": "Text Values JSON",
+          "type": "textarea"
+        },
+        {
+          "default": "{}",
+          "id": "image_slots_json",
+          "label": "Image Slots JSON",
+          "type": "textarea"
+        }
+      ],
+      "inputs": [
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Image Refs",
+          "max": 8,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Image Refs",
+          "type": "image"
+        },
+        {
+          "id": "preset",
+          "label": "Preset",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Render Preset",
+      "type": "preset.render"
+    },
+    {
+      "category": "Models/Image",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "default": "auto",
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4"
+          ],
+          "type": "select"
+        },
+        {
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Reference Images",
+          "max": 16,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "GPT Image 2 Image to Image",
+      "type": "model.kie.gpt_image_2_image_to_image"
+    },
+    {
+      "category": "Models/Image",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "default": "auto",
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4"
+          ],
+          "type": "select"
+        },
+        {
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "GPT Image 2 Text to Image",
+      "type": "model.kie.gpt_image_2_text_to_image"
+    },
+    {
+      "category": "Models/Video",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "id": "sound",
+          "label": "Sound",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "id": "duration",
+          "label": "Duration",
+          "options": [
+            5,
+            10
+          ],
+          "required": true,
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Reference Image",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Kling 2.6 Image to Video",
+      "type": "model.kie.kling_2_6_i2v"
+    },
+    {
+      "category": "Models/Video",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "id": "sound",
+          "label": "Sound",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16"
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "id": "duration",
+          "label": "Duration",
+          "options": [
+            5,
+            10
+          ],
+          "required": true,
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Kling 2.6 Text to Video",
+      "type": "model.kie.kling_2_6_t2v"
+    },
+    {
+      "category": "Models/Video",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "default": "std",
+          "id": "mode",
+          "label": "Mode",
+          "options": [
+            "std",
+            "pro",
+            "4K"
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "default": true,
+          "id": "sound",
+          "label": "Sound",
+          "type": "boolean"
+        },
+        {
+          "id": "duration",
+          "label": "Duration",
+          "required": true,
+          "type": "integer"
+        },
+        {
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "1:1",
+            "9:16",
+            "16:9"
+          ],
+          "type": "select"
+        },
+        {
+          "id": "multi_shots",
+          "label": "Multi Shots",
+          "type": "boolean"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "id": "start_frame",
+          "label": "Start Frame",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        },
+        {
+          "id": "end_frame",
+          "label": "End Frame",
+          "max": 1,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Kling 3.0 Image to Video",
+      "type": "model.kie.kling_3_0_i2v"
+    },
+    {
+      "category": "Models/Video",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "id": "character_orientation",
+          "label": "Character Orientation",
+          "options": [
+            "image",
+            "video"
+          ],
+          "type": "select"
+        },
+        {
+          "id": "mode",
+          "label": "Mode",
+          "options": [
+            "720p",
+            "1080p"
+          ],
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Reference Image",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        },
+        {
+          "array": true,
+          "id": "video_refs",
+          "label": "Video Refs",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "video"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Kling 3.0 Motion Control",
+      "type": "model.kie.kling_3_0_motion"
+    },
+    {
+      "category": "Models/Video",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "default": "std",
+          "id": "mode",
+          "label": "Mode",
+          "options": [
+            "std",
+            "pro",
+            "4K"
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "default": true,
+          "id": "sound",
+          "label": "Sound",
+          "type": "boolean"
+        },
+        {
+          "id": "duration",
+          "label": "Duration",
+          "required": true,
+          "type": "integer"
+        },
+        {
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "1:1",
+            "9:16",
+            "16:9"
+          ],
+          "type": "select"
+        },
+        {
+          "id": "multi_shots",
+          "label": "Multi Shots",
+          "type": "boolean"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Kling 3.0 Text to Video",
+      "type": "model.kie.kling_3_0_t2v"
+    },
+    {
+      "category": "Models/Image",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9",
+            "auto"
+          ],
+          "type": "select"
+        },
+        {
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "select"
+        },
+        {
+          "id": "output_format",
+          "label": "Output Format",
+          "options": [
+            "jpg",
+            "png"
+          ],
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Reference Images",
+          "max": 14,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Nano Banana 2",
+      "type": "model.kie.nano_banana_2"
+    },
+    {
+      "category": "Models/Image",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9",
+            "auto"
+          ],
+          "type": "select"
+        },
+        {
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "select"
+        },
+        {
+          "id": "output_format",
+          "label": "Output Format",
+          "options": [
+            "png",
+            "jpg"
+          ],
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Reference Images",
+          "max": 8,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Nano Banana Pro",
+      "type": "model.kie.nano_banana_pro"
+    },
+    {
+      "category": "Models/Video",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "id": "return_last_frame",
+          "label": "Return Last Frame",
+          "type": "boolean"
+        },
+        {
+          "id": "generate_audio",
+          "label": "Generate Audio",
+          "type": "boolean"
+        },
+        {
+          "default": "720p",
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "480p",
+            "720p",
+            "1080p"
+          ],
+          "type": "select"
+        },
+        {
+          "default": "16:9",
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9"
+          ],
+          "type": "select"
+        },
+        {
+          "id": "duration",
+          "label": "Duration",
+          "required": true,
+          "type": "integer"
+        },
+        {
+          "id": "web_search",
+          "label": "Web Search",
+          "type": "boolean"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "id": "start_frame",
+          "label": "Start Frame",
+          "max": 1,
+          "type": "image"
+        },
+        {
+          "id": "end_frame",
+          "label": "End Frame",
+          "max": 1,
+          "type": "image"
+        },
+        {
+          "array": true,
+          "id": "reference_images",
+          "label": "Reference Images",
+          "max": 9,
+          "type": "image"
+        },
+        {
+          "array": true,
+          "id": "reference_videos",
+          "label": "Reference Videos",
+          "max": 3,
+          "type": "video"
+        },
+        {
+          "array": true,
+          "id": "reference_audios",
+          "label": "Reference Audio",
+          "max": 3,
+          "type": "audio"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Seedance 2.0 Standard",
+      "type": "model.kie.seedance_2_0"
+    },
+    {
+      "category": "Models/Audio",
+      "fields": [
+        {
+          "default": "V5",
+          "id": "suno_model",
+          "label": "Model",
+          "options": [
+            "V4",
+            "V4_5",
+            "V4_5PLUS",
+            "V4_5ALL",
+            "V5",
+            "V5_5"
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "id": "custom_mode",
+          "label": "Custom Mode",
+          "type": "boolean"
+        },
+        {
+          "connectable": true,
+          "id": "song_description",
+          "label": "Song Description",
+          "port_type": "text",
+          "type": "textarea",
+          "visible_if": {
+            "field": "custom_mode",
+            "not_equals": true
+          }
+        },
+        {
+          "id": "title",
+          "label": "Title",
+          "type": "text",
+          "visible_if": {
+            "equals": true,
+            "field": "custom_mode"
+          }
+        },
+        {
+          "id": "style",
+          "label": "Style Of Music",
+          "type": "textarea",
+          "visible_if": {
+            "equals": true,
+            "field": "custom_mode"
+          }
+        },
+        {
+          "id": "persona_id",
+          "label": "Persona ID",
+          "type": "text",
+          "visible_if": {
+            "equals": true,
+            "field": "custom_mode"
+          }
+        },
+        {
+          "id": "instrumental",
+          "label": "Instrumental",
+          "type": "boolean"
+        },
+        {
+          "connectable": true,
+          "id": "lyrics",
+          "label": "Lyrics",
+          "port_type": "text",
+          "type": "textarea",
+          "visible_if": {
+            "equals": true,
+            "field": "custom_mode"
+          }
+        },
+        {
+          "id": "vocal_gender",
+          "label": "Vocal Gender",
+          "options": [
+            "m",
+            "f"
+          ],
+          "type": "select",
+          "visible_if": {
+            "equals": true,
+            "field": "custom_mode"
+          }
+        },
+        {
+          "id": "audio_weight",
+          "label": "Audio Weight",
+          "type": "float"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "song_description",
+          "label": "Song Description",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "custom_mode",
+            "not_equals": true
+          }
+        },
+        {
+          "id": "lyrics",
+          "label": "Lyrics",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "equals": true,
+            "field": "custom_mode"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "track_1",
+          "label": "Music Track 1",
+          "type": "music_track"
+        },
+        {
+          "id": "track_2",
+          "label": "Music Track 2",
+          "type": "music_track"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Suno Music Generation",
+      "type": "model.kie.suno_generate_music"
+    },
+    {
+      "category": "Preset",
+      "fields": [
+        {
+          "default": "media-preset-3d-caricature-style-nano-banana-shared",
+          "hidden": true,
+          "id": "preset_id",
+          "label": "Preset",
+          "type": "text"
+        },
+        {
+          "default": "Pixar-inspired studio lighting with premium skin detail",
+          "id": "text__subject_style",
+          "label": "Style Direction",
+          "required": true,
+          "type": "text"
+        }
+      ],
+      "inputs": [
+        {
+          "array": true,
+          "id": "slot__person",
+          "label": "Portrait",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Image Refs",
+          "type": "image"
+        },
+        {
+          "id": "preset",
+          "label": "Preset",
+          "type": "json"
+        },
+        {
+          "advanced": true,
+          "id": "recommended_models",
+          "label": "Recommended Models",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "preset"
+      },
+      "title": "3D Caricature Style",
+      "type": "preset.render.3d_caricature_style_nano_banana"
+    },
+    {
+      "category": "Preset",
+      "fields": [
+        {
+          "default": "media-preset-selfie-with-movie-character-nano-banana-shared",
+          "hidden": true,
+          "id": "preset_id",
+          "label": "Preset",
+          "type": "text"
+        },
+        {
+          "id": "text__character_name",
+          "label": "Character",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "id": "text__movie_name",
+          "label": "Movie",
+          "required": true,
+          "type": "text"
+        }
+      ],
+      "inputs": [
+        {
+          "array": true,
+          "id": "slot__person",
+          "label": "Portrait",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Image Refs",
+          "type": "image"
+        },
+        {
+          "id": "preset",
+          "label": "Preset",
+          "type": "json"
+        },
+        {
+          "advanced": true,
+          "id": "recommended_models",
+          "label": "Recommended Models",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "preset"
+      },
+      "title": "Selfie with Movie Character",
+      "type": "preset.render.selfie_with_movie_character_nano_banana"
+    },
+    {
+      "category": "Preset",
+      "fields": [
+        {
+          "default": "preset_af4001299959",
+          "hidden": true,
+          "id": "preset_id",
+          "label": "Preset",
+          "type": "text"
+        },
+        {
+          "id": "text__creative_brief",
+          "label": "Creative Brief",
+          "required": true,
+          "type": "text"
+        }
+      ],
+      "inputs": [
+        {
+          "array": true,
+          "id": "slot__person",
+          "label": "Person",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Image Refs",
+          "type": "image"
+        },
+        {
+          "id": "preset",
+          "label": "Preset",
+          "type": "json"
+        },
+        {
+          "advanced": true,
+          "id": "recommended_models",
+          "label": "Recommended Models",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "preset"
+      },
+      "title": "Cleanest Storyboard Sheet",
+      "type": "preset.render.cleanest_storyboard_sheet"
+    },
+    {
+      "category": "Preset",
+      "fields": [
+        {
+          "default": "preset_f69236e8ce98",
+          "hidden": true,
+          "id": "preset_id",
+          "label": "Preset",
+          "type": "text"
+        },
+        {
+          "id": "text__scene",
+          "label": "Scene",
+          "required": true,
+          "type": "text"
+        }
+      ],
+      "inputs": [
+        {
+          "array": true,
+          "id": "slot__ref",
+          "label": "Ref",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Image Refs",
+          "type": "image"
+        },
+        {
+          "id": "preset",
+          "label": "Preset",
+          "type": "json"
+        },
+        {
+          "advanced": true,
+          "id": "recommended_models",
+          "label": "Recommended Models",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "preset"
+      },
+      "title": "Codex Smoke Image GPT I2I",
+      "type": "preset.render.codex_smoke_image_gpt_i2i"
+    },
+    {
+      "category": "Preset",
+      "fields": [
+        {
+          "default": "preset_de979f9911e4",
+          "hidden": true,
+          "id": "preset_id",
+          "label": "Preset",
+          "type": "text"
+        },
+        {
+          "id": "text__subject",
+          "label": "Subject",
+          "required": true,
+          "type": "text"
+        }
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Image Refs",
+          "type": "image"
+        },
+        {
+          "id": "preset",
+          "label": "Preset",
+          "type": "json"
+        },
+        {
+          "advanced": true,
+          "id": "recommended_models",
+          "label": "Recommended Models",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "preset"
+      },
+      "title": "Codex Smoke Prompt GPT T2I",
+      "type": "preset.render.codex_smoke_prompt_gpt_t2i"
+    }
+  ],
+  "source_url": "http://127.0.0.1:3000/api/control/media/graph/node-definitions"
+}

@@ -4,6 +4,7 @@ const getControlApiJson = vi.fn();
 const getControlApiFile = vi.fn();
 const mapAssetRecord = vi.fn((asset: Record<string, unknown>) => asset);
 const storePromptRecipeThumbnailBuffer = vi.fn();
+const storePresetThumbnailBuffer = vi.fn();
 
 vi.mock("@/lib/control-api", () => ({
   getControlApiJson,
@@ -15,6 +16,10 @@ vi.mock("@/lib/prompt-recipe-thumbnail-storage", () => ({
   storePromptRecipeThumbnailBuffer,
 }));
 
+vi.mock("@/lib/preset-thumbnail-storage", () => ({
+  storePresetThumbnailBuffer,
+}));
+
 describe("prompt recipe thumbnail routes", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -22,6 +27,7 @@ describe("prompt recipe thumbnail routes", () => {
     getControlApiFile.mockReset();
     mapAssetRecord.mockImplementation((asset: Record<string, unknown>) => asset);
     storePromptRecipeThumbnailBuffer.mockReset();
+    storePresetThumbnailBuffer.mockReset();
   });
 
   it("stores a prompt recipe thumbnail from a generated image asset", async () => {
@@ -91,5 +97,47 @@ describe("prompt recipe thumbnail routes", () => {
     expect(response.status).toBe(400);
     expect(payload.error).toMatch(/usable local file/i);
     expect(getControlApiFile).not.toHaveBeenCalled();
+  });
+
+  it("stores a media preset thumbnail from a generated image asset", async () => {
+    getControlApiJson.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        asset_id: "asset-3",
+        hero_web_path: "outputs/generated/asset-3.webp",
+        prompt_summary: "Caricature portrait",
+      },
+    });
+    getControlApiFile.mockResolvedValueOnce({
+      ok: true,
+      response: new Response(Buffer.from("image-bytes"), {
+        headers: { "content-type": "image/webp" },
+      }),
+      error: null,
+    });
+    storePresetThumbnailBuffer.mockResolvedValueOnce({
+      thumbnail_path: "preset-thumbnails/caricature.webp",
+      thumbnail_url: "/api/preset-thumbnails/caricature.webp",
+    });
+
+    const { POST } = await import("@/app/api/control/media-preset-thumbnail/from-asset/route");
+    const response = await POST(
+      new Request("http://localhost/api/control/media-preset-thumbnail/from-asset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ asset_id: "asset-3", presetLabel: "3D Caricature" }),
+      }),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.thumbnail_path).toBe("preset-thumbnails/caricature.webp");
+    expect(getControlApiJson).toHaveBeenCalledWith("/media/assets/asset-3", "admin");
+    expect(getControlApiFile).toHaveBeenCalledWith(["outputs", "generated", "asset-3.webp"]);
+    expect(storePresetThumbnailBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        presetLabel: "3D Caricature",
+      }),
+    );
   });
 });

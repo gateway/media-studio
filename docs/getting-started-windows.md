@@ -81,11 +81,13 @@ The Windows start script starts the API and web app together in one PowerShell w
 powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1
 ```
 
-If `8000` or `3000` is already in use by another app, startup automatically chooses the next open local ports and wires the web app to the selected API port for that launch. To force a specific pair, run with explicit ports:
+If `8000` or `3000` is already in use by another app, startup automatically chooses the next open local ports, wires the web app to the selected API port, and prints the actual Studio URL for that launch. To force a specific pair, run with explicit ports:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1 --api-port 8010 --web-port 3010
 ```
+
+Passing explicit ports keeps startup strict: if one of those ports is busy, startup stops and asks you to choose another pair.
 
 ## 7. Back up or rebuild local state
 

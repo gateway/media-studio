@@ -15,12 +15,12 @@ def prompt_provider_selection_fields() -> List[GraphNodeField]:
             default="studio_default",
             advanced=True,
             options=[
-                {"label": "Studio Default", "value": "studio_default"},
+                {"label": "Prompt Enhance Default Model", "value": "studio_default"},
                 {"label": "OpenRouter", "value": "openrouter"},
                 {"label": "Codex Local", "value": "codex_local"},
                 {"label": "Local OpenAI", "value": "local_openai"},
             ],
-            help_text="Studio Default uses the saved Media Studio enhancement provider config.",
+            help_text="Uses the Prompt Enhance default model from AI Settings.",
         ),
         GraphNodeField(
             id="model_id",

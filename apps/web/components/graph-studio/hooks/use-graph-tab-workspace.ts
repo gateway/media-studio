@@ -13,6 +13,7 @@ type UseGraphTabWorkspaceParams = {
   activeTab: GraphWorkspaceTab | null;
   activeTabId: string;
   tabs: GraphWorkspaceTab[];
+  storageScope: string | null;
   workflowId: string | null;
   workflowName: string;
   workflowUpdatedAt: string | null;
@@ -84,6 +85,7 @@ export function useGraphTabWorkspace({
   activeTab,
   activeTabId,
   tabs,
+  storageScope,
   workflowId,
   workflowName,
   workflowUpdatedAt,
@@ -146,8 +148,9 @@ export function useGraphTabWorkspace({
           }
         : tab,
     );
-    writeGraphTabSession(activeTabId, nextTabs);
-  }, [activeTab, activeTabId, canvasHydrated, consoleLines, edges, nodes, run, tabs, workflowFromCanvas, workflowId, workflowName, workflowUpdatedAt]);
+    if (!storageScope) return;
+    writeGraphTabSession(storageScope, activeTabId, nextTabs);
+  }, [activeTab, activeTabId, canvasHydrated, consoleLines, edges, nodes, run, storageScope, tabs, workflowFromCanvas, workflowId, workflowName, workflowUpdatedAt]);
 
   const switchWorkflowTab = useCallback(
     (tabId: string) => {
