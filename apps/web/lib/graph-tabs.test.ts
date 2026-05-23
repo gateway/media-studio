@@ -158,6 +158,25 @@ describe("graph workspace tabs", () => {
     expect(restored?.tabs[0].workflow_name).toBe("Live workflow");
   });
 
+  it("dedupes restored saved workflow tabs without dropping dirty scratch copies", () => {
+    const first = tab("first", "Steve test");
+    const duplicate = { ...tab("duplicate", "Steve test duplicate"), workflow_id: first.workflow_id, updated_at: "2026-05-23T10:00:00.000Z" };
+    const active = { ...tab("active", "Steve test active"), workflow_id: first.workflow_id, updated_at: "2026-05-23T09:00:00.000Z" };
+    const dirtyCopy = { ...tab("dirty", "Steve test edits"), workflow_id: first.workflow_id, dirty: true };
+    window.localStorage.setItem(
+      GRAPH_TABS_STORAGE_KEY,
+      JSON.stringify({
+        schema_version: GRAPH_TABS_SCHEMA_VERSION,
+        active_tab_id: active.tab_id,
+        tabs: [first, duplicate, active, dirtyCopy],
+      }),
+    );
+
+    const restored = readGraphTabSession();
+    expect(restored?.active_tab_id).toBe(active.tab_id);
+    expect(restored?.tabs.map((item) => item.tab_id)).toEqual([active.tab_id, dirtyCopy.tab_id]);
+  });
+
   it("scopes graph tab sessions by install id", () => {
     const firstScope = "install-one";
     const secondScope = "install-two";

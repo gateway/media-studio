@@ -24,6 +24,8 @@ from .schemas import (
     GraphRunListResponse,
     GraphRunStatusNode,
     GraphRunStatusResponse,
+    GraphRunSummary,
+    GraphRunSummaryListResponse,
     GraphTemplate,
     GraphTemplateListResponse,
     GraphTemplateRecord,
@@ -74,6 +76,23 @@ def _shape_run(record: dict) -> GraphRun:
     for node in shaped.nodes:
         node.artifacts = artifacts_by_node.get(node.node_id, [])
     return shaped
+
+
+def _shape_run_summary(record: dict) -> GraphRunSummary:
+    return GraphRunSummary(
+        run_id=str(record["run_id"]),
+        workflow_id=str(record["workflow_id"]),
+        status=str(record.get("status") or "queued"),
+        schema_version=int(record.get("schema_version") or 1),
+        metrics_json=record.get("metrics_json") if isinstance(record.get("metrics_json"), dict) else {},
+        error=record.get("error"),
+        node_count=int(record.get("node_count") or 0),
+        artifact_count=int(record.get("artifact_count") or 0),
+        created_at=record.get("created_at"),
+        started_at=record.get("started_at"),
+        finished_at=record.get("finished_at"),
+        updated_at=record.get("updated_at"),
+    )
 
 
 def _shape_run_status(record: dict) -> GraphRunStatusResponse:
@@ -220,9 +239,21 @@ def list_workflow_runs(workflow_id: str, limit: int = Query(default=50, ge=1, le
     return GraphRunListResponse(items=[_shape_run(item) for item in store.list_graph_runs_for_workflow(workflow_id, limit=limit)])
 
 
+@router.get("/workflows/{workflow_id}/runs/summary", response_model=GraphRunSummaryListResponse)
+def list_workflow_run_summaries(workflow_id: str, limit: int = Query(default=15, ge=1, le=50)) -> GraphRunSummaryListResponse:
+    if not store.get_graph_workflow(workflow_id):
+        raise _not_found("workflow")
+    return GraphRunSummaryListResponse(items=[_shape_run_summary(item) for item in store.list_graph_run_summaries_for_workflow(workflow_id, limit=limit)])
+
+
 @router.get("/runs", response_model=GraphRunListResponse)
 def list_runs(limit: int = Query(default=100, ge=1, le=500)) -> GraphRunListResponse:
     return GraphRunListResponse(items=[_shape_run(item) for item in store.list_graph_runs(limit=limit)])
+
+
+@router.get("/runs/summary", response_model=GraphRunSummaryListResponse)
+def list_run_summaries(limit: int = Query(default=15, ge=1, le=50)) -> GraphRunSummaryListResponse:
+    return GraphRunSummaryListResponse(items=[_shape_run_summary(item) for item in store.list_graph_run_summaries(limit=limit)])
 
 
 @router.get("/runs/{run_id}", response_model=GraphRun)

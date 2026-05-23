@@ -263,6 +263,14 @@ export type GraphRun = {
   updated_at?: string | null;
 };
 
+export type GraphRunHistoryItem = Pick<
+  GraphRun,
+  "run_id" | "workflow_id" | "status" | "error" | "metrics_json" | "created_at" | "started_at" | "finished_at" | "updated_at" | "workflow_json" | "nodes"
+> & {
+  node_count?: number;
+  artifact_count?: number;
+};
+
 export type GraphRunStatusNode = {
   run_node_id: string;
   run_id: string;

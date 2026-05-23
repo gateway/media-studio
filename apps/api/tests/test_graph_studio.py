@@ -561,6 +561,34 @@ def test_graph_note_node_runs_without_ports(client) -> None:
     assert note_node["metrics_json"]["note_character_count"] == len("# Plan\n\n- Connect source image\n- Run final model")
 
 
+def test_graph_run_summary_lists_do_not_embed_full_run_payloads(client) -> None:
+    workflow = {
+        "schema_version": 1,
+        "name": "Summary payload guard",
+        "nodes": [
+            {
+                "id": "note",
+                "type": "utility.note",
+                "position": {"x": 0, "y": 0},
+                "fields": {"body": "Keep history lightweight."},
+            }
+        ],
+        "edges": [],
+    }
+    final_payload = _run_graph_workflow(client, workflow)
+
+    summary = client.get(f"/media/graph/workflows/{final_payload['workflow_id']}/runs/summary?limit=10")
+    assert summary.status_code == 200, summary.text
+    item = next(run for run in summary.json()["items"] if run["run_id"] == final_payload["run_id"])
+
+    assert item["node_count"] == 1
+    assert item["artifact_count"] == 0
+    assert "workflow_json" not in item
+    assert "compiled_graph_json" not in item
+    assert "output_snapshot_json" not in item
+    assert "nodes" not in item
+
+
 def test_graph_node_definitions_include_valid_layout_metadata(client) -> None:
     response = client.get("/media/graph/node-definitions")
     assert response.status_code == 200, response.text
@@ -3994,7 +4022,7 @@ def test_graph_preset_render_validates_required_slots_and_runs(client, app_modul
                 "id": "preset",
                 "type": "preset.render",
                 "position": {"x": 0, "y": 0},
-                "fields": {"preset_id": preset["preset_id"], "text_values_json": '{"style":"cinematic"}'},
+                "fields": {"preset_id": preset["preset_id"], "text__style": "cinematic", "preset_model_key": "nano-banana-pro"},
             }
         ],
         "edges": [],
@@ -4006,23 +4034,53 @@ def test_graph_preset_render_validates_required_slots_and_runs(client, app_modul
     assert invalid.json()["valid"] is False
     assert any(error["code"] == "missing_preset_image_slot" for error in invalid.json()["errors"])
 
-    workflow = _workflow(reference_id)
-    workflow["nodes"].insert(
-        1,
-        {
-            "id": "preset",
-            "type": "preset.render",
-            "position": {"x": 220, "y": -180},
-            "fields": {"preset_id": preset["preset_id"], "text_values_json": '{"style":"cinematic"}'},
-        },
-    )
-    model_node = next(node for node in workflow["nodes"] if node["id"] == "model")
-    model_node["fields"].pop("prompt")
+    muted_slot_workflow = {
+        "schema_version": 1,
+        "name": "Preset muted slot",
+        "nodes": [
+            {
+                "id": "load",
+                "type": "media.load_image",
+                "position": {"x": 0, "y": 0},
+                "fields": {"reference_id": reference_id},
+                "metadata": {"execution": {"mode": "muted"}},
+            },
+            {
+                "id": "preset",
+                "type": "preset.render",
+                "position": {"x": 320, "y": 0},
+                "fields": {"preset_id": preset["preset_id"], "text__style": "cinematic", "preset_model_key": "nano-banana-pro"},
+            },
+        ],
+        "edges": [
+            {"id": "edge-load-preset", "source": "load", "source_port": "image", "target": "preset", "target_port": "slot__subject"},
+        ],
+    }
+    created = client.post("/media/graph/workflows", json=muted_slot_workflow)
+    assert created.status_code == 200, created.text
+    invalid = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=muted_slot_workflow)
+    assert invalid.status_code == 200, invalid.text
+    assert invalid.json()["valid"] is False
+    assert any(error["code"] == "missing_preset_image_slot" for error in invalid.json()["errors"])
+
+    workflow = {
+        "schema_version": 1,
+        "name": "Preset render",
+        "nodes": [
+            {"id": "load", "type": "media.load_image", "position": {"x": 0, "y": 0}, "fields": {"reference_id": reference_id}},
+            {
+                "id": "preset",
+                "type": "preset.render",
+                "position": {"x": 320, "y": 0},
+                "fields": {"preset_id": preset["preset_id"], "text__style": "cinematic", "preset_model_key": "nano-banana-pro"},
+            },
+            {"id": "save", "type": "media.save_image", "position": {"x": 720, "y": 0}, "fields": {"label": "Preset final"}},
+        ],
+        "edges": [],
+    }
     workflow["edges"] = [
-        {"id": "edge-load-preset", "source": "load", "source_port": "image", "target": "preset", "target_port": "image_refs"},
-        {"id": "edge-preset-model-prompt", "source": "preset", "source_port": "prompt", "target": "model", "target_port": "prompt"},
-        {"id": "edge-preset-model-image", "source": "preset", "source_port": "image_refs", "target": "model", "target_port": "image_refs"},
-        {"id": "edge-model-save", "source": "model", "source_port": "image", "target": "save", "target_port": "image"},
+        {"id": "edge-load-preset", "source": "load", "source_port": "image", "target": "preset", "target_port": "slot__subject"},
+        {"id": "edge-preset-save", "source": "preset", "source_port": "image", "target": "save", "target_port": "image"},
     ]
     created = client.post("/media/graph/workflows", json=workflow)
     assert created.status_code == 200, created.text
@@ -4046,12 +4104,13 @@ def test_graph_preset_render_validates_required_slots_and_runs(client, app_modul
     assert final_payload["status"] == "completed", final_payload
     preset_node = next(node for node in final_payload["nodes"] if node["node_id"] == "preset")
     assert preset_node["metrics_json"]["preset_image_ref_count"] == 1
-    assert "cinematic editorial image" in preset_node["output_snapshot_json"]["prompt"][0]["value"]
+    assert "image" in preset_node["output_snapshot_json"]
 
 
 def test_graph_dynamic_preset_node_renders_fields_and_slots(client, app_modules) -> None:
     store = app_modules["store"]
     reference_id = _create_reference_image(app_modules)
+    second_reference_id = _create_named_reference_image(app_modules, name="graph-source-second.png", sha="graph-source-second-hash")
     preset = store.create_or_update_preset(
         {
             "preset_id": "graph-dynamic-preset-test",
@@ -4064,32 +4123,73 @@ def test_graph_dynamic_preset_node_renders_fields_and_slots(client, app_modules)
             "applies_to_models_json": ["nano-banana-pro"],
             "prompt_template": "Create a {{style}} portrait from [[subject]].",
             "input_schema_json": [{"key": "style", "label": "Style", "required": True}],
-            "input_slots_json": [{"key": "subject", "label": "Subject", "required": True, "max_files": 1}],
+            "input_slots_json": [{"key": "subject", "label": "Subject", "required": True, "max_files": 3}],
             "choice_groups_json": [],
             "default_options_json": {},
             "rules_json": {},
         }
     )
     definitions = client.post("/media/graph/node-definitions/refresh").json()["items"]
-    node_type = "preset.render.graph_dynamic_preset_test"
-    dynamic_definition = next(item for item in definitions if item["type"] == node_type)
+    dynamic_definition = next(item for item in definitions if item["type"] == "preset.render")
+    assert not any(item["type"].startswith("preset.render.") for item in definitions)
+    preset_picker = next(field for field in dynamic_definition["fields"] if field["id"] == "preset_id")
+    assert any(option["value"] == preset["preset_id"] for option in preset_picker["options"])
+    model_picker = next(field for field in dynamic_definition["fields"] if field["id"] == "preset_model_key")
+    assert any(option["value"] == "nano-banana-pro" for option in model_picker["options"])
     assert any(field["id"] == "text__style" for field in dynamic_definition["fields"])
-    assert any(port["id"] == "slot__subject" for port in dynamic_definition["ports"]["inputs"])
+    subject_port = next(port for port in dynamic_definition["ports"]["inputs"] if port["id"] == "slot__subject")
+    assert subject_port["visible_if"]["field"] == "preset_id"
+    assert preset["preset_id"] in subject_port["visible_if"]["in"]
+    assert subject_port["max"] >= 3
+    assert dynamic_definition["source"]["kind"] == "media_preset"
+    assert any(port["id"] == "image" and port["type"] == "image" for port in dynamic_definition["ports"]["outputs"])
+    assert not any(port["id"] in {"prompt", "image_refs", "preset"} for port in dynamic_definition["ports"]["outputs"])
 
     workflow = {
         "schema_version": 1,
         "name": "Dynamic preset",
         "nodes": [
             {"id": "load", "type": "media.load_image", "position": {"x": 0, "y": 0}, "fields": {"reference_id": reference_id}},
-            {"id": "preset", "type": node_type, "position": {"x": 320, "y": 0}, "fields": {"text__style": "cinematic"}},
+            {"id": "load-2", "type": "media.load_image", "position": {"x": 0, "y": 180}, "fields": {"reference_id": second_reference_id}},
+            {
+                "id": "preset",
+                "type": "preset.render",
+                "position": {"x": 320, "y": 0},
+                "fields": {"preset_id": preset["preset_id"], "preset_model_key": "nano-banana-pro", "text__style": "cinematic"},
+            },
+            {"id": "save", "type": "media.save_image", "position": {"x": 700, "y": 0}, "fields": {"label": "Dynamic preset final"}},
         ],
-        "edges": [{"id": "edge-load-preset", "source": "load", "source_port": "image", "target": "preset", "target_port": "slot__subject"}],
+        "edges": [
+            {"id": "edge-load-preset", "source": "load", "source_port": "image", "target": "preset", "target_port": "slot__subject"},
+            {"id": "edge-load-2-preset", "source": "load-2", "source_port": "image", "target": "preset", "target_port": "slot__subject"},
+            {"id": "edge-preset-save", "source": "preset", "source_port": "image", "target": "save", "target_port": "image"},
+        ],
     }
     created = client.post("/media/graph/workflows", json=workflow)
     assert created.status_code == 200, created.text
     validation = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=workflow)
     assert validation.status_code == 200, validation.text
     assert validation.json()["valid"] is True
+
+    run_response = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/runs", json={})
+    assert run_response.status_code == 200, run_response.text
+    run_id = run_response.json()["run_id"]
+    final_payload = None
+    for _ in range(60):
+        current = client.get(f"/media/graph/runs/{run_id}")
+        assert current.status_code == 200
+        final_payload = current.json()
+        if final_payload["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.1)
+
+    assert final_payload is not None
+    assert final_payload["status"] == "completed", final_payload
+    preset_node = next(node for node in final_payload["nodes"] if node["node_id"] == "preset")
+    assert preset_node["metrics_json"]["preset_image_ref_count"] == 2
+    assert "image" in preset_node["output_snapshot_json"]
+    save_node = next(node for node in final_payload["nodes"] if node["node_id"] == "save")
+    assert save_node["output_snapshot_json"]["image"][0]["asset_id"]
 
 
 def test_graph_node_definitions_auto_invalidate_after_prompt_recipe_save(client) -> None:
@@ -4163,5 +4263,12 @@ def test_graph_node_definitions_auto_invalidate_after_preset_save(client) -> Non
 
     refreshed = client.get("/media/graph/node-definitions")
     assert refreshed.status_code == 200, refreshed.text
-    node_types = {item["type"] for item in refreshed.json()["items"]}
-    assert "preset.render.auto_refresh_preset" in node_types
+    definitions = refreshed.json()["items"]
+    dynamic_definition = next(item for item in definitions if item["type"] == "preset.render")
+    assert dynamic_definition["source"]["kind"] == "media_preset"
+    preset_picker = next(field for field in dynamic_definition["fields"] if field["id"] == "preset_id")
+    assert any(option["label"] == "Auto Refresh Preset" for option in preset_picker["options"])
+    subject_port = next(port for port in dynamic_definition["ports"]["inputs"] if port["id"] == "slot__subject")
+    assert created.json()["preset_id"] in subject_port["visible_if"]["in"]
+    assert any(port["id"] == "image" and port["type"] == "image" for port in dynamic_definition["ports"]["outputs"])
+    assert not any(port["id"] in {"prompt", "image_refs", "preset"} for port in dynamic_definition["ports"]["outputs"])

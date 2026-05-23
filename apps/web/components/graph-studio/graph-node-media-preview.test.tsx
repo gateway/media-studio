@@ -60,4 +60,25 @@ describe("GraphNodeMediaPreview", () => {
     expect(container.querySelector('img[src="/media/song-a-cover.png"]')).toBeTruthy();
     expect(container.querySelector('audio[src="/media/song-a.mp3"]')).toBeTruthy();
   });
+
+  it("uses the lightweight preview URL for image cards", () => {
+    const { container } = render(
+      <GraphNodeMediaPreview
+        nodeId="preview-image"
+        data={makeNodeData({
+          mediaPreview: {
+            mediaType: "image",
+            url: "/media/thumb.webp",
+            fullUrl: "/media/original.png",
+            label: "Image",
+          },
+        })}
+        isLoadMedia={false}
+        isSaveMedia={false}
+      />,
+    );
+
+    expect(container.querySelector('img[src="/media/thumb.webp"]')).toBeTruthy();
+    expect(container.querySelector('img[src="/media/original.png"]')).toBeFalsy();
+  });
 });

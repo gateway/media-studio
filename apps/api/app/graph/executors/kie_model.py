@@ -202,6 +202,64 @@ def _to_media_ref(value: GraphOutputRef, *, role: Optional[str] = None) -> Media
     return MediaRefInput(asset_id=value.asset_id, reference_id=value.reference_id, role=role)
 
 
+def submit_and_wait_for_kie_request(
+    *,
+    node: GraphWorkflowNode,
+    context: GraphExecutionContext,
+    request: ValidateRequest,
+    model_key: str,
+) -> Dict[str, List[GraphOutputRef]]:
+    emit(context.run_id, "kie.validating", {"model_key": model_key}, node_id=node.id)
+    validation_started = time.perf_counter()
+    service.build_validation_bundle(request)
+    context.record_node_metric(node, "kie_validation_duration_seconds", round(time.perf_counter() - validation_started, 4))
+    submit_started = time.perf_counter()
+    batch, jobs = service.submit_jobs(request)
+    context.record_node_metric(node, "kie_submit_duration_seconds", round(time.perf_counter() - submit_started, 4))
+    job = jobs[0]
+    context.record_node_metric(node, "batch_id", batch["batch_id"])
+    context.record_node_metric(node, "job_id", job["job_id"])
+    emit(context.run_id, "kie.submitted", {"model_key": model_key, "job_id": job["job_id"], "batch_id": batch["batch_id"]}, node_id=node.id)
+    emit(context.run_id, "kie.polling", {"job_id": job["job_id"], "batch_id": batch["batch_id"]}, node_id=node.id)
+
+    from ...runner import runner
+
+    deadline = time.time() + 3600
+    polling_started = time.perf_counter()
+    current = job
+    poll_count = 0
+    sleep_seconds = 0.5
+    while time.time() < deadline:
+        if context.is_cancel_requested():
+            cancel_batch_jobs(batch["batch_id"])
+            raise GraphRunCancelled(GRAPH_RUN_CANCELLED_MESSAGE)
+        current = store.get_job(job["job_id"]) or current
+        if current["status"] in {"completed", "failed", "cancelled"}:
+            break
+        runner.tick()
+        poll_count += 1
+        elapsed = time.perf_counter() - polling_started
+        sleep_seconds = _adaptive_graph_kie_poll_interval(elapsed)
+        sleep_deadline = time.perf_counter() + sleep_seconds
+        while time.perf_counter() < sleep_deadline:
+            if context.is_cancel_requested():
+                cancel_batch_jobs(batch["batch_id"])
+                raise GraphRunCancelled(GRAPH_RUN_CANCELLED_MESSAGE)
+            time.sleep(min(0.25, max(0.0, sleep_deadline - time.perf_counter())))
+    context.record_node_metric(node, "kie_polling_duration_seconds", round(time.perf_counter() - polling_started, 4))
+    context.record_node_metric(node, "kie_poll_count", poll_count)
+    context.record_node_metric(node, "kie_poll_interval_seconds", sleep_seconds)
+    current = store.get_job(job["job_id"]) or current
+    if current["status"] == "cancelled" and context.is_cancel_requested():
+        raise GraphRunCancelled(GRAPH_RUN_CANCELLED_MESSAGE)
+    if current["status"] != "completed":
+        raise ValueError(current.get("error") or f"KIE job did not complete: {current['status']}")
+    assets = store.get_assets_by_job_id(current["job_id"])
+    if not assets:
+        raise ValueError("KIE job completed without creating an asset.")
+    return completed_kie_job_outputs(node=node, job=current, assets=assets, batch_id=batch["batch_id"])
+
+
 class KieModelExecutor(GraphExecutor):
     node_type = "model.kie"
 
@@ -272,55 +330,7 @@ class KieModelExecutor(GraphExecutor):
             options=options,
             output_count=1,
         )
-        emit(context.run_id, "kie.validating", {"model_key": model_key}, node_id=node.id)
-        validation_started = time.perf_counter()
-        service.build_validation_bundle(request)
-        context.record_node_metric(node, "kie_validation_duration_seconds", round(time.perf_counter() - validation_started, 4))
-        submit_started = time.perf_counter()
-        batch, jobs = service.submit_jobs(request)
-        context.record_node_metric(node, "kie_submit_duration_seconds", round(time.perf_counter() - submit_started, 4))
-        job = jobs[0]
-        context.record_node_metric(node, "batch_id", batch["batch_id"])
-        context.record_node_metric(node, "job_id", job["job_id"])
-        emit(context.run_id, "kie.submitted", {"model_key": model_key, "job_id": job["job_id"], "batch_id": batch["batch_id"]}, node_id=node.id)
-        emit(context.run_id, "kie.polling", {"job_id": job["job_id"], "batch_id": batch["batch_id"]}, node_id=node.id)
-
-        from ...runner import runner
-
-        deadline = time.time() + 3600
-        polling_started = time.perf_counter()
-        current = job
-        poll_count = 0
-        sleep_seconds = 0.5
-        while time.time() < deadline:
-            if context.is_cancel_requested():
-                cancel_batch_jobs(batch["batch_id"])
-                raise GraphRunCancelled(GRAPH_RUN_CANCELLED_MESSAGE)
-            current = store.get_job(job["job_id"]) or current
-            if current["status"] in {"completed", "failed", "cancelled"}:
-                break
-            runner.tick()
-            poll_count += 1
-            elapsed = time.perf_counter() - polling_started
-            sleep_seconds = _adaptive_graph_kie_poll_interval(elapsed)
-            sleep_deadline = time.perf_counter() + sleep_seconds
-            while time.perf_counter() < sleep_deadline:
-                if context.is_cancel_requested():
-                    cancel_batch_jobs(batch["batch_id"])
-                    raise GraphRunCancelled(GRAPH_RUN_CANCELLED_MESSAGE)
-                time.sleep(min(0.25, max(0.0, sleep_deadline - time.perf_counter())))
-        context.record_node_metric(node, "kie_polling_duration_seconds", round(time.perf_counter() - polling_started, 4))
-        context.record_node_metric(node, "kie_poll_count", poll_count)
-        context.record_node_metric(node, "kie_poll_interval_seconds", sleep_seconds)
-        current = store.get_job(job["job_id"]) or current
-        if current["status"] == "cancelled" and context.is_cancel_requested():
-            raise GraphRunCancelled(GRAPH_RUN_CANCELLED_MESSAGE)
-        if current["status"] != "completed":
-            raise ValueError(current.get("error") or f"KIE job did not complete: {current['status']}")
-        assets = store.get_assets_by_job_id(current["job_id"])
-        if not assets:
-            raise ValueError("KIE job completed without creating an asset.")
-        return completed_kie_job_outputs(node=node, job=current, assets=assets, batch_id=batch["batch_id"])
+        return submit_and_wait_for_kie_request(node=node, context=context, request=request, model_key=model_key)
 
 
 def _select_task_mode(

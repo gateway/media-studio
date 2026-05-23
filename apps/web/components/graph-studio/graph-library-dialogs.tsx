@@ -7,7 +7,7 @@ import type { MediaAsset, MediaReference } from "@/lib/types";
 import { GraphNodeTypeBadge } from "./components/graph-node-type-badge";
 import { GraphRunHistoryPanel } from "./graph-run-history-panel";
 import { GraphTemplateBrowser } from "./graph-template-browser";
-import type { GraphArtifact, GraphNodeDefinition, GraphRun, GraphTemplateRecord, GraphWorkflowRecord } from "./types";
+import type { GraphArtifact, GraphNodeDefinition, GraphRunHistoryItem, GraphTemplateRecord, GraphWorkflowRecord } from "./types";
 import { graphDefinitionHiddenInSearch, rankGraphNodeDefinitions } from "./hooks/use-graph-node-search";
 import { graphMediaDragPayload } from "./utils/graph-media-preview";
 import { formatGraphTimestamp } from "./utils/graph-time";
@@ -48,7 +48,7 @@ export function GraphLibraryDialog({
   references: MediaReference[];
   assets: MediaAsset[];
   workflowId: string | null;
-  runHistory: GraphRun[];
+  runHistory: GraphRunHistoryItem[];
   selectedHistoryRunId: string | null;
   selectedRunArtifacts: GraphArtifact[];
   onClose: () => void;
@@ -62,7 +62,7 @@ export function GraphLibraryDialog({
   onAddLoadImageNode: (fields: Record<string, unknown>) => void;
   onRefreshRunHistory: () => void;
   onInspectRun: (runId: string) => void;
-  onRestoreRun: (run: GraphRun) => void;
+  onRestoreRun: (run: GraphRunHistoryItem) => void | Promise<void>;
   onPinArtifact: (artifact: GraphArtifact) => void;
 }) {
   const [nodeLibraryQuery, setNodeLibraryQuery] = useState("");

@@ -70,7 +70,9 @@ export function previewFromAsset(asset: MediaAsset | undefined): GraphMediaPrevi
   const url =
     mediaType === "video"
       ? asset.hero_web_url ?? asset.hero_original_url ?? asset.hero_poster_url ?? asset.hero_thumb_url
-      : asset.hero_web_url ?? asset.hero_original_url ?? asset.hero_poster_url ?? asset.hero_thumb_url;
+      : mediaType === "audio"
+        ? asset.hero_web_url ?? asset.hero_original_url ?? asset.hero_poster_url ?? asset.hero_thumb_url
+        : asset.hero_thumb_url ?? asset.hero_poster_url ?? asset.hero_web_url ?? asset.hero_original_url;
   if (!url) return null;
   const dimensions = assetOutputDimensions(asset);
   return {

@@ -6,6 +6,7 @@ import { GraphMarkdownNoteField } from "./graph-markdown-note";
 import { GraphNodeProviderModelField } from "./graph-node-provider-model-field";
 import { useGraphProviderModelCatalogContext, type GraphProviderKind } from "./hooks/use-graph-provider-model-catalog";
 import type { GraphNodeData } from "./types";
+import { graphMediaPresetFieldOverride, graphMediaPresetSelectionDefaults } from "./utils/graph-media-preset";
 import { graphPromptRuntimeFieldOverride } from "./utils/graph-prompt-provider";
 import { graphPromptRecipeFieldOverride, graphPromptRecipeFilteredOptions, graphPromptRecipeOptionLabel, graphPromptRecipeSelectionDefaults } from "./utils/graph-prompt-recipe";
 
@@ -125,7 +126,7 @@ function GraphNodeTextareaField({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const selectionRef = useRef<{ start: number; end: number } | null>(null);
   const textValue = String(value ?? "");
-  const override = graphPromptRecipeFieldOverride(definition, nodeFields, field);
+  const override = graphMediaPresetFieldOverride(definition, nodeFields, field) ?? graphPromptRecipeFieldOverride(definition, nodeFields, field);
   const runtimeOverride = graphPromptRuntimeFieldOverride(definition.type, nodeFields, field);
   const placeholder = override?.placeholder ?? runtimeOverride?.placeholder ?? field.placeholder ?? "";
   const markdownPreviewField = typeof definition.ui?.markdown_preview_field === "string" ? definition.ui.markdown_preview_field : null;
@@ -190,7 +191,7 @@ export function GraphNodeFieldControl({
 }) {
   if (field.hidden) return null;
   const commonClass = "graph-node-field-control nodrag";
-  const fieldOverride = graphPromptRecipeFieldOverride(definition, nodeFields, field);
+  const fieldOverride = graphMediaPresetFieldOverride(definition, nodeFields, field) ?? graphPromptRecipeFieldOverride(definition, nodeFields, field);
   const runtimeOverride = graphPromptRuntimeFieldOverride(definition.type, nodeFields, field);
   if (field.type === "textarea") {
     return <GraphNodeTextareaField nodeId={nodeId} definition={definition} nodeFields={nodeFields} field={field} value={value} disabled={disabled} onFieldChange={onFieldChange} className={commonClass} />;
@@ -233,8 +234,8 @@ export function GraphNodeFieldControl({
       );
     }
     const options = field.type === "prompt_recipe_picker" ? graphPromptRecipeFilteredOptions(field, nodeFields) : fieldOverride?.options ?? field.options ?? [];
-    const emptyLabel = field.type === "prompt_recipe_picker" ? "Select recipe" : field.id === "project_id" ? "No group" : "Auto";
-    const showEmptyOption = field.type === "prompt_recipe_picker" || (!field.required && (field.default === undefined || field.default === null || field.default === ""));
+    const emptyLabel = field.type === "prompt_recipe_picker" ? "Select recipe" : field.type === "preset_picker" ? "Select preset" : field.id === "project_id" ? "No group" : "Auto";
+    const showEmptyOption = field.type === "prompt_recipe_picker" || field.type === "preset_picker" || (!field.required && (field.default === undefined || field.default === null || field.default === ""));
     return (
       <select
         className={commonClass}
@@ -277,6 +278,16 @@ export function GraphNodeFieldControl({
                 if (currentValue === undefined || currentValue === null || currentValue === "") {
                   onFieldChange(nodeId, defaultFieldId, defaultValue);
                 }
+              }
+            }
+            return;
+          }
+          if (field.id === "preset_id") {
+            onFieldChange(nodeId, field.id, nextValue);
+            const defaults = graphMediaPresetSelectionDefaults(definition, nextValue);
+            if (defaults) {
+              for (const [defaultFieldId, defaultValue] of Object.entries(defaults)) {
+                onFieldChange(nodeId, defaultFieldId, defaultValue);
               }
             }
             return;

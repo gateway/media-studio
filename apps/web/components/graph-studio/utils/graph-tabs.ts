@@ -130,6 +130,30 @@ function normalizeTab(value: unknown, schemaVersion = GRAPH_TABS_SCHEMA_VERSION)
   };
 }
 
+function dedupeRestoredSavedWorkflowTabs(tabs: GraphWorkspaceTab[], activeTabId: string): { tabs: GraphWorkspaceTab[]; activeTabId: string } {
+  const keepByWorkflowId = new Map<string, GraphWorkspaceTab>();
+  const duplicateWorkflowIds = new Set<string>();
+  for (const tab of tabs) {
+    if (!tab.workflow_id || tab.dirty) continue;
+    const existing = keepByWorkflowId.get(tab.workflow_id);
+    if (!existing) {
+      keepByWorkflowId.set(tab.workflow_id, tab);
+      continue;
+    }
+    duplicateWorkflowIds.add(tab.workflow_id);
+    const existingIsActive = existing.tab_id === activeTabId;
+    const tabIsActive = tab.tab_id === activeTabId;
+    if (tabIsActive || (!existingIsActive && graphTabTimestamp(tab) > graphTabTimestamp(existing))) {
+      keepByWorkflowId.set(tab.workflow_id, tab);
+    }
+  }
+  if (!duplicateWorkflowIds.size) return { tabs, activeTabId };
+  const keptTabIds = new Set(Array.from(keepByWorkflowId.values()).map((tab) => tab.tab_id));
+  const filtered = tabs.filter((tab) => !tab.workflow_id || tab.dirty || !duplicateWorkflowIds.has(tab.workflow_id) || keptTabIds.has(tab.tab_id));
+  const active = filtered.find((tab) => tab.tab_id === activeTabId) ?? filtered[0] ?? null;
+  return { tabs: filtered, activeTabId: active?.tab_id ?? activeTabId };
+}
+
 function legacyWorkspaceToSession(value: unknown): GraphTabSessionState | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const candidate = value as {
@@ -185,8 +209,9 @@ export function readGraphTabSession(scope?: string | null): GraphTabSessionState
         .map((tab) => normalizeTab(tab, parsed.schema_version))
         .filter((tab): tab is GraphWorkspaceTab => Boolean(tab));
       if (tabs.length) {
-        const active = tabs.find((tab) => tab.tab_id === parsed.active_tab_id) ?? tabs[0];
-        return { active_tab_id: active.tab_id, tabs, restored: true };
+        const deduped = dedupeRestoredSavedWorkflowTabs(tabs, parsed.active_tab_id);
+        const active = deduped.tabs.find((tab) => tab.tab_id === deduped.activeTabId) ?? deduped.tabs[0];
+        return { active_tab_id: active.tab_id, tabs: deduped.tabs, restored: true };
       }
     }
   } catch {

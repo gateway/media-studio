@@ -7,7 +7,7 @@ import { GraphGroupContextMenuHost } from "./graph-group-context-menu-host";
 import { GraphImageLibraryDialog, GraphLibraryDialog, type GraphSidebarDialog } from "./graph-library-dialogs";
 import { GraphNodeContextMenu } from "./graph-node-context-menu";
 import { NODE_COLOR_CHOICES } from "./graph-studio-constants";
-import type { GraphArtifact, GraphGroup, GraphNodeDefinition, GraphRun, GraphTemplateRecord, GraphWorkflowRecord, StudioNode } from "./types";
+import type { GraphArtifact, GraphGroup, GraphNodeDefinition, GraphRunHistoryItem, GraphTemplateRecord, GraphWorkflowRecord, StudioNode } from "./types";
 import type { GraphNodeColorChoice } from "./graph-node-context-menu";
 import type { GraphExecutionMode } from "./utils/graph-node-execution";
 import { executionModeForNodeIds } from "./utils/graph-selection";
@@ -71,7 +71,7 @@ export function GraphStudioDialogs({
   references: MediaReference[];
   assets: MediaAsset[];
   workflowId: string | null;
-  runHistory: GraphRun[];
+  runHistory: GraphRunHistoryItem[];
   selectedHistoryRunId: string | null;
   selectedRunArtifacts: GraphArtifact[];
   nodeSearch: GraphNodeSearchPopoverState | null;
@@ -92,7 +92,7 @@ export function GraphStudioDialogs({
   onAddLoadImageNode: (fields: Record<string, unknown>) => void;
   onRefreshRunHistory: () => void;
   onInspectRun: (runId: string) => void;
-  onRestoreRun: (run: GraphRun) => void;
+  onRestoreRun: (run: GraphRunHistoryItem) => void | Promise<void>;
   onPinArtifact: (artifact: GraphArtifact) => void;
   onNodeSearchQueryChange: (query: string) => void;
   onNodeSearchSelect: (definition: GraphNodeDefinition) => void;

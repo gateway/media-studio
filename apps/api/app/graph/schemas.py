@@ -208,6 +208,21 @@ class GraphRun(BaseModel):
     updated_at: Optional[str] = None
 
 
+class GraphRunSummary(BaseModel):
+    run_id: str
+    workflow_id: str
+    status: str = "queued"
+    schema_version: int = 1
+    metrics_json: Dict[str, Any] = Field(default_factory=dict)
+    error: Optional[str] = None
+    node_count: int = 0
+    artifact_count: int = 0
+    created_at: Optional[str] = None
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
 class GraphRunNode(BaseModel):
     run_node_id: str
     run_id: str
@@ -262,6 +277,10 @@ class GraphWorkflowListResponse(BaseModel):
 
 class GraphRunListResponse(BaseModel):
     items: List[GraphRun] = Field(default_factory=list)
+
+
+class GraphRunSummaryListResponse(BaseModel):
+    items: List[GraphRunSummary] = Field(default_factory=list)
 
 
 class GraphRunEventsResponse(BaseModel):

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import type { GraphArtifact, GraphRun } from "../types";
+import type { GraphArtifact, GraphRunHistoryItem } from "../types";
 import { jsonFetch } from "../utils/graph-api";
 
 export function useGraphRunHistory({
@@ -10,7 +10,7 @@ export function useGraphRunHistory({
   workflowId: string | null;
   appendConsole: (line: string) => void;
 }) {
-  const [runHistory, setRunHistory] = useState<GraphRun[]>([]);
+  const [runHistory, setRunHistory] = useState<GraphRunHistoryItem[]>([]);
   const [selectedHistoryRunId, setSelectedHistoryRunId] = useState<string | null>(null);
   const [selectedRunArtifacts, setSelectedRunArtifacts] = useState<GraphArtifact[]>([]);
 
@@ -20,7 +20,7 @@ export function useGraphRunHistory({
       setSelectedRunArtifacts([]);
       return;
     }
-    const payload = await jsonFetch<{ items?: GraphRun[] }>(`/api/control/media/graph/workflows/${workflowId}/runs?limit=50`);
+    const payload = await jsonFetch<{ items?: GraphRunHistoryItem[] }>(`/api/control/media/graph/workflows/${workflowId}/runs/summary?limit=15`);
     setRunHistory(payload.items ?? []);
   }, [workflowId]);
 
