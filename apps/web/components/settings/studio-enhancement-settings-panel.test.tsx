@@ -95,7 +95,7 @@ describe("StudioEnhancementSettingsPanel", () => {
     expect(screen.getByRole("button", { name: /refresh models/i })).toBeTruthy();
     expect(screen.getByText("Loaded 2 Codex models · included in plan")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /save enhance defaults/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save prompt enhance defaults/i }));
 
     await waitFor(() => {
       expect(saveEnhancementConfigRequest).toHaveBeenCalledWith(
@@ -108,7 +108,7 @@ describe("StudioEnhancementSettingsPanel", () => {
         }),
       );
     });
-    expect(await screen.findByText("Enhance defaults saved.")).toBeTruthy();
+    expect(await screen.findByText("Prompt Enhance defaults saved.")).toBeTruthy();
   });
 
   it("auto-loads Codex models into the enhancement model dropdown", async () => {

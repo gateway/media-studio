@@ -227,8 +227,8 @@ async function run() {
     });
 
     const adminRoutes = [
-      { path: "/settings", heading: "Settings", text: "AI setup moved into its own route" },
-      { path: "/settings/llms", heading: "AI Settings", text: "Enhance default model" },
+      { path: "/settings", heading: "Settings", text: "Queue Settings" },
+      { path: "/settings/llms", heading: "AI Settings", text: "Prompt Enhance default model" },
       { path: "/setup", heading: "Connect Services", text: "Connect KIE" },
       { path: "/models", heading: "Models", text: "Model Setup" },
       { path: "/presets", heading: "Presets", text: "Media Presets" },

@@ -100,7 +100,7 @@ That launcher starts:
 
 behind one Terminal window, and it opens the browser to `/studio`.
 
-Before launching, the script checks whether the configured API and web ports are already in use. If either port is busy, onboarding stops and tells you to free the port or change it in `.env`.
+Before launching, the script checks whether the configured API and web ports are already in use. If a default port is busy, the launcher chooses the next open local port for that launch and prints the actual Studio URL. If you pass explicit ports, startup stays strict and asks you to choose another pair when one is busy.
 
 ## 5. Start the app
 
@@ -119,7 +119,7 @@ If you prefer Terminal but still want the normal user path, run:
 
 That script runs the local app in production mode, waits for it to become ready, and opens the browser to `/studio`.
 
-If the default ports are already in use, pass a different pair directly:
+If the default ports are already in use by another app, the normal macOS launcher automatically chooses the next available temporary ports and prints the actual Studio URL. To force a specific pair instead, pass it directly:
 
 ```bash
 ./scripts/run_studio_mac.sh --api-port 8010 --web-port 3010

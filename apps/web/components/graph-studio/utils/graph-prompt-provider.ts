@@ -34,7 +34,7 @@ export function graphPromptProviderLabel(providerKind: string) {
   if (providerKind === "openrouter") return "OpenRouter";
   if (providerKind === "codex_local") return "Codex Local";
   if (providerKind === "local_openai") return "Local OpenAI";
-  return "Studio Default";
+  return "Prompt Enhance Default";
 }
 
 export function graphPromptProviderCapabilities(fields: Record<string, unknown>) {
@@ -150,7 +150,7 @@ export function graphPromptNodeHeaderSummary(nodeType: string, fields: Record<st
   const pieces = [graphPromptProviderLabel(providerKind)];
   const modelId = stringField(fields.model_id);
   if (providerKind === "studio_default") {
-    pieces.push("Studio settings");
+    pieces.push("AI Settings");
   } else if (modelId) {
     pieces.push(graphPromptSavedModelLabel(fields, providerKind, modelId));
     const supportsImages = graphPromptSupportsImages(fields);
@@ -172,7 +172,7 @@ export function graphPromptAdvancedSummary(nodeType: string, fields: Record<stri
     return "Provider, model, and optional runtime overrides. Leave overrides blank to use recipe defaults.";
   }
   if (providerKind === "studio_default") {
-    return "Provider, model, and optional runtime overrides. Leave overrides blank to use Studio defaults.";
+    return "Provider, model, and optional runtime overrides. Leave overrides blank to use the Prompt Enhance default model from AI Settings.";
   }
   return "Provider, model, and optional runtime overrides. Leave overrides blank to use provider defaults.";
 }
@@ -200,7 +200,7 @@ export function graphPromptRuntimeFieldOverride(
       };
     }
     return {
-      placeholder: providerKind === "studio_default" ? "Studio default" : "Provider default",
+      placeholder: providerKind === "studio_default" ? "Prompt Enhance default" : "Provider default",
       helpText: "Optional override. Leave blank to use the provider defaults.",
     };
   }
@@ -217,7 +217,7 @@ export function graphPromptRuntimeFieldOverride(
     };
   }
   return {
-    placeholder: providerKind === "studio_default" ? "Studio default" : "Provider default",
+    placeholder: providerKind === "studio_default" ? "Prompt Enhance default" : "Provider default",
     helpText: "Optional override. Leave blank to use the provider defaults.",
   };
 }

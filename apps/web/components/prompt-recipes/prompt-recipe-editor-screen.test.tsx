@@ -257,6 +257,16 @@ describe("PromptRecipeEditorScreen", () => {
             }),
           };
         }
+        if (url === "/api/control/prompt-recipe-thumbnail") {
+          return {
+            ok: true,
+            json: async () => ({
+              ok: true,
+              thumbnail_path: "prompt-recipe-thumbnails/uploaded.webp",
+              thumbnail_url: "/api/prompt-recipe-thumbnails/uploaded.webp",
+            }),
+          };
+        }
         if (url === "/api/control/prompt-recipe-thumbnail/from-asset") {
           return {
           ok: true,
@@ -274,10 +284,24 @@ describe("PromptRecipeEditorScreen", () => {
 
     render(<PromptRecipeEditorScreen recipes={[]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /choose from generated images/i }));
+    expect(screen.getByRole("button", { name: /upload thumbnail/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /browse generated images/i })).toBeTruthy();
+    expect(screen.queryByText("Generated Images")).toBeNull();
+    expect(screen.queryByText("Remove")).toBeNull();
+
+    const chooseThumbnailButton = screen.getByRole("button", { name: /choose from generated images/i });
+    fireEvent.drop(chooseThumbnailButton, {
+      dataTransfer: {
+        files: [new File(["thumbnail"], "thumbnail.webp", { type: "image/webp" })],
+      },
+    });
+
+    expect(await screen.findByText("Thumbnail uploaded.")).toBeTruthy();
+
+    fireEvent.click(chooseThumbnailButton);
 
     expect(await screen.findByRole("dialog", { name: /generated image thumbnails/i })).toBeTruthy();
-    expect(await screen.findByText(/storyboard heroine in a control room/i)).toBeTruthy();
+    expect(screen.queryByText(/storyboard heroine in a control room/i)).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /use generated image asset-1 as thumbnail/i }));
 

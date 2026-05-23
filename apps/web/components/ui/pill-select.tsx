@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, type LucideIcon } from "lucide-react";
 
 import { pickerMenuHeightCap } from "@/lib/media-studio-helpers";
@@ -89,6 +89,34 @@ export function PillSelect({
       return left.index - right.index;
     });
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function closeOnOutsidePointerDown(event: PointerEvent) {
+      const target = event.target;
+      const container = containerRef.current;
+      if (target instanceof Node && container?.contains(target)) {
+        return;
+      }
+      onClose();
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("pointerdown", closeOnOutsidePointerDown);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeOnOutsidePointerDown);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [onClose, open]);
+
   const updateScrollIndicators = useCallback(() => {
     const menu = menuRef.current;
     if (!menu) {
@@ -118,12 +146,15 @@ export function PillSelect({
       const gap = 12;
       const spaceBelow = Math.max(0, viewportHeight - rect.bottom - gutter - gap);
       const spaceAbove = Math.max(0, rect.top - gutter - gap);
-      const preferUp = spaceAbove >= 220 || spaceAbove >= spaceBelow;
-      const nextPlacement = preferUp ? "up" : "down";
-      const availableSpace = nextPlacement === "down" ? spaceBelow : spaceAbove;
       const desiredCap = pickerMenuHeightCap(pickerId);
+      const minUsableHeight = Math.min(220, desiredCap);
+      const nextPlacement =
+        spaceBelow >= minUsableHeight || spaceBelow >= spaceAbove
+          ? "down"
+          : "up";
+      const availableSpace = nextPlacement === "down" ? spaceBelow : spaceAbove;
       setMenuPlacement(nextPlacement);
-      setMenuMaxHeight(Math.max(220, Math.min(availableSpace, desiredCap)));
+      setMenuMaxHeight(Math.max(160, Math.min(Math.max(availableSpace, 0), desiredCap)));
     }
 
     updateMenuPlacement();

@@ -76,6 +76,13 @@ print(f"media-studio-{secrets.token_hex(24)}")
 PY
 }
 
+generate_media_studio_install_id() {
+  python3 - <<'PY'
+import secrets
+print(f"install-{secrets.token_hex(16)}")
+PY
+}
+
 ensure_media_env_control_token() {
   local media_root="${1:?media_root required}"
   local env_file="$media_root/.env"
@@ -118,6 +125,48 @@ print(token)
 PY
 }
 
+ensure_media_env_install_id() {
+  local media_root="${1:?media_root required}"
+  local env_file="$media_root/.env"
+  if [[ ! -f "$env_file" ]]; then
+    return 1
+  fi
+  python3 - "$env_file" <<'PY'
+from pathlib import Path
+import secrets
+import sys
+
+env_path = Path(sys.argv[1])
+prefix = "MEDIA_STUDIO_INSTALL_ID="
+lines = env_path.read_text().splitlines()
+current = None
+
+for line in lines:
+    if line.startswith(prefix):
+        current = line[len(prefix):].strip()
+        break
+
+if current:
+    print(current)
+    raise SystemExit(0)
+
+install_id = f"install-{secrets.token_hex(16)}"
+insert_at = None
+for index, line in enumerate(lines):
+    if line.startswith("MEDIA_STUDIO_CONTROL_API_TOKEN="):
+        insert_at = index + 1
+        break
+
+if insert_at is None:
+    lines.append(prefix + install_id)
+else:
+    lines.insert(insert_at, prefix + install_id)
+
+env_path.write_text("\n".join(lines).rstrip("\n") + "\n")
+print(install_id)
+PY
+}
+
 media_runtime_access_host() {
   local host="${1:-127.0.0.1}"
   case "$host" in
@@ -142,6 +191,36 @@ media_control_api_base_url() {
   else
     printf 'http://%s:%s\n' "$host" "$port"
   fi
+}
+
+media_find_available_port() {
+  local host="$1"
+  local start_port="$2"
+  shift 2
+  python3 - "$host" "$start_port" "$@" <<'PY'
+import socket
+import sys
+
+host = sys.argv[1]
+start_port = int(sys.argv[2])
+excluded = {int(value) for value in sys.argv[3:] if value}
+
+for port in range(start_port, 65536):
+    if port in excluded:
+        continue
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        sock.bind((host, port))
+    except OSError:
+        continue
+    finally:
+        sock.close()
+    print(port)
+    raise SystemExit(0)
+
+raise SystemExit("No available port found")
+PY
 }
 
 kie_repo_is_git_checkout() {

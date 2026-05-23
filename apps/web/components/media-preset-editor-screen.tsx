@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ImagePlus, Trash2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import {
   AdminButton,
@@ -13,11 +13,17 @@ import {
 } from "@/components/admin-controls";
 import { AdminActionNotice } from "@/components/admin-action-notice";
 import { CollapsibleSubsection } from "@/components/collapsible-sections";
+import {
+  GeneratedThumbnailPickerDialog,
+  type GeneratedThumbnailPickerItem,
+} from "@/components/media/generated-thumbnail-picker-dialog";
+import { generatedThumbnailPreviewUrl } from "@/components/media/generated-thumbnail-utils";
+import { ThumbnailField } from "@/components/media/thumbnail-field";
 import { Panel, PanelHeader } from "@/components/panel";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import { invalidateGraphNodeDefinitions } from "@/lib/graph-node-definitions-sync";
 import { compatibleStructuredImagePresetModels } from "@/lib/media-studio-helpers";
-import type { MediaModelSummary, MediaPreset } from "@/lib/types";
+import type { MediaAsset, MediaModelSummary, MediaPreset } from "@/lib/types";
 import { slugifyKey } from "@/lib/utils";
 
 type PresetFieldInput = {
@@ -251,6 +257,12 @@ export function MediaPresetEditorScreen({
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+  const [thumbnailPickerOpen, setThumbnailPickerOpen] = useState(false);
+  const [thumbnailAssets, setThumbnailAssets] = useState<MediaAsset[]>([]);
+  const [thumbnailAssetsLoading, setThumbnailAssetsLoading] = useState(false);
+  const [thumbnailAssetsLoadingMore, setThumbnailAssetsLoadingMore] = useState(false);
+  const [thumbnailAssetsNextOffset, setThumbnailAssetsNextOffset] = useState<number | null>(0);
+  const [thumbnailAssetSelectionId, setThumbnailAssetSelectionId] = useState<string | null>(null);
   const { notice: message, showNotice } = useAdminActionNotice();
   const presetNameInputRef = useRef<HTMLInputElement | null>(null);
   const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
@@ -261,6 +273,14 @@ export function MediaPresetEditorScreen({
   const returnToPresetsHref = normalizeReturnToHref(initialReturnTo);
   const returnActionLabel = returnToPresetsHref === "/studio" ? "Back to Studio" : "Back to presets";
   const accentCardClassName = "admin-surface-accent p-4 sm:p-5";
+  const thumbnailPickerItems: GeneratedThumbnailPickerItem[] = thumbnailAssets.map((asset) => {
+    const id = String(asset.asset_id);
+    return {
+      id,
+      previewUrl: generatedThumbnailPreviewUrl(asset),
+      ariaLabel: `Use generated image ${id} as preset thumbnail`,
+    };
+  });
 
   async function savePreset() {
     setIsSaving(true);
@@ -419,6 +439,87 @@ export function MediaPresetEditorScreen({
     showNotice("healthy", "Thumbnail uploaded.");
   }
 
+  async function loadThumbnailAssets({ append = false }: { append?: boolean } = {}) {
+    const nextOffset = append ? thumbnailAssetsNextOffset : 0;
+    if (append && nextOffset == null) {
+      return;
+    }
+    if (append) {
+      setThumbnailAssetsLoadingMore(true);
+    } else {
+      setThumbnailAssetsLoading(true);
+      setThumbnailAssetsNextOffset(null);
+      setThumbnailPickerOpen(true);
+    }
+    try {
+      const response = await fetch(
+        `/api/control/media-assets?limit=24&offset=${append ? nextOffset ?? 0 : 0}&generation_kind=image`,
+      );
+      const result = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        assets?: MediaAsset[];
+        next_offset?: number | null;
+      };
+      if (!response.ok || result.ok === false || !Array.isArray(result.assets)) {
+        showNotice("danger", result.error ?? "Unable to load generated images for thumbnail selection.");
+        return;
+      }
+      const nextAssets = result.assets.filter((asset) => Boolean(generatedThumbnailPreviewUrl(asset)));
+      setThumbnailAssets((current) => {
+        if (!append) {
+          return nextAssets;
+        }
+        const seen = new Set(current.map((asset) => String(asset.asset_id)));
+        return current.concat(nextAssets.filter((asset) => !seen.has(String(asset.asset_id))));
+      });
+      setThumbnailAssetsNextOffset(typeof result.next_offset === "number" ? result.next_offset : null);
+    } catch {
+      showNotice("danger", "Unable to load generated images for thumbnail selection right now.");
+    } finally {
+      if (append) {
+        setThumbnailAssetsLoadingMore(false);
+      } else {
+        setThumbnailAssetsLoading(false);
+      }
+    }
+  }
+
+  async function applyThumbnailFromAsset(assetId: string | number) {
+    setThumbnailAssetSelectionId(String(assetId));
+    try {
+      const response = await fetch("/api/control/media-preset-thumbnail/from-asset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          asset_id: assetId,
+          presetLabel: presetForm.label || "preset-thumbnail",
+        }),
+      });
+      const result = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        thumbnail_path?: string;
+        thumbnail_url?: string;
+      };
+      if (!response.ok || result.ok === false || !result.thumbnail_path || !result.thumbnail_url) {
+        showNotice("danger", result.error ?? "Unable to use that generated image as the preset thumbnail.");
+        return;
+      }
+      setPresetForm((current) => ({
+        ...current,
+        thumbnailPath: result.thumbnail_path ?? "",
+        thumbnailUrl: result.thumbnail_url ?? "",
+      }));
+      setThumbnailPickerOpen(false);
+      showNotice("healthy", "Thumbnail selected from generated images.");
+    } catch {
+      showNotice("danger", "Unable to use that generated image as the preset thumbnail right now.");
+    } finally {
+      setThumbnailAssetSelectionId(null);
+    }
+  }
+
   return (
     <div className="space-y-7">
       {message ? <AdminActionNotice tone={message.tone} text={message.text} /> : null}
@@ -468,96 +569,23 @@ export function MediaPresetEditorScreen({
                   placeholder="Short description of what this preset does"
                   className="min-h-[96px] sm:min-h-[108px]"
                 />
-                <div className="grid gap-2">
-                  <div className="admin-label-muted">
-                    Thumbnail
-                  </div>
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => thumbnailInputRef.current?.click()}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      const file = event.dataTransfer.files?.[0];
-                      if (file) {
-                        void uploadThumbnail(file);
-                      }
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        thumbnailInputRef.current?.click();
-                      }
-                    }}
-                    className="admin-dropzone"
-                  >
-                    {presetForm.thumbnailUrl ? (
-                      <div className="flex flex-wrap items-center gap-4">
-                        <img
-                          src={presetForm.thumbnailUrl}
-                          alt={presetForm.label || "Preset thumbnail"}
-                          className="admin-preview-frame h-24 w-24 object-cover"
-                        />
-                        <div className="grid gap-3">
-                          <div className="leading-6 text-[var(--foreground)]">
-                            Drag in a new image or click here to replace the thumbnail.
-                          </div>
-                          <div className="flex flex-wrap gap-3">
-                            <AdminButton
-                              size="compact"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                thumbnailInputRef.current?.click();
-                              }}
-                            >
-                              Replace Thumbnail
-                            </AdminButton>
-                            <AdminButton
-                              size="compact"
-                              variant="subtle"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setPresetForm((current) => ({ ...current, thumbnailPath: "", thumbnailUrl: "" }));
-                              }}
-                            >
-                              <span className="inline-flex items-center gap-2">
-                                <Trash2 className="size-3.5" />
-                                Remove Thumbnail
-                              </span>
-                            </AdminButton>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3">
-                        <div className="admin-icon-frame p-3">
-                          <ImagePlus className="size-5 text-[var(--accent-strong)]" />
-                        </div>
-                        <div className="grid gap-1">
-                          <div className="text-[var(--foreground)]">
-                            Drag in a thumbnail image or click to upload one.
-                          </div>
-                          <div>Studio will save an optimized web thumbnail for preset browsing.</div>
-                        </div>
-                      </div>
-                    )}
-                    <input
-                      ref={thumbnailInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          void uploadThumbnail(file);
-                        }
-                        event.currentTarget.value = "";
-                      }}
-                    />
-                    {isUploadingThumbnail ? <div className="text-xs uppercase tracking-[0.12em] text-[var(--accent-strong)]">Uploading thumbnail...</div> : null}
-                  </div>
-                </div>
+                <ThumbnailField
+                  label="Thumbnail"
+                  imageUrl={presetForm.thumbnailUrl}
+                  imageAlt={presetForm.label || "Preset thumbnail"}
+                  emptyLabel="No thumbnail"
+                  inputRef={thumbnailInputRef}
+                  isUploading={isUploadingThumbnail}
+                  isBrowsing={thumbnailAssetsLoading}
+                  chooseLabel="Choose from generated images"
+                  browseLabel="Browse generated images"
+                  uploadLabel="Upload thumbnail"
+                  removeLabel="Remove thumbnail"
+                  onChoose={() => void loadThumbnailAssets()}
+                  onUploadFile={(file) => void uploadThumbnail(file)}
+                  onRemove={() => setPresetForm((current) => ({ ...current, thumbnailPath: "", thumbnailUrl: "" }))}
+                  surface={false}
+                />
               </div>
             </div>
 
@@ -952,6 +980,21 @@ export function MediaPresetEditorScreen({
           </div>
         </div>
       </Panel>
+
+      <GeneratedThumbnailPickerDialog
+        open={thumbnailPickerOpen}
+        dialogLabel="Generated image thumbnails"
+        title="Choose a thumbnail"
+        description="Pick a recent generated image to use as this preset thumbnail."
+        items={thumbnailPickerItems}
+        loading={thumbnailAssetsLoading}
+        loadingMore={thumbnailAssetsLoadingMore}
+        nextOffset={thumbnailAssetsNextOffset}
+        selectionId={thumbnailAssetSelectionId}
+        onClose={() => setThumbnailPickerOpen(false)}
+        onLoadMore={() => void loadThumbnailAssets({ append: true })}
+        onSelectItem={(assetId) => void applyThumbnailFromAsset(assetId)}
+      />
     </div>
   );
 }

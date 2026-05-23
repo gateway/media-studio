@@ -1,12 +1,9 @@
 import { MediaModelsConsole } from "@/components/media-models-console";
-import { AdminNavButton } from "@/components/admin-nav-button";
 import { SettingsSectionTabs } from "@/components/settings/settings-section-tabs";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { StudioDebugSettings } from "@/components/studio-debug-settings";
-import { Panel, PanelHeader } from "@/components/panel";
 import { adminSectionStackClassName } from "@/components/admin-theme";
 import { getMediaDashboardSnapshot } from "@/lib/control-api";
-import { buildStudioScopedHref } from "@/lib/studio-navigation";
 
 export default async function StudioSettingsPage({
   searchParams,
@@ -28,22 +25,6 @@ export default async function StudioSettingsPage({
       <div className={adminSectionStackClassName}>
         <SettingsSectionTabs activeTab="general" currentProjectId={currentProjectId} />
       </div>
-      <Panel>
-        <PanelHeader
-          eyebrow="AI Settings"
-          title="AI setup moved into its own route"
-          description="Use the dedicated AI settings surface for Codex Local, OpenRouter, Local OpenAI-compatible connections, Studio enhancement defaults, and recipe draft defaults."
-          action={
-            <AdminNavButton
-              href={buildStudioScopedHref("/settings/llms", currentProjectId)}
-              variant="subtle"
-              size="compact"
-            >
-              Open AI Settings
-            </AdminNavButton>
-          }
-        />
-      </Panel>
       <MediaModelsConsole
         models={snapshot.models.data?.models ?? []}
         presets={snapshot.presets.data?.presets ?? []}

@@ -76,6 +76,33 @@ export function AdminButton({
   return <Button {...props} type={type} appearance="admin" variant={variant} size={size} className={className} />;
 }
 
+export function AdminIconButton({
+  label,
+  tooltip = label,
+  children,
+  className,
+  ...props
+}: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label" | "title"> & {
+  label: string;
+  tooltip?: string;
+  children: ReactNode;
+}) {
+  return (
+    <AdminButton
+      {...props}
+      variant="subtle"
+      size="compact"
+      aria-label={label}
+      className={cn("group/icon relative h-10 w-10 px-0", className)}
+    >
+      {children}
+      <span className="pointer-events-none absolute bottom-[calc(100%+0.45rem)] left-1/2 z-20 max-w-48 -translate-x-1/2 rounded-[var(--admin-radius-sm)] border border-[var(--surface-border-soft)] bg-[var(--surface-overlay-panel)] px-2.5 py-1.5 text-[0.66rem] leading-tight font-semibold tracking-normal text-[var(--foreground)] normal-case opacity-0 shadow-sm transition group-hover/icon:opacity-100 group-focus-visible/icon:opacity-100">
+        {tooltip}
+      </span>
+    </AdminButton>
+  );
+}
+
 export function AdminField({
   label,
   description,

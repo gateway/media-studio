@@ -228,6 +228,25 @@ async function waitForUrl(url, timeoutMs = 90000) {
   return false;
 }
 
+async function fetchHealthInstallId(url, timeoutMs = 1500) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+    if (!response.ok) {
+      return null;
+    }
+    const payload = await response.json();
+    return typeof payload.install_id === "string" && payload.install_id.trim()
+      ? payload.install_id.trim()
+      : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function spawnChecked(command, args, env, label) {
   const invocation = windowsCommandShim(command, args);
   const result = spawnSync(invocation.command, invocation.args, {
@@ -498,7 +517,8 @@ async function failIfPortsUnavailable(runtime) {
   const webReadyUrl = `http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/icon.svg`;
   const apiReady = !apiAvailable && (await waitForUrl(apiHealthUrl, 1500));
   const webReady = !webAvailable && (await waitForUrl(webReadyUrl, 1500));
-  if (apiReady && webReady) {
+  const runningInstallId = apiReady ? await fetchHealthInstallId(apiHealthUrl) : null;
+  if (apiReady && webReady && runningInstallId === runtime.env.MEDIA_STUDIO_INSTALL_ID) {
     console.log("Media Studio already appears to be running.");
     console.log(`Studio: http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/studio`);
     process.exit(0);
@@ -537,7 +557,8 @@ async function resolveAvailablePorts(runtime, options) {
   const webReadyUrl = `http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/icon.svg`;
   const apiReady = !apiAvailable && (await waitForUrl(apiHealthUrl, 1500));
   const webReady = !webAvailable && (await waitForUrl(webReadyUrl, 1500));
-  if (apiReady && webReady) {
+  const runningInstallId = apiReady ? await fetchHealthInstallId(apiHealthUrl) : null;
+  if (apiReady && webReady && runningInstallId === runtime.env.MEDIA_STUDIO_INSTALL_ID) {
     console.log("Media Studio already appears to be running.");
     console.log(`Studio: http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/studio`);
     process.exit(0);
@@ -552,7 +573,9 @@ async function resolveAvailablePorts(runtime, options) {
   const originalWebPort = runtime.webPort;
   const selectedApiPort = apiAvailable
     ? runtime.apiPort
-    : await findAvailablePort(runtime.apiHost, Number(runtime.apiPort) + 1);
+    : await findAvailablePort(runtime.apiHost, Number(runtime.apiPort) + 1, {
+        exclude: new Set([String(runtime.webPort)]),
+      });
   const selectedWebPort = webAvailable
     ? runtime.webPort
     : await findAvailablePort(runtime.webHost, Number(runtime.webPort) + 1, {

@@ -12,7 +12,7 @@ import {
   AdminToggle,
 } from "@/components/admin-controls";
 import { Panel, PanelHeader } from "@/components/panel";
-import { SharedLlmProviderIntroCard, SharedLlmProviderSection } from "@/components/shared-llm-provider-sections";
+import { SharedLlmProviderSection } from "@/components/shared-llm-provider-sections";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import { useSharedProviderModelCatalog } from "@/hooks/use-shared-provider-model-catalog";
 import {
@@ -28,12 +28,10 @@ import {
   providerModelChoices,
   providerModelFallback,
   resolveSelectedProviderModel,
-  sharedProviderKindOptions,
 } from "@/lib/llm-provider-models";
 import {
   llmProviderBillingLabel,
   llmProviderLabel,
-  llmProviderSummary,
   type EnhancementProviderKind,
   type SharedLlmProviderKind,
 } from "@/lib/llm-provider-metadata";
@@ -66,6 +64,37 @@ type EnhancementFormState = {
   supportsImageAnalysis: boolean;
   notes: string;
 };
+
+type EnhancementToggleCardProps = {
+  label: string;
+  title: string;
+  description: string;
+  checked: boolean;
+  ariaLabel: string;
+  onToggle: () => void;
+};
+
+function EnhancementToggleCard({
+  label,
+  title,
+  description,
+  checked,
+  ariaLabel,
+  onToggle,
+}: EnhancementToggleCardProps) {
+  return (
+    <div className="surface-inset grid gap-3 p-4">
+      <div className="admin-field-label">{label}</div>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-[var(--foreground)]">{title}</div>
+          <div className="mt-1 text-sm leading-6 text-[var(--muted-strong)]">{description}</div>
+        </div>
+        <AdminToggle checked={checked} ariaLabel={ariaLabel} onToggle={onToggle} />
+      </div>
+    </div>
+  );
+}
 
 function emptyEnhancementForm(): EnhancementFormState {
   return {
@@ -320,14 +349,14 @@ export function StudioEnhancementSettingsPanel({
     const result = await saveEnhancementConfigRequest({ endpoint, method, payload });
     setIsSaving(false);
     if (!result.ok) {
-      showNotice("danger", result.error ?? "Could not save your Enhance defaults.");
+      showNotice("danger", result.error ?? "Could not save your Prompt Enhance defaults.");
       return;
     }
     if (result.config) {
       const savedConfig = result.config;
       setConfigs((current) => upsertEnhancementConfigEntry(current, savedConfig));
     }
-    showNotice("healthy", "Enhance defaults saved.");
+    showNotice("healthy", "Prompt Enhance defaults saved.");
   }
 
   async function probeProvider(providerKind: SharedLlmProviderKind, silent = false) {
@@ -392,78 +421,48 @@ export function StudioEnhancementSettingsPanel({
     <div className="grid gap-4">
       {notice ? <AdminActionNotice tone={notice.tone} text={notice.text} /> : null}
 
-      <SharedLlmProviderIntroCard
-        accentLabel="Enhance default model"
-        summaryLines={[
-          (
-            <>
-              AI service:{" "}
-              <span className="font-medium text-[var(--foreground)]">{llmProviderLabel(form.providerKind)}</span>
-            </>
-          ),
-          llmProviderSummary(form.providerKind),
-          llmProviderBillingLabel(form.providerKind),
-        ]}
-        leadingContent={
-          <div className="grid gap-3 md:grid-cols-2">
-            <AdminField label="Use images too">
-              <label className="admin-toggle-row min-h-11">
-                <span>Let Enhance read uploaded images</span>
-                <AdminToggle
-                  checked={form.supportsImageAnalysis}
-                  ariaLabel="Let Enhance read uploaded images"
-                  onToggle={() =>
-                    setForm((current) => ({
-                      ...current,
-                      supportsImageAnalysis: !current.supportsImageAnalysis,
-                    }))
-                  }
-                />
-              </label>
-            </AdminField>
+      <div className="admin-surface-accent grid gap-4 p-4 sm:p-5">
+        <div className="grid max-w-[760px] gap-3">
+          <div className="admin-label-accent">Prompt Enhance behavior</div>
+          <div className="text-sm leading-7 text-[var(--muted-strong)]">
+            Prompt Enhance rewrites Studio prompts before generation. The model below controls that rewrite only.
+            Graph prompt nodes still choose their own model.
           </div>
-        }
-        picker={
-          <>
-            <label className="admin-toggle-row text-sm">
-              <span>Turn on Enhance</span>
-              <AdminToggle
-                checked={form.status !== "inactive"}
-                ariaLabel="Turn on Enhance"
-                onToggle={() =>
-                  setForm((current) => ({
-                    ...current,
-                    status: current.status === "inactive" ? "active" : "inactive",
-                  }))
-                }
-              />
-            </label>
-            {renderSelect(
-              "enhancement-provider-kind",
-              form.providerKind,
-              (value) =>
-                setForm((current) => ({
-                  ...current,
-                  providerKind: value as EnhancementProviderKind,
-                  providerLabel: "",
-                  providerModelId: "",
-                  providerApiKey: "",
-                  providerApiKeyTouched: false,
-                  providerBaseUrl: "",
-                  providerBaseUrlTouched: false,
-                  providerSupportsImages: false,
-                  providerCapabilities: {},
-                  providerCredentialSource: "",
-                  providerStatus: "",
-                })),
-              [
-                { value: "builtin", label: "Media Studio default" },
-                ...sharedProviderKindOptions(),
-              ],
-            )}
-          </>
-        }
-      />
+          <div className="text-sm leading-7 text-[var(--muted-strong)]">
+            AI service: <span className="font-medium text-[var(--foreground)]">{llmProviderLabel(form.providerKind)}</span>
+            <span className="mx-2 text-[var(--muted)]"> · </span>
+            {llmProviderBillingLabel(form.providerKind)}
+          </div>
+        </div>
+        <div className="grid max-w-[760px] gap-3 md:grid-cols-2">
+          <EnhancementToggleCard
+            label="Prompt Enhance button"
+            title="Enable Prompt Enhance"
+            description="Shows Prompt Enhance in Studio and lets it rewrite prompts before generation."
+            checked={form.status !== "inactive"}
+            ariaLabel="Enable Prompt Enhance"
+            onToggle={() =>
+              setForm((current) => ({
+                ...current,
+                status: current.status === "inactive" ? "active" : "inactive",
+              }))
+            }
+          />
+          <EnhancementToggleCard
+            label="Image context"
+            title="Use uploaded images"
+            description="Lets Prompt Enhance include attached or source images when the selected model supports vision."
+            checked={form.supportsImageAnalysis}
+            ariaLabel="Use uploaded images for Prompt Enhance"
+            onToggle={() =>
+              setForm((current) => ({
+                ...current,
+                supportsImageAnalysis: !current.supportsImageAnalysis,
+              }))
+            }
+          />
+        </div>
+      </div>
 
       {form.providerKind === "openrouter" ? (
           <SharedLlmProviderSection
@@ -644,8 +643,8 @@ export function StudioEnhancementSettingsPanel({
       {form.providerKind === "builtin" ? (
           <SharedLlmProviderSection
             icon={PlugZap}
-            title="Media Studio default"
-            description="This keeps Enhance on Media Studio&apos;s default helper. Switch to another provider if you want hosted models, vision support, or Codex."
+            title="Prompt Enhance helper"
+            description="This keeps Prompt Enhance on the built-in helper. Connect Codex Local, OpenRouter, or a local OpenAI-compatible endpoint when you want a specific AI service."
           >
             <AdminInput
               value={form.helperProfile}
@@ -657,7 +656,7 @@ export function StudioEnhancementSettingsPanel({
 
       <div className="mt-2 flex flex-wrap gap-3">
         <AdminButton onClick={() => void saveConfig()} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save Enhance defaults"}
+          {isSaving ? "Saving..." : "Save Prompt Enhance defaults"}
         </AdminButton>
       </div>
     </div>
@@ -670,9 +669,9 @@ export function StudioEnhancementSettingsPanel({
   return (
     <Panel className="p-5 sm:p-6">
       <PanelHeader
-        eyebrow="Studio Enhancement"
-        title="Enhance default model"
-        description="Choose the default AI service and model used by Enhance across Studio."
+        eyebrow="Prompt Enhance"
+        title="Prompt Enhance default model"
+        description="Choose the default AI service and model used by Prompt Enhance across Studio."
       />
       <div className="mt-5">{providerChrome}</div>
     </Panel>

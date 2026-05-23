@@ -47,9 +47,7 @@ In production mode the shared launcher also checks whether the sibling `kie-api`
 
 ## Alternate Ports
 
-If `3000` or `8000` is already in use by another app, the shared launcher automatically chooses the next open API and web ports for that launch and wires the web app to the selected API port.
-
-To force a specific pair, pass explicit ports:
+If `3000` or `8000` is already in use by another app, the normal launchers automatically choose the next open API and web ports for that launch and wire the web app to the selected API port. To force a specific pair, pass explicit ports:
 
 ```bash
 npm run start:studio -- --api-port 8010 --web-port 3010

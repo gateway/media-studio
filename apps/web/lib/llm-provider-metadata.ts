@@ -14,9 +14,9 @@ type LlmProviderDescriptor = {
 const LLM_PROVIDER_DESCRIPTORS: Record<EnhancementProviderKind, LlmProviderDescriptor> = {
   builtin: {
     kind: "builtin",
-    label: "Media Studio Default",
-    shortLabel: "Studio Default",
-    summary: "Use Media Studio's default helper instead of connecting another AI service.",
+    label: "Enhance Helper",
+    shortLabel: "Enhance Helper",
+    summary: "Use the built-in Enhance helper without connecting another AI service.",
     billingLabel: "Local helper profile",
     credentialLabel: "No external credentials",
     supportsConnectionSetup: false,

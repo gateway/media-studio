@@ -25,7 +25,7 @@ const promptDefinition: GraphNodeDefinition = {
       type: "select",
       default: "studio_default",
       options: [
-        { label: "Studio default", value: "studio_default" },
+        { label: "Prompt Enhance default model", value: "studio_default" },
         { label: "Codex Local", value: "codex_local" },
         { label: "OpenRouter", value: "openrouter" },
       ],
@@ -229,7 +229,7 @@ describe("GraphNodeFieldControl", () => {
         field={{
           ...promptDefinition.fields[0],
           options: [
-            { label: "Studio default", value: "studio_default" },
+            { label: "Prompt Enhance default model", value: "studio_default" },
             { label: "Local OpenAI", value: "local_openai" },
           ],
         }}

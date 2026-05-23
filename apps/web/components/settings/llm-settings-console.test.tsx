@@ -85,7 +85,7 @@ describe("LlmSettingsConsole", () => {
 
     expect(screen.getByText("Set up default models")).toBeTruthy();
     expect(screen.getByText("Connected AI services")).toBeTruthy();
-    expect(screen.getByText("Enhance default model")).toBeTruthy();
+    expect(screen.getByText("Prompt Enhance default model")).toBeTruthy();
     expect(screen.getByText("Recipe draft model")).toBeTruthy();
     expect(screen.getByText("Cost and usage")).toBeTruthy();
     expect(screen.getByText(/Start with Codex Local if this machine already uses Codex or ChatGPT/i)).toBeTruthy();

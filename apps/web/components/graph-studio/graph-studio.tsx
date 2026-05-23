@@ -77,7 +77,7 @@ function GraphStudioClient() {
   const [workflowName, setWorkflowName] = useState("Nano Image Pipeline");
   const { consoleLines, setConsoleLines, appendConsole } = useGraphConsole();
   const { templates, refreshTemplates, instantiateTemplate, deleteTemplate } = useGraphTemplates({ appendConsole });
-  const { tabs, activeTabId, sessionRestored, updateActiveTab, openBlankTab, openWorkflowTab, closeTab, switchTab } = useGraphTabs();
+  const { tabs, activeTabId, sessionRestored, storageScope, updateActiveTab, openBlankTab, openWorkflowTab, closeTab, switchTab } = useGraphTabs();
   const [run, setRun] = useState<GraphRun | null>(null);
   const [workflowUpdatedAt, setWorkflowUpdatedAt] = useState<string | null>(null);
   const {
@@ -1160,6 +1160,7 @@ function GraphStudioClient() {
     activeTab,
     activeTabId,
     tabs,
+    storageScope,
     workflowId,
     workflowName,
     workflowUpdatedAt,

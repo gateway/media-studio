@@ -105,13 +105,13 @@ export function LlmSettingsConsole({
         <PanelHeader
           eyebrow="AI Settings"
           title="Set up default models"
-          description="Choose the default model for the Enhance button and for recipe drafts. Graph workflows still choose their own models inside each node."
+          description="Choose the default model for Prompt Enhance and for recipe drafts. Graph workflows still choose their own models inside each node."
         />
         <div className="mt-5 grid gap-3 lg:grid-cols-3">
           <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
             <div className="admin-icon-label-row admin-label-muted">
               <Sparkles className="size-3.5" />
-              Enhance button
+              Prompt Enhance button
             </div>
             <div className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">
               Default model: <span className="font-medium text-[var(--foreground)]">{enhancementProviderLabel}</span>
@@ -189,10 +189,10 @@ export function LlmSettingsConsole({
 
       <Panel className="overflow-hidden p-0">
         <SectionDisclosure
-          title="Enhance default model"
-          description="Choose the default model used by the Enhance button in Studio."
+          title="Prompt Enhance default model"
+          description="Choose the model Studio uses when Prompt Enhance rewrites a prompt."
           summary={`Using: ${enhancementProviderLabel}`}
-          detail="This only controls Enhance. Graph nodes can still pick something else."
+          detail="Image access is separate. Graph prompt nodes still choose their own model."
           statusSlot={<StatusPill label={enhancementStatus.label} tone={enhancementStatus.tone} />}
           defaultOpen={false}
         >

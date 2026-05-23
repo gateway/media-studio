@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 type SharedLlmProviderIntroCardProps = {
   accentLabel: string;
   summaryLines: ReactNode[];
-  picker: ReactNode;
+  picker?: ReactNode;
   leadingContent?: ReactNode;
   trailingContent?: ReactNode;
 };
@@ -29,10 +29,7 @@ export function SharedLlmProviderIntroCard({
           </div>
         ))}
       </div>
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,280px)_minmax(0,320px)] lg:items-start">
-        <div className="hidden lg:block" aria-hidden="true" />
-        {picker}
-      </div>
+      {picker ? <div className="grid max-w-[760px] gap-3">{picker}</div> : null}
       {trailingContent}
     </div>
   );
