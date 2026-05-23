@@ -138,7 +138,7 @@ describe("StudioProjectBrowser project images", () => {
 
     const pickerDialog = await screen.findByRole("dialog", { name: "Generated image project covers" });
     expect(pickerDialog.parentElement?.className).toContain("z-[130]");
-    fireEvent.click(screen.getByRole("button", { name: "Use generated image asset-1 as project image" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Use generated image asset-1 as project image" }));
     fireEvent.click(screen.getByTestId("studio-project-submit-save"));
 
     await waitFor(() => {
