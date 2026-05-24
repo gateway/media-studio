@@ -53,9 +53,16 @@ def _preset_id_for_node(node: GraphWorkflowNode, definition) -> str:
     preset_id = str(node.fields.get("preset_id") or "").strip()
     if preset_id:
         return preset_id
-    if node.type.startswith("preset.render."):
-        return str(definition.source.get("preset_id") or "").strip()
     return ""
+
+
+def _preset_model_key_for_node(node: GraphWorkflowNode, preset: Dict[str, Any]) -> tuple[str, List[str]]:
+    compatible = [str(item).strip() for item in (preset.get("applies_to_models_json") or []) if str(item).strip()]
+    default_model = str(preset.get("model_key") or "").strip()
+    if default_model and default_model not in compatible:
+        compatible.insert(0, default_model)
+    selected = str(node.fields.get("preset_model_key") or "").strip()
+    return selected or (compatible[0] if compatible else default_model), compatible
 
 
 def _node_execution_mode(node: GraphWorkflowNode) -> str:
@@ -194,7 +201,7 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
         if node.fields.get("reference_id") and not store.get_reference_media(str(node.fields["reference_id"])):
             errors.append(GraphError(code="missing_reference_media", message="Referenced reference media does not exist.", node_id=node.id, field_id="reference_id"))
         preset_id = _preset_id_for_node(node, definition)
-        if (node.type == "preset.render" or node.type.startswith("preset.render.")) and preset_id:
+        if node.type == "preset.render" and preset_id:
             preset = store.get_preset(preset_id)
             if not preset:
                 errors.append(GraphError(code="missing_preset", message="Referenced preset does not exist.", node_id=node.id, field_id="preset_id"))
@@ -205,13 +212,40 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                     dynamic_value = node.fields.get(f"text__{_slug(key)}")
                     if key and dynamic_value is not None and dynamic_value != "":
                         text_values[key] = dynamic_value
-                missing_text = [
-                    str(field.get("key"))
-                    for field in (preset.get("input_schema_json") or [])
-                    if field.get("required") and not str(text_values.get(str(field.get("key"))) or field.get("default_value") or "").strip()
-                ]
-                for key in missing_text:
-                    errors.append(GraphError(code="missing_preset_text", message=f"Missing required preset text field: {key}", node_id=node.id, field_id="text_values_json"))
+                for field in preset.get("input_schema_json") or []:
+                    key = str(field.get("key") or "").strip()
+                    if field.get("required") and not str(text_values.get(key) or field.get("default_value") or "").strip():
+                        errors.append(
+                            GraphError(
+                                code="missing_preset_text",
+                                message=f"Missing required preset text field: {key}",
+                                node_id=node.id,
+                                field_id=f"text__{_slug(key)}",
+                            )
+                        )
+                for group in preset.get("choice_groups_json") or []:
+                    key = str(group.get("key") or group.get("id") or "").strip()
+                    if key and group.get("required") and not str(node.fields.get(f"choice__{_slug(key)}") or group.get("default") or "").strip():
+                        errors.append(
+                            GraphError(
+                                code="missing_preset_choice",
+                                message=f"Missing required preset choice: {key}",
+                                node_id=node.id,
+                                field_id=f"choice__{_slug(key)}",
+                            )
+                        )
+                model_key, compatible_models = _preset_model_key_for_node(node, preset)
+                if not model_key:
+                    errors.append(GraphError(code="missing_preset_model", message="Media Preset has no compatible model.", node_id=node.id, field_id="preset_model_key"))
+                elif compatible_models and model_key not in compatible_models:
+                    errors.append(
+                        GraphError(
+                            code="preset_model_not_compatible",
+                            message="Selected model is not compatible with this Media Preset.",
+                            node_id=node.id,
+                            field_id="preset_model_key",
+                        )
+                    )
         if node.type == "prompt.recipe" or node.type.startswith("prompt.recipe."):
             prompt_recipe_context = validate_prompt_recipe_node_setup(node, definition, errors=errors)
             if prompt_recipe_context:
@@ -390,22 +424,31 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                     )
                 )
         preset_id = _preset_id_for_node(node, definition)
-        if (node.type == "preset.render" or node.type.startswith("preset.render.")) and preset_id:
+        if node.type == "preset.render" and preset_id:
             preset = store.get_preset(preset_id)
             if preset:
-                slot_values = _dict_field(node.fields.get("image_slots") or node.fields.get("image_slots_json"))
-                connected_count = incoming_by_target_port[(node.id, "image_refs")]
-                has_connected_refs = connected_count > 0
                 for slot in preset.get("input_slots_json") or []:
                     key = str(slot.get("key") or "").strip()
-                    dynamic_connected_count = incoming_by_target_port[(node.id, f"slot__{_slug(key)}")]
-                    if slot.get("required") and not slot_values.get(key) and not has_connected_refs and dynamic_connected_count <= 0:
+                    port_id = f"slot__{_slug(key)}"
+                    connected_count = incoming_by_target_port[(node.id, port_id)]
+                    available_count = available_incoming_by_target_port[(node.id, port_id)]
+                    if slot.get("required") and available_count <= 0:
                         errors.append(
                             GraphError(
                                 code="missing_preset_image_slot",
                                 message=f"Missing required preset image slot: {key}",
                                 node_id=node.id,
-                                port_id="image_refs",
+                                port_id=port_id,
+                            )
+                        )
+                    max_files = int(slot.get("max_files") or 1)
+                    if max_files > 0 and connected_count > max_files:
+                        errors.append(
+                            GraphError(
+                                code="preset_image_slot_max_exceeded",
+                                message=f"Too many images connected to preset image slot: {key}",
+                                node_id=node.id,
+                                port_id=port_id,
                             )
                         )
         if node.type == "prompt.recipe" or node.type.startswith("prompt.recipe."):

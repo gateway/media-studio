@@ -53,4 +53,18 @@ describe("graph media previews", () => {
     expect(preview?.url).toBe("/api/control/files/outputs/video.mp4");
     expect(preview?.posterUrl).toBe("/api/control/files/outputs/video-poster.jpg");
   });
+
+  it("uses thumbnail URLs for image asset previews while preserving the full image URL", () => {
+    const preview = previewFromAsset({
+      asset_id: "asset-image",
+      generation_kind: "image",
+      hero_original_url: "/api/control/files/outputs/original/image.png",
+      hero_web_url: "/api/control/files/outputs/web/image.webp",
+      hero_thumb_url: "/api/control/files/outputs/thumb/image.webp",
+    } as MediaAsset);
+
+    expect(preview?.mediaType).toBe("image");
+    expect(preview?.url).toBe("/api/control/files/outputs/thumb/image.webp");
+    expect(preview?.fullUrl).toBe("/api/control/files/outputs/original/image.png");
+  });
 });

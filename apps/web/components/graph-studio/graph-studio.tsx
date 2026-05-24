@@ -42,7 +42,7 @@ import { useGraphRunLifecycle, type GraphValidationError } from "./hooks/use-gra
 import { useGraphWorkflowActions } from "./hooks/use-graph-workflow-actions";
 import { useGraphWorkflowMenuState } from "./hooks/use-graph-workflow-menu-state";
 import { useGraphWorkflowTransfer } from "./hooks/use-graph-workflow-transfer";
-import type { GraphGroup, GraphMediaPreview, GraphNodeDefinition, GraphRun, GraphRunEvent, GraphWorkflowPayload, GraphWorkflowRecord, StudioEdge, StudioNode } from "./types";
+import type { GraphGroup, GraphMediaPreview, GraphNodeDefinition, GraphRun, GraphRunEvent, GraphRunHistoryItem, GraphWorkflowPayload, GraphWorkflowRecord, StudioEdge, StudioNode } from "./types";
 import { jsonFetch } from "./utils/graph-api";
 import { graphGroupsForCanvas } from "./utils/graph-groups";
 import { assetIdsFromGraphRun, readGraphMediaDragPayload } from "./utils/graph-media-preview";
@@ -717,9 +717,9 @@ function GraphStudioClient() {
   });
 
   const hydrateLastRun = useCallback(
-    async (runId: string) => {
+    async (runId: string, preloadedRun?: GraphRun) => {
       try {
-        const current = await jsonFetch<GraphRun>(`/api/control/media/graph/runs/${runId}`);
+        const current = preloadedRun ?? (await jsonFetch<GraphRun>(`/api/control/media/graph/runs/${runId}`));
         setRun(current);
         applyRunNodesToCanvas(current);
         await refreshImageAssets().catch(() => undefined);
@@ -739,14 +739,15 @@ function GraphStudioClient() {
 
   const hydrateLatestRunForWorkflow = useCallback(
     async (targetWorkflowId: string, currentWorkflow?: GraphWorkflowPayload | null) => {
-      const payload = await jsonFetch<{ items?: GraphRun[] }>("/api/control/media/graph/runs?limit=25");
-      const latestRun = payload.items?.find((item) => item.workflow_id === targetWorkflowId);
-      if (latestRun?.run_id) {
+      const payload = await jsonFetch<{ items?: GraphRunHistoryItem[] }>("/api/control/media/graph/runs/summary?limit=15");
+      const latestRunSummary = payload.items?.find((item) => item.workflow_id === targetWorkflowId);
+      if (latestRunSummary?.run_id) {
+        const latestRun = await jsonFetch<GraphRun>(`/api/control/media/graph/runs/${latestRunSummary.run_id}`);
         if (currentWorkflow && latestRun.workflow_json && !graphWorkflowSnapshotsMatch(currentWorkflow, latestRun.workflow_json)) {
           appendConsole(`Skipped last-run restore for ${currentWorkflow.name} because the latest run came from a different workflow state.`);
           return;
         }
-        await hydrateLastRun(latestRun.run_id);
+        await hydrateLastRun(latestRunSummary.run_id, latestRun);
       }
     },
     [appendConsole, hydrateLastRun],
@@ -1143,15 +1144,20 @@ function GraphStudioClient() {
   }, [appendConsole, setNodeFields]);
 
   const restoreRunFromHistory = useCallback(
-    (historyRun: GraphRun) => {
-      const workflow = historyRun.workflow_json;
-      if (!workflow?.nodes?.length) {
-        appendConsole(`Run ${historyRun.run_id} does not include a restorable workflow snapshot.`);
-        return;
+    async (historyRun: GraphRunHistoryItem) => {
+      try {
+        const fullRun = historyRun.workflow_json?.nodes?.length ? (historyRun as GraphRun) : await jsonFetch<GraphRun>(`/api/control/media/graph/runs/${historyRun.run_id}`);
+        const workflow = fullRun.workflow_json;
+        if (!workflow?.nodes?.length) {
+          appendConsole(`Run ${historyRun.run_id} does not include a restorable workflow snapshot.`);
+          return;
+        }
+        hydrateWorkflowPayload(workflow, { workflowId: fullRun.workflow_id, workflowName: workflow.name, workflowUpdatedAt, run: fullRun });
+        setSidebarDialog(null);
+        appendConsole(`Restored graph run ${historyRun.run_id}.`);
+      } catch (error) {
+        appendConsole(`Run ${historyRun.run_id} could not be restored: ${(error as Error).message}`);
       }
-      hydrateWorkflowPayload(workflow, { workflowId: historyRun.workflow_id, workflowName: workflow.name, workflowUpdatedAt, run: historyRun });
-      setSidebarDialog(null);
-      appendConsole(`Restored graph run ${historyRun.run_id}.`);
     },
     [appendConsole, hydrateWorkflowPayload, workflowUpdatedAt],
   );

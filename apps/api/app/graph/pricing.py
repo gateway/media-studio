@@ -602,6 +602,8 @@ def _output_port(definition: Optional[GraphNodeDefinition], port_id: str):
 
 
 def _model_options(node: GraphWorkflowNode, definition: GraphNodeDefinition) -> Dict[str, Any]:
+    if definition.source.get("preset_id"):
+        return {}
     keys = {field.id for field in definition.fields if field.id not in {"prompt", "output_count"}}
     return {key: value for key, value in node.fields.items() if key in keys and value is not None and value != ""}
 

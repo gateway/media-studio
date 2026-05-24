@@ -550,8 +550,6 @@ class GraphRuntime:
                 executor = self.executors.get(node.type)
                 if not executor and node.type.startswith("model.kie."):
                     executor = self.executors.get("model.kie")
-                if not executor and node.type.startswith("preset.render."):
-                    executor = self.executors.get("preset.render")
                 if not executor and node.type.startswith("prompt.recipe."):
                     executor = self.executors.get("prompt.recipe")
                 if not executor:

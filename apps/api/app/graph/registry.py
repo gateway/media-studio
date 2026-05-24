@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sqlite3
 from typing import Any, Dict, List, Optional
 
 from .. import kie_adapter, store
@@ -51,16 +50,6 @@ def _is_suno_model(model_key: str) -> bool:
 def _is_supported_graph_model_option(model_key: str, option_key: str) -> bool:
     blocked = UNSUPPORTED_GRAPH_MODEL_OPTIONS.get(_normalized_model_key(model_key), set())
     return option_key not in blocked
-
-
-def _list_active_presets_for_graph() -> List[Dict[str, Any]]:
-    try:
-        presets = store.list_presets()
-    except sqlite3.OperationalError as exc:
-        if "no such table: media_presets" not in str(exc):
-            raise
-        presets = []
-    return [preset for preset in presets if str(preset.get("status") or "active") == "active"]
 
 
 def _visible_condition_from_option(spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -240,7 +229,7 @@ def _layout_ui(definition: GraphNodeDefinition) -> GraphNodeDefinition:
     if definition.category.startswith("Models/"):
         computed_min_width = max(computed_min_width, 340)
         computed_min_height = max(computed_min_height, 440)
-    if definition.type == "preset.render" or definition.type.startswith("preset.render."):
+    if definition.type == "preset.render":
         computed_min_width = max(computed_min_width, 340)
         computed_min_height = max(computed_min_height, 380)
     if definition.type == "prompt.recipe" or definition.type.startswith("prompt.recipe."):
@@ -385,8 +374,6 @@ class GraphNodeRegistry:
                 continue
             definitions.append(definition)
             seen_model_nodes.add(definition.type)
-        for preset in _list_active_presets_for_graph():
-            definitions.append(self._preset_render_definition(preset))
         definitions = [_layout_ui(definition) for definition in definitions]
         validate_node_definitions(definitions)
         return definitions
@@ -613,82 +600,6 @@ class GraphNodeRegistry:
                         GraphNodePort(id="job", label="Job", type="job", advanced=True),
                     ]
                 ),
-            },
-            fields=fields,
-        )
-
-    def _preset_render_definition(self, preset: Dict[str, Any]) -> GraphNodeDefinition:
-        preset_id = str(preset.get("preset_id") or "")
-        preset_key = str(preset.get("key") or preset_id)
-        input_ports = []
-        for slot in preset.get("input_slots_json") or []:
-            key = str(slot.get("key") or "").strip()
-            if not key:
-                continue
-            input_ports.append(
-                GraphNodePort(
-                    id=f"slot__{_slug(key)}",
-                    label=str(slot.get("label") or _title_from_key(key)),
-                    type="image",
-                    array=True,
-                    min=1 if slot.get("required") else 0,
-                    max=int(slot.get("max_files") or 1),
-                    required=bool(slot.get("required")),
-                    accepts=["image"],
-                )
-            )
-        fields = [
-            GraphNodeField(id="preset_id", label="Preset", type="text", required=False, default=preset_id, hidden=True),
-        ]
-        for field in preset.get("input_schema_json") or []:
-            key = str(field.get("key") or "").strip()
-            if not key:
-                continue
-            fields.append(
-                GraphNodeField(
-                    id=f"text__{_slug(key)}",
-                    label=str(field.get("label") or _title_from_key(key)),
-                    type="textarea" if field.get("multiline") else "text",
-                    required=bool(field.get("required")),
-                    default=field.get("default_value") or "",
-                    placeholder=field.get("placeholder"),
-                    help_text=field.get("help_text") or field.get("description"),
-                )
-            )
-        for group in preset.get("choice_groups_json") or []:
-            key = str(group.get("key") or group.get("id") or "").strip()
-            choices = group.get("choices") or group.get("options") or []
-            if not key or not choices:
-                continue
-            fields.append(
-                GraphNodeField(
-                    id=f"choice__{_slug(key)}",
-                    label=str(group.get("label") or _title_from_key(key)),
-                    type="select",
-                    required=bool(group.get("required")),
-                    default=group.get("default"),
-                    options=choices,
-                )
-            )
-        return GraphNodeDefinition(
-            type=f"preset.render.{_slug(preset_key or preset_id)}",
-            title=str(preset.get("label") or preset_key or "Render Preset"),
-            description=str(preset.get("description") or "Render this structured Media Studio preset."),
-            category="Preset",
-            search_aliases=["preset", "render", preset_key, str(preset.get("label") or "")],
-            tags=["preset", "prompt", "image"],
-            source={"kind": "preset", "preset_id": preset_id, "preset_key": preset_key},
-            execution={"executor": "preset.render", "mode": "sync", "cacheable": True, "output_node": False},
-            limits={"max_input_images": 8},
-            ui={"default_size": {"width": 360, "height": 460}, "accent": "purple", "icon": "preset"},
-            ports={
-                "inputs": input_ports,
-                "outputs": [
-                    GraphNodePort(id="prompt", label="Prompt", type="text"),
-                    GraphNodePort(id="image_refs", label="Image Refs", type="image", array=True),
-                    GraphNodePort(id="preset", label="Preset", type="json"),
-                    GraphNodePort(id="recommended_models", label="Recommended Models", type="json", advanced=True),
-                ],
             },
             fields=fields,
         )

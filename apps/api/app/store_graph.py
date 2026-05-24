@@ -138,6 +138,39 @@ def list_graph_runs(limit: int = 100) -> List[Dict[str, Any]]:
     return [_decode_row(row) for row in rows]
 
 
+GRAPH_RUN_SUMMARY_SELECT = """
+SELECT
+  graph_runs.run_id,
+  graph_runs.workflow_id,
+  graph_runs.status,
+  graph_runs.schema_version,
+  graph_runs.metrics_json,
+  graph_runs.error,
+  graph_runs.created_at,
+  graph_runs.started_at,
+  graph_runs.finished_at,
+  graph_runs.updated_at,
+  (SELECT COUNT(*) FROM graph_run_nodes WHERE graph_run_nodes.run_id = graph_runs.run_id) AS node_count,
+  (SELECT COUNT(*) FROM graph_artifacts WHERE graph_artifacts.run_id = graph_runs.run_id) AS artifact_count
+FROM graph_runs
+"""
+
+
+def _list_graph_run_summaries(*, limit: int, workflow_id: str | None = None) -> List[Dict[str, Any]]:
+    where_clause = "WHERE workflow_id = ?" if workflow_id else ""
+    params: tuple[Any, ...] = (workflow_id, limit) if workflow_id else (limit,)
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"{GRAPH_RUN_SUMMARY_SELECT} {where_clause} ORDER BY created_at DESC LIMIT ?",
+            params,
+        ).fetchall()
+    return [_decode_row(row) for row in rows]
+
+
+def list_graph_run_summaries(limit: int = 100) -> List[Dict[str, Any]]:
+    return _list_graph_run_summaries(limit=limit)
+
+
 def list_graph_runs_for_workflow(workflow_id: str, limit: int = 100) -> List[Dict[str, Any]]:
     with get_connection() as connection:
         rows = connection.execute(
@@ -150,6 +183,10 @@ def list_graph_runs_for_workflow(workflow_id: str, limit: int = 100) -> List[Dic
             (workflow_id, limit),
         ).fetchall()
     return [_decode_row(row) for row in rows]
+
+
+def list_graph_run_summaries_for_workflow(workflow_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+    return _list_graph_run_summaries(limit=limit, workflow_id=workflow_id)
 
 
 def get_graph_run(run_id: str) -> Optional[Dict[str, Any]]:

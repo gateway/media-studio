@@ -18,6 +18,7 @@ import { graphPortAccepts } from "./utils/graph-port-compatibility";
 import { graphNodeHasTracingBorder, graphNodeStatusClass, graphNodeStatusForExecutionMode } from "./utils/graph-node-status";
 import { graphNodePricingLabel } from "./utils/graph-pricing";
 import { graphNodeHeaderKindLabel } from "./utils/graph-node-header";
+import { graphMediaPresetFieldOverride, graphMediaPresetSelectionSummary } from "./utils/graph-media-preset";
 import { graphPromptAdvancedSummary, graphPromptNodeHeaderSummary, graphPromptRuntimeFieldOverride } from "./utils/graph-prompt-provider";
 import { graphPromptRecipeFieldOverride, graphPromptRecipeImageWarning, graphPromptRecipeSelectionSummary } from "./utils/graph-prompt-recipe";
 
@@ -49,7 +50,11 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const fieldMetrics = graphVisibleFieldMetrics(definition, data.fields, connectedInputPortIds, {
     advancedExpanded,
     previewHeaderFieldIds: graphPreviewHeaderFieldIds(definition),
-    extraLayoutRows: definition.type === "prompt.recipe" && graphPromptRecipeSelectionSummary(definition, data.fields) ? 2 : 0,
+    extraLayoutRows:
+      (definition.type === "prompt.recipe" && graphPromptRecipeSelectionSummary(definition, data.fields)) ||
+      (definition.type === "preset.render" && graphMediaPresetSelectionSummary(definition, data.fields))
+        ? 2
+        : 0,
   });
   const previewHeaderFields = fieldMetrics.previewHeaderFields;
   const primaryBodyFields = fieldMetrics.primaryBodyFields.filter((field) => field.type !== "asset_picker" && field.type !== "reference_media_picker");
@@ -77,6 +82,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const referenceBadges = data.referenceBadges ?? [];
   const promptRecipeSummary = definition.type === "prompt.recipe" ? graphPromptRecipeSelectionSummary(definition, data.fields) : null;
   const promptRecipeImageWarning = definition.type === "prompt.recipe" ? graphPromptRecipeImageWarning(definition, data.fields, connectedInputPortIds) : null;
+  const mediaPresetSummary = definition.type === "preset.render" ? graphMediaPresetSelectionSummary(definition, data.fields) : null;
   const promptHeaderSummary = graphPromptNodeHeaderSummary(definition.type, data.fields);
   const nodeKindLabel = promptHeaderSummary ?? graphNodeHeaderKindLabel(definition);
   const activityLabel = status === "idle" ? null : data.activityLabel;
@@ -157,7 +163,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const renderField = (field: GraphNodeData["definition"]["fields"][number]) => {
     const fieldConnected = connectedInputPorts.has(field.id);
     const fieldPort = definition.ports.inputs.find((port) => port.id === field.id);
-    const fieldOverride = graphPromptRecipeFieldOverride(definition, data.fields, field);
+    const fieldOverride = graphMediaPresetFieldOverride(definition, data.fields, field) ?? graphPromptRecipeFieldOverride(definition, data.fields, field);
     const runtimeFieldOverride = graphPromptRuntimeFieldOverride(definition.type, data.fields, field);
     const fieldLabel = fieldOverride?.label ?? field.label;
     const fieldHelpText = fieldOverride?.helpText ?? runtimeFieldOverride?.helpText ?? field.help_text;
@@ -411,6 +417,16 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
             <p>{promptRecipeSummary.description}</p>
             <ul>
               {promptRecipeSummary.details.map((detail) => <li key={detail}>{detail}</li>)}
+            </ul>
+          </div>
+        ) : null}
+        {mediaPresetSummary ? (
+          <div className="graph-node-inline-summary">
+            <strong>{mediaPresetSummary.title}</strong>
+            <span>{mediaPresetSummary.subtitle}</span>
+            <p>{mediaPresetSummary.description}</p>
+            <ul>
+              {mediaPresetSummary.details.map((detail) => <li key={detail}>{detail}</li>)}
             </ul>
           </div>
         ) : null}
