@@ -25,6 +25,7 @@ import {
 const children = new Set();
 let shuttingDown = false;
 let activePaths = null;
+let activeRuntime = null;
 
 function usage() {
   console.log(
@@ -127,6 +128,121 @@ function terminateChild(child) {
   terminatePid(child.pid);
 }
 
+function normalizeCommandText(value) {
+  return String(value || "").toLowerCase().replaceAll("\\", "/");
+}
+
+function commandLooksLikeMediaStudio(command, root = mediaRoot) {
+  const normalized = normalizeCommandText(command);
+  const normalizedRoot = normalizeCommandText(root);
+  if (!normalized.includes(normalizedRoot) && !normalized.includes("media-studio")) {
+    return false;
+  }
+  return (
+    normalized.includes("scripts/run_studio.mjs") ||
+    normalized.includes("scripts/dev_api.mjs") ||
+    normalized.includes("uvicorn app.main:app") ||
+    normalized.includes("next/dist/bin/next") ||
+    normalized.includes("next start") ||
+    normalized.includes("next dev")
+  );
+}
+
+function runWindowsProcessQuery(script) {
+  if (process.platform !== "win32") {
+    return [];
+  }
+  const result = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  if (result.status !== 0 || !result.stdout.trim()) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(result.stdout);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    return [];
+  }
+}
+
+function windowsListeningProcesses(port) {
+  const numericPort = Number.parseInt(String(port), 10);
+  if (!Number.isInteger(numericPort)) {
+    return [];
+  }
+  return runWindowsProcessQuery(`
+$ErrorActionPreference = 'SilentlyContinue'
+Get-NetTCPConnection -State Listen -LocalPort ${numericPort} |
+  Select-Object -ExpandProperty OwningProcess -Unique |
+  ForEach-Object {
+    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $_"
+    if ($process) {
+      [pscustomobject]@{ ProcessId = $process.ProcessId; CommandLine = $process.CommandLine }
+    }
+  } |
+  ConvertTo-Json -Compress
+`);
+}
+
+function windowsMediaStudioProcesses(root = mediaRoot) {
+  const escapedRoot = root.replaceAll("'", "''");
+  return runWindowsProcessQuery(`
+$ErrorActionPreference = 'SilentlyContinue'
+$root = '${escapedRoot}'
+Get-CimInstance Win32_Process |
+  Where-Object { $_.CommandLine -and $_.CommandLine.Contains($root) } |
+  Select-Object ProcessId, CommandLine |
+  ConvertTo-Json -Compress
+`);
+}
+
+function refreshWindowsPidFileFromPort(pidFile, port) {
+  if (process.platform !== "win32" || !pidFile || !port) {
+    return;
+  }
+  const deadline = Date.now() + 10000;
+  const refresh = () => {
+    const match = windowsListeningProcesses(port).find((entry) =>
+      commandLooksLikeMediaStudio(entry.CommandLine),
+    );
+    if (match?.ProcessId) {
+      writeFileSync(pidFile, String(match.ProcessId));
+      return;
+    }
+    if (Date.now() < deadline && !shuttingDown) {
+      setTimeout(refresh, 250).unref();
+    }
+  };
+  setTimeout(refresh, 250).unref();
+}
+
+function cleanupWindowsRuntimeProcesses(runtime = activeRuntime) {
+  if (process.platform !== "win32") {
+    return;
+  }
+
+  const processIds = new Set();
+  for (const port of [runtime?.webPort, runtime?.apiPort]) {
+    for (const entry of windowsListeningProcesses(port)) {
+      if (entry.ProcessId && commandLooksLikeMediaStudio(entry.CommandLine)) {
+        processIds.add(String(entry.ProcessId));
+      }
+    }
+  }
+  for (const entry of windowsMediaStudioProcesses(mediaRoot)) {
+    if (entry.ProcessId && commandLooksLikeMediaStudio(entry.CommandLine)) {
+      processIds.add(String(entry.ProcessId));
+    }
+  }
+
+  processIds.delete(String(process.pid));
+  for (const pid of processIds) {
+    terminatePid(pid);
+  }
+}
+
 function removeRuntimeFiles(paths) {
   for (const file of [paths.apiPidFile, paths.webPidFile, paths.launcherPidFile]) {
     rmSync(file, { force: true });
@@ -141,6 +257,7 @@ function shutdown(paths = activePaths, exitCode = 0) {
   for (const child of children) {
     terminateChild(child);
   }
+  cleanupWindowsRuntimeProcesses();
   if (paths) {
     removeRuntimeFiles(paths);
   }
@@ -183,7 +300,7 @@ function windowsCommandShim(command, args) {
   };
 }
 
-function startProcess(label, command, args, env, { logFile, pidFile } = {}) {
+function startProcess(label, command, args, env, { logFile, pidFile, listenPort } = {}) {
   const invocation = windowsCommandShim(command, args);
   const child = spawn(invocation.command, invocation.args, {
     cwd: mediaRoot,
@@ -196,6 +313,7 @@ function startProcess(label, command, args, env, { logFile, pidFile } = {}) {
   pipeWithPrefix(child.stderr, label, logStream);
   if (pidFile && child.pid) {
     writeFileSync(pidFile, String(child.pid));
+    refreshWindowsPidFileFromPort(pidFile, listenPort);
   }
   child.on("exit", (code, signal) => {
     children.delete(child);
@@ -597,6 +715,7 @@ async function resolveAvailablePorts(runtime, options) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const runtime = withResolvedRuntimeEnv({ ...options, reload: !options.production });
+  activeRuntime = runtime;
   const paths = runtimePaths(mediaRoot, runtime.env);
   activePaths = paths;
   for (const signal of ["SIGINT", "SIGTERM"]) {
@@ -652,6 +771,7 @@ async function main() {
   startProcess("api", process.execPath, apiArgs, runtime.env, {
     logFile: paths.apiLog,
     pidFile: paths.apiPidFile,
+    listenPort: runtime.apiPort,
   });
 
   const webArgs = options.production
@@ -661,6 +781,7 @@ async function main() {
   startProcess("web", npmCommand(), webArgs, runtime.env, {
     logFile: paths.webLog,
     pidFile: paths.webPidFile,
+    listenPort: runtime.webPort,
   });
 
   console.log("Waiting for the API and Studio to become ready...");
