@@ -71,7 +71,7 @@ function clearRequestedGraphRestoreParamsFromLocation() {
 
 export function useGraphTabs() {
   const initial = (() => {
-    const tab = newTab("Nano Image Pipeline");
+    const tab = newTab("New workflow");
     return { active_tab_id: tab.tab_id, tabs: [tab], restored: false };
   })();
   const tabMutationVersionRef = useRef(0);

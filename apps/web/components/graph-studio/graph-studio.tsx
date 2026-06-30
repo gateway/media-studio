@@ -173,7 +173,7 @@ function GraphStudioClient() {
   const assistantDebugEnabled = isGraphAssistantDebugEnabled();
   const graphFixture = useMemo(() => graphStudioFixtureKind(), []);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
-  const [workflowName, setWorkflowName] = useState("Nano Image Pipeline");
+  const [workflowName, setWorkflowName] = useState("New workflow");
   const { consoleLines, setConsoleLines, appendConsole } = useGraphConsole();
   const { templates, refreshTemplates, instantiateTemplate, deleteTemplate } =
     useGraphTemplates({ appendConsole });
@@ -891,6 +891,19 @@ function GraphStudioClient() {
     [nodeHandlers, setEdges, setNodes],
   );
 
+  const restoreBlankWorkflow = useCallback(() => {
+    setWorkflowId(null);
+    setWorkflowName("New workflow");
+    setWorkflowUpdatedAt(null);
+    setRun(null);
+    setNodes([]);
+    setEdges([]);
+    setGroups([]);
+    setConsoleLines(["Graph Studio ready."]);
+    canvasHydrated.current = true;
+    setHistoryReady(true);
+  }, [setConsoleLines, setEdges, setGroups, setNodes]);
+
   const addLoadMediaNode = useCallback(
     (
       mediaType: "image" | "video" | "audio",
@@ -1511,10 +1524,9 @@ function GraphStudioClient() {
 
   useGraphWorkspaceRestore({
     appendConsole,
-    buildStarterWorkflow,
-    canvasHydrated,
     definitionsLoadStarted,
     reloadNodeDefinitions,
+    restoreBlankWorkflow,
     restoreLatestRunSnapshot,
     restoreVersionIsCurrent,
     restoreWorkspaceSnapshot,

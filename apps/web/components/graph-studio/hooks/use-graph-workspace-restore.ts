@@ -6,10 +6,9 @@ import type { GraphNodeDefinition } from "../types";
 
 type UseGraphWorkspaceRestoreParams = {
   appendConsole: (line: string) => void;
-  buildStarterWorkflow: (items: GraphNodeDefinition[]) => void;
-  canvasHydrated: MutableRefObject<boolean>;
   definitionsLoadStarted: MutableRefObject<boolean>;
   reloadNodeDefinitions: () => Promise<GraphNodeDefinition[]>;
+  restoreBlankWorkflow: () => void;
   restoreLatestRunSnapshot: (
     items: GraphNodeDefinition[],
     restoreVersion: number,
@@ -25,10 +24,9 @@ type UseGraphWorkspaceRestoreParams = {
 
 export function useGraphWorkspaceRestore({
   appendConsole,
-  buildStarterWorkflow,
-  canvasHydrated,
   definitionsLoadStarted,
   reloadNodeDefinitions,
+  restoreBlankWorkflow,
   restoreLatestRunSnapshot,
   restoreVersionIsCurrent,
   restoreWorkspaceSnapshot,
@@ -55,8 +53,7 @@ export function useGraphWorkspaceRestore({
         ).catch(() => false);
         if (restoredLatestRun) return;
         if (!restoreVersionIsCurrent(restoreVersion)) return;
-        buildStarterWorkflow(items);
-        canvasHydrated.current = true;
+        restoreBlankWorkflow();
       })
       .catch((error) => {
         definitionsLoadStarted.current = false;
@@ -64,10 +61,9 @@ export function useGraphWorkspaceRestore({
       });
   }, [
     appendConsole,
-    buildStarterWorkflow,
-    canvasHydrated,
     definitionsLoadStarted,
     reloadNodeDefinitions,
+    restoreBlankWorkflow,
     restoreLatestRunSnapshot,
     restoreVersionIsCurrent,
     restoreWorkspaceSnapshot,
