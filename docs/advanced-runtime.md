@@ -89,6 +89,12 @@ If you want to open Studio from another device on your private LAN or TailScale 
 MEDIA_STUDIO_ALLOW_PRIVATE_NETWORK_ACCESS=true
 ```
 
+With private network access enabled, Studio automatically allows active LAN/TailScale IPv4 addresses as Next.js development origins. If a custom proxy or adapter is not detected, add the browser-visible host explicitly:
+
+```env
+MEDIA_STUDIO_ALLOWED_DEV_ORIGINS=100.64.x.y
+```
+
 Then restart Studio:
 
 ```bash

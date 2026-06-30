@@ -1,11 +1,14 @@
 "use client";
 
 import { Clapperboard, Edit3, Plus, Upload } from "lucide-react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import { AdminButton, adminButtonIconLabelClassName } from "@/components/admin-controls";
 import { AdminNavButton } from "@/components/admin-nav-button";
 import {
   adminHeaderActionRowClassName,
+  adminListContentClassName,
+  adminListMetaClassName,
   adminListActionGroupClassName,
   adminListRowClassName,
   adminListThumbnailClassName,
@@ -18,9 +21,13 @@ import type { MediaPreset } from "@/lib/types";
 
 type MediaPresetsPanelProps = {
   presets: MediaPreset[];
+  total?: number;
+  nextOffset?: number | null;
   isImporting: boolean;
   onImportClick: () => void;
 };
+
+const ADMIN_PRESET_PAGE_SIZE = 60;
 
 function presetModelLabels(preset: MediaPreset) {
   const scopedModels = preset.applies_to_models?.length ? preset.applies_to_models : preset.model_key ? [preset.model_key] : [];
@@ -34,10 +41,84 @@ function presetModelLabels(preset: MediaPreset) {
 
 export function MediaPresetsPanel({
   presets,
+  total,
+  nextOffset,
   isImporting,
   onImportClick,
 }: MediaPresetsPanelProps) {
-  const visiblePresets = presets.filter((preset) => preset.source_kind !== "builtin");
+  const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
+  const [localPresets, setLocalPresets] = useState<MediaPreset[]>(presets);
+  const [localTotal, setLocalTotal] = useState(total ?? presets.length);
+  const [localNextOffset, setLocalNextOffset] = useState<number | null>(nextOffset ?? null);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setLocalPresets(presets);
+    setLocalTotal(total ?? presets.length);
+    setLocalNextOffset(nextOffset ?? null);
+  }, [nextOffset, presets, total]);
+
+  async function loadPresetPage(offset: number, mode: "replace" | "append") {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const params = new URLSearchParams({
+        limit: String(ADMIN_PRESET_PAGE_SIZE),
+        offset: String(offset),
+        status: "active",
+      });
+      if (deferredQuery.trim()) params.set("q", deferredQuery.trim());
+      const response = await fetch(`/api/control/media-presets?${params.toString()}`);
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        presets?: MediaPreset[];
+        total?: number;
+        next_offset?: number | null;
+      };
+      if (!response.ok || payload.ok === false) {
+        throw new Error(payload.error ?? "Unable to load presets.");
+      }
+      const nextPresets = payload.presets ?? [];
+      setLocalPresets((current) => (mode === "append" ? [...current, ...nextPresets] : nextPresets));
+      setLocalTotal(Number(payload.total ?? nextPresets.length));
+      setLocalNextOffset(payload.next_offset ?? null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Unable to load presets.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadPresetPage(0, "replace");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deferredQuery]);
+
+  useEffect(() => {
+    if (localNextOffset == null || loading || typeof IntersectionObserver === "undefined") return;
+    const element = loadMoreRef.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void loadPresetPage(localNextOffset, "append");
+        }
+      },
+      { rootMargin: "420px 0px" },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, localNextOffset, deferredQuery]);
+
+  const visiblePresets = useMemo(
+    () => localPresets.filter((preset) => preset.source_kind !== "builtin"),
+    [localPresets],
+  );
 
   return (
     <Panel>
@@ -71,18 +152,45 @@ export function MediaPresetsPanel({
           </p>
         </CalloutPanel>
 
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <label className="sr-only" htmlFor="media-preset-admin-search">
+            Search media presets
+          </label>
+          <input
+            id="media-preset-admin-search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search presets by name, key, or description..."
+            className="min-h-11 w-full rounded-2xl border border-[var(--admin-border-subtle)] bg-[var(--admin-surface-inset)] px-4 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent-strong)] sm:max-w-xl"
+          />
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+            Showing {visiblePresets.length} of {localTotal}
+          </div>
+        </div>
+        {loadError ? (
+          <CalloutPanel tone="warning" className="text-sm leading-7">
+            {loadError}
+          </CalloutPanel>
+        ) : null}
+
         <div className="grid gap-3">
           {visiblePresets.length ? (
             visiblePresets.map((preset) => (
               <article key={preset.preset_id} className={adminListRowClassName}>
                 {presetThumbnailVisual(preset) ? (
                   <div className={adminListThumbnailClassName}>
-                    <img src={presetThumbnailVisual(preset) ?? ""} alt={preset.label} className="h-full w-full object-cover" />
+                    <img
+                      src={presetThumbnailVisual(preset) ?? ""}
+                      alt={preset.label}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
                   </div>
                 ) : (
                   <div className={adminListThumbnailFallbackClassName}>pre</div>
                 )}
-                <div className="min-w-0 flex-1 space-y-2">
+                <div className={adminListContentClassName}>
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-base font-semibold text-[var(--foreground)]">{preset.label}</h3>
                     <span className="admin-status-pill">{preset.status === "active" ? "enabled" : "disabled"}</span>
@@ -90,7 +198,7 @@ export function MediaPresetsPanel({
                   <p className="text-sm text-[var(--muted-strong)]">
                     {presetModelLabels(preset)}{preset.description ? ` · ${preset.description}` : ""}
                   </p>
-                  <div className="flex flex-wrap gap-2 text-xs text-[var(--muted-strong)]">
+                  <div className={adminListMetaClassName}>
                     <span>{preset.key}</span>
                     <span>
                       {preset.input_schema_json?.length ?? 0} text field{(preset.input_schema_json?.length ?? 0) === 1 ? "" : "s"}
@@ -119,6 +227,17 @@ export function MediaPresetsPanel({
             </CalloutPanel>
           )}
         </div>
+        {localNextOffset != null ? (
+          <div ref={loadMoreRef} className="flex justify-center">
+            <AdminButton
+              variant="subtle"
+              onClick={() => void loadPresetPage(localNextOffset, "append")}
+              disabled={loading}
+            >
+              {loading ? "Loading..." : "Load more presets"}
+            </AdminButton>
+          </div>
+        ) : null}
       </div>
     </Panel>
   );

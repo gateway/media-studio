@@ -704,6 +704,11 @@ def run_codex_local_chat(
     messages: List[Dict[str, Any]],
     response_format: Optional[Dict[str, Any]] = None,
     error_context: str = "request",
+    timeout_seconds: Optional[float] = None,
+    cancel_event=None,
+    codex_session_key: Optional[str] = None,
+    provider_thread_id: Optional[str] = None,
+    force_new_codex_session: bool = False,
 ) -> Dict[str, Any]:
     try:
         return codex_local_provider.run_codex_local_chat(
@@ -711,6 +716,11 @@ def run_codex_local_chat(
             messages=messages,
             response_format=response_format,
             error_context=error_context,
+            timeout_seconds=timeout_seconds,
+            cancel_event=cancel_event,
+            codex_session_key=codex_session_key,
+            provider_thread_id=provider_thread_id,
+            force_new_codex_session=force_new_codex_session,
         )
     except codex_local_provider.CodexLocalProviderError as exc:
         raise EnhancementProviderError(str(exc)) from exc

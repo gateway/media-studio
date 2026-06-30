@@ -19,6 +19,7 @@ type StudioAssetInspectorProps = {
   selectedAssetPrompt: string | null;
   selectedAssetStructuredPresetActive: boolean;
   selectedAssetPresetLabel: string | null;
+  selectedAssetPresetLoadKey: string | null;
   selectedAssetPresetDescription: string | null;
   selectedAssetPresetSlots: StructuredPresetImageSlot[];
   selectedAssetPresetSlotValues: Record<string, unknown>;
@@ -36,6 +37,7 @@ type StudioAssetInspectorProps = {
   onOpenLightbox: () => void;
   onCopyPrompt: () => void;
   onToggleFavorite: (asset: MediaAsset | null) => void;
+  onUsePreset: (presetIdOrKey: string) => void;
   onOpenProject: (projectId: string | null) => void;
   onOpenReference: (reference: StudioReferencePreview | null) => void;
   onMobileInspectorPromptOpenChange: (open: boolean) => void;
@@ -54,6 +56,7 @@ export function StudioAssetInspector({
   selectedAssetPrompt,
   selectedAssetStructuredPresetActive,
   selectedAssetPresetLabel,
+  selectedAssetPresetLoadKey,
   selectedAssetPresetDescription,
   selectedAssetPresetSlots,
   selectedAssetPresetSlotValues,
@@ -71,6 +74,7 @@ export function StudioAssetInspector({
   onOpenLightbox,
   onCopyPrompt,
   onToggleFavorite,
+  onUsePreset,
   onOpenProject,
   onOpenReference,
   onMobileInspectorPromptOpenChange,
@@ -144,7 +148,7 @@ export function StudioAssetInspector({
                           loading="eager"
                           fetchPriority="high"
                           decoding="async"
-                          className="max-h-[min(62vh,620px)] w-auto max-w-full rounded-[24px] object-contain shadow-[0_24px_70px_rgba(0,0,0,0.36)]"
+                          className="max-h-[min(62vh,620px)] w-auto max-w-full rounded-[24px] object-contain shadow-[var(--shadow-floating-notice)]"
                         />
                       ) : null}
                       <audio
@@ -274,6 +278,9 @@ export function StudioAssetInspector({
               onToggleFavorite={onToggleFavorite}
               projectLabel={selectedAssetProjectLabel}
               onOpenProject={onOpenProject}
+              presetLabel={selectedAssetPresetLabel}
+              presetLoadKey={selectedAssetPresetLoadKey}
+              onUsePreset={onUsePreset}
               referencePreviews={selectedAssetReferencePreviews}
               onOpenReference={onOpenReference}
             />
@@ -313,6 +320,9 @@ export function StudioAssetInspector({
                   onToggleFavorite={onToggleFavorite}
                   projectLabel={selectedAssetProjectLabel}
                   onOpenProject={onOpenProject}
+                  presetLabel={selectedAssetPresetLabel}
+                  presetLoadKey={selectedAssetPresetLoadKey}
+                  onUsePreset={onUsePreset}
                   referencePreviews={selectedAssetReferencePreviews}
                   onOpenReference={onOpenReference}
                 />

@@ -1,7 +1,5 @@
 import type { GraphNodeColorChoice } from "./graph-node-context-menu";
 
-export const WORKSPACE_STORAGE_KEY = "media-studio:graph-studio:last-workspace";
-
 export const NODE_COLOR_CHOICES: GraphNodeColorChoice[] = [
   { id: "default", label: "Default", accent: "#d1ff47", surface: "#171b1a", header: "#202524" },
   { id: "green", label: "Green", accent: "#31d158", surface: "#17231d", header: "#203327" },

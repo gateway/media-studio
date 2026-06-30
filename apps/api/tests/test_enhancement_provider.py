@@ -175,13 +175,16 @@ def test_run_codex_local_chat_uses_app_server_turn_result(monkeypatch: pytest.Mo
             captured["model"] = model
             return {"thread": {"id": "thread-codex-1"}}
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
             captured["thread_id"] = thread_id
             captured["input_items"] = input_items
             captured["output_schema"] = output_schema
             return {
                 "generated_text": '{"answer":"ok"}',
-                "provider_response_id": thread_id,
+                "provider_thread_id": thread_id,
+                "provider_session_id": thread_id,
+                "provider_turn_id": "turn-codex-1",
+                "provider_response_id": f"{thread_id}:turn-codex-1",
                 "usage": {
                     "prompt_tokens": 120,
                     "completion_tokens": 30,
@@ -202,7 +205,11 @@ def test_run_codex_local_chat_uses_app_server_turn_result(monkeypatch: pytest.Mo
 
     assert result["provider_kind"] == "codex_local"
     assert result["provider_model_id"] == "gpt-5.4"
-    assert result["provider_response_id"] == "thread-codex-1"
+    assert result["provider_thread_id"] == "thread-codex-1"
+    assert result["provider_session_id"] == "thread-codex-1"
+    assert result["provider_turn_id"] == "turn-codex-1"
+    assert result["provider_response_id"] == "thread-codex-1:turn-codex-1"
+    assert result["provider_thread_reused"] is False
     assert result["generated_text"] == '{"answer":"ok"}'
     assert result["usage"]["prompt_tokens"] == 120
     assert result["usage"]["completion_tokens"] == 30
@@ -233,11 +240,14 @@ def test_run_codex_local_chat_converts_data_url_images_to_local_inputs(monkeypat
         def start_thread(self, *, cwd: str, model: str) -> dict[str, object]:
             return {"thread": {"id": "thread-codex-image"}}
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
             captured["input_items"] = input_items
             return {
                 "generated_text": "A tiny white square.",
-                "provider_response_id": thread_id,
+                "provider_thread_id": thread_id,
+                "provider_session_id": thread_id,
+                "provider_turn_id": "turn-codex-image",
+                "provider_response_id": f"{thread_id}:turn-codex-image",
                 "usage": {},
             }
 
@@ -268,6 +278,224 @@ def test_run_codex_local_chat_converts_data_url_images_to_local_inputs(monkeypat
     assert any(item["type"] == "localImage" for item in input_items)
 
 
+def test_run_codex_local_chat_reuses_managed_skill_thread(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {"session_count": 0, "start_count": 0, "turn_count": 0, "exit_count": 0}
+
+    class _FakeSession:
+        def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
+            captured["session_count"] = int(captured["session_count"]) + 1
+            self.temp_root = temp_root
+
+        def __enter__(self) -> "_FakeSession":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            captured["exit_count"] = int(captured["exit_count"]) + 1
+
+        def start_thread(self, *, cwd: str, model: str) -> dict[str, object]:
+            captured["start_count"] = int(captured["start_count"]) + 1
+            return {"thread": {"id": "thread-managed-1"}}
+
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+            captured["turn_count"] = int(captured["turn_count"]) + 1
+            turn_id = f"turn-managed-{captured['turn_count']}"
+            return {
+                "generated_text": f"reply {captured['turn_count']}",
+                "provider_thread_id": thread_id,
+                "provider_session_id": thread_id,
+                "provider_turn_id": turn_id,
+                "provider_response_id": f"{thread_id}:{turn_id}",
+                "usage": {},
+            }
+
+    monkeypatch.setattr(enhancement_provider.codex_local_provider, "_CodexAppServerSession", _FakeSession)
+    enhancement_provider.codex_local_provider.close_codex_local_skill_sessions()
+
+    first = enhancement_provider.run_codex_local_chat(
+        model_id="gpt-5.4",
+        messages=[{"role": "user", "content": "First turn."}],
+        codex_session_key="assistant|asst_1|workflow|wf_1|attachments|hash_1",
+    )
+    second = enhancement_provider.run_codex_local_chat(
+        model_id="gpt-5.4",
+        messages=[{"role": "user", "content": "Second turn."}],
+        codex_session_key="assistant|asst_1|workflow|wf_1|attachments|hash_1",
+        provider_thread_id="thread-managed-1",
+    )
+
+    assert first["provider_thread_id"] == "thread-managed-1"
+    assert first["provider_turn_id"] == "turn-managed-1"
+    assert first["provider_thread_reused"] is False
+    assert second["provider_thread_id"] == "thread-managed-1"
+    assert second["provider_turn_id"] == "turn-managed-2"
+    assert second["provider_thread_reused"] is True
+    assert second["provider_response_id"] == "thread-managed-1:turn-managed-2"
+    assert captured["session_count"] == 1
+    assert captured["start_count"] == 1
+    assert captured["turn_count"] == 2
+
+    enhancement_provider.codex_local_provider.close_codex_local_skill_sessions()
+    assert captured["exit_count"] == 1
+
+
+def test_run_codex_local_chat_records_fallback_when_requested_thread_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {"start_count": 0}
+
+    class _FakeSession:
+        def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
+            return None
+
+        def __enter__(self) -> "_FakeSession":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def start_thread(self, *, cwd: str, model: str) -> dict[str, object]:
+            captured["start_count"] = int(captured["start_count"]) + 1
+            return {"thread": {"id": f"thread-managed-{captured['start_count']}"}}
+
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+            return {
+                "generated_text": "ok",
+                "provider_thread_id": thread_id,
+                "provider_session_id": thread_id,
+                "provider_turn_id": f"turn-{captured['start_count']}",
+                "provider_response_id": f"{thread_id}:turn-{captured['start_count']}",
+                "usage": {},
+            }
+
+    monkeypatch.setattr(enhancement_provider.codex_local_provider, "_CodexAppServerSession", _FakeSession)
+    enhancement_provider.codex_local_provider.close_codex_local_skill_sessions()
+
+    first = enhancement_provider.run_codex_local_chat(
+        model_id="gpt-5.4",
+        messages=[{"role": "user", "content": "First turn."}],
+        codex_session_key="assistant|asst_1|workflow|wf_1|attachments|hash_1",
+    )
+    second = enhancement_provider.run_codex_local_chat(
+        model_id="gpt-5.4",
+        messages=[{"role": "user", "content": "Recover turn."}],
+        codex_session_key="assistant|asst_1|workflow|wf_1|attachments|hash_1",
+        provider_thread_id="missing-thread",
+    )
+
+    assert first["provider_thread_id"] == "thread-managed-1"
+    assert second["provider_thread_id"] == "thread-managed-2"
+    assert second["provider_thread_reused"] is False
+    assert second["fallback_mode"] == "provider_thread_unavailable"
+
+    enhancement_provider.codex_local_provider.close_codex_local_skill_sessions()
+
+
+def test_run_codex_local_chat_cleans_managed_session_after_cancelled_turn(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {"start_count": 0, "exit_count": 0, "cancel_next": True}
+
+    class _FakeSession:
+        def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
+            return None
+
+        def __enter__(self) -> "_FakeSession":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            captured["exit_count"] = int(captured["exit_count"]) + 1
+
+        def start_thread(self, *, cwd: str, model: str) -> dict[str, object]:
+            captured["start_count"] = int(captured["start_count"]) + 1
+            return {"thread": {"id": f"thread-cancel-{captured['start_count']}"}}
+
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+            if captured["cancel_next"]:
+                captured["cancel_next"] = False
+                raise enhancement_provider.codex_local_provider.CodexLocalProviderCancelled("cancelled")
+            return {
+                "generated_text": "ok",
+                "provider_thread_id": thread_id,
+                "provider_session_id": thread_id,
+                "provider_turn_id": "turn-after-cancel",
+                "provider_response_id": f"{thread_id}:turn-after-cancel",
+                "usage": {},
+            }
+
+    monkeypatch.setattr(enhancement_provider.codex_local_provider, "_CodexAppServerSession", _FakeSession)
+    enhancement_provider.codex_local_provider.close_codex_local_skill_sessions()
+
+    with pytest.raises(enhancement_provider.EnhancementProviderError, match="cancelled"):
+        enhancement_provider.run_codex_local_chat(
+            model_id="gpt-5.4",
+            messages=[{"role": "user", "content": "Cancelled turn."}],
+            codex_session_key="assistant|asst_1|workflow|wf_1|attachments|hash_cancel",
+        )
+
+    recovered = enhancement_provider.run_codex_local_chat(
+        model_id="gpt-5.4",
+        messages=[{"role": "user", "content": "Recovered turn."}],
+        codex_session_key="assistant|asst_1|workflow|wf_1|attachments|hash_cancel",
+    )
+
+    assert captured["start_count"] == 2
+    assert captured["exit_count"] == 1
+    assert recovered["provider_thread_id"] == "thread-cancel-2"
+    assert recovered["provider_thread_reused"] is False
+
+    enhancement_provider.codex_local_provider.close_codex_local_skill_sessions()
+
+
+def test_run_codex_local_chat_cleans_managed_session_after_failed_turn(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {"start_count": 0, "exit_count": 0, "fail_next": True}
+
+    class _FakeSession:
+        def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
+            return None
+
+        def __enter__(self) -> "_FakeSession":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            captured["exit_count"] = int(captured["exit_count"]) + 1
+
+        def start_thread(self, *, cwd: str, model: str) -> dict[str, object]:
+            captured["start_count"] = int(captured["start_count"]) + 1
+            return {"thread": {"id": f"thread-timeout-{captured['start_count']}"}}
+
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+            if captured["fail_next"]:
+                captured["fail_next"] = False
+                raise enhancement_provider.codex_local_provider.CodexLocalProviderError("Codex Local timed out while waiting for a response.")
+            return {
+                "generated_text": "ok",
+                "provider_thread_id": thread_id,
+                "provider_session_id": thread_id,
+                "provider_turn_id": "turn-after-timeout",
+                "provider_response_id": f"{thread_id}:turn-after-timeout",
+                "usage": {},
+            }
+
+    monkeypatch.setattr(enhancement_provider.codex_local_provider, "_CodexAppServerSession", _FakeSession)
+    enhancement_provider.codex_local_provider.close_codex_local_skill_sessions()
+
+    with pytest.raises(enhancement_provider.EnhancementProviderError, match="timed out"):
+        enhancement_provider.run_codex_local_chat(
+            model_id="gpt-5.4",
+            messages=[{"role": "user", "content": "Timeout turn."}],
+            codex_session_key="assistant|asst_1|workflow|wf_1|attachments|hash_timeout",
+        )
+
+    recovered = enhancement_provider.run_codex_local_chat(
+        model_id="gpt-5.4",
+        messages=[{"role": "user", "content": "Recovered turn."}],
+        codex_session_key="assistant|asst_1|workflow|wf_1|attachments|hash_timeout",
+    )
+
+    assert captured["start_count"] == 2
+    assert captured["exit_count"] == 1
+    assert recovered["provider_thread_id"] == "thread-timeout-2"
+    assert recovered["provider_thread_reused"] is False
+
+    enhancement_provider.codex_local_provider.close_codex_local_skill_sessions()
+
+
 def test_run_codex_local_chat_rejects_unsupported_response_format() -> None:
     with pytest.raises(
         enhancement_provider.EnhancementProviderError,
@@ -296,11 +524,14 @@ def test_run_codex_local_chat_normalizes_json_schema_for_app_server(monkeypatch:
         def start_thread(self, *, cwd: str, model: str) -> dict[str, object]:
             return {"thread": {"id": "thread-codex-schema"}}
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
             captured["output_schema"] = output_schema
             return {
                 "generated_text": '{"answer":"ok","details":{"summary":"done"}}',
-                "provider_response_id": thread_id,
+                "provider_thread_id": thread_id,
+                "provider_session_id": thread_id,
+                "provider_turn_id": "turn-codex-schema",
+                "provider_response_id": f"{thread_id}:turn-codex-schema",
                 "usage": {},
             }
 

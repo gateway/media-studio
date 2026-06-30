@@ -46,6 +46,7 @@ from .service_preset_validation import (
     _enforce_output_count_policy,
     _model_accepts_preset_image_values,
     _model_key_supports_structured_preset,
+    _preset_image_policy,
     _preset_requires_image,
     upsert_preset,
     validate_preset_payload,
@@ -536,7 +537,13 @@ def _ref_to_kie(value: Dict[str, Any]) -> Dict[str, Any]:
         reference = store.get_reference_media(str(value.get("reference_id")))
         if reference and reference.get("stored_path"):
             merged = dict(reference)
-            merged.update(value)
+            merged.update(
+                {
+                    key: item
+                    for key, item in value.items()
+                    if item is not None and item != ""
+                }
+            )
             merged["path"] = reference.get("stored_path")
             if not merged.get("filename"):
                 merged["filename"] = reference.get("original_filename")
@@ -552,8 +559,9 @@ def _ref_to_kie(value: Dict[str, Any]) -> Dict[str, Any]:
                 value = {**value, "path": str(resolved)}
     ref = {}
     for key in ("url", "path", "filename", "mime_type", "role", "duration_seconds"):
-        if value.get(key):
-            ref[key] = value[key]
+        item = value.get(key)
+        if item is not None and item != "":
+            ref[key] = item
     return ref
 
 
@@ -678,6 +686,8 @@ def _render_preset_prompt(template: str, text_values: Dict[str, str], image_slot
     rendered = template
     for key, value in text_values.items():
         rendered = re.sub(r"\{\{\s*%s\s*\}\}" % re.escape(key), value, rendered)
+    rendered = re.sub(r"(?im)^[^\n]*\{\{\s*[^}]+\s*\}\}[^\n]*\bonly when provided\.?[ \t]*\n?", "", rendered)
+    rendered = re.sub(r"\{\{\s*[^}]+\s*\}\}", "", rendered)
     image_index = 0
     for key, refs in image_slots.items():
         tokens = _image_reference_tokens(len(refs), image_index + 1)
@@ -712,7 +722,7 @@ def _resolve_preset(request: ValidateRequest) -> Tuple[Optional[Dict[str, Any]],
         raise ServiceError("Preset is not available for the selected model.")
     text_fields = preset.get("input_schema_json", [])
     slots = preset.get("input_slots_json", [])
-    if not _model_key_supports_structured_preset(request.model_key, requires_image=_preset_requires_image(slots)):
+    if not _model_key_supports_structured_preset(request.model_key, image_policy=_preset_image_policy(slots)):
         raise ServiceError("Preset is not compatible with the selected model.")
     text_values = {}
     for field in text_fields:
@@ -798,7 +808,7 @@ def build_validation_bundle(request: ValidateRequest) -> Dict[str, Any]:
         }
     estimated_cost = preflight.get("estimated_cost") if isinstance(preflight.get("estimated_cost"), dict) else None
     has_numeric_estimate = bool(estimated_cost and estimated_cost.get("has_numeric_estimate"))
-    if not has_numeric_estimate:
+    if not has_numeric_estimate or kie_adapter.needs_duration_aware_estimate(raw_request):
         try:
             preflight["estimated_cost"] = kie_adapter.estimate_request_cost(raw_request)
         except Exception:

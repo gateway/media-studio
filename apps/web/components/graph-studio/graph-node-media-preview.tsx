@@ -4,9 +4,39 @@ import { Image as ImageIcon } from "lucide-react";
 
 import type { GraphNodeData, GraphMediaPreview } from "./types";
 
+type GraphLoadMediaType = "image" | "video" | "audio";
+
+function loadMediaTypeForData(data: GraphNodeData): GraphLoadMediaType {
+  if (data.definition.type === "media.load_video") return "video";
+  if (data.definition.type === "media.load_audio") return "audio";
+  return "image";
+}
+
+function dispatchGraphImageLibraryEvent(
+  nodeId: string,
+  mediaType: GraphLoadMediaType,
+) {
+  if (typeof window === "undefined") return;
+  const event =
+    typeof window.CustomEvent === "function"
+      ? new window.CustomEvent("graph-studio-open-image-library", {
+          detail: { nodeId, mediaType },
+        })
+      : (() => {
+          const fallback = document.createEvent("CustomEvent");
+          fallback.initCustomEvent("graph-studio-open-image-library", true, false, {
+            nodeId,
+            mediaType,
+          });
+          return fallback;
+        })();
+  window.dispatchEvent(event);
+}
+
 export function openNodeImageLibrary(nodeId: string, data: GraphNodeData) {
-  data.onOpenImageLibrary?.(nodeId);
-  window.dispatchEvent(new CustomEvent("graph-studio-open-image-library", { detail: { nodeId } }));
+  const mediaType = loadMediaTypeForData(data);
+  data.onOpenImageLibrary?.(nodeId, mediaType);
+  dispatchGraphImageLibraryEvent(nodeId, mediaType);
 }
 
 export function dropNodeImage(nodeId: string, data: GraphNodeData, file: File) {
@@ -95,6 +125,7 @@ export function GraphNodeMediaPreview({
             <button
               className="graph-node-preview-button nodrag"
               type="button"
+              onPointerDown={(event) => event.stopPropagation()}
               onMouseDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
@@ -116,7 +147,21 @@ export function GraphNodeMediaPreview({
               <div className="graph-node-preview-actions nodrag">
                 <button
                   type="button"
+                  aria-label="Replace media from library"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onPointerUp={(event) => {
+                    event.stopPropagation();
+                    openNodeImageLibrary(nodeId, data);
+                  }}
+                  onMouseUp={(event) => {
+                    event.stopPropagation();
+                    openNodeImageLibrary(nodeId, data);
+                  }}
                   onMouseDown={(event) => event.stopPropagation()}
+                  onClickCapture={(event) => {
+                    event.stopPropagation();
+                    openNodeImageLibrary(nodeId, data);
+                  }}
                   onClick={(event) => {
                     event.stopPropagation();
                     openNodeImageLibrary(nodeId, data);
@@ -126,6 +171,7 @@ export function GraphNodeMediaPreview({
                 </button>
                 <button
                   type="button"
+                  onPointerDown={(event) => event.stopPropagation()}
                   onMouseDown={(event) => event.stopPropagation()}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -141,7 +187,21 @@ export function GraphNodeMediaPreview({
           <button
             className="graph-node-preview-empty nodrag"
             type="button"
+            aria-label="Choose media from library"
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerUp={(event) => {
+              event.stopPropagation();
+              openNodeImageLibrary(nodeId, data);
+            }}
+            onMouseUp={(event) => {
+              event.stopPropagation();
+              openNodeImageLibrary(nodeId, data);
+            }}
             onMouseDown={(event) => event.stopPropagation()}
+            onClickCapture={(event) => {
+              event.stopPropagation();
+              openNodeImageLibrary(nodeId, data);
+            }}
             onClick={(event) => {
               event.stopPropagation();
               openNodeImageLibrary(nodeId, data);
@@ -156,8 +216,9 @@ export function GraphNodeMediaPreview({
           </div>
         )}
       </div>
-      {preview && (preview.aspectLabel || preview.resolutionLabel) ? (
+      {preview && (preview.durationLabel || preview.aspectLabel || preview.resolutionLabel) ? (
         <div className="graph-node-media-meta">
+          {preview.durationLabel ? <span>{preview.durationLabel}</span> : null}
           {preview.aspectLabel ? <span>{preview.aspectLabel}</span> : null}
           {preview.resolutionLabel ? <span>{preview.resolutionLabel}</span> : null}
         </div>

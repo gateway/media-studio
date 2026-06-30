@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PromptRecipeEditorScreen } from "@/components/prompt-recipes/prompt-recipe-editor-screen";
+import { writeAssistantReviewDraft } from "@/lib/assistant-review-drafts";
 import type { PromptRecipeDraftPayload, PromptRecipeDraftingConfig } from "@/lib/types";
 
 const { pushMock } = vi.hoisted(() => ({
@@ -141,6 +142,86 @@ describe("PromptRecipeEditorScreen", () => {
 
   afterEach(() => {
     cleanup();
+    window.sessionStorage.clear();
+  });
+
+  it("loads an assistant Prompt Recipe draft for review without saving it", async () => {
+    vi.stubGlobal("fetch", buildEditorFetchMock());
+    const assistantDraftId = writeAssistantReviewDraft({
+      kind: "prompt_recipe",
+      draft: makeDraftPayload({
+        key: "assistant_character_director",
+        label: "Assistant Character Director",
+        description: "Drafted from the Media Assistant.",
+        system_prompt_template: "Create a character prompt for {{user_prompt}}.",
+      }),
+      validationWarnings: ["Review the assistant draft before saving."],
+      mediaSummary: [],
+    });
+
+    render(
+      <PromptRecipeEditorScreen
+        recipes={[]}
+        initialDraftingConfig={makeDraftingConfig()}
+        initialAssistantDraftId={assistantDraftId}
+      />,
+    );
+
+    expect(await screen.findByText("Assistant Prompt Recipe draft loaded. Review the fields and save when ready.")).toBeTruthy();
+    expect(screen.getByDisplayValue("Assistant Character Director")).toBeTruthy();
+    expect(screen.getByDisplayValue("assistant_character_director")).toBeTruthy();
+    expect(screen.getByDisplayValue("Create a character prompt for {{user_prompt}}.")).toBeTruthy();
+    expect(screen.getByText("Review the assistant draft before saving.")).toBeTruthy();
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it("loads an assistant Prompt Recipe draft from a persisted review message", async () => {
+    const assistantDraft = makeDraftPayload({
+      key: "persisted_character_director",
+      label: "Persisted Character Director",
+      system_prompt_template: "Describe {{subject}} as a reusable character prompt.",
+    });
+    const fetchMock = buildEditorFetchMock({
+      handle: async (url) => {
+        if (url.includes("/api/control/media/assistant/sessions/session-1")) {
+          return {
+            ok: true,
+            json: async () => ({
+              messages: [
+                {
+                  assistant_message_id: "message-1",
+                  content_json: {
+                    review_draft: {
+                      kind: "prompt_recipe",
+                      draft: assistantDraft,
+                      validation_warnings: ["Review persisted draft before saving."],
+                      media_summary: [],
+                    },
+                  },
+                },
+              ],
+            }),
+          };
+        }
+        return null;
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <PromptRecipeEditorScreen
+        recipes={[]}
+        initialDraftingConfig={makeDraftingConfig()}
+        initialAssistantSessionId="session-1"
+        initialAssistantMessageId="message-1"
+      />,
+    );
+
+    expect(await screen.findByText("Assistant Prompt Recipe draft loaded. Review the fields and save when ready.")).toBeTruthy();
+    expect(screen.getByDisplayValue("Persisted Character Director")).toBeTruthy();
+    expect(screen.getByDisplayValue("persisted_character_director")).toBeTruthy();
+    expect(screen.getByDisplayValue("Describe {{subject}} as a reusable character prompt.")).toBeTruthy();
+    expect(screen.getByText("Review persisted draft before saving.")).toBeTruthy();
   });
 
   it("generates a draft and renders server review warnings", async () => {

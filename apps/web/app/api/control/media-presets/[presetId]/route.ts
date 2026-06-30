@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server";
 
-import { sendControlApiJson, mapPresetRecord } from "@/lib/control-api";
+import { getControlApiJson, sendControlApiJson, mapPresetRecord } from "@/lib/control-api";
+
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ presetId: string }> },
+) {
+  const { presetId } = await context.params;
+  const result = await getControlApiJson<Record<string, unknown>>(`/media/presets/${presetId}`, "read");
+
+  if (!result.ok || !result.data) {
+    return NextResponse.json({ ok: false, error: result.error ?? "Unable to load the media preset." }, { status: 502 });
+  }
+
+  return NextResponse.json({ ok: true, preset: mapPresetRecord(result.data) });
+}
 
 export async function PATCH(
   request: Request,

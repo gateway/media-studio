@@ -32,20 +32,20 @@ export function StudioContextPanels({
             localJobs.slice(0, 6).map((job) => (
               <div
                 key={job.job_id}
-                className="rounded-[22px] border border-[var(--surface-border-soft)] bg-[rgba(255,255,255,0.78)] px-4 py-4"
+                className="studio-context-card studio-context-card-light"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-medium tracking-[-0.02em] text-[var(--foreground)]">
+                    <div className="studio-context-title">
                       {job.model_key ?? "Unknown model"}
                     </div>
-                    <p className="mt-2 text-sm leading-7 text-[var(--muted-strong)]">
+                    <p className="studio-context-body mt-2">
                       {truncate(job.final_prompt_used || job.enhanced_prompt || job.raw_prompt || "No prompt recorded.", 160)}
                     </p>
                   </div>
                   <StatusPill label={job.status} tone={toneForStatus(job.status)} />
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2 text-xs uppercase tracking-[0.14em] text-[var(--muted-strong)]">
+                <div className="studio-context-meta-row">
                   <span>{formatDateTime(job.created_at)}</span>
                   <span>•</span>
                   <span>{job.provider_task_id ?? "local staging"}</span>
@@ -53,7 +53,7 @@ export function StudioContextPanels({
               </div>
             ))
           ) : (
-            <div className="rounded-[22px] border border-dashed border-white/10 bg-[rgba(12,15,14,0.94)] px-4 py-4 text-sm leading-7 text-[var(--muted-strong)]">
+            <div className="studio-context-card studio-context-card-empty studio-context-body">
               No media jobs are stored yet.
             </div>
           )}
@@ -67,14 +67,14 @@ export function StudioContextPanels({
           description="A compact view of the prompt strategy currently staged in the bottom dock."
         />
         <div className="mt-5 grid gap-3">
-          <div className="rounded-[20px] border border-white/10 bg-[rgba(12,15,14,0.94)] px-4 py-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">Model</div>
-            <div className="mt-2 text-lg font-semibold tracking-[-0.03em] text-[var(--foreground)]">
+          <div className="studio-context-card">
+            <div className="studio-context-kicker">Model</div>
+            <div className="studio-context-value">
               {currentModel?.label ?? "No model selected"}
             </div>
           </div>
-          <div className="rounded-[20px] border border-white/10 bg-[rgba(12,15,14,0.94)] px-4 py-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">
+          <div className="studio-context-card">
+            <div className="studio-context-kicker">
               Selected prompts
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -82,19 +82,19 @@ export function StudioContextPanels({
                 selectedPromptList.map((promptItem) => (
                   <span
                     key={promptItem.prompt_id}
-                    className="rounded-full border border-[rgba(208,255,72,0.24)] bg-[rgba(208,255,72,0.12)] px-3 py-2 text-xs uppercase tracking-[0.12em] text-[var(--accent-strong)]"
+                    className="studio-context-chip"
                   >
                     @{promptItem.key}
                   </span>
                 ))
               ) : (
-                <span className="text-sm leading-7 text-[var(--muted-strong)]">No system prompts selected yet.</span>
+                <span className="studio-context-body">No system prompts selected yet.</span>
               )}
             </div>
           </div>
-          <div className="rounded-[20px] border border-white/10 bg-[rgba(12,15,14,0.94)] px-4 py-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-strong)]">Preflight</div>
-            <div className="mt-2 text-sm leading-7 text-[var(--muted-strong)]">
+          <div className="studio-context-card">
+            <div className="studio-context-kicker">Preflight</div>
+            <div className="studio-context-body mt-2">
               {validation?.resolved_system_prompt?.rendered_system_prompt
                 ? String(validation.resolved_system_prompt.rendered_system_prompt)
                 : "Run preflight to see the rendered system prompt and resolved options before submit."}

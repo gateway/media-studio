@@ -60,7 +60,7 @@ These are optional. Users can still generate media without them.
 
 After onboarding, the shared provider defaults live in:
 
-- `http://127.0.0.1:3000/settings/llms`
+- the AI settings URL printed by the launcher. On a default free-port launch, that is `http://127.0.0.1:3000/settings/llms`
 
 ## 6. Start the app
 
@@ -70,10 +70,12 @@ Manual start commands:
 powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1
 ```
 
-Then open:
+Then open the URL printed by the launcher. On a default free-port launch, those routes are:
 
 - `http://127.0.0.1:3000/setup`
 - `http://127.0.0.1:3000/studio`
+
+If port `3000` is busy, the launcher picks another web port and prints the actual temporary Studio URL.
 
 The Windows start script starts the API and web app together in one PowerShell window, checks the sibling `kie-api` checkout for new releases, offers a fast-forward update when safe, checks migration safety, creates a database backup before pending migrations, refreshes shared Python dependencies and the production web build if needed, writes runtime logs under `data\runtime\`, waits for readiness, and opens Studio. Stop it with:
 

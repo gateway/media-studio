@@ -62,6 +62,20 @@ Do not add tensor or latent types unless Media Studio adds local ML execution.
 - Provider guardrails: workflow JSON stores provider/model ids only. API keys remain in Settings/env. Image input requires a provider/model marked as image-capable.
 - Pricing: external LLM token pricing is currently reported as unknown in `POST /media/graph/estimate`, so Run confirmation is required when this node is enabled.
 
+### `prompt.image_analyzer`
+
+- Category: Prompt
+- Inputs: required `image`
+- Fields: `mode`, `analysis_goal`, `system_prompt`, `provider`, `model_id`, `provider_supports_images`, `temperature`, `max_tokens`
+- Outputs: generated `text`, canonical `result` JSON
+- Purpose: take one connected image and return either a full visual analysis or a generation-ready prompt without creating or saving Media Presets.
+- Modes:
+  - `full_analysis`: describes visible content, composition, medium, palette, shape language, subject treatment, environment, texture, lighting, typography when present, and mood.
+  - `image_to_prompt`: returns a model-ready prompt that captures the visible image as generation direction.
+- Provider guardrails: requires a vision-capable provider/model. API keys remain in Settings/env.
+- Save guardrail: this node is read-only. Future Media Preset draft and review/save workflows must remain separate and require explicit user approval before saving.
+- Pricing: treated as external LLM spend. Estimates stay explicit about unknown pricing and never silently become zero.
+
 ### `prompt.recipe`
 
 - Library node: `prompt.recipe`
@@ -257,7 +271,7 @@ Current bypass support is intentionally narrow: image utility pass-through nodes
 - Generic node: `preset.render`
 - Dynamic nodes: `preset.render.<preset-key>`
 - Inputs: generic `image_refs` for the generic node; one generated image input per preset slot for dynamic nodes.
-- Fields: preset picker/JSON fields for the generic node; generated text and choice fields for dynamic nodes.
+- Fields: preset picker/JSON fields for the generic node; generated text fields for dynamic nodes.
 - Outputs: `prompt`, `image_refs`, `preset`, `recommended_models`.
 - Purpose: render existing Media Studio structured presets into graph values without duplicating the preset system.
 - Current limit: richer preset-specific layout/help remains a follow-up.

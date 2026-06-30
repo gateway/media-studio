@@ -30,7 +30,7 @@ from .executors.media_load import LoadAudioExecutor, LoadImageExecutor, LoadVide
 from .executors.media_save import SaveAudioExecutor, SaveImageExecutor, SaveImagesExecutor, SaveMusicTrackExecutor, SaveVideoExecutor
 from .executors.preset_ops import PresetRenderExecutor
 from .executors.preview_ops import PreviewAudioExecutor, PreviewImageExecutor, PreviewVideoExecutor
-from .executors.prompt_ops import PromptConcatExecutor, PromptLlmExecutor, PromptParseExecutor, PromptRecipeExecutor, PromptTextExecutor
+from .executors.prompt_ops import PromptConcatExecutor, PromptImageAnalyzerExecutor, PromptLlmExecutor, PromptParseExecutor, PromptRecipeExecutor, PromptTextExecutor
 from .executors.video_ops import (
     VideoConvertContainerExecutor,
     VideoCombineExecutor,
@@ -157,6 +157,7 @@ class GraphRuntime:
             PromptTextExecutor(),
             PromptConcatExecutor(),
             PromptLlmExecutor(),
+            PromptImageAnalyzerExecutor(),
             PromptRecipeExecutor(),
             PromptParseExecutor(),
             LoadImageExecutor(),
@@ -550,8 +551,6 @@ class GraphRuntime:
                 executor = self.executors.get(node.type)
                 if not executor and node.type.startswith("model.kie."):
                     executor = self.executors.get("model.kie")
-                if not executor and node.type.startswith("prompt.recipe."):
-                    executor = self.executors.get("prompt.recipe")
                 if not executor:
                     raise ValueError(f"No executor for node type: {node.type}")
                 emit(run_id, "node.queued", node_id=node.id)

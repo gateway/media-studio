@@ -42,17 +42,85 @@ describe("reference media web routes", () => {
     });
 
     const { GET } = await import("@/app/api/control/reference-media/route");
-    const response = await GET(new NextRequest("http://localhost/api/control/reference-media?kind=image&limit=40&offset=20"));
+    const response = await GET(
+      new NextRequest(
+        "http://localhost/api/control/reference-media?kind=image&limit=40&offset=20",
+      ),
+    );
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(listReferenceMedia).toHaveBeenCalledWith({ kind: "image", projectId: null, limit: 40, offset: 20 });
+    expect(listReferenceMedia).toHaveBeenCalledWith({
+      kind: "image",
+      projectId: null,
+      limit: 40,
+      offset: 20,
+    });
     expect(payload).toEqual({
       ok: true,
       items: [{ reference_id: "ref-1", kind: "image" }],
       limit: 40,
       offset: 20,
+      next_offset: null,
     });
+  });
+
+  it("bounds oversized reference media page requests", async () => {
+    listReferenceMedia.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        items: [{ reference_id: "ref-1", kind: "image" }],
+        limit: 200,
+        offset: 0,
+      },
+    });
+
+    const { GET } = await import("@/app/api/control/reference-media/route");
+    const response = await GET(
+      new NextRequest(
+        "http://localhost/api/control/reference-media?kind=image&limit=999999&offset=-20",
+      ),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(listReferenceMedia).toHaveBeenCalledWith({
+      kind: "image",
+      projectId: null,
+      limit: 200,
+      offset: 0,
+    });
+    expect(payload.limit).toBe(200);
+    expect(payload.offset).toBe(0);
+  });
+
+  it("forwards source search to reference media listing", async () => {
+    listReferenceMedia.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        items: [{ reference_id: "ref-sadi", kind: "image" }],
+        limit: 24,
+        offset: 0,
+      },
+    });
+
+    const { GET } = await import("@/app/api/control/reference-media/route");
+    const response = await GET(
+      new NextRequest(
+        "http://localhost/api/control/reference-media?kind=image&limit=24&offset=0&q=Sadi",
+      ),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(listReferenceMedia).toHaveBeenCalledWith({
+      kind: "image",
+      projectId: null,
+      limit: 24,
+      offset: 0,
+      q: "Sadi",
+    });
+    expect(payload.items).toEqual([{ reference_id: "ref-sadi", kind: "image" }]);
   });
 
   it("fetches one reference media record", async () => {
@@ -61,14 +129,21 @@ describe("reference media web routes", () => {
       data: { item: { reference_id: "ref-1", kind: "image" } },
     });
 
-    const { GET } = await import("@/app/api/control/reference-media/[referenceId]/route");
-    const response = await GET(new Request("http://localhost/api/control/reference-media/ref-1"), {
-      params: Promise.resolve({ referenceId: "ref-1" }),
-    });
+    const { GET } =
+      await import("@/app/api/control/reference-media/[referenceId]/route");
+    const response = await GET(
+      new Request("http://localhost/api/control/reference-media/ref-1"),
+      {
+        params: Promise.resolve({ referenceId: "ref-1" }),
+      },
+    );
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(payload).toEqual({ ok: true, item: { reference_id: "ref-1", kind: "image" } });
+    expect(payload).toEqual({
+      ok: true,
+      item: { reference_id: "ref-1", kind: "image" },
+    });
   });
 
   it("deletes one reference media record", async () => {
@@ -77,14 +152,23 @@ describe("reference media web routes", () => {
       data: { item: { reference_id: "ref-1", status: "hidden" } },
     });
 
-    const { DELETE } = await import("@/app/api/control/reference-media/[referenceId]/route");
-    const response = await DELETE(new Request("http://localhost/api/control/reference-media/ref-1", { method: "DELETE" }), {
-      params: Promise.resolve({ referenceId: "ref-1" }),
-    });
+    const { DELETE } =
+      await import("@/app/api/control/reference-media/[referenceId]/route");
+    const response = await DELETE(
+      new Request("http://localhost/api/control/reference-media/ref-1", {
+        method: "DELETE",
+      }),
+      {
+        params: Promise.resolve({ referenceId: "ref-1" }),
+      },
+    );
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(payload).toEqual({ ok: true, item: { reference_id: "ref-1", status: "hidden" } });
+    expect(payload).toEqual({
+      ok: true,
+      item: { reference_id: "ref-1", status: "hidden" },
+    });
   });
 
   it("marks a reference as used", async () => {
@@ -93,14 +177,23 @@ describe("reference media web routes", () => {
       data: { item: { reference_id: "ref-1", usage_count: 3 } },
     });
 
-    const { POST } = await import("@/app/api/control/reference-media/[referenceId]/use/route");
-    const response = await POST(new Request("http://localhost/api/control/reference-media/ref-1/use", { method: "POST" }), {
-      params: Promise.resolve({ referenceId: "ref-1" }),
-    });
+    const { POST } =
+      await import("@/app/api/control/reference-media/[referenceId]/use/route");
+    const response = await POST(
+      new Request("http://localhost/api/control/reference-media/ref-1/use", {
+        method: "POST",
+      }),
+      {
+        params: Promise.resolve({ referenceId: "ref-1" }),
+      },
+    );
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(payload).toEqual({ ok: true, item: { reference_id: "ref-1", usage_count: 3 } });
+    expect(payload).toEqual({
+      ok: true,
+      item: { reference_id: "ref-1", usage_count: 3 },
+    });
   });
 
   it("imports a reference file", async () => {
@@ -111,13 +204,19 @@ describe("reference media web routes", () => {
     });
 
     const formData = new FormData();
-    formData.set("file", new File(["abc"], "portrait.png", { type: "image/png" }));
+    formData.set(
+      "file",
+      new File(["abc"], "portrait.png", { type: "image/png" }),
+    );
 
-    const { POST } = await import("@/app/api/control/reference-media/import/route");
-    const response = await POST(new Request("http://localhost/api/control/reference-media/import", {
-      method: "POST",
-      body: formData,
-    }));
+    const { POST } =
+      await import("@/app/api/control/reference-media/import/route");
+    const response = await POST(
+      new Request("http://localhost/api/control/reference-media/import", {
+        method: "POST",
+        body: formData,
+      }),
+    );
     const payload = await response.json();
 
     expect(response.status).toBe(200);
@@ -144,8 +243,13 @@ describe("reference media web routes", () => {
       },
     });
 
-    const { POST } = await import("@/app/api/control/reference-media/backfill/route");
-    const response = await POST(new Request("http://localhost/api/control/reference-media/backfill", { method: "POST" }));
+    const { POST } =
+      await import("@/app/api/control/reference-media/backfill/route");
+    const response = await POST(
+      new Request("http://localhost/api/control/reference-media/backfill", {
+        method: "POST",
+      }),
+    );
     const payload = await response.json();
 
     expect(response.status).toBe(200);

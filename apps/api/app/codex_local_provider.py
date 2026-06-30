@@ -12,11 +12,13 @@ import tempfile
 import time
 import zlib
 from pathlib import Path
+from threading import Event, Lock
 from typing import Any, Dict, List, Optional, Tuple
 
 
 CODEX_APP_SERVER_TIMEOUT_SECONDS = 120
 CODEX_LOCAL_CATALOG_CACHE_TTL_SECONDS = 300
+CODEX_LOCAL_SKILL_SESSION_TTL_SECONDS = 900
 CODEX_LOCAL_DEFAULT_MODEL = "gpt-5.4"
 CODEX_LOCAL_PROVIDER_BASE_URL = "codex://app-server"
 CODEX_LOCAL_PROVIDER_CREDENTIAL_SOURCE = "codex_local_login"
@@ -39,9 +41,15 @@ _CODEX_LOCAL_CATALOG_CACHE: Dict[str, Any] = {
     "catalog": None,
     "fetched_at": 0.0,
 }
+_CODEX_LOCAL_SKILL_SESSIONS: Dict[str, "_ManagedCodexLocalSession"] = {}
+_CODEX_LOCAL_SKILL_SESSIONS_LOCK = Lock()
 
 
 class CodexLocalProviderError(Exception):
+    pass
+
+
+class CodexLocalProviderCancelled(CodexLocalProviderError):
     pass
 
 
@@ -446,6 +454,102 @@ def _normalize_usage_snapshot(snapshot: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+class _ManagedCodexLocalSession:
+    def __init__(self, *, key: str, temp_root: Path, session: "_CodexAppServerSession", thread_id: str, model_id: str) -> None:
+        self.key = key
+        self.temp_root = temp_root
+        self.session = session
+        self.thread_id = thread_id
+        self.model_id = model_id
+        self.created_at = time.monotonic()
+        self.last_used_at = self.created_at
+        self.lock = Lock()
+
+    def close(self) -> None:
+        try:
+            self.session.__exit__(None, None, None)
+        finally:
+            shutil.rmtree(self.temp_root, ignore_errors=True)
+
+
+def _close_expired_codex_local_skill_sessions(now: float | None = None) -> None:
+    current = time.monotonic() if now is None else now
+    with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
+        expired_keys = [
+            key
+            for key, managed in list(_CODEX_LOCAL_SKILL_SESSIONS.items())
+            if current - managed.last_used_at > CODEX_LOCAL_SKILL_SESSION_TTL_SECONDS
+        ]
+        expired = [_CODEX_LOCAL_SKILL_SESSIONS.pop(key) for key in expired_keys if key in _CODEX_LOCAL_SKILL_SESSIONS]
+    for managed in expired:
+        managed.close()
+
+
+def close_codex_local_skill_sessions() -> None:
+    with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
+        sessions = list(_CODEX_LOCAL_SKILL_SESSIONS.values())
+        _CODEX_LOCAL_SKILL_SESSIONS.clear()
+    for managed in sessions:
+        managed.close()
+
+
+def close_codex_local_skill_session(session_key: str) -> None:
+    normalized_key = str(session_key or "").strip()
+    if not normalized_key:
+        return
+    with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
+        managed = _CODEX_LOCAL_SKILL_SESSIONS.pop(normalized_key, None)
+    if managed:
+        managed.close()
+
+
+def _managed_codex_local_session(
+    *,
+    session_key: str,
+    model_id: str,
+    timeout_seconds: float,
+    preferred_thread_id: str | None,
+) -> tuple[_ManagedCodexLocalSession, bool]:
+    _close_expired_codex_local_skill_sessions()
+    existing: _ManagedCodexLocalSession | None = None
+    with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
+        existing = _CODEX_LOCAL_SKILL_SESSIONS.get(session_key)
+        if (
+            existing
+            and existing.model_id == model_id
+            and (not preferred_thread_id or existing.thread_id == preferred_thread_id)
+        ):
+            existing.last_used_at = time.monotonic()
+            return existing, True
+        if existing:
+            _CODEX_LOCAL_SKILL_SESSIONS.pop(session_key, None)
+    if existing:
+        existing.close()
+
+    temp_root = Path(tempfile.mkdtemp(prefix="media-studio-codex-local-skill-"))
+    try:
+        session = _CodexAppServerSession(temp_root=temp_root, timeout_seconds=int(timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS))
+        session.__enter__()
+        thread_result = session.start_thread(cwd=str(temp_root), model=model_id)
+        thread = thread_result.get("thread") if isinstance(thread_result.get("thread"), dict) else {}
+        thread_id = str(thread.get("id") or "").strip()
+        if not thread_id:
+            raise CodexLocalProviderError("Codex Local did not return a thread id.")
+        managed = _ManagedCodexLocalSession(
+            key=session_key,
+            temp_root=temp_root,
+            session=session,
+            thread_id=thread_id,
+            model_id=model_id,
+        )
+    except Exception:
+        shutil.rmtree(temp_root, ignore_errors=True)
+        raise
+    with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
+        _CODEX_LOCAL_SKILL_SESSIONS[session_key] = managed
+    return managed, False
+
+
 class _CodexAppServerSession:
     def __init__(self, *, temp_root: Path, timeout_seconds: int = CODEX_APP_SERVER_TIMEOUT_SECONDS) -> None:
         self.temp_root = temp_root
@@ -514,6 +618,7 @@ class _CodexAppServerSession:
         thread_id: str,
         input_items: List[Dict[str, Any]],
         output_schema: Optional[Dict[str, Any]] = None,
+        cancel_event: Event | None = None,
     ) -> Dict[str, Any]:
         notifications: List[Dict[str, Any]] = []
         params: Dict[str, Any] = {
@@ -527,7 +632,7 @@ class _CodexAppServerSession:
         turn_id = str((turn or {}).get("id") or "").strip()
         if not turn_id:
             raise CodexLocalProviderError("Codex Local did not return a turn id.")
-        return self._collect_turn(thread_id=thread_id, turn_id=turn_id, initial_notifications=notifications)
+        return self._collect_turn(thread_id=thread_id, turn_id=turn_id, initial_notifications=notifications, cancel_event=cancel_event)
 
     def _initialize(self) -> None:
         self._request(
@@ -549,6 +654,7 @@ class _CodexAppServerSession:
         thread_id: str,
         turn_id: str,
         initial_notifications: List[Dict[str, Any]],
+        cancel_event: Event | None = None,
     ) -> Dict[str, Any]:
         agent_text_chunks: List[str] = []
         final_text = ""
@@ -608,10 +714,15 @@ class _CodexAppServerSession:
 
         deadline = time.monotonic() + self.timeout_seconds
         while not turn_completed:
+            if cancel_event and cancel_event.is_set():
+                self._cancel_turn(thread_id=thread_id, turn_id=turn_id)
+                raise CodexLocalProviderCancelled("Codex Local request was cancelled.")
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise CodexLocalProviderError("Codex Local timed out while waiting for a response.")
-            message = self._read_message(remaining)
+            message = self._read_message(min(remaining, 0.25) if cancel_event else remaining, allow_timeout=bool(cancel_event))
+            if message is None:
+                continue
             handle_message(message)
 
         resolved_text = final_text or "".join(agent_text_chunks).strip()
@@ -622,7 +733,10 @@ class _CodexAppServerSession:
         return {
             "generated_text": resolved_text,
             "usage": _normalize_usage_snapshot(usage_snapshot),
-            "provider_response_id": thread_id,
+            "provider_thread_id": thread_id,
+            "provider_session_id": thread_id,
+            "provider_turn_id": turn_id,
+            "provider_response_id": f"{thread_id}:{turn_id}",
             "events": events,
         }
 
@@ -631,6 +745,12 @@ class _CodexAppServerSession:
         if params is not None:
             payload["params"] = params
         self._send(payload)
+
+    def _cancel_turn(self, *, thread_id: str, turn_id: str) -> None:
+        try:
+            self._notify("turn/cancel", {"threadId": thread_id, "turnId": turn_id})
+        except CodexLocalProviderError:
+            pass
 
     def _request(
         self,
@@ -668,12 +788,14 @@ class _CodexAppServerSession:
         self.proc.stdin.write(json.dumps(payload) + "\n")
         self.proc.stdin.flush()
 
-    def _read_message(self, timeout_seconds: float) -> Dict[str, Any]:
+    def _read_message(self, timeout_seconds: float, *, allow_timeout: bool = False) -> Dict[str, Any] | None:
         if not self.proc or not self.proc.stdout:
             raise CodexLocalProviderError("Codex Local App Server is not running.")
         fileno = self.proc.stdout.fileno()
         readable, _, _ = select.select([fileno], [], [], max(timeout_seconds, 0.0))
         if not readable:
+            if allow_timeout:
+                return None
             raise CodexLocalProviderError("Codex Local App Server did not respond.")
         line = self.proc.stdout.readline()
         if not line:
@@ -787,24 +909,76 @@ def run_codex_local_chat(
     messages: List[Dict[str, Any]],
     response_format: Optional[Dict[str, Any]] = None,
     error_context: str = "request",
+    timeout_seconds: Optional[float] = None,
+    cancel_event: Event | None = None,
+    codex_session_key: Optional[str] = None,
+    provider_thread_id: Optional[str] = None,
+    force_new_codex_session: bool = False,
 ) -> Dict[str, Any]:
     del error_context
     output_schema = _response_format_to_output_schema(response_format)
-    temp_root = Path(tempfile.mkdtemp(prefix="media-studio-codex-local-chat-"))
-    try:
-        input_items = _message_to_turn_input(_messages_for_response_format(messages, response_format), temp_root)
-        with _CodexAppServerSession(temp_root=temp_root, timeout_seconds=CODEX_APP_SERVER_TIMEOUT_SECONDS) as session:
-            thread_result = session.start_thread(cwd=str(temp_root), model=str(model_id or CODEX_LOCAL_DEFAULT_MODEL))
-            thread = thread_result.get("thread") if isinstance(thread_result.get("thread"), dict) else {}
-            result = session.run_turn(thread_id=str(thread.get("id") or ""), input_items=input_items, output_schema=output_schema)
-    finally:
-        shutil.rmtree(temp_root, ignore_errors=True)
+    selected_model_id = str(model_id or CODEX_LOCAL_DEFAULT_MODEL)
+    session_key = str(codex_session_key or "").strip()
+    preferred_thread_id = str(provider_thread_id or "").strip() or None
+    provider_thread_reused = False
+    fallback_mode: str | None = None
+
+    if session_key:
+        if force_new_codex_session:
+            close_codex_local_skill_session(session_key)
+        managed, provider_thread_reused = _managed_codex_local_session(
+            session_key=session_key,
+            model_id=selected_model_id,
+            timeout_seconds=timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS,
+            preferred_thread_id=preferred_thread_id,
+        )
+        try:
+            with managed.lock:
+                input_items = _message_to_turn_input(_messages_for_response_format(messages, response_format), managed.temp_root)
+                result = managed.session.run_turn(
+                    thread_id=managed.thread_id,
+                    input_items=input_items,
+                    output_schema=output_schema,
+                    cancel_event=cancel_event,
+                )
+                managed.last_used_at = time.monotonic()
+        except Exception:
+            with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
+                if _CODEX_LOCAL_SKILL_SESSIONS.get(session_key) is managed:
+                    _CODEX_LOCAL_SKILL_SESSIONS.pop(session_key, None)
+            managed.close()
+            raise
+    else:
+        temp_root = Path(tempfile.mkdtemp(prefix="media-studio-codex-local-chat-"))
+        try:
+            input_items = _message_to_turn_input(_messages_for_response_format(messages, response_format), temp_root)
+            with _CodexAppServerSession(temp_root=temp_root, timeout_seconds=timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS) as session:
+                thread_result = session.start_thread(cwd=str(temp_root), model=selected_model_id)
+                thread = thread_result.get("thread") if isinstance(thread_result.get("thread"), dict) else {}
+                thread_id = str(thread.get("id") or "").strip()
+                result = session.run_turn(thread_id=thread_id, input_items=input_items, output_schema=output_schema, cancel_event=cancel_event)
+        finally:
+            shutil.rmtree(temp_root, ignore_errors=True)
     usage = dict(result.get("usage") or {})
+    result_thread_id = str(result.get("provider_thread_id") or result.get("provider_session_id") or provider_thread_id or "").strip()
+    result_turn_id = str(result.get("provider_turn_id") or "").strip()
+    provider_response_id = str(result.get("provider_response_id") or "").strip()
+    if session_key and preferred_thread_id and not provider_thread_reused and result_thread_id != preferred_thread_id:
+        fallback_mode = "provider_thread_unavailable"
+    if result_thread_id and result_turn_id:
+        provider_response_id = provider_response_id or f"{result_thread_id}:{result_turn_id}"
+    elif result_thread_id:
+        provider_response_id = provider_response_id or result_thread_id
     return {
         "provider_kind": "codex_local",
-        "provider_model_id": str(model_id or CODEX_LOCAL_DEFAULT_MODEL),
+        "provider_model_id": selected_model_id,
         "provider_base_url": CODEX_LOCAL_PROVIDER_BASE_URL,
-        "provider_response_id": result.get("provider_response_id"),
+        "provider_session_id": result_thread_id or None,
+        "provider_thread_id": result_thread_id or None,
+        "provider_turn_id": result_turn_id or None,
+        "provider_thread_reused": provider_thread_reused,
+        "fallback_mode": fallback_mode,
+        "provider_response_id": provider_response_id or None,
         "usage": usage,
         "prompt_tokens": usage.get("prompt_tokens"),
         "completion_tokens": usage.get("completion_tokens"),

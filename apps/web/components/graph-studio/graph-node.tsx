@@ -1,7 +1,7 @@
 "use client";
 
 import { Handle, NodeResizer, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 import { GraphNodeFieldControl } from "./graph-node-field";
@@ -9,25 +9,81 @@ import { GraphNodeDisplayAny } from "./graph-node-display-any";
 import { GraphNodeHelp } from "./graph-node-help";
 import { GraphNodeMediaPreview, dropNodeImage, readGraphMediaDragPayload } from "./graph-node-media-preview";
 import type { GraphNodeData, StudioNode } from "./types";
-import { computeGraphNodeLayout, graphNodeUsesContentAutoHeight } from "./utils/graph-node-layout";
+import { computeGraphNodeLayout, GRAPH_NODE_AUTO_HEIGHT_HARD_MAX, graphNodeUsesContentAutoHeight } from "./utils/graph-node-layout";
 import { graphExecutionModeClass, graphExecutionModeLabel, normalizeGraphExecutionMode } from "./utils/graph-node-execution";
-import { graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "./utils/graph-node-fields";
+import { graphExtraLayoutRows, graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "./utils/graph-node-fields";
 import { visibleGraphInputPorts, visibleGraphOutputPorts } from "./utils/graph-node-ports";
 import { inputGraphHandleId, outputGraphHandleId } from "./utils/graph-port-handles";
 import { graphPortAccepts } from "./utils/graph-port-compatibility";
 import { graphNodeHasTracingBorder, graphNodeStatusClass, graphNodeStatusForExecutionMode } from "./utils/graph-node-status";
 import { graphNodePricingLabel } from "./utils/graph-pricing";
 import { graphNodeHeaderKindLabel } from "./utils/graph-node-header";
+import { resolveGraphNodeDefinition } from "./utils/graph-effective-node-definition";
 import { graphMediaPresetFieldOverride, graphMediaPresetSelectionSummary } from "./utils/graph-media-preset";
 import { graphPromptAdvancedSummary, graphPromptNodeHeaderSummary, graphPromptRuntimeFieldOverride } from "./utils/graph-prompt-provider";
 import { graphPromptRecipeFieldOverride, graphPromptRecipeImageWarning, graphPromptRecipeSelectionSummary } from "./utils/graph-prompt-recipe";
 
+export function measureGraphNodeContentHeight(header: HTMLElement, body: HTMLElement) {
+  const children = Array.from(body.children);
+  const descendants = typeof body.querySelectorAll === "function" ? Array.from(body.querySelectorAll("*")) : [];
+  const bodyRect = typeof body.getBoundingClientRect === "function" ? body.getBoundingClientRect() : null;
+  const contentBottom = [...children, ...descendants].reduce((bottom, child) => {
+    const element = child as HTMLElement;
+    const style = window.getComputedStyle(element);
+    if (style.display === "none" || style.position === "absolute" || style.position === "fixed") return bottom;
+    const offsetHeight = Number(element.offsetHeight) || 0;
+    const scrollHeight = Math.ceil(Number(element.scrollHeight) || 0);
+    const flexGrow = Number.parseFloat(style.flexGrow || "0") || 0;
+    const minHeight = Number.parseFloat(style.minHeight || "0") || 0;
+    const stretchProne = flexGrow > 0 || style.height === "100%";
+    const hasScrollableField =
+      element.tagName === "TEXTAREA" ||
+      element.classList?.contains("graph-node-markdown-preview") ||
+      Boolean(
+        typeof element.querySelector === "function"
+          ? element.querySelector("textarea, .graph-node-markdown-preview")
+          : null,
+      );
+    const stretchedPastContent = stretchProne && scrollHeight > 0 && offsetHeight > scrollHeight + 2;
+    const stretchedToAvailableSpace =
+      stretchProne &&
+      hasScrollableField &&
+      minHeight > 0 &&
+      offsetHeight > minHeight + 96 &&
+      scrollHeight >= offsetHeight - 2;
+    const measuredHeight = stretchedPastContent ? Math.max(scrollHeight, minHeight) : stretchedToAvailableSpace ? minHeight : offsetHeight;
+    let rectBottom = 0;
+    if (bodyRect && typeof element.getBoundingClientRect === "function") {
+      const rect = element.getBoundingClientRect();
+      rectBottom = rect.height > 0 ? rect.top - bodyRect.top + (stretchedPastContent || stretchedToAvailableSpace ? measuredHeight : rect.height) : 0;
+    }
+    const offsetBottom = (Number(element.offsetTop) || 0) + measuredHeight;
+    return Math.max(bottom, rectBottom, offsetBottom);
+  }, 0);
+  const style = window.getComputedStyle(body);
+  const paddingBottom = Number.parseFloat(style.paddingBottom || "0") || 0;
+  const childContentHeight = children.length ? Math.ceil(contentBottom + paddingBottom) : 0;
+  const scrollHeight = Math.ceil(body.scrollHeight || 0);
+  // Flexed bodies can report stale wrapper height as scrollHeight; only trust small scroll deltas.
+  const bodyContentHeight = children.length
+    ? scrollHeight > childContentHeight && scrollHeight <= childContentHeight + 96
+      ? scrollHeight
+      : childContentHeight
+    : scrollHeight;
+  return Math.ceil(header.offsetHeight + bodyContentHeight + 2);
+}
+
+export function graphNodeContentHeightTargets(header: HTMLElement, body: HTMLElement) {
+  const descendants = typeof body.querySelectorAll === "function" ? Array.from(body.querySelectorAll("*")) : [];
+  return Array.from(new Set([header, body, ...Array.from(body.children), ...descendants])) as HTMLElement[];
+}
+
 export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const updateNodeInternals = useUpdateNodeInternals();
-  const nodeHeaderRef = useRef<HTMLDivElement | null>(null);
-  const nodeBodyRef = useRef<HTMLDivElement | null>(null);
-  const lastMeasuredHeightRef = useRef<number | null>(null);
-  const definition = data.definition;
+  const definition = useMemo(
+    () => resolveGraphNodeDefinition(data.definition, data.fields),
+    [data.definition, data.fields],
+  );
   const executionMode = normalizeGraphExecutionMode(data.executionMode);
   const status = graphNodeStatusForExecutionMode(data.status, executionMode);
   const statusClass = graphNodeStatusClass(status);
@@ -50,11 +106,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const fieldMetrics = graphVisibleFieldMetrics(definition, data.fields, connectedInputPortIds, {
     advancedExpanded,
     previewHeaderFieldIds: graphPreviewHeaderFieldIds(definition),
-    extraLayoutRows:
-      (definition.type === "prompt.recipe" && graphPromptRecipeSelectionSummary(definition, data.fields)) ||
-      (definition.type === "preset.render" && graphMediaPresetSelectionSummary(definition, data.fields))
-        ? 2
-        : 0,
+    extraLayoutRows: graphExtraLayoutRows(definition, data.fields),
   });
   const previewHeaderFields = fieldMetrics.previewHeaderFields;
   const primaryBodyFields = fieldMetrics.primaryBodyFields.filter((field) => field.type !== "asset_picker" && field.type !== "reference_media_picker");
@@ -77,7 +129,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
     textareaCount: fieldMetrics.textareaCount,
   });
   const pricingLabel = graphNodePricingLabel(data.pricingEstimate);
-  const showPricingBadge = Boolean(pricingLabel && definition.source?.kind === "kie_model");
+  const showPricingBadge = Boolean(pricingLabel);
   const activityTone = data.activityTone ?? "muted";
   const referenceBadges = data.referenceBadges ?? [];
   const promptRecipeSummary = definition.type === "prompt.recipe" ? graphPromptRecipeSelectionSummary(definition, data.fields) : null;
@@ -87,6 +139,8 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const nodeKindLabel = promptHeaderSummary ?? graphNodeHeaderKindLabel(definition);
   const activityLabel = status === "idle" ? null : data.activityLabel;
   const collapsedHeight = 54;
+  const usesContentAutoHeight = graphNodeUsesContentAutoHeight(definition);
+  const resizeMaxHeight = usesContentAutoHeight ? Math.max(nodeLayout.maxHeight, GRAPH_NODE_AUTO_HEIGHT_HARD_MAX) : nodeLayout.maxHeight;
   const nodeStyle = {
     ...nodeLayout.style,
     ...(collapsed ? { height: collapsedHeight, minHeight: collapsedHeight } : {}),
@@ -98,36 +152,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => updateNodeInternals(id));
     return () => window.cancelAnimationFrame(frame);
-  }, [advancedExpanded, collapsed, id, inputPortKey, outputPortKey, updateNodeInternals]);
-  useLayoutEffect(() => {
-    if (collapsed || !graphNodeUsesContentAutoHeight(definition)) {
-      lastMeasuredHeightRef.current = null;
-      return;
-    }
-    const header = nodeHeaderRef.current;
-    const body = nodeBodyRef.current;
-    if (!header || !body) return;
-    let frame = 0;
-    const measure = () => {
-      frame = 0;
-      const requiredHeight = Math.ceil(header.offsetHeight + body.scrollHeight + 2);
-      if (requiredHeight <= 0) return;
-      if (lastMeasuredHeightRef.current != null && Math.abs(lastMeasuredHeightRef.current - requiredHeight) <= 2) return;
-      lastMeasuredHeightRef.current = requiredHeight;
-      data.onEnsureNodeHeight?.(id, requiredHeight);
-    };
-    frame = window.requestAnimationFrame(measure);
-    const observer = new ResizeObserver(() => {
-      if (frame) window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(measure);
-    });
-    observer.observe(header);
-    observer.observe(body);
-    return () => {
-      observer.disconnect();
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, [collapsed, contentMeasureKey, data.fields, data.onEnsureNodeHeight, data.outputSnapshot, data.errorMessage, id, inputPortKey, outputPortKey]);
+  }, [advancedExpanded, collapsed, contentMeasureKey, data.autoSizedHeight, id, inputPortKey, outputPortKey, updateNodeInternals]);
   const inputHandleClass = (port: GraphNodeData["definition"]["ports"]["inputs"][number]) => {
     const compatible = activeConnection?.from === "output" && graphPortAccepts(activeConnection.portType, port);
     const connected = connectedInputPorts.has(port.id);
@@ -198,7 +223,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const advancedSummary = graphPromptAdvancedSummary(definition.type, data.fields);
   return (
     <div
-      className={`graph-node ${statusClass} ${executionClass} ${hasTracingBorder ? "graph-node-tracing" : ""} ${showPreview ? "graph-node-media-container" : ""} ${collapsed ? "graph-node-collapsed" : ""}`}
+      className={`graph-node ${statusClass} ${executionClass} ${hasTracingBorder ? "graph-node-tracing" : ""} ${showPreview ? "graph-node-media-container" : ""} ${usesContentAutoHeight ? "graph-node-content-auto" : ""} ${collapsed ? "graph-node-collapsed" : ""}`}
       style={nodeStyle}
       data-testid={`graph-node-${definition.type}`}
       onDragOver={(event) => {
@@ -230,7 +255,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
         minWidth={nodeLayout.minWidth}
         minHeight={collapsed ? collapsedHeight : nodeLayout.minHeight}
         maxWidth={nodeLayout.maxWidth}
-        maxHeight={nodeLayout.maxHeight}
+        maxHeight={resizeMaxHeight}
         keepAspectRatio={false}
         handleClassName="graph-node-resize-handle"
         lineClassName="graph-node-resize-line"
@@ -241,13 +266,15 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
         <span />
         <span />
       </div>
-      {referenceBadges.length || showPricingBadge ? (
+      {showPricingBadge ? (
+        <div className="graph-node-price-badges" aria-label="Node pricing">
+          <span className="graph-node-price-floating-badge" title={`Estimated node cost: ${pricingLabel}`}>
+            {pricingLabel}
+          </span>
+        </div>
+      ) : null}
+      {referenceBadges.length ? (
         <div className="graph-node-reference-badges" aria-label="Node badges">
-          {showPricingBadge ? (
-            <span className="graph-node-reference-badge graph-node-price-floating-badge" title={`Estimated model cost: ${pricingLabel}`}>
-              {pricingLabel}
-            </span>
-          ) : null}
           {referenceBadges.slice(0, 3).map((badge) => (
             <span
               className={`graph-node-reference-badge graph-node-reference-badge-${badge.mediaType}`}
@@ -264,7 +291,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
           ) : null}
         </div>
       ) : null}
-      <div className="graph-node-header" ref={nodeHeaderRef}>
+      <div className="graph-node-header">
         <div className="graph-node-header-text">
           {data.isRenamingTitle ? (
             <input
@@ -303,7 +330,6 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
         </div>
         <div className="graph-node-header-actions">
           <GraphNodeHelp definition={definition} fields={data.fields} />
-          {pricingLabel && !showPricingBadge ? <span className="graph-node-status graph-node-price-chip">{pricingLabel}</span> : null}
           {executionMode !== "enabled" ? <span className="graph-node-status graph-node-execution-chip">{graphExecutionModeLabel(executionMode)}</span> : null}
           {status !== "idle" ? <span className={`graph-node-status graph-node-activity-chip graph-node-activity-chip-${activityTone}`}>{activityLabel || status}</span> : null}
           {activityTime ? <span className="graph-node-status graph-node-time-chip">{activityTime}</span> : null}
@@ -357,7 +383,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
           </div>
         ) : null}
       </div>
-      {!collapsed ? <div className="graph-node-body" ref={nodeBodyRef}>
+      {!collapsed ? <div className="graph-node-body">
         {visibleInputPorts.length || effectiveOutputPorts.length ? (
           <div className="graph-node-port-band">
             <div className="graph-node-port-stack graph-node-port-stack-inputs">

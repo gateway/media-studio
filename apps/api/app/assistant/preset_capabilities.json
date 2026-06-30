@@ -1,0 +1,143 @@
+{
+  "version": 2,
+  "capabilities": [
+    {
+      "id": "single_image_reference_preset",
+      "priority": 90,
+      "match": {
+        "features": ["personal_reference_slot"]
+      },
+      "title": "Single-Image Reference Preset",
+      "description": "Create a reusable Media Preset with one image input and editable fields inferred from the request.",
+      "reference_role": "mixed",
+      "style": "Reference-driven visual preset",
+      "fixed_ingredients": [
+        "style mechanics from the current structured style brief",
+        "composition, lighting, mood, and presentation traits analyzed for this workflow",
+        "one image input selected by the user"
+      ],
+      "variable_ingredients": ["personal reference image", "editable fields requested by the user"],
+      "fields": [],
+      "image_slots": [
+        {
+          "key": "personal_reference",
+          "label": "Personal Reference",
+          "max_files": 1,
+          "help_text": "Image requested by the user, such as a face, body, product, object, scene, or background.",
+          "required": true
+        }
+      ],
+      "questions": [
+        "Should this image input be required every time, or optional?",
+        "Which one or two editable fields should the preset expose?"
+      ],
+      "sandbox_prompt": "",
+      "save_prompt_template": "",
+      "refinement": {
+        "target_label": "approved reference style",
+        "context_terms": ["reference", "style", "closer", "match", "output", "prompt"],
+        "default_detail": "tighten the prompt so the next run follows the approved reference style more closely",
+        "output_aware_detail": "compare against the latest generated output and strengthen the missing visual traits from the approved reference style",
+        "prompt": "[[base_prompt]]\n\nStrengthen the next version by adding more of [[refinement_details]]."
+      }
+    },
+    {
+      "id": "multi_image_reference_preset",
+      "priority": 80,
+      "match": {
+        "features": ["face_body_slots"]
+      },
+      "title": "Multi-Image Reference Preset",
+      "description": "Create a reusable Media Preset with two image inputs and editable fields inferred from the reference analysis.",
+      "reference_role": "mixed",
+      "style": "Reference-driven visual preset",
+      "fixed_ingredients": [
+        "style mechanics from the current structured style brief",
+        "composition, lighting, mood, and presentation traits analyzed for this workflow",
+        "image inputs selected by the user"
+      ],
+      "variable_ingredients": ["image input 1", "image input 2", "editable fields inferred from the reference analysis"],
+      "fields": [],
+      "image_slots": [
+        {
+          "key": "image_input_1",
+          "label": "Image Input 1",
+          "max_files": 1,
+          "help_text": "Image requested by the user, such as a face, product, object, scene, body, or background.",
+          "required": true
+        },
+        {
+          "key": "image_input_2",
+          "label": "Image Input 2",
+          "max_files": 1,
+          "help_text": "Second runtime image requested by the user, such as a pose, outfit, product angle, object, scene, or background.",
+          "required": true
+        }
+      ],
+      "questions": [
+        "Do you want these image inputs to be required every time, or optional?",
+        "Should I keep the editable fields minimal, or add one more field for details the user changes each run?"
+      ],
+      "sandbox_prompt": "",
+      "save_prompt_template": "",
+      "refinement": {
+        "target_label": "approved reference style",
+        "context_terms": ["reference", "style", "closer", "match", "output", "prompt"],
+        "default_detail": "tighten the prompt so the next run follows the approved reference style more closely",
+        "output_aware_detail": "compare against the latest generated output and strengthen the missing visual traits from the approved reference style",
+        "detail_rules": [
+          {
+            "terms": ["style", "closer", "match"],
+            "detail": "weight the current reference style, composition, lighting, and presentation more strongly"
+          },
+          {
+            "terms": ["missing", "element"],
+            "detail": "restore important visual details from the approved style that are missing from the last output"
+          }
+        ],
+        "prompt": "[[base_prompt]]\n\nStrengthen the next version by adding more of [[refinement_details]]."
+      }
+    },
+    {
+      "id": "reference_style_preset",
+      "priority": 0,
+      "match": {
+        "default": true
+      },
+      "title": "Reference Style Preset",
+      "description": "Create a reusable Media Preset from the currently attached reference style.",
+      "reference_role": "inspiration",
+      "style": "Reference-driven visual preset",
+      "fixed_ingredients": [
+        "style mechanics from the current structured style brief",
+        "composition, lighting, mood, and presentation traits analyzed for this workflow"
+      ],
+      "variable_ingredients": ["editable fields inferred from the reference analysis"],
+      "fields": [],
+      "image_slots": [],
+      "questions": [
+        "Do you want an image input, such as a face, product, object, or background?",
+        "Should the preset stay minimal with one or two editable fields, or should I add a specific field?"
+      ],
+      "sandbox_prompt": "",
+      "save_prompt_template": "",
+      "refinement": {
+        "target_label": "approved reference style",
+        "context_terms": ["reference", "style", "closer", "match", "output", "prompt"],
+        "default_detail": "tighten the prompt so the next run follows the approved reference style more closely",
+        "output_aware_detail": "compare against the latest generated output and strengthen the missing visual traits from the approved reference style",
+        "detail_rules": [
+          {
+            "terms": ["style", "closer", "match"],
+            "detail": "weight the current reference style, composition, lighting, and presentation more strongly"
+          },
+          {
+            "terms": ["missing", "element"],
+            "detail": "restore important visual details from the approved style that are missing from the last output"
+          }
+        ],
+        "prompt": "[[base_prompt]]\n\nStrengthen the next version by adding more of [[refinement_details]]."
+      }
+    }
+  ]
+}

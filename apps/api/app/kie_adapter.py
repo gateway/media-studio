@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import math
 import sys
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
@@ -16,6 +17,7 @@ from .settings import settings
 
 _pricing_snapshot_cache: Optional[Dict[str, Any]] = None
 _pricing_snapshot_cache_expires_at: Optional[datetime] = None
+_KLING_MOTION_CONTROL_MODEL_KEYS = {"kling-2.6-motion", "kling-3.0-motion"}
 
 
 def _maybe_add_kie_repo_to_path() -> None:
@@ -101,6 +103,8 @@ def _input_patterns_for_spec(spec: Any) -> list[str]:
         return ["single_image"]
     if spec.key == "kling-2.6-t2v":
         return ["prompt_only"]
+    if spec.key == "kling-2.6-motion":
+        return ["motion_control"]
     if spec.key == "kling-3.0-i2v":
         return ["single_image", "first_last_frames"]
     if spec.key == "kling-3.0-motion":
@@ -244,12 +248,141 @@ def get_credit_balance() -> Dict[str, Any]:
 
 def estimate_request_cost(raw_request: Dict[str, Any]) -> Dict[str, Any]:
     kie_api = get_kie_module()
-    return _dump(
+    estimate_request = _request_with_derived_pricing_options(raw_request)
+    estimated = _dump(
         kie_api.estimate_request_cost(
-            kie_api.RawUserRequest(**raw_request),
+            kie_api.RawUserRequest(**estimate_request),
             get_registry(),
         )
     )
+    return _with_second_billing_duration_fallback(estimated, estimate_request)
+
+
+def needs_duration_aware_estimate(raw_request: Dict[str, Any]) -> bool:
+    return _motion_control_video_duration_seconds(raw_request) is not None
+
+
+def _request_with_derived_pricing_options(raw_request: Dict[str, Any]) -> Dict[str, Any]:
+    duration_seconds = _motion_control_video_duration_seconds(raw_request)
+    if duration_seconds is None:
+        return raw_request
+    request = dict(raw_request)
+    options = dict(request.get("options") if isinstance(request.get("options"), dict) else {})
+    options["duration"] = int(math.ceil(duration_seconds))
+    request["options"] = options
+    return request
+
+
+def _motion_control_video_duration_seconds(raw_request: Dict[str, Any]) -> Optional[float]:
+    model_key = str(raw_request.get("model_key") or "").strip()
+    task_mode = str(raw_request.get("task_mode") or "").strip()
+    if model_key not in _KLING_MOTION_CONTROL_MODEL_KEYS or task_mode != "motion_control":
+        return None
+    return _first_video_duration_seconds(raw_request.get("videos"))
+
+
+def _first_video_duration_seconds(videos: Any) -> Optional[float]:
+    if not isinstance(videos, list):
+        return None
+    for item in videos:
+        if not isinstance(item, dict):
+            continue
+        duration = _number_or_none(item.get("duration_seconds"))
+        if duration is not None and duration > 0:
+            return duration
+    return None
+
+
+def _number_or_none(value: Any) -> Optional[float]:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)) and math.isfinite(float(value)):
+        return float(value)
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = float(value.strip())
+        except ValueError:
+            return None
+        return parsed if math.isfinite(parsed) else None
+    return None
+
+
+def _with_second_billing_duration_fallback(estimated: Dict[str, Any], raw_request: Dict[str, Any]) -> Dict[str, Any]:
+    model_key = str(raw_request.get("model_key") or "").strip()
+    duration = _number_or_none((raw_request.get("options") or {}).get("duration") if isinstance(raw_request.get("options"), dict) else None)
+    if not model_key or duration is None or duration <= 0:
+        return estimated
+    rule = _pricing_rule_for_model(model_key)
+    if not rule or str(rule.get("billing_unit") or "").strip().lower() != "second":
+        return estimated
+    duration_multiplier = _pricing_multiplier(rule, "duration", raw_request, fallback=math.ceil(duration))
+    if duration_multiplier is None:
+        return estimated
+    estimated_credits = _number_or_none(rule.get("base_credits"))
+    estimated_cost_usd = _number_or_none(rule.get("base_cost_usd"))
+    if estimated_credits is None and estimated_cost_usd is None:
+        return estimated
+    estimated_credits = estimated_credits * duration_multiplier if estimated_credits is not None else None
+    estimated_cost_usd = estimated_cost_usd * duration_multiplier if estimated_cost_usd is not None else None
+    multipliers = rule.get("multipliers") if isinstance(rule.get("multipliers"), dict) else {}
+    for option_key in multipliers.keys():
+        if option_key == "duration":
+            continue
+        multiplier = _pricing_multiplier(rule, str(option_key), raw_request)
+        if multiplier is None:
+            applied_multipliers = estimated.get("applied_multipliers") if isinstance(estimated.get("applied_multipliers"), dict) else {}
+            multiplier = _number_or_none(applied_multipliers.get(str(option_key)))
+        if multiplier is None:
+            continue
+        estimated_credits = estimated_credits * multiplier if estimated_credits is not None else None
+        estimated_cost_usd = estimated_cost_usd * multiplier if estimated_cost_usd is not None else None
+    resolved = dict(estimated)
+    if estimated_credits is not None:
+        resolved["estimated_credits"] = round(estimated_credits, 4)
+    if estimated_cost_usd is not None:
+        resolved["estimated_cost_usd"] = round(estimated_cost_usd, 4)
+    resolved["billing_unit"] = "second"
+    assumptions = [str(item) for item in (resolved.get("assumptions") or [])]
+    assumptions.append("Duration pricing used videos[].duration_seconds rounded up to the next whole second.")
+    resolved["assumptions"] = assumptions
+    return resolved
+
+
+def _pricing_rule_for_model(model_key: str) -> Optional[Dict[str, Any]]:
+    try:
+        rules = pricing_snapshot(force_refresh=False).get("rules") or []
+    except Exception:
+        return None
+    for rule in rules:
+        if isinstance(rule, dict) and str(rule.get("model_key") or "") == model_key:
+            return rule
+    return None
+
+
+def _pricing_multiplier(
+    rule: Dict[str, Any],
+    option_key: str,
+    raw_request: Dict[str, Any],
+    *,
+    fallback: Optional[float] = None,
+) -> Optional[float]:
+    multipliers = rule.get("multipliers") if isinstance(rule.get("multipliers"), dict) else {}
+    value_map = multipliers.get(option_key) if isinstance(multipliers.get(option_key), dict) else None
+    if value_map is None:
+        return fallback
+    options = raw_request.get("options") if isinstance(raw_request.get("options"), dict) else {}
+    option_value = _pricing_option_value(options.get(option_key))
+    return _number_or_none(value_map.get(option_value)) if option_value in value_map else fallback
+
+
+def _pricing_option_value(value: Any) -> str:
+    if value is None:
+        return "__missing__"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)) and float(value).is_integer():
+        return str(int(value))
+    return str(value).strip().lower()
 
 
 def resolve_prompt_context(raw_request: Dict[str, Any]) -> Dict[str, Any]:
@@ -414,6 +547,7 @@ def _is_trusted_callback_output_url(kie_settings: Any, value: str) -> bool:
             "tempfile.redpandaai.co",
             "kieai.redpandaai.co",
             "tempfile.aiquickdraw.com",
+            "ark-acg-cn-beijing.tos-cn-beijing.volces.com",
         )
     return any(
         host == str(trusted_host) or host.endswith(f".{trusted_host}")

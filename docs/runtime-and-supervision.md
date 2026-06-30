@@ -188,6 +188,8 @@ Expected result:
 - `http://127.0.0.1:8000/health` returns `status: ok`
 - `http://127.0.0.1:3000` responds and redirects to `/setup`
 
+Those commands assume the default launchd ports. The interactive onboarding and run scripts perform free-port selection and print the actual URL when a default port is busy.
+
 If launchd reports the labels as loaded but they never start, check the log files in `/tmp/` first.
 
 Known macOS caveat:

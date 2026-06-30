@@ -198,6 +198,55 @@ def list_presets() -> List[Dict[str, Any]]:
     return [_decode_row(row) for row in rows]
 
 
+def list_presets_page(
+    *,
+    limit: int = 60,
+    offset: int = 0,
+    q: Optional[str] = None,
+    category: Optional[str] = None,
+    status: str = "active",
+) -> Dict[str, Any]:
+    safe_limit = max(1, min(int(limit or 60), 100))
+    safe_offset = max(0, int(offset or 0))
+    clauses: List[str] = []
+    params: List[Any] = []
+    normalized_status = (status or "active").strip().lower()
+    if normalized_status == "all":
+        clauses.append("1 = 1")
+    elif normalized_status == "archived":
+        clauses.append("status = ?")
+        params.append("archived")
+    else:
+        clauses.append("status != ?")
+        params.append("archived")
+    query = (q or "").strip()
+    if query:
+        like = f"%{query.lower()}%"
+        clauses.append("(lower(key) LIKE ? OR lower(label) LIKE ? OR lower(COALESCE(description, '')) LIKE ?)")
+        params.extend([like, like, like])
+    normalized_category = (category or "").strip().lower()
+    if normalized_category and normalized_category != "all":
+        clauses.append("lower(COALESCE(category, 'general')) = ?")
+        params.append(normalized_category)
+    where_sql = " AND ".join(clauses)
+    with get_connection() as connection:
+        total_row = connection.execute(f"SELECT COUNT(*) AS total FROM media_presets WHERE {where_sql}", params).fetchone()
+        rows = connection.execute(
+            f"""
+            SELECT *
+            FROM media_presets
+            WHERE {where_sql}
+            ORDER BY priority DESC, updated_at DESC, key ASC
+            LIMIT ? OFFSET ?
+            """,
+            [*params, safe_limit, safe_offset],
+        ).fetchall()
+    total = int(total_row["total"] if total_row else 0)
+    items = [_decode_row(row) for row in rows]
+    next_offset = safe_offset + len(items) if safe_offset + len(items) < total else None
+    return {"items": items, "total": total, "limit": safe_limit, "offset": safe_offset, "next_offset": next_offset}
+
+
 def get_preset(preset_id: str) -> Optional[Dict[str, Any]]:
     return _get_table("media_presets", "preset_id", preset_id)
 
@@ -276,6 +325,17 @@ def _visible_in_global_gallery_clause(table_name: str) -> str:
         f"({table_name}.project_id IS NULL OR {table_name}.project_id NOT IN ("
         "SELECT project_id FROM media_projects WHERE hidden_from_global_gallery = 1"
         "))"
+    )
+
+
+def _like_search_pattern(query: Optional[str]) -> Optional[str]:
+    cleaned = " ".join(str(query or "").strip().lower().split())
+    if not cleaned:
+        return None
+    return (
+        "%"
+        + cleaned.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        + "%"
     )
 
 
@@ -551,6 +611,8 @@ def list_assets(
     status: Optional[str] = None,
     preset_key: Optional[str] = None,
     project_id: Optional[str] = None,
+    compact: bool = False,
+    q: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     clauses = ["dismissed = 0", "hidden_from_dashboard = 0"]
     params: List[Any] = []
@@ -579,7 +641,33 @@ def list_assets(
         params.append(project_id)
     else:
         clauses.append(_visible_in_global_gallery_clause("media_assets"))
-    query = "SELECT * FROM media_assets WHERE %s ORDER BY created_at DESC LIMIT ?" % " AND ".join(clauses)
+    search_pattern = _like_search_pattern(q)
+    if search_pattern:
+        clauses.append(
+            "("
+            "LOWER(COALESCE(asset_id, '')) LIKE ? ESCAPE '\\' OR "
+            "LOWER(COALESCE(prompt_summary, '')) LIKE ? ESCAPE '\\' OR "
+            "LOWER(COALESCE(model_key, '')) LIKE ? ESCAPE '\\' OR "
+            "LOWER(COALESCE(preset_key, '')) LIKE ? ESCAPE '\\' OR "
+            "LOWER(COALESCE(project_id, '')) LIKE ? ESCAPE '\\' OR "
+            "project_id IN ("
+            "SELECT project_id FROM media_projects "
+            "WHERE LOWER(COALESCE(name, '')) LIKE ? ESCAPE '\\'"
+            ")"
+            ")"
+        )
+        params.extend([search_pattern] * 6)
+    columns = (
+        "asset_id, job_id, project_id, provider_task_id, run_id, source_asset_id, "
+        "generation_kind, favorited, favorited_at, dismissed, created_at, model_key, "
+        "status, task_mode, prompt_summary, hero_original_path, hero_web_path, "
+        "hero_thumb_path, hero_poster_path, width, height, "
+        "json_extract(payload_json, '$.outputs[0].duration_seconds') AS duration_seconds, "
+        "remote_output_url, preset_key, preset_source, tags_json"
+        if compact
+        else "*"
+    )
+    query = "SELECT %s FROM media_assets WHERE %s ORDER BY created_at DESC LIMIT ?" % (columns, " AND ".join(clauses))
     params.append(limit)
     with get_connection() as connection:
         rows = connection.execute(query, params).fetchall()
@@ -608,10 +696,39 @@ def get_assets_by_job_id(job_id: str) -> List[Dict[str, Any]]:
     return [_decode_row(row) for row in rows]
 
 
+def _positive_int(value: Any) -> Optional[int]:
+    try:
+        next_value = int(value)
+    except (TypeError, ValueError):
+        return None
+    return next_value if next_value > 0 else None
+
+
+def _asset_output_dimensions(payload: Dict[str, Any]) -> Tuple[Optional[int], Optional[int]]:
+    outputs = payload.get("outputs")
+    if not isinstance(outputs, list):
+        return None, None
+    for output in outputs:
+        if not isinstance(output, dict):
+            continue
+        width = _positive_int(output.get("width"))
+        height = _positive_int(output.get("height"))
+        if width and height:
+            return width, height
+    return None, None
+
+
 def create_or_update_asset(payload: Dict[str, Any]) -> Dict[str, Any]:
     payload = payload.copy()
     payload.setdefault("asset_id", new_id("asset"))
     payload.setdefault("created_at", utcnow_iso())
+    if not _positive_int(payload.get("width")) or not _positive_int(payload.get("height")):
+        payload_json = payload.get("payload_json")
+        if isinstance(payload_json, dict):
+            width, height = _asset_output_dimensions(payload_json)
+            if width and height:
+                payload.setdefault("width", width)
+                payload.setdefault("height", height)
     return _upsert_table("media_assets", "asset_id", payload)
 
 

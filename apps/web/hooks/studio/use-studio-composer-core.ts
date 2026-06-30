@@ -11,6 +11,7 @@ import {
   buildOrderedImageInputs,
   buildNormalizedStudioOptions,
   displayChoiceLabel,
+  filledStructuredPresetImageSlotCount,
   inferInputPattern,
   isCoarsePointerDevice,
   isPresetSlotFilled,
@@ -48,6 +49,7 @@ import { findMediaAssetById, presetRequirementMessage, selectedPromptObjects } f
 import { readStudioComposerDraft, type StudioComposerDraft } from "@/lib/studio-composer-draft";
 import { resolveImageMaxBytes } from "@/lib/studio-composer-file-utils";
 import { deriveStudioEnhancementState } from "@/lib/studio-enhancement-state";
+import { motionControlVideoInputError } from "@/lib/studio-motion-validation";
 import { insertStudioPromptSnippet } from "@/lib/studio-prompt-snippets";
 import { useStudioAttachments } from "@/hooks/studio/use-studio-attachments";
 import { useStudioComposerDraftEffects } from "@/hooks/studio/use-studio-composer-draft-effects";
@@ -336,6 +338,9 @@ export function useStudioComposer({
     currentModelSupportsStructuredPresets &&
     currentPresetCompatibleWithModel &&
     (structuredPresetTextFields.length > 0 || structuredPresetImageSlots.length > 0);
+  const structuredPresetImageInputCount = structuredPresetActive
+    ? filledStructuredPresetImageSlotCount(presetSlotStates, structuredPresetImageSlots)
+    : 0;
   const effectiveSeedanceMode = seedanceComposer ? inferInputPattern(currentModel, attachments, currentSourceAsset) : "prompt_only";
   const inputPattern = inferInputPattern(currentModel, attachments, currentSourceAsset);
   const modelHasImageDrivenInputs = modelSupportsImageDrivenInputs(currentModel);
@@ -397,6 +402,34 @@ export function useStudioComposer({
     : currentPresetCompatibleWithModel
       ? presetRequirementMessage(currentPreset, attachments, currentSourceAsset)
       : null;
+  const missingRequiredInputError = useMemo(() => {
+    const missingRequiredSlot = standardComposerLayout.slots.find((slot) => slot.visible && slot.required && !slot.filled);
+    if (missingRequiredSlot) {
+      return `Add ${missingRequiredSlot.label.toLowerCase()} before generating with this model.`;
+    }
+    const motionInputError = motionControlVideoInputError({
+      model: currentModel,
+      attachments,
+      sourceAsset: currentSourceAsset,
+      optionValues,
+    });
+    if (motionInputError) {
+      return motionInputError;
+    }
+    const imageInputSpec = isRecord(currentModel?.image_inputs) ? currentModel.image_inputs : null;
+    const rawRequiredMin = imageInputSpec?.required_min;
+    const requiredImageInputs =
+      typeof rawRequiredMin === "number" ? rawRequiredMin : Number(rawRequiredMin);
+    if (!Number.isFinite(requiredImageInputs) || requiredImageInputs <= 0) {
+      return null;
+    }
+    if (stagedImageCount + structuredPresetImageInputCount >= requiredImageInputs) {
+      return null;
+    }
+    return requiredImageInputs === 1
+      ? "Add a source image before generating with this image-to-image model."
+      : `Add ${requiredImageInputs} source images before generating with this image-to-image model.`;
+  }, [attachments, currentModel, currentSourceAsset, optionValues, stagedImageCount, structuredPresetImageInputCount, standardComposerLayout.slots]);
   const firstPresetSlotPreview =
     structuredPresetImageSlots.map((slot) => presetSlotStates[slot.key]?.previewUrl).find((value) => Boolean(value)) ?? null;
   const enhancementPreviewVisual = resolveEnhancementPreviewVisual({
@@ -648,6 +681,7 @@ export function useStudioComposer({
     value: string,
     options: {
       preferredModelKey?: string | null;
+      presetOverride?: MediaPreset | null;
     } = {},
   ) {
     setValidation(null);
@@ -660,7 +694,10 @@ export function useStudioComposer({
       return;
     }
 
-    const targetPreset = presets.find((preset) => preset.preset_id === value || preset.key === value) ?? null;
+    const targetPreset =
+      options.presetOverride && (options.presetOverride.preset_id === value || options.presetOverride.key === value)
+        ? options.presetOverride
+        : presets.find((preset) => preset.preset_id === value || preset.key === value) ?? null;
     if (!targetPreset) {
       return;
     }
@@ -725,6 +762,7 @@ export function useStudioComposer({
     multiShotScript,
     multiShotScriptError,
     presetRequirementError,
+    missingRequiredInputError,
     projectId,
     presetInputValues,
     structuredPresetImageSlots,
@@ -853,6 +891,7 @@ export function useStudioComposer({
       modelPresets,
       structuredPresetPromptPreview,
       presetRequirementError,
+      missingRequiredInputError,
       enhancementPreviewVisual,
       compactOptionEntries,
       pricingOptions,

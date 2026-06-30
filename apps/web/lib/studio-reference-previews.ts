@@ -7,6 +7,20 @@ import {
 } from "@/lib/studio-media-urls";
 import type { MediaAsset } from "@/lib/types";
 import type { OrderedImageInput, StudioReferencePreview } from "@/lib/media-studio-helpers";
+import { videoMetadataLabels } from "@/lib/video-metadata";
+
+function compactVideoMetadataLabel(input: {
+  durationSeconds?: number | null;
+  width?: number | null;
+  height?: number | null;
+}) {
+  const labels = videoMetadataLabels({
+    durationSeconds: input.durationSeconds ?? null,
+    width: input.width ?? null,
+    height: input.height ?? null,
+  });
+  return [labels.durationLabel, labels.resolutionLabel].filter(Boolean).join(" · ") || null;
+}
 
 export function buildAttachmentPreview(
   attachment: AttachmentRecord | null | undefined,
@@ -23,6 +37,14 @@ export function buildAttachmentPreview(
     url,
     kind: attachment?.kind ?? "images",
     posterUrl: attachment?.kind === "videos" ? attachment?.referenceRecord?.poster_url ?? null : undefined,
+    metadataLabel:
+      attachment?.kind === "videos"
+        ? compactVideoMetadataLabel({
+            durationSeconds: attachment.durationSeconds ?? attachment.referenceRecord?.duration_seconds ?? null,
+            width: attachment.width ?? attachment.referenceRecord?.width ?? null,
+            height: attachment.height ?? attachment.referenceRecord?.height ?? null,
+          })
+        : null,
   };
 }
 

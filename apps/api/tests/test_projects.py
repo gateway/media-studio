@@ -212,6 +212,20 @@ def test_hidden_project_assets_are_excluded_from_global_gallery(client, app_modu
     assert hidden_assets.status_code == 200
     assert [item["asset_id"] for item in hidden_assets.json()["items"]] == [hidden_asset["asset_id"]]
 
+    visible_search = client.get("/media/assets?q=Visible")
+    assert visible_search.status_code == 200
+    visible_search_ids = [item["asset_id"] for item in visible_search.json()["items"]]
+    assert visible_asset["asset_id"] in visible_search_ids
+
+    hidden_global_search = client.get("/media/assets?q=Hidden")
+    assert hidden_global_search.status_code == 200
+    hidden_global_search_ids = [item["asset_id"] for item in hidden_global_search.json()["items"]]
+    assert hidden_asset["asset_id"] not in hidden_global_search_ids
+
+    hidden_scoped_search = client.get(f"/media/assets?project_id={hidden_project['project_id']}&q=Hidden")
+    assert hidden_scoped_search.status_code == 200
+    assert [item["asset_id"] for item in hidden_scoped_search.json()["items"]] == [hidden_asset["asset_id"]]
+
     global_jobs = client.get("/media/jobs")
     assert global_jobs.status_code == 200
     global_job_ids = [item["job_id"] for item in global_jobs.json()["items"]]

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import { buildStudioScopedHref } from "@/lib/studio-navigation";
 import type { MediaProject } from "@/lib/types";
@@ -43,7 +43,6 @@ export function useStudioProjectWorkspace({
   onBeforeProjectChange,
   onCloseProjectBrowser,
 }: UseStudioProjectWorkspaceOptions) {
-  const router = useRouter();
   const pathname = usePathname();
   const [localProjects, setLocalProjects] = useState<MediaProject[]>(projects);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialSelectedProjectId);
@@ -82,9 +81,9 @@ export function useStudioProjectWorkspace({
       onBeforeProjectChange();
       onCloseProjectBrowser();
       setSelectedProjectId(projectId);
-      void router.push(studioHrefForProject(projectId, null));
+      window.location.assign(studioHrefForProject(projectId, null));
     },
-    [onBeforeProjectChange, onCloseProjectBrowser, router, studioHrefForProject],
+    [onBeforeProjectChange, onCloseProjectBrowser, studioHrefForProject],
   );
 
   const createProjectInStudio = useCallback(

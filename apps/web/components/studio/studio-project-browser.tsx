@@ -20,10 +20,14 @@ import {
   GeneratedThumbnailPickerDialog,
   type GeneratedThumbnailPickerItem,
 } from "@/components/media/generated-thumbnail-picker-dialog";
-import { generatedThumbnailPreviewUrl } from "@/components/media/generated-thumbnail-utils";
+import {
+  fetchGeneratedImagePickerPage,
+  generatedImagePickerItem,
+} from "@/components/media/media-image-picker-sources";
+import { useMediaImagePickerPagination } from "@/components/media/use-media-image-picker-pagination";
 import { ThumbnailField } from "@/components/media/thumbnail-field";
 import { StudioStatusCallout } from "@/components/studio/studio-status-callout";
-import type { MediaAsset, MediaProject } from "@/lib/types";
+import type { MediaAssetPickerItem, MediaProject } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
 type ProjectDraft = {
@@ -197,13 +201,13 @@ export function StudioProjectBrowser({
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [clearCover, setClearCover] = useState(false);
-  const [coverPickerOpen, setCoverPickerOpen] = useState(false);
-  const [coverAssets, setCoverAssets] = useState<MediaAsset[]>([]);
-  const [coverAssetsLoading, setCoverAssetsLoading] = useState(false);
-  const [coverAssetsLoadingMore, setCoverAssetsLoadingMore] = useState(false);
-  const [coverAssetsNextOffset, setCoverAssetsNextOffset] = useState<number | null>(0);
   const [coverAssetSelectionId, setCoverAssetSelectionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const coverPicker = useMediaImagePickerPagination<MediaAssetPickerItem>({
+    fetchPage: fetchGeneratedImagePickerPage,
+    getItemId: (asset) => String(asset.asset_id),
+    onError: setError,
+  });
 
   const activeProjects = useMemo(
     () => projects.filter((project) => project.status !== "archived"),
@@ -213,14 +217,12 @@ export function StudioProjectBrowser({
     () => projects.filter((project) => project.status === "archived"),
     [projects],
   );
-  const coverPickerItems: GeneratedThumbnailPickerItem[] = coverAssets.map((asset) => {
-    const id = String(asset.asset_id);
-    return {
-      id,
-      previewUrl: generatedThumbnailPreviewUrl(asset),
-      ariaLabel: `Use generated image ${id} as project image`,
-    };
-  });
+  const coverPickerItems: GeneratedThumbnailPickerItem[] = coverPicker.items
+    .map((asset) => {
+      const item = generatedImagePickerItem(asset);
+      return item ? { ...item, ariaLabel: `Use generated image ${item.id} as project image` } : null;
+    })
+    .filter((item): item is GeneratedThumbnailPickerItem => Boolean(item));
 
   useEffect(() => {
     return () => {
@@ -239,11 +241,7 @@ export function StudioProjectBrowser({
       URL.revokeObjectURL(coverPreviewUrl);
     }
     setCoverPreviewUrl(null);
-    setCoverPickerOpen(false);
-    setCoverAssets([]);
-    setCoverAssetsLoading(false);
-    setCoverAssetsLoadingMore(false);
-    setCoverAssetsNextOffset(0);
+    coverPicker.closePicker();
     setCoverAssetSelectionId(null);
     setError(null);
   }
@@ -363,55 +361,9 @@ export function StudioProjectBrowser({
     setCoverPreviewUrl(null);
   }
 
-  async function loadCoverAssets({ append = false }: { append?: boolean } = {}) {
-    const nextOffset = append ? coverAssetsNextOffset : 0;
-    if (append && nextOffset == null) {
-      return;
-    }
-    if (append) {
-      setCoverAssetsLoadingMore(true);
-    } else {
-      setCoverAssetsLoading(true);
-      setCoverAssetsNextOffset(null);
-      setCoverPickerOpen(true);
-    }
-    try {
-      const response = await fetch(
-        `/api/control/media-assets?limit=24&offset=${append ? nextOffset ?? 0 : 0}&generation_kind=image`,
-      );
-      const result = (await response.json()) as {
-        ok?: boolean;
-        error?: string;
-        assets?: MediaAsset[];
-        next_offset?: number | null;
-      };
-      if (!response.ok || result.ok === false || !Array.isArray(result.assets)) {
-        setError(result.error ?? "Unable to load generated images.");
-        return;
-      }
-      const nextAssets = result.assets.filter((asset) => Boolean(generatedThumbnailPreviewUrl(asset)));
-      setCoverAssets((current) => {
-        if (!append) {
-          return nextAssets;
-        }
-        const seen = new Set(current.map((asset) => String(asset.asset_id)));
-        return current.concat(nextAssets.filter((asset) => !seen.has(String(asset.asset_id))));
-      });
-      setCoverAssetsNextOffset(typeof result.next_offset === "number" ? result.next_offset : null);
-    } catch {
-      setError("Unable to load generated images right now.");
-    } finally {
-      if (append) {
-        setCoverAssetsLoadingMore(false);
-      } else {
-        setCoverAssetsLoading(false);
-      }
-    }
-  }
-
   function applyCoverFromAsset(assetId: string | number) {
-    const selectedAsset = coverAssets.find((asset) => String(asset.asset_id) === String(assetId));
-    const previewUrl = generatedThumbnailPreviewUrl(selectedAsset);
+    const selectedAsset = coverPicker.items.find((asset) => String(asset.asset_id) === String(assetId));
+    const previewUrl = generatedImagePickerItem(selectedAsset)?.previewUrl ?? null;
     setCoverAssetSelectionId(String(assetId));
     setCoverFile(null);
     setClearCover(false);
@@ -424,7 +376,7 @@ export function StudioProjectBrowser({
       URL.revokeObjectURL(coverPreviewUrl);
     }
     setCoverPreviewUrl(previewUrl);
-    setCoverPickerOpen(false);
+    coverPicker.closePicker();
     setCoverAssetSelectionId(null);
   }
 
@@ -624,8 +576,8 @@ export function StudioProjectBrowser({
                     aspect="square"
                     surface={false}
                     inputRef={fileInputRef}
-                    isBrowsing={coverAssetsLoading}
-                    onChoose={() => void loadCoverAssets()}
+                    isBrowsing={coverPicker.loading}
+                    onChoose={coverPicker.openPicker}
                     onUploadFile={handleCoverFileChange}
                     onRemove={removeCover}
                   />
@@ -664,17 +616,17 @@ export function StudioProjectBrowser({
       ) : null}
 
       <GeneratedThumbnailPickerDialog
-        open={coverPickerOpen}
+        open={coverPicker.open}
         dialogLabel="Generated image project covers"
         title="Choose a project image"
         description="Pick a recent generated image to use as this project cover."
         items={coverPickerItems}
-        loading={coverAssetsLoading}
-        loadingMore={coverAssetsLoadingMore}
-        nextOffset={coverAssetsNextOffset}
+        loading={coverPicker.loading}
+        loadingMore={coverPicker.loadingMore}
+        nextOffset={coverPicker.nextOffset}
         selectionId={coverAssetSelectionId}
-        onClose={() => setCoverPickerOpen(false)}
-        onLoadMore={() => void loadCoverAssets({ append: true })}
+        onClose={coverPicker.closePicker}
+        onLoadMore={coverPicker.loadNextPage}
         onSelectItem={applyCoverFromAsset}
       />
     </OverlayShell>

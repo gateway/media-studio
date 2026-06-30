@@ -4,6 +4,14 @@ from typing import Any, Dict, List, Optional
 
 from .. import kie_adapter, store
 from .definition_validator import validate_node_definitions
+from .model_option_fields import (
+    graph_field_from_model_option,
+    is_seedance_model as _is_seedance_model,
+    is_suno_model as _is_suno_model,
+    is_supported_graph_model_option,
+    normalized_model_key as _normalized_model_key,
+    suno_graph_fields,
+)
 from .schemas import GraphNodeDefinition, GraphNodeField, GraphNodePort
 from .system_nodes import system_node_definitions
 
@@ -20,169 +28,12 @@ VIDEO_TASK_MODE_HINTS = {
     "v2v",
 }
 AUDIO_TASK_MODE_HINTS = {"text_to_audio", "video_to_audio", "audio_generation", "text_to_music", "music_generation"}
-UNSUPPORTED_GRAPH_MODEL_OPTIONS = {
-    "kling-3.0-motion": {"background_source"},
-}
-
-
 def _title_from_key(value: str) -> str:
     return " ".join(part.capitalize() for part in value.replace("_", " ").replace("-", " ").split())
 
 
 def _slug(value: str) -> str:
     return "".join(character if character.isalnum() else "_" for character in value.lower()).strip("_")
-
-
-def _normalized_model_key(value: str) -> str:
-    return str(value or "").strip().lower().replace("_", "-")
-
-
-def _is_seedance_model(model_key: str) -> bool:
-    normalized = _normalized_model_key(model_key)
-    return normalized == "seedance-2.0" or normalized.startswith("seedance-2.0")
-
-
-def _is_suno_model(model_key: str) -> bool:
-    normalized = _normalized_model_key(model_key)
-    return normalized.startswith("suno-") or "suno" in normalized
-
-
-def _is_supported_graph_model_option(model_key: str, option_key: str) -> bool:
-    blocked = UNSUPPORTED_GRAPH_MODEL_OPTIONS.get(_normalized_model_key(model_key), set())
-    return option_key not in blocked
-
-
-def _visible_condition_from_option(spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    raw_condition = spec.get("ui_visible_when")
-    if not isinstance(raw_condition, dict) or not raw_condition:
-        return None
-    field, expected = next(iter(raw_condition.items()))
-    if not isinstance(field, str) or not field.strip():
-        return None
-    if isinstance(expected, list):
-        return {"field": field, "in": expected}
-    return {"field": field, "equals": expected}
-
-
-def _field_from_option(key: str, spec: Dict[str, Any]) -> Optional[GraphNodeField]:
-    if spec.get("hidden_from_studio"):
-        return None
-    option_type = str(spec.get("type") or "text")
-    ui_control = str(spec.get("ui_control") or "").lower()
-    field_type = "text"
-    if option_type == "enum":
-        field_type = "select"
-    elif option_type == "bool":
-        field_type = "boolean"
-    elif option_type == "int_range":
-        field_type = "integer"
-    elif option_type in {"float_range", "number_range"}:
-        field_type = "float"
-    elif option_type == "string" and ui_control == "textarea":
-        field_type = "textarea"
-    label = spec.get("label") or _title_from_key(key)
-    return GraphNodeField(
-        id=key,
-        label=str(label),
-        type=field_type,
-        required=bool(spec.get("required")),
-        default=spec.get("default"),
-        options=list(spec.get("allowed") or []),
-        min=spec.get("min"),
-        max=spec.get("max"),
-        help_text=spec.get("help_text") or spec.get("notes"),
-        advanced=bool(spec.get("advanced")),
-        visible_if=_visible_condition_from_option(spec),
-    )
-
-
-def _suno_graph_fields(raw_options: Dict[str, Any]) -> List[GraphNodeField]:
-    model_spec = raw_options.get("suno_model") if isinstance(raw_options.get("suno_model"), dict) else {}
-    model_options = model_spec.get("allowed") if isinstance(model_spec, dict) else []
-    return [
-        GraphNodeField(
-            id="suno_model",
-            label="Model",
-            type="select",
-            required=True,
-            default=model_spec.get("default") or "V5",
-            options=model_options if isinstance(model_options, list) else ["V5"],
-            help_text="Suno model version used for generation.",
-        ),
-        GraphNodeField(
-            id="custom_mode",
-            label="Custom Mode",
-            type="boolean",
-            default=False,
-            help_text="Turn on when you want to provide a title, style, lyrics, or persona.",
-        ),
-        GraphNodeField(
-            id="song_description",
-            label="Song Description",
-            type="textarea",
-            default="",
-            placeholder="Describe the instrumental track, arrangement, and production style...",
-            help_text="Used when Custom Mode is off. KIE currently limits this prompt to 500 characters.",
-            connectable=True,
-            port_type="text",
-            visible_if={"field": "custom_mode", "not_equals": True},
-        ),
-        GraphNodeField(
-            id="title",
-            label="Title",
-            type="text",
-            default="",
-            help_text="Song title for Custom Mode. Up to 80 characters.",
-            visible_if={"field": "custom_mode", "equals": True},
-        ),
-        GraphNodeField(
-            id="style",
-            label="Style Of Music",
-            type="textarea",
-            default="",
-            placeholder="Genre, instrumentation, mood, and production tags...",
-            help_text="Music style for Custom Mode. Up to 1,000 characters.",
-            visible_if={"field": "custom_mode", "equals": True},
-        ),
-        GraphNodeField(
-            id="persona_id",
-            label="Persona ID",
-            type="text",
-            default="",
-            help_text="Optional Suno persona identifier.",
-            visible_if={"field": "custom_mode", "equals": True},
-        ),
-        GraphNodeField(id="instrumental", label="Instrumental", type="boolean", default=False, help_text="Generate music without vocals."),
-        GraphNodeField(
-            id="lyrics",
-            label="Lyrics",
-            type="textarea",
-            default="",
-            placeholder="Paste lyrics here when Custom Mode is on...",
-            help_text="Lyrics for Custom Mode. Leave empty for instrumental tracks.",
-            connectable=True,
-            port_type="text",
-            visible_if={"field": "custom_mode", "equals": True},
-        ),
-        GraphNodeField(
-            id="vocal_gender",
-            label="Vocal Gender",
-            type="select",
-            default="",
-            options=["m", "f"],
-            help_text="Optional vocal direction. Suno may not strictly follow this field.",
-            visible_if={"field": "custom_mode", "equals": True},
-        ),
-        GraphNodeField(
-            id="audio_weight",
-            label="Audio Weight",
-            type="float",
-            default="",
-            min=0,
-            max=1,
-            help_text="Controls adherence to audio/persona guidance where supported.",
-        ),
-    ]
 
 
 def _model_task_modes(model: Dict[str, Any]) -> List[str]:
@@ -232,7 +83,7 @@ def _layout_ui(definition: GraphNodeDefinition) -> GraphNodeDefinition:
     if definition.type == "preset.render":
         computed_min_width = max(computed_min_width, 340)
         computed_min_height = max(computed_min_height, 380)
-    if definition.type == "prompt.recipe" or definition.type.startswith("prompt.recipe."):
+    if definition.type == "prompt.recipe":
         computed_min_width = max(computed_min_width, 360)
         computed_min_height = max(computed_min_height, 420)
 
@@ -256,7 +107,8 @@ def _layout_ui(definition: GraphNodeDefinition) -> GraphNodeDefinition:
 def _model_image_ports(model_key: str, raw_inputs: Dict[str, Any], output_media_type: str) -> List[GraphNodePort]:
     image_input = raw_inputs.get("image") or {}
     required_min = int(image_input.get("required_min") or 0)
-    required_max = int(image_input.get("required_max") or 0)
+    raw_max = image_input.get("required_max")
+    required_max = int((raw_max if raw_max not in (None, "") else image_input.get("required_min")) or 0)
     if required_min <= 0 and required_max <= 0:
         return []
     normalized_key = model_key.lower()
@@ -440,7 +292,7 @@ class GraphNodeRegistry:
         )
         raw_options = raw.get("options") or {}
         if is_suno_model:
-            fields = _suno_graph_fields(raw_options)
+            fields = suno_graph_fields(raw_options)
         else:
             fields = [
                 GraphNodeField(
@@ -455,9 +307,9 @@ class GraphNodeRegistry:
                 )
             ]
             for key, option in raw_options.items():
-                if not _is_supported_graph_model_option(model_key, str(key)):
+                if not is_supported_graph_model_option(model_key, str(key)):
                     continue
-                field = _field_from_option(str(key), option if isinstance(option, dict) else {})
+                field = graph_field_from_model_option(str(key), option if isinstance(option, dict) else {})
                 if field:
                     fields.append(field)
         input_ports = (
@@ -516,6 +368,31 @@ class GraphNodeRegistry:
                 )
             )
         max_images = sum((port.max or 0) for port in input_ports if port.type == "image") or int((raw_inputs.get("image") or {}).get("required_max") or 0)
+        output_ports = (
+            [
+                GraphNodePort(id="track_1", label="Music Track 1", type="music_track"),
+                GraphNodePort(id="track_2", label="Music Track 2", type="music_track"),
+                GraphNodePort(id="job", label="Job", type="job", advanced=True),
+            ]
+            if is_suno_model
+            else [
+                GraphNodePort(id=output_media_type, label=_title_from_key(output_media_type), type=output_media_type),
+                *(
+                    [
+                        GraphNodePort(
+                            id="image",
+                            label="Last Frame",
+                            type="image",
+                            description="Still image returned when Output Last Frame is enabled.",
+                            visible_if={"field": "return_last_frame", "equals": True},
+                        )
+                    ]
+                    if _is_seedance_model(model_key) and output_media_type == "video"
+                    else []
+                ),
+                GraphNodePort(id="job", label="Job", type="job", advanced=True),
+            ]
+        )
         return GraphNodeDefinition(
             type=node_type,
             title=str(model.get("label") or _title_from_key(model_key)),
@@ -588,18 +465,7 @@ class GraphNodeRegistry:
             },
             ports={
                 "inputs": input_ports,
-                "outputs": (
-                    [
-                        GraphNodePort(id="track_1", label="Music Track 1", type="music_track"),
-                        GraphNodePort(id="track_2", label="Music Track 2", type="music_track"),
-                        GraphNodePort(id="job", label="Job", type="job", advanced=True),
-                    ]
-                    if is_suno_model
-                    else [
-                        GraphNodePort(id=output_media_type, label=_title_from_key(output_media_type), type=output_media_type),
-                        GraphNodePort(id="job", label="Job", type="job", advanced=True),
-                    ]
-                ),
+                "outputs": output_ports,
             },
             fields=fields,
         )

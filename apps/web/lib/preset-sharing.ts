@@ -45,7 +45,6 @@ export type PortablePresetPayload = {
   requires_audio: boolean;
   input_schema_json: PortablePresetField[];
   input_slots_json: PortablePresetSlot[];
-  choice_groups_json: Array<Record<string, unknown>>;
   notes: string | null;
   version: string;
   priority: number;
@@ -137,11 +136,6 @@ function normalizeSlot(value: unknown): PortablePresetSlot | null {
   };
 }
 
-function normalizeChoiceGroups(value: unknown) {
-  const items = Array.isArray(value) ? value : [];
-  return items.map((item) => normalizeUnknown(item)).filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item)));
-}
-
 function normalizeUnknown(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map((entry) => normalizeUnknown(entry));
@@ -204,7 +198,6 @@ export function normalizePortablePresetPayload(
     requires_audio: normalizeBoolean(record.requires_audio),
     input_schema_json: inputSchema,
     input_slots_json: inputSlots,
-    choice_groups_json: normalizeChoiceGroups(record.choice_groups_json),
     notes: normalizeNullableString(record.notes),
     version: normalizeString(record.version) || "v1",
     priority: normalizeNumber(record.priority, 100),
@@ -333,7 +326,6 @@ export function buildImportedPresetPayload(
     requires_audio: normalized.requires_audio,
     input_schema_json: normalized.input_schema_json,
     input_slots_json: normalized.input_slots_json,
-    choice_groups_json: normalized.choice_groups_json,
     thumbnail_path: thumbnailPath,
     thumbnail_url: thumbnailUrl,
     notes: normalized.notes,

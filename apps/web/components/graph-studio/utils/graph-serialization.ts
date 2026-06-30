@@ -1,11 +1,12 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { GraphGroup, GraphNodeData, GraphNodeDefinition, GraphWorkflowPayload, StudioNode } from "../types";
-import { computeGraphNodeLayout, graphNodeUsesContentAutoHeight } from "./graph-node-layout";
+import { computeGraphNodeLayout } from "./graph-node-layout";
 import { normalizeGraphExecutionMode } from "./graph-node-execution";
-import { graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "./graph-node-fields";
+import { graphExtraLayoutRows, graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "./graph-node-fields";
 import { serializeGraphGroups } from "./graph-groups";
 import { graphPortIdFromHandle } from "./graph-port-handles";
+import { visibleGraphInputPorts, visibleGraphOutputPorts } from "./graph-node-ports";
 
 export type GraphNodeHandlers = Pick<
   GraphNodeData,
@@ -16,6 +17,7 @@ export type GraphNodeHandlers = Pick<
   | "onInputRewireStart"
   | "onToggleCollapsed"
   | "onToggleAdvancedExpanded"
+  | "onEnsureNodeHeight"
   | "onOpenPreview"
   | "onStartRenameNode"
   | "onRenameNodeDraftChange"
@@ -38,11 +40,11 @@ export function createGraphNode(definition: GraphNodeDefinition, position: { x: 
   const metrics = graphVisibleFieldMetrics(definition, fields, [], {
     advancedExpanded: false,
     previewHeaderFieldIds: graphPreviewHeaderFieldIds(definition),
-    extraLayoutRows: definition.type === "prompt.recipe" && String(fields.recipe_id ?? "").trim() ? 2 : 0,
+    extraLayoutRows: graphExtraLayoutRows(definition, fields),
   });
   const layout = computeGraphNodeLayout(definition, undefined, {
     visibleFieldCount: metrics.layoutFieldCount,
-    visiblePortCount: definition.ports.inputs.filter((port) => !port.advanced).length + definition.ports.outputs.filter((port) => !port.advanced).length,
+    visiblePortCount: visibleGraphInputPorts(definition, fields).length + visibleGraphOutputPorts(definition, fields).length,
     textareaCount: metrics.textareaCount,
   });
   const height = definition.fields.some((field) => field.advanced) ? layout.minHeight : layout.height;
@@ -86,7 +88,7 @@ export function workflowFromCanvas(workflowId: string | null, name: string, node
             const data = node.data as StudioNode["data"];
             const currentHeight = typeof node.height === "number" ? node.height : node.style?.height;
             const autoSizedHeight = typeof data.autoSizedHeight === "number" ? data.autoSizedHeight : null;
-            if (!graphNodeUsesContentAutoHeight(data.definition) && typeof currentHeight === "number" && autoSizedHeight != null && Math.abs(currentHeight - autoSizedHeight) <= 2) {
+            if (typeof currentHeight === "number" && autoSizedHeight != null && Math.abs(currentHeight - autoSizedHeight) <= 2) {
               return undefined;
             }
             return currentHeight;
@@ -118,8 +120,21 @@ export function workflowFromCanvas(workflowId: string | null, name: string, node
   };
 }
 
-export function nodeStyleFromMetadata(definition: GraphNodeDefinition, metadata?: Record<string, unknown>) {
-  const layout = computeGraphNodeLayout(definition, metadata);
+export function nodeStyleFromMetadata(definition: GraphNodeDefinition, metadata?: Record<string, unknown>, options?: Parameters<typeof computeGraphNodeLayout>[2]) {
+  const baselineLayout = computeGraphNodeLayout(definition, undefined, options);
+  const styleMetadata = ((metadata?.style ?? {}) as { width?: unknown; height?: unknown }) ?? {};
+  const height = typeof styleMetadata.height === "number" && Number.isFinite(styleMetadata.height) ? styleMetadata.height : null;
+  const safeMetadata =
+    height != null && height > baselineLayout.maxHeight
+      ? {
+          ...(metadata ?? {}),
+          style: {
+            ...styleMetadata,
+            height: undefined,
+          },
+        }
+      : metadata;
+  const layout = computeGraphNodeLayout(definition, safeMetadata, options);
   return {
     width: layout.width,
     height: layout.height,

@@ -26,8 +26,10 @@ def _input_limit(raw: Dict[str, Any], input_key: str) -> int:
     spec = inputs.get(input_key) if _is_record(inputs) else None
     if not _is_record(spec):
         return 0
+    raw_max = spec.get("required_max")
+    raw_value = raw_max if raw_max not in (None, "") else spec.get("required_min")
     try:
-        parsed = int(spec.get("required_max") or 0)
+        parsed = int(raw_value or 0)
     except (TypeError, ValueError):
         return 0
     return max(0, parsed)
@@ -50,6 +52,11 @@ def _unique(values: Iterable[str]) -> List[str]:
         seen.add(value)
         result.append(value)
     return result
+
+
+def _is_seedance_2_model(model_key: Any) -> bool:
+    normalized = str(model_key or "").strip().lower().replace("_", "-")
+    return normalized == "seedance-2.0" or normalized.startswith("seedance-2.0-")
 
 
 def supported_model_input_patterns(model: Dict[str, Any]) -> List[str]:
@@ -182,7 +189,7 @@ def derive_studio_model_support(model: Dict[str, Any]) -> Dict[str, Any]:
         status = "unsupported"
         support_summary = _unsupported_summary(hidden_reason, unsupported_option_keys)
         supported_patterns = [pattern for pattern in patterns if pattern in KNOWN_STUDIO_INPUT_PATTERNS]
-    elif "multimodal_reference" in pattern_set and model.get("key") != "seedance-2.0":
+    elif "multimodal_reference" in pattern_set and not _is_seedance_2_model(model.get("key")):
         hidden_reason = "Studio only exposes multimodal reference contracts through the dedicated Seedance flow right now."
         status = "unsupported"
         support_summary = _unsupported_summary(hidden_reason, unsupported_option_keys)
@@ -196,8 +203,8 @@ def derive_studio_model_support(model: Dict[str, Any]) -> Dict[str, Any]:
             "motion_control" in pattern_set and max_image_inputs == 1 and max_video_inputs == 1 and max_audio_inputs == 0
         )
         explicit_single_image = (
-            "first_last_frames" not in pattern_set
-            and "motion_control" not in pattern_set
+            "motion_control" not in pattern_set
+            and "multimodal_reference" not in pattern_set
             and max_image_inputs == 1
             and max_video_inputs == 0
             and max_audio_inputs == 0
@@ -213,7 +220,7 @@ def derive_studio_model_support(model: Dict[str, Any]) -> Dict[str, Any]:
             and all(pattern in {"prompt_only", "single_image", "image_edit"} for pattern in pattern_set)
             and ("single_image" in pattern_set or "image_edit" in pattern_set)
         )
-        supported_seedance = model.get("key") == "seedance-2.0" and all(
+        supported_seedance = _is_seedance_2_model(model.get("key")) and all(
             pattern in {"prompt_only", "single_image", "first_last_frames", "multimodal_reference"} for pattern in pattern_set
         )
         hidden_reason = None

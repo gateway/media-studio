@@ -3,13 +3,11 @@
 import { useMemo, useState } from "react";
 import { Blocks, Search, Trash2, Upload, Workflow, X } from "lucide-react";
 
-import type { MediaAsset, MediaReference } from "@/lib/types";
 import { GraphNodeTypeBadge } from "./components/graph-node-type-badge";
 import { GraphRunHistoryPanel } from "./graph-run-history-panel";
 import { GraphTemplateBrowser } from "./graph-template-browser";
 import type { GraphArtifact, GraphNodeDefinition, GraphRunHistoryItem, GraphTemplateRecord, GraphWorkflowRecord } from "./types";
 import { graphDefinitionHiddenInSearch, rankGraphNodeDefinitions } from "./hooks/use-graph-node-search";
-import { graphMediaDragPayload } from "./utils/graph-media-preview";
 import { formatGraphTimestamp } from "./utils/graph-time";
 
 export type GraphSidebarDialog = "workflows" | "nodes" | "images" | "runs";
@@ -20,8 +18,6 @@ export function GraphLibraryDialog({
   definitionsByCategory,
   workflows,
   templates,
-  references,
-  assets,
   workflowId,
   runHistory,
   selectedHistoryRunId,
@@ -34,7 +30,6 @@ export function GraphLibraryDialog({
   onDeleteTemplate,
   onImportWorkflow,
   onAddDefinitionNode,
-  onAddLoadImageNode,
   onRefreshRunHistory,
   onInspectRun,
   onRestoreRun,
@@ -45,8 +40,6 @@ export function GraphLibraryDialog({
   definitionsByCategory: Record<string, GraphNodeDefinition[]>;
   workflows: GraphWorkflowRecord[];
   templates: GraphTemplateRecord[];
-  references: MediaReference[];
-  assets: MediaAsset[];
   workflowId: string | null;
   runHistory: GraphRunHistoryItem[];
   selectedHistoryRunId: string | null;
@@ -59,14 +52,12 @@ export function GraphLibraryDialog({
   onDeleteTemplate: (template: GraphTemplateRecord) => void;
   onImportWorkflow: () => void;
   onAddDefinitionNode: (definition: GraphNodeDefinition) => void;
-  onAddLoadImageNode: (fields: Record<string, unknown>) => void;
   onRefreshRunHistory: () => void;
   onInspectRun: (runId: string) => void;
   onRestoreRun: (run: GraphRunHistoryItem) => void | Promise<void>;
   onPinArtifact: (artifact: GraphArtifact) => void;
 }) {
   const [nodeLibraryQuery, setNodeLibraryQuery] = useState("");
-  const imageAssets = assets.filter((asset) => asset.generation_kind === "image");
   const filteredDefinitionsByCategory = useMemo(() => {
     const query = nodeLibraryQuery.trim();
     if (!query) {
@@ -82,7 +73,7 @@ export function GraphLibraryDialog({
       return groups;
     }, {});
   }, [definitions, definitionsByCategory, nodeLibraryQuery]);
-  if (!sidebarDialog) return null;
+  if (!sidebarDialog || sidebarDialog === "images") return null;
 
   return (
     <div className="graph-library-modal" data-testid={`graph-${sidebarDialog}-modal`} role="dialog" aria-label={sidebarDialog}>
@@ -171,62 +162,6 @@ export function GraphLibraryDialog({
           {nodeLibraryQuery.trim() && !Object.keys(filteredDefinitionsByCategory).length ? <div className="graph-sidebar-empty">No matching nodes.</div> : null}
         </div>
       ) : null}
-      {sidebarDialog === "images" ? (
-        <div className="graph-modal-grid">
-          <section>
-            <div className="graph-section-title">Reference Images</div>
-            <div className="graph-media-list" data-testid="graph-reference-list">
-              {references.length ? (
-                references.map((reference) => (
-                  <button
-                    key={reference.reference_id}
-                    type="button"
-                    draggable
-                    onDragStart={(event) => {
-                      event.dataTransfer.setData(
-                        "application/x-media-studio-graph-media",
-                        graphMediaDragPayload({ source: "reference", id: reference.reference_id, mediaType: reference.kind }),
-                      );
-                    }}
-                    onClick={() => onAddLoadImageNode({ reference_id: reference.reference_id })}
-                  >
-                    {reference.thumb_url || reference.stored_url ? <img src={reference.thumb_url ?? reference.stored_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
-                    <span>{reference.original_filename ?? reference.reference_id}</span>
-                  </button>
-                ))
-              ) : (
-                <div className="graph-sidebar-empty">No reference images yet.</div>
-              )}
-            </div>
-          </section>
-          <section>
-              <div className="graph-section-title">Generated Images</div>
-              <div className="graph-media-list" data-testid="graph-asset-list">
-              {imageAssets.length ? (
-                imageAssets.map((asset) => (
-                  <button
-                    key={String(asset.asset_id)}
-                    type="button"
-                    draggable
-                    onDragStart={(event) => {
-                      event.dataTransfer.setData(
-                        "application/x-media-studio-graph-media",
-                        graphMediaDragPayload({ source: "asset", id: String(asset.asset_id), mediaType: asset.generation_kind }),
-                      );
-                    }}
-                    onClick={() => onAddLoadImageNode({ asset_id: String(asset.asset_id) })}
-                  >
-                    {asset.hero_thumb_url || asset.hero_web_url ? <img src={asset.hero_thumb_url ?? asset.hero_web_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
-                    <span>{asset.prompt_summary ?? String(asset.asset_id)}</span>
-                  </button>
-                ))
-              ) : (
-                <div className="graph-sidebar-empty">No generated image assets yet.</div>
-              )}
-            </div>
-          </section>
-        </div>
-      ) : null}
       {sidebarDialog === "runs" ? (
         <GraphRunHistoryPanel
           workflowId={workflowId}
@@ -239,71 +174,6 @@ export function GraphLibraryDialog({
           onPinArtifact={onPinArtifact}
         />
       ) : null}
-    </div>
-  );
-}
-
-export function GraphImageLibraryDialog({
-  imageLibraryNodeId,
-  references,
-  assets,
-  onClose,
-  onAttachReference,
-  onAttachAsset,
-}: {
-  imageLibraryNodeId: string | null;
-  references: MediaReference[];
-  assets: MediaAsset[];
-  onClose: () => void;
-  onAttachReference: (nodeId: string, referenceId: string) => void;
-  onAttachAsset: (nodeId: string, assetId: string) => void;
-}) {
-  const mediaAssets = assets.filter((asset) => ["image", "video", "audio"].includes(String(asset.generation_kind)));
-  if (!imageLibraryNodeId) return null;
-
-  return (
-    <div className="graph-image-library-modal" data-testid="graph-image-library-modal" role="dialog" aria-label="Media library">
-      <div className="graph-modal-header">
-        <div>
-          <div className="graph-section-title">Media Library</div>
-          <strong>Select media for Load node</strong>
-        </div>
-        <button type="button" aria-label="Close image library" onClick={onClose}>
-          <X size={16} />
-        </button>
-      </div>
-      <div className="graph-modal-grid">
-        <section>
-          <div className="graph-section-title">References</div>
-          <div className="graph-media-list">
-            {references.length ? (
-              references.map((reference) => (
-                <button key={reference.reference_id} type="button" onClick={() => onAttachReference(imageLibraryNodeId, reference.reference_id)}>
-                  {reference.thumb_url || reference.stored_url ? <img src={reference.thumb_url ?? reference.stored_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
-                  <span>{reference.original_filename ?? reference.reference_id}</span>
-                </button>
-              ))
-            ) : (
-              <div className="graph-sidebar-empty">No reference media yet.</div>
-            )}
-          </div>
-        </section>
-        <section>
-          <div className="graph-section-title">Generated Media</div>
-          <div className="graph-media-list">
-            {mediaAssets.length ? (
-              mediaAssets.map((asset) => (
-                <button key={String(asset.asset_id)} type="button" onClick={() => onAttachAsset(imageLibraryNodeId, String(asset.asset_id))}>
-                  {asset.hero_thumb_url || asset.hero_web_url ? <img src={asset.hero_thumb_url ?? asset.hero_web_url ?? ""} alt="" /> : <span className="graph-media-empty" />}
-                  <span>{asset.prompt_summary ?? String(asset.asset_id)}</span>
-                </button>
-              ))
-            ) : (
-              <div className="graph-sidebar-empty">No generated media assets yet.</div>
-            )}
-          </div>
-        </section>
-      </div>
     </div>
   );
 }

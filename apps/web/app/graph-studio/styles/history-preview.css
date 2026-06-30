@@ -12,7 +12,7 @@
   gap: 0.85rem;
   width: min(480px, calc(100vw - 2rem));
   padding: 1rem;
-  border: 1px solid rgba(255, 204, 102, 0.24);
+  border: 1px solid color-mix(in srgb, var(--graph-warning) 24%, transparent);
   border-radius: 10px;
   color: var(--graph-text);
   background: var(--graph-panel-modal);
@@ -57,7 +57,7 @@
   display: grid;
   place-items: center;
   padding: 2rem;
-  background: rgba(0, 0, 0, 0.86);
+  background: color-mix(in srgb, black 86%, transparent);
 }
 
 .graph-preview-stage {
@@ -73,7 +73,7 @@
   max-height: 92vh;
   object-fit: contain;
   border-radius: 10px;
-  box-shadow: 0 26px 90px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 26px 90px color-mix(in srgb, black 55%, transparent);
 }
 
 .graph-preview-close {
@@ -88,7 +88,7 @@
   border: 1px solid var(--graph-border-medium);
   border-radius: 999px;
   color: var(--graph-text);
-  background: rgba(23, 27, 26, 0.92);
+  background: color-mix(in srgb, var(--graph-panel-modal) 92%, transparent);
   cursor: pointer;
 }
 
@@ -103,7 +103,7 @@
   border: 1px solid var(--graph-border-hover);
   border-radius: 8px;
   color: var(--graph-text);
-  background: rgba(23, 27, 26, 0.84);
+  background: color-mix(in srgb, var(--graph-panel-modal) 84%, transparent);
   cursor: pointer;
   transform: translateY(-50%);
 }
@@ -112,7 +112,7 @@
 .graph-preview-nav:focus-visible,
 .graph-preview-close:hover,
 .graph-preview-close:focus-visible {
-  border-color: rgba(209, 255, 71, 0.44);
+  border-color: color-mix(in srgb, var(--graph-accent) 44%, transparent);
   outline: none;
 }
 
@@ -134,7 +134,7 @@
   border: 1px solid var(--graph-border-modal);
   border-radius: 999px;
   color: var(--graph-text-readable);
-  background: rgba(23, 27, 26, 0.88);
+  background: color-mix(in srgb, var(--graph-panel-modal) 88%, transparent);
   font-size: 0.72rem;
   font-weight: 800;
   text-align: center;
@@ -213,7 +213,7 @@
   padding: 0.48rem 0.54rem;
   border: 1px solid var(--graph-border-hairline);
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.035);
+  background: color-mix(in srgb, white 3.5%, transparent);
 }
 
 .graph-artifact-row > button {
@@ -223,6 +223,6 @@
   place-items: center;
   border: 1px solid var(--graph-border);
   border-radius: 6px;
-  color: rgba(247, 246, 240, 0.76);
+  color: color-mix(in srgb, var(--graph-text) 76%, transparent);
   background: var(--graph-white-faint);
 }

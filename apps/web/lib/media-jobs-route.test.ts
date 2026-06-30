@@ -107,4 +107,96 @@ describe("control media-jobs route", () => {
       },
     });
   });
+
+  it("preserves the fallback error envelope when the current job cannot load", async () => {
+    getControlApiJson.mockResolvedValueOnce({
+      ok: false,
+      data: null,
+    });
+
+    const { GET } = await import("@/app/api/control/media-jobs/[jobId]/route");
+    const response = await GET(new Request("http://localhost/api/control/media-jobs/job-missing"), {
+      params: Promise.resolve({ jobId: "job-missing" }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(payload).toEqual({
+      ok: false,
+      error: "Unable to read the current media job state.",
+    });
+    expect(postControlApiJson).not.toHaveBeenCalled();
+  });
+
+  it("preserves upstream poll error messages for running jobs", async () => {
+    getControlApiJson.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        job_id: "job-running",
+        status: "processing",
+      },
+    });
+    postControlApiJson.mockResolvedValueOnce({
+      ok: false,
+      data: null,
+      error: "Provider timeout while polling.",
+    });
+
+    const { GET } = await import("@/app/api/control/media-jobs/[jobId]/route");
+    const response = await GET(new Request("http://localhost/api/control/media-jobs/job-running"), {
+      params: Promise.resolve({ jobId: "job-running" }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(payload).toEqual({
+      ok: false,
+      error: "Provider timeout while polling.",
+    });
+    expect(postControlApiJson).toHaveBeenCalledWith("/media/jobs/job-running/poll", { wait: false }, "admin");
+  });
+
+  it("preserves the retry error envelope", async () => {
+    postControlApiJson.mockResolvedValueOnce({
+      ok: false,
+      data: null,
+    });
+
+    const { POST } = await import("@/app/api/control/media-jobs/[jobId]/route");
+    const response = await POST(new Request("http://localhost/api/control/media-jobs/job-failed"), {
+      params: Promise.resolve({ jobId: "job-failed" }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(payload).toEqual({
+      ok: false,
+      error: "Unable to retry the selected media job.",
+    });
+    expect(postControlApiJson).toHaveBeenCalledWith("/media/jobs/job-failed/retry", {}, "admin");
+  });
+
+  it("preserves the dismiss error envelope", async () => {
+    sendControlApiJson.mockResolvedValueOnce({
+      ok: false,
+      data: null,
+      error: "Dismiss failed.",
+    });
+
+    const { DELETE } = await import("@/app/api/control/media-jobs/[jobId]/route");
+    const response = await DELETE(new Request("http://localhost/api/control/media-jobs/job-failed"), {
+      params: Promise.resolve({ jobId: "job-failed" }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(payload).toEqual({
+      ok: false,
+      error: "Dismiss failed.",
+    });
+    expect(sendControlApiJson).toHaveBeenCalledWith("/media/jobs/job-failed/dismiss", {
+      method: "POST",
+      authMode: "admin",
+    });
+  });
 });

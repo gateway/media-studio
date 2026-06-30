@@ -27,6 +27,10 @@ import { cn } from "@/lib/utils";
 
 export { StudioMobileInputsContent } from "@/components/studio/studio-mobile-inputs-content";
 
+const STUDIO_COMPOSER_TILE_CLASS_NAME = "h-[82px] w-[82px]";
+const STUDIO_COMPOSER_ADD_TILE_CLASS_NAME = `${STUDIO_COMPOSER_TILE_CLASS_NAME} rounded-[22px]`;
+const STUDIO_COMPOSER_PLUS_ICON_CLASS_NAME = "size-4.5";
+
 type StudioMultiImageReferenceStripProps = {
   imageLimitLabel: string | null;
   orderedImageInputs: OrderedImageInput[];
@@ -75,7 +79,7 @@ export function StudioMultiImageReferenceStrip({
                   visualUrl={slotVisual}
                   onOpenPreview={onOpenPreview}
                   onRemove={() => onClearOrderedImageInput(slot)}
-                  className="h-[82px] w-[82px]"
+                  className={STUDIO_COMPOSER_TILE_CLASS_NAME}
                   tileClassName="studio-composer-accent-border-soft"
                   testId={`studio-multi-image-slot-${slotIndex + 1}`}
                 />
@@ -141,9 +145,9 @@ export function StudioSeedanceReferenceStrip({
       attachments: referenceImages,
       accept: "image/*",
       maxLabel: "9",
-      tileClassName: "h-[82px] w-[82px]",
-      addTileClassName: "h-[82px] w-[82px] rounded-[22px]",
-      plusIconClassName: "size-4.5",
+      tileClassName: STUDIO_COMPOSER_TILE_CLASS_NAME,
+      addTileClassName: STUDIO_COMPOSER_ADD_TILE_CLASS_NAME,
+      plusIconClassName: STUDIO_COMPOSER_PLUS_ICON_CLASS_NAME,
       maxVisibleTiles: 4,
     },
     {
@@ -153,9 +157,9 @@ export function StudioSeedanceReferenceStrip({
       attachments: referenceVideos,
       accept: "video/*",
       maxLabel: "3",
-      tileClassName: "h-[82px] w-[82px]",
-      addTileClassName: "h-[82px] w-[82px] rounded-[22px]",
-      plusIconClassName: "size-4.5",
+      tileClassName: STUDIO_COMPOSER_TILE_CLASS_NAME,
+      addTileClassName: STUDIO_COMPOSER_ADD_TILE_CLASS_NAME,
+      plusIconClassName: STUDIO_COMPOSER_PLUS_ICON_CLASS_NAME,
       maxVisibleTiles: 3,
     },
     {
@@ -165,9 +169,9 @@ export function StudioSeedanceReferenceStrip({
       attachments: referenceAudios,
       accept: "audio/*",
       maxLabel: "3",
-      tileClassName: "h-[82px] w-[82px]",
-      addTileClassName: "h-[82px] w-[82px] rounded-[22px]",
-      plusIconClassName: "size-4.5",
+      tileClassName: STUDIO_COMPOSER_TILE_CLASS_NAME,
+      addTileClassName: STUDIO_COMPOSER_ADD_TILE_CLASS_NAME,
+      plusIconClassName: STUDIO_COMPOSER_PLUS_ICON_CLASS_NAME,
       maxVisibleTiles: 3,
     },
   ];
@@ -366,7 +370,7 @@ export function StudioSourceAttachmentStrip({
                 {!attachment ? (
                   <div className="studio-meta-label">{slot.label}</div>
                 ) : null}
-                <div data-testid={`seedance-slot-${slot.role}`} className="relative h-[82px] w-[82px]">
+                <div data-testid={`seedance-slot-${slot.role}`} className={cn("relative", STUDIO_COMPOSER_TILE_CLASS_NAME)}>
                   {attachment && attachmentPreview ? (
                     <div
                       onDragOver={(event) => {
@@ -474,7 +478,7 @@ export function StudioSourceAttachmentStrip({
               visualUrl={mediaThumbnailUrl(currentSourceAsset) ?? mediaDisplayUrl(currentSourceAsset)}
               onOpenPreview={onOpenPreview}
               onRemove={onClearSourceAsset}
-              className="h-[82px] w-[82px]"
+              className={STUDIO_COMPOSER_TILE_CLASS_NAME}
               tileClassName="studio-composer-accent-border"
               testId="studio-source-asset-tile"
             />
@@ -504,13 +508,18 @@ export function StudioSourceAttachmentStrip({
               footerLabel={attachment.kind === "images" ? "Image" : attachment.kind === "videos" ? "Video" : "Audio"}
               onOpenPreview={onOpenPreview}
               onRemove={() => onRemoveAttachment(attachment.id)}
-              className="h-[82px] w-[82px]"
+              className={STUDIO_COMPOSER_TILE_CLASS_NAME}
               testId={`studio-attachment-tile-${attachment.id}`}
             />
           ))}
 
           {attachments.length > 4 ? (
-            <div className="studio-composer-muted-tile flex h-[82px] w-[82px] items-center justify-center rounded-[24px] text-center text-[0.62rem] font-semibold uppercase tracking-[0.14em]">
+            <div
+              className={cn(
+                "studio-composer-muted-tile flex items-center justify-center rounded-[24px] text-center text-[0.62rem] font-semibold uppercase tracking-[0.14em]",
+                STUDIO_COMPOSER_TILE_CLASS_NAME,
+              )}
+            >
               +{attachments.length - 4} more
             </div>
           ) : null}

@@ -56,6 +56,7 @@ docs/API_SECURITY_FULL_REPORT.md
 docs/review-remediation-plan.md
 logs/
 tmp/
+tmp-*
 temp/
 output/
 outputs/
@@ -79,4 +80,3 @@ apps/api/*.egg-info/
 apps/api/media_studio.db
 apps/web/.turbo/
 apps/web/tsconfig.tsbuildinfo
-tmp-graph-studio.png

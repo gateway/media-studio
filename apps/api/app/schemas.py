@@ -5,12 +5,14 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
-QUEUE_MAX_CONCURRENT_JOBS_MIN = 1
-QUEUE_MAX_CONCURRENT_JOBS_MAX = 10
-QUEUE_DEFAULT_POLL_SECONDS_MIN = 1
-QUEUE_DEFAULT_POLL_SECONDS_MAX = 300
-QUEUE_MAX_RETRY_ATTEMPTS_MIN = 1
-QUEUE_MAX_RETRY_ATTEMPTS_MAX = 10
+from .queue_limits import (
+    QUEUE_DEFAULT_POLL_SECONDS_MAX,
+    QUEUE_DEFAULT_POLL_SECONDS_MIN,
+    QUEUE_MAX_CONCURRENT_JOBS_MAX,
+    QUEUE_MAX_CONCURRENT_JOBS_MIN,
+    QUEUE_MAX_RETRY_ATTEMPTS_MAX,
+    QUEUE_MAX_RETRY_ATTEMPTS_MIN,
+)
 MODEL_QUEUE_MAX_OUTPUTS_PER_RUN_MIN = 1
 MODEL_QUEUE_MAX_OUTPUTS_PER_RUN_MAX = 10
 
@@ -60,6 +62,8 @@ class MediaRefInput(BaseModel):
     filename: Optional[str] = None
     mime_type: Optional[str] = None
     role: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
     duration_seconds: Optional[float] = None
 
 
@@ -69,6 +73,12 @@ class QueueSettingsResponse(BaseModel):
     queue_enabled: bool
     default_poll_seconds: int
     max_retry_attempts: int
+    max_concurrent_jobs_min: int = QUEUE_MAX_CONCURRENT_JOBS_MIN
+    max_concurrent_jobs_max: int = QUEUE_MAX_CONCURRENT_JOBS_MAX
+    default_poll_seconds_min: int = QUEUE_DEFAULT_POLL_SECONDS_MIN
+    default_poll_seconds_max: int = QUEUE_DEFAULT_POLL_SECONDS_MAX
+    max_retry_attempts_min: int = QUEUE_MAX_RETRY_ATTEMPTS_MIN
+    max_retry_attempts_max: int = QUEUE_MAX_RETRY_ATTEMPTS_MAX
 
 
 class QueueSettingsUpdate(BaseModel):
@@ -181,6 +191,7 @@ class PresetUpsertRequest(BaseModel):
     key: str
     label: str
     description: Optional[str] = None
+    category: str = "general"
     status: str = "active"
     model_key: Optional[str] = None
     source_kind: str = "custom"
@@ -201,7 +212,6 @@ class PresetUpsertRequest(BaseModel):
     requires_audio: bool = False
     input_schema_json: List[Dict[str, Any]] = Field(default_factory=list)
     input_slots_json: List[Dict[str, Any]] = Field(default_factory=list)
-    choice_groups_json: List[Dict[str, Any]] = Field(default_factory=list)
     thumbnail_path: Optional[str] = None
     thumbnail_url: Optional[str] = None
     notes: Optional[str] = None
@@ -228,6 +238,7 @@ class PresetRecord(BaseModel):
     key: str
     label: str
     description: Optional[str] = None
+    category: str = "general"
     status: str = "active"
     model_key: Optional[str] = None
     source_kind: str = "custom"
@@ -248,7 +259,6 @@ class PresetRecord(BaseModel):
     requires_audio: bool = False
     input_schema_json: List[Dict[str, Any]] = Field(default_factory=list)
     input_slots_json: List[Dict[str, Any]] = Field(default_factory=list)
-    choice_groups_json: List[Dict[str, Any]] = Field(default_factory=list)
     thumbnail_path: Optional[str] = None
     thumbnail_url: Optional[str] = None
     notes: Optional[str] = None
@@ -275,6 +285,14 @@ class PresetRecord(BaseModel):
         merged["applies_to_input_patterns"] = applies_to_input_patterns
         merged["applies_to_input_patterns_json"] = applies_to_input_patterns
         return merged
+
+
+class PresetListResponse(BaseModel):
+    items: List[PresetRecord] = Field(default_factory=list)
+    total: int = 0
+    limit: int = 60
+    offset: int = 0
+    next_offset: Optional[int] = None
 
 
 class PromptRecipeVariable(BaseModel):
@@ -873,6 +891,9 @@ class AssetRecord(BaseModel):
     hero_web_path: Optional[str] = None
     hero_thumb_path: Optional[str] = None
     hero_poster_path: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    duration_seconds: Optional[float] = None
     remote_output_url: Optional[str] = None
     preset_key: Optional[str] = None
     preset_source: Optional[str] = None

@@ -5,7 +5,13 @@ import { getMediaDashboardSnapshot } from "@/lib/control-api";
 export default async function NewPromptRecipePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ returnTo?: string; project?: string }>;
+  searchParams?: Promise<{
+    assistantDraft?: string;
+    assistantMessage?: string;
+    assistantSession?: string;
+    returnTo?: string;
+    project?: string;
+  }>;
 }) {
   const snapshot = await getMediaDashboardSnapshot();
   const resolvedSearchParams = (await searchParams) ?? {};
@@ -22,6 +28,9 @@ export default async function NewPromptRecipePage({
         recipes={snapshot.promptRecipes.data?.recipes ?? []}
         initialReturnTo={resolvedSearchParams.returnTo ?? "/presets?tab=prompt-recipes"}
         initialDraftingConfig={snapshot.promptRecipeDraftingConfig.data?.config ?? null}
+        initialAssistantDraftId={resolvedSearchParams.assistantDraft ?? null}
+        initialAssistantSessionId={resolvedSearchParams.assistantSession ?? null}
+        initialAssistantMessageId={resolvedSearchParams.assistantMessage ?? null}
       />
     </StudioAdminShell>
   );

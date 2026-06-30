@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { GraphNodeDefinition, GraphNodePricingEstimate, StudioEdge, StudioNode } from "../types";
+import type { MediaAsset } from "@/lib/types";
 import { inputGraphHandleId, outputGraphHandleId } from "../utils/graph-port-handles";
 import { useGraphNodePreviews } from "./use-graph-node-previews";
 
@@ -42,18 +43,22 @@ function Harness({
   onRendered,
   harnessNodes = nodes,
   harnessEdges = [],
+  harnessHandlers = handlers,
+  harnessAssets = [],
 }: {
   pricingByNode: Record<string, GraphNodePricingEstimate>;
   onRendered: (nodes: StudioNode[]) => void;
   harnessNodes?: StudioNode[];
   harnessEdges?: StudioEdge[];
+  harnessHandlers?: typeof handlers;
+  harnessAssets?: MediaAsset[];
 }) {
   const renderedNodes = useGraphNodePreviews({
     nodes: harnessNodes,
     edges: harnessEdges,
-    assets: [],
+    assets: harnessAssets,
     references: [],
-    nodeHandlers: handlers,
+    nodeHandlers: harnessHandlers,
     activeConnection: null,
     renamingNodeId: null,
     nodeRenameDraft: "",
@@ -122,5 +127,59 @@ describe("useGraphNodePreviews", () => {
     const renderedNodes = onRendered.mock.calls.at(-1)?.[0] as StudioNode[];
     expect(renderedNodes[0].data.connectedOutputPorts).toEqual(["text"]);
     expect(renderedNodes[1].data.connectedInputPorts).toEqual(["prompt"]);
+  });
+
+  it("keeps rendered nodes stable when handler bindings change while calling the latest handler", () => {
+    const onRendered = vi.fn();
+    const firstHandlers = { onFieldChange: vi.fn() };
+    const secondHandlers = { onFieldChange: vi.fn() };
+    const { rerender } = render(<Harness pricingByNode={{}} onRendered={onRendered} harnessHandlers={firstHandlers} />);
+    const firstNodes = onRendered.mock.calls.at(-1)?.[0] as StudioNode[];
+
+    rerender(<Harness pricingByNode={{}} onRendered={onRendered} harnessHandlers={secondHandlers} />);
+    const secondNodes = onRendered.mock.calls.at(-1)?.[0] as StudioNode[];
+
+    expect(secondNodes).toBe(firstNodes);
+    expect(secondNodes[0]).toBe(firstNodes[0]);
+
+    secondNodes[0].data.onFieldChange("node-1", "prompt", "updated");
+
+    expect(firstHandlers.onFieldChange).not.toHaveBeenCalled();
+    expect(secondHandlers.onFieldChange).toHaveBeenCalledWith("node-1", "prompt", "updated");
+  });
+
+  it("refreshes media previews when hydrated asset detail adds dimensions", () => {
+    const onRendered = vi.fn();
+    const assetNode: StudioNode = {
+      ...nodes[0],
+      data: {
+        ...nodes[0].data,
+        fields: { asset_id: "asset_1" },
+      },
+    };
+    const summaryAsset = {
+      asset_id: "asset_1",
+      created_at: "2026-05-19T00:00:00.000Z",
+      generation_kind: "image",
+      hero_thumb_url: "/thumb.webp",
+      prompt_summary: "Graph asset",
+    } as MediaAsset;
+    const hydratedAsset = {
+      ...summaryAsset,
+      payload: { outputs: [{ width: 1536, height: 1024 }] },
+    } as MediaAsset;
+
+    const { rerender } = render(
+      <Harness pricingByNode={{}} onRendered={onRendered} harnessNodes={[assetNode]} harnessAssets={[summaryAsset]} />,
+    );
+    const firstNodes = onRendered.mock.calls.at(-1)?.[0] as StudioNode[];
+    expect(firstNodes[0].data.mediaPreview?.resolutionLabel).toBeNull();
+
+    rerender(<Harness pricingByNode={{}} onRendered={onRendered} harnessNodes={[assetNode]} harnessAssets={[hydratedAsset]} />);
+    const secondNodes = onRendered.mock.calls.at(-1)?.[0] as StudioNode[];
+
+    expect(secondNodes[0]).not.toBe(firstNodes[0]);
+    expect(secondNodes[0].data.mediaPreview?.resolutionLabel).toBe("1536x1024");
+    expect(secondNodes[0].data.mediaPreview?.aspectLabel).toBe("3:2");
   });
 });

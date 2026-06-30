@@ -184,6 +184,41 @@ describe("graph workflow serialization", () => {
     expect(workflow.nodes[0].metadata?.style?.height).toBeUndefined();
   });
 
+  it("does not persist auto-grown preset picker heights back into workflow metadata", () => {
+    const presetDefinition: GraphNodeDefinition = {
+      type: "preset.render",
+      title: "Media Preset",
+      category: "Preset",
+      fields: [{ id: "preset_id", label: "Media Preset", type: "preset_picker" }],
+      ports: { inputs: [], outputs: [{ id: "image", label: "Image", type: "image" }] },
+      ui: {
+        default_size: { width: 340, height: 520 },
+        min_size: { width: 280, height: 360 },
+        max_size: { width: 860, height: 1200 },
+      },
+    };
+    const node = {
+      id: "preset",
+      position: { x: 0, y: 0 },
+      data: {
+        definition: presetDefinition,
+        fields: { preset_id: "preset-1" },
+        autoSizedHeight: 6572,
+      },
+      style: {
+        width: 340,
+        height: 6572,
+        minHeight: 6572,
+      },
+    } as StudioNode;
+
+    const workflow = workflowFromCanvas("workflow-1", "Preset picker", [node], []);
+    expect(workflow.nodes[0].metadata?.style).toMatchObject({
+      width: 340,
+    });
+    expect(workflow.nodes[0].metadata?.style?.height).toBeUndefined();
+  });
+
   it("persists manual media node size and restores it without inflating min height", () => {
     const loadDefinition: GraphNodeDefinition = {
       type: "media.load_image",

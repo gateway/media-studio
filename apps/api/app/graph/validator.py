@@ -15,10 +15,53 @@ from .validator_prompt_recipe import (
 )
 
 GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
+PRESET_TEST_TEMPLATE_IDS = {"preset_style_t2i_sandbox_v1", "preset_style_i2i_sandbox_v1"}
 
 
-def _port_map(definition, direction: str) -> Dict[str, object]:
-    return {port.id: port for port in definition.ports.get(direction, [])}
+def _is_seedance_2_model(model_key: str) -> bool:
+    normalized = str(model_key or "").strip().lower().replace("_", "-")
+    return normalized == "seedance-2.0" or normalized.startswith("seedance-2.0-")
+
+
+def _field_value(fields: Dict[str, Any], definition: object, field_id: str) -> Any:
+    if field_id in fields and fields[field_id] not in (None, ""):
+        return fields[field_id]
+    for field in getattr(definition, "fields", []) or []:
+        if getattr(field, "id", None) == field_id:
+            return getattr(field, "default", None)
+    return None
+
+
+def _values_equal(left: Any, right: Any) -> bool:
+    return str(left if left is not None else "") == str(right if right is not None else "")
+
+
+def _visible_condition_passes(condition: Any, fields: Dict[str, Any], definition: object) -> bool:
+    if not isinstance(condition, dict) or not condition.get("field"):
+        return True
+    current = _field_value(fields, definition, str(condition.get("field") or ""))
+    if "equals" in condition:
+        return _values_equal(current, condition.get("equals"))
+    if "not_equals" in condition:
+        return not _values_equal(current, condition.get("not_equals"))
+    if isinstance(condition.get("in"), list):
+        return any(_values_equal(current, item) for item in condition.get("in") or [])
+    if isinstance(condition.get("not_in"), list):
+        return not any(_values_equal(current, item) for item in condition.get("not_in") or [])
+    return True
+
+
+def _visible_ports(definition, direction: str, fields: Dict[str, Any]) -> List[object]:
+    return [
+        port
+        for port in definition.ports.get(direction, [])
+        if _visible_condition_passes(getattr(port, "visible_if", None), fields, definition)
+    ]
+
+
+def _port_map(definition, direction: str, fields: Dict[str, Any] | None = None) -> Dict[str, object]:
+    ports = _visible_ports(definition, direction, fields or {})
+    return {port.id: port for port in ports}
 
 
 def _port_accepts(source_type: str, target_port: object) -> bool:
@@ -49,6 +92,51 @@ def _slug(value: str) -> str:
     return "".join(character if character.isalnum() else "_" for character in value.lower()).strip("_")
 
 
+def _assistant_prompt_hash(prompt: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(repr(prompt or "").encode("utf-8")).hexdigest()[:12]
+
+
+def _node_title(node: GraphWorkflowNode) -> str:
+    metadata = node.metadata if isinstance(node.metadata, dict) else {}
+    ui = metadata.get("ui") if isinstance(metadata.get("ui"), dict) else {}
+    return str(ui.get("customTitle") or "")
+
+
+def _draft_preset_prompt_text(workflow: GraphWorkflow) -> str:
+    for node in workflow.nodes:
+        if node.type == "prompt.text" and _node_title(node).lower() == "draft preset prompt":
+            return str(node.fields.get("text") or "").strip()
+    return ""
+
+
+def _validate_assistant_prompt_quality_gate(workflow: GraphWorkflow, errors: List[GraphError]) -> None:
+    metadata = workflow.metadata if isinstance(workflow.metadata, dict) else {}
+    assistant_plan = metadata.get("assistant_plan") if isinstance(metadata.get("assistant_plan"), dict) else {}
+    if str(assistant_plan.get("template_id") or "") not in PRESET_TEST_TEMPLATE_IDS:
+        return
+    if not assistant_plan.get("prompt_quality_gate_required"):
+        return
+    if assistant_plan.get("prompt_quality_passed") is not True:
+        errors.append(
+            GraphError(
+                code="preset_prompt_quality_failed",
+                message="Preset test workflow prompt has not passed the Media Assistant prompt quality gate.",
+            )
+        )
+        return
+    prompt_text = _draft_preset_prompt_text(workflow)
+    expected_hash = str(assistant_plan.get("prompt_quality_prompt_hash") or "")
+    if not prompt_text or not expected_hash or _assistant_prompt_hash(prompt_text) != expected_hash:
+        errors.append(
+            GraphError(
+                code="preset_prompt_quality_stale",
+                message="Draft preset prompt changed after Media Assistant quality validation. Ask the assistant to review the updated prompt before running.",
+            )
+        )
+
+
 def _preset_id_for_node(node: GraphWorkflowNode, definition) -> str:
     preset_id = str(node.fields.get("preset_id") or "").strip()
     if preset_id:
@@ -63,6 +151,22 @@ def _preset_model_key_for_node(node: GraphWorkflowNode, preset: Dict[str, Any]) 
         compatible.insert(0, default_model)
     selected = str(node.fields.get("preset_model_key") or "").strip()
     return selected or (compatible[0] if compatible else default_model), compatible
+
+
+def _preset_slot_required_for_port(node: GraphWorkflowNode, port_id: str) -> bool | None:
+    if node.type != "preset.render" or not port_id.startswith("slot__"):
+        return None
+    preset_id = _preset_id_for_node(node, None)
+    if not preset_id:
+        return None
+    preset = store.get_preset(preset_id)
+    if not preset:
+        return None
+    for slot in preset.get("input_slots_json") or []:
+        key = str(slot.get("key") or "").strip()
+        if key and f"slot__{_slug(key)}" == port_id:
+            return bool(slot.get("required"))
+    return None
 
 
 def _node_execution_mode(node: GraphWorkflowNode) -> str:
@@ -89,9 +193,6 @@ def _prompt_node_provider_supports_images(node: GraphWorkflowNode) -> bool | Non
     explicit = node.fields.get("provider_supports_images")
     if isinstance(explicit, bool):
         return explicit
-    legacy = node.fields.get("model_supports_images")
-    if isinstance(legacy, bool):
-        return legacy
     return None
 
 
@@ -103,7 +204,7 @@ def _validate_seedance_input_mode(
     errors: List[GraphError],
 ) -> None:
     source = definition.source if isinstance(definition.source, dict) else {}
-    if source.get("kind") != "kie_model" or str(source.get("model_key") or "") != "seedance-2.0":
+    if source.get("kind") != "kie_model" or not _is_seedance_2_model(str(source.get("model_key") or "")):
         return
 
     start_count = available_incoming_by_target_port[(node.id, "start_frame")]
@@ -144,6 +245,7 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
     definitions = registry.definitions_by_type()
     errors: List[GraphError] = []
     warnings: List[GraphError] = []
+    _validate_assistant_prompt_quality_gate(workflow, errors)
     workflow_id = workflow.workflow_id or str(workflow.metadata.get("workflow_id") or "")
     frozen_cache_by_node_id: Dict[str, Dict[str, Any] | None] = {}
     prompt_recipe_context_by_node_id: Dict[str, Dict[str, Any]] = {}
@@ -223,17 +325,6 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                                 field_id=f"text__{_slug(key)}",
                             )
                         )
-                for group in preset.get("choice_groups_json") or []:
-                    key = str(group.get("key") or group.get("id") or "").strip()
-                    if key and group.get("required") and not str(node.fields.get(f"choice__{_slug(key)}") or group.get("default") or "").strip():
-                        errors.append(
-                            GraphError(
-                                code="missing_preset_choice",
-                                message=f"Missing required preset choice: {key}",
-                                node_id=node.id,
-                                field_id=f"choice__{_slug(key)}",
-                            )
-                        )
                 model_key, compatible_models = _preset_model_key_for_node(node, preset)
                 if not model_key:
                     errors.append(GraphError(code="missing_preset_model", message="Media Preset has no compatible model.", node_id=node.id, field_id="preset_model_key"))
@@ -246,7 +337,7 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                             field_id="preset_model_key",
                         )
                     )
-        if node.type == "prompt.recipe" or node.type.startswith("prompt.recipe."):
+        if node.type == "prompt.recipe":
             prompt_recipe_context = validate_prompt_recipe_node_setup(node, definition, errors=errors)
             if prompt_recipe_context:
                 prompt_recipe_context_by_node_id[node.id] = prompt_recipe_context
@@ -271,8 +362,8 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
         target_def = definitions.get(target.type)
         if not source_def or not target_def:
             continue
-        source_port = _port_map(source_def, "outputs").get(edge.source_port)
-        target_port = _port_map(target_def, "inputs").get(edge.target_port)
+        source_port = _port_map(source_def, "outputs", source.fields).get(edge.source_port)
+        target_port = _port_map(target_def, "inputs", target.fields).get(edge.target_port)
         if not source_port:
             errors.append(GraphError(code="missing_source_port", message=f"Unknown source port: {edge.source_port}", edge_id=edge.id, port_id=edge.source_port))
             continue
@@ -328,7 +419,10 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                     )
                 )
         if source.type in {"media.load_image", "media.load_video", "media.load_audio"} and not source.fields.get("asset_id") and not source.fields.get("reference_id"):
-            if getattr(target_port, "required", False):
+            target_requires_media = _preset_slot_required_for_port(target, edge.target_port)
+            if target_requires_media is None:
+                target_requires_media = bool(getattr(target_port, "required", False))
+            if target_requires_media:
                 errors.append(
                     GraphError(
                         code="missing_media_reference",
@@ -381,7 +475,7 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
             continue
         if execution_mode == "frozen":
             continue
-        for port in definition.ports.get("inputs", []):
+        for port in _visible_ports(definition, "inputs", node.fields):
             if port.required and available_incoming_by_target_port[(node.id, port.id)] < max(1, port.min):
                 errors.append(GraphError(code="missing_required_input", message=f"Missing required input: {port.label}", node_id=node.id, port_id=port.id))
         if node.type == "prompt.llm" and available_incoming_by_target_port[(node.id, "image")] > 0:
@@ -412,7 +506,7 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                 available_incoming_by_target_port=available_incoming_by_target_port,
                 errors=errors,
             )
-            media_output_ports = [port for port in definition.ports.get("outputs", []) if getattr(port, "type", "") in {"image", "video", "audio"}]
+            media_output_ports = [port for port in _visible_ports(definition, "outputs", node.fields) if getattr(port, "type", "") in {"image", "video", "audio"}]
             if media_output_ports and not any(outgoing_by_source_port[(node.id, port.id)] > 0 for port in media_output_ports):
                 labels = ", ".join(getattr(port, "label", port.id) for port in media_output_ports)
                 errors.append(
@@ -451,7 +545,7 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                                 port_id=port_id,
                             )
                         )
-        if node.type == "prompt.recipe" or node.type.startswith("prompt.recipe."):
+        if node.type == "prompt.recipe":
             prompt_recipe_context = prompt_recipe_context_by_node_id.get(node.id)
             if prompt_recipe_context:
                 validate_prompt_recipe_runtime(
@@ -478,6 +572,8 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
 
     connected_node_ids = {edge.source for edge in workflow.edges} | {edge.target for edge in workflow.edges}
     for node in workflow.nodes:
+        if node.type == "utility.note":
+            continue
         if len(workflow.nodes) > 1 and node.id not in connected_node_ids:
             warnings.append(GraphError(code="disconnected_node", message="Node is disconnected.", node_id=node.id))
 

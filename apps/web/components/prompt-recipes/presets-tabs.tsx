@@ -16,6 +16,8 @@ type PresetsTabsProps = {
   activeTab: "media" | "prompt-recipes";
   models: MediaModelSummary[];
   presets: MediaPreset[];
+  presetsTotal?: number;
+  presetsNextOffset?: number | null;
   promptRecipes: PromptRecipe[];
   enhancementConfigs: MediaEnhancementConfig[];
   queueSettings: MediaQueueSettings | null;
@@ -31,6 +33,8 @@ export function PresetsTabs({
   activeTab,
   models,
   presets,
+  presetsTotal,
+  presetsNextOffset,
   promptRecipes,
   enhancementConfigs,
   queueSettings,
@@ -71,6 +75,8 @@ export function PresetsTabs({
         <MediaModelsConsole
           models={models}
           presets={presets}
+          presetsTotal={presetsTotal}
+          presetsNextOffset={presetsNextOffset}
           enhancementConfigs={enhancementConfigs}
           queueSettings={queueSettings}
           queuePolicies={queuePolicies}

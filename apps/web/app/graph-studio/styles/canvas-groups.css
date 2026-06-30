@@ -30,9 +30,9 @@
   padding: 0.38rem 0.7rem;
   border-bottom: 1px solid color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 42%, var(--graph-border-modal));
   border-radius: 10px 10px 0 0;
-  color: rgba(247, 246, 240, 0.88);
+  color: color-mix(in srgb, var(--graph-text) 88%, transparent);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 9%, rgba(35, 40, 38, 0.82)), rgba(17, 20, 19, 0.76)),
+    linear-gradient(180deg, color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 9%, rgba(35, 40, 38, 0.82)), color-mix(in srgb, var(--graph-panel) 76%, transparent)),
     rgba(32, 37, 36, 0.78);
   backdrop-filter: blur(1px);
   font-size: 0.72rem;
@@ -55,7 +55,7 @@
   border-radius: 6px;
   outline: none;
   background: var(--graph-overlay-button);
-  color: rgba(247, 246, 240, 0.94);
+  color: color-mix(in srgb, var(--graph-text) 94%, transparent);
   font: inherit;
   font-weight: 900;
   letter-spacing: 0;
@@ -67,7 +67,7 @@
   border: 1px solid color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 42%, var(--graph-border-modal));
   border-radius: 999px;
   color: var(--graph-text-body);
-  background: color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 12%, rgba(17, 20, 19, 0.84));
+  background: color-mix(in srgb, var(--graph-group-accent, var(--graph-accent)) 12%, var(--graph-overlay-button));
   font-size: 0.54rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -80,15 +80,15 @@
 
 .graph-group-frame-bypassed {
   border-style: dashed;
-  box-shadow: inset 0 0 0 1px rgba(178, 140, 255, 0.18);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--graph-bypass) 18%, transparent);
 }
 
 .graph-group-frame-frozen {
   opacity: 0.62;
   filter: grayscale(0.72);
   box-shadow:
-    inset 0 0 0 1px rgba(96, 210, 255, 0.18),
-    inset 0 0 0 999px rgba(12, 13, 13, 0.18);
+    inset 0 0 0 1px color-mix(in srgb, var(--graph-cyan) 18%, transparent),
+    inset 0 0 0 999px color-mix(in srgb, var(--graph-bg) 18%, transparent);
 }
 
 .graph-group-resize-handle {

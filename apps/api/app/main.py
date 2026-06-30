@@ -15,6 +15,7 @@ from . import codex_local_provider, kie_adapter, service, store
 from .control_auth import validate_control_request
 from .graph.cancellation import cancel_batch_jobs
 from .graph.registry import registry
+from .assistant.routes import router as assistant_router
 from .graph.routes import router as graph_router
 from .runner import runner
 from .schemas import (
@@ -46,6 +47,7 @@ from .schemas import (
     ProjectListResponse,
     ProjectRecord,
     ProjectUpsertRequest,
+    PresetListResponse,
     PresetRecord,
     PresetUpsertRequest,
     PricingResponse,
@@ -123,9 +125,11 @@ async def lifespan(_: FastAPI):
         runner.start()
     yield
     runner.stop()
+    codex_local_provider.close_codex_local_skill_sessions()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app.include_router(assistant_router)
 app.include_router(graph_router)
 settings.data_root.mkdir(parents=True, exist_ok=True)
 
@@ -321,7 +325,14 @@ def list_external_llm_usage(
 
 @app.get("/media/credits", response_model=CreditsResponse)
 def get_credits():
-    payload = kie_adapter.get_credit_balance()
+    try:
+        payload = kie_adapter.get_credit_balance()
+    except Exception as exc:
+        logger.warning("KIE credit balance check failed: %s", exc)
+        return CreditsResponse(
+            available_credits=None,
+            raw={"status": "unavailable", "error": str(exc)},
+        )
     return CreditsResponse(available_credits=payload.get("available_credits"), raw=payload)
 
 
@@ -348,6 +359,24 @@ def patch_queue_policy(model_key: str, payload: ModelQueuePolicyUpdate):
 @app.get("/media/presets", response_model=List[PresetRecord])  # type: ignore[name-defined]
 def list_presets():
     return [PresetRecord(**item) for item in store.list_presets()]
+
+
+@app.get("/media/presets/search", response_model=PresetListResponse)
+def search_presets(
+    limit: int = Query(default=60, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    q: Optional[str] = Query(default=None),
+    category: Optional[str] = Query(default=None),
+    status: str = Query(default="active"),
+):
+    page = store.list_presets_page(limit=limit, offset=offset, q=q, category=category, status=status)
+    return PresetListResponse(
+        items=[PresetRecord(**item) for item in page["items"]],
+        total=int(page["total"]),
+        limit=int(page["limit"]),
+        offset=int(page["offset"]),
+        next_offset=page["next_offset"],
+    )
 
 
 @app.get("/media/presets/{preset_id}", response_model=PresetRecord)
@@ -503,8 +532,9 @@ def list_reference_media(
     project_id: Optional[str] = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
+    q: Optional[str] = Query(default=None),
 ):
-    items = service.list_available_reference_media(kind=kind, limit=limit, offset=offset, project_id=project_id)
+    items = service.list_available_reference_media(kind=kind, limit=limit, offset=offset, project_id=project_id, q=q)
     return ReferenceMediaListResponse(
         items=[ReferenceMediaRecord(**item) for item in items],
         limit=limit,
@@ -917,11 +947,13 @@ def list_assets(
     limit: int = Query(default=50, le=200),
     cursor: Optional[str] = None,
     favorites: bool = False,
-    media_type: Optional[str] = Query(default=None, pattern="^(image|video)?$"),
+    media_type: Optional[str] = Query(default=None, pattern="^(image|video|audio)?$"),
     model_key: Optional[str] = None,
     status: Optional[str] = None,
     preset_key: Optional[str] = None,
     project_id: Optional[str] = Query(default=None),
+    compact: bool = False,
+    q: Optional[str] = Query(default=None),
 ):
     rows = store.list_assets(
         limit=limit + 1,
@@ -932,6 +964,8 @@ def list_assets(
         status=status,
         preset_key=preset_key,
         project_id=project_id,
+        compact=compact,
+        q=q,
     )
     has_more = len(rows) > limit
     rows = rows[:limit]

@@ -1,13 +1,20 @@
 import { MediaPresetEditorScreen } from "@/components/media-preset-editor-screen";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
-import { getMediaDashboardSnapshot } from "@/lib/control-api";
+import { getControlPlaneSnapshot } from "@/lib/control-api";
 
 export default async function NewMediaPresetPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ model?: string; returnTo?: string; project?: string }>;
+  searchParams?: Promise<{
+    assistantDraft?: string;
+    assistantMessage?: string;
+    assistantSession?: string;
+    model?: string;
+    returnTo?: string;
+    project?: string;
+  }>;
 }) {
-  const snapshot = await getMediaDashboardSnapshot();
+  const snapshot = await getControlPlaneSnapshot();
   const resolvedSearchParams = (await searchParams) ?? {};
 
   return (
@@ -20,9 +27,12 @@ export default async function NewMediaPresetPage({
     >
       <MediaPresetEditorScreen
         models={snapshot.models.data?.models ?? []}
-        presets={snapshot.presets.data?.presets ?? []}
+        presets={[]}
         initialModelKey={resolvedSearchParams.model ?? "nano-banana-2"}
         initialReturnTo={resolvedSearchParams.returnTo ?? null}
+        initialAssistantDraftId={resolvedSearchParams.assistantDraft ?? null}
+        initialAssistantSessionId={resolvedSearchParams.assistantSession ?? null}
+        initialAssistantMessageId={resolvedSearchParams.assistantMessage ?? null}
       />
     </StudioAdminShell>
   );

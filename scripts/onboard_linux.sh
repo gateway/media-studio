@@ -184,12 +184,13 @@ if [[ -z "$summary_web_port" ]]; then
 fi
 echo " - Studio: ./scripts/run_studio_linux.sh"
 echo " - Stop later: ./scripts/stop_studio_linux.sh"
-echo " - Setup page: http://127.0.0.1:$summary_web_port/setup"
-echo " - AI settings: http://127.0.0.1:$summary_web_port/settings/llms"
-echo "If the default ports are busy, the launcher prints the actual temporary Studio URL it selected."
+echo " - Configured setup page if the web port is free: http://127.0.0.1:$summary_web_port/setup"
+echo " - Configured AI settings if the web port is free: http://127.0.0.1:$summary_web_port/settings/llms"
+echo " - Actual launch URL: printed by the launcher after it checks for free API and web ports"
+echo "If ports 8000 or 3000 are busy, startup automatically selects temporary open ports for that launch."
 echo
 
-if prompt_yes_no "Start Media Studio now in this terminal?" "N"; then
+if prompt_yes_no "Start Media Studio now in this terminal with automatic port selection?" "N"; then
   cd "$MEDIA_ROOT"
   exec ./scripts/run_studio_linux.sh
 fi

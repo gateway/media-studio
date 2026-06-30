@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 
 import { NextResponse } from "next/server";
 
-import { isTrustedLocalRequest } from "@/lib/admin-access";
+import { isTrustedLocalRequest, isTrustedPrivateNetworkRequest } from "@/lib/admin-access";
 
 const execFileAsync = promisify(execFile);
 
@@ -23,6 +23,16 @@ const LABELS: Record<RuntimeService, string> = {
   api: "com.media-studio.api",
   web: "com.media-studio.web",
 };
+
+function isTrustedRuntimeRequest(url: URL, headers: Headers) {
+  if (isTrustedLocalRequest(url, headers)) {
+    return true;
+  }
+  return (
+    process.env.MEDIA_STUDIO_ALLOW_PRIVATE_NETWORK_ACCESS?.trim().toLowerCase() === "true" &&
+    isTrustedPrivateNetworkRequest(url, headers)
+  );
+}
 
 function getMediaRoot() {
   if (process.env.MEDIA_STUDIO_DATA_ROOT) {
@@ -197,7 +207,7 @@ function scheduleLaunchdRestart(service: RuntimeService) {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  if (!isTrustedLocalRequest(url, request.headers)) {
+  if (!isTrustedRuntimeRequest(url, request.headers)) {
     return NextResponse.json({ ok: false, error: "Runtime controls require a local operator request." }, { status: 403 });
   }
   const [api, web] = await Promise.all([detectService("api"), detectService("web")]);
@@ -206,7 +216,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const url = new URL(request.url);
-  if (!isTrustedLocalRequest(url, request.headers)) {
+  if (!isTrustedRuntimeRequest(url, request.headers)) {
     return NextResponse.json({ ok: false, error: "Runtime controls require a local operator request." }, { status: 403 });
   }
   try {

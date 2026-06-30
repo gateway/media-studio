@@ -1,6 +1,6 @@
 import { mediaDisplayUrl, mediaThumbnailUrl } from "@/lib/media-studio-helpers";
-import type { MediaAsset } from "@/lib/types";
+import type { MediaAsset, MediaAssetPickerItem } from "@/lib/types";
 
-export function generatedThumbnailPreviewUrl(asset: MediaAsset | null | undefined) {
+export function generatedThumbnailPreviewUrl(asset: MediaAsset | MediaAssetPickerItem | null | undefined) {
   return mediaThumbnailUrl(asset) ?? mediaDisplayUrl(asset) ?? asset?.hero_original_url ?? asset?.hero_web_url ?? null;
 }

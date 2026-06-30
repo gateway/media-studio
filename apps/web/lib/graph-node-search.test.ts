@@ -710,6 +710,27 @@ describe("graph node layout", () => {
     expect(visibleGraphOutputPorts(audioTransformDefinition!, {}).map((port) => port.id)).toEqual(["metadata"]);
     expect(visibleGraphOutputPorts(audioTransformDefinition!, { operation: "trim" }).map((port) => port.id)).toEqual(["audio"]);
   });
+
+  it("shows conditional model outputs only when their controlling field is enabled", () => {
+    const seedanceDefinition: GraphNodeDefinition = {
+      type: "model.kie.seedance_2_0",
+      title: "Seedance 2.0",
+      category: "Models/Video",
+      source: { kind: "kie_model", model_key: "seedance-2.0", output_media_type: "video" },
+      ports: {
+        inputs: [],
+        outputs: [
+          { id: "video", label: "Video", type: "video" },
+          { id: "image", label: "Last Frame", type: "image", visible_if: { field: "return_last_frame", equals: true } },
+          { id: "job", label: "Job", type: "job", advanced: true },
+        ],
+      },
+      fields: [{ id: "return_last_frame", label: "Output Last Frame", type: "boolean", default: false }],
+    };
+
+    expect(visibleGraphOutputPorts(seedanceDefinition, {}).map((port) => port.id)).toEqual(["video"]);
+    expect(visibleGraphOutputPorts(seedanceDefinition, { return_last_frame: true }).map((port) => port.id)).toEqual(["video", "image"]);
+  });
 });
 
 describe("graph port compatibility", () => {

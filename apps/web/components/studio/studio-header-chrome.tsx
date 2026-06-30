@@ -55,6 +55,7 @@ function FilterButton({
       onClick={onClick}
       aria-label={label}
       tone={active ? "primary" : "subtle"}
+      className={active ? undefined : "studio-badge"}
     />
   );
 }
@@ -101,8 +102,8 @@ export function StudioHeaderChrome({
   }
 
   return (
-    <div className="pointer-events-none fixed left-5 right-5 top-5 z-30 flex flex-col gap-2 md:left-7 md:right-7 md:top-7 md:flex-row md:items-start md:justify-between">
-      <div className="pointer-events-auto flex items-center gap-2">
+    <div className="studio-header-chrome-root">
+      <div className="studio-header-filter-row">
         <FilterButton
           active={!favoritesOnly && galleryKindFilter === "all"}
           icon={Monitor}
@@ -162,7 +163,7 @@ export function StudioHeaderChrome({
           onClick={onOpenSettings}
         />
       </div>
-      <div className="pointer-events-auto flex items-center justify-end gap-2 md:max-w-[calc(100vw-3.5rem)]">
+      <div className="studio-header-metrics-row">
         {metrics}
       </div>
     </div>

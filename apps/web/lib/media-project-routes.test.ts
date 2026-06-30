@@ -40,11 +40,17 @@ describe("project control web routes", () => {
   it("lists projects through the project route wrapper", async () => {
     listMediaProjects.mockResolvedValueOnce({
       ok: true,
-      data: { projects: [{ project_id: "project-1", name: "Alpha", status: "active" }] },
+      data: {
+        projects: [
+          { project_id: "project-1", name: "Alpha", status: "active" },
+        ],
+      },
     });
 
     const { GET } = await import("@/app/api/control/media/projects/route");
-    const response = await GET(new NextRequest("http://localhost/api/control/media/projects?status=all"));
+    const response = await GET(
+      new NextRequest("http://localhost/api/control/media/projects?status=all"),
+    );
     const payload = await response.json();
 
     expect(response.status).toBe(200);
@@ -55,10 +61,49 @@ describe("project control web routes", () => {
     });
   });
 
+  it("returns shared error payloads for project route failures", async () => {
+    listMediaProjects.mockResolvedValueOnce({
+      ok: false,
+      data: null,
+      error: "Project backend unavailable.",
+    });
+    createMediaProject.mockResolvedValueOnce({ ok: false, data: null });
+
+    const { GET, POST } =
+      await import("@/app/api/control/media/projects/route");
+
+    const listResponse = await GET(
+      new NextRequest("http://localhost/api/control/media/projects?status=all"),
+    );
+    const listPayload = await listResponse.json();
+
+    const createResponse = await POST(
+      new NextRequest("http://localhost/api/control/media/projects", {
+        method: "POST",
+        body: JSON.stringify({ name: "Alpha" }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const createPayload = await createResponse.json();
+
+    expect(listResponse.status).toBe(500);
+    expect(listPayload).toEqual({
+      ok: false,
+      error: "Project backend unavailable.",
+    });
+    expect(createResponse.status).toBe(500);
+    expect(createPayload).toEqual({
+      ok: false,
+      error: "Unable to create the project.",
+    });
+  });
+
   it("creates a project with wrapped project payload", async () => {
     createMediaProject.mockResolvedValueOnce({
       ok: true,
-      data: { project: { project_id: "project-1", name: "Alpha", status: "active" } },
+      data: {
+        project: { project_id: "project-1", name: "Alpha", status: "active" },
+      },
     });
 
     const { POST } = await import("@/app/api/control/media/projects/route");
@@ -72,7 +117,10 @@ describe("project control web routes", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(createMediaProject).toHaveBeenCalledWith({ name: "Alpha", description: "" });
+    expect(createMediaProject).toHaveBeenCalledWith({
+      name: "Alpha",
+      description: "",
+    });
     expect(payload).toEqual({
       ok: true,
       project: { project_id: "project-1", name: "Alpha", status: "active" },
@@ -82,24 +130,33 @@ describe("project control web routes", () => {
   it("updates, archives, restores, and deletes projects through wrapped routes", async () => {
     updateMediaProject.mockResolvedValueOnce({
       ok: true,
-      data: { project: { project_id: "project-1", name: "Beta", status: "active" } },
+      data: {
+        project: { project_id: "project-1", name: "Beta", status: "active" },
+      },
     });
     archiveMediaProject.mockResolvedValueOnce({
       ok: true,
-      data: { project: { project_id: "project-1", name: "Beta", status: "archived" } },
+      data: {
+        project: { project_id: "project-1", name: "Beta", status: "archived" },
+      },
     });
     unarchiveMediaProject.mockResolvedValueOnce({
       ok: true,
-      data: { project: { project_id: "project-1", name: "Beta", status: "active" } },
+      data: {
+        project: { project_id: "project-1", name: "Beta", status: "active" },
+      },
     });
     deleteMediaProject.mockResolvedValueOnce({
       ok: true,
       data: { project: null },
     });
 
-    const projectRoute = await import("@/app/api/control/media/projects/[projectId]/route");
-    const archiveRoute = await import("@/app/api/control/media/projects/[projectId]/archive/route");
-    const unarchiveRoute = await import("@/app/api/control/media/projects/[projectId]/unarchive/route");
+    const projectRoute =
+      await import("@/app/api/control/media/projects/[projectId]/route");
+    const archiveRoute =
+      await import("@/app/api/control/media/projects/[projectId]/archive/route");
+    const unarchiveRoute =
+      await import("@/app/api/control/media/projects/[projectId]/unarchive/route");
 
     const patchResponse = await projectRoute.PATCH(
       new NextRequest("http://localhost/api/control/media/projects/project-1", {
@@ -111,18 +168,27 @@ describe("project control web routes", () => {
     );
     const patchPayload = await patchResponse.json();
 
-    const archiveResponse = await archiveRoute.POST(new Request("http://localhost"), {
-      params: Promise.resolve({ projectId: "project-1" }),
-    });
+    const archiveResponse = await archiveRoute.POST(
+      new Request("http://localhost"),
+      {
+        params: Promise.resolve({ projectId: "project-1" }),
+      },
+    );
     const archivePayload = await archiveResponse.json();
 
-    const unarchiveResponse = await unarchiveRoute.POST(new Request("http://localhost"), {
-      params: Promise.resolve({ projectId: "project-1" }),
-    });
+    const unarchiveResponse = await unarchiveRoute.POST(
+      new Request("http://localhost"),
+      {
+        params: Promise.resolve({ projectId: "project-1" }),
+      },
+    );
     const unarchivePayload = await unarchiveResponse.json();
 
     const deleteResponse = await projectRoute.DELETE(
-      new NextRequest("http://localhost/api/control/media/projects/project-1?permanent=true", { method: "DELETE" }),
+      new NextRequest(
+        "http://localhost/api/control/media/projects/project-1?permanent=true",
+        { method: "DELETE" },
+      ),
       { params: Promise.resolve({ projectId: "project-1" }) },
     );
     const deletePayload = await deleteResponse.json();
@@ -164,23 +230,39 @@ describe("project control web routes", () => {
       data: { item: { reference_id: "ref-1", kind: "image" } },
     });
 
-    const listRoute = await import("@/app/api/control/media/projects/[projectId]/references/route");
-    const itemRoute = await import("@/app/api/control/media/projects/[projectId]/references/[referenceId]/route");
+    const listRoute =
+      await import("@/app/api/control/media/projects/[projectId]/references/route");
+    const itemRoute =
+      await import("@/app/api/control/media/projects/[projectId]/references/[referenceId]/route");
 
     const listResponse = await listRoute.GET(
-      new NextRequest("http://localhost/api/control/media/projects/project-1/references?kind=image"),
+      new NextRequest(
+        "http://localhost/api/control/media/projects/project-1/references?kind=image",
+      ),
       { params: Promise.resolve({ projectId: "project-1" }) },
     );
     const listPayload = await listResponse.json();
 
-    const attachResponse = await itemRoute.POST(new Request("http://localhost", { method: "POST" }), {
-      params: Promise.resolve({ projectId: "project-1", referenceId: "ref-1" }),
-    });
+    const attachResponse = await itemRoute.POST(
+      new Request("http://localhost", { method: "POST" }),
+      {
+        params: Promise.resolve({
+          projectId: "project-1",
+          referenceId: "ref-1",
+        }),
+      },
+    );
     const attachPayload = await attachResponse.json();
 
-    const detachResponse = await itemRoute.DELETE(new Request("http://localhost", { method: "DELETE" }), {
-      params: Promise.resolve({ projectId: "project-1", referenceId: "ref-1" }),
-    });
+    const detachResponse = await itemRoute.DELETE(
+      new Request("http://localhost", { method: "DELETE" }),
+      {
+        params: Promise.resolve({
+          projectId: "project-1",
+          referenceId: "ref-1",
+        }),
+      },
+    );
     const detachPayload = await detachResponse.json();
 
     expect(listPayload).toEqual({

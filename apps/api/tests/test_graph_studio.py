@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import time
 import shutil
 import subprocess
@@ -16,7 +17,7 @@ from app.graph.definition_validator import (
     validate_node_definition,
 )
 from app.graph.schemas import GraphOutputRef
-from app.graph.executors.prompt_ops import _normalize_prompt_recipe_result
+from app.graph.executors.prompt_ops import _normalize_prompt_recipe_result, _sanitize_storyboard_v2_prompt_text
 from app.graph.normalization import materialize_workflow_defaults
 from app.graph.schemas import GraphNodeDefinition, GraphNodeField, GraphNodePort, GraphWorkflow
 
@@ -91,7 +92,7 @@ def _create_colored_reference_image(app_modules, *, name: str, color: tuple[int,
     return record["reference_id"]
 
 
-def _create_reference_video(app_modules, *, color: str = "0x101414", name: str = "graph-video-source.mp4") -> str:
+def _create_reference_video(app_modules, *, color: str = "0x101414", name: str = "graph-video-source.mp4", duration: float = 1) -> str:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         pytest.skip("ffmpeg is required for video transcode tests")
@@ -104,7 +105,7 @@ def _create_reference_video(app_modules, *, color: str = "0x101414", name: str =
             "-f",
             "lavfi",
             "-i",
-            f"color=c={color}:s=320x180:d=1",
+            f"color=c={color}:s=320x180:d={duration:g}",
             "-an",
             "-c:v",
             "libx264",
@@ -406,6 +407,7 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
         "utility.note",
         "preset.render",
         "prompt.concat",
+        "prompt.image_analyzer",
         "prompt.recipe",
         "prompt.parse",
         "media.save_images",
@@ -429,6 +431,14 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
     image_transform = next(item for item in items if item["type"] == "image.transform")
     assert image_transform["limits"]["max_dimension"] == 4096
     assert next(field for field in image_transform["fields"] if field["id"] == "operation")["default"] == "resize"
+    image_analyzer = next(item for item in items if item["type"] == "prompt.image_analyzer")
+    assert image_analyzer["execution"]["executor"] == "prompt.image_analyzer"
+    assert image_analyzer["source"]["supports_images"] == "required"
+    assert image_analyzer["limits"]["max_image_inputs"] == 1
+    assert image_analyzer["ports"]["inputs"][0]["id"] == "image"
+    assert image_analyzer["ports"]["inputs"][0]["required"] is True
+    assert {port["id"] for port in image_analyzer["ports"]["outputs"]} == {"text", "result"}
+    assert next(field for field in image_analyzer["fields"] if field["id"] == "mode")["default"] == "full_analysis"
     display_any = next(item for item in items if item["type"] == "display.any")
     assert display_any["category"] == "Preview"
     display_any_input = display_any["ports"]["inputs"][0]
@@ -479,13 +489,29 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
     assert any(port["id"] == "image_refs" and port["required"] is True and port["max"] == 1 for port in kling["ports"]["inputs"])
     assert not any(port["id"] == "video_refs" for port in kling["ports"]["inputs"])
     assert any(port["id"] == "video" and port["type"] == "video" for port in kling["ports"]["outputs"])
-    assert next(field for field in kling["fields"] if field["id"] == "sound")["type"] == "boolean"
-    assert next(field for field in kling["fields"] if field["id"] == "duration")["options"] == [5, 10]
+    kling_sound = next(field for field in kling["fields"] if field["id"] == "sound")
+    kling_duration = next(field for field in kling["fields"] if field["id"] == "duration")
+    assert kling_sound["type"] == "boolean"
+    assert kling_sound["default"] is False
+    assert kling_duration["options"] == [5, 10]
+    assert kling_duration["default"] == 5
+    kling_t2v = next(item for item in items if item["type"] == "model.kie.kling_2_6_t2v")
+    assert next(field for field in kling_t2v["fields"] if field["id"] == "sound")["default"] is False
+    assert next(field for field in kling_t2v["fields"] if field["id"] == "aspect_ratio")["default"] == "1:1"
+    assert next(field for field in kling_t2v["fields"] if field["id"] == "duration")["default"] == 5
     kling_3 = next(item for item in items if item["type"] == "model.kie.kling_3_0_i2v")
     kling_3_inputs = kling_3["ports"]["inputs"]
     assert any(port["id"] == "start_frame" and port["label"] == "Start Frame" and port["required"] is True and port["max"] == 1 for port in kling_3_inputs)
     assert any(port["id"] == "end_frame" and port["label"] == "End Frame" and port["required"] is False and port["max"] == 1 for port in kling_3_inputs)
     assert not any(port["id"] == "image_refs" for port in kling_3_inputs)
+    assert next(field for field in kling_3["fields"] if field["id"] == "duration")["default"] == 5
+    kling_turbo = next(item for item in items if item["type"] == "model.kie.kling_3_0_turbo_i2v")
+    kling_turbo_inputs = kling_turbo["ports"]["inputs"]
+    assert kling_turbo["source"]["model_key"] == "kling-3.0-turbo-i2v"
+    assert kling_turbo["source"]["output_media_type"] == "video"
+    assert any(port["id"] == "image_refs" and port["label"] == "Reference Image" and port["required"] is True and port["max"] == 1 for port in kling_turbo_inputs)
+    assert next(field for field in kling_turbo["fields"] if field["id"] == "duration")["default"] == 5
+    assert "1080p" in next(field for field in kling_turbo["fields"] if field["id"] == "resolution")["options"]
     kling_3_motion = next(item for item in items if item["type"] == "model.kie.kling_3_0_motion")
     assert not any(field["id"] == "background_source" for field in kling_3_motion["fields"])
     seedance = next(item for item in items if item["type"] == "model.kie.seedance_2_0")
@@ -498,6 +524,36 @@ def test_graph_node_definitions_include_first_slice_nodes(client) -> None:
     assert not any(port["id"] == "image_refs" for port in seedance_inputs)
     assert not any(port["id"] == "video_refs" for port in seedance_inputs)
     assert not any(port["id"] == "audio_refs" for port in seedance_inputs)
+    seedance_outputs = seedance["ports"]["outputs"]
+    assert any(port["id"] == "video" and port["type"] == "video" for port in seedance_outputs)
+    assert any(
+        port["id"] == "image"
+        and port["label"] == "Last Frame"
+        and port["type"] == "image"
+        and port["visible_if"] == {"field": "return_last_frame", "equals": True}
+        for port in seedance_outputs
+    )
+    assert next(field for field in seedance["fields"] if field["id"] == "duration")["default"] == 5
+    assert next(field for field in seedance["fields"] if field["id"] == "return_last_frame")["label"] == "Output Last Frame"
+    seedance_fast = next(item for item in items if item["type"] == "model.kie.seedance_2_0_fast")
+    seedance_fast_inputs = seedance_fast["ports"]["inputs"]
+    assert seedance_fast["source"]["model_key"] == "seedance-2.0-fast"
+    assert any(port["id"] == "start_frame" and port["type"] == "image" and port["max"] == 1 for port in seedance_fast_inputs)
+    assert any(port["id"] == "end_frame" and port["type"] == "image" and port["max"] == 1 for port in seedance_fast_inputs)
+    assert any(port["id"] == "reference_images" and port["array"] is True and port["max"] == 9 for port in seedance_fast_inputs)
+    assert any(port["id"] == "reference_videos" and port["array"] is True and port["max"] == 3 for port in seedance_fast_inputs)
+    assert any(port["id"] == "reference_audios" and port["array"] is True and port["max"] == 3 for port in seedance_fast_inputs)
+    assert any(port["id"] == "image" and port["label"] == "Last Frame" for port in seedance_fast["ports"]["outputs"])
+    assert "720p" in next(field for field in seedance_fast["fields"] if field["id"] == "resolution")["options"]
+    seedance_mini = next(item for item in items if item["type"] == "model.kie.seedance_2_0_mini")
+    seedance_mini_inputs = seedance_mini["ports"]["inputs"]
+    assert seedance_mini["source"]["model_key"] == "seedance-2.0-mini"
+    assert any(port["id"] == "start_frame" and port["type"] == "image" and port["max"] == 1 for port in seedance_mini_inputs)
+    assert any(port["id"] == "reference_images" and port["array"] is True and port["max"] == 9 for port in seedance_mini_inputs)
+    assert any(port["id"] == "reference_videos" and port["array"] is True and port["max"] == 3 for port in seedance_mini_inputs)
+    assert any(port["id"] == "reference_audios" and port["array"] is True and port["max"] == 3 for port in seedance_mini_inputs)
+    assert any(port["id"] == "image" and port["label"] == "Last Frame" for port in seedance_mini["ports"]["outputs"])
+    assert "480p" in next(field for field in seedance_mini["fields"] if field["id"] == "resolution")["options"]
     save_video = next(item for item in items if item["type"] == "media.save_video")
     assert any(field["id"] == "format" and field["default"] == "source_original" for field in save_video["fields"])
     assert any(port["id"] == "video" and port["type"] == "video" for port in save_video["ports"]["outputs"])
@@ -601,6 +657,24 @@ def test_graph_node_definitions_include_valid_layout_metadata(client) -> None:
         )
         assert definition.ui["default_size"]["width"] >= definition.ui["min_size"]["width"]
         assert definition.ui["default_size"]["height"] >= definition.ui["min_size"]["height"]
+
+
+def test_graph_save_nodes_expose_typed_media_outputs_not_asset_handles(client) -> None:
+    response = client.get("/media/graph/node-definitions")
+    assert response.status_code == 200, response.text
+    definitions = {item["type"]: item for item in response.json()["items"]}
+
+    expected_outputs = {
+        "media.save_image": [("image", "image", True)],
+        "media.save_images": [("images", "image", True)],
+        "media.save_video": [("video", "video", False)],
+        "media.save_audio": [("audio", "audio", True)],
+        "media.save_music_track": [("audio", "audio", False)],
+    }
+    for node_type, expected in expected_outputs.items():
+        outputs = definitions[node_type]["ports"]["outputs"]
+        assert all(output["type"] != "asset" for output in outputs)
+        assert [(output["id"], output["type"], output["array"]) for output in outputs] == expected
 
 
 def test_graph_prompt_llm_definition_exposes_provider_image_and_text_contract(client) -> None:
@@ -798,6 +872,97 @@ def test_graph_prompt_llm_runs_with_codex_local_provider(client, monkeypatch) ->
     assert llm_node["output_snapshot_json"]["text"][0]["value"] == "codex local prompt output"
 
 
+def test_graph_image_analyzer_runs_with_required_image_and_outputs_text_result(client, app_modules, monkeypatch) -> None:
+    reference_id = _create_reference_image(app_modules)
+    calls = []
+
+    def fake_chat(**kwargs):
+        calls.append(kwargs)
+        return {
+            "provider_kind": kwargs["provider_kind"],
+            "provider_model_id": kwargs["model_id"],
+            "provider_base_url": kwargs["base_url"],
+            "generated_text": "Detailed visible analysis for the connected reference image.",
+            "usage": {"prompt_tokens": 12, "completion_tokens": 8, "total_tokens": 20},
+        }
+
+    monkeypatch.setattr("app.graph.executors.prompt_ops.enhancement_provider.run_openai_compatible_chat", fake_chat)
+
+    workflow = {
+        "schema_version": 1,
+        "name": "Image Analyzer smoke",
+        "nodes": [
+            {
+                "id": "load",
+                "type": "media.load_image",
+                "position": {"x": -320, "y": 0},
+                "fields": {"reference_id": reference_id},
+            },
+            {
+                "id": "analyze",
+                "type": "prompt.image_analyzer",
+                "position": {"x": 80, "y": 0},
+                "fields": {
+                    "provider": "local_openai",
+                    "model_id": "local-vision-model",
+                    "provider_supports_images": True,
+                    "mode": "full_analysis",
+                    "analysis_goal": "Focus on reusable style traits.",
+                    "system_prompt": "Analyze visible traits for Media Studio.",
+                    "temperature": 0.1,
+                    "max_tokens": 900,
+                },
+            },
+        ],
+        "edges": [
+            {"id": "edge-load-analyze", "source": "load", "source_port": "image", "target": "analyze", "target_port": "image"},
+        ],
+    }
+
+    final_payload = _run_graph_workflow(client, workflow)
+    assert final_payload["status"] == "completed", final_payload.get("error")
+    analyze_node = next(node for node in final_payload["nodes"] if node["node_id"] == "analyze")
+    assert analyze_node["output_snapshot_json"]["text"][0]["value"] == "Detailed visible analysis for the connected reference image."
+    result = analyze_node["output_snapshot_json"]["result"][0]["value"]
+    assert result["mode"] == "full_analysis"
+    assert result["type"] == "image_analysis"
+    assert result["provider_model_id"] == "local-vision-model"
+    assert result["analysis_goal"] == "Focus on reusable style traits."
+    assert calls[0]["error_context"] == "image analyzer"
+    assert calls[0]["temperature"] == 0.1
+    assert calls[0]["max_tokens"] == 900
+    user_message = calls[0]["messages"][1]["content"]
+    assert any(item.get("type") == "image_url" for item in user_message)
+
+
+def test_graph_image_analyzer_validation_requires_image_input(client) -> None:
+    workflow = {
+        "schema_version": 1,
+        "name": "Image Analyzer invalid",
+        "nodes": [
+            {
+                "id": "analyze",
+                "type": "prompt.image_analyzer",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "provider": "local_openai",
+                    "model_id": "local-vision-model",
+                    "provider_supports_images": True,
+                },
+            }
+        ],
+        "edges": [],
+    }
+
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+    validation = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=workflow)
+    assert validation.status_code == 200, validation.text
+    payload = validation.json()
+    assert payload["valid"] is False
+    assert any("image" in issue["message"].lower() for issue in payload["errors"])
+
+
 def test_graph_estimate_treats_codex_local_prompt_nodes_as_subscription_included(client) -> None:
     workflow = {
         "schema_version": 1,
@@ -857,7 +1022,7 @@ def test_graph_prompt_text_accepts_connected_text_input(client) -> None:
     assert inspected_values == ["upstream prompt", "upstream prompt\n\ntyped suffix"]
 
 
-def test_graph_prompt_recipe_definitions_include_generic_node_catalog_and_hidden_legacy_nodes(client, app_modules) -> None:
+def test_graph_prompt_recipe_definitions_include_generic_node_catalog(client, app_modules) -> None:
     store = app_modules["store"]
     store.create_or_update_prompt_recipe(
         {
@@ -909,7 +1074,13 @@ def test_graph_prompt_recipe_definitions_include_generic_node_catalog_and_hidden
     assert generic["source"]["recipe_catalog"]
     assert any(item["recipe_id"] == "prompt-recipe-archived-graph-test" and item["status"] == "archived" for item in generic["source"]["recipe_catalog"])
     assert any(item["recipe_id"] == "prompt-recipe-image-prompt-director" and item["selection_summary"]["title"] == "Image Prompt Director" for item in generic["source"]["recipe_catalog"])
-    assert any(port["id"] == "image_refs" and port["type"] == "image" and port["array"] is True and port["max"] == 4 for port in generic["ports"]["inputs"])
+    assert any(
+        port["id"] == "image_refs"
+        and port["type"] == "image"
+        and port["array"] is True
+        and int(port["max"] or 0) >= 4
+        for port in generic["ports"]["inputs"]
+    )
     assert not any(item["type"].startswith("prompt.recipe.") for item in items)
 
     parse = next(item for item in items if item["type"] == "prompt.parse")
@@ -917,21 +1088,23 @@ def test_graph_prompt_recipe_definitions_include_generic_node_catalog_and_hidden
     assert {"result", "prompt_1", "prompt_12"}.issubset(parse_output_ids)
 
 
-def test_graph_prompt_recipe_legacy_nodes_normalize_to_generic_workflows(client) -> None:
+def test_graph_prompt_recipe_nodes_require_saved_recipe_id(client) -> None:
     workflow = {
         "schema_version": 1,
-        "name": "Prompt Recipe legacy normalization",
+        "name": "Prompt Recipe saved recipe",
         "nodes": [
             {
                 "id": "recipe",
-                "type": "prompt.recipe.image_prompt_director",
+                "type": "prompt.recipe",
                 "position": {"x": 0, "y": 0},
                 "fields": {
+                    "recipe_id": "prompt-recipe-image-prompt-director",
                     "user_prompt": "Create a cinematic portrait prompt.",
                     "style_direction": "cinematic realism",
                     "aspect_ratio": "16:9",
                     "provider": "openrouter",
                     "model_id": "openai/gpt-4o-mini",
+                    "provider_supports_images": True,
                 },
             }
         ],
@@ -1120,6 +1293,89 @@ def test_graph_prompt_recipe_runs_text_multi_image_and_structured_parse_workflow
 
     structured_final_call = calls[4]
     assert structured_final_call["response_format"] == {"type": "json_object"}
+
+
+def test_graph_storyboard_continuation_recipe_runs_with_previous_board_context(client, app_modules, monkeypatch) -> None:
+    character_sheet_ref = _create_colored_reference_image(app_modules, name="story-continuation-character.png", color=(20, 180, 120))
+    previous_board_ref = _create_colored_reference_image(app_modules, name="story-continuation-board.png", color=(70, 40, 160))
+    calls = []
+
+    def fake_chat(**kwargs):
+        calls.append(kwargs)
+        return {
+            "provider_kind": kwargs["provider_kind"],
+            "provider_model_id": kwargs["model_id"],
+            "generated_text": (
+                "Storyboard Segment 2 prompt. Previous-board read: the character ended at the open portal. "
+                "Continuation brief: she escapes the dungeon. SHOT: 01 setup. CAMERA: tracking. "
+                "FRAMING: medium. ACTION: the character uses the amulet. MOTION: sparks pull the chains apart. "
+                "DIALOG: . NOTES: handoff to battlements."
+            ),
+            "warnings": [],
+        }
+
+    monkeypatch.setattr("app.graph.executors.prompt_ops.enhancement_provider.run_openai_compatible_chat", fake_chat)
+
+    workflow = {
+        "schema_version": 1,
+        "name": "Storyboard Continuation Recipe smoke",
+        "nodes": [
+            {"id": "character-sheet", "type": "media.load_image", "position": {"x": -420, "y": -140}, "fields": {"reference_id": character_sheet_ref}},
+            {"id": "previous-board", "type": "media.load_image", "position": {"x": -420, "y": 180}, "fields": {"reference_id": previous_board_ref}},
+            {
+                "id": "continuation",
+                "type": "prompt.recipe",
+                "position": {"x": 80, "y": 0},
+                "fields": {
+                    "recipe_id": "prompt-recipe-storyboard-continuation-v1",
+                    "recipe_category": "image",
+                    "previous_storyboard_prompt": "Storyboard 1 ends with the character trapped at an open dungeon portal.",
+                    "continuation_brief": "The character uses the green amulet to melt the chains, escapes the cell, and reaches the battlements.",
+                    "segment_number": "2",
+                    "total_segments": "3",
+                    "target_duration_seconds": "15",
+                    "panel_count": "6",
+                    "dialogue_mode": "light",
+                    "style_direction": "dark cinematic fantasy storyboard",
+                    "provider": "local_openai",
+                    "model_id": "local-vision-model",
+                    "provider_supports_images": True,
+                    "provider_capabilities_json": {"supports_images": True, "input_modalities": ["text", "image"]},
+                    "temperature": 0.2,
+                    "max_tokens": 1200,
+                },
+            },
+        ],
+        "edges": [
+            {"id": "edge-character-continuation", "source": "character-sheet", "source_port": "image", "target": "continuation", "target_port": "image_refs"},
+            {"id": "edge-board-continuation", "source": "previous-board", "source_port": "image", "target": "continuation", "target_port": "image_refs"},
+        ],
+    }
+
+    payload = _run_graph_workflow(client, workflow)
+
+    assert payload["status"] == "completed", payload.get("error")
+    assert len(calls) == 1
+    call = calls[0]
+    assert call["error_context"] == "prompt recipe execution"
+    rendered_template = call["messages"][0]["content"]
+    assert "PREVIOUS STORYBOARD PROMPT OR HANDOFF" in rendered_template
+    assert "Storyboard 1 ends with the character trapped at an open dungeon portal." in rendered_template
+    assert "CONTINUATION BRIEF" in rendered_template
+    assert "uses the green amulet to melt the chains" in rendered_template
+    assert "SEGMENT NUMBER:\n2" in rendered_template
+    assert "TOTAL SEGMENTS:\n3" in rendered_template
+    assert "TARGET DURATION SECONDS:\n15" in rendered_template
+    assert "PANEL COUNT:\n6" in rendered_template
+    assert "DIALOGUE MODE:\nlight" in rendered_template
+    assert "End with a clear visual handoff into the next storyboard segment" in rendered_template
+    assert "SHOT: two-digit number and short title" in rendered_template
+    assert "Do not include raw assistant debug language" in rendered_template
+    final_content = call["messages"][1]["content"]
+    assert len([item for item in final_content if item["type"] == "image_url"]) == 2
+    continuation_node = next(node for node in payload["nodes"] if node["node_id"] == "continuation")
+    assert "Storyboard Segment 2 prompt" in continuation_node["output_snapshot_json"]["text"][0]["value"]
+    assert continuation_node["metrics_json"]["image_count"] == 2
 
 
 def test_graph_prompt_recipe_validation_rejects_inactive_missing_variables_and_image_capability(client, app_modules) -> None:
@@ -1446,6 +1702,190 @@ def test_prompt_recipe_result_normalization_keeps_structured_json_and_readable_t
     assert structured_without_prompt_array["prompts"]
     assert "Arrival" in structured_without_prompt_array["prompts"][0]
     assert "Camera: wide" in structured_without_prompt_array["final_text"]
+
+
+def test_storyboard_v2_prompt_sanitizer_removes_private_character_labels() -> None:
+    raw_text = (
+        "Create a 3x2 board for a rogue woman named Sadi.\n"
+        "FRAMING: Sadi being pulled through a portal.\n"
+        "ACTION: Sadi's expression shifts as Sadi escapes."
+    )
+
+    sanitized = _sanitize_storyboard_v2_prompt_text(
+        raw_text,
+        {
+            "user_prompt": "The local workflow label is Sadi, but no visible character name was requested.",
+            "previous_output": "",
+            "style_direction": "dark cinematic storyboard",
+        },
+    )
+
+    assert "Sadi" not in sanitized
+    assert "the character the character" not in sanitized
+    assert "the character's character" not in sanitized
+    assert "dark near-black production storyboard board background" in sanitized
+    assert "Do not copy visible name, title, project, footer" in sanitized
+    assert "Storyboard panel metadata rows such as CAMERA, FRAMING, ACTION" in sanitized
+    assert "the character being pulled through a portal" in sanitized
+    assert "the character's expression shifts as the character escapes" in sanitized
+
+
+def test_storyboard_v2_prompt_sanitizer_preserves_explicit_visible_name_request() -> None:
+    raw_text = "SHOT: Sadi enters the dungeon. NOTES: Display the name Sadi on the title card."
+
+    sanitized = _sanitize_storyboard_v2_prompt_text(
+        raw_text,
+        {
+            "user_prompt": "Show the character name as visible text on the board.",
+            "previous_output": "",
+            "style_direction": "dark cinematic storyboard",
+        },
+    )
+
+    assert sanitized == raw_text
+
+
+def test_storyboard_v2_prompt_sanitizer_blanks_non_spoken_dialogue_rows() -> None:
+    raw_text = "\n".join(
+        [
+            "SHOT 01",
+            "DIALOG: Silence",
+            "SHOT 02",
+            "DIALOG: No dialogue",
+            "SHOT 03",
+            'DIALOG: "I found the key."',
+        ]
+    )
+
+    sanitized = _sanitize_storyboard_v2_prompt_text(
+        raw_text,
+        {
+            "user_prompt": "Use no dialogue for this wordless board.",
+            "previous_output": "",
+            "style_direction": "dark cinematic storyboard",
+        },
+    )
+
+    assert "DIALOG: Silence" not in sanitized
+    assert "DIALOG: No dialogue" not in sanitized
+    assert 'DIALOG: "I found the key."' not in sanitized
+    assert "DIALOG: \nSHOT 02" in sanitized
+    assert "DIALOG: \nSHOT 03" in sanitized
+
+
+def test_storyboard_v2_prompt_sanitizer_extracts_json_prompt_before_guard() -> None:
+    raw_text = json.dumps(
+        {
+            "prompt": (
+                "Create a 3x2 storyboard. "
+                "Panel 04 ACTION: the character melts chains with an amulet. "
+                "Panel 05 ACTION: the character kills two guards. "
+                "Panel 06 ACTION: the character runs down the hallway."
+            )
+        }
+    )
+
+    sanitized = _sanitize_storyboard_v2_prompt_text(
+        raw_text,
+        {
+            "user_prompt": "Include sparse dialogue where it makes sense.",
+            "previous_output": "",
+            "style_direction": "dark cinematic storyboard",
+        },
+    )
+
+    assert sanitized.startswith("Use a dark near-black production storyboard board background")
+    assert "Do not copy visible name" in sanitized
+    assert '{"prompt"' not in sanitized
+    assert "kills two guards" in sanitized
+    assert "runs down the hallway" in sanitized
+
+
+def test_storyboard_v2_prompt_sanitizer_flattens_structured_shot_json() -> None:
+    raw_text = json.dumps(
+        {
+            "title": "Escape from the Dungeon",
+            "shots": [
+                {
+                    "shot": "06 - Escape Down the Hallway",
+                    "camera": "overhead shot",
+                    "framing": "the woman running down the hallway",
+                    "action": "She runs past the defeated guards.",
+                    "motion": "fast movement",
+                    "dialog": "",
+                    "notes": "two guards defeated",
+                }
+            ],
+        }
+    )
+
+    sanitized = _sanitize_storyboard_v2_prompt_text(
+        raw_text,
+        {
+            "user_prompt": "She kills two guards, and runs down the hallway.",
+            "previous_output": "",
+            "style_direction": "dark cinematic storyboard",
+        },
+    )
+
+    assert sanitized.startswith("Use a dark near-black production storyboard board background")
+    assert '{"title"' not in sanitized
+    assert "Panel 01 - 06 - Escape Down the Hallway" in sanitized
+    assert "ACTION: She runs past the defeated guards." in sanitized
+    assert "runs down the hallway" in sanitized
+
+
+def test_storyboard_v2_prompt_sanitizer_preserves_requested_action_quantities() -> None:
+    raw_text = "\n".join(
+        [
+            "Create a 3x2 storyboard.",
+            "Panel 05 ACTION: She swiftly takes down one guard.",
+            "Panel 06 ACTION: She runs down the hallway.",
+        ]
+    )
+
+    sanitized = _sanitize_storyboard_v2_prompt_text(
+        raw_text,
+        {
+            "user_prompt": "She breaks out of the cell, kills two guards, and runs down the hallway.",
+            "previous_output": "",
+            "style_direction": "dark cinematic storyboard",
+        },
+    )
+
+    assert "one guard" not in sanitized.lower()
+    assert "two guards" in sanitized.lower()
+
+
+def test_storyboard_v2_prompt_sanitizer_preserves_terminal_action_beats_from_scaffold() -> None:
+    raw_text = "\n".join(
+        [
+            "Create a 3x2 storyboard.",
+            "Panel 04 ACTION: The amulet melts the chains.",
+            "Panel 05 ACTION: She lunges forward, ready to fight.",
+            "Panel 06 ACTION: She defeats two guards and stands victorious.",
+        ]
+    )
+
+    sanitized = _sanitize_storyboard_v2_prompt_text(
+        raw_text,
+        {
+            "user_prompt": "\n".join(
+                [
+                    "Story / scene brief: she has been captured in a dungeon by an evil wizard, watched by ogre guards. She tries to break free, uses the green glowing amulet to melt off her chains, breaks out of the cell, kills two guards, and runs down the hallway.",
+                    "Mandatory story beats, do not omit: she has been captured in a dungeon by an evil wizard, watched by ogre guards. She tries to break free, uses the green glowing amulet to melt off her chains, breaks out of the cell, kills two guards, and runs down the hallway. If there are more beats than panels, combine nearby atmosphere or setup beats first.",
+                    "Quantity precision: preserve exact quantities from the user's story brief in the final panel ACTION/NOTES text; for example, two guards must remain two guards and must not be reduced to one guard.",
+                ]
+            ),
+            "previous_output": "",
+            "style_direction": "dark cinematic storyboard",
+        },
+    )
+
+    assert "STORY BEATS" in sanitized
+    assert "kills two guards" in sanitized
+    assert "runs down the hallway" in sanitized
+    assert "two guards and must not be reduced" not in sanitized
 
 
 def test_graph_cancel_stops_downstream_after_current_node(client, app_modules, monkeypatch) -> None:
@@ -1831,6 +2271,99 @@ def test_graph_estimate_keeps_local_prompt_nodes_unknown(client) -> None:
     assert any(warning["code"] == "unknown_external_llm_pricing" for warning in payload["warnings"])
 
 
+def test_graph_kie_pricing_multiplier_fields_are_covered(client) -> None:
+    from app import kie_adapter
+    from app.graph.registry import registry
+
+    definitions = {
+        definition.source.get("model_key"): definition
+        for definition in registry.list_definitions(refresh=True)
+        if definition.type.startswith("model.kie.") and definition.source.get("model_key")
+    }
+    derived_multiplier_coverage = {
+        "kling-2.6-motion": {"duration"},
+        "kling-3.0-motion": {"duration"},
+        "kling-3.0-t2v": {"pricing_variant"},
+        "kling-3.0-i2v": {"pricing_variant"},
+        "seedance-2.0": {"pricing_variant"},
+        "seedance-2.0-fast": {"pricing_variant"},
+        "seedance-2.0-mini": {"pricing_variant"},
+    }
+
+    missing_coverage = []
+    for rule in kie_adapter.pricing_snapshot(force_refresh=False).get("rules") or []:
+        if not isinstance(rule, dict):
+            continue
+        model_key = str(rule.get("model_key") or "")
+        definition = definitions.get(model_key)
+        if not definition:
+            continue
+        fields = {field.id for field in definition.fields}
+        multipliers = rule.get("multipliers") if isinstance(rule.get("multipliers"), dict) else {}
+        covered_derived = derived_multiplier_coverage.get(model_key, set())
+        for multiplier_key in multipliers:
+            if multiplier_key in fields or multiplier_key in covered_derived:
+                continue
+            missing_coverage.append(f"{model_key}:{multiplier_key}")
+
+    assert missing_coverage == []
+
+
+def _graph_model_pricing_total(client, node_type: str, fields: dict) -> dict:
+    workflow = {
+        "schema_version": 1,
+        "name": "Graph pricing matrix",
+        "nodes": [
+            {
+                "id": "model",
+                "type": node_type,
+                "position": {"x": 0, "y": 0},
+                "fields": {"prompt": "Graph pricing matrix", **fields},
+            }
+        ],
+        "edges": [],
+    }
+    response = client.post("/media/graph/estimate", json=workflow)
+    assert response.status_code == 200, response.text
+    summary = response.json()["nodes"]["model"]["pricing_summary"]
+    assert summary["has_numeric_estimate"] is True
+    return summary["total"]
+
+
+@pytest.mark.parametrize(
+    ("node_type", "base_fields", "changed_fields"),
+    [
+        ("model.kie.kling_2_6_t2v", {"duration": 5, "sound": False}, {"duration": 10, "sound": False}),
+        ("model.kie.kling_2_6_t2v", {"duration": 10, "sound": False}, {"duration": 10, "sound": True}),
+        ("model.kie.kling_2_6_i2v", {"duration": 5, "sound": False}, {"duration": 10, "sound": False}),
+        ("model.kie.kling_2_6_i2v", {"duration": 10, "sound": False}, {"duration": 10, "sound": True}),
+        ("model.kie.kling_3_0_t2v", {"duration": 5, "mode": "720p", "sound": False}, {"duration": 10, "mode": "720p", "sound": False}),
+        ("model.kie.kling_3_0_t2v", {"duration": 10, "mode": "720p", "sound": False}, {"duration": 10, "mode": "1080p", "sound": False}),
+        ("model.kie.kling_3_0_t2v", {"duration": 10, "mode": "1080p", "sound": False}, {"duration": 10, "mode": "4K", "sound": False}),
+        ("model.kie.kling_3_0_t2v", {"duration": 10, "mode": "720p", "sound": False}, {"duration": 10, "mode": "720p", "sound": True}),
+        ("model.kie.kling_3_0_i2v", {"duration": 5, "mode": "720p", "sound": False}, {"duration": 10, "mode": "720p", "sound": False}),
+        ("model.kie.kling_3_0_i2v", {"duration": 10, "mode": "720p", "sound": False}, {"duration": 10, "mode": "1080p", "sound": False}),
+        ("model.kie.kling_3_0_i2v", {"duration": 10, "mode": "1080p", "sound": False}, {"duration": 10, "mode": "4K", "sound": False}),
+        ("model.kie.kling_3_0_i2v", {"duration": 10, "mode": "720p", "sound": False}, {"duration": 10, "mode": "720p", "sound": True}),
+        ("model.kie.kling_3_0_turbo_i2v", {"duration": 5, "resolution": "720p"}, {"duration": 10, "resolution": "720p"}),
+        ("model.kie.kling_3_0_turbo_i2v", {"duration": 10, "resolution": "720p"}, {"duration": 10, "resolution": "1080p"}),
+        ("model.kie.seedance_2_0", {"duration": 5, "resolution": "480p", "aspect_ratio": "16:9"}, {"duration": 10, "resolution": "480p", "aspect_ratio": "16:9"}),
+        ("model.kie.seedance_2_0", {"duration": 10, "resolution": "480p", "aspect_ratio": "16:9"}, {"duration": 10, "resolution": "720p", "aspect_ratio": "16:9"}),
+        ("model.kie.seedance_2_0", {"duration": 10, "resolution": "720p", "aspect_ratio": "16:9"}, {"duration": 10, "resolution": "1080p", "aspect_ratio": "16:9"}),
+        ("model.kie.seedance_2_0_fast", {"duration": 5, "resolution": "480p", "aspect_ratio": "16:9"}, {"duration": 10, "resolution": "480p", "aspect_ratio": "16:9"}),
+        ("model.kie.seedance_2_0_fast", {"duration": 10, "resolution": "480p", "aspect_ratio": "16:9"}, {"duration": 10, "resolution": "720p", "aspect_ratio": "16:9"}),
+        ("model.kie.seedance_2_0_mini", {"duration": 5, "resolution": "480p", "aspect_ratio": "16:9"}, {"duration": 10, "resolution": "480p", "aspect_ratio": "16:9"}),
+        ("model.kie.seedance_2_0_mini", {"duration": 10, "resolution": "480p", "aspect_ratio": "16:9"}, {"duration": 10, "resolution": "720p", "aspect_ratio": "16:9"}),
+    ],
+)
+def test_graph_video_model_pricing_matrix_responds_to_option_changes(client, node_type, base_fields, changed_fields) -> None:
+    base_total = _graph_model_pricing_total(client, node_type, base_fields)
+    changed_total = _graph_model_pricing_total(client, node_type, changed_fields)
+
+    assert changed_total["estimated_credits"] > base_total["estimated_credits"]
+    assert changed_total["estimated_cost_usd"] > base_total["estimated_cost_usd"]
+
+
 def test_graph_estimate_sums_enabled_kie_model_nodes(client, monkeypatch) -> None:
     def fake_estimate_request_cost(raw_request):
         model_key = raw_request["model_key"]
@@ -1904,6 +2437,338 @@ def test_graph_estimate_sums_enabled_kie_model_nodes(client, monkeypatch) -> Non
     assert payload["nodes"]["nano"]["pricing_summary"]["total"]["estimated_credits"] == 10
     assert payload["nodes"]["kling_4"]["pricing_summary"]["total"]["estimated_credits"] == 25
     assert payload["nodes"]["kling_1"]["task_mode"] in {"image_to_video", "i2v"}
+
+
+@pytest.mark.parametrize(
+    ("model_key", "node_type", "estimated_credits", "estimated_cost_usd"),
+    [
+        ("kling-3.0-motion", "model.kie.kling_3_0_motion", 420, 2.1),
+        ("kling-2.6-motion", "model.kie.kling_2_6_motion", 231, 1.155),
+    ],
+)
+def test_graph_estimate_carries_load_video_reference_duration(
+    client,
+    monkeypatch,
+    model_key,
+    node_type,
+    estimated_credits,
+    estimated_cost_usd,
+) -> None:
+    captured_requests = []
+
+    def fake_get_reference_media(reference_id):
+        if reference_id == "ref-video":
+            return {
+                "reference_id": "ref-video",
+                "kind": "video",
+                "stored_path": "reference-media/videos/ref-video.mp4",
+                "duration_seconds": 20.083333,
+            }
+        if reference_id == "ref-image":
+            return {
+                "reference_id": "ref-image",
+                "kind": "image",
+                "stored_path": "reference-media/images/ref-image.png",
+            }
+        return None
+
+    def fake_estimate_request_cost(raw_request):
+        captured_requests.append(raw_request)
+        assert raw_request["model_key"] == model_key
+        assert raw_request["task_mode"] == "motion_control"
+        assert raw_request["videos"][0]["duration_seconds"] == 20.083333
+        return {
+            "model_key": raw_request["model_key"],
+            "estimated_credits": estimated_credits,
+            "estimated_cost_usd": estimated_cost_usd,
+            "currency": "USD",
+            "is_known": True,
+            "has_numeric_estimate": True,
+            "is_authoritative": True,
+            "pricing_source_kind": "verified_provider",
+            "pricing_status": "verified_provider",
+        }
+
+    monkeypatch.setattr("app.graph.pricing.store.get_reference_media", fake_get_reference_media)
+    monkeypatch.setattr("app.graph.pricing.kie_adapter.estimate_request_cost", fake_estimate_request_cost)
+    monkeypatch.setattr(
+        "app.graph.pricing.kie_adapter.pricing_snapshot",
+        lambda force_refresh=False: {
+            "currency": "USD",
+            "is_authoritative": True,
+            "is_stale": False,
+            "priced_model_keys": [model_key],
+            "missing_model_keys": [],
+            "source_kind": "verified_provider",
+            "pricing_status": "verified_provider",
+            "version": "test",
+        },
+    )
+    workflow = {
+        "schema_version": 1,
+        "name": "Motion estimate",
+        "nodes": [
+            {"id": "image", "type": "media.load_image", "position": {"x": -360, "y": 0}, "fields": {"reference_id": "ref-image"}},
+            {"id": "video", "type": "media.load_video", "position": {"x": -360, "y": 220}, "fields": {"reference_id": "ref-video"}},
+            {
+                "id": "motion",
+                "type": node_type,
+                "position": {"x": 0, "y": 0},
+                "fields": {"prompt": "Match the driving video.", "character_orientation": "video", "mode": "720p"},
+            },
+        ],
+        "edges": [
+            {"id": "edge-image-motion", "source": "image", "source_port": "image", "target": "motion", "target_port": "image_refs"},
+            {"id": "edge-video-motion", "source": "video", "source_port": "video", "target": "motion", "target_port": "video_refs"},
+        ],
+    }
+
+    response = client.post("/media/graph/estimate", json=workflow)
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert captured_requests
+    assert payload["nodes"]["motion"]["pricing_summary"]["total"]["estimated_credits"] == estimated_credits
+    assert payload["nodes"]["motion"]["pricing_summary"]["total"]["estimated_cost_usd"] == estimated_cost_usd
+
+
+@pytest.mark.parametrize(
+    ("model_key", "node_type", "estimated_credits", "estimated_cost_usd"),
+    [
+        ("kling-3.0-motion", "model.kie.kling_3_0_motion", 100, 0.5),
+        ("kling-2.6-motion", "model.kie.kling_2_6_motion", 55, 0.275),
+    ],
+)
+def test_graph_estimate_carries_video_transform_trim_duration(
+    client,
+    monkeypatch,
+    model_key,
+    node_type,
+    estimated_credits,
+    estimated_cost_usd,
+) -> None:
+    captured_requests = []
+
+    def fake_get_reference_media(reference_id):
+        if reference_id == "ref-video":
+            return {
+                "reference_id": "ref-video",
+                "kind": "video",
+                "stored_path": "reference-media/videos/ref-video.mp4",
+                "duration_seconds": 20.083333,
+            }
+        if reference_id == "ref-image":
+            return {
+                "reference_id": "ref-image",
+                "kind": "image",
+                "stored_path": "reference-media/images/ref-image.png",
+            }
+        return None
+
+    def fake_estimate_request_cost(raw_request):
+        captured_requests.append(raw_request)
+        assert raw_request["model_key"] == model_key
+        assert raw_request["task_mode"] == "motion_control"
+        assert raw_request["videos"][0]["duration_seconds"] == 5
+        return {
+            "model_key": raw_request["model_key"],
+            "estimated_credits": estimated_credits,
+            "estimated_cost_usd": estimated_cost_usd,
+            "currency": "USD",
+            "is_known": True,
+            "has_numeric_estimate": True,
+            "is_authoritative": True,
+            "pricing_source_kind": "verified_provider",
+            "pricing_status": "verified_provider",
+        }
+
+    monkeypatch.setattr("app.graph.pricing.store.get_reference_media", fake_get_reference_media)
+    monkeypatch.setattr("app.graph.pricing.kie_adapter.estimate_request_cost", fake_estimate_request_cost)
+    monkeypatch.setattr(
+        "app.graph.pricing.kie_adapter.pricing_snapshot",
+        lambda force_refresh=False: {
+            "currency": "USD",
+            "is_authoritative": True,
+            "is_stale": False,
+            "priced_model_keys": [model_key],
+            "missing_model_keys": [],
+            "source_kind": "verified_provider",
+            "pricing_status": "verified_provider",
+            "version": "test",
+        },
+    )
+    workflow = {
+        "schema_version": 1,
+        "name": "Motion trim estimate",
+        "nodes": [
+            {"id": "image", "type": "media.load_image", "position": {"x": -720, "y": 0}, "fields": {"reference_id": "ref-image"}},
+            {"id": "video", "type": "media.load_video", "position": {"x": -720, "y": 220}, "fields": {"reference_id": "ref-video"}},
+            {
+                "id": "trim",
+                "type": "video.transform",
+                "position": {"x": -360, "y": 220},
+                "fields": {"operation": "trim", "start_seconds": 0, "duration_seconds": 5, "format": "mp4"},
+            },
+            {
+                "id": "motion",
+                "type": node_type,
+                "position": {"x": 0, "y": 0},
+                "fields": {"prompt": "Match the five second trimmed driving video.", "character_orientation": "video", "mode": "720p"},
+            },
+        ],
+        "edges": [
+            {"id": "edge-image-motion", "source": "image", "source_port": "image", "target": "motion", "target_port": "image_refs"},
+            {"id": "edge-video-trim", "source": "video", "source_port": "video", "target": "trim", "target_port": "video"},
+            {"id": "edge-trim-motion", "source": "trim", "source_port": "video", "target": "motion", "target_port": "video_refs"},
+        ],
+    }
+
+    response = client.post("/media/graph/estimate", json=workflow)
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert captured_requests
+    assert payload["nodes"]["motion"]["pricing_summary"]["total"]["estimated_credits"] == estimated_credits
+    assert payload["nodes"]["motion"]["pricing_summary"]["total"]["estimated_cost_usd"] == estimated_cost_usd
+
+
+def test_graph_video_transform_trim_outputs_requested_duration(client, app_modules) -> None:
+    reference_id = _create_reference_video(app_modules, name="graph-video-trim-source.mp4", duration=6)
+    workflow = {
+        "schema_version": 1,
+        "name": "Video transform trim duration",
+        "nodes": [
+            {"id": "load", "type": "media.load_video", "position": {"x": 0, "y": 0}, "fields": {"reference_id": reference_id}},
+            {
+                "id": "trim",
+                "type": "video.transform",
+                "position": {"x": 360, "y": 0},
+                "fields": {"operation": "trim", "start_seconds": 0, "duration_seconds": 5, "format": "mp4"},
+            },
+            {"id": "preview", "type": "preview.video", "position": {"x": 720, "y": 0}, "fields": {}},
+        ],
+        "edges": [
+            {"id": "edge-load-trim", "source": "load", "source_port": "video", "target": "trim", "target_port": "video"},
+            {"id": "edge-trim-preview", "source": "trim", "source_port": "video", "target": "preview", "target_port": "video"},
+        ],
+    }
+
+    final_payload = _run_graph_workflow(client, workflow)
+
+    assert final_payload["status"] == "completed", final_payload
+    trim_node = next(node for node in final_payload["nodes"] if node["node_id"] == "trim")
+    output_ref = trim_node["output_snapshot_json"]["video"][0]
+    record = app_modules["store"].get_reference_media(output_ref["reference_id"])
+    assert record["duration_seconds"] >= 4.9
+    assert record["duration_seconds"] <= 5.05
+    assert output_ref["metadata"]["lineage"]["transform_type"] == "video.transform.trim"
+    assert output_ref["metadata"]["lineage"]["transform_params"]["duration_seconds"] == 5
+
+
+def test_graph_estimate_prices_media_preset_render_nodes(client, monkeypatch) -> None:
+    captured_requests = []
+
+    created = client.post(
+        "/media/presets",
+        json={
+            "key": "graph-pricing-preset",
+            "label": "Graph Pricing Preset",
+            "description": "Pricing regression preset.",
+            "status": "active",
+            "model_key": "gpt-image-2-image-to-image",
+            "source_kind": "custom",
+            "applies_to_models": ["gpt-image-2-image-to-image"],
+            "applies_to_task_modes": [],
+            "applies_to_input_patterns": [],
+            "prompt_template": "Render {{subject}} as a poster using [[subject]].",
+            "system_prompt_template": "",
+            "default_options_json": {"aspect_ratio": "auto"},
+            "input_schema_json": [{"key": "subject", "label": "Subject", "required": True}],
+            "input_slots_json": [{"key": "subject", "label": "Subject", "required": True, "max_files": 1}],
+            "thumbnail_path": None,
+            "thumbnail_url": None,
+            "notes": "",
+            "requires_image": True,
+            "requires_video": False,
+            "requires_audio": False,
+        },
+    )
+    assert created.status_code == 200, created.text
+    preset_id = created.json()["preset_id"]
+
+    monkeypatch.setattr(
+        "app.graph.pricing.kie_adapter.list_models",
+        lambda: [
+            {
+                "key": "gpt-image-2-image-to-image",
+                "task_modes": ["image_edit"],
+                "raw": {"options": {"aspect_ratio": {}, "resolution": {}}},
+            }
+        ],
+    )
+
+    def fake_estimate_request_cost(raw_request):
+        captured_requests.append(raw_request)
+        return {
+            "model_key": raw_request["model_key"],
+            "estimated_credits": 16,
+            "estimated_cost_usd": 0.08,
+            "currency": "USD",
+            "is_known": True,
+            "has_numeric_estimate": True,
+            "is_authoritative": True,
+            "pricing_source_kind": "verified_provider",
+            "pricing_status": "verified_provider",
+        }
+
+    monkeypatch.setattr("app.graph.pricing.kie_adapter.estimate_request_cost", fake_estimate_request_cost)
+    monkeypatch.setattr(
+        "app.graph.pricing.kie_adapter.pricing_snapshot",
+        lambda force_refresh=False: {
+            "currency": "USD",
+            "is_authoritative": True,
+            "is_stale": False,
+            "priced_model_keys": ["gpt-image-2-image-to-image"],
+            "missing_model_keys": [],
+            "source_kind": "verified_provider",
+            "pricing_status": "verified_provider",
+            "version": "test",
+        },
+    )
+    workflow = {
+        "schema_version": 1,
+        "name": "Preset pricing",
+        "nodes": [
+            {"id": "load", "type": "media.load_image", "position": {"x": -360, "y": 0}, "fields": {"reference_id": "ref-test"}},
+            {
+                "id": "preset",
+                "type": "preset.render",
+                "position": {"x": 0, "y": 0},
+                "fields": {
+                    "preset_id": preset_id,
+                    "preset_model_key": "gpt-image-2-image-to-image",
+                    "text__subject": "Jeep poster",
+                    "option__resolution": "auto",
+                },
+            },
+        ],
+        "edges": [
+            {"id": "edge-load-preset", "source": "load", "source_port": "image", "target": "preset", "target_port": "slot__subject"}
+        ],
+    }
+    response = client.post("/media/graph/estimate", json=workflow)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert len(captured_requests) == 1
+    assert captured_requests[0]["model_key"] == "gpt-image-2-image-to-image"
+    assert captured_requests[0]["task_mode"] == "image_edit"
+    assert len(captured_requests[0]["images"]) == 1
+    assert captured_requests[0]["images"][0]["role"] == "reference"
+    assert captured_requests[0]["options"] == {"aspect_ratio": "auto", "resolution": "1K"}
+    assert captured_requests[0]["preset_id"] == preset_id
+    assert payload["pricing_summary"]["total"]["estimated_credits"] == 16, payload
+    assert payload["nodes"]["preset"]["pricing_summary"]["total"]["estimated_cost_usd"] == 0.08
+    assert payload["nodes"]["preset"]["task_mode"] == "image_edit"
 
 
 def test_graph_estimate_warns_unknown_pricing_and_skips_frozen_nodes(client, monkeypatch) -> None:
@@ -2809,6 +3674,21 @@ def test_graph_kling_i2v_save_video_runs_offline_and_creates_video_asset(client,
     assert any(asset["model_key"] == "kling-2.6-i2v" and asset["generation_kind"] == "video" for asset in assets)
 
 
+def test_graph_kling_i2v_materializes_required_option_defaults_before_validation(client, app_modules) -> None:
+    reference_id = _create_reference_image(app_modules)
+    workflow = _video_workflow(reference_id)
+    model_node = next(node for node in workflow["nodes"] if node["id"] == "model")
+    model_node["fields"] = {}
+
+    create_response = client.post("/media/graph/workflows", json=workflow)
+    assert create_response.status_code == 200, create_response.text
+    workflow_id = create_response.json()["workflow_id"]
+
+    validation = client.post(f"/media/graph/workflows/{workflow_id}/validate", json=workflow)
+    assert validation.status_code == 200, validation.text
+    assert validation.json()["valid"] is True
+
+
 def test_graph_save_video_transcodes_generated_asset_to_gallery_asset(client, app_modules) -> None:
     reference_id = _create_reference_image(app_modules)
     workflow = _video_workflow(reference_id)
@@ -3233,6 +4113,31 @@ def test_graph_materialize_workflow_defaults_remaps_legacy_seedance_ports() -> N
     normalized = materialize_workflow_defaults(GraphWorkflow.model_validate(workflow))
     target_ports = {edge.target_port for edge in normalized.edges}
     assert target_ports == {"reference_images", "reference_videos", "reference_audios"}
+
+
+def test_graph_materialize_workflow_defaults_remaps_legacy_save_asset_outputs() -> None:
+    workflow = {
+        "schema_version": 1,
+        "name": "Legacy save output ports",
+        "nodes": [
+            {"id": "save-image", "type": "media.save_image", "position": {"x": 0, "y": 0}, "fields": {}},
+            {"id": "save-images", "type": "media.save_images", "position": {"x": 0, "y": 200}, "fields": {}},
+            {"id": "save-video", "type": "media.save_video", "position": {"x": 0, "y": 400}, "fields": {}},
+            {"id": "save-audio", "type": "media.save_audio", "position": {"x": 0, "y": 600}, "fields": {}},
+            {"id": "save-track", "type": "media.save_music_track", "position": {"x": 0, "y": 800}, "fields": {}},
+            {"id": "display", "type": "display.any", "position": {"x": 360, "y": 0}, "fields": {}},
+        ],
+        "edges": [
+            {"id": "edge-image", "source": "save-image", "source_port": "asset", "target": "display", "target_port": "value"},
+            {"id": "edge-images", "source": "save-images", "source_port": "assets", "target": "display", "target_port": "value"},
+            {"id": "edge-video", "source": "save-video", "source_port": "asset", "target": "display", "target_port": "value"},
+            {"id": "edge-audio", "source": "save-audio", "source_port": "asset", "target": "display", "target_port": "value"},
+            {"id": "edge-track", "source": "save-track", "source_port": "asset", "target": "display", "target_port": "value"},
+        ],
+    }
+
+    normalized = materialize_workflow_defaults(GraphWorkflow.model_validate(workflow))
+    assert [edge.source_port for edge in normalized.edges] == ["image", "images", "video", "audio", "audio"]
 
 
 def test_graph_video_combine_hard_cut_outputs_reference_video(client, app_modules) -> None:
@@ -3900,176 +4805,3 @@ def test_graph_bypassed_image_utility_passes_through_without_artifact(client, ap
     assert not [item for item in artifacts if item["node_id"] == "resize"]
     events = client.get(f"/media/graph/runs/{run_id}/events").json()["items"]
     assert any(event["event_type"] == "node.bypassed" and event["node_id"] == "resize" for event in events)
-
-
-def test_graph_image_resize_and_metadata_run_sync(client, app_modules) -> None:
-    reference_id = _create_reference_image(app_modules)
-    workflow = {
-        "schema_version": 1,
-        "name": "Resize utility",
-        "nodes": [
-            {"id": "load", "type": "media.load_image", "position": {"x": 0, "y": 0}, "fields": {"reference_id": reference_id}},
-            {
-                "id": "resize",
-                "type": "image.transform",
-                "position": {"x": 320, "y": 0},
-                "fields": {"operation": "resize", "width": 4, "height": 3, "fit": "stretch", "format": "png"},
-            },
-            {"id": "metadata", "type": "debug.metadata", "position": {"x": 680, "y": 0}, "fields": {}},
-            {"id": "preview", "type": "preview.image", "position": {"x": 680, "y": 260}, "fields": {}},
-        ],
-        "edges": [
-            {"id": "edge-load-resize", "source": "load", "source_port": "image", "target": "resize", "target_port": "image"},
-            {"id": "edge-resize-metadata", "source": "resize", "source_port": "image", "target": "metadata", "target_port": "image"},
-            {"id": "edge-resize-preview", "source": "resize", "source_port": "image", "target": "preview", "target_port": "image"},
-        ],
-    }
-
-    created = client.post("/media/graph/workflows", json=workflow)
-    assert created.status_code == 200, created.text
-    validation = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=workflow)
-    assert validation.status_code == 200, validation.text
-    assert validation.json()["valid"] is True
-
-    run_response = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/runs", json={})
-    assert run_response.status_code == 200, run_response.text
-    run_id = run_response.json()["run_id"]
-    final_payload = None
-    for _ in range(40):
-        current = client.get(f"/media/graph/runs/{run_id}")
-        assert current.status_code == 200
-        final_payload = current.json()
-        if final_payload["status"] in {"completed", "failed"}:
-            break
-        time.sleep(0.1)
-
-    assert final_payload is not None
-    assert final_payload["status"] == "completed", final_payload
-    resize_output = final_payload["nodes"][1]["output_snapshot_json"]["image"][0]
-    resized_reference = app_modules["store"].get_reference_media(resize_output["reference_id"])
-    assert resized_reference["width"] == 4
-    assert resized_reference["height"] == 3
-    assert final_payload["nodes"][1]["metrics_json"]["utility_processing_duration_seconds"] >= 0
-
-
-def test_graph_image_crop_pad_convert_and_extract_metadata_run_sync(client, app_modules) -> None:
-    reference_id = _create_reference_image(app_modules)
-    workflow = {
-        "schema_version": 1,
-        "name": "Image utility chain",
-        "nodes": [
-            {"id": "load", "type": "media.load_image", "position": {"x": 0, "y": 0}, "fields": {"reference_id": reference_id}},
-            {"id": "pad", "type": "image.transform", "position": {"x": 280, "y": 0}, "fields": {"operation": "pad", "width": 4, "height": 4, "color": "#000000", "format": "png"}},
-            {"id": "crop", "type": "image.transform", "position": {"x": 560, "y": 0}, "fields": {"operation": "crop", "x": 0, "y": 0, "width": 2, "height": 2, "format": "png"}},
-            {"id": "convert", "type": "image.transform", "position": {"x": 840, "y": 0}, "fields": {"operation": "convert_format", "format": "webp"}},
-            {"id": "metadata", "type": "image.transform", "position": {"x": 1120, "y": 0}, "fields": {"operation": "extract_metadata"}},
-        ],
-        "edges": [
-            {"id": "edge-load-pad", "source": "load", "source_port": "image", "target": "pad", "target_port": "image"},
-            {"id": "edge-pad-crop", "source": "pad", "source_port": "image", "target": "crop", "target_port": "image"},
-            {"id": "edge-crop-convert", "source": "crop", "source_port": "image", "target": "convert", "target_port": "image"},
-            {"id": "edge-convert-metadata", "source": "convert", "source_port": "image", "target": "metadata", "target_port": "image"},
-        ],
-    }
-
-    created = client.post("/media/graph/workflows", json=workflow)
-    assert created.status_code == 200, created.text
-    run_response = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/runs", json={})
-    assert run_response.status_code == 200, run_response.text
-    run_id = run_response.json()["run_id"]
-    final_payload = None
-    for _ in range(40):
-        current = client.get(f"/media/graph/runs/{run_id}")
-        assert current.status_code == 200
-        final_payload = current.json()
-        if final_payload["status"] in {"completed", "failed"}:
-            break
-        time.sleep(0.1)
-
-    assert final_payload is not None
-    assert final_payload["status"] == "completed", final_payload
-    metadata_node = next(node for node in final_payload["nodes"] if node["node_id"] == "metadata")
-    assert metadata_node["output_snapshot_json"]["metadata"][0]["value"]["width"] == 2
-    assert metadata_node["output_snapshot_json"]["metadata"][0]["value"]["height"] == 2
-
-
-def test_graph_node_definitions_auto_invalidate_after_prompt_recipe_save(client) -> None:
-    initial = client.get("/media/graph/node-definitions")
-    assert initial.status_code == 200, initial.text
-
-    created = client.post(
-        "/prompt-recipes",
-        json={
-            "key": "auto_refresh_prompt_recipe",
-            "label": "Auto Refresh Prompt Recipe",
-            "description": "Created after the definition cache was primed.",
-            "category": "utility",
-            "status": "active",
-            "system_prompt_template": "Turn {{user_prompt}} into one stronger prompt.",
-            "image_analysis_prompt": "",
-            "user_prompt_placeholder": "{{user_prompt}}",
-            "output_format": "single_prompt",
-            "output_contract_json": {"type": "text"},
-            "input_variables": [{"key": "user_prompt", "label": "User Prompt", "enabled": True, "required": True, "default_value": "", "description": ""}],
-            "custom_fields": [],
-            "image_input": {"enabled": False, "required": False, "mode": "none", "analysis_variable": "image_analysis", "max_files": 0},
-            "default_options_json": {"temperature": 0.2, "max_output_tokens": 800},
-            "rules_json": {"allow_external_variables": True, "return_only_final_output": True},
-            "notes": "",
-            "source_kind": "custom",
-            "version": "1",
-            "priority": 0,
-        },
-    )
-    assert created.status_code == 200, created.text
-
-    refreshed = client.get("/media/graph/node-definitions")
-    assert refreshed.status_code == 200, refreshed.text
-    prompt_definition = next(item for item in refreshed.json()["items"] if item["type"] == "prompt.recipe")
-    recipe_picker = next(field for field in prompt_definition["fields"] if field["id"] == "recipe_id")
-    assert any(option["label"] == "Auto Refresh Prompt Recipe" for option in recipe_picker["options"])
-
-
-def test_graph_node_definitions_auto_invalidate_after_preset_save(client) -> None:
-    initial = client.get("/media/graph/node-definitions")
-    assert initial.status_code == 200, initial.text
-
-    created = client.post(
-        "/media/presets",
-        json={
-            "key": "auto-refresh-preset",
-            "label": "Auto Refresh Preset",
-            "description": "Created after the definition cache was primed.",
-            "status": "active",
-            "model_key": "nano-banana-2",
-            "source_kind": "custom",
-            "applies_to_models": ["nano-banana-2"],
-            "applies_to_task_modes": [],
-            "applies_to_input_patterns": [],
-            "prompt_template": "Create a {{style}} portrait from [[subject]].",
-            "system_prompt_template": "",
-            "default_options_json": {},
-            "input_schema_json": [{"key": "style", "label": "Style", "required": True}],
-            "input_slots_json": [{"key": "subject", "label": "Subject", "required": True, "max_files": 1}],
-            "choice_groups_json": [],
-            "thumbnail_path": None,
-            "thumbnail_url": None,
-            "notes": "",
-            "requires_image": True,
-            "requires_video": False,
-            "requires_audio": False,
-        },
-    )
-    assert created.status_code == 200, created.text
-
-    refreshed = client.get("/media/graph/node-definitions")
-    assert refreshed.status_code == 200, refreshed.text
-    definitions = refreshed.json()["items"]
-    dynamic_definition = next(item for item in definitions if item["type"] == "preset.render")
-    assert dynamic_definition["source"]["kind"] == "media_preset"
-    preset_picker = next(field for field in dynamic_definition["fields"] if field["id"] == "preset_id")
-    assert any(option["label"] == "Auto Refresh Preset" for option in preset_picker["options"])
-    subject_port = next(port for port in dynamic_definition["ports"]["inputs"] if port["id"] == "slot__subject")
-    assert created.json()["preset_id"] in subject_port["visible_if"]["in"]
-    assert any(port["id"] == "image" and port["type"] == "image" for port in dynamic_definition["ports"]["outputs"])
-    assert not any(port["id"] in {"prompt", "image_refs", "preset"} for port in dynamic_definition["ports"]["outputs"])

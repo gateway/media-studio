@@ -47,7 +47,6 @@ function buildPreset(overrides: Partial<MediaPreset> = {}): MediaPreset {
     input_slots_json:
       overrides.input_slots_json ??
       [{ key: "person", label: "Person", help_text: "", required: true, max_files: 1 }],
-    choice_groups_json: overrides.choice_groups_json ?? [],
     thumbnail_path: overrides.thumbnail_path ?? null,
     thumbnail_url: overrides.thumbnail_url ?? null,
     notes: overrides.notes ?? null,

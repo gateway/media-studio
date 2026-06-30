@@ -32,7 +32,7 @@ export function SelectedAssetPromptPanelContent({
   if (!structuredPresetActive) {
     return (
       <div className={promptContainerClassName}>
-        <p className="whitespace-pre-wrap text-sm leading-7 text-white/78">
+        <p className="whitespace-pre-wrap text-sm leading-7 text-[var(--text-muted)]">
           {prompt ?? "No prompt text was stored for this asset."}
         </p>
       </div>
@@ -60,10 +60,10 @@ export function SelectedAssetPromptPanelContent({
             return (
               <SurfaceInset key={slot.key} appearance="studio" density="compact" className="rounded-[18px]">
                 <div className="flex items-center gap-2 surface-label-muted">
-                  <ImageIcon className="size-3.5 text-[rgba(208,255,72,0.88)]" />
+                  <ImageIcon className="size-3.5 text-[var(--accent-strong)]" />
                   {slot.label}
                 </div>
-                {slot.helpText ? <div className="mt-1 text-sm leading-6 text-white/60">{slot.helpText}</div> : null}
+                {slot.helpText ? <div className="mt-1 text-sm leading-6 text-[var(--text-dim)]">{slot.helpText}</div> : null}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <SurfaceInset appearance="studio" density="compact" className="rounded-[14px] border-transparent">
                     <div className={studioMetaLabelClassName({ className: "text-[0.72rem] uppercase tracking-[0.12em]" })}>Requirement</div>

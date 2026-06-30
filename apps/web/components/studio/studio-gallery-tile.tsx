@@ -67,7 +67,7 @@ export function StudioGalleryTile({
       draggable={Boolean(tile.asset?.asset_id != null && !batchTile)}
       onDragStart={(event) => onDragAsset(event, tile.asset)}
       className={cn(
-        "studio-gallery-tile group relative overflow-hidden text-left",
+        "studio-gallery-tile group",
         tileBandClassName(tile),
         selected ? "studio-gallery-tile-selected" : "",
         failedBatchTile ? "cursor-pointer" : "",
@@ -91,23 +91,23 @@ export function StudioGalleryTile({
           loading={eagerTile ? "eager" : "lazy"}
           fetchPriority={eagerTile ? "high" : "auto"}
           decoding="async"
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+          className="transition duration-500 group-hover:scale-[1.03]"
         />
       ) : (
         <div className="studio-gallery-placeholder h-full w-full" />
       )}
-      <div className="studio-gallery-scrim absolute inset-0" />
+      <div className="studio-gallery-scrim" />
       {tile.asset?.generation_kind === "video" && !batchTile ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="studio-icon-button h-14 w-14 backdrop-blur-xl">
+        <div className="studio-gallery-video-overlay">
+          <span className="studio-icon-button studio-gallery-icon-button-md">
             <Play className="ml-0.5 size-5" />
           </span>
         </div>
       ) : null}
       {batchTile ? (
-        <div className="studio-gallery-overlay absolute inset-0 flex items-center justify-center p-4">
+        <div className="studio-gallery-overlay">
           <div className="flex flex-col items-center gap-4 text-center">
-            <div className="studio-icon-button h-20 w-20 backdrop-blur-xl">
+            <div className="studio-icon-button studio-gallery-icon-button-lg">
               {batchJob?.status === "queued" ? (
                 <div className="flex flex-col items-center gap-2">
                   <div className="relative flex h-11 w-11 items-center justify-center">
@@ -139,12 +139,12 @@ export function StudioGalleryTile({
         </div>
       ) : null}
       {!batchTile ? (
-        <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+        <div className="studio-gallery-footer">
+          <div className="studio-gallery-footer-row">
+            <div className="studio-gallery-model-label">
               {prettifyModelLabel(tile.asset?.model_key)}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="studio-gallery-icon-row">
               {tile.asset?.asset_id != null ? (
                 <button
                   type="button"
@@ -155,7 +155,7 @@ export function StudioGalleryTile({
                   }}
                   disabled={favoriteAssetIdBusy === tile.asset.asset_id}
                   className={cn(
-                    "studio-icon-button h-8 w-8 backdrop-blur-xl",
+                    "studio-icon-button studio-gallery-icon-button-sm",
                     tile.asset?.favorited
                       ? "studio-icon-button-favorite"
                       : "",
@@ -166,7 +166,7 @@ export function StudioGalleryTile({
                   <Heart className={cn("size-3.5", tile.asset?.favorited ? "fill-current" : "")} />
                 </button>
               ) : null}
-              <div className="studio-icon-button h-8 w-8 backdrop-blur-xl">
+              <div className="studio-icon-button studio-gallery-icon-button-sm">
                 {tile.asset?.generation_kind === "video" ? (
                   <Clapperboard className="size-3.5" />
                 ) : tile.asset?.generation_kind === "audio" ? (

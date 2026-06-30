@@ -55,7 +55,7 @@ export function StudioInspectorActions({
             onClick={onDismiss}
             tone="danger"
             data-testid="studio-inspector-remove"
-            className="h-11 w-11 rounded-full border-[var(--action-danger-border)] bg-[var(--action-danger-surface)] text-[var(--action-danger-text)] shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+            className="h-11 w-11 rounded-full border-[var(--action-danger-border)] bg-[var(--action-danger-surface)] text-[var(--action-danger-text)] shadow-[var(--shadow-soft)] backdrop-blur-xl"
           />
         </div>
       </div>
@@ -79,7 +79,7 @@ export function StudioInspectorActions({
               data-testid="studio-inspector-animate"
               onClick={onAnimate}
               variant="primary"
-              className="h-11 w-full gap-2 shadow-[0_18px_38px_rgba(176,235,44,0.2)]"
+              className="h-11 w-full gap-2 shadow-[var(--shadow-button)]"
             >
               <Wand2 className="size-4" />
               Animate
@@ -117,7 +117,7 @@ export function StudioInspectorActions({
               data-testid="studio-inspector-animate-desktop"
               onClick={onAnimate}
               variant="primary"
-              className="h-11 w-full gap-2 shadow-[0_18px_38px_rgba(176,235,44,0.2)]"
+              className="h-11 w-full gap-2 shadow-[var(--shadow-button)]"
             >
               <Wand2 className="size-4" />
               Animate

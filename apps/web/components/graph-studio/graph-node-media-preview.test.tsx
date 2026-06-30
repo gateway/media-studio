@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GraphNodeMediaPreview } from "./graph-node-media-preview";
 import type { GraphNodeData } from "./types";
@@ -20,6 +20,10 @@ function makeNodeData(overrides: Partial<GraphNodeData>): GraphNodeData {
     ...overrides,
   };
 }
+
+afterEach(() => {
+  cleanup();
+});
 
 describe("GraphNodeMediaPreview", () => {
   it("renders playable controls for multiple audio outputs", () => {
@@ -80,5 +84,79 @@ describe("GraphNodeMediaPreview", () => {
 
     expect(container.querySelector('img[src="/media/thumb.webp"]')).toBeTruthy();
     expect(container.querySelector('img[src="/media/original.png"]')).toBeFalsy();
+  });
+
+  it("renders compact duration and resolution metadata for a video preview", () => {
+    render(
+      <GraphNodeMediaPreview
+        nodeId="load-video"
+        data={makeNodeData({
+          mediaPreview: {
+            mediaType: "video",
+            url: "/media/driving.mp4",
+            label: "Driving video",
+            durationLabel: "20.1s",
+            aspectLabel: "9:16",
+            resolutionLabel: "720x1280",
+          },
+        })}
+        isLoadMedia
+        isSaveMedia={false}
+      />,
+    );
+
+    expect(screen.getByText("20.1s")).toBeTruthy();
+    expect(screen.getByText("9:16")).toBeTruthy();
+    expect(screen.getByText("720x1280")).toBeTruthy();
+  });
+
+  it("opens the media library from an empty load-image preview", () => {
+    const onOpenImageLibrary = vi.fn();
+    render(
+      <GraphNodeMediaPreview
+        nodeId="load-portrait"
+        data={makeNodeData({
+          definition: {
+            type: "media.load_image",
+            title: "Load Image",
+            category: "Media",
+            ports: { inputs: [], outputs: [] },
+            fields: [],
+          },
+          onOpenImageLibrary,
+        })}
+        isLoadMedia
+        isSaveMedia={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose media from library" }));
+
+    expect(onOpenImageLibrary).toHaveBeenCalledWith("load-portrait", "image");
+  });
+
+  it("opens the media library with the load-video media type", () => {
+    const onOpenImageLibrary = vi.fn();
+    render(
+      <GraphNodeMediaPreview
+        nodeId="load-motion"
+        data={makeNodeData({
+          definition: {
+            type: "media.load_video",
+            title: "Load Video",
+            category: "Media",
+            ports: { inputs: [], outputs: [] },
+            fields: [],
+          },
+          onOpenImageLibrary,
+        })}
+        isLoadMedia
+        isSaveMedia={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose media from library" }));
+
+    expect(onOpenImageLibrary).toHaveBeenCalledWith("load-motion", "video");
   });
 });

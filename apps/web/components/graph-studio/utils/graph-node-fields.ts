@@ -1,4 +1,6 @@
 import type { GraphNodeDefinition, GraphNodeField } from "../types";
+import { graphMediaPresetSelectionSummary } from "./graph-media-preset";
+import { graphPromptRecipeSelectionSummary } from "./graph-prompt-recipe";
 
 export type GraphVisibleFieldMetrics = {
   visibleFields: GraphNodeField[];
@@ -93,4 +95,10 @@ export function graphVisibleFieldMetrics(
     textareaCount,
     layoutFieldCount,
   };
+}
+
+export function graphExtraLayoutRows(definition: GraphNodeDefinition, fields: Record<string, unknown>) {
+  if (definition.type === "prompt.recipe" && graphPromptRecipeSelectionSummary(definition, fields)) return 2;
+  if (definition.type === "preset.render" && graphMediaPresetSelectionSummary(definition, fields)) return 2;
+  return 0;
 }

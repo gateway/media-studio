@@ -12,6 +12,17 @@ from .store_support import (
 )
 
 
+def _like_search_pattern(query: Optional[str]) -> Optional[str]:
+    cleaned = " ".join(str(query or "").strip().lower().split())
+    if not cleaned:
+        return None
+    return (
+        "%"
+        + cleaned.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        + "%"
+    )
+
+
 def list_project_references(project_id: str, *, kind: Optional[str] = None, status: str = "active") -> List[Dict[str, Any]]:
     clauses = ["mpr.project_id = ?"]
     params: List[Any] = [project_id]
@@ -105,6 +116,7 @@ def list_reference_media(
     limit: int = 100,
     offset: int = 0,
     project_id: Optional[str] = None,
+    q: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     clauses = ["1 = 1"]
     params: List[Any] = []
@@ -119,6 +131,23 @@ def list_reference_media(
         join = "INNER JOIN media_project_references mpr ON mpr.reference_id = rm.reference_id"
         clauses.append("mpr.project_id = ?")
         params.append(project_id)
+    search_pattern = _like_search_pattern(q)
+    if search_pattern:
+        clauses.append(
+            "("
+            "LOWER(COALESCE(rm.reference_id, '')) LIKE ? ESCAPE '\\' OR "
+            "LOWER(COALESCE(rm.original_filename, '')) LIKE ? ESCAPE '\\' OR "
+            "LOWER(COALESCE(rm.stored_path, '')) LIKE ? ESCAPE '\\' OR "
+            "LOWER(COALESCE(rm.sha256, '')) LIKE ? ESCAPE '\\' OR "
+            "EXISTS ("
+            "SELECT 1 FROM media_project_references mpr_search "
+            "INNER JOIN media_projects mp_search ON mp_search.project_id = mpr_search.project_id "
+            "WHERE mpr_search.reference_id = rm.reference_id "
+            "AND LOWER(COALESCE(mp_search.name, '')) LIKE ? ESCAPE '\\'"
+            ")"
+            ")"
+        )
+        params.extend([search_pattern] * 5)
     query = "SELECT rm.* FROM reference_media rm %s WHERE %s ORDER BY rm.last_used_at DESC, rm.created_at DESC LIMIT ? OFFSET ?" % (
         join,
         " AND ".join(clauses),

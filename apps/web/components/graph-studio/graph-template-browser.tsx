@@ -2,6 +2,7 @@
 
 import { LayoutTemplate, Trash2 } from "lucide-react";
 
+import { GraphDialogRowIcon, GraphSectionTitle, GraphSidebarEmpty } from "./graph-dialog-primitives";
 import type { GraphTemplateRecord } from "./types";
 import { formatGraphTimestamp } from "./utils/graph-time";
 
@@ -17,16 +18,16 @@ export function GraphTemplateBrowser({
   return (
     <section className="graph-template-browser">
       <div className="graph-template-browser-header">
-        <div className="graph-section-title">Templates</div>
+        <GraphSectionTitle>Templates</GraphSectionTitle>
       </div>
       {templates.length ? (
         <div className="graph-dialog-list">
           {templates.map((template) => (
             <div className="graph-dialog-row graph-workflow-row" key={template.template_id}>
               <button className="graph-workflow-load-button" type="button" onClick={() => onInstantiate(template)}>
-                <span className="graph-dialog-row-icon">
+                <GraphDialogRowIcon>
                   <LayoutTemplate size={17} />
-                </span>
+                </GraphDialogRowIcon>
                 <span>
                   <strong>{template.name || "Untitled template"}</strong>
                   <small>{template.description || formatGraphTimestamp(template.updated_at) || template.template_id}</small>
@@ -39,7 +40,7 @@ export function GraphTemplateBrowser({
           ))}
         </div>
       ) : (
-        <div className="graph-sidebar-empty">No saved templates yet.</div>
+        <GraphSidebarEmpty>No saved templates yet.</GraphSidebarEmpty>
       )}
     </section>
   );

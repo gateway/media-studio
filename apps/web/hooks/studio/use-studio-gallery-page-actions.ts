@@ -42,6 +42,41 @@ type GalleryPageActionParams = {
   setLoadingMoreFavoriteAssets: Dispatch<SetStateAction<boolean>>;
 };
 
+export function buildStudioGalleryAssetPageParams({
+  activeProjectId,
+  offset,
+  favorited,
+  limit,
+  galleryKindFilter,
+  galleryModelFilter,
+}: {
+  activeProjectId: string | null;
+  offset: number;
+  favorited?: boolean;
+  limit: number;
+  galleryKindFilter: GalleryKindFilter;
+  galleryModelFilter: string;
+}) {
+  const params = new URLSearchParams({
+    limit: String(Math.max(1, limit)),
+    offset: String(Math.max(0, offset)),
+    view: "summary",
+  });
+  if (favorited) {
+    params.set("favorited", "true");
+  }
+  if (galleryKindFilter !== "all") {
+    params.set("generation_kind", galleryKindFilter);
+  }
+  if (galleryModelFilter !== "all") {
+    params.set("model_key", galleryModelFilter);
+  }
+  if (activeProjectId) {
+    params.set("project_id", activeProjectId);
+  }
+  return params;
+}
+
 export function createStudioGalleryPageActions({
   activeProjectId,
   assetPageLimit,
@@ -80,23 +115,14 @@ export function createStudioGalleryPageActions({
     limitOverride?: number;
     silent?: boolean;
   }): Promise<AssetPagePayload | null> {
-    const requestLimit = Math.max(1, limitOverride ?? assetPageLimit);
-    const params = new URLSearchParams({
-      limit: String(requestLimit),
-      offset: String(Math.max(0, offset)),
+    const params = buildStudioGalleryAssetPageParams({
+      activeProjectId,
+      offset,
+      favorited,
+      limit: limitOverride ?? assetPageLimit,
+      galleryKindFilter,
+      galleryModelFilter,
     });
-    if (favorited) {
-      params.set("favorited", "true");
-    }
-    if (galleryKindFilter !== "all") {
-      params.set("generation_kind", galleryKindFilter);
-    }
-    if (galleryModelFilter !== "all") {
-      params.set("model_key", galleryModelFilter);
-    }
-    if (activeProjectId) {
-      params.set("project_id", activeProjectId);
-    }
 
     try {
       const response = await fetch(`/api/control/media-assets?${params.toString()}`, {

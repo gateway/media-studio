@@ -137,11 +137,13 @@ npm run dev
 
 That runs the app in development mode and can show dev-only UI such as the Next.js badge or overlay.
 
-Then open:
+Then open the URL printed by the launcher. On a default free-port launch, those routes are:
 
 - `http://127.0.0.1:3000/studio`
 - `http://127.0.0.1:3000/settings`
 - `http://127.0.0.1:3000/pricing`
+
+If port `3000` is already in use, the launcher automatically picks another web port and prints the actual Studio URL for that launch.
 
 ## What to look at first
 

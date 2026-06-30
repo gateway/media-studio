@@ -42,18 +42,12 @@
   white-space: nowrap;
 }
 
-.graph-run-diagnostics-error {
-  border-color: rgba(255, 146, 146, 0.24) !important;
-  background: rgba(122, 30, 30, 0.22) !important;
-}
-
 .graph-run-diagnostics-failed {
   color: var(--graph-danger-text-strong);
 }
 
 .graph-context-menu,
 .graph-node-context-menu,
-.graph-node-search-modal,
 .graph-node-search-popover,
 .graph-image-library-modal,
 .graph-library-modal,
@@ -67,7 +61,7 @@
   border: 1px solid var(--graph-border-modal);
   border-radius: 8px;
   background: var(--graph-panel-modal);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 20px 60px color-mix(in srgb, black 45%, transparent);
 }
 
 .graph-context-menu button {
@@ -150,7 +144,7 @@
   border: 1px solid var(--graph-border);
   border-radius: 6px;
   color: var(--graph-text);
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, white 5%, transparent);
   font-size: 0.68rem;
 }
 
@@ -176,7 +170,7 @@
 }
 
 .graph-node-execution-choice-active {
-  border-color: rgba(209, 255, 71, 0.55) !important;
+  border-color: color-mix(in srgb, var(--graph-accent) 55%, transparent) !important;
   color: var(--graph-accent);
   background: var(--graph-panel-hover) !important;
 }

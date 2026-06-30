@@ -15,24 +15,64 @@ GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
 PROMPT_LLM_MODES = {"rewrite_prompt", "describe_image", "custom"}
 PROMPT_LLM_PROVIDERS = {"studio_default", "openrouter", "local_openai", "codex_local"}
 PROMPT_TEXT_MODES = {"replace", "append", "prepend"}
+PROMPT_IMAGE_ANALYZER_MODES = {"full_analysis", "image_to_prompt"}
 PROMPT_TEXT_MAX_CHARS = 32000
 PROMPT_RECIPE_TEXT_VARIABLES = {
     "user_prompt",
     "source_prompt",
     "previous_output",
+    "previous_storyboard_prompt",
+    "continuation_brief",
     "image_analysis",
     "source_image_prompt",
     "shot_count",
+    "panel_count",
+    "segment_number",
+    "total_segments",
+    "target_duration_seconds",
+    "dialogue_mode",
     "duration_seconds",
     "aspect_ratio",
     "output_format",
     "style_direction",
+    "continuity_notes",
+    "handoff_goal",
 }
 PROMPT_RECIPE_IMAGE_MODES = {"none", "direct_reference", "analyze_then_inject", "both"}
 PROMPT_RECIPE_STRUCTURED_FORMATS = {"prompt_list", "json_prompt_batch", "structured_shot_sequence"}
 PROMPT_RECIPE_JSON_OPTIONAL_FORMATS = {"image_analysis"}
 PROMPT_RECIPE_TOKEN_RE = re.compile(r"\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}")
 PROMPT_LINE_NUMBER_RE = re.compile(r"^\s*(?:[-*]|\d+[.)])\s*")
+STORYBOARD_V2_RECIPE_KEYS = {"storyboard-v2-gpt-image-2", "storyboard_v2", "cinematic_3x2_storyboard_v2"}
+STORYBOARD_PRIVATE_NAME_EXCLUDE = {
+    "action",
+    "awakening",
+    "camera",
+    "character",
+    "dialog",
+    "dungeon",
+    "framing",
+    "motion",
+    "notes",
+    "panel",
+    "setup",
+    "shot",
+    "storyboard",
+}
+STORYBOARD_REFERENCE_TEXT_GUARD = (
+    "Do not copy visible name, title, project, footer, profile-card, or UI label text from connected reference images; "
+    "reference images are visual continuity sources only. Storyboard panel metadata rows such as CAMERA, FRAMING, ACTION, "
+    "MOTION, DIALOG, and NOTES should use generic subject wording like the character, the woman, or the lead unless "
+    "the user explicitly asks for a visible character name."
+)
+STORYBOARD_COUNT_WORDS = {
+    "2": "two",
+    "two": "two",
+    "3": "three",
+    "three": "three",
+    "4": "four",
+    "four": "four",
+}
 
 
 def _text_value(ref: GraphOutputRef) -> str:
@@ -119,9 +159,6 @@ def _node_provider_supports_images(fields: Dict[str, Any]) -> bool | None:
     explicit_value = fields.get("provider_supports_images")
     if isinstance(explicit_value, bool):
         return explicit_value
-    legacy_value = fields.get("model_supports_images")
-    if isinstance(legacy_value, bool):
-        return legacy_value
     return None
 
 
@@ -182,10 +219,6 @@ def _provider_config(node: GraphWorkflowNode, *, has_image: bool) -> Dict[str, A
 
 def _prompt_recipe_for_node(node: GraphWorkflowNode) -> Dict[str, Any]:
     recipe_id = str(node.fields.get("recipe_id") or "").strip()
-    if not recipe_id and node.type.startswith("prompt.recipe."):
-        from ..registry import registry
-
-        recipe_id = str(registry.get_definition(node.type).source.get("recipe_id") or "").strip()
     if not recipe_id:
         raise ValueError("Prompt Recipe requires a saved recipe.")
     recipe = store.get_prompt_recipe(recipe_id)
@@ -366,6 +399,35 @@ def _analysis_messages(image_paths: List[str], analysis_prompt: str) -> List[Dic
             "role": "system",
             "content": "You analyze image references for downstream prompt generation. Focus on identity, continuity, composition, and details useful for media generation.",
         },
+        {"role": "user", "content": content},
+    ]
+
+
+def _image_analyzer_messages(
+    *,
+    image_paths: List[str],
+    mode: str,
+    system_prompt: str,
+    analysis_goal: str,
+) -> List[Dict[str, Any]]:
+    mode_instruction = (
+        "Return a model-ready image generation prompt that captures the visible subject, composition, style, lighting, palette, texture, and mood."
+        if mode == "image_to_prompt"
+        else (
+            "Return a detailed visual analysis covering content inventory, composition, medium, palette, line and shape language, "
+            "subject treatment, environment, texture, lighting, typography when present, and mood."
+        )
+    )
+    user_text = f"Task: {mode_instruction}\n"
+    if analysis_goal:
+        user_text += f"Operator focus: {analysis_goal}\n"
+    user_text += "Use only visible evidence from the image. Return plain text with no markdown fences."
+    content = enhancement_provider.build_openai_compatible_multimodal_content(
+        text=user_text,
+        image_paths=image_paths,
+    )
+    return [
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": content},
     ]
 
@@ -597,6 +659,276 @@ def _normalize_prompt_recipe_result(recipe: Dict[str, Any], raw_text: str) -> Di
     return result
 
 
+def _is_storyboard_v2_recipe(recipe: Dict[str, Any]) -> bool:
+    recipe_key = str(recipe.get("key") or "").strip().lower()
+    recipe_id = str(recipe.get("recipe_id") or "").strip().lower()
+    return recipe_key in STORYBOARD_V2_RECIPE_KEYS or recipe_id == "prompt-recipe-storyboard-v2-gpt-image-2"
+
+
+def _storyboard_user_requested_visible_name(values: Dict[str, str]) -> bool:
+    text = "\n".join(str(values.get(key) or "") for key in ("user_prompt", "previous_output", "previous_storyboard_prompt", "continuation_brief", "style_direction"))
+    normalized = " ".join(text.lower().split())
+    if re.search(
+        r"\b(?:no|not|without|don't|dont|do not|never)\b.{0,50}\b(?:visible|show|display|include|print|write|label|title|name|proper name)\b",
+        normalized,
+    ):
+        return False
+    return bool(
+        re.search(r"\b(?:show|display|include|print|write|label|title)\b.{0,80}\b(?:name|character name|proper name)\b", normalized)
+        or re.search(r"\b(?:visible|on[- ]?board|on[- ]?screen)\b.{0,80}\b(?:name|character name|proper name)\b", normalized)
+    )
+
+
+def _storyboard_user_disabled_dialogue(values: Dict[str, str]) -> bool:
+    text = "\n".join(str(values.get(key) or "") for key in ("user_prompt", "previous_output", "previous_storyboard_prompt", "continuation_brief", "style_direction"))
+    normalized = " ".join(text.lower().split())
+    return bool(
+        re.search(
+            r"\b(?:no|not|without|don't|dont|do not|never)\b.{0,50}\b(?:dialogue|dialog|spoken|speech|talking|talk|lines)\b",
+            normalized,
+        )
+        or re.search(r"\b(?:wordless|silent|no-dialogue|no dialog|no dialogue)\b", normalized)
+    )
+
+
+def _storyboard_blank_non_spoken_dialog_rows(text: str, *, force_no_dialogue: bool = False) -> str:
+    if force_no_dialogue:
+        return re.sub(
+            r"(?m)^(?P<prefix>\s*(?:[-*]\s*)?DIALOG\s*:\s*).*$",
+            lambda match: match.group("prefix").rstrip() + " ",
+            text,
+        )
+
+    non_spoken_values = (
+        r"silence|silent|none|n/?a|no dialogue|no dialog|no spoken dialogue|no spoken lines|"
+        r"wordless|breath|breathing|reaction cue|nonverbal cue|non-verbal cue|"
+        r"silent reaction|quiet reaction"
+    )
+
+    def replace_row(match: re.Match[str]) -> str:
+        prefix = match.group("prefix")
+        value = match.group("value").strip()
+        if re.fullmatch(non_spoken_values, value, flags=re.IGNORECASE):
+            return prefix.rstrip() + " "
+        return match.group(0)
+
+    return re.sub(
+        rf"(?m)^(?P<prefix>\s*(?:[-*]\s*)?DIALOG\s*:\s*)(?P<value>{non_spoken_values})\s*$",
+        replace_row,
+        text,
+        flags=re.IGNORECASE,
+    )
+
+
+def _singular_storyboard_noun(value: str) -> str:
+    normalized = value.strip()
+    if normalized.endswith("ies"):
+        return normalized[:-3] + "y"
+    if normalized.endswith("s") and len(normalized) > 1:
+        return normalized[:-1]
+    return normalized
+
+
+def _storyboard_requested_story_text(values: Dict[str, str]) -> str:
+    user_text = str(values.get("user_prompt") or "")
+    if not user_text.strip():
+        return ""
+    for pattern in (
+        r"Mandatory story beats[^:]*:\s*(?P<text>.*?)(?:\.\s+If there are more beats|\nQuantity precision:|\nDialogue preference:|\nPanel count:|\Z)",
+        r"Story\s*/\s*scene brief:\s*(?P<text>.*?)(?:\nMandatory story beats|\nQuantity precision:|\nDialogue preference:|\nPanel count:|\Z)",
+    ):
+        match = re.search(pattern, user_text, flags=re.IGNORECASE | re.DOTALL)
+        if match:
+            extracted = re.sub(r"\s+", " ", match.group("text")).strip(" .")
+            if extracted:
+                return extracted
+    return re.sub(r"\s+", " ", user_text).strip()
+
+
+def _storyboard_preserve_requested_quantities(text: str, values: Dict[str, str]) -> str:
+    user_text = _storyboard_requested_story_text(values)
+    if not user_text.strip():
+        return text
+    patterns = (
+        r"\b(?:kills?|slays?|defeats?|takes?\s+down)\s+(?P<count>2|two|3|three|4|four)\s+(?P<noun>[a-z][a-z -]{1,40}?)\b(?=,|\.|;| and\b| then\b|$)",
+        r"\b(?P<count>2|two|3|three|4|four)\s+(?P<noun>[a-z][a-z -]{1,40}?)\s+(?:are|were|watch|guard|attack|chase|fall|die|collapse)\b",
+    )
+    requested: list[tuple[str, str]] = []
+    for pattern in patterns:
+        for match in re.finditer(pattern, user_text, flags=re.IGNORECASE):
+            count = STORYBOARD_COUNT_WORDS.get(match.group("count").lower(), match.group("count").lower())
+            noun = re.sub(r"\s+", " ", match.group("noun").strip().lower())
+            if noun:
+                requested.append((count, noun))
+    if not requested:
+        return text
+    updated = text
+    reminders: list[str] = []
+    seen: set[tuple[str, str]] = set()
+    for count, noun in requested:
+        key = (count, noun)
+        if key in seen:
+            continue
+        seen.add(key)
+        singular = _singular_storyboard_noun(noun)
+        updated = re.sub(rf"\bone\s+{re.escape(singular)}\b", f"{count} {noun}", updated, flags=re.IGNORECASE)
+        updated = re.sub(rf"\b1\s+{re.escape(singular)}\b", f"{count} {noun}", updated, flags=re.IGNORECASE)
+        if not re.search(rf"\b{re.escape(count)}\s+{re.escape(noun)}\b", updated, flags=re.IGNORECASE):
+            reminders.append(f"{count} {noun}")
+    if reminders:
+        updated = (
+            updated.rstrip()
+            + "\n\nQUANTITY CHECK: Preserve the requested count in the storyboard panel ACTION/NOTES text: "
+            + "; ".join(reminders)
+            + ". Do not reduce requested quantities to one."
+        )
+    return updated
+
+
+def _storyboard_phrase_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+
+def _storyboard_requested_action_beats(values: Dict[str, str]) -> List[str]:
+    story_text = _storyboard_requested_story_text(values)
+    if not story_text:
+        return []
+    action_verbs = (
+        r"breaks?|bursts?|runs?|sprints?|escapes?|flees?|kills?|slays?|defeats?|takes?\s+down|"
+        r"melts?|uses?|casts?|steals?|grabs?|opens?|unlocks?|fights?|chases?|charges?|"
+        r"enters?|leaves?|falls?|jumps?|climbs?|reaches?|discovers?|finds?|activates?"
+    )
+    ignored_terms = {
+        "dialogue",
+        "dialog",
+        "seedance",
+        "video node",
+        "image reference",
+        "gpt image",
+        "storyboard",
+        "character sheet",
+    }
+    clauses = re.split(r"(?:[,;.]|\band then\b|\bthen\b|\band\b)", story_text, flags=re.IGNORECASE)
+    beats: List[str] = []
+    seen: set[str] = set()
+    for clause in clauses:
+        phrase = re.sub(r"\s+", " ", clause).strip(" .")
+        phrase = re.sub(r"^(?:she|he|they|the character|the woman|the man|the lead)\s+", "", phrase, flags=re.IGNORECASE)
+        if not phrase or any(term in phrase.lower() for term in ignored_terms):
+            continue
+        if len(phrase.split()) < 3 or len(phrase) > 120:
+            continue
+        if not re.search(rf"\b(?:{action_verbs})\b", phrase, flags=re.IGNORECASE):
+            continue
+        key = _storyboard_phrase_key(phrase)
+        if key and key not in seen:
+            seen.add(key)
+            beats.append(phrase)
+    return beats[:8]
+
+
+def _storyboard_preserve_requested_action_beats(text: str, values: Dict[str, str]) -> str:
+    beats = _storyboard_requested_action_beats(values)
+    if not beats:
+        return text
+    output_key = _storyboard_phrase_key(text)
+    missing = [beat for beat in beats if _storyboard_phrase_key(beat) not in output_key]
+    if not missing:
+        return text
+    return (
+        text.rstrip()
+        + "\n\nSTORY BEATS: The storyboard panel ACTION/NOTES rows should clearly cover: "
+        + "; ".join(missing)
+        + "."
+    )
+
+
+def _storyboard_text_from_structured_json(parsed_json: Any) -> str:
+    if not isinstance(parsed_json, dict):
+        return ""
+    shots = parsed_json.get("shots") or parsed_json.get("panels")
+    if not isinstance(shots, list) or not shots:
+        return ""
+    lines: List[str] = []
+    title = str(parsed_json.get("title") or parsed_json.get("storyboard_title") or "").strip()
+    if title:
+        lines.append(f"Storyboard title: {title}.")
+    style = str(parsed_json.get("style") or parsed_json.get("style_direction") or "").strip()
+    if style:
+        lines.append(f"Style: {style}.")
+    lines.append("")
+    for index, shot in enumerate(shots, start=1):
+        if not isinstance(shot, dict):
+            continue
+        shot_label = str(shot.get("shot") or shot.get("title") or shot.get("label") or f"{index:02d}").strip()
+        lines.append(f"{index}. Panel {index:02d} - {shot_label}")
+        for key, label in (
+            ("camera", "CAMERA"),
+            ("framing", "FRAMING"),
+            ("action", "ACTION"),
+            ("motion", "MOTION"),
+            ("dialog", "DIALOG"),
+            ("dialogue", "DIALOG"),
+            ("notes", "NOTES"),
+        ):
+            value = str(shot.get(key) or "").strip()
+            if value:
+                lines.append(f"   - {label}: {value}")
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
+def _storyboard_private_name_aliases(raw_text: str, values: Dict[str, str]) -> List[str]:
+    source_text = "\n".join([raw_text, *(str(values.get(key) or "") for key in ("user_prompt", "previous_output", "previous_storyboard_prompt", "continuation_brief"))])
+    aliases: set[str] = set()
+    for pattern in (
+        r"\bnamed\s+([A-Z][A-Za-z0-9_-]{1,40})\b",
+        r"\bcalled\s+([A-Z][A-Za-z0-9_-]{1,40})\b",
+        r"\bfor\s+([A-Z][A-Za-z0-9_-]{1,40})\b",
+        r"\b([A-Z][A-Za-z0-9_-]{1,40})['’]s\b",
+    ):
+        for match in re.finditer(pattern, source_text):
+            alias = match.group(1).strip()
+            if alias and alias.lower() not in STORYBOARD_PRIVATE_NAME_EXCLUDE:
+                aliases.add(alias)
+    return sorted(aliases, key=len, reverse=True)
+
+
+def _sanitize_storyboard_v2_prompt_text(raw_text: str, values: Dict[str, str]) -> str:
+    parsed_json = _parse_json_maybe(raw_text)
+    prompts = _prompts_from_parsed_json(parsed_json) if parsed_json is not None else []
+    if prompts:
+        raw_text = prompts[0]
+    elif parsed_json is not None:
+        structured_text = _storyboard_text_from_structured_json(parsed_json)
+        if structured_text:
+            raw_text = structured_text
+    if _storyboard_user_requested_visible_name(values):
+        return raw_text.strip()
+    sanitized = raw_text.strip()
+    for alias in _storyboard_private_name_aliases(sanitized, values):
+        sanitized = re.sub(rf"\b{re.escape(alias)}['’]s\b", "the character's", sanitized)
+        sanitized = re.sub(rf"\b{re.escape(alias)}\b", "the character", sanitized)
+    sanitized = re.sub(r"\b(?:character|woman|man|person|subject)\s+the character\b", "character", sanitized, flags=re.IGNORECASE)
+    sanitized = re.sub(r"\bthe character\s+the character\b", "the character", sanitized, flags=re.IGNORECASE)
+    sanitized = re.sub(r"\bthe character['’]s\s+character\b", "the character", sanitized, flags=re.IGNORECASE)
+    sanitized = _storyboard_blank_non_spoken_dialog_rows(
+        sanitized,
+        force_no_dialogue=_storyboard_user_disabled_dialogue(values),
+    )
+    sanitized = _storyboard_preserve_requested_quantities(sanitized, values)
+    sanitized = _storyboard_preserve_requested_action_beats(sanitized, values)
+    if "do not copy visible name" not in sanitized.lower():
+        sanitized = f"{STORYBOARD_REFERENCE_TEXT_GUARD} {sanitized}"
+    if not re.search(r"\bdark\s+near[- ]?black\b", sanitized, flags=re.IGNORECASE):
+        sanitized = (
+            "Use a dark near-black production storyboard board background with thin yellow-orange UI lines, "
+            "subtle panel borders, clean readable English typography, and readable director-note metadata strips under every cell. "
+            + sanitized
+        )
+    return sanitized
+
+
 class PromptTextExecutor(GraphExecutor):
     node_type = "prompt.text"
 
@@ -724,6 +1056,86 @@ class PromptLlmExecutor(GraphExecutor):
         }
 
 
+class PromptImageAnalyzerExecutor(GraphExecutor):
+    node_type = "prompt.image_analyzer"
+
+    def execute(self, node: GraphWorkflowNode, context: GraphExecutionContext) -> Dict[str, List[GraphOutputRef]]:
+        mode = str(node.fields.get("mode") or "full_analysis").strip()
+        if mode not in PROMPT_IMAGE_ANALYZER_MODES:
+            raise ValueError("Image Analyzer mode is not supported.")
+
+        image_refs = context.inputs_for(node, "image")
+        image_paths = [str(graph_ref_path(ref, expected_media_type="image")) for ref in image_refs[:1]]
+        if not image_paths:
+            raise ValueError("Image Analyzer requires one image input.")
+
+        system_prompt = str(node.fields.get("system_prompt") or "").strip()
+        if not system_prompt:
+            raise ValueError("Image Analyzer requires a system prompt.")
+        analysis_goal = str(node.fields.get("analysis_goal") or "").strip()
+        if len(analysis_goal) > 4000:
+            raise ValueError("Image Analyzer analysis goal exceeds 4000 characters.")
+
+        provider = _provider_config(node, has_image=True)
+        temperature = _optional_bounded_float(node.fields.get("temperature"), minimum=0, maximum=2)
+        max_tokens = _optional_bounded_int(node.fields.get("max_tokens"), minimum=64, maximum=4000)
+        messages = _image_analyzer_messages(
+            image_paths=image_paths,
+            mode=mode,
+            system_prompt=system_prompt,
+            analysis_goal=analysis_goal,
+        )
+        if str(provider["provider_kind"]) == "codex_local":
+            result = enhancement_provider.run_codex_local_chat(
+                model_id=str(provider["provider_model_id"]),
+                messages=messages,
+                error_context="image analyzer",
+            )
+        else:
+            result = enhancement_provider.run_openai_compatible_chat(
+                provider_kind=str(provider["provider_kind"]),
+                base_url=str(provider["provider_base_url"]),
+                api_key=str(provider["provider_api_key"] or ""),
+                model_id=str(provider["provider_model_id"]),
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                error_context="image analyzer",
+            )
+        generated_text = str(result.get("generated_text") or "").strip()
+        if not generated_text:
+            raise ValueError("Image Analyzer returned empty text.")
+
+        _record_llm_usage_metric(
+            context,
+            node,
+            provider_result=result,
+            source_kind="graph_image_analyzer",
+            task_mode=mode,
+        )
+        payload = {
+            "type": "image_analysis",
+            "mode": mode,
+            "raw_text": generated_text,
+            "final_text": generated_text,
+            "provider_kind": result.get("provider_kind") or provider["provider_kind"],
+            "provider_model_id": result.get("provider_model_id") or provider["provider_model_id"],
+            "has_image": True,
+            "analysis_goal": analysis_goal,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "runtime_defaults": "provider" if temperature is None and max_tokens is None else "overridden",
+            "warnings": result.get("warnings") if isinstance(result.get("warnings"), list) else [],
+        }
+        context.record_node_metric(node, "provider_kind", payload["provider_kind"])
+        context.record_node_metric(node, "provider_model_id", payload["provider_model_id"])
+        context.record_node_metric(node, "has_image", True)
+        return {
+            "text": [GraphOutputRef(kind="value", value=generated_text, metadata={"type": "text", "source": "prompt.image_analyzer", "mode": mode})],
+            "result": [GraphOutputRef(kind="value", media_type="json", value=payload, metadata={"type": "json"})],
+        }
+
+
 class PromptRecipeExecutor(GraphExecutor):
     node_type = "prompt.recipe"
 
@@ -826,6 +1238,8 @@ class PromptRecipeExecutor(GraphExecutor):
         raw_text = str(result.get("generated_text") or "").strip()
         if not raw_text:
             raise ValueError("Prompt Recipe returned empty text.")
+        if _is_storyboard_v2_recipe(recipe):
+            raw_text = _sanitize_storyboard_v2_prompt_text(raw_text, values)
         canonical = _normalize_prompt_recipe_result(recipe, raw_text)
         canonical.update(
             {

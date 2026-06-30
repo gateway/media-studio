@@ -1,22 +1,55 @@
 import { NextResponse } from "next/server";
 
-import { getControlApiJson, mapAssetRecord } from "@/lib/control-api";
-import type { MediaAssetsResponse } from "@/lib/types";
+import {
+  getControlApiJson,
+  mapAssetPickerRecord,
+  mapAssetRecord,
+  mapAssetSummaryRecord,
+} from "@/lib/control-api";
+import type {
+  MediaAssetPickerResponse,
+  MediaAssetSummaryResponse,
+  MediaAssetsResponse,
+} from "@/lib/types";
+import { boundedIntegerParam } from "../pagination";
 
 const CONTROL_ASSET_PAGE_LIMIT = 100;
 const CONTROL_ASSET_MAX_LIMIT = 200;
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const limit = Math.max(1, Number(url.searchParams.get("limit") ?? "12") || 12);
-  const offset = Math.max(0, Number(url.searchParams.get("offset") ?? "0") || 0);
+  const limit = boundedIntegerParam(
+    url.searchParams.get("limit"),
+    12,
+    1,
+    CONTROL_ASSET_MAX_LIMIT,
+  );
+  const offset = boundedIntegerParam(
+    url.searchParams.get("offset"),
+    0,
+    0,
+    Number.MAX_SAFE_INTEGER,
+  );
   const generationKind = url.searchParams.get("generation_kind");
   const modelKey = url.searchParams.get("model_key");
   const status = url.searchParams.get("status");
   const presetKey = url.searchParams.get("preset_key");
   const projectId = url.searchParams.get("project_id");
   const favorited = url.searchParams.get("favorited");
-  const mediaType = generationKind === "video" || generationKind === "image" ? generationKind : null;
+  const view = url.searchParams.get("view");
+  const q = url.searchParams.get("q");
+  const mapAssetForView =
+    view === "picker"
+      ? mapAssetPickerRecord
+      : view === "summary"
+        ? mapAssetSummaryRecord
+        : mapAssetRecord;
+  const mediaType =
+    generationKind === "image" ||
+    generationKind === "video" ||
+    generationKind === "audio"
+      ? generationKind
+      : null;
   const baseParams = new URLSearchParams();
   if (mediaType) {
     baseParams.set("media_type", mediaType);
@@ -36,9 +69,17 @@ export async function GET(request: Request) {
   if (favorited === "true") {
     baseParams.set("favorites", "true");
   }
+  if (q?.trim()) {
+    baseParams.set("q", q.trim());
+  }
+  if (view === "picker" || view === "summary") {
+    baseParams.set("compact", "true");
+  }
 
   let remainingOffset = offset;
-  const page: ReturnType<typeof mapAssetRecord>[] = [];
+  const page: Array<
+    ReturnType<typeof mapAssetRecord> | ReturnType<typeof mapAssetPickerRecord>
+  > = [];
   let nextCursor: string | null = null;
   let firstRequest = true;
   let hasMore = false;
@@ -50,7 +91,12 @@ export async function GET(request: Request) {
       String(
         Math.min(
           CONTROL_ASSET_MAX_LIMIT,
-          Math.max(CONTROL_ASSET_PAGE_LIMIT, limit - page.length + Math.min(remainingOffset, CONTROL_ASSET_PAGE_LIMIT)),
+          Math.max(
+            CONTROL_ASSET_PAGE_LIMIT,
+            limit -
+              page.length +
+              Math.min(remainingOffset, CONTROL_ASSET_PAGE_LIMIT),
+          ),
         ),
       ),
     );
@@ -58,25 +104,29 @@ export async function GET(request: Request) {
       endpointParams.set("cursor", nextCursor);
     }
 
-    const result = await getControlApiJson<{ items?: Record<string, unknown>[]; next_cursor?: string | null }>(
-      `/media/assets?${endpointParams.toString()}`,
-      "read",
-    );
+    const result = await getControlApiJson<{
+      items?: Record<string, unknown>[];
+      next_cursor?: string | null;
+    }>(`/media/assets?${endpointParams.toString()}`, "read");
 
     if (!result.ok || !result.data?.items) {
       return NextResponse.json(
         {
           ok: false,
-          error: result.error ?? "Unable to load media assets from the Control API.",
+          error:
+            result.error ?? "Unable to load media assets from the Control API.",
         },
         { status: 502 },
       );
     }
 
-    const assets = result.data.items.map(mapAssetRecord);
+    const assets = result.data.items.map(mapAssetForView);
     const startIndex = Math.min(remainingOffset, assets.length);
     if (startIndex < assets.length) {
-      const taken = assets.slice(startIndex, startIndex + (limit - page.length));
+      const taken = assets.slice(
+        startIndex,
+        startIndex + (limit - page.length),
+      );
       page.push(...taken);
       if (startIndex + taken.length < assets.length) {
         hasMore = true;
@@ -98,5 +148,8 @@ export async function GET(request: Request) {
     offset,
     has_more: hasMore || Boolean(nextCursor),
     next_offset: hasMore || nextCursor ? offset + page.length : null,
-  } as MediaAssetsResponse);
+  } as
+    | MediaAssetsResponse
+    | MediaAssetPickerResponse
+    | MediaAssetSummaryResponse);
 }

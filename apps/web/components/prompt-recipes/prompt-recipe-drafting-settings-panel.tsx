@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { KeyRound, Server, Sparkles } from "lucide-react";
 
 import { AdminActionNotice } from "@/components/admin-action-notice";
@@ -64,6 +64,21 @@ function formFromConfig(config: PromptRecipeDraftingConfig | null): DraftingForm
     temperature: Number(config?.temperature ?? 0.2),
     maxTokens: Number(config?.max_tokens ?? 1800),
   };
+}
+
+function DraftingSettingsAccentCard({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="admin-surface-accent grid gap-4 p-4 sm:p-5">
+      <div className="admin-label-accent">{label}</div>
+      {children}
+    </div>
+  );
 }
 
 export function PromptRecipeDraftingSettingsPanel({
@@ -416,16 +431,14 @@ export function PromptRecipeDraftingSettingsPanel({
       ) : null}
 
       {form.enabled && form.providerKind === "codex_local" ? (
-        <div className="admin-surface-accent grid gap-4 p-4 sm:p-5">
-          <div className="admin-label-accent">How this behaves</div>
+        <DraftingSettingsAccentCard label="How this behaves">
           <div className="text-sm leading-6 text-[var(--muted-strong)]">
             Codex Local manages its own drafting behavior. Media Studio saves the provider and model here, but it
             does not ask you to tune temperature or token limits for this option.
           </div>
-        </div>
+        </DraftingSettingsAccentCard>
       ) : form.enabled ? (
-        <div className="admin-surface-accent grid gap-4 p-4 sm:p-5">
-          <div className="admin-label-accent">Optional tuning</div>
+        <DraftingSettingsAccentCard label="Optional tuning">
           <div className="grid gap-3 md:grid-cols-2">
             <AdminField label="Temperature">
               <AdminInput
@@ -451,7 +464,7 @@ export function PromptRecipeDraftingSettingsPanel({
             Most people should leave these alone. Recipe drafting still returns text-first output even when the
             provider can accept images.
           </div>
-        </div>
+        </DraftingSettingsAccentCard>
       ) : null}
 
       <div className="mt-2 flex flex-wrap gap-3">

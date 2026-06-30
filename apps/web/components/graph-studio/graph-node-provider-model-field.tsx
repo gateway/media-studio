@@ -125,7 +125,6 @@ export function GraphNodeProviderModelField({
                 provider_model_label: "",
                 provider_supports_images: null,
                 provider_capabilities_json: {},
-                model_supports_images: null,
               });
               if (!onSetFields) onFieldChange(nodeId, field.id, "");
               return;
@@ -140,7 +139,6 @@ export function GraphNodeProviderModelField({
               provider_model_label: nextModel.label,
               provider_supports_images: Boolean(nextModel.supports_images),
               provider_capabilities_json: providerModelCapabilities(nextModel),
-              model_supports_images: Boolean(nextModel.supports_images),
             });
             if (!onSetFields) onFieldChange(nodeId, field.id, nextModel.id);
           }}

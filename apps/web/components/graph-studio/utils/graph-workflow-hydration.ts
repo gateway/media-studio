@@ -1,13 +1,16 @@
 import type { GraphNodeDefinition, GraphRun, GraphWorkflowPayload, StudioEdge, StudioNode } from "../types";
+import { resolveGraphNodeDefinition } from "./graph-effective-node-definition";
 import { readGraphGroupsFromWorkflow } from "./graph-groups";
 import { computeGraphNodeLayout } from "./graph-node-layout";
-import { graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "./graph-node-fields";
+import { graphExtraLayoutRows, graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "./graph-node-fields";
 import { graphEdgeClassForPortType, graphEdgeStyleForPortType } from "./graph-node-layout";
+import { visibleGraphInputPorts, visibleGraphOutputPorts } from "./graph-node-ports";
 import { inputGraphHandleId, outputGraphHandleId } from "./graph-port-handles";
 import { nodeUiFromMetadata } from "./graph-media-preview";
 import { graphNodeDataWithRunState } from "./graph-node-runtime";
 import { graphNormalizePromptProviderFields } from "./graph-prompt-provider";
 import { createGraphNode, nodeStyleFromMetadata, type GraphNodeHandlers } from "./graph-serialization";
+import { filterGraphWorkflowEdgesForCurrentContract } from "./graph-edge-contract";
 import { normalizeGraphWorkflowPayload } from "./graph-workflow-normalization";
 
 export type HydratedGraphWorkflow = {
@@ -45,19 +48,26 @@ export function hydrateGraphWorkflowForCanvas({
       ...node.data.fields,
       ...savedNode.fields,
     });
-    const previewHeaderFieldIds = graphPreviewHeaderFieldIds(definition);
-    const layoutMetrics = graphVisibleFieldMetrics(definition, mergedFields, [], {
+    const effectiveDefinition = resolveGraphNodeDefinition(definition, mergedFields);
+    const previewHeaderFieldIds = graphPreviewHeaderFieldIds(effectiveDefinition);
+    const layoutMetrics = graphVisibleFieldMetrics(effectiveDefinition, mergedFields, [], {
       advancedExpanded: savedUi.advancedExpanded,
       previewHeaderFieldIds,
-      extraLayoutRows: definition.type === "prompt.recipe" && String(mergedFields.recipe_id ?? "").trim() ? 2 : 0,
+      extraLayoutRows: graphExtraLayoutRows(effectiveDefinition, mergedFields),
     });
-    const autoLayout = computeGraphNodeLayout(definition, undefined, {
+    const visibleInputPorts = visibleGraphInputPorts(effectiveDefinition, mergedFields);
+    const visibleOutputPorts = visibleGraphOutputPorts(effectiveDefinition, mergedFields);
+    const autoLayout = computeGraphNodeLayout(effectiveDefinition, undefined, {
       visibleFieldCount: layoutMetrics.layoutFieldCount,
-      visiblePortCount: definition.ports.inputs.filter((port) => !port.advanced).length + definition.ports.outputs.filter((port) => !port.advanced).length,
+      visiblePortCount: visibleInputPorts.length + visibleOutputPorts.length,
       textareaCount: layoutMetrics.textareaCount,
     });
-    const useCollapsedAutoHeight = definition.fields.some((field) => field.advanced) && !savedUi.hasSavedAdvancedExpanded;
-    const savedStyle = nodeStyleFromMetadata(definition, savedNode.metadata);
+    const useCollapsedAutoHeight = effectiveDefinition.fields.some((field) => field.advanced) && !savedUi.hasSavedAdvancedExpanded;
+    const savedStyle = nodeStyleFromMetadata(effectiveDefinition, savedNode.metadata, {
+      visibleFieldCount: layoutMetrics.layoutFieldCount,
+      visiblePortCount: visibleInputPorts.length + visibleOutputPorts.length,
+      textareaCount: layoutMetrics.textareaCount,
+    });
     const effectiveStyle = useCollapsedAutoHeight
       ? {
           ...savedStyle,
@@ -86,9 +96,17 @@ export function hydrateGraphWorkflowForCanvas({
     });
     return items;
   }, []);
-  const edges = normalizedWorkflow.edges.map((edge) => {
+  const edges = filterGraphWorkflowEdgesForCurrentContract({
+    edges: normalizedWorkflow.edges,
+    nodes: normalizedWorkflow.nodes,
+    definitionsByType,
+  }).map((edge) => {
     const sourceNode = savedNodesById.get(edge.source);
-    const sourceType = sourceNode ? definitionsByType.get(sourceNode.type)?.ports.outputs.find((port) => port.id === edge.source_port)?.type : null;
+    const sourceDefinition = sourceNode ? definitionsByType.get(sourceNode.type) : null;
+    const sourceFields = sourceNode?.fields ?? {};
+    const sourceType = sourceDefinition
+      ? resolveGraphNodeDefinition(sourceDefinition, sourceFields).ports.outputs.find((port) => port.id === edge.source_port)?.type
+      : null;
     return {
       id: edge.id,
       source: edge.source,

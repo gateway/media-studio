@@ -24,7 +24,6 @@ describe("graph prompt provider helpers", () => {
       provider_model_label: "",
       provider_supports_images: null,
       provider_capabilities_json: {},
-      model_supports_images: null,
     });
   });
 
@@ -63,6 +62,7 @@ describe("graph prompt provider helpers", () => {
 
     expect(graphPromptAdvancedSummary("prompt.recipe", { provider: "codex_local" })).toContain("Codex-managed runtime defaults");
     expect(graphPromptAdvancedSummary("prompt.recipe", { provider: "openrouter" })).toContain("recipe defaults");
+    expect(graphPromptAdvancedSummary("prompt.image_analyzer", { provider: "openrouter" })).toContain("vision-capable model");
   });
 
   it("describes runtime override behavior per provider", () => {

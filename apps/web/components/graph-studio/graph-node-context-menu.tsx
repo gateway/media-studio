@@ -1,16 +1,11 @@
 "use client";
 
 import { Eraser, Layers, Pencil } from "lucide-react";
-import type { CSSProperties } from "react";
+import { GraphColorChoiceGrid, GraphExecutionModeControls, graphExecutionMenuLabels } from "./graph-context-menu-controls";
+import type { GraphNodeColorChoice } from "./graph-context-menu-controls";
 import type { GraphExecutionMode } from "./utils/graph-node-execution";
 
-export type GraphNodeColorChoice = {
-  id: string;
-  label: string;
-  accent: string;
-  surface: string;
-  header: string;
-};
+export type { GraphNodeColorChoice } from "./graph-context-menu-controls";
 
 export function GraphNodeContextMenu({
   x,
@@ -37,55 +32,27 @@ export function GraphNodeContextMenu({
   onRename: () => void;
   onCreateGroup?: () => void;
 }) {
-  const primaryExecutionModes: GraphExecutionMode[] = ["enabled", "frozen"];
-  const executionMenuLabels: Record<GraphExecutionMode, string> = {
-    enabled: "Enabled",
-    frozen: targetCount > 1 ? "Mute selected" : "Mute",
-    bypassed: "Advanced: Bypass",
-    muted: "Legacy: Disable output",
-  };
+  const executionMenuLabels = graphExecutionMenuLabels("node", targetCount);
   return (
     <div className="graph-node-context-menu" data-testid="graph-node-context-menu" style={{ left: x, top: y }} role="menu">
       <div className="graph-node-context-title">{targetCount > 1 ? `${targetCount} selected nodes` : "Node"}</div>
       <div className="graph-node-context-section">
         <span>Execution</span>
-        <div className="graph-node-execution-grid" role="group" aria-label="Node execution mode">
-          {primaryExecutionModes.map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              className={mode === executionMode ? "graph-node-execution-choice graph-node-execution-choice-active" : "graph-node-execution-choice"}
-              onClick={() => onSetExecutionMode(mode)}
-            >
-              {executionMenuLabels[mode]}
-            </button>
-          ))}
-        </div>
-        {executionMode === "bypassed" || executionMode === "muted" ? (
-          <button
-            type="button"
-            className="graph-node-execution-choice graph-node-execution-choice-active"
-            onClick={() => onSetExecutionMode(executionMode)}
-          >
-            {executionMenuLabels[executionMode]}
-          </button>
-        ) : null}
+        <GraphExecutionModeControls
+          ariaLabel="Node execution mode"
+          executionMode={executionMode}
+          labels={executionMenuLabels}
+          onSetExecutionMode={onSetExecutionMode}
+        />
       </div>
       <div className="graph-node-context-section">
         <span>Color</span>
-        <div className="graph-node-color-grid" role="group" aria-label="Node colors">
-          {colors.map((color) => (
-            <button
-              key={color.id}
-              type="button"
-              className="graph-node-color-choice"
-              style={{ "--graph-node-choice-color": color.accent, "--graph-node-choice-surface": color.surface } as CSSProperties}
-              aria-label={`Set node color ${color.label}`}
-              title={color.label}
-              onClick={() => onSelectColor(color)}
-            />
-          ))}
-        </div>
+        <GraphColorChoiceGrid
+          ariaLabel="Node colors"
+          colors={colors}
+          targetLabel="node"
+          onSelectColor={onSelectColor}
+        />
       </div>
       <button type="button" role="menuitem" onClick={onRename} disabled={!canRename} title={canRename ? "Rename node" : "Rename is available for one selected node"}>
         <Pencil size={14} />

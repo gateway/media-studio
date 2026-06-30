@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { hasValidBasicAuthorization, isLoopbackHostname, isTrustedLocalRequest, parseBasicAuthorization } from "@/lib/admin-access";
+import {
+  hasValidBasicAuthorization,
+  isLoopbackHostname,
+  isTrustedLocalRequest,
+  isTrustedPrivateNetworkRequest,
+  parseBasicAuthorization,
+} from "@/lib/admin-access";
 
 describe("admin-access", () => {
   it("parses a valid basic authorization header", () => {
@@ -50,5 +56,18 @@ describe("admin-access", () => {
       ),
     ).toBe(false);
     expect(isTrustedLocalRequest(new URL("http://192.168.1.5:3000/studio"), new Headers())).toBe(false);
+  });
+
+  it("recognizes private network and Tailscale hosts when explicitly enabled by callers", () => {
+    expect(isTrustedPrivateNetworkRequest(new URL("http://100.64.157.91:3000/studio"), new Headers())).toBe(true);
+    expect(isTrustedPrivateNetworkRequest(new URL("http://192.168.1.5:3000/studio"), new Headers())).toBe(true);
+    expect(isTrustedPrivateNetworkRequest(new URL("http://studio.tailnet.ts.net:3000/studio"), new Headers())).toBe(true);
+    expect(
+      isTrustedPrivateNetworkRequest(
+        new URL("http://example.com:3000/studio"),
+        new Headers({ "x-forwarded-for": "100.64.157.91" }),
+      ),
+    ).toBe(true);
+    expect(isTrustedPrivateNetworkRequest(new URL("http://example.com:3000/studio"), new Headers())).toBe(false);
   });
 });

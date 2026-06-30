@@ -186,6 +186,36 @@ export function AdminToggle({
   );
 }
 
+export function AdminToggleRow({
+  title,
+  description,
+  checked,
+  ariaLabel,
+  onToggle,
+  className,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  checked: boolean;
+  ariaLabel: string;
+  onToggle: () => void;
+  className?: string;
+}) {
+  return (
+    <label className={cn("admin-toggle-row text-sm", className)}>
+      <span className="min-w-0">
+        <span className="font-medium text-[var(--foreground)]">{title}</span>
+        {description ? (
+          <span className="mt-1 block text-sm leading-6 text-[var(--muted-strong)]">
+            {description}
+          </span>
+        ) : null}
+      </span>
+      <AdminToggle checked={checked} ariaLabel={ariaLabel} onToggle={onToggle} />
+    </label>
+  );
+}
+
 export function AdminSelect({
   pickerId = "admin-pill-select",
   open,

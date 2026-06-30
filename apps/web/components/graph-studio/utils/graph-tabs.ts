@@ -1,10 +1,9 @@
 import type { GraphWorkspaceTab, GraphWorkflowPayload } from "../types";
-import { WORKSPACE_STORAGE_KEY } from "../graph-studio-constants";
 import { normalizeGraphWorkflowPayload } from "./graph-workflow-normalization";
 
 export const GRAPH_TABS_STORAGE_KEY = "media-studio:graph-studio:tabs";
-export const GRAPH_TABS_SCHEMA_VERSION = 4;
-export const GRAPH_TABS_SUPPORTED_SCHEMA_VERSIONS = new Set([2, 3, GRAPH_TABS_SCHEMA_VERSION]);
+export const GRAPH_TABS_SCHEMA_VERSION = 5;
+export const GRAPH_TABS_SUPPORTED_SCHEMA_VERSIONS = new Set([2, 3, 4, GRAPH_TABS_SCHEMA_VERSION]);
 export const GRAPH_TABS_MAX_RESTORABLE_TABS = 8;
 export const GRAPH_TABS_MAX_CONSOLE_LINES = 120;
 export const GRAPH_TABS_MAX_CONSOLE_LINE_CHARS = 240;
@@ -17,6 +16,7 @@ export type GraphTabSnapshot = {
   workflowUpdatedAt?: string | null;
   runId?: string | null;
   runStatus?: string | null;
+  assistantSessionId?: string | null;
   consoleLines?: string[];
   dirty?: boolean;
 };
@@ -40,7 +40,7 @@ export function blankGraphWorkflowPayload(name = "New workflow"): GraphWorkflowP
     name,
     nodes: [],
     edges: [],
-    metadata: {},
+    metadata: { created_by: "graph-studio", groups: [] },
   };
 }
 
@@ -59,6 +59,9 @@ export function applyGraphTabSnapshot(tab: GraphWorkspaceTab, snapshot: GraphTab
     workflow_updated_at: snapshot.workflowUpdatedAt ?? tab.workflow_updated_at ?? null,
     run_id: snapshot.runId ?? null,
     run_status: snapshot.runStatus ?? (snapshot.runId ? tab.run_status ?? null : null),
+    assistant_session_id: Object.prototype.hasOwnProperty.call(snapshot, "assistantSessionId")
+      ? snapshot.assistantSessionId ?? null
+      : tab.assistant_session_id ?? null,
     console_lines: snapshot.consoleLines ?? tab.console_lines ?? [],
     dirty: snapshot.dirty ?? tab.dirty ?? false,
     updated_at: new Date().toISOString(),
@@ -89,24 +92,12 @@ function normalizeWorkflowPayload(value: unknown): GraphWorkflowPayload | null {
   return normalizeGraphWorkflowPayload(workflow);
 }
 
-function hasLegacyPromptRecipeTypes(workflow: GraphWorkflowPayload | null): boolean {
-  return Boolean(
-    workflow?.nodes?.some(
-      (node) =>
-        typeof node?.type === "string" &&
-        node.type.startsWith("prompt.recipe.") &&
-        node.type !== "prompt.recipe",
-    ),
-  );
-}
-
 function normalizeTab(value: unknown, schemaVersion = GRAPH_TABS_SCHEMA_VERSION): GraphWorkspaceTab | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const candidate = value as GraphWorkspaceTab;
   const workflow = normalizeWorkflowPayload(candidate.workflow_json ?? null);
   if (workflow === null && candidate.workflow_json) return null;
   if (!candidate.tab_id || !candidate.workflow_name) return null;
-  if (!candidate.workflow_id && hasLegacyPromptRecipeTypes(workflow)) return null;
   const savedWorkflowSignature =
     typeof candidate.saved_workflow_signature === "string"
       ? candidate.saved_workflow_signature
@@ -124,6 +115,7 @@ function normalizeTab(value: unknown, schemaVersion = GRAPH_TABS_SCHEMA_VERSION)
     workflow_updated_at: candidate.workflow_updated_at ?? null,
     run_id: candidate.run_id ?? null,
     run_status: candidate.run_status ?? null,
+    assistant_session_id: typeof candidate.assistant_session_id === "string" ? candidate.assistant_session_id : null,
     console_lines: normalizeConsoleLines(candidate.console_lines),
     dirty: Boolean(candidate.dirty),
     updated_at: candidate.updated_at ?? null,
@@ -154,42 +146,6 @@ function dedupeRestoredSavedWorkflowTabs(tabs: GraphWorkspaceTab[], activeTabId:
   return { tabs: filtered, activeTabId: active?.tab_id ?? activeTabId };
 }
 
-function legacyWorkspaceToSession(value: unknown): GraphTabSessionState | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const candidate = value as {
-    workflowId?: string | null;
-    workflowName?: string;
-    workflow?: GraphWorkflowPayload;
-    runId?: string | null;
-    updatedAt?: string | null;
-  };
-  const workflow = normalizeWorkflowPayload(candidate.workflow ?? null);
-  if (!workflow) return null;
-  if (!candidate.workflowId && hasLegacyPromptRecipeTypes(workflow)) return null;
-  const tab = applyGraphTabSnapshot(
-    {
-      tab_id: `tab-${crypto.randomUUID().slice(0, 8)}`,
-      workflow_id: null,
-      workflow_name: String(candidate.workflowName || workflow.name || "Recovered workflow"),
-      workflow_json: null,
-      workflow_updated_at: null,
-      run_id: null,
-      console_lines: [],
-      dirty: false,
-      updated_at: candidate.updatedAt ?? new Date().toISOString(),
-    },
-    {
-      workflowId: candidate.workflowId ?? workflow.workflow_id ?? null,
-      workflowName: String(candidate.workflowName || workflow.name || "Recovered workflow"),
-      workflow,
-      runId: candidate.runId ?? null,
-      runStatus: null,
-      dirty: false,
-    },
-  );
-  return { active_tab_id: tab.tab_id, tabs: [tab], restored: true };
-}
-
 export function readGraphTabSession(scope?: string | null): GraphTabSessionState | null {
   if (typeof window === "undefined") return null;
   const storageKey = graphTabsStorageKey(scope);
@@ -215,14 +171,9 @@ export function readGraphTabSession(scope?: string | null): GraphTabSessionState
       }
     }
   } catch {
-    // fall through to legacy state
-  }
-  if (scope) return null;
-  try {
-    return legacyWorkspaceToSession(JSON.parse(window.localStorage.getItem(WORKSPACE_STORAGE_KEY) || "null"));
-  } catch {
     return null;
   }
+  return null;
 }
 
 export function shouldReloadSavedWorkflowRecordOnRestore(tab: GraphWorkspaceTab | null | undefined): boolean {
@@ -230,7 +181,7 @@ export function shouldReloadSavedWorkflowRecordOnRestore(tab: GraphWorkspaceTab 
   const workflow = normalizeWorkflowPayload(tab.workflow_json ?? null);
   if (!workflow) return true;
   if (!Array.isArray(workflow.nodes) || workflow.nodes.length === 0) return true;
-  return !tab.dirty;
+  return !tab.dirty && Boolean(tab.saved_workflow_signature);
 }
 
 export function graphWorkflowDirtyState({
@@ -340,11 +291,6 @@ export function writeGraphTabSession(scope: string | null | undefined, activeTab
     }
   }
   window.localStorage.removeItem(storageKey);
-}
-
-export function clearLegacyWorkspaceSnapshot(): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
 }
 
 export function graphTabCloseTarget(tabs: GraphWorkspaceTab[], activeTabId: string, tabId: string): GraphWorkspaceTab | null {

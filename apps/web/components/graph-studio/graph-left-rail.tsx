@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Blocks, GalleryHorizontalEnd, History, Images, Map as MapIcon, SquareTerminal, Workflow } from "lucide-react";
+import { Blocks, GalleryHorizontalEnd, History, Images, Map as MapIcon, MessageSquare, SquareTerminal, Workflow } from "lucide-react";
 
 type SidebarDialog = "workflows" | "nodes" | "images" | "runs";
 
@@ -9,23 +9,31 @@ export function GraphLeftRail({
   sidebarDialog,
   showMiniMap,
   consoleOpen,
+  assistantOpen,
+  assistantEnabled = false,
+  galleryHref,
   onToggleDialog,
   onToggleMiniMap,
   onToggleConsole,
+  onToggleAssistant,
 }: {
   sidebarDialog: SidebarDialog | null;
   showMiniMap: boolean;
   consoleOpen: boolean;
+  assistantOpen: boolean;
+  assistantEnabled?: boolean;
+  galleryHref: string;
   onToggleDialog: (dialog: SidebarDialog) => void;
   onToggleMiniMap: () => void;
   onToggleConsole: () => void;
+  onToggleAssistant: () => void;
 }) {
   return (
     <aside className="graph-sidebar" aria-label="Graph Studio tools">
       <Link
         className="graph-sidebar-icon"
         data-testid="graph-sidebar-gallery-link"
-        href="/studio"
+        href={galleryHref}
         aria-label="Back to gallery"
         title="Gallery"
       >
@@ -61,6 +69,18 @@ export function GraphLeftRail({
       >
         <Images size={19} />
       </button>
+      {assistantEnabled ? (
+        <button
+          className={`graph-sidebar-icon ${assistantOpen ? "graph-sidebar-icon-active" : ""}`}
+          data-testid="graph-sidebar-assistant-button"
+          type="button"
+          aria-label={assistantOpen ? "Hide Media Assistant" : "Show Media Assistant"}
+          title={assistantOpen ? "Hide Media Assistant" : "Media Assistant"}
+          onClick={onToggleAssistant}
+        >
+          <MessageSquare size={19} />
+        </button>
+      ) : null}
       <button
         className={`graph-sidebar-icon ${sidebarDialog === "runs" ? "graph-sidebar-icon-active" : ""}`}
         data-testid="graph-sidebar-runs-button"

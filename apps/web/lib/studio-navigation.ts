@@ -13,3 +13,24 @@ export function buildStudioScopedHref(pathname: string, projectId?: string | nul
   const query = params.toString();
   return query ? `${basePath}?${query}` : basePath;
 }
+
+export function buildStudioGraphReturnHref(graphTabId?: string | null, projectId?: string | null) {
+  const baseHref = buildStudioScopedHref("/studio", projectId);
+  if (!graphTabId) {
+    return baseHref;
+  }
+  const [basePath, rawQuery = ""] = baseHref.split("?", 2);
+  const params = new URLSearchParams(rawQuery);
+  params.set("graphTab", graphTabId);
+  const query = params.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
+
+export function buildGraphStudioHref(graphTabId?: string | null) {
+  if (!graphTabId) {
+    return "/graph-studio";
+  }
+  const params = new URLSearchParams();
+  params.set("tab", graphTabId);
+  return `/graph-studio?${params.toString()}`;
+}

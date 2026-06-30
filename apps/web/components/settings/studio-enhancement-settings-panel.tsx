@@ -12,7 +12,10 @@ import {
   AdminToggle,
 } from "@/components/admin-controls";
 import { Panel, PanelHeader } from "@/components/panel";
-import { SharedLlmProviderSection } from "@/components/shared-llm-provider-sections";
+import {
+  SharedLlmProviderIntroCard,
+  SharedLlmProviderSection,
+} from "@/components/shared-llm-provider-sections";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import { useSharedProviderModelCatalog } from "@/hooks/use-shared-provider-model-catalog";
 import {
@@ -421,20 +424,21 @@ export function StudioEnhancementSettingsPanel({
     <div className="grid gap-4">
       {notice ? <AdminActionNotice tone={notice.tone} text={notice.text} /> : null}
 
-      <div className="admin-surface-accent grid gap-4 p-4 sm:p-5">
-        <div className="grid max-w-[760px] gap-3">
-          <div className="admin-label-accent">Prompt Enhance behavior</div>
-          <div className="text-sm leading-7 text-[var(--muted-strong)]">
-            Prompt Enhance rewrites Studio prompts before generation. The model below controls that rewrite only.
-            Graph prompt nodes still choose their own model.
-          </div>
-          <div className="text-sm leading-7 text-[var(--muted-strong)]">
-            AI service: <span className="font-medium text-[var(--foreground)]">{llmProviderLabel(form.providerKind)}</span>
-            <span className="mx-2 text-[var(--muted)]"> · </span>
-            {llmProviderBillingLabel(form.providerKind)}
-          </div>
-        </div>
-        <div className="grid max-w-[760px] gap-3 md:grid-cols-2">
+      <SharedLlmProviderIntroCard
+        accentLabel="Prompt Enhance behavior"
+        summaryLines={[
+          "Prompt Enhance rewrites Studio prompts before generation. The model below controls that rewrite only. Graph prompt nodes still choose their own model.",
+          (
+            <>
+              AI service:{" "}
+              <span className="font-medium text-[var(--foreground)]">{llmProviderLabel(form.providerKind)}</span>
+              <span className="mx-2 text-[var(--muted)]"> · </span>
+              {llmProviderBillingLabel(form.providerKind)}
+            </>
+          ),
+        ]}
+        picker={
+          <div className="grid gap-3 md:grid-cols-2">
           <EnhancementToggleCard
             label="Prompt Enhance button"
             title="Enable Prompt Enhance"
@@ -461,8 +465,9 @@ export function StudioEnhancementSettingsPanel({
               }))
             }
           />
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {form.providerKind === "openrouter" ? (
           <SharedLlmProviderSection

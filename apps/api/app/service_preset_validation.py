@@ -11,6 +11,13 @@ from .schemas import PresetUpsertRequest, ValidateRequest
 logger = logging.getLogger(__name__)
 TEXT_TOKEN_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
 IMAGE_TOKEN_RE = re.compile(r"\[\[\s*([a-zA-Z0-9_]+)\s*\]\]")
+UNSUPPORTED_CHOICE_TOKEN_RE = re.compile(r"\{\{\s*choice\s*:", re.IGNORECASE)
+CATEGORY_RE = re.compile(r"[^a-z0-9_-]+")
+
+
+def _normalize_preset_category(value: str) -> str:
+    normalized = CATEGORY_RE.sub("-", str(value or "").strip().lower()).strip("-_")
+    return normalized or "general"
 
 def _input_limit(model: Dict[str, Any], media_kind: str, field: str) -> int:
     raw = model.get("raw") if isinstance(model.get("raw"), dict) else {}
@@ -29,7 +36,7 @@ def _model_has_video_or_audio_inputs(model: Dict[str, Any]) -> bool:
     )
 
 
-def _model_supports_structured_preset(model: Dict[str, Any], *, requires_image: bool) -> bool:
+def _model_supports_structured_preset(model: Dict[str, Any], *, image_policy: str) -> bool:
     if model.get("studio_exposed") is False or _model_has_video_or_audio_inputs(model):
         return False
     task_modes = {str(value) for value in model.get("task_modes") or []}
@@ -37,8 +44,15 @@ def _model_supports_structured_preset(model: Dict[str, Any], *, requires_image: 
     image_min = _input_limit(model, "image", "required_min")
     image_max = _input_limit(model, "image", "required_max")
 
-    if requires_image:
+    if image_policy == "required":
         return image_max > 0 and (
+            "image_edit" in task_modes
+            or "single_image" in input_patterns
+            or "image_edit" in input_patterns
+        )
+
+    if image_policy == "optional":
+        return image_min == 0 and image_max > 0 and (
             "image_edit" in task_modes
             or "single_image" in input_patterns
             or "image_edit" in input_patterns
@@ -55,6 +69,18 @@ def _preset_requires_image(image_slots: List[Dict[str, Any]]) -> bool:
     return any(bool(slot.get("required")) for slot in image_slots)
 
 
+def _preset_accepts_image(image_slots: List[Dict[str, Any]]) -> bool:
+    return bool(image_slots)
+
+
+def _preset_image_policy(image_slots: List[Dict[str, Any]]) -> str:
+    if _preset_requires_image(image_slots):
+        return "required"
+    if _preset_accepts_image(image_slots):
+        return "optional"
+    return "none"
+
+
 def _enforce_output_count_policy(request: ValidateRequest) -> None:
     try:
         policy = store.get_model_queue_policy(request.model_key)
@@ -69,28 +95,38 @@ def _enforce_output_count_policy(request: ValidateRequest) -> None:
 
 
 def _compatible_preset_model_keys(image_slots: List[Dict[str, Any]]) -> set[str]:
-    requires_image = _preset_requires_image(image_slots)
+    image_policy = _preset_image_policy(image_slots)
     return {
         str(model.get("key"))
         for model in kie_adapter.list_models()
-        if model.get("key") and _model_supports_structured_preset(model, requires_image=requires_image)
+        if model.get("key") and _model_supports_structured_preset(model, image_policy=image_policy)
     }
 
 
 def _model_accepts_preset_image_values(model_key: str) -> bool:
-    return _model_key_supports_structured_preset(model_key, requires_image=True)
+    return _model_key_supports_structured_preset(model_key, image_policy="required")
 
 
-def _model_key_supports_structured_preset(model_key: str, *, requires_image: bool) -> bool:
+def _model_key_supports_structured_preset(
+    model_key: str,
+    *,
+    requires_image: Optional[bool] = None,
+    image_policy: Optional[str] = None,
+) -> bool:
     try:
         model = kie_adapter.get_model(model_key)
     except Exception:
         return False
-    return _model_supports_structured_preset(model, requires_image=requires_image)
+    resolved_policy = image_policy
+    if resolved_policy is None:
+        resolved_policy = "required" if requires_image else "none"
+    return _model_supports_structured_preset(model, image_policy=resolved_policy)
 
 
 def validate_preset_payload(payload: PresetUpsertRequest) -> Dict[str, Any]:
     template = payload.prompt_template or ""
+    if UNSUPPORTED_CHOICE_TOKEN_RE.search(template):
+        raise ServiceError("Media Studio presets do not support {{choice:*}} prompt tokens. Use concrete text fields and image slots.")
     text_tokens = sorted(set(TEXT_TOKEN_RE.findall(template)))
     image_tokens = sorted(set(IMAGE_TOKEN_RE.findall(template)))
     text_fields = [dict(field) for field in payload.input_schema_json]
@@ -115,6 +151,7 @@ def validate_preset_payload(payload: PresetUpsertRequest) -> Dict[str, Any]:
         "key": payload.key,
         "label": payload.label,
         "description": payload.description,
+        "category": _normalize_preset_category(payload.category),
         "status": payload.status,
         "model_key": model_key,
         "source_kind": payload.source_kind,
@@ -132,7 +169,6 @@ def validate_preset_payload(payload: PresetUpsertRequest) -> Dict[str, Any]:
         "requires_audio": payload.requires_audio,
         "input_schema_json": text_fields,
         "input_slots_json": image_slots,
-        "choice_groups_json": payload.choice_groups_json,
         "thumbnail_path": payload.thumbnail_path,
         "thumbnail_url": payload.thumbnail_url,
         "notes": payload.notes,
@@ -145,4 +181,6 @@ def upsert_preset(payload: PresetUpsertRequest, preset_id: Optional[str] = None)
     record = validate_preset_payload(payload)
     if preset_id:
         record["preset_id"] = preset_id
+    elif store.get_preset_by_key(record["key"]):
+        raise ServiceError("Preset key already exists.")
     return store.create_or_update_preset(record)

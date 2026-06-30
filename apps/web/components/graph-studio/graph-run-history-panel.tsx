@@ -3,6 +3,7 @@
 import { History, Pin, RotateCcw, Search } from "lucide-react";
 
 import { formatUsdAmount } from "@/lib/utils";
+import { GraphSectionTitle, GraphSidebarEmpty } from "./graph-dialog-primitives";
 import type { GraphArtifact, GraphRunHistoryItem } from "./types";
 import { formatGraphTimestamp } from "./utils/graph-time";
 
@@ -56,8 +57,8 @@ export function GraphRunHistoryPanel({
           Refresh runs
         </button>
       </div>
-      {!workflowId ? <div className="graph-sidebar-empty">Save or load a workflow to inspect run history.</div> : null}
-      {workflowId && !runs.length ? <div className="graph-sidebar-empty">No runs recorded for this workflow yet.</div> : null}
+      {!workflowId ? <GraphSidebarEmpty>Save or load a workflow to inspect run history.</GraphSidebarEmpty> : null}
+      {workflowId && !runs.length ? <GraphSidebarEmpty>No runs recorded for this workflow yet.</GraphSidebarEmpty> : null}
       {runs.map((run) => (
         <div className={`graph-run-history-row ${selectedRunId === run.run_id ? "graph-run-history-row-active" : ""}`} key={run.run_id}>
           <button type="button" onClick={() => onInspectRun(run.run_id)}>
@@ -79,7 +80,7 @@ export function GraphRunHistoryPanel({
         <section className="graph-artifact-browser">
           {selectedRunSpendNodes.length ? (
             <>
-              <div className="graph-section-title">LLM spend</div>
+              <GraphSectionTitle>LLM spend</GraphSectionTitle>
               {selectedRunSpendNodes.map((node) => (
                 <div className="graph-artifact-row" key={`spend-${node.node_id}`}>
                   <Search size={13} />
@@ -97,7 +98,7 @@ export function GraphRunHistoryPanel({
               ))}
             </>
           ) : null}
-          <div className="graph-section-title">Artifacts</div>
+          <GraphSectionTitle>Artifacts</GraphSectionTitle>
           {artifacts.length ? (
             artifacts.map((artifact) => (
               <div className="graph-artifact-row" key={artifact.artifact_id}>
@@ -119,7 +120,7 @@ export function GraphRunHistoryPanel({
               </div>
             ))
           ) : (
-            <div className="graph-sidebar-empty">No artifacts recorded for this run.</div>
+            <GraphSidebarEmpty>No artifacts recorded for this run.</GraphSidebarEmpty>
           )}
         </section>
       ) : null}

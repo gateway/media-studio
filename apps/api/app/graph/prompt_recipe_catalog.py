@@ -12,17 +12,36 @@ PROMPT_RECIPE_TEXTAREA_KEYS = {
     "user_prompt",
     "source_prompt",
     "previous_output",
+    "previous_storyboard_prompt",
+    "continuation_brief",
     "style_direction",
+    "continuity_notes",
+    "handoff_goal",
 }
-PROMPT_RECIPE_INTERNAL_VARIABLES = {"image_analysis", "source_image_prompt"}
-PROMPT_RECIPE_TEXT_PORT_KEYS = {"user_prompt", "source_prompt", "previous_output"}
+PROMPT_RECIPE_INTERNAL_VARIABLES = {
+    "image_analysis",
+    "source_image_prompt",
+    "reference_role_block",
+    "reference_priority_rule",
+    "background_mode_block",
+}
+PROMPT_RECIPE_TEXT_PORT_KEYS = {"user_prompt", "source_prompt", "previous_output", "previous_storyboard_prompt", "continuation_brief"}
 PROMPT_RECIPE_FIELD_ORDER = {
     "user_prompt": 10,
     "source_prompt": 20,
     "previous_output": 30,
+    "previous_storyboard_prompt": 35,
+    "continuation_brief": 36,
     "style_direction": 40,
+    "continuity_notes": 45,
+    "handoff_goal": 46,
     "aspect_ratio": 50,
     "shot_count": 60,
+    "panel_count": 61,
+    "segment_number": 62,
+    "total_segments": 63,
+    "target_duration_seconds": 64,
+    "dialogue_mode": 65,
     "duration_seconds": 70,
     "output_format": 80,
 }
@@ -252,7 +271,7 @@ def prompt_recipe_input_ports(catalog: Iterable[Dict[str, Any]]) -> List[GraphNo
             max_image_files = max(max_image_files, int((recipe.get("image_input") or {}).get("max_files") or 0))
 
     ports: List[GraphNodePort] = []
-    for key in ("user_prompt", "source_prompt", "previous_output"):
+    for key in ("user_prompt", "source_prompt", "previous_output", "previous_storyboard_prompt", "continuation_brief"):
         recipe_ids = recipe_ids_by_key[key]
         if not recipe_ids:
             continue
@@ -378,15 +397,3 @@ def prompt_recipe_dynamic_fields(catalog: Iterable[Dict[str, Any]]) -> List[Grap
             )
         )
     return fields
-
-
-def prompt_recipe_for_node_type(node_type: str, *, catalog: Iterable[Dict[str, Any]] | None = None) -> Dict[str, Any] | None:
-    if not node_type.startswith("prompt.recipe.") or node_type == "prompt.recipe":
-        return None
-    legacy_slug = node_type.removeprefix("prompt.recipe.")
-    for recipe in catalog or prompt_recipe_catalog(status="all"):
-        recipe_id = str(recipe.get("recipe_id") or "")
-        recipe_key = str(recipe.get("key") or recipe_id)
-        if legacy_slug in {slug(recipe_key), slug(recipe_id)}:
-            return recipe
-    return None

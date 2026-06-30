@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MediaPresetEditorScreen } from "@/components/media-preset-editor-screen";
+import { writeAssistantReviewDraft } from "@/lib/assistant-review-drafts";
 import type { MediaModelSummary, MediaPreset } from "@/lib/types";
 
 const { pushMock } = vi.hoisted(() => ({
@@ -58,7 +59,6 @@ const presets: MediaPreset[] = [
     prompt_template: "Create {{subject}}",
     input_schema_json: [{ key: "subject", label: "Subject", required: true }],
     input_slots_json: [],
-    choice_groups_json: [],
     thumbnail_path: null,
     thumbnail_url: null,
     notes: null,
@@ -73,6 +73,100 @@ describe("MediaPresetEditorScreen", () => {
 
   afterEach(() => {
     cleanup();
+    window.sessionStorage.clear();
+  });
+
+  it("loads an assistant Media Preset draft for review without saving it", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new Error("The assistant review draft should not save on load.");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const assistantDraftId = writeAssistantReviewDraft({
+      kind: "media_preset",
+      draft: {
+        key: "assistant_editorial_portrait",
+        label: "Assistant Editorial Portrait",
+        description: "Drafted from the Media Assistant.",
+        status: "active",
+        source_kind: "custom",
+        applies_to_models: ["nano-banana-2"],
+        prompt_template: "Create an editorial portrait of {{subject}}.",
+        input_schema_json: [{ key: "subject", label: "Subject", placeholder: "Woman in a red jacket", default_value: "", required: true }],
+        input_slots_json: [],
+        notes: "Review this assistant draft before saving.",
+      },
+      validationWarnings: [],
+      mediaSummary: [],
+    });
+
+    render(
+      <MediaPresetEditorScreen
+        models={models}
+        presets={[]}
+        initialAssistantDraftId={assistantDraftId}
+      />,
+    );
+
+    expect(await screen.findByText("Assistant Media Preset draft loaded. Review the fields and save when ready.")).toBeTruthy();
+    expect(screen.getByDisplayValue("Assistant Editorial Portrait")).toBeTruthy();
+    expect(screen.getByDisplayValue("Create an editorial portrait of {{subject}}.")).toBeTruthy();
+    expect(screen.getByDisplayValue("Subject")).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it("loads an assistant Media Preset draft from a persisted review message", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/control/media/assistant/sessions/session-1")) {
+        return {
+          ok: true,
+          json: async () => ({
+            messages: [
+              {
+                assistant_message_id: "message-1",
+                content_json: {
+                  review_draft: {
+                    kind: "media_preset",
+                    draft: {
+                      key: "persisted_editorial_portrait",
+                      label: "Persisted Editorial Portrait",
+                      description: "Drafted from the Media Assistant.",
+                      status: "active",
+                      source_kind: "custom",
+                      applies_to_models: ["nano-banana-2"],
+                      prompt_template: "Create a cinematic portrait of {{subject}}.",
+                      input_schema_json: [
+                        { key: "subject", label: "Subject", placeholder: "Woman in a red jacket", default_value: "", required: true },
+                      ],
+                      input_slots_json: [],
+                    },
+                    validation_warnings: [],
+                    media_summary: [],
+                  },
+                },
+              },
+            ],
+          }),
+        };
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MediaPresetEditorScreen
+        models={models}
+        presets={[]}
+        initialAssistantSessionId="session-1"
+        initialAssistantMessageId="message-1"
+      />,
+    );
+
+    expect(await screen.findByText("Assistant Media Preset draft loaded. Review the fields and save when ready.")).toBeTruthy();
+    expect(screen.getByDisplayValue("Persisted Editorial Portrait")).toBeTruthy();
+    expect(screen.getByDisplayValue("Create a cinematic portrait of {{subject}}.")).toBeTruthy();
+    expect(screen.getByDisplayValue("Subject")).toBeTruthy();
   });
 
   it("uses the shared thumbnail field for upload, generated image selection, and removal", async () => {

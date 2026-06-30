@@ -5,7 +5,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
 import { AdminButton, adminButtonIconLabelClassName } from "@/components/admin-controls";
+import { AdminEditorActionBar } from "@/components/admin-editor-action-bar";
 import { adminSectionStackClassName } from "@/components/admin-theme";
+import {
+  clearAssistantReviewDraft,
+  fetchAssistantReviewDraft,
+  readAssistantReviewDraft,
+  type AssistantReviewDraft,
+} from "@/lib/assistant-review-drafts";
 import { useSharedProviderModelCatalog } from "@/hooks/use-shared-provider-model-catalog";
 import { PromptRecipeBasicsPanel } from "@/components/prompt-recipes/editor/prompt-recipe-basics-panel";
 import { PromptRecipeContractPanel } from "@/components/prompt-recipes/editor/prompt-recipe-contract-panel";
@@ -13,8 +20,9 @@ import { PromptRecipeDraftAssistantPanel } from "@/components/prompt-recipes/edi
 import { PromptRecipeImageInputPanel } from "@/components/prompt-recipes/editor/prompt-recipe-image-input-panel";
 import { PromptRecipeTemplatePanel } from "@/components/prompt-recipes/editor/prompt-recipe-template-panel";
 import { PromptRecipeThumbnailPickerDialog } from "@/components/prompt-recipes/editor/prompt-recipe-thumbnail-picker-dialog";
-import { generatedThumbnailPreviewUrl } from "@/components/prompt-recipes/editor/prompt-recipe-thumbnail-utils";
 import { PromptRecipeVariablesPanel } from "@/components/prompt-recipes/editor/prompt-recipe-variables-panel";
+import { fetchGeneratedImagePickerPage } from "@/components/media/media-image-picker-sources";
+import { useMediaImagePickerPagination } from "@/components/media/use-media-image-picker-pagination";
 import type { SharedLlmProviderKind } from "@/lib/llm-provider-metadata";
 import {
   filterProviderModels,
@@ -35,7 +43,7 @@ import {
   validatePromptRecipeDraft,
 } from "@/lib/prompt-recipes";
 import type {
-  MediaAsset,
+  MediaAssetPickerItem,
   PromptRecipe,
   PromptRecipeCustomField,
   PromptRecipeDraftPayload,
@@ -49,6 +57,9 @@ type PromptRecipeEditorScreenProps = {
   initialRecipeId?: string | null;
   initialReturnTo?: string | null;
   initialDraftingConfig?: PromptRecipeDraftingConfig | null;
+  initialAssistantDraftId?: string | null;
+  initialAssistantSessionId?: string | null;
+  initialAssistantMessageId?: string | null;
 };
 
 function parseJsonObject(value: string, label: string) {
@@ -81,6 +92,9 @@ export function PromptRecipeEditorScreen({
   initialRecipeId = null,
   initialReturnTo = null,
   initialDraftingConfig = null,
+  initialAssistantDraftId = null,
+  initialAssistantSessionId = null,
+  initialAssistantMessageId = null,
 }: PromptRecipeEditorScreenProps) {
   const router = useRouter();
   const selectedRecipe = useMemo(
@@ -102,15 +116,16 @@ export function PromptRecipeEditorScreen({
   const [draftOverrideModelId, setDraftOverrideModelId] = useState("");
   const [draftOverrideOpenRouterQuery, setDraftOverrideOpenRouterQuery] = useState("");
   const [draftingModelSummary, setDraftingModelSummary] = useState<string | null>(null);
-  const [thumbnailPickerOpen, setThumbnailPickerOpen] = useState(false);
-  const [thumbnailAssets, setThumbnailAssets] = useState<MediaAsset[]>([]);
-  const [thumbnailAssetsLoading, setThumbnailAssetsLoading] = useState(false);
-  const [thumbnailAssetsLoadingMore, setThumbnailAssetsLoadingMore] = useState(false);
-  const [thumbnailAssetsNextOffset, setThumbnailAssetsNextOffset] = useState<number | null>(0);
   const [thumbnailAssetSelectionId, setThumbnailAssetSelectionId] = useState<string | null>(null);
   const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
   const autoLoadedOverrideProviderKindsRef = useRef(new Set<SharedLlmProviderKind>());
+  const loadedAssistantDraftRef = useRef(false);
   const { catalogs: draftingProviderCatalogs, loadProviderCatalog } = useSharedProviderModelCatalog();
+  const thumbnailPicker = useMediaImagePickerPagination<MediaAssetPickerItem>({
+    fetchPage: fetchGeneratedImagePickerPage,
+    getItemId: (asset) => String(asset.asset_id),
+    onError: (error) => setMessage({ tone: "danger", text: error }),
+  });
 
   const generatedKey = draft.key || slugifyPromptRecipeKey(draft.label);
   const returnTo = initialReturnTo || "/presets?tab=prompt-recipes";
@@ -168,6 +183,44 @@ export function PromptRecipeEditorScreen({
     imageAnalysisPrompt: draft.imageAnalysisPrompt ?? "",
     rules: parsedRules,
   });
+
+  useEffect(() => {
+    if (loadedAssistantDraftRef.current || selectedRecipe) {
+      return;
+    }
+    loadedAssistantDraftRef.current = true;
+    if (!initialAssistantDraftId && (!initialAssistantSessionId || !initialAssistantMessageId)) {
+      loadedAssistantDraftRef.current = false;
+      return;
+    }
+
+    let cancelled = false;
+    async function loadAssistantDraft() {
+      let reviewDraft: AssistantReviewDraft | null = null;
+      try {
+        reviewDraft = await fetchAssistantReviewDraft(initialAssistantSessionId, initialAssistantMessageId, "prompt_recipe");
+      } catch {
+        reviewDraft = null;
+      }
+      if (!reviewDraft && initialAssistantDraftId) {
+        reviewDraft = readAssistantReviewDraft(initialAssistantDraftId, "prompt_recipe");
+      }
+      if (cancelled) return;
+      if (!reviewDraft || reviewDraft.kind !== "prompt_recipe") {
+        setMessage({ tone: "danger", text: "The assistant Prompt Recipe draft is no longer available. Ask the assistant to create it again." });
+        return;
+      }
+      setDraft(promptRecipeToDraft(reviewDraft.draft));
+      setLastDraftWarnings(reviewDraft.validationWarnings);
+      setMessage({ tone: "healthy", text: "Assistant Prompt Recipe draft loaded. Review the fields and save when ready." });
+      clearAssistantReviewDraft(initialAssistantDraftId);
+    }
+
+    void loadAssistantDraft();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialAssistantDraftId, initialAssistantMessageId, initialAssistantSessionId, selectedRecipe]);
 
   useEffect(() => {
     if (initialDraftingConfig?.enabled === false) {
@@ -356,52 +409,6 @@ export function PromptRecipeEditorScreen({
     }
   }
 
-  async function loadThumbnailAssets({ append = false }: { append?: boolean } = {}) {
-    const nextOffset = append ? thumbnailAssetsNextOffset : 0;
-    if (append && nextOffset == null) {
-      return;
-    }
-    if (append) {
-      setThumbnailAssetsLoadingMore(true);
-    } else {
-      setThumbnailAssetsLoading(true);
-      setThumbnailAssetsNextOffset(null);
-      setThumbnailPickerOpen(true);
-    }
-    try {
-      const response = await fetch(
-        `/api/control/media-assets?limit=24&offset=${append ? nextOffset ?? 0 : 0}&generation_kind=image`,
-      );
-      const result = (await response.json()) as {
-        ok?: boolean;
-        error?: string;
-        assets?: MediaAsset[];
-        next_offset?: number | null;
-      };
-      if (!response.ok || result.ok === false || !Array.isArray(result.assets)) {
-        setMessage({ tone: "danger", text: result.error ?? "Unable to load generated images for thumbnail selection." });
-        return;
-      }
-      const nextAssets = result.assets.filter((asset) => Boolean(generatedThumbnailPreviewUrl(asset)));
-      setThumbnailAssets((current) => {
-        if (!append) {
-          return nextAssets;
-        }
-        const seen = new Set(current.map((asset) => String(asset.asset_id)));
-        return current.concat(nextAssets.filter((asset) => !seen.has(String(asset.asset_id))));
-      });
-      setThumbnailAssetsNextOffset(typeof result.next_offset === "number" ? result.next_offset : null);
-    } catch {
-      setMessage({ tone: "danger", text: "Unable to load generated images for thumbnail selection right now." });
-    } finally {
-      if (append) {
-        setThumbnailAssetsLoadingMore(false);
-      } else {
-        setThumbnailAssetsLoading(false);
-      }
-    }
-  }
-
   async function applyThumbnailFromAsset(assetId: string | number) {
     setThumbnailAssetSelectionId(String(assetId));
     setMessage(null);
@@ -429,7 +436,7 @@ export function PromptRecipeEditorScreen({
         thumbnailPath: result.thumbnail_path ?? "",
         thumbnailUrl: result.thumbnail_url ?? "",
       }));
-      setThumbnailPickerOpen(false);
+      thumbnailPicker.closePicker();
       setMessage({ tone: "healthy", text: "Thumbnail selected from generated images." });
     } catch {
       setMessage({ tone: "danger", text: "Unable to use that generated image as the recipe thumbnail right now." });
@@ -503,10 +510,8 @@ export function PromptRecipeEditorScreen({
         onDraftChange={setDraft}
         thumbnailInputRef={thumbnailInputRef}
         isUploadingThumbnail={isUploadingThumbnail}
-        thumbnailAssetsLoading={thumbnailAssetsLoading}
-        onOpenGeneratedImages={() => {
-          void loadThumbnailAssets();
-        }}
+        thumbnailAssetsLoading={thumbnailPicker.loading}
+        onOpenGeneratedImages={thumbnailPicker.openPicker}
         onThumbnailUpload={(file) => {
           void uploadThumbnail(file);
         }}
@@ -521,16 +526,14 @@ export function PromptRecipeEditorScreen({
       />
 
       <PromptRecipeThumbnailPickerDialog
-        open={thumbnailPickerOpen}
-        assets={thumbnailAssets}
-        assetsLoading={thumbnailAssetsLoading}
-        assetsLoadingMore={thumbnailAssetsLoadingMore}
-        nextOffset={thumbnailAssetsNextOffset}
+        open={thumbnailPicker.open}
+        assets={thumbnailPicker.items}
+        assetsLoading={thumbnailPicker.loading}
+        assetsLoadingMore={thumbnailPicker.loadingMore}
+        nextOffset={thumbnailPicker.nextOffset}
         selectionId={thumbnailAssetSelectionId}
-        onClose={() => setThumbnailPickerOpen(false)}
-        onLoadMore={() => {
-          void loadThumbnailAssets({ append: true });
-        }}
+        onClose={thumbnailPicker.closePicker}
+        onLoadMore={thumbnailPicker.loadNextPage}
         onSelectAsset={(assetId) => {
           void applyThumbnailFromAsset(assetId);
         }}
@@ -571,7 +574,7 @@ export function PromptRecipeEditorScreen({
         onDraftChange={setDraft}
       />
 
-      <div className="flex flex-wrap justify-end gap-3">
+      <AdminEditorActionBar>
         {draft.recipeId ? (
           <AdminButton variant="danger" onClick={archiveRecipe} disabled={isSaving}>
             Archive
@@ -583,7 +586,7 @@ export function PromptRecipeEditorScreen({
         <AdminButton onClick={saveRecipe} disabled={isSaving}>
           {isSaving ? "Saving..." : "Save Prompt Recipe"}
         </AdminButton>
-      </div>
+      </AdminEditorActionBar>
     </div>
   );
 }

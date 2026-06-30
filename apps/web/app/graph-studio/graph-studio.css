@@ -6,4 +6,137 @@
 @import "./styles/dialogs-library.css";
 @import "./styles/history-preview.css";
 @import "./styles/console.css";
+@import "./styles/assistant.css";
 @import "./styles/nodes-wires.css";
+
+.graph-fixture-layer {
+  position: fixed;
+  inset: 64px 24px 24px 76px;
+  z-index: 132;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid var(--graph-border-hover);
+  border-radius: var(--graph-control-radius);
+  background: color-mix(in srgb, var(--graph-panel-modal) 94%, transparent);
+  box-shadow: 0 22px 72px var(--graph-shadow-surface);
+}
+
+.graph-fixture-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  color: var(--graph-text);
+}
+
+.graph-fixture-grid {
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+  min-height: 0;
+}
+
+.graph-fixture-grid-display-any {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.graph-fixture-grid-status {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.72fr);
+  align-items: start;
+}
+
+.graph-fixture-card,
+.graph-fixture-edge-board,
+.graph-fixture-context-host,
+.graph-fixture-status-grid {
+  min-width: 0;
+  border: 1px solid var(--graph-border);
+  border-radius: var(--graph-control-radius);
+  background: var(--graph-panel);
+}
+
+.graph-fixture-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  min-height: 260px;
+  padding: 0.75rem;
+}
+
+.graph-fixture-card > span {
+  color: var(--graph-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.graph-fixture-stack {
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.graph-fixture-stack .graph-toolbar {
+  min-width: 0;
+  border: 1px solid var(--graph-border);
+  border-radius: var(--graph-control-radius);
+}
+
+.graph-fixture-edge-board {
+  position: relative;
+  min-height: 300px;
+  overflow: hidden;
+}
+
+.graph-fixture-edge-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+}
+
+.graph-fixture-edge-board .graph-edge-delete-button {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.graph-fixture-handle-row {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  display: inline-flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.graph-fixture-handle-row .graph-handle {
+  position: relative !important;
+  display: block;
+}
+
+.graph-fixture-context-host {
+  position: relative;
+  min-height: 300px;
+}
+
+.graph-fixture-context-host .graph-node-context-menu {
+  position: relative;
+}
+
+.graph-fixture-status-grid {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+  padding: 0.8rem;
+}
+
+.graph-fixture-status-grid .graph-node {
+  min-height: 150px;
+}

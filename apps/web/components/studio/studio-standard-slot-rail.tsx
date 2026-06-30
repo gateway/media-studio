@@ -95,6 +95,7 @@ export function StudioStandardSlotRail({
                   <StudioStagedMediaTile
                     preview={preview}
                     visualUrl={visualUrl}
+                    footerLabel={preview.metadataLabel ?? null}
                     onOpenPreview={(nextPreview) => onOpenPreview(nextPreview)}
                     onRemove={() => onClearSlot(slot)}
                     replaceControl={mobile ? undefined : renderReplaceControl(slot, `${testIdPrefix}-${slot.id}-replace`)}

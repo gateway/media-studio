@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
+from .store_seed_presets import seed_default_presets
+from .store_seed_prompt_recipes import seed_default_prompt_recipes
+from .queue_limits import (
+    QUEUE_DEFAULT_MAX_CONCURRENT_JOBS,
+    QUEUE_DEFAULT_MAX_RETRY_ATTEMPTS,
+    QUEUE_DEFAULT_POLL_SECONDS,
+)
 from .store_support import (
     decode_row,
     ensure_column,
@@ -21,6 +29,66 @@ class SchemaMigration:
     version: int
     description: str
     apply: Callable[[sqlite3.Connection], None]
+
+
+def _positive_int(value: Any) -> Optional[int]:
+    try:
+        next_value = int(value)
+    except (TypeError, ValueError):
+        return None
+    return next_value if next_value > 0 else None
+
+
+def _dimensions_from_asset_payload(payload: Any) -> tuple[Optional[int], Optional[int]]:
+    if not isinstance(payload, dict):
+        return None, None
+    outputs = payload.get("outputs")
+    if not isinstance(outputs, list):
+        return None, None
+    for output in outputs:
+        if not isinstance(output, dict):
+            continue
+        width = _positive_int(output.get("width"))
+        height = _positive_int(output.get("height"))
+        if width and height:
+            return width, height
+    return None, None
+
+
+def _backfill_media_asset_dimensions(connection: sqlite3.Connection) -> None:
+    if not table_exists(connection, "media_assets"):
+        return
+    rows = connection.execute(
+        """
+        SELECT asset_id, width, height, payload_json
+        FROM media_assets
+        WHERE (width IS NULL OR height IS NULL)
+          AND payload_json IS NOT NULL
+          AND payload_json != '{}'
+        """
+    ).fetchall()
+    for row in rows:
+        try:
+            payload = json.loads(row["payload_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        width, height = _dimensions_from_asset_payload(payload)
+        if not width or not height:
+            continue
+        connection.execute(
+            """
+            UPDATE media_assets
+            SET width = COALESCE(width, ?), height = COALESCE(height, ?)
+            WHERE asset_id = ?
+            """,
+            (width, height, row["asset_id"]),
+        )
+
+
+def _apply_media_asset_dimensions(connection: sqlite3.Connection) -> None:
+    ensure_column(connection, "media_assets", "width", "INTEGER")
+    ensure_column(connection, "media_assets", "height", "INTEGER")
+    _backfill_media_asset_dimensions(connection)
 
 
 def database_has_user_schema(connection: sqlite3.Connection) -> bool:
@@ -139,694 +207,83 @@ def _record_migration(connection: sqlite3.Connection, migration: SchemaMigration
     _set_schema_meta(connection, "last_migration_id", migration.migration_id)
     _set_schema_meta(connection, "last_migrated_at", applied_at)
 
-def _seed_default_presets(connection: sqlite3.Connection) -> None:
-    now = utcnow_iso()
-    seed_rows = [
-        {
-            "preset_id": "media-preset-2x2-pose-grid-shared",
-            "key": "2x2-pose-grid",
-            "label": "2x2 Pose Grid",
-            "description": (
-                "Takes the exact reference image of a person and generates 4 additional images in a grid at "
-                "various poses and positions while maintaining the exact clothing, facial features and background."
-            ),
-            "status": "active",
-            "model_key": "nano-banana-2",
-            "source_kind": "custom",
-            "base_builtin_key": None,
-            "applies_to_models_json": ["nano-banana-2", "nano-banana-pro", "gpt-image-2-image-to-image"],
-            "applies_to_task_modes_json": [],
-            "applies_to_input_patterns_json": [],
-            "prompt_template": (
-                "Use [[person]] as identity/style reference only,never as output.\n\n"
-                "Create 4 brand new final images in a 2x2 grid of 4 newly generated renders of the same character.\n"
-                "All 4 panels must be fresh renders. Do not paste,copy,repeat,or preserve the original uploaded "
-                "image as any panel. Do not recreate the exact source pose,source crop,or source framing.\n\n"
-                "Main goal:\n"
-                "preserve character consistency while creating 4 clearly different shots.\n\n"
-                "Keep locked across all 4 panels:\n"
-                "same identity,same face,same facial structure,same skin tone,same hairstyle,same hair color,same "
-                "body type,same clothing,same accessories,same props,same materials,same wear and tear,same tattoos,"
-                "same background environment,same lighting mood,same realism level,same overall visual style.\n\n"
-                "Allowed variation only:\n"
-                "pose,stance,arm position,hand placement,torso rotation,head angle,camera angle,framing,facial "
-                "expression.\n\n"
-                "Hard rules:\n"
-                "the character must remain the exact same person in every panel\n"
-                "the environment must remain the same\n"
-                "the outfit and gear must remain the same\n"
-                "all 4 panels must look like shots from the same shoot in the same place at nearly the same time\n"
-                "no panel may look like a reused crop of the reference\n"
-                "no duplicate poses\n"
-                "no duplicate camera angles\n"
-                "no duplicate expressions\n"
-                "no text,no labels,no borders,no captions,no graphic design elements,no extra characters\n\n"
-                "Dynamic variation behavior:\n"
-                "for each of the 4 panels,choose a different combination of pose,camera,framing,and expression so "
-                "the panels have strong visual separation while keeping identity fully consistent.\n\n"
-                "Choose 1 unique option per panel from these pose ideas:\n"
-                "relaxed standing,strong stance,casual ready stance,action-ready stance,walking,turning slightly,"
-                "looking over shoulder,arms crossed,one hand raised,hands at sides,subtle crouch,weight shifted to "
-                "one leg\n\n"
-                "Choose 1 unique option per panel from these camera ideas:\n"
-                "front view,left 3/4,right 3/4,side view,slight low angle,slight high angle,eye level\n\n"
-                "Choose 1 unique option per panel from these framing ideas:\n"
-                "full body,three-quarter body,medium full\n\n"
-                "Choose 1 unique option per panel from these expression ideas:\n"
-                "serious,focused,calm,determined,intense,alert,subtle smirk\n\n"
-                "Priorities:\n"
-                "1 preserve identity exactly\n"
-                "2 ensure all 4 panels are newly rendered and not reused from source\n"
-                "3 maximize panel-to-panel variety using only approved changes\n"
-                "4 keep composition clean and balanced as a readable 2x2 grid\n\n"
-                "If no other direction is given,automatically choose the 4 panel combinations from the lists above "
-                "to create the best balanced and most visually distinct result."
-            ),
-            "system_prompt_template": "",
-            "system_prompt_ids_json": [],
-            "default_options_json": {},
-            "rules_json": {},
-            "requires_image": 1,
-            "requires_video": 0,
-            "requires_audio": 0,
-            "input_schema_json": [],
-            "input_slots_json": [
-                {
-                    "key": "person",
-                    "label": "Person",
-                    "help_text": "Detailed image of a person",
-                    "required": True,
-                    "max_files": 1,
-                }
-            ],
-            "choice_groups_json": [],
-            "thumbnail_path": "preset-thumbnails/2x2-pose-grid-1777711962216.webp",
-            "thumbnail_url": "/api/preset-thumbnails/2x2-pose-grid-1777711962216.webp",
-            "notes": None,
-            "version": "v1",
-            "priority": 880,
-            "created_at": now,
-            "updated_at": now,
-        },
-        {
-            "preset_id": "media-preset-3d-caricature-style-nano-banana-shared",
-            "key": "3d-caricature-style-nano-banana",
-            "label": "3D Caricature Style",
-            "description": "Turn a portrait photo into a polished 3D caricature with exaggerated features and recognizable likeness.",
-            "status": "active",
-            "model_key": "nano-banana-2",
-            "source_kind": "custom",
-            "base_builtin_key": None,
-            "applies_to_models_json": ["nano-banana-2", "nano-banana-pro", "gpt-image-2-image-to-image"],
-            "applies_to_task_modes_json": [],
-            "applies_to_input_patterns_json": [],
-            "prompt_template": "Create a polished 3D caricature portrait of {{subject_style}} using [[person]]. Keep the likeness recognizable, exaggerate the defining features in a flattering way, and preserve a premium cinematic render finish.",
-            "system_prompt_template": "",
-            "system_prompt_ids_json": [],
-            "default_options_json": {},
-            "rules_json": {},
-            "requires_image": 1,
-            "requires_video": 0,
-            "requires_audio": 0,
-            "input_schema_json": [
-                {
-                    "key": "subject_style",
-                    "label": "Style Direction",
-                    "placeholder": "Pixar-inspired studio lighting with premium skin detail",
-                    "default_value": "Pixar-inspired studio lighting with premium skin detail",
-                    "required": True,
-                }
-            ],
-            "input_slots_json": [
-                {
-                    "key": "person",
-                    "label": "Portrait",
-                    "help_text": "Upload the reference portrait for the caricature.",
-                    "required": True,
-                    "max_files": 1,
-                }
-            ],
-            "choice_groups_json": [],
-            "thumbnail_path": "preset-thumbnails/3d-caricature-style-1775803238496.webp",
-            "thumbnail_url": "/api/preset-thumbnails/3d-caricature-style-1775803238496.webp",
-            "notes": "Built-in Nano Banana portrait workflow.",
-            "version": "v1",
-            "priority": 900,
-            "created_at": now,
-            "updated_at": now,
-        },
-        {
-            "preset_id": "media-preset-exploding-food-shared",
-            "key": "exploding-food",
-            "label": "Exploding Food",
-            "description": "Generate high-end commercial exploding-food photography.",
-            "status": "active",
-            "model_key": "nano-banana-2",
-            "source_kind": "custom",
-            "base_builtin_key": None,
-            "applies_to_models_json": ["nano-banana-2", "gpt-image-2-text-to-image", "nano-banana-pro"],
-            "applies_to_task_modes_json": [],
-            "applies_to_input_patterns_json": [],
-            "prompt_template": (
-                "Exploding {{food}}, broken into two pieces. visible, crumbs or particles suspended mid-air. Clean "
-                "{{background}}, studio lighting, high-end commercial food photography, ultra-detailed, sharp focus."
-            ),
-            "system_prompt_template": "",
-            "system_prompt_ids_json": [],
-            "default_options_json": {},
-            "rules_json": {},
-            "requires_image": 0,
-            "requires_video": 0,
-            "requires_audio": 0,
-            "input_schema_json": [
-                {
-                    "key": "food",
-                    "label": "Food",
-                    "placeholder": "bacon burger with cheese and jalapenos",
-                    "default_value": "bacon burger with cheese and jalapenos",
-                    "required": True,
-                },
-                {
-                    "key": "background",
-                    "label": "Background",
-                    "placeholder": "Solid White Studio background",
-                    "default_value": "Solid White Studio background",
-                    "required": True,
-                },
-            ],
-            "input_slots_json": [],
-            "choice_groups_json": [],
-            "thumbnail_path": "preset-thumbnails/exploding-food-1777711842837.webp",
-            "thumbnail_url": "/api/preset-thumbnails/exploding-food-1777711842837.webp",
-            "notes": None,
-            "version": "v1",
-            "priority": 860,
-            "created_at": now,
-            "updated_at": now,
-        },
-        {
-            "preset_id": "media-preset-food-recipe-infographic-shared",
-            "key": "food-recipe-infographic",
-            "label": "Food Recipe Infographic",
-            "description": "Generate a custom food recipe infographic.",
-            "status": "active",
-            "model_key": "gpt-image-2-text-to-image",
-            "source_kind": "custom",
-            "base_builtin_key": None,
-            "applies_to_models_json": ["gpt-image-2-text-to-image", "nano-banana-pro", "nano-banana-2"],
-            "applies_to_task_modes_json": [],
-            "applies_to_input_patterns_json": [],
-            "prompt_template": (
-                "Ultra-clean modern recipe infographic. Showcase {{foodname}} in a visually appealing finished form, "
-                "sliced, plated, or portioned, floating slightly in perspective or angled view. Arrange ingredients, "
-                "steps, and tips around the dish in a dynamic editorial layout, not restricted to top-down. "
-                "Ingredients Section: Include icons or mini illustrations for each ingredient with quantities. "
-                "Arrange them in clusters, lists, or circular flows connected visually to the dish. Steps Section: "
-                "Show preparation steps with numbered panels, arrows, or lines, forming a logical flow around the "
-                "main dish. Include small cooking icons (knife, pan, oven, timer) where helpful. Additional Info "
-                "(optional): Total calories, prep/cook time, servings, spice level - displayed as clean bubbles or "
-                "badges near the dish. Visual Style: Editorial infographic meets lifestyle food photography. "
-                "Vibrant, natural food colors, subtle drop shadows, clean vector icons, modern typography, soft "
-                "gradients or glassmorphism for step panels. Accent colors can highlight key info (calories, prep "
-                "time). Composition Guidelines: Finished meal as hero visual (perspective or angled) Ingredients and "
-                "steps flow dynamically around the dish Clear visual hierarchy: dish > steps > ingredients > "
-                "optional stats Enough negative space to keep design airy and readable Lighting & Background: Soft, "
-                "natural studio lighting, minimal textured or gradient background for premium editorial feel. \n\n"
-                "ultra-crisp, social-feed optimized, no watermark"
-            ),
-            "system_prompt_template": "",
-            "system_prompt_ids_json": [],
-            "default_options_json": {},
-            "rules_json": {},
-            "requires_image": 0,
-            "requires_video": 0,
-            "requires_audio": 0,
-            "input_schema_json": [
-                {
-                    "key": "foodname",
-                    "label": "Food Name",
-                    "placeholder": "Cheeseburger",
-                    "default_value": "Cheeseburger",
-                    "required": True,
-                }
-            ],
-            "input_slots_json": [],
-            "choice_groups_json": [],
-            "thumbnail_path": "preset-thumbnails/food-recipe-infographic-1778383734839.webp",
-            "thumbnail_url": "/api/preset-thumbnails/food-recipe-infographic-1778383734839.webp",
-            "notes": None,
-            "version": "v1",
-            "priority": 850,
-            "created_at": now,
-            "updated_at": now,
-        },
-        {
-            "preset_id": "media-preset-giant-animal-anywhere-shared",
-            "key": "giant-animal-anywhere",
-            "label": "Giant Animal Anywhere",
-            "description": (
-                "Place an enormous adorable animal into any real-world setting with miniature-looking surroundings "
-                "and a calm cinematic mood."
-            ),
-            "status": "active",
-            "model_key": "nano-banana-2",
-            "source_kind": "custom",
-            "base_builtin_key": None,
-            "applies_to_models_json": ["nano-banana-2", "gpt-image-2-text-to-image", "nano-banana-pro"],
-            "applies_to_task_modes_json": [],
-            "applies_to_input_patterns_json": [],
-            "prompt_template": (
-                "A scene where {{location}} is occupied by a super gigantic, adorable {{animal}}. The environment "
-                "around the {{animal}} appears miniature by comparison, emphasizing the creature's enormous scale. "
-                "The setting must faithfully reflect the real visual character of {{location}}, whether it is a "
-                "city, town, landmark, coastline, forest, mountain, desert, or lakeside environment, with believable "
-                "environmental details, cinematic depth, and soft natural atmosphere. The animal must clearly and "
-                "unmistakably be a {{animal}}, preserving the requested species, color, and overall appearance, and "
-                "must not be replaced by any other animal. The overall mood is quiet, warm, soothing, and cute."
-            ),
-            "system_prompt_template": "",
-            "system_prompt_ids_json": [],
-            "default_options_json": {},
-            "rules_json": {},
-            "requires_image": 0,
-            "requires_video": 0,
-            "requires_audio": 0,
-            "input_schema_json": [
-                {
-                    "key": "location",
-                    "label": "Location",
-                    "placeholder": "Paris",
-                    "default_value": "Paris",
-                    "required": True,
-                },
-                {
-                    "key": "animal",
-                    "label": "Animal",
-                    "placeholder": "Labrador Retriever",
-                    "default_value": "Labrador Retriever",
-                    "required": True,
-                },
-            ],
-            "input_slots_json": [],
-            "choice_groups_json": [],
-            "thumbnail_path": "preset-thumbnails/giant-animal-anywhere-1778384247159.webp",
-            "thumbnail_url": "/api/preset-thumbnails/giant-animal-anywhere-1778384247159.webp",
-            "notes": None,
-            "version": "v1",
-            "priority": 840,
-            "created_at": now,
-            "updated_at": now,
-        },
-        {
-            "preset_id": "media-preset-photo-restoration-shared",
-            "key": "photo-restoration",
-            "label": "Photo Restoration",
-            "description": "Restore old photos from one uploaded image with colorized, cleaned outputs.",
-            "status": "active",
-            "model_key": "nano-banana-2",
-            "source_kind": "custom",
-            "base_builtin_key": None,
-            "applies_to_models_json": ["nano-banana-2", "gpt-image-2-image-to-image", "nano-banana-pro"],
-            "applies_to_task_modes_json": [],
-            "applies_to_input_patterns_json": [],
-            "prompt_template": (
-                "Colorize this black and white photo [[source_photo]] to look like a modern, high-end image taken "
-                "today on a Canon EOS R5. Apply hyper-realistic skin tones and natural volumetric lighting with "
-                "accurate shadows. If outdoor, enhance the foliage, grass, trees, and sky with vibrant, "
-                "high-definition textures and sunlight. If indoor, create realistic ambient lighting. CRITICAL "
-                "INSTRUCTION: Strictly preserve the original facial features, expressions, and clothing of all "
-                "people; do not alter identities or the physical structure of the photo."
-            ),
-            "system_prompt_template": "",
-            "system_prompt_ids_json": [],
-            "default_options_json": {},
-            "rules_json": {},
-            "requires_image": 1,
-            "requires_video": 0,
-            "requires_audio": 0,
-            "input_schema_json": [],
-            "input_slots_json": [
-                {
-                    "key": "source_photo",
-                    "label": "Source Photo",
-                    "help_text": "Source Photo",
-                    "required": True,
-                    "max_files": 1,
-                }
-            ],
-            "choice_groups_json": [],
-            "thumbnail_path": "preset-thumbnails/photo-restoration-1778385279913.webp",
-            "thumbnail_url": "/api/preset-thumbnails/photo-restoration-1778385279913.webp",
-            "notes": None,
-            "version": "v1",
-            "priority": 830,
-            "created_at": now,
-            "updated_at": now,
-        },
-        {
-            "preset_id": "media-preset-selfie-with-movie-character-nano-banana-shared",
-            "key": "selfie-with-movie-character-nano-banana",
-            "label": "Selfie with Movie Character",
-            "description": "Place your uploaded portrait into a polished selfie scene with a named movie character.",
-            "status": "active",
-            "model_key": "nano-banana-2",
-            "source_kind": "custom",
-            "base_builtin_key": None,
-            "applies_to_models_json": ["nano-banana-2", "nano-banana-pro", "gpt-image-2-image-to-image"],
-            "applies_to_task_modes_json": [],
-            "applies_to_input_patterns_json": [],
-            "prompt_template": "Create a premium selfie of [[person]] standing beside {{character_name}} from {{movie_name}}. Make the shot feel candid, cinematic, and believable with natural framing and polished lighting.",
-            "system_prompt_template": "",
-            "system_prompt_ids_json": [],
-            "default_options_json": {},
-            "rules_json": {},
-            "requires_image": 1,
-            "requires_video": 0,
-            "requires_audio": 0,
-            "input_schema_json": [
-                {
-                    "key": "character_name",
-                    "label": "Character",
-                    "placeholder": "John Wick",
-                    "default_value": "",
-                    "required": True,
-                },
-                {
-                    "key": "movie_name",
-                    "label": "Movie",
-                    "placeholder": "John Wick Chapter 4",
-                    "default_value": "",
-                    "required": True,
-                },
-            ],
-            "input_slots_json": [
-                {
-                    "key": "person",
-                    "label": "Portrait",
-                    "help_text": "Upload the portrait that should appear in the selfie.",
-                    "required": True,
-                    "max_files": 1,
-                }
-            ],
-            "choice_groups_json": [],
-            "thumbnail_path": "preset-thumbnails/selfie-with-movie-character-1777711871772.webp",
-            "thumbnail_url": "/api/preset-thumbnails/selfie-with-movie-character-1777711871772.webp",
-            "notes": "Built-in Nano Banana selfie composition workflow.",
-            "version": "v1",
-            "priority": 890,
-            "created_at": now,
-            "updated_at": now,
-        },
-    ]
-    seed_ids = tuple(row["preset_id"] for row in seed_rows)
-    existing_shared = connection.execute(
-        f"SELECT COUNT(*) AS count FROM media_presets WHERE preset_id IN ({', '.join(['?'] * len(seed_ids))})",
-        seed_ids,
-    ).fetchone()
-    if existing_shared and int(existing_shared["count"] or 0) >= len(seed_ids):
-        return
-    for row in seed_rows:
-        insert_or_update(connection, "media_presets", "preset_id", row)
+
+def _apply_media_preset_category_backfill(connection: sqlite3.Connection) -> None:
+    ensure_column(
+        connection,
+        "media_presets",
+        "category",
+        "TEXT NOT NULL DEFAULT 'general'",
+    )
+    connection.execute(
+        """
+        UPDATE media_presets
+        SET category = CASE
+            WHEN lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*restor*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*coloriz*'
+              THEN 'restoration'
+            WHEN lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*grid*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*storyboard*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*sheet*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*infographic*'
+              THEN 'layout'
+            WHEN lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*video*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*kling*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*seedance*'
+              THEN 'video'
+            WHEN lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*product*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*food*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*advertisement*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*automotive*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*vehicle*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*vintage car*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*jeep*'
+              THEN 'product'
+            WHEN lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*character*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*cyborg*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*mech*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*samurai*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*mascot*'
+              THEN 'character'
+            WHEN lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*portrait*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*selfie*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*person*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*caricature*'
+              THEN 'portrait'
+            WHEN lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*style*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*poster*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*cinematic*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*retro*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*graffiti*'
+              OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*punk*'
+              THEN 'style'
+            ELSE 'general'
+        END
+        WHERE COALESCE(category, 'general') = 'general'
+        """
+    )
 
 
-def _prompt_recipe_variable(
-    key: str,
-    label: str,
-    *,
-    required: bool = False,
-    default_value: str = "",
-    description: str = "",
-) -> Dict[str, Any]:
-    return {
-        "key": key,
-        "token": "{{%s}}" % key,
-        "label": label,
-        "enabled": True,
-        "required": required,
-        "default_value": default_value,
-        "description": description,
-    }
-
-
-def _seed_default_prompt_recipes(connection: sqlite3.Connection) -> None:
-    now = utcnow_iso()
-    seed_rows = [
-        {
-            "recipe_id": "prompt-recipe-storyboard-director-3x3",
-            "key": "storyboard-director-3x3",
-            "label": "Storyboard Director - 3x3 Grid",
-            "description": "Turns a creative brief and optional ordered references into one polished 3x3 storyboard-sheet image prompt.",
-            "category": "image",
-            "status": "active",
-            "system_prompt_template": (
-                "You are an expert cinematic storyboard director and image prompt writer.\n\n"
-                "Transform the creative brief into one polished image-generation prompt for a professional storyboard sheet.\n\n"
-                "CREATIVE BRIEF:\n{{user_prompt}}\n\n"
-                "SOURCE PROMPT:\n{{source_prompt}}\n\n"
-                "REFERENCE ANALYSIS:\n{{image_analysis}}\n\n"
-                "STYLE DIRECTION:\n{{style_direction}}\n\n"
-                "ASPECT RATIO:\n{{aspect_ratio}}\n\n"
-                "Create a final prompt for a clean 16:9 storyboard image.\n"
-                "Default format: a cinematic 3x3 grid of nine panels with clear borders, readable panel numbers, and short captions below each panel.\n\n"
-                "The final prompt must include the main subject, setting and atmosphere, visual style, a clear storyboard title, panel-by-panel action progression, "
-                "camera variety, and continuity of character, wardrobe, props, lighting, and mood across all nine panels.\n"
-                "If references are provided, preserve the relevant identity, face, body, styling, product, or scene details consistently across every panel.\n\n"
-                "Return only the final image-generation prompt. Do not explain. Do not use markdown."
-            ),
-            "image_analysis_prompt": "Describe this image for use as a character or scene reference. Focus on identity, pose, clothing, lighting, camera angle, setting, and consistency details.",
-            "user_prompt_placeholder": "{{user_prompt}}",
-            "output_format": "single_prompt",
-            "output_contract_json": {"type": "text", "description": "A single 3x3 storyboard image prompt."},
-            "input_variables_json": [
-                _prompt_recipe_variable("user_prompt", "User Prompt", required=True, description="Creative direction supplied by the user."),
-                _prompt_recipe_variable("source_prompt", "Source Prompt", default_value="No source prompt provided.", description="Optional upstream prompt or prior direction to preserve."),
-                _prompt_recipe_variable("image_analysis", "Image Analysis", default_value="No reference images provided.", description="Optional description of connected reference images."),
-                _prompt_recipe_variable("style_direction", "Style Direction", default_value="cinematic realism", description="Short style or genre direction."),
-                _prompt_recipe_variable("aspect_ratio", "Aspect Ratio", default_value="16:9", description="Target storyboard aspect ratio."),
-            ],
-            "custom_fields_json": [],
-            "image_input_json": {"enabled": True, "required": False, "mode": "both", "analysis_variable": "image_analysis", "max_files": 4},
-            "default_options_json": {"temperature": 0.35, "max_output_tokens": 1800, "strict_output": True},
-            "rules_json": {"return_only_final_output": True, "allow_markdown": False, "allow_external_variables": True},
-            "validation_warnings_json": [],
-            "source_kind": "builtin",
-            "version": "1",
-            "priority": 500,
-            "created_at": now,
-            "updated_at": now,
-        },
-        {
-            "recipe_id": "prompt-recipe-image-prompt-director",
-            "key": "image-prompt-director",
-            "label": "Image Prompt Director",
-            "description": "Expands a creative brief and optional ordered references into one production-ready image prompt.",
-            "category": "image",
-            "status": "active",
-            "system_prompt_template": (
-                "You are a senior image prompt director.\n\n"
-                "Turn the creative brief into one final image-generation prompt that is visually specific, production-ready, and internally consistent.\n\n"
-                "USER PROMPT:\n{{user_prompt}}\n\n"
-                "SOURCE PROMPT:\n{{source_prompt}}\n\n"
-                "REFERENCE ANALYSIS:\n{{image_analysis}}\n\n"
-                "STYLE DIRECTION:\n{{style_direction}}\n\n"
-                "ASPECT RATIO:\n{{aspect_ratio}}\n\n"
-                "If references are provided, preserve the important identity, styling, product, or scene details while making the output feel intentional rather than descriptive.\n\n"
-                "Return only the final prompt. Do not explain. Do not use markdown."
-            ),
-            "image_analysis_prompt": "Describe the provided reference images for downstream prompt generation. Focus on identity, styling, composition, lighting, environment, props, and continuity details that should be preserved.",
-            "user_prompt_placeholder": "{{user_prompt}}",
-            "output_format": "single_prompt",
-            "output_contract_json": {"type": "text", "description": "A single image prompt."},
-            "input_variables_json": [
-                _prompt_recipe_variable("user_prompt", "User Prompt", required=True, description="Creative direction supplied by the user."),
-                _prompt_recipe_variable("source_prompt", "Source Prompt", default_value="No source prompt provided.", description="Optional prompt to preserve or rewrite."),
-                _prompt_recipe_variable("image_analysis", "Image Analysis", default_value="No reference images provided.", description="Reference-image analysis injected by the graph runtime."),
-                _prompt_recipe_variable("style_direction", "Style Direction", default_value="cinematic realism", description="Short style or genre direction."),
-                _prompt_recipe_variable("aspect_ratio", "Aspect Ratio", default_value="1:1", description="Target image aspect ratio."),
-            ],
-            "custom_fields_json": [],
-            "image_input_json": {"enabled": True, "required": False, "mode": "both", "analysis_variable": "image_analysis", "max_files": 4},
-            "default_options_json": {"temperature": 0.4, "max_output_tokens": 1500, "strict_output": True},
-            "rules_json": {"return_only_final_output": True, "allow_markdown": False, "allow_external_variables": True},
-            "validation_warnings_json": [],
-            "source_kind": "builtin",
-            "version": "1",
-            "priority": 490,
-            "created_at": now,
-            "updated_at": now,
-        },
-        {
-            "recipe_id": "prompt-recipe-video-director-multi-shot-json",
-            "key": "video-director-multi-shot-json",
-            "label": "Video Director - Multi Shot JSON",
-            "description": "Creates a structured set of video prompts for multiple shots from a brief and optional ordered references.",
-            "category": "video",
-            "status": "active",
-            "system_prompt_template": (
-                "You are a cinematic video director.\n\n"
-                "Convert the creative brief into {{shot_count}} coherent video shots that feel like one sequence.\n\n"
-                "USER PROMPT:\n{{user_prompt}}\n\n"
-                "SOURCE PROMPT:\n{{source_prompt}}\n\n"
-                "REFERENCE ANALYSIS:\n{{image_analysis}}\n\n"
-                "STYLE DIRECTION:\n{{style_direction}}\n\n"
-                "DURATION PER SHOT:\n{{duration_seconds}}\n\n"
-                "Return strict JSON with a `shots` array. Each shot must include `shot_number`, `title`, `duration_seconds`, `camera`, `action`, `motion`, "
-                "`continuity_notes`, and a strong final `prompt` for video generation. Preserve identity and continuity across the whole batch."
-            ),
-            "image_analysis_prompt": "Describe the image as video source material, focusing on subject identity, setting, camera angle, motion potential, and continuity details.",
-            "user_prompt_placeholder": "{{user_prompt}}",
-            "output_format": "structured_shot_sequence",
-            "output_contract_json": {
-                "type": "object",
-                "required": ["shots"],
-                "properties": {
-                    "shots": {
-                        "type": "array",
-                        "items": {"type": "object", "required": ["shot_number", "duration_seconds", "prompt", "camera", "action"]},
-                    }
-                },
-            },
-            "input_variables_json": [
-                _prompt_recipe_variable("user_prompt", "User Prompt", required=True, description="Creative direction supplied by the user."),
-                _prompt_recipe_variable("source_prompt", "Source Prompt", default_value="No source prompt provided.", description="Optional upstream prompt or previous image prompt."),
-                _prompt_recipe_variable("image_analysis", "Image Analysis", default_value="No reference images provided.", description="Optional visual context."),
-                _prompt_recipe_variable("style_direction", "Style Direction", default_value="cinematic realism", description="Short style or genre direction."),
-                _prompt_recipe_variable("shot_count", "Shot Count", default_value="4", description="Number of video prompts to create."),
-                _prompt_recipe_variable("duration_seconds", "Duration Seconds", default_value="5", description="Duration for each generated shot."),
-            ],
-            "custom_fields_json": [],
-            "image_input_json": {"enabled": True, "required": False, "mode": "both", "analysis_variable": "image_analysis", "max_files": 4},
-            "default_options_json": {"temperature": 0.35, "max_output_tokens": 2600, "strict_output": True},
-            "rules_json": {"return_only_final_output": True, "allow_markdown": False, "allow_json": True, "validate_json_output": False, "allow_external_variables": True},
-            "validation_warnings_json": [],
-            "source_kind": "builtin",
-            "version": "1",
-            "priority": 480,
-            "created_at": now,
-            "updated_at": now,
-        },
-        {
-            "recipe_id": "prompt-recipe-image-analysis-character-reference",
-            "key": "image-analysis-character-reference",
-            "label": "Image Analysis - Character Reference",
-            "description": "Analyzes one or more reference images into compact character continuity notes.",
-            "category": "analysis",
-            "status": "active",
-            "system_prompt_template": (
-                "You are a reference analyst for downstream image and video prompt generation.\n\n"
-                "USER PROMPT:\n{{user_prompt}}\n\n"
-                "REFERENCE ANALYSIS:\n{{image_analysis}}\n\n"
-                "Return a concise character continuity reference covering subject identity, face, hair, body, clothing, pose, lighting, camera, props, and important details."
-            ),
-            "image_analysis_prompt": "Describe the attached image set as a reusable character reference for image and video generation. Focus on identity, facial features, body shape, clothing, styling, props, environment, and details that should remain consistent.",
-            "user_prompt_placeholder": "{{user_prompt}}",
-            "output_format": "image_analysis",
-            "output_contract_json": {"type": "object", "properties": {"description": {"type": "string"}, "subject": {"type": "string"}, "important_details": {"type": "array"}}},
-            "input_variables_json": [
-                _prompt_recipe_variable("user_prompt", "User Prompt", default_value="Describe the character and continuity-critical details.", description="Optional focus for the analysis."),
-                _prompt_recipe_variable("image_analysis", "Image Analysis", description="Reference-image analysis injected by the graph runtime."),
-            ],
-            "custom_fields_json": [],
-            "image_input_json": {"enabled": True, "required": True, "mode": "analyze_then_inject", "analysis_variable": "image_analysis", "max_files": 4},
-            "default_options_json": {"temperature": 0.2, "max_output_tokens": 1200, "strict_output": False},
-            "rules_json": {"return_only_final_output": True, "allow_markdown": True, "allow_json": True, "allow_external_variables": True},
-            "validation_warnings_json": [],
-            "source_kind": "builtin",
-            "version": "1",
-            "priority": 470,
-            "created_at": now,
-            "updated_at": now,
-        },
-        {
-            "recipe_id": "prompt-recipe-storyboard-shot-sequence-3x3",
-            "key": "storyboard-shot-sequence-3x3",
-            "label": "Storyboard Shot Sequence - 3x3",
-            "description": "Creates nine coherent storyboard panel prompts as a structured shot sequence.",
-            "category": "image",
-            "status": "active",
-            "system_prompt_template": (
-                "You are an expert cinematic storyboard director.\n\n"
-                "Convert the creative brief into a nine-panel storyboard sequence.\n\n"
-                "USER PROMPT:\n{{user_prompt}}\n\n"
-                "SOURCE PROMPT:\n{{source_prompt}}\n\n"
-                "REFERENCE ANALYSIS:\n{{image_analysis}}\n\n"
-                "STYLE DIRECTION:\n{{style_direction}}\n\n"
-                "ASPECT RATIO:\n{{aspect_ratio}}\n\n"
-                "Return strict JSON with a `shots` array containing {{shot_count}} storyboard panels. Each panel must include `shot_number`, `title`, `caption`, "
-                "`camera`, `action`, `continuity_notes`, and a strong standalone `prompt` for image generation. Preserve continuity across every panel."
-            ),
-            "image_analysis_prompt": "Describe the provided reference images for a storyboard sequence. Focus on identity, environment, props, mood, camera potential, and continuity details that should remain stable across multiple panels.",
-            "user_prompt_placeholder": "{{user_prompt}}",
-            "output_format": "structured_shot_sequence",
-            "output_contract_json": {
-                "type": "object",
-                "required": ["shots"],
-                "properties": {
-                    "shots": {
-                        "type": "array",
-                        "items": {"type": "object", "required": ["shot_number", "title", "caption", "prompt"]},
-                    }
-                },
-            },
-            "input_variables_json": [
-                _prompt_recipe_variable("user_prompt", "User Prompt", required=True, description="Creative direction supplied by the user."),
-                _prompt_recipe_variable("source_prompt", "Source Prompt", default_value="No source prompt provided.", description="Optional upstream prompt or previous direction."),
-                _prompt_recipe_variable("image_analysis", "Image Analysis", default_value="No reference images provided.", description="Reference-image analysis injected by the graph runtime."),
-                _prompt_recipe_variable("style_direction", "Style Direction", default_value="cinematic realism", description="Short style or genre direction."),
-                _prompt_recipe_variable("shot_count", "Shot Count", default_value="9", description="Number of storyboard panels to create."),
-                _prompt_recipe_variable("aspect_ratio", "Aspect Ratio", default_value="16:9", description="Target aspect ratio for each panel prompt."),
-            ],
-            "custom_fields_json": [],
-            "image_input_json": {"enabled": True, "required": False, "mode": "both", "analysis_variable": "image_analysis", "max_files": 4},
-            "default_options_json": {"temperature": 0.35, "max_output_tokens": 2800, "strict_output": True},
-            "rules_json": {"return_only_final_output": True, "allow_markdown": False, "allow_json": True, "validate_json_output": False, "allow_external_variables": True},
-            "validation_warnings_json": [],
-            "source_kind": "builtin",
-            "version": "1",
-            "priority": 465,
-            "created_at": now,
-            "updated_at": now,
-        },
-        {
-            "recipe_id": "prompt-recipe-prompt-shortener",
-            "key": "prompt-shortener",
-            "label": "Prompt Shortener",
-            "description": "Compresses a long prompt while preserving the important visual details.",
-            "category": "utility",
-            "status": "active",
-            "system_prompt_template": (
-                "Rewrite the source prompt into a shorter production prompt while preserving subject identity, required action, visual style, and constraints.\n\n"
-                "SOURCE PROMPT:\n{{source_prompt}}\n\nTARGET FORMAT:\n{{output_format}}\n\nReturn only the shortened prompt."
-            ),
-            "image_analysis_prompt": "",
-            "user_prompt_placeholder": "{{user_prompt}}",
-            "output_format": "single_prompt",
-            "output_contract_json": {"type": "text", "description": "A shortened prompt."},
-            "input_variables_json": [
-                _prompt_recipe_variable("source_prompt", "Source Prompt", required=True, description="Prompt to shorten."),
-                _prompt_recipe_variable("output_format", "Output Format", default_value="plain text", description="Preferred output style."),
-            ],
-            "custom_fields_json": [],
-            "image_input_json": {"enabled": False, "required": False, "mode": "none", "analysis_variable": "image_analysis", "max_files": 0},
-            "default_options_json": {"temperature": 0.25, "max_output_tokens": 800, "strict_output": True},
-            "rules_json": {"return_only_final_output": True, "allow_markdown": False, "allow_external_variables": True},
-            "validation_warnings_json": [],
-            "source_kind": "builtin",
-            "version": "1",
-            "priority": 460,
-            "created_at": now,
-            "updated_at": now,
-        },
-    ]
-    for row in seed_rows:
-        existing = connection.execute(
-            "SELECT source_kind FROM prompt_recipes WHERE recipe_id = ?",
-            (row["recipe_id"],),
-        ).fetchone()
-        if existing and str(existing["source_kind"] or "") != "builtin":
-            continue
-        insert_or_update(connection, "prompt_recipes", "recipe_id", row)
-
+def _apply_media_preset_category_backfill_corrections(connection: sqlite3.Connection) -> None:
+    ensure_column(
+        connection,
+        "media_presets",
+        "category",
+        "TEXT NOT NULL DEFAULT 'general'",
+    )
+    connection.execute(
+        """
+        UPDATE media_presets
+        SET category = 'portrait'
+        WHERE category = 'product'
+          AND (
+            lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*caricature*'
+            OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*portrait*'
+            OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*selfie*'
+            OR lower(key || ' ' || label || ' ' || COALESCE(description, '')) GLOB '*person*'
+          )
+        """
+    )
 
 def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
     now = utcnow_iso()
@@ -885,7 +342,7 @@ def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
                             "user_prompt": "Create a polished cinematic portrait prompt using the reference as the main identity.",
                             "provider": "openrouter",
                             "model_id": "openai/gpt-4o-mini",
-                            "model_supports_images": True,
+                            "provider_supports_images": True,
                             "style_direction": "cinematic realism",
                             "aspect_ratio": "16:9",
                         },
@@ -925,7 +382,7 @@ def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
                             "user_prompt": "Use the ordered references to create one prompt that preserves face, body styling, and product continuity.",
                             "provider": "openrouter",
                             "model_id": "openai/gpt-4o-mini",
-                            "model_supports_images": True,
+                            "provider_supports_images": True,
                             "style_direction": "premium editorial realism",
                             "aspect_ratio": "16:9",
                         },
@@ -966,7 +423,7 @@ def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
                             "user_prompt": "Create four cinematic video prompts for an escalating sci-fi escape sequence.",
                             "provider": "openrouter",
                             "model_id": "openai/gpt-4o-mini",
-                            "model_supports_images": True,
+                            "provider_supports_images": True,
                             "style_direction": "cinematic sci-fi realism",
                             "shot_count": "4",
                             "duration_seconds": "5",
@@ -1015,7 +472,7 @@ def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
                             "user_prompt": "Create a nine-panel storyboard about a lone operative stealing critical data from a collapsing alien fortress.",
                             "provider": "openrouter",
                             "model_id": "openai/gpt-4o-mini",
-                            "model_supports_images": True,
+                            "provider_supports_images": True,
                             "style_direction": "cinematic sci-fi realism",
                             "shot_count": "9",
                             "aspect_ratio": "16:9",
@@ -1073,7 +530,7 @@ def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
                             "user_prompt": "Describe the character and continuity-critical details.",
                             "provider": "openrouter",
                             "model_id": "openai/gpt-4o-mini",
-                            "model_supports_images": True,
+                            "provider_supports_images": True,
                         },
                     },
                     {"id": "display", "type": "display.any", "position": {"x": 560, "y": 0}, "fields": {}},
@@ -1259,7 +716,7 @@ def _ensure_prompt_recipe_schema(connection: sqlite3.Connection) -> None:
 
 def _apply_prompt_recipes_schema(connection: sqlite3.Connection) -> None:
     _ensure_prompt_recipe_schema(connection)
-    _seed_default_prompt_recipes(connection)
+    seed_default_prompt_recipes(connection)
 
 
 def _apply_prompt_recipe_validation_warnings_schema(connection: sqlite3.Connection) -> None:
@@ -1293,6 +750,136 @@ def _apply_prompt_recipe_drafting_enabled_schema(connection: sqlite3.Connection)
     ensure_column(connection, "media_prompt_recipe_drafting_configs", "enabled", "INTEGER NOT NULL DEFAULT 1")
 
 
+def _apply_assistant_schema(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS assistant_sessions (
+            assistant_session_id TEXT PRIMARY KEY,
+            owner_kind TEXT NOT NULL DEFAULT 'standalone',
+            owner_id TEXT,
+            provider_kind TEXT NOT NULL DEFAULT 'codex_local',
+            provider_model_id TEXT,
+            provider_thread_id TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            title TEXT,
+            summary_json TEXT NOT NULL DEFAULT '{}',
+            state_snapshot_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_assistant_sessions_owner
+        ON assistant_sessions(owner_kind, owner_id, updated_at DESC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS assistant_messages (
+            assistant_message_id TEXT PRIMARY KEY,
+            assistant_session_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            content_text TEXT NOT NULL DEFAULT '',
+            content_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(assistant_session_id) REFERENCES assistant_sessions(assistant_session_id)
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_assistant_messages_session
+        ON assistant_messages(assistant_session_id, created_at ASC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS assistant_attachments (
+            assistant_attachment_id TEXT PRIMARY KEY,
+            assistant_session_id TEXT NOT NULL,
+            reference_id TEXT NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'image',
+            label TEXT,
+            metadata_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(assistant_session_id) REFERENCES assistant_sessions(assistant_session_id),
+            FOREIGN KEY(reference_id) REFERENCES reference_media(reference_id)
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_assistant_attachments_session
+        ON assistant_attachments(assistant_session_id, created_at ASC)
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS assistant_plans (
+            assistant_plan_id TEXT PRIMARY KEY,
+            assistant_session_id TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'draft',
+            capability TEXT NOT NULL DEFAULT 'plan_graph',
+            plan_json TEXT NOT NULL DEFAULT '{}',
+            validation_json TEXT NOT NULL DEFAULT '{}',
+            pricing_json TEXT NOT NULL DEFAULT '{}',
+            workflow_json TEXT NOT NULL DEFAULT '{}',
+            applied_workflow_id TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(assistant_session_id) REFERENCES assistant_sessions(assistant_session_id)
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_assistant_plans_session
+        ON assistant_plans(assistant_session_id, created_at DESC)
+        """
+    )
+    _apply_assistant_turn_usage_schema(connection)
+
+
+def _apply_assistant_plan_workflow_snapshot_schema(connection: sqlite3.Connection) -> None:
+    if not table_exists(connection, "assistant_plans"):
+        _apply_assistant_schema(connection)
+    ensure_column(connection, "assistant_plans", "workflow_json", "TEXT NOT NULL DEFAULT '{}'")
+
+
+def _apply_assistant_turn_usage_schema(connection: sqlite3.Connection) -> None:
+    if not table_exists(connection, "assistant_sessions"):
+        _apply_assistant_schema(connection)
+        return
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS assistant_turn_usage (
+            assistant_turn_usage_id TEXT PRIMARY KEY,
+            assistant_session_id TEXT NOT NULL,
+            assistant_message_id TEXT,
+            provider_kind TEXT NOT NULL DEFAULT 'codex_local',
+            provider_model_id TEXT,
+            provider_response_id TEXT,
+            token_input_count INTEGER,
+            token_output_count INTEGER,
+            image_count INTEGER NOT NULL DEFAULT 0,
+            latency_ms INTEGER,
+            cost_usd REAL NOT NULL DEFAULT 0,
+            usage_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(assistant_session_id) REFERENCES assistant_sessions(assistant_session_id)
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_assistant_turn_usage_session
+        ON assistant_turn_usage(assistant_session_id, created_at DESC)
+        """
+    )
+
+
 def _ensure_graph_seed_schema(connection: sqlite3.Connection) -> None:
     if not table_exists(connection, "graph_templates") or not table_exists(connection, "graph_workflows"):
         _apply_graph_studio_schema(connection)
@@ -1300,13 +887,13 @@ def _ensure_graph_seed_schema(connection: sqlite3.Connection) -> None:
 
 def _apply_graph_prompt_recipe_seed_refresh(connection: sqlite3.Connection) -> None:
     _ensure_graph_seed_schema(connection)
-    _seed_default_prompt_recipes(connection)
+    seed_default_prompt_recipes(connection)
     _seed_default_graph_templates(connection)
 
 
 def _apply_prompt_recipe_graph_runtime_refresh(connection: sqlite3.Connection) -> None:
     _ensure_graph_seed_schema(connection)
-    _seed_default_prompt_recipes(connection)
+    seed_default_prompt_recipes(connection)
     _seed_default_graph_templates(connection)
 
 
@@ -1436,6 +1023,7 @@ def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
                 key TEXT NOT NULL UNIQUE,
                 label TEXT NOT NULL,
                 description TEXT,
+                category TEXT NOT NULL DEFAULT 'general',
                 status TEXT NOT NULL DEFAULT 'active',
                 model_key TEXT,
                 source_kind TEXT NOT NULL DEFAULT 'custom',
@@ -1515,7 +1103,7 @@ def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
 
             CREATE TABLE IF NOT EXISTS media_queue_settings (
                 setting_id INTEGER PRIMARY KEY CHECK (setting_id = 1),
-                max_concurrent_jobs INTEGER NOT NULL DEFAULT 2,
+                max_concurrent_jobs INTEGER NOT NULL DEFAULT 10,
                 queue_enabled INTEGER NOT NULL DEFAULT 1,
                 default_poll_seconds INTEGER NOT NULL DEFAULT 6,
                 max_retry_attempts INTEGER NOT NULL DEFAULT 3,
@@ -1637,6 +1225,8 @@ def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
                 hero_web_url TEXT,
                 hero_thumb_url TEXT,
                 hero_poster_url TEXT,
+                width INTEGER,
+                height INTEGER,
                 remote_output_url TEXT,
                 hidden_from_dashboard INTEGER NOT NULL DEFAULT 0,
                 favorited INTEGER NOT NULL DEFAULT 0,
@@ -1691,8 +1281,13 @@ def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
     connection.execute(
         """
         INSERT OR IGNORE INTO media_queue_settings (setting_id, max_concurrent_jobs, queue_enabled, default_poll_seconds, max_retry_attempts)
-        VALUES (1, 2, 1, 6, 3)
-        """
+        VALUES (1, ?, 1, ?, ?)
+        """,
+        (
+            QUEUE_DEFAULT_MAX_CONCURRENT_JOBS,
+            QUEUE_DEFAULT_POLL_SECONDS,
+            QUEUE_DEFAULT_MAX_RETRY_ATTEMPTS,
+        ),
     )
     ensure_column(connection, "media_system_prompts", "role_tag", "TEXT")
     ensure_column(connection, "media_system_prompts", "applies_to_models_json", "TEXT NOT NULL DEFAULT '[]'")
@@ -1739,6 +1334,9 @@ def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
     ensure_column(connection, "media_assets", "preset_source", "TEXT")
     ensure_column(connection, "media_assets", "tags_json", "TEXT NOT NULL DEFAULT '[]'")
     ensure_column(connection, "media_assets", "payload_json", "TEXT NOT NULL DEFAULT '{}'")
+    ensure_column(connection, "media_assets", "width", "INTEGER")
+    ensure_column(connection, "media_assets", "height", "INTEGER")
+    _backfill_media_asset_dimensions(connection)
     ensure_column(connection, "reference_media", "status", "TEXT NOT NULL DEFAULT 'active'")
     ensure_column(connection, "reference_media", "original_filename", "TEXT")
     ensure_column(connection, "reference_media", "stored_path", "TEXT")
@@ -1778,8 +1376,8 @@ def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
         """
     )
     _migrate_multi_model_seed_presets(connection)
-    _seed_default_presets(connection)
-    _seed_default_prompt_recipes(connection)
+    seed_default_presets(connection)
+    seed_default_prompt_recipes(connection)
     _migrate_gpt_image_seed_preset_scopes(connection)
     _seed_default_model_queue_policies(connection)
 
@@ -2096,6 +1694,89 @@ MIGRATIONS = [
         version=16,
         description="Persist whether Prompt Recipe drafting is enabled for recipe editors.",
         apply=_apply_prompt_recipe_drafting_enabled_schema,
+    ),
+    SchemaMigration(
+        migration_id="20260524_017_media_studio_assistant",
+        version=17,
+        description="Add Media Studio Creative Assistant sessions, messages, attachments, and plans.",
+        apply=_apply_assistant_schema,
+    ),
+    SchemaMigration(
+        migration_id="20260524_018_assistant_plan_workflow_snapshots",
+        version=18,
+        description="Persist validated assistant workflow snapshots for apply review.",
+        apply=_apply_assistant_plan_workflow_snapshot_schema,
+    ),
+    SchemaMigration(
+        migration_id="20260524_019_assistant_turn_usage",
+        version=19,
+        description="Track assistant provider usage and diagnostics per turn.",
+        apply=_apply_assistant_turn_usage_schema,
+    ),
+    SchemaMigration(
+        migration_id="20260612_020_media_preset_categories",
+        version=20,
+        description="Add lightweight category metadata for Media Presets.",
+        apply=lambda connection: ensure_column(
+            connection,
+            "media_presets",
+            "category",
+            "TEXT NOT NULL DEFAULT 'general'",
+        ),
+    ),
+    SchemaMigration(
+        migration_id="20260612_021_media_preset_category_backfill",
+        version=21,
+        description="Backfill obvious Media Preset categories from existing preset names.",
+        apply=_apply_media_preset_category_backfill,
+    ),
+    SchemaMigration(
+        migration_id="20260612_022_media_preset_category_backfill_corrections",
+        version=22,
+        description="Correct over-broad product category matches from initial preset backfill.",
+        apply=_apply_media_preset_category_backfill_corrections,
+    ),
+    SchemaMigration(
+        migration_id="20260612_023_media_asset_dimensions",
+        version=23,
+        description="Persist lightweight media asset dimensions for compact gallery summaries.",
+        apply=_apply_media_asset_dimensions,
+    ),
+    SchemaMigration(
+        migration_id="20260628_024_prompt_recipe_storyboard_continuation_seed_refresh",
+        version=24,
+        description="Refresh built-in Prompt Recipes with Storyboard Continuation support.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260628_025_prompt_recipe_storyboard_continuation_simplify",
+        version=25,
+        description="Refresh Storyboard Continuation built-in recipe with simplified exposed fields.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260628_026_prompt_recipe_storyboard_safe_action_language",
+        version=26,
+        description="Refresh Storyboard built-in recipes with provider-safe action language.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260628_027_prompt_recipe_storyboard_continuity_ledger",
+        version=27,
+        description="Refresh Storyboard built-in recipes with continuity ledger and dialogue mode controls.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260628_028_prompt_recipe_storyboard_dialogue_placeholders",
+        version=28,
+        description="Refresh Storyboard built-in recipes to avoid dialogue placeholder marks.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260628_029_prompt_recipe_storyboard_full_dialogue",
+        version=29,
+        description="Refresh Storyboard built-in recipes with stricter full-dialogue behavior.",
+        apply=seed_default_prompt_recipes,
     ),
 ]
 

@@ -24,6 +24,19 @@ import {
 import type { MediaAsset } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const MOBILE_INPUT_TILE_CLASS = "h-[72px] w-[72px]";
+const MOBILE_INPUT_RAIL_TILE_CLASS = `${MOBILE_INPUT_TILE_CLASS} shrink-0`;
+const MOBILE_INPUT_DROP_ZONE_CLASS = "rounded-[18px] border border-white/8 bg-white/[0.025] p-2 transition";
+const MOBILE_INPUT_DROP_ZONE_ACTIVE_CLASS = "border-[rgba(216,141,67,0.3)] bg-[rgba(32,38,35,0.9)]";
+const MOBILE_INPUT_INLINE_ADD_TILE_CLASS =
+  "flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]";
+const MOBILE_INPUT_MORE_TILE_CLASS =
+  "flex shrink-0 items-center justify-center border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58";
+const MOBILE_INPUT_MORE_COUNT_TILE_CLASS =
+  "flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.04] text-center text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/58";
+const MOBILE_INPUT_ACCENT_BORDER_SOFT = "border-[rgba(216,141,67,0.2)]";
+const MOBILE_INPUT_ACCENT_BORDER = "border-[rgba(216,141,67,0.24)]";
+
 type StudioMobileInputsContentProps = {
   dedicatedImageReferenceRailActive: boolean;
   seedanceComposer: boolean;
@@ -127,7 +140,7 @@ export function StudioMobileInputsContent({
   if (dedicatedImageReferenceRailActive) {
     return (
       <StudioMobileInputsSection title="Image references" summary={imageLimitLabel}>
-        <div className="flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
+        <div className="studio-mobile-input-rail">
           {orderedImageInputs.map((slot, slotIndex) => {
             const slotVisual = orderedImageInputVisual(slot);
             const slotLabel = `Image reference ${slotIndex + 1}`;
@@ -139,8 +152,8 @@ export function StudioMobileInputsContent({
                 visualUrl={slotVisual}
                 onOpenPreview={onOpenPreview}
                 onRemove={() => onClearOrderedImageInput(slot)}
-                className="h-[72px] w-[72px] shrink-0"
-                tileClassName="border-[rgba(216,141,67,0.2)]"
+                className={MOBILE_INPUT_RAIL_TILE_CLASS}
+                tileClassName={MOBILE_INPUT_ACCENT_BORDER_SOFT}
                 testId={`studio-mobile-multi-image-slot-${slotIndex + 1}`}
               />
             ) : null;
@@ -179,7 +192,7 @@ export function StudioMobileInputsContent({
         attachments: seedanceReferenceImages,
         accept: "image/*",
         maxLabel: "9",
-        tileClassName: "h-[72px] w-[72px]",
+        tileClassName: MOBILE_INPUT_TILE_CLASS,
         addTileClassName: mobileAddTileClassName,
         plusIconClassName: mobileAddTilePlusIconClassName,
         maxVisibleTiles: 4,
@@ -191,7 +204,7 @@ export function StudioMobileInputsContent({
         attachments: seedanceReferenceVideos,
         accept: "video/*",
         maxLabel: "3",
-        tileClassName: "h-[72px] w-[72px]",
+        tileClassName: MOBILE_INPUT_TILE_CLASS,
         addTileClassName: mobileAddTileClassName,
         plusIconClassName: mobileAddTilePlusIconClassName,
         maxVisibleTiles: 3,
@@ -203,7 +216,7 @@ export function StudioMobileInputsContent({
         attachments: seedanceReferenceAudios,
         accept: "audio/*",
         maxLabel: "3",
-        tileClassName: "h-[72px] w-[72px]",
+        tileClassName: MOBILE_INPUT_TILE_CLASS,
         addTileClassName: mobileAddTileClassName,
         plusIconClassName: mobileAddTilePlusIconClassName,
         maxVisibleTiles: 3,
@@ -223,7 +236,7 @@ export function StudioMobileInputsContent({
                   : "0/1"
             }
           >
-            <div className="scrollbar-none flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
+            <div className="scrollbar-none studio-mobile-input-rail">
               {[
                 { label: "Start frame", role: "first_frame" as const, attachment: seedanceFirstFrameAttachment },
                 ...(effectiveSeedanceMode === "first_last_frames"
@@ -243,14 +256,14 @@ export function StudioMobileInputsContent({
                         }}
                         onDragLeave={() => onSetDragActive(false)}
                         onDrop={(event) => onDropIntoSourceSlot(event, slotIndex)}
-                        className="h-[72px] w-[72px]"
+                        className={MOBILE_INPUT_TILE_CLASS}
                       >
                         <StudioStagedMediaTile
                           preview={attachmentPreview}
                           visualUrl={slot.attachment.previewUrl}
                           onOpenPreview={onOpenPreview}
                           onRemove={() => onRemoveAttachment(slot.attachment?.id ?? "")}
-                          className="h-[72px] w-[72px]"
+                          className={MOBILE_INPUT_TILE_CLASS}
                           testId={`studio-mobile-seedance-slot-${slot.role}`}
                         />
                       </div>
@@ -303,8 +316,8 @@ export function StudioMobileInputsContent({
                 onDragLeave={() => onSetDragActive(false)}
                 onDrop={(event) => onSeedanceReferenceDrop(event, group.key)}
                 className={cn(
-                  "rounded-[18px] border border-white/8 bg-white/[0.025] p-2 transition",
-                  isDragActive ? "border-[rgba(216,141,67,0.3)] bg-[rgba(32,38,35,0.9)]" : "",
+                  MOBILE_INPUT_DROP_ZONE_CLASS,
+                  isDragActive ? MOBILE_INPUT_DROP_ZONE_ACTIVE_CLASS : "",
                 )}
               >
                 <div className="scrollbar-none flex min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden pb-1">
@@ -336,7 +349,7 @@ export function StudioMobileInputsContent({
                     />
                   ))}
                   {group.attachments.length < Number(group.maxLabel) ? (
-                    <label className={cn("flex shrink-0 cursor-pointer items-center justify-center border border-dashed border-white/12 bg-white/[0.05] text-white/82 transition hover:border-[rgba(216,141,67,0.28)] hover:bg-white/[0.09]", group.addTileClassName)}>
+                    <label className={cn(MOBILE_INPUT_INLINE_ADD_TILE_CLASS, group.addTileClassName)}>
                       {(() => {
                         const AddIcon = studioMediaSlotAddTileIcon(
                           group.key === "videos" ? "video" : group.key === "audios" ? "audio" : "image",
@@ -360,7 +373,7 @@ export function StudioMobileInputsContent({
                     </label>
                   ) : null}
                   {group.attachments.length > group.maxVisibleTiles ? (
-                    <div className={cn("flex shrink-0 items-center justify-center border border-white/8 bg-white/[0.04] text-[0.58rem] font-semibold uppercase tracking-[0.12em] text-white/58", group.addTileClassName)}>
+                    <div className={cn(MOBILE_INPUT_MORE_TILE_CLASS, group.addTileClassName)}>
                       +{group.attachments.length - group.maxVisibleTiles}
                     </div>
                   ) : null}
@@ -376,7 +389,7 @@ export function StudioMobileInputsContent({
   if (standardComposerUsesExplicitSlots) {
     return (
       <StudioMobileInputsSection title={standardComposerSectionTitle} summary={standardComposerSummaryLabel}>
-        <div className="flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
+        <div className="studio-mobile-input-rail">
           <StudioStandardSlotRail
             slots={standardComposerSlots}
             mobile
@@ -412,7 +425,7 @@ export function StudioMobileInputsContent({
             : null
       }
     >
-      <div className="flex min-w-0 items-start gap-2 overflow-x-auto overflow-y-hidden pb-1">
+      <div className="studio-mobile-input-rail">
         {canUseSourceAsset && currentSourceAsset ? (
           <StudioStagedMediaTile
             preview={
@@ -427,8 +440,8 @@ export function StudioMobileInputsContent({
             visualUrl={mediaThumbnailUrl(currentSourceAsset) ?? mediaDisplayUrl(currentSourceAsset)}
             onOpenPreview={onOpenPreview}
             onRemove={onClearSourceAsset}
-            className="h-[72px] w-[72px] shrink-0"
-            tileClassName="border-[rgba(216,141,67,0.24)]"
+            className={MOBILE_INPUT_RAIL_TILE_CLASS}
+            tileClassName={MOBILE_INPUT_ACCENT_BORDER}
             testId="studio-mobile-source-asset-tile"
           />
         ) : null}
@@ -457,13 +470,13 @@ export function StudioMobileInputsContent({
             footerLabel={attachment.kind === "images" ? "Image" : attachment.kind === "videos" ? "Video" : "Audio"}
             onOpenPreview={onOpenPreview}
             onRemove={() => onRemoveAttachment(attachment.id)}
-            className="h-[72px] w-[72px] shrink-0"
+            className={MOBILE_INPUT_RAIL_TILE_CLASS}
             testId={`studio-mobile-attachment-tile-${attachment.id}`}
           />
         ))}
 
         {attachments.length > 4 ? (
-          <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.04] text-center text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/58">
+          <div className={MOBILE_INPUT_MORE_COUNT_TILE_CLASS}>
             +{attachments.length - 4}
           </div>
         ) : null}

@@ -1,6 +1,7 @@
 import type { MediaAsset, MediaValidationResponse } from "@/lib/types";
 import { formatCreditsAmount, formatUsdAmount, isRecord } from "@/lib/utils";
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
+import { motionVideoDurationFromAsset, motionVideoDurationFromAttachments } from "@/lib/studio-motion-validation";
 
 function pricingOptionValue(value: unknown) {
   if (value == null) {
@@ -25,6 +26,16 @@ function pricingNumber(value: unknown) {
   return null;
 }
 
+function isSeedance2Model(modelKey: string | null | undefined) {
+  const normalized = String(modelKey ?? "").trim().toLowerCase().replaceAll("_", "-");
+  return normalized === "seedance-2.0" || normalized.startsWith("seedance-2.0-");
+}
+
+function isKlingMotionControlModel(modelKey: string | null | undefined) {
+  const normalized = String(modelKey ?? "").trim().toLowerCase();
+  return normalized === "kling-2.6-motion" || normalized === "kling-3.0-motion";
+}
+
 function multiplyPricingValue(value: unknown, multiplier: number) {
   const numericValue = pricingNumber(value);
   return numericValue != null ? numericValue * multiplier : null;
@@ -38,8 +49,8 @@ export function deriveStudioPricingOptions({
 }: {
   modelKey: string | null | undefined;
   options: Record<string, unknown>;
-  attachments?: Array<Pick<AttachmentRecord, "kind">>;
-  sourceAsset?: Pick<MediaAsset, "generation_kind"> | null;
+  attachments?: Array<Pick<AttachmentRecord, "kind" | "durationSeconds" | "referenceRecord">>;
+  sourceAsset?: MediaAsset | null;
 }) {
   const derived = { ...options };
 
@@ -47,12 +58,20 @@ export function deriveStudioPricingOptions({
     Object.assign(derived, deriveKling30PricingOptions(options));
   }
 
-  if (modelKey === "seedance-2.0") {
+  if (isSeedance2Model(modelKey)) {
     const hasVideoInput =
       attachments.some((attachment) => attachment.kind === "videos") ||
       sourceAsset?.generation_kind === "video";
     const resolution = pricingOptionValue(options.resolution ?? "720p");
     derived.pricing_variant = `${resolution}_${hasVideoInput ? "with_video_input" : "no_video_input"}`;
+  }
+
+  if (isKlingMotionControlModel(modelKey)) {
+    const durationSeconds =
+      motionVideoDurationFromAttachments(attachments) ?? motionVideoDurationFromAsset(sourceAsset);
+    if (durationSeconds != null) {
+      derived.duration = Math.ceil(durationSeconds);
+    }
   }
 
   return derived;
@@ -94,7 +113,9 @@ export function estimateFromPricingSnapshot(
       if (!isRecord(valueMap)) {
         continue;
       }
-      const multiplier = pricingNumber(valueMap[pricingOptionValue(pricingOptions[optionKey])]);
+      const multiplier =
+        pricingNumber(valueMap[pricingOptionValue(pricingOptions[optionKey])]) ??
+        secondBillingDurationMultiplier(rule, optionKey, pricingOptions);
       if (multiplier == null) {
         continue;
       }
@@ -140,6 +161,18 @@ export function estimateFromPricingSnapshot(
     estimatedCredits: estimatedCredits != null ? estimatedCredits * resolvedOutputCount : null,
     estimatedCostUsd: estimatedCostUsd != null ? estimatedCostUsd * resolvedOutputCount : null,
   };
+}
+
+function secondBillingDurationMultiplier(
+  rule: Record<string, unknown>,
+  optionKey: string,
+  options: Record<string, unknown>,
+) {
+  if (optionKey !== "duration" || pricingOptionValue(rule.billing_unit) !== "second") {
+    return null;
+  }
+  const duration = pricingNumber(options.duration);
+  return duration != null && duration > 0 ? Math.ceil(duration) : null;
 }
 
 export function resolveStudioPricingDisplay(

@@ -8,7 +8,7 @@ export default async function PresetsPage({
   searchParams?: Promise<{ project?: string; tab?: string }>;
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
-  const snapshot = await getMediaDashboardSnapshot();
+  const snapshot = await getMediaDashboardSnapshot({ presetsLimit: 60 });
   const activeTab = resolvedSearchParams.tab === "prompt-recipes" ? "prompt-recipes" : "media";
 
   return (
@@ -23,6 +23,8 @@ export default async function PresetsPage({
         activeTab={activeTab}
         models={snapshot.models.data?.models ?? []}
         presets={snapshot.presets.data?.presets ?? []}
+        presetsTotal={snapshot.presets.data?.total}
+        presetsNextOffset={snapshot.presets.data?.next_offset}
         promptRecipes={snapshot.promptRecipes.data?.recipes ?? []}
         enhancementConfigs={snapshot.enhancementConfigs.data?.configs ?? []}
         queueSettings={snapshot.queueSettings.data?.settings ?? null}

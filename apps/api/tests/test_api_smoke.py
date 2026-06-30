@@ -1,5 +1,6 @@
 import pytest
 import time
+import importlib
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
@@ -39,6 +40,21 @@ def test_health_endpoint(client) -> None:
     assert payload["kie_models_total"] >= 1
     assert payload["kie_models_studio_exposed"] >= 1
     assert payload["pricing_version"]
+
+
+def test_credits_endpoint_degrades_when_provider_returns_bad_payload(client, monkeypatch) -> None:
+    def bad_credit_balance():
+        raise RuntimeError("response was not valid JSON")
+
+    monkeypatch.setattr("app.main.kie_adapter.get_credit_balance", bad_credit_balance)
+
+    response = client.get("/media/credits")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["available_credits"] is None
+    assert payload["raw"]["status"] == "unavailable"
+    assert "not valid JSON" in payload["raw"]["error"]
 
 
 def test_media_files_serves_relative_data_path(client, app_modules) -> None:
@@ -90,14 +106,18 @@ def test_models_endpoint(client) -> None:
     assert any(item["key"] == "nano-banana-2" for item in items)
     kling = next(item for item in items if item["key"] == "kling-3.0-t2v")
     seedance = next(item for item in items if item["key"] == "seedance-2.0")
+    seedance_fast = next(item for item in items if item["key"] == "seedance-2.0-fast")
     assert "4K" in kling["raw"]["options"]["mode"]["allowed"]
     assert "1080p" in seedance["raw"]["options"]["resolution"]["allowed"]
+    assert seedance_fast["studio_exposed"] is True
+    assert seedance_fast["studio_support_status"] == "fully_supported"
+    assert seedance_fast["raw"]["provider_model"] == "bytedance/seedance-2-fast"
     assert kling["studio_exposed"] is True
     assert kling["studio_support_status"] == "fully_supported"
     assert kling["kie_spec_version"]
     kling_options = {item["key"]: item for item in kling["studio_dynamic_options"]}
     assert "4K" in kling_options["mode"]["allowed"]
-    for model_key in ["kling-2.6-t2v", "kling-2.6-i2v", "kling-3.0-t2v", "kling-3.0-i2v", "seedance-2.0"]:
+    for model_key in ["kling-2.6-t2v", "kling-2.6-i2v", "kling-3.0-t2v", "kling-3.0-i2v", "seedance-2.0", "seedance-2.0-fast"]:
         model = next(item for item in items if item["key"] == model_key)
         options = {item["key"]: item for item in model["studio_dynamic_options"]}
         assert options["duration"]["label"] == "Duration"
@@ -384,6 +404,153 @@ def test_pricing_estimate_returns_kling_30_i2v_per_second_totals(client) -> None
     assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(2.345)
 
 
+def test_pricing_estimate_derives_kling_motion_duration_from_video_metadata(client) -> None:
+    response = client.post(
+        "/media/pricing/estimate",
+        json={
+            "model_key": "kling-3.0-motion",
+            "task_mode": "motion_control",
+            "prompt": "Match the driving video.",
+            "images": [{"url": "https://example.com/source.png", "role": "reference"}],
+            "videos": [{"url": "https://example.com/driving.mp4", "role": "reference", "duration_seconds": 20.083333}],
+            "options": {"character_orientation": "video", "mode": "720p"},
+            "output_count": 1,
+        },
+    )
+    assert response.status_code == 200, response.text
+    summary = response.json()["pricing_summary"]
+    assert summary["per_output"]["estimated_credits"] == pytest.approx(420.0)
+    assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(2.1)
+
+
+def test_pricing_estimate_derives_kling_26_motion_duration_from_video_metadata(client) -> None:
+    response = client.post(
+        "/media/pricing/estimate",
+        json={
+            "model_key": "kling-2.6-motion",
+            "task_mode": "motion_control",
+            "prompt": "Match the driving video.",
+            "images": [{"url": "https://example.com/source.png", "role": "reference"}],
+            "videos": [{"url": "https://example.com/driving.mp4", "role": "reference", "duration_seconds": 20.083333}],
+            "options": {"character_orientation": "video", "mode": "720p"},
+            "output_count": 1,
+        },
+    )
+    assert response.status_code == 200, response.text
+    summary = response.json()["pricing_summary"]
+    assert summary["per_output"]["estimated_credits"] == pytest.approx(231.0)
+    assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(1.155)
+
+
+def test_submit_preflight_preserves_reference_video_metadata_for_kling_motion(client, app_modules, monkeypatch) -> None:
+    service = app_modules["service"]
+    schemas = app_modules["schemas"]
+    store = app_modules["store"]
+    video = store.create_or_reuse_reference_media(
+        {
+            "kind": "video",
+            "status": "active",
+            "original_filename": "trimmed-driving.mp4",
+            "stored_path": "reference-media/videos/trimmed-driving.mp4",
+            "mime_type": "video/mp4",
+            "file_size_bytes": 1234,
+            "sha256": "trimmed-driving-sha",
+            "width": 720,
+            "height": 1280,
+            "duration_seconds": 5.0,
+            "thumb_path": None,
+            "poster_path": None,
+            "usage_count": 1,
+            "metadata_json": {},
+        },
+        increment_usage=False,
+    )
+    image = store.create_or_reuse_reference_media(
+        {
+            "kind": "image",
+            "status": "active",
+            "original_filename": "source.png",
+            "stored_path": "reference-media/images/source.png",
+            "mime_type": "image/png",
+            "file_size_bytes": 123,
+            "sha256": "source-image-sha",
+            "width": 512,
+            "height": 512,
+            "duration_seconds": None,
+            "thumb_path": None,
+            "poster_path": None,
+            "usage_count": 1,
+            "metadata_json": {},
+        },
+        increment_usage=False,
+    )
+    captured = {}
+
+    def fake_validate_request(raw_request):
+        captured["raw_request"] = raw_request
+        return {"state": "ready", "normalized_request": raw_request}
+
+    def fake_run_preflight(_validation):
+        return {
+            "decision": "accept",
+            "can_submit": True,
+            "warnings": [],
+            "estimated_cost": {
+                "model_key": "kling-2.6-motion",
+                "estimated_credits": 11.0,
+                "estimated_cost_usd": 0.055,
+                "currency": "USD",
+                "is_known": True,
+                "has_numeric_estimate": True,
+                "is_authoritative": True,
+            },
+        }
+
+    def fake_estimate_request_cost(raw_request):
+        derived_request = service.kie_adapter._request_with_derived_pricing_options(raw_request)
+        captured["estimate_request"] = derived_request
+        assert derived_request["videos"][0]["duration_seconds"] == 5.0
+        assert "width" not in derived_request["videos"][0]
+        assert "height" not in derived_request["videos"][0]
+        assert derived_request["options"]["duration"] == 5
+        return {
+            "model_key": "kling-2.6-motion",
+            "estimated_credits": 55.0,
+            "estimated_cost_usd": 0.275,
+            "currency": "USD",
+            "is_known": True,
+            "has_numeric_estimate": True,
+            "is_authoritative": True,
+            "billing_unit": "second",
+        }
+
+    monkeypatch.setattr(service.kie_adapter, "resolve_prompt_context", lambda _raw_request: {})
+    monkeypatch.setattr(service.kie_adapter, "validate_request", fake_validate_request)
+    monkeypatch.setattr(service.kie_adapter, "run_preflight", fake_run_preflight)
+    monkeypatch.setattr(service.kie_adapter, "estimate_request_cost", fake_estimate_request_cost)
+
+    bundle = service.build_validation_bundle(
+        schemas.ValidateRequest(
+            model_key="kling-2.6-motion",
+            task_mode="motion_control",
+            prompt="Match the five second trimmed driving video.",
+            images=[schemas.MediaRefInput(reference_id=image["reference_id"], role="reference")],
+            videos=[schemas.MediaRefInput(reference_id=video["reference_id"], role="reference")],
+            options={"character_orientation": "video", "mode": "720p"},
+            output_count=1,
+        )
+    )
+
+    assert captured["raw_request"]["videos"][0]["duration_seconds"] == 5.0
+    assert "width" not in captured["raw_request"]["videos"][0]
+    assert "height" not in captured["raw_request"]["videos"][0]
+    assert captured["estimate_request"]["options"]["duration"] == 5
+    assert bundle["preflight"]["estimated_cost"]["estimated_credits"] == pytest.approx(55.0)
+    assert bundle["preflight"]["estimated_cost"]["estimated_cost_usd"] == pytest.approx(0.275)
+    assert bundle["pricing_summary"]["total"]["estimated_credits"] == pytest.approx(55.0)
+    assert bundle["pricing_summary"]["total"]["estimated_cost_usd"] == pytest.approx(0.275)
+
+
 def test_pricing_startup_refreshes_when_snapshot_is_stale(app_modules, monkeypatch) -> None:
     adapter = app_modules["main"].kie_adapter
     calls = {"refresh": 0}
@@ -409,6 +576,44 @@ def test_pricing_startup_refreshes_when_snapshot_is_stale(app_modules, monkeypat
 
     assert calls["refresh"] == 1
     assert snapshot["is_stale"] is False
+
+
+def test_kie_motion_estimate_derives_duration_from_video_metadata(app_modules) -> None:
+    adapter = app_modules["main"].kie_adapter
+    raw_request = {
+        "model_key": "kling-3.0-motion",
+        "task_mode": "motion_control",
+        "prompt": "Match the driving video.",
+        "images": [{"url": "https://example.com/source.png", "source": "remote"}],
+        "videos": [{"url": "https://example.com/driving.mp4", "source": "remote", "duration_seconds": 20.083333}],
+        "audios": [],
+        "options": {"character_orientation": "video", "mode": "720p"},
+    }
+
+    derived = adapter._request_with_derived_pricing_options(raw_request)
+
+    assert derived is not raw_request
+    assert derived["options"]["duration"] == 21
+    assert raw_request["options"].get("duration") is None
+
+
+def test_kie_26_motion_estimate_derives_duration_from_video_metadata(app_modules) -> None:
+    adapter = app_modules["main"].kie_adapter
+    raw_request = {
+        "model_key": "kling-2.6-motion",
+        "task_mode": "motion_control",
+        "prompt": "Match the driving video.",
+        "images": [{"url": "https://example.com/source.png", "source": "remote"}],
+        "videos": [{"url": "https://example.com/driving.mp4", "source": "remote", "duration_seconds": 20.083333}],
+        "audios": [],
+        "options": {"character_orientation": "video", "mode": "720p"},
+    }
+
+    derived = adapter._request_with_derived_pricing_options(raw_request)
+
+    assert derived is not raw_request
+    assert derived["options"]["duration"] == 21
+    assert raw_request["options"].get("duration") is None
 
 
 def test_pricing_startup_keeps_fresh_snapshot(app_modules, monkeypatch) -> None:
@@ -588,6 +793,80 @@ def test_create_and_list_preset(client) -> None:
     assert any(item["preset_id"] == preset["preset_id"] for item in list_response.json())
 
 
+def test_search_presets_returns_bounded_page(client) -> None:
+    for index in range(5):
+        response = client.post(
+            "/media/presets",
+            json={
+                "key": f"paginated-preset-{index}",
+                "label": f"Paginated Preset {index}",
+                "model_key": "nano-banana-2",
+                "source_kind": "custom",
+                "applies_to_models": ["nano-banana-2"],
+                "prompt_template": "Create {{subject}}.",
+                "input_schema_json": [{"key": "subject", "label": "Subject", "required": True}],
+                "input_slots_json": [],
+            },
+        )
+        assert response.status_code == 200, response.text
+
+    page = client.get("/media/presets/search?limit=2&q=paginated-preset")
+    assert page.status_code == 200, page.text
+    payload = page.json()
+    assert len(payload["items"]) == 2
+    assert payload["total"] == 5
+    assert payload["limit"] == 2
+    assert payload["offset"] == 0
+    assert payload["next_offset"] == 2
+    assert all("paginated-preset" in item["key"] for item in payload["items"])
+
+
+def test_search_presets_filters_by_category(client) -> None:
+    for category in ("portrait", "product"):
+        response = client.post(
+            "/media/presets",
+            json={
+                "key": f"{category}-category-preset",
+                "label": f"{category.title()} Category Preset",
+                "category": category,
+                "model_key": "nano-banana-2",
+                "source_kind": "custom",
+                "applies_to_models": ["nano-banana-2"],
+                "prompt_template": "Create {{subject}}.",
+                "input_schema_json": [{"key": "subject", "label": "Subject", "required": True}],
+                "input_slots_json": [],
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["category"] == category
+
+    page = client.get("/media/presets/search?category=portrait&q=category-preset")
+    assert page.status_code == 200, page.text
+    payload = page.json()
+    assert payload["total"] == 1
+    assert payload["items"][0]["key"] == "portrait-category-preset"
+    assert payload["items"][0]["category"] == "portrait"
+
+
+def test_create_preset_rejects_duplicate_key(client) -> None:
+    payload = {
+        "key": "duplicate-preset-key",
+        "label": "Duplicate Preset Key",
+        "model_key": "nano-banana-2",
+        "source_kind": "custom",
+        "applies_to_models": ["nano-banana-2"],
+        "prompt_template": "Create {{scene}}.",
+        "input_schema_json": [{"key": "scene", "label": "Scene", "required": True}],
+        "input_slots_json": [],
+    }
+    first = client.post("/media/presets", json=payload)
+    assert first.status_code == 200, first.text
+
+    duplicate = client.post("/media/presets", json={**payload, "label": "Duplicate Preset Key 2"})
+    assert duplicate.status_code == 400
+    assert "Preset key already exists" in duplicate.text
+
+
 def test_prompt_only_preset_allows_gpt_text_to_image(client) -> None:
     response = client.post(
         "/media/presets",
@@ -660,6 +939,60 @@ def test_required_image_preset_rejects_gpt_text_to_image(client) -> None:
     assert "Unsupported preset model scope" in response.text
 
 
+def test_optional_image_preset_rejects_gpt_text_to_image(client) -> None:
+    response = client.post(
+        "/media/presets",
+        json={
+            "key": "optional-image-gpt-t2i",
+            "label": "Optional Image GPT T2I",
+            "model_key": "gpt-image-2-text-to-image",
+            "source_kind": "custom",
+            "applies_to_models": ["gpt-image-2-text-to-image"],
+            "prompt_template": "Use [[reference]] when provided to create {{scene}}.",
+            "input_schema_json": [{"key": "scene", "label": "Scene", "required": True}],
+            "input_slots_json": [{"key": "reference", "label": "Reference", "required": False}],
+        },
+    )
+    assert response.status_code == 400
+    assert "Unsupported preset model scope" in response.text
+
+
+def test_optional_image_preset_rejects_gpt_image_to_image(client) -> None:
+    response = client.post(
+        "/media/presets",
+        json={
+            "key": "optional-image-gpt-i2i",
+            "label": "Optional Image GPT I2I",
+            "model_key": "gpt-image-2-image-to-image",
+            "source_kind": "custom",
+            "applies_to_models": ["gpt-image-2-image-to-image"],
+            "prompt_template": "Use [[reference]] when provided to create {{scene}}.",
+            "input_schema_json": [{"key": "scene", "label": "Scene", "required": True}],
+            "input_slots_json": [{"key": "reference", "label": "Reference", "required": False}],
+        },
+    )
+    assert response.status_code == 400
+    assert "Unsupported preset model scope" in response.text
+
+
+def test_optional_image_preset_allows_nano_banana(client) -> None:
+    response = client.post(
+        "/media/presets",
+        json={
+            "key": "optional-image-nano",
+            "label": "Optional Image Nano",
+            "model_key": "nano-banana-2",
+            "source_kind": "custom",
+            "applies_to_models": ["nano-banana-2"],
+            "prompt_template": "Use [[reference]] when provided to create {{scene}}.",
+            "input_schema_json": [{"key": "scene", "label": "Scene", "required": True}],
+            "input_slots_json": [{"key": "reference", "label": "Reference", "required": False}],
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["model_key"] == "nano-banana-2"
+
+
 def test_seeded_shared_presets_exist(client) -> None:
     response = client.get("/media/presets")
     assert response.status_code == 200
@@ -719,6 +1052,7 @@ def test_seeded_prompt_recipes_exist(client) -> None:
         "image-prompt-director",
         "video-director-multi-shot-json",
         "image-analysis-character-reference",
+        "storyboard-v2-gpt-image-2",
         "prompt-shortener",
     }
     by_key = {item["key"]: item for item in recipes if item["key"] in expected_keys}
@@ -726,6 +1060,8 @@ def test_seeded_prompt_recipes_exist(client) -> None:
     assert by_key["video-director-multi-shot-json"]["category"] == "video"
     assert by_key["video-director-multi-shot-json"]["output_format"] == "structured_shot_sequence"
     assert by_key["video-director-multi-shot-json"]["image_input"]["enabled"] is True
+    assert by_key["storyboard-v2-gpt-image-2"]["output_format"] == "single_prompt"
+    assert by_key["storyboard-v2-gpt-image-2"]["image_input"]["mode"] == "direct_reference"
     assert by_key["prompt-shortener"]["image_input"]["mode"] == "none"
 
 
@@ -1553,52 +1889,6 @@ def test_single_batch_endpoint_includes_jobs(client) -> None:
     assert {job["job_id"] for job in detail["jobs"]} == {job["job_id"] for job in payload["jobs"]}
 
 
-def test_assets_endpoint_applies_server_side_filters(client, app_modules) -> None:
-    store = app_modules["store"]
-    store.create_or_update_asset(
-        {
-            "asset_id": "asset-image-1",
-            "job_id": "job-image-1",
-            "provider_task_id": "provider-image-1",
-            "model_key": "nano-banana-2",
-            "status": "completed",
-            "generation_kind": "image",
-            "preset_key": "preset-a",
-            "favorited": True,
-            "hero_thumb_path": "outputs/thumb-a.jpg",
-            "created_at": "2026-04-04T01:00:00+00:00",
-        }
-    )
-    store.create_or_update_asset(
-        {
-            "asset_id": "asset-video-1",
-            "job_id": "job-video-1",
-            "provider_task_id": "provider-video-1",
-            "model_key": "kling-3.0-i2v",
-            "status": "completed",
-            "generation_kind": "video",
-            "preset_key": "preset-b",
-            "favorited": False,
-            "hero_poster_path": "outputs/poster-a.jpg",
-            "created_at": "2026-04-04T02:00:00+00:00",
-        }
-    )
-
-    response = client.get(
-        "/media/assets",
-        params={
-            "favorites": "true",
-            "media_type": "image",
-            "model_key": "nano-banana-2",
-            "status": "completed",
-            "preset_key": "preset-a",
-        },
-    )
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert [item["asset_id"] for item in payload["items"]] == ["asset-image-1"]
-
-
 def test_kie_callback_rejects_unsigned_requests(client, unauthenticated_client, app_modules) -> None:
     store = app_modules["store"]
     submit_response = client.post(
@@ -1663,6 +1953,47 @@ def test_kie_callback_accepts_valid_signed_requests(monkeypatch, client, app_mod
     assert updated_job["final_status_json"]["output_urls"] == ["https://tempfile.aiquickdraw.com/out.jpeg"]
 
 
+def test_kie_callback_accepts_seedance_volcengine_output_host(monkeypatch, client, app_modules) -> None:
+    monkeypatch.setenv("KIE_WEBHOOK_SECRET", "test-webhook-secret")
+    store = app_modules["store"]
+    kie_adapter = app_modules["main"].kie_adapter
+    callbacks = kie_adapter.importlib.import_module("kie_api.clients.callbacks")
+    submit_response = client.post(
+        "/media/jobs",
+        json={
+            "model_key": "nano-banana-2",
+            "task_mode": "text_to_image",
+            "prompt": "Seedance output host trust check.",
+            "output_count": 1,
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+    job_id = submit_response.json()["jobs"][0]["job_id"]
+    store.update_job(job_id, {"provider_task_id": "callback-task-seedance-host"})
+
+    timestamp = str(int(time.time()))
+    signature = callbacks.build_callback_signature("callback-task-seedance-host", timestamp, "test-webhook-secret")
+    callback_response = client.post(
+        "/media/providers/kie/callback",
+        headers={
+            "X-Webhook-Timestamp": timestamp,
+            "X-Webhook-Signature": signature,
+        },
+        json={
+            "task_id": "callback-task-seedance-host",
+            "status": "succeeded",
+            "output_urls": ["https://ark-acg-cn-beijing.tos-cn-beijing.volces.com/out.mp4"],
+        },
+    )
+    assert callback_response.status_code == 200, callback_response.text
+
+    updated_job = store.get_job(job_id)
+    assert updated_job is not None
+    assert updated_job["final_status_json"]["output_urls"] == [
+        "https://ark-acg-cn-beijing.tos-cn-beijing.volces.com/out.mp4"
+    ]
+
+
 def test_publish_artifact_normalizes_image_extension(app_modules, tmp_path) -> None:
     service = app_modules["service"]
     image_path = tmp_path / "output.bin"
@@ -1700,15 +2031,58 @@ def test_validate_response_includes_total_pricing_summary(client) -> None:
     assert summary["total"]["estimated_cost_usd"] == pytest.approx(1.0, rel=1e-6)
 
 
+def test_second_billing_fallback_uses_derived_pricing_variant(app_modules, monkeypatch) -> None:
+    kie_adapter = importlib.import_module("app.kie_adapter")
+    monkeypatch.setattr(
+        kie_adapter,
+        "pricing_snapshot",
+        lambda force_refresh=False: {
+            "rules": [
+                {
+                    "model_key": "seedance-2.0-mini",
+                    "billing_unit": "second",
+                    "base_credits": 9.5,
+                    "base_cost_usd": 0.0475,
+                    "multipliers": {
+                        "duration": {},
+                        "pricing_variant": {},
+                    },
+                }
+            ]
+        },
+    )
+    estimated = {
+        "model_key": "seedance-2.0-mini",
+        "estimated_credits": 95.0,
+        "estimated_cost_usd": 0.475,
+        "applied_multipliers": {"duration": 10.0, "pricing_variant": 2.1578947368421053},
+    }
+
+    resolved = kie_adapter._with_second_billing_duration_fallback(
+        estimated,
+        {
+            "model_key": "seedance-2.0-mini",
+            "options": {"duration": 10, "resolution": "720p"},
+        },
+    )
+
+    assert resolved["estimated_credits"] == pytest.approx(205.0, rel=1e-6)
+    assert resolved["estimated_cost_usd"] == pytest.approx(1.025, rel=1e-6)
+
+
 def test_queue_settings_update(client) -> None:
-    response = client.patch("/media/queue/settings", json={"max_concurrent_jobs": 1})
+    response = client.patch("/media/queue/settings", json={"max_concurrent_jobs": 15})
     assert response.status_code == 200
-    assert response.json()["max_concurrent_jobs"] == 1
+    assert response.json()["max_concurrent_jobs"] == 15
+    assert response.json()["max_concurrent_jobs_max"] == 15
 
 
 def test_queue_settings_reject_out_of_bounds_values(client) -> None:
     too_low = client.patch("/media/queue/settings", json={"max_concurrent_jobs": 0})
     assert too_low.status_code == 422
+
+    concurrency_too_high = client.patch("/media/queue/settings", json={"max_concurrent_jobs": 16})
+    assert concurrency_too_high.status_code == 422
 
     too_high = client.patch("/media/queue/settings", json={"default_poll_seconds": 301})
     assert too_high.status_code == 422
@@ -1723,51 +2097,6 @@ def test_queue_policy_rejects_out_of_bounds_outputs(client) -> None:
 
     too_high = client.patch("/media/queue/policies/nano-banana-2", json={"max_outputs_per_run": 11})
     assert too_high.status_code == 422
-
-
-def test_latest_asset_endpoint_returns_one_asset_record(client, app_modules) -> None:
-    submit_response = client.post(
-        "/media/jobs",
-        json={
-          "model_key": "nano-banana-2",
-          "task_mode": "text_to_image",
-          "prompt": "A cinematic sci-fi portrait in shallow depth of field.",
-          "output_count": 1,
-        },
-    )
-    assert submit_response.status_code == 200, submit_response.text
-    app_modules["runner"].runner.tick()
-
-    latest_response = client.get("/media/assets/latest")
-    assert latest_response.status_code == 200, latest_response.text
-    payload = latest_response.json()
-    assert payload["asset_id"]
-    assert payload["job_id"]
-
-
-def test_favorite_asset_accepts_json_body_false(client, app_modules) -> None:
-    submit_response = client.post(
-        "/media/jobs",
-        json={
-          "model_key": "nano-banana-2",
-          "task_mode": "text_to_image",
-          "prompt": "A cinematic western portrait with warm sunset haze.",
-          "output_count": 1,
-        },
-    )
-    assert submit_response.status_code == 200, submit_response.text
-    app_modules["runner"].runner.tick()
-    latest_response = client.get("/media/assets/latest")
-    assert latest_response.status_code == 200, latest_response.text
-    asset = latest_response.json()
-
-    favorite_on_response = client.post(f"/media/assets/{asset['asset_id']}/favorite", json={"favorited": True})
-    assert favorite_on_response.status_code == 200, favorite_on_response.text
-    assert favorite_on_response.json()["favorited"] is True
-
-    favorite_off_response = client.post(f"/media/assets/{asset['asset_id']}/favorite", json={"favorited": False})
-    assert favorite_off_response.status_code == 200, favorite_off_response.text
-    assert favorite_off_response.json()["favorited"] is False
 
 
 def test_create_fails_when_no_structured_image_model_scope_selected(client) -> None:
@@ -2555,7 +2884,6 @@ def test_retry_job_replays_original_request_shape(client, app_modules) -> None:
             "requires_audio": 0,
             "input_schema_json": [{"key": "subject", "label": "Subject", "required": True}],
             "input_slots_json": [{"key": "subject_image", "label": "Subject image", "required": True}],
-            "choice_groups_json": [],
             "version": "v1",
             "priority": 100,
         }

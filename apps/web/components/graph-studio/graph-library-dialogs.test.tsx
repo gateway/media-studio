@@ -18,6 +18,39 @@ function makeDefinition(overrides: Partial<GraphNodeDefinition> = {}): GraphNode
   };
 }
 
+function renderLibraryDialog(
+  overrides: Partial<Parameters<typeof GraphLibraryDialog>[0]> = {},
+) {
+  const props: Parameters<typeof GraphLibraryDialog>[0] = {
+    sidebarDialog: "nodes",
+    definitions: [],
+    definitionsByCategory: {},
+    workflows: [],
+    templates: [],
+    references: [],
+    assets: [],
+    workflowId: null,
+    runHistory: [],
+    selectedHistoryRunId: null,
+    selectedRunArtifacts: [],
+    onClose: vi.fn(),
+    onLoadStarterTemplate: vi.fn(),
+    onLoadWorkflow: vi.fn(),
+    onInstantiateTemplate: vi.fn(),
+    onDeleteWorkflow: vi.fn(),
+    onDeleteTemplate: vi.fn(),
+    onImportWorkflow: vi.fn(),
+    onAddDefinitionNode: vi.fn(),
+    onRefreshRunHistory: vi.fn(),
+    onInspectRun: vi.fn(),
+    onRestoreRun: vi.fn(),
+    onPinArtifact: vi.fn(),
+    ...overrides,
+  };
+
+  return { ...render(<GraphLibraryDialog {...props} />), props };
+}
+
 describe("GraphLibraryDialog", () => {
   afterEach(() => {
     cleanup();
@@ -34,34 +67,13 @@ describe("GraphLibraryDialog", () => {
       },
     });
 
-    render(
-      <GraphLibraryDialog
-        sidebarDialog="nodes"
-        definitions={[visibleDefinition, hiddenDefinition]}
-        definitionsByCategory={{ Prompt: [visibleDefinition, hiddenDefinition] }}
-        workflows={[]}
-        templates={[]}
-        references={[]}
-        assets={[]}
-        workflowId={null}
-        runHistory={[]}
-        selectedHistoryRunId={null}
-        selectedRunArtifacts={[]}
-        onClose={vi.fn()}
-        onLoadStarterTemplate={vi.fn()}
-        onLoadWorkflow={vi.fn()}
-        onInstantiateTemplate={vi.fn()}
-        onDeleteWorkflow={vi.fn()}
-        onDeleteTemplate={vi.fn()}
-        onImportWorkflow={vi.fn()}
-        onAddDefinitionNode={vi.fn()}
-        onAddLoadImageNode={vi.fn()}
-        onRefreshRunHistory={vi.fn()}
-        onInspectRun={vi.fn()}
-        onRestoreRun={vi.fn()}
-        onPinArtifact={vi.fn()}
-      />,
-    );
+    renderLibraryDialog({
+      sidebarDialog: "nodes",
+      definitions: [visibleDefinition, hiddenDefinition],
+      definitionsByCategory: {
+        Prompt: [visibleDefinition, hiddenDefinition],
+      },
+    });
 
     expect(screen.getByRole("button", { name: /prompt recipe/i })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /internal hidden debug/i })).toBeNull();

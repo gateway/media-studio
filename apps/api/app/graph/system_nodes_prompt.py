@@ -190,6 +190,98 @@ def prompt_node_definitions() -> List[GraphNodeDefinition]:
             ],
         ),
         GraphNodeDefinition(
+            type="prompt.image_analyzer",
+            title="Image Analyzer",
+            description="Analyze one image and return reusable visual analysis or a generation-ready prompt.",
+            help_text="Connect one image, choose an analysis mode, and run a vision-capable LLM. This node only outputs text and JSON; it does not save or create Media Presets.",
+            category="Prompt",
+            search_aliases=["analyze image", "image analyzer", "vision", "describe image", "image to prompt", "reference analysis"],
+            tags=["prompt", "analysis", "image", "llm", "vision"],
+            source={
+                "kind": "external_llm",
+                "providers": ["studio_default", "openrouter", "codex_local", "local_openai"],
+                "supports_images": "required",
+                "pricing": {"status": "estimated_openrouter_or_unknown_local"},
+            },
+            execution={"executor": "prompt.image_analyzer", "mode": "sync", "cacheable": False, "output_node": False},
+            limits={
+                "max_image_inputs": 1,
+                "max_analysis_goal_chars": 4000,
+                "max_system_prompt_chars": 12000,
+                "max_tokens": {"min": 64, "max": 4000, "default": 1600},
+                "temperature": {"min": 0, "max": 2, "default": 0.2},
+            },
+            ui={
+                "default_size": {"width": 420, "height": 680},
+                "min_size": {"width": 360, "height": 520},
+                "max_size": {"width": 860, "height": 1120},
+                "color": "text",
+                "accent": "purple",
+                "icon": "sparkles",
+                "preview": False,
+                "field_layout": "stack",
+            },
+            ports={
+                "inputs": [
+                    GraphNodePort(
+                        id="image",
+                        label="Image",
+                        type="image",
+                        required=True,
+                        max=1,
+                        accepts=["image"],
+                        description="Image to analyze with the selected vision-capable provider model.",
+                    )
+                ],
+                "outputs": [
+                    GraphNodePort(id="text", label="Text", type="text", description="Analysis text or generation-ready prompt."),
+                    GraphNodePort(id="result", label="Result", type="json", description="Structured analysis metadata and raw text."),
+                ],
+            },
+            fields=[
+                GraphNodeField(
+                    id="mode",
+                    label="Mode",
+                    type="select",
+                    required=True,
+                    default="full_analysis",
+                    options=[
+                        {"label": "Full Visual Analysis", "value": "full_analysis"},
+                        {"label": "Image To Prompt", "value": "image_to_prompt"},
+                    ],
+                    help_text="Full Visual Analysis describes the visible system. Image To Prompt returns a model-ready generation prompt.",
+                ),
+                GraphNodeField(
+                    id="analysis_goal",
+                    label="Analysis Goal",
+                    type="textarea",
+                    required=False,
+                    default="",
+                    placeholder="Optional focus, such as character continuity, style extraction, product details, or prompt generation.",
+                    help_text="Optional operator guidance for what details the analysis should prioritize.",
+                ),
+                GraphNodeField(
+                    id="system_prompt",
+                    label="System Prompt",
+                    type="textarea",
+                    required=True,
+                    default=(
+                        "You analyze Media Studio reference images for downstream image and video generation. "
+                        "Be concrete, visual, and specific. Do not invent details that are not visible."
+                    ),
+                    help_text="Controls the analyzer behavior. Keep this focused on image analysis, not preset saving.",
+                ),
+                *prompt_provider_selection_fields(),
+                *prompt_generation_runtime_fields(
+                    temperature_help="Optional override. Lower values keep analysis factual and repeatable.",
+                    temperature_placeholder="0.2",
+                    max_tokens_placeholder="1600",
+                    max_tokens_help="Optional override for analysis length.",
+                    include_external_variables=False,
+                ),
+            ],
+        ),
+        GraphNodeDefinition(
             type="prompt.concat",
             title="Prompt Concat",
             description="Merge multiple prompt text streams into one reusable prompt.",

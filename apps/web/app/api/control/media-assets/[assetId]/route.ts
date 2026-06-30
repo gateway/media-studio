@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { controlErrorResponse } from "@/app/api/control/responses";
 import { getControlApiJson, sendControlApiJson, mapAssetRecord } from "@/lib/control-api";
 import type { MediaAssetResponse } from "@/lib/types";
 
@@ -11,13 +12,7 @@ export async function GET(
   const result = await getControlApiJson<Record<string, unknown>>(`/media/assets/${assetId}`, "admin");
 
   if (!result.ok || !result.data) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: result.error ?? "Unable to load the selected media asset.",
-      },
-      { status: 502 },
-    );
+    return controlErrorResponse(result.error, "Unable to load the selected media asset.", 502);
   }
 
   return NextResponse.json({
@@ -53,13 +48,7 @@ export async function POST(
   );
 
   if (!result.ok || !result.data) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: result.error ?? "Unable to update the favorite state for the selected media asset.",
-      },
-      { status: 502 },
-    );
+    return controlErrorResponse(result.error, "Unable to update the favorite state for the selected media asset.", 502);
   }
 
   return NextResponse.json({
@@ -82,13 +71,7 @@ export async function DELETE(
   );
 
   if (!result.ok || !result.data) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: result.error ?? "Unable to remove the selected media asset from the dashboard.",
-      },
-      { status: 502 },
-    );
+    return controlErrorResponse(result.error, "Unable to remove the selected media asset from the dashboard.", 502);
   }
 
   return NextResponse.json({

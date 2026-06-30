@@ -1,4 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
+import type { MediaPreset, PromptRecipeDraftPayload } from "@/lib/types";
 import type { GraphExecutionMode } from "./utils/graph-node-execution";
 
 export type GraphMediaPreview = {
@@ -7,6 +8,10 @@ export type GraphMediaPreview = {
   fullUrl?: string | null;
   posterUrl?: string | null;
   label?: string | null;
+  width?: number | null;
+  height?: number | null;
+  durationSeconds?: number | null;
+  durationLabel?: string | null;
   aspectLabel?: string | null;
   resolutionLabel?: string | null;
 };
@@ -99,6 +104,7 @@ export type GraphNodeData = {
   collapsed?: boolean;
   advancedExpanded?: boolean;
   autoSizedHeight?: number | null;
+  mediaAutoFitSignature?: string | null;
   accentColor?: string | null;
   nodeColor?: string | null;
   nodeHeaderColor?: string | null;
@@ -119,7 +125,10 @@ export type GraphNodeData = {
   pricingEstimate?: GraphNodePricingEstimate | null;
   onFieldChange: (nodeId: string, fieldId: string, value: unknown) => void;
   onSetFields?: (nodeId: string, fields: Record<string, unknown>) => void;
-  onOpenImageLibrary?: (nodeId: string) => void;
+  onOpenImageLibrary?: (
+    nodeId: string,
+    mediaType?: "image" | "video" | "audio",
+  ) => void;
   onImageDrop?: (nodeId: string, file: File) => void;
   onInputRewireStart?: (nodeId: string, portId: string, point: { clientX: number; clientY: number; pointerId?: number }) => void;
   onToggleCollapsed?: (nodeId: string) => void;
@@ -165,6 +174,12 @@ export type GraphEstimateResponse = {
   warnings: GraphError[];
 };
 
+export type GraphValidationResult = {
+  valid: boolean;
+  errors: GraphError[];
+  warnings: GraphError[];
+};
+
 export type GraphWorkflowPayload = {
   schema_version: 1;
   workflow_id?: string | null;
@@ -186,6 +201,98 @@ export type GraphWorkflowPayload = {
   }>;
   viewport?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+};
+
+export type AssistantSession = {
+  assistant_session_id: string;
+  owner_kind: "graph_workflow" | "studio_project" | "media_preset" | "prompt_recipe" | "standalone";
+  owner_id?: string | null;
+  provider_kind: string;
+  provider_model_id?: string | null;
+  status: "active" | "thinking" | "plan_ready" | "applying" | "failed" | "archived";
+  title?: string | null;
+  messages: AssistantMessage[];
+  attachments: AssistantAttachment[];
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type AssistantMessage = {
+  assistant_message_id: string;
+  assistant_session_id: string;
+  role: "user" | "assistant" | "system_summary" | "tool";
+  content_text: string;
+  content_json?: Record<string, unknown>;
+  created_at?: string | null;
+};
+
+export type AssistantAttachment = {
+  assistant_attachment_id: string;
+  assistant_session_id: string;
+  reference_id: string;
+  kind: string;
+  label?: string | null;
+  metadata_json?: Record<string, unknown>;
+  created_at?: string | null;
+};
+
+export type AssistantGraphPlan = {
+  capability: "answer_question" | "plan_graph" | "draft_prompt_recipe" | "draft_media_preset" | "save_prompt_recipe" | "save_media_preset" | "inspect_media" | "repair_graph";
+  summary: string;
+  questions: string[];
+  operations: Array<Record<string, unknown>>;
+  warnings: string[];
+  requires_confirmation: boolean;
+  metadata?: Record<string, unknown>;
+};
+
+export type AssistantPlan = {
+  assistant_plan_id: string;
+  assistant_session_id: string;
+  status: "draft" | "validated" | "applied" | "rejected" | "failed";
+  capability: AssistantGraphPlan["capability"];
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type AssistantPlanResponse = {
+  plan: AssistantPlan;
+  graph_plan: AssistantGraphPlan;
+  workflow: GraphWorkflowPayload;
+  validation: GraphValidationResult;
+  pricing: GraphEstimateResponse;
+};
+
+export type AssistantPromptRecipeDraftResponse = {
+  capability: "draft_prompt_recipe";
+  draft: PromptRecipeDraftPayload;
+  validation_warnings: string[];
+  review_url: string;
+  media_summary: Array<Record<string, unknown>>;
+};
+
+export type AssistantMediaPresetDraftResponse = {
+  capability: "draft_media_preset";
+  draft: Partial<MediaPreset> & {
+    key: string;
+    label: string;
+    prompt_template?: string | null;
+    applies_to_models?: string[];
+    input_schema_json?: Array<Record<string, unknown>>;
+    input_slots_json?: Array<Record<string, unknown>>;
+  };
+  validation_warnings: string[];
+  review_url: string;
+  media_summary: Array<Record<string, unknown>>;
+};
+
+export type AssistantArtifactSaveResponse = {
+  capability: "save_prompt_recipe" | "save_media_preset";
+  artifact_kind: "media_preset" | "prompt_recipe";
+  created: boolean;
+  record: Record<string, unknown>;
+  message: string;
+  assistant_session: AssistantSession;
 };
 
 export type GraphGroup = {
@@ -229,6 +336,7 @@ export type GraphWorkspaceTab = {
   workflow_updated_at?: string | null;
   run_id?: string | null;
   run_status?: string | null;
+  assistant_session_id?: string | null;
   console_lines?: string[];
   dirty?: boolean;
   updated_at?: string | null;

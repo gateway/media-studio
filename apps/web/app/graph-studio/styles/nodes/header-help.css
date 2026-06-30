@@ -79,8 +79,8 @@
   color: var(--graph-text-quiet);
   background: var(--graph-panel-dark);
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.72),
-    0 16px 38px rgba(0, 0, 0, 0.58);
+    0 0 0 1px color-mix(in srgb, black 72%, transparent),
+    0 16px 38px color-mix(in srgb, black 58%, transparent);
   font-size: 0.72rem;
   line-height: 1.35;
   text-align: left;
@@ -178,7 +178,7 @@
   border: 2px solid var(--graph-node-accent, var(--graph-accent));
   border-radius: 999px;
   background: var(--graph-panel);
-  box-shadow: 0 0 0 3px rgba(247, 246, 240, 0.03);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--graph-text) 3%, transparent);
   cursor: pointer;
   padding: 0;
   transition:
@@ -216,7 +216,7 @@
   min-width: 120px;
   color: var(--graph-text);
   background: var(--graph-panel-hover);
-  border: 1px solid rgba(209, 255, 71, 0.36);
+  border: 1px solid color-mix(in srgb, var(--graph-accent) 36%, transparent);
   border-radius: 6px;
   outline: none;
   padding: 0.28rem 0.4rem;
@@ -238,7 +238,7 @@
 }
 
 .graph-node-price-chip {
-  border-color: rgba(96, 210, 255, 0.28);
+  border-color: color-mix(in srgb, var(--graph-cyan) 28%, transparent);
   color: var(--graph-cyan);
 }
 
@@ -248,41 +248,26 @@
 }
 
 .graph-node-activity-chip-active {
-  border-color: rgba(96, 210, 255, 0.32);
+  border-color: color-mix(in srgb, var(--graph-cyan) 32%, transparent);
   color: var(--graph-cyan);
 }
 
 .graph-node-activity-chip-success {
-  border-color: rgba(49, 209, 88, 0.32);
+  border-color: color-mix(in srgb, var(--graph-success) 32%, transparent);
   color: var(--graph-success-bright);
 }
 
 .graph-node-activity-chip-warning {
-  border-color: rgba(255, 204, 102, 0.38);
+  border-color: color-mix(in srgb, var(--graph-warning) 38%, transparent);
   color: var(--graph-warning);
 }
 
 .graph-node-activity-chip-error {
-  border-color: rgba(255, 101, 101, 0.42);
-  color: #ff7b7b;
-}
-
-.graph-node-field-help {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 13px;
-  height: 13px;
-  margin-left: 0.3rem;
-  border: 1px solid rgba(247, 246, 240, 0.2);
-  border-radius: 999px;
-  color: var(--graph-text-subtle);
-  cursor: help;
-  font-size: 0.58rem;
-  line-height: 1;
+  border-color: color-mix(in srgb, var(--graph-danger) 42%, transparent);
+  color: var(--graph-danger-text-bright);
 }
 
 .graph-node-execution-chip {
-  border-color: rgba(247, 246, 240, 0.22);
+  border-color: color-mix(in srgb, var(--graph-text) 22%, transparent);
   color: var(--graph-text-quiet);
 }

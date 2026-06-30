@@ -26,7 +26,7 @@ import type { GraphGroup, StudioEdge, StudioNode } from "./types";
 import { graphCanvasInteractionConfig } from "./utils/graph-canvas-interaction";
 import { graphEdgeStyleForPortType } from "./utils/graph-node-layout";
 import { isTextEntryTarget } from "./utils/graph-media-preview";
-import { contextMenuTargetNodeIds, paneContextMenuTargetNodeIds } from "./utils/graph-selection";
+import { contextMenuTargetNodeIds } from "./utils/graph-selection";
 import type { GraphNodeSearchPopoverState } from "./hooks/use-graph-node-search";
 
 const nodeTypes = { graphNode: GraphNode };
@@ -47,6 +47,18 @@ const EDGE_CLICK_IGNORED_TARGETS = [
 const EDGE_SELECTION_SUPPRESS_MS = 450;
 const DEFAULT_EDGE_OPTIONS = { type: "graphEdge", reconnectable: true, interactionWidth: 28 } as const;
 const PRO_OPTIONS = { hideAttribution: true } as const;
+
+function graphNodeIdFromPoint(clientX: number, clientY: number): string | null {
+  if (typeof document.elementsFromPoint !== "function") return null;
+  for (const element of document.elementsFromPoint(clientX, clientY)) {
+    if (!(element instanceof Element)) continue;
+    if (isTextEntryTarget(element)) return null;
+    const nodeElement = element.closest<HTMLElement>(".react-flow__node");
+    const nodeId = nodeElement?.getAttribute("data-id");
+    if (nodeId) return nodeId;
+  }
+  return null;
+}
 
 function nearestGraphEdgeIdFromPoint(clientX: number, clientY: number) {
   let nearestEdgeId: string | null = null;
@@ -215,6 +227,19 @@ export function GraphCanvas({
     [nodes, setNodes],
   );
 
+  const openNodeContextMenuAt = useCallback(
+    (node: StudioNode, x: number, y: number) => {
+      const nodeIds = contextMenuTargetNodeIds(nodes, node.id);
+      if (!node.selected) {
+        setNodes((current) => current.map((item) => ({ ...item, selected: item.id === node.id })));
+      }
+      setNodeContextMenu({ nodeIds, anchorNodeId: node.id, x, y });
+      setNodeSearch(null);
+      setWorkflowMenuOpen(false);
+    },
+    [nodes, setNodeContextMenu, setNodeSearch, setNodes, setWorkflowMenuOpen],
+  );
+
   const handleNodeContextMenu = useCallback(
     (event: ReactMouseEvent, node: StudioNode) => {
       if (isTextEntryTarget(event.target)) {
@@ -222,15 +247,9 @@ export function GraphCanvas({
       }
       event.preventDefault();
       event.stopPropagation();
-      const nodeIds = contextMenuTargetNodeIds(nodes, node.id);
-      if (!node.selected) {
-        setNodes((current) => current.map((item) => ({ ...item, selected: item.id === node.id })));
-      }
-      setNodeContextMenu({ nodeIds, anchorNodeId: node.id, x: event.clientX, y: event.clientY });
-      setNodeSearch(null);
-      setWorkflowMenuOpen(false);
+      openNodeContextMenuAt(node, event.clientX, event.clientY);
     },
-    [nodes, setNodeContextMenu, setNodeSearch, setNodes, setWorkflowMenuOpen],
+    [openNodeContextMenuAt],
   );
 
   const handleEdgeClick = useCallback(
@@ -305,15 +324,16 @@ export function GraphCanvas({
         ) {
           return;
         }
-        event.preventDefault();
-        const selectedNodeIds = paneContextMenuTargetNodeIds(nodes);
-        if (selectedNodeIds.length) {
-          setNodeSearch(null);
-          setWorkflowMenuOpen(false);
+        const nodeIdAtPoint = graphNodeIdFromPoint(event.clientX, event.clientY);
+        const nodeAtPoint = nodeIdAtPoint ? nodes.find((node) => node.id === nodeIdAtPoint) : null;
+        if (nodeAtPoint) {
+          event.preventDefault();
+          event.stopPropagation();
+          openNodeContextMenuAt(nodeAtPoint, event.clientX, event.clientY);
           setGroupContextMenu(null);
-          setNodeContextMenu({ nodeIds: selectedNodeIds, anchorNodeId: selectedNodeIds[0], x: event.clientX, y: event.clientY });
           return;
         }
+        event.preventDefault();
         setNodeContextMenu(null);
         setGroupContextMenu(null);
         openNodeSearch(event.clientX, event.clientY);

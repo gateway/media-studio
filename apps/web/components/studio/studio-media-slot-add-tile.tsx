@@ -94,7 +94,7 @@ export function StudioMediaSlotAddTile({
   }
 
   return (
-    <div className={cn("flex shrink-0 flex-col gap-2", wrapperClassName)}>
+    <div className={cn("studio-media-slot-add-wrapper", wrapperClassName)}>
       {label ? (
         <div className="studio-slot-label">{label}</div>
       ) : null}

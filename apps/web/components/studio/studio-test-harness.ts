@@ -1,13 +1,126 @@
 "use client";
 
-import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useEffect, useMemo, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 
 import type { GalleryKindFilter } from "@/lib/media-studio-contract";
 import type { MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
 
+export type StudioShellHandoffSnapshot = {
+  projectId: string | null;
+  assetIds: Array<string | number>;
+  selectedAssetId: string | number | null;
+  composer: {
+    modelKey: string | null;
+    selectedPresetId: string | null;
+    prompt: string;
+    attachmentCount: number;
+    openPicker: string | null;
+  };
+  gallery: {
+    kindFilter: GalleryKindFilter;
+    modelFilter: string;
+    favoritesOnly: boolean;
+    hasMore: boolean;
+    loadingMore: boolean;
+    tileCount: number;
+  };
+};
+
+export type StudioFixtureMountResult = {
+  ok: boolean;
+  reason?: string;
+};
+
+export type StudioTestFixtureControls = {
+  reset: () => void;
+  mountPromptReferencePicker: () => StudioFixtureMountResult;
+  mountComposerEnhanceSetup: () => StudioFixtureMountResult;
+  mountComposerEnhanceDisabled: () => StudioFixtureMountResult;
+  mountContextPanels: () => StudioFixtureMountResult;
+  mountGalleryEmptyState: () => StudioFixtureMountResult;
+  mountMotionControlVideo: (modelKey?: string) => StudioFixtureMountResult;
+  mountMobileInputs: (mode?: "multi-image" | "seedance" | "standard" | "generic") => StudioFixtureMountResult;
+};
+
+type StudioShellHandoffSnapshotParams = {
+  projectId: string | null;
+  assetIds: Array<string | number>;
+  selectedAssetId: string | number | null;
+  modelKey: string | null;
+  selectedPresetId: string | null;
+  prompt: string;
+  attachmentCount: number;
+  openPicker: string | null;
+  kindFilter: GalleryKindFilter;
+  modelFilter: string;
+  favoritesOnly: boolean;
+  hasMore: boolean;
+  loadingMore: boolean;
+  tileCount: number;
+};
+
+export function useStudioShellHandoffSnapshot({
+  projectId,
+  assetIds,
+  selectedAssetId,
+  modelKey,
+  selectedPresetId,
+  prompt,
+  attachmentCount,
+  openPicker,
+  kindFilter,
+  modelFilter,
+  favoritesOnly,
+  hasMore,
+  loadingMore,
+  tileCount,
+}: StudioShellHandoffSnapshotParams): StudioShellHandoffSnapshot {
+  return useMemo(
+    () => ({
+      projectId,
+      assetIds,
+      selectedAssetId,
+      composer: {
+        modelKey,
+        selectedPresetId,
+        prompt,
+        attachmentCount,
+        openPicker,
+      },
+      gallery: {
+        kindFilter,
+        modelFilter,
+        favoritesOnly,
+        hasMore,
+        loadingMore,
+        tileCount,
+      },
+    }),
+    [
+      assetIds,
+      attachmentCount,
+      favoritesOnly,
+      hasMore,
+      kindFilter,
+      loadingMore,
+      modelFilter,
+      modelKey,
+      openPicker,
+      projectId,
+      prompt,
+      selectedAssetId,
+      selectedPresetId,
+      tileCount,
+    ],
+  );
+}
+
 declare global {
   interface Window {
     __mediaStudioTest?: {
+      handoff?: {
+        snapshot: () => StudioShellHandoffSnapshot;
+      };
       composer?: {
         setModel: (modelKey: string) => void;
       };
@@ -35,8 +148,21 @@ declare global {
         requestPreview: () => Promise<void>;
         usePrompt: () => boolean;
       };
+      fixtures?: StudioTestFixtureControls;
     };
   }
+}
+
+function studioTestHarnessEnabled() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  if (window.navigator.webdriver) {
+    return true;
+  }
+  const hostname = window.location.hostname;
+  const localDevHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  return localDevHost && new URLSearchParams(window.location.search).get("studioTestHarness") === "1";
 }
 
 type StudioTestHarnessParams = {
@@ -53,6 +179,8 @@ type StudioTestHarnessParams = {
   openEnhanceDialogRef: MutableRefObject<() => void>;
   requestEnhancementPreviewRef: MutableRefObject<() => Promise<void>>;
   applyEnhancementPromptRef: MutableRefObject<() => boolean>;
+  handoffSnapshot: StudioShellHandoffSnapshot;
+  fixtures?: StudioTestFixtureControls;
 };
 
 export function useStudioTestHarness({
@@ -69,14 +197,19 @@ export function useStudioTestHarness({
   openEnhanceDialogRef,
   requestEnhancementPreviewRef,
   applyEnhancementPromptRef,
+  handoffSnapshot,
+  fixtures,
 }: StudioTestHarnessParams) {
   useEffect(() => {
-    if (typeof window === "undefined" || !window.navigator.webdriver) {
+    if (!studioTestHarnessEnabled()) {
       return;
     }
 
     window.__mediaStudioTest = {
       ...(window.__mediaStudioTest ?? {}),
+      handoff: {
+        snapshot: () => handoffSnapshot,
+      },
       composer: {
         setModel: (nextModelKey) => setModelKey(nextModelKey),
       },
@@ -140,6 +273,7 @@ export function useStudioTestHarness({
         requestPreview: () => requestEnhancementPreviewRef.current(),
         usePrompt: () => applyEnhancementPromptRef.current(),
       },
+      fixtures,
     };
 
     return () => {
@@ -152,6 +286,8 @@ export function useStudioTestHarness({
       delete window.__mediaStudioTest.failedJob;
       delete window.__mediaStudioTest.assetInspector;
       delete window.__mediaStudioTest.enhancement;
+      delete window.__mediaStudioTest.fixtures;
+      delete window.__mediaStudioTest.handoff;
       if (Object.keys(window.__mediaStudioTest).length === 0) {
         delete window.__mediaStudioTest;
       }
@@ -159,7 +295,9 @@ export function useStudioTestHarness({
   }, [
     activateGalleryKindFilter,
     applyEnhancementPromptRef,
+    fixtures,
     openContextualReferenceLibrary,
+    handoffSnapshot,
     openEnhanceDialogRef,
     requestEnhancementPreviewRef,
     setGalleryModelFilter,
