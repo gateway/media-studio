@@ -21,7 +21,7 @@ def test_media_assistant_provider_prompt_loads_media_preset_skill_asset() -> Non
     assert "source-specific exclusions" in system_prompt
     assert "preset_kind" in system_prompt
     assert "input_mode" in system_prompt
-    assert "test workflow" in system_prompt
+    assert "Test workflow sample values" in system_prompt
 
 
 def test_media_assistant_prompt_assets_are_route_scoped() -> None:

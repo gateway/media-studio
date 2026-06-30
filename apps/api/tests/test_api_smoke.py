@@ -510,8 +510,8 @@ def test_submit_preflight_preserves_reference_video_metadata_for_kling_motion(cl
         derived_request = service.kie_adapter._request_with_derived_pricing_options(raw_request)
         captured["estimate_request"] = derived_request
         assert derived_request["videos"][0]["duration_seconds"] == 5.0
-        assert derived_request["videos"][0]["width"] == 720
-        assert derived_request["videos"][0]["height"] == 1280
+        assert "width" not in derived_request["videos"][0]
+        assert "height" not in derived_request["videos"][0]
         assert derived_request["options"]["duration"] == 5
         return {
             "model_key": "kling-2.6-motion",
@@ -542,8 +542,8 @@ def test_submit_preflight_preserves_reference_video_metadata_for_kling_motion(cl
     )
 
     assert captured["raw_request"]["videos"][0]["duration_seconds"] == 5.0
-    assert captured["raw_request"]["videos"][0]["width"] == 720
-    assert captured["raw_request"]["videos"][0]["height"] == 1280
+    assert "width" not in captured["raw_request"]["videos"][0]
+    assert "height" not in captured["raw_request"]["videos"][0]
     assert captured["estimate_request"]["options"]["duration"] == 5
     assert bundle["preflight"]["estimated_cost"]["estimated_credits"] == pytest.approx(55.0)
     assert bundle["preflight"]["estimated_cost"]["estimated_cost_usd"] == pytest.approx(0.275)

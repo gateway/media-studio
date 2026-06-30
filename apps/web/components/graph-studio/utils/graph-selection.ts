@@ -11,6 +11,10 @@ export function contextMenuTargetNodeIds(nodes: Node[], nodeId: string): string[
   return selectedIds.includes(nodeId) ? selectedIds : [nodeId];
 }
 
+export function paneContextMenuTargetNodeIds(nodes: Node[]): string[] {
+  return selectedGraphNodeIds(nodes);
+}
+
 export function executionModeForNodeIds(nodes: Node[], nodeIds: string[]): GraphExecutionMode {
   const ids = new Set(nodeIds);
   const modes = nodes

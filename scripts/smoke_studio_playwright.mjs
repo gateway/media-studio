@@ -329,11 +329,11 @@ async function run() {
     await page.keyboard.press("Escape");
     await page.getByTestId("graph-nodes-modal").waitFor({ state: "hidden", timeout: 10_000 });
     await page.getByTestId("graph-sidebar-images-button").click();
-    await page.getByTestId("graph-images-modal").waitFor({ timeout: 10_000 });
-    await page.getByTestId("graph-reference-list").waitFor({ timeout: 10_000 });
-    await page.getByTestId("graph-asset-list").waitFor({ timeout: 10_000 });
+    await page.getByRole("dialog", { name: "Image Assets" }).waitFor({ timeout: 10_000 });
+    await page.getByRole("tab", { name: "Generated" }).waitFor({ timeout: 10_000 });
+    await page.getByRole("tab", { name: "Imported" }).waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");
-    await page.getByTestId("graph-images-modal").waitFor({ state: "hidden", timeout: 10_000 });
+    await page.getByRole("dialog", { name: "Image Assets" }).waitFor({ state: "hidden", timeout: 10_000 });
     await page.getByTestId("graph-node-prompt.text").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-node-media.load_image").waitFor({ timeout: 15_000 });
     const graphModelNode = page.getByTestId("graph-node-model.kie.nano_banana_pro");
@@ -345,9 +345,9 @@ async function run() {
     await page
       .locator('[data-testid^="graph-node-preview-media.load_image"] button[aria-label="Choose media from library"]')
       .click();
-    await page.getByTestId("graph-image-library-modal").waitFor({ timeout: 10_000 });
+    await page.getByRole("dialog", { name: "Image Assets" }).waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");
-    await page.getByTestId("graph-image-library-modal").waitFor({ state: "hidden", timeout: 10_000 });
+    await page.getByRole("dialog", { name: "Image Assets" }).waitFor({ state: "hidden", timeout: 10_000 });
     await page.getByText("Load Image", { exact: true }).first().waitFor({ timeout: 15_000 });
     await page.getByText("Save Image", { exact: true }).first().waitFor({ timeout: 15_000 });
     if (consoleErrors.length) {
