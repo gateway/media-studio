@@ -77,7 +77,7 @@ Notes:
 - `start:api` uses [`scripts/dev_api.mjs`](../scripts/dev_api.mjs) with reload disabled
 - it loads `.env`, points at the shared KIE repo, and starts `uvicorn` without `--reload`
 - `start:studio` wraps the API and web app together with migration backup checks, production build refresh, runtime logs, PID files, and browser open
-- `npm run dev` starts both the API and web app in one terminal for local coding sessions
+- `npm run dev` starts both the API and web app in one terminal for contributor hot-reload coding sessions only
 
 ## PM2
 

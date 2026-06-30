@@ -27,7 +27,8 @@ The onboarding script will:
 - create the local database
 - prompt for your KIE API key
 - report Codex Local availability on this machine
-- optionally prompt for OpenRouter and local OpenAI-compatible provider setup
+- optionally set Codex Local as the default local AI provider for prompt enhancement and Prompt Recipe drafting
+- leave OpenRouter and local OpenAI-compatible endpoints for later setup in `Settings -> AI`
 
 ## Start And Stop
 
@@ -53,10 +54,10 @@ Alternate ports:
 
 If the default ports are busy, Studio automatically chooses the next open API and web ports for that launch. Passing explicit ports keeps startup strict: if one of those ports is busy, startup stops and asks you to choose another pair.
 
-Developer hot-reload mode:
+Contributor hot-reload mode:
 
 ```bash
 npm run dev
 ```
 
-Use developer mode only when editing the code. Normal users should use `npm run start:studio`.
+Use hot-reload mode only when editing the code. Normal users should use `./scripts/run_studio_linux.sh` or `npm run start:studio`.

@@ -69,7 +69,8 @@ Those scripts will:
 - generate a unique local control token for the dashboard and API
 - create a clean local database
 - prompt for `KIE_API_KEY`
-- optionally prompt for OpenRouter-based prompt enhancement
+- check whether Codex Local is ready
+- optionally set Codex Local as the default local AI provider for prompt enhancement and Prompt Recipe drafting
 
 If you skip the KIE key during setup, Media Studio still installs cleanly, but live generation stays off until you add it.
 
@@ -127,15 +128,15 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1
 ```
 
-## Developer mode
+## Contributor Hot-Reload Mode
 
-If you are editing the code and want hot reload instead of the normal user launch path, use:
+Normal users should use the platform launcher or `npm run start:studio`. Use hot-reload mode only when you are editing the code and intentionally want the development server:
 
 ```bash
 npm run dev
 ```
 
-That runs the app in development mode and can show dev-only UI such as the Next.js badge or overlay.
+That path can show dev-only UI such as the Next.js badge or overlay.
 
 Then open the URL printed by the launcher. On a default free-port launch, those routes are:
 
@@ -159,9 +160,9 @@ If port `3000` is already in use, the launcher automatically picks another web p
 ## Optional extras
 
 - `OPENROUTER_API_KEY`
-  For hosted prompt enhancement. Optional, and you can add it later in `Settings`.
+  For hosted prompt enhancement. Optional, and you can add it later in `Settings -> AI`.
 - `MEDIA_LOCAL_OPENAI_BASE_URL`
-  For a local OpenAI-compatible endpoint if you choose to switch later in `Settings`.
+  For a local OpenAI-compatible endpoint if you choose to switch later in `Settings -> AI`.
 - `MEDIA_LOCAL_OPENAI_API_KEY`
   Only if that local endpoint requires auth.
 - `MEDIA_STUDIO_ADMIN_USERNAME` and `MEDIA_STUDIO_ADMIN_PASSWORD`

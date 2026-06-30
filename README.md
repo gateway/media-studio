@@ -159,7 +159,7 @@ Restart:
 
 ### What The Runner Does
 
-The macOS, Windows, and Linux onboarding scripts handle the normal setup path for you: dependencies, local environment, database, Kie API key prompt, and optional LLM provider setup for Codex Local, OpenRouter, or a local OpenAI-compatible endpoint.
+The macOS, Windows, and Linux onboarding scripts handle the normal setup path for you: dependencies, local environment, database, Kie API key prompt, and a Codex Local readiness check. When Codex Local is ready, onboarding can make it the default provider for prompt enhancement and Prompt Recipe drafting. OpenRouter and local OpenAI-compatible endpoints remain optional advanced setup paths in Settings -> AI after launch.
 
 The run scripts start the API and web app together in production mode, check the sibling `kie-api` checkout for new releases, offer a fast-forward update when safe, check the local database before migrations, create a migration backup when needed, refresh shared Python dependencies and the production web build if needed, write runtime logs under `data/runtime/`, wait for readiness, and open Studio.
 
@@ -171,7 +171,7 @@ npm run start:studio -- --api-port 8010 --web-port 3010
 
 At the end of onboarding, any displayed `127.0.0.1:3000` URL is only the configured/default URL. If that port is busy, the launcher prints and opens the actual temporary Studio URL it selected.
 
-The standalone developer commands use the same port-safety behavior: `npm run dev:api`, `npm run start:api`, `npm run dev:web`, and `npm run start:web` auto-select a temporary open port unless you pass an explicit `--port`.
+For normal use, prefer the platform launcher or `npm run start:studio`. The standalone developer commands are contributor tools: `npm run dev:api`, `npm run start:api`, `npm run dev:web`, and `npm run start:web` auto-select a temporary open port unless you pass an explicit `--port`.
 
 ### Release Flags
 

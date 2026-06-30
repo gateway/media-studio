@@ -67,9 +67,9 @@ npm run stop:studio -- --api-port 8010 --web-port 3010
 
 The startup scripts derive the matching web-to-API base URL automatically, so you do not need to hand-edit multiple environment variables just to move to a different local port pair.
 
-## Developer Mode
+## Contributor Hot-Reload Mode
 
-If you are actively working on the code and want hot reload:
+Normal users should use `npm run start:studio` or the platform launcher. Use hot-reload mode only when you are actively working on the code:
 
 ```bash
 npm run dev
@@ -79,7 +79,7 @@ Then open:
 
 - `http://127.0.0.1:3000/studio`
 
-Use this for development only. It runs the API and web app together with hot reload.
+This runs the API and web app together with hot reload.
 
 ## Private LAN / TailScale Access
 

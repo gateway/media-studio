@@ -47,8 +47,8 @@ The script will:
 - create a clean local SQLite database with schema and default presets
 - prompt for your Kie AI API key
 - report Codex Local availability on this machine
-- optionally configure OpenRouter and a local OpenAI-compatible endpoint
-- let you skip optional LLM providers and add them later in `Settings -> LLMs`
+- optionally set Codex Local as the default local AI provider for prompt enhancement and Prompt Recipe drafting
+- leave OpenRouter and local OpenAI-compatible endpoints for later setup in `Settings -> AI`
 
 The shared Python virtualenv includes editable installs of:
 
@@ -69,11 +69,11 @@ Get a key here:
 
 If you skip this during onboarding, Media Studio stays in offline-safe mode until you add the key later.
 
-## 4. Optional LLM providers
+## 4. Optional AI providers
 
-During onboarding, the macOS script now surfaces the optional LLM provider paths used by prompt enhancement, Prompt Recipe drafting, and graph prompt nodes.
+During onboarding, the macOS script checks whether Codex Local is ready. If it is ready, the script can set Codex Local as the default local provider for prompt enhancement and Prompt Recipe drafting.
 
-These providers are optional. If you skip them, you can wire them later in `Settings -> LLMs`.
+OpenRouter and local OpenAI-compatible endpoints are still supported, but they are advanced setup paths that should be wired later in `Settings -> AI`.
 
 Provider paths:
 
@@ -81,11 +81,7 @@ Provider paths:
 - `OPENROUTER_API_KEY` for hosted enhancement and drafting
 - `MEDIA_LOCAL_OPENAI_BASE_URL` and optional `MEDIA_LOCAL_OPENAI_API_KEY` for a local OpenAI-compatible endpoint
 
-The recommended hosted model is:
-
-- `qwen/qwen3.5-35b-a3b`
-
-The onboarding helper verifies the OpenRouter key before saving it. Users can still generate media without prompt enhancement.
+Users can still generate media without prompt enhancement.
 
 If you need to revisit any provider choice later, open the AI settings URL printed by the launcher. On a default free-port launch, that is `http://127.0.0.1:3000/settings/llms`.
 
@@ -140,15 +136,15 @@ If you close the launcher window by mistake or something gets stuck locally, the
 
 The Mac launcher now also tries to auto-clean stale local Media Studio processes if only the API or only the web app is still running.
 
-## Developer mode
+## Contributor Hot-Reload Mode
 
-If you are actively working on the code and want hot reload, use:
+For normal use, prefer `Start Media Studio.command` or `./scripts/run_studio_mac.sh`. Use hot-reload mode only when you are actively editing the code:
 
 ```bash
 npm run dev
 ```
 
-That path is for development only. It runs the API and web app together with hot reload, so you may see dev-only UI such as the Next badge or overlay.
+That path runs the API and web app together with hot reload, so you may see dev-only UI such as the Next badge or overlay.
 
 Then open the URL printed by the launcher. On a default free-port launch, that route is:
 

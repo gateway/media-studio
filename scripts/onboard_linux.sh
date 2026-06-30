@@ -7,7 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MEDIA_ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
 ENV_FILE="$MEDIA_ROOT/.env"
 KIE_AFFILIATE_URL="https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42"
-DEFAULT_LOCAL_OPENAI_BASE_URL="http://127.0.0.1:8080/v1"
+KIE_ROOT="$(resolve_kie_root "$MEDIA_ROOT")"
+VENV_PY="$KIE_ROOT/.venv/bin/python"
 
 require_command() {
   local name="$1"
@@ -81,25 +82,15 @@ codex_local_status_label() {
   printf 'login needed'
 }
 
-configure_local_openai_provider() {
-  local current_local_base
-  current_local_base="$(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
-  if [[ -z "$current_local_base" ]]; then
-    current_local_base="$DEFAULT_LOCAL_OPENAI_BASE_URL"
+configure_codex_local_defaults() {
+  if [[ ! -x "$VENV_PY" ]]; then
+    echo "Codex Local defaults skipped because the shared Python runtime is not ready." >&2
+    return 1
   fi
-  local local_base=""
-  read -r -p "Local OpenAI-compatible base URL [$current_local_base]: " local_base
-  if [[ -n "$local_base" ]]; then
-    set_env_value "MEDIA_LOCAL_OPENAI_BASE_URL" "$local_base"
-  elif [[ -z "$(env_value MEDIA_LOCAL_OPENAI_BASE_URL)" ]]; then
-    set_env_value "MEDIA_LOCAL_OPENAI_BASE_URL" "$current_local_base"
-  fi
-
-  local local_api_key=""
-  local_api_key="$(prompt_secret "Optional local OpenAI-compatible API key")"
-  if [[ -n "$local_api_key" ]]; then
-    set_env_value "MEDIA_LOCAL_OPENAI_API_KEY" "$local_api_key"
-  fi
+  MEDIA_STUDIO_DB_PATH="$(env_value MEDIA_STUDIO_DB_PATH)" \
+    MEDIA_STUDIO_DATA_ROOT="$(env_value MEDIA_STUDIO_DATA_ROOT)" \
+    MEDIA_STUDIO_KIE_API_REPO_PATH="${MEDIA_STUDIO_KIE_API_REPO_PATH:-$KIE_ROOT}" \
+    "$VENV_PY" "$SCRIPT_DIR/configure_codex_local_defaults.py" "$MEDIA_ROOT"
 }
 
 require_command git
@@ -113,8 +104,8 @@ echo
 echo "This script will:"
 echo " - prepare the shared KIE dependency and Python runtime"
 echo " - create or reuse .env, data folders, and the local database schema"
-echo " - prompt for KIE, OpenRouter, and Local OpenAI setup"
-echo " - check whether Codex Local is already ready on this machine"
+echo " - prompt for your KIE API key"
+echo " - check whether Codex Local can be used as the default local AI provider"
 echo
 
 "$SCRIPT_DIR/bootstrap_local.sh"
@@ -134,26 +125,30 @@ elif [[ -z "$(env_value KIE_API_KEY)" ]]; then
 fi
 
 echo
-echo "Optional LLM providers"
-echo " - Codex Local: $(codex_local_status_label) (powers Enhance, recipe drafts, and graph prompt nodes)"
-echo " - OpenRouter: hosted prompt enhancement and drafting"
-echo " - Local OpenAI-compatible endpoint: self-hosted enhancement and drafting"
-echo
-
-if prompt_yes_no "Configure OpenRouter now? This is optional and can be set up later in Settings." "N"; then
-  openrouter_key="$(prompt_secret "Optional OpenRouter API key")"
-  if [[ -n "$openrouter_key" ]]; then
-    set_env_value "OPENROUTER_API_KEY" "$openrouter_key"
+echo "Local AI provider"
+echo "Codex Local powers prompt enhancement, Prompt Recipe drafting, Media Assistant, and graph prompt nodes when it is ready."
+echo "Codex Local status: $(codex_local_status_label)"
+if command -v codex >/dev/null 2>&1; then
+  if [[ -f "$(codex_auth_path)" ]]; then
+    echo " - Codex Local is ready on this machine."
+  else
+    echo " - Codex is installed, but you still need to run: codex login"
   fi
 else
-  echo "Skipping OpenRouter setup. You can enable it later in Settings."
+  echo " - Codex is not installed or not on PATH."
 fi
+echo
 
-if prompt_yes_no "Configure a local OpenAI-compatible endpoint now? This is optional and can be set up later in Settings." "N"; then
-  configure_local_openai_provider
+if [[ "$(codex_local_status_label)" == "ready" ]]; then
+  if prompt_yes_no "Use Codex Local as the default AI provider now?" "Y"; then
+    configure_codex_local_defaults
+  else
+    echo "Leaving AI provider defaults unchanged. You can choose a provider later in Settings -> AI."
+  fi
 else
-  echo "Skipping local OpenAI-compatible setup. You can enable it later in Settings."
+  echo "Codex Local is not ready yet. Run 'codex login' after installing Codex, then open Settings -> AI."
 fi
+echo "OpenRouter and local OpenAI-compatible providers are optional advanced setup paths in Settings -> AI after launch."
 
 kie_status="missing"
 if [[ -n "$(env_value KIE_API_KEY)" ]]; then
@@ -163,19 +158,15 @@ live_status="offline"
 if [[ "$(env_value MEDIA_ENABLE_LIVE_SUBMIT)" == "true" ]]; then
   live_status="enabled"
 fi
-openrouter_status="skipped"
-if [[ -n "$(env_value OPENROUTER_API_KEY)" ]]; then
-  openrouter_status="configured"
-fi
 
 echo
 echo "Current setup summary"
-echo " - KIE API key: $( [[ \"$kie_status\" == \"configured\" ]] && echo Ready || echo "Not set up" )"
-echo " - Live submit: $( [[ \"$live_status\" == \"enabled\" ]] && echo Ready || echo "Not set up" )"
-echo " - Codex Local: $( [[ \"$(codex_local_status_label)\" == \"ready\" ]] && echo Ready || ([[ \"$(codex_local_status_label)\" == \"login needed\" ]] && echo Connecting || echo "Not set up") )"
-echo " - OpenRouter: $( [[ \"$openrouter_status\" == \"configured\" ]] && echo Ready || echo "Not set up" )"
-echo " - Local OpenAI-compatible: $( [[ -n "$(env_value MEDIA_LOCAL_OPENAI_BASE_URL)" ]] && echo Connecting || echo "Not set up" )"
-echo " - Local OpenAI base URL: $(env_value MEDIA_LOCAL_OPENAI_BASE_URL)"
+echo " - KIE API key: $( [[ "$kie_status" == "configured" ]] && echo Ready || echo "Not set up" )"
+echo " - Live submit: $( [[ "$live_status" == "enabled" ]] && echo Ready || echo "Not set up" )"
+codex_status="$(codex_local_status_label)"
+echo " - Codex Local: $( [[ "$codex_status" == "ready" ]] && echo Ready || ([[ "$codex_status" == "login needed" ]] && echo Connecting || echo "Not set up") )"
+echo " - OpenRouter: Settings -> AI"
+echo " - Local OpenAI-compatible: Settings -> AI"
 echo
 echo "Next commands"
 summary_web_port="$(env_value MEDIA_STUDIO_WEB_PORT)"

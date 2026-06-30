@@ -49,7 +49,9 @@ If you skip this during onboarding, Media Studio stays in offline-safe mode unti
 
 ## 5. Optional LLM providers
 
-You can also configure:
+The Windows onboarding script checks whether Codex Local is ready. If it is ready, the script can set Codex Local as the default local provider for prompt enhancement and Prompt Recipe drafting.
+
+You can also configure these optional advanced providers later:
 
 - local `codex` login for Codex Local
 - `OPENROUTER_API_KEY` for hosted prompt enhancement and Prompt Recipe drafting

@@ -1,7 +1,6 @@
 $ErrorActionPreference = "Stop"
 
 $KieAffiliateUrl = "https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42"
-$DefaultLocalOpenAiBaseUrl = "http://127.0.0.1:8080/v1"
 $KieRepoUrl = "https://github.com/gateway/kie-api.git"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -146,6 +145,18 @@ function Get-CodexLocalStatus {
   return "login needed"
 }
 
+function Configure-CodexLocalDefaults {
+  if (-not (Test-Path $VenvPy)) {
+    Write-Host "Codex Local defaults skipped because the shared Python runtime is not ready."
+    return
+  }
+
+  $env:MEDIA_STUDIO_DB_PATH = Get-EnvValue "MEDIA_STUDIO_DB_PATH"
+  $env:MEDIA_STUDIO_DATA_ROOT = Get-EnvValue "MEDIA_STUDIO_DATA_ROOT"
+  $env:MEDIA_STUDIO_KIE_API_REPO_PATH = $KieRoot
+  & $VenvPy (Join-Path $ScriptDir "configure_codex_local_defaults.py") $MediaRoot
+}
+
 function Start-DevWindow {
   param([string]$Command)
 
@@ -170,8 +181,8 @@ Write-Host "This script will:"
 Write-Host " - prepare the shared KIE dependency and Python runtime"
 Write-Host " - install or refresh the local web dependencies"
 Write-Host " - create or reuse .env, data folders, and the local database schema"
-Write-Host " - prompt for KIE, OpenRouter, and Local OpenAI setup"
-Write-Host " - check whether Codex Local is already ready on this machine"
+Write-Host " - prompt for your KIE API key"
+Write-Host " - check whether Codex Local can be used as the default local AI provider"
 Write-Host ""
 
 if ((-not (Test-Path (Join-Path $KieRoot ".git"))) -and (-not (Test-Path (Join-Path $KieRoot "pyproject.toml")))) {
@@ -240,40 +251,30 @@ if ($kieKey) {
 }
 
 Write-Host ""
-Write-Host "Optional LLM providers"
-Write-Host " - Codex Local: $(Get-CodexLocalStatus) (powers Enhance, recipe drafts, and graph prompt nodes)"
-Write-Host " - OpenRouter: hosted prompt enhancement and drafting"
-Write-Host " - Local OpenAI-compatible endpoint: self-hosted enhancement and drafting"
+Write-Host "Local AI provider"
+Write-Host "Codex Local powers prompt enhancement, Prompt Recipe drafting, Media Assistant, and graph prompt nodes when it is ready."
+Write-Host "Codex Local status: $(Get-CodexLocalStatus)"
+$codexStatus = Get-CodexLocalStatus
+if ($codexStatus -eq "ready") {
+  Write-Host " - Codex Local is ready on this machine."
+} elseif ($codexStatus -eq "login needed") {
+  Write-Host " - Codex is installed, but you still need to run: codex login"
+} else {
+  Write-Host " - Codex is not installed or not on PATH."
+}
 Write-Host ""
 
-if ((Read-Host "Configure OpenRouter now? This is optional and can be set up later in Settings. [y/N]") -match '^[Yy]$') {
-  $openRouterKey = Read-SecretOrBlank "Optional OpenRouter API key"
-  if ($openRouterKey) {
-    Set-EnvValue "OPENROUTER_API_KEY" $openRouterKey
+if ($codexStatus -eq "ready") {
+  $codexDefaultReply = Read-Host "Use Codex Local as the default AI provider now? [Y]"
+  if (-not $codexDefaultReply -or $codexDefaultReply -match '^[Yy]$') {
+    Configure-CodexLocalDefaults
+  } else {
+    Write-Host "Leaving AI provider defaults unchanged. You can choose a provider later in Settings -> AI."
   }
 } else {
-  Write-Host "Skipping OpenRouter setup. You can enable it later in Settings."
+  Write-Host "Codex Local is not ready yet. Run 'codex login' after installing Codex, then open Settings -> AI."
 }
-
-if ((Read-Host "Configure a local OpenAI-compatible endpoint now? This is optional and can be set up later in Settings. [y/N]") -match '^[Yy]$') {
-  $currentLocalBase = Get-EnvValue "MEDIA_LOCAL_OPENAI_BASE_URL"
-  if (-not $currentLocalBase) {
-    $currentLocalBase = $DefaultLocalOpenAiBaseUrl
-  }
-  $localBase = Read-Host "Local OpenAI-compatible base URL [$currentLocalBase]"
-  if ($localBase) {
-    Set-EnvValue "MEDIA_LOCAL_OPENAI_BASE_URL" $localBase
-  } elseif (-not (Get-EnvValue "MEDIA_LOCAL_OPENAI_BASE_URL")) {
-    Set-EnvValue "MEDIA_LOCAL_OPENAI_BASE_URL" $currentLocalBase
-  }
-
-  $localApiKey = Read-SecretOrBlank "Optional local OpenAI-compatible API key"
-  if ($localApiKey) {
-    Set-EnvValue "MEDIA_LOCAL_OPENAI_API_KEY" $localApiKey
-  }
-} else {
-  Write-Host "Skipping local OpenAI-compatible setup. You can enable it later in Settings."
-}
+Write-Host "OpenRouter and local OpenAI-compatible providers are optional advanced setup paths in Settings -> AI after launch."
 
 Write-Host ""
 Write-Host "Current setup summary"
@@ -282,13 +283,11 @@ $liveSubmitStatus = "offline"
 if ((Get-EnvValue "MEDIA_ENABLE_LIVE_SUBMIT") -eq "true") {
   $liveSubmitStatus = "enabled"
 }
-$openRouterStatus = Format-ConfiguredStatus (Get-EnvValue "OPENROUTER_API_KEY") "configured" "skipped"
 Write-Host " - KIE API key: $(if ($kieKeyStatus -eq 'configured') { 'Ready' } else { 'Not set up' })"
 Write-Host " - Live submit: $(if ($liveSubmitStatus -eq 'enabled') { 'Ready' } else { 'Not set up' })"
 Write-Host " - Codex Local: $(switch (Get-CodexLocalStatus) { 'ready' { 'Ready' } 'login needed' { 'Connecting' } default { 'Not set up' } })"
-Write-Host " - OpenRouter: $(if ($openRouterStatus -eq 'configured') { 'Ready' } else { 'Not set up' })"
-Write-Host " - Local OpenAI-compatible: $(if (Get-EnvValue 'MEDIA_LOCAL_OPENAI_BASE_URL') { 'Connecting' } else { 'Not set up' })"
-Write-Host " - Local OpenAI base URL: $(Get-EnvValue 'MEDIA_LOCAL_OPENAI_BASE_URL')"
+Write-Host " - OpenRouter: Settings -> AI"
+Write-Host " - Local OpenAI-compatible: Settings -> AI"
 Write-Host ""
 Write-Host "Next commands"
 $summaryWebPort = Get-EnvValue "MEDIA_STUDIO_WEB_PORT"
