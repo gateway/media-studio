@@ -44,6 +44,7 @@ def app_modules(tmp_path: Path):
     service = importlib.import_module("app.service")
     db_admin = importlib.import_module("app.db_admin")
     schemas = importlib.import_module("app.schemas")
+    store.bootstrap_schema()
     yield {
         "main": main,
         "store": store,

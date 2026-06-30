@@ -27,6 +27,11 @@ from app.graph.schemas import GraphWorkflow, GraphWorkflowEdge, GraphWorkflowNod
 from app.service_prompt_recipe_validation import validate_prompt_recipe_payload
 
 
+@pytest.fixture(autouse=True)
+def _bootstrap_character_sheet_schema() -> None:
+    store.bootstrap_schema()
+
+
 def _node(node_id: str, node_type: str, title: str, fields: dict | None = None) -> GraphWorkflowNode:
     return GraphWorkflowNode(
         id=node_id,
