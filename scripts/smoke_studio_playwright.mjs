@@ -317,10 +317,13 @@ async function run() {
     await page.getByTestId("graph-sidebar-workflows-button").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-sidebar-nodes-button").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-sidebar-images-button").waitFor({ timeout: 15_000 });
+    const initialGraphNodes = await page.locator('[data-testid^="graph-node-"]').count();
+    if (initialGraphNodes !== 0) {
+      throw new Error(`Graph Studio should start blank, found ${initialGraphNodes} starter nodes.`);
+    }
     await page.getByTestId("graph-sidebar-workflows-button").click();
     await page.getByTestId("graph-workflows-modal").waitFor({ timeout: 10_000 });
-    await page.getByTestId("graph-template-nano-image-pipeline").waitFor({ timeout: 10_000 });
-    await page.keyboard.press("Escape");
+    await page.getByTestId("graph-template-nano-image-pipeline").click();
     await page.getByTestId("graph-workflows-modal").waitFor({ state: "hidden", timeout: 10_000 });
     await page.getByTestId("graph-sidebar-nodes-button").click();
     await page.getByTestId("graph-nodes-modal").waitFor({ timeout: 10_000 });
