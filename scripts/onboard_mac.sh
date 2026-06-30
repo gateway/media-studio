@@ -620,18 +620,20 @@ echo "Next steps"
 echo " - Start later: Start Media Studio.command"
 echo " - Stop later: Stop Media Studio.command"
 echo " - Terminal launch: ./scripts/run_studio_mac.sh"
-echo " - Studio: http://127.0.0.1:$(web_port)/studio"
-echo " - Settings: http://127.0.0.1:$(web_port)/settings"
-echo " - AI settings: http://127.0.0.1:$(web_port)/settings/llms"
+echo " - Configured Studio URL if the web port is free: http://127.0.0.1:$(web_port)/studio"
+echo " - Configured settings URL if the web port is free: http://127.0.0.1:$(web_port)/settings"
+echo " - Configured AI settings URL if the web port is free: http://127.0.0.1:$(web_port)/settings/llms"
+echo " - Actual launch URL: printed by the launcher after it checks for free API and web ports"
 echo
 echo "For normal use, double-click Start Media Studio.command."
 echo "It starts the API and web app together in one Terminal window in production mode."
-echo "If your browser does not open automatically, point it to the Studio URL above."
+echo "If ports 8000 or 3000 are busy, startup automatically selects temporary open ports for that launch."
+echo "If your browser does not open automatically, use the actual Studio URL printed by the launcher."
 echo
 
-read -r -p "Launch Media Studio in this Terminal window now? [y/N]: " launch_now
+read -r -p "Launch Media Studio in this Terminal window now with automatic port selection? [y/N]: " launch_now
 if [[ "$launch_now" =~ ^[Yy]$ ]]; then
   echo "Launching Media Studio in this Terminal window."
-  echo "The launcher will start or recover the local app and open your browser to Studio when it is ready."
+  echo "The launcher will check configured ports, select temporary open ports if needed, and print the actual Studio URL."
   "$SCRIPT_DIR/open_studio_mac.sh"
 fi

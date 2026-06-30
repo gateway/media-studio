@@ -9,10 +9,8 @@ import type {
   ExternalLlmUsageSummaryResponse,
   LlmPreset,
   LlmPresetsResponse,
-  MediaAsset,
   MediaAssetResponse,
   MediaAssetsResponse,
-  MediaBatch,
   MediaBatchResponse,
   MediaBatchesResponse,
   MediaCreditsResponse,
@@ -21,13 +19,11 @@ import type {
   MediaEnhancementConfigsResponse,
   MediaEnhancementProviderProbeResponse,
   MediaEnhancePreviewResponse,
-  MediaJob,
   MediaJobResponse,
   MediaJobsResponse,
   MediaModelDetailResponse,
   MediaModelsResponse,
   MediaModelQueuePolicy,
-  MediaProject,
   MediaProjectResponse,
   MediaProjectsResponse,
   MediaReference,
@@ -35,6 +31,7 @@ import type {
   MediaReferencesResponse,
   MediaModelSummary,
   MediaPreset,
+  MediaPresetSummaryItem,
   MediaPresetsResponse,
   MediaPricingResponse,
   MediaPricingEstimateResponse,
@@ -55,10 +52,27 @@ import type {
   PromptRecipeResponse,
   PromptRecipesResponse,
 } from "@/lib/types";
-import { toControlApiDataPreviewPath, toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-paths";
+import { normalizeMediaPresetCategory } from "@/lib/media-preset-categories";
+import { toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-paths";
 import { INITIAL_ASSET_PAGE_SIZE } from "@/lib/media-studio-contract";
 import { deriveStudioModelSupport } from "@/lib/studio-model-support";
+import {
+  mapAssetPickerRecord,
+  mapAssetRecord,
+  mapAssetSummaryRecord,
+  mapBatchRecord,
+  mapJobRecord,
+  mapProjectRecord,
+} from "@/lib/control-api-media";
 export { toControlApiDataProxyPath, toControlApiProxyPath } from "@/lib/media-paths";
+export {
+  mapAssetPickerRecord,
+  mapAssetRecord,
+  mapAssetSummaryRecord,
+  mapBatchRecord,
+  mapJobRecord,
+  mapProjectRecord,
+} from "@/lib/control-api-media";
 
 // Keep raw control-plane payload looseness localized at this boundary and
 // normalize everything else into typed app-facing records below.
@@ -216,6 +230,7 @@ function deriveInputPatterns(model: ControlApiRawRecord): string[] {
   const key = String(model.key ?? "");
   if (key === "kling-2.6-i2v") return ["single_image"];
   if (key === "kling-2.6-t2v") return ["prompt_only"];
+  if (key === "kling-2.6-motion") return ["motion_control"];
   if (key === "kling-3.0-i2v") return ["single_image", "first_last_frames"];
   if (key === "kling-3.0-motion") return ["motion_control"];
   if (key === "kling-3.0-t2v") return ["prompt_only"];
@@ -297,6 +312,7 @@ export function mapPresetRecord(preset: ControlApiRawRecord): MediaPreset {
     key: String(preset.key),
     label: String(preset.label),
     description: preset.description ?? null,
+    category: normalizeMediaPresetCategory(preset.category),
     status: String(preset.status ?? "active"),
     model_key: preset.model_key ?? null,
     source_kind: (preset.source_kind ?? "custom") as "builtin" | "built_in_override" | "custom" | "imported",
@@ -309,7 +325,6 @@ export function mapPresetRecord(preset: ControlApiRawRecord): MediaPreset {
     system_prompt_ids: systemPromptIds,
     input_schema_json: preset.input_schema_json ?? [],
     input_slots_json: preset.input_slots_json ?? [],
-    choice_groups_json: preset.choice_groups_json ?? [],
     default_options_json: preset.default_options_json ?? {},
     rules_json: preset.rules_json ?? {},
     requires_image: Boolean(preset.requires_image),
@@ -323,6 +338,43 @@ export function mapPresetRecord(preset: ControlApiRawRecord): MediaPreset {
     created_at: preset.created_at ?? null,
     updated_at: preset.updated_at ?? null,
   } as MediaPreset;
+}
+
+function countArrayValue(value: unknown) {
+  return Array.isArray(value) ? value.length : 0;
+}
+
+export function mapPresetSummaryRecord(preset: ControlApiRawRecord): MediaPresetSummaryItem {
+  const appliesToModels = preset.applies_to_models_json ?? preset.applies_to_models ?? [];
+  const appliesToTaskModes = preset.applies_to_task_modes_json ?? preset.applies_to_task_modes ?? [];
+  const appliesToInputPatterns = preset.applies_to_input_patterns_json ?? preset.applies_to_input_patterns ?? [];
+  const inputSchema = preset.input_schema_json ?? [];
+  const inputSlots = preset.input_slots_json ?? [];
+  return {
+    preset_id: String(preset.preset_id),
+    key: String(preset.key),
+    label: String(preset.label),
+    description: preset.description ?? null,
+    category: normalizeMediaPresetCategory(preset.category),
+    status: String(preset.status ?? "active"),
+    model_key: preset.model_key ?? null,
+    source_kind: (preset.source_kind ?? "custom") as "builtin" | "built_in_override" | "custom" | "imported",
+    base_builtin_key: preset.base_builtin_key ?? null,
+    applies_to_models: appliesToModels,
+    applies_to_task_modes: appliesToTaskModes,
+    applies_to_input_patterns: appliesToInputPatterns,
+    requires_image: Boolean(preset.requires_image),
+    requires_video: Boolean(preset.requires_video),
+    requires_audio: Boolean(preset.requires_audio),
+    thumbnail_path: preset.thumbnail_path ?? null,
+    thumbnail_url: preset.thumbnail_url ?? null,
+    version: preset.version ?? null,
+    priority: Number(preset.priority ?? 100),
+    created_at: preset.created_at ?? null,
+    updated_at: preset.updated_at ?? null,
+    input_schema_count: Number(preset.input_schema_count ?? countArrayValue(inputSchema)),
+    input_slots_count: Number(preset.input_slots_count ?? countArrayValue(inputSlots)),
+  } as MediaPresetSummaryItem;
 }
 
 export function mapPromptRecipeRecord(recipe: ControlApiRawRecord): PromptRecipe {
@@ -561,133 +613,18 @@ export function mapEnhancementConfigRecord(config: ControlApiRawRecord): MediaEn
   } as MediaEnhancementConfig;
 }
 
-function asProxyUrl(pathValue: unknown) {
-  if (typeof pathValue !== "string" || !pathValue) {
-    return null;
-  }
-  return toControlApiProxyPath(pathValue) ?? toControlApiDataPreviewPath(pathValue);
-}
-
-export function mapJobRecord(job: ControlApiRawRecord): MediaJob {
-  const artifactRecord = toControlApiRawRecord(job.artifact_json);
-  const artifact = Object.keys(artifactRecord).length
-    ? {
-        run_id: artifactRecord.run_id ?? null,
-        run_dir: artifactRecord.run_dir ?? null,
-        hero_original_path: job.hero_original_path ?? null,
-        hero_web_path: job.hero_web_path ?? null,
-        hero_thumb_path: job.hero_thumb_path ?? null,
-        hero_poster_path: job.hero_poster_path ?? null,
-      }
-    : null;
-  return {
-    job_id: String(job.job_id),
-    batch_id: job.batch_id ?? null,
-    project_id: job.project_id ?? null,
-    batch_index: job.batch_index ?? 0,
-    requested_outputs: job.requested_outputs ?? 1,
-    status: String(job.status),
-    queued_at: job.queued_at ?? null,
-    started_at: job.started_at ?? null,
-    finished_at: job.finished_at ?? null,
-    scheduler_attempts: job.scheduler_attempts ?? 0,
-    last_polled_at: job.last_polled_at ?? null,
-    queue_position: job.queue_position ?? null,
-    hidden_from_dashboard: false,
-    dismissed_at: job.dismissed ? job.updated_at ?? job.created_at : null,
-    model_key: job.model_key ?? null,
-    task_mode: job.task_mode ?? null,
-    provider_task_id: job.provider_task_id ?? null,
-    source_asset_id: job.source_asset_id ?? null,
-    created_at: String(job.created_at),
-    updated_at: String(job.updated_at),
-    requested_preset_key: job.requested_preset_key ?? null,
-    resolved_preset_key: job.resolved_preset_key ?? null,
-    preset_source: job.preset_source ?? null,
-    raw_prompt: job.raw_prompt ?? null,
-    enhanced_prompt: job.enhanced_prompt ?? null,
-    final_prompt_used: job.final_prompt_used ?? null,
-    selected_system_prompt_ids: job.selected_system_prompt_ids_json ?? [],
-    selected_system_prompts: job.selected_system_prompts_json ?? [],
-    resolved_system_prompt: job.resolved_system_prompt_json ?? null,
-    resolved_options: job.resolved_options_json ?? null,
-    normalized_request: job.normalized_request_json ?? null,
-    validation: job.validation_json ?? null,
-    preflight: job.preflight_json ?? null,
-    prepared: job.prepared_json ?? null,
-    error: job.error ?? null,
-    artifact,
-    final_status: job.final_status_json ?? null,
-  } as MediaJob;
-}
-
-export function mapAssetRecord(asset: ControlApiRawRecord): MediaAsset {
-  return {
-    ...asset,
-    project_id: asset.project_id ?? null,
-    hidden_from_dashboard: false,
-    dismissed_at: asset.dismissed ? asset.created_at : null,
-    tags: asset.tags_json ?? [],
-    payload: asset.payload_json ?? {},
-    source_asset: null,
-    hero_original_url: asProxyUrl(asset.hero_original_path),
-    hero_web_url: asProxyUrl(asset.hero_web_path),
-    hero_thumb_url: asProxyUrl(asset.hero_thumb_path),
-    hero_poster_url: asProxyUrl(asset.hero_poster_path),
-  } as MediaAsset;
-}
-
-export function mapBatchRecord(batch: ControlApiRawRecord, jobs: MediaJob[]): MediaBatch {
-  const requestSummary = toControlApiRawRecord(batch.request_summary_json);
-  return {
-    batch_id: String(batch.batch_id),
-    status: String(batch.status),
-    project_id: batch.project_id ?? null,
-    model_key: batch.model_key ?? null,
-    task_mode: batch.task_mode ?? null,
-    requested_outputs: batch.requested_outputs ?? 1,
-    queued_count: batch.queued_count ?? 0,
-    running_count: batch.running_count ?? 0,
-    completed_count: batch.completed_count ?? 0,
-    failed_count: batch.failed_count ?? 0,
-    cancelled_count: batch.cancelled_count ?? 0,
-    source_asset_id: batch.source_asset_id ?? null,
-    requested_preset_key: batch.requested_preset_key ?? null,
-    resolved_preset_key: batch.resolved_preset_key ?? null,
-    preset_source: batch.preset_source ?? null,
-    request_summary: {
-      ...requestSummary,
-      prompt_summary: requestSummary.prompt ?? requestSummary.prompt_summary ?? null,
-    },
-    jobs: jobs.filter((job) => job.batch_id === batch.batch_id),
-    created_at: String(batch.created_at),
-    updated_at: String(batch.updated_at),
-    finished_at: batch.finished_at ?? null,
-  } as unknown as MediaBatch;
-}
-
-export function mapProjectRecord(project: ControlApiRawRecord): MediaProject {
-  return {
-    project_id: String(project.project_id),
-    name: String(project.name ?? ""),
-    description: project.description ?? null,
-    status: String(project.status ?? "active"),
-    hidden_from_global_gallery: Boolean(project.hidden_from_global_gallery),
-    cover_asset_id: project.cover_asset_id ?? null,
-    cover_reference_id: project.cover_reference_id ?? null,
-    cover_image_url: project.cover_image_url ? asProxyUrl(project.cover_image_url) : null,
-    cover_thumb_url: project.cover_thumb_url ? asProxyUrl(project.cover_thumb_url) : null,
-    created_at: project.created_at ?? null,
-    updated_at: project.updated_at ?? null,
-  } as MediaProject;
-}
-
 export function mapQueueSettingsRecord(settings: ControlApiRawRecord): MediaQueueSettings {
   return {
     max_concurrent_jobs: settings.max_concurrent_jobs,
     queue_enabled: settings.queue_enabled,
     default_poll_seconds: settings.default_poll_seconds,
     max_retry_attempts: settings.max_retry_attempts,
+    max_concurrent_jobs_min: settings.max_concurrent_jobs_min,
+    max_concurrent_jobs_max: settings.max_concurrent_jobs_max,
+    default_poll_seconds_min: settings.default_poll_seconds_min,
+    default_poll_seconds_max: settings.default_poll_seconds_max,
+    max_retry_attempts_min: settings.max_retry_attempts_min,
+    max_retry_attempts_max: settings.max_retry_attempts_max,
     created_at: settings.updated_at ?? null,
     updated_at: settings.updated_at ?? null,
   } as MediaQueueSettings;
@@ -795,11 +732,13 @@ export async function getControlPlaneSnapshot() {
   };
 }
 
-export async function getMediaDashboardSnapshot(options?: { batchesLimit?: number; batchesOffset?: number; projectId?: string | null }) {
+export async function getMediaDashboardSnapshot(options?: { batchesLimit?: number; batchesOffset?: number; projectId?: string | null; presetsLimit?: number }) {
   const batchesLimit = options?.batchesLimit ?? 8;
   const batchesOffset = options?.batchesOffset ?? 0;
   const projectId = options?.projectId ? String(options.projectId) : null;
   const projectParams = projectId ? `&project_id=${encodeURIComponent(projectId)}` : "";
+  const presetsLimit = options?.presetsLimit ? Math.max(1, Math.min(100, Math.trunc(options.presetsLimit))) : null;
+  const presetsEndpoint = presetsLimit ? `/media/presets/search?limit=${presetsLimit}&status=active` : "/media/presets";
   const [health, credits, pricing, externalUsageSummaryRaw, externalUsageRaw, modelsRaw, presetsRaw, promptRecipesRaw, promptsRaw, enhancementRaw, promptRecipeDraftingConfigRaw, queueSettingsRaw, queuePoliciesRaw, projectsRaw, batchesRaw, jobsRaw, assetsRaw, latestAssetRaw] =
     await Promise.all([
       fetchControlApiJson<ControlApiHealthData>("/health"),
@@ -808,7 +747,7 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
       fetchControlApiJson<ControlApiRawRecord>("/media/external-llm-usage/summary"),
       fetchControlApiJson<ControlApiRawRecord>("/media/external-llm-usage?limit=20"),
       fetchControlApiJson<ControlApiRawList>("/media/models"),
-      fetchControlApiJson<ControlApiRawList>("/media/presets"),
+      fetchControlApiJson<ControlApiRawList | ControlApiRawRecord>(presetsEndpoint),
       fetchControlApiJson<ControlApiRawList>("/prompt-recipes?status=all"),
       fetchControlApiJson<ControlApiRawList>("/media/system-prompts"),
       fetchControlApiJson<ControlApiRawList>("/media/enhancement-configs"),
@@ -818,18 +757,27 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
       fetchControlApiJson<ControlApiRawRecord>("/media/projects?status=all"),
       fetchControlApiJson<ControlApiRawRecord>(`/media/batches?limit=${batchesLimit}&offset=${batchesOffset}${projectParams}`),
       fetchControlApiJson<ControlApiRawRecord>(`/media/jobs?limit=8${projectParams}`),
-      fetchControlApiJson<ControlApiRawRecord>(`/media/assets?limit=${INITIAL_ASSET_PAGE_SIZE}${projectParams}`),
+      fetchControlApiJson<ControlApiRawRecord>(`/media/assets?limit=${INITIAL_ASSET_PAGE_SIZE}&compact=true${projectParams}`),
       fetchControlApiJson<ControlApiRawRecord>(`/media/assets/latest${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`),
     ]);
 
   const models = (modelsRaw.data ?? []).map(mapModelRecord);
-  const presets = (presetsRaw.data ?? []).map(mapPresetRecord);
+  const rawPresetItems = Array.isArray(presetsRaw.data)
+    ? presetsRaw.data
+    : Array.isArray(presetsRaw.data?.items)
+      ? (presetsRaw.data.items as ControlApiRawList)
+      : [];
+  const presets = rawPresetItems.map(mapPresetRecord);
+  const presetTotal = Array.isArray(presetsRaw.data) ? presets.length : Number(presetsRaw.data?.total ?? presets.length);
+  const presetLimit = Array.isArray(presetsRaw.data) ? presets.length : Number(presetsRaw.data?.limit ?? presets.length);
+  const presetOffset = Array.isArray(presetsRaw.data) ? 0 : Number(presetsRaw.data?.offset ?? 0);
+  const presetNextOffset = Array.isArray(presetsRaw.data) ? null : (presetsRaw.data?.next_offset as number | null | undefined) ?? null;
   const promptRecipes = (promptRecipesRaw.data ?? []).map(mapPromptRecipeRecord);
   const prompts = (promptsRaw.data ?? []).map(mapPromptRecord);
   const enhancementConfigs = (enhancementRaw.data ?? []).map(mapEnhancementConfigRecord);
   const projects = ((projectsRaw.data?.items ?? projectsRaw.data ?? []) as ControlApiRawList).map(mapProjectRecord);
   const jobs = ((jobsRaw.data?.items ?? []) as ControlApiRawList).map(mapJobRecord);
-  const assets = ((assetsRaw.data?.items ?? []) as ControlApiRawList).map(mapAssetRecord);
+  const assets = ((assetsRaw.data?.items ?? []) as ControlApiRawList).map(mapAssetSummaryRecord);
   const latestAssetRecord = Array.isArray(latestAssetRaw.data?.items)
     ? latestAssetRaw.data.items[0] ?? null
     : latestAssetRaw.data?.item ?? latestAssetRaw.data ?? null;
@@ -875,7 +823,7 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
       } as ExternalLlmUsageListResponse,
     },
     models: { ok: modelsRaw.ok, data: { models } as MediaModelsResponse },
-    presets: { ok: presetsRaw.ok, data: { presets } as MediaPresetsResponse },
+    presets: { ok: presetsRaw.ok, data: { presets, total: presetTotal, limit: presetLimit, offset: presetOffset, next_offset: presetNextOffset } as MediaPresetsResponse },
     promptRecipes: { ok: promptRecipesRaw.ok, data: { recipes: promptRecipes } as PromptRecipesResponse },
     prompts: { ok: promptsRaw.ok, data: { prompts } as MediaSystemPromptsResponse },
     enhancementConfigs: { ok: enhancementRaw.ok, data: { configs: enhancementConfigs } as MediaEnhancementConfigsResponse },
@@ -913,7 +861,7 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
     },
     latestAsset: {
       ok: latestAssetRaw.ok,
-      data: { asset: latestAssetRecord ? mapAssetRecord(latestAssetRecord) : null } as MediaAssetResponse,
+      data: { asset: latestAssetRecord ? mapAssetSummaryRecord(latestAssetRecord) : null } as MediaAssetResponse,
     },
   };
 }
@@ -951,6 +899,15 @@ export async function getMediaBatch(batchId: string) {
 export async function getMediaQueueSettings() {
   const payload = await fetchControlApiJson<ControlApiRawRecord>("/media/queue/settings");
   return { ok: payload.ok, data: { settings: payload.data ? mapQueueSettingsRecord(payload.data) : null } as MediaQueueSettingsResponse, error: payload.error };
+}
+
+export async function getMediaPreset(presetId: string) {
+  const payload = await fetchControlApiJson<ControlApiRawRecord>(`/media/presets/${encodeURIComponent(presetId)}`);
+  return {
+    ok: payload.ok,
+    data: { preset: payload.data ? mapPresetRecord(payload.data) : null },
+    error: payload.error,
+  };
 }
 
 export async function updateMediaQueueSettings(payload: Record<string, unknown>) {
@@ -1069,15 +1026,18 @@ export async function listReferenceMedia({
   projectId,
   limit = 100,
   offset = 0,
+  q,
 }: {
   kind?: string | null;
   projectId?: string | null;
   limit?: number;
   offset?: number;
+  q?: string | null;
 } = {}) {
   const params = new URLSearchParams();
   if (kind) params.set("kind", kind);
   if (projectId) params.set("project_id", projectId);
+  if (q?.trim()) params.set("q", q.trim());
   params.set("limit", String(limit));
   params.set("offset", String(offset));
   const result = await fetchControlApiJson<ControlApiRawRecord>(`/media/reference-media?${params.toString()}`);

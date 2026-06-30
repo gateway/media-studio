@@ -4,8 +4,8 @@ import {
   GeneratedThumbnailPickerDialog,
   type GeneratedThumbnailPickerItem,
 } from "@/components/media/generated-thumbnail-picker-dialog";
-import { generatedThumbnailPreviewUrl } from "@/components/prompt-recipes/editor/prompt-recipe-thumbnail-utils";
-import type { MediaAsset } from "@/lib/types";
+import { generatedImagePickerItem } from "@/components/media/media-image-picker-sources";
+import type { MediaAssetPickerItem } from "@/lib/types";
 
 export function PromptRecipeThumbnailPickerDialog({
   open,
@@ -19,7 +19,7 @@ export function PromptRecipeThumbnailPickerDialog({
   onSelectAsset,
 }: {
   open: boolean;
-  assets: MediaAsset[];
+  assets: MediaAssetPickerItem[];
   assetsLoading: boolean;
   assetsLoadingMore: boolean;
   nextOffset: number | null;
@@ -28,14 +28,12 @@ export function PromptRecipeThumbnailPickerDialog({
   onLoadMore: () => void;
   onSelectAsset: (assetId: string | number) => void;
 }) {
-  const items: GeneratedThumbnailPickerItem[] = assets.map((asset) => {
-    const id = String(asset.asset_id);
-    return {
-      id,
-      previewUrl: generatedThumbnailPreviewUrl(asset),
-      ariaLabel: `Use generated image ${id} as thumbnail`,
-    };
-  });
+  const items: GeneratedThumbnailPickerItem[] = assets
+    .map((asset) => {
+      const item = generatedImagePickerItem(asset);
+      return item ? { ...item, ariaLabel: `Use generated image ${item.id} as thumbnail` } : null;
+    })
+    .filter((item): item is GeneratedThumbnailPickerItem => Boolean(item));
 
   return (
     <GeneratedThumbnailPickerDialog

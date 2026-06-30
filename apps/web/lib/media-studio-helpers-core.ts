@@ -77,8 +77,10 @@ export type StudioReferencePreview = {
   key: string;
   label: string;
   url: string;
+  fullUrl?: string | null;
   kind: "images" | "videos" | "audios";
   posterUrl?: string | null;
+  metadataLabel?: string | null;
 };
 
 export type StudioJobReferenceInput = StudioReferencePreview & {
@@ -289,7 +291,7 @@ export function applyPromptReferenceMention(
 }
 
 export const MULTI_SHOT_MODEL_KEYS = new Set(["kling-3.0-t2v", "kling-3.0-i2v"]);
-export const SEEDANCE_MODEL_KEYS = new Set(["seedance-2.0"]);
+export const SEEDANCE_MODEL_KEYS = new Set(["seedance-2.0", "seedance-2.0-fast", "seedance-2.0-mini"]);
 
 const LEGACY_STRUCTURED_IMAGE_PRESET_MODEL_KEYS = [
   "nano-banana-2",
@@ -302,10 +304,16 @@ export function isStructuredImagePresetModel(modelKey: string | null | undefined
   return LEGACY_STRUCTURED_IMAGE_PRESET_MODEL_KEYS.includes(modelKey as (typeof LEGACY_STRUCTURED_IMAGE_PRESET_MODEL_KEYS)[number]);
 }
 
-export function modelSupportsStructuredImagePreset(model: MediaModelSummary | null | undefined, requiresImage: boolean) {
+export type StructuredImagePresetPolicy = "none" | "optional" | "required";
+
+export function modelSupportsStructuredImagePreset(
+  model: MediaModelSummary | null | undefined,
+  policy: StructuredImagePresetPolicy | boolean,
+) {
   if (!model || model.studio_exposed === false) {
     return false;
   }
+  const imagePolicy: StructuredImagePresetPolicy = typeof policy === "boolean" ? (policy ? "required" : "none") : policy;
   const taskModes = new Set(model.task_modes ?? []);
   const inputPatterns = new Set(supportedModelInputPatterns(model));
   const imageInputs = model.image_inputs ?? {};
@@ -321,8 +329,15 @@ export function modelSupportsStructuredImagePreset(model: MediaModelSummary | nu
   if (hasVideoOrAudioInputs || model.generation_kind === "video") {
     return false;
   }
-  if (requiresImage) {
+  if (imagePolicy === "required") {
     return imageMax > 0 && (taskModes.has("image_edit") || inputPatterns.has("single_image") || inputPatterns.has("image_edit"));
+  }
+  if (imagePolicy === "optional") {
+    return (
+      imageMin === 0 &&
+      imageMax > 0 &&
+      (taskModes.has("image_edit") || inputPatterns.has("single_image") || inputPatterns.has("image_edit"))
+    );
   }
   return imageMin === 0 && (taskModes.has("text_to_image") || taskModes.has("image_generation") || inputPatterns.has("prompt_only"));
 }
@@ -332,8 +347,23 @@ export function presetRequiresImageInput(preset: MediaPreset | null | undefined)
   return slots.some((slot) => Boolean(slot.required));
 }
 
-export function compatibleStructuredImagePresetModels(models: MediaModelSummary[], requiresImage: boolean) {
-  return models.filter((model) => modelSupportsStructuredImagePreset(model, requiresImage));
+export function presetAcceptsImageInput(preset: MediaPreset | null | undefined) {
+  const slots = ((preset?.input_slots_json as Array<Record<string, unknown>> | undefined) ?? []);
+  return slots.length > 0;
+}
+
+export function presetImageInputPolicy(preset: MediaPreset | null | undefined): StructuredImagePresetPolicy {
+  if (presetRequiresImageInput(preset)) {
+    return "required";
+  }
+  if (presetAcceptsImageInput(preset)) {
+    return "optional";
+  }
+  return "none";
+}
+
+export function compatibleStructuredImagePresetModels(models: MediaModelSummary[], policy: StructuredImagePresetPolicy | boolean) {
+  return models.filter((model) => modelSupportsStructuredImagePreset(model, policy));
 }
 
 export function studioPresetSupportedModels(preset: MediaPreset | null | undefined, models?: MediaModelSummary[]) {
@@ -344,11 +374,11 @@ export function studioPresetSupportedModels(preset: MediaPreset | null | undefin
       : [];
   const uniqueScopedModels = Array.from(new Set(scopedModels.filter((modelKey): modelKey is string => Boolean(modelKey))));
   if (models?.length) {
-    const requiresImage = presetRequiresImageInput(preset);
+    const imagePolicy = presetImageInputPolicy(preset);
     const modelByKey = new Map(models.map((model) => [model.key, model]));
     return uniqueScopedModels.filter((modelKey) => {
       const model = modelByKey.get(modelKey);
-      return model ? modelSupportsStructuredImagePreset(model, requiresImage) : false;
+      return model ? modelSupportsStructuredImagePreset(model, imagePolicy) : false;
     });
   }
   return uniqueScopedModels.filter((modelKey) => isStructuredImagePresetModel(modelKey));
@@ -392,7 +422,8 @@ export function resolveStudioPresetTargetModel(
 }
 
 export function isSeedanceModel(modelKey: string | null | undefined) {
-  return Boolean(modelKey && SEEDANCE_MODEL_KEYS.has(modelKey));
+  const normalized = String(modelKey ?? "").trim().toLowerCase().replaceAll("_", "-");
+  return normalized === "seedance-2.0" || normalized.startsWith("seedance-2.0-");
 }
 
 export function modelSupportsImageDrivenInputs(model: MediaModelSummary | null) {
@@ -588,6 +619,13 @@ export function renderStructuredPresetPrompt(
 
 export function isPresetSlotFilled(slotState: PresetSlotState | null | undefined) {
   return Boolean(slotState?.assetId || slotState?.referenceId || slotState?.file);
+}
+
+export function filledStructuredPresetImageSlotCount(
+  slotStates: Record<string, PresetSlotState>,
+  imageSlots: StructuredPresetImageSlot[],
+) {
+  return imageSlots.reduce((count, slot) => count + (isPresetSlotFilled(slotStates[slot.key]) ? 1 : 0), 0);
 }
 
 export function inferInputPattern(
@@ -786,19 +824,24 @@ export function structuredPresetSlotPreviewUrl(
     typeof slotItem.asset_id === "string" || typeof slotItem.asset_id === "number" ? slotItem.asset_id : null;
   if (assetId != null) {
     const asset = findMediaAssetById(assetId, localAssets, favoriteAssets) ?? null;
+    const url = mediaThumbnailUrl(asset) ?? mediaDisplayUrl(asset);
+    const fullUrl = mediaInlineUrl(asset) ?? mediaDisplayUrl(asset) ?? url;
     return {
-      url: mediaDisplayUrl(asset) ?? mediaThumbnailUrl(asset),
+      url,
+      ...(fullUrl && fullUrl !== url ? { fullUrl } : {}),
       label: asset?.prompt_summary ?? `Image asset ${assetId}`,
     };
   }
   const pathValue = typeof slotItem.path === "string" ? slotItem.path : null;
   const urlValue = typeof slotItem.url === "string" ? slotItem.url : null;
-  const url = urlValue ?? toControlApiDataPreviewPath(pathValue);
+  const fullUrl = urlValue ?? toControlApiDataPreviewPath(pathValue);
+  const url = normalizedReferenceThumbUrl(slotItem) ?? fullUrl;
   if (!url) {
     return null;
   }
   return {
     url,
+    ...(fullUrl && fullUrl !== url ? { fullUrl } : {}),
     label: pathValue?.split("/").at(-1) ?? "Preset image",
   };
 }
@@ -901,6 +944,70 @@ function normalizedMediaUrl(
   );
 }
 
+function normalizedMediaPreviewUrl(
+  item: Record<string, unknown>,
+  originalItem: Record<string, unknown> | null,
+  asset: MediaAsset | null,
+  kind: "images" | "videos" | "audios",
+) {
+  if (kind !== "images") {
+    return normalizedMediaUrl(item, originalItem, asset, kind);
+  }
+  return (
+    mediaThumbnailUrl(asset) ??
+    normalizedReferenceThumbUrl(item) ??
+    normalizedReferenceThumbUrl(originalItem) ??
+    mediaDisplayUrl(asset) ??
+    normalizedMediaUrl(item, originalItem, asset, kind)
+  );
+}
+
+function normalizedMediaFullUrl(
+  item: Record<string, unknown>,
+  originalItem: Record<string, unknown> | null,
+  asset: MediaAsset | null,
+  kind: "images" | "videos" | "audios",
+) {
+  const urlValue = typeof item.url === "string" ? item.url : null;
+  const pathValue = typeof item.path === "string" ? item.path : null;
+  const originalPathValue = typeof originalItem?.path === "string" ? originalItem.path : null;
+  const originalUrlValue = typeof originalItem?.url === "string" ? originalItem.url : null;
+
+  return (
+    (kind === "videos" ? mediaPlaybackUrl(asset) : null) ??
+    mediaInlineUrl(asset) ??
+    toControlApiDataPreviewPath(originalPathValue) ??
+    originalUrlValue ??
+    toControlApiDataPreviewPath(pathValue) ??
+    urlValue ??
+    normalizedMediaUrl(item, originalItem, asset, kind)
+  );
+}
+
+function normalizedReferenceThumbUrl(record: Record<string, unknown> | null | undefined) {
+  if (!record) {
+    return null;
+  }
+  const thumbUrl = typeof record.thumb_url === "string" ? record.thumb_url : null;
+  if (thumbUrl) {
+    return thumbUrl;
+  }
+  const thumbPath = typeof record.thumb_path === "string" ? record.thumb_path : null;
+  if (thumbPath) {
+    return toControlApiDataPreviewPath(thumbPath);
+  }
+  const urlValue = typeof record.url === "string" ? record.url : null;
+  if (urlValue?.includes("/reference-media/images/")) {
+    return urlValue.replace(/\/reference-media\/images\/([^/?#]+?)(?:\.[a-z0-9]+)?([?#].*)?$/i, "/reference-media/thumbs/$1.webp$2");
+  }
+  const pathValue = typeof record.path === "string" ? record.path : null;
+  if (!pathValue?.includes("reference-media/images/")) {
+    return null;
+  }
+  const filename = pathValue.split("/").at(-1)?.replace(/\.[a-z0-9]+$/i, ".webp");
+  return filename ? toControlApiDataPreviewPath(`reference-media/thumbs/${filename}`) : null;
+}
+
 function normalizedReferenceLabel(role: string | null, fallbackIndex: number, referenceIndex: number) {
   if (role === "first_frame") {
     return "First frame";
@@ -956,6 +1063,7 @@ export function buildStudioReferencePreviews({
     kind: "images" | "videos" | "audios",
     url: string | null | undefined,
     posterUrl?: string | null,
+    fullUrl?: string | null,
   ) {
     if (!url) {
       return;
@@ -965,7 +1073,14 @@ export function buildStudioReferencePreviews({
       return;
     }
     seen.add(normalizedUrl);
-    previews.push({ key, label, url: normalizedUrl, kind, posterUrl: posterUrl ?? null });
+    previews.push({
+      key,
+      label,
+      url: normalizedUrl,
+      ...(fullUrl && fullUrl !== normalizedUrl ? { fullUrl } : {}),
+      kind,
+      posterUrl: posterUrl ?? null,
+    });
   }
 
   for (const slot of presetSlots ?? []) {
@@ -981,6 +1096,7 @@ export function buildStudioReferencePreviews({
         label,
         kind: "images",
         url: preview.url,
+        fullUrl: preview.fullUrl,
         posterUrl: null,
       });
     });
@@ -1000,7 +1116,7 @@ export function buildStudioReferencePreviews({
   }
 
   presetSlotPreviews.forEach((preview) => {
-    pushPreview(preview.key, preview.label, preview.kind, preview.url, preview.posterUrl);
+    pushPreview(preview.key, preview.label, preview.kind, preview.url, preview.posterUrl, preview.fullUrl);
   });
 
   let referenceIndex = 0;
@@ -1022,14 +1138,16 @@ export function buildStudioReferencePreviews({
       return;
     }
     if (role == null && sourceAssetId == null && !consumedImplicitPrimary) {
+      const previewUrl = normalizedMediaPreviewUrl(item, originalItem, imageAsset, kind);
       pushPreview(
         `job-${collectionKey.slice(0, -1)}:${index}`,
         kind === "videos" ? "Source video" : kind === "audios" ? "Source audio" : "Source image",
         kind,
-        normalizedMediaUrl(item, originalItem, imageAsset, kind),
+        previewUrl,
         kind === "videos"
           ? mediaThumbnailUrl(imageAsset) ?? mediaDisplayUrl(imageAsset) ?? null
           : null,
+        normalizedMediaFullUrl(item, originalItem, imageAsset, kind) ?? previewUrl,
       );
       consumedImplicitPrimary = true;
       return;
@@ -1040,14 +1158,16 @@ export function buildStudioReferencePreviews({
     if (role === "reference") {
       referenceIndex += 1;
     }
+    const previewUrl = normalizedMediaPreviewUrl(item, originalItem, imageAsset, kind);
     pushPreview(
       `job-${collectionKey.slice(0, -1)}:${index}`,
       normalizedReferenceLabel(role, index + 1, Math.max(referenceIndex, 1)),
       kind,
-      normalizedMediaUrl(item, originalItem, imageAsset, kind),
+      previewUrl,
       kind === "videos"
         ? mediaThumbnailUrl(imageAsset) ?? mediaDisplayUrl(imageAsset) ?? null
         : null,
+      normalizedMediaFullUrl(item, originalItem, imageAsset, kind) ?? previewUrl,
     );
   });
 
@@ -1365,7 +1485,7 @@ export function isLikelyMobileSaveDevice() {
     return false;
   }
   const userAgent = navigator.userAgent || "";
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) || (userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1);
+  return isMobileDownloadDevice() || (userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1);
 }
 
 export function mobileSaveActionLabel() {

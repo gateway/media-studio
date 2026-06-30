@@ -8,6 +8,8 @@ type AttachmentMaterializeInput = {
   role?: NonNullable<AttachmentRecord["role"]> | null;
   previewUrl: string | null;
   durationSeconds?: number | null;
+  width?: number | null;
+  height?: number | null;
   referenceId?: string | null;
   referenceRecord?: MediaReference | null;
 };
@@ -28,6 +30,8 @@ export function buildStagedAttachments(
     role: input.role ?? null,
     previewUrl: input.previewUrl,
     durationSeconds: input.durationSeconds ?? null,
+    width: input.width ?? null,
+    height: input.height ?? null,
     referenceId: input.referenceId ?? null,
     referenceRecord: input.referenceRecord ?? null,
   })) satisfies AttachmentRecord[];

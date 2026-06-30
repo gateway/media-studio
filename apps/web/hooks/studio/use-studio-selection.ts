@@ -76,6 +76,7 @@ export function useStudioSelection({
 }: UseStudioSelectionParams): UseStudioSelectionResult {
   const lightboxVideoRef = useRef<HTMLVideoElement | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState<string | number | null>(initialSelectedAssetId);
+  const [selectedAssetHydratedAsset, setSelectedAssetHydratedAsset] = useState<MediaAsset | null>(null);
   const [selectedAssetHydratedJob, setSelectedAssetHydratedJob] = useState<MediaJob | null>(null);
   const [selectedMediaLightboxOpen, setSelectedMediaLightboxOpen] = useState(false);
   const [mobileInspectorPromptOpen, setMobileInspectorPromptOpen] = useState(false);
@@ -87,7 +88,11 @@ export function useStudioSelection({
     hydratedJobCallbackRef.current = onHydratedJob;
   }, [onHydratedJob]);
 
-  const selectedAsset = findMediaAssetById(selectedAssetId, localAssets, favoriteAssets) ?? null;
+  const selectedAssetBase = findMediaAssetById(selectedAssetId, localAssets, favoriteAssets) ?? null;
+  const selectedAsset =
+    selectedAssetHydratedAsset && String(selectedAssetHydratedAsset.asset_id) === String(selectedAssetBase?.asset_id)
+      ? selectedAssetHydratedAsset
+      : selectedAssetBase;
   const selectedAssetCachedJob = useMemo(() => {
     if (!selectedAsset) {
       return null;
@@ -153,9 +158,42 @@ export function useStudioSelection({
 
   useEffect(() => {
     if (!selectedAssetId) {
+      setSelectedAssetHydratedAsset(null);
       setSelectedMediaLightboxOpen(false);
     }
   }, [selectedAssetId]);
+
+  useEffect(() => {
+    if (!selectedAssetBase) {
+      setSelectedAssetHydratedAsset(null);
+      return;
+    }
+    if (selectedAssetBase.payload != null) {
+      setSelectedAssetHydratedAsset(null);
+      return;
+    }
+    const normalizedAssetId = String(selectedAssetBase.asset_id);
+    if (String(selectedAssetHydratedAsset?.asset_id) === normalizedAssetId) {
+      return;
+    }
+    let cancelled = false;
+    void fetch(`/api/control/media-assets/${encodeURIComponent(normalizedAssetId)}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        const payload = (await response.json()) as { ok?: boolean; asset?: MediaAsset | null };
+        if (!response.ok || !payload.ok || !payload.asset || cancelled) {
+          return;
+        }
+        setSelectedAssetHydratedAsset(payload.asset);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAssetBase, selectedAssetHydratedAsset?.asset_id]);
 
   useEffect(() => {
     if (!initialSelectedAssetId) {

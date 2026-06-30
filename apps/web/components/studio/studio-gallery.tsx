@@ -46,7 +46,7 @@ export function StudioGallery({
     <div
       data-testid="studio-gallery"
       className={cn(
-        "studio-gallery-grid-shell relative z-[1] grid grid-flow-dense grid-cols-2 auto-rows-[92px] gap-px p-px sm:grid-cols-3 sm:auto-rows-[98px] lg:grid-cols-5 lg:auto-rows-[102px] xl:grid-cols-6 xl:auto-rows-[108px]",
+        "studio-gallery-grid-shell studio-gallery-grid p-px",
         immersive ? "min-h-dvh pb-[270px] pt-0 md:pb-[290px]" : "min-h-[920px] pt-20",
       )}
     >

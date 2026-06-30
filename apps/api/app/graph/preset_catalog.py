@@ -4,8 +4,12 @@ import sqlite3
 from typing import Any, Dict, Iterable, List
 
 from .. import kie_adapter, store
+from .model_option_fields import graph_field_from_model_option, is_supported_graph_model_option
 from .prompt_recipe_catalog import slug, title_from_key
 from .schemas import GraphNodeField, GraphNodePort
+
+
+MODEL_OPTION_FIELD_PREFIX = "option__"
 
 
 def _model_labels() -> Dict[str, str]:
@@ -16,6 +20,10 @@ def _model_labels() -> Dict[str, str]:
             continue
         labels[key] = str(model.get("label") or model.get("name") or title_from_key(key))
     return labels
+
+
+def _models_by_key() -> Dict[str, Dict[str, Any]]:
+    return {str(model.get("key") or "").strip(): model for model in kie_adapter.list_models() if str(model.get("key") or "").strip()}
 
 
 def _compatible_models(preset: Dict[str, Any]) -> List[str]:
@@ -105,22 +113,6 @@ def media_preset_catalog(*, status: str = "all") -> List[Dict[str, Any]]:
                     "help_text": detail,
                 }
             )
-        choice_groups = []
-        for group in preset.get("choice_groups_json") or []:
-            key = str(group.get("key") or group.get("id") or "").strip()
-            choices = group.get("choices") or group.get("options") or []
-            if not key or not choices:
-                continue
-            choice_groups.append(
-                {
-                    "key": key,
-                    "label": str(group.get("label") or title_from_key(key)),
-                    "required": bool(group.get("required")),
-                    "default_value": group.get("default"),
-                    "options": choices,
-                    "help_text": str(group.get("help_text") or group.get("description") or "").strip(),
-                }
-            )
         catalog.append(
             {
                 "preset_id": preset_id,
@@ -130,14 +122,54 @@ def media_preset_catalog(*, status: str = "all") -> List[Dict[str, Any]]:
                 "status": status_value,
                 "compatible_models": compatible_models,
                 "default_model_key": compatible_model_keys[0] if compatible_model_keys else "",
+                "default_options": dict(preset.get("default_options_json") or {}) if isinstance(preset.get("default_options_json"), dict) else {},
                 "text_fields": text_fields,
                 "image_slots": image_slots,
-                "choice_groups": choice_groups,
                 "selection_summary": _selection_summary(preset, compatible_models),
             }
         )
     catalog.sort(key=lambda item: (str(item.get("label") or "").lower(), str(item.get("preset_id") or "").lower()))
     return catalog
+
+
+def media_preset_model_option_fields_by_model(catalog: Iterable[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    models_by_key = _models_by_key()
+    model_keys = sorted(
+        {
+            str(model.get("value") or "").strip()
+            for preset in catalog
+            for model in (preset.get("compatible_models") or [])
+            if str(model.get("value") or "").strip()
+        }
+    )
+    fields_by_model: Dict[str, List[Dict[str, Any]]] = {}
+    for model_key in model_keys:
+        model = models_by_key.get(model_key)
+        raw = model.get("raw") if isinstance(model, dict) else {}
+        raw_options = raw.get("options") if isinstance(raw, dict) else {}
+        if not isinstance(raw_options, dict):
+            continue
+        fields: List[Dict[str, Any]] = []
+        for option_key, option in raw_options.items():
+            key = str(option_key)
+            if not is_supported_graph_model_option(model_key, key):
+                continue
+            field = graph_field_from_model_option(
+                key,
+                option if isinstance(option, dict) else {},
+                field_id=f"{MODEL_OPTION_FIELD_PREFIX}{key}",
+            )
+            if not field:
+                continue
+            payload = field.model_dump(mode="json")
+            payload["option_key"] = key
+            visible_if = payload.get("visible_if")
+            if isinstance(visible_if, dict) and isinstance(visible_if.get("field"), str):
+                visible_if["field"] = f"{MODEL_OPTION_FIELD_PREFIX}{visible_if['field']}"
+            fields.append(payload)
+        if fields:
+            fields_by_model[model_key] = fields
+    return fields_by_model
 
 
 def media_preset_picker_options(catalog: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -238,25 +270,6 @@ def media_preset_dynamic_fields(catalog: Iterable[Dict[str, Any]]) -> List[Graph
                 },
             )
             entry["preset_ids"].append(preset_id)
-        for group in preset.get("choice_groups") or []:
-            key = str(group.get("key") or "").strip()
-            if not key:
-                continue
-            field_id = f"choice__{slug(key)}"
-            entry = merged.setdefault(
-                field_id,
-                {
-                    "label": str(group.get("label") or title_from_key(key)),
-                    "type": "select",
-                    "placeholder": "",
-                    "help_text": str(group.get("help_text") or ""),
-                    "options": list(group.get("options") or []),
-                    "preset_ids": [],
-                },
-            )
-            entry["preset_ids"].append(preset_id)
-            if not entry.get("options") and group.get("options"):
-                entry["options"] = list(group.get("options") or [])
     fields: List[GraphNodeField] = []
     for field_id, entry in sorted(merged.items(), key=lambda item: str(item[1]["label"]).lower()):
         fields.append(

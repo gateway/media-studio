@@ -10,7 +10,7 @@ export function StudioGalleryLoadMore({ loading, galleryLoadMoreRef, onLoadMore 
   return (
     <div
       ref={galleryLoadMoreRef}
-      className="studio-gallery-load-more col-span-full flex min-h-16 items-center justify-center px-4 py-4 text-[0.7rem] font-semibold uppercase tracking-[0.16em]"
+      className="studio-gallery-load-more"
     >
       {loading ? (
         "Loading more gallery items"
@@ -18,7 +18,7 @@ export function StudioGalleryLoadMore({ loading, galleryLoadMoreRef, onLoadMore 
         <button
           type="button"
           onClick={onLoadMore}
-          className="studio-icon-button min-h-11 px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.16em]"
+          className="studio-icon-button studio-gallery-load-more-button"
         >
           Scroll or tap to load more
         </button>

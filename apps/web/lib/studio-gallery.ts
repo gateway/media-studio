@@ -243,6 +243,10 @@ function extractAspectRatioFromRecord(record: Record<string, unknown> | null | u
 }
 
 function galleryTileAspectRatio(tile: GalleryTile): number | null {
+  const summaryAspect = extractAspectRatioFromRecord(tile.asset);
+  if (summaryAspect != null) {
+    return summaryAspect;
+  }
   const payload = isRecord(tile.asset?.payload) ? (tile.asset?.payload as Record<string, unknown>) : null;
   const output = Array.isArray(payload?.outputs) && isRecord(payload.outputs[0])
     ? (payload.outputs[0] as Record<string, unknown>)

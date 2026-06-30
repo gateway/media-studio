@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { AssetPagePayload } from "@/lib/media-studio-contract";
+import {
+  INITIAL_ASSET_AUTO_FILL_MAX,
+  type AssetPagePayload,
+} from "@/lib/media-studio-contract";
 
 type UseStudioGalleryScrollLoaderOptions = {
   activeGalleryHasMore: boolean;
@@ -56,7 +59,7 @@ export function useStudioGalleryScrollLoader({
   }, []);
 
   useEffect(() => {
-    if (!activeGalleryHasMore || !galleryScrollArmed || activeGalleryLoadingMore || !galleryLoadMoreRef.current) {
+    if (!activeGalleryHasMore || activeGalleryLoadingMore || !galleryLoadMoreRef.current) {
       return;
     }
     const target = galleryLoadMoreRef.current;
@@ -70,6 +73,9 @@ export function useStudioGalleryScrollLoader({
     );
     observer.observe(target);
     const maybeLoadMore = () => {
+      if (!galleryScrollArmed && galleryTilesLength >= INITIAL_ASSET_AUTO_FILL_MAX) {
+        return;
+      }
       const scrollBottom = window.innerHeight + window.scrollY;
       const documentHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
       if (documentHeight - scrollBottom <= 520) {

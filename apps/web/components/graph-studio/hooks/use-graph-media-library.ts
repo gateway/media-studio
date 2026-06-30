@@ -1,14 +1,52 @@
 import { useCallback, useRef, useState } from "react";
 
+import {
+  generatedImagePickerPageUrl,
+  referenceImagePickerPageUrl,
+} from "@/components/media/media-image-picker-sources";
 import type { MediaAsset, MediaReference } from "@/lib/types";
 import { creditBalanceFromPayload, jsonFetch } from "../utils/graph-api";
 
 const MEDIA_LIBRARY_REFRESH_TTL_MS = 4000;
+const GRAPH_MEDIA_LIBRARY_PAGE_LIMIT = 40;
+const GRAPH_MEDIA_LIBRARY_INITIAL_ASSET_PAGES = 2;
 
-function mergeAssets(current: MediaAsset[], next: MediaAsset[]) {
+function mergeAssets(
+  current: MediaAsset[],
+  next: MediaAsset[],
+  preserveAssetIds: string[] = [],
+) {
   const byId = new Map(current.map((asset) => [String(asset.asset_id), asset]));
   next.forEach((asset) => byId.set(String(asset.asset_id), asset));
-  return Array.from(byId.values()).sort((left, right) => String(right.created_at ?? "").localeCompare(String(left.created_at ?? ""))).slice(0, 80);
+  const sorted = Array.from(byId.values()).sort((left, right) => String(right.created_at ?? "").localeCompare(String(left.created_at ?? "")));
+  if (!preserveAssetIds.length) return sorted.slice(0, 80);
+  const preserveSet = new Set(preserveAssetIds);
+  const preserved = preserveAssetIds
+    .map((assetId) => byId.get(assetId))
+    .filter((asset): asset is MediaAsset => Boolean(asset));
+  return [
+    ...preserved,
+    ...sorted.filter((asset) => !preserveSet.has(String(asset.asset_id))),
+  ].slice(0, 80);
+}
+
+function mergeReferences(
+  current: MediaReference[],
+  next: MediaReference[],
+  preserveReferenceIds: string[] = [],
+) {
+  const byId = new Map(current.map((reference) => [reference.reference_id, reference]));
+  next.forEach((reference) => byId.set(reference.reference_id, reference));
+  const sorted = Array.from(byId.values()).sort((left, right) => String(right.created_at ?? "").localeCompare(String(left.created_at ?? "")));
+  if (!preserveReferenceIds.length) return sorted.slice(0, 80);
+  const preserveSet = new Set(preserveReferenceIds);
+  const preserved = preserveReferenceIds
+    .map((referenceId) => byId.get(referenceId))
+    .filter((reference): reference is MediaReference => Boolean(reference));
+  return [
+    ...preserved,
+    ...sorted.filter((reference) => !preserveSet.has(reference.reference_id)),
+  ].slice(0, 80);
 }
 
 export function useGraphMediaLibrary() {
@@ -46,8 +84,20 @@ export function useGraphMediaLibrary() {
       return imageAssetsPromiseRef.current;
     }
     imageAssetsPromiseRef.current = (async () => {
-      const payload = await jsonFetch<{ assets?: MediaAsset[] }>("/api/control/media-assets?limit=40");
-      setAssets((current) => mergeAssets(current, payload.assets ?? []));
+      const nextAssets: MediaAsset[] = [];
+      let nextOffset: number | null = 0;
+      for (
+        let pageIndex = 0;
+        pageIndex < GRAPH_MEDIA_LIBRARY_INITIAL_ASSET_PAGES && nextOffset != null;
+        pageIndex += 1
+      ) {
+        const payload: { assets?: MediaAsset[]; next_offset?: number | null } = await jsonFetch(
+          generatedImagePickerPageUrl(nextOffset, null, GRAPH_MEDIA_LIBRARY_PAGE_LIMIT),
+        );
+        nextAssets.push(...(payload.assets ?? []));
+        nextOffset = typeof payload.next_offset === "number" ? payload.next_offset : null;
+      }
+      setAssets((current) => mergeAssets(current, nextAssets));
       imageAssetsLoadedRef.current = true;
       imageAssetsFetchedAtRef.current = Date.now();
     })().finally(() => {
@@ -68,7 +118,22 @@ export function useGraphMediaLibrary() {
     );
     const found = loaded.filter((asset): asset is MediaAsset => Boolean(asset?.asset_id));
     if (!found.length) return;
-    setAssets((current) => mergeAssets(current, found));
+    setAssets((current) => mergeAssets(current, found, uniqueIds));
+  }, []);
+
+  const refreshReferencesByIds = useCallback(async (referenceIds: string[]) => {
+    const uniqueIds = Array.from(new Set(referenceIds.filter(Boolean)));
+    if (!uniqueIds.length) return;
+    const loaded = await Promise.all(
+      uniqueIds.map((referenceId) =>
+        jsonFetch<{ item?: MediaReference }>(`/api/control/reference-media/${encodeURIComponent(referenceId)}`)
+          .then((payload) => payload.item ?? null)
+          .catch(() => null),
+      ),
+    );
+    const found = loaded.filter((reference): reference is MediaReference => Boolean(reference?.reference_id));
+    if (!found.length) return;
+    setReferences((current) => mergeReferences(current, found, uniqueIds));
   }, []);
 
   const refreshReferenceMedia = useCallback(async (options?: { force?: boolean }) => {
@@ -83,7 +148,9 @@ export function useGraphMediaLibrary() {
       return referenceMediaPromiseRef.current;
     }
     referenceMediaPromiseRef.current = (async () => {
-      const payload = await jsonFetch<{ items?: MediaReference[] }>("/api/control/reference-media?limit=40");
+      const payload = await jsonFetch<{ items?: MediaReference[] }>(
+        referenceImagePickerPageUrl(0, null, GRAPH_MEDIA_LIBRARY_PAGE_LIMIT),
+      );
       setReferences(payload.items ?? []);
       referenceMediaLoadedRef.current = true;
       referenceMediaFetchedAtRef.current = Date.now();
@@ -134,6 +201,7 @@ export function useGraphMediaLibrary() {
     refreshCredits,
     refreshImageAssets,
     refreshAssetsByIds,
+    refreshReferencesByIds,
     refreshReferenceMedia,
     refreshMediaLibrary,
     importImageFile,

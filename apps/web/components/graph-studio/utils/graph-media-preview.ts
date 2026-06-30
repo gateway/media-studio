@@ -1,4 +1,5 @@
 import type { MediaAsset, MediaReference } from "@/lib/types";
+import { videoMetadataLabels } from "@/lib/video-metadata";
 import type { GraphMediaPreview, GraphRun } from "../types";
 import { normalizeGraphExecutionMode } from "./graph-node-execution";
 
@@ -36,31 +37,41 @@ function closestAspectLabel(width: number | null, height: number | null): string
   return `${width}:${height}`;
 }
 
-function assetOutputDimensions(asset: MediaAsset): { width: number | null; height: number | null } {
+function assetOutputMetadata(asset: MediaAsset): { width: number | null; height: number | null; durationSeconds: number | null } {
   const payload = asRecord(asset.payload);
   const outputs = payload?.outputs;
   const firstOutput = Array.isArray(outputs) ? asRecord(outputs[0]) : null;
   return {
     width: numberValue(firstOutput?.width),
     height: numberValue(firstOutput?.height),
+    durationSeconds: numberValue(firstOutput?.duration_seconds),
   };
 }
 
 export function previewFromReference(reference: MediaReference | undefined): GraphMediaPreview | null {
   if (!reference) return null;
   const mediaType = reference.kind === "video" ? "video" : reference.kind === "audio" ? "audio" : "image";
-  const url = mediaType === "image" ? reference.stored_url ?? reference.poster_url ?? reference.thumb_url : reference.stored_url;
+  const url = mediaType === "image" ? reference.stored_url ?? reference.thumb_url ?? reference.poster_url : reference.stored_url;
   if (!url) return null;
   const width = reference.width ?? null;
   const height = reference.height ?? null;
+  const metadataLabels = videoMetadataLabels({
+    durationSeconds: reference.duration_seconds ?? null,
+    width,
+    height,
+  });
   return {
     mediaType,
     url,
     fullUrl: reference.stored_url ?? url,
     posterUrl: mediaType === "video" || mediaType === "audio" ? reference.poster_url ?? reference.thumb_url ?? null : null,
     label: reference.original_filename ?? reference.reference_id,
-    aspectLabel: closestAspectLabel(width, height),
-    resolutionLabel: width && height ? `${width}x${height}` : null,
+    width,
+    height,
+    durationSeconds: reference.duration_seconds ?? null,
+    durationLabel: metadataLabels.durationLabel,
+    aspectLabel: metadataLabels.aspectLabel ?? closestAspectLabel(width, height),
+    resolutionLabel: metadataLabels.resolutionLabel,
   };
 }
 
@@ -74,15 +85,20 @@ export function previewFromAsset(asset: MediaAsset | undefined): GraphMediaPrevi
         ? asset.hero_web_url ?? asset.hero_original_url ?? asset.hero_poster_url ?? asset.hero_thumb_url
         : asset.hero_thumb_url ?? asset.hero_poster_url ?? asset.hero_web_url ?? asset.hero_original_url;
   if (!url) return null;
-  const dimensions = assetOutputDimensions(asset);
+  const metadata = assetOutputMetadata(asset);
+  const metadataLabels = videoMetadataLabels(metadata);
   return {
     mediaType,
     url,
     fullUrl: asset.hero_original_url ?? asset.hero_web_url ?? url,
     posterUrl: mediaType === "video" || mediaType === "audio" ? asset.hero_poster_url ?? asset.hero_thumb_url ?? null : null,
     label: asset.prompt_summary ?? String(asset.asset_id),
-    aspectLabel: closestAspectLabel(dimensions.width, dimensions.height),
-    resolutionLabel: dimensions.width && dimensions.height ? `${dimensions.width}x${dimensions.height}` : null,
+    width: metadata.width,
+    height: metadata.height,
+    durationSeconds: metadata.durationSeconds,
+    durationLabel: metadataLabels.durationLabel,
+    aspectLabel: metadataLabels.aspectLabel ?? closestAspectLabel(metadata.width, metadata.height),
+    resolutionLabel: metadataLabels.resolutionLabel,
   };
 }
 

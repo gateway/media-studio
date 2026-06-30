@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { GraphRunDiagnostics } from "@/components/graph-studio/graph-run-diagnostics";
 import type { GraphRun } from "@/components/graph-studio/types";
+
+afterEach(() => {
+  cleanup();
+});
 
 function makeRun(overrides: Partial<GraphRun> = {}): GraphRun {
   return {
@@ -38,7 +42,7 @@ function makeRun(overrides: Partial<GraphRun> = {}): GraphRun {
 }
 
 describe("GraphRunDiagnostics", () => {
-  it("hides zero-usage spend chips and compacts failed node diagnostics", () => {
+  it("hides duplicated failed status, node, error, and zero-usage spend chips", () => {
     render(
       <GraphRunDiagnostics
         run={makeRun()}
@@ -46,9 +50,10 @@ describe("GraphRunDiagnostics", () => {
       />,
     );
 
-    expect(screen.queryByLabelText(/Actual LLM spend/i)).toBeNull();
-    expect(screen.getByLabelText("Failed node Seedance 2.0")).toBeTruthy();
-    expect(screen.getByLabelText("Run error submit blocked")).toBeTruthy();
+    expect(screen.queryByLabelText(/Actual LLM usage/i)).toBeNull();
+    expect(screen.queryByLabelText(/Status Failed/i)).toBeNull();
+    expect(screen.queryByLabelText(/Failed node/i)).toBeNull();
+    expect(screen.queryByLabelText(/Run error/i)).toBeNull();
   });
 
   it("shows actual spend when usage is present", () => {
@@ -67,12 +72,32 @@ describe("GraphRunDiagnostics", () => {
       />,
     );
 
-    expect(screen.getByLabelText(/Actual LLM spend/i).textContent).toContain("$0.02");
+    expect(screen.getByLabelText(/Actual LLM usage/i).textContent).toContain("$0.02");
     expect(screen.getByText("13,920 tok")).toBeTruthy();
     expect(screen.getByLabelText("7 graph transport requests")).toBeTruthy();
   });
 
-  it("shows how many images Codex saw during a run", () => {
+  it("hides token-only LLM usage from the toolbar", () => {
+    render(
+      <GraphRunDiagnostics
+        run={makeRun({
+          status: "completed",
+          error: null,
+          metrics_json: {
+            completed_node_count: 4,
+            actual_cost_usd: 0,
+            total_tokens: 25090,
+          },
+        })}
+        transportMetrics={{ statusRequests: 0, fullRunRequests: 0, eventRequests: 0, streamConnections: 0, streamErrors: 0 }}
+      />,
+    );
+
+    expect(screen.queryByLabelText(/Actual LLM usage/i)).toBeNull();
+    expect(screen.queryByText("25,090 tok")).toBeNull();
+  });
+
+  it("hides Codex image-count diagnostics from the toolbar", () => {
     render(
       <GraphRunDiagnostics
         run={makeRun({
@@ -94,7 +119,7 @@ describe("GraphRunDiagnostics", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Codex saw 2 images")).toBeTruthy();
+    expect(screen.queryByLabelText("Codex saw 2 images")).toBeNull();
   });
 
   it("shows when an interrupted run recovered provider work", () => {

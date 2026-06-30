@@ -70,7 +70,7 @@ export function useGraphProviderModelCatalog({
     const providersToEnsure = new Set<GraphProviderKind>();
     for (const node of nodes) {
       const definitionType = String(node.data.definition.type || "");
-      if (definitionType !== "prompt.llm" && definitionType !== "prompt.recipe") continue;
+      if (definitionType !== "prompt.llm" && definitionType !== "prompt.recipe" && definitionType !== "prompt.image_analyzer") continue;
       const providerKind = String(node.data.fields.provider || "studio_default").trim();
       if (!isGraphProviderKind(providerKind)) continue;
       providersToEnsure.add(providerKind);
@@ -121,7 +121,7 @@ export function __resetGraphProviderReadinessCacheForTests() {
 function hasGraphPromptNodes(nodes: StudioNode[]) {
   return nodes.some((node) => {
     const definitionType = String(node.data.definition.type || "");
-    return definitionType === "prompt.llm" || definitionType === "prompt.recipe";
+    return definitionType === "prompt.llm" || definitionType === "prompt.recipe" || definitionType === "prompt.image_analyzer";
   });
 }
 

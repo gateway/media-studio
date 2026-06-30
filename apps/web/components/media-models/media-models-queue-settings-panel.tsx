@@ -1,14 +1,10 @@
 "use client";
 
-import { AdminButton, AdminField, AdminInput, AdminToggle } from "@/components/admin-controls";
+import { AdminButton, AdminField, AdminInput, AdminToggleRow } from "@/components/admin-controls";
 import { CollapsibleSubsection } from "@/components/collapsible-sections";
 import { Panel, PanelHeader } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
 import type { MediaQueueSettings } from "@/lib/types";
-
-const STUDIO_MAX_CONCURRENT_JOBS = 10;
-const STUDIO_MAX_POLL_SECONDS = 300;
-const STUDIO_MAX_RETRY_ATTEMPTS = 10;
 
 type MediaModelsQueueSettingsPanelProps = {
   queueSettings: MediaQueueSettings | null;
@@ -26,10 +22,20 @@ function nextQueueSettings(
     queue_enabled: current?.queue_enabled ?? true,
     default_poll_seconds: current?.default_poll_seconds ?? 6,
     max_retry_attempts: current?.max_retry_attempts ?? 3,
+    max_concurrent_jobs_min: current?.max_concurrent_jobs_min,
+    max_concurrent_jobs_max: current?.max_concurrent_jobs_max,
+    default_poll_seconds_min: current?.default_poll_seconds_min,
+    default_poll_seconds_max: current?.default_poll_seconds_max,
+    max_retry_attempts_min: current?.max_retry_attempts_min,
+    max_retry_attempts_max: current?.max_retry_attempts_max,
     created_at: current?.created_at ?? null,
     updated_at: current?.updated_at ?? null,
     ...patch,
   };
+}
+
+function boundedNumber(value: number, minimum: number, maximum: number) {
+  return Math.min(Math.max(minimum, Number(value) || minimum), maximum);
 }
 
 export function MediaModelsQueueSettingsPanel({
@@ -38,6 +44,13 @@ export function MediaModelsQueueSettingsPanel({
   onQueueSettingsChange,
   onSave,
 }: MediaModelsQueueSettingsPanelProps) {
+  const concurrentMin = Math.max(1, Number(queueSettings?.max_concurrent_jobs_min ?? 1));
+  const concurrentMax = Math.max(concurrentMin, Number(queueSettings?.max_concurrent_jobs_max ?? queueSettings?.max_concurrent_jobs ?? concurrentMin));
+  const pollMin = Math.max(1, Number(queueSettings?.default_poll_seconds_min ?? 1));
+  const pollMax = Math.max(pollMin, Number(queueSettings?.default_poll_seconds_max ?? queueSettings?.default_poll_seconds ?? pollMin));
+  const retryMin = Math.max(1, Number(queueSettings?.max_retry_attempts_min ?? 1));
+  const retryMax = Math.max(retryMin, Number(queueSettings?.max_retry_attempts_max ?? queueSettings?.max_retry_attempts ?? retryMin));
+
   return (
     <Panel>
       <PanelHeader
@@ -58,35 +71,31 @@ export function MediaModelsQueueSettingsPanel({
           descriptionClassName="max-w-[760px]"
           bodyClassName="grid max-w-[760px] gap-3 border-t border-[var(--surface-border-soft)] pt-5"
         >
-          <label className="admin-toggle-row max-w-[280px] text-sm">
-            <span className="font-medium text-[var(--foreground)]">Run jobs automatically</span>
-            <AdminToggle
-              checked={queueSettings?.queue_enabled ?? true}
-              ariaLabel="Run jobs automatically"
-              onToggle={() =>
-                onQueueSettingsChange(
-                  nextQueueSettings(queueSettings, {
-                    queue_enabled: !(queueSettings?.queue_enabled ?? true),
-                  }),
-                )
-              }
-            />
-          </label>
+          <AdminToggleRow
+            title="Run jobs automatically"
+            checked={queueSettings?.queue_enabled ?? true}
+            ariaLabel="Run jobs automatically"
+            onToggle={() =>
+              onQueueSettingsChange(
+                nextQueueSettings(queueSettings, {
+                  queue_enabled: !(queueSettings?.queue_enabled ?? true),
+                }),
+              )
+            }
+            className="max-w-[280px]"
+          />
           <div className="grid gap-3 lg:grid-cols-[minmax(0,280px)_minmax(0,220px)] lg:items-end">
             <AdminField label="Jobs running at once">
               <AdminInput
                 type="number"
-                min={1}
-                max={STUDIO_MAX_CONCURRENT_JOBS}
+                min={concurrentMin}
+                max={concurrentMax}
                 step={1}
-                value={String(queueSettings?.max_concurrent_jobs ?? 10)}
+                value={String(queueSettings?.max_concurrent_jobs ?? concurrentMax)}
                 onChange={(event) =>
                   onQueueSettingsChange(
                     nextQueueSettings(queueSettings, {
-                      max_concurrent_jobs: Math.min(
-                        Math.max(1, Number(event.target.value) || 1),
-                        STUDIO_MAX_CONCURRENT_JOBS,
-                      ),
+                      max_concurrent_jobs: boundedNumber(Number(event.target.value), concurrentMin, concurrentMax),
                     }),
                   )
                 }
@@ -97,17 +106,14 @@ export function MediaModelsQueueSettingsPanel({
             <AdminField label="Check every">
               <AdminInput
                 type="number"
-                min={1}
-                max={STUDIO_MAX_POLL_SECONDS}
+                min={pollMin}
+                max={pollMax}
                 step={1}
-                value={String(Math.max(1, Math.min(STUDIO_MAX_POLL_SECONDS, Number(queueSettings?.default_poll_seconds ?? 6))))}
+                value={String(boundedNumber(Number(queueSettings?.default_poll_seconds ?? pollMin), pollMin, pollMax))}
                 onChange={(event) =>
                   onQueueSettingsChange(
                     nextQueueSettings(queueSettings, {
-                      default_poll_seconds: Math.min(
-                        Math.max(1, Number(event.target.value) || 1),
-                        STUDIO_MAX_POLL_SECONDS,
-                      ),
+                      default_poll_seconds: boundedNumber(Number(event.target.value), pollMin, pollMax),
                     }),
                   )
                 }
@@ -116,17 +122,14 @@ export function MediaModelsQueueSettingsPanel({
             <AdminField label="Retry limit">
               <AdminInput
                 type="number"
-                min={1}
-                max={STUDIO_MAX_RETRY_ATTEMPTS}
+                min={retryMin}
+                max={retryMax}
                 step={1}
-                value={String(Math.max(1, Math.min(STUDIO_MAX_RETRY_ATTEMPTS, Number(queueSettings?.max_retry_attempts ?? 3))))}
+                value={String(boundedNumber(Number(queueSettings?.max_retry_attempts ?? retryMin), retryMin, retryMax))}
                 onChange={(event) =>
                   onQueueSettingsChange(
                     nextQueueSettings(queueSettings, {
-                      max_retry_attempts: Math.min(
-                        Math.max(1, Number(event.target.value) || 1),
-                        STUDIO_MAX_RETRY_ATTEMPTS,
-                      ),
+                      max_retry_attempts: boundedNumber(Number(event.target.value), retryMin, retryMax),
                     }),
                   )
                 }

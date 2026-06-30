@@ -70,7 +70,7 @@ export function StudioLightbox({
       panelClassName="flex min-h-dvh items-center justify-center border-0 bg-transparent shadow-none"
       innerClassName="p-0"
     >
-      <div data-testid="studio-lightbox" className="relative h-full w-full" onClick={() => void onClose()}>
+      <div data-testid="studio-lightbox" className="studio-lightbox-root" onClick={() => void onClose()}>
         <button
           type="button"
           onClick={() => void onClose()}
@@ -81,7 +81,7 @@ export function StudioLightbox({
         </button>
         <div
           data-testid="studio-lightbox-swipe-surface"
-          className="flex h-full w-full items-center justify-center p-4 md:p-8"
+          className="studio-lightbox-swipe-surface"
           onClick={(event) => event.stopPropagation()}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
@@ -95,10 +95,10 @@ export function StudioLightbox({
               playsInline
               preload="metadata"
               poster={selectedAssetDisplayVisual ?? undefined}
-              className="max-h-full w-auto max-w-full rounded-[28px] object-contain shadow-[0_28px_90px_rgba(0,0,0,0.48)]"
+              className="studio-lightbox-media"
             />
           ) : selectedAsset.generation_kind === "audio" && selectedAssetPlaybackVisual ? (
-            <div className="flex w-full max-w-3xl flex-col items-center gap-5">
+            <div className="studio-lightbox-audio-shell">
               {selectedAssetDisplayVisual ? (
                 <img
                   src={selectedAssetDisplayVisual}
@@ -106,7 +106,7 @@ export function StudioLightbox({
                   loading="eager"
                   fetchPriority="high"
                   decoding="async"
-                  className="max-h-[70vh] w-auto max-w-full rounded-[28px] object-contain shadow-[0_28px_90px_rgba(0,0,0,0.48)]"
+                  className="studio-lightbox-audio-artwork"
                 />
               ) : null}
               <audio
@@ -125,7 +125,7 @@ export function StudioLightbox({
               loading="eager"
               fetchPriority="high"
               decoding="async"
-              className="max-h-full w-auto max-w-full rounded-[28px] object-contain shadow-[0_28px_90px_rgba(0,0,0,0.48)]"
+              className="studio-lightbox-media"
             />
           ) : null}
         </div>

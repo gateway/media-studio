@@ -213,14 +213,27 @@ def sanitize_reference_media_record(record: Dict[str, Any]) -> Optional[Dict[str
     return normalized
 
 
-def list_available_reference_media(*, kind: Optional[str], limit: int, offset: int, project_id: Optional[str] = None) -> List[Dict[str, Any]]:
+def list_available_reference_media(
+    *,
+    kind: Optional[str],
+    limit: int,
+    offset: int,
+    project_id: Optional[str] = None,
+    q: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     page_size = max(limit * 2, 40)
     skipped_live_offset = 0
     raw_offset = 0
     items: List[Dict[str, Any]] = []
 
     while len(items) < limit:
-        batch = store.list_reference_media(kind=kind, limit=page_size, offset=raw_offset, project_id=project_id)
+        batch = store.list_reference_media(
+            kind=kind,
+            limit=page_size,
+            offset=raw_offset,
+            project_id=project_id,
+            q=q,
+        )
         if not batch:
             break
         raw_offset += len(batch)

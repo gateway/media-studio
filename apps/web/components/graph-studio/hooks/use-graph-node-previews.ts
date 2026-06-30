@@ -13,8 +13,42 @@ type CachedRenderNode = {
   rendered: StudioNode;
 };
 
+function useStableGraphNodeHandlers(nodeHandlers: GraphNodeHandlers): GraphNodeHandlers {
+  const latestHandlersRef = useRef(nodeHandlers);
+  latestHandlersRef.current = nodeHandlers;
+
+  return useMemo<GraphNodeHandlers>(
+    () => ({
+      onFieldChange: (...args) => latestHandlersRef.current.onFieldChange(...args),
+      onSetFields: (...args) => latestHandlersRef.current.onSetFields?.(...args),
+      onOpenImageLibrary: (...args) => latestHandlersRef.current.onOpenImageLibrary?.(...args),
+      onImageDrop: (...args) => latestHandlersRef.current.onImageDrop?.(...args),
+      onInputRewireStart: (...args) => latestHandlersRef.current.onInputRewireStart?.(...args),
+      onToggleCollapsed: (...args) => latestHandlersRef.current.onToggleCollapsed?.(...args),
+      onToggleAdvancedExpanded: (...args) => latestHandlersRef.current.onToggleAdvancedExpanded?.(...args),
+      onEnsureNodeHeight: (...args) => latestHandlersRef.current.onEnsureNodeHeight?.(...args),
+      onOpenPreview: (...args) => latestHandlersRef.current.onOpenPreview?.(...args),
+      onStartRenameNode: (...args) => latestHandlersRef.current.onStartRenameNode?.(...args),
+      onRenameNodeDraftChange: (...args) => latestHandlersRef.current.onRenameNodeDraftChange?.(...args),
+      onCommitRenameNode: () => latestHandlersRef.current.onCommitRenameNode?.(),
+      onCancelRenameNode: () => latestHandlersRef.current.onCancelRenameNode?.(),
+    }),
+    [],
+  );
+}
+
 function previewSignature(preview: GraphMediaPreview | null) {
-  return preview ? [preview.mediaType, preview.url, preview.fullUrl, preview.posterUrl, preview.label].join("|") : "";
+  return preview
+    ? [
+        preview.mediaType,
+        preview.url,
+        preview.fullUrl,
+        preview.posterUrl,
+        preview.label,
+        preview.aspectLabel,
+        preview.resolutionLabel,
+      ].join("|")
+    : "";
 }
 
 function previewsSignature(previews: GraphMediaPreview[]) {
@@ -59,6 +93,7 @@ export function useGraphNodePreviews({
 }) {
   const renderCacheRef = useRef<Map<string, CachedRenderNode>>(new Map());
   const renderedArrayRef = useRef<StudioNode[]>([]);
+  const stableNodeHandlers = useStableGraphNodeHandlers(nodeHandlers);
   const resolveNodePreview = useCallback(
     (data: StudioNode["data"]): GraphMediaPreview | null => {
       if (data.fields.asset_id) {
@@ -124,7 +159,7 @@ export function useGraphNodePreviews({
         ...node,
         data: {
           ...data,
-          ...nodeHandlers,
+          ...stableNodeHandlers,
           activeConnection,
           mediaPreview,
           mediaPreviews,
@@ -151,5 +186,5 @@ export function useGraphNodePreviews({
 
     renderedArrayRef.current = renderedNodes;
     return renderedNodes;
-  }, [activeConnection, edges, nodeHandlers, nodeRenameDraft, nodes, pricingByNode, renamingNodeId, resolveNodePreview, resolveNodePreviews]);
+  }, [activeConnection, edges, nodeRenameDraft, nodes, pricingByNode, renamingNodeId, resolveNodePreview, resolveNodePreviews, stableNodeHandlers]);
 }

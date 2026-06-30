@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import {
   ASSET_APPEND_BATCH_SIZE,
@@ -7,7 +7,6 @@ import {
   INITIAL_ASSET_PAGE_SIZE,
 } from "@/lib/media-studio-contract";
 import { prefetchAssetThumbs } from "@/lib/media-studio-helpers";
-import { isDefaultStudioGalleryQuery } from "@/lib/studio-gallery-feed";
 import type { MediaAsset } from "@/lib/types";
 
 type StudioGalleryPageEffectsOptions = {
@@ -27,6 +26,7 @@ type StudioGalleryPageEffectsOptions = {
   galleryKindFilter: GalleryKindFilter;
   galleryModelFilter: string;
   galleryScrollArmed: boolean;
+  skipInitialAssetPageFetch: boolean;
   prefetchedThumbUrls: Set<string>;
   fetchAssetPage: (options: {
     offset: number;
@@ -66,6 +66,7 @@ export function useStudioGalleryPageEffects({
   galleryKindFilter,
   galleryModelFilter,
   galleryScrollArmed,
+  skipInitialAssetPageFetch,
   prefetchedThumbUrls,
   fetchAssetPage,
   applyLoadedAssetPage,
@@ -82,8 +83,18 @@ export function useStudioGalleryPageEffects({
   setPrefetchingAssetPage,
   setPrefetchingFavoriteAssetPage,
 }: StudioGalleryPageEffectsOptions) {
+  const assetQueryScopeKey = useMemo(
+    () => JSON.stringify({ projectId: activeProjectId ?? null, kind: galleryKindFilter, model: galleryModelFilter }),
+    [activeProjectId, galleryKindFilter, galleryModelFilter],
+  );
+  const skippedInitialAssetPageFetchRef = useRef(false);
+
   useEffect(() => {
-    if (favoritesOnly || isDefaultStudioGalleryQuery({ favoritesOnly, galleryKindFilter, galleryModelFilter })) {
+    if (favoritesOnly) {
+      return;
+    }
+    if (skipInitialAssetPageFetch && !skippedInitialAssetPageFetchRef.current) {
+      skippedInitialAssetPageFetchRef.current = true;
       return;
     }
     let cancelled = false;
@@ -101,7 +112,7 @@ export function useStudioGalleryPageEffects({
     return () => {
       cancelled = true;
     };
-  }, [activeProjectId, favoritesOnly, galleryKindFilter, galleryModelFilter]);
+  }, [assetQueryScopeKey, favoritesOnly]);
 
   useEffect(() => {
     if (!favoritesOnly) {

@@ -9,7 +9,26 @@ export type GraphRunNodeRuntimeState = {
   metrics_json?: Record<string, unknown>;
 };
 
+function runtimeValuesEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
 export function clearGraphNodeRunState(data: GraphNodeData): GraphNodeData {
+  if (
+    data.status === "idle" &&
+    data.progress === null &&
+    data.errorMessage === null &&
+    data.activityLabel === null &&
+    data.activityDetail === null &&
+    data.activityTone === null
+  ) {
+    return data;
+  }
   return {
     ...data,
     status: "idle",
@@ -38,11 +57,23 @@ export function graphNodeDataWithRunState(data: GraphNodeData, runNode: GraphRun
   if (!graphRunNodeStateMatchesExecutionMode(data, runNode)) {
     return clearGraphNodeRunState(data);
   }
+  const nextStatus = runNode.status ?? "idle";
+  const nextProgress = runNode.progress ?? null;
+  const nextErrorMessage = runNode.error ?? null;
+  const nextOutputSnapshot = runNode.output_snapshot_json;
+  if (
+    data.status === nextStatus &&
+    data.progress === nextProgress &&
+    data.errorMessage === nextErrorMessage &&
+    runtimeValuesEqual(data.outputSnapshot, nextOutputSnapshot)
+  ) {
+    return data;
+  }
   return {
     ...data,
-    status: runNode.status ?? "idle",
-    progress: runNode.progress ?? null,
-    errorMessage: runNode.error ?? null,
-    outputSnapshot: runNode.output_snapshot_json,
+    status: nextStatus,
+    progress: nextProgress,
+    errorMessage: nextErrorMessage,
+    outputSnapshot: nextOutputSnapshot,
   };
 }

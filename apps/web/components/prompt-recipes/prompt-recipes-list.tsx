@@ -9,6 +9,7 @@ import { AdminNavButton } from "@/components/admin-nav-button";
 import {
   adminFilterToolbarClassName,
   adminHeaderActionRowClassName,
+  adminListContentClassName,
   adminListActionGroupClassName,
   adminListRowClassName,
   adminListThumbnailClassName,
@@ -266,7 +267,7 @@ export function PromptRecipesList({ recipes }: PromptRecipesListProps) {
                   </div>
                 )}
               </div>
-              <div className="min-w-0 flex-1 space-y-2">
+              <div className={adminListContentClassName}>
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-base font-semibold text-[var(--foreground)]">{recipe.label}</h3>
                   <span className="admin-status-pill">{recipe.status}</span>

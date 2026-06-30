@@ -82,6 +82,19 @@ def test_graph_metrics_migration_updates_existing_graph_schema() -> None:
             finished_at TEXT,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE media_presets (
+            preset_id TEXT PRIMARY KEY,
+            key TEXT NOT NULL DEFAULT '',
+            title TEXT NOT NULL,
+            label TEXT NOT NULL DEFAULT '',
+            description TEXT,
+            category TEXT NOT NULL DEFAULT 'general'
+        );
+        CREATE TABLE media_assets (
+            asset_id TEXT PRIMARY KEY,
+            payload_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
         """
     )
     for version, migration_id in [

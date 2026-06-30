@@ -95,6 +95,10 @@ export function useStudioGalleryFeed({
   onMessage,
 }: UseStudioGalleryFeedParams): UseStudioGalleryFeedResult {
   const prefetchedThumbUrlsRef = useRef(new Set<string>());
+  const activeProjectScopeRef = useRef(activeProjectId ?? null);
+  const jobsProjectScopeRef = useRef(activeProjectId ?? null);
+  const batchesProjectScopeRef = useRef(activeProjectId ?? null);
+  const assetsProjectScopeRef = useRef(activeProjectId ?? null);
   const [localBatches, setLocalBatches] = useState<MediaBatch[]>(batches);
   const [optimisticBatches, setOptimisticBatches] = useState<MediaBatch[]>([]);
   const [localJobs, setLocalJobs] = useState<MediaJob[]>(jobs);
@@ -142,6 +146,13 @@ export function useStudioGalleryFeed({
   );
   const activeGalleryHasMore = favoritesOnly ? favoriteAssetFeedHasMore : assetFeedHasMore;
   const activeGalleryLoadingMore = favoritesOnly ? loadingMoreFavoriteAssets : loadingMoreAssets;
+  const assetQueryScopeKey = useMemo(
+    () => JSON.stringify({ projectId: activeProjectId ?? null, kind: galleryKindFilter, model: galleryModelFilter }),
+    [activeProjectId, galleryKindFilter, galleryModelFilter],
+  );
+  const initialAssetQueryScopeKeyRef = useRef(
+    JSON.stringify({ projectId: activeProjectId ?? null, kind: "all", model: "all" }),
+  );
   const galleryTiles = useMemo(
     () =>
       buildGalleryTiles(
@@ -215,14 +226,55 @@ export function useStudioGalleryFeed({
   const { galleryLoadMoreRef, galleryScrollArmed } = galleryScrollLoader;
 
   useEffect(() => {
+    if (activeProjectScopeRef.current !== (activeProjectId ?? null)) {
+      activeProjectScopeRef.current = activeProjectId ?? null;
+      prefetchedThumbUrlsRef.current.clear();
+      setLocalBatches([]);
+      setOptimisticBatches([]);
+      setLocalJobs([]);
+      setLocalAssets([]);
+      setAssetFeedHasMore(false);
+      setAssetFeedNextOffset(null);
+      setPrefetchedAssetPage(null);
+      setLocalLatestAsset(null);
+      setFavoriteAssets(null);
+      setFavoriteAssetFeedHasMore(false);
+      setFavoriteAssetFeedNextOffset(null);
+      setPrefetchedFavoriteAssetPage(null);
+    }
+    return undefined;
+  }, [activeProjectId]);
+
+  useEffect(() => {
+    if (jobsProjectScopeRef.current !== (activeProjectId ?? null)) {
+      jobsProjectScopeRef.current = activeProjectId ?? null;
+      setLocalJobs([]);
+      return;
+    }
     setLocalJobs(jobs);
-  }, [jobs]);
+  }, [activeProjectId, jobs]);
 
   useEffect(() => {
+    if (batchesProjectScopeRef.current !== (activeProjectId ?? null)) {
+      batchesProjectScopeRef.current = activeProjectId ?? null;
+      setLocalBatches([]);
+      return;
+    }
     setLocalBatches(batches);
-  }, [batches]);
+  }, [activeProjectId, batches]);
 
   useEffect(() => {
+    if (assetsProjectScopeRef.current !== (activeProjectId ?? null)) {
+      assetsProjectScopeRef.current = activeProjectId ?? null;
+      setLocalAssets([]);
+      setAssetFeedHasMore(false);
+      setAssetFeedNextOffset(null);
+      setPrefetchedAssetPage(null);
+      setFavoriteAssetFeedHasMore(false);
+      setFavoriteAssetFeedNextOffset(null);
+      setPrefetchedFavoriteAssetPage(null);
+      return;
+    }
     setLocalAssets((current) => reconcileAssetCollections(assets, current));
     setAssetPageLimit(Math.max(initialAssetLimit, INITIAL_ASSET_PAGE_SIZE));
     setAssetFeedHasMore((current) => current || initialAssetsHasMore);
@@ -262,6 +314,7 @@ export function useStudioGalleryFeed({
     galleryKindFilter,
     galleryModelFilter,
     galleryScrollArmed,
+    skipInitialAssetPageFetch: assetQueryScopeKey === initialAssetQueryScopeKeyRef.current,
     prefetchedThumbUrls: prefetchedThumbUrlsRef.current,
     fetchAssetPage: pageActions.fetchAssetPage,
     applyLoadedAssetPage: pageActions.applyLoadedAssetPage,

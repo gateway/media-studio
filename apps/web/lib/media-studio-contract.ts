@@ -44,6 +44,8 @@ export type AttachmentRecord = {
   role?: "first_frame" | "last_frame" | "reference" | null;
   previewUrl: string | null;
   durationSeconds?: number | null;
+  width?: number | null;
+  height?: number | null;
   referenceId?: string | null;
   referenceRecord?: MediaReference | null;
 };
@@ -72,7 +74,8 @@ export type FloatingComposerStatus = ComposerStatusMessage & {
 };
 
 export const INITIAL_ASSET_PAGE_SIZE = 18;
-export const ASSET_APPEND_BATCH_SIZE = 4;
+export const ASSET_APPEND_BATCH_SIZE = 12;
+export const INITIAL_ASSET_AUTO_FILL_MAX = INITIAL_ASSET_PAGE_SIZE + ASSET_APPEND_BATCH_SIZE * 2;
 export const FLOATING_COMPOSER_STATUS_MS = 2600;
 export const FLOATING_COMPOSER_STATUS_FADE_MS = 320;
 

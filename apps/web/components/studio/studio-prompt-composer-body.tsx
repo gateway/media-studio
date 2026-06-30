@@ -113,13 +113,12 @@ export function StudioPromptComposerBody<Choice extends StudioPromptReferenceCho
             : "Describe the scene you imagine"
         }
         className={cn(
-          "scrollbar-none w-full resize-none rounded-[26px] border border-white/8 bg-white/[0.04] px-4 py-[18px] text-[0.86rem] leading-6 text-white outline-none placeholder:text-white/38 focus:border-[rgba(216,141,67,0.3)]",
-          "min-h-[146px] md:min-h-[136px]",
+          "scrollbar-none studio-prompt-textarea",
         )}
       />
       {promptReferencePickerOpen ? (
-        <div className="absolute bottom-3 left-3 z-20 w-[min(19rem,calc(100%-4.5rem))] rounded-[18px] border border-white/10 bg-[rgba(17,20,19,0.96)] p-2 shadow-[0_18px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-          <div className="grid gap-1">
+        <div className="studio-prompt-reference-picker">
+          <div className="studio-prompt-reference-options">
             {promptReferenceChoices.map((choice, index) => (
               <button
                 key={choice.id}
@@ -130,21 +129,21 @@ export function StudioPromptComposerBody<Choice extends StudioPromptReferenceCho
                 }}
                 onClick={() => onApplyPromptReferenceChoice(choice)}
                 className={cn(
-                  "flex items-center gap-3 rounded-[12px] px-2 py-2 text-left text-[0.8rem] font-medium text-white/82 transition hover:bg-white/[0.08] hover:text-white",
-                  promptReferenceActiveIndex === index ? "bg-white/[0.08] text-white" : "",
+                  "studio-prompt-reference-option",
+                  promptReferenceActiveIndex === index ? "studio-prompt-reference-option-active" : "",
                 )}
               >
                 <span
-                  className="inline-flex h-10 w-10 shrink-0 overflow-hidden rounded-[10px] border border-white/10 bg-white/[0.05] bg-cover bg-center bg-no-repeat"
+                  className="studio-prompt-reference-thumb"
                   style={choice.visualUrl ? { backgroundImage: `url("${choice.visualUrl}")` } : undefined}
                 >
                   {!choice.visualUrl ? (
-                    <span className="flex h-full w-full items-center justify-center text-white/48">
+                    <span className="studio-prompt-reference-thumb-empty">
                       <ImageIcon className="size-4" />
                     </span>
                   ) : null}
                 </span>
-                <span className="min-w-0 flex-1 truncate">{choice.label}</span>
+                <span className="studio-prompt-reference-label">{choice.label}</span>
               </button>
             ))}
           </div>
@@ -160,10 +159,10 @@ export function StudioPromptComposerBody<Choice extends StudioPromptReferenceCho
             title={enhanceHasSavedSystemPrompt ? "Open enhance dialog" : "Save an enhancement system prompt in Models"}
             disabled={!enhanceHasSavedSystemPrompt}
             className={cn(
-              "absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border transition",
+              "studio-prompt-enhance-button",
               enhanceHasSavedSystemPrompt
-                ? "border-white/10 bg-white/[0.06] text-white/72 hover:border-[rgba(216,141,67,0.32)] hover:bg-[rgba(216,141,67,0.14)] hover:text-white"
-                : "cursor-not-allowed border-white/8 bg-white/[0.03] text-white/28",
+                ? "studio-prompt-enhance-button-active"
+                : "studio-prompt-enhance-button-disabled",
             )}
           >
             <Sparkles className="size-4" />
@@ -173,7 +172,7 @@ export function StudioPromptComposerBody<Choice extends StudioPromptReferenceCho
             type="button"
             data-testid="studio-open-enhance-setup"
             onClick={onOpenEnhancementSetup}
-            className="absolute bottom-3 right-3 inline-flex h-9 items-center justify-center rounded-full border border-[rgba(216,141,67,0.22)] bg-[rgba(216,141,67,0.12)] px-3 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#ffd7af] transition hover:border-[rgba(216,141,67,0.34)] hover:text-white"
+            className="studio-prompt-enhance-setup-button"
           >
             Set up
           </button>

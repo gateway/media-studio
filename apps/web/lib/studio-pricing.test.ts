@@ -76,6 +76,28 @@ describe("studio-pricing", () => {
     expect(derived.pricing_variant).toBe("4k_true");
   });
 
+  it("derives Kling motion pricing duration from staged driving video metadata", () => {
+    const derived = deriveStudioPricingOptions({
+      modelKey: "kling-3.0-motion",
+      options: { character_orientation: "video", mode: "720p" },
+      attachments: [{ kind: "videos", durationSeconds: 20.083333, referenceRecord: null }] as never,
+      sourceAsset: null,
+    });
+
+    expect(derived.duration).toBe(21);
+  });
+
+  it("derives Kling 2.6 motion pricing duration from staged driving video metadata", () => {
+    const derived = deriveStudioPricingOptions({
+      modelKey: "kling-2.6-motion",
+      options: { character_orientation: "video", mode: "720p" },
+      attachments: [{ kind: "videos", durationSeconds: 20.083333, referenceRecord: null }] as never,
+      sourceAsset: null,
+    });
+
+    expect(derived.duration).toBe(21);
+  });
+
   it("applies derived Seedance pricing variants to the local estimate", () => {
     const derived = deriveStudioPricingOptions({
       modelKey: "seedance-2.0",
@@ -109,6 +131,17 @@ describe("studio-pricing", () => {
 
     expect(estimate.estimatedCredits).toBeCloseTo(200);
     expect(estimate.estimatedCostUsd).toBeCloseTo(1);
+  });
+
+  it("applies derived Seedance Fast pricing variants to the local estimate", () => {
+    const derived = deriveStudioPricingOptions({
+      modelKey: "seedance-2.0-fast",
+      options: { duration: 8, resolution: "720p" },
+      attachments: [{ kind: "videos" }] as never,
+      sourceAsset: null,
+    });
+
+    expect(derived.pricing_variant).toBe("720p_with_video_input");
   });
 
   it("applies Kling 3.0 4K pricing variants to the local estimate", () => {
@@ -165,6 +198,37 @@ describe("studio-pricing", () => {
 
     expect(estimate.estimatedCredits).toBeCloseTo(469);
     expect(estimate.estimatedCostUsd).toBeCloseTo(2.345);
+  });
+
+  it("uses conservative per-second duration pricing when the snapshot lacks an exact duration bucket", () => {
+    const estimate = estimateFromPricingSnapshot(
+      {
+        rules: [
+          {
+            model_key: "kling-3.0-motion",
+            billing_unit: "second",
+            base_credits: 20,
+            base_cost_usd: 0.1,
+            multipliers: {
+              duration: {
+                "5": 5,
+                "10": 10,
+              },
+              mode: {
+                "720p": 1,
+                "1080p": 1.35,
+              },
+            },
+          },
+        ],
+      },
+      "kling-3.0-motion",
+      { duration: 20.083333, mode: "720p" },
+      1,
+    );
+
+    expect(estimate.estimatedCredits).toBe(420);
+    expect(estimate.estimatedCostUsd).toBeCloseTo(2.1);
   });
 
   it("prefers validation pricing over the local estimate when available", () => {

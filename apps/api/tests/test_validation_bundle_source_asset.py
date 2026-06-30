@@ -75,7 +75,6 @@ def test_preset_slot_asset_id_resolves_to_real_image_path_in_validation_bundle(a
             "prompt_template": "Arrange [[person]] in a 2x2 pose grid.",
             "input_schema_json": [],
             "input_slots_json": [{"key": "person", "label": "Person", "required": True}],
-            "choice_groups_json": [],
             "default_options_json": {},
             "rules_json": {},
             "version": "v1",

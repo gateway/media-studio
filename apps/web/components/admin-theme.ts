@@ -20,11 +20,17 @@ export const adminFilterToolbarClassName = "mt-5 grid gap-3 p-4 xl:grid-cols-[mi
 export const adminMetricGridFourClassName = "mt-5 grid gap-3 lg:grid-cols-4";
 export const adminFeatureGridThreeClassName = "mt-4 grid gap-3 lg:grid-cols-3";
 export const adminSummaryGridThreeClassName = "grid gap-2 sm:grid-cols-3";
-export const adminListRowClassName = "admin-row-surface items-start gap-4 p-4";
+export const adminListRowClassName =
+  "admin-row-surface min-w-0 flex-col items-stretch gap-4 p-4 sm:flex-row sm:items-start";
 export const adminListThumbnailClassName = "admin-preview-frame h-20 w-20 shrink-0 overflow-hidden";
 export const adminListThumbnailFallbackClassName =
   "admin-preview-frame flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden text-[0.64rem] font-semibold uppercase tracking-[0.12em] text-white/34";
-export const adminListActionGroupClassName = "flex shrink-0 flex-wrap justify-end gap-2";
+export const adminListContentClassName =
+  "min-w-0 w-full flex-1 space-y-2 break-words sm:w-auto";
+export const adminListMetaClassName =
+  "flex flex-wrap gap-2 break-all text-xs text-[var(--muted-strong)] [overflow-wrap:anywhere]";
+export const adminListActionGroupClassName =
+  "flex w-full min-w-0 shrink-0 flex-wrap justify-start gap-2 sm:w-auto sm:justify-end";
 
 export const adminSurfaceCardClassName =
   surfaceCardClassName({ appearance: "admin" });

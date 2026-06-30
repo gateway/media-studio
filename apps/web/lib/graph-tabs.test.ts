@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   applyGraphTabSnapshot,
   blankGraphWorkflowPayload,
-  clearLegacyWorkspaceSnapshot,
   GRAPH_TABS_MAX_CONSOLE_LINE_CHARS,
   GRAPH_TABS_MAX_CONSOLE_LINES,
   GRAPH_TABS_MAX_RESTORABLE_TABS,
@@ -22,7 +21,6 @@ import {
   writeGraphTabSession,
 } from "@/components/graph-studio/utils/graph-tabs";
 import type { GraphWorkspaceTab, GraphWorkflowPayload } from "@/components/graph-studio/types";
-import { WORKSPACE_STORAGE_KEY } from "@/components/graph-studio/graph-studio-constants";
 
 const storage = new Map<string, string>();
 const localStorageMock = {
@@ -60,7 +58,6 @@ afterEach(() => {
     value: localStorageOriginalSetItem,
   });
   window.localStorage.removeItem(GRAPH_TABS_STORAGE_KEY);
-  window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
   window.localStorage.clear();
 });
 
@@ -142,7 +139,7 @@ describe("graph workspace tabs", () => {
       name: "New workflow",
       nodes: [],
       edges: [],
-      metadata: {},
+      metadata: { created_by: "graph-studio", groups: [] },
     });
   });
 
@@ -247,49 +244,6 @@ describe("graph workspace tabs", () => {
     expect(raw.tabs[0].console_lines).toEqual([]);
   });
 
-  it("migrates a valid legacy workspace snapshot into a single restored tab", () => {
-    window.localStorage.setItem(
-      WORKSPACE_STORAGE_KEY,
-      JSON.stringify({
-        workflowId: "workflow-legacy",
-        workflowName: "Recovered workflow",
-        workflow: workflow("Recovered workflow"),
-        runId: "run-legacy",
-      }),
-    );
-
-    const restored = readGraphTabSession();
-    expect(restored?.tabs).toHaveLength(1);
-    expect(restored?.tabs[0].workflow_id).toBe("workflow-legacy");
-    expect(restored?.tabs[0].workflow_name).toBe("Recovered workflow");
-    expect(restored?.tabs[0].run_id).toBe("run-legacy");
-  });
-
-  it("drops legacy prompt recipe compatibility node snapshots during restore", () => {
-    window.localStorage.setItem(
-      WORKSPACE_STORAGE_KEY,
-      JSON.stringify({
-        workflowId: null,
-        workflowName: "Legacy prompt recipe workflow",
-        workflow: {
-          schema_version: 1,
-          workflow_id: null,
-          name: "Legacy prompt recipe workflow",
-          nodes: [{ id: "recipe", type: "prompt.recipe.image-prompt-director", position: { x: 0, y: 0 }, fields: {} }],
-          edges: [],
-        },
-      }),
-    );
-
-    expect(readGraphTabSession()).toBeNull();
-  });
-
-  it("clears the legacy workspace snapshot once tab sessions are authoritative", () => {
-    window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ workflowId: "workflow-legacy" }));
-    clearLegacyWorkspaceSnapshot();
-    expect(window.localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBeNull();
-  });
-
   it("reloads saved workflow records when the cached session payload is missing or empty", () => {
     expect(
       shouldReloadSavedWorkflowRecordOnRestore({
@@ -309,8 +263,56 @@ describe("graph workspace tabs", () => {
     expect(
       shouldReloadSavedWorkflowRecordOnRestore({
         ...tab("saved-complete", "Saved workflow"),
+        saved_workflow_signature: graphWorkflowSnapshotSignature({
+          schema_version: 1,
+          workflow_id: "saved-complete-workflow",
+          name: "Saved workflow",
+          nodes: [{ id: "node-1", type: "prompt.text", position: { x: 0, y: 0 }, fields: {} }],
+          edges: [],
+        }),
         dirty: true,
         workflow_json: { schema_version: 1, workflow_id: "saved-complete-workflow", name: "Saved workflow", nodes: [{ id: "node-1", type: "prompt.text", position: { x: 0, y: 0 }, fields: {} }], edges: [] },
+      }),
+    ).toBe(false);
+
+    const completeWorkflow = {
+      schema_version: 1 as const,
+      workflow_id: "saved-clean-workflow",
+      name: "Saved workflow",
+      nodes: [{ id: "node-1", type: "prompt.text", position: { x: 0, y: 0 }, fields: {} }],
+      edges: [],
+    };
+    expect(
+      shouldReloadSavedWorkflowRecordOnRestore({
+        ...tab("saved-clean", "Saved workflow"),
+        saved_workflow_signature: graphWorkflowSnapshotSignature(completeWorkflow),
+        dirty: false,
+        workflow_json: completeWorkflow,
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps signature-less saved tab snapshots authoritative on restore", () => {
+    expect(
+      shouldReloadSavedWorkflowRecordOnRestore({
+        ...tab("legacy-current", "Saved workflow"),
+        workflow_id: "saved-workflow",
+        saved_workflow_signature: null,
+        dirty: false,
+        workflow_json: {
+          schema_version: 1,
+          workflow_id: "saved-workflow",
+          name: "Saved workflow",
+          nodes: [
+            {
+              id: "preset",
+              type: "media.preset",
+              position: { x: 0, y: 0 },
+              fields: { car_name: "1998 Jeep Wrangler Sport" },
+            },
+          ],
+          edges: [],
+        },
       }),
     ).toBe(false);
   });

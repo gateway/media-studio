@@ -13,6 +13,7 @@ import {
   deriveSeedanceComposerMode,
   buildNormalizedStudioOptions,
   displayOptionControlLabel,
+  filledStructuredPresetImageSlotCount,
   inferInputPattern,
   insertImageAttachments,
   isPresetSlotFilled,
@@ -183,10 +184,13 @@ describe("media-studio-helpers Seedance support", () => {
 
     expect(modelSupportsStructuredImagePreset(nano, false)).toBe(true);
     expect(modelSupportsStructuredImagePreset(nano, true)).toBe(true);
+    expect(modelSupportsStructuredImagePreset(nano, "optional")).toBe(true);
     expect(modelSupportsStructuredImagePreset(gptTextToImage, false)).toBe(true);
     expect(modelSupportsStructuredImagePreset(gptTextToImage, true)).toBe(false);
+    expect(modelSupportsStructuredImagePreset(gptTextToImage, "optional")).toBe(false);
     expect(modelSupportsStructuredImagePreset(gptImageToImage, false)).toBe(false);
     expect(modelSupportsStructuredImagePreset(gptImageToImage, true)).toBe(true);
+    expect(modelSupportsStructuredImagePreset(gptImageToImage, "optional")).toBe(false);
     expect(modelSupportsStructuredImagePreset(kling, true)).toBe(false);
 
     expect(compatibleStructuredImagePresetModels([nano, gptTextToImage, gptImageToImage, kling], false).map((model) => model.key)).toEqual([
@@ -196,6 +200,9 @@ describe("media-studio-helpers Seedance support", () => {
     expect(compatibleStructuredImagePresetModels([nano, gptTextToImage, gptImageToImage, kling], true).map((model) => model.key)).toEqual([
       "nano-banana-2",
       "gpt-image-2-image-to-image",
+    ]);
+    expect(compatibleStructuredImagePresetModels([nano, gptTextToImage, gptImageToImage, kling], "optional").map((model) => model.key)).toEqual([
+      "nano-banana-2",
     ]);
   });
 
@@ -421,6 +428,33 @@ describe("media-studio-helpers Seedance support", () => {
         previewUrl: "https://example.com/thumb.webp",
       }),
     ).toBe(true);
+  });
+
+  it("counts filled structured preset image slots as image inputs", () => {
+    expect(
+      filledStructuredPresetImageSlotCount(
+        {
+          subject_image: {
+            assetId: null,
+            referenceId: "ref-1",
+            referenceRecord: null,
+            file: null,
+            previewUrl: "https://example.com/thumb.webp",
+          },
+          empty_image: {
+            assetId: null,
+            referenceId: null,
+            referenceRecord: null,
+            file: null,
+            previewUrl: null,
+          },
+        },
+        [
+          { key: "subject_image", label: "Subject Image", helpText: "", required: true, maxFiles: 1 },
+          { key: "empty_image", label: "Empty Image", helpText: "", required: false, maxFiles: 1 },
+        ],
+      ),
+    ).toBe(1);
   });
 
   it("uses the same staged image visual for enhancement previews as the composer strip", () => {
@@ -656,7 +690,8 @@ describe("media-studio-helpers Seedance support", () => {
       {
         key: "slot:person:0",
         label: "Person",
-        url: "/api/control/files/reference-media/images/person.png",
+        url: "/api/control/files/reference-media/thumbs/person.webp",
+        fullUrl: "/api/control/files/reference-media/images/person.png",
         kind: "images",
         posterUrl: null,
       },
@@ -1009,7 +1044,8 @@ describe("media-studio-helpers Seedance support", () => {
       {
         key: "job-image:0",
         label: "Reference 1",
-        url: "/api/control/files/reference-media/images/legacy-ref.png",
+        url: "/api/control/files/reference-media/thumbs/legacy-ref.webp",
+        fullUrl: "/api/control/files/reference-media/images/legacy-ref.png",
         kind: "images",
         posterUrl: null,
       },
@@ -1037,7 +1073,8 @@ describe("media-studio-helpers Seedance support", () => {
       {
         key: "job-image:0",
         label: "Source image",
-        url: "/api/control/files/reference-media/images/legacy-source.png",
+        url: "/api/control/files/reference-media/thumbs/legacy-source.webp",
+        fullUrl: "/api/control/files/reference-media/images/legacy-source.png",
         kind: "images",
         posterUrl: null,
       },
@@ -1337,6 +1374,39 @@ describe("media-studio-helpers Seedance support", () => {
       "gpt-image-2-image-to-image",
     );
     expect(resolveStudioPresetTargetModel(preset, "kling-2.6-i2v", "nano-banana-2", models)).toBe("nano-banana-2");
+  });
+
+  it("keeps optional image presets on models that can run with or without an image", () => {
+    const models = [
+      {
+        key: "nano-banana-2",
+        generation_kind: "image",
+        task_modes: ["text_to_image", "image_edit"],
+        input_patterns: ["prompt_only", "image_edit"],
+        image_inputs: { required_min: 0, required_max: 8 },
+      },
+      {
+        key: "gpt-image-2-image-to-image",
+        generation_kind: "image",
+        task_modes: ["image_edit"],
+        input_patterns: ["single_image"],
+        image_inputs: { required_min: 1, required_max: 16 },
+      },
+      {
+        key: "gpt-image-2-text-to-image",
+        generation_kind: "image",
+        task_modes: ["text_to_image"],
+        input_patterns: ["prompt_only"],
+        image_inputs: { required_min: 0, required_max: 0 },
+      },
+    ] as never;
+    const preset = {
+      status: "active",
+      input_slots_json: [{ key: "reference", required: false }],
+      applies_to_models: ["nano-banana-2", "gpt-image-2-image-to-image", "gpt-image-2-text-to-image"],
+    } as never;
+
+    expect(studioPresetSupportedModels(preset, models)).toEqual(["nano-banana-2"]);
   });
 
   it("falls back to the first allowed structured image model when no preferred model is supported", () => {

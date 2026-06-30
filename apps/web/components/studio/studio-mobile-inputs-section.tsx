@@ -16,11 +16,11 @@ export function StudioMobileInputsSection({
   className?: string;
 }) {
   return (
-    <SurfaceInset appearance="studio" density="compact" className={cn("mt-4 rounded-[24px] text-white lg:hidden", className)}>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[var(--text-dim)]">{title}</div>
+    <SurfaceInset appearance="studio" density="compact" className={cn("studio-mobile-inputs-section-shell", className)}>
+      <div className="studio-mobile-inputs-section-header">
+        <div className="studio-mobile-inputs-section-title">{title}</div>
         {summary ? (
-          <div className={studioBadgeClassName({ size: "compact", className: "px-3 py-1 text-[0.58rem] text-[var(--text-muted)] shadow-none" })}>
+          <div className={studioBadgeClassName({ size: "compact", className: "studio-mobile-inputs-section-summary" })}>
             {summary}
           </div>
         ) : null}

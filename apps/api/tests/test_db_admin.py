@@ -4,6 +4,11 @@ import json
 import sqlite3
 from pathlib import Path
 
+from app.store_schema import LATEST_SCHEMA_VERSION, MIGRATIONS
+
+
+EXPECTED_MIGRATION_IDS = [migration.migration_id for migration in MIGRATIONS]
+
 
 def _count_rows(db_path: Path, table: str) -> int:
     connection = sqlite3.connect(db_path)
@@ -12,6 +17,12 @@ def _count_rows(db_path: Path, table: str) -> int:
     finally:
         connection.close()
     return int(row[0] or 0)
+
+
+def _assert_schema_current(status: dict) -> None:
+    assert status["schema_version"] == status["latest_version"] == LATEST_SCHEMA_VERSION
+    assert status["pending_migrations"] == []
+    assert [entry["migration_id"] for entry in status["applied_migrations"]] == EXPECTED_MIGRATION_IDS
 
 
 def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_path: Path) -> None:
@@ -63,26 +74,7 @@ def test_create_clean_database_bootstraps_schema_and_defaults(app_modules, tmp_p
     assert any("gpt-image-2-image-to-image" in json.loads(preset_row[0]) for preset_row in preset_rows)
     assert any("gpt-image-2-text-to-image" in json.loads(preset_row[0]) for preset_row in preset_rows)
 
-    assert status["schema_version"] == status["latest_version"]
-    assert status["latest_version"] == 16
-    assert len(status["applied_migrations"]) == 16
-    assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
-    assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
-    assert status["applied_migrations"][2]["migration_id"] == "20260419_003_project_visibility_flags"
-    assert status["applied_migrations"][3]["migration_id"] == "20260501_004_default_model_release_updates"
-    assert status["applied_migrations"][4]["migration_id"] == "20260511_005_graph_studio"
-    assert status["applied_migrations"][5]["migration_id"] == "20260512_006_graph_run_metrics"
-    assert status["applied_migrations"][6]["migration_id"] == "20260512_007_graph_artifacts"
-    assert status["applied_migrations"][7]["migration_id"] == "20260516_008_prompt_recipes"
-    assert status["applied_migrations"][8]["migration_id"] == "20260516_009_prompt_recipe_validation_warnings"
-    assert status["applied_migrations"][9]["migration_id"] == "20260516_010_prompt_recipe_drafting_config"
-    assert status["applied_migrations"][10]["migration_id"] == "20260517_011_graph_prompt_recipe_seed_refresh"
-    assert status["applied_migrations"][11]["migration_id"] == "20260517_012_prompt_recipe_graph_runtime_refresh"
-    assert status["applied_migrations"][12]["migration_id"] == "20260517_013_prompt_recipe_smoke_template_provider_refresh"
-    assert status["applied_migrations"][13]["migration_id"] == "20260517_014_external_llm_usage"
-    assert status["applied_migrations"][14]["migration_id"] == "20260517_015_graph_rollout_hardening_cleanup"
-    assert status["applied_migrations"][15]["migration_id"] == "20260519_016_prompt_recipe_drafting_enabled"
-    assert status["pending_migrations"] == []
+    _assert_schema_current(status)
 
 
 def test_bootstrap_schema_upgrades_legacy_seedance_default_policy(app_modules, tmp_path: Path) -> None:
@@ -198,7 +190,7 @@ def test_bootstrap_schema_updates_v3_default_model_release_settings(app_modules,
     assert int(seedance_policy[0] or 0) == 1
     assert int(seedance_policy[1] or 0) == 1
     status = store.get_schema_status(legacy_db)
-    assert status["schema_version"] == status["latest_version"] == 16
+    _assert_schema_current(status)
 
 
 def test_backup_database_copies_existing_database(app_modules, tmp_path: Path) -> None:
@@ -250,13 +242,7 @@ def test_bootstrap_schema_creates_backup_before_upgrading_existing_database(app_
     assert _count_rows(backup_path, "media_jobs") == 1
 
     status = store.get_schema_status(legacy_db)
-    assert status["schema_version"] == status["latest_version"] == 16
-    assert status["pending_migrations"] == []
-    assert status["applied_migrations"][0]["migration_id"] == "20260419_001_tracked_baseline"
-    assert status["applied_migrations"][1]["migration_id"] == "20260419_002_project_cover_references"
-    assert status["applied_migrations"][2]["migration_id"] == "20260419_003_project_visibility_flags"
-    assert status["applied_migrations"][3]["migration_id"] == "20260501_004_default_model_release_updates"
-    assert status["applied_migrations"][4]["migration_id"] == "20260511_005_graph_studio"
+    _assert_schema_current(status)
 
 
 def test_rollout_cleanup_migration_archives_duplicate_prompt_recipe_smoke_workflows(app_modules, tmp_path: Path) -> None:
@@ -334,7 +320,7 @@ def test_rollout_cleanup_migration_archives_duplicate_prompt_recipe_smoke_workfl
     assert row_map["graphwf_live_smoke_1"]["status"] == "archived"
 
     status = store.get_schema_status(legacy_db)
-    assert status["schema_version"] == status["latest_version"] == 16
+    _assert_schema_current(status)
 
 
 def test_deduplicate_assets_by_job_id_keeps_latest_asset(app_modules) -> None:

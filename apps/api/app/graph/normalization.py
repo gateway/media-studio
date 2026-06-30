@@ -4,7 +4,7 @@ from copy import deepcopy
 from typing import Dict, Iterable
 
 from .preset_catalog import media_preset_catalog
-from .prompt_recipe_catalog import prompt_recipe_for_node_type, prompt_recipe_catalog
+from .prompt_recipe_catalog import prompt_recipe_catalog
 from .registry import registry
 from .schemas import GraphNodeDefinition, GraphWorkflow, GraphWorkflowEdge, GraphWorkflowNode
 
@@ -23,6 +23,14 @@ SEEDANCE_LEGACY_TARGET_PORTS = {
     "audio_refs": "reference_audios",
 }
 
+SAVE_NODE_LEGACY_OUTPUT_PORTS = {
+    "media.save_image": {"asset": "image"},
+    "media.save_images": {"asset": "images", "assets": "images"},
+    "media.save_video": {"asset": "video"},
+    "media.save_audio": {"asset": "audio"},
+    "media.save_music_track": {"asset": "audio"},
+}
+
 
 def normalize_prompt_recipe_node(
     node: GraphWorkflowNode,
@@ -35,14 +43,7 @@ def normalize_prompt_recipe_node(
     recipe = None
     catalog = recipe_catalog_items if recipe_catalog_items is not None else prompt_recipe_catalog(status="all")
     by_id = recipe_lookup if recipe_lookup is not None else _recipe_by_id(catalog)
-    if node.type != "prompt.recipe" and node.type.startswith("prompt.recipe."):
-        recipe = prompt_recipe_for_node_type(node.type, catalog=catalog)
-        if recipe:
-            fields.setdefault("recipe_id", str(recipe.get("recipe_id") or ""))
-            changed = True
-        node = node.model_copy(update={"type": "prompt.recipe"})
-        changed = True
-    elif node.type == "prompt.recipe":
+    if node.type == "prompt.recipe":
         recipe_id = str(fields.get("recipe_id") or "").strip()
         if recipe_id:
             recipe = by_id.get(recipe_id)
@@ -110,11 +111,20 @@ def materialize_workflow_defaults(
         normalized = normalize_prompt_recipe_node(normalized, recipe_catalog_items=all_recipe_catalog, recipe_lookup=recipe_lookup)
         nodes.append(materialize_node_field_defaults(normalized, definitions.get(normalized.type)))
     seedance_node_ids = {node.id for node in nodes if node.type == "model.kie.seedance_2_0"}
+    node_types_by_id = {node.id: node.type for node in nodes}
     edges: list[GraphWorkflowEdge] = []
     edges_changed = False
     for edge in workflow.edges:
+        source_type = node_types_by_id.get(edge.source)
+        normalized_source_port = SAVE_NODE_LEGACY_OUTPUT_PORTS.get(source_type or "", {}).get(edge.source_port)
         if edge.target in seedance_node_ids and edge.target_port in SEEDANCE_LEGACY_TARGET_PORTS:
-            edges.append(edge.model_copy(update={"target_port": SEEDANCE_LEGACY_TARGET_PORTS[edge.target_port]}))
+            updates = {"target_port": SEEDANCE_LEGACY_TARGET_PORTS[edge.target_port]}
+            if normalized_source_port:
+                updates["source_port"] = normalized_source_port
+            edges.append(edge.model_copy(update=updates))
+            edges_changed = True
+        elif normalized_source_port:
+            edges.append(edge.model_copy(update={"source_port": normalized_source_port}))
             edges_changed = True
         else:
             edges.append(edge)

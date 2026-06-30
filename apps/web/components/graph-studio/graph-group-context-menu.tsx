@@ -1,8 +1,8 @@
 "use client";
 
 import { Layers, Trash2 } from "lucide-react";
-import type { CSSProperties } from "react";
 
+import { GraphColorChoiceGrid, GraphExecutionModeControls, graphExecutionMenuLabels } from "./graph-context-menu-controls";
 import type { GraphNodeColorChoice } from "./graph-node-context-menu";
 import type { GraphExecutionMode } from "./utils/graph-node-execution";
 
@@ -31,13 +31,7 @@ export function GraphGroupContextMenu({
   onSetExecutionMode: (mode: GraphExecutionMode) => void;
   onDelete: () => void;
 }) {
-  const primaryExecutionModes: GraphExecutionMode[] = ["enabled", "frozen"];
-  const labels: Record<GraphExecutionMode, string> = {
-    enabled: "Enabled",
-    frozen: "Mute group",
-    bypassed: "Advanced: Bypass",
-    muted: "Legacy: Disable output",
-  };
+  const labels = graphExecutionMenuLabels("group");
   return (
     <div className="graph-node-context-menu graph-group-context-menu" data-testid="graph-group-context-menu" style={{ left: x, top: y }} role="menu">
       <div className="graph-node-context-title">
@@ -61,43 +55,21 @@ export function GraphGroupContextMenu({
       </div>
       <div className="graph-node-context-section">
         <span>Execution</span>
-        <div className="graph-node-execution-grid" role="group" aria-label="Group execution mode">
-          {primaryExecutionModes.map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              className={mode === executionMode ? "graph-node-execution-choice graph-node-execution-choice-active" : "graph-node-execution-choice"}
-              onClick={() => onSetExecutionMode(mode)}
-            >
-              {labels[mode]}
-            </button>
-          ))}
-        </div>
-        {executionMode === "bypassed" || executionMode === "muted" ? (
-          <button
-            type="button"
-            className="graph-node-execution-choice graph-node-execution-choice-active"
-            onClick={() => onSetExecutionMode(executionMode)}
-          >
-            {labels[executionMode]}
-          </button>
-        ) : null}
+        <GraphExecutionModeControls
+          ariaLabel="Group execution mode"
+          executionMode={executionMode}
+          labels={labels}
+          onSetExecutionMode={onSetExecutionMode}
+        />
       </div>
       <div className="graph-node-context-section">
         <span>Color</span>
-        <div className="graph-node-color-grid" role="group" aria-label="Group colors">
-          {colors.map((color) => (
-            <button
-              key={color.id}
-              type="button"
-              className="graph-node-color-choice"
-              style={{ "--graph-node-choice-color": color.accent, "--graph-node-choice-surface": color.surface } as CSSProperties}
-              aria-label={`Set group color ${color.label}`}
-              title={color.label}
-              onClick={() => onSelectColor(color)}
-            />
-          ))}
-        </div>
+        <GraphColorChoiceGrid
+          ariaLabel="Group colors"
+          colors={colors}
+          targetLabel="group"
+          onSelectColor={onSelectColor}
+        />
       </div>
       <button type="button" role="menuitem" onClick={onDelete}>
         <Trash2 size={14} />

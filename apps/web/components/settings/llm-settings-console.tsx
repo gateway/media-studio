@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { BrainCircuit, Cable, Coins, Image as ImageIcon, Sparkles } from "lucide-react";
 
 import { adminButtonClassName, adminInsetPanelClassName } from "@/components/admin-controls";
@@ -69,6 +70,46 @@ function providerSummaryCard({
   );
 }
 
+function settingsMetricCard({
+  label,
+  value,
+  detail,
+  valueClassName = "mt-3 text-2xl font-semibold text-[var(--foreground)]",
+}: {
+  label: string;
+  value: ReactNode;
+  detail: string;
+  valueClassName?: string;
+}) {
+  return (
+    <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
+      <div className="admin-label-muted">{label}</div>
+      <div className={valueClassName}>{value}</div>
+      <div className="mt-2 text-sm text-[var(--muted-strong)]">{detail}</div>
+    </SurfaceInset>
+  );
+}
+
+function settingsIconCard({
+  icon,
+  label,
+  children,
+}: {
+  icon: ReactNode;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
+      <div className="admin-icon-label-row admin-label-muted">
+        {icon}
+        {label}
+      </div>
+      {children}
+    </SurfaceInset>
+  );
+}
+
 export function LlmSettingsConsole({
   enhancementConfigs,
   promptRecipeDraftingConfig,
@@ -108,38 +149,40 @@ export function LlmSettingsConsole({
           description="Choose the default model for Prompt Enhance and for recipe drafts. Graph workflows still choose their own models inside each node."
         />
         <div className="mt-5 grid gap-3 lg:grid-cols-3">
-          <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-            <div className="admin-icon-label-row admin-label-muted">
-              <Sparkles className="size-3.5" />
-              Prompt Enhance button
-            </div>
-            <div className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">
-              Default model: <span className="font-medium text-[var(--foreground)]">{enhancementProviderLabel}</span>
-            </div>
-          </SurfaceInset>
-          <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-            <div className="admin-icon-label-row admin-label-muted">
-              <BrainCircuit className="size-3.5" />
-              Recipe drafts
-            </div>
-            <div className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">
-              Default model:{" "}
-              <span className="font-medium text-[var(--foreground)]">{draftingEnabled ? draftingProviderLabel : "Off"}</span>
-            </div>
-            <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">
-              Only used when Media Studio writes the first draft of a Prompt Recipe.
-            </div>
-          </SurfaceInset>
-          <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-            <div className="admin-icon-label-row admin-label-muted">
-              <Cable className="size-3.5" />
-              Graph workflows
-            </div>
-            <div className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">
-              Graph prompt nodes choose their own provider and model inside each workflow. They do not use the recipe
-              draft default from this page.
-            </div>
-          </SurfaceInset>
+          {settingsIconCard({
+            icon: <Sparkles className="size-3.5" />,
+            label: "Prompt Enhance button",
+            children: (
+              <div className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">
+                Default model: <span className="font-medium text-[var(--foreground)]">{enhancementProviderLabel}</span>
+              </div>
+            ),
+          })}
+          {settingsIconCard({
+            icon: <BrainCircuit className="size-3.5" />,
+            label: "Recipe drafts",
+            children: (
+              <>
+                <div className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">
+                  Default model:{" "}
+                  <span className="font-medium text-[var(--foreground)]">{draftingEnabled ? draftingProviderLabel : "Off"}</span>
+                </div>
+                <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">
+                  Only used when Media Studio writes the first draft of a Prompt Recipe.
+                </div>
+              </>
+            ),
+          })}
+          {settingsIconCard({
+            icon: <Cable className="size-3.5" />,
+            label: "Graph workflows",
+            children: (
+              <div className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">
+                Graph prompt nodes choose their own provider and model inside each workflow. They do not use the recipe
+                draft default from this page.
+              </div>
+            ),
+          })}
         </div>
         <div className="mt-5 border-t border-[var(--border-subtle)] pt-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -223,59 +266,57 @@ export function LlmSettingsConsole({
           defaultOpen={false}
         >
           <div className={adminMetricGridFourClassName}>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-              <div className="admin-label-muted">Today</div>
-              <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
-                {formatUsdAmount(openRouterSpend?.today.cost_usd ?? null) ?? "n/a"}
-              </div>
-              <div className="mt-2 text-sm text-[var(--muted-strong)]">OpenRouter actual spend</div>
-            </SurfaceInset>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-              <div className="admin-label-muted">Last 7d</div>
-              <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
-                {formatUsdAmount(openRouterSpend?.last_7d.cost_usd ?? null) ?? "n/a"}
-              </div>
-              <div className="mt-2 text-sm text-[var(--muted-strong)]">OpenRouter actual spend</div>
-            </SurfaceInset>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-              <div className="admin-label-muted">Codex Local</div>
-              <div className="mt-3 text-lg font-semibold text-[var(--foreground)]">Included</div>
-              <div className="mt-2 text-sm text-[var(--muted-strong)]">Uses the local Codex or ChatGPT plan on this machine</div>
-            </SurfaceInset>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-              <div className="admin-label-muted">Local OpenAI-Compatible</div>
-              <div className="mt-3 text-lg font-semibold text-[var(--foreground)]">Self-hosted</div>
-              <div className="mt-2 text-sm text-[var(--muted-strong)]">Media Studio does not estimate the real cost of your own endpoint</div>
-            </SurfaceInset>
+            {settingsMetricCard({
+              label: "Today",
+              value: formatUsdAmount(openRouterSpend?.today.cost_usd ?? null) ?? "n/a",
+              detail: "OpenRouter actual spend",
+            })}
+            {settingsMetricCard({
+              label: "Last 7d",
+              value: formatUsdAmount(openRouterSpend?.last_7d.cost_usd ?? null) ?? "n/a",
+              detail: "OpenRouter actual spend",
+            })}
+            {settingsMetricCard({
+              label: "Codex Local",
+              value: "Included",
+              detail: "Uses the local Codex or ChatGPT plan on this machine",
+              valueClassName: "mt-3 text-lg font-semibold text-[var(--foreground)]",
+            })}
+            {settingsMetricCard({
+              label: "Local OpenAI-Compatible",
+              value: "Self-hosted",
+              detail: "Media Studio does not estimate the real cost of your own endpoint",
+              valueClassName: "mt-3 text-lg font-semibold text-[var(--foreground)]",
+            })}
           </div>
           <div className="mt-5 grid gap-3 lg:grid-cols-3">
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-              <div className="admin-icon-label-row admin-label-muted">
-                <Coins className="size-3.5" />
-                OpenRouter
-              </div>
-              <div className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">
-                Hosted models. Media Studio tracks spend for these calls.
-              </div>
-            </SurfaceInset>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-              <div className="admin-icon-label-row admin-label-muted">
-                <Cable className="size-3.5" />
-                Codex Local
-              </div>
-              <div className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">
-                Uses your existing Codex or ChatGPT plan. Media Studio does not show a made-up dollar estimate here.
-              </div>
-            </SurfaceInset>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-              <div className="admin-icon-label-row admin-label-muted">
-                <ImageIcon className="size-3.5" />
-                Local OpenAI-Compatible
-              </div>
-              <div className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">
-                Your own local or self-hosted endpoint. You manage the cost and capacity for this path.
-              </div>
-            </SurfaceInset>
+            {settingsIconCard({
+              icon: <Coins className="size-3.5" />,
+              label: "OpenRouter",
+              children: (
+                <div className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">
+                  Hosted models. Media Studio tracks spend for these calls.
+                </div>
+              ),
+            })}
+            {settingsIconCard({
+              icon: <Cable className="size-3.5" />,
+              label: "Codex Local",
+              children: (
+                <div className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">
+                  Uses your existing Codex or ChatGPT plan. Media Studio does not show a made-up dollar estimate here.
+                </div>
+              ),
+            })}
+            {settingsIconCard({
+              icon: <ImageIcon className="size-3.5" />,
+              label: "Local OpenAI-Compatible",
+              children: (
+                <div className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">
+                  Your own local or self-hosted endpoint. You manage the cost and capacity for this path.
+                </div>
+              ),
+            })}
           </div>
         </SectionDisclosure>
       </Panel>

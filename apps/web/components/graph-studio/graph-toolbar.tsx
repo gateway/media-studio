@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleDollarSign, Coins, LoaderCircle, Plus, Play, Redo2, TriangleAlert, Undo2, Workflow, X } from "lucide-react";
+import { CircleDollarSign, Coins, LoaderCircle, Plus, Play, Redo2, Undo2, Workflow, X } from "lucide-react";
 import { humanizeGraphRunStatus } from "@/lib/status-language";
 import { GraphRunDiagnostics } from "./graph-run-diagnostics";
 import type { GraphEstimateResponse, GraphRun, GraphRunTransportMetrics, GraphWorkspaceTab } from "./types";
@@ -16,7 +16,7 @@ function compactCreditText(value: string) {
 }
 
 function compactPricingText(value: string) {
-  return value.replace(/^Graph\s+/i, "").replace(/\s*cr\b/i, "");
+  return value.replace(/^Graph\s+/i, "").replace(/\s*cr\b/i, "").replace(/\s+estimated$/i, "");
 }
 
 const TERMINAL_RUN_STATUSES = new Set(["completed", "failed", "cancelled"]);
@@ -39,9 +39,11 @@ export function GraphToolbar({
   creditsUnavailable,
   graphPricing,
   onToggleWorkflowMenu,
+  onCloseWorkflowMenu,
   onSwitchTab,
   onNewTab,
   onCloseTab,
+  onCloseOtherTabs,
   canUndo,
   canRedo,
   onUndo,
@@ -70,9 +72,11 @@ export function GraphToolbar({
   creditsUnavailable: boolean;
   graphPricing: GraphEstimateResponse | null;
   onToggleWorkflowMenu: () => void;
+  onCloseWorkflowMenu?: () => void;
   onSwitchTab?: (tabId: string) => void;
   onNewTab?: () => void;
   onCloseTab?: (tabId: string) => void;
+  onCloseOtherTabs?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
   onUndo?: () => void;
@@ -95,7 +99,15 @@ export function GraphToolbar({
   const creditLabel = compactCreditText(creditText);
   const pricingLabel = graphEstimateToolbarLabel(graphPricing);
   const compactPricingLabel = compactPricingText(pricingLabel);
-  const warningCount = graphPricing?.warnings?.length ?? 0;
+  const closeActiveTabOrWorkflow = () => {
+    if (tabs && tabs.length > 1 && activeTabId && onCloseTab) {
+      onCloseTab(activeTabId);
+      onCloseWorkflowMenu?.();
+      return;
+    }
+    onCloseWorkflow();
+    onCloseWorkflowMenu?.();
+  };
   return (
     <div className="graph-toolbar">
       <div className="graph-workflow-tabs" data-testid="graph-workflow-tabs">
@@ -118,37 +130,24 @@ export function GraphToolbar({
                 <Workflow size={15} />
                 <span>{tab.workflow_name || "Untitled workflow"}</span>
                 {tabRunStatus ? (
-                  <small className="graph-workflow-tab-status" title={`Run status: ${tabRunStatus}`}>
-                    {tabRunStatus}
-                  </small>
+                  <small
+                    className="graph-workflow-tab-indicator graph-workflow-tab-status"
+                    aria-label={`Run status: ${tabRunStatus}`}
+                    title={`Run status: ${tabRunStatus}`}
+                  />
+                ) : null}
+                {tab.dirty ? (
+                  <small
+                    className="graph-workflow-tab-indicator graph-workflow-tab-unsaved"
+                    aria-label="Unsaved workflow changes"
+                    title="Unsaved workflow changes"
+                  />
                 ) : null}
               </button>
               {tabs && tabs.length > 1 ? (
                 <button className="graph-workflow-tab-close" type="button" aria-label={`Close ${tab.workflow_name || "workflow"} tab`} onClick={() => onCloseTab?.(tab.tab_id)}>
                   <X size={12} />
                 </button>
-              ) : null}
-              {active && workflowMenuOpen ? (
-                <div className="graph-workflow-menu" data-testid="graph-workflow-menu" role="menu">
-                  <button type="button" role="menuitem" onClick={onSave}>
-                    Save
-                  </button>
-                  <button type="button" role="menuitem" onClick={onSaveAs}>
-                    Save As
-                  </button>
-                  <button type="button" role="menuitem" onClick={onExportWorkflow}>
-                    Export Workflow
-                  </button>
-                  <button type="button" role="menuitem" onClick={onExportBundle}>
-                    Export Workflow Bundle
-                  </button>
-                  <button type="button" role="menuitem" onClick={onOpenRename}>
-                    Rename
-                  </button>
-                  <button type="button" role="menuitem" onClick={onCloseWorkflow}>
-                    Close
-                  </button>
-                </div>
               ) : null}
             </div>
           );
@@ -157,6 +156,40 @@ export function GraphToolbar({
           <Plus size={14} />
         </button>
       </div>
+      {workflowMenuOpen ? (
+        <div className="graph-workflow-menu" data-testid="graph-workflow-menu" role="menu">
+          <button type="button" role="menuitem" onClick={onSave}>
+            Save
+          </button>
+          <button type="button" role="menuitem" onClick={onSaveAs}>
+            Save As
+          </button>
+          <button type="button" role="menuitem" onClick={onExportWorkflow}>
+            Export Workflow
+          </button>
+          <button type="button" role="menuitem" onClick={onExportBundle}>
+            Export Workflow Bundle
+          </button>
+          <button type="button" role="menuitem" onClick={onOpenRename}>
+            Rename
+          </button>
+          {tabs && tabs.length > 1 && onCloseOtherTabs ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onCloseOtherTabs();
+                onCloseWorkflowMenu?.();
+              }}
+            >
+              Close Other Tabs
+            </button>
+          ) : null}
+          <button type="button" role="menuitem" onClick={closeActiveTabOrWorkflow}>
+            Close
+          </button>
+        </div>
+      ) : null}
       <div className="graph-toolbar-actions">
         <button
           className="graph-toolbar-history-button"
@@ -226,17 +259,11 @@ export function GraphToolbar({
       <div
         className={`graph-credit-balance graph-pricing-balance ${pricingWarning ? "graph-credit-balance-warning" : ""}`}
         data-testid="graph-pricing-balance"
-        aria-label={`Estimated graph cost ${pricingLabel}${pricingWarning ? `. ${pricingWarning}` : ""}`}
+        aria-label={`Estimated graph cost ${pricingLabel.replace(/\s+estimated$/i, "")}${pricingWarning ? `. ${pricingWarning}` : ""}`}
         title={`Estimated cost: ${pricingLabel}${pricingWarning ? ` (${pricingWarning})` : ""}`}
       >
         <CircleDollarSign size={13} aria-hidden="true" />
         <span>{compactPricingLabel}</span>
-        {pricingWarning ? (
-          <small className="graph-pricing-warning-count" aria-hidden="true">
-            <TriangleAlert size={11} />
-            {warningCount || "!"}
-          </small>
-        ) : null}
       </div>
       {runActive ? (
         <button

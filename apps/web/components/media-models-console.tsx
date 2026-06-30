@@ -36,6 +36,8 @@ import { cn } from "@/lib/utils";
 type MediaModelsConsoleProps = {
   models: MediaModelSummary[];
   presets: MediaPreset[];
+  presetsTotal?: number;
+  presetsNextOffset?: number | null;
   enhancementConfigs: MediaEnhancementConfig[];
   queueSettings?: MediaQueueSettings | null;
   queuePolicies?: MediaModelQueuePolicy[];
@@ -76,6 +78,8 @@ const GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__";
 export function MediaModelsConsole({
   models,
   presets,
+  presetsTotal,
+  presetsNextOffset,
   enhancementConfigs,
   queueSettings,
   queuePolicies = [],
@@ -409,6 +413,8 @@ export function MediaModelsConsole({
       {visibleSections.presets ? (
         <MediaPresetsPanel
           presets={localPresets}
+          total={presetsTotal}
+          nextOffset={presetsNextOffset}
           isImporting={isImportingPreset}
           onImportClick={() => presetImportInputRef.current?.click()}
         />

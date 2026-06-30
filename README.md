@@ -169,6 +169,14 @@ If the default ports are busy, Studio automatically chooses the next open API an
 npm run start:studio -- --api-port 8010 --web-port 3010
 ```
 
+At the end of onboarding, any displayed `127.0.0.1:3000` URL is only the configured/default URL. If that port is busy, the launcher prints and opens the actual temporary Studio URL it selected.
+
+The standalone developer commands use the same port-safety behavior: `npm run dev:api`, `npm run start:api`, `npm run dev:web`, and `npm run start:web` auto-select a temporary open port unless you pass an explicit `--port`.
+
+### Release Flags
+
+Graph Studio hides the experimental Media Assistant chat button by default. To expose it for internal debugging, set `NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=1` in `.env` and restart the web app so Next.js picks up the client-side flag.
+
 ## Cool Features
 
 - **Create Revision** restores an old asset back into Studio with the original prompt, model, settings, and reference media.

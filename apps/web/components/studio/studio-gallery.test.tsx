@@ -180,4 +180,42 @@ describe("StudioGallery", () => {
     expect(onToggleFavorite).toHaveBeenCalledWith(expect.objectContaining({ asset_id: "asset-1" }));
     expect(onSelectAsset).not.toHaveBeenCalled();
   });
+
+  it("renders current-page gallery image tags and lets the browser lazy-load offscreen media", () => {
+    const tiles: GalleryTile[] = Array.from({ length: 8 }, (_, index) => ({
+      asset: {
+        asset_id: `asset-${index}`,
+        generation_kind: "image",
+        model_key: "nano-banana-2",
+        prompt_summary: `Finished image ${index}`,
+        hero_thumb_path: `outputs/thumb-${index}.jpg`,
+      } as never,
+      label: `Finished image ${index}`,
+      batch: null,
+      job: null,
+    }));
+
+    const { container } = render(
+      <StudioGallery
+        apiHealthy
+        immersive
+        galleryTiles={tiles}
+        activeGalleryHasMore={false}
+        activeGalleryLoadingMore={false}
+        selectedAssetId={null}
+        favoriteAssetIdBusy={null}
+        galleryLoadMoreRef={{ current: null }}
+        onLoadMore={() => undefined}
+        onSelectAsset={() => undefined}
+        onSelectFailedJob={() => undefined}
+        onDragAsset={() => undefined}
+        onToggleFavorite={() => undefined}
+      />,
+    );
+
+    expect(container.querySelectorAll('[data-testid="studio-gallery-card"]')).toHaveLength(8);
+    expect(container.querySelectorAll('[data-testid="studio-gallery-card"] img')).toHaveLength(8);
+    expect(container.querySelectorAll('[data-testid="studio-gallery-card"] img[loading="eager"]')).toHaveLength(4);
+    expect(container.querySelectorAll('[data-testid="studio-gallery-card"] img[loading="lazy"]')).toHaveLength(4);
+  });
 });

@@ -1,13 +1,3 @@
-.graph-node-search-modal {
-  left: 50%;
-  top: 82px;
-  transform: translateX(-50%);
-}
-
-.graph-node-search-modal .graph-search {
-  margin: 0;
-}
-
 .graph-node-search-popover {
   width: min(304px, calc(100vw - 1.5rem));
   max-height: min(416px, calc(100vh - 5rem));
@@ -31,7 +21,7 @@
 .graph-node-search-heading kbd {
   border: 1px solid var(--graph-border);
   border-radius: 4px;
-  color: rgba(247, 246, 240, 0.5);
+  color: var(--graph-text-faint);
   font-size: 0.5rem;
   padding: 0.1rem 0.22rem;
 }
@@ -57,7 +47,7 @@
   width: 100%;
   border: 1px solid var(--graph-border-hairline);
   border-radius: 6px;
-  background: rgba(247, 246, 240, 0.035);
+  background: color-mix(in srgb, var(--graph-text) 3.5%, transparent);
   color: var(--graph-text);
   cursor: pointer;
   padding: 0.4rem 0.44rem;
@@ -66,7 +56,7 @@
 
 .graph-node-search-result:hover,
 .graph-node-search-result-active {
-  border-color: rgba(209, 255, 71, 0.46);
+  border-color: color-mix(in srgb, var(--graph-accent) 46%, transparent);
   background: var(--graph-accent-soft);
 }
 
@@ -79,7 +69,7 @@
   border: 1px solid var(--graph-border);
   border-radius: 6px;
   color: var(--graph-accent);
-  background: rgba(14, 17, 16, 0.74);
+  background: color-mix(in srgb, var(--graph-bg) 74%, transparent);
 }
 
 .graph-node-search-result strong,
@@ -96,7 +86,7 @@
 
 .graph-node-search-result small {
   margin-top: 0.1rem;
-  color: rgba(247, 246, 240, 0.54);
+  color: color-mix(in srgb, var(--graph-text) 54%, transparent);
   font-size: 0.54rem;
 }
 
@@ -111,6 +101,7 @@
 .graph-image-library-modal {
   left: 50%;
   top: 70px;
+  z-index: 180;
   width: min(760px, calc(100vw - 48px));
   max-height: calc(100vh - 140px);
   overflow: auto;
@@ -144,8 +135,8 @@
 }
 
 .graph-rename-modal input:focus {
-  border-color: rgba(209, 255, 71, 0.72);
-  box-shadow: 0 0 0 2px rgba(209, 255, 71, 0.12);
+  border-color: color-mix(in srgb, var(--graph-accent) 72%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--graph-accent) 12%, transparent);
 }
 
 .graph-rename-actions {
@@ -167,7 +158,6 @@
 }
 
 .graph-modal-header button,
-.graph-node-library-button,
 .graph-node-preview-empty {
   color: var(--graph-text);
   background: var(--graph-panel-raised);
@@ -176,8 +166,7 @@
   cursor: pointer;
 }
 
-.graph-modal-header button,
-.graph-node-library-button {
+.graph-modal-header button {
   padding: 0.55rem 0.7rem;
 }
 
@@ -282,7 +271,7 @@
   color: var(--graph-text-quiet);
   border: 1px solid var(--graph-border-muted);
   border-radius: 999px;
-  background: rgba(247, 246, 240, 0.055);
+  background: color-mix(in srgb, var(--graph-text) 5.5%, transparent);
   font-size: 0.62rem;
   font-weight: 800;
 }
@@ -333,7 +322,7 @@
   border: 1px solid var(--graph-border-muted);
   border-radius: 7px;
   color: var(--graph-text-subtle);
-  background: rgba(14, 17, 16, 0.48);
+  background: color-mix(in srgb, var(--graph-bg) 48%, transparent);
   cursor: pointer;
 }
 

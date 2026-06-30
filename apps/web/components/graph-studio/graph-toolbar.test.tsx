@@ -42,6 +42,7 @@ function renderToolbar(run: GraphRun | null, overrides: Partial<ComponentProps<t
     creditsUnavailable: false,
     graphPricing: null,
     onToggleWorkflowMenu: vi.fn(),
+    onCloseWorkflowMenu: vi.fn(),
     onSave: vi.fn(),
     onSaveAs: vi.fn(),
     onExportWorkflow: vi.fn(),
@@ -83,6 +84,117 @@ describe("GraphToolbar", () => {
 
     renderToolbar(null, { tabs, activeTabId: "tab-1" });
 
-    expect(screen.getByTitle("Run status: Running")).toBeTruthy();
+    expect(screen.getByLabelText("Run status: Running")).toBeTruthy();
+    expect(screen.queryByText("Running")).toBeNull();
+  });
+
+  it("shows a clear unsaved marker on dirty workflow tabs", () => {
+    const tabs: GraphWorkspaceTab[] = [
+      { tab_id: "tab-1", workflow_name: "Current workflow", workflow_id: "workflow-1", run_id: null, run_status: null, dirty: true },
+    ];
+
+    renderToolbar(null, { tabs, activeTabId: "tab-1" });
+
+    expect(screen.getByLabelText("Unsaved workflow changes")).toBeTruthy();
+    expect(screen.queryByText("Unsaved")).toBeNull();
+  });
+
+  it("keeps graph pricing warnings on the pricing pill without a duplicate count badge", () => {
+    const { container } = renderToolbar(null, {
+      graphPricing: {
+        pricing_summary: {
+          total: { estimated_credits: null, estimated_cost_usd: null },
+          has_numeric_estimate: false,
+          has_unknown_pricing: true,
+        },
+        nodes: {},
+        warnings: [
+          { code: "missing_preset_text", message: "Missing text" },
+          { code: "disconnected_node", message: "Disconnected" },
+        ],
+      },
+    });
+
+    const pricingPill = screen.getByTestId("graph-pricing-balance");
+    expect(pricingPill.textContent).toContain("price ? + unknown");
+    expect(pricingPill.getAttribute("title")).toContain("Unknown model pricing");
+    expect(container.querySelector(".graph-pricing-warning-count")).toBeNull();
+  });
+
+  it("exposes a close other tabs action from the active workflow menu", () => {
+    const onCloseOtherTabs = vi.fn();
+    const onToggleWorkflowMenu = vi.fn();
+    const onCloseWorkflowMenu = vi.fn();
+    const tabs: GraphWorkspaceTab[] = [
+      { tab_id: "tab-1", workflow_name: "Current workflow", workflow_id: "workflow-1", run_id: null, run_status: null, dirty: false },
+      { tab_id: "tab-2", workflow_name: "Dream 1", workflow_id: "workflow-2", run_id: null, run_status: null, dirty: false },
+    ];
+
+    renderToolbar(null, {
+      tabs,
+      activeTabId: "tab-1",
+      workflowMenuOpen: true,
+      onCloseOtherTabs,
+      onToggleWorkflowMenu,
+      onCloseWorkflowMenu,
+    });
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /close other tabs/i }));
+    expect(onCloseOtherTabs).toHaveBeenCalledTimes(1);
+    expect(onToggleWorkflowMenu).not.toHaveBeenCalled();
+    expect(onCloseWorkflowMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the active tab from the workflow menu when multiple tabs are open", () => {
+    const onCloseTab = vi.fn();
+    const onCloseWorkflow = vi.fn();
+    const onToggleWorkflowMenu = vi.fn();
+    const onCloseWorkflowMenu = vi.fn();
+    const tabs: GraphWorkspaceTab[] = [
+      { tab_id: "tab-1", workflow_name: "Current workflow", workflow_id: "workflow-1", run_id: null, run_status: null, dirty: false },
+      { tab_id: "tab-2", workflow_name: "Scratch workflow", workflow_id: "workflow-2", run_id: null, run_status: null, dirty: false },
+    ];
+
+    renderToolbar(null, {
+      tabs,
+      activeTabId: "tab-1",
+      workflowMenuOpen: true,
+      onCloseTab,
+      onCloseWorkflow,
+      onToggleWorkflowMenu,
+      onCloseWorkflowMenu,
+    });
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /^close$/i }));
+    expect(onCloseTab).toHaveBeenCalledWith("tab-1");
+    expect(onCloseWorkflow).not.toHaveBeenCalled();
+    expect(onToggleWorkflowMenu).not.toHaveBeenCalled();
+    expect(onCloseWorkflowMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it("resets the active workflow from the workflow menu when only one tab is open", () => {
+    const onCloseTab = vi.fn();
+    const onCloseWorkflow = vi.fn();
+    const onToggleWorkflowMenu = vi.fn();
+    const onCloseWorkflowMenu = vi.fn();
+    const tabs: GraphWorkspaceTab[] = [
+      { tab_id: "tab-1", workflow_name: "Current workflow", workflow_id: "workflow-1", run_id: null, run_status: null, dirty: false },
+    ];
+
+    renderToolbar(null, {
+      tabs,
+      activeTabId: "tab-1",
+      workflowMenuOpen: true,
+      onCloseTab,
+      onCloseWorkflow,
+      onToggleWorkflowMenu,
+      onCloseWorkflowMenu,
+    });
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /^close$/i }));
+    expect(onCloseTab).not.toHaveBeenCalled();
+    expect(onCloseWorkflow).toHaveBeenCalledTimes(1);
+    expect(onToggleWorkflowMenu).not.toHaveBeenCalled();
+    expect(onCloseWorkflowMenu).toHaveBeenCalledTimes(1);
   });
 });

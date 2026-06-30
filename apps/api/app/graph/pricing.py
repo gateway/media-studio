@@ -7,6 +7,7 @@ from .. import enhancement_provider, kie_adapter, store
 from ..pricing import summarize_estimated_cost
 from .executors.kie_model import _select_task_mode
 from .normalization import materialize_workflow_defaults
+from .preset_catalog import MODEL_OPTION_FIELD_PREFIX
 from .registry import registry
 from .schemas import GraphError, GraphEstimateNode, GraphEstimateResponse, GraphNodeDefinition, GraphWorkflow, GraphWorkflowNode
 from .validator import validate_workflow
@@ -31,6 +32,11 @@ UNKNOWN_EXTERNAL_LLM_PRICING_SUMMARY = {
     "per_output": {"estimated_credits": None, "estimated_cost_usd": None},
     "total": {"estimated_credits": None, "estimated_cost_usd": None},
 }
+
+
+def _is_seedance_2_model(model_key: str) -> bool:
+    normalized = str(model_key or "").strip().lower().replace("_", "-")
+    return normalized == "seedance-2.0" or normalized.startswith("seedance-2.0-")
 
 SUBSCRIPTION_EXTERNAL_LLM_PRICING_SUMMARY = {
     "currency": "USD",
@@ -61,7 +67,7 @@ def estimate_graph_workflow(workflow: GraphWorkflow) -> GraphEstimateResponse:
     warnings.extend(validation.warnings)
     warnings.extend(validation.errors)
 
-    has_kie_nodes = any(str(definitions[node.type].source.get("kind") or "") == "kie_model" for node in workflow.nodes if node.type in definitions)
+    has_kie_nodes = any(_node_uses_kie_pricing(node, definitions.get(node.type)) for node in workflow.nodes)
     snapshot = (
         kie_adapter.pricing_snapshot(force_refresh=False)
         if has_kie_nodes
@@ -99,6 +105,8 @@ def estimate_graph_workflow(workflow: GraphWorkflow) -> GraphEstimateResponse:
         source_kind = str(definition.source.get("kind") or "")
         if source_kind == "kie_model":
             estimate = _estimate_model_node(workflow, node, definition, definitions, snapshot)
+        elif source_kind == "media_preset":
+            estimate = _estimate_media_preset_node(workflow, node, definition, definitions, snapshot)
         elif source_kind == "external_llm":
             estimate = _estimate_external_llm_node(workflow, node, definition, definitions)
         else:
@@ -154,6 +162,13 @@ def estimate_graph_workflow(workflow: GraphWorkflow) -> GraphEstimateResponse:
         "missing_model_count": len(snapshot.get("missing_model_keys") or []),
     }
     return GraphEstimateResponse(pricing_summary=pricing_summary, nodes=nodes, warnings=warnings)
+
+
+def _node_uses_kie_pricing(node: GraphWorkflowNode, definition: Optional[GraphNodeDefinition]) -> bool:
+    if not definition:
+        return False
+    source_kind = str(definition.source.get("kind") or "")
+    return source_kind in {"kie_model", "media_preset"}
 
 
 def _estimate_external_llm_node(
@@ -519,18 +534,170 @@ def _estimate_model_node(
     )
 
 
-def _incoming_media_types(workflow: GraphWorkflow, node_id: str, definitions: Dict[str, GraphNodeDefinition]) -> set[str]:
-    source_by_id = {node.id: node for node in workflow.nodes}
-    media_types: set[str] = set()
+def _estimate_media_preset_node(
+    workflow: GraphWorkflow,
+    node: GraphWorkflowNode,
+    definition: GraphNodeDefinition,
+    definitions: Dict[str, GraphNodeDefinition],
+    snapshot: Dict[str, Any],
+) -> GraphEstimateNode:
+    mode = _node_execution_mode(node)
+    preset_id = str(node.fields.get("preset_id") or "").strip()
+    preset = store.get_preset(preset_id) if preset_id else None
+    model_key = _selected_preset_model_key(node, preset or {})
+    output_count = 1
+    node_warnings: List[GraphError] = []
+    if mode != "enabled":
+        return GraphEstimateNode(
+            node_id=node.id,
+            node_type=node.type,
+            model_key=model_key,
+            output_count=output_count,
+            pricing_summary={**ZERO_PRICING_SUMMARY, "model_key": model_key, "output_count": output_count},
+            assumptions=[f"Execution mode {mode} reuses or skips outputs and does not add new KIE spend."],
+        )
+    if not preset:
+        node_warnings.append(GraphError(code="missing_media_preset_pricing", message="Media Preset pricing requires a selected saved preset.", node_id=node.id))
+        return GraphEstimateNode(
+            node_id=node.id,
+            node_type=node.type,
+            model_key=model_key,
+            output_count=output_count,
+            pricing_summary={
+                **UNKNOWN_EXTERNAL_LLM_PRICING_SUMMARY,
+                "model_key": model_key,
+                "output_count": output_count,
+                "pricing_status": "unknown_media_preset",
+            },
+            assumptions=["Media Preset pricing needs the selected preset's model and options."],
+            warnings=node_warnings,
+        )
+    if not model_key:
+        node_warnings.append(GraphError(code="missing_media_preset_model", message="Media Preset pricing requires a compatible model.", node_id=node.id))
+        return GraphEstimateNode(
+            node_id=node.id,
+            node_type=node.type,
+            model_key=model_key,
+            output_count=output_count,
+            pricing_summary={
+                **UNKNOWN_EXTERNAL_LLM_PRICING_SUMMARY,
+                "model_key": model_key,
+                "output_count": output_count,
+                "pricing_status": "unknown_media_preset_model",
+            },
+            assumptions=["Media Preset pricing could not resolve the model that will run."],
+            warnings=node_warnings,
+        )
+
+    model = next((item for item in kie_adapter.list_models() if str(item.get("key") or "") == model_key), {})
+    task_modes = [str(item) for item in ((model or {}).get("task_modes") or ((model or {}).get("raw") or {}).get("task_modes") or [])]
+    request_media = _pricing_request_media_for_preset(workflow, node, definitions)
+    task_mode = _select_task_mode(
+        task_modes,
+        output_media_type="image",
+        has_images=bool(request_media["images"]),
+        has_videos=False,
+        has_audios=False,
+        model_key=model_key,
+    )
+    raw_request = {
+        "model_key": model_key,
+        "task_mode": task_mode,
+        "prompt": "Graph media preset pricing estimate",
+        "images": request_media["images"],
+        "videos": [],
+        "audios": [],
+        "options": _preset_model_options(node, preset, model_key),
+        "metadata": {"output_count": output_count},
+        "preset_id": preset_id,
+    }
+    try:
+        summary = summarize_estimated_cost(kie_adapter.estimate_request_cost(raw_request), output_count=output_count)
+    except Exception as exc:
+        summary = summarize_estimated_cost(None, output_count=output_count)
+        node_warnings.append(GraphError(code="graph_pricing_estimate_failed", message=str(exc), node_id=node.id))
+
+    missing_keys = set(str(item) for item in (snapshot.get("missing_model_keys") or []))
+    if model_key in missing_keys or not summary.get("has_numeric_estimate"):
+        node_warnings.append(GraphError(code="missing_model_pricing", message=f"Missing pricing for {model_key}.", node_id=node.id))
+    if snapshot.get("is_stale"):
+        node_warnings.append(GraphError(code="stale_pricing", message="Pricing snapshot is stale for this estimate.", node_id=node.id))
+    return GraphEstimateNode(
+        node_id=node.id,
+        node_type=node.type,
+        model_key=model_key,
+        task_mode=task_mode,
+        output_count=output_count,
+        pricing_summary=summary,
+        assumptions=[
+            *list(summary.get("assumptions") or []),
+            "Media Preset pricing uses the selected preset model, connected image slots, preset defaults, and visible model option fields.",
+        ],
+        warnings=node_warnings,
+    )
+
+
+def _selected_preset_model_key(node: GraphWorkflowNode, preset: Dict[str, Any]) -> str:
+    compatible = [str(item).strip() for item in (preset.get("applies_to_models_json") or []) if str(item).strip()]
+    default_model = str(preset.get("model_key") or "").strip()
+    if default_model and default_model not in compatible:
+        compatible.insert(0, default_model)
+    selected = str(node.fields.get("preset_model_key") or "").strip()
+    if selected and (not compatible or selected in compatible):
+        return selected
+    return compatible[0] if compatible else default_model
+
+
+def _preset_model_options(node: GraphWorkflowNode, preset: Dict[str, Any], model_key: str) -> Dict[str, Any]:
+    options = dict(preset.get("default_options_json") if isinstance(preset.get("default_options_json"), dict) else {})
+    supported_options = _model_option_keys(model_key)
+    for field_id, value in node.fields.items():
+        if not str(field_id).startswith(MODEL_OPTION_FIELD_PREFIX):
+            continue
+        if value is None or value == "":
+            continue
+        option_key = str(field_id)[len(MODEL_OPTION_FIELD_PREFIX):]
+        if supported_options and option_key not in supported_options:
+            continue
+        if option_key:
+            options[option_key] = value
+    if _is_gpt_image_2_model(model_key) and str(options.get("resolution") or "").strip().lower() in {"", "auto"}:
+        options["resolution"] = "1K"
+    return options
+
+
+def _is_gpt_image_2_model(model_key: str) -> bool:
+    normalized = str(model_key or "").strip().lower().replace("_", "-")
+    return normalized == "gpt-image-2" or normalized.startswith("gpt-image-2-")
+
+
+def _model_option_keys(model_key: str) -> set[str]:
+    model = next((item for item in kie_adapter.list_models() if str(item.get("key") or "") == model_key), {})
+    raw = model.get("raw") if isinstance(model, dict) else {}
+    options = raw.get("options") if isinstance(raw, dict) else {}
+    return {str(key) for key in options.keys()} if isinstance(options, dict) else set()
+
+
+def _pricing_request_media_for_preset(
+    workflow: GraphWorkflow,
+    node: GraphWorkflowNode,
+    definitions: Dict[str, GraphNodeDefinition],
+) -> Dict[str, List[Dict[str, str]]]:
+    image_count = 0
+    source_by_id = {workflow_node.id: workflow_node for workflow_node in workflow.nodes}
     for edge in workflow.edges:
-        if edge.target != node_id:
+        if edge.target != node.id or not str(edge.target_port or "").startswith("slot__"):
             continue
         source = source_by_id.get(edge.source)
-        definition = definitions.get(source.type) if source else None
-        port = _output_port(definition, edge.source_port)
-        if port and port.type in {"image", "video", "audio"}:
-            media_types.add(port.type)
-    return media_types
+        source_definition = definitions.get(source.type) if source else None
+        port = _output_port(source_definition, edge.source_port)
+        if port and port.type == "image":
+            image_count += 1
+    return {
+        "images": [_pricing_media_placeholder("image", role="reference") for _ in range(image_count)],
+        "videos": [],
+        "audios": [],
+    }
 
 
 def _pricing_request_media(
@@ -538,52 +705,150 @@ def _pricing_request_media(
     node: GraphWorkflowNode,
     definition: GraphNodeDefinition,
     definitions: Dict[str, GraphNodeDefinition],
-) -> Dict[str, List[Dict[str, str]]]:
+) -> Dict[str, List[Dict[str, Any]]]:
     model_key = str(definition.source.get("model_key") or node.type.replace("model.kie.", "").replace("_", "-"))
-    if model_key != "seedance-2.0":
-        input_types = _incoming_media_types(workflow, node.id, definitions)
+    if not _is_seedance_2_model(model_key):
         return {
-            "images": [_pricing_media_placeholder("image")] if "image" in input_types else [],
-            "videos": [_pricing_media_placeholder("video")] if "video" in input_types else [],
-            "audios": [_pricing_media_placeholder("audio")] if "audio" in input_types else [],
+            "images": _pricing_media_for_incoming_edges(workflow, node.id, definitions, expected_type="image"),
+            "videos": _pricing_media_for_incoming_edges(workflow, node.id, definitions, expected_type="video"),
+            "audios": _pricing_media_for_incoming_edges(workflow, node.id, definitions, expected_type="audio"),
         }
 
     return {
         "images": [
-            *[
-                _pricing_media_placeholder("image", role="first_frame")
-                for _ in range(_incoming_edge_count(workflow, node.id, "start_frame", definitions=definitions, expected_type="image"))
-            ],
-            *[
-                _pricing_media_placeholder("image", role="last_frame")
-                for _ in range(_incoming_edge_count(workflow, node.id, "end_frame", definitions=definitions, expected_type="image"))
-            ],
-            *[
-                _pricing_media_placeholder("image", role="reference")
-                for _ in range(
-                    _incoming_edge_count(workflow, node.id, "reference_images", definitions=definitions, expected_type="image")
-                    + _incoming_edge_count(workflow, node.id, "image_refs", definitions=definitions, expected_type="image")
-                )
-            ],
+            *_pricing_media_for_incoming_edges(workflow, node.id, definitions, expected_type="image", target_ports={"start_frame"}, role="first_frame"),
+            *_pricing_media_for_incoming_edges(workflow, node.id, definitions, expected_type="image", target_ports={"end_frame"}, role="last_frame"),
+            *_pricing_media_for_incoming_edges(workflow, node.id, definitions, expected_type="image", target_ports={"reference_images", "image_refs"}, role="reference"),
         ],
-        "videos": [
-            _pricing_media_placeholder("video", role="reference")
-            for _ in range(
-                _incoming_edge_count(workflow, node.id, "reference_videos", definitions=definitions, expected_type="video")
-                + _incoming_edge_count(workflow, node.id, "video_refs", definitions=definitions, expected_type="video")
-            )
-        ],
-        "audios": [
-            _pricing_media_placeholder("audio", role="reference")
-            for _ in range(
-                _incoming_edge_count(workflow, node.id, "reference_audios", definitions=definitions, expected_type="audio")
-                + _incoming_edge_count(workflow, node.id, "audio_refs", definitions=definitions, expected_type="audio")
-            )
-        ],
+        "videos": _pricing_media_for_incoming_edges(
+            workflow,
+            node.id,
+            definitions,
+            expected_type="video",
+            target_ports={"reference_videos", "video_refs"},
+            role="reference",
+        ),
+        "audios": _pricing_media_for_incoming_edges(
+            workflow,
+            node.id,
+            definitions,
+            expected_type="audio",
+            target_ports={"reference_audios", "audio_refs"},
+            role="reference",
+        ),
     }
 
 
-def _pricing_media_placeholder(media_type: str, *, role: str | None = None) -> Dict[str, str]:
+def _pricing_media_for_incoming_edges(
+    workflow: GraphWorkflow,
+    node_id: str,
+    definitions: Dict[str, GraphNodeDefinition],
+    *,
+    expected_type: str,
+    target_ports: set[str] | None = None,
+    role: str | None = None,
+) -> List[Dict[str, Any]]:
+    source_by_id = {node.id: node for node in workflow.nodes}
+    items: List[Dict[str, Any]] = []
+    for edge in workflow.edges:
+        if edge.target != node_id:
+            continue
+        if target_ports is not None and edge.target_port not in target_ports:
+            continue
+        source = source_by_id.get(edge.source)
+        definition = definitions.get(source.type) if source else None
+        port = _output_port(definition, edge.source_port)
+        if not port or port.type != expected_type:
+            continue
+        items.append(_pricing_media_from_source_node(workflow, source, expected_type, definitions, role=role))
+    return items
+
+
+def _pricing_media_from_source_node(
+    workflow: GraphWorkflow,
+    source: GraphWorkflowNode | None,
+    media_type: str,
+    definitions: Dict[str, GraphNodeDefinition],
+    *,
+    role: str | None = None,
+    visited: set[str] | None = None,
+) -> Dict[str, Any]:
+    media = _pricing_media_placeholder(media_type, role=role)
+    if not source:
+        return media
+    visited = set(visited or set())
+    if source.id in visited:
+        return media
+    visited.add(source.id)
+    if source.type == f"media.load_{media_type}":
+        reference_id = str(source.fields.get("reference_id") or "").strip()
+        asset_id = str(source.fields.get("asset_id") or "").strip()
+        record = store.get_reference_media(reference_id) if reference_id else store.get_asset(asset_id) if asset_id else None
+        if isinstance(record, dict):
+            _apply_pricing_media_metadata(media, record, media_type)
+        return media
+    if media_type == "video" and source.type == "video.transform":
+        return _pricing_media_from_video_transform(workflow, source, definitions, role=role, visited=visited)
+    return media
+
+
+def _pricing_media_from_video_transform(
+    workflow: GraphWorkflow,
+    source: GraphWorkflowNode,
+    definitions: Dict[str, GraphNodeDefinition],
+    *,
+    role: str | None = None,
+    visited: set[str],
+) -> Dict[str, Any]:
+    media = _pricing_media_for_first_input_video(workflow, source.id, definitions, role=role, visited=visited) or _pricing_media_placeholder("video", role=role)
+    operation = str(source.fields.get("operation") or "resize").strip()
+    if operation == "trim":
+        duration = _number(source.fields.get("duration_seconds"))
+        if duration is not None and duration > 0:
+            media["duration_seconds"] = duration
+    return media
+
+
+def _pricing_media_for_first_input_video(
+    workflow: GraphWorkflow,
+    node_id: str,
+    definitions: Dict[str, GraphNodeDefinition],
+    *,
+    role: str | None = None,
+    visited: set[str],
+) -> Dict[str, Any] | None:
+    source_by_id = {node.id: node for node in workflow.nodes}
+    for edge in workflow.edges:
+        if edge.target != node_id or edge.target_port != "video":
+            continue
+        source = source_by_id.get(edge.source)
+        definition = definitions.get(source.type) if source else None
+        port = _output_port(definition, edge.source_port)
+        if not port or port.type != "video":
+            continue
+        return _pricing_media_from_source_node(workflow, source, "video", definitions, role=role, visited=visited)
+    return None
+
+
+def _apply_pricing_media_metadata(media: Dict[str, Any], record: Dict[str, Any], media_type: str) -> None:
+    if media_type != "video":
+        return
+    duration = _number(record.get("duration_seconds"))
+    payload = record.get("payload_json") if duration is None else None
+    if duration is None and isinstance(payload, dict):
+        outputs = payload.get("outputs")
+        if isinstance(outputs, list):
+            for output in outputs:
+                if not isinstance(output, dict):
+                    continue
+                duration = _number(output.get("duration_seconds"))
+                if duration is not None:
+                    break
+    if duration is not None:
+        media["duration_seconds"] = duration
+
+
+def _pricing_media_placeholder(media_type: str, *, role: str | None = None) -> Dict[str, Any]:
     extension = "jpg" if media_type == "image" else "mp4" if media_type == "video" else "wav"
     placeholder = {
         "media_type": media_type,

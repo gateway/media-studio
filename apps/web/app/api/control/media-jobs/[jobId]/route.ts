@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { controlErrorResponse } from "@/app/api/control/responses";
 import { getControlApiJson, postControlApiJson, sendControlApiJson, mapBatchRecord, mapJobRecord } from "@/lib/control-api";
 import type { MediaJobResponse } from "@/lib/types";
 
@@ -10,13 +11,7 @@ export async function GET(
   const { jobId } = await context.params;
   const currentJob = await getControlApiJson<Record<string, unknown>>(`/media/jobs/${jobId}`, "read");
   if (!currentJob.ok || !currentJob.data) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: currentJob.error ?? "Unable to read the current media job state.",
-      },
-      { status: 502 },
-    );
+    return controlErrorResponse(currentJob.error, "Unable to read the current media job state.", 502);
   }
 
   const currentStatus = String(currentJob.data.status ?? "").toLowerCase();
@@ -33,13 +28,7 @@ export async function GET(
       };
 
   if (!result.ok || !result.data) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: result.error ?? "Unable to read the current media job state.",
-      },
-      { status: 502 },
-    );
+    return controlErrorResponse(result.error, "Unable to read the current media job state.", 502);
   }
 
   const job = mapJobRecord(result.data as unknown as Record<string, unknown>);
@@ -70,13 +59,7 @@ export async function POST(
   );
 
   if (!result.ok || !result.data) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: result.error ?? "Unable to retry the selected media job.",
-      },
-      { status: 502 },
-    );
+    return controlErrorResponse(result.error, "Unable to retry the selected media job.", 502);
   }
 
   const jobs = Array.isArray(result.data.jobs) ? result.data.jobs.map(mapJobRecord) : [];
@@ -107,13 +90,7 @@ export async function DELETE(
   );
 
   if (!result.ok || !result.data) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: result.error ?? "Unable to remove the selected media job from the dashboard.",
-      },
-      { status: 502 },
-    );
+    return controlErrorResponse(result.error, "Unable to remove the selected media job from the dashboard.", 502);
   }
 
   return NextResponse.json({

@@ -26,10 +26,16 @@ type StudioInspectorInfoProps = {
   onToggleFavorite: (asset: MediaAsset | null) => void;
   projectLabel?: string | null;
   onOpenProject?: (projectId: string) => void;
+  presetLabel?: string | null;
+  presetLoadKey?: string | null;
+  onUsePreset?: (presetIdOrKey: string) => void;
   referencePreviews?: StudioReferencePreview[];
   onOpenReference?: (reference: StudioReferencePreview) => void;
   className?: string;
 };
+
+const inspectorInfoRowClassName = "min-w-0 items-start";
+const inspectorInfoValueClassName = "min-w-0 max-w-full flex-1 break-words text-right [overflow-wrap:anywhere]";
 
 export function StudioInspectorInfo({
   selectedAsset,
@@ -37,6 +43,9 @@ export function StudioInspectorInfo({
   onToggleFavorite,
   projectLabel,
   onOpenProject,
+  presetLabel,
+  presetLoadKey,
+  onUsePreset,
   referencePreviews = [],
   onOpenReference,
   className,
@@ -71,32 +80,77 @@ export function StudioInspectorInfo({
   }
 
   return (
-    <SurfaceCard appearance="studio" density="compact" className={cn("rounded-[22px]", className)}>
+    <SurfaceCard appearance="studio" density="compact" className={cn("min-w-0 rounded-[22px]", className)}>
       <div className="surface-label-muted">Information</div>
       <div className="mt-3 grid gap-2">
-        <InfoRow appearance="studio" label="Date" value={formatDateTime(selectedAsset.created_at)} />
+        <InfoRow
+          appearance="studio"
+          label="Date"
+          value={formatDateTime(selectedAsset.created_at)}
+          className={inspectorInfoRowClassName}
+          valueClassName={inspectorInfoValueClassName}
+        />
         <InfoRow
           appearance="studio"
           label="Status"
           value={selectedAsset.status ?? "stored"}
-          valueClassName="uppercase tracking-[0.08em]"
+          className={inspectorInfoRowClassName}
+          valueClassName={cn(inspectorInfoValueClassName, "uppercase tracking-[0.08em]")}
         />
-        <InfoRow appearance="studio" label="Model" value={selectedAsset.model_key ?? "Unknown"} />
-        <InfoRow appearance="studio" label="Preset" value={selectedAsset.preset_key ?? "builtin"} />
-        <InfoRow appearance="studio" label="Type" value={selectedAsset.generation_kind ?? selectedAsset.task_mode ?? "asset"} />
+        <InfoRow
+          appearance="studio"
+          label="Model"
+          value={selectedAsset.model_key ?? "Unknown"}
+          className={inspectorInfoRowClassName}
+          valueClassName={inspectorInfoValueClassName}
+        />
+        {presetLoadKey ? (
+          <button
+            type="button"
+            onClick={() => onUsePreset?.(presetLoadKey)}
+            className={infoRowClassName({ interactive: true, className: "min-w-0 items-start text-left" })}
+            title="Load this preset into the Studio composer"
+          >
+            <span className={studioMetaLabelClassName({ className: "shrink-0" })}>Preset</span>
+            <span className={studioMetaValueClassName({ tone: "accent", className: "min-w-0 flex-1 break-words text-right text-sm [overflow-wrap:anywhere]" })}>
+              {presetLabel ?? selectedAsset.preset_key ?? "Preset"}
+            </span>
+          </button>
+        ) : (
+          <InfoRow
+            appearance="studio"
+            label="Preset"
+            value={presetLabel ?? selectedAsset.preset_key ?? "builtin"}
+            className={inspectorInfoRowClassName}
+            valueClassName={inspectorInfoValueClassName}
+          />
+        )}
+        <InfoRow
+          appearance="studio"
+          label="Type"
+          value={selectedAsset.generation_kind ?? selectedAsset.task_mode ?? "asset"}
+          className={inspectorInfoRowClassName}
+          valueClassName={inspectorInfoValueClassName}
+        />
         {selectedAsset.project_id ? (
           <button
             type="button"
             onClick={() => onOpenProject?.(String(selectedAsset.project_id))}
-            className={infoRowClassName({ interactive: true, className: "text-left" })}
+            className={infoRowClassName({ interactive: true, className: "min-w-0 items-start text-left" })}
           >
-            <span className={studioMetaLabelClassName()}>Project</span>
-            <span className={studioMetaValueClassName({ tone: "accent", className: "text-sm" })}>
+            <span className={studioMetaLabelClassName({ className: "shrink-0" })}>Project</span>
+            <span className={studioMetaValueClassName({ tone: "accent", className: "min-w-0 flex-1 break-words text-right text-sm [overflow-wrap:anywhere]" })}>
               {projectLabel?.trim() || String(selectedAsset.project_id)}
             </span>
           </button>
         ) : (
-          <InfoRow appearance="studio" label="Project" value="Global" />
+          <InfoRow
+            appearance="studio"
+            label="Project"
+            value="Global"
+            className={inspectorInfoRowClassName}
+            valueClassName={inspectorInfoValueClassName}
+          />
         )}
         <button
           type="button"
@@ -108,7 +162,7 @@ export function StudioInspectorInfo({
           <span
             className={cn(
               "inline-flex items-center gap-2 text-sm font-medium",
-              selectedAsset.favorited ? "text-[#ff9abc]" : "text-white/72",
+              selectedAsset.favorited ? "text-[var(--action-danger-text)]" : "text-[var(--text-muted)]",
             )}
           >
             <Heart className={cn("size-4", selectedAsset.favorited ? "fill-current" : "")} />
@@ -125,11 +179,11 @@ export function StudioInspectorInfo({
           <span className={studioMetaLabelClassName()}>Link</span>
           <span className={studioMetaValueClassName({ className: "inline-flex items-center text-sm" })}>
             {copyLinkStatus === "copied" ? (
-              <Check className="size-4 text-[#b8ff9f]" />
+              <Check className="size-4 text-[var(--feedback-healthy-text)]" />
             ) : copyLinkStatus === "error" ? (
-              <Copy className="size-4 text-[#ffb5a6]" />
+              <Copy className="size-4 text-[var(--action-danger-text)]" />
             ) : (
-              <Copy className="size-4 text-white/52" />
+              <Copy className="size-4 text-[var(--text-dim)]" />
             )}
           </span>
         </button>
@@ -139,12 +193,14 @@ export function StudioInspectorInfo({
             appearance="studio"
             label={optionShortLabel(key)}
             value={displayChoiceLabel(key, {}, value) || formatOptionValue(value)}
+            className={inspectorInfoRowClassName}
+            valueClassName={inspectorInfoValueClassName}
           />
         ))}
         {referencePreviews.length ? (
-          <SurfaceInset appearance="studio" density="compact" className="rounded-[18px]">
+          <SurfaceInset appearance="studio" density="compact" className="min-w-0 overflow-hidden rounded-[18px]">
             <div className="flex items-center gap-2 surface-label-muted">
-              <ImageIcon className="size-3.5 text-[rgba(208,255,72,0.88)]" />
+              <ImageIcon className="size-3.5 text-[var(--accent-strong)]" />
               References
             </div>
             <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
@@ -190,7 +246,7 @@ export function StudioInspectorInfo({
                       />
                     )}
                   </span>
-                  <span className={studioCaptionClassName({ className: "line-clamp-2 text-xs leading-5" })}>{reference.label}</span>
+                  <span className={studioCaptionClassName({ className: "line-clamp-2 break-words text-xs leading-5 [overflow-wrap:anywhere]" })}>{reference.label}</span>
                 </button>
               ))}
             </div>

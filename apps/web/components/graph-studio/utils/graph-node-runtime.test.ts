@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { graphNodeDataWithExecutionMode, graphNodeDataWithRunState, graphRunNodeStateMatchesExecutionMode } from "@/components/graph-studio/utils/graph-node-runtime";
+import {
+  clearGraphNodeRunState,
+  graphNodeDataWithExecutionMode,
+  graphNodeDataWithRunState,
+  graphRunNodeStateMatchesExecutionMode,
+} from "@/components/graph-studio/utils/graph-node-runtime";
 import type { GraphNodeData } from "@/components/graph-studio/types";
 
 function makeData(overrides: Partial<GraphNodeData> = {}): GraphNodeData {
@@ -48,6 +53,19 @@ describe("graphNodeDataWithExecutionMode", () => {
     expect(next.executionCache).toBe(executionCache);
   });
 
+  it("reuses already-cleared data to avoid redundant canvas updates", () => {
+    const data = makeData({
+      status: "idle",
+      progress: null,
+      errorMessage: null,
+      activityLabel: null,
+      activityDetail: null,
+      activityTone: null,
+    });
+
+    expect(clearGraphNodeRunState(data)).toBe(data);
+  });
+
   it("ignores stale run state when the run execution mode no longer matches the node", () => {
     const data = makeData({ executionMode: "enabled" });
     const runNode = {
@@ -79,5 +97,25 @@ describe("graphNodeDataWithExecutionMode", () => {
     expect(next.status).toBe("cached");
     expect(next.progress).toBe(1);
     expect(next.outputSnapshot).toBe(outputSnapshot);
+  });
+
+  it("reuses equivalent run state snapshots to avoid ReactFlow update loops", () => {
+    const data = makeData({
+      executionMode: "frozen",
+      status: "cached",
+      progress: 1,
+      errorMessage: null,
+      outputSnapshot: { value: "cached output" },
+    });
+
+    const next = graphNodeDataWithRunState(data, {
+      status: "cached",
+      progress: 1,
+      error: null,
+      output_snapshot_json: { value: "cached output" },
+      metrics_json: { execution_mode: "frozen" },
+    });
+
+    expect(next).toBe(data);
   });
 });

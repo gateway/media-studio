@@ -4,6 +4,7 @@ import {
   buildGalleryTiles,
   createOptimisticBatch,
   findMediaAssetById,
+  galleryTileSizeBand,
   mediaAssetPrompt,
   presetRequirementMessage,
   structuredPresetInputValues,
@@ -559,6 +560,51 @@ describe("studio-gallery", () => {
 
     expect(tiles).toHaveLength(1);
     expect(tiles[0]?.asset?.asset_id).toBe("asset-2");
+  });
+
+  it("sizes lightweight summary assets from width and height without payload JSON", () => {
+    expect(
+      galleryTileSizeBand({
+        asset: {
+          asset_id: "portrait-summary",
+          generation_kind: "image",
+          created_at: "2026-06-09T00:00:00Z",
+          width: 768,
+          height: 1344,
+        } as never,
+        label: "Portrait summary",
+        batch: null,
+        job: null,
+      }),
+    ).toBe("tall");
+    expect(
+      galleryTileSizeBand({
+        asset: {
+          asset_id: "landscape-summary",
+          generation_kind: "image",
+          created_at: "2026-06-09T00:00:00Z",
+          width: 1344,
+          height: 768,
+        } as never,
+        label: "Landscape summary",
+        batch: null,
+        job: null,
+      }),
+    ).toBe("short");
+    expect(
+      galleryTileSizeBand({
+        asset: {
+          asset_id: "square-summary",
+          generation_kind: "image",
+          created_at: "2026-06-09T00:00:00Z",
+          width: 1024,
+          height: 1024,
+        } as never,
+        label: "Square summary",
+        batch: null,
+        job: null,
+      }),
+    ).toBe("medium");
   });
 
   it("reports missing preset attachments by media kind", () => {

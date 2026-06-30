@@ -257,7 +257,6 @@ Purpose:
 Fields:
 - `preset_id`: preset picker
 - generated text fields from `input_schema_json`
-- generated choice fields from `choice_groups_json`
 
 Dynamic input ports:
 - one image input per preset `input_slots_json` item

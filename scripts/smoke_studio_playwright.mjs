@@ -58,6 +58,22 @@ function startProcess(command, args, options) {
   return { child, logs };
 }
 
+function hasProductionWebBuild() {
+  return existsSync(path.join(root, "apps", "web", ".next", "BUILD_ID"));
+}
+
+async function launchSmokeBrowser() {
+  try {
+    return await chromium.launch({ headless: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes("Executable doesn't exist") && !message.includes("playwright install")) {
+      throw error;
+    }
+    return await chromium.launch({ channel: "chrome", headless: true });
+  }
+}
+
 function stopProcess(proc) {
   if (!proc?.child || proc.child.killed) {
     return;
@@ -202,7 +218,8 @@ async function run() {
     });
     await waitForUrl(`${apiBaseUrl}/health`, { timeoutMs: 60_000 });
 
-    webProc = startProcess("npm", ["--workspace", "apps/web", "run", "dev", "--", "--hostname", "127.0.0.1", "--port", String(webPort)], {
+    const webMode = hasProductionWebBuild() ? "start" : "dev";
+    webProc = startProcess("npm", ["--workspace", "apps/web", "run", webMode, "--", "--hostname", "127.0.0.1", "--port", String(webPort)], {
       cwd: root,
       env: {
         ...process.env,
@@ -215,7 +232,7 @@ async function run() {
     });
     await waitForUrl(`${webBaseUrl}/studio`, { timeoutMs: 90_000 });
 
-    browser = await chromium.launch({ headless: true });
+    browser = await launchSmokeBrowser();
     page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     page.on("console", (message) => {
       if (message.type() === "error") {
@@ -284,11 +301,19 @@ async function run() {
     await page.getByTestId("graph-workflow-menu").waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");
     await page.getByTestId("graph-workflow-menu").waitFor({ state: "hidden", timeout: 10_000 });
-    await page.getByTestId("graph-console").waitFor({ timeout: 15_000 });
-    await page.getByTestId("graph-sidebar-console-button").click();
-    await page.getByTestId("graph-console").waitFor({ state: "hidden", timeout: 10_000 });
-    await page.getByTestId("graph-sidebar-console-button").click();
-    await page.getByTestId("graph-console").waitFor({ timeout: 10_000 });
+    const graphConsole = page.getByTestId("graph-console");
+    const graphConsoleButton = page.getByTestId("graph-sidebar-console-button");
+    await graphConsoleButton.waitFor({ timeout: 15_000 });
+    if ((await graphConsole.count()) > 0 && (await graphConsole.isVisible())) {
+      await graphConsoleButton.click();
+      await graphConsole.waitFor({ state: "hidden", timeout: 10_000 });
+    }
+    await graphConsoleButton.click();
+    await graphConsole.waitFor({ timeout: 10_000 });
+    await graphConsoleButton.click();
+    await graphConsole.waitFor({ state: "hidden", timeout: 10_000 });
+    await graphConsoleButton.click();
+    await graphConsole.waitFor({ timeout: 10_000 });
     await page.getByTestId("graph-sidebar-workflows-button").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-sidebar-nodes-button").waitFor({ timeout: 15_000 });
     await page.getByTestId("graph-sidebar-images-button").waitFor({ timeout: 15_000 });
@@ -317,7 +342,9 @@ async function run() {
     if (!(await modelPrompt.isDisabled())) {
       throw new Error("Connected model prompt field was not disabled.");
     }
-    await page.getByRole("button", { name: /Drop media or choose from library/i }).click();
+    await page
+      .locator('[data-testid^="graph-node-preview-media.load_image"] button[aria-label="Choose media from library"]')
+      .click();
     await page.getByTestId("graph-image-library-modal").waitFor({ timeout: 10_000 });
     await page.keyboard.press("Escape");
     await page.getByTestId("graph-image-library-modal").waitFor({ state: "hidden", timeout: 10_000 });

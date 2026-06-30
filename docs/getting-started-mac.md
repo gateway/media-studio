@@ -87,7 +87,7 @@ The recommended hosted model is:
 
 The onboarding helper verifies the OpenRouter key before saving it. Users can still generate media without prompt enhancement.
 
-If you need to revisit any provider choice later, use `http://127.0.0.1:3000/settings/llms`.
+If you need to revisit any provider choice later, open the AI settings URL printed by the launcher. On a default free-port launch, that is `http://127.0.0.1:3000/settings/llms`.
 
 ## Terminal windows and port conflicts
 
@@ -150,9 +150,11 @@ npm run dev
 
 That path is for development only. It runs the API and web app together with hot reload, so you may see dev-only UI such as the Next badge or overlay.
 
-Then open:
+Then open the URL printed by the launcher. On a default free-port launch, that route is:
 
 - `http://127.0.0.1:3000/studio`
+
+If port `3000` is busy, the launcher picks another web port and prints the actual temporary Studio URL.
 
 ### Private LAN / TailScale access
 
@@ -160,6 +162,12 @@ If you want to open Studio from another device on your private LAN or TailScale 
 
 ```env
 MEDIA_STUDIO_ALLOW_PRIVATE_NETWORK_ACCESS=true
+```
+
+When private network access is enabled, Studio also allows active LAN/TailScale IPv4 addresses for Next.js development hydration. If your adapter or proxy is unusual, add the phone-visible host explicitly:
+
+```env
+MEDIA_STUDIO_ALLOWED_DEV_ORIGINS=100.64.x.y
 ```
 
 Then restart Studio with:

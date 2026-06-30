@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 
 from ... import kie_adapter, store
 from ...schemas import MediaRefInput, ValidateRequest
+from ..preset_catalog import MODEL_OPTION_FIELD_PREFIX
 from ..schemas import GraphOutputRef, GraphWorkflowNode
 from .base import GraphExecutionContext, GraphExecutor
 from .kie_model import _select_task_mode, submit_and_wait_for_kie_request
@@ -26,6 +27,29 @@ def _graph_ref_to_media_input(ref: GraphOutputRef) -> MediaRefInput:
 
 def _graph_ref_to_media_ref(ref: GraphOutputRef) -> Dict[str, Any]:
     return _graph_ref_to_media_input(ref).model_dump(exclude_none=True)
+
+
+def _model_option_keys(model_key: str) -> set[str]:
+    model = next((item for item in kie_adapter.list_models() if str(item.get("key") or "") == model_key), {})
+    raw = model.get("raw") if isinstance(model, dict) else {}
+    options = raw.get("options") if isinstance(raw, dict) else {}
+    return {str(key) for key in options.keys()} if isinstance(options, dict) else set()
+
+
+def _preset_model_options(node: GraphWorkflowNode, preset: Dict[str, Any], model_key: str) -> Dict[str, Any]:
+    options = dict(preset.get("default_options_json") if isinstance(preset.get("default_options_json"), dict) else {})
+    supported_options = _model_option_keys(model_key)
+    for field_id, value in node.fields.items():
+        if not str(field_id).startswith(MODEL_OPTION_FIELD_PREFIX):
+            continue
+        if value is None or value == "":
+            continue
+        option_key = str(field_id)[len(MODEL_OPTION_FIELD_PREFIX):]
+        if supported_options and option_key not in supported_options:
+            continue
+        if option_key:
+            options[option_key] = value
+    return options
 
 
 class PresetRenderExecutor(GraphExecutor):
@@ -52,13 +76,6 @@ class PresetRenderExecutor(GraphExecutor):
             dynamic_value = node.fields.get(f"text__{_slug(key)}")
             if dynamic_value is not None and dynamic_value != "":
                 text_values[key] = str(dynamic_value)
-        for group in preset.get("choice_groups_json") or []:
-            key = str(group.get("key") or group.get("id") or "").strip()
-            if not key:
-                continue
-            dynamic_value = node.fields.get(f"choice__{_slug(key)}")
-            if dynamic_value is not None and dynamic_value != "":
-                text_values[key] = str(dynamic_value)
         for slot in preset.get("input_slots_json") or []:
             key = str(slot.get("key") or "").strip()
             if not key:
@@ -80,7 +97,7 @@ class PresetRenderExecutor(GraphExecutor):
             has_audios=False,
             model_key=model_key,
         )
-        options = preset.get("default_options_json") if isinstance(preset.get("default_options_json"), dict) else {}
+        options = _preset_model_options(node, preset, model_key)
         context.record_node_metric(node, "preset_text_field_count", len(text_values))
         context.record_node_metric(node, "preset_image_ref_count", len(image_inputs))
         request = ValidateRequest(

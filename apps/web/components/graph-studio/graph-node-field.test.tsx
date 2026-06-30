@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -39,8 +45,12 @@ const promptDefinition: GraphNodeDefinition = {
   ],
 };
 
-function renderWithCatalog(control: ReactNode, overrides?: { refreshProviderCatalog?: ReturnType<typeof vi.fn> }) {
-  const refreshProviderCatalog = overrides?.refreshProviderCatalog ?? vi.fn().mockResolvedValue(undefined);
+function renderWithCatalog(
+  control: ReactNode,
+  overrides?: { refreshProviderCatalog?: ReturnType<typeof vi.fn> },
+) {
+  const refreshProviderCatalog =
+    overrides?.refreshProviderCatalog ?? vi.fn().mockResolvedValue(undefined);
   render(
     <GraphProviderModelCatalogProvider
       value={{
@@ -48,8 +58,20 @@ function renderWithCatalog(control: ReactNode, overrides?: { refreshProviderCata
           codex_local: {
             status: "ready",
             availableModels: [
-              { id: "gpt-5.4", label: "GPT-5.4", provider: "codex_local", supports_images: true, input_modalities: ["text", "image"] },
-              { id: "gpt-5.5", label: "GPT-5.5", provider: "codex_local", supports_images: true, input_modalities: ["text", "image"] },
+              {
+                id: "gpt-5.4",
+                label: "GPT-5.4",
+                provider: "codex_local",
+                supports_images: true,
+                input_modalities: ["text", "image"],
+              },
+              {
+                id: "gpt-5.5",
+                label: "GPT-5.5",
+                provider: "codex_local",
+                supports_images: true,
+                input_modalities: ["text", "image"],
+              },
             ],
             credentialSource: "codex_local_login",
             error: null,
@@ -85,6 +107,7 @@ function renderWithCatalog(control: ReactNode, overrides?: { refreshProviderCata
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe("GraphNodeFieldControl", () => {
@@ -106,7 +129,9 @@ describe("GraphNodeFieldControl", () => {
 
     const select = screen.getByRole("combobox");
     expect((select as HTMLSelectElement).value).toBe("gpt-5.4");
-    expect(screen.getByText("Selected model accepts text and image input.")).toBeTruthy();
+    expect(
+      screen.getByText("Selected model accepts text and image input."),
+    ).toBeTruthy();
 
     fireEvent.change(select, { target: { value: "gpt-5.5" } });
 
@@ -130,7 +155,11 @@ describe("GraphNodeFieldControl", () => {
       <GraphNodeFieldControl
         nodeId="node-1"
         definition={promptDefinition}
-        nodeFields={{ provider: "codex_local", provider_model_label: "Legacy Vision", provider_supports_images: true }}
+        nodeFields={{
+          provider: "codex_local",
+          provider_model_label: "Legacy Vision",
+          provider_supports_images: true,
+        }}
         field={promptDefinition.fields[1]}
         value="legacy/vision-model"
         onFieldChange={vi.fn()}
@@ -138,9 +167,15 @@ describe("GraphNodeFieldControl", () => {
       />,
     );
 
-    expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("legacy/vision-model");
+    expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe(
+      "legacy/vision-model",
+    );
     expect(screen.getByRole("option", { name: "Legacy Vision" })).toBeTruthy();
-    expect(screen.getByText("Saved model is not in the current provider catalog. Refresh to confirm it still exists.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Saved model is not in the current provider catalog. Refresh to confirm it still exists.",
+      ),
+    ).toBeTruthy();
   });
 
   it("does not reuse a stale fallback label from another provider", () => {
@@ -152,7 +187,11 @@ describe("GraphNodeFieldControl", () => {
           provider: "codex_local",
           provider_model_label: "Qwen 3.6",
           provider_supports_images: true,
-          provider_capabilities_json: { provider: "openrouter", model_id: "qwen/qwen3.6", model_label: "Qwen 3.6" },
+          provider_capabilities_json: {
+            provider: "openrouter",
+            model_id: "qwen/qwen3.6",
+            model_label: "Qwen 3.6",
+          },
         }}
         field={promptDefinition.fields[1]}
         value="qwen/qwen3.6"
@@ -161,7 +200,9 @@ describe("GraphNodeFieldControl", () => {
       />,
     );
 
-    expect(screen.getByRole("option", { name: "Saved model (qwen/qwen3.6)" })).toBeTruthy();
+    expect(
+      screen.getByRole("option", { name: "Saved model (qwen/qwen3.6)" }),
+    ).toBeTruthy();
   });
 
   it("clears stale model metadata when the provider changes", () => {
@@ -176,7 +217,10 @@ describe("GraphNodeFieldControl", () => {
           model_id: "gpt-5.4",
           provider_model_label: "GPT-5.4",
           provider_supports_images: true,
-          provider_capabilities_json: { supports_images: true, input_modalities: ["text", "image"] },
+          provider_capabilities_json: {
+            supports_images: true,
+            input_modalities: ["text", "image"],
+          },
         }}
         field={promptDefinition.fields[0]}
         value="codex_local"
@@ -185,7 +229,9 @@ describe("GraphNodeFieldControl", () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "openrouter" } });
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "openrouter" },
+    });
 
     expect(onSetFields).toHaveBeenCalledWith("node-1", {
       provider: "openrouter",
@@ -193,7 +239,6 @@ describe("GraphNodeFieldControl", () => {
       provider_model_label: "",
       provider_supports_images: null,
       provider_capabilities_json: {},
-      model_supports_images: null,
     });
   });
 
@@ -213,11 +258,19 @@ describe("GraphNodeFieldControl", () => {
       { refreshProviderCatalog },
     );
 
-    fireEvent.change(screen.getByPlaceholderText("Search OpenRouter models"), { target: { value: "Model 12" } });
-    expect(screen.getByRole("option", { name: "OpenRouter Model 12" })).toBeTruthy();
+    fireEvent.change(screen.getByPlaceholderText("Search OpenRouter models"), {
+      target: { value: "Model 12" },
+    });
+    expect(
+      screen.getByRole("option", { name: "OpenRouter Model 12" }),
+    ).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Refresh OpenRouter models" }));
-    expect(refreshProviderCatalog).toHaveBeenCalledWith("openrouter", { announce: true });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refresh OpenRouter models" }),
+    );
+    expect(refreshProviderCatalog).toHaveBeenCalledWith("openrouter", {
+      announce: true,
+    });
   });
 
   it("disables unready providers and explains the setup handoff", () => {
@@ -239,7 +292,9 @@ describe("GraphNodeFieldControl", () => {
       />,
     );
 
-    const option = screen.getByRole("option", { name: "Local OpenAI (Not set up)" }) as HTMLOptionElement;
+    const option = screen.getByRole("option", {
+      name: "Local OpenAI (Not set up)",
+    }) as HTMLOptionElement;
     expect(option.disabled).toBe(true);
   });
 
@@ -276,8 +331,193 @@ describe("GraphNodeFieldControl", () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "0.8" } });
-    expect(onFieldChange).toHaveBeenCalledWith("music-node", "style_weight", 0.8);
+    fireEvent.change(screen.getByRole("spinbutton"), {
+      target: { value: "0.8" },
+    });
+    expect(onFieldChange).toHaveBeenCalledWith(
+      "music-node",
+      "style_weight",
+      0.8,
+    );
+  });
+
+  it("uses a compact searchable picker for large saved preset lists", () => {
+    const onFieldChange = vi.fn();
+    const options = Array.from({ length: 45 }, (_, index) => ({
+      label: `Preset ${index + 1}`,
+      value: `preset-${index + 1}`,
+    }));
+    const presetCatalog = options.map((option, index) => ({
+      preset_id: option.value,
+      key: option.value,
+      label: option.label,
+      default_model_key: "gpt-image-2",
+      text_fields:
+        index === 41
+          ? [{ key: "title", label: "Title", default_value: "Example title" }]
+          : [],
+    }));
+    const presetDefinition: GraphNodeDefinition = {
+      type: "preset.render",
+      title: "Media Preset",
+      category: "Preset",
+      fields: [
+        {
+          id: "preset_id",
+          label: "Media Preset",
+          type: "preset_picker",
+          options,
+        },
+      ],
+      ports: { inputs: [], outputs: [] },
+      source: { preset_catalog: presetCatalog },
+    };
+
+    render(
+      <GraphNodeFieldControl
+        nodeId="preset-node"
+        definition={presetDefinition}
+        nodeFields={{ preset_id: "" }}
+        field={presetDefinition.fields[0]}
+        value=""
+        onFieldChange={onFieldChange}
+        onSetFields={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("combobox")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Select preset/i }));
+    expect(
+      screen.getByRole("listbox", { name: "Media Preset options" }),
+    ).toBeTruthy();
+    expect(onFieldChange).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Search Media Preset"), {
+      target: { value: "Preset 42" },
+    });
+    fireEvent.click(screen.getByRole("option", { name: "Preset 42" }));
+
+    expect(onFieldChange).toHaveBeenCalledWith(
+      "preset-node",
+      "preset_id",
+      "preset-42",
+    );
+    expect(onFieldChange).toHaveBeenCalledWith(
+      "preset-node",
+      "preset_model_key",
+      "gpt-image-2",
+    );
+    expect(onFieldChange).toHaveBeenCalledWith(
+      "preset-node",
+      "text__title",
+      "Example title",
+    );
+  });
+
+  it("hydrates exact preset detail before selecting a lazy Media Preset node option", async () => {
+    const onSetFields = vi.fn();
+    const presetDefinition: GraphNodeDefinition = {
+      type: "preset.render",
+      title: "Media Preset",
+      category: "Preset",
+      fields: [
+        {
+          id: "preset_id",
+          label: "Media Preset",
+          type: "preset_picker",
+        },
+      ],
+      ports: { inputs: [], outputs: [] },
+      source: { lazy_catalog: true },
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/control/media-presets/preset-full")) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            preset: {
+              preset_id: "preset-full",
+              key: "preset-full",
+              label: "Full Preset",
+              model_key: "gpt-image-2",
+              applies_to_models: ["gpt-image-2"],
+              input_schema_json: [
+                {
+                  key: "title",
+                  label: "Title",
+                  default_value: "Hydrated title",
+                },
+              ],
+              input_slots_json: [
+                { key: "reference", label: "Reference", required: true },
+              ],
+            },
+          }),
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          presets: [
+            {
+              preset_id: "preset-full",
+              key: "preset-full",
+              label: "Full Preset",
+              applies_to_models: ["gpt-image-2"],
+              input_schema_count: 1,
+              input_slots_count: 1,
+            },
+          ],
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <GraphNodeFieldControl
+        nodeId="preset-node"
+        definition={presetDefinition}
+        nodeFields={{ preset_id: "" }}
+        field={presetDefinition.fields[0]}
+        value=""
+        onFieldChange={vi.fn()}
+        onSetFields={onSetFields}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Select preset/i }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/control/media-presets?limit=40&status=active&view=summary",
+      ),
+    );
+    fireEvent.click(await screen.findByRole("option", { name: "Full Preset" }));
+
+    await waitFor(() =>
+      expect(onSetFields).toHaveBeenCalledWith(
+        "preset-node",
+        expect.objectContaining({
+          preset_id: "preset-full",
+          preset_model_key: "gpt-image-2",
+          text__title: "Hydrated title",
+          __preset_catalog_item_json: expect.objectContaining({
+            preset_id: "preset-full",
+            text_fields: [
+              expect.objectContaining({
+                key: "title",
+                default_value: "Hydrated title",
+              }),
+            ],
+            image_slots: [
+              expect.objectContaining({ key: "reference", required: true }),
+            ],
+          }),
+        }),
+      ),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/control/media-presets/preset-full",
+    );
   });
 
   it("renders Markdown note fields as a safe preview after editing", () => {
@@ -291,16 +531,28 @@ describe("GraphNodeFieldControl", () => {
       limits: {},
       ui: { markdown_preview_field: "body" },
       ports: { inputs: [], outputs: [] },
-      fields: [{ id: "body", label: "Note", type: "textarea", default: "", placeholder: "Write notes in Markdown..." }],
+      fields: [
+        {
+          id: "body",
+          label: "Note",
+          type: "textarea",
+          default: "",
+          placeholder: "Write notes in Markdown...",
+        },
+      ],
     };
 
     render(
       <GraphNodeFieldControl
         nodeId="note-1"
         definition={noteDefinition}
-        nodeFields={{ body: "## Shot plan\n\n- Use **Codex**\n- Save `final.png`\n\n<script>alert(1)</script>" }}
+        nodeFields={{
+          body: "## Shot plan\n\n- Use **Codex**\n- Save `final.png`\n\n<script>alert(1)</script>",
+        }}
         field={noteDefinition.fields[0]}
-        value={"## Shot plan\n\n- Use **Codex**\n- Save `final.png`\n\n<script>alert(1)</script>"}
+        value={
+          "## Shot plan\n\n- Use **Codex**\n- Save `final.png`\n\n<script>alert(1)</script>"
+        }
         onFieldChange={vi.fn()}
         onSetFields={vi.fn()}
       />,
@@ -313,7 +565,12 @@ describe("GraphNodeFieldControl", () => {
     expect(document.querySelector("script")).toBeNull();
 
     fireEvent.click(screen.getByRole("textbox", { name: "Note" }));
-    expect((screen.getByRole("textbox", { name: "Note" }) as HTMLTextAreaElement).value).toBe("## Shot plan\n\n- Use **Codex**\n- Save `final.png`\n\n<script>alert(1)</script>");
+    expect(
+      (screen.getByRole("textbox", { name: "Note" }) as HTMLTextAreaElement)
+        .value,
+    ).toBe(
+      "## Shot plan\n\n- Use **Codex**\n- Save `final.png`\n\n<script>alert(1)</script>",
+    );
   });
 
   it("keeps Markdown links clickable without switching the note into edit mode", () => {
@@ -328,7 +585,15 @@ describe("GraphNodeFieldControl", () => {
       limits: {},
       ui: { markdown_preview_field: "body" },
       ports: { inputs: [], outputs: [] },
-      fields: [{ id: "body", label: "Note", type: "textarea", default: "", placeholder: "Write notes in Markdown..." }],
+      fields: [
+        {
+          id: "body",
+          label: "Note",
+          type: "textarea",
+          default: "",
+          placeholder: "Write notes in Markdown...",
+        },
+      ],
     };
 
     render(
@@ -345,7 +610,11 @@ describe("GraphNodeFieldControl", () => {
 
     fireEvent.click(screen.getByRole("link", { name: "Model docs" }));
 
-    expect(openSpy).toHaveBeenCalledWith("https://docs.example.test/model", "_blank", "noopener,noreferrer");
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://docs.example.test/model",
+      "_blank",
+      "noopener,noreferrer",
+    );
     expect(screen.getByRole("link", { name: "Model docs" })).toBeTruthy();
     expect(document.querySelector("textarea")).toBeNull();
     openSpy.mockRestore();
@@ -362,7 +631,15 @@ describe("GraphNodeFieldControl", () => {
       limits: {},
       ui: { markdown_preview_field: "body" },
       ports: { inputs: [], outputs: [] },
-      fields: [{ id: "body", label: "Note", type: "textarea", default: "", placeholder: "Write notes in Markdown..." }],
+      fields: [
+        {
+          id: "body",
+          label: "Note",
+          type: "textarea",
+          default: "",
+          placeholder: "Write notes in Markdown...",
+        },
+      ],
     };
     const onFieldChange = vi.fn();
     const original = "First line\nSecond line\nThird line";
@@ -380,7 +657,9 @@ describe("GraphNodeFieldControl", () => {
     );
 
     fireEvent.click(screen.getByRole("textbox", { name: "Note" }));
-    const textarea = screen.getByRole("textbox", { name: "Note" }) as HTMLTextAreaElement;
+    const textarea = screen.getByRole("textbox", {
+      name: "Note",
+    }) as HTMLTextAreaElement;
     textarea.focus();
     textarea.setSelectionRange("First edited".length, "First edited".length);
     fireEvent.change(textarea, {
@@ -405,7 +684,9 @@ describe("GraphNodeFieldControl", () => {
       />,
     );
 
-    const updatedTextarea = screen.getByRole("textbox", { name: "Note" }) as HTMLTextAreaElement;
+    const updatedTextarea = screen.getByRole("textbox", {
+      name: "Note",
+    }) as HTMLTextAreaElement;
     expect(updatedTextarea.selectionStart).toBe("First edited".length);
     expect(updatedTextarea.selectionEnd).toBe("First edited".length);
   });

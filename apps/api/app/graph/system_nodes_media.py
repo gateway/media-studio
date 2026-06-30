@@ -162,7 +162,7 @@ def media_node_definitions() -> List[GraphNodeDefinition]:
             ui={"default_size": {"width": 280, "height": 320}, "accent": "yellow", "icon": "save"},
             ports={
                 "inputs": [GraphNodePort(id="image", label="Image", type="image", array=True, required=True, min=1, max=25, accepts=["image"])],
-                "outputs": [GraphNodePort(id="asset", label="Asset", type="asset", array=True)],
+                "outputs": [GraphNodePort(id="image", label="Image", type="image", array=True)],
             },
             fields=_save_media_fields(),
         ),
@@ -179,7 +179,7 @@ def media_node_definitions() -> List[GraphNodeDefinition]:
             ui={"default_size": {"width": 320, "height": 360}, "accent": "yellow", "icon": "save", "preview": True},
             ports={
                 "inputs": [GraphNodePort(id="images", label="Images", type="image", array=True, required=True, min=1, max=25, accepts=["image"])],
-                "outputs": [GraphNodePort(id="assets", label="Assets", type="asset", array=True)],
+                "outputs": [GraphNodePort(id="images", label="Images", type="image", array=True)],
             },
             fields=[
                 *_save_media_fields(),
@@ -210,7 +210,6 @@ def media_node_definitions() -> List[GraphNodeDefinition]:
                     GraphNodePort(id="audio", label="Audio", type="audio", required=False, min=0, max=1, accepts=["audio"]),
                 ],
                 "outputs": [
-                    GraphNodePort(id="asset", label="Asset", type="asset"),
                     GraphNodePort(id="video", label="Video", type="video"),
                 ],
             },
@@ -229,7 +228,7 @@ def media_node_definitions() -> List[GraphNodeDefinition]:
             ui={"default_size": {"width": 300, "height": 260}, "accent": "yellow", "icon": "save"},
             ports={
                 "inputs": [GraphNodePort(id="audio", label="Audio", type="audio", array=True, required=True, min=1, max=10, accepts=["audio"])],
-                "outputs": [GraphNodePort(id="asset", label="Asset", type="asset")],
+                "outputs": [GraphNodePort(id="audio", label="Audio", type="audio", array=True)],
             },
             fields=_save_audio_fields(),
         ),
@@ -247,7 +246,6 @@ def media_node_definitions() -> List[GraphNodeDefinition]:
             ports={
                 "inputs": [GraphNodePort(id="track", label="Music Track", type="music_track", required=True, min=1, max=1, accepts=["music_track"])],
                 "outputs": [
-                    GraphNodePort(id="asset", label="Asset", type="asset"),
                     GraphNodePort(id="audio", label="Audio", type="audio"),
                 ],
             },

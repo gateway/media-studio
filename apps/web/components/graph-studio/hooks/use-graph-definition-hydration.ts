@@ -5,11 +5,11 @@ import { useCallback, useRef, useState } from "react";
 import { readGraphNodeDefinitionsRevision } from "@/lib/graph-node-definitions-sync";
 
 import type { GraphNodeDefinition, StudioNode } from "../types";
+import { resolveGraphNodeDefinition } from "../utils/graph-effective-node-definition";
 import { jsonFetch } from "../utils/graph-api";
-import { graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "../utils/graph-node-fields";
+import { graphExtraLayoutRows, graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "../utils/graph-node-fields";
 import { computeGraphNodeLayout } from "../utils/graph-node-layout";
 import { visibleGraphInputPorts, visibleGraphOutputPorts } from "../utils/graph-node-ports";
-import { graphPromptRecipeSelectionSummary } from "../utils/graph-prompt-recipe";
 
 type SetNodes = (updater: (current: StudioNode[]) => StudioNode[]) => void;
 
@@ -30,29 +30,31 @@ export function useGraphDefinitionHydration({ setNodes }: { setNodes: SetNodes }
             return node;
           }
           const data = node.data as StudioNode["data"];
-          const previewHeaderFieldIds = graphPreviewHeaderFieldIds(nextDefinition);
-          const metrics = graphVisibleFieldMetrics(nextDefinition, data.fields, data.connectedInputPorts ?? [], {
+          const effectiveDefinition = resolveGraphNodeDefinition(nextDefinition, data.fields);
+          const previewHeaderFieldIds = graphPreviewHeaderFieldIds(effectiveDefinition);
+          const metrics = graphVisibleFieldMetrics(effectiveDefinition, data.fields, data.connectedInputPorts ?? [], {
             advancedExpanded: Boolean(data.advancedExpanded),
             previewHeaderFieldIds,
-            extraLayoutRows: nextDefinition.type === "prompt.recipe" && graphPromptRecipeSelectionSummary(nextDefinition, data.fields) ? 2 : 0,
+            extraLayoutRows: graphExtraLayoutRows(effectiveDefinition, data.fields),
           });
-          const visibleInputPorts = visibleGraphInputPorts(nextDefinition, data.fields).filter(
-            (port) => !nextDefinition.fields.some((field) => (field.connectable || field.port_type) && field.id === port.id),
+          const visibleInputPorts = visibleGraphInputPorts(effectiveDefinition, data.fields).filter(
+            (port) => !effectiveDefinition.fields.some((field) => (field.connectable || field.port_type) && field.id === port.id),
           );
-          const visibleOutputPorts = visibleGraphOutputPorts(nextDefinition, data.fields);
-          const nextLayout = computeGraphNodeLayout(nextDefinition, undefined, {
+          const visibleOutputPorts = visibleGraphOutputPorts(effectiveDefinition, data.fields);
+          const nextLayout = computeGraphNodeLayout(effectiveDefinition, undefined, {
             visibleFieldCount: metrics.layoutFieldCount,
             visiblePortCount: visibleInputPorts.length + visibleOutputPorts.length,
             textareaCount: metrics.textareaCount,
           });
           const currentHeight =
             typeof node.height === "number" ? node.height : typeof node.style?.height === "number" ? node.style.height : nextLayout.minHeight;
+          const nextHeight = Math.min(Math.max(currentHeight, nextLayout.minHeight), nextLayout.maxHeight);
           return {
             ...node,
             style: {
               ...node.style,
               minHeight: nextLayout.minHeight,
-              height: Math.max(currentHeight, nextLayout.minHeight),
+              height: nextHeight,
             },
             data: {
               ...data,

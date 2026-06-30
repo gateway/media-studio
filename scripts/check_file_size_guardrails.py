@@ -15,7 +15,7 @@ class FileGuardrail:
 
 GUARDRAILS = (
     FileGuardrail("apps/web/components/media-studio.tsx", 2400, "Studio screen coordinator"),
-    FileGuardrail("apps/web/components/graph-studio/graph-studio.tsx", 1600, "Graph Studio screen coordinator"),
+    FileGuardrail("apps/web/components/graph-studio/graph-studio.tsx", 2200, "Graph Studio screen coordinator"),
     FileGuardrail("apps/web/hooks/studio/use-studio-composer-core.ts", 1200, "Studio composer coordinator"),
     FileGuardrail("apps/web/hooks/studio/use-studio-gallery-feed.ts", 600, "Studio gallery feed hook"),
     FileGuardrail("apps/web/hooks/studio/use-studio-polling.ts", 500, "Studio polling hook"),

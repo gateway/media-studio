@@ -32,6 +32,17 @@ const navItems = [
   { key: "setup", label: "Setup", href: "/setup" },
 ] as const;
 
+const adminNavLinkBaseClassName = "text-sm font-semibold tracking-[-0.01em] transition";
+const adminNavLinkActiveClassName = "text-[var(--ms-accent)]";
+const adminNavLinkInactiveClassName = "text-[var(--muted-strong)] hover:text-[var(--foreground)]";
+
+function adminNavLinkClassName(active: boolean) {
+  return cn(
+    adminNavLinkBaseClassName,
+    active ? adminNavLinkActiveClassName : adminNavLinkInactiveClassName,
+  );
+}
+
 export function StudioAdminShell({
   section,
   title,
@@ -51,10 +62,7 @@ export function StudioAdminShell({
               <Link
                 key={item.key}
                 href={buildStudioScopedHref(item.href, currentProjectId)}
-                className={cn(
-                  "text-sm font-semibold tracking-[-0.01em] transition",
-                  active ? "text-[var(--ms-accent)]" : "text-[var(--muted-strong)] hover:text-[var(--foreground)]",
-                )}
+                className={adminNavLinkClassName(active)}
               >
                 {item.label}
               </Link>

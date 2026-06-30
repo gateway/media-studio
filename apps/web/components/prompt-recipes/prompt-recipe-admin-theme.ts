@@ -20,7 +20,7 @@ export const promptRecipeOverlayFooterClassName =
   "flex flex-wrap items-center justify-between gap-3 border-t border-[var(--surface-border-soft)] px-5 py-4";
 
 export const promptRecipeSecondaryMetaClassName =
-  "flex flex-wrap gap-2 text-xs text-[var(--muted-strong)]";
+  "flex flex-wrap gap-2 break-all text-xs text-[var(--muted-strong)] [overflow-wrap:anywhere]";
 
 export const promptRecipeSearchIconClassName =
   "size-4 text-[var(--muted-strong)]";

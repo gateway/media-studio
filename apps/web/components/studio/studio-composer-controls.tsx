@@ -78,7 +78,7 @@ export function StudioComposerControls({
   return (
     <div
       className={cn(
-        "relative z-30 flex flex-wrap items-center gap-2 pb-1 text-[0.77rem]",
+        "studio-composer-controls-bar",
         structuredPresetActive ? "pt-[6px]" : "",
       )}
     >
@@ -227,7 +227,7 @@ export function StudioComposerControls({
           <button
             type="button"
             onClick={onClear}
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#b4d58b,#87a86a)] px-5 text-[0.76rem] font-semibold text-[#132108] shadow-[0_18px_38px_rgba(113,147,86,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_42px_rgba(113,147,86,0.24)]"
+            className="studio-composer-action-button studio-composer-clear-button"
           >
             Clear
           </button>
@@ -236,7 +236,7 @@ export function StudioComposerControls({
             data-testid="studio-generate-button"
             onClick={onSubmit}
             disabled={!canSubmit}
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#d8ff2e,#b5f414)] px-5 text-[0.76rem] font-semibold text-[#172200] shadow-[0_18px_38px_rgba(176,235,44,0.2)] transition hover:-translate-y-0.5 disabled:opacity-60"
+            className="studio-composer-action-button studio-composer-generate-button"
           >
             {generateButtonLabel}
           </button>

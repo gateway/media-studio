@@ -12,18 +12,27 @@
   box-shadow: 0 14px 42px var(--graph-shadow-soft);
 }
 
+.graph-node-content-auto {
+  height: 100%;
+  min-height: 0;
+}
+
+.react-flow__node:has(.graph-node-content-auto) {
+  min-height: 0 !important;
+}
+
 .react-flow__node.selected .graph-node {
   border-color: var(--graph-text-body);
   box-shadow:
     0 14px 42px var(--graph-shadow-soft),
-    0 0 0 1px rgba(247, 246, 240, 0.28);
+    0 0 0 1px color-mix(in srgb, var(--graph-text) 28%, transparent);
 }
 
 .react-flow__node:has(.graph-node-help-popover) {
   z-index: 120 !important;
 }
 
-.graph-node > :not(.react-flow__resize-control):not(.graph-node-activity-ring):not(.graph-node-reference-badges) {
+.graph-node > :not(.react-flow__resize-control):not(.graph-node-activity-ring):not(.graph-node-reference-badges):not(.graph-node-price-badges) {
   position: relative;
   z-index: 1;
 }
@@ -37,8 +46,8 @@
   border-radius: inherit;
   overflow: hidden;
   box-shadow:
-    inset 0 0 0 1px rgba(49, 209, 88, 0.34),
-    0 0 0 1px rgba(49, 209, 88, 0.16);
+    inset 0 0 0 1px color-mix(in srgb, var(--graph-success) 34%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--graph-success) 16%, transparent);
 }
 
 .graph-node > .graph-node-activity-ring {
@@ -58,7 +67,18 @@
   pointer-events: none;
 }
 
-.graph-node-reference-badge {
+.graph-node-price-badges {
+  position: absolute;
+  top: -0.56rem;
+  right: 0.78rem;
+  z-index: 36;
+  display: inline-flex;
+  max-width: calc(100% - 1.5rem);
+  pointer-events: none;
+}
+
+.graph-node-reference-badge,
+.graph-node-price-floating-badge {
   display: inline-flex;
   align-items: center;
   min-height: 1.16rem;
@@ -69,7 +89,7 @@
   color: var(--graph-text-bright);
   box-shadow:
     0 0 0 1px var(--graph-shadow-surface),
-    0 8px 18px rgba(0, 0, 0, 0.34);
+    0 8px 18px color-mix(in srgb, black 34%, transparent);
   font-size: 0.58rem;
   font-weight: 800;
   letter-spacing: 0;
@@ -79,19 +99,19 @@
 }
 
 .graph-node-reference-badge-video {
-  border-color: rgba(90, 210, 255, 0.54);
-  background: color-mix(in srgb, #5ad2ff 18%, var(--graph-panel-dark) 82%);
+  border-color: color-mix(in srgb, var(--graph-cyan) 54%, transparent);
+  background: color-mix(in srgb, var(--graph-cyan) 18%, var(--graph-panel-dark) 82%);
 }
 
 .graph-node-reference-badge-audio {
-  border-color: rgba(255, 209, 102, 0.54);
-  background: color-mix(in srgb, #ffd166 18%, var(--graph-panel-dark) 82%);
+  border-color: color-mix(in srgb, var(--graph-warning) 54%, transparent);
+  background: color-mix(in srgb, var(--graph-warning) 18%, var(--graph-panel-dark) 82%);
 }
 
 .graph-node-price-floating-badge {
-  border-color: rgba(96, 210, 255, 0.58);
-  background: color-mix(in srgb, #60d2ff 16%, var(--graph-panel-dark) 84%);
-  color: rgba(223, 247, 255, 0.94);
+  border-color: color-mix(in srgb, var(--graph-warning) 58%, var(--graph-border-medium));
+  background: color-mix(in srgb, var(--graph-warning) 16%, var(--graph-panel-dark) 84%);
+  color: var(--graph-warning);
 }
 
 .graph-node-activity-ring span {
@@ -99,21 +119,21 @@
   display: block;
   border-radius: 999px;
   opacity: 0;
-  filter: drop-shadow(0 0 7px rgba(49, 209, 88, 0.8));
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--graph-success) 80%, transparent));
 }
 
 .graph-node-activity-ring span:nth-child(1),
 .graph-node-activity-ring span:nth-child(3) {
   width: 42%;
   height: 3px;
-  background: linear-gradient(90deg, transparent, rgba(49, 209, 88, 0.42), var(--graph-success) 70%, var(--graph-text));
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--graph-success) 42%, transparent), var(--graph-success) 70%, var(--graph-text));
 }
 
 .graph-node-activity-ring span:nth-child(2),
 .graph-node-activity-ring span:nth-child(4) {
   width: 3px;
   height: 42%;
-  background: linear-gradient(180deg, transparent, rgba(49, 209, 88, 0.42), var(--graph-success) 70%, var(--graph-text));
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--graph-success) 42%, transparent), var(--graph-success) 70%, var(--graph-text));
 }
 
 .graph-node-activity-ring span:nth-child(1) {
@@ -146,8 +166,8 @@
 }
 
 .graph-node-running {
-  border: 1px solid rgba(49, 209, 88, 0.58);
-  box-shadow: 0 16px 46px rgba(0, 0, 0, 0.42);
+  border: 1px solid color-mix(in srgb, var(--graph-success) 58%, transparent);
+  box-shadow: 0 16px 46px color-mix(in srgb, black 42%, transparent);
 }
 
 .graph-node-queued {
@@ -159,10 +179,10 @@
 }
 
 .graph-node-failed {
-  border: 2px solid #ff4d4f;
+  border: 2px solid var(--graph-danger);
   box-shadow:
-    0 16px 46px rgba(0, 0, 0, 0.42),
-    0 0 0 4px rgba(255, 77, 79, 0.16);
+    0 16px 46px color-mix(in srgb, black 42%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--graph-danger) 16%, transparent);
 }
 
 .graph-node-completed {
@@ -195,46 +215,46 @@
 .graph-node-execution-muted::after {
   background:
     repeating-linear-gradient(135deg, var(--graph-surface-faint) 0 8px, transparent 8px 16px),
-    rgba(0, 0, 0, 0.26);
+    color-mix(in srgb, black 26%, transparent);
 }
 
 .graph-node-execution-frozen {
-  background: #151716;
-  border-color: rgba(180, 187, 178, 0.48);
+  background: var(--graph-frozen-surface);
+  border-color: color-mix(in srgb, var(--graph-text-muted) 48%, transparent);
   box-shadow:
-    0 14px 38px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(180, 187, 178, 0.14);
+    0 14px 38px color-mix(in srgb, black 40%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--graph-text-muted) 14%, transparent);
   filter: grayscale(1) saturate(0) brightness(0.82);
 }
 
 .graph-node-execution-frozen::after {
   z-index: 3;
   background:
-    linear-gradient(135deg, rgba(214, 220, 210, 0.08), var(--graph-shadow-surface) 54%, rgba(0, 0, 0, 0.36)),
-    rgba(8, 10, 9, 0.44);
-  box-shadow: inset 0 0 0 1px rgba(238, 241, 234, 0.08);
+    linear-gradient(135deg, color-mix(in srgb, var(--graph-text) 8%, transparent), var(--graph-shadow-surface) 54%, color-mix(in srgb, black 36%, transparent)),
+    color-mix(in srgb, var(--graph-bg) 44%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--graph-text) 8%, transparent);
 }
 
 .graph-node-execution-frozen .graph-node-header {
-  background: #202321;
-  border-bottom-color: rgba(210, 216, 207, 0.12);
+  background: var(--graph-frozen-header);
+  border-bottom-color: color-mix(in srgb, var(--graph-text) 12%, transparent);
 }
 
 .graph-node-execution-frozen .graph-node-execution-chip {
   position: relative;
   z-index: 5;
-  border-color: rgba(224, 228, 220, 0.34);
-  color: rgba(238, 241, 234, 0.88);
-  background: rgba(238, 241, 234, 0.08);
+  border-color: color-mix(in srgb, var(--graph-text) 34%, transparent);
+  color: var(--graph-frozen-text);
+  background: color-mix(in srgb, var(--graph-text) 8%, transparent);
 }
 
 .graph-node-execution-bypassed {
-  border-color: rgba(178, 140, 255, 0.62);
-  box-shadow: 0 0 0 1px rgba(178, 140, 255, 0.22);
+  border-color: color-mix(in srgb, var(--graph-bypass) 62%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--graph-bypass) 22%, transparent);
 }
 
 .graph-node-execution-bypassed::after {
-  background: linear-gradient(135deg, rgba(178, 140, 255, 0.18), transparent 46%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--graph-bypass) 18%, transparent), transparent 46%);
 }
 
 .graph-node-execution-muted .graph-node-header,

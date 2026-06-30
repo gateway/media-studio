@@ -258,6 +258,53 @@ def test_list_reference_media_filters_missing_files_and_clears_missing_thumbs(cl
     assert thumbless_payload["thumb_path"] is None
 
 
+def test_list_reference_media_searches_source_records_and_respects_kind(client, app_modules) -> None:
+    store = app_modules["store"]
+    service = app_modules["service"]
+    store.bootstrap_schema()
+
+    image_path = service.settings.data_root / "reference-media" / "images" / "sadie-reference.png"
+    video_path = service.settings.data_root / "reference-media" / "videos" / "sadie-driving.mp4"
+    image_path.parent.mkdir(parents=True, exist_ok=True)
+    video_path.parent.mkdir(parents=True, exist_ok=True)
+    image_path.write_bytes(PNG_1X1_BYTES)
+    video_path.write_bytes(b"fake video bytes")
+
+    image = store.create_or_reuse_reference_media(
+        {
+            "kind": "image",
+            "original_filename": "sadie-reference.png",
+            "stored_path": "reference-media/images/sadie-reference.png",
+            "mime_type": "image/png",
+            "file_size_bytes": image_path.stat().st_size,
+            "sha256": "sadie-image-hash",
+            "usage_count": 0,
+            "metadata_json": {},
+        },
+        increment_usage=False,
+    )
+    video = store.create_or_reuse_reference_media(
+        {
+            "kind": "video",
+            "original_filename": "sadie-driving.mp4",
+            "stored_path": "reference-media/videos/sadie-driving.mp4",
+            "mime_type": "video/mp4",
+            "file_size_bytes": video_path.stat().st_size,
+            "sha256": "sadie-video-hash",
+            "usage_count": 0,
+            "metadata_json": {},
+        },
+        increment_usage=False,
+    )
+
+    response = client.get("/media/reference-media?kind=image&q=sadie")
+    assert response.status_code == 200, response.text
+    payload = response.json()
+
+    assert [item["reference_id"] for item in payload["items"]] == [image["reference_id"]]
+    assert video["reference_id"] not in [item["reference_id"] for item in payload["items"]]
+
+
 def test_backfill_reference_media_scans_uploads_and_is_idempotent(app_modules) -> None:
     service = app_modules["service"]
     store = app_modules["store"]
@@ -354,3 +401,5 @@ def test_validation_bundle_resolves_reference_id_without_leaking_provider_extra_
     assert first_image["path"] == str(reference_path)
     assert first_image["filename"] == "portrait.png"
     assert "reference_id" not in first_image
+    assert "width" not in first_image
+    assert "height" not in first_image

@@ -13,7 +13,7 @@ export function StudioGalleryEmptyState({ apiHealthy, immersive }: StudioGallery
     <div
       data-testid="studio-gallery"
       className={cn(
-        "studio-gallery-grid-shell relative z-[1] flex items-center justify-center p-px",
+        "studio-gallery-grid-shell studio-gallery-empty-shell p-px",
         immersive ? "min-h-dvh pb-[270px] pt-0 md:pb-[290px]" : "min-h-[920px] pt-20",
       )}
     >

@@ -173,7 +173,6 @@ Important stored fields:
 - `requires_image`, `requires_video`, `requires_audio`: capability flags.
 - `input_schema_json`: text field definitions.
 - `input_slots_json`: image slot definitions.
-- `choice_groups_json`: stored choice metadata; not actively exposed in the current preset editor.
 - `thumbnail_path`, `thumbnail_url`: preset thumbnail metadata.
 - `notes`: internal/admin notes.
 - `version`: preset schema/version label.
@@ -385,7 +384,6 @@ To add or update seeded presets in code:
 - The editor does not expose every stored field. Be careful editing presets that rely on:
   - `system_prompt_template`,
   - `system_prompt_ids_json`,
-  - `choice_groups_json`,
   - complex `default_options_json`,
   - `rules_json`.
 - Image slot `max_files` should currently be treated as single-image in the editor path.

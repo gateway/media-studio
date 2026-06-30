@@ -776,6 +776,7 @@ export type MediaPreset = {
   key: string;
   label: string;
   description?: string | null;
+  category?: string | null;
   status: string;
   model_key?: string | null;
   source_kind: "builtin" | "built_in_override" | "custom" | "imported";
@@ -793,7 +794,6 @@ export type MediaPreset = {
   requires_audio?: boolean;
   input_schema_json?: Array<Record<string, unknown>>;
   input_slots_json?: Array<Record<string, unknown> | string>;
-  choice_groups_json?: Array<Record<string, unknown>>;
   thumbnail_path?: string | null;
   thumbnail_url?: string | null;
   notes?: string | null;
@@ -801,6 +801,34 @@ export type MediaPreset = {
   priority?: number;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+export type MediaPresetSummaryItem = Pick<
+  MediaPreset,
+  | "preset_id"
+  | "key"
+  | "label"
+  | "description"
+  | "category"
+  | "status"
+  | "model_key"
+  | "source_kind"
+  | "base_builtin_key"
+  | "applies_to_models"
+  | "applies_to_task_modes"
+  | "applies_to_input_patterns"
+  | "requires_image"
+  | "requires_video"
+  | "requires_audio"
+  | "thumbnail_path"
+  | "thumbnail_url"
+  | "version"
+  | "priority"
+  | "created_at"
+  | "updated_at"
+> & {
+  input_schema_count?: number;
+  input_slots_count?: number;
 };
 
 export type PromptRecipeCategory = "image" | "video" | "analysis" | "utility";
@@ -1066,6 +1094,12 @@ export type MediaQueueSettings = {
   queue_enabled: boolean;
   default_poll_seconds: number;
   max_retry_attempts: number;
+  max_concurrent_jobs_min?: number;
+  max_concurrent_jobs_max?: number;
+  default_poll_seconds_min?: number;
+  default_poll_seconds_max?: number;
+  max_retry_attempts_min?: number;
+  max_retry_attempts_max?: number;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -1106,12 +1140,52 @@ export type MediaAsset = {
   hero_web_url?: string | null;
   hero_thumb_url?: string | null;
   hero_poster_url?: string | null;
+  width?: number | null;
+  height?: number | null;
   remote_output_url?: string | null;
   preset_key?: string | null;
   preset_source?: string | null;
   tags?: string[];
   payload?: Record<string, unknown>;
   source_asset?: MediaAsset | null;
+};
+
+export type MediaAssetPickerItem = {
+  asset_id: string | number;
+  generation_kind?: string | null;
+  created_at: string;
+  model_key?: string | null;
+  status?: string | null;
+  task_mode?: string | null;
+  prompt_summary?: string | null;
+  hero_original_path?: string | null;
+  hero_web_path?: string | null;
+  hero_thumb_path?: string | null;
+  hero_poster_path?: string | null;
+  hero_original_url?: string | null;
+  hero_web_url?: string | null;
+  hero_thumb_url?: string | null;
+  hero_poster_url?: string | null;
+  width?: number | null;
+  height?: number | null;
+  project_id?: string | null;
+  duration_seconds?: number | null;
+};
+
+export type MediaAssetSummaryItem = MediaAssetPickerItem & {
+  job_id?: string | null;
+  project_id?: string | null;
+  provider_task_id?: string | null;
+  run_id?: string | null;
+  source_asset_id?: string | number | null;
+  hidden_from_dashboard?: boolean;
+  dismissed_at?: string | null;
+  favorited?: boolean;
+  favorited_at?: string | null;
+  remote_output_url?: string | null;
+  preset_key?: string | null;
+  preset_source?: string | null;
+  tags?: string[];
 };
 
 export type MediaReference = {
@@ -1211,6 +1285,19 @@ export type MediaModelsResponse = {
 export type MediaPresetsResponse = {
   ok?: boolean;
   presets?: MediaPreset[];
+  total?: number;
+  limit?: number;
+  offset?: number;
+  next_offset?: number | null;
+};
+
+export type MediaPresetSummaryResponse = {
+  ok?: boolean;
+  presets?: MediaPresetSummaryItem[];
+  total?: number;
+  limit?: number;
+  offset?: number;
+  next_offset?: number | null;
 };
 
 export type PromptRecipesResponse = {
@@ -1309,6 +1396,24 @@ export type MediaAssetsResponse = {
   next_offset?: number | null;
 };
 
+export type MediaAssetPickerResponse = {
+  ok?: boolean;
+  assets?: MediaAssetPickerItem[];
+  limit?: number;
+  offset?: number;
+  has_more?: boolean;
+  next_offset?: number | null;
+};
+
+export type MediaAssetSummaryResponse = {
+  ok?: boolean;
+  assets?: MediaAssetSummaryItem[];
+  limit?: number;
+  offset?: number;
+  has_more?: boolean;
+  next_offset?: number | null;
+};
+
 export type MediaAssetResponse = {
   ok?: boolean;
   asset?: MediaAsset | null;
@@ -1319,6 +1424,7 @@ export type MediaReferencesResponse = {
   items?: MediaReference[];
   limit?: number;
   offset?: number;
+  next_offset?: number | null;
 };
 
 export type MediaReferenceResponse = {

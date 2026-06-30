@@ -366,8 +366,14 @@ class VideoTransformExecutor(GraphExecutor):
                     str(source_path),
                     "-t",
                     str(duration),
-                    "-c",
-                    "copy",
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "veryfast",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-c:a",
+                    "aac",
                     "-movflags",
                     "+faststart",
                     str(output_path),
@@ -421,7 +427,27 @@ class VideoTrimExecutor(GraphExecutor):
         source_path = graph_ref_path(refs[0], expected_media_type="video")
         with tempfile.TemporaryDirectory(dir=_graph_tmp_dir()) as tmp:
             output_path = Path(tmp) / "output.mp4"
-            _run_ffmpeg([_ffmpeg(), "-y", "-ss", str(start), "-i", str(source_path), "-t", str(duration), "-c", "copy", "-movflags", "+faststart", str(output_path)])
+            _run_ffmpeg([
+                _ffmpeg(),
+                "-y",
+                "-ss",
+                str(start),
+                "-i",
+                str(source_path),
+                "-t",
+                str(duration),
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-movflags",
+                "+faststart",
+                str(output_path),
+            ])
             output_ref = _import_video(output_path, node, "video-trim")
         context.record_node_metric(node, "utility_processing_duration_seconds", round(perf_counter() - started, 4))
         return {"video": [output_ref]}

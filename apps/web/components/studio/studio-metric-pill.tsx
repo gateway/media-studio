@@ -16,7 +16,7 @@ export function StudioMetricPill({
   return (
     <div
       className={studioBadgeClassName({
-        tone: accent === "highlight" ? "accent" : accent === "project" ? "project" : "default",
+        tone: accent === "project" ? "project" : "default",
         className: "h-10 px-3 text-[0.72rem] font-semibold",
       })}
     >

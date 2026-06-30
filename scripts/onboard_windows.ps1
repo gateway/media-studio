@@ -32,6 +32,7 @@ $envTemplate = @"
 MEDIA_STUDIO_APP_ENV=development
 NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL=
 MEDIA_STUDIO_CONTROL_API_BASE_URL=
+NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=
 MEDIA_STUDIO_CONTROL_API_TOKEN=$localControlToken
 MEDIA_STUDIO_INSTALL_ID=$localInstallId
 MEDIA_STUDIO_ADMIN_USERNAME=
@@ -296,13 +297,14 @@ if (-not $summaryWebPort) {
 }
 Write-Host " - Studio: powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1"
 Write-Host " - Stop later: powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1"
-Write-Host " - Setup page: http://127.0.0.1:$summaryWebPort/setup"
-Write-Host " - AI settings: http://127.0.0.1:$summaryWebPort/settings/llms"
-Write-Host "If the default ports are busy, the launcher prints the actual temporary Studio URL it selected."
+Write-Host " - Configured setup page if the web port is free: http://127.0.0.1:$summaryWebPort/setup"
+Write-Host " - Configured AI settings if the web port is free: http://127.0.0.1:$summaryWebPort/settings/llms"
+Write-Host " - Actual launch URL: printed by the launcher after it checks for free API and web ports"
+Write-Host "If ports 8000 or 3000 are busy, startup automatically selects temporary open ports for that launch."
 Write-Host ""
 
-$launchNow = Read-Host "Open Media Studio in a new PowerShell window now? [y/N]"
+$launchNow = Read-Host "Open Media Studio in a new PowerShell window now with automatic port selection? [y/N]"
 if ($launchNow -match '^[Yy]$') {
   Start-DevWindow "powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1"
-  Write-Host "Opening one PowerShell window for the API and web app."
+  Write-Host "Opening one PowerShell window for the API and web app. The launcher will print the actual Studio URL."
 }

@@ -2,7 +2,6 @@ import { useCallback, useState } from "react";
 
 import type { GraphRun, GraphWorkflowPayload, GraphWorkflowRecord, StudioEdge, StudioNode } from "../types";
 import { jsonFetch } from "../utils/graph-api";
-import { clearLegacyWorkspaceSnapshot } from "../utils/graph-tabs";
 
 export function useGraphWorkflowActions({
   workflowId,
@@ -105,7 +104,6 @@ export function useGraphWorkflowActions({
   }, [appendConsole, renameDraft, saveWorkflow, setRenameDialogOpen, setWorkflowName, workflowId]);
 
   const closeWorkflow = useCallback(() => {
-    clearLegacyWorkspaceSnapshot();
     setWorkflowId(null);
     setWorkflowName("New workflow");
     setWorkflowUpdatedAt(null);

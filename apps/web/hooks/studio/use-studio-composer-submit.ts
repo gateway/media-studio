@@ -49,6 +49,7 @@ type UseStudioComposerSubmitOptions = {
   multiShotScript: MultiShotParseResult;
   multiShotScriptError: string | null;
   presetRequirementError: string | null;
+  missingRequiredInputError: string | null;
   projectId: string | null;
   presetInputValues: Record<string, string>;
   structuredPresetImageSlots: StructuredPresetImageSlot[];
@@ -281,6 +282,13 @@ export function useStudioComposerSubmit(options: UseStudioComposerSubmitOptions)
       }
       return null;
     }
+    if (options.missingRequiredInputError) {
+      options.setValidation(null);
+      if (!silent) {
+        options.setFormMessage({ tone: "danger", text: options.missingRequiredInputError });
+      }
+      return null;
+    }
     if (
       (!options.structuredPresetActive && !options.prompt.trim() && !options.attachments.length && !options.sourceAssetId) ||
       (options.structuredPresetActive && !options.structuredPresetPromptPreview.trim())
@@ -348,6 +356,13 @@ export function useStudioComposerSubmit(options: UseStudioComposerSubmitOptions)
   async function submitMedia(intent: "validate" | "submit") {
     if (!options.currentModelEnabled) {
       options.setFormMessage({ tone: "danger", text: "This model is disabled in Settings. Re-enable it before generating." });
+      return;
+    }
+    if (options.missingRequiredInputError) {
+      options.setValidation(null);
+      options.setFormMessage({ tone: "danger", text: options.missingRequiredInputError });
+      options.showFloatingComposerBanner({ tone: "danger", text: options.missingRequiredInputError }, 5600);
+      options.showActivity({ tone: "danger", message: options.missingRequiredInputError }, { autoHideMs: 3200 });
       return;
     }
     if (intent === "validate") {

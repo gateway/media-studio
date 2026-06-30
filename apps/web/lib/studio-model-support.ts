@@ -24,8 +24,16 @@ export type StudioModelSupport = {
   unsupportedOptionKeys: string[];
 };
 
+function isSeedance2Model(modelKey: string | null | undefined) {
+  const normalized = String(modelKey ?? "").trim().toLowerCase().replaceAll("_", "-");
+  return normalized === "seedance-2.0" || normalized.startsWith("seedance-2.0-");
+}
+
 function modelInputLimit(model: MediaModelSummary | null, inputKey: "image_inputs" | "video_inputs" | "audio_inputs") {
-  const raw = isRecord(model?.[inputKey]) ? model?.[inputKey].required_max : null;
+  const candidate = model?.[inputKey];
+  const input = isRecord(candidate) ? candidate : null;
+  const rawMax = input?.required_max;
+  const raw = rawMax !== null && rawMax !== undefined && rawMax !== "" ? rawMax : input?.required_min;
   const parsed = typeof raw === "number" ? raw : Number(raw);
   if (!Number.isFinite(parsed)) {
     return 0;
@@ -161,7 +169,7 @@ export function deriveStudioModelSupport(model: MediaModelSummary | null): Studi
     };
   }
 
-  if (patternSet.has("multimodal_reference") && model.key !== "seedance-2.0") {
+  if (patternSet.has("multimodal_reference") && !isSeedance2Model(model.key)) {
     const hiddenReason = "Studio only exposes multimodal reference contracts through the dedicated Seedance flow right now.";
     return {
       status: "unsupported",
@@ -180,8 +188,8 @@ export function deriveStudioModelSupport(model: MediaModelSummary | null): Studi
   const explicitMotionControl =
     patternSet.has("motion_control") && maxImageInputs === 1 && maxVideoInputs === 1 && maxAudioInputs === 0;
   const explicitSingleImage =
-    !patternSet.has("first_last_frames") &&
     !patternSet.has("motion_control") &&
+    !patternSet.has("multimodal_reference") &&
     maxImageInputs === 1 &&
     maxVideoInputs === 0 &&
     maxAudioInputs === 0 &&
@@ -196,7 +204,7 @@ export function deriveStudioModelSupport(model: MediaModelSummary | null): Studi
     Array.from(patternSet).every((pattern) => pattern === "prompt_only" || pattern === "single_image" || pattern === "image_edit") &&
     (patternSet.has("single_image") || patternSet.has("image_edit"));
   const supportedSeedance =
-    model.key === "seedance-2.0" &&
+    isSeedance2Model(model.key) &&
     Array.from(patternSet).every((pattern) =>
       pattern === "prompt_only" ||
       pattern === "single_image" ||

@@ -23,6 +23,7 @@ describe("graph tab state", () => {
       workflow_json: workflow,
       run_id: null,
       run_status: null,
+      assistant_session_id: null,
       dirty: false,
     };
 
@@ -37,5 +38,28 @@ describe("graph tab state", () => {
 
     expect(next.run_id).toBe("run-1");
     expect(next.run_status).toBe("running");
+  });
+
+  it("can explicitly clear a stale assistant session when resetting a tab", () => {
+    const tab: GraphWorkspaceTab = {
+      tab_id: "tab-1",
+      workflow_id: "workflow-1",
+      workflow_name: "Steve test",
+      workflow_json: workflow,
+      run_id: null,
+      run_status: null,
+      assistant_session_id: "session-old",
+      dirty: false,
+    };
+
+    const next = applyGraphTabSnapshot(tab, {
+      workflowId: null,
+      workflowName: "New workflow",
+      workflow: { ...workflow, workflow_id: null, name: "New workflow" },
+      assistantSessionId: null,
+      dirty: false,
+    });
+
+    expect(next.assistant_session_id).toBeNull();
   });
 });

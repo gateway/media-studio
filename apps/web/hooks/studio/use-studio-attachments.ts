@@ -16,6 +16,7 @@ import {
 import { buildAttachmentPreviewUrl } from "@/lib/studio-composer-file-utils";
 import { applyAttachmentInsertOrReplace, buildStagedAttachments } from "@/lib/studio-attachment-staging";
 import type { MediaAsset, MediaReference } from "@/lib/types";
+import { probeVideoMetadata } from "@/lib/video-metadata";
 
 type FileAddConfig = {
   role?: NonNullable<AttachmentRecord["role"]>;
@@ -41,6 +42,39 @@ type UseStudioAttachmentsOptions = {
   setAttachments: Dispatch<SetStateAction<AttachmentRecord[]>>;
   setPresetSlotStates: Dispatch<SetStateAction<Record<string, PresetSlotState>>>;
 };
+
+type ProbedVideoAttachmentMetadata = {
+  durationSeconds: number | null;
+  width: number | null;
+  height: number | null;
+};
+
+const emptyProbedVideoAttachmentMetadata: ProbedVideoAttachmentMetadata = {
+  durationSeconds: null,
+  width: null,
+  height: null,
+};
+
+async function probeVideoAttachmentMetadata(
+  files: File[],
+  metadata: Array<{ kind: AttachmentRecord["kind"] }>,
+) {
+  return Promise.all(
+    files.map(async (file, index) => {
+      if (metadata[index]?.kind !== "videos") return emptyProbedVideoAttachmentMetadata;
+      try {
+        const videoMetadata = await probeVideoMetadata(file);
+        return {
+          durationSeconds: videoMetadata.durationSeconds,
+          width: videoMetadata.width,
+          height: videoMetadata.height,
+        };
+      } catch {
+        return emptyProbedVideoAttachmentMetadata;
+      }
+    }),
+  );
+}
 
 export function useStudioAttachments({
   seedanceComposer,
@@ -152,13 +186,19 @@ export function useStudioAttachments({
       }
       return;
     }
-    const previewUrls = await Promise.all(acceptedFiles.map((file) => buildAttachmentPreviewUrl(file)));
+    const [previewUrls, videoMetadata] = await Promise.all([
+      Promise.all(acceptedFiles.map((file) => buildAttachmentPreviewUrl(file))),
+      probeVideoAttachmentMetadata(acceptedFiles, acceptedMetadata),
+    ]);
     const nextAttachments = buildStagedAttachments(
       acceptedFiles.map((file, index) => ({
         file,
         kind: acceptedMetadata[index]?.kind ?? classifyFile(file),
         role: acceptedMetadata[index]?.role ?? (seedanceComposer ? "reference" : null),
         previewUrl: previewUrls[index] ?? null,
+        durationSeconds: videoMetadata[index]?.durationSeconds ?? null,
+        width: videoMetadata[index]?.width ?? null,
+        height: videoMetadata[index]?.height ?? null,
       })),
     );
     setAttachments((current) =>
@@ -185,13 +225,22 @@ export function useStudioAttachments({
       explicitRole || seedanceComposer || config.insertImageIndex == null ? null : Math.max(0, config.insertImageIndex);
     const replaceImageIndex =
       explicitRole || seedanceComposer || config.replaceImageIndex == null ? null : Math.max(0, config.replaceImageIndex);
-    const previewUrls = await Promise.all(incomingFiles.map((file) => buildAttachmentPreviewUrl(file)));
+    const restoredMetadata = incomingFiles.map((file) => ({
+      kind: config.allowedKinds?.[0] ?? classifyFile(file),
+    }));
+    const [previewUrls, videoMetadata] = await Promise.all([
+      Promise.all(incomingFiles.map((file) => buildAttachmentPreviewUrl(file))),
+      probeVideoAttachmentMetadata(incomingFiles, restoredMetadata),
+    ]);
     const nextAttachments = buildStagedAttachments(
       incomingFiles.map((file, index) => ({
         file,
-        kind: config.allowedKinds?.[0] ?? classifyFile(file),
+        kind: restoredMetadata[index]?.kind ?? classifyFile(file),
         role: explicitRole ?? (seedanceComposer ? "reference" : null),
         previewUrl: previewUrls[index] ?? null,
+        durationSeconds: videoMetadata[index]?.durationSeconds ?? null,
+        width: videoMetadata[index]?.width ?? null,
+        height: videoMetadata[index]?.height ?? null,
       })),
     );
     setAttachments((current) =>
@@ -310,6 +359,8 @@ export function useStudioAttachments({
         role: config.role ?? (seedanceComposer ? "reference" : null),
         previewUrl: reference.thumb_url ?? reference.poster_url ?? reference.stored_url ?? null,
         durationSeconds: reference.duration_seconds ?? null,
+        width: reference.width ?? null,
+        height: reference.height ?? null,
         referenceId: reference.reference_id,
         referenceRecord: reference,
       },

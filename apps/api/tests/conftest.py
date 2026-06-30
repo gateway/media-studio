@@ -39,6 +39,7 @@ def app_modules(tmp_path: Path):
 
     main = importlib.import_module("app.main")
     store = importlib.import_module("app.store")
+    store_assistant = importlib.import_module("app.store_assistant")
     runner = importlib.import_module("app.runner")
     service = importlib.import_module("app.service")
     db_admin = importlib.import_module("app.db_admin")
@@ -46,6 +47,7 @@ def app_modules(tmp_path: Path):
     yield {
         "main": main,
         "store": store,
+        "store_assistant": store_assistant,
         "runner": runner,
         "service": service,
         "db_admin": db_admin,

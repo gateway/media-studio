@@ -114,6 +114,47 @@ export function runtimePaths(root = mediaRoot, env = process.env) {
   };
 }
 
+export function apiRuntimeStatePath(root = mediaRoot, env = process.env) {
+  return path.join(runtimePaths(root, env).runtimeDir, "media-studio-api-runtime.json");
+}
+
+export function writeApiRuntimeState(runtime) {
+  writeFileSync(
+    apiRuntimeStatePath(mediaRoot, runtime.env),
+    `${JSON.stringify(
+      {
+        host: runtime.apiHost,
+        port: runtime.apiPort,
+        controlApiBaseUrl: controlApiBaseUrl(runtime.apiHost, runtime.apiPort),
+        installId: runtime.env.MEDIA_STUDIO_INSTALL_ID || "",
+        updatedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}
+
+export function readApiRuntimeState(root = mediaRoot, env = process.env) {
+  const statePath = apiRuntimeStatePath(root, env);
+  if (!existsSync(statePath)) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(readFileSync(statePath, "utf8"));
+    const host = typeof payload.host === "string" ? payload.host.trim() : "";
+    const port = typeof payload.port === "string" || typeof payload.port === "number" ? String(payload.port).trim() : "";
+    const controlApiBaseUrl =
+      typeof payload.controlApiBaseUrl === "string" ? payload.controlApiBaseUrl.trim() : "";
+    if (!host || !port) {
+      return null;
+    }
+    return { host, port, controlApiBaseUrl };
+  } catch {
+    return null;
+  }
+}
+
 export function runtimeAccessHost(host) {
   if (!host || host === "0.0.0.0") {
     return "127.0.0.1";

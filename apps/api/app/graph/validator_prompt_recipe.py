@@ -21,8 +21,6 @@ def prompt_recipe_id_for_node(node: GraphWorkflowNode, definition: GraphNodeDefi
     recipe_id = str(node.fields.get("recipe_id") or "").strip()
     if recipe_id:
         return recipe_id
-    if node.type.startswith("prompt.recipe."):
-        return str(definition.source.get("recipe_id") or "").strip()
     return ""
 
 
@@ -45,9 +43,6 @@ def _prompt_recipe_provider_supports_images(node: GraphWorkflowNode) -> bool | N
     explicit = node.fields.get("provider_supports_images")
     if isinstance(explicit, bool):
         return explicit
-    legacy = node.fields.get("model_supports_images")
-    if isinstance(legacy, bool):
-        return legacy
     return None
 
 
@@ -185,6 +180,10 @@ def validate_prompt_recipe_runtime(
             node.fields.get("source_prompt"),
             node.fields.get("source_image_prompt"),
             node.fields.get("previous_output"),
+            node.fields.get("previous_storyboard_prompt"),
+            node.fields.get("continuation_brief"),
+            node.fields.get("continuity_notes"),
+            node.fields.get("handoff_goal"),
             node.fields.get("external_variables_json"),
         ]
         if value is not None

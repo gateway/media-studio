@@ -37,6 +37,7 @@ const POLL_RUN_REFRESH_INTERVAL_SLOW_MS = 4000;
 const POLL_RUN_REFRESH_INTERVAL_BACKOFF_MS = 4000;
 const POLL_RUN_REFRESH_INTERVAL_BACKOFF_SLOW_MS = 8000;
 const POLL_RUN_REFRESH_INTERVAL_MAX_SLOW_MS = 12000;
+const TERMINAL_RUN_WATCHDOG_INTERVAL_MS = 10000;
 
 function emptyTransportMetrics(): GraphRunTransportMetrics {
   return {
@@ -216,6 +217,31 @@ export function useGraphRunLifecycle({
     [nodes],
   );
 
+  const validationRunBlockerLabel = useCallback(
+    (error: GraphValidationError) => {
+      const label = validationErrorLabel(error);
+      switch (error.code) {
+        case "missing_prompt_recipe":
+          return `${label} Select a saved Prompt Recipe before running.`;
+        case "missing_preset":
+        case "missing_media_preset":
+          return `${label} Select a saved Media Preset before running.`;
+        case "missing_media_reference":
+        case "missing_preset_image_slot":
+          return `${label} Attach the actual subject/runtime image in the image loader before running. Assistant reference/style images are not auto-used as runtime inputs.`;
+        case "missing_required_input":
+          return `${label} Connect the missing wire or fill the required runtime input before running.`;
+        case "prompt_recipe_images_not_connected":
+        case "prompt_recipe_image_reference_unwired":
+        case "missing_prompt_recipe_image_input":
+          return `${label} Wire the required image inputs before running.`;
+        default:
+          return label;
+      }
+    },
+    [validationErrorLabel],
+  );
+
   const runWorkflow = useCallback(async () => {
     try {
       resetNodeRunState();
@@ -232,7 +258,7 @@ export function useGraphRunLifecycle({
       const { id, result } = await validateWorkflowForRun();
       if (!result.valid) {
         applyValidationErrorsToNodes(result.errors);
-        appendConsole(`Validation failed: ${result.errors.map(validationErrorLabel).join("; ")}`);
+        appendConsole(`Run blocked before spending credits: ${result.errors.map(validationRunBlockerLabel).join("; ")}`);
         return;
       }
       if (result.warnings.length) {
@@ -265,7 +291,7 @@ export function useGraphRunLifecycle({
     resetNodeRunState,
     setRun,
     validateWorkflowForRun,
-    validationErrorLabel,
+    validationRunBlockerLabel,
     workflowFromCanvas,
     workflowName,
   ]);
@@ -510,6 +536,18 @@ export function useGraphRunLifecycle({
     }, pollIntervalMs);
     return () => window.clearInterval(timer);
   }, [activeRunId, eventStreamActive, pollIntervalMs, runIsTerminal]);
+
+  useEffect(() => {
+    if (!activeRunId || !eventStreamActive || runIsTerminal) return;
+    const timer = window.setInterval(async () => {
+      try {
+        await refreshRunStateRef.current(activeRunId, { reason: "poll" });
+      } catch (error) {
+        appendConsoleRef.current(`Run terminal watchdog failed: ${(error as Error).message}`);
+      }
+    }, TERMINAL_RUN_WATCHDOG_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [activeRunId, eventStreamActive, runIsTerminal]);
 
   return { runWorkflow, cancelRun, refreshRunState, transportMetrics };
 }

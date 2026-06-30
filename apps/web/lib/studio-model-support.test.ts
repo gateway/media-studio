@@ -39,6 +39,48 @@ describe("studio-model-support", () => {
     expect(support.supportSummary).toContain("start-frame");
   });
 
+  it("fully supports single-image models when KIE has verified a required min but not a max", () => {
+    const support = deriveStudioModelSupport({
+      key: "kling-3.0-turbo-i2v",
+      label: "Kling 3.0 Turbo Image to Video",
+      provider_model: "kling/v3-turbo-image-to-video",
+      task_modes: ["image_to_video"],
+      input_patterns: ["single_image", "first_last_frames"],
+      image_inputs: { required_min: 1 },
+      video_inputs: { required_min: 0, required_max: 0 },
+      audio_inputs: { required_min: 0, required_max: 0 },
+      options: {
+        duration: { type: "int_range", min: 3, max: 15, default: 5, required: true },
+        resolution: { type: "enum", allowed: ["720p", "1080p"], default: "720p", required: true },
+      },
+    } as never);
+
+    expect(support.status).toBe("fully_supported");
+    expect(support.exposed).toBe(true);
+    expect(support.supportSummary).toContain("single-image");
+  });
+
+  it("fully supports Seedance Mini multimodal contracts through the Seedance composer", () => {
+    const support = deriveStudioModelSupport({
+      key: "seedance-2.0-mini",
+      label: "Seedance 2.0 Mini",
+      provider_model: "bytedance/seedance-2-mini",
+      task_modes: ["text_to_video", "reference_to_video"],
+      input_patterns: ["prompt_only", "single_image", "first_last_frames", "multimodal_reference"],
+      image_inputs: { required_min: 0, required_max: 9 },
+      video_inputs: { required_min: 0, required_max: 3 },
+      audio_inputs: { required_min: 0, required_max: 3 },
+      options: {
+        duration: { type: "int_range", min: 4, max: 15, default: 5, required: true },
+        resolution: { type: "enum", allowed: ["480p", "720p"], default: "720p" },
+      },
+    } as never);
+
+    expect(support.status).toBe("fully_supported");
+    expect(support.exposed).toBe(true);
+    expect(support.supportSummary).toContain("dedicated Seedance");
+  });
+
   it("keeps larger image edit models exposed through the generic attachment composer", () => {
     const support = deriveStudioModelSupport({
       key: "gpt-image-2-image-to-image",

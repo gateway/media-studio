@@ -1,6 +1,6 @@
 import type { GraphNodeField } from "../types";
 
-const PROMPT_NODE_TYPES = new Set(["prompt.llm", "prompt.recipe"]);
+const PROMPT_NODE_TYPES = new Set(["prompt.llm", "prompt.recipe", "prompt.image_analyzer"]);
 const EXPLICIT_PROVIDER_KINDS = new Set(["openrouter", "codex_local", "local_openai"]);
 
 type RuntimeHelp = {
@@ -71,7 +71,6 @@ export function graphNormalizePromptProviderFields(nodeType: string, fields: Rec
       provider_model_label: "",
       provider_supports_images: null,
       provider_capabilities_json: {},
-      model_supports_images: null,
     };
   }
 
@@ -79,7 +78,6 @@ export function graphNormalizePromptProviderFields(nodeType: string, fields: Rec
     if (
       stringField(fields.provider_model_label) ||
       fields.provider_supports_images !== undefined ||
-      fields.model_supports_images !== undefined ||
       Object.keys(graphPromptProviderCapabilities(fields)).length
     ) {
       return {
@@ -88,7 +86,6 @@ export function graphNormalizePromptProviderFields(nodeType: string, fields: Rec
         provider_model_label: "",
         provider_supports_images: null,
         provider_capabilities_json: {},
-        model_supports_images: null,
       };
     }
     return fields;
@@ -101,7 +98,6 @@ export function graphNormalizePromptProviderFields(nodeType: string, fields: Rec
       provider_model_label: "",
       provider_supports_images: null,
       provider_capabilities_json: {},
-      model_supports_images: null,
     };
   }
 
@@ -111,7 +107,6 @@ export function graphNormalizePromptProviderFields(nodeType: string, fields: Rec
       provider_model_label: "",
       provider_supports_images: null,
       provider_capabilities_json: {},
-      model_supports_images: null,
     };
   }
 
@@ -141,7 +136,7 @@ export function graphPromptSupportsImages(fields: Record<string, unknown>) {
   if (metadataValue != null) return metadataValue;
   const providerValue = booleanField(fields.provider_supports_images);
   if (providerValue != null) return providerValue;
-  return booleanField(fields.model_supports_images);
+  return null;
 }
 
 export function graphPromptNodeHeaderSummary(nodeType: string, fields: Record<string, unknown>) {
@@ -170,6 +165,9 @@ export function graphPromptAdvancedSummary(nodeType: string, fields: Record<stri
   }
   if (nodeType === "prompt.recipe") {
     return "Provider, model, and optional runtime overrides. Leave overrides blank to use recipe defaults.";
+  }
+  if (nodeType === "prompt.image_analyzer") {
+    return "Provider, vision-capable model, and optional runtime overrides. Leave overrides blank to use provider defaults.";
   }
   if (providerKind === "studio_default") {
     return "Provider, model, and optional runtime overrides. Leave overrides blank to use the Prompt Enhance default model from AI Settings.";
