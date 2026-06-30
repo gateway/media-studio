@@ -1,4 +1,5 @@
 import { execFile, spawn } from "node:child_process";
+import path from "node:path";
 import { promisify } from "node:util";
 
 import { NextResponse } from "next/server";
@@ -33,6 +34,16 @@ function isTrustedRuntimeRequest(url: URL, headers: Headers) {
   );
 }
 
+function getMediaRoot() {
+  if (process.env.MEDIA_STUDIO_DATA_ROOT) {
+    return path.dirname(process.env.MEDIA_STUDIO_DATA_ROOT);
+  }
+  if (process.cwd().endsWith(path.join("apps", "web"))) {
+    return path.resolve(process.cwd(), "..", "..");
+  }
+  return process.cwd();
+}
+
 async function listLaunchdLines() {
   try {
     const { stdout } = await execFileAsync("launchctl", ["list"]);
@@ -55,7 +66,66 @@ function parseLaunchdLine(lines: string[], label: string) {
   };
 }
 
+function normalizeCommandText(value: string | null | undefined) {
+  return String(value ?? "").toLowerCase().replaceAll("\\", "/");
+}
+
+function commandIncludesAppRoot(command: string, appRoot: string) {
+  const normalized = normalizeCommandText(command);
+  const normalizedRoot = normalizeCommandText(appRoot);
+  return normalized.includes(normalizedRoot) || normalized.includes("media-studio");
+}
+
+function commandMatchesService(command: string, service: RuntimeService, appRoot: string) {
+  if (!commandIncludesAppRoot(command, appRoot)) {
+    return false;
+  }
+  const normalized = normalizeCommandText(command);
+  if (service === "api") {
+    return normalized.includes("scripts/dev_api.mjs") || normalized.includes("uvicorn app.main:app");
+  }
+  return (
+    normalized.includes("next/dist/bin/next") ||
+    normalized.includes("next start") ||
+    normalized.includes("next dev") ||
+    normalized.includes("npm run start:web")
+  );
+}
+
+async function hasWindowsManualProcess(service: RuntimeService) {
+  const appRoot = getMediaRoot();
+  const escapedRoot = appRoot.replaceAll("'", "''");
+  try {
+    const { stdout } = await execFileAsync("powershell", [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      `
+$ErrorActionPreference = 'SilentlyContinue'
+$root = '${escapedRoot}'
+Get-CimInstance Win32_Process |
+  Where-Object { $_.CommandLine -and $_.CommandLine.Contains($root) } |
+  Select-Object ProcessId, CommandLine |
+  ConvertTo-Json -Compress
+`,
+    ]);
+    const trimmed = stdout.trim();
+    if (!trimmed) {
+      return false;
+    }
+    const parsed = JSON.parse(trimmed) as { CommandLine?: string } | Array<{ CommandLine?: string }>;
+    const processes = Array.isArray(parsed) ? parsed : [parsed];
+    return processes.some((processInfo) => commandMatchesService(processInfo.CommandLine ?? "", service, appRoot));
+  } catch {
+    return false;
+  }
+}
+
 async function hasManualProcess(service: RuntimeService) {
+  if (process.platform === "win32") {
+    return hasWindowsManualProcess(service);
+  }
+
   const pattern =
     service === "api"
       ? "uvicorn app.main:app"
