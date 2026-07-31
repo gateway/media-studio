@@ -15,7 +15,7 @@ from ..graph.validator import validate_workflow
 from ..service_errors import ServiceError
 from ..service_preset_validation import upsert_preset
 from ..service_prompt_recipe_validation import upsert_prompt_recipe
-from .cancellation import cancel_session as cancel_tracked_session
+from .cancellation import AssistantSessionBusy
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
 from .graph_plan import apply_graph_plan
 from .kernel_route import create_kernel_message
@@ -26,7 +26,11 @@ from .preset_confirmation import (
     consume_preset_confirmation,
     resolve_confirmed_preset_draft,
 )
-from .provider_support import assistant_provider_fields, sync_assistant_session_provider
+from .provider_support import (
+    archive_assistant_session,
+    assistant_provider_fields,
+    cancel_assistant_session,
+)
 from .recipe_confirmation import (
     RecipeConfirmationError,
     consume_recipe_confirmation,
@@ -125,7 +129,7 @@ def _kernel_draft(
     if not message:
         raise _bad_request(f"Describe the {'Prompt Recipe' if mode == 'recipe' else 'Media Preset'} first.")
     updated = create_kernel_message(
-        session=sync_assistant_session_provider(session),
+        session=session,
         payload=AssistantMessageCreateRequest(
             content_text=message,
             workflow=payload.workflow,
@@ -234,7 +238,7 @@ def create_message(
     if not payload.content_text.strip():
         raise _bad_request("Message text is required.")
     updated = create_kernel_message(
-        session=sync_assistant_session_provider(session),
+        session=session,
         payload=payload,
         attachments=store_assistant.list_assistant_attachments(session_id),
     )
@@ -297,7 +301,7 @@ def create_plan(
     if not message:
         raise _bad_request("Describe the graph change first.")
     updated = create_kernel_message(
-        session=sync_assistant_session_provider(session),
+        session=session,
         payload=AssistantMessageCreateRequest(
             content_text=message,
             workflow=payload.workflow,
@@ -556,16 +560,15 @@ def cancel_session(session_id: str) -> AssistantSession:
     record = store_assistant.get_assistant_session(session_id)
     if not record:
         raise _not_found("assistant session")
-    cancel_tracked_session(session_id)
-    updated = store_assistant.create_or_update_assistant_session(
-        {**record, "status": "active"}
-    )
-    return _shape_session(updated)
+    return _shape_session(cancel_assistant_session(record))
 
 
 @router.post("/sessions/{session_id}/archive", response_model=AssistantSession)
 def archive_session(session_id: str) -> AssistantSession:
-    try:
-        return _shape_session(store_assistant.archive_assistant_session(session_id))
-    except KeyError:
+    record = store_assistant.get_assistant_session(session_id)
+    if not record:
         raise _not_found("assistant session")
+    try:
+        return _shape_session(archive_assistant_session(record))
+    except AssistantSessionBusy as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

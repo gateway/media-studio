@@ -43,8 +43,8 @@ def test_codex_thread_start_is_durable_noninteractive_and_read_only() -> None:
     session = provider._CodexAppServerSession.__new__(provider._CodexAppServerSession)
     captured: dict[str, object] = {}
 
-    def fake_request(method: str, params: dict) -> dict:
-        captured.update(method=method, params=params)
+    def fake_request(method: str, params: dict, **kwargs) -> dict:
+        captured.update(method=method, params=params, **kwargs)
         return {"thread": {"id": "thread-isolated"}}
 
     session._request = fake_request
@@ -85,6 +85,61 @@ def test_codex_thread_resume_is_noninteractive_and_read_only() -> None:
             "sandbox": "read-only",
             "model": "gpt-5.6-sol",
         },
+    }
+
+
+def test_codex_turn_interrupt_uses_supported_request() -> None:
+    provider = enhancement_provider.codex_local_provider
+    session = provider._CodexAppServerSession.__new__(provider._CodexAppServerSession)
+    captured: dict[str, object] = {}
+
+    def fake_request(method: str, params: dict, **kwargs) -> dict:
+        captured.update(method=method, params=params, **kwargs)
+        return {}
+
+    session._request = fake_request
+    session.interrupt_turn(thread_id="thread-1", turn_id="turn-1")
+
+    assert captured == {
+        "method": "turn/interrupt",
+        "params": {"threadId": "thread-1", "turnId": "turn-1"},
+        "timeout_seconds": 5,
+    }
+
+
+def test_archive_codex_thread_closes_live_pool_and_preserves_rollout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = enhancement_provider.codex_local_provider
+    captured = {"archive_count": 0, "exit_count": 0}
+
+    class _FakeSession:
+        def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
+            return None
+
+        def __enter__(self) -> "_FakeSession":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            captured["exit_count"] += 1
+
+        def archive_thread(self, *, thread_id: str) -> None:
+            captured["archive_count"] += 1
+            captured["thread_id"] = thread_id
+
+    monkeypatch.setattr(provider, "_CodexAppServerSession", _FakeSession)
+    provider.close_codex_local_skill_sessions()
+
+    archived = provider.archive_codex_local_thread(
+        session_key="asst-archive:4",
+        thread_id="thread-archive",
+    )
+
+    assert archived is True
+    assert captured == {
+        "archive_count": 1,
+        "exit_count": 1,
+        "thread_id": "thread-archive",
     }
 
 
@@ -776,7 +831,12 @@ def test_run_codex_local_chat_records_fallback_when_requested_thread_is_unavaila
 
 
 def test_run_codex_local_chat_cleans_managed_session_after_cancelled_turn(monkeypatch: pytest.MonkeyPatch) -> None:
-    captured: dict[str, object] = {"start_count": 0, "exit_count": 0, "cancel_next": True}
+    captured: dict[str, object] = {
+        "start_count": 0,
+        "resume_count": 0,
+        "exit_count": 0,
+        "cancel_next": True,
+    }
 
     class _FakeSession:
         def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
@@ -791,6 +851,10 @@ def test_run_codex_local_chat_cleans_managed_session_after_cancelled_turn(monkey
         def start_thread(self, *, cwd: str, model: str) -> dict[str, object]:
             captured["start_count"] = int(captured["start_count"]) + 1
             return {"thread": {"id": f"thread-cancel-{captured['start_count']}"}}
+
+        def resume_thread(self, *, thread_id: str, cwd: str, model: str) -> dict[str, object]:
+            captured["resume_count"] = int(captured["resume_count"]) + 1
+            return {"thread": {"id": thread_id}}
 
         def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
             if captured["cancel_next"]:
@@ -812,19 +876,22 @@ def test_run_codex_local_chat_cleans_managed_session_after_cancelled_turn(monkey
         enhancement_provider.run_codex_local_chat(
             model_id="gpt-5.4",
             messages=[{"role": "user", "content": "Cancelled turn."}],
-            codex_session_key="assistant|asst_1|workflow|wf_1|attachments|hash_cancel",
+            codex_session_key="asst_cancel",
         )
 
     recovered = enhancement_provider.run_codex_local_chat(
         model_id="gpt-5.4",
         messages=[{"role": "user", "content": "Recovered turn."}],
-        codex_session_key="assistant|asst_1|workflow|wf_1|attachments|hash_cancel",
+        codex_session_key="asst_cancel",
+        provider_thread_id="thread-cancel-1",
     )
 
-    assert captured["start_count"] == 2
+    assert captured["start_count"] == 1
+    assert captured["resume_count"] == 1
     assert captured["exit_count"] == 1
-    assert recovered["provider_thread_id"] == "thread-cancel-2"
+    assert recovered["provider_thread_id"] == "thread-cancel-1"
     assert recovered["provider_thread_reused"] is False
+    assert recovered["reuse_mode"] == "disk_resume"
 
     enhancement_provider.codex_local_provider.close_codex_local_skill_sessions()
 

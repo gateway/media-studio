@@ -12,10 +12,11 @@ from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
 from . import codex_local_provider, kie_adapter, service, store
+from .assistant.provider_support import sync_active_assistant_session_providers
+from .assistant.routes import router as assistant_router
 from .control_auth import validate_control_request
 from .graph.cancellation import cancel_batch_jobs
 from .graph.registry import registry
-from .assistant.routes import router as assistant_router
 from .graph.routes import router as graph_router
 from .runner import runner
 from .schemas import (
@@ -791,7 +792,9 @@ def get_media_assistant_config():
 @app.patch("/media/assistant-config", response_model=MediaAssistantConfigRecord)
 def update_media_assistant_config(payload: MediaAssistantConfigUpsertRequest):
     try:
-        return MediaAssistantConfigRecord(**service.upsert_media_assistant_config(payload))
+        updated = service.upsert_media_assistant_config(payload)
+        sync_active_assistant_session_providers()
+        return MediaAssistantConfigRecord(**updated)
     except service.ServiceError as exc:
         raise _bad_request(str(exc))
 

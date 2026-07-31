@@ -5,6 +5,8 @@ import json
 from threading import Event
 from types import SimpleNamespace
 
+import pytest
+
 
 def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -> None:
     del app_modules
@@ -47,6 +49,7 @@ def test_kernel_provider_step_persists_thread_id_and_records_lifecycle(
         {
             "provider_kind": "codex_local",
             "provider_model_id": "gpt-5.6-sol",
+            "state_snapshot_json": {"provider_generation": 3},
         }
     )
     captured: dict[str, object] = {}
@@ -87,7 +90,7 @@ def test_kernel_provider_step_persists_thread_id_and_records_lifecycle(
     )
 
     assert step["capability"] == "general"
-    assert captured["codex_session_key"] == session["assistant_session_id"]
+    assert captured["codex_session_key"] == f"{session['assistant_session_id']}:3"
     assert captured["provider_thread_id"] is None
     assert store_assistant.get_assistant_session(session["assistant_session_id"])["provider_thread_id"] == "thread-persisted"
     assert session["provider_thread_id"] == "thread-persisted"
@@ -201,7 +204,9 @@ def test_six_step_kernel_turn_uses_one_session_key_and_one_process_spawn(
     )
 
     assert len(calls) == 7
-    assert {call["codex_session_key"] for call in calls} == {session["assistant_session_id"]}
+    assert {call["codex_session_key"] for call in calls} == {
+        f"{session['assistant_session_id']}:0"
+    }
     assert all(0 < float(call["timeout_seconds"]) <= kernel.KERNEL_MAX_WALL_SECONDS for call in calls)
     assert [step.process_lifecycle for step in result.trace.provider_steps].count("process_spawned") == 1
     assert [step.process_lifecycle for step in result.trace.provider_steps].count("process_reused") == 6
@@ -500,6 +505,110 @@ def test_kernel_honors_cancellation_before_provider_call(app_modules, monkeypatc
         raise AssertionError("Cancelled kernel turn should not call the provider.")
 
     assert provider_called is False
+
+
+def test_assistant_session_allows_only_one_in_flight_turn(app_modules) -> None:
+    del app_modules
+    cancellation = importlib.import_module("app.assistant.cancellation")
+
+    with cancellation.track_session("asst-single-flight"):
+        with pytest.raises(cancellation.AssistantSessionBusy):
+            with cancellation.track_session("asst-single-flight"):
+                raise AssertionError("A competing turn should never enter the session.")
+        with cancellation.track_session("asst-isolated"):
+            pass
+
+    with cancellation.track_session("asst-single-flight"):
+        pass
+
+
+def test_conflicting_assistant_request_is_rejected_without_persisting_message(
+    client,
+    app_modules,
+    monkeypatch,
+) -> None:
+    cancellation = importlib.import_module("app.assistant.cancellation")
+    kernel_route = importlib.import_module("app.assistant.kernel_route")
+    session = client.post("/media/assistant/sessions", json={}).json()
+    session_id = session["assistant_session_id"]
+    provider_calls = 0
+
+    def fail_if_called(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        raise kernel_route.AssistantProviderChatError("Competing provider call.")
+
+    monkeypatch.setattr(kernel_route, "run_assistant_kernel_turn", fail_if_called)
+
+    with cancellation.track_session(session_id):
+        response = client.post(
+            f"/media/assistant/sessions/{session_id}/messages",
+            json={"content_text": "This should not start another turn."},
+        )
+
+    assert response.status_code == 409
+    assert provider_calls == 0
+    assert app_modules["store_assistant"].list_assistant_messages(session_id) == []
+
+
+def test_cancelled_kernel_turn_persists_interrupt_trace(
+    app_modules,
+    monkeypatch,
+) -> None:
+    cancellation = importlib.import_module("app.assistant.cancellation")
+    kernel_route = importlib.import_module("app.assistant.kernel_route")
+    store_assistant = app_modules["store_assistant"]
+    session = store_assistant.create_or_update_assistant_session(
+        {
+            "provider_kind": "codex_local",
+            "provider_model_id": "gpt-5.6-sol",
+        }
+    )
+
+    def interrupt(**_kwargs):
+        raise cancellation.AssistantRequestCancelled(
+            "Assistant turn was interrupted."
+        )
+
+    monkeypatch.setattr(kernel_route, "run_assistant_kernel_turn", interrupt)
+
+    with pytest.raises(kernel_route.HTTPException) as exc_info:
+        kernel_route.create_kernel_message(
+            session=session,
+            payload=kernel_route.AssistantMessageCreateRequest(
+                content_text="Stop this turn.",
+            ),
+            attachments=[],
+        )
+
+    assert exc_info.value.status_code == 409
+    messages = store_assistant.list_assistant_messages(session["assistant_session_id"])
+    assert [message["role"] for message in messages] == ["user", "system_summary"]
+    trace = messages[-1]["content_json"]["assistant_turn_trace"]
+    assert trace["cancellation_status"] == "interrupted"
+
+
+def test_cancel_endpoint_signals_only_the_target_session(
+    client,
+    app_modules,
+) -> None:
+    cancellation = importlib.import_module("app.assistant.cancellation")
+    store_assistant = app_modules["store_assistant"]
+    target = store_assistant.create_or_update_assistant_session({})
+    other = store_assistant.create_or_update_assistant_session({})
+
+    with cancellation.track_session(target["assistant_session_id"]) as target_event:
+        with cancellation.track_session(other["assistant_session_id"]) as other_event:
+            response = client.post(
+                f"/media/assistant/sessions/{target['assistant_session_id']}/cancel"
+            )
+
+            assert response.status_code == 200
+            assert response.json()["state_snapshot_json"][
+                "provider_cancellation_status"
+            ] == "requested"
+            assert target_event.is_set() is True
+            assert other_event.is_set() is False
 
 
 def test_kernel_stops_at_wall_clock_budget(app_modules, monkeypatch) -> None:

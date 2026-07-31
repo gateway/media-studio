@@ -12,7 +12,11 @@ from ..store_support import new_id
 from .cancellation import AssistantRequestCancelled, is_cancelled
 from .kernel_tools import KernelToolContext, execute_kernel_tool, kernel_tool_catalog, workflow_fingerprint
 from .prompt_assets import assistant_system_prompt_assembly
-from .provider_support import AssistantProviderChatError, resolve_assistant_provider_runtime
+from .provider_support import (
+    AssistantProviderChatError,
+    assistant_codex_session_key,
+    resolve_assistant_provider_runtime,
+)
 from .schemas import (
     AssistantKernelArtifact,
     AssistantKernelCapability,
@@ -404,12 +408,19 @@ def run_kernel_provider_step(
             error_context="media assistant kernel",
             timeout_seconds=timeout_seconds,
             cancel_event=cancel_event,
-            codex_session_key=session_id,
+            codex_session_key=assistant_codex_session_key(session),
             provider_thread_id=session.get("provider_thread_id"),
         )
     except enhancement_provider.EnhancementProviderError as exc:
         if is_cancelled(cancel_event):
-            raise AssistantRequestCancelled("Assistant kernel turn was cancelled.") from exc
+            interrupted = isinstance(
+                exc.__cause__,
+                enhancement_provider.codex_local_provider.CodexLocalProviderCancelled,
+            )
+            raise AssistantRequestCancelled(
+                "Assistant kernel turn was cancelled.",
+                outcome="interrupted" if interrupted else "process_reset",
+            ) from exc
         raise AssistantProviderChatError(str(exc)) from exc
     thread_id = str(result.get("provider_thread_id") or "").strip()
     if thread_id and thread_id != str(session.get("provider_thread_id") or "").strip():
@@ -476,7 +487,10 @@ def run_read_only_provider_turn(
         )
     except enhancement_provider.EnhancementProviderError as exc:
         if is_cancelled(cancel_event):
-            raise AssistantRequestCancelled("Assistant request was cancelled.") from exc
+            raise AssistantRequestCancelled(
+                "Assistant request was cancelled.",
+                outcome="cancelled",
+            ) from exc
         raise AssistantProviderChatError(str(exc)) from exc
     reply = str(result.get("generated_text") or "").strip()
     if not reply:
@@ -575,7 +589,10 @@ def run_assistant_kernel_turn(
     run_evidence_retry_requested = False
     while True:
         if is_cancelled(cancel_event):
-            raise AssistantRequestCancelled("Assistant kernel turn was cancelled.")
+            raise AssistantRequestCancelled(
+                "Assistant kernel turn was cancelled.",
+                outcome="cancelled_before_provider",
+            )
         elapsed = time.perf_counter() - started
         if elapsed >= max_wall_seconds:
             capability = selected_capability or "general"

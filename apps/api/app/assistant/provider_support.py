@@ -14,6 +14,7 @@ from ..service_provider_config import (
     shared_provider_runtime,
 )
 from ..settings import settings
+from .cancellation import AssistantSessionBusy, cancel_session, wait_for_session_idle
 from .limits import ASSISTANT_IMAGE_ATTACHMENT_LIMIT, is_image_attachment
 
 
@@ -115,15 +116,134 @@ def assistant_provider_fields(session: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def assistant_provider_generation(session: Dict[str, Any]) -> int:
+    snapshot = (
+        session.get("state_snapshot_json")
+        if isinstance(session.get("state_snapshot_json"), dict)
+        else {}
+    )
+    try:
+        return max(0, int(snapshot.get("provider_generation") or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def assistant_codex_session_key(session: Dict[str, Any]) -> str:
+    session_id = string_value(session.get("assistant_session_id"))
+    return (
+        f"{session_id}:{assistant_provider_generation(session)}"
+        if session_id
+        else ""
+    )
+
+
 def sync_assistant_session_provider(session: Dict[str, Any]) -> Dict[str, Any]:
     provider_fields = assistant_provider_fields(session)
     if all(session.get(key) == value for key, value in provider_fields.items()):
         return session
+    generation = assistant_provider_generation(session)
+    if string_value(session.get("provider_kind")) == "codex_local":
+        enhancement_provider.codex_local_provider.close_codex_local_skill_session(
+            assistant_codex_session_key(session)
+        )
+    snapshot = (
+        dict(session.get("state_snapshot_json"))
+        if isinstance(session.get("state_snapshot_json"), dict)
+        else {}
+    )
     return store_assistant.create_or_update_assistant_session(
         {
             **session,
             **provider_fields,
             "provider_thread_id": None,
+            "state_snapshot_json": {
+                **snapshot,
+                "provider_generation": generation + 1,
+            },
+        }
+    )
+
+
+def sync_active_assistant_session_providers() -> None:
+    for session in store_assistant.list_assistant_sessions(limit=100_000):
+        session_id = string_value(session.get("assistant_session_id"))
+        if cancel_session(session_id) and not wait_for_session_idle(
+            session_id,
+            timeout_seconds=5,
+        ):
+            continue
+        sync_assistant_session_provider(session)
+
+
+def cancel_assistant_session(record: Dict[str, Any]) -> Dict[str, Any]:
+    session_id = string_value(record.get("assistant_session_id"))
+    snapshot = (
+        dict(record.get("state_snapshot_json"))
+        if isinstance(record.get("state_snapshot_json"), dict)
+        else {}
+    )
+    return store_assistant.create_or_update_assistant_session(
+        {
+            **record,
+            "status": "active",
+            "state_snapshot_json": {
+                **snapshot,
+                "provider_cancellation_status": (
+                    "requested" if cancel_session(session_id) else "idle"
+                ),
+            },
+        }
+    )
+
+
+def archive_assistant_session(record: Dict[str, Any]) -> Dict[str, Any]:
+    session_id = string_value(record.get("assistant_session_id"))
+    if cancel_session(session_id):
+        if not wait_for_session_idle(session_id, timeout_seconds=5):
+            raise AssistantSessionBusy(
+                "The assistant is still stopping. Retry archive in a moment."
+            )
+        record = store_assistant.get_assistant_session(session_id) or record
+    snapshot = (
+        dict(record.get("state_snapshot_json"))
+        if isinstance(record.get("state_snapshot_json"), dict)
+        else {}
+    )
+    thread_id = string_value(record.get("provider_thread_id"))
+    archive_status = string_value(snapshot.get("provider_archive_status"))
+    already_archived = (
+        string_value(snapshot.get("provider_archived_thread_id")) == thread_id
+        and archive_status == "archived"
+    )
+    if string_value(record.get("provider_kind")) == "codex_local":
+        session_key = assistant_codex_session_key(record)
+        if thread_id and not already_archived:
+            archive_status = (
+                "archived"
+                if enhancement_provider.codex_local_provider.archive_codex_local_thread(
+                    session_key=session_key,
+                    thread_id=thread_id,
+                )
+                else "unavailable"
+            )
+        elif not thread_id:
+            enhancement_provider.codex_local_provider.close_codex_local_skill_session(
+                session_key
+            )
+            archive_status = "no_thread"
+    return store_assistant.create_or_update_assistant_session(
+        {
+            **record,
+            "status": "archived",
+            "state_snapshot_json": {
+                **snapshot,
+                "provider_archive_status": archive_status or "not_applicable",
+                **(
+                    {"provider_archived_thread_id": thread_id}
+                    if archive_status == "archived"
+                    else {}
+                ),
+            },
         }
     )
 

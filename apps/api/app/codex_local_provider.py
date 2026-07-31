@@ -719,6 +719,16 @@ class _CodexAppServerSession:
             raise CodexLocalProviderError("Codex Local did not return a resumed thread id.")
         return result
 
+    def interrupt_turn(self, *, thread_id: str, turn_id: str) -> None:
+        self._request(
+            "turn/interrupt",
+            {"threadId": thread_id, "turnId": turn_id},
+            timeout_seconds=5,
+        )
+
+    def archive_thread(self, *, thread_id: str) -> None:
+        self._request("thread/archive", {"threadId": thread_id})
+
     def run_turn(
         self,
         *,
@@ -832,8 +842,8 @@ class _CodexAppServerSession:
         deadline = time.monotonic() + self.timeout_seconds
         while not turn_completed:
             if cancel_event and cancel_event.is_set():
-                self._cancel_turn(thread_id=thread_id, turn_id=turn_id)
-                raise CodexLocalProviderCancelled("Codex Local request was cancelled.")
+                self.interrupt_turn(thread_id=thread_id, turn_id=turn_id)
+                raise CodexLocalProviderCancelled("Codex Local turn was interrupted.")
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise CodexLocalProviderError("Codex Local timed out while waiting for a response.")
@@ -862,12 +872,6 @@ class _CodexAppServerSession:
         if params is not None:
             payload["params"] = params
         self._send(payload)
-
-    def _cancel_turn(self, *, thread_id: str, turn_id: str) -> None:
-        try:
-            self._notify("turn/cancel", {"threadId": thread_id, "turnId": turn_id})
-        except CodexLocalProviderError:
-            pass
 
     def _request(
         self,
@@ -927,6 +931,25 @@ class _CodexAppServerSession:
         if not isinstance(parsed, dict):
             raise CodexLocalProviderError("Codex Local App Server returned an invalid message.")
         return parsed
+
+
+def archive_codex_local_thread(*, session_key: str, thread_id: str) -> bool:
+    normalized_thread_id = str(thread_id or "").strip()
+    if not normalized_thread_id:
+        return False
+    close_codex_local_skill_session(session_key)
+    temp_root = Path(tempfile.mkdtemp(prefix="media-studio-codex-local-archive-"))
+    try:
+        with _CodexAppServerSession(
+            temp_root=temp_root,
+            timeout_seconds=30,
+        ) as session:
+            session.archive_thread(thread_id=normalized_thread_id)
+        return True
+    except CodexLocalProviderError:
+        return False
+    finally:
+        shutil.rmtree(temp_root, ignore_errors=True)
 
 
 def _probe_bundle(*, model_id: Optional[str], require_images: bool) -> Tuple[Dict[str, Any], Dict[str, Any], List[Dict[str, Any]], Dict[str, Any]]:
