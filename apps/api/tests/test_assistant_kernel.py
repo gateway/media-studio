@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 from threading import Event
+from types import SimpleNamespace
 
 
 def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -> None:
@@ -34,6 +35,79 @@ def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -
         }
     )
     assert json.loads(step.tool_call.arguments) == {"query": "oil painting", "limit": 12}
+
+
+def test_kernel_provider_step_persists_thread_id_and_records_lifecycle(
+    app_modules,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    store_assistant = app_modules["store_assistant"]
+    session = store_assistant.create_or_update_assistant_session(
+        {
+            "provider_kind": "codex_local",
+            "provider_model_id": "gpt-5.6-sol",
+        }
+    )
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        kernel,
+        "resolve_assistant_provider_runtime",
+        lambda _session: SimpleNamespace(
+            provider_kind="codex_local",
+            provider_model_id="gpt-5.6-sol",
+        ),
+    )
+
+    def fake_chat(**kwargs):
+        captured.update(kwargs)
+        return {
+            "generated_text": '{"capability":"general","reply":"ok"}',
+            "provider_thread_id": "thread-persisted",
+            "thread_lifecycle": ["thread_resumed"],
+        }
+
+    monkeypatch.setattr(kernel.enhancement_provider, "run_codex_local_chat", fake_chat)
+    lifecycle: list[str] = []
+
+    step = kernel.run_kernel_provider_step(
+        session=session,
+        messages=[{"role": "user", "content": "Continue."}],
+        cancel_event=None,
+        timeout_seconds=5,
+        provider_lifecycle=lifecycle,
+    )
+
+    assert step["capability"] == "general"
+    assert captured["provider_thread_id"] is None
+    assert store_assistant.get_assistant_session(session["assistant_session_id"])["provider_thread_id"] == "thread-persisted"
+    assert session["provider_thread_id"] == "thread-persisted"
+    assert lifecycle == ["thread_resumed"]
+
+
+def test_kernel_trace_carries_provider_lifecycle(app_modules, monkeypatch) -> None:
+    del app_modules
+    kernel = importlib.import_module("app.assistant.kernel")
+
+    def provider_step(**kwargs):
+        kwargs["provider_lifecycle"].append("thread_resumed")
+        return {
+            "capability": "general",
+            "reply": "ok",
+            "requested_action": {"kind": "none"},
+        }
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
+
+    result = kernel.run_assistant_kernel_turn(
+        session={"provider_kind": "codex_local", "provider_model_id": "gpt-5.6-sol"},
+        user_text="Continue.",
+        workflow=None,
+        canvas_context={},
+        assistant_mode=None,
+    )
+
+    assert result.trace.provider_lifecycle == ["thread_resumed"]
 
 
 def test_graph_discovery_handles_natural_queries_within_result_budget(app_modules) -> None:

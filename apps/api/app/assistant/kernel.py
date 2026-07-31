@@ -386,6 +386,7 @@ def run_kernel_provider_step(
     messages: List[Dict[str, Any]],
     cancel_event: Event | None,
     timeout_seconds: float,
+    provider_lifecycle: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     runtime = resolve_assistant_provider_runtime(session)
     if runtime.provider_kind != "codex_local":
@@ -398,11 +399,28 @@ def run_kernel_provider_step(
             error_context="media assistant kernel",
             timeout_seconds=timeout_seconds,
             cancel_event=cancel_event,
+            provider_thread_id=session.get("provider_thread_id"),
         )
     except enhancement_provider.EnhancementProviderError as exc:
         if is_cancelled(cancel_event):
             raise AssistantRequestCancelled("Assistant kernel turn was cancelled.") from exc
         raise AssistantProviderChatError(str(exc)) from exc
+    thread_id = str(result.get("provider_thread_id") or "").strip()
+    if thread_id and thread_id != str(session.get("provider_thread_id") or "").strip():
+        session_id = str(session.get("assistant_session_id") or "").strip()
+        if not session_id:
+            raise AssistantProviderChatError("The assistant session could not store its Codex thread.")
+        session.update(
+            store_assistant.create_or_update_assistant_session(
+                {**session, "provider_thread_id": thread_id}
+            )
+        )
+    if provider_lifecycle is not None:
+        provider_lifecycle.extend(
+            str(event)
+            for event in result.get("thread_lifecycle") or []
+            if str(event)
+        )
     return json.loads(str(result.get("generated_text") or "{}"))
 
 
@@ -531,6 +549,7 @@ def run_assistant_kernel_turn(
         {"role": "user", "content": user_text},
     ]
     loaded_prompt_assets: List[str] = list(base_assembly.loaded_assets)
+    provider_lifecycle: List[str] = []
     tool_traces = []
     artifacts: List[AssistantKernelArtifact] = []
     tool_steps = 0
@@ -550,6 +569,7 @@ def run_assistant_kernel_turn(
                 trace=AssistantKernelTrace(
                     capability=capability,
                     loaded_prompt_assets=loaded_prompt_assets,
+                    provider_lifecycle=provider_lifecycle,
                     tool_calls=tool_traces,
                     step_count=tool_steps,
                     duration_ms=int(elapsed * 1000),
@@ -563,6 +583,7 @@ def run_assistant_kernel_turn(
             messages=messages,
             cancel_event=cancel_event,
             timeout_seconds=max_wall_seconds - elapsed,
+            provider_lifecycle=provider_lifecycle,
         )
         step = AssistantKernelProviderStep.model_validate(raw_step)
         if selected_capability is None:
@@ -597,6 +618,7 @@ def run_assistant_kernel_turn(
                     trace=AssistantKernelTrace(
                         capability=selected_capability,
                         loaded_prompt_assets=loaded_prompt_assets,
+                        provider_lifecycle=provider_lifecycle,
                         tool_calls=tool_traces,
                         step_count=tool_steps,
                         duration_ms=int(elapsed * 1000),
@@ -659,6 +681,7 @@ def run_assistant_kernel_turn(
                     trace=AssistantKernelTrace(
                         capability=selected_capability,
                         loaded_prompt_assets=loaded_prompt_assets,
+                        provider_lifecycle=provider_lifecycle,
                         tool_calls=tool_traces,
                         step_count=tool_steps,
                         duration_ms=int(elapsed * 1000),
@@ -818,6 +841,7 @@ def run_assistant_kernel_turn(
             trace=AssistantKernelTrace(
                 capability=selected_capability,
                 loaded_prompt_assets=loaded_prompt_assets,
+                provider_lifecycle=provider_lifecycle,
                 tool_calls=tool_traces,
                 step_count=tool_steps,
                 duration_ms=int(elapsed * 1000),

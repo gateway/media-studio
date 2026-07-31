@@ -86,6 +86,16 @@ def test_media_files_rejects_paths_outside_data_root(client) -> None:
     assert response.status_code == 404
 
 
+def test_media_files_rejects_codex_runtime_credentials(client, app_modules) -> None:
+    auth_path = app_modules["main"].settings.data_root / "runtime" / "codex-local" / "home" / "auth.json"
+    auth_path.parent.mkdir(parents=True, exist_ok=True)
+    auth_path.write_text('{"access_token":"private"}')
+
+    response = client.get(f"/media/files/{quote(str(auth_path), safe='/')}")
+
+    assert response.status_code == 404
+
+
 def test_health_endpoint_reports_paused_when_queue_disabled(client) -> None:
     update = client.patch("/media/queue/settings", json={"queue_enabled": False})
     assert update.status_code == 200, update.text

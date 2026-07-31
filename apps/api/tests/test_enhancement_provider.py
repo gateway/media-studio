@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
 from pathlib import Path
 from threading import Event
 
@@ -36,7 +38,7 @@ class _FakeClient:
         return self.response
 
 
-def test_codex_thread_start_remains_ephemeral_noninteractive_and_read_only() -> None:
+def test_codex_thread_start_is_durable_noninteractive_and_read_only() -> None:
     provider = enhancement_provider.codex_local_provider
     session = provider._CodexAppServerSession.__new__(provider._CodexAppServerSession)
     captured: dict[str, object] = {}
@@ -50,12 +52,75 @@ def test_codex_thread_start_remains_ephemeral_noninteractive_and_read_only() -> 
 
     assert captured["method"] == "thread/start"
     assert captured["params"] == {
-        "ephemeral": True,
+        "ephemeral": False,
         "cwd": "/tmp/media-studio-isolated",
         "approvalPolicy": "never",
         "sandbox": "read-only",
         "model": "gpt-5.6-sol",
     }
+
+
+def test_codex_thread_resume_is_noninteractive_and_read_only() -> None:
+    provider = enhancement_provider.codex_local_provider
+    session = provider._CodexAppServerSession.__new__(provider._CodexAppServerSession)
+    captured: dict[str, object] = {}
+
+    def fake_request(method: str, params: dict) -> dict:
+        captured.update(method=method, params=params)
+        return {"thread": {"id": "thread-durable"}}
+
+    session._request = fake_request
+    session.resume_thread(
+        thread_id="thread-durable",
+        cwd="/tmp/media-studio-isolated",
+        model="gpt-5.6-sol",
+    )
+
+    assert captured == {
+        "method": "thread/resume",
+        "params": {
+            "threadId": "thread-durable",
+            "cwd": "/tmp/media-studio-isolated",
+            "approvalPolicy": "never",
+            "sandbox": "read-only",
+            "model": "gpt-5.6-sol",
+        },
+    }
+
+
+def test_codex_home_is_stable_private_and_refreshes_only_credentials(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = enhancement_provider.codex_local_provider
+    source_home = tmp_path / "source-codex-home"
+    source_home.mkdir()
+    source_auth = source_home / "auth.json"
+    source_auth.write_text('{"token":"first"}')
+    (source_home / "installation_id").write_text("install-source")
+    (source_home / "config.toml").write_text("web_search = true")
+    data_root = tmp_path / "media-data"
+    monkeypatch.setenv("CODEX_HOME", str(source_home))
+    monkeypatch.setenv("MEDIA_STUDIO_DATA_ROOT", str(data_root))
+
+    isolated_home = provider._prepare_isolated_codex_home()
+
+    assert isolated_home == data_root / "runtime" / "codex-local" / "home"
+    assert (isolated_home / "auth.json").read_text() == '{"token":"first"}'
+    assert (isolated_home / "installation_id").read_text() == "install-source"
+    assert not (isolated_home / "config.toml").exists()
+    assert stat.S_IMODE(isolated_home.stat().st_mode) == 0o700
+    assert stat.S_IMODE((isolated_home / "auth.json").stat().st_mode) == 0o600
+
+    (isolated_home / "auth.json").write_text('{"token":"local"}')
+    os.utime(isolated_home / "auth.json", ns=(source_auth.stat().st_atime_ns, source_auth.stat().st_mtime_ns + 1))
+    assert provider._prepare_isolated_codex_home() == isolated_home
+    assert (isolated_home / "auth.json").read_text() == '{"token":"local"}'
+
+    source_auth.write_text('{"token":"refreshed"}')
+    os.utime(source_auth, ns=(source_auth.stat().st_atime_ns, (isolated_home / "auth.json").stat().st_mtime_ns + 1))
+    provider._prepare_isolated_codex_home()
+    assert (isolated_home / "auth.json").read_text() == '{"token":"refreshed"}'
 
 
 def test_image_path_to_data_url_resolves_paths_relative_to_data_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -233,6 +298,7 @@ def test_run_codex_local_chat_uses_app_server_turn_result(monkeypatch: pytest.Mo
     assert result["provider_turn_id"] == "turn-codex-1"
     assert result["provider_response_id"] == "thread-codex-1:turn-codex-1"
     assert result["provider_thread_reused"] is False
+    assert result["thread_lifecycle"] == ["thread_started"]
     assert result["generated_text"] == '{"answer":"ok"}'
     assert result["usage"]["prompt_tokens"] == 120
     assert result["usage"]["completion_tokens"] == 30
@@ -245,6 +311,98 @@ def test_run_codex_local_chat_uses_app_server_turn_result(monkeypatch: pytest.Mo
     assert "SYSTEM:" in str(input_items[0]["text"])
     assert "Return exactly one valid JSON object" in str(input_items[0]["text"])
     assert "USER:" in str(input_items[0]["text"])
+
+
+def test_run_codex_local_chat_resumes_durable_thread_in_fresh_process(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeSession:
+        def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
+            return None
+
+        def __enter__(self) -> "_FakeSession":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def resume_thread(self, *, thread_id: str, cwd: str, model: str) -> dict[str, object]:
+            captured.update(thread_id=thread_id, cwd=cwd, model=model)
+            return {"thread": {"id": thread_id}}
+
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+            return {
+                "generated_text": '{"capability":"general","reply":"ok"}',
+                "provider_thread_id": thread_id,
+                "provider_turn_id": "turn-resumed",
+                "usage": {},
+            }
+
+    monkeypatch.setattr(enhancement_provider.codex_local_provider, "_CodexAppServerSession", _FakeSession)
+
+    result = enhancement_provider.run_codex_local_chat(
+        model_id="gpt-5.6-sol",
+        messages=[{"role": "user", "content": "Continue."}],
+        provider_thread_id="thread-durable",
+    )
+
+    assert result["provider_thread_id"] == "thread-durable"
+    assert result["thread_lifecycle"] == ["thread_resumed"]
+    assert result["fallback_mode"] is None
+    assert captured["thread_id"] == "thread-durable"
+    assert Path(str(captured["cwd"])).name == "work"
+
+
+def test_run_codex_local_chat_hydrates_replacement_after_resume_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    provider = enhancement_provider.codex_local_provider
+    captured: dict[str, object] = {}
+
+    class _FakeSession:
+        def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
+            return None
+
+        def __enter__(self) -> "_FakeSession":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def resume_thread(self, *, thread_id: str, cwd: str, model: str) -> dict[str, object]:
+            raise provider.CodexLocalProviderError("rollout path unavailable")
+
+        def start_thread(self, *, cwd: str, model: str) -> dict[str, object]:
+            return {"thread": {"id": "thread-replacement"}}
+
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+            captured["input_items"] = input_items
+            return {
+                "generated_text": '{"capability":"general","reply":"ok"}',
+                "provider_thread_id": thread_id,
+                "provider_turn_id": "turn-replacement",
+                "usage": {},
+            }
+
+    monkeypatch.setattr(provider, "_CodexAppServerSession", _FakeSession)
+
+    result = enhancement_provider.run_codex_local_chat(
+        model_id="gpt-5.6-sol",
+        messages=[
+            {"role": "system", "content": '{"recent_conversation":[{"text":"The jacket should stay blue."}]}'},
+            {"role": "user", "content": "Make that one warmer."},
+        ],
+        provider_thread_id="thread-missing",
+    )
+
+    assert result["provider_thread_id"] == "thread-replacement"
+    assert result["fallback_mode"] == "provider_thread_unavailable"
+    assert result["thread_lifecycle"] == [
+        "thread_resume_failed",
+        "fallback_hydrated",
+        "thread_replaced",
+    ]
+    input_items = captured["input_items"]
+    assert isinstance(input_items, list)
+    assert "The jacket should stay blue." in str(input_items[0]["text"])
 
 
 def test_codex_app_server_accepts_success_after_transient_retry_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -400,9 +558,11 @@ def test_run_codex_local_chat_reuses_managed_skill_thread(monkeypatch: pytest.Mo
     assert first["provider_thread_id"] == "thread-managed-1"
     assert first["provider_turn_id"] == "turn-managed-1"
     assert first["provider_thread_reused"] is False
+    assert first["thread_lifecycle"] == ["thread_started"]
     assert second["provider_thread_id"] == "thread-managed-1"
     assert second["provider_turn_id"] == "turn-managed-2"
     assert second["provider_thread_reused"] is True
+    assert second["thread_lifecycle"] == ["thread_live_reused"]
     assert second["provider_response_id"] == "thread-managed-1:turn-managed-2"
     assert captured["session_count"] == 1
     assert captured["start_count"] == 1
@@ -486,6 +646,11 @@ def test_run_codex_local_chat_records_fallback_when_requested_thread_is_unavaila
     assert second["provider_thread_id"] == "thread-managed-2"
     assert second["provider_thread_reused"] is False
     assert second["fallback_mode"] == "provider_thread_unavailable"
+    assert second["thread_lifecycle"] == [
+        "thread_resume_failed",
+        "fallback_hydrated",
+        "thread_replaced",
+    ]
 
     enhancement_provider.codex_local_provider.close_codex_local_skill_sessions()
 

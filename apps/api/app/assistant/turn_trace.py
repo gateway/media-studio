@@ -28,6 +28,11 @@ def build_assistant_turn_trace(content_json: Dict[str, Any] | None, content_text
         "warning_count": len(warnings),
         "requires_confirmation": payload.get("requires_confirmation"),
         "validation_valid": payload.get("validation_valid"),
+        "provider_lifecycle": (
+            kernel_trace.get("provider_lifecycle")
+            if isinstance(kernel_trace.get("provider_lifecycle"), list)
+            else []
+        ),
         "tool_calls": kernel_trace.get("tool_calls") if isinstance(kernel_trace.get("tool_calls"), list) else [],
         "visible_text_char_count": len(str(content_text or "")),
     }

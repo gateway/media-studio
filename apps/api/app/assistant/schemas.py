@@ -200,6 +200,7 @@ class AssistantVoiceViolation(BaseModel):
 class AssistantKernelTrace(BaseModel):
     capability: AssistantKernelCapability
     loaded_prompt_assets: List[str] = Field(default_factory=list)
+    provider_lifecycle: List[str] = Field(default_factory=list)
     tool_calls: List[AssistantKernelToolTrace] = Field(default_factory=list)
     step_count: int = 0
     duration_ms: int = 0

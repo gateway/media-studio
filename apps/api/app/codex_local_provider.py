@@ -45,6 +45,7 @@ _CODEX_LOCAL_CATALOG_CACHE: Dict[str, Any] = {
 _CODEX_LOCAL_SKILL_SESSIONS: Dict[str, "_ManagedCodexLocalSession"] = {}
 _CODEX_LOCAL_SKILL_SESSIONS_LOCK = Lock()
 _CODEX_LOCAL_SKILL_SESSION_REAPER_LOCK = Lock()
+_CODEX_LOCAL_HOME_LOCK = Lock()
 _CODEX_LOCAL_SKILL_SESSION_REAPER_STOP = Event()
 _CODEX_LOCAL_SKILL_SESSION_REAPER: Thread | None = None
 
@@ -244,18 +245,43 @@ def _source_codex_home() -> Path:
     return Path.home() / ".codex"
 
 
-def _prepare_isolated_codex_home(temp_root: Path) -> Path:
-    source_home = _source_codex_home()
-    source_auth = source_home / "auth.json"
-    if not source_auth.exists():
-        raise CodexLocalProviderError("Codex Local is not logged in. Run `codex login` first.")
-    isolated_home = temp_root / "codex-home"
-    isolated_home.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source_auth, isolated_home / "auth.json")
-    installation_id = source_home / "installation_id"
-    if installation_id.exists():
-        shutil.copy2(installation_id, isolated_home / "installation_id")
-    return isolated_home
+def _codex_runtime_root() -> Path:
+    data_root = Path(os.environ.get("MEDIA_STUDIO_DATA_ROOT") or "/tmp/media-studio-data").expanduser()
+    runtime_root = data_root / "runtime" / "codex-local"
+    runtime_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    runtime_root.chmod(0o700)
+    return runtime_root
+
+
+def _codex_working_directory() -> Path:
+    working_directory = _codex_runtime_root() / "work"
+    working_directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    working_directory.chmod(0o700)
+    return working_directory
+
+
+def _refresh_codex_credential(source: Path, destination: Path) -> None:
+    if not source.exists():
+        return
+    if destination.exists() and source.stat().st_mtime_ns <= destination.stat().st_mtime_ns:
+        destination.chmod(0o600)
+        return
+    shutil.copy2(source, destination)
+    destination.chmod(0o600)
+
+
+def _prepare_isolated_codex_home() -> Path:
+    with _CODEX_LOCAL_HOME_LOCK:
+        source_home = _source_codex_home()
+        source_auth = source_home / "auth.json"
+        if not source_auth.exists():
+            raise CodexLocalProviderError("Codex Local is not logged in. Run `codex login` first.")
+        isolated_home = _codex_runtime_root() / "home"
+        isolated_home.mkdir(parents=True, exist_ok=True, mode=0o700)
+        isolated_home.chmod(0o700)
+        _refresh_codex_credential(source_auth, isolated_home / "auth.json")
+        _refresh_codex_credential(source_home / "installation_id", isolated_home / "installation_id")
+        return isolated_home
 
 
 def _message_to_turn_input(messages: List[Dict[str, Any]], temp_root: Path) -> List[Dict[str, Any]]:
@@ -572,7 +598,7 @@ def _managed_codex_local_session(
     try:
         session = _CodexAppServerSession(temp_root=temp_root, timeout_seconds=int(timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS))
         session.__enter__()
-        thread_result = session.start_thread(cwd=str(temp_root), model=model_id)
+        thread_result = session.start_thread(cwd=str(_codex_working_directory()), model=model_id)
         thread = thread_result.get("thread") if isinstance(thread_result.get("thread"), dict) else {}
         thread_id = str(thread.get("id") or "").strip()
         if not thread_id:
@@ -604,7 +630,7 @@ class _CodexAppServerSession:
         binary = codex_command_path()
         if not binary:
             raise CodexLocalProviderError("The `codex` command is not installed or not on PATH.")
-        isolated_codex_home = _prepare_isolated_codex_home(self.temp_root)
+        isolated_codex_home = _prepare_isolated_codex_home()
         env = {**_codex_app_server_env(), "CODEX_HOME": str(isolated_codex_home)}
         self.proc = subprocess.Popen(
             [binary, "app-server", "--listen", "stdio://"],
@@ -642,7 +668,7 @@ class _CodexAppServerSession:
         result = self._request(
             "thread/start",
             {
-                "ephemeral": True,
+                "ephemeral": False,
                 "cwd": cwd,
                 "approvalPolicy": "never",
                 "sandbox": "read-only",
@@ -652,6 +678,22 @@ class _CodexAppServerSession:
         thread = result.get("thread")
         if not isinstance(thread, dict) or not str(thread.get("id") or "").strip():
             raise CodexLocalProviderError("Codex Local did not return a thread id.")
+        return result
+
+    def resume_thread(self, *, thread_id: str, cwd: str, model: str) -> Dict[str, Any]:
+        result = self._request(
+            "thread/resume",
+            {
+                "threadId": thread_id,
+                "cwd": cwd,
+                "approvalPolicy": "never",
+                "sandbox": "read-only",
+                "model": model,
+            },
+        )
+        thread = result.get("thread")
+        if not isinstance(thread, dict) or not str(thread.get("id") or "").strip():
+            raise CodexLocalProviderError("Codex Local did not return a resumed thread id.")
         return result
 
     def run_turn(
@@ -974,6 +1016,7 @@ def run_codex_local_chat(
     preferred_thread_id = str(provider_thread_id or "").strip() or None
     provider_thread_reused = False
     fallback_mode: str | None = None
+    thread_lifecycle: List[str] = []
 
     if session_key:
         if force_new_codex_session:
@@ -986,6 +1029,14 @@ def run_codex_local_chat(
         )
         try:
             with managed.lock:
+                if provider_thread_reused:
+                    thread_lifecycle.append("thread_live_reused")
+                elif preferred_thread_id and managed.thread_id != preferred_thread_id:
+                    thread_lifecycle.extend(
+                        ["thread_resume_failed", "fallback_hydrated", "thread_replaced"]
+                    )
+                else:
+                    thread_lifecycle.append("thread_started")
                 input_items = _message_to_turn_input(_messages_for_response_format(messages, response_format), managed.temp_root)
                 result = managed.session.run_turn(
                     thread_id=managed.thread_id,
@@ -1005,7 +1056,24 @@ def run_codex_local_chat(
         try:
             input_items = _message_to_turn_input(_messages_for_response_format(messages, response_format), temp_root)
             with _CodexAppServerSession(temp_root=temp_root, timeout_seconds=timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS) as session:
-                thread_result = session.start_thread(cwd=str(temp_root), model=selected_model_id)
+                working_directory = str(_codex_working_directory())
+                if preferred_thread_id:
+                    try:
+                        thread_result = session.resume_thread(
+                            thread_id=preferred_thread_id,
+                            cwd=working_directory,
+                            model=selected_model_id,
+                        )
+                        thread_lifecycle.append("thread_resumed")
+                    except CodexLocalProviderError:
+                        thread_lifecycle.extend(
+                            ["thread_resume_failed", "fallback_hydrated", "thread_replaced"]
+                        )
+                        fallback_mode = "provider_thread_unavailable"
+                        thread_result = session.start_thread(cwd=working_directory, model=selected_model_id)
+                else:
+                    thread_result = session.start_thread(cwd=working_directory, model=selected_model_id)
+                    thread_lifecycle.append("thread_started")
                 thread = thread_result.get("thread") if isinstance(thread_result.get("thread"), dict) else {}
                 thread_id = str(thread.get("id") or "").strip()
                 result = session.run_turn(thread_id=thread_id, input_items=input_items, output_schema=output_schema, cancel_event=cancel_event)
@@ -1030,6 +1098,7 @@ def run_codex_local_chat(
         "provider_turn_id": result_turn_id or None,
         "provider_thread_reused": provider_thread_reused,
         "fallback_mode": fallback_mode,
+        "thread_lifecycle": thread_lifecycle,
         "provider_response_id": provider_response_id or None,
         "usage": usage,
         "prompt_tokens": usage.get("prompt_tokens"),

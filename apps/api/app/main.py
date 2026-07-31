@@ -167,8 +167,10 @@ def _resolve_media_file_path(file_path: str) -> Optional[Path]:
     for candidate in candidates:
         resolved = candidate.resolve(strict=False)
         try:
-            resolved.relative_to(data_root)
+            relative = resolved.relative_to(data_root)
         except ValueError:
+            continue
+        if relative.parts[:2] == ("runtime", "codex-local"):
             continue
         return resolved
     return None
