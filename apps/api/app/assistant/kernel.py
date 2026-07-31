@@ -17,6 +17,7 @@ from .schemas import (
     AssistantKernelArtifact,
     AssistantKernelCapability,
     AssistantKernelProviderStep,
+    AssistantKernelProviderTrace,
     AssistantKernelTrace,
     AssistantKernelTurnResult,
     AssistantNextAction,
@@ -387,10 +388,14 @@ def run_kernel_provider_step(
     cancel_event: Event | None,
     timeout_seconds: float,
     provider_lifecycle: Optional[List[str]] = None,
+    provider_steps: Optional[List[AssistantKernelProviderTrace]] = None,
 ) -> Dict[str, Any]:
     runtime = resolve_assistant_provider_runtime(session)
     if runtime.provider_kind != "codex_local":
         raise AssistantProviderChatError("The configured provider does not support the Media Assistant kernel.")
+    session_id = str(session.get("assistant_session_id") or "").strip()
+    if not session_id:
+        raise AssistantProviderChatError("The assistant session could not reuse its Codex process.")
     try:
         result = enhancement_provider.run_codex_local_chat(
             model_id=runtime.provider_model_id,
@@ -399,6 +404,7 @@ def run_kernel_provider_step(
             error_context="media assistant kernel",
             timeout_seconds=timeout_seconds,
             cancel_event=cancel_event,
+            codex_session_key=session_id,
             provider_thread_id=session.get("provider_thread_id"),
         )
     except enhancement_provider.EnhancementProviderError as exc:
@@ -407,9 +413,6 @@ def run_kernel_provider_step(
         raise AssistantProviderChatError(str(exc)) from exc
     thread_id = str(result.get("provider_thread_id") or "").strip()
     if thread_id and thread_id != str(session.get("provider_thread_id") or "").strip():
-        session_id = str(session.get("assistant_session_id") or "").strip()
-        if not session_id:
-            raise AssistantProviderChatError("The assistant session could not store its Codex thread.")
         session.update(
             store_assistant.create_or_update_assistant_session(
                 {**session, "provider_thread_id": thread_id}
@@ -420,6 +423,18 @@ def run_kernel_provider_step(
             str(event)
             for event in result.get("thread_lifecycle") or []
             if str(event)
+        )
+    if provider_steps is not None:
+        provider_steps.append(
+            AssistantKernelProviderTrace(
+                provider_thread_id=thread_id or None,
+                provider_turn_id=str(result.get("provider_turn_id") or "").strip() or None,
+                process_lifecycle=result.get("process_lifecycle"),
+                reuse_mode=result.get("reuse_mode"),
+                usage=dict(result.get("usage") or {}),
+                latency_ms=int(result.get("latency_ms") or 0),
+                prompt_bytes=int(result.get("prompt_bytes") or 0),
+            )
         )
     return json.loads(str(result.get("generated_text") or "{}"))
 
@@ -550,6 +565,7 @@ def run_assistant_kernel_turn(
     ]
     loaded_prompt_assets: List[str] = list(base_assembly.loaded_assets)
     provider_lifecycle: List[str] = []
+    provider_steps: List[AssistantKernelProviderTrace] = []
     tool_traces = []
     artifacts: List[AssistantKernelArtifact] = []
     tool_steps = 0
@@ -570,6 +586,7 @@ def run_assistant_kernel_turn(
                     capability=capability,
                     loaded_prompt_assets=loaded_prompt_assets,
                     provider_lifecycle=provider_lifecycle,
+                    provider_steps=provider_steps,
                     tool_calls=tool_traces,
                     step_count=tool_steps,
                     duration_ms=int(elapsed * 1000),
@@ -582,8 +599,10 @@ def run_assistant_kernel_turn(
             session=session,
             messages=messages,
             cancel_event=cancel_event,
+            # The kernel wall clock owns provider-step timeouts for assistant turns.
             timeout_seconds=max_wall_seconds - elapsed,
             provider_lifecycle=provider_lifecycle,
+            provider_steps=provider_steps,
         )
         step = AssistantKernelProviderStep.model_validate(raw_step)
         if selected_capability is None:
@@ -619,6 +638,7 @@ def run_assistant_kernel_turn(
                         capability=selected_capability,
                         loaded_prompt_assets=loaded_prompt_assets,
                         provider_lifecycle=provider_lifecycle,
+                        provider_steps=provider_steps,
                         tool_calls=tool_traces,
                         step_count=tool_steps,
                         duration_ms=int(elapsed * 1000),
@@ -682,6 +702,7 @@ def run_assistant_kernel_turn(
                         capability=selected_capability,
                         loaded_prompt_assets=loaded_prompt_assets,
                         provider_lifecycle=provider_lifecycle,
+                        provider_steps=provider_steps,
                         tool_calls=tool_traces,
                         step_count=tool_steps,
                         duration_ms=int(elapsed * 1000),
@@ -842,6 +863,7 @@ def run_assistant_kernel_turn(
                 capability=selected_capability,
                 loaded_prompt_assets=loaded_prompt_assets,
                 provider_lifecycle=provider_lifecycle,
+                provider_steps=provider_steps,
                 tool_calls=tool_traces,
                 step_count=tool_steps,
                 duration_ms=int(elapsed * 1000),

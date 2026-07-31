@@ -197,10 +197,21 @@ class AssistantVoiceViolation(BaseModel):
     word_count: Optional[int] = None
 
 
+class AssistantKernelProviderTrace(BaseModel):
+    provider_thread_id: Optional[str] = None
+    provider_turn_id: Optional[str] = None
+    process_lifecycle: Optional[Literal["process_spawned", "process_reused"]] = None
+    reuse_mode: Optional[Literal["new_thread", "live_process", "disk_resume", "replacement_thread"]] = None
+    usage: Dict[str, Any] = Field(default_factory=dict)
+    latency_ms: int = 0
+    prompt_bytes: int = 0
+
+
 class AssistantKernelTrace(BaseModel):
     capability: AssistantKernelCapability
     loaded_prompt_assets: List[str] = Field(default_factory=list)
     provider_lifecycle: List[str] = Field(default_factory=list)
+    provider_steps: List[AssistantKernelProviderTrace] = Field(default_factory=list)
     tool_calls: List[AssistantKernelToolTrace] = Field(default_factory=list)
     step_count: int = 0
     duration_ms: int = 0

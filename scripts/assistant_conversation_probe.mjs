@@ -360,6 +360,22 @@ function toolCallsFromTrace(trace) {
   return [];
 }
 
+function providerMetricsFromTrace(trace) {
+  const providerSteps = Array.isArray(trace?.provider_steps) ? trace.provider_steps : [];
+  return {
+    thread_ids: [...new Set(providerSteps.map((step) => step?.provider_thread_id).filter(Boolean))],
+    turn_ids: providerSteps.map((step) => step?.provider_turn_id).filter(Boolean),
+    process_spawns: Number(trace?.provider_process_spawns || 0),
+    process_reuses: providerSteps.filter((step) => step?.process_lifecycle === "process_reused").length,
+    reuse_modes: Array.isArray(trace?.provider_reuse_modes) ? trace.provider_reuse_modes : [],
+    provider_steps: providerSteps.length,
+    tool_steps: toolCallsFromTrace(trace).length,
+    prompt_bytes: Number(trace?.provider_prompt_bytes || 0),
+    latency_ms: Number(trace?.provider_latency_ms || 0),
+    total_tokens: Number(trace?.provider_total_tokens || 0),
+  };
+}
+
 function mechanicalChecks({ scenario, reply, contentJson, plan, jobsBefore, jobsAfter }) {
   const lower = reply.toLowerCase();
   const bannedHits = bannedVocabulary.filter((term) => lower.includes(term));
@@ -501,6 +517,7 @@ async function runScenario({ apiBaseUrl, token, dbPath, scenario, sessions, refe
       latency_ms: latencyMs,
       content_json: contentJson,
       tool_trace: contentJson.assistant_turn_trace ?? null,
+      provider_metrics: providerMetricsFromTrace(contentJson.assistant_turn_trace),
       next_action: contentJson.next_action ?? null,
       legacy_suggested_action: contentJson.suggested_action ?? null,
       validation: plan?.validation ?? null,
@@ -542,6 +559,10 @@ function renderTranscript(results) {
     }
     for (const turn of result.turns) {
       lines.push("**User**", "", turn.user, "", "**Media Assistant**", "", turn.assistant || "_No reply_", "");
+      lines.push(
+        `Provider: ${turn.provider_metrics.process_spawns} spawn(s), ${turn.provider_metrics.process_reuses} live reuse(s), ${turn.provider_metrics.prompt_bytes} prompt byte(s), ${turn.provider_metrics.latency_ms} ms`,
+        "",
+      );
       if (turn.plan) {
         lines.push(
           `Plan preview: ${turn.plan.status ?? "none"} · ${turn.validation?.valid === true ? "valid" : "not valid"} · ${turn.plan.operations.length} operation(s)`,

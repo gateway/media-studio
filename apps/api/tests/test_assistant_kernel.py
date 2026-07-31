@@ -64,11 +64,18 @@ def test_kernel_provider_step_persists_thread_id_and_records_lifecycle(
         return {
             "generated_text": '{"capability":"general","reply":"ok"}',
             "provider_thread_id": "thread-persisted",
+            "provider_turn_id": "turn-persisted",
+            "process_lifecycle": "process_spawned",
+            "reuse_mode": "disk_resume",
             "thread_lifecycle": ["thread_resumed"],
+            "latency_ms": 25,
+            "prompt_bytes": 512,
+            "usage": {"total_tokens": 42},
         }
 
     monkeypatch.setattr(kernel.enhancement_provider, "run_codex_local_chat", fake_chat)
     lifecycle: list[str] = []
+    provider_steps = []
 
     step = kernel.run_kernel_provider_step(
         session=session,
@@ -76,13 +83,26 @@ def test_kernel_provider_step_persists_thread_id_and_records_lifecycle(
         cancel_event=None,
         timeout_seconds=5,
         provider_lifecycle=lifecycle,
+        provider_steps=provider_steps,
     )
 
     assert step["capability"] == "general"
+    assert captured["codex_session_key"] == session["assistant_session_id"]
     assert captured["provider_thread_id"] is None
     assert store_assistant.get_assistant_session(session["assistant_session_id"])["provider_thread_id"] == "thread-persisted"
     assert session["provider_thread_id"] == "thread-persisted"
     assert lifecycle == ["thread_resumed"]
+    assert [item.model_dump(mode="json") for item in provider_steps] == [
+        {
+            "provider_thread_id": "thread-persisted",
+            "provider_turn_id": "turn-persisted",
+            "process_lifecycle": "process_spawned",
+            "reuse_mode": "disk_resume",
+            "usage": {"total_tokens": 42},
+            "latency_ms": 25,
+            "prompt_bytes": 512,
+        }
+    ]
 
 
 def test_kernel_trace_carries_provider_lifecycle(app_modules, monkeypatch) -> None:
@@ -108,6 +128,102 @@ def test_kernel_trace_carries_provider_lifecycle(app_modules, monkeypatch) -> No
     )
 
     assert result.trace.provider_lifecycle == ["thread_resumed"]
+
+
+def test_six_step_kernel_turn_uses_one_session_key_and_one_process_spawn(
+    app_modules,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    store_assistant = app_modules["store_assistant"]
+    session = store_assistant.create_or_update_assistant_session(
+        {
+            "provider_kind": "codex_local",
+            "provider_model_id": "gpt-5.6-sol",
+        }
+    )
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        kernel,
+        "resolve_assistant_provider_runtime",
+        lambda _session: SimpleNamespace(
+            provider_kind="codex_local",
+            provider_model_id="gpt-5.6-sol",
+        ),
+    )
+
+    def fake_chat(**kwargs):
+        calls.append(kwargs)
+        call_number = len(calls)
+        common = {
+            "provider_thread_id": "thread-six-step",
+            "provider_turn_id": f"turn-{call_number}",
+            "process_lifecycle": "process_spawned" if call_number == 1 else "process_reused",
+            "reuse_mode": "new_thread" if call_number == 1 else "live_process",
+            "thread_lifecycle": ["thread_started"] if call_number == 1 else ["thread_live_reused"],
+            "latency_ms": call_number,
+            "prompt_bytes": 100 * call_number,
+            "usage": {"total_tokens": 10 * call_number},
+        }
+        if call_number <= 6:
+            return {
+                **common,
+                "generated_text": json.dumps(
+                    {
+                        "capability": "graph_builder",
+                        "tool_call": {
+                            "name": "list_graph_node_types",
+                            "arguments": json.dumps({"query": "image", "limit": 1}),
+                        },
+                    }
+                ),
+            }
+        return {
+            **common,
+            "generated_text": json.dumps(
+                {
+                    "capability": "graph_builder",
+                    "reply": "Complete.",
+                    "requested_action": {"kind": "none"},
+                }
+            ),
+        }
+
+    monkeypatch.setattr(kernel.enhancement_provider, "run_codex_local_chat", fake_chat)
+
+    result = kernel.run_assistant_kernel_turn(
+        session=session,
+        user_text="Inspect the available image nodes.",
+        workflow=None,
+        canvas_context={},
+        assistant_mode="graph",
+        max_tool_steps=6,
+    )
+
+    assert len(calls) == 7
+    assert {call["codex_session_key"] for call in calls} == {session["assistant_session_id"]}
+    assert all(0 < float(call["timeout_seconds"]) <= kernel.KERNEL_MAX_WALL_SECONDS for call in calls)
+    assert [step.process_lifecycle for step in result.trace.provider_steps].count("process_spawned") == 1
+    assert [step.process_lifecycle for step in result.trace.provider_steps].count("process_reused") == 6
+    assert {step.provider_thread_id for step in result.trace.provider_steps} == {"thread-six-step"}
+    assert result.trace.step_count == 6
+    turn_trace = importlib.import_module("app.assistant.turn_trace")
+    persisted_trace = turn_trace.build_assistant_turn_trace(
+        {"kernel_turn": result.model_dump(mode="json")}
+    )
+    assert persisted_trace["provider_process_spawns"] == 1
+    assert persisted_trace["provider_prompt_bytes"] == 2800
+    assert persisted_trace["provider_latency_ms"] == 28
+    assert persisted_trace["provider_total_tokens"] == 280
+    assert persisted_trace["provider_reuse_modes"] == [
+        "new_thread",
+        "live_process",
+        "live_process",
+        "live_process",
+        "live_process",
+        "live_process",
+        "live_process",
+    ]
 
 
 def test_graph_discovery_handles_natural_queries_within_result_budget(app_modules) -> None:

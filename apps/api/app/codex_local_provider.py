@@ -577,7 +577,7 @@ def _managed_codex_local_session(
     model_id: str,
     timeout_seconds: float,
     preferred_thread_id: str | None,
-) -> tuple[_ManagedCodexLocalSession, bool]:
+) -> tuple[_ManagedCodexLocalSession, bool, List[str]]:
     _close_expired_codex_local_skill_sessions()
     existing: _ManagedCodexLocalSession | None = None
     with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
@@ -588,17 +588,35 @@ def _managed_codex_local_session(
             and (not preferred_thread_id or existing.thread_id == preferred_thread_id)
         ):
             existing.last_used_at = time.monotonic()
-            return existing, True
+            return existing, True, ["thread_live_reused"]
         if existing:
             _CODEX_LOCAL_SKILL_SESSIONS.pop(session_key, None)
     if existing:
         existing.close()
 
     temp_root = Path(tempfile.mkdtemp(prefix="media-studio-codex-local-skill-"))
+    session: _CodexAppServerSession | None = None
     try:
         session = _CodexAppServerSession(temp_root=temp_root, timeout_seconds=int(timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS))
         session.__enter__()
-        thread_result = session.start_thread(cwd=str(_codex_working_directory()), model=model_id)
+        working_directory = str(_codex_working_directory())
+        thread_lifecycle: List[str] = []
+        if preferred_thread_id:
+            try:
+                thread_result = session.resume_thread(
+                    thread_id=preferred_thread_id,
+                    cwd=working_directory,
+                    model=model_id,
+                )
+                thread_lifecycle.append("thread_resumed")
+            except CodexLocalProviderError:
+                thread_result = session.start_thread(cwd=working_directory, model=model_id)
+                thread_lifecycle.extend(
+                    ["thread_resume_failed", "fallback_hydrated", "thread_replaced"]
+                )
+        else:
+            thread_result = session.start_thread(cwd=working_directory, model=model_id)
+            thread_lifecycle.append("thread_started")
         thread = thread_result.get("thread") if isinstance(thread_result.get("thread"), dict) else {}
         thread_id = str(thread.get("id") or "").strip()
         if not thread_id:
@@ -611,11 +629,16 @@ def _managed_codex_local_session(
             model_id=model_id,
         )
     except Exception:
+        if session is not None:
+            try:
+                session.__exit__(None, None, None)
+            except Exception:
+                pass
         shutil.rmtree(temp_root, ignore_errors=True)
         raise
     with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
         _CODEX_LOCAL_SKILL_SESSIONS[session_key] = managed
-    return managed, False
+    return managed, False, thread_lifecycle
 
 
 class _CodexAppServerSession:
@@ -1009,6 +1032,7 @@ def run_codex_local_chat(
     provider_thread_id: Optional[str] = None,
     force_new_codex_session: bool = False,
 ) -> Dict[str, Any]:
+    started_at = time.perf_counter()
     del error_context
     output_schema = _response_format_to_output_schema(response_format)
     selected_model_id = str(model_id or CODEX_LOCAL_DEFAULT_MODEL)
@@ -1017,27 +1041,22 @@ def run_codex_local_chat(
     provider_thread_reused = False
     fallback_mode: str | None = None
     thread_lifecycle: List[str] = []
+    prompt_bytes = 0
 
     if session_key:
         if force_new_codex_session:
             close_codex_local_skill_session(session_key)
-        managed, provider_thread_reused = _managed_codex_local_session(
+        managed, provider_thread_reused, managed_lifecycle = _managed_codex_local_session(
             session_key=session_key,
             model_id=selected_model_id,
             timeout_seconds=timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS,
             preferred_thread_id=preferred_thread_id,
         )
+        thread_lifecycle.extend(managed_lifecycle)
         try:
             with managed.lock:
-                if provider_thread_reused:
-                    thread_lifecycle.append("thread_live_reused")
-                elif preferred_thread_id and managed.thread_id != preferred_thread_id:
-                    thread_lifecycle.extend(
-                        ["thread_resume_failed", "fallback_hydrated", "thread_replaced"]
-                    )
-                else:
-                    thread_lifecycle.append("thread_started")
                 input_items = _message_to_turn_input(_messages_for_response_format(messages, response_format), managed.temp_root)
+                prompt_bytes = len(json.dumps(input_items, separators=(",", ":")).encode("utf-8"))
                 result = managed.session.run_turn(
                     thread_id=managed.thread_id,
                     input_items=input_items,
@@ -1055,6 +1074,7 @@ def run_codex_local_chat(
         temp_root = Path(tempfile.mkdtemp(prefix="media-studio-codex-local-chat-"))
         try:
             input_items = _message_to_turn_input(_messages_for_response_format(messages, response_format), temp_root)
+            prompt_bytes = len(json.dumps(input_items, separators=(",", ":")).encode("utf-8"))
             with _CodexAppServerSession(temp_root=temp_root, timeout_seconds=timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS) as session:
                 working_directory = str(_codex_working_directory())
                 if preferred_thread_id:
@@ -1089,6 +1109,16 @@ def run_codex_local_chat(
         provider_response_id = provider_response_id or f"{result_thread_id}:{result_turn_id}"
     elif result_thread_id:
         provider_response_id = provider_response_id or result_thread_id
+    process_lifecycle = "process_reused" if provider_thread_reused else "process_spawned"
+    reuse_mode = (
+        "live_process"
+        if provider_thread_reused
+        else "disk_resume"
+        if "thread_resumed" in thread_lifecycle
+        else "replacement_thread"
+        if "thread_replaced" in thread_lifecycle
+        else "new_thread"
+    )
     return {
         "provider_kind": "codex_local",
         "provider_model_id": selected_model_id,
@@ -1097,6 +1127,8 @@ def run_codex_local_chat(
         "provider_thread_id": result_thread_id or None,
         "provider_turn_id": result_turn_id or None,
         "provider_thread_reused": provider_thread_reused,
+        "process_lifecycle": process_lifecycle,
+        "reuse_mode": reuse_mode,
         "fallback_mode": fallback_mode,
         "thread_lifecycle": thread_lifecycle,
         "provider_response_id": provider_response_id or None,
@@ -1104,6 +1136,8 @@ def run_codex_local_chat(
         "prompt_tokens": usage.get("prompt_tokens"),
         "completion_tokens": usage.get("completion_tokens"),
         "total_tokens": usage.get("total_tokens"),
+        "latency_ms": int((time.perf_counter() - started_at) * 1000),
+        "prompt_bytes": prompt_bytes,
         "cost": None,
         "generated_text": str(result.get("generated_text") or "").strip(),
         "warnings": [],
