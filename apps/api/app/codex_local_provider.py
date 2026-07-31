@@ -12,14 +12,15 @@ import tempfile
 import time
 import zlib
 from pathlib import Path
-from threading import Event, Lock
+from threading import Event, Lock, Thread
 from typing import Any, Dict, List, Optional, Tuple
 
 
-CODEX_APP_SERVER_TIMEOUT_SECONDS = 120
+CODEX_APP_SERVER_TIMEOUT_SECONDS = 300
 CODEX_LOCAL_CATALOG_CACHE_TTL_SECONDS = 300
 CODEX_LOCAL_SKILL_SESSION_TTL_SECONDS = 900
-CODEX_LOCAL_DEFAULT_MODEL = "gpt-5.4"
+CODEX_LOCAL_SKILL_SESSION_REAP_SECONDS = 60
+CODEX_LOCAL_DEFAULT_MODEL = "gpt-5.6-sol"
 CODEX_LOCAL_PROVIDER_BASE_URL = "codex://app-server"
 CODEX_LOCAL_PROVIDER_CREDENTIAL_SOURCE = "codex_local_login"
 CODEX_LOCAL_JSON_OBJECT_INSTRUCTION = (
@@ -43,6 +44,9 @@ _CODEX_LOCAL_CATALOG_CACHE: Dict[str, Any] = {
 }
 _CODEX_LOCAL_SKILL_SESSIONS: Dict[str, "_ManagedCodexLocalSession"] = {}
 _CODEX_LOCAL_SKILL_SESSIONS_LOCK = Lock()
+_CODEX_LOCAL_SKILL_SESSION_REAPER_LOCK = Lock()
+_CODEX_LOCAL_SKILL_SESSION_REAPER_STOP = Event()
+_CODEX_LOCAL_SKILL_SESSION_REAPER: Thread | None = None
 
 
 class CodexLocalProviderError(Exception):
@@ -485,6 +489,44 @@ def _close_expired_codex_local_skill_sessions(now: float | None = None) -> None:
         managed.close()
 
 
+def start_codex_local_skill_session_reaper() -> None:
+    global _CODEX_LOCAL_SKILL_SESSION_REAPER, _CODEX_LOCAL_SKILL_SESSION_REAPER_STOP
+    with _CODEX_LOCAL_SKILL_SESSION_REAPER_LOCK:
+        if _CODEX_LOCAL_SKILL_SESSION_REAPER and _CODEX_LOCAL_SKILL_SESSION_REAPER.is_alive():
+            return
+        stop_event = Event()
+        _CODEX_LOCAL_SKILL_SESSION_REAPER_STOP = stop_event
+
+        def reap_until_stopped() -> None:
+            while not stop_event.wait(CODEX_LOCAL_SKILL_SESSION_REAP_SECONDS):
+                _close_expired_codex_local_skill_sessions()
+
+        _CODEX_LOCAL_SKILL_SESSION_REAPER = Thread(
+            target=reap_until_stopped,
+            name="codex-local-session-reaper",
+            daemon=True,
+        )
+        _CODEX_LOCAL_SKILL_SESSION_REAPER.start()
+
+
+def stop_codex_local_skill_session_reaper() -> None:
+    global _CODEX_LOCAL_SKILL_SESSION_REAPER
+    with _CODEX_LOCAL_SKILL_SESSION_REAPER_LOCK:
+        thread = _CODEX_LOCAL_SKILL_SESSION_REAPER
+        _CODEX_LOCAL_SKILL_SESSION_REAPER = None
+        _CODEX_LOCAL_SKILL_SESSION_REAPER_STOP.set()
+    if thread:
+        thread.join(timeout=2)
+
+
+def codex_local_skill_session_reaper_running() -> bool:
+    with _CODEX_LOCAL_SKILL_SESSION_REAPER_LOCK:
+        return bool(
+            _CODEX_LOCAL_SKILL_SESSION_REAPER
+            and _CODEX_LOCAL_SKILL_SESSION_REAPER.is_alive()
+        )
+
+
 def close_codex_local_skill_sessions() -> None:
     with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
         sessions = list(_CODEX_LOCAL_SKILL_SESSIONS.values())
@@ -687,7 +729,13 @@ class _CodexAppServerSession:
             if method == "thread/status/changed" and str(params.get("threadId") or "").strip() == thread_id:
                 status = params.get("status") if isinstance(params.get("status"), dict) else {}
                 status_type = str(status.get("type") or "").strip()
-                if status_type == "idle" and (final_text or agent_text_chunks or turn_failed_message or usage_snapshot):
+                if status_type == "idle" and (final_text or agent_text_chunks):
+                    # App Server can emit transient retry errors before a successful
+                    # answer. A final answer followed by idle is authoritative.
+                    turn_failed_message = ""
+                    turn_completed = True
+                    return True
+                if status_type == "idle" and (turn_failed_message or usage_snapshot):
                     turn_completed = True
                     return True
                 if status_type == "systemError" and turn_failed_message:
@@ -704,6 +752,10 @@ class _CodexAppServerSession:
                     return False
                 if str(turn.get("status") or "").strip() != "completed":
                     turn_failed_message = _clean_codex_error_message((turn.get("error") or {}).get("message") if isinstance(turn.get("error"), dict) else "")
+                else:
+                    # Successful terminal state supersedes transient `error`
+                    # notifications such as stream reconnect attempts.
+                    turn_failed_message = ""
                 turn_completed = True
                 return True
             return False

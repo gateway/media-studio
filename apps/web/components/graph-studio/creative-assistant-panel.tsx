@@ -231,6 +231,25 @@ function activityMessageTitle(message: AssistantSessionMessage) {
   }
 }
 
+function kernelToolActivity(message: AssistantSessionMessage) {
+  if (message.content_json?.mode !== "assistant_kernel") return null;
+  const kernelTurn = message.content_json.kernel_turn;
+  if (!kernelTurn || typeof kernelTurn !== "object") return null;
+  const trace = (kernelTurn as Record<string, unknown>).trace;
+  if (!trace || typeof trace !== "object") return null;
+  const toolCalls = (trace as Record<string, unknown>).tool_calls;
+  if (!Array.isArray(toolCalls)) return null;
+  for (let index = toolCalls.length - 1; index >= 0; index -= 1) {
+    const call = toolCalls[index];
+    if (!call || typeof call !== "object") continue;
+    const activity = (call as Record<string, unknown>).activity;
+    if (!activity || typeof activity !== "object") continue;
+    const label = (activity as Record<string, unknown>).label;
+    if (typeof label === "string" && label.trim()) return label;
+  }
+  return null;
+}
+
 function isAppliedPlanActivityMessage(message: AssistantSessionMessage) {
   return message.content_json?.activity_kind === "graph_plan_applied" || message.content_text.startsWith("I applied the reviewed plan to the graph.");
 }
@@ -379,116 +398,8 @@ function isSavedArtifactActivityMessage(message: AssistantSessionMessage) {
   return Boolean(savedArtifactLabel(message));
 }
 
-function isTestWorkflowQuickReply(reply: { label: string; content: string; action?: string }) {
-  return reply.action === "plan" || ["create test workflow", "create graph"].includes(reply.label.toLowerCase());
-}
-
-function normalizeAssistantText(text: string) {
-  return text
-    .replaceAll("Reference-style text-to-image preset sandbox", "Reference-style text-to-image test graph")
-    .replaceAll("Reference-style image-to-image preset sandbox", "Reference-style image-to-image test graph")
-    .replaceAll("Preset Sandbox Guide", "Test Graph Guide")
-    .replaceAll("Preset sandbox", "Preset test graph")
-    .replaceAll("preset sandbox", "preset test graph")
-    .replaceAll("temporary Graph Studio sandbox", "test graph")
-    .replaceAll("temporary text-to-image sandbox", "text-to-image test graph")
-    .replaceAll("temporary image-to-image sandbox", "image-to-image test graph")
-    .replaceAll("text-to-image test sandbox", "text-to-image test graph")
-    .replaceAll("image-to-image test sandbox", "image-to-image test graph")
-    .replaceAll("test sandbox", "test graph")
-    .replaceAll("sandbox graph", "test graph")
-    .replaceAll("sandbox plan", "graph setup")
-    .replaceAll("sandbox prompt", "test prompt")
-    .replaceAll("approved sandbox", "approved workflow")
-    .replaceAll("sandbox result", "workflow result")
-    .replaceAll("from this sandbox", "from this workflow")
-    .replaceAll("plan card", "graph details")
-    .replaceAll("Plan card", "Graph details")
-    .replaceAll("reviewable graph plan", "graph review")
-    .replaceAll("Review the plan", "Review the graph")
-    .replaceAll("reviewable prompt update", "prompt update")
-    .replaceAll("reviewable test workflow", "test graph")
-    .replaceAll("reviewable workflow", "graph")
-    .replaceAll("Create the sandbox", "Create the test graph")
-    .replaceAll("Create the text-only sandbox", "Create the text-only test graph")
-    .replaceAll("create the text-to-image sandbox", "create the text-to-image test graph")
-    .replaceAll("create the image-to-image sandbox", "create the image-to-image test graph")
-    .replaceAll("with this contract", "with this setup")
-    .replaceAll("from this contract", "from this setup");
-}
-
-function stripInternalAssistantText(text: string) {
-  return text
-    .split(/\r?\n/)
-    .filter((line) => {
-      const normalized = line.toLowerCase();
-      return !(
-        normalized.includes("provider_") ||
-        normalized.includes("debug_trace") ||
-        normalized.includes("debug trace") ||
-        normalized.includes("codex_local") ||
-        normalized.includes("chain-of-thought")
-      );
-    })
-    .join("\n")
-    .trim();
-}
-
-function normalizeSuggestedFieldsText(text: string) {
-  return text.replace(/Suggested fields: ([^.]+)\. Image input: ([^.]+)\./g, (_match, fields: string, imageInput: string) => {
-    const fieldLabels = fields
-      .split(",")
-      .map((field) => field.trim())
-      .filter(Boolean);
-    const inputLabel = imageInput.trim();
-    const inputSentence =
-      inputLabel.toLowerCase() === "none"
-        ? "I would keep this text-to-image with no image input."
-        : `For image-to-image, I would use ${inputLabel} as the image input.`;
-    return `I would use ${formatAssistantList(fieldLabels)} as editable field${fieldLabels.length === 1 ? "" : "s"}. ${inputSentence}`;
-  });
-}
-
-function normalizeSuggestedSetupText(text: string) {
-  if (!/Suggested setup:/i.test(text)) return text;
-  const [rawLead] = text.split(/Suggested setup:/i);
-  const lead = rawLead.trim().replace(/[;\s]+$/, ".");
-  const fields = Array.from(text.matchAll(/- Field:\s*([^-]+?)(?=\s+- Field:|\s+- Image input:|\s+Create|\n|$)/g))
-    .map((match) => match[1].trim())
-    .filter(Boolean);
-  const imageInputs = Array.from(text.matchAll(/- Image input:\s*([^-]+?)(?=\s+- Field:|\s+Create|\n|$)/g))
-    .map((match) => match[1].trim())
-    .filter(Boolean);
-  const fieldSentence = fields.length
-    ? `I would start with ${formatAssistantList(fields)} as editable field${fields.length === 1 ? "" : "s"}.`
-    : "";
-  const usableImageInputs = imageInputs.filter((input) => input.toLowerCase() !== "none");
-  const imageSentence = usableImageInputs.length
-    ? `For image-to-image, I would use ${formatAssistantList(usableImageInputs)} as the image input${usableImageInputs.length === 1 ? "" : "s"}.`
-    : imageInputs.length
-      ? "I would keep this text-to-image with no image input."
-      : "";
-  const nextQuestion = usableImageInputs.length
-    ? "Do you want me to make this as image-to-image, text-to-image, or both?"
-    : "Do you want me to create the text-to-image test graph?";
-  return [lead, [fieldSentence, imageSentence].filter(Boolean).join(" "), nextQuestion].filter(Boolean).join("\n\n");
-}
-
 function displayMessageText(message: AssistantSessionMessage) {
-  const text = message.content_text || "";
-  if (message.role === "user") {
-    if (text.startsWith("Start preset loop: Text-to-Image")) {
-      return "Can you create a text-to-image media preset from these reference images?";
-    }
-    if (text.startsWith("Start preset loop: Image-to-Image")) {
-      return "Can you create an image-to-image media preset from these reference images?";
-    }
-    if (text.startsWith("Start preset loop: Both variants")) {
-      return "Can you create both image-to-image and text-to-image media presets from these reference images?";
-    }
-  }
-  const normalized = normalizeAssistantText(text);
-  return normalizeSuggestedSetupText(normalizeSuggestedFieldsText(stripInternalAssistantText(normalized)));
+  return message.content_text || "";
 }
 
 function normalizeAssistantMarkdownLayout(text: string) {
@@ -502,16 +413,19 @@ function normalizeAssistantMarkdownLayout(text: string) {
 }
 
 function renderInlineAssistantMarkdown(text: string, keyPrefix: string) {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+  return text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return <strong key={`${keyPrefix}-strong-${index}`}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return <em key={`${keyPrefix}-em-${index}`}>{part.slice(1, -1)}</em>;
     }
     return part;
   });
 }
 
-function AssistantMessageContent({ text }: { text: string }) {
-  const normalized = normalizeAssistantMarkdownLayout(text);
+function AssistantMessageContent({ text, normalizeLayout = true }: { text: string; normalizeLayout?: boolean }) {
+  const normalized = normalizeLayout ? normalizeAssistantMarkdownLayout(text) : text;
   const lines = normalized.split("\n");
   const blocks: ReactElement[] = [];
   let paragraphLines: string[] = [];
@@ -631,133 +545,6 @@ function templateDisplayLabel(templateId: string) {
   }
 }
 
-function assistantFollowUpQuickReplies(message: AssistantSessionMessage, assistantMode: AssistantMode) {
-  if (assistantMode !== "preset" || message.role !== "assistant") return [];
-  if (assistantMessagePayload(message).output_aware === true) {
-    return [
-      {
-        label: "Refine + test again",
-        content: "Prepare the prompt update for the current test prompt now.",
-      },
-      {
-        label: "Save preset",
-        content: "Create the official Media Preset now from this approved workflow result. Use the latest generated output as the thumbnail.",
-      },
-    ];
-  }
-  const normalized = message.content_text.toLowerCase();
-  const asksForI2ISandbox =
-    normalized.includes("create the image-to-image test graph") ||
-    normalized.includes("create the image-to-image test workflow") ||
-    normalized.includes("create the image-to-image test sandbox") ||
-    normalized.includes("create the image-to-image sandbox");
-  const asksForT2ISandbox =
-    normalized.includes("create the text-to-image test graph") ||
-    normalized.includes("create the text-to-image test workflow") ||
-    normalized.includes("create the text-to-image test sandbox") ||
-    normalized.includes("create the text-to-image sandbox");
-  const asksForSuggestedSetupWorkflow =
-    normalized.includes("create a test graph with this setup") ||
-    normalized.includes("create the test graph with this setup") ||
-    normalized.includes("create a test workflow with this setup") ||
-    normalized.includes("create the test workflow with this setup");
-  if (asksForSuggestedSetupWorkflow) {
-    return [
-      {
-        label: "Create graph",
-        content:
-          "Create the test graph now with the suggested setup. Treat attached reference images as style sources only and compile the style into the prompt.",
-      },
-    ];
-  }
-  if (normalized.includes("locked to image-to-image") && asksForI2ISandbox) {
-    return [
-      {
-        label: "Create graph",
-        content:
-          "Create the image-to-image test graph now with the suggested setup. Treat attached reference images as style sources only and compile the style into the prompt.",
-      },
-    ];
-  }
-  if (normalized.includes("locked to text-to-image") && asksForT2ISandbox) {
-    return [
-      {
-        label: "Create graph",
-        content:
-          "Create the text-to-image test graph now with the suggested setup. Do not use any image input. Treat attached reference images as style sources only and compile the style into the prompt.",
-      },
-    ];
-  }
-  if (normalized.includes("locked to both variants") && (normalized.includes("image-to-image test workflow") || normalized.includes("image-to-image test sandbox") || normalized.includes("image-to-image sandbox"))) {
-    return [
-      {
-        label: "Create graph",
-        content:
-          "Create the image-to-image test graph now with the suggested setup. Treat attached reference images as style sources only and compile the style into the prompt.",
-      },
-    ];
-  }
-  if (normalized.includes("preview only") && normalized.includes("save image")) {
-    return [
-      {
-        label: "Preview + save",
-        content: "Use preview plus save image. Create the test graph now.",
-      },
-      {
-        label: "Preview only",
-        content: "Use preview only. Create the test graph now.",
-      },
-    ];
-  }
-  if (normalized.includes("reviewable sandbox graph") || normalized.includes("test sandbox plan")) {
-    return [
-      {
-        label: "Create graph",
-        content:
-          "Create a test graph now using an extracted text style prompt from the prior assistant style analysis. Do not connect or require the attached style reference image as an image input. Add a Prompt node with a real image-generation prompt for the extracted style, a GPT text-to-image generator node, a Preview Image node, and a Save Image node. Wire the graph so it can run from text only.",
-      },
-    ];
-  }
-  if (
-    normalized.includes("applied the reviewed plan to the graph") ||
-    normalized.includes("create the media preset from this result") ||
-    normalized.includes("tell me to create the media preset") ||
-    normalized.includes("create the media preset instead")
-  ) {
-    return [
-      {
-        label: "Save preset",
-        content: "Create the official Media Preset now from this approved workflow result. Use the latest generated output as the thumbnail.",
-      },
-    ];
-  }
-  if (normalized.includes("reviewable prompt update") || normalized.includes("update the draft preset prompt")) {
-    return [
-      {
-        label: "Update prompt",
-        content: "Prepare the prompt update for the current test prompt now.",
-      },
-    ];
-  }
-  if (normalized.includes("run the workflow again") || normalized.includes("test it again") || normalized.includes("try it again")) {
-    return [
-      {
-        label: "Try again",
-        content: "Run the current workflow again.",
-      },
-    ];
-  }
-  if (normalized.includes("test the current workflow") || normalized.includes("run the current workflow")) {
-    return [
-      {
-        label: "Run it",
-        content: "Run the current workflow.",
-      },
-    ];
-  }
-  return [];
-}
-
 function pricingText(total: unknown) {
   if (!total || typeof total !== "object") return "No estimate";
   const payload = total as { estimated_credits?: number | null; estimated_cost_usd?: number | null };
@@ -862,7 +649,21 @@ function noCanvasChangeSummary(plan: AssistantPlanResponse) {
   if (templateId === "story_clip_combine_guard_v1") {
     return "I need at least two approved clips before I can stitch them. Approve the clips you want, then I can build the combine graph.";
   }
-  return normalizeAssistantText(plan.graph_plan.summary) || "Nothing needs to change on the canvas yet.";
+  return plan.graph_plan.summary.trim() || "Nothing needs to change on the canvas yet.";
+}
+
+function graphPlanPrimaryCopy(plan: AssistantPlanResponse, options: { missingMedia: boolean; onlyFieldUpdates: boolean }) {
+  const { missingMedia, onlyFieldUpdates } = options;
+  if (onlyFieldUpdates) {
+    return plan.graph_plan.summary.trim() || "I updated the selected node on the canvas.";
+  }
+  if (missingMedia) {
+    return "I can build this graph, but one required media input needs a file before it can run.";
+  }
+  if (plan.validation.valid) {
+    return "I built the graph plan. Review it, then add it when it looks right.";
+  }
+  return plan.graph_plan.summary.trim() || "I found something to review before this graph is added.";
 }
 
 export function CreativeAssistantPanel({
@@ -1072,12 +873,32 @@ export function CreativeAssistantPanel({
           : plan?.validation.valid
             ? "Ready to add"
             : "Needs review";
-  const planActionLabel = planMissingMedia ? "Add graph to choose media" : "Add graph";
-  const planActionAriaLabel = planMissingMedia ? "Add graph to choose media" : "Add reviewed graph";
-  const planActionTitle = planMissingMedia ? "Add the graph so you can choose the missing media on the canvas" : "Add the reviewed graph";
+  const kernelGraphAction =
+    assistant.nextAction?.kind === "confirm_graph" &&
+    assistant.nextAction.proposal_id === plan?.plan.assistant_plan_id
+      ? assistant.nextAction
+      : null;
+  const kernelPresetSaveAction =
+    assistant.nextAction?.kind === "save_media_preset" && assistant.nextAction.requires_confirmation
+      ? assistant.nextAction
+      : null;
+  const kernelRecipeSaveAction =
+    assistant.nextAction?.kind === "save_prompt_recipe" && assistant.nextAction.requires_confirmation
+      ? assistant.nextAction
+      : null;
+  const kernelRunAction =
+    assistant.nextAction?.kind === "run_workflow" && assistant.nextAction.requires_confirmation
+      ? assistant.nextAction
+      : null;
+  const planActionLabel = kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add graph");
+  const planActionAriaLabel = kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add reviewed graph");
+  const planActionTitle = kernelGraphAction?.label || (planMissingMedia ? "Add the graph so you can choose the missing media on the canvas" : "Add the reviewed graph");
   const pricing = pricingText(plan?.pricing.pricing_summary.total);
   const busyText = assistant.status === "idle" ? null : ASSISTANT_STATUS_COPY[assistant.status];
-  const codexBlocker = assistant.providerReadiness.checked && !assistant.providerReadiness.ready;
+  const readOnlyProvider = Boolean(
+    assistant.session?.provider_kind && assistant.session.provider_kind !== "codex_local",
+  );
+  const codexBlocker = !readOnlyProvider && assistant.providerReadiness.checked && !assistant.providerReadiness.ready;
   const sessionMessages = (assistant.session?.messages ?? []).filter((message) => !isHiddenAssistantMessage(message));
   const conversationalMessages = sessionMessages.filter((message) => !isSystemActivityMessage(message));
   const latestConversationalMessageIndex = sessionMessages.reduce(
@@ -1086,7 +907,7 @@ export function CreativeAssistantPanel({
   );
   const activityMessages = collapseActivityMessages(
     sessionMessages.filter(
-      (message, index) => isSystemActivityMessage(message) && (!isAppliedPlanActivityMessage(message) || index > latestConversationalMessageIndex),
+      (message, index) => isSystemActivityMessage(message) && (isSavedArtifactActivityMessage(message) || index > latestConversationalMessageIndex),
     ),
   );
   const visibleActivityMessages = planApplied ? activityMessages.filter((message) => isSavedArtifactActivityMessage(message)) : activityMessages.slice(-1);
@@ -1300,11 +1121,26 @@ export function CreativeAssistantPanel({
               <a href="/setup">Open setup</a>
             </div>
           ) : null}
+          {readOnlyProvider ? (
+            <div className="graph-assistant-readiness" role="status">
+              <strong>Read-only assistant chat.</strong>
+              <span>Graph building and Media Studio actions need Codex Local.</span>
+              <a href="/settings/llms">Open AI Settings</a>
+            </div>
+          ) : null}
           {conversationalMessages.length ? (
             conversationalMessages.map((message) => (
               <div className={`graph-assistant-message graph-assistant-message-${message.role}`} key={message.assistant_message_id}>
                 <span>{message.role === "user" ? "You" : "Media Assistant"}</span>
-                <AssistantMessageContent text={displayMessageText(message)} />
+                <AssistantMessageContent
+                  text={displayMessageText(message)}
+                  normalizeLayout={message.content_json?.mode !== "assistant_kernel"}
+                />
+                {message.role === "assistant" && kernelToolActivity(message) ? (
+                  <div className="graph-assistant-activity-item" role="status" aria-label="Assistant tool activity">
+                    <span>{kernelToolActivity(message)}</span>
+                  </div>
+                ) : null}
                 {message.role === "assistant" && presetBuilderProposal(message) && !referenceStyleBrief(message) ? (
                   <details className="graph-assistant-preset-proposal" aria-label="Suggested preset setup">
                     <summary>
@@ -1364,23 +1200,6 @@ export function CreativeAssistantPanel({
                         <span>{reply.label}</span>
                       </button>
                     ))}
-                  </div>
-                ) : null}
-                {!presetBuilderProposal(message) &&
-                (!planApplied || assistantMessagePayload(message).output_aware === true) &&
-                assistantFollowUpQuickReplies(message, assistantMode).length ? (
-                  <div className="graph-assistant-card-actions graph-assistant-quick-replies" aria-label="Quick assistant replies">
-                    {assistantFollowUpQuickReplies(message, assistantMode).map((reply) => {
-                      const onClick = isTestWorkflowQuickReply(reply)
-                        ? () => void assistant.createAndApplyPlanFromContent(reply.content)
-                        : () => void assistant.sendContentMessage(reply.content);
-                      return (
-                        <button key={reply.label} type="button" disabled={assistant.busy} onClick={onClick}>
-                          <Sparkles size={13} aria-hidden="true" />
-                          <span>{reply.label}</span>
-                        </button>
-                      );
-                    })}
                   </div>
                 ) : null}
               </div>
@@ -1457,6 +1276,60 @@ export function CreativeAssistantPanel({
             </section>
           ) : null}
 
+          {kernelPresetSaveAction ? (
+            <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Media Preset save confirmation">
+              <p>The validated preset draft is ready to save.</p>
+              <div className="graph-assistant-card-actions">
+                <button
+                  type="button"
+                  className="graph-assistant-card-action-primary"
+                  disabled={assistant.busy}
+                  onClick={() => void assistant.confirmPresetSave()}
+                  aria-label="Save confirmed Media Preset"
+                >
+                  {assistant.status === "savingPreset" ? <LoaderCircle size={15} /> : <PackagePlus size={15} />}
+                  <span>{kernelPresetSaveAction.label}</span>
+                </button>
+              </div>
+            </section>
+          ) : null}
+
+          {kernelRecipeSaveAction ? (
+            <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Prompt Recipe save confirmation">
+              <p>The validated Prompt Recipe draft is ready to save.</p>
+              <div className="graph-assistant-card-actions">
+                <button
+                  type="button"
+                  className="graph-assistant-card-action-primary"
+                  disabled={assistant.busy}
+                  onClick={() => void assistant.confirmRecipeSave()}
+                  aria-label="Save confirmed Prompt Recipe"
+                >
+                  {assistant.status === "savingRecipe" ? <LoaderCircle size={15} /> : <FileText size={15} />}
+                  <span>{kernelRecipeSaveAction.label}</span>
+                </button>
+              </div>
+            </section>
+          ) : null}
+
+          {kernelRunAction ? (
+            <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Graph run confirmation">
+              <p>Review the graph and pricing before starting the run.</p>
+              <div className="graph-assistant-card-actions">
+                <button
+                  type="button"
+                  className="graph-assistant-card-action-primary"
+                  disabled={assistant.busy}
+                  onClick={() => void assistant.confirmRunWorkflow()}
+                  aria-label={kernelRunAction.label ?? undefined}
+                >
+                  <Sparkles size={15} aria-hidden="true" />
+                  <span>{kernelRunAction.label}</span>
+                </button>
+              </div>
+            </section>
+          ) : null}
+
           {plan ? (
             <section
               className={`graph-assistant-message graph-assistant-message-assistant graph-assistant-message-plan ${
@@ -1473,12 +1346,12 @@ export function CreativeAssistantPanel({
               {appliedPresetWorkflow
                 ? "Your test graph is on the canvas. Add any required input image, run it, then save it as a preset when you like the result."
                 : planApplied && onlyFieldUpdateOperations
-                  ? normalizeAssistantText(plan.graph_plan.summary) || "I updated the selected node on the canvas. Want another adjustment?"
+                  ? plan.graph_plan.summary.trim() || "I updated the selected node on the canvas. Want another adjustment?"
                 : planApplied
                   ? "Here's your graph. I added the nodes to the canvas. Want adjustments, or should we review the prompts?"
                   : noCanvasChanges
                     ? noCanvasChangeSummary(plan)
-                    : normalizeAssistantText(plan.graph_plan.summary)}
+                    : graphPlanPrimaryCopy(plan, { missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations })}
             </p>
             {planApplied && onlyFieldUpdateOperations && appliedFieldUpdateLabels.length ? (
               <p className="graph-assistant-edit-summary">Changed: {formatAssistantList(appliedFieldUpdateLabels)}</p>
@@ -1547,6 +1420,21 @@ export function CreativeAssistantPanel({
                     <span>No canvas changes are required.</span>
                   )}
                 </div>
+                {plan.graph_plan.questions.length || plan.graph_plan.warnings.length || plan.validation.warnings.length ? (
+                  <div className="graph-assistant-plan-operation-list">
+                    <ul>
+                      {plan.graph_plan.questions.slice(0, 2).map((question, index) => (
+                        <li key={`question-${index}`}>{question}</li>
+                      ))}
+                      {plan.graph_plan.warnings.slice(0, 2).map((warning, index) => (
+                        <li key={`plan-warning-${index}`}>{graphPlanWarningCopy(warning)}</li>
+                      ))}
+                      {plan.validation.warnings.slice(0, 2).map((warning, index) => (
+                        <li key={`validation-warning-${index}`}>{graphReviewIssueCopy(plan, warning)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </details>
             ) : null}
             {planApplied && assistantMode === "preset" ? (
@@ -1581,10 +1469,9 @@ export function CreativeAssistantPanel({
                 </button>
               </div>
             ) : null}
-            {!planApplied && !noCanvasChanges && plan.graph_plan.questions.length ? <p className="graph-assistant-warning">{plan.graph_plan.questions[0]}</p> : null}
-            {!planApplied && !noCanvasChanges && plan.graph_plan.warnings.length ? <p className="graph-assistant-warning">{graphPlanWarningCopy(plan.graph_plan.warnings[0])}</p> : null}
+            {!planApplied && !noCanvasChanges && !hasExplicitOperations && plan.graph_plan.questions.length ? <p className="graph-assistant-warning">{plan.graph_plan.questions[0]}</p> : null}
+            {!planApplied && !noCanvasChanges && !hasExplicitOperations && !plan.validation.errors.length && plan.graph_plan.warnings.length ? <p className="graph-assistant-warning">{graphPlanWarningCopy(plan.graph_plan.warnings[0])}</p> : null}
             {!planApplied && plan.validation.errors.length ? <p className="graph-assistant-error">{graphReviewIssueCopy(plan, plan.validation.errors[0])}</p> : null}
-            {!planApplied && plan.validation.warnings.length ? <p className="graph-assistant-warning">{graphReviewIssueCopy(plan, plan.validation.warnings[0])}</p> : null}
             {!planApplied && hasExplicitOperations && assistant.canApply ? (
               <div className="graph-assistant-card-actions">
                 <button

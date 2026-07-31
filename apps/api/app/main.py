@@ -41,6 +41,8 @@ from .schemas import (
     JobEventsResponse,
     JobSubmitRequest,
     JobsListResponse,
+    MediaAssistantConfigRecord,
+    MediaAssistantConfigUpsertRequest,
     ModelQueuePolicyResponse,
     ModelQueuePolicyUpdate,
     ModelSummary,
@@ -123,9 +125,13 @@ async def lifespan(_: FastAPI):
         logger.warning("KIE model startup diagnostics failed: %s", exc)
     if settings.media_background_poll_enabled:
         runner.start()
-    yield
-    runner.stop()
-    codex_local_provider.close_codex_local_skill_sessions()
+    codex_local_provider.start_codex_local_skill_session_reaper()
+    try:
+        yield
+    finally:
+        runner.stop()
+        codex_local_provider.stop_codex_local_skill_session_reaper()
+        codex_local_provider.close_codex_local_skill_sessions()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -757,6 +763,45 @@ def probe_shared_provider_catalog(payload: EnhancementProviderProbeRequest):
                 "provider_kind": payload.provider_kind,
                 "selected_model_id": payload.selected_model_id,
                 "base_url": payload.base_url,
+                "require_images": payload.require_images,
+                "probe_mode": payload.probe_mode,
+            }
+        )
+        selected_model = bundle.get("selected_model")
+        available_models = bundle.get("available_models") or []
+        return EnhancementProviderProbeResponse(
+            ok=True,
+            provider=str(bundle.get("provider")),
+            credential_source=(str(bundle.get("credential_source")) if bundle.get("credential_source") else None),
+            selected_model=EnhancementProviderModel(**selected_model) if selected_model else None,
+            available_models=[EnhancementProviderModel(**item) for item in available_models],
+        )
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
+
+
+@app.get("/media/assistant-config", response_model=MediaAssistantConfigRecord)
+def get_media_assistant_config():
+    record = store.get_prompt_recipe_drafting_config("media_assistant")
+    return MediaAssistantConfigRecord(**service.public_media_assistant_config(record))
+
+
+@app.patch("/media/assistant-config", response_model=MediaAssistantConfigRecord)
+def update_media_assistant_config(payload: MediaAssistantConfigUpsertRequest):
+    try:
+        return MediaAssistantConfigRecord(**service.upsert_media_assistant_config(payload))
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
+
+
+@app.post("/media/assistant-config/probe", response_model=EnhancementProviderProbeResponse)
+def probe_media_assistant_config(payload: EnhancementProviderProbeRequest):
+    try:
+        bundle = service.probe_media_assistant_provider(
+            {
+                "provider_kind": payload.provider_kind,
+                "provider_model_id": payload.selected_model_id,
+                "provider_base_url": payload.base_url,
                 "require_images": payload.require_images,
                 "probe_mode": payload.probe_mode,
             }

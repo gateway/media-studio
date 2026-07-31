@@ -5,6 +5,8 @@ from typing import Any, Dict
 
 def build_assistant_turn_trace(content_json: Dict[str, Any] | None, content_text: str = "") -> Dict[str, Any]:
     payload = content_json if isinstance(content_json, dict) else {}
+    kernel_turn = payload.get("kernel_turn") if isinstance(payload.get("kernel_turn"), dict) else {}
+    kernel_trace = kernel_turn.get("trace") if isinstance(kernel_turn.get("trace"), dict) else {}
     graph_plan = payload.get("graph_plan") if isinstance(payload.get("graph_plan"), dict) else {}
     diff_summary = payload.get("diff_summary") if isinstance(payload.get("diff_summary"), dict) else {}
     operation_count = payload.get("operation_count")
@@ -26,5 +28,6 @@ def build_assistant_turn_trace(content_json: Dict[str, Any] | None, content_text
         "warning_count": len(warnings),
         "requires_confirmation": payload.get("requires_confirmation"),
         "validation_valid": payload.get("validation_valid"),
+        "tool_calls": kernel_trace.get("tool_calls") if isinstance(kernel_trace.get("tool_calls"), list) else [],
         "visible_text_char_count": len(str(content_text or "")),
     }

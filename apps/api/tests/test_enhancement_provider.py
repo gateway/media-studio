@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from threading import Event
 
 import pytest
 
@@ -33,6 +34,28 @@ class _FakeClient:
         self.captured["headers"] = headers
         self.captured["json"] = json
         return self.response
+
+
+def test_codex_thread_start_remains_ephemeral_noninteractive_and_read_only() -> None:
+    provider = enhancement_provider.codex_local_provider
+    session = provider._CodexAppServerSession.__new__(provider._CodexAppServerSession)
+    captured: dict[str, object] = {}
+
+    def fake_request(method: str, params: dict) -> dict:
+        captured.update(method=method, params=params)
+        return {"thread": {"id": "thread-isolated"}}
+
+    session._request = fake_request
+    session.start_thread(cwd="/tmp/media-studio-isolated", model="gpt-5.6-sol")
+
+    assert captured["method"] == "thread/start"
+    assert captured["params"] == {
+        "ephemeral": True,
+        "cwd": "/tmp/media-studio-isolated",
+        "approvalPolicy": "never",
+        "sandbox": "read-only",
+        "model": "gpt-5.6-sol",
+    }
 
 
 def test_image_path_to_data_url_resolves_paths_relative_to_data_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -224,6 +247,57 @@ def test_run_codex_local_chat_uses_app_server_turn_result(monkeypatch: pytest.Mo
     assert "USER:" in str(input_items[0]["text"])
 
 
+def test_codex_app_server_accepts_success_after_transient_retry_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    session = enhancement_provider.codex_local_provider._CodexAppServerSession(temp_root=tmp_path)
+    messages = iter(
+        [
+            {
+                "method": "error",
+                "params": {"turnId": "turn-1", "error": {"message": "Reconnecting... 5/5"}},
+            },
+            {
+                "method": "item/completed",
+                "params": {
+                    "turnId": "turn-1",
+                    "item": {"type": "agentMessage", "phase": "final_answer", "text": "READY"},
+                },
+            },
+            {
+                "method": "turn/completed",
+                "params": {"threadId": "thread-1", "turn": {"id": "turn-1", "status": "completed"}},
+            },
+        ],
+    )
+    monkeypatch.setattr(session, "_read_message", lambda *_args, **_kwargs: next(messages))
+
+    result = session._collect_turn(thread_id="thread-1", turn_id="turn-1", initial_notifications=[])
+
+    assert result["generated_text"] == "READY"
+
+
+def test_codex_app_server_preserves_terminal_turn_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    session = enhancement_provider.codex_local_provider._CodexAppServerSession(temp_root=tmp_path)
+    messages = iter(
+        [
+            {
+                "method": "error",
+                "params": {"turnId": "turn-1", "error": {"message": "Reconnecting... 5/5"}},
+            },
+            {
+                "method": "turn/completed",
+                "params": {
+                    "threadId": "thread-1",
+                    "turn": {"id": "turn-1", "status": "failed", "error": {"message": "Provider unavailable"}},
+                },
+            },
+        ],
+    )
+    monkeypatch.setattr(session, "_read_message", lambda *_args, **_kwargs: next(messages))
+
+    with pytest.raises(enhancement_provider.codex_local_provider.CodexLocalProviderError, match="Provider unavailable"):
+        session._collect_turn(thread_id="thread-1", turn_id="turn-1", initial_notifications=[])
+
+
 def test_run_codex_local_chat_converts_data_url_images_to_local_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, object] = {}
 
@@ -336,6 +410,34 @@ def test_run_codex_local_chat_reuses_managed_skill_thread(monkeypatch: pytest.Mo
 
     enhancement_provider.codex_local_provider.close_codex_local_skill_sessions()
     assert captured["exit_count"] == 1
+
+
+def test_codex_session_reaper_has_lifecycle_and_shared_timeout_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = enhancement_provider.codex_local_provider
+    provider.stop_codex_local_skill_session_reaper()
+    closed = Event()
+
+    class _ExpiredSession:
+        last_used_at = 0.0
+
+        def close(self) -> None:
+            closed.set()
+
+    monkeypatch.setattr(provider, "CODEX_LOCAL_SKILL_SESSION_REAP_SECONDS", 0.01)
+    monkeypatch.setattr(provider, "CODEX_LOCAL_SKILL_SESSION_TTL_SECONDS", 0)
+    with provider._CODEX_LOCAL_SKILL_SESSIONS_LOCK:
+        provider._CODEX_LOCAL_SKILL_SESSIONS["expired"] = _ExpiredSession()
+
+    provider.start_codex_local_skill_session_reaper()
+
+    assert provider.codex_local_skill_session_reaper_running() is True
+    assert provider.CODEX_APP_SERVER_TIMEOUT_SECONDS > 0
+    assert closed.wait(0.5) is True
+
+    provider.stop_codex_local_skill_session_reaper()
+    assert provider.codex_local_skill_session_reaper_running() is False
 
 
 def test_run_codex_local_chat_records_fallback_when_requested_thread_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:

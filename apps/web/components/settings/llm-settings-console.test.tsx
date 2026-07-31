@@ -11,7 +11,9 @@ vi.mock("@/components/settings/studio-enhancement-settings-panel", () => ({
 }));
 
 vi.mock("@/components/prompt-recipes/prompt-recipe-drafting-settings-panel", () => ({
-  PromptRecipeDraftingSettingsPanel: () => <div>drafting-panel</div>,
+  PromptRecipeDraftingSettingsPanel: ({ purpose }: { purpose?: string }) => (
+    <div>{purpose === "media_assistant" ? "assistant-panel" : "drafting-panel"}</div>
+  ),
 }));
 
 function makeEnhancementConfig(overrides: Partial<MediaEnhancementConfig> = {}): MediaEnhancementConfig {
@@ -72,6 +74,7 @@ describe("LlmSettingsConsole", () => {
     render(
       <LlmSettingsConsole
         enhancementConfigs={[makeEnhancementConfig()]}
+        mediaAssistantConfig={{ ...makeDraftingConfig(), config_key: "media_assistant", supports_media_studio_tools: true }}
         promptRecipeDraftingConfig={makeDraftingConfig()}
         openRouterSpend={null}
         health={{
@@ -93,12 +96,14 @@ describe("LlmSettingsConsole", () => {
     expect(screen.getByText(/Graph prompt nodes choose their own provider and model/i)).toBeTruthy();
     expect(screen.getByText("enhancement-panel")).toBeTruthy();
     expect(screen.getByText("drafting-panel")).toBeTruthy();
+    expect(screen.getByText("assistant-panel")).toBeTruthy();
   });
 
   it("links to setup when Codex Local is not ready", () => {
     render(
       <LlmSettingsConsole
         enhancementConfigs={[makeEnhancementConfig()]}
+        mediaAssistantConfig={{ ...makeDraftingConfig(), config_key: "media_assistant", supports_media_studio_tools: true }}
         promptRecipeDraftingConfig={makeDraftingConfig()}
         openRouterSpend={null}
         health={{
@@ -118,6 +123,11 @@ describe("LlmSettingsConsole", () => {
     render(
       <LlmSettingsConsole
         enhancementConfigs={[makeEnhancementConfig({ provider_kind: "local_openai", provider_model_id: "local/director" })]}
+        mediaAssistantConfig={{
+          ...makeDraftingConfig({ provider_kind: "local_openai", provider_model_id: "local/director" }),
+          config_key: "media_assistant",
+          supports_media_studio_tools: false,
+        }}
         promptRecipeDraftingConfig={makeDraftingConfig({ provider_kind: "local_openai", provider_model_id: "local/director" })}
         openRouterSpend={null}
         health={{

@@ -95,6 +95,7 @@ function AssistantHistoryStalePayloadHarness() {
   return (
     <div>
       <p data-testid="node-count">{String(currentSnapshot.workflow.nodes.length)}</p>
+      <p data-testid="node-ids">{currentSnapshot.workflow.nodes.map((node) => node.id).join(",")}</p>
       <p data-testid="workflow-name">{currentSnapshot.workflowName}</p>
       <p data-testid="assistant-redo">{String(assistantHistory.assistantRedoAvailable)}</p>
       <button type="button" onClick={() => assistantHistory.applyAssistantWorkflow(applied.workflow)}>
@@ -258,10 +259,13 @@ describe("useGraphAssistantHistory", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply assistant plan" }));
 
     await waitFor(() => expect(screen.getByTestId("node-count").textContent).toBe("5"));
+    expect(screen.getByTestId("node-ids").textContent).toContain("existing workflow-0");
+    expect(screen.getByTestId("node-ids").textContent).toContain("existing workflow-4");
 
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
 
     await waitFor(() => expect(screen.getByTestId("node-count").textContent).toBe("2"));
+    expect(screen.getByTestId("node-ids").textContent).toBe("existing workflow-0,existing workflow-1");
     await waitFor(() => expect(screen.getByTestId("assistant-redo").textContent).toBe("true"));
 
     fireEvent.click(screen.getByRole("button", { name: "Redo" }));

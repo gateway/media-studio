@@ -203,6 +203,11 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
     nodes_by_id: Dict[str, GraphWorkflowNode] = {node.id: node for node in next_workflow.nodes}
     edges_by_id = {edge.id for edge in next_workflow.edges}
 
+    def resolve_node_id(reference: str | None, explicit_id: str | None = None) -> str | None:
+        return node_refs.get(reference or "") or (
+            reference if reference in nodes_by_id else None
+        ) or explicit_id
+
     for operation in plan.operations:
         if operation.op == "add_node":
             if not operation.node_type or operation.node_type not in definitions:
@@ -229,14 +234,14 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
             continue
 
         if operation.op == "set_node_field":
-            node_id = node_refs.get(operation.node_ref or "") or operation.node_id
+            node_id = resolve_node_id(operation.node_ref, operation.node_id)
             if not node_id or node_id not in nodes_by_id:
                 raise ValueError("Cannot set a field on an unknown node.")
             nodes_by_id[node_id].fields.update(operation.fields)
             continue
 
         if operation.op == "set_node_title":
-            node_id = node_refs.get(operation.node_ref or "") or operation.node_id
+            node_id = resolve_node_id(operation.node_ref, operation.node_id)
             if not node_id or node_id not in nodes_by_id:
                 raise ValueError("Cannot set a title on an unknown node.")
             metadata = dict(nodes_by_id[node_id].metadata)
@@ -266,8 +271,8 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
             continue
 
         if operation.op == "connect_nodes":
-            source_id = node_refs.get(operation.source_ref or "") or operation.node_id
-            target_id = node_refs.get(operation.target_ref or "")
+            source_id = resolve_node_id(operation.source_ref, operation.node_id)
+            target_id = resolve_node_id(operation.target_ref)
             if not source_id or source_id not in nodes_by_id or not target_id or target_id not in nodes_by_id:
                 raise ValueError("Cannot connect unknown nodes.")
             if not operation.source_port or operation.source_port not in _port_ids(nodes_by_id[source_id].type, "outputs"):

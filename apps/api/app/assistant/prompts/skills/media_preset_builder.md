@@ -86,63 +86,17 @@ Prompt rules:
 - For image-to-image, preserve the identity/content from the user-provided image input while applying the extracted style.
 - For text-to-image, describe the full visual system directly; do not require a reference image.
 - For poster/editorial styles, include layout mechanics such as title hierarchy, microtype, margins, graphic seals, aspect feel, and focal zones when those traits are visible.
-- Keep source-specific exclusions in the backend JSON for planning and validation, but do not put "source", "reference", "copy the source", or "carry over source-specific details" language inside generated image prompts. Final model prompts should use visual drift constraints such as avoiding unwanted logos, stray text, weak typography, generic layouts, or unrequested identity details.
+- Keep source-specific exclusions in the typed draft rules, but do not put "source", "reference", "copy the source", or "carry over source-specific details" language inside generated image prompts. Final model prompts should use visual drift constraints such as avoiding unwanted logos, stray text, weak typography, generic layouts, or unrequested identity details.
 
-Backend-only structured brief:
+Typed draft state:
 
-For reference-image-to-Media-Preset requests, append this backend-only JSON block after the compact visible reply so Media Studio can compile a real prompt. Do not mention this block in the visible reply.
-
-```text
-REFERENCE_STYLE_BRIEF_JSON_START
-{
-  "title": "specific reusable style name",
-  "summary": "one sentence",
-  "description": "one user-facing sentence about what the preset creates",
-  "key": "specific_reusable_style_key",
-  "workflow_key": "media_preset.specific.reusable.style.v1",
-  "target_model_mode": "text_to_image or image_edit",
-  "preset_kind": "generator or image_transform or pipeline",
-  "input_mode": "no_image or image_required or image_optional",
-  "visual_analysis": {
-    "medium": ["concrete visible trait"],
-    "palette": ["concrete visible trait"],
-    "line_shape_language": ["concrete visible trait"],
-    "composition": ["concrete visible trait"],
-    "subject_treatment": ["concrete visible trait"],
-    "environment_props": ["concrete visible trait"],
-    "texture_lighting": ["concrete visible trait"],
-    "typography_text_energy": ["concrete visible trait"],
-    "mood": ["concrete visible trait"]
-  },
-  "fixed_style_traits": ["reusable style mechanic"],
-  "replaceable_elements": ["likely field or image input"],
-  "source_specific_exclusions": ["visible source detail that should not become fixed style"],
-  "negative_guidance": ["common drift to avoid"],
-  "recommended_fields": [
-    {"key": "snake_case_key", "label": "User Facing Label", "purpose": "why this field changes the result", "default_value": "", "required": true}
-  ],
-  "recommended_image_slots": [
-    {"key": "snake_case_key", "label": "User Facing Label", "purpose": "what user-provided image replaces or controls", "required": true}
-  ],
-  "verification_targets": {
-    "must_match": ["style traits output must preserve"],
-    "may_vary": ["things the generated image may change"],
-    "must_not_copy": ["exact source text, logos, identity, pose, or layout"]
-  }
-}
-REFERENCE_STYLE_BRIEF_JSON_END
-```
-
-Rules for the JSON:
-
-- Every `visual_analysis` item must be a concrete visible trait from the attached image.
-- Use multiple items per category when the image is dense; do not compress a poster into one generic sentence.
-- `fixed_style_traits` are reusable style mechanics, not source-specific content.
-- `replaceable_elements` are likely fields or image inputs.
-- `recommended_fields` and `recommended_image_slots` must be minimal, concrete, and user-facing; omit either array when the chosen variant should not use them.
-- `key` and `workflow_key` must come from the analyzed reusable style, not a filename or prior style.
-- Do not put user instructions, questions, model names, product wording, or workflow wording in this JSON.
-- `source_specific_exclusions` must list details that should not become fixed style, such as a specific person, exact text, logos, one-off location, glasses, beard, wardrobe, exact prop, exact QR/barcode, or exact car badge.
+- Call `propose_media_preset_draft` with the full validated preset contract. Never print or reconstruct a backend JSON block in chat.
+- Use `analyze_reference_images` as the evidence source and `list_media_models` for real model scope.
+- On revisions, start from `active_preset_draft` and change typed fields, slots, model mode, or prompt template directly.
+- A draft without an applied priced test graph remains editable but is not save-ready.
+- When the user asks to save an active draft, do not propose or revise a graph. Link `latest_applied_test_plan_id`
+  through `test_plan_id`; only an already applied test graph can authorize the server-owned save confirmation.
+- Keep the visible reply short: summarize the style, name the editable inputs, ask at most one useful question, and never paste the full draft unless asked.
 
 Output comparison:
 
