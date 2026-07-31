@@ -142,23 +142,6 @@ def _validated_test_plan(test_plan_id: str, session_id: str) -> Dict[str, Any]:
     return plan
 
 
-def _revision_requested(user_text: str) -> bool:
-    lowered = str(user_text or "").lower()
-    return any(
-        signal in lowered
-        for signal in (
-            "don't like",
-            "do not like",
-            "field",
-            "text-to-image",
-            "image-to-image",
-            "what should i change",
-            "update",
-            "revise",
-        )
-    )
-
-
 def propose_media_preset_draft(arguments: BaseModel, context: Any) -> Dict[str, Any]:
     options = ProposeMediaPresetDraftArguments.model_validate(arguments)
     if not context.session_id:
@@ -183,7 +166,7 @@ def propose_media_preset_draft(arguments: BaseModel, context: Any) -> Dict[str, 
         if isinstance(session.get("summary_json"), dict)
         else None
     )
-    if isinstance(current_draft, dict) and _revision_requested(context.user_text):
+    if isinstance(current_draft, dict) and context.artifact_intent == "revise_preset":
         current_normalized = PresetUpsertRequest.model_validate(current_draft).model_dump(mode="json")
         if current_normalized == options.draft.model_dump(mode="json"):
             raise PresetKernelError(
@@ -191,7 +174,7 @@ def propose_media_preset_draft(arguments: BaseModel, context: Any) -> Dict[str, 
                 message="The user requested a revision, but the typed Media Preset draft did not change.",
             )
     test_plan = _validated_test_plan(options.test_plan_id, context.session_id) if options.test_plan_id else None
-    save_ready = bool(test_plan)
+    save_ready = bool(test_plan and context.artifact_intent == "save_preset")
     draft = options.draft.model_dump(mode="json")
     proposal_id = new_id("aspreset")
     confirmation_token = new_id("confirm") if save_ready else None

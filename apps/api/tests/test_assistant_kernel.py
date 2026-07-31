@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from pathlib import Path
 from threading import Event
 from types import SimpleNamespace
 
@@ -30,6 +31,7 @@ def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -
     step = schemas.AssistantKernelProviderStep.model_validate(
         {
             "capability": "graph_builder",
+            "artifact_intent": "none",
             "tool_call": {
                 "name": "list_graph_node_types",
                 "arguments": json.dumps({"query": "oil painting", "limit": 12}),
@@ -37,6 +39,127 @@ def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -
         }
     )
     assert json.loads(step.tool_call.arguments) == {"query": "oil painting", "limit": 12}
+    assert schemas.AssistantKernelProviderStep.model_json_schema()["properties"]["artifact_intent"]["enum"] == [
+        "none",
+        "draft_preset",
+        "revise_preset",
+        "save_preset",
+        "draft_recipe",
+        "revise_recipe",
+        "save_recipe",
+        "update_story",
+        "diagnose_run",
+    ]
+
+
+def test_kernel_instruction_exposes_every_capability_tool_for_a_wrong_ui_hint(app_modules) -> None:
+    del app_modules
+    kernel = importlib.import_module("app.assistant.kernel")
+
+    instruction = kernel._kernel_instruction(assistant_mode="recipe")
+
+    assert "propose_graph_operations" in instruction
+    assert "propose_media_preset_draft" in instruction
+    assert "propose_prompt_recipe_draft" in instruction
+    assert "update_story_state" in instruction
+    assert "read_run_evidence" in instruction
+
+
+def test_model_capability_choice_overrides_a_wrong_ui_hint(app_modules, monkeypatch) -> None:
+    del app_modules
+    kernel = importlib.import_module("app.assistant.kernel")
+    calls = 0
+
+    def provider_step(**_kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return {
+                "capability": "graph_builder",
+                "artifact_intent": "none",
+                "reply": "A graph-oriented response.",
+            }
+        return {
+            "capability": "recipe_builder",
+            "artifact_intent": "none",
+            "reply": "A recipe-oriented response.",
+        }
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
+
+    result = kernel.run_assistant_kernel_turn(
+        session={"provider_kind": "codex_local", "provider_model_id": "gpt-5.6-sol"},
+        user_text="Use my saved recipe in a graph.",
+        workflow=None,
+        canvas_context={},
+        assistant_mode="recipe",
+    )
+
+    assert calls == 1
+    assert result.capability == "graph_builder"
+
+
+def test_production_routing_has_no_keyword_or_scenario_fingerprints(app_modules) -> None:
+    del app_modules
+    assistant_dir = Path(importlib.import_module("app.assistant.kernel").__file__).parent
+    source = "\n".join(
+        (assistant_dir / name).read_text()
+        for name in ("kernel.py", "preset_kernel.py", "recipe_kernel.py")
+    )
+
+    for forbidden in (
+        "DEBUG_RUN_SIGNALS",
+        "def _aligned_capability_hint(",
+        "def _preset_draft_required(",
+        "def _recipe_draft_required(",
+        "def _story_state_update_required(",
+        '"lighthouse keeper"',
+        "def _revision_requested(",
+        "def _save_requested(",
+    ):
+        assert forbidden not in source
+
+
+def test_kernel_rejects_artifact_intent_switch_mid_turn(app_modules, monkeypatch) -> None:
+    del app_modules
+    kernel = importlib.import_module("app.assistant.kernel")
+    steps = iter(
+        [
+            {
+                "capability": "recipe_builder",
+                "artifact_intent": "draft_recipe",
+                "tool_call": {"name": "search_prompt_recipes", "arguments": "{}"},
+            },
+            {
+                "capability": "recipe_builder",
+                "artifact_intent": "save_recipe",
+                "reply": "The intent changed.",
+            },
+            {
+                "capability": "recipe_builder",
+                "artifact_intent": "draft_recipe",
+                "reply": "The draft still needs details.",
+            },
+            {
+                "capability": "recipe_builder",
+                "artifact_intent": "draft_recipe",
+                "reply": "One correction was attempted.",
+            },
+        ]
+    )
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+
+    result = kernel.run_assistant_kernel_turn(
+        session={"provider_kind": "codex_local", "provider_model_id": "gpt-5.6-sol"},
+        user_text="Develop a reusable transformation contract.",
+        workflow=None,
+        canvas_context={},
+        assistant_mode=None,
+    )
+
+    assert result.capability == "recipe_builder"
+    assert result.reply
+    assert len(result.trace.tool_calls) == 1
 
 
 def test_kernel_provider_step_persists_thread_id_and_records_lifecycle(

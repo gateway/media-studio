@@ -192,22 +192,31 @@ def test_recipe_turn_cannot_finish_with_prose_only_draft(client, monkeypatch) ->
     draft = _recipe_draft("kernel_recipe_required_typed_draft")
     steps = iter(
         [
-            {"capability": "recipe_builder", "reply": "I would ask for the story and shot count."},
             {
                 "capability": "recipe_builder",
+                "artifact_intent": "draft_recipe",
+                "reply": "I would ask for the story and shot count.",
+            },
+            {
+                "capability": "recipe_builder",
+                "artifact_intent": "draft_recipe",
                 "tool_call": {
                     "name": "propose_prompt_recipe_draft",
                     "arguments": json.dumps({"draft": draft}),
                 },
             },
-            {"capability": "recipe_builder", "reply": "The structured draft is ready."},
+            {
+                "capability": "recipe_builder",
+                "artifact_intent": "draft_recipe",
+                "reply": "The structured draft is ready.",
+            },
         ]
     )
     monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
 
     result = kernel.run_assistant_kernel_turn(
         session=session,
-        user_text="Make a character sheet recipe.",
+        user_text="Develop a reusable structured transformation template.",
         workflow=None,
         canvas_context={},
         assistant_mode="recipe",
@@ -229,19 +238,24 @@ def test_recipe_save_requires_one_time_server_confirmation(client, monkeypatch) 
         [
             {
                 "capability": "recipe_builder",
+                "artifact_intent": "save_recipe",
                 "tool_call": {
                     "name": "propose_prompt_recipe_draft",
                     "arguments": json.dumps({"draft": draft, "request_save_confirmation": True}),
                 },
             },
-            {"capability": "recipe_builder", "reply": "The validated recipe is ready for confirmation."},
+            {
+                "capability": "recipe_builder",
+                "artifact_intent": "save_recipe",
+                "reply": "The validated recipe is ready for confirmation.",
+            },
         ]
     )
     monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
 
     proposed = client.post(
         f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
-        json={"content_text": "Save the approved recipe.", "assistant_mode": "recipe"},
+        json={"content_text": "I approve this final draft for confirmation.", "assistant_mode": "recipe"},
     )
     action = proposed.json()["messages"][-1]["content_json"]["next_action"]
 
@@ -306,6 +320,7 @@ def test_recipe_save_requires_one_time_server_confirmation(client, monkeypatch) 
             session_id=session["assistant_session_id"],
             session=store_assistant.get_assistant_session(session["assistant_session_id"]),
             user_text="Save the updated recipe.",
+            artifact_intent="save_recipe",
         ),
     )
     updated = client.post(
@@ -452,11 +467,8 @@ def test_recipe_clarification_keeps_bounded_recent_graph_context(client) -> None
     )
 
     context = kernel._kernel_session_context(session)
-    prior_text = "\n".join(item["text"] for item in context["recent_conversation"][-2:])
     instruction = kernel._kernel_instruction(
         assistant_mode="recipe",
-        user_text="Use the first one.",
-        prior_text=prior_text,
     )
 
     assert len(context["recent_conversation"]) <= 6

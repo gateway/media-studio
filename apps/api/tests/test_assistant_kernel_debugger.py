@@ -93,13 +93,19 @@ def test_debugger_diagnosis_requires_typed_failed_run_evidence(
     session = _session(client, workflow)
     steps = iter(
         [
-            {"capability": "run_debugger", "reply": "I need the run evidence."},
             {
                 "capability": "run_debugger",
+                "artifact_intent": "diagnose_run",
+                "reply": "I need the run evidence.",
+            },
+            {
+                "capability": "run_debugger",
+                "artifact_intent": "diagnose_run",
                 "tool_call": {"name": "read_run_evidence", "arguments": {"run_id": run["run_id"]}},
             },
             {
                 "capability": "run_debugger",
+                "artifact_intent": "diagnose_run",
                 "reply": "The storyboard prompt failed before generation because its panel sequence was empty.",
             },
         ]
@@ -108,7 +114,7 @@ def test_debugger_diagnosis_requires_typed_failed_run_evidence(
 
     response = client.post(
         f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
-        json={"content_text": "It failed, what happened?", "workflow": workflow},
+        json={"content_text": "Please investigate the latest execution problem.", "workflow": workflow},
     )
 
     assert response.status_code == 200, response.text

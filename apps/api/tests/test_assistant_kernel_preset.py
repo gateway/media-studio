@@ -163,15 +163,24 @@ def test_preset_turn_cannot_finish_with_prose_only_draft(client, monkeypatch) ->
     calls = 0
     steps = iter(
         [
-            {"capability": "preset_builder", "reply": "I suggest a location field."},
             {
                 "capability": "preset_builder",
+                "artifact_intent": "draft_preset",
+                "reply": "I suggest a location field.",
+            },
+            {
+                "capability": "preset_builder",
+                "artifact_intent": "draft_preset",
                 "tool_call": {
                     "name": "propose_media_preset_draft",
                     "arguments": json.dumps({"draft": draft}),
                 },
             },
-            {"capability": "preset_builder", "reply": "The editable draft is ready."},
+            {
+                "capability": "preset_builder",
+                "artifact_intent": "draft_preset",
+                "reply": "The editable draft is ready.",
+            },
         ]
     )
 
@@ -183,7 +192,7 @@ def test_preset_turn_cannot_finish_with_prose_only_draft(client, monkeypatch) ->
     monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
     result = kernel.run_assistant_kernel_turn(
         session=session,
-        user_text="Turn this into a preset.",
+        user_text="Develop this reusable configuration.",
         workflow=None,
         canvas_context={},
         assistant_mode="preset",
@@ -194,13 +203,51 @@ def test_preset_turn_cannot_finish_with_prose_only_draft(client, monkeypatch) ->
     assert result.trace.tool_calls[0].tool_name == "propose_media_preset_draft"
 
 
-def test_output_critique_does_not_require_a_preset_draft_mutation() -> None:
+def test_preset_draft_turn_stops_before_unrequested_graph_work(client, monkeypatch) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
+    session = _session(client)
+    draft = _preset_draft("kernel_draft_stops_before_graph")
+    calls = 0
+    steps = iter(
+        [
+            {
+                "capability": "preset_builder",
+                "artifact_intent": "draft_preset",
+                "tool_call": {
+                    "name": "propose_media_preset_draft",
+                    "arguments": json.dumps({"draft": draft}),
+                },
+            },
+            {
+                "capability": "preset_builder",
+                "artifact_intent": "draft_preset",
+                "tool_call": {"name": "read_current_workflow", "arguments": "{}"},
+            },
+            {
+                "capability": "preset_builder",
+                "artifact_intent": "draft_preset",
+                "reply": "The editable draft is ready for review.",
+            },
+        ]
+    )
 
-    assert kernel._preset_draft_required(
-        "That result is close, what should I change?",
-        has_active_draft=True,
-    ) is False
+    def provider_step(**_kwargs):
+        nonlocal calls
+        calls += 1
+        return next(steps)
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
+    result = kernel.run_assistant_kernel_turn(
+        session=session,
+        user_text="Develop a reusable image transformation configuration.",
+        workflow=None,
+        canvas_context={},
+        assistant_mode="preset",
+    )
+
+    assert calls == 3
+    assert result.reply
+    assert [trace.tool_name for trace in result.trace.tool_calls] == ["propose_media_preset_draft"]
 
 
 def test_preset_revision_cannot_finish_with_an_unchanged_typed_draft(client, monkeypatch) -> None:
@@ -220,6 +267,7 @@ def test_preset_revision_cannot_finish_with_an_unchanged_typed_draft(client, mon
         [
             {
                 "capability": "preset_builder",
+                "artifact_intent": "revise_preset",
                 "tool_call": {
                     "name": "propose_media_preset_draft",
                     "arguments": json.dumps({"draft": original}),
@@ -227,19 +275,24 @@ def test_preset_revision_cannot_finish_with_an_unchanged_typed_draft(client, mon
             },
             {
                 "capability": "preset_builder",
+                "artifact_intent": "revise_preset",
                 "tool_call": {
                     "name": "propose_media_preset_draft",
                     "arguments": json.dumps({"draft": changed}),
                 },
             },
-            {"capability": "preset_builder", "reply": "The revised draft is ready."},
+            {
+                "capability": "preset_builder",
+                "artifact_intent": "revise_preset",
+                "reply": "The revised draft is ready.",
+            },
         ]
     )
     monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
 
     result = kernel.run_assistant_kernel_turn(
         session=session,
-        user_text="I don't like those fields, what else could I edit?",
+        user_text="The current definition should be different.",
         workflow=None,
         canvas_context={},
         assistant_mode="preset",
@@ -336,6 +389,7 @@ def test_preset_save_requires_applied_priced_graph_and_one_time_confirmation(cli
         [
             {
                 "capability": "preset_builder",
+                "artifact_intent": "save_preset",
                 "tool_call": {
                     "name": "propose_media_preset_draft",
                     "arguments": json.dumps(
@@ -346,7 +400,11 @@ def test_preset_save_requires_applied_priced_graph_and_one_time_confirmation(cli
                     ),
                 },
             },
-            {"capability": "preset_builder", "reply": "The validated draft is ready for confirmation."},
+            {
+                "capability": "preset_builder",
+                "artifact_intent": "save_preset",
+                "reply": "The validated draft is ready for confirmation.",
+            },
         ]
     )
     monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
@@ -390,6 +448,36 @@ def test_preset_save_requires_applied_priced_graph_and_one_time_confirmation(cli
     assert replay.status_code == 400
 
 
+def test_preset_draft_intent_does_not_expose_save_confirmation(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    store_assistant = importlib.import_module("app.store_assistant")
+    session = _session(client)
+    plan = _applied_test_plan(store_assistant, session["assistant_session_id"])
+
+    proposed = tools.execute_kernel_tool(
+        tool_name="propose_media_preset_draft",
+        arguments=json.dumps(
+            {
+                "draft": _preset_draft("kernel_draft_intent_save_guard"),
+                "test_plan_id": plan["assistant_plan_id"],
+            }
+        ),
+        capability="preset_builder",
+        context=tools.KernelToolContext(
+            workflow=None,
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=session,
+            artifact_intent="draft_preset",
+        ),
+    )
+
+    assert proposed.trace.error is None
+    assert proposed.result["test_graph"] is not None
+    assert proposed.result["save_ready"] is False
+    assert proposed.result["confirmation_token"] is None
+
+
 def test_preset_save_rejects_a_new_unapplied_plan_and_exposes_the_applied_plan(client) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
     kernel = importlib.import_module("app.assistant.kernel")
@@ -410,6 +498,7 @@ def test_preset_save_rejects_a_new_unapplied_plan_and_exposes_the_applied_plan(c
         session_id=session["assistant_session_id"],
         session=session,
         user_text="Good enough, save it as a preset.",
+        artifact_intent="save_preset",
     )
 
     rejected = tools.execute_kernel_tool(

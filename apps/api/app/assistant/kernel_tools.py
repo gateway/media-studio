@@ -48,6 +48,7 @@ from .recipe_kernel import (
     validate_prompt_recipe_draft,
 )
 from .schemas import (
+    AssistantArtifactIntent,
     AssistantGraphOperation,
     AssistantGraphPlan,
     AssistantKernelCapability,
@@ -122,6 +123,7 @@ class KernelToolContext:
     workflow: Optional[GraphWorkflow]
     canvas_context: Dict[str, Any]
     user_text: str = ""
+    artifact_intent: AssistantArtifactIntent = "none"
     run_id: Optional[str] = None
     session_id: Optional[str] = None
     session: Dict[str, Any] = field(default_factory=dict)

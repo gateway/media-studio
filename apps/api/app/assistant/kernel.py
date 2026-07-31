@@ -18,6 +18,7 @@ from .provider_support import (
     resolve_assistant_provider_runtime,
 )
 from .schemas import (
+    AssistantArtifactIntent,
     AssistantKernelArtifact,
     AssistantKernelCapability,
     AssistantKernelProviderStep,
@@ -30,7 +31,6 @@ from .schemas import (
 
 KERNEL_MAX_TOOL_STEPS = 6
 KERNEL_MAX_WALL_SECONDS = 90.0
-DEBUG_RUN_SIGNALS = ("failed", "failure", "what happened", "fix it", "run error", "why did")
 KERNEL_CAPABILITY_PROMPTS: Dict[AssistantKernelCapability, str] = {
     "general": "apps/api/app/assistant/prompts/skills/general_helper.md",
     "graph_builder": "apps/api/app/assistant/prompts/skills/graph_workflow_builder.md",
@@ -38,6 +38,42 @@ KERNEL_CAPABILITY_PROMPTS: Dict[AssistantKernelCapability, str] = {
     "recipe_builder": "apps/api/app/assistant/prompts/skills/prompt_recipe_builder.md",
     "story_builder": "apps/api/app/assistant/prompts/skills/story_project.md",
     "run_debugger": "apps/api/app/assistant/prompts/skills/run_debugger.md",
+}
+KERNEL_ARTIFACT_INTENTS: Dict[AssistantKernelCapability, frozenset[AssistantArtifactIntent]] = {
+    "general": frozenset({"none"}),
+    "graph_builder": frozenset({"none"}),
+    "preset_builder": frozenset({"none", "draft_preset", "revise_preset", "save_preset"}),
+    "recipe_builder": frozenset({"none", "draft_recipe", "revise_recipe", "save_recipe"}),
+    "story_builder": frozenset({"none", "update_story"}),
+    "run_debugger": frozenset({"none", "diagnose_run"}),
+}
+KERNEL_REQUIRED_ARTIFACTS: Dict[AssistantArtifactIntent, str] = {
+    "draft_preset": "preset_draft",
+    "revise_preset": "preset_draft",
+    "save_preset": "preset_draft",
+    "draft_recipe": "recipe_draft",
+    "revise_recipe": "recipe_draft",
+    "save_recipe": "recipe_draft",
+    "update_story": "story_state",
+    "diagnose_run": "run_evidence",
+}
+KERNEL_ARTIFACT_ERRORS = {
+    "preset_draft": (
+        "typed_preset_draft_required",
+        "Before replying, call propose_media_preset_draft with the complete current typed draft.",
+    ),
+    "recipe_draft": (
+        "typed_prompt_recipe_draft_required",
+        "Before replying, call propose_prompt_recipe_draft with the complete current typed draft.",
+    ),
+    "story_state": (
+        "typed_story_state_required",
+        "Before replying, call update_story_state with the complete current typed story state.",
+    ),
+    "run_evidence": (
+        "run_evidence_required",
+        "Before diagnosing or proposing a fix, call read_run_evidence.",
+    ),
 }
 
 
@@ -52,63 +88,25 @@ def _provider_step_schema() -> Dict[str, Any]:
     }
 
 
-def _kernel_instruction(*, assistant_mode: Optional[str], user_text: str = "", prior_text: str = "") -> str:
-    capability_hint = {
-        "preset": "preset_builder",
-        "recipe": "recipe_builder",
-        "graph": "graph_builder",
-    }.get(str(assistant_mode or ""))
-    current_lowered = str(user_text or "").lower()
-    conversation_lowered = f"{prior_text} {current_lowered}".lower()
-    story_request = any(
-        signal in conversation_lowered
-        for signal in (
-            "story idea",
-            "story premise",
-            "storyboard",
-            "shot ",
-            "shots ",
-            "scene ",
-            "scenes ",
-            "lighthouse keeper",
-            "character continuity",
-            "same character",
-        )
-    )
-    debug_request = any(signal in current_lowered for signal in DEBUG_RUN_SIGNALS)
-    if capability_hint not in {"preset_builder", "recipe_builder"} and debug_request:
-        capability_hint = "run_debugger"
-    if capability_hint not in {"preset_builder", "recipe_builder"} and story_request:
-        capability_hint = "story_builder"
-    catalog = kernel_tool_catalog(capability_hint)
-    short_clarification = len(current_lowered.split()) <= 8 and any(
-        signal in prior_text.lower() for signal in ("which one", "choose one", "another recipe by name")
-    )
-    recipe_graph_request = any(
-        signal in current_lowered for signal in ("graph", "wire", "canvas")
-    ) or (
-        short_clarification
-        and any(signal in prior_text.lower() for signal in ("graph", "wire", "canvas"))
-    )
-    if capability_hint == "recipe_builder" and not recipe_graph_request:
-        recipe_tool_names = {
-            "read_current_workflow",
-            "search_prompt_recipes",
-            "get_prompt_recipe",
-            "validate_prompt_recipe_draft",
-            "propose_prompt_recipe_draft",
-            "analyze_reference_images",
-        }
-        catalog = [tool for tool in catalog if tool["name"] in recipe_tool_names]
+def _kernel_instruction(*, assistant_mode: Optional[str]) -> str:
+    catalog = kernel_tool_catalog()
     return (
-        "Select exactly one Media Assistant capability based on the user's request. "
-        "The UI mode is only a hint and may be ignored. Use only the listed read tools. "
+        "Select exactly one Media Assistant capability and one artifact_intent from the semantic request. "
+        "Repeat both values unchanged on every step in this turn. The UI mode is only a non-binding hint. "
+        "Use general for conversation that needs no Media Studio state; graph_builder to inspect, validate, or propose "
+        "changes to a workflow; preset_builder to draft, revise, test, or prepare a Media Preset for confirmation; "
+        "recipe_builder to find, draft, revise, validate, or prepare a Prompt Recipe for confirmation; story_builder "
+        "to develop or revise persistent story, character, continuity, or shot state; and run_debugger to diagnose a "
+        "persisted execution from run evidence. Select an artifact intent only when the turn must create, revise, save, "
+        "update, or diagnose the corresponding typed artifact; otherwise select none. Use only the listed tools. "
         "For graph building, inspect relevant node types and schemas, read the current workflow, then use "
         "propose_graph_operations; use validate_current_workflow for review-only requests and correct typed "
         "tool errors within the turn. "
         "When attached reference images matter, call analyze_reference_images and ground the reply in its typed evidence. "
         "For Media Presets, keep editable state in propose_media_preset_draft, use real model scope, and never emit a "
-        "backend JSON block in the reply. Build and validate a priced test graph before requesting a save. "
+        "backend JSON block in the reply. A preset draft or revision and its test graph are separate user turns: after "
+        "propose_media_preset_draft succeeds, reply and stop. Build a priced test graph only when the current request "
+        "asks for one, using artifact_intent none. A validated applied test graph is required before a save request. "
         "For Prompt Recipes, use search_prompt_recipes and get_prompt_recipe for saved state, validate and persist the "
         "complete editable contract through propose_prompt_recipe_draft, and request save confirmation only when the user asks. "
         "For story work, keep the premise, characters, world rules, continuity facts, and shots in update_story_state. "
@@ -126,6 +124,7 @@ def _kernel_instruction(*, assistant_mode: Optional[str], user_text: str = "", p
         "Keep the reply compact and free of internal tool, route, provider, or capability vocabulary.\n\n"
         f"UI mode hint: {assistant_mode or 'none'}\n"
         f"Capabilities: {', '.join(KERNEL_CAPABILITY_PROMPTS)}\n"
+        f"Allowed artifact intents: {json.dumps({key: sorted(value) for key, value in KERNEL_ARTIFACT_INTENTS.items()}, separators=(',', ':'))}\n"
         f"Tools: {json.dumps(catalog, separators=(',', ':'))}"
     )
 
@@ -144,42 +143,6 @@ def _kernel_attachment_context(attachments: List[Dict[str, Any]]) -> Dict[str, A
         "attachment_count": len(items),
         "attachments": items,
     }
-
-
-def _aligned_capability_hint(
-    assistant_mode: Optional[str],
-    user_text: str,
-    prior_text: str = "",
-    *,
-    has_active_story: bool = False,
-) -> AssistantKernelCapability | None:
-    lowered = f"{prior_text} {user_text}".lower()
-    if assistant_mode == "recipe" and ("recipe" in lowered or "character sheet" in lowered):
-        return "recipe_builder"
-    if assistant_mode == "preset" and "preset" in lowered:
-        return "preset_builder"
-    if any(signal in str(user_text or "").lower() for signal in DEBUG_RUN_SIGNALS):
-        return "run_debugger"
-    story_signals = (
-        "story idea",
-        "story premise",
-        "storyboard",
-        "shot ",
-        "shots ",
-        "scene ",
-        "scenes ",
-        "lighthouse keeper",
-        "character continuity",
-        "same character",
-    )
-    if any(signal in lowered for signal in story_signals):
-        return "story_builder"
-    if has_active_story and any(
-        signal in lowered
-        for signal in ("those", "them", "character", "graph", "canvas", "make it more")
-    ):
-        return "story_builder"
-    return None
 
 
 def _recent_conversation(session: Dict[str, Any]) -> List[Dict[str, str]]:
@@ -222,60 +185,6 @@ def _kernel_session_context(session: Dict[str, Any]) -> Dict[str, Any]:
         "latest_applied_test_plan_id": latest_applied_test_plan_id,
         "recent_conversation": _recent_conversation(session),
     }
-
-
-def _preset_draft_required(user_text: str, *, has_active_draft: bool) -> bool:
-    lowered = str(user_text or "").lower()
-    if has_active_draft and "graph" in lowered and any(signal in lowered for signal in ("create", "build", "make")):
-        return False
-    draft_signals = (
-        "turn",
-        "create",
-        "build",
-        "make",
-        "save",
-        "field",
-        "input image",
-        "image input",
-        "text-to-image",
-        "image-to-image",
-        "update",
-        "revise",
-    )
-    return any(signal in lowered for signal in draft_signals)
-
-
-def _recipe_draft_required(user_text: str, *, has_active_draft: bool) -> bool:
-    lowered = str(user_text or "").lower()
-    if any(signal in lowered for signal in ("graph", "wire", "canvas")):
-        return False
-    if "recipe" in lowered or "character sheet" in lowered:
-        return True
-    return has_active_draft and any(signal in lowered for signal in ("field", "variable", "image", "change", "save"))
-
-
-def _story_state_update_required(user_text: str, *, has_active_state: bool) -> bool:
-    lowered = str(user_text or "").lower()
-    if has_active_state and any(signal in lowered for signal in ("graph", "canvas", "workflow")):
-        return False
-    if any(
-        signal in lowered
-        for signal in (
-            "story idea",
-            "story premise",
-            "storyboard",
-            "shot ",
-            "shots ",
-            "scene ",
-            "scenes ",
-            "character continuity",
-            "same character",
-        )
-    ):
-        return True
-    return has_active_state and any(
-        signal in lowered for signal in ("make it more", "revise", "change", "keep", "continuity")
-    )
 
 
 def _next_action_for_artifacts(
@@ -541,28 +450,17 @@ def run_assistant_kernel_turn(
             user_text=user_text,
             cancel_event=cancel_event,
         )
-    recent_conversation = _recent_conversation(session)
-    prior_text = "\n".join(item["text"] for item in recent_conversation[:-1][-2:])
-    initial_context = _kernel_session_context(session)
-    selected_capability = _aligned_capability_hint(
-        assistant_mode,
-        user_text,
-        prior_text,
-        has_active_story=isinstance(initial_context.get("active_story_state"), dict),
-    )
+    selected_capability: AssistantKernelCapability | None = None
+    selected_artifact_intent: AssistantArtifactIntent | None = None
     base_assembly = assistant_system_prompt_assembly(
         "general",
-        capability_prompt_asset=KERNEL_CAPABILITY_PROMPTS[selected_capability or "general"],
+        capability_prompt_asset=KERNEL_CAPABILITY_PROMPTS["general"],
     )
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": base_assembly.prompt},
         {
             "role": "system",
-            "content": _kernel_instruction(
-                assistant_mode=assistant_mode,
-                user_text=user_text,
-                prior_text=prior_text,
-            ),
+            "content": _kernel_instruction(assistant_mode=assistant_mode),
         },
         {
             "role": "system",
@@ -583,10 +481,7 @@ def run_assistant_kernel_turn(
     tool_traces = []
     artifacts: List[AssistantKernelArtifact] = []
     tool_steps = 0
-    preset_draft_retry_requested = False
-    recipe_draft_retry_requested = False
-    story_state_retry_requested = False
-    run_evidence_retry_requested = False
+    artifact_retry_requested = False
     while True:
         if is_cancelled(cancel_event):
             raise AssistantRequestCancelled(
@@ -622,8 +517,28 @@ def run_assistant_kernel_turn(
             provider_steps=provider_steps,
         )
         step = AssistantKernelProviderStep.model_validate(raw_step)
+        if step.artifact_intent not in KERNEL_ARTIFACT_INTENTS[step.capability]:
+            messages.append(
+                {
+                    "role": "system",
+                    "content": json.dumps(
+                        {
+                            "tool_error": {
+                                "code": "artifact_intent_not_allowed",
+                                "message": (
+                                    f"Select one of {sorted(KERNEL_ARTIFACT_INTENTS[step.capability])} "
+                                    f"for {step.capability}."
+                                ),
+                            }
+                        },
+                        separators=(",", ":"),
+                    ),
+                }
+            )
+            continue
         if selected_capability is None:
             selected_capability = step.capability
+            selected_artifact_intent = step.artifact_intent
             assembly = assistant_system_prompt_assembly(
                 "general",
                 capability_prompt_asset=KERNEL_CAPABILITY_PROMPTS[selected_capability],
@@ -645,7 +560,42 @@ def run_assistant_kernel_turn(
                 }
             )
             continue
+        elif step.artifact_intent != selected_artifact_intent:
+            messages.append(
+                {
+                    "role": "system",
+                    "content": json.dumps(
+                        {
+                            "tool_error": {
+                                "code": "artifact_intent_switch_not_allowed",
+                                "message": f"Continue with artifact_intent {selected_artifact_intent}.",
+                            }
+                        },
+                        separators=(",", ":"),
+                    ),
+                }
+            )
+            continue
         if step.tool_call is not None:
+            completed_artifact = KERNEL_REQUIRED_ARTIFACTS.get(selected_artifact_intent or "none")
+            if completed_artifact in {"preset_draft", "recipe_draft", "story_state"} and any(
+                artifact.kind == completed_artifact for artifact in artifacts
+            ):
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": json.dumps(
+                            {
+                                "tool_error": {
+                                    "code": "artifact_intent_complete",
+                                    "message": "The requested typed artifact is complete. Reply to the user now.",
+                                }
+                            },
+                            separators=(",", ":"),
+                        ),
+                    }
+                )
+                continue
             if tool_steps >= max_tool_steps:
                 elapsed = time.perf_counter() - started
                 return AssistantKernelTurnResult(
@@ -678,6 +628,7 @@ def run_assistant_kernel_turn(
                     workflow=workflow,
                     canvas_context=canvas_context,
                     user_text=user_text,
+                    artifact_intent=selected_artifact_intent or "none",
                     run_id=run_id,
                     session_id=str(session.get("assistant_session_id") or "") or None,
                     session=session,
@@ -748,108 +699,22 @@ def run_assistant_kernel_turn(
             )
             continue
         reply = str(step.reply or "")
+        required_artifact = KERNEL_REQUIRED_ARTIFACTS.get(selected_artifact_intent or "none")
         if (
-            selected_capability == "run_debugger"
-            and any(signal in user_text.lower() for signal in DEBUG_RUN_SIGNALS)
-            and not any(artifact.kind == "run_evidence" for artifact in artifacts)
-            and not run_evidence_retry_requested
+            required_artifact
+            and not any(artifact.kind == required_artifact for artifact in artifacts)
+            and not artifact_retry_requested
         ):
-            run_evidence_retry_requested = True
+            artifact_retry_requested = True
+            error_code, error_message = KERNEL_ARTIFACT_ERRORS[required_artifact]
             messages.append(
                 {
                     "role": "system",
                     "content": json.dumps(
                         {
                             "tool_error": {
-                                "code": "run_evidence_required",
-                                "message": (
-                                    "Before diagnosing or proposing a fix, call read_run_evidence. "
-                                    "Do not infer a run failure from prose or canvas state."
-                                ),
-                            }
-                        },
-                        separators=(",", ":"),
-                    ),
-                }
-            )
-            continue
-        if (
-            selected_capability == "story_builder"
-            and _story_state_update_required(
-                user_text,
-                has_active_state=isinstance(initial_context.get("active_story_state"), dict),
-            )
-            and not any(artifact.kind == "story_state" for artifact in artifacts)
-            and not story_state_retry_requested
-        ):
-            story_state_retry_requested = True
-            messages.append(
-                {
-                    "role": "system",
-                    "content": json.dumps(
-                        {
-                            "tool_error": {
-                                "code": "typed_story_state_required",
-                                "message": (
-                                    "Before replying, call update_story_state with the complete current typed story "
-                                    "state. Do not recover story or shot structure from prose."
-                                ),
-                            }
-                        },
-                        separators=(",", ":"),
-                    ),
-                }
-            )
-            continue
-        if (
-            selected_capability == "recipe_builder"
-            and _recipe_draft_required(
-                user_text,
-                has_active_draft=isinstance(_kernel_session_context(session).get("active_recipe_draft"), dict),
-            )
-            and not any(artifact.kind == "recipe_draft" for artifact in artifacts)
-            and not recipe_draft_retry_requested
-        ):
-            recipe_draft_retry_requested = True
-            messages.append(
-                {
-                    "role": "system",
-                    "content": json.dumps(
-                        {
-                            "tool_error": {
-                                "code": "typed_prompt_recipe_draft_required",
-                                "message": (
-                                    "Before replying, call propose_prompt_recipe_draft with the complete current "
-                                    "typed draft. Do not reconstruct draft state in prose."
-                                ),
-                            }
-                        },
-                        separators=(",", ":"),
-                    ),
-                }
-            )
-            continue
-        if (
-            selected_capability == "preset_builder"
-            and _preset_draft_required(
-                user_text,
-                has_active_draft=isinstance(_kernel_session_context(session).get("active_preset_draft"), dict),
-            )
-            and not any(artifact.kind == "preset_draft" for artifact in artifacts)
-            and not preset_draft_retry_requested
-        ):
-            preset_draft_retry_requested = True
-            messages.append(
-                {
-                    "role": "system",
-                    "content": json.dumps(
-                        {
-                            "tool_error": {
-                                "code": "typed_preset_draft_required",
-                                "message": (
-                                    "Before replying, call propose_media_preset_draft with the complete current "
-                                    "typed draft. Do not reconstruct draft state in prose."
-                                ),
+                                "code": error_code,
+                                "message": error_message,
                             }
                         },
                         separators=(",", ":"),

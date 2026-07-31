@@ -21,6 +21,17 @@ AssistantKernelCapability = Literal[
     "story_builder",
     "run_debugger",
 ]
+AssistantArtifactIntent = Literal[
+    "none",
+    "draft_preset",
+    "revise_preset",
+    "save_preset",
+    "draft_recipe",
+    "revise_recipe",
+    "save_recipe",
+    "update_story",
+    "diagnose_run",
+]
 AssistantNextActionKind = Literal[
     "none",
     "confirm_graph",
@@ -163,6 +174,7 @@ class AssistantKernelToolCallRequest(BaseModel):
 
 class AssistantKernelProviderStep(BaseModel):
     capability: AssistantKernelCapability
+    artifact_intent: AssistantArtifactIntent = "none"
     reply: Optional[str] = None
     tool_call: Optional[AssistantKernelToolCallRequest] = None
     requested_action: AssistantNextAction = Field(default_factory=AssistantNextAction)

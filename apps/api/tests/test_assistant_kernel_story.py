@@ -254,9 +254,14 @@ def test_story_turn_cannot_finish_with_prose_only_state(client, monkeypatch) -> 
     session = _session(client)
     steps = iter(
         [
-            {"capability": "story_builder", "reply": "I developed the premise."},
             {
                 "capability": "story_builder",
+                "artifact_intent": "update_story",
+                "reply": "I developed the premise.",
+            },
+            {
+                "capability": "story_builder",
+                "artifact_intent": "update_story",
                 "tool_call": {
                     "name": "update_story_state",
                     "arguments": json.dumps(
@@ -267,14 +272,18 @@ def test_story_turn_cannot_finish_with_prose_only_state(client, monkeypatch) -> 
                     ),
                 },
             },
-            {"capability": "story_builder", "reply": "The story foundation is ready."},
+            {
+                "capability": "story_builder",
+                "artifact_intent": "update_story",
+                "reply": "The story foundation is ready.",
+            },
         ]
     )
     monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
 
     result = kernel.run_assistant_kernel_turn(
         session=session,
-        user_text="I've got a story idea about a lighthouse keeper. Help me build it out.",
+        user_text="Develop this narrative foundation.",
         workflow=None,
         canvas_context={},
         assistant_mode="graph",

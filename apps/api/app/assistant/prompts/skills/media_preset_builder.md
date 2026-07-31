@@ -93,6 +93,8 @@ Typed draft state:
 - Call `propose_media_preset_draft` with the full validated preset contract. Never print or reconstruct a backend JSON block in chat.
 - Use `analyze_reference_images` as the evidence source and `list_media_models` for real model scope.
 - On revisions, start from `active_preset_draft` and change typed fields, slots, model mode, or prompt template directly.
+- Drafting and testing are separate user turns. After a successful draft or revision, reply and stop; do not inspect
+  graph schemas, read the workflow, or start a test graph unless the current user request specifically asks for one.
 - A draft without an applied priced test graph remains editable but is not save-ready.
 - When the user asks to save an active draft, do not propose or revise a graph. Link `latest_applied_test_plan_id`
   through `test_plan_id`; only an already applied test graph can authorize the server-owned save confirmation.

@@ -220,31 +220,6 @@ def validate_prompt_recipe_draft(arguments: BaseModel, context: Any) -> Dict[str
     }
 
 
-def _revision_requested(user_text: str) -> bool:
-    lowered = str(user_text or "").lower()
-    if "save" in lowered:
-        return False
-    return any(
-        signal in lowered
-        for signal in (
-            "make",
-            "change",
-            "revise",
-            "update",
-            "field",
-            "variable",
-            "image",
-            "look at",
-            "instead",
-        )
-    )
-
-
-def _save_requested(user_text: str) -> bool:
-    lowered = str(user_text or "").lower()
-    return "save" in lowered and ("recipe" in lowered or "approved" in lowered)
-
-
 def propose_prompt_recipe_draft(arguments: BaseModel, context: Any) -> Dict[str, Any]:
     options = ProposePromptRecipeDraftArguments.model_validate(arguments)
     if not context.session_id:
@@ -270,13 +245,15 @@ def propose_prompt_recipe_draft(arguments: BaseModel, context: Any) -> Dict[str,
         prior_proposal=prior_proposal,
     )
     draft = _validated_draft(options.draft, recipe_id=editable_recipe_id)
-    if isinstance(current_draft, dict) and _revision_requested(context.user_text):
+    if isinstance(current_draft, dict) and context.artifact_intent == "revise_recipe":
         if _full_recipe_contract(current_draft) == draft:
             raise RecipeKernelError(
                 code="prompt_recipe_draft_unchanged",
                 message="The user requested a revision, but the typed Prompt Recipe draft did not change.",
             )
-    save_ready = bool(options.request_save_confirmation and _save_requested(context.user_text))
+    save_ready = bool(
+        options.request_save_confirmation and context.artifact_intent == "save_recipe"
+    )
     proposal_id = new_id("asrecipe")
     confirmation_token = new_id("confirm") if save_ready else None
     proposal = {
