@@ -840,6 +840,8 @@ export type PromptRecipeOutputFormat =
   | "image_analysis"
   | "structured_shot_sequence";
 export type PromptRecipeImageMode = "none" | "direct_reference" | "analyze_then_inject" | "both";
+export type PromptRecipeFieldInputKind = "none" | "text" | "image";
+export type PromptRecipeFieldReferenceRole = "none" | "character" | "environment" | "prop" | "style" | "additional" | "generic";
 
 export type PromptRecipeVariable = {
   key: string;
@@ -849,6 +851,8 @@ export type PromptRecipeVariable = {
   required?: boolean;
   default_value?: string | null;
   description?: string | null;
+  input_kind?: PromptRecipeFieldInputKind;
+  reference_role?: PromptRecipeFieldReferenceRole;
 };
 
 export type PromptRecipeCustomField = {
@@ -860,6 +864,8 @@ export type PromptRecipeCustomField = {
   required?: boolean;
   help_text?: string | null;
   options?: string[];
+  input_kind?: PromptRecipeFieldInputKind;
+  reference_role?: PromptRecipeFieldReferenceRole;
 };
 
 export type PromptRecipeImageInput = {
@@ -868,6 +874,7 @@ export type PromptRecipeImageInput = {
   mode: PromptRecipeImageMode | string;
   analysis_variable: string;
   max_files: number;
+  reference_roles?: PromptRecipeFieldReferenceRole[];
 };
 
 export type PromptRecipe = {
@@ -953,6 +960,10 @@ export type PromptRecipeDraftingConfig = {
   max_tokens: number;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+export type MediaAssistantConfig = PromptRecipeDraftingConfig & {
+  supports_media_studio_tools: boolean;
 };
 
 export type ExternalLlmUsageTotals = {
@@ -1323,6 +1334,11 @@ export type PromptRecipeDraftResponse = {
 export type PromptRecipeDraftingConfigResponse = {
   ok?: boolean;
   config?: PromptRecipeDraftingConfig | null;
+};
+
+export type MediaAssistantConfigResponse = {
+  ok?: boolean;
+  config?: MediaAssistantConfig | null;
 };
 
 export type ExternalLlmUsageSummaryResponse = {

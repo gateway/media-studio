@@ -25,8 +25,13 @@ from .service_provider_config import (
     PROMPT_RECIPE_DRAFTING_DEFAULT_TEMPERATURE,
     PROMPT_RECIPE_DRAFTING_PROVIDERS,
     provider_credential_source as _provider_credential_source,
+    probe_media_assistant_provider,
+    probe_prompt_recipe_drafting_provider,
+    public_media_assistant_config,
     public_prompt_recipe_drafting_config,
     shared_provider_runtime as _shared_provider_runtime,
+    upsert_media_assistant_config,
+    upsert_prompt_recipe_drafting_config,
 )
 from .settings import settings
 from .schemas import (
@@ -35,7 +40,6 @@ from .schemas import (
     JobSubmitRequest,
     MediaRefInput,
     PromptRecipeDraftRequest,
-    PromptRecipeDraftingConfigUpsertRequest,
     ProjectUpsertRequest,
     PresetUpsertRequest,
     PromptRecipeUpsertRequest,
@@ -56,6 +60,7 @@ from .service_prompt_recipe_validation import (
     upsert_prompt_recipe,
     validate_prompt_recipe_payload,
 )
+from .service_prompt_budget import enforce_prompt_budget
 from .service_reference_media import (
     backfill_reference_media,
     import_reference_media_bytes,
@@ -238,80 +243,6 @@ def public_enhancement_config(record: Dict[str, Any]) -> Dict[str, Any]:
     return EnhancementConfigRecord(**payload).model_dump()
 
 
-def upsert_prompt_recipe_drafting_config(payload: PromptRecipeDraftingConfigUpsertRequest) -> Dict[str, Any]:
-    provider_kind = str(payload.provider_kind or "openrouter").strip()
-    if provider_kind not in PROMPT_RECIPE_DRAFTING_PROVIDERS:
-        raise ServiceError("Unsupported drafting provider.")
-    temperature = max(0.0, min(2.0, float(payload.temperature)))
-    max_tokens = max(128, min(4000, int(payload.max_tokens)))
-    record = {
-        "config_key": PROMPT_RECIPE_DRAFTING_CONFIG_KEY,
-        "enabled": bool(payload.enabled),
-        "provider_kind": provider_kind,
-        "provider_label": str(payload.provider_label or "").strip() or None,
-        "provider_model_id": str(payload.provider_model_id or "").strip() or None,
-        "provider_base_url": str(payload.provider_base_url or "").strip() or None,
-        "provider_supports_images": bool(payload.provider_supports_images),
-        "provider_status": str(payload.provider_status or "").strip() or None,
-        "provider_last_tested_at": str(payload.provider_last_tested_at or "").strip() or None,
-        "provider_capabilities_json": payload.provider_capabilities_json or {},
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
-    stored = store.create_or_update_prompt_recipe_drafting_config(record)
-    return public_prompt_recipe_drafting_config(stored)
-
-
-def probe_prompt_recipe_drafting_provider(payload: Dict[str, Any]) -> Dict[str, Any]:
-    provider_kind = str(payload.get("provider_kind") or "").strip()
-    if provider_kind not in PROMPT_RECIPE_DRAFTING_PROVIDERS:
-        raise ServiceError("Unsupported drafting provider.")
-    current_config = store.get_prompt_recipe_drafting_config(PROMPT_RECIPE_DRAFTING_CONFIG_KEY) or {}
-    matching_config = current_config if str(current_config.get("provider_kind") or "").strip() == provider_kind else {}
-    runtime = _shared_provider_runtime(
-        provider_kind,
-        stored_base_url=str(payload.get("provider_base_url") or matching_config.get("provider_base_url") or "").strip() or None,
-    )
-    selected_model_id = str(payload.get("provider_model_id") or matching_config.get("provider_model_id") or "").strip() or None
-    require_images = bool(payload.get("require_images"))
-    probe_mode = str(payload.get("probe_mode") or "catalog").strip().lower()
-    try:
-        if provider_kind == "openrouter":
-            bundle = enhancement_provider.test_openrouter_connection(
-                api_key=runtime.get("api_key"),
-                model_id=selected_model_id,
-                require_images=require_images,
-                base_url=runtime.get("base_url"),
-            )
-            bundle["credential_source"] = runtime.get("credential_source")
-            return bundle
-        if provider_kind == "codex_local":
-            bundle = (
-                enhancement_provider.test_codex_local_connection(
-                    model_id=selected_model_id,
-                    require_images=require_images,
-                )
-                if probe_mode == "full"
-                else enhancement_provider.load_codex_local_catalog(
-                    model_id=selected_model_id,
-                    require_images=require_images,
-                    force_refresh=bool(payload.get("force_refresh")),
-                )
-            )
-            bundle["credential_source"] = runtime.get("credential_source")
-            return bundle
-        bundle = enhancement_provider.test_local_openai_connection(
-            base_url=str(runtime.get("base_url") or ""),
-            api_key=runtime.get("api_key"),
-            model_id=selected_model_id,
-            require_images=require_images,
-        )
-        bundle["credential_source"] = runtime.get("credential_source")
-        return bundle
-    except enhancement_provider.EnhancementProviderError as exc:
-        raise ServiceError(str(exc)) from exc
-
-
 def generate_prompt_recipe_draft(payload: PromptRecipeDraftRequest) -> Dict[str, Any]:
     idea = str(payload.idea or "").strip()
     if not idea:
@@ -319,9 +250,11 @@ def generate_prompt_recipe_draft(payload: PromptRecipeDraftRequest) -> Dict[str,
     stored_config = store.get_prompt_recipe_drafting_config(PROMPT_RECIPE_DRAFTING_CONFIG_KEY) or {}
     if not bool(stored_config.get("enabled", True)):
         raise ServiceError("Recipe drafting is turned off in AI Settings.")
-    provider_kind = str(payload.provider_kind or stored_config.get("provider_kind") or "openrouter").strip()
+    provider_kind = str(payload.provider_kind or stored_config.get("provider_kind") or "codex_local").strip()
     matching_config = stored_config if str(stored_config.get("provider_kind") or "").strip() == provider_kind else {}
     provider_model_id = str(payload.provider_model_id or matching_config.get("provider_model_id") or "").strip()
+    if provider_kind == "codex_local" and not provider_model_id:
+        provider_model_id = enhancement_provider.codex_local_provider.CODEX_LOCAL_DEFAULT_MODEL
     if provider_kind not in PROMPT_RECIPE_DRAFTING_PROVIDERS:
         raise ServiceError("Unsupported drafting provider.")
     if not provider_model_id:
@@ -784,6 +717,7 @@ def build_validation_bundle(request: ValidateRequest) -> Dict[str, Any]:
             "preset_image_slots": resolved_image_slot_values,
         },
     }
+    prompt_budget = enforce_prompt_budget(request.model_key, str(raw_request.get("prompt") or ""))
     prompt_context = kie_adapter.resolve_prompt_context(raw_request)
     validation = kie_adapter.validate_request(raw_request)
     try:
@@ -826,6 +760,7 @@ def build_validation_bundle(request: ValidateRequest) -> Dict[str, Any]:
         "selected_prompts": selected_prompts,
         "text_values": text_values,
         "image_slot_values": resolved_image_slot_values,
+        "prompt_budget": prompt_budget,
     }
 
 
@@ -894,11 +829,20 @@ def _resolved_enhancement_config(model_key: str) -> Dict[str, Any]:
         model_key=GLOBAL_ENHANCEMENT_CONFIG_KEY,
         label="Studio enhancement",
         helper_profile="midctx-64k-no-thinking-q3-prefill",
-        provider_kind="builtin",
+        provider_kind="codex_local",
+        provider_label="Codex Local",
+        provider_model_id=enhancement_provider.codex_local_provider.CODEX_LOCAL_DEFAULT_MODEL,
+        provider_supports_images=True,
+        provider_status="active",
+        provider_capabilities_json={
+            "provider": "codex_local",
+            "credential_source": enhancement_provider.codex_local_provider.CODEX_LOCAL_PROVIDER_CREDENTIAL_SOURCE,
+            "default_model": enhancement_provider.codex_local_provider.CODEX_LOCAL_DEFAULT_MODEL,
+        },
         provider_api_key_configured=False,
         provider_base_url_configured=False,
         supports_text_enhancement=True,
-        supports_image_analysis=False,
+        supports_image_analysis=True,
     ).model_dump()
 
 

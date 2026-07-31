@@ -99,6 +99,125 @@ describe("graphNodeDataWithExecutionMode", () => {
     expect(next.outputSnapshot).toBe(outputSnapshot);
   });
 
+  it("retains existing output while a new run has only empty queued state", () => {
+    const outputSnapshot = { image: [{ asset_id: "asset-1" }] };
+    const next = graphNodeDataWithRunState(makeData({ executionMode: "enabled", outputSnapshot }), {
+      status: "queued",
+      progress: 0,
+      error: null,
+      output_snapshot_json: {},
+      metrics_json: {},
+    });
+
+    expect(next.status).toBe("queued");
+    expect(next.outputSnapshot).toBe(outputSnapshot);
+  });
+
+  it("retains existing output when a muted run node skips without replacement output", () => {
+    const outputSnapshot = { image: [{ asset_id: "asset-1" }] };
+    const next = graphNodeDataWithRunState(makeData({ executionMode: "muted", outputSnapshot }), {
+      status: "skipped",
+      progress: 1,
+      error: null,
+      output_snapshot_json: {},
+      metrics_json: { execution_mode: "muted" },
+    });
+
+    expect(next.status).toBe("skipped");
+    expect(next.outputSnapshot).toBe(outputSnapshot);
+  });
+
+  it("clears existing output when a completed run produces an empty snapshot", () => {
+    const next = graphNodeDataWithRunState(makeData({ executionMode: "enabled", outputSnapshot: { image: [{ asset_id: "asset-1" }] } }), {
+      status: "completed",
+      progress: 1,
+      error: null,
+      output_snapshot_json: {},
+      metrics_json: {},
+    });
+
+    expect(next.outputSnapshot).toEqual({});
+  });
+
+  it("refreshes the reusable cache from a completed node's matching artifacts", () => {
+    const next = graphNodeDataWithRunState(
+      makeData({
+        executionMode: "enabled",
+        executionCache: { cachedRunId: "run-old", cachedArtifactIds: { image: ["artifact-old"] } },
+      }),
+      {
+        run_id: "run-new",
+        node_id: "model",
+        status: "completed",
+        progress: 1,
+        error: null,
+        output_snapshot_json: { image: [{ asset_id: "asset-new" }] },
+        artifacts: [
+          {
+            artifact_id: "artifact-new-2",
+            run_id: "run-new",
+            node_id: "model",
+            output_port: "image",
+            output_index: 1,
+          },
+          {
+            artifact_id: "artifact-new-1",
+            run_id: "run-new",
+            node_id: "model",
+            output_port: "image",
+            output_index: 0,
+          },
+        ],
+        metrics_json: { execution_mode: "enabled" },
+      },
+    );
+
+    expect(next.executionCache).toEqual({
+      cachedRunId: "run-new",
+      cachedArtifactIds: { image: ["artifact-new-1", "artifact-new-2"] },
+    });
+  });
+
+  it("does not replace a valid cache from a failed or artifact-free run", () => {
+    const executionCache = { cachedRunId: "run-good", cachedArtifactIds: { image: ["artifact-good"] } };
+    const next = graphNodeDataWithRunState(makeData({ executionMode: "enabled", executionCache }), {
+      run_id: "run-failed",
+      node_id: "model",
+      status: "failed",
+      progress: 1,
+      error: "provider failed",
+      output_snapshot_json: {},
+      artifacts: [],
+      metrics_json: { execution_mode: "enabled" },
+    });
+
+    expect(next.executionCache).toBe(executionCache);
+  });
+
+  it("ignores artifacts that do not belong to the completed node run", () => {
+    const executionCache = { cachedRunId: "run-good", cachedArtifactIds: { image: ["artifact-good"] } };
+    const next = graphNodeDataWithRunState(makeData({ executionMode: "enabled", executionCache }), {
+      run_id: "run-new",
+      node_id: "model",
+      status: "completed",
+      progress: 1,
+      error: null,
+      output_snapshot_json: { image: [{ asset_id: "asset-new" }] },
+      artifacts: [
+        {
+          artifact_id: "artifact-other",
+          run_id: "run-other",
+          node_id: "model",
+          output_port: "image",
+          output_index: 0,
+        },
+      ],
+      metrics_json: { execution_mode: "enabled" },
+    });
+
+    expect(next.executionCache).toBe(executionCache);
+  });
+
   it("reuses equivalent run state snapshots to avoid ReactFlow update loops", () => {
     const data = makeData({
       executionMode: "frozen",

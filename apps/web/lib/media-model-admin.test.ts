@@ -4,9 +4,11 @@ import {
   parseSavedEnhancementConfig,
   parseSavedPromptRecipeDraftingConfig,
   probeEnhancementProviderRequest,
+  probeMediaAssistantProviderRequest,
   probePromptRecipeDraftingProviderRequest,
   probeSharedProviderCatalogRequest,
   saveEnhancementConfigRequest,
+  saveMediaAssistantConfigRequest,
   saveGlobalQueueSettingsRequest,
   saveModelQueuePolicyRequest,
   savePromptRecipeDraftingConfigRequest,
@@ -176,6 +178,42 @@ describe("media-model-admin", () => {
         require_images: false,
       }),
     });
+  });
+
+  it("uses the dedicated Media Assistant save and probe endpoints", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: true, config: { config_key: "media_assistant", provider_kind: "openrouter" } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          credential_source: "env",
+          selected_model: { id: "assistant/model" },
+          available_models: [{ id: "assistant/model" }],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const saved = await saveMediaAssistantConfigRequest({
+      provider_kind: "openrouter",
+      provider_model_id: "assistant/model",
+    });
+    const probed = await probeMediaAssistantProviderRequest({
+      provider_kind: "openrouter",
+      provider_model_id: "assistant/model",
+      provider_base_url: null,
+      require_images: false,
+    });
+
+    expect(saved.config).toMatchObject({ config_key: "media_assistant" });
+    expect(probed.selectedModel).toMatchObject({ id: "assistant/model" });
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "/api/control/media-assistant-config",
+      "/api/control/media-assistant-config/probe",
+    ]);
   });
 
   it("probes shared provider catalogs through the shared request helper", async () => {

@@ -13,6 +13,7 @@ import {
   graphNodeUsesContentAutoHeight,
   resolveGraphContentAutoHeight,
   resolveGraphNodeCollapseStyle,
+  shouldSyncGraphContentAutoHeight,
 } from "../utils/graph-node-layout";
 import {
   visibleGraphInputPorts,
@@ -250,6 +251,7 @@ export function useGraphNodeFieldLayout({
             data: {
               ...data,
               advancedExpanded: nextExpanded,
+              userSizedHeight: nextExpanded ? false : data.userSizedHeight,
               autoSizedHeight: nextExpanded
                 ? Math.max(previousAutoHeight ?? 0, nextLayout.minHeight)
                 : previousAutoHeight ?? nextLayout.minHeight,
@@ -268,6 +270,7 @@ export function useGraphNodeFieldLayout({
         const nextNodes = current.map((node) => {
           if (node.id !== nodeId) return node;
           const data = node.data as StudioNode["data"];
+          if (data.userSizedHeight) return node;
           const effectiveDefinition = resolveGraphNodeDefinition(data.definition, data.fields);
           const nextLayout = computeGraphNodeLayout(effectiveDefinition);
           const styleHeight =
@@ -276,15 +279,25 @@ export function useGraphNodeFieldLayout({
               : typeof node.height === "number"
                 ? node.height
                 : 0;
+          const previousAutoHeight =
+            typeof data.autoSizedHeight === "number"
+              ? data.autoSizedHeight
+              : null;
+          if (
+            !shouldSyncGraphContentAutoHeight({
+              requiredHeight,
+              currentWrapperHeight: styleHeight,
+              previousMeasuredHeight: previousAutoHeight,
+            })
+          ) {
+            return node;
+          }
           const nextAutoHeight = resolveGraphContentAutoHeight({
             requiredHeight,
-            minHeight: nextLayout.minHeight,
+            minHeight: Math.min(nextLayout.minHeight, Math.ceil(requiredHeight)),
             maxHeight: nextLayout.maxHeight,
             currentHeight: styleHeight,
-            previousAutoHeight:
-              typeof data.autoSizedHeight === "number"
-                ? data.autoSizedHeight
-                : null,
+            previousAutoHeight,
           });
           if (!nextAutoHeight) return node;
           const currentMinHeight =
@@ -301,6 +314,7 @@ export function useGraphNodeFieldLayout({
           changed = true;
           return {
             ...node,
+            height: nextAutoHeight.height,
             style: {
               ...node.style,
               height: nextAutoHeight.height,

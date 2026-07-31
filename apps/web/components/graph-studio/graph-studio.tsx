@@ -107,6 +107,10 @@ import {
 import { suppressGraphEdgeSelectionChanges } from "./utils/graph-edge-selection";
 import { filterGraphCanvasEdgesForCurrentContract } from "./utils/graph-edge-contract";
 import {
+  graphDefinitionsForWorkflowHydration,
+  graphWorkflowNeedsFreshDefinitions,
+} from "./utils/graph-dynamic-definitions";
+import {
   clearGraphNodeRunState,
   graphNodeDataWithRunState,
   graphRunNodeStateMatchesExecutionMode,
@@ -332,9 +336,33 @@ function GraphStudioClient() {
         nodesRef.current,
       );
       if (!filteredChanges.length) return;
+      const manuallySizedNodeIds = new Set<string>();
+      filteredChanges.forEach((change) => {
+        if ("id" in change && change.type === "dimensions" && change.resizing) {
+          manuallySizedNodeIds.add(change.id);
+        }
+      });
       applyNodesChange(filteredChanges);
+      if (manuallySizedNodeIds.size) {
+        setNodes((current) => {
+          let changed = false;
+          const next = current.map((node) => {
+            if (!manuallySizedNodeIds.has(node.id) || node.data.userSizedHeight) return node;
+            const data = node.data as StudioNode["data"];
+            changed = true;
+            return {
+              ...node,
+              data: {
+                ...data,
+                userSizedHeight: true,
+              },
+            };
+          });
+          return changed ? next : current;
+        });
+      }
     },
-    [applyNodesChange],
+    [applyNodesChange, setNodes],
   );
   const [edges, setEdges, applyEdgesChange] = useEdgesState<StudioEdge>([]);
   const edgesRef = useRef<StudioEdge[]>([]);
@@ -1127,7 +1155,7 @@ function GraphStudioClient() {
       let refreshedDefinitionsByType:
         | Map<string, GraphNodeDefinition>
         | undefined;
-      if (workflow.nodes.some((node) => node.type === "preset.render")) {
+      if (graphWorkflowNeedsFreshDefinitions(workflow)) {
         try {
           const refreshedDefinitions = await reloadNodeDefinitions(true);
           refreshedDefinitionsByType = new Map(
@@ -1255,7 +1283,7 @@ function GraphStudioClient() {
   );
 
   const loadWorkflowRecord = useCallback(
-    (record: GraphWorkflowRecord) => {
+    async (record: GraphWorkflowRecord) => {
       markWorkspaceChanged();
       const workflow = record.workflow_json;
       if (!workflow) {
@@ -1271,9 +1299,21 @@ function GraphStudioClient() {
         workflow_id: record.workflow_id,
         name: nextWorkflowName,
       };
+      let hydrationDefinitions = definitionsByType;
+      try {
+        hydrationDefinitions = await graphDefinitionsForWorkflowHydration({
+          workflow: savedWorkflow,
+          definitionsByType,
+          reloadDefinitions: reloadNodeDefinitions,
+        });
+      } catch (error) {
+        appendConsole(
+          `Could not refresh graph node definitions before loading saved workflow: ${(error as Error).message}`,
+        );
+      }
       const savedCanvas = hydrateGraphWorkflowForCanvas({
         workflow: savedWorkflow,
-        definitionsByType,
+        definitionsByType: hydrationDefinitions,
         handlers: nodeHandlers,
       });
 
@@ -1340,6 +1380,7 @@ function GraphStudioClient() {
       nodeHandlers,
       nodes,
       openWorkflowTab,
+      reloadNodeDefinitions,
       run?.run_id,
       setEdges,
       setNodes,

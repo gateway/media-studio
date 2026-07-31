@@ -59,6 +59,11 @@ function normalizeString(value: unknown) {
   return String(value ?? "").trim();
 }
 
+function normalizeInputKind(value: unknown) {
+  const inputKind = normalizeString(value).toLowerCase();
+  return inputKind === "text" || inputKind === "image" ? inputKind : "none";
+}
+
 function normalizeNullableString(value: unknown) {
   const valueString = normalizeString(value);
   return valueString || null;
@@ -97,6 +102,7 @@ function normalizeVariable(value: unknown): PromptRecipeVariable | null {
     required: Boolean(record?.required),
     default_value: normalizeString(record?.default_value),
     description: normalizeString(record?.description),
+    input_kind: normalizeInputKind(record?.input_kind),
   };
 }
 
@@ -116,17 +122,22 @@ function normalizeCustomField(value: unknown): PromptRecipeCustomField | null {
     options: Array.isArray(record?.options)
       ? record.options.map((item) => normalizeString(item)).filter(Boolean)
       : [],
+    input_kind: normalizeInputKind(record?.input_kind),
   };
 }
 
 function normalizeImageInput(value: unknown): PromptRecipeImageInput {
   const record = asRecord(value);
+  const referenceRoles = Array.isArray(record?.reference_roles)
+    ? record.reference_roles.map((item) => normalizeString(item)).filter(Boolean)
+    : [];
   return {
     enabled: Boolean(record?.enabled),
     required: Boolean(record?.required),
     mode: normalizeString(record?.mode) || "none",
     analysis_variable: normalizeString(record?.analysis_variable) || "image_analysis",
     max_files: Math.max(0, normalizeNumber(record?.max_files, 0)),
+    reference_roles: referenceRoles as PromptRecipeImageInput["reference_roles"],
   };
 }
 

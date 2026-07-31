@@ -51,7 +51,10 @@ def count_matches(repo_root: Path, paths: list[str], extensions: set[str], patte
             continue
         if Path(rel_path).suffix not in extensions:
             continue
-        text = (repo_root / rel_path).read_text(errors="ignore")
+        source_path = repo_root / rel_path
+        if not source_path.exists():
+            continue
+        text = source_path.read_text(errors="ignore")
         count = len(pattern.findall(text))
         if count:
             total += count

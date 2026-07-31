@@ -303,6 +303,8 @@ class PromptRecipeVariable(BaseModel):
     required: bool = False
     default_value: Optional[str] = ""
     description: Optional[str] = ""
+    input_kind: str = "none"
+    reference_role: str = "none"
 
 
 class PromptRecipeCustomField(BaseModel):
@@ -314,6 +316,8 @@ class PromptRecipeCustomField(BaseModel):
     required: bool = False
     help_text: Optional[str] = None
     options: List[str] = Field(default_factory=list)
+    input_kind: str = "none"
+    reference_role: str = "none"
 
 
 class PromptRecipeImageInputConfig(BaseModel):
@@ -322,6 +326,7 @@ class PromptRecipeImageInputConfig(BaseModel):
     mode: str = "none"
     analysis_variable: str = "image_analysis"
     max_files: int = 0
+    reference_roles: List[str] = Field(default_factory=list)
 
 
 class PromptRecipeUpsertRequest(BaseModel):
@@ -549,11 +554,11 @@ class EnhancementProviderProbeResponse(BaseModel):
 
 class PromptRecipeDraftingConfigUpsertRequest(BaseModel):
     enabled: bool = True
-    provider_kind: str = "openrouter"
+    provider_kind: str = "codex_local"
     provider_label: Optional[str] = None
     provider_model_id: Optional[str] = None
     provider_base_url: Optional[str] = None
-    provider_supports_images: bool = False
+    provider_supports_images: bool = True
     provider_status: Optional[str] = None
     provider_last_tested_at: Optional[str] = None
     provider_capabilities_json: Dict[str, Any] = Field(default_factory=dict)
@@ -564,12 +569,12 @@ class PromptRecipeDraftingConfigUpsertRequest(BaseModel):
 class PromptRecipeDraftingConfigRecord(BaseModel):
     config_key: str
     enabled: bool = True
-    provider_kind: str = "openrouter"
+    provider_kind: str = "codex_local"
     provider_label: Optional[str] = None
     provider_model_id: Optional[str] = None
     provider_base_url_configured: bool = False
     provider_credential_source: Optional[str] = None
-    provider_supports_images: bool = False
+    provider_supports_images: bool = True
     provider_status: Optional[str] = None
     provider_last_tested_at: Optional[str] = None
     provider_capabilities_json: Dict[str, Any] = Field(default_factory=dict)
@@ -577,6 +582,14 @@ class PromptRecipeDraftingConfigRecord(BaseModel):
     max_tokens: int = 1800
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+
+
+class MediaAssistantConfigUpsertRequest(PromptRecipeDraftingConfigUpsertRequest):
+    pass
+
+
+class MediaAssistantConfigRecord(PromptRecipeDraftingConfigRecord):
+    supports_media_studio_tools: bool = True
 
 
 class ExternalLlmUsageTotals(BaseModel):

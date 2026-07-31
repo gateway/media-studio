@@ -1,0 +1,198 @@
+{
+  "kind": "media-studio.graph.workflow",
+  "schema_version": 1,
+  "exported_at": "2026-07-22T08:00:00.000Z",
+  "workflow": {
+    "schema_version": 1,
+    "workflow_id": null,
+    "name": "GPT Image 2 — Photographic Environment A/B Test",
+    "description": "Controlled 2K comparison of a minimal photographic prompt, the same prompt with a short anti-HDR constraint, and the current Environment Plate v1.1 recipe.",
+    "nodes": [
+      {
+        "id": "guide",
+        "type": "utility.note",
+        "position": {"x": -1080, "y": -420},
+        "fields": {
+          "body": "### Photographic environment A/B test\n\nThree saved 2K GPT Image 2 outputs use the same dry hilltop observatory scene.\n\n- Lane A uses a short positive photographic prompt.\n- Lane B adds one short anti-HDR and anti-wet-look constraint.\n- Lane C uses the current Environment Plate v1.1 recipe as the control.\n\nAll three lanes are enabled because this workflow is a deliberate paid comparison."
+        },
+        "metadata": {
+          "style": {"width": 520, "height": 360},
+          "ui": {"customTitle": "Test guide"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "prompt-minimal",
+        "type": "prompt.text",
+        "position": {"x": -1080, "y": 80},
+        "fields": {
+          "mode": "replace",
+          "text": "Photorealistic frame captured on a real camera inside an abandoned hilltop observatory, viewed at eye level from the open doorway. A circular stone room, one brass telescope, a narrow stair, and tall windows overlook a dry mountain valley. Soft late-afternoon daylight, normal exposure, matte stone and wood, neutral color, natural contrast."
+        },
+        "metadata": {
+          "ui": {"customTitle": "A — Minimal photographic prompt"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "gpt-minimal",
+        "type": "model.kie.gpt_image_2_text_to_image",
+        "position": {"x": -560, "y": 80},
+        "fields": {"prompt": "", "aspect_ratio": "16:9", "resolution": "2K"},
+        "metadata": {
+          "ui": {"customTitle": "A — GPT Image 2 minimal"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "preview-minimal",
+        "type": "preview.image",
+        "position": {"x": -80, "y": 80},
+        "fields": {},
+        "metadata": {
+          "ui": {"customTitle": "A — Preview"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "save-minimal",
+        "type": "media.save_image",
+        "position": {"x": 340, "y": 80},
+        "fields": {"project_id": "", "label": "Photographic Environment Test A — Minimal"},
+        "metadata": {
+          "ui": {"customTitle": "A — Save minimal"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "prompt-constraint",
+        "type": "prompt.text",
+        "position": {"x": -1080, "y": 760},
+        "fields": {
+          "mode": "replace",
+          "text": "Photorealistic frame captured on a real camera inside an abandoned hilltop observatory, viewed at eye level from the open doorway. A circular stone room, one brass telescope, a narrow stair, and tall windows overlook a dry mountain valley. Soft late-afternoon daylight, normal exposure, matte stone and wood, neutral color, natural contrast. No HDR, clarity/sharpening look, glossy wet-look finish, or production-design render."
+        },
+        "metadata": {
+          "ui": {"customTitle": "B — Minimal plus constraint"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "gpt-constraint",
+        "type": "model.kie.gpt_image_2_text_to_image",
+        "position": {"x": -560, "y": 760},
+        "fields": {"prompt": "", "aspect_ratio": "16:9", "resolution": "2K"},
+        "metadata": {
+          "ui": {"customTitle": "B — GPT Image 2 constrained"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "preview-constraint",
+        "type": "preview.image",
+        "position": {"x": -80, "y": 760},
+        "fields": {},
+        "metadata": {
+          "ui": {"customTitle": "B — Preview"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "save-constraint",
+        "type": "media.save_image",
+        "position": {"x": 340, "y": 760},
+        "fields": {"project_id": "", "label": "Photographic Environment Test B — Short Constraint"},
+        "metadata": {
+          "ui": {"customTitle": "B — Save constrained"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "recipe-control",
+        "type": "prompt.recipe",
+        "position": {"x": -1080, "y": 1440},
+        "fields": {
+          "recipe_category": "image",
+          "provider": "codex_local",
+          "model_id": "gpt-5.6-sol",
+          "provider_model_label": "GPT-5.6-Sol",
+          "provider_capabilities_json": {},
+          "temperature": "",
+          "max_tokens": "",
+          "external_variables_json": "{}",
+          "recipe_id": "prompt-recipe-environment-plate-v1",
+          "image_analysis": "No environment reference images provided.",
+          "user_prompt": "An abandoned hilltop observatory viewed from the open doorway at eye level. The circular stone room contains one brass telescope, one narrow stair, and tall windows overlooking a dry mountain valley. Soft late-afternoon daylight. The surfaces are matte stone and wood. No people.",
+          "environment_name": "Hilltop Observatory",
+          "environment_type": "real circular stone observatory",
+          "camera_view": "wide eye-level view from the open doorway into the circular room",
+          "mood_lighting": "soft late-afternoon natural daylight, normal exposure, dry matte stone and wood, neutral color and natural contrast",
+          "action_lanes": "open doorway, brass telescope, narrow stair, tall windows and mountain valley"
+        },
+        "metadata": {
+          "ui": {"customTitle": "C — Current Environment Plate v1.1"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "gpt-control",
+        "type": "model.kie.gpt_image_2_text_to_image",
+        "position": {"x": -560, "y": 1440},
+        "fields": {"prompt": "", "aspect_ratio": "16:9", "resolution": "2K"},
+        "metadata": {
+          "ui": {"customTitle": "C — GPT Image 2 current recipe"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "preview-control",
+        "type": "preview.image",
+        "position": {"x": -80, "y": 1440},
+        "fields": {},
+        "metadata": {
+          "ui": {"customTitle": "C — Preview"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "save-control",
+        "type": "media.save_image",
+        "position": {"x": 340, "y": 1440},
+        "fields": {"project_id": "", "label": "Photographic Environment Test C — Current Recipe"},
+        "metadata": {
+          "ui": {"customTitle": "C — Save current recipe"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      }
+    ],
+    "edges": [
+      {"id": "e-a-prompt-gpt", "source": "prompt-minimal", "source_port": "text", "target": "gpt-minimal", "target_port": "prompt", "metadata": {}},
+      {"id": "e-a-gpt-preview", "source": "gpt-minimal", "source_port": "image", "target": "preview-minimal", "target_port": "image", "metadata": {}},
+      {"id": "e-a-gpt-save", "source": "gpt-minimal", "source_port": "image", "target": "save-minimal", "target_port": "image", "metadata": {}},
+      {"id": "e-b-prompt-gpt", "source": "prompt-constraint", "source_port": "text", "target": "gpt-constraint", "target_port": "prompt", "metadata": {}},
+      {"id": "e-b-gpt-preview", "source": "gpt-constraint", "source_port": "image", "target": "preview-constraint", "target_port": "image", "metadata": {}},
+      {"id": "e-b-gpt-save", "source": "gpt-constraint", "source_port": "image", "target": "save-constraint", "target_port": "image", "metadata": {}},
+      {"id": "e-c-recipe-gpt", "source": "recipe-control", "source_port": "text", "target": "gpt-control", "target_port": "prompt", "metadata": {}},
+      {"id": "e-c-gpt-preview", "source": "gpt-control", "source_port": "image", "target": "preview-control", "target_port": "image", "metadata": {}},
+      {"id": "e-c-gpt-save", "source": "gpt-control", "source_port": "image", "target": "save-control", "target_port": "image", "metadata": {}}
+    ],
+    "viewport": {"x": 0, "y": 0, "zoom": 0.75},
+    "metadata": {
+      "created_by": "codex",
+      "groups": [
+        {"id": "group-a", "title": "A — Minimal photographic prompt", "color": "blue", "node_ids": ["prompt-minimal", "gpt-minimal", "preview-minimal", "save-minimal"], "bounds": {"x": -1130, "y": 30, "width": 1890, "height": 610}, "execution": {"mode": "enabled"}},
+        {"id": "group-b", "title": "B — Minimal plus short constraint", "color": "green", "node_ids": ["prompt-constraint", "gpt-constraint", "preview-constraint", "save-constraint"], "bounds": {"x": -1130, "y": 710, "width": 1890, "height": 610}, "execution": {"mode": "enabled"}},
+        {"id": "group-c", "title": "C — Current Environment Plate v1.1 control", "color": "orange", "node_ids": ["recipe-control", "gpt-control", "preview-control", "save-control"], "bounds": {"x": -1130, "y": 1390, "width": 1890, "height": 670}, "execution": {"mode": "enabled"}}
+      ]
+    }
+  },
+  "node_definitions": [
+    {"type": "utility.note", "title": "Note", "category": "Utility", "source": {"kind": "system"}, "fingerprint": null},
+    {"type": "prompt.text", "title": "Prompt Text", "category": "Prompt", "source": {"kind": "system"}, "fingerprint": null},
+    {"type": "prompt.recipe", "title": "Prompt Recipe", "category": "Prompt", "source": {"kind": "system"}, "fingerprint": null},
+    {"type": "model.kie.gpt_image_2_text_to_image", "title": "GPT Image 2 Text to Image", "category": "Models/Image", "source": {"kind": "kie_model", "model_key": "gpt-image-2-text-to-image", "output_media_type": "image", "task_modes": ["text_to_image"]}, "fingerprint": null},
+    {"type": "preview.image", "title": "Preview Image", "category": "Preview", "source": {"kind": "system"}, "fingerprint": null},
+    {"type": "media.save_image", "title": "Save Image", "category": "Media", "source": {"kind": "system"}, "fingerprint": null}
+  ],
+  "warnings": []
+}

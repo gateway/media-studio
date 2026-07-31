@@ -8,7 +8,11 @@ import { Panel, PanelHeader } from "@/components/panel";
 import { SharedLlmProviderIntroCard, SharedLlmProviderSection } from "@/components/shared-llm-provider-sections";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import { useSharedProviderModelCatalog } from "@/hooks/use-shared-provider-model-catalog";
-import { savePromptRecipeDraftingConfigRequest } from "@/lib/media-model-admin";
+import {
+  probeMediaAssistantProviderRequest,
+  saveMediaAssistantConfigRequest,
+  savePromptRecipeDraftingConfigRequest,
+} from "@/lib/media-model-admin";
 import {
   llmProviderBillingLabel,
   llmProviderLabel,
@@ -28,6 +32,7 @@ import type { PromptRecipeDraftingConfig } from "@/lib/types";
 type PromptRecipeDraftingSettingsPanelProps = {
   initialConfig: PromptRecipeDraftingConfig | null;
   embedded?: boolean;
+  purpose?: "prompt_recipe" | "media_assistant";
 };
 
 type DraftingFormState = {
@@ -50,7 +55,7 @@ type DraftingFormState = {
 function formFromConfig(config: PromptRecipeDraftingConfig | null): DraftingFormState {
   return {
     enabled: config?.enabled !== false,
-    providerKind: (config?.provider_kind as SharedLlmProviderKind) ?? "openrouter",
+    providerKind: (config?.provider_kind as SharedLlmProviderKind) ?? "codex_local",
     providerLabel: config?.provider_label ?? "",
     providerModelId: config?.provider_model_id ?? "",
     providerBaseUrl: "",
@@ -84,14 +89,18 @@ function DraftingSettingsAccentCard({
 export function PromptRecipeDraftingSettingsPanel({
   initialConfig,
   embedded = false,
+  purpose = "prompt_recipe",
 }: PromptRecipeDraftingSettingsPanelProps) {
+  const isAssistant = purpose === "media_assistant";
   const [form, setForm] = useState<DraftingFormState>(() => formFromConfig(initialConfig));
   const [isSaving, setIsSaving] = useState(false);
   const [manualProbeKind, setManualProbeKind] = useState<SharedLlmProviderKind | null>(null);
   const [openPicker, setOpenPicker] = useState<string | null>(null);
   const [openRouterQuery, setOpenRouterQuery] = useState("");
   const { notice, showNotice, clearNotice } = useAdminActionNotice();
-  const { catalogs, loadProviderCatalog } = useSharedProviderModelCatalog();
+  const { catalogs, loadProviderCatalog } = useSharedProviderModelCatalog(
+    isAssistant ? { probeRequest: probeMediaAssistantProviderRequest } : {},
+  );
   const isAutoLoadingCatalog =
     catalogs[form.providerKind]?.status === "loading" && manualProbeKind == null;
 
@@ -162,7 +171,10 @@ export function PromptRecipeDraftingSettingsPanel({
     setIsSaving(true);
     clearNotice();
     try {
-      const result = await savePromptRecipeDraftingConfigRequest({
+      const saveRequest = isAssistant
+        ? saveMediaAssistantConfigRequest
+        : savePromptRecipeDraftingConfigRequest;
+      const result = await saveRequest({
         enabled: form.enabled,
         provider_kind: form.providerKind,
         provider_label: form.providerLabel || null,
@@ -176,13 +188,13 @@ export function PromptRecipeDraftingSettingsPanel({
         max_tokens: form.maxTokens,
       });
       if (!result.ok || !result.config) {
-        showNotice("danger", result.error ?? "Could not save your recipe drafting defaults.");
+        showNotice("danger", result.error ?? `Could not save your ${isAssistant ? "assistant" : "recipe drafting"} defaults.`);
         return;
       }
       setForm(formFromConfig(result.config));
-      showNotice("healthy", "Recipe drafting defaults saved.");
+      showNotice("healthy", isAssistant ? "Media Assistant defaults saved." : "Recipe drafting defaults saved.");
     } catch {
-      showNotice("danger", "Could not save your recipe drafting defaults right now.");
+      showNotice("danger", `Could not save your ${isAssistant ? "assistant" : "recipe drafting"} defaults right now.`);
     } finally {
       setIsSaving(false);
     }
@@ -233,9 +245,15 @@ export function PromptRecipeDraftingSettingsPanel({
       {notice ? <AdminActionNotice tone={notice.tone} text={notice.text} /> : null}
 
       <SharedLlmProviderIntroCard
-        accentLabel="Recipe draft model"
+        accentLabel={isAssistant ? "Media Assistant model" : "Recipe draft model"}
         summaryLines={[
-          form.enabled ? "Recipe drafts are on." : "Recipe drafts are off.",
+          isAssistant
+            ? form.providerKind === "codex_local"
+              ? "Full Media Studio tools are available."
+              : "Read-only conversation mode."
+            : form.enabled
+              ? "Recipe drafts are on."
+              : "Recipe drafts are off.",
           (
             <>
               AI service:{" "}
@@ -247,7 +265,29 @@ export function PromptRecipeDraftingSettingsPanel({
         ]}
         leadingContent={
           <div className="grid gap-3 md:grid-cols-2">
-            <AdminField label="Turn on recipe drafts">
+            {isAssistant ? (
+              <AdminField label="Assistant provider">
+                <select
+                  value={form.providerKind}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      providerKind: event.target.value as SharedLlmProviderKind,
+                      providerLabel: "",
+                      providerModelId: "",
+                      providerStatus: "",
+                      providerCapabilities: {},
+                    }))
+                  }
+                  className="admin-input text-sm"
+                >
+                  <option value="codex_local">Codex Local</option>
+                  <option value="openrouter">OpenRouter</option>
+                  <option value="local_openai">Local OpenAI-Compatible</option>
+                </select>
+              </AdminField>
+            ) : (
+              <AdminField label="Turn on recipe drafts">
               <label className="admin-toggle-row min-h-11">
                 <span>Let Media Studio draft recipes from an idea</span>
                 <AdminToggle
@@ -261,11 +301,17 @@ export function PromptRecipeDraftingSettingsPanel({
                   }
                 />
               </label>
-            </AdminField>
+              </AdminField>
+            )}
           </div>
         }
         trailingContent={
-          !form.enabled ? (
+          isAssistant && form.providerKind !== "codex_local" ? (
+            <div className="admin-surface-inset p-3 text-sm leading-6 text-[var(--muted-strong)]">
+              This provider is chat only. Graph building needs Codex Local, which is the only option with Media Studio
+              tool access.
+            </div>
+          ) : !form.enabled ? (
             <div className="admin-surface-inset p-3 text-sm leading-6 text-[var(--muted-strong)]">
               Recipe drafts will stay hidden in the Prompt Recipe editor until you turn this on.
               {!embedded ? null : (
@@ -313,7 +359,7 @@ export function PromptRecipeDraftingSettingsPanel({
             </div>
             <div className="grid max-w-[760px] gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
               {renderSelect(
-                "drafting-openrouter-model",
+                `${isAssistant ? "assistant" : "drafting"}-openrouter-model`,
                 form.providerModelId,
                 (value) => {
                   const selected = activeCatalog.find((item) => item.id === value) ?? null;
@@ -433,8 +479,8 @@ export function PromptRecipeDraftingSettingsPanel({
       {form.enabled && form.providerKind === "codex_local" ? (
         <DraftingSettingsAccentCard label="How this behaves">
           <div className="text-sm leading-6 text-[var(--muted-strong)]">
-            Codex Local manages its own drafting behavior. Media Studio saves the provider and model here, but it
-            does not ask you to tune temperature or token limits for this option.
+            Codex Local manages its own {isAssistant ? "assistant" : "drafting"} behavior. Media Studio saves the
+            provider and model here, but it does not ask you to tune temperature or token limits for this option.
           </div>
         </DraftingSettingsAccentCard>
       ) : form.enabled ? (
@@ -461,15 +507,14 @@ export function PromptRecipeDraftingSettingsPanel({
             </AdminField>
           </div>
           <div className="text-sm leading-6 text-[var(--muted-strong)]">
-            Most people should leave these alone. Recipe drafting still returns text-first output even when the
-            provider can accept images.
+            Most people should leave these alone. {isAssistant ? "Chat-only providers cannot inspect or change Media Studio state." : "Recipe drafting still returns text-first output even when the provider can accept images."}
           </div>
         </DraftingSettingsAccentCard>
       ) : null}
 
       <div className="mt-2 flex flex-wrap gap-3">
         <AdminButton onClick={() => void saveConfig()} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save recipe defaults"}
+          {isSaving ? "Saving..." : isAssistant ? "Save assistant defaults" : "Save recipe defaults"}
         </AdminButton>
       </div>
     </div>
@@ -482,9 +527,13 @@ export function PromptRecipeDraftingSettingsPanel({
   return (
     <Panel className="p-5 sm:p-6">
       <PanelHeader
-        eyebrow="Prompt Recipe Drafting"
-        title="Recipe draft model"
-        description="Choose the default AI service and model used when Media Studio writes the first draft of a recipe."
+        eyebrow={isAssistant ? "Media Assistant" : "Prompt Recipe Drafting"}
+        title={isAssistant ? "Assistant model" : "Recipe draft model"}
+        description={
+          isAssistant
+            ? "Choose the provider used for Media Assistant conversations and Studio actions."
+            : "Choose the default AI service and model used when Media Studio writes the first draft of a recipe."
+        }
       />
       <div className="mt-5">{content}</div>
     </Panel>

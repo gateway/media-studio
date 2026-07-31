@@ -107,12 +107,9 @@ export function resolveGraphContentAutoHeight(options: {
   if (!normalizedRequiredHeight) return null;
   const autoMaxHeight = Math.max(options.maxHeight, GRAPH_NODE_AUTO_HEIGHT_HARD_MAX);
   const clampedRequiredHeight = clamp(normalizedRequiredHeight, options.minHeight, autoMaxHeight);
-  const currentHeight = Math.max(0, Math.ceil(options.currentHeight));
-  const previousAutoHeight = typeof options.previousAutoHeight === "number" && Number.isFinite(options.previousAutoHeight) ? options.previousAutoHeight : null;
-  const preservesManualHeight = previousAutoHeight != null && currentHeight > previousAutoHeight + 4 && currentHeight > clampedRequiredHeight;
   return {
     autoSizedHeight: clampedRequiredHeight,
-    height: preservesManualHeight ? clamp(currentHeight, clampedRequiredHeight, autoMaxHeight) : clampedRequiredHeight,
+    height: clampedRequiredHeight,
     minHeight: options.minHeight,
   };
 }

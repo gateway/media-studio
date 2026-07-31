@@ -34,6 +34,7 @@ class GraphNodeField(BaseModel):
     hidden: bool = False
     connectable: bool = False
     port_type: Optional[str] = None
+    reference_role: Optional[str] = None
     visible_if: Optional[Dict[str, Any]] = None
 
 

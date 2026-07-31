@@ -7,6 +7,7 @@ import { referenceMediaPickerItem } from "@/components/media/media-image-picker-
 import type { MediaReference } from "@/lib/types";
 import { NODE_COLOR_CHOICES } from "./graph-studio-constants";
 import { GraphGroupContextMenu } from "./graph-group-context-menu";
+import { GraphNode } from "./graph-node";
 import { GraphNodeContextMenu } from "./graph-node-context-menu";
 import { GraphNodeDisplayAny } from "./graph-node-display-any";
 import { GraphNodeMediaPreview } from "./graph-node-media-preview";
@@ -27,6 +28,7 @@ import { previewFromReference } from "./utils/graph-media-preview";
 export type GraphStudioFixtureKind =
   | "audio-picker"
   | "display-any"
+  | "field-input"
   | "load-video"
   | "preview-overlay"
   | "pricing-modal"
@@ -37,6 +39,7 @@ export type GraphStudioFixtureKind =
 const FIXTURE_KINDS = new Set<GraphStudioFixtureKind>([
   "audio-picker",
   "display-any",
+  "field-input",
   "load-video",
   "preview-overlay",
   "pricing-modal",
@@ -286,6 +289,75 @@ function DisplayAnyFixture() {
             !
           </button>
         </div>
+      </div>
+    </FixtureShell>
+  );
+}
+
+function FieldInputFixture() {
+  const definition: GraphNodeDefinition = {
+    type: "prompt.recipe",
+    title: "Prompt Recipe",
+    category: "AI",
+    fields: [
+      {
+        id: "recipe_id",
+        label: "Prompt Recipe",
+        type: "text",
+      },
+      {
+        id: "user_prompt",
+        label: "User Prompt",
+        type: "textarea",
+        connectable: true,
+        port_type: "text",
+      },
+      {
+        id: "setting",
+        label: "Setting",
+        type: "textarea",
+        help_text: "Connect an image when the setting should come from visual reference.",
+        connectable: true,
+        port_type: "image",
+      },
+    ],
+    ports: {
+      inputs: [
+        { id: "user_prompt", label: "User Prompt", type: "text" },
+        { id: "setting", label: "Setting", type: "image" },
+        { id: "image_refs", label: "Image Refs", type: "image", array: true },
+      ],
+      outputs: [{ id: "text", label: "Text", type: "text" }],
+    },
+  };
+  const data: GraphNodeData = {
+    definition,
+    fields: {
+      recipe_id: "fixture-field-input-recipe",
+      user_prompt: "A short creative brief.",
+      setting: "",
+    },
+    onFieldChange: noop,
+    onSetFields: noop,
+  };
+
+  return (
+    <FixtureShell title="Graph Prompt Recipe field input fixture">
+      <div className="graph-fixture-grid graph-fixture-grid-status">
+        <GraphNode
+          id="field-input-recipe"
+          data={data}
+          selected={false}
+          type="graphNode"
+          dragging={false}
+          zIndex={1}
+          selectable
+          deletable
+          draggable
+          isConnectable
+          positionAbsoluteX={0}
+          positionAbsoluteY={0}
+        />
       </div>
     </FixtureShell>
   );
@@ -633,6 +705,8 @@ export function GraphStudioFixtureLayer({
       return <AudioPickerFixture />;
     case "display-any":
       return <DisplayAnyFixture />;
+    case "field-input":
+      return <FieldInputFixture />;
     case "load-video":
       return <LoadVideoFixture />;
     case "preview-overlay":

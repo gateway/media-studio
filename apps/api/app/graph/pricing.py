@@ -8,6 +8,8 @@ from ..pricing import summarize_estimated_cost
 from .executors.kie_model import _select_task_mode
 from .normalization import materialize_workflow_defaults
 from .preset_catalog import MODEL_OPTION_FIELD_PREFIX
+from .prompt_provider_defaults import studio_default_prompt_provider_config
+from .prompt_recipe_refs import prompt_recipe_field_image_port_ids, prompt_recipe_image_port_ids
 from .registry import registry
 from .schemas import GraphError, GraphEstimateNode, GraphEstimateResponse, GraphNodeDefinition, GraphWorkflow, GraphWorkflowNode
 from .validator import validate_workflow
@@ -50,7 +52,6 @@ SUBSCRIPTION_EXTERNAL_LLM_PRICING_SUMMARY = {
     "total": {"estimated_credits": None, "estimated_cost_usd": None},
 }
 
-STUDIO_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
 DEFAULT_EXTERNAL_PROMPT_TOKEN_CHARS = 4.0
 DEFAULT_EXTERNAL_MESSAGE_OVERHEAD_TOKENS = 80
 DEFAULT_EXTERNAL_IMAGE_TOKEN_ESTIMATE = 1024
@@ -309,7 +310,7 @@ def _external_llm_provider_details(node: GraphWorkflowNode) -> Dict[str, str]:
     provider = str(node.fields.get("provider") or "studio_default").strip() or "studio_default"
     if provider != "studio_default":
         return {"provider": provider, "provider_kind": provider, "model_id": str(node.fields.get("model_id") or "").strip()}
-    config = store.get_enhancement_config(STUDIO_ENHANCEMENT_CONFIG_KEY) or {}
+    config = studio_default_prompt_provider_config()
     provider_kind = str(config.get("provider_kind") or "builtin").strip() or "builtin"
     return {
         "provider": provider,
@@ -384,7 +385,14 @@ def _estimate_prompt_recipe_calls(
     image_input = recipe.get("image_input_json") if isinstance(recipe, dict) and isinstance(recipe.get("image_input_json"), dict) else {}
     image_enabled = bool(image_input.get("enabled"))
     image_mode = str(image_input.get("mode") or "none").strip() or "none"
-    image_count = _incoming_edge_count(workflow, node.id, "image_refs", definitions=definitions, expected_type="image")
+    image_port_ids = (*prompt_recipe_image_port_ids(), *(prompt_recipe_field_image_port_ids(recipe) if isinstance(recipe, dict) else ()))
+    image_count = _incoming_edge_count_for_ports(
+        workflow,
+        node.id,
+        image_port_ids,
+        definitions=definitions,
+        expected_type="image",
+    )
     output_format = str(recipe.get("output_format") or "single_prompt") if isinstance(recipe, dict) else "single_prompt"
     final_max_tokens = _bounded_int(
         node.fields.get("max_tokens"),
@@ -468,6 +476,20 @@ def _incoming_edge_count(
         if port and port.type == expected_type:
             count += 1
     return count
+
+
+def _incoming_edge_count_for_ports(
+    workflow: GraphWorkflow,
+    node_id: str,
+    target_ports: tuple[str, ...],
+    *,
+    definitions: Dict[str, GraphNodeDefinition],
+    expected_type: str,
+) -> int:
+    return sum(
+        _incoming_edge_count(workflow, node_id, port_id, definitions=definitions, expected_type=expected_type)
+        for port_id in target_ports
+    )
 
 
 def _estimate_model_node(

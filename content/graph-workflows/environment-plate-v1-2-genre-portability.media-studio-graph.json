@@ -1,0 +1,225 @@
+{
+  "kind": "media-studio.graph.workflow",
+  "schema_version": 1,
+  "exported_at": "2026-07-22T08:10:00.000Z",
+  "workflow": {
+    "schema_version": 1,
+    "workflow_id": null,
+    "name": "Environment Plate v1.2 — Genre Portability",
+    "description": "Paid 2K verification of the concise photographic environment recipe across fantasy, science fiction, and western locations.",
+    "nodes": [
+      {
+        "id": "guide",
+        "type": "utility.note",
+        "position": {"x": -1080, "y": -420},
+        "fields": {
+          "body": "### Environment Plate v1.2 genre portability\n\nThree saved 2K GPT Image 2 outputs verify that genre changes the physical set content without changing the photographic medium.\n\n- Lane A creates a practical fantasy mountain sanctuary.\n- Lane B creates a science-fiction research station.\n- Lane C creates a western telegraph office.\n\nAll three lanes use the same Environment Plate v1.2 recipe and are enabled for this deliberate paid comparison."
+        },
+        "metadata": {
+          "style": {"width": 540, "height": 360},
+          "ui": {"customTitle": "Test guide"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "recipe-fantasy",
+        "type": "prompt.recipe",
+        "position": {"x": -1080, "y": 80},
+        "fields": {
+          "recipe_category": "image",
+          "provider": "codex_local",
+          "model_id": "gpt-5.6-sol",
+          "provider_model_label": "GPT-5.6-Sol",
+          "provider_capabilities_json": {},
+          "temperature": "",
+          "max_tokens": "",
+          "external_variables_json": "{}",
+          "recipe_id": "prompt-recipe-environment-plate-v1",
+          "image_analysis": "No environment reference images provided.",
+          "user_prompt": "An ancient mountain sanctuary built into a cliff, viewed from a stone causeway through its open arch. The circular chamber contains a shallow spring, carved basalt columns, three iron lanterns, and a ring of translucent glass runes lit by small oil lamps beneath the floor. A snowy valley is visible beyond. Pale overcast daylight. No people.",
+          "environment_name": "Glass Rune Sanctuary",
+          "environment_type": "practical fantasy mountain sanctuary",
+          "camera_view": "wide eye-level view from the stone causeway through the open arch",
+          "mood_lighting": "pale overcast daylight with small warm oil lamps beneath the glass floor insets",
+          "action_lanes": "stone causeway entrance, shallow central spring, column ring, and open view to the snowy valley"
+        },
+        "metadata": {
+          "ui": {"customTitle": "A — Fantasy recipe"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "gpt-fantasy",
+        "type": "model.kie.gpt_image_2_text_to_image",
+        "position": {"x": -560, "y": 80},
+        "fields": {"prompt": "", "aspect_ratio": "16:9", "resolution": "2K"},
+        "metadata": {
+          "ui": {"customTitle": "A — GPT Image 2 fantasy"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "preview-fantasy",
+        "type": "preview.image",
+        "position": {"x": -80, "y": 80},
+        "fields": {},
+        "metadata": {
+          "ui": {"customTitle": "A — Fantasy preview"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "save-fantasy",
+        "type": "media.save_image",
+        "position": {"x": 340, "y": 80},
+        "fields": {"project_id": "", "label": "Environment Plate v1.2 — Fantasy Sanctuary"},
+        "metadata": {
+          "ui": {"customTitle": "A — Save fantasy"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "recipe-scifi",
+        "type": "prompt.recipe",
+        "position": {"x": -1080, "y": 760},
+        "fields": {
+          "recipe_category": "image",
+          "provider": "codex_local",
+          "model_id": "gpt-5.6-sol",
+          "provider_model_label": "GPT-5.6-Sol",
+          "provider_capabilities_json": {},
+          "temperature": "",
+          "max_tokens": "",
+          "external_variables_json": "{}",
+          "recipe_id": "prompt-recipe-environment-plate-v1",
+          "image_analysis": "No environment reference images provided.",
+          "user_prompt": "A compact research station on an icy moon, viewed at eye level through an open inner airlock. The control room contains two operator consoles, exposed utility conduits, a sealed equipment cabinet, and reinforced windows facing a frozen plain and a large ringed planet. Cool reflected daylight and warm ceiling practicals. Brushed aluminum, painted steel, dark rubber flooring. No people.",
+          "environment_name": "Nereid Research Station",
+          "environment_type": "physical science-fiction lunar research station",
+          "camera_view": "wide eye-level view through the open inner airlock into the control room",
+          "mood_lighting": "cool reflected daylight through reinforced windows with restrained warm ceiling practicals",
+          "action_lanes": "airlock entrance, two consoles, equipment cabinet, and clear windows toward the frozen plain"
+        },
+        "metadata": {
+          "ui": {"customTitle": "B — Science-fiction recipe"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "gpt-scifi",
+        "type": "model.kie.gpt_image_2_text_to_image",
+        "position": {"x": -560, "y": 760},
+        "fields": {"prompt": "", "aspect_ratio": "16:9", "resolution": "2K"},
+        "metadata": {
+          "ui": {"customTitle": "B — GPT Image 2 science fiction"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "preview-scifi",
+        "type": "preview.image",
+        "position": {"x": -80, "y": 760},
+        "fields": {},
+        "metadata": {
+          "ui": {"customTitle": "B — Science-fiction preview"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "save-scifi",
+        "type": "media.save_image",
+        "position": {"x": 340, "y": 760},
+        "fields": {"project_id": "", "label": "Environment Plate v1.2 — Science-Fiction Station"},
+        "metadata": {
+          "ui": {"customTitle": "B — Save science fiction"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "recipe-western",
+        "type": "prompt.recipe",
+        "position": {"x": -1080, "y": 1440},
+        "fields": {
+          "recipe_category": "image",
+          "provider": "codex_local",
+          "model_id": "gpt-5.6-sol",
+          "provider_model_label": "GPT-5.6-Sol",
+          "provider_capabilities_json": {},
+          "temperature": "",
+          "max_tokens": "",
+          "external_variables_json": "{}",
+          "recipe_id": "prompt-recipe-environment-plate-v1",
+          "image_analysis": "No environment reference images provided.",
+          "user_prompt": "An isolated frontier telegraph office, viewed from the boardwalk through its open front door. The timber room contains one operator desk with a brass telegraph key, a cast-iron stove, shelves of paper records, and a rear doorway. The windows face a dry main street with hitching rails and low desert hills. Warm late-afternoon sunlight. No people.",
+          "environment_name": "Red Mesa Telegraph Office",
+          "environment_type": "physical western frontier telegraph office",
+          "camera_view": "wide eye-level view from the boardwalk through the open front door",
+          "mood_lighting": "warm late-afternoon desert sunlight entering through the front windows",
+          "action_lanes": "front door, operator desk, stove, rear doorway, and visible main street"
+        },
+        "metadata": {
+          "ui": {"customTitle": "C — Western recipe"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "gpt-western",
+        "type": "model.kie.gpt_image_2_text_to_image",
+        "position": {"x": -560, "y": 1440},
+        "fields": {"prompt": "", "aspect_ratio": "16:9", "resolution": "2K"},
+        "metadata": {
+          "ui": {"customTitle": "C — GPT Image 2 western"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "preview-western",
+        "type": "preview.image",
+        "position": {"x": -80, "y": 1440},
+        "fields": {},
+        "metadata": {
+          "ui": {"customTitle": "C — Western preview"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      },
+      {
+        "id": "save-western",
+        "type": "media.save_image",
+        "position": {"x": 340, "y": 1440},
+        "fields": {"project_id": "", "label": "Environment Plate v1.2 — Western Telegraph Office"},
+        "metadata": {
+          "ui": {"customTitle": "C — Save western"},
+          "execution": {"mode": "enabled", "cached_run_id": null, "cached_artifact_ids": {}}
+        }
+      }
+    ],
+    "edges": [
+      {"id": "e-a-recipe-gpt", "source": "recipe-fantasy", "source_port": "text", "target": "gpt-fantasy", "target_port": "prompt", "metadata": {}},
+      {"id": "e-a-gpt-preview", "source": "gpt-fantasy", "source_port": "image", "target": "preview-fantasy", "target_port": "image", "metadata": {}},
+      {"id": "e-a-gpt-save", "source": "gpt-fantasy", "source_port": "image", "target": "save-fantasy", "target_port": "image", "metadata": {}},
+      {"id": "e-b-recipe-gpt", "source": "recipe-scifi", "source_port": "text", "target": "gpt-scifi", "target_port": "prompt", "metadata": {}},
+      {"id": "e-b-gpt-preview", "source": "gpt-scifi", "source_port": "image", "target": "preview-scifi", "target_port": "image", "metadata": {}},
+      {"id": "e-b-gpt-save", "source": "gpt-scifi", "source_port": "image", "target": "save-scifi", "target_port": "image", "metadata": {}},
+      {"id": "e-c-recipe-gpt", "source": "recipe-western", "source_port": "text", "target": "gpt-western", "target_port": "prompt", "metadata": {}},
+      {"id": "e-c-gpt-preview", "source": "gpt-western", "source_port": "image", "target": "preview-western", "target_port": "image", "metadata": {}},
+      {"id": "e-c-gpt-save", "source": "gpt-western", "source_port": "image", "target": "save-western", "target_port": "image", "metadata": {}}
+    ],
+    "viewport": {"x": 0, "y": 0, "zoom": 0.75},
+    "metadata": {
+      "created_by": "codex",
+      "groups": [
+        {"id": "group-a", "title": "A — Fantasy mountain sanctuary", "color": "purple", "node_ids": ["recipe-fantasy", "gpt-fantasy", "preview-fantasy", "save-fantasy"], "bounds": {"x": -1130, "y": 30, "width": 1890, "height": 610}, "execution": {"mode": "enabled"}},
+        {"id": "group-b", "title": "B — Science-fiction research station", "color": "blue", "node_ids": ["recipe-scifi", "gpt-scifi", "preview-scifi", "save-scifi"], "bounds": {"x": -1130, "y": 710, "width": 1890, "height": 610}, "execution": {"mode": "enabled"}},
+        {"id": "group-c", "title": "C — Western telegraph office", "color": "orange", "node_ids": ["recipe-western", "gpt-western", "preview-western", "save-western"], "bounds": {"x": -1130, "y": 1390, "width": 1890, "height": 670}, "execution": {"mode": "enabled"}}
+      ]
+    }
+  },
+  "node_definitions": [
+    {"type": "utility.note", "title": "Note", "category": "Utility", "source": {"kind": "system"}, "fingerprint": null},
+    {"type": "prompt.recipe", "title": "Prompt Recipe", "category": "Prompt", "source": {"kind": "system"}, "fingerprint": null},
+    {"type": "model.kie.gpt_image_2_text_to_image", "title": "GPT Image 2 Text to Image", "category": "Models/Image", "source": {"kind": "kie_model", "model_key": "gpt-image-2-text-to-image", "output_media_type": "image", "task_modes": ["text_to_image"]}, "fingerprint": null},
+    {"type": "preview.image", "title": "Preview Image", "category": "Preview", "source": {"kind": "system"}, "fingerprint": null},
+    {"type": "media.save_image", "title": "Save Image", "category": "Media", "source": {"kind": "system"}, "fingerprint": null}
+  ],
+  "warnings": []
+}

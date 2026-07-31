@@ -825,8 +825,8 @@ describe("graph node execution metadata", () => {
     expect(normalizeGraphExecutionMode("frozen")).toBe("frozen");
     expect(normalizeGraphExecutionMode("unexpected")).toBe("enabled");
     expect(graphExecutionModeLabel("bypassed")).toBe("Bypassed");
-    expect(graphExecutionModeLabel("frozen")).toBe("Muted");
-    expect(graphExecutionModeLabel("muted")).toBe("Disabled");
+    expect(graphExecutionModeLabel("frozen")).toBe("Frozen");
+    expect(graphExecutionModeLabel("muted")).toBe("Muted");
     expect(graphExecutionModeClass("muted")).toBe("graph-node-execution-muted");
   });
 });
@@ -1103,19 +1103,25 @@ describe("graph run event display", () => {
     ).toMatchObject({ label: "Submitted", detail: "Provider job created", tone: "active" });
   });
 
-  it("labels frozen skipped nodes as muted instead of disabled", () => {
+  it("labels skipped nodes by their execution reason", () => {
     expect(
       formatGraphRunEventForConsole(
         { event_type: "node.skipped", node_id: "model_1", payload_json: { execution_mode: "frozen", reason: "missing_cached_output" } } as any,
         [node],
       ),
-    ).toBe("Muted: Nano branch - No cached output");
+    ).toBe("Frozen: Nano branch - No cached output");
 
     expect(
       graphNodeActivitiesFromRunEvents([], {
         nodes: [{ node_id: "model_1", status: "skipped", metrics_json: { execution_mode: "frozen", skip_reason: "missing_cached_output" } }],
       } as any).model_1,
-    ).toMatchObject({ label: "Muted", detail: "No cached output", tone: "muted" });
+    ).toMatchObject({ label: "Frozen", detail: "No cached output", tone: "muted" });
+
+    expect(
+      graphNodeActivitiesFromRunEvents([], {
+        nodes: [{ node_id: "model_1", status: "skipped", metrics_json: { execution_mode: "enabled", skip_reason: "upstream_failed" } }],
+      } as any).model_1,
+    ).toMatchObject({ label: "Skipped", detail: "Blocked by failed node", tone: "muted" });
   });
 });
 

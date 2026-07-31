@@ -4,6 +4,9 @@ import {
   defaultPromptRecipeVariables,
   detectInvalidPromptRecipeTokens,
   detectPromptRecipeVariables,
+  normalizePromptRecipeFieldReferenceRole,
+  normalizePromptRecipeCustomField,
+  normalizePromptRecipeVariables,
   promptRecipeDraftWarnings,
   slugifyPromptRecipeKey,
   validatePromptRecipeDraft,
@@ -23,11 +26,79 @@ describe("prompt-recipes", () => {
     expect(slugifyPromptRecipeKey("Video Director: Four Shots!")).toBe("video_director_four_shots");
   });
 
+  it("allows hyphenated recipe keys while keeping variable tokens underscore-only", () => {
+    const base = {
+      key: "environment-sheet-v1",
+      label: "Environment Sheet v1",
+      category: "image",
+      outputFormat: "single_prompt",
+      template: "{{user_prompt}}",
+      variables: [{ key: "user_prompt", label: "User Prompt", enabled: true, required: true }],
+      customFields: [],
+      imageInput: { enabled: false, required: false, mode: "none", analysis_variable: "image_analysis", max_files: 0 },
+      imageAnalysisPrompt: "",
+      rules: { allow_external_variables: true },
+    };
+
+    expect(validatePromptRecipeDraft(base)).toBeNull();
+    expect(validatePromptRecipeDraft({ ...base, template: "{{bad-token}}" })).toContain("Invalid variable token");
+  });
+
   it("enables reserved variables that are present in a template", () => {
     const variables = defaultPromptRecipeVariables("{{user_prompt}} {{duration_seconds}}");
     expect(variables.find((variable) => variable.key === "user_prompt")?.enabled).toBe(true);
+    expect(variables.find((variable) => variable.key === "user_prompt")?.input_kind).toBe("text");
     expect(variables.find((variable) => variable.key === "duration_seconds")?.enabled).toBe(true);
     expect(variables.find((variable) => variable.key === "source_prompt")?.enabled).toBe(false);
+  });
+
+  it("normalizes Prompt Recipe field graph input kinds", () => {
+    const variables = normalizePromptRecipeVariables(
+      [{ key: "source_prompt", label: "Source Prompt", input_kind: "bogus" }],
+      "{{source_prompt}}",
+    );
+    expect(variables.find((variable) => variable.key === "source_prompt")?.input_kind).toBe("text");
+    expect(normalizePromptRecipeCustomField({ key: "setting", label: "Setting", input_kind: "image" }).input_kind).toBe("image");
+    expect(normalizePromptRecipeCustomField({ key: "setting", label: "Setting", input_kind: "bogus" }).input_kind).toBe("none");
+  });
+
+  it("preserves recipe-specific input variables outside the reserved graph inputs", () => {
+    const variables = normalizePromptRecipeVariables(
+      [
+        { key: "user_prompt", label: "User Prompt", enabled: true, required: true },
+        { key: "dialogue_mode", label: "Dialogue Mode", enabled: true, default_value: "none" },
+      ],
+      "{{user_prompt}} {{dialogue_mode}}",
+    );
+
+    expect(variables.find((variable) => variable.key === "dialogue_mode")).toMatchObject({
+      label: "Dialogue Mode",
+      enabled: true,
+      token: "{{dialogue_mode}}",
+      default_value: "none",
+    });
+  });
+
+  it("normalizes Prompt Recipe image field reference roles", () => {
+    expect(normalizePromptRecipeFieldReferenceRole("environment", "image")).toBe("environment");
+    expect(normalizePromptRecipeFieldReferenceRole("environment", "text")).toBe("none");
+    expect(normalizePromptRecipeFieldReferenceRole("bogus", "image")).toBe("none");
+    expect(
+      normalizePromptRecipeCustomField({
+        key: "setting",
+        label: "Setting",
+        input_kind: "image",
+        reference_role: "environment",
+      }).reference_role,
+    ).toBe("environment");
+    expect(
+      normalizePromptRecipeCustomField({
+        key: "setting",
+        label: "Setting",
+        input_kind: "text",
+        reference_role: "environment",
+      }).reference_role,
+    ).toBe("none");
   });
 
   it("blocks duplicate custom fields and unknown variables when external variables are disabled", () => {
@@ -81,6 +152,23 @@ describe("prompt-recipes", () => {
       }),
     ).toContain("image input is turned off");
     expect(validatePromptRecipeDraft({ ...base, imageInput: { ...base.imageInput, max_files: 2 } })).toBeNull();
+  });
+
+  it("requires image input settings when a field accepts image connections", () => {
+    expect(
+      validatePromptRecipeDraft({
+        key: "field_image_recipe",
+        label: "Field Image Recipe",
+        category: "image",
+        outputFormat: "single_prompt",
+        template: "{{user_prompt}} {{setting}}",
+        variables: [{ key: "user_prompt", label: "User Prompt", enabled: true, required: true }],
+        customFields: [{ key: "setting", label: "Setting", type: "textarea", input_kind: "image" }],
+        imageInput: { enabled: false, required: false, mode: "none", analysis_variable: "image_analysis", max_files: 0 },
+        imageAnalysisPrompt: "",
+        rules: { allow_external_variables: false },
+      }),
+    ).toContain("Image field inputs require image input");
   });
 
   it("blocks duplicate select custom field options", () => {

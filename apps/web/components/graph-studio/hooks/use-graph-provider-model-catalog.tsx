@@ -84,7 +84,11 @@ export function useGraphProviderModelCatalog({
         continue;
       }
       const current = catalogs[providerKind];
-      const stale = Boolean(current?.fetchedAt && Date.now() - current.fetchedAt > GRAPH_PROVIDER_CATALOG_TTL_MS);
+      const stale = Boolean(
+        current?.status === "ready" &&
+          current.fetchedAt &&
+          Date.now() - current.fetchedAt > GRAPH_PROVIDER_CATALOG_TTL_MS,
+      );
       if (!current || current.status === "idle" || stale) {
         void loadProviderCatalog(providerKind, { force: stale, announce: false });
       }

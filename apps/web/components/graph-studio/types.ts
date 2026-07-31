@@ -51,6 +51,7 @@ export type GraphNodeField = {
   hidden?: boolean;
   connectable?: boolean;
   port_type?: string | null;
+  reference_role?: string | null;
   visible_if?: {
     field?: string;
     equals?: unknown;
@@ -104,6 +105,7 @@ export type GraphNodeData = {
   collapsed?: boolean;
   advancedExpanded?: boolean;
   autoSizedHeight?: number | null;
+  userSizedHeight?: boolean | null;
   mediaAutoFitSignature?: string | null;
   accentColor?: string | null;
   nodeColor?: string | null;
@@ -203,6 +205,16 @@ export type GraphWorkflowPayload = {
   metadata?: Record<string, unknown>;
 };
 
+export type AssistantNextAction = {
+  kind: "none" | "confirm_graph" | "save_media_preset" | "save_prompt_recipe" | "apply_repair" | "run_workflow";
+  label?: string | null;
+  proposal_id?: string | null;
+  confirmation_token?: string | null;
+  requires_confirmation: boolean;
+  payload?: Record<string, unknown>;
+  price_estimate?: Record<string, unknown> | null;
+};
+
 export type AssistantSession = {
   assistant_session_id: string;
   owner_kind: "graph_workflow" | "studio_project" | "media_preset" | "prompt_recipe" | "standalone";
@@ -213,6 +225,8 @@ export type AssistantSession = {
   title?: string | null;
   messages: AssistantMessage[];
   attachments: AssistantAttachment[];
+  summary_json?: Record<string, unknown>;
+  latest_plan?: AssistantPlanResponse | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -251,6 +265,7 @@ export type AssistantPlan = {
   assistant_session_id: string;
   status: "draft" | "validated" | "applied" | "rejected" | "failed";
   capability: AssistantGraphPlan["capability"];
+  applied_workflow_id?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };

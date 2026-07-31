@@ -2,19 +2,28 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
 from typing import Any, Callable, Dict, List, Mapping, Set
 
 from .. import store
+from .prompt_recipe_refs import (
+    prompt_recipe_field_image_port_ids,
+    prompt_recipe_image_port_ids,
+)
+from .prompt_provider_defaults import studio_default_prompt_provider_config
 from .schemas import GraphError, GraphNodeDefinition, GraphWorkflowNode
 
 
-GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
 PROMPT_RECIPE_IMAGE_MODES = {"none", "direct_reference", "analyze_then_inject", "both"}
 PROMPT_RECIPE_TOKEN_RE = re.compile(r"\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}")
 PROMPT_RECIPE_IMAGE_REFERENCE_RE = re.compile(
     r"(?:\[\[\s*image[_\s-]*reference\s*\d+\s*\]\]|\[\s*image[_\s-]*reference\s*\d+\s*\]|@image\s*\d+)",
     re.IGNORECASE,
 )
+PROMPT_RECIPE_INTERNAL_RUNTIME_VARIABLES = {
+    "reference_role_block",
+    "reference_priority_rule",
+}
 
 
 def prompt_recipe_id_for_node(node: GraphWorkflowNode, definition: GraphNodeDefinition) -> str:
@@ -27,7 +36,7 @@ def prompt_recipe_id_for_node(node: GraphWorkflowNode, definition: GraphNodeDefi
 def _prompt_recipe_provider_supports_images(node: GraphWorkflowNode) -> bool | None:
     requested_provider = str(node.fields.get("provider") or "studio_default").strip()
     if requested_provider == "studio_default":
-        config = store.get_enhancement_config(GLOBAL_ENHANCEMENT_CONFIG_KEY) or {}
+        config = studio_default_prompt_provider_config()
         provider_kind = str(config.get("provider_kind") or "builtin").strip()
         if provider_kind == "builtin":
             return None
@@ -90,7 +99,10 @@ def validate_prompt_recipe_node_setup(
     if not recipe_id:
         errors.append(GraphError(code="missing_prompt_recipe", message="Prompt Recipe node requires a saved recipe.", node_id=node.id, field_id="recipe_id"))
         return None
-    recipe = store.get_prompt_recipe(recipe_id)
+    try:
+        recipe = store.get_prompt_recipe(recipe_id)
+    except sqlite3.Error:
+        recipe = None
     if not recipe:
         errors.append(GraphError(code="missing_prompt_recipe", message="Referenced Prompt Recipe does not exist.", node_id=node.id, field_id="recipe_id"))
         return None
@@ -142,10 +154,27 @@ def validate_prompt_recipe_runtime(
     external_variables = prompt_recipe_context["external_variables"]
     image_input = prompt_recipe_context["image_input"]
     image_mode = prompt_recipe_context["image_mode"]
+    rules = recipe.get("rules_json") or {}
+    if isinstance(rules, str):
+        try:
+            rules = json.loads(rules)
+        except json.JSONDecodeError:
+            rules = {}
+    if not isinstance(rules, dict):
+        rules = {}
 
     max_files = int(image_input.get("max_files") or (1 if image_input.get("enabled") else 0))
-    image_edge_count = incoming_by_target_port[(node.id, "image_refs")]
-    available_image_count = available_incoming_by_target_port[(node.id, "image_refs")]
+    image_port_ids = (*prompt_recipe_image_port_ids(), *prompt_recipe_field_image_port_ids(recipe))
+    image_port_counts = {
+        port_id: incoming_by_target_port[(node.id, port_id)]
+        for port_id in image_port_ids
+    }
+    available_image_port_counts = {
+        port_id: available_incoming_by_target_port[(node.id, port_id)]
+        for port_id in image_port_ids
+    }
+    image_edge_count = sum(max(0, int(count or 0)) for count in image_port_counts.values())
+    available_image_count = sum(max(0, int(count or 0)) for count in available_image_port_counts.values())
     if max_files and image_edge_count > max_files:
         errors.append(
             GraphError(
@@ -164,7 +193,7 @@ def validate_prompt_recipe_runtime(
                 port_id="image_refs",
             )
         )
-    if bool(image_input.get("enabled")) and image_mode != "none" and available_image_count < 1:
+    if bool(image_input.get("enabled")) and bool(image_input.get("required")) and image_mode != "none" and available_image_count < 1:
         warnings.append(
             GraphError(
                 code="prompt_recipe_images_not_connected",
@@ -188,7 +217,12 @@ def validate_prompt_recipe_runtime(
         ]
         if value is not None
     )
-    if available_image_count < 1 and PROMPT_RECIPE_IMAGE_REFERENCE_RE.search(image_reference_text):
+    references_are_downstream_contract = bool(rules.get("requires_ordered_image_refs")) and not bool(image_input.get("enabled"))
+    if (
+        available_image_count < 1
+        and not references_are_downstream_contract
+        and PROMPT_RECIPE_IMAGE_REFERENCE_RE.search(image_reference_text)
+    ):
         warnings.append(
             GraphError(
                 code="prompt_recipe_image_reference_unwired",
@@ -268,6 +302,7 @@ def validate_prompt_recipe_runtime(
             )
     if image_mode in {"analyze_then_inject", "both"} and available_image_count > 0 and str(recipe.get("image_analysis_prompt") or "").strip():
         resolved_variables.add(str(image_input.get("analysis_variable") or "image_analysis"))
+    resolved_variables.update(PROMPT_RECIPE_INTERNAL_RUNTIME_VARIABLES)
     unresolved_tokens = sorted(
         {
             token

@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Set
 from .. import store
 from .execution_cache import cached_artifacts_available, cached_output_for_node, cached_output_media_available
 from .normalization import materialize_workflow_defaults
+from .prompt_provider_defaults import studio_default_prompt_provider_config
 from .registry import registry
 from .schemas import GraphError, GraphValidationResult, GraphWorkflow, GraphWorkflowEdge, GraphWorkflowNode
 from .validator_prompt_recipe import (
@@ -14,7 +15,6 @@ from .validator_prompt_recipe import (
     validate_prompt_recipe_runtime,
 )
 
-GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
 PRESET_TEST_TEMPLATE_IDS = {"preset_style_t2i_sandbox_v1", "preset_style_i2i_sandbox_v1"}
 
 
@@ -178,7 +178,7 @@ def _node_execution_mode(node: GraphWorkflowNode) -> str:
 def _prompt_node_provider_supports_images(node: GraphWorkflowNode) -> bool | None:
     requested_provider = str(node.fields.get("provider") or "studio_default").strip()
     if requested_provider == "studio_default":
-        config = store.get_enhancement_config(GLOBAL_ENHANCEMENT_CONFIG_KEY) or {}
+        config = studio_default_prompt_provider_config()
         provider_kind = str(config.get("provider_kind") or "builtin").strip()
         if provider_kind == "builtin":
             return None
@@ -248,6 +248,7 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
     _validate_assistant_prompt_quality_gate(workflow, errors)
     workflow_id = workflow.workflow_id or str(workflow.metadata.get("workflow_id") or "")
     frozen_cache_by_node_id: Dict[str, Dict[str, Any] | None] = {}
+    muted_cache_by_node_id: Dict[str, Dict[str, Any] | None] = {}
     prompt_recipe_context_by_node_id: Dict[str, Dict[str, Any]] = {}
 
     node_ids: Set[str] = set()
@@ -263,6 +264,16 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
             errors.append(GraphError(code="missing_node_type", message=f"Unknown node type: {node.type}", node_id=node.id))
             continue
         execution_mode = _node_execution_mode(node)
+        if execution_mode == "muted":
+            cached = cached_output_for_node(workflow_id, node) if workflow_id else None
+            cached_run_id = str(cached.get("run_id") or "") if cached else None
+            muted_cache_by_node_id[node.id] = (
+                cached
+                if cached
+                and cached_artifacts_available(node, cached_run_id)
+                and cached_output_media_available(cached.get("output_snapshot_json") or {})
+                else None
+            )
         if execution_mode == "frozen":
             cached = cached_output_for_node(workflow_id, node) if workflow_id else None
             frozen_cache_by_node_id[node.id] = cached
@@ -373,12 +384,15 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
         source_type = getattr(source_port, "type", "")
         if not _port_accepts(source_type, target_port):
             errors.append(GraphError(code="incompatible_edge", message=f"Cannot connect {source_type} to {getattr(target_port, 'type', '')}.", edge_id=edge.id))
-        if _node_execution_mode(source) == "muted":
+        source_mode = _node_execution_mode(source)
+        target_mode = _node_execution_mode(target)
+        source_has_muted_cache = source_mode == "muted" and bool(muted_cache_by_node_id.get(source.id))
+        if source_mode == "muted" and not source_has_muted_cache:
             if getattr(target_port, "required", False):
                 errors.append(
                     GraphError(
                         code="muted_required_dependency",
-                        message="Required input depends on a muted node.",
+                        message="Required input depends on a muted node with no cached output.",
                         node_id=target.id,
                         edge_id=edge.id,
                         port_id=edge.target_port,
@@ -388,15 +402,15 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                 warnings.append(
                     GraphError(
                         code="muted_optional_dependency",
-                        message="Optional input depends on a muted node and will receive no data.",
+                        message="Optional input depends on a muted node with no cached output and will receive no data.",
                         node_id=target.id,
                         edge_id=edge.id,
                         port_id=edge.target_port,
                     )
                 )
-        source_mode = _node_execution_mode(source)
-        target_mode = _node_execution_mode(target)
-        source_has_available_output = source_mode != "muted" and not (source_mode == "frozen" and not frozen_cache_by_node_id.get(source.id))
+        source_has_available_output = (source_mode != "muted" or source_has_muted_cache) and not (
+            source_mode == "frozen" and not frozen_cache_by_node_id.get(source.id)
+        )
         if source_mode == "frozen" and not frozen_cache_by_node_id.get(source.id) and target_mode in {"enabled", "bypassed"}:
             if getattr(target_port, "required", False):
                 errors.append(

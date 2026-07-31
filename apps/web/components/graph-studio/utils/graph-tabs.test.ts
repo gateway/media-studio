@@ -3,7 +3,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { GraphWorkspaceTab } from "@/components/graph-studio/types";
-import { applyGraphTabSnapshot } from "@/components/graph-studio/utils/graph-tabs";
+import {
+  applyGraphTabSnapshot,
+  shouldReloadSavedWorkflowRecordOnRestore,
+} from "@/components/graph-studio/utils/graph-tabs";
 
 const workflow = {
   schema_version: 1 as const,
@@ -61,5 +64,36 @@ describe("graph tab state", () => {
     });
 
     expect(next.assistant_session_id).toBeNull();
+  });
+
+  it("reloads a clean legacy saved tab even when it has no saved signature", () => {
+    const cleanLegacyTab: GraphWorkspaceTab = {
+      tab_id: "tab-legacy",
+      workflow_id: "workflow-1",
+      workflow_name: "Steve test",
+      workflow_json: {
+        ...workflow,
+        metadata: { created_by: "graph-studio" },
+        nodes: [
+          {
+            id: "cached-model",
+            type: "model.kie.test",
+            position: { x: 0, y: 0 },
+            fields: {},
+            metadata: {
+              execution: { mode: "muted", cached_run_id: null },
+            },
+          },
+        ],
+      },
+      saved_workflow_signature: null,
+      workflow_updated_at: null,
+      run_id: null,
+      run_status: null,
+      assistant_session_id: null,
+      dirty: false,
+    };
+
+    expect(shouldReloadSavedWorkflowRecordOnRestore(cleanLegacyTab)).toBe(true);
   });
 });

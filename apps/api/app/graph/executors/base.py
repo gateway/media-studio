@@ -18,6 +18,7 @@ class GraphExecutionContext:
     edge_outputs: Dict[str, List[GraphOutputRef]] = field(default_factory=dict)
     node_outputs: Dict[str, Dict[str, List[GraphOutputRef]]] = field(default_factory=dict)
     node_metrics: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    node_input_snapshots: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
     def inputs_for(self, node: GraphWorkflowNode, port_id: str) -> List[GraphOutputRef]:
         values: List[GraphOutputRef] = []
@@ -41,6 +42,9 @@ class GraphExecutionContext:
 
     def record_node_metric(self, node: GraphWorkflowNode, key: str, value: Any) -> None:
         self.node_metrics.setdefault(node.id, {})[key] = value
+
+    def record_node_input_snapshot(self, node: GraphWorkflowNode, snapshot: Dict[str, Any]) -> None:
+        self.node_input_snapshots[node.id] = snapshot
 
     def is_cancel_requested(self) -> bool:
         run = store.get_graph_run(self.run_id) or {}

@@ -11,6 +11,8 @@ import type {
   LlmPresetsResponse,
   MediaAssetResponse,
   MediaAssetsResponse,
+  MediaAssistantConfig,
+  MediaAssistantConfigResponse,
   MediaBatchResponse,
   MediaBatchesResponse,
   MediaCreditsResponse,
@@ -468,7 +470,7 @@ export function mapPromptRecipeDraftingConfigRecord(config: ControlApiRawRecord)
   return {
     config_key: String(config.config_key ?? "prompt_recipe_drafting"),
     enabled: config.enabled == null ? true : Boolean(config.enabled),
-    provider_kind: String(config.provider_kind ?? "openrouter"),
+    provider_kind: String(config.provider_kind ?? "codex_local"),
     provider_label: config.provider_label ?? null,
     provider_model_id: config.provider_model_id ?? null,
     provider_base_url_configured: Boolean(config.provider_base_url_configured),
@@ -482,6 +484,14 @@ export function mapPromptRecipeDraftingConfigRecord(config: ControlApiRawRecord)
     created_at: config.created_at ?? null,
     updated_at: config.updated_at ?? null,
   } as PromptRecipeDraftingConfig;
+}
+
+export function mapMediaAssistantConfigRecord(config: ControlApiRawRecord): MediaAssistantConfig {
+  return {
+    ...mapPromptRecipeDraftingConfigRecord(config),
+    config_key: String(config.config_key ?? "media_assistant"),
+    supports_media_studio_tools: Boolean(config.supports_media_studio_tools),
+  };
 }
 
 export function mapExternalLlmUsageRecord(record: ControlApiRawRecord): ExternalLlmUsageRecord {
@@ -739,7 +749,7 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
   const projectParams = projectId ? `&project_id=${encodeURIComponent(projectId)}` : "";
   const presetsLimit = options?.presetsLimit ? Math.max(1, Math.min(100, Math.trunc(options.presetsLimit))) : null;
   const presetsEndpoint = presetsLimit ? `/media/presets/search?limit=${presetsLimit}&status=active` : "/media/presets";
-  const [health, credits, pricing, externalUsageSummaryRaw, externalUsageRaw, modelsRaw, presetsRaw, promptRecipesRaw, promptsRaw, enhancementRaw, promptRecipeDraftingConfigRaw, queueSettingsRaw, queuePoliciesRaw, projectsRaw, batchesRaw, jobsRaw, assetsRaw, latestAssetRaw] =
+  const [health, credits, pricing, externalUsageSummaryRaw, externalUsageRaw, modelsRaw, presetsRaw, promptRecipesRaw, promptsRaw, enhancementRaw, promptRecipeDraftingConfigRaw, mediaAssistantConfigRaw, queueSettingsRaw, queuePoliciesRaw, projectsRaw, batchesRaw, jobsRaw, assetsRaw, latestAssetRaw] =
     await Promise.all([
       fetchControlApiJson<ControlApiHealthData>("/health"),
       fetchControlApiJson<MediaCreditsResponse>("/media/credits"),
@@ -752,6 +762,7 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
       fetchControlApiJson<ControlApiRawList>("/media/system-prompts"),
       fetchControlApiJson<ControlApiRawList>("/media/enhancement-configs"),
       fetchControlApiJson<ControlApiRawRecord>("/media/prompt-recipe-drafting-config"),
+      fetchControlApiJson<ControlApiRawRecord>("/media/assistant-config"),
       fetchControlApiJson<ControlApiRawRecord>("/media/queue/settings"),
       fetchControlApiJson<ControlApiRawList>("/media/queue/policies"),
       fetchControlApiJson<ControlApiRawRecord>("/media/projects?status=all"),
@@ -834,6 +845,14 @@ export async function getMediaDashboardSnapshot(options?: { batchesLimit?: numbe
           ? mapPromptRecipeDraftingConfigRecord(promptRecipeDraftingConfigRaw.data)
           : null,
       } as PromptRecipeDraftingConfigResponse,
+    },
+    mediaAssistantConfig: {
+      ok: mediaAssistantConfigRaw.ok,
+      data: {
+        config: mediaAssistantConfigRaw.data
+          ? mapMediaAssistantConfigRecord(mediaAssistantConfigRaw.data)
+          : null,
+      } as MediaAssistantConfigResponse,
     },
     llmPresets: { ok: true, data: { presets: [] as LlmPreset[] } as LlmPresetsResponse },
     queueSettings: { ok: queueSettingsRaw.ok, data: { settings: queueSettingsRaw.data ? mapQueueSettingsRecord(queueSettingsRaw.data) : null } as MediaQueueSettingsResponse },

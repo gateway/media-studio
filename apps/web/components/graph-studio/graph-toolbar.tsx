@@ -1,6 +1,7 @@
 "use client";
 
 import { CircleDollarSign, Coins, LoaderCircle, Plus, Play, Redo2, Undo2, Workflow, X } from "lucide-react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { humanizeGraphRunStatus } from "@/lib/status-language";
 import { GraphRunDiagnostics } from "./graph-run-diagnostics";
 import type { GraphEstimateResponse, GraphRun, GraphRunTransportMetrics, GraphWorkspaceTab } from "./types";
@@ -99,6 +100,25 @@ export function GraphToolbar({
   const creditLabel = compactCreditText(creditText);
   const pricingLabel = graphEstimateToolbarLabel(graphPricing);
   const compactPricingLabel = compactPricingText(pricingLabel);
+  const showPricingBalance = compactPricingLabel.trim().toLowerCase() !== "included";
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const tabShellRefs = useRef(new Map<string, HTMLDivElement>());
+  const [workflowMenuLeft, setWorkflowMenuLeft] = useState(10);
+  const workflowMenuStyle = { "--graph-workflow-menu-left": `${workflowMenuLeft}px` } as CSSProperties;
+  const positionWorkflowMenu = (tabId: string | null | undefined) => {
+    if (!tabId) return;
+    const toolbar = toolbarRef.current;
+    const tabShell = tabShellRefs.current.get(tabId);
+    if (!toolbar || !tabShell) return;
+    const toolbarRect = toolbar.getBoundingClientRect();
+    const tabRect = tabShell.getBoundingClientRect();
+    const maxLeft = Math.max(10, toolbarRect.width - 210);
+    setWorkflowMenuLeft(Math.max(10, Math.min(maxLeft, Math.round(tabRect.left - toolbarRect.left))));
+  };
+  useLayoutEffect(() => {
+    if (!workflowMenuOpen) return;
+    positionWorkflowMenu(activeTabId ?? "active");
+  }, [activeTabId, tabs, workflowMenuOpen]);
   const closeActiveTabOrWorkflow = () => {
     if (tabs && tabs.length > 1 && activeTabId && onCloseTab) {
       onCloseTab(activeTabId);
@@ -109,7 +129,7 @@ export function GraphToolbar({
     onCloseWorkflowMenu?.();
   };
   return (
-    <div className="graph-toolbar">
+    <div className="graph-toolbar" ref={toolbarRef}>
       <div className="graph-workflow-tabs" data-testid="graph-workflow-tabs">
         {(tabs?.length ? tabs : [{ tab_id: "active", workflow_name: workflowName } as GraphWorkspaceTab]).map((tab) => {
           const active = (activeTabId ?? "active") === tab.tab_id;
@@ -118,6 +138,13 @@ export function GraphToolbar({
             <div
               className={`graph-workflow-tab-shell ${active ? "graph-workflow-tab-active" : ""} ${tab.dirty ? "graph-workflow-tab-dirty" : ""} ${tabRunStatus ? "graph-workflow-tab-running" : ""}`}
               key={tab.tab_id}
+              ref={(element) => {
+                if (element) {
+                  tabShellRefs.current.set(tab.tab_id, element);
+                } else {
+                  tabShellRefs.current.delete(tab.tab_id);
+                }
+              }}
             >
               <button
                 className="graph-workflow-tab"
@@ -125,7 +152,14 @@ export function GraphToolbar({
                 aria-haspopup={active ? "menu" : undefined}
                 aria-expanded={active ? workflowMenuOpen : undefined}
                 title={tab.workflow_name || "Untitled workflow"}
-                onClick={() => (active ? onToggleWorkflowMenu() : onSwitchTab?.(tab.tab_id))}
+                onClick={() => {
+                  if (active) {
+                    positionWorkflowMenu(tab.tab_id);
+                    onToggleWorkflowMenu();
+                    return;
+                  }
+                  onSwitchTab?.(tab.tab_id);
+                }}
               >
                 <Workflow size={15} />
                 <span>{tab.workflow_name || "Untitled workflow"}</span>
@@ -157,7 +191,7 @@ export function GraphToolbar({
         </button>
       </div>
       {workflowMenuOpen ? (
-        <div className="graph-workflow-menu" data-testid="graph-workflow-menu" role="menu">
+        <div className="graph-workflow-menu" data-testid="graph-workflow-menu" role="menu" style={workflowMenuStyle}>
           <button type="button" role="menuitem" onClick={onSave}>
             Save
           </button>
@@ -256,15 +290,17 @@ export function GraphToolbar({
         <Coins size={13} aria-hidden="true" />
         <span>{creditLabel}</span>
       </div>
-      <div
-        className={`graph-credit-balance graph-pricing-balance ${pricingWarning ? "graph-credit-balance-warning" : ""}`}
-        data-testid="graph-pricing-balance"
-        aria-label={`Estimated graph cost ${pricingLabel.replace(/\s+estimated$/i, "")}${pricingWarning ? `. ${pricingWarning}` : ""}`}
-        title={`Estimated cost: ${pricingLabel}${pricingWarning ? ` (${pricingWarning})` : ""}`}
-      >
-        <CircleDollarSign size={13} aria-hidden="true" />
-        <span>{compactPricingLabel}</span>
-      </div>
+      {showPricingBalance ? (
+        <div
+          className={`graph-credit-balance graph-pricing-balance ${pricingWarning ? "graph-credit-balance-warning" : ""}`}
+          data-testid="graph-pricing-balance"
+          aria-label={`Estimated graph cost ${pricingLabel.replace(/\s+estimated$/i, "")}${pricingWarning ? `. ${pricingWarning}` : ""}`}
+          title={`Estimated cost: ${pricingLabel}${pricingWarning ? ` (${pricingWarning})` : ""}`}
+        >
+          <CircleDollarSign size={13} aria-hidden="true" />
+          <span>{compactPricingLabel}</span>
+        </div>
+      ) : null}
       {runActive ? (
         <button
           className={`graph-run-button graph-run-button-cancel ${runCancelling ? "graph-run-button-processing" : ""}`}

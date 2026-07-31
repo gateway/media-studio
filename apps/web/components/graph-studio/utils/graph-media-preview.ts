@@ -159,6 +159,7 @@ export function nodeUiFromMetadata(metadata?: Record<string, unknown>) {
     nodeColor: typeof ui?.nodeColor === "string" ? ui.nodeColor : null,
     nodeHeaderColor: typeof ui?.nodeHeaderColor === "string" ? ui.nodeHeaderColor : null,
     customTitle: typeof ui?.customTitle === "string" ? ui.customTitle : null,
+    userSizedHeight: ui?.heightMode === "manual",
     executionMode: normalizeGraphExecutionMode(execution?.mode),
     executionCache: {
       cachedRunId: typeof execution?.cached_run_id === "string" ? execution.cached_run_id : null,

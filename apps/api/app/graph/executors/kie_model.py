@@ -5,10 +5,14 @@ from typing import Dict, List, Optional
 
 from ... import service, store
 from ...schemas import MediaRefInput, ValidateRequest
+from ...service_prompt_budget import enforce_prompt_budget
 from ..cancellation import GRAPH_RUN_CANCELLED_MESSAGE, cancel_batch_jobs
 from ..events import emit
+from ..prompt_shaping import shape_kie_graph_prompt
 from ..registry import registry
 from ..schemas import GraphOutputRef, GraphWorkflowNode
+from ..storyboard_sheet_spec import STORYBOARD_ART_SOURCE_CONTRACT
+from ..storyboard_metadata_preflight import validate_storyboard_metadata_preflight
 from .base import GraphExecutionContext, GraphExecutor, GraphRunCancelled
 
 
@@ -78,6 +82,15 @@ def _suno_cover_url(item: Dict) -> str:
 
 def _asset_remote_url(asset: Dict) -> str:
     return str(asset.get("remote_output_url") or "").strip()
+
+
+def _storyboard_prompt_aspect_ratio(prompt_inputs: List[GraphOutputRef], option_keys: set[str]) -> str:
+    if "aspect_ratio" not in option_keys or not prompt_inputs:
+        return ""
+    metadata = prompt_inputs[0].metadata or {}
+    if str(metadata.get("storyboard_art_source_contract") or "") != STORYBOARD_ART_SOURCE_CONTRACT:
+        return ""
+    return str(metadata.get("storyboard_source_aspect_ratio") or "").strip()
 
 
 def _suno_track_outputs(*, job: Dict, assets: List[Dict], batch_id: str) -> Dict[str, List[GraphOutputRef]]:
@@ -311,6 +324,14 @@ class KieModelExecutor(GraphExecutor):
         option_keys = {field.id for field in definition.fields if field.id not in {"prompt", "song_description", "lyrics"}}
         options = {key: value for key, value in node.fields.items() if key in option_keys and value is not None and value != ""}
         output_media_type = str(definition.source.get("output_media_type") or "image")
+        storyboard_aspect_ratio = (
+            _storyboard_prompt_aspect_ratio(prompt_inputs, option_keys) if output_media_type == "image" else ""
+        )
+        if storyboard_aspect_ratio:
+            previous_aspect_ratio = str(options.get("aspect_ratio") or "").strip()
+            if previous_aspect_ratio and previous_aspect_ratio != storyboard_aspect_ratio:
+                context.record_node_metric(node, "storyboard_aspect_ratio_overrode", previous_aspect_ratio)
+            options["aspect_ratio"] = storyboard_aspect_ratio
         task_modes = [str(item) for item in (definition.source.get("task_modes") or [])]
         task_mode = _select_task_mode(
             task_modes,
@@ -320,10 +341,38 @@ class KieModelExecutor(GraphExecutor):
             has_audios=has_audios,
             model_key=model_key,
         )
+        budget = enforce_prompt_budget(model_key, prompt)
+        shaped_prompt = shape_kie_graph_prompt(model_key, prompt, task_mode=task_mode, max_chars=budget.get("max_chars"))
+        storyboard_preflight = validate_storyboard_metadata_preflight(
+            model_key=model_key,
+            original_prompt=prompt,
+            submitted_prompt=shaped_prompt.prompt,
+        )
+        if storyboard_preflight is not None:
+            context.record_node_metric(node, "storyboard_metadata_preflight", "passed")
+            context.record_node_metric(node, "storyboard_metadata_panel_count", storyboard_preflight.panel_count)
+        if shaped_prompt.changed:
+            context.record_node_metric(node, "prompt_shape_strategy", shaped_prompt.strategy)
+            context.record_node_metric(node, "original_prompt_chars", shaped_prompt.original_chars)
+            context.record_node_metric(node, "submitted_prompt_chars", shaped_prompt.final_chars)
+            context.record_node_metric(node, "prompt_shape_target_chars", shaped_prompt.target_chars)
+        context.record_node_metric(node, "model_prompt_max_chars", budget.get("max_chars"))
+        context.record_node_input_snapshot(
+            node,
+            {
+                **node.fields,
+                "prompt": shaped_prompt.prompt,
+                "task_mode": task_mode,
+                "model_key": model_key,
+                "prompt_original_chars": shaped_prompt.original_chars,
+                "prompt_submitted_chars": shaped_prompt.final_chars,
+                "prompt_shape_strategy": shaped_prompt.strategy,
+            },
+        )
         request = ValidateRequest(
             model_key=model_key,
             task_mode=task_mode,
-            prompt=prompt,
+            prompt=shaped_prompt.prompt,
             images=image_inputs,
             videos=video_inputs,
             audios=audio_inputs,

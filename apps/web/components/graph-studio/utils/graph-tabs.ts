@@ -181,7 +181,15 @@ export function shouldReloadSavedWorkflowRecordOnRestore(tab: GraphWorkspaceTab 
   const workflow = normalizeWorkflowPayload(tab.workflow_json ?? null);
   if (!workflow) return true;
   if (!Array.isArray(workflow.nodes) || workflow.nodes.length === 0) return true;
-  return !tab.dirty && Boolean(tab.saved_workflow_signature);
+  if (tab.dirty) return false;
+  if (tab.saved_workflow_signature) return true;
+  const graphStudioOwned = workflow.metadata?.created_by === "graph-studio";
+  const carriesExecutionState = workflow.nodes.some(
+    (node) =>
+      node.metadata?.execution != null &&
+      typeof node.metadata.execution === "object",
+  );
+  return graphStudioOwned && carriesExecutionState;
 }
 
 export function graphWorkflowDirtyState({

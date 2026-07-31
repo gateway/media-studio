@@ -8,14 +8,20 @@ import { __resetSharedProviderModelCatalogCacheForTests } from "@/hooks/use-shar
 import type { PromptRecipeDraftingConfig } from "@/lib/types";
 
 const {
+  probeMediaAssistantProviderRequest,
+  saveMediaAssistantConfigRequest,
   probePromptRecipeDraftingProviderRequest,
   savePromptRecipeDraftingConfigRequest,
 } = vi.hoisted(() => ({
+  probeMediaAssistantProviderRequest: vi.fn(),
+  saveMediaAssistantConfigRequest: vi.fn(),
   probePromptRecipeDraftingProviderRequest: vi.fn(),
   savePromptRecipeDraftingConfigRequest: vi.fn(),
 }));
 
 vi.mock("@/lib/media-model-admin", () => ({
+  probeMediaAssistantProviderRequest,
+  saveMediaAssistantConfigRequest,
   probePromptRecipeDraftingProviderRequest,
   savePromptRecipeDraftingConfigRequest,
 }));
@@ -43,7 +49,9 @@ function makeConfig(overrides: Partial<PromptRecipeDraftingConfig> = {}): Prompt
 
 describe("PromptRecipeDraftingSettingsPanel", () => {
   beforeEach(() => {
+    probeMediaAssistantProviderRequest.mockReset();
     probePromptRecipeDraftingProviderRequest.mockReset();
+    saveMediaAssistantConfigRequest.mockReset();
     savePromptRecipeDraftingConfigRequest.mockReset();
   });
 
@@ -210,5 +218,39 @@ describe("PromptRecipeDraftingSettingsPanel", () => {
 
     const modelSelect = screen.getByRole("combobox", { name: "Default model" }) as HTMLSelectElement;
     expect(Array.from(modelSelect.options).map((option) => option.text)).toContain("Local Director");
+  });
+
+  it("owns Media Assistant provider selection and labels non-Codex providers as chat only", async () => {
+    saveMediaAssistantConfigRequest.mockResolvedValue({
+      ok: true,
+      config: makeConfig({
+        config_key: "media_assistant",
+        provider_kind: "openrouter",
+        provider_model_id: "qwen/default",
+      }),
+    });
+
+    render(
+      <PromptRecipeDraftingSettingsPanel
+        purpose="media_assistant"
+        initialConfig={makeConfig({
+          config_key: "media_assistant",
+          provider_kind: "openrouter",
+        })}
+      />,
+    );
+
+    expect(screen.getByLabelText("Assistant provider")).toBeTruthy();
+    expect(screen.getByText(/graph building needs Codex Local/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /save assistant defaults/i }));
+
+    await waitFor(() => {
+      expect(saveMediaAssistantConfigRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider_kind: "openrouter",
+          provider_model_id: "qwen/default",
+        }),
+      );
+    });
   });
 });

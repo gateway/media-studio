@@ -7,9 +7,9 @@ export function normalizeGraphExecutionMode(value: unknown): GraphExecutionMode 
 }
 
 export function graphExecutionModeLabel(mode: GraphExecutionMode): string {
-  if (mode === "frozen") return "Muted";
+  if (mode === "frozen") return "Frozen";
   if (mode === "bypassed") return "Bypassed";
-  if (mode === "muted") return "Disabled";
+  if (mode === "muted") return "Muted";
   return "Enabled";
 }
 

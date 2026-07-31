@@ -176,6 +176,7 @@ describe("graph prompt recipe helpers", () => {
       "This recipe can look at images, but no images are connected to Image References.",
     );
     expect(graphPromptRecipeImageWarning(definition, { recipe_id: "prompt-recipe-image-prompt-director" }, ["image_refs"])).toBeNull();
+    expect(graphPromptRecipeImageWarning(definition, { recipe_id: "prompt-recipe-image-prompt-director" }, ["environment_ref"])).toBeNull();
     expect(graphPromptRecipeImageWarning(definition, { recipe_id: "prompt-recipe-archived" }, [])).toBeNull();
   });
 

@@ -65,6 +65,7 @@ export function createGraphNode(definition: GraphNodeDefinition, position: { x: 
       executionMode: "enabled",
       advancedExpanded: false,
       autoSizedHeight: height,
+      userSizedHeight: false,
       ...handlers,
     },
   };
@@ -101,6 +102,7 @@ export function workflowFromCanvas(workflowId: string | null, name: string, node
           nodeColor: (node.data as StudioNode["data"]).nodeColor ?? null,
           nodeHeaderColor: (node.data as StudioNode["data"]).nodeHeaderColor ?? null,
           customTitle: (node.data as StudioNode["data"]).customTitle ?? null,
+          heightMode: (node.data as StudioNode["data"]).userSizedHeight ? "manual" : "auto",
         },
         execution: {
           mode: normalizeGraphExecutionMode((node.data as StudioNode["data"]).executionMode),

@@ -292,6 +292,51 @@ describe("useGraphNodeFieldLayout", () => {
     expect(result.current.nodes[0].data.autoSizedHeight).toBe(1600);
   });
 
+  it("does not auto-grow content after the user manually sizes the node", async () => {
+    const { result } = setup(
+      node({
+        style: { width: 360, height: 720, minHeight: 360 },
+        data: {
+          definition,
+          fields: { preset_id: "" },
+          connectedInputPorts: [],
+          autoSizedHeight: 900,
+          userSizedHeight: true,
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.ensureNodeHeight("node-1", 1600);
+    });
+
+    await waitFor(() => expect(result.current.nodes[0].style?.height).toBe(720));
+    expect(result.current.nodes[0].data.autoSizedHeight).toBe(900);
+  });
+
+  it("clears manual height lock when advanced fields open", async () => {
+    const { result } = setup(
+      node({
+        style: { width: 512, height: 420, minHeight: 220 },
+        data: {
+          definition,
+          fields: { preset_id: "" },
+          connectedInputPorts: [],
+          autoSizedHeight: 900,
+          userSizedHeight: true,
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.toggleNodeAdvancedExpanded("node-1");
+    });
+
+    await waitFor(() => expect(result.current.nodes[0].data.advancedExpanded).toBe(true));
+    expect(result.current.nodes[0].data.userSizedHeight).toBe(false);
+    expect(result.current.nodes[0].style?.height).toBeGreaterThan(420);
+  });
+
   it("keeps collapse and expand wrapper heights aligned to measured content", async () => {
     const { result } = setup();
 

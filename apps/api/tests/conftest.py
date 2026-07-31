@@ -1,6 +1,7 @@
 import os
 import sys
 import importlib
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,16 @@ API_ROOT = Path(__file__).resolve().parents[1]
 
 if str(API_ROOT) not in sys.path:
     sys.path.insert(0, str(API_ROOT))
+
+# Some compatibility tests intentionally import app modules during collection.
+# Give those module instances their own fully bootstrapped database so later
+# fixture-driven app reloads cannot leave stale imports pointing at no schema.
+_COLLECTION_TEST_ROOT = tempfile.TemporaryDirectory(prefix="media-studio-pytest-collection-")
+_collection_root = Path(_COLLECTION_TEST_ROOT.name)
+os.environ["MEDIA_STUDIO_DB_PATH"] = str(_collection_root / "collection.db")
+os.environ["MEDIA_STUDIO_DATA_ROOT"] = str(_collection_root / "data")
+_collection_store = importlib.import_module("app.store")
+_collection_store.bootstrap_schema()
 
 
 @pytest.fixture()

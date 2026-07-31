@@ -148,6 +148,18 @@
   min-height: 0;
 }
 
+.graph-node-content-auto:not(.graph-node-user-sized) .graph-node-field:has(textarea),
+.graph-node-content-auto:not(.graph-node-user-sized) .graph-node-field:has(.graph-node-markdown-preview) {
+  flex: 0 0 auto;
+}
+
+.graph-node-content-auto:not(.graph-node-user-sized) .graph-node-field textarea,
+.graph-node-content-auto:not(.graph-node-user-sized) .graph-node-markdown-preview {
+  flex: 0 0 auto;
+  height: auto;
+  max-height: 260px;
+}
+
 .graph-node-field:has(.graph-node-markdown-preview) {
   display: flex;
   flex-direction: column;

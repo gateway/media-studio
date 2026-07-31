@@ -40,6 +40,10 @@ import { StudioReferenceLibrary } from "@/components/studio/studio-reference-lib
 import { StudioSettingsModal } from "@/components/studio/studio-settings-modal";
 import { StudioStructuredPresetComposer } from "@/components/studio/studio-structured-preset-composer";
 import {
+  buildStudioHarnessAsset,
+  buildStudioHarnessAttachment,
+  buildStudioHarnessMotionVideoAttachment,
+  type StudioHarnessFixtureState,
   type StudioTestFixtureControls,
   useStudioShellHandoffSnapshot,
   useStudioTestHarness,
@@ -64,7 +68,6 @@ import {
 } from "@/hooks/studio/use-studio-shell-catalog";
 import {
   type AssetPagePayload,
-  type AttachmentRecord,
   FLOATING_COMPOSER_STATUS_FADE_MS,
   FLOATING_COMPOSER_STATUS_MS,
   type ComposerStatusMessage,
@@ -138,7 +141,6 @@ import type {
   MediaEnhancePreviewResponse,
   MediaJob,
   MediaPreset,
-  MediaReference,
   MediaValidationResponse,
 } from "@/lib/types";
 import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
@@ -152,108 +154,6 @@ import { resolveStudioShortcutAction } from "@/lib/studio-shortcuts";
 import { cn } from "@/lib/utils";
 
 const STUDIO_COMPOSER_COLLAPSED_STORAGE_KEY = "media-studio:desktop-composer-collapsed";
-const STUDIO_MOTION_FIXTURE_VIDEO_DURATION_SECONDS = 20.083333;
-const STUDIO_MOTION_FIXTURE_VIDEO_WIDTH = 720;
-const STUDIO_MOTION_FIXTURE_VIDEO_HEIGHT = 1280;
-
-type StudioHarnessFixtureState = {
-  composerEnhanceMode?: "setup" | "disabled" | null;
-  contextPanels?: boolean;
-  galleryEmpty?: boolean;
-};
-
-function studioHarnessFixtureImageDataUri(label: string, color = "darkorange") {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" rx="28" fill="black"/><circle cx="112" cy="48" r="24" fill="${color}"/><path d="M24 124 62 82l28 28 18-20 30 34z" fill="greenyellow" opacity=".84"/><text x="24" y="36" fill="white" font-family="Arial" font-size="15" font-weight="700">${label}</text></svg>`,
-  )}`;
-}
-
-function buildStudioHarnessReference(
-  index: number,
-  kind: MediaReference["kind"] = "image",
-  overrides: Partial<MediaReference> = {},
-) {
-  const extension = kind === "audio" ? "mp3" : kind === "video" ? "mp4" : "png";
-  const imageUrl = kind === "image" ? studioHarnessFixtureImageDataUri(`Ref ${index}`) : null;
-  const reference = {
-    reference_id: `studio-fixture-reference-${kind}-${index}`,
-    kind,
-    status: "ready",
-    original_filename: `studio-fixture-${kind}-${index}.${extension}`,
-    stored_path: `fixtures/studio-fixture-${kind}-${index}.${extension}`,
-    mime_type: kind === "image" ? "image/png" : kind === "video" ? "video/mp4" : "audio/mpeg",
-    file_size_bytes: 1024,
-    sha256: `studio-fixture-${kind}-${index}`,
-    width: kind === "image" ? 160 : null,
-    height: kind === "image" ? 160 : null,
-    duration_seconds: kind === "image" ? null : 3,
-    stored_url: imageUrl,
-    thumb_url: imageUrl,
-    poster_url: imageUrl,
-    usage_count: 0,
-    created_at: "2026-06-18T00:00:00.000Z",
-  } satisfies MediaReference;
-  return { ...reference, ...overrides } satisfies MediaReference;
-}
-
-function buildStudioHarnessAttachment(
-  index: number,
-  kind: AttachmentRecord["kind"] = "images",
-  role: AttachmentRecord["role"] = null,
-) {
-  const referenceKind = kind === "audios" ? "audio" : kind === "videos" ? "video" : "image";
-  const reference = buildStudioHarnessReference(index, referenceKind);
-  return {
-    id: `studio-fixture-attachment-${kind}-${role ?? "default"}-${index}`,
-    file: null,
-    kind,
-    role,
-    previewUrl: reference.thumb_url ?? reference.stored_url ?? null,
-    durationSeconds: reference.duration_seconds ?? null,
-    referenceId: reference.reference_id,
-    referenceRecord: reference,
-  } satisfies AttachmentRecord;
-}
-
-function buildStudioHarnessAsset(index: number) {
-  const previewUrl = studioHarnessFixtureImageDataUri(`Asset ${index}`, "deepskyblue");
-  return {
-    asset_id: `studio-fixture-asset-${index}`,
-    generation_kind: "image",
-    model_key: "studio-fixture",
-    prompt_summary: `Fixture source asset ${index}`,
-    hero_thumb_url: previewUrl,
-    thumb_url: previewUrl,
-    stored_url: previewUrl,
-    created_at: "2026-06-18T00:00:00.000Z",
-  } as MediaAsset;
-}
-
-function buildStudioHarnessMotionVideoAttachment() {
-  const posterUrl = studioHarnessFixtureImageDataUri("20.1s video", "crimson");
-  const reference = buildStudioHarnessReference(1, "video", {
-    reference_id: "studio-fixture-motion-driving-video",
-    original_filename: "motion-driving-20s-720x1280.mp4",
-    stored_path: "fixtures/motion-driving-20s-720x1280.mp4",
-    width: STUDIO_MOTION_FIXTURE_VIDEO_WIDTH,
-    height: STUDIO_MOTION_FIXTURE_VIDEO_HEIGHT,
-    duration_seconds: STUDIO_MOTION_FIXTURE_VIDEO_DURATION_SECONDS,
-    stored_url: "/api/control/files/reference-media/videos/e999def30e2ef482d3aff3d381459ec76f7def3ab4b7b32aa9b62e601240b402.mp4",
-    thumb_url: posterUrl,
-    poster_url: posterUrl,
-  });
-  return {
-    id: "studio-fixture-motion-driving-video-20s",
-    file: null,
-    kind: "videos",
-    role: null,
-    previewUrl: reference.stored_url ?? null,
-    durationSeconds: reference.duration_seconds ?? null,
-    referenceId: reference.reference_id,
-    referenceRecord: reference,
-  } satisfies AttachmentRecord;
-}
-
 export function MediaStudio({
   apiHealthy,
   models,
