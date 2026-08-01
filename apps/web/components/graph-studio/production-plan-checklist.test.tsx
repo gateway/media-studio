@@ -34,7 +34,7 @@ it("shows grounded constraints, ordered steps, and the active step", () => {
 });
 
 it("uses an in-progress step instead of the first ready step", () => {
-  render(
+  const { rerender } = render(
     <ProductionPlanChecklist
       plan={{
         ...plan,
@@ -47,4 +47,22 @@ it("uses an in-progress step instead of the first ready step", () => {
 
   expect(screen.getByText("Plan the story beats").closest("li")?.getAttribute("data-active")).toBe("true");
   expect(screen.getByText("Lock the ship").closest("li")?.getAttribute("data-active")).toBe("false");
+
+  rerender(
+    <ProductionPlanChecklist
+      plan={{
+        ...plan,
+        steps: plan.steps.map((step) => (
+          step.id === "environment"
+            ? { ...step, status: "done" }
+            : step.id === "storyboard"
+              ? { ...step, status: "ready" }
+              : step
+        )),
+      }}
+    />,
+  );
+
+  expect(screen.getByText("Lock the ship").closest("li")?.getAttribute("data-status")).toBe("done");
+  expect(screen.getByText("Plan the story beats").closest("li")?.getAttribute("aria-current")).toBe("step");
 });

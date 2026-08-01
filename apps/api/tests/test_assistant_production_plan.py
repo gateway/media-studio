@@ -71,6 +71,41 @@ def _evidence():
     ]
 
 
+def _propose(tools, session):
+    return tools.execute_kernel_tool(
+        tool_name="propose_production_plan",
+        arguments=json.dumps({"plan": _plan()}),
+        capability="story_builder",
+        context=_context(tools, session, _evidence()),
+    )
+
+
+def _add_story_state(store_assistant, session):
+    current = store_assistant.get_assistant_session(session["assistant_session_id"])
+    summary = dict(current.get("summary_json") or {})
+    summary["kernel_story_state"] = {"version": 1, "premise": "A salvage crew enters a derelict ship."}
+    return store_assistant.create_or_update_assistant_session({**current, "summary_json": summary})
+
+
+def _complete_story_steps(tools, store_assistant, session):
+    refreshed = _add_story_state(store_assistant, session)
+    for step_id in ("characters", "environment", "storyboard"):
+        update = tools.execute_kernel_tool(
+            tool_name="update_production_plan_step",
+            arguments=json.dumps(
+                {
+                    "step_id": step_id,
+                    "updates": {"status": "done", "artifact_ref": "story_state"},
+                }
+            ),
+            capability="story_builder",
+            context=_context(tools, refreshed),
+        )
+        assert update.trace.error is None
+        refreshed = store_assistant.get_assistant_session(session["assistant_session_id"])
+    return refreshed
+
+
 def test_production_plan_persists_and_reads_from_session(client) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
     session = _session(client)
@@ -176,6 +211,30 @@ def test_production_plan_rejects_unsupported_status(client) -> None:
     assert invalid.trace.error.code == "invalid_tool_arguments"
 
 
+def test_production_plan_proposal_cannot_claim_unfinished_work(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    session = _session(client)
+    plan = _plan()
+    plan["steps"][0]["status"] = "done"
+    false_done = tools.execute_kernel_tool(
+        tool_name="propose_production_plan",
+        arguments=json.dumps({"plan": plan}),
+        capability="story_builder",
+        context=_context(tools, session, _evidence()),
+    )
+    plan = _plan()
+    plan["steps"][0]["status"] = "skipped"
+    untraced_skip = tools.execute_kernel_tool(
+        tool_name="propose_production_plan",
+        arguments=json.dumps({"plan": plan}),
+        capability="story_builder",
+        context=_context(tools, session, _evidence()),
+    )
+
+    assert false_done.trace.error.code == "production_step_artifact_required"
+    assert untraced_skip.trace.error.code == "production_step_skip_reason_required"
+
+
 def test_production_plan_intent_requires_grounded_artifact(client, monkeypatch) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
     session = _session(client)
@@ -221,3 +280,367 @@ def test_production_plan_intent_requires_grounded_artifact(client, monkeypatch) 
     ]
     assert result.trace.tool_calls[0].evidence["models"][0]["model_key"] == "seedance-2.0"
     assert any(artifact.kind == "production_plan" for artifact in result.artifacts)
+
+
+def test_production_plan_step_update_preserves_unrelated_steps(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    store_assistant = importlib.import_module("app.store_assistant")
+    session = _session(client)
+    before = _propose(tools, session).result["plan"]
+    refreshed = _add_story_state(store_assistant, session)
+
+    updated = tools.execute_kernel_tool(
+        tool_name="update_production_plan_step",
+        arguments=json.dumps(
+            {
+                "step_id": "characters",
+                "updates": {"status": "done", "artifact_ref": "story_state"},
+            }
+        ),
+        capability="story_builder",
+        context=_context(tools, refreshed),
+    )
+
+    assert updated.trace.error is None
+    assert updated.result["changed_step_id"] == "characters"
+    assert updated.result["plan"]["steps"][0]["status"] == "done"
+    assert updated.result["plan"]["steps"][0]["artifact_ref"] == "story_state"
+    assert updated.result["plan"]["steps"][1:] == before["steps"][1:]
+
+
+def test_production_plan_progress_requires_finished_dependencies(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    session = _session(client)
+    _propose(tools, session)
+
+    blocked = tools.execute_kernel_tool(
+        tool_name="update_production_plan_step",
+        arguments=json.dumps({"step_id": "storyboard", "updates": {"status": "in_progress"}}),
+        capability="story_builder",
+        context=_context(tools, session),
+    )
+
+    assert blocked.trace.error.code == "production_step_dependency_blocked"
+    assert blocked.trace.error.details["blocking_step_ids"] == ["characters", "environment"]
+
+
+def test_production_plan_skip_is_explicit_and_traceable(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    store_assistant = importlib.import_module("app.store_assistant")
+    session = _session(client)
+    _propose(tools, session)
+    no_reason = tools.execute_kernel_tool(
+        tool_name="update_production_plan_step",
+        arguments=json.dumps({"step_id": "characters", "updates": {"status": "skipped"}}),
+        capability="story_builder",
+        context=_context(tools, session),
+    )
+    skipped = tools.execute_kernel_tool(
+        tool_name="update_production_plan_step",
+        arguments=json.dumps(
+            {
+                "step_id": "characters",
+                "updates": {"status": "skipped"},
+                "reason": "The user chose to proceed without a separate character sheet.",
+            }
+        ),
+        capability="story_builder",
+        context=_context(tools, session),
+    )
+
+    assert no_reason.trace.error.code == "production_step_skip_reason_required"
+    assert skipped.trace.error is None
+    step = skipped.result["plan"]["steps"][0]
+    assert step["status"] == "skipped"
+    assert "proceed without" in step["notes"]
+    assert store_assistant.get_assistant_session(session["assistant_session_id"])["summary_json"]["production_plan"] == skipped.result["plan"]
+    revised = tools.execute_kernel_tool(
+        tool_name="update_production_plan_step",
+        arguments=json.dumps(
+            {"step_id": "characters", "updates": {"title": "Character direction intentionally omitted"}}
+        ),
+        capability="story_builder",
+        context=_context(tools, session),
+    )
+    assert revised.trace.error is None
+    assert revised.result["plan"]["steps"][0]["notes"] == step["notes"]
+
+
+def test_production_plan_done_requires_owned_completed_artifact(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    store_assistant = importlib.import_module("app.store_assistant")
+    session = _session(client)
+    other = _session(client)
+    _propose(tools, session)
+    own = store_assistant.create_or_update_assistant_plan(
+        {
+            "assistant_session_id": session["assistant_session_id"],
+            "status": "applied",
+            "plan_json": {},
+        }
+    )
+    foreign = store_assistant.create_or_update_assistant_plan(
+        {
+            "assistant_session_id": other["assistant_session_id"],
+            "status": "applied",
+            "plan_json": {},
+        }
+    )
+    missing = tools.execute_kernel_tool(
+        tool_name="update_production_plan_step",
+        arguments=json.dumps({"step_id": "characters", "updates": {"status": "done"}}),
+        capability="story_builder",
+        context=_context(tools, session),
+    )
+    wrong_kind = tools.execute_kernel_tool(
+        tool_name="update_production_plan_step",
+        arguments=json.dumps(
+            {
+                "step_id": "characters",
+                "updates": {
+                    "status": "done",
+                    "artifact_ref": f"assistant_plan:{own['assistant_plan_id']}",
+                },
+            }
+        ),
+        capability="story_builder",
+        context=_context(tools, session),
+    )
+    _complete_story_steps(tools, store_assistant, session)
+    foreign_graph = tools.execute_kernel_tool(
+        tool_name="update_production_plan_step",
+        arguments=json.dumps(
+            {
+                "step_id": "graph",
+                "updates": {
+                    "status": "in_progress",
+                    "artifact_ref": f"assistant_plan:{foreign['assistant_plan_id']}",
+                },
+            }
+        ),
+        capability="story_builder",
+        context=_context(tools, session),
+    )
+
+    assert missing.trace.error.code == "production_step_artifact_required"
+    assert wrong_kind.trace.error.code == "production_step_artifact_kind_invalid"
+    assert foreign_graph.trace.error.code == "production_step_artifact_invalid"
+
+
+def test_production_plan_updates_identified_constraint_from_number_word(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    session = _session(client)
+    before = _propose(tools, session).result["plan"]
+    context = tools.KernelToolContext(
+        workflow=None,
+        canvas_context={},
+        session_id=session["assistant_session_id"],
+        session=session,
+        user_text="Three storyboards then.",
+    )
+
+    updated = tools.execute_kernel_tool(
+        tool_name="update_production_plan_step",
+        arguments=json.dumps(
+            {
+                "step_id": "storyboard",
+                "updates": {"title": "Create three storyboards"},
+                "constraint_updates": [
+                    {"name": "storyboard_count", "value": 3, "source": "user_request"}
+                ],
+            }
+        ),
+        capability="story_builder",
+        context=context,
+    )
+
+    assert updated.trace.error is None
+    assert updated.result["plan"]["constraints"][:3] == before["constraints"]
+    assert updated.result["plan"]["constraints"][3]["name"] == "storyboard_count"
+    assert updated.result["plan"]["steps"][2]["title"] == "Create three storyboards"
+
+
+def test_story_turn_can_update_one_plan_step_after_story_state(client, monkeypatch) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    session = _session(client)
+    _propose(tools, session)
+    steps = iter(
+        [
+            {
+                "capability": "story_builder",
+                "artifact_intent": "update_story",
+                "tool_call": {
+                    "name": "update_story_state",
+                    "arguments": {
+                        "state": {
+                            "premise": "A salvage crew enters a derelict ship.",
+                            "characters": [
+                                {
+                                    "character_id": "captain",
+                                    "name": "Captain Imani",
+                                    "description": "A cautious salvage captain in a marked pressure suit.",
+                                }
+                            ],
+                        },
+                        "update_kind": "story_development",
+                    },
+                },
+            },
+            {
+                "capability": "story_builder",
+                "artifact_intent": "update_story",
+                "tool_call": {
+                    "name": "update_production_plan_step",
+                    "arguments": {
+                        "step_id": "characters",
+                        "updates": {"status": "done", "artifact_ref": "story_state"},
+                    },
+                },
+            },
+            {
+                "capability": "story_builder",
+                "artifact_intent": "update_story",
+                "reply": "The character direction is now part of the plan.",
+            },
+        ]
+    )
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+
+    result = kernel.run_assistant_kernel_turn(
+        session=session,
+        user_text="No character sheet yet, let's make one.",
+        workflow=None,
+        canvas_context={},
+        assistant_mode="graph",
+    )
+
+    assert [trace.tool_name for trace in result.trace.tool_calls] == [
+        "update_story_state",
+        "update_production_plan_step",
+    ]
+    assert [artifact.kind for artifact in result.artifacts] == [
+        "story_state",
+        "production_plan_update",
+    ]
+
+
+def test_graph_proposal_updates_plan_without_bypassing_confirmation(client, monkeypatch) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    store_assistant = importlib.import_module("app.store_assistant")
+    session = _session(client)
+    _propose(tools, session)
+    refreshed = _complete_story_steps(tools, store_assistant, session)
+    provider_calls = 0
+
+    def provider_step(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        if provider_calls == 1:
+            return {
+                "capability": "graph_builder",
+                "artifact_intent": "none",
+                "reply": "The shot proposal is ready for review.",
+                "tool_call": {
+                    "name": "propose_graph_operations",
+                    "arguments": {
+                        "summary": "Place the first approved storyboard prompt on the canvas.",
+                        "operations": [
+                            {
+                                "op": "add_node",
+                                "node_ref": "shot_1_prompt",
+                                "node_type": "prompt.text",
+                                "title": "Shot 1 Prompt",
+                                "position": {"x": 80, "y": 120},
+                                "fields": {"text": "A salvage crew approaches a silent derelict airlock."},
+                            }
+                        ],
+                    },
+                },
+            }
+        if provider_calls == 2:
+            proposal = store_assistant.list_assistant_plans(session["assistant_session_id"])[0]
+            return {
+                "capability": "graph_builder",
+                "artifact_intent": "none",
+                "tool_call": {
+                    "name": "update_production_plan_step",
+                    "arguments": {
+                        "step_id": "graph",
+                        "updates": {
+                            "status": "in_progress",
+                            "artifact_ref": f"assistant_plan:{proposal['assistant_plan_id']}",
+                        },
+                    },
+                },
+            }
+        return {
+            "capability": "graph_builder",
+            "artifact_intent": "none",
+            "reply": "Review the canvas proposal before applying it.",
+        }
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
+    result = kernel.run_assistant_kernel_turn(
+        session=refreshed,
+        user_text="Put shot 1 on the canvas so I can run it.",
+        workflow=graph_schemas.GraphWorkflow(name="Production graph", nodes=[], edges=[], metadata={}),
+        canvas_context={},
+        assistant_mode="graph",
+    )
+
+    assert [trace.tool_name for trace in result.trace.tool_calls] == [
+        "propose_graph_operations",
+        "update_production_plan_step",
+    ]
+    assert result.next_action.kind == "confirm_graph"
+    assert result.next_action.requires_confirmation is True
+    assert store_assistant.list_assistant_plans(session["assistant_session_id"])[0]["status"] == "validated"
+    current = store_assistant.get_assistant_session(session["assistant_session_id"])
+    graph_step = current["summary_json"]["production_plan"]["steps"][3]
+    assert graph_step["status"] == "in_progress"
+    assert graph_step["artifact_ref"].startswith("assistant_plan:")
+
+
+def test_production_plan_rejects_regressing_dependency_behind_active_step(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    store_assistant = importlib.import_module("app.store_assistant")
+    session = _session(client)
+    _propose(tools, session)
+    refreshed = _complete_story_steps(tools, store_assistant, session)
+    proposal = store_assistant.create_or_update_assistant_plan(
+        {
+            "assistant_session_id": session["assistant_session_id"],
+            "status": "validated",
+            "plan_json": {},
+        }
+    )
+    graph_started = tools.execute_kernel_tool(
+        tool_name="update_production_plan_step",
+        arguments=json.dumps(
+            {
+                "step_id": "graph",
+                "updates": {
+                    "status": "in_progress",
+                    "artifact_ref": f"assistant_plan:{proposal['assistant_plan_id']}",
+                },
+            }
+        ),
+        capability="graph_builder",
+        context=_context(tools, refreshed),
+    )
+    assert graph_started.trace.error is None
+    regressed = tools.execute_kernel_tool(
+        tool_name="update_production_plan_step",
+        arguments=json.dumps({"step_id": "storyboard", "updates": {"status": "in_progress"}}),
+        capability="story_builder",
+        context=_context(tools, session),
+    )
+
+    assert regressed.trace.error.code == "production_step_dependency_blocked"
+    assert regressed.trace.error.details == {
+        "step_id": "graph",
+        "blocking_step_ids": ["storyboard"],
+    }

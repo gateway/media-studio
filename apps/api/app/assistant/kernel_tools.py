@@ -40,8 +40,10 @@ from .production_plan import (
     ProductionPlanError,
     ProposeProductionPlanArguments,
     ReadProductionPlanArguments,
+    UpdateProductionPlanStepArguments,
     propose_production_plan,
     read_production_plan,
+    update_production_plan_step,
 )
 from .recipe_kernel import (
     GetPromptRecipeArguments,
@@ -83,6 +85,7 @@ KERNEL_TOOL_ACTIVITIES = {
     "propose_media_preset_draft": ("preset_draft", "Prepared preset details"),
     "propose_prompt_recipe_draft": ("recipe_draft", "Prepared recipe details"),
     "propose_production_plan": ("production_plan", "Prepared a production plan"),
+    "update_production_plan_step": ("production_plan", "Updated the production plan"),
     "update_story_state": ("story_update", "Updated the story"),
     "read_run_evidence": ("run_check", "Checked the latest run"),
 }
@@ -687,6 +690,13 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         allowed_capabilities=frozenset({"story_builder"}),
         handler=propose_production_plan,
     ),
+    "update_production_plan_step": KernelToolDefinition(
+        name="update_production_plan_step",
+        description="Update only one identified production-plan step and named constraints; enforce dependencies, explicit skips, and session-owned artifact references.",
+        arguments_model=UpdateProductionPlanStepArguments,
+        allowed_capabilities=frozenset({"story_builder", "graph_builder"}),
+        handler=update_production_plan_step,
+    ),
     "propose_media_preset_draft": KernelToolDefinition(
         name="propose_media_preset_draft",
         description="Validate and store an editable typed Media Preset draft; it becomes save-confirmable only with an applied priced test graph.",
@@ -850,6 +860,7 @@ def execute_kernel_tool(
                 code=exc.code,
                 message=exc.message,
                 retryable=exc.retryable,
+                details=exc.details,
             )
         except StoryKernelError as exc:
             error = AssistantKernelToolError(

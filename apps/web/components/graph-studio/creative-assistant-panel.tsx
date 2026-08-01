@@ -245,6 +245,7 @@ function kernelToolActivity(message: AssistantSessionMessage) {
     if (!call || typeof call !== "object") continue;
     const activity = (call as Record<string, unknown>).activity;
     if (!activity || typeof activity !== "object") continue;
+    if ((activity as Record<string, unknown>).tone === "error") continue;
     const label = (activity as Record<string, unknown>).label;
     if (typeof label === "string" && label.trim()) return label;
   }

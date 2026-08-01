@@ -371,14 +371,24 @@ it("preserves kernel reply markdown and renders only safe typed tool activity", 
               next_action: { kind: "none", requires_confirmation: false },
               kernel_turn: {
                 trace: {
-                  tool_calls: [{
-                    tool_name: "propose_graph_operations",
-                    activity: {
-                      kind: "graph_proposal",
-                      label: "Prepared a graph proposal",
-                      tone: "success",
+                  tool_calls: [
+                    {
+                      tool_name: "propose_graph_operations",
+                      activity: {
+                        kind: "graph_proposal",
+                        label: "Prepared a graph proposal",
+                        tone: "success",
+                      },
                     },
-                  }],
+                    {
+                      tool_name: "update_production_plan_step",
+                      activity: {
+                        kind: "production_plan",
+                        label: "Updated the production plan",
+                        tone: "error",
+                      },
+                    },
+                  ],
                 },
               },
             },
@@ -405,6 +415,7 @@ it("preserves kernel reply markdown and renders only safe typed tool activity", 
   );
 
   expect(await screen.findByText("Prepared a graph proposal")).toBeTruthy();
+  expect(screen.queryByText("Updated the production plan")).toBeNull();
   expect(container.querySelectorAll(".graph-assistant-message-content p")).toHaveLength(2);
   expect(container.querySelectorAll(".graph-assistant-message-content li")).toHaveLength(2);
   expect(container.querySelector(".graph-assistant-message-content strong")?.textContent).toBe("note");

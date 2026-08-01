@@ -125,6 +125,11 @@ def _kernel_instruction() -> str:
         "For story work, keep the premise, characters, world rules, continuity facts, and shots in update_story_state. "
         "For an end-to-end production request, use propose_production_plan to persist ordered work with stable ids and "
         "dependencies. Ground model limits with list_media_models first and express arithmetic as typed derived constraints. "
+        "When active_production_plan exists and work changes, call update_production_plan_step after the work tool so the "
+        "checklist remains current. Update only the named step and named constraints. A blocked step can proceed only after "
+        "its dependencies are done or the user explicitly skips each dependency with a reason; never invent an override. "
+        "Mark done only with a session-owned completed artifact reference. Graph proposals use assistant_plan:<proposal_id> "
+        "and remain in_progress until their existing confirmation is applied. Story work may use story_state. "
         "Respect exact shot counts. For a one-shot revision, preserve every other shot exactly. For a requested story graph, "
         "build from active_story_state through the shared graph tools and do not update story state merely to create the graph. "
         "When calling propose_graph_operations, include the concise user-facing success reply in the same step; it will be used "
@@ -227,6 +232,7 @@ def _kernel_reasoning_effort(
         "get_prompt_recipe",
         "validate_prompt_recipe_draft",
         "read_story_state",
+        "read_production_plan",
     }:
         return "low"
     return "high" if selected_capability == "graph_builder" else "medium"
@@ -701,6 +707,9 @@ def run_assistant_kernel_turn(
             completed_artifact = KERNEL_REQUIRED_ARTIFACTS.get(selected_artifact_intent or "none")
             if completed_artifact in {"preset_draft", "recipe_draft", "story_state"} and any(
                 artifact.kind == completed_artifact for artifact in artifacts
+            ) and (
+                step.tool_call.name != "update_production_plan_step"
+                or any(artifact.kind == "production_plan_update" for artifact in artifacts)
             ):
                 messages = [
                     _kernel_tool_result_message(
@@ -764,6 +773,7 @@ def run_assistant_kernel_turn(
                 "propose_prompt_recipe_draft": "recipe_draft",
                 "update_story_state": "story_state",
                 "propose_production_plan": "production_plan",
+                "update_production_plan_step": "production_plan_update",
                 "read_run_evidence": "run_evidence",
             }.get(step.tool_call.name)
             if execution.result is not None and artifact_kind:
@@ -778,6 +788,10 @@ def run_assistant_kernel_turn(
                 and execution.result is not None
                 and execution.trace.error is None
                 and str(step.reply or "").strip()
+                and not isinstance(
+                    (session.get("summary_json") or {}).get("production_plan"),
+                    dict,
+                )
             ):
                 elapsed = time.perf_counter() - started
                 return AssistantKernelTurnResult(
