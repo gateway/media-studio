@@ -44,6 +44,8 @@ _CODEX_LOCAL_CATALOG_CACHE: Dict[str, Any] = {
 }
 _CODEX_LOCAL_SKILL_SESSIONS: Dict[str, "_ManagedCodexLocalSession"] = {}
 _CODEX_LOCAL_SKILL_SESSIONS_LOCK = Lock()
+_CODEX_LOCAL_MODEL_REASONING: Dict[str, Tuple[Tuple[str, ...], Optional[str]]] = {}
+_CODEX_LOCAL_MODEL_REASONING_LOCK = Lock()
 _CODEX_LOCAL_SKILL_SESSION_REAPER_LOCK = Lock()
 _CODEX_LOCAL_HOME_LOCK = Lock()
 _CODEX_LOCAL_SKILL_SESSION_REAPER_STOP = Event()
@@ -359,6 +361,57 @@ def _normalize_model(model: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
+def _clamp_reasoning_effort(
+    session: "_CodexAppServerSession",
+    model_id: str,
+    requested_effort: Optional[str],
+) -> Optional[str]:
+    requested = str(requested_effort or "").strip()
+    if not requested:
+        return None
+    with _CODEX_LOCAL_MODEL_REASONING_LOCK:
+        cached = _CODEX_LOCAL_MODEL_REASONING.get(model_id)
+    if cached is None:
+        selected = next(
+            (
+                model
+                for model in session.list_models()
+                if str(model.get("id") or model.get("model") or "").strip() == model_id
+            ),
+            {},
+        )
+        supported_values: List[str] = []
+        for value in selected.get("supportedReasoningEfforts") or []:
+            raw_value = value.get("reasoningEffort") if isinstance(value, dict) else value
+            normalized_value = str(raw_value or "").strip()
+            if normalized_value:
+                supported_values.append(normalized_value)
+        supported = tuple(supported_values)
+        default = str(selected.get("defaultReasoningEffort") or "").strip() or None
+        cached = (supported, default)
+        with _CODEX_LOCAL_MODEL_REASONING_LOCK:
+            _CODEX_LOCAL_MODEL_REASONING[model_id] = cached
+    supported, default = cached
+    if requested in supported:
+        return requested
+    return default if default in supported else None
+
+
+def _thread_setup_kwargs(
+    *,
+    cwd: str,
+    model: str,
+    base_instructions: Optional[str],
+    developer_instructions: Optional[str],
+) -> Dict[str, Any]:
+    kwargs: Dict[str, Any] = {"cwd": cwd, "model": model}
+    if base_instructions is not None:
+        kwargs["base_instructions"] = base_instructions
+    if developer_instructions is not None:
+        kwargs["developer_instructions"] = developer_instructions
+    return kwargs
+
+
 def _normalize_model_catalog(models: List[Dict[str, Any]], selected_model_id: Optional[str] = None) -> List[Dict[str, Any]]:
     catalog = [_normalize_model(model) for model in models if not bool(model.get("hidden"))]
     selected = str(selected_model_id or "").strip()
@@ -577,6 +630,8 @@ def _managed_codex_local_session(
     model_id: str,
     timeout_seconds: float,
     preferred_thread_id: str | None,
+    base_instructions: str | None = None,
+    developer_instructions: str | None = None,
 ) -> tuple[_ManagedCodexLocalSession, bool, List[str]]:
     _close_expired_codex_local_skill_sessions()
     existing: _ManagedCodexLocalSession | None = None
@@ -605,17 +660,35 @@ def _managed_codex_local_session(
             try:
                 thread_result = session.resume_thread(
                     thread_id=preferred_thread_id,
-                    cwd=working_directory,
-                    model=model_id,
+                    **_thread_setup_kwargs(
+                        cwd=working_directory,
+                        model=model_id,
+                        base_instructions=base_instructions,
+                        developer_instructions=developer_instructions,
+                    ),
                 )
                 thread_lifecycle.append("thread_resumed")
             except CodexLocalProviderError:
-                thread_result = session.start_thread(cwd=working_directory, model=model_id)
+                thread_result = session.start_thread(
+                    **_thread_setup_kwargs(
+                        cwd=working_directory,
+                        model=model_id,
+                        base_instructions=base_instructions,
+                        developer_instructions=developer_instructions,
+                    )
+                )
                 thread_lifecycle.extend(
                     ["thread_resume_failed", "fallback_hydrated", "thread_replaced"]
                 )
         else:
-            thread_result = session.start_thread(cwd=working_directory, model=model_id)
+            thread_result = session.start_thread(
+                **_thread_setup_kwargs(
+                    cwd=working_directory,
+                    model=model_id,
+                    base_instructions=base_instructions,
+                    developer_instructions=developer_instructions,
+                )
+            )
             thread_lifecycle.append("thread_started")
         thread = thread_result.get("thread") if isinstance(thread_result.get("thread"), dict) else {}
         thread_id = str(thread.get("id") or "").strip()
@@ -687,32 +760,57 @@ class _CodexAppServerSession:
         result = self._request("model/list", {})
         return list(result.get("data") or [])
 
-    def start_thread(self, *, cwd: str, model: str) -> Dict[str, Any]:
+    def start_thread(
+        self,
+        *,
+        cwd: str,
+        model: str,
+        base_instructions: str | None = None,
+        developer_instructions: str | None = None,
+    ) -> Dict[str, Any]:
+        params: Dict[str, Any] = {
+            "ephemeral": False,
+            "cwd": cwd,
+            "approvalPolicy": "never",
+            "sandbox": "read-only",
+            "model": model,
+        }
+        if base_instructions is not None:
+            params["baseInstructions"] = base_instructions
+        if developer_instructions is not None:
+            params["developerInstructions"] = developer_instructions
         result = self._request(
             "thread/start",
-            {
-                "ephemeral": False,
-                "cwd": cwd,
-                "approvalPolicy": "never",
-                "sandbox": "read-only",
-                "model": model,
-            },
+            params,
         )
         thread = result.get("thread")
         if not isinstance(thread, dict) or not str(thread.get("id") or "").strip():
             raise CodexLocalProviderError("Codex Local did not return a thread id.")
         return result
 
-    def resume_thread(self, *, thread_id: str, cwd: str, model: str) -> Dict[str, Any]:
+    def resume_thread(
+        self,
+        *,
+        thread_id: str,
+        cwd: str,
+        model: str,
+        base_instructions: str | None = None,
+        developer_instructions: str | None = None,
+    ) -> Dict[str, Any]:
+        params: Dict[str, Any] = {
+            "threadId": thread_id,
+            "cwd": cwd,
+            "approvalPolicy": "never",
+            "sandbox": "read-only",
+            "model": model,
+        }
+        if base_instructions is not None:
+            params["baseInstructions"] = base_instructions
+        if developer_instructions is not None:
+            params["developerInstructions"] = developer_instructions
         result = self._request(
             "thread/resume",
-            {
-                "threadId": thread_id,
-                "cwd": cwd,
-                "approvalPolicy": "never",
-                "sandbox": "read-only",
-                "model": model,
-            },
+            params,
         )
         thread = result.get("thread")
         if not isinstance(thread, dict) or not str(thread.get("id") or "").strip():
@@ -736,6 +834,8 @@ class _CodexAppServerSession:
         input_items: List[Dict[str, Any]],
         output_schema: Optional[Dict[str, Any]] = None,
         cancel_event: Event | None = None,
+        effort: Optional[str] = None,
+        client_user_message_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         notifications: List[Dict[str, Any]] = []
         params: Dict[str, Any] = {
@@ -744,6 +844,10 @@ class _CodexAppServerSession:
         }
         if output_schema is not None:
             params["outputSchema"] = output_schema
+        if effort is not None:
+            params["effort"] = effort
+        if client_user_message_id is not None:
+            params["clientUserMessageId"] = client_user_message_id
         result = self._request("turn/start", params, notifications=notifications)
         turn = result.get("turn") if isinstance(result, dict) else None
         turn_id = str((turn or {}).get("id") or "").strip()
@@ -1054,6 +1158,10 @@ def run_codex_local_chat(
     codex_session_key: Optional[str] = None,
     provider_thread_id: Optional[str] = None,
     force_new_codex_session: bool = False,
+    thread_base_instructions: Optional[str] = None,
+    thread_developer_instructions: Optional[str] = None,
+    reasoning_effort: Optional[str] = None,
+    client_user_message_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     started_at = time.perf_counter()
     del error_context
@@ -1065,6 +1173,7 @@ def run_codex_local_chat(
     fallback_mode: str | None = None
     thread_lifecycle: List[str] = []
     prompt_bytes = 0
+    actual_reasoning_effort: Optional[str] = None
 
     if session_key:
         if force_new_codex_session:
@@ -1074,17 +1183,31 @@ def run_codex_local_chat(
             model_id=selected_model_id,
             timeout_seconds=timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS,
             preferred_thread_id=preferred_thread_id,
+            base_instructions=thread_base_instructions,
+            developer_instructions=thread_developer_instructions,
         )
         thread_lifecycle.extend(managed_lifecycle)
         try:
             with managed.lock:
                 input_items = _message_to_turn_input(_messages_for_response_format(messages, response_format), managed.temp_root)
                 prompt_bytes = len(json.dumps(input_items, separators=(",", ":")).encode("utf-8"))
+                actual_reasoning_effort = _clamp_reasoning_effort(
+                    managed.session,
+                    selected_model_id,
+                    reasoning_effort,
+                )
+                turn_kwargs: Dict[str, Any] = {
+                    "thread_id": managed.thread_id,
+                    "input_items": input_items,
+                    "output_schema": output_schema,
+                    "cancel_event": cancel_event,
+                }
+                if actual_reasoning_effort is not None:
+                    turn_kwargs["effort"] = actual_reasoning_effort
+                if client_user_message_id is not None:
+                    turn_kwargs["client_user_message_id"] = client_user_message_id
                 result = managed.session.run_turn(
-                    thread_id=managed.thread_id,
-                    input_items=input_items,
-                    output_schema=output_schema,
-                    cancel_event=cancel_event,
+                    **turn_kwargs,
                 )
                 managed.last_used_at = time.monotonic()
         except Exception:
@@ -1104,8 +1227,12 @@ def run_codex_local_chat(
                     try:
                         thread_result = session.resume_thread(
                             thread_id=preferred_thread_id,
-                            cwd=working_directory,
-                            model=selected_model_id,
+                            **_thread_setup_kwargs(
+                                cwd=working_directory,
+                                model=selected_model_id,
+                                base_instructions=thread_base_instructions,
+                                developer_instructions=thread_developer_instructions,
+                            ),
                         )
                         thread_lifecycle.append("thread_resumed")
                     except CodexLocalProviderError:
@@ -1113,13 +1240,42 @@ def run_codex_local_chat(
                             ["thread_resume_failed", "fallback_hydrated", "thread_replaced"]
                         )
                         fallback_mode = "provider_thread_unavailable"
-                        thread_result = session.start_thread(cwd=working_directory, model=selected_model_id)
+                        thread_result = session.start_thread(
+                            **_thread_setup_kwargs(
+                                cwd=working_directory,
+                                model=selected_model_id,
+                                base_instructions=thread_base_instructions,
+                                developer_instructions=thread_developer_instructions,
+                            )
+                        )
                 else:
-                    thread_result = session.start_thread(cwd=working_directory, model=selected_model_id)
+                    thread_result = session.start_thread(
+                        **_thread_setup_kwargs(
+                            cwd=working_directory,
+                            model=selected_model_id,
+                            base_instructions=thread_base_instructions,
+                            developer_instructions=thread_developer_instructions,
+                        )
+                    )
                     thread_lifecycle.append("thread_started")
                 thread = thread_result.get("thread") if isinstance(thread_result.get("thread"), dict) else {}
                 thread_id = str(thread.get("id") or "").strip()
-                result = session.run_turn(thread_id=thread_id, input_items=input_items, output_schema=output_schema, cancel_event=cancel_event)
+                actual_reasoning_effort = _clamp_reasoning_effort(
+                    session,
+                    selected_model_id,
+                    reasoning_effort,
+                )
+                turn_kwargs = {
+                    "thread_id": thread_id,
+                    "input_items": input_items,
+                    "output_schema": output_schema,
+                    "cancel_event": cancel_event,
+                }
+                if actual_reasoning_effort is not None:
+                    turn_kwargs["effort"] = actual_reasoning_effort
+                if client_user_message_id is not None:
+                    turn_kwargs["client_user_message_id"] = client_user_message_id
+                result = session.run_turn(**turn_kwargs)
         finally:
             shutil.rmtree(temp_root, ignore_errors=True)
     usage = dict(result.get("usage") or {})
@@ -1161,6 +1317,8 @@ def run_codex_local_chat(
         "total_tokens": usage.get("total_tokens"),
         "latency_ms": int((time.perf_counter() - started_at) * 1000),
         "prompt_bytes": prompt_bytes,
+        "reasoning_effort": actual_reasoning_effort,
+        "client_user_message_id": client_user_message_id,
         "cost": None,
         "generated_text": str(result.get("generated_text") or "").strip(),
         "warnings": [],

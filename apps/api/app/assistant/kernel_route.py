@@ -25,7 +25,7 @@ def create_kernel_message(
     try:
         with track_session(session_id) as cancel_event:
             session = sync_assistant_session_provider(session)
-            store_assistant.create_assistant_message(
+            user_message = store_assistant.create_assistant_message(
                 {
                     "assistant_session_id": session_id,
                     "role": "user",
@@ -47,6 +47,7 @@ def create_kernel_message(
                 run_id=payload.run_id,
                 attachments=attachments,
                 cancel_event=cancel_event,
+                client_user_message_id=str(user_message.get("assistant_message_id") or "") or None,
             )
     except AssistantSessionBusy as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

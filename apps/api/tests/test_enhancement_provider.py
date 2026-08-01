@@ -48,7 +48,12 @@ def test_codex_thread_start_is_durable_noninteractive_and_read_only() -> None:
         return {"thread": {"id": "thread-isolated"}}
 
     session._request = fake_request
-    session.start_thread(cwd="/tmp/media-studio-isolated", model="gpt-5.6-sol")
+    session.start_thread(
+        cwd="/tmp/media-studio-isolated",
+        model="gpt-5.6-sol",
+        base_instructions="Creative voice",
+        developer_instructions="Media Studio policy",
+    )
 
     assert captured["method"] == "thread/start"
     assert captured["params"] == {
@@ -57,6 +62,8 @@ def test_codex_thread_start_is_durable_noninteractive_and_read_only() -> None:
         "approvalPolicy": "never",
         "sandbox": "read-only",
         "model": "gpt-5.6-sol",
+        "baseInstructions": "Creative voice",
+        "developerInstructions": "Media Studio policy",
     }
 
 
@@ -74,6 +81,8 @@ def test_codex_thread_resume_is_noninteractive_and_read_only() -> None:
         thread_id="thread-durable",
         cwd="/tmp/media-studio-isolated",
         model="gpt-5.6-sol",
+        base_instructions="Creative voice",
+        developer_instructions="Media Studio policy",
     )
 
     assert captured == {
@@ -84,7 +93,41 @@ def test_codex_thread_resume_is_noninteractive_and_read_only() -> None:
             "approvalPolicy": "never",
             "sandbox": "read-only",
             "model": "gpt-5.6-sol",
+            "baseInstructions": "Creative voice",
+            "developerInstructions": "Media Studio policy",
         },
+    }
+
+
+def test_codex_turn_start_carries_effort_and_message_correlation() -> None:
+    provider = enhancement_provider.codex_local_provider
+    session = provider._CodexAppServerSession.__new__(provider._CodexAppServerSession)
+    captured: dict[str, object] = {}
+
+    def fake_request(method: str, params: dict, **kwargs) -> dict:
+        captured.update(method=method, params=params, **kwargs)
+        return {"turn": {"id": "turn-correlated"}}
+
+    session._request = fake_request
+    session._collect_turn = lambda **_kwargs: {
+        "generated_text": "ok",
+        "provider_thread_id": "thread-durable",
+        "provider_turn_id": "turn-correlated",
+    }
+
+    session.run_turn(
+        thread_id="thread-durable",
+        input_items=[{"type": "text", "text": "Bounded input"}],
+        effort="high",
+        client_user_message_id="asmsg_user:2",
+    )
+
+    assert captured["method"] == "turn/start"
+    assert captured["params"] == {
+        "threadId": "thread-durable",
+        "input": [{"type": "text", "text": "Bounded input"}],
+        "effort": "high",
+        "clientUserMessageId": "asmsg_user:2",
     }
 
 
@@ -366,6 +409,139 @@ def test_run_codex_local_chat_uses_app_server_turn_result(monkeypatch: pytest.Mo
     assert "SYSTEM:" in str(input_items[0]["text"])
     assert "Return exactly one valid JSON object" in str(input_items[0]["text"])
     assert "USER:" in str(input_items[0]["text"])
+
+
+def test_run_codex_local_chat_places_thread_instructions_and_clamps_effort(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeSession:
+        def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
+            return None
+
+        def __enter__(self) -> "_FakeSession":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def list_models(self) -> list[dict[str, object]]:
+            return [
+                {
+                    "id": "gpt-test",
+                    "supportedReasoningEfforts": [
+                        {"reasoningEffort": "low"},
+                        {"reasoningEffort": "medium"},
+                    ],
+                    "defaultReasoningEffort": "medium",
+                }
+            ]
+
+        def start_thread(self, **kwargs) -> dict[str, object]:
+            captured["start"] = kwargs
+            return {"thread": {"id": "thread-instructed"}}
+
+        def run_turn(self, **kwargs) -> dict[str, object]:
+            captured["turn"] = kwargs
+            return {
+                "generated_text": "ok",
+                "provider_thread_id": kwargs["thread_id"],
+                "provider_turn_id": "turn-instructed",
+                "usage": {},
+            }
+
+    monkeypatch.setattr(enhancement_provider.codex_local_provider, "_CodexAppServerSession", _FakeSession)
+
+    result = enhancement_provider.run_codex_local_chat(
+        model_id="gpt-test",
+        messages=[{"role": "user", "content": "One bounded turn."}],
+        thread_base_instructions="Creative voice",
+        thread_developer_instructions="Media Studio policy",
+        reasoning_effort="high",
+        client_user_message_id="asmsg_user:1",
+    )
+
+    assert captured["start"] == {
+        "cwd": str(enhancement_provider.codex_local_provider._codex_working_directory()),
+        "model": "gpt-test",
+        "base_instructions": "Creative voice",
+        "developer_instructions": "Media Studio policy",
+    }
+    assert captured["turn"]["effort"] == "medium"
+    assert captured["turn"]["client_user_message_id"] == "asmsg_user:1"
+    assert result["reasoning_effort"] == "medium"
+
+
+def test_managed_chat_places_instructions_once_and_effort_on_each_turn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = enhancement_provider.codex_local_provider
+    captured: dict[str, list[dict[str, object]]] = {"starts": [], "turns": []}
+
+    class _FakeSession:
+        def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
+            return None
+
+        def __enter__(self) -> "_FakeSession":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def list_models(self) -> list[dict[str, object]]:
+            return [
+                {
+                    "id": "gpt-managed-context",
+                    "supportedReasoningEfforts": ["low", "medium"],
+                    "defaultReasoningEffort": "medium",
+                }
+            ]
+
+        def start_thread(self, **kwargs) -> dict[str, object]:
+            captured["starts"].append(kwargs)
+            return {"thread": {"id": "thread-managed-context"}}
+
+        def run_turn(self, **kwargs) -> dict[str, object]:
+            captured["turns"].append(kwargs)
+            return {
+                "generated_text": "ok",
+                "provider_thread_id": kwargs["thread_id"],
+                "provider_turn_id": f"turn-{len(captured['turns'])}",
+                "usage": {},
+            }
+
+    monkeypatch.setattr(provider, "_CodexAppServerSession", _FakeSession)
+    provider.close_codex_local_skill_sessions()
+    provider._CODEX_LOCAL_MODEL_REASONING.clear()
+
+    for index, effort in enumerate(("high", "low"), start=1):
+        enhancement_provider.run_codex_local_chat(
+            model_id="gpt-managed-context",
+            messages=[{"role": "user", "content": f"Bounded input {index}."}],
+            codex_session_key="asst_managed_context",
+            provider_thread_id="thread-managed-context" if index > 1 else None,
+            thread_base_instructions="Creative voice",
+            thread_developer_instructions="Media Studio policy",
+            reasoning_effort=effort,
+            client_user_message_id=f"asmsg_user:{index}",
+        )
+
+    assert captured["starts"] == [
+        {
+            "cwd": str(provider._codex_working_directory()),
+            "model": "gpt-managed-context",
+            "base_instructions": "Creative voice",
+            "developer_instructions": "Media Studio policy",
+        }
+    ]
+    assert [turn["effort"] for turn in captured["turns"]] == ["medium", "low"]
+    assert [turn["client_user_message_id"] for turn in captured["turns"]] == [
+        "asmsg_user:1",
+        "asmsg_user:2",
+    ]
+
+    provider.close_codex_local_skill_sessions()
 
 
 def test_run_codex_local_chat_resumes_durable_thread_in_fresh_process(monkeypatch: pytest.MonkeyPatch) -> None:

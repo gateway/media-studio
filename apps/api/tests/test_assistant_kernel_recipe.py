@@ -467,9 +467,7 @@ def test_recipe_clarification_keeps_bounded_recent_graph_context(client) -> None
     )
 
     context = kernel._kernel_session_context(session)
-    instruction = kernel._kernel_instruction(
-        assistant_mode="recipe",
-    )
+    instruction = kernel._kernel_instruction()
 
     assert len(context["recent_conversation"]) <= 6
     assert any("graph" in item["text"].lower() for item in context["recent_conversation"])

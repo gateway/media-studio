@@ -253,11 +253,13 @@ def test_kernel_planner_receives_path_free_attachment_manifest(client, monkeypat
         attachments=attachments,
     )
 
-    manifest = next(
-        json.loads(message["content"])
+    user_turn = next(
+        message
         for message in captured_messages
-        if message["role"] == "system" and '"attachment_count"' in message["content"]
+        if message["role"] == "user" and "MEDIA_STUDIO_USER_TURN_V1" in message["content"]
     )
+    payload = json.loads(user_turn["content"].partition("PAYLOAD_JSON\n")[2])
+    manifest = payload["attachment_context"]
     serialized = json.dumps(manifest)
     assert manifest["attachment_count"] == 1
     assert manifest["attachments"][0]["reference_id"] == "reference-analysis-1"

@@ -217,6 +217,8 @@ class AssistantKernelProviderTrace(BaseModel):
     usage: Dict[str, Any] = Field(default_factory=dict)
     latency_ms: int = 0
     prompt_bytes: int = 0
+    reasoning_effort: Optional[str] = None
+    client_user_message_id: Optional[str] = None
 
 
 class AssistantKernelTrace(BaseModel):
