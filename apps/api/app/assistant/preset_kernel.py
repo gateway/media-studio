@@ -32,7 +32,8 @@ class GetPresetArguments(BaseModel):
 
 
 class ListMediaModelsArguments(BaseModel):
-    mode: Literal["any", "text_to_image", "image_to_image"] = "any"
+    mode: Literal["any", "text_to_image", "image_to_image", "video"] = "any"
+    model_key: Optional[str] = Field(default=None, max_length=160)
     limit: int = Field(default=30, ge=1, le=60)
 
 
@@ -82,41 +83,133 @@ def get_preset(arguments: BaseModel, _context: Any) -> Dict[str, Any]:
     ).model_dump(mode="json")
 
 
-def _image_limits(model: Dict[str, Any]) -> Dict[str, int]:
+_VIDEO_TASK_MODES = {
+    "text_to_video",
+    "image_to_video",
+    "reference_to_video",
+    "motion_control",
+}
+
+
+def _input_limits(model: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     raw = model.get("raw") if isinstance(model.get("raw"), dict) else {}
     inputs = raw.get("inputs") if isinstance(raw.get("inputs"), dict) else {}
-    images = inputs.get("image") if isinstance(inputs.get("image"), dict) else {}
+    constraints = raw.get("input_constraints") if isinstance(raw.get("input_constraints"), dict) else {}
+    limits: Dict[str, Dict[str, Any]] = {}
+    for media_type in ("image", "video", "audio"):
+        counts = inputs.get(media_type) if isinstance(inputs.get(media_type), dict) else None
+        prefix = f"{media_type}_"
+        limits[media_type] = {
+            "required_min": counts.get("required_min") if counts else None,
+            "required_max": counts.get("required_max") if counts else None,
+            **{
+                key[len(prefix) :]: value
+                for key, value in constraints.items()
+                if key.startswith(prefix)
+            },
+        }
+    return limits
+
+
+def _option_constraint(raw: Dict[str, Any], key: str) -> Dict[str, Any]:
+    options = raw.get("options") if isinstance(raw.get("options"), dict) else {}
+    option = options.get(key) if isinstance(options.get(key), dict) else {}
     return {
-        "required_min": int(images.get("required_min") or 0),
-        "required_max": int(images.get("required_max") or 0),
+        "allowed": option.get("allowed"),
+        "min": option.get("min"),
+        "max": option.get("max"),
+        "default": option.get("default"),
+    }
+
+
+def _cost_basis(rule: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not rule:
+        return {
+            "pricing_status": "unknown",
+            "billing_unit": None,
+            "base_credits": None,
+            "base_cost_usd": None,
+            "option_dependent_fields": [],
+        }
+    dependent_fields = set()
+    for key in ("multipliers", "adders_credits", "adders_cost_usd"):
+        values = rule.get(key) if isinstance(rule.get(key), dict) else {}
+        dependent_fields.update(str(item) for item in values)
+    return {
+        "pricing_status": rule.get("pricing_status") or "unknown",
+        "billing_unit": rule.get("billing_unit"),
+        "base_credits": rule.get("base_credits"),
+        "base_cost_usd": rule.get("base_cost_usd"),
+        "option_dependent_fields": sorted(dependent_fields),
     }
 
 
 def list_media_models(arguments: BaseModel, _context: Any) -> Dict[str, Any]:
     options = ListMediaModelsArguments.model_validate(arguments)
+    pricing = kie_adapter.pricing_snapshot(force_refresh=False)
+    pricing_rules = {
+        str(rule.get("model_key") or ""): rule
+        for rule in pricing.get("rules") or []
+        if isinstance(rule, dict)
+    }
     items: List[Dict[str, Any]] = []
+    kie_spec_version: Optional[str] = None
     for model in kie_adapter.list_models():
         task_modes = [str(item) for item in model.get("task_modes") or []]
+        model_key = str(model.get("key") or "")
         if model.get("studio_exposed") is False:
+            continue
+        if options.model_key and model_key != options.model_key:
             continue
         if options.mode == "text_to_image" and "text_to_image" not in task_modes:
             continue
         if options.mode == "image_to_image" and "image_edit" not in task_modes:
             continue
-        if not ({"text_to_image", "image_edit"} & set(task_modes)):
+        if options.mode == "video" and not (_VIDEO_TASK_MODES & set(task_modes)):
             continue
+        raw = model.get("raw") if isinstance(model.get("raw"), dict) else {}
+        input_patterns = [str(item) for item in model.get("input_patterns") or []]
+        input_limits = _input_limits(model)
+        is_video = bool(_VIDEO_TASK_MODES & set(task_modes))
+        kie_spec_version = kie_spec_version or model.get("kie_spec_version")
         items.append(
             {
-                "model_key": model.get("key"),
-                "label": model.get("label") or model.get("key"),
+                "model_key": model_key,
+                "label": model.get("label") or model_key,
                 "task_modes": task_modes,
-                "input_patterns": model.get("input_patterns") or [],
-                "image_limits": _image_limits(model),
+                "input_patterns": input_patterns,
+                "input_limits": input_limits,
+                "image_limits": {
+                    key: input_limits["image"].get(key)
+                    for key in ("required_min", "required_max")
+                },
+                "frame_support": {
+                    "first_frame": (
+                        True
+                        if is_video and {"single_image", "first_last_frames"} & set(input_patterns)
+                        else None
+                    ),
+                    "last_frame": True if is_video and "first_last_frames" in input_patterns else None,
+                },
+                "generation_constraints": {
+                    "duration_seconds": _option_constraint(raw, "duration"),
+                    "resolutions": _option_constraint(raw, "resolution"),
+                    "aspect_ratios": _option_constraint(raw, "aspect_ratio"),
+                },
+                "cost_basis": _cost_basis(pricing_rules.get(model_key)),
             }
         )
         if len(items) >= options.limit:
             break
-    return {"models": items, "count": len(items)}
+    return {
+        "models": items,
+        "count": len(items),
+        "catalog": {
+            "kie_spec_version": kie_spec_version,
+            "pricing_version": pricing.get("version"),
+            "pricing_source": pricing.get("source"),
+        },
+    }
 
 
 def _validated_test_plan(test_plan_id: str, session_id: str) -> Dict[str, Any]:

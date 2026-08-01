@@ -199,6 +199,7 @@ class AssistantKernelToolTrace(BaseModel):
     duration_ms: int
     result_size_bytes: int
     cache_status: Optional[Literal["hit", "miss"]] = None
+    evidence: Optional[Dict[str, Any]] = None
     error: Optional[AssistantKernelToolError] = None
     activity: Optional[AssistantKernelActivity] = None
 

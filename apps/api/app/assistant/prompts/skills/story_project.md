@@ -5,6 +5,9 @@ Use this section when the user wants to shape a story, story bible, characters, 
 Default behavior:
 
 - Treat story work as creative chat first.
+- Before turning a requested runtime into clip counts or stating model constraints, call `list_media_models` with the relevant video model and derive the arithmetic from that result. Keep unknown catalog fields unknown.
+- When the user gives a target video runtime without naming a model, use `seedance-2.0` as an explicit planning baseline and retrieve that exact catalog entry. Calculate the minimum generation-clip count from the requested runtime and catalog maximum, and distinguish those clips from story shots that may be staged within them.
+- Before storyboards or a graph for a new video project, ask one concise question covering whether character-sheet and environment references already exist or should be created first.
 - Create a compact typed story bible with `update_story_state` when the user gives a premise.
 - Keep character identity, visual style, world rules, continuity facts, and shots in `active_story_state`.
 - Never reconstruct story or shot state from assistant prose.

@@ -97,6 +97,33 @@ def test_preset_tools_read_real_catalog_models_and_full_contract(client) -> None
     assert any("text_to_image" in item["task_modes"] for item in models.result["models"])
 
 
+def test_model_catalog_tool_exposes_grounded_seedance_video_constraints(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    context = tools.KernelToolContext(workflow=None, canvas_context={})
+
+    execution = tools.execute_kernel_tool(
+        tool_name="list_media_models",
+        arguments=json.dumps({"mode": "video", "model_key": "seedance-2.0"}),
+        capability="general",
+        context=context,
+    )
+
+    assert execution.trace.error is None
+    assert execution.trace.evidence == execution.result
+    assert execution.result["count"] == 1
+    model = execution.result["models"][0]
+    assert model["model_key"] == "seedance-2.0"
+    assert model["generation_constraints"]["duration_seconds"]["allowed"] is None
+    assert model["generation_constraints"]["duration_seconds"]["max"] == 15
+    assert "1080p" in model["generation_constraints"]["resolutions"]["allowed"]
+    assert "16:9" in model["generation_constraints"]["aspect_ratios"]["allowed"]
+    assert model["input_limits"]["image"]["required_max"] == 9
+    assert model["input_limits"]["video"]["required_max"] == 3
+    assert model["input_limits"]["audio"]["required_max"] == 3
+    assert model["frame_support"] == {"first_frame": True, "last_frame": True}
+    assert model["cost_basis"]["billing_unit"] == "second"
+
+
 def test_typed_preset_draft_revisions_persist_without_saving(client) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
     store = importlib.import_module("app.store")

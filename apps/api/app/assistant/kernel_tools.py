@@ -657,10 +657,10 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
     ),
     "list_media_models": KernelToolDefinition(
         name="list_media_models",
-        description="List image models, task modes, input patterns, and image limits available for a preset.",
+        description="Read catalog-backed image or video model task modes, generation constraints, reference limits, frame support, and cost basis; filter by mode or exact model key.",
         arguments_model=ListMediaModelsArguments,
         allowed_capabilities=frozenset(
-            {"graph_builder", "preset_builder", "recipe_builder", "story_builder"}
+            {"general", "graph_builder", "preset_builder", "recipe_builder", "story_builder"}
         ),
         handler=list_media_models,
     ),
@@ -899,6 +899,11 @@ def execute_kernel_tool(
         arguments_hash=_arguments_hash(arguments),
         duration_ms=max(0, int((time.perf_counter() - started) * 1000)),
         result_size_bytes=len(encoded),
+        evidence=(
+            result
+            if error is None and str(tool_name or "") == "list_media_models"
+            else None
+        ),
         cache_status=(
             result.get("cache_status")
             if isinstance(result, dict) and result.get("cache_status") in {"hit", "miss"}
