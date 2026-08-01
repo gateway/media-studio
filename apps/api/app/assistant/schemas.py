@@ -219,6 +219,7 @@ class AssistantKernelProviderTrace(BaseModel):
     prompt_bytes: int = 0
     reasoning_effort: Optional[str] = None
     client_user_message_id: Optional[str] = None
+    compaction: Optional[Dict[str, Any]] = None
 
 
 class AssistantKernelTrace(BaseModel):

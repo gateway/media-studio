@@ -131,6 +131,95 @@ def test_codex_turn_start_carries_effort_and_message_correlation() -> None:
     }
 
 
+def test_codex_compaction_waits_for_context_compaction_completion() -> None:
+    provider = enhancement_provider.codex_local_provider
+    session = provider._CodexAppServerSession.__new__(provider._CodexAppServerSession)
+    session.timeout_seconds = 30
+    captured: dict[str, object] = {}
+    read_calls: list[bool] = []
+
+    def fake_request(method: str, params: dict, *, notifications: list, **_kwargs) -> dict:
+        captured.update(method=method, params=params)
+        notifications.extend(
+            [
+                {
+                    "method": "turn/completed",
+                    "params": {"threadId": "thread-compact", "turn": {"id": "turn-old", "status": "completed"}},
+                },
+                {
+                    "method": "thread/status/changed",
+                    "params": {
+                        "threadId": "thread-compact",
+                        "status": {"type": "idle"},
+                    },
+                },
+                {
+                    "method": "turn/started",
+                    "params": {"threadId": "thread-compact", "turn": {"id": "turn-compact", "status": "inProgress"}},
+                },
+                {
+                    "method": "thread/tokenUsage/updated",
+                    "params": {
+                        "threadId": "thread-compact",
+                        "turnId": "turn-compact",
+                        "tokenUsage": {
+                            "last": {"inputTokens": 0, "outputTokens": 0, "totalTokens": 120},
+                            "total": {"inputTokens": 180000, "outputTokens": 500, "totalTokens": 180500},
+                            "modelContextWindow": 258400,
+                        },
+                    },
+                },
+                {
+                    "method": "item/completed",
+                    "params": {
+                        "threadId": "thread-compact",
+                        "turnId": "turn-compact",
+                        "item": {"type": "contextCompaction"},
+                    },
+                },
+            ]
+        )
+        return {}
+
+    session._request = fake_request
+    remaining_messages = iter(
+        [
+            {
+                "method": "thread/status/changed",
+                "params": {
+                    "threadId": "thread-compact",
+                    "status": {"type": "idle"},
+                },
+            },
+            {
+                "method": "turn/completed",
+                "params": {
+                    "threadId": "thread-compact",
+                    "turn": {"id": "turn-compact", "status": "completed"},
+                },
+            },
+        ]
+    )
+
+    def fake_read_message(*_args, **_kwargs):
+        read_calls.append(True)
+        return next(remaining_messages)
+
+    session._read_message = fake_read_message
+
+    result = session.compact_thread(thread_id="thread-compact")
+
+    assert captured == {
+        "method": "thread/compact/start",
+        "params": {"threadId": "thread-compact"},
+    }
+    assert result["completed"] is True
+    assert result["provider_turn_id"] == "turn-compact"
+    assert read_calls == [True]
+    assert result["usage"]["prompt_tokens"] == 0
+    assert result["usage"]["model_context_window"] == 258400
+
+
 def test_codex_turn_interrupt_uses_supported_request() -> None:
     provider = enhancement_provider.codex_local_provider
     session = provider._CodexAppServerSession.__new__(provider._CodexAppServerSession)
@@ -540,6 +629,123 @@ def test_managed_chat_places_instructions_once_and_effort_on_each_turn(
         "asmsg_user:1",
         "asmsg_user:2",
     ]
+
+    provider.close_codex_local_skill_sessions()
+
+
+def test_managed_chat_compacts_only_before_an_eligible_user_turn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = enhancement_provider.codex_local_provider
+    captured: dict[str, list[dict[str, object]]] = {"compactions": [], "turns": []}
+
+    class _FakeSession:
+        def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
+            return None
+
+        def __enter__(self) -> "_FakeSession":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def list_models(self) -> list[dict[str, object]]:
+            return []
+
+        def start_thread(self, **_kwargs) -> dict[str, object]:
+            return {"thread": {"id": "thread-compaction"}}
+
+        def compact_thread(self, **kwargs) -> dict[str, object]:
+            captured["compactions"].append(kwargs)
+            return {
+                "completed": True,
+                "provider_turn_id": "turn-compaction",
+                "usage": {"prompt_tokens": 0, "model_context_window": 100},
+            }
+
+        def run_turn(self, **kwargs) -> dict[str, object]:
+            captured["turns"].append(kwargs)
+            return {
+                "generated_text": "ok",
+                "provider_thread_id": kwargs["thread_id"],
+                "provider_turn_id": f"turn-{len(captured['turns'])}",
+                "usage": {"prompt_tokens": 80, "model_context_window": 100},
+            }
+
+    monkeypatch.setattr(provider, "_CodexAppServerSession", _FakeSession)
+    provider.close_codex_local_skill_sessions()
+
+    results = [
+        enhancement_provider.run_codex_local_chat(
+            model_id="gpt-compaction",
+            messages=[{"role": "user", "content": f"Bounded input {index}."}],
+            codex_session_key="asst_compaction",
+            compact_before_turn=index != 2,
+        )
+        for index in range(1, 4)
+    ]
+
+    assert captured["compactions"] == [
+        {"thread_id": "thread-compaction", "cancel_event": None}
+    ]
+    assert results[0]["compaction"] is None
+    assert results[1]["compaction"] is None
+    assert results[2]["compaction"]["outcome"] == "completed"
+    assert results[2]["compaction"]["triggering_usage"]["prompt_tokens"] == 80
+    assert results[2]["compaction"]["next_eligible_threshold"] == 90
+
+    provider.close_codex_local_skill_sessions()
+
+
+def test_managed_chat_continues_when_compaction_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = enhancement_provider.codex_local_provider
+
+    class _FakeSession:
+        def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
+            return None
+
+        def __enter__(self) -> "_FakeSession":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def list_models(self) -> list[dict[str, object]]:
+            return []
+
+        def start_thread(self, **_kwargs) -> dict[str, object]:
+            return {"thread": {"id": "thread-compaction-failure"}}
+
+        def compact_thread(self, **_kwargs) -> dict[str, object]:
+            raise provider.CodexLocalProviderError("compaction failed")
+
+        def run_turn(self, **kwargs) -> dict[str, object]:
+            return {
+                "generated_text": "ok",
+                "provider_thread_id": kwargs["thread_id"],
+                "provider_turn_id": "turn-after-failure",
+                "usage": {"prompt_tokens": 80, "model_context_window": 100},
+            }
+
+    monkeypatch.setattr(provider, "_CodexAppServerSession", _FakeSession)
+    provider.close_codex_local_skill_sessions()
+
+    enhancement_provider.run_codex_local_chat(
+        model_id="gpt-compaction-failure",
+        messages=[{"role": "user", "content": "Prime usage."}],
+        codex_session_key="asst_compaction_failure",
+    )
+    result = enhancement_provider.run_codex_local_chat(
+        model_id="gpt-compaction-failure",
+        messages=[{"role": "user", "content": "Continue after failure."}],
+        codex_session_key="asst_compaction_failure",
+        compact_before_turn=True,
+    )
+
+    assert result["provider_thread_id"] == "thread-compaction-failure"
+    assert result["compaction"]["outcome"] == "failed_resumable"
 
     provider.close_codex_local_skill_sessions()
 

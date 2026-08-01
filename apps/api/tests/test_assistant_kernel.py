@@ -229,6 +229,7 @@ def test_kernel_provider_step_persists_thread_id_and_records_lifecycle(
             "prompt_bytes": 512,
             "reasoning_effort": None,
             "client_user_message_id": None,
+            "compaction": None,
         }
     ]
 
@@ -1191,6 +1192,8 @@ def test_kernel_sends_stable_instructions_once_and_only_bounded_tool_results_aft
     assert second["reasoning_effort"] == "low"
     assert first["client_user_message_id"] == "asmsg_user:1"
     assert second["client_user_message_id"] == "asmsg_user:2"
+    assert first["compact_before_turn"] is True
+    assert second["compact_before_turn"] is False
     assert result.trace.step_count == 1
 
 

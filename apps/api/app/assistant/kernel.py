@@ -414,6 +414,7 @@ def run_kernel_provider_step(
     thread_developer_instructions: Optional[str] = None,
     reasoning_effort: Optional[str] = None,
     client_user_message_id: Optional[str] = None,
+    compact_before_turn: bool = False,
 ) -> Dict[str, Any]:
     runtime = resolve_assistant_provider_runtime(session)
     if runtime.provider_kind != "codex_local":
@@ -435,6 +436,7 @@ def run_kernel_provider_step(
             thread_developer_instructions=thread_developer_instructions,
             reasoning_effort=reasoning_effort,
             client_user_message_id=client_user_message_id,
+            compact_before_turn=compact_before_turn,
         )
     except enhancement_provider.EnhancementProviderError as exc:
         if is_cancelled(cancel_event):
@@ -473,6 +475,11 @@ def run_kernel_provider_step(
                 reasoning_effort=str(result.get("reasoning_effort") or "").strip() or None,
                 client_user_message_id=(
                     str(result.get("client_user_message_id") or "").strip() or None
+                ),
+                compaction=(
+                    dict(result.get("compaction"))
+                    if isinstance(result.get("compaction"), dict)
+                    else None
                 ),
             )
         )
@@ -636,6 +643,7 @@ def run_assistant_kernel_turn(
                 if client_user_message_id
                 else None
             ),
+            compact_before_turn=provider_call_index == 1,
         )
         step = AssistantKernelProviderStep.model_validate(raw_step)
         if step.artifact_intent not in KERNEL_ARTIFACT_INTENTS[step.capability]:

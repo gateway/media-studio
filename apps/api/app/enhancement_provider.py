@@ -713,6 +713,7 @@ def run_codex_local_chat(
     thread_developer_instructions: Optional[str] = None,
     reasoning_effort: Optional[str] = None,
     client_user_message_id: Optional[str] = None,
+    compact_before_turn: bool = False,
 ) -> Dict[str, Any]:
     try:
         return codex_local_provider.run_codex_local_chat(
@@ -729,6 +730,7 @@ def run_codex_local_chat(
             thread_developer_instructions=thread_developer_instructions,
             reasoning_effort=reasoning_effort,
             client_user_message_id=client_user_message_id,
+            compact_before_turn=compact_before_turn,
         )
     except codex_local_provider.CodexLocalProviderError as exc:
         raise EnhancementProviderError(str(exc)) from exc

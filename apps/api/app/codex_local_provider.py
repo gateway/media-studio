@@ -20,6 +20,8 @@ CODEX_APP_SERVER_TIMEOUT_SECONDS = 300
 CODEX_LOCAL_CATALOG_CACHE_TTL_SECONDS = 300
 CODEX_LOCAL_SKILL_SESSION_TTL_SECONDS = 900
 CODEX_LOCAL_SKILL_SESSION_REAP_SECONDS = 60
+CODEX_LOCAL_COMPACTION_TRIGGER_RATIO = 0.70
+CODEX_LOCAL_COMPACTION_HYSTERESIS_RATIO = 0.10
 CODEX_LOCAL_DEFAULT_MODEL = "gpt-5.6-sol"
 CODEX_LOCAL_PROVIDER_BASE_URL = "codex://app-server"
 CODEX_LOCAL_PROVIDER_CREDENTIAL_SOURCE = "codex_local_login"
@@ -537,6 +539,16 @@ def _normalize_usage_snapshot(snapshot: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _compaction_threshold(context_window: int) -> int:
+    measured_threshold = int(context_window * CODEX_LOCAL_COMPACTION_TRIGGER_RATIO)
+    override = str(
+        os.environ.get("MEDIA_STUDIO_CODEX_COMPACTION_THRESHOLD_TOKENS") or ""
+    ).strip()
+    if override.isdigit() and int(override) > 0:
+        return min(int(override), measured_threshold)
+    return measured_threshold
+
+
 class _ManagedCodexLocalSession:
     def __init__(self, *, key: str, temp_root: Path, session: "_CodexAppServerSession", thread_id: str, model_id: str) -> None:
         self.key = key
@@ -546,7 +558,38 @@ class _ManagedCodexLocalSession:
         self.model_id = model_id
         self.created_at = time.monotonic()
         self.last_used_at = self.created_at
+        self.context_input_tokens = 0
+        self.model_context_window = 0
+        self.next_compaction_input_tokens = 0
         self.lock = Lock()
+
+    def record_usage(self, usage: Dict[str, Any]) -> None:
+        context_input_tokens = int(usage.get("prompt_tokens") or 0)
+        context_window = int(usage.get("model_context_window") or 0)
+        if context_window <= 0:
+            return
+        self.context_input_tokens = context_input_tokens
+        self.model_context_window = context_window
+        base_threshold = _compaction_threshold(context_window)
+        if not self.next_compaction_input_tokens or context_input_tokens < base_threshold:
+            self.next_compaction_input_tokens = base_threshold
+
+    def compaction_due(self) -> bool:
+        return bool(
+            self.model_context_window
+            and self.next_compaction_input_tokens
+            and self.context_input_tokens >= self.next_compaction_input_tokens
+        )
+
+    def defer_next_compaction(self) -> int:
+        hysteresis = int(
+            self.model_context_window * CODEX_LOCAL_COMPACTION_HYSTERESIS_RATIO
+        )
+        self.next_compaction_input_tokens = min(
+            self.model_context_window,
+            self.context_input_tokens + max(hysteresis, 1),
+        )
+        return self.next_compaction_input_tokens
 
     def close(self) -> None:
         try:
@@ -827,6 +870,105 @@ class _CodexAppServerSession:
     def archive_thread(self, *, thread_id: str) -> None:
         self._request("thread/archive", {"threadId": thread_id})
 
+    def compact_thread(
+        self,
+        *,
+        thread_id: str,
+        cancel_event: Event | None = None,
+    ) -> Dict[str, Any]:
+        notifications: List[Dict[str, Any]] = []
+        self._request(
+            "thread/compact/start",
+            {"threadId": thread_id},
+            notifications=notifications,
+        )
+        compaction_turn_id = ""
+        usage_snapshot: Dict[str, Any] = {}
+        model_context_window: int | None = None
+        item_completed = False
+        turn_completed = False
+        thread_idle = False
+        completed = False
+        failure_message = ""
+
+        def handle_message(message: Dict[str, Any]) -> None:
+            nonlocal compaction_turn_id, usage_snapshot, model_context_window
+            nonlocal item_completed, turn_completed, thread_idle, completed, failure_message
+            method = str(message.get("method") or "").strip()
+            params = message.get("params") if isinstance(message.get("params"), dict) else {}
+            if str(params.get("threadId") or "").strip() != thread_id:
+                return
+            if method == "turn/started":
+                turn = params.get("turn") if isinstance(params.get("turn"), dict) else {}
+                compaction_turn_id = str(turn.get("id") or "").strip()
+                item_completed = False
+                turn_completed = False
+                thread_idle = False
+                completed = False
+                return
+            if method == "thread/status/changed":
+                status = params.get("status") if isinstance(params.get("status"), dict) else {}
+                thread_idle = str(status.get("type") or "").strip() == "idle"
+                completed = item_completed and (turn_completed or thread_idle)
+                return
+            turn = params.get("turn") if isinstance(params.get("turn"), dict) else {}
+            event_turn_id = str(params.get("turnId") or turn.get("id") or "").strip()
+            if not compaction_turn_id or event_turn_id != compaction_turn_id:
+                return
+            if method == "thread/tokenUsage/updated":
+                token_usage = params.get("tokenUsage") if isinstance(params.get("tokenUsage"), dict) else {}
+                usage_snapshot = dict(token_usage.get("last") or {})
+                raw_window = token_usage.get("modelContextWindow")
+                model_context_window = int(raw_window) if raw_window is not None else None
+                return
+            if method == "item/completed":
+                item = params.get("item") if isinstance(params.get("item"), dict) else {}
+                item_completed = (
+                    str(item.get("type") or "").strip() == "contextCompaction"
+                )
+                completed = item_completed and (turn_completed or thread_idle)
+                return
+            if method == "error":
+                error = params.get("error") if isinstance(params.get("error"), dict) else {}
+                failure_message = _clean_codex_error_message(error.get("message"))
+                return
+            if method == "turn/completed":
+                turn_completed = str(turn.get("status") or "").strip() == "completed"
+                completed = item_completed and turn_completed
+                if not turn_completed:
+                    error = turn.get("error") if isinstance(turn.get("error"), dict) else {}
+                    failure_message = _clean_codex_error_message(error.get("message"))
+
+        for notification in notifications:
+            handle_message(notification)
+        deadline = time.monotonic() + self.timeout_seconds
+        while not completed and not failure_message:
+            if cancel_event and cancel_event.is_set():
+                if compaction_turn_id:
+                    self.interrupt_turn(thread_id=thread_id, turn_id=compaction_turn_id)
+                raise CodexLocalProviderCancelled("Codex Local compaction was interrupted.")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise CodexLocalProviderError(
+                    "Codex Local timed out while compacting the thread."
+                )
+            message = self._read_message(
+                min(remaining, 0.25) if cancel_event else remaining,
+                allow_timeout=bool(cancel_event),
+            )
+            if message is not None:
+                handle_message(message)
+        if failure_message:
+            raise CodexLocalProviderError(failure_message)
+        usage = _normalize_usage_snapshot(usage_snapshot)
+        if model_context_window is not None:
+            usage["model_context_window"] = model_context_window
+        return {
+            "completed": True,
+            "provider_turn_id": compaction_turn_id or None,
+            "usage": usage,
+        }
+
     def run_turn(
         self,
         *,
@@ -880,12 +1022,13 @@ class _CodexAppServerSession:
         agent_text_chunks: List[str] = []
         final_text = ""
         usage_snapshot: Dict[str, Any] = {}
+        model_context_window: int | None = None
         turn_completed = False
         turn_failed_message = ""
         events: List[Dict[str, Any]] = list(initial_notifications)
 
         def handle_message(message: Dict[str, Any]) -> bool:
-            nonlocal final_text, usage_snapshot, turn_completed, turn_failed_message
+            nonlocal final_text, usage_snapshot, model_context_window, turn_completed, turn_failed_message
             events.append(message)
             method = str(message.get("method") or "").strip()
             params = message.get("params") if isinstance(message.get("params"), dict) else {}
@@ -904,6 +1047,8 @@ class _CodexAppServerSession:
             if method == "thread/tokenUsage/updated" and str(params.get("turnId") or "").strip() == turn_id:
                 token_usage = params.get("tokenUsage") if isinstance(params.get("tokenUsage"), dict) else {}
                 usage_snapshot = dict(token_usage.get("last") or token_usage.get("total") or {})
+                raw_window = token_usage.get("modelContextWindow")
+                model_context_window = int(raw_window) if raw_window is not None else None
                 return False
             if method == "thread/status/changed" and str(params.get("threadId") or "").strip() == thread_id:
                 status = params.get("status") if isinstance(params.get("status"), dict) else {}
@@ -961,9 +1106,12 @@ class _CodexAppServerSession:
             raise CodexLocalProviderError(turn_failed_message)
         if not resolved_text:
             raise CodexLocalProviderError("Codex Local returned an empty response.")
+        usage = _normalize_usage_snapshot(usage_snapshot)
+        if model_context_window is not None:
+            usage["model_context_window"] = model_context_window
         return {
             "generated_text": resolved_text,
-            "usage": _normalize_usage_snapshot(usage_snapshot),
+            "usage": usage,
             "provider_thread_id": thread_id,
             "provider_session_id": thread_id,
             "provider_turn_id": turn_id,
@@ -1162,6 +1310,7 @@ def run_codex_local_chat(
     thread_developer_instructions: Optional[str] = None,
     reasoning_effort: Optional[str] = None,
     client_user_message_id: Optional[str] = None,
+    compact_before_turn: bool = False,
 ) -> Dict[str, Any]:
     started_at = time.perf_counter()
     del error_context
@@ -1174,6 +1323,7 @@ def run_codex_local_chat(
     thread_lifecycle: List[str] = []
     prompt_bytes = 0
     actual_reasoning_effort: Optional[str] = None
+    compaction: Dict[str, Any] | None = None
 
     if session_key:
         if force_new_codex_session:
@@ -1189,6 +1339,37 @@ def run_codex_local_chat(
         thread_lifecycle.extend(managed_lifecycle)
         try:
             with managed.lock:
+                if compact_before_turn and managed.compaction_due():
+                    triggering_usage = {
+                        "prompt_tokens": managed.context_input_tokens,
+                        "model_context_window": managed.model_context_window,
+                    }
+                    next_threshold = managed.defer_next_compaction()
+                    try:
+                        compacted = managed.session.compact_thread(
+                            thread_id=managed.thread_id,
+                            cancel_event=cancel_event,
+                        )
+                        compaction = {
+                            "outcome": "completed",
+                            "thread_id": managed.thread_id,
+                            "provider_turn_id": compacted.get("provider_turn_id"),
+                            "triggering_usage": triggering_usage,
+                            "completion_usage": dict(compacted.get("usage") or {}),
+                            "next_eligible_threshold": next_threshold,
+                        }
+                        thread_lifecycle.append("thread_compacted")
+                    except CodexLocalProviderCancelled:
+                        raise
+                    except CodexLocalProviderError as exc:
+                        compaction = {
+                            "outcome": "failed_resumable",
+                            "thread_id": managed.thread_id,
+                            "triggering_usage": triggering_usage,
+                            "error": str(exc),
+                            "next_eligible_threshold": next_threshold,
+                        }
+                        thread_lifecycle.append("thread_compaction_failed")
                 input_items = _message_to_turn_input(_messages_for_response_format(messages, response_format), managed.temp_root)
                 prompt_bytes = len(json.dumps(input_items, separators=(",", ":")).encode("utf-8"))
                 actual_reasoning_effort = _clamp_reasoning_effort(
@@ -1209,6 +1390,7 @@ def run_codex_local_chat(
                 result = managed.session.run_turn(
                     **turn_kwargs,
                 )
+                managed.record_usage(dict(result.get("usage") or {}))
                 managed.last_used_at = time.monotonic()
         except Exception:
             with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
@@ -1319,6 +1501,7 @@ def run_codex_local_chat(
         "prompt_bytes": prompt_bytes,
         "reasoning_effort": actual_reasoning_effort,
         "client_user_message_id": client_user_message_id,
+        "compaction": compaction,
         "cost": None,
         "generated_text": str(result.get("generated_text") or "").strip(),
         "warnings": [],
