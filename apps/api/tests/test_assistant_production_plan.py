@@ -463,8 +463,10 @@ def test_production_plan_updates_identified_constraint_from_number_word(client) 
 def test_story_turn_can_update_one_plan_step_after_story_state(client, monkeypatch) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
     tools = importlib.import_module("app.assistant.kernel_tools")
+    store_assistant = importlib.import_module("app.store_assistant")
     session = _session(client)
     _propose(tools, session)
+    session = store_assistant.get_assistant_session(session["assistant_session_id"])
     steps = iter(
         [
             {
@@ -486,6 +488,7 @@ def test_story_turn_can_update_one_plan_step_after_story_state(client, monkeypat
                         "update_kind": "story_development",
                     },
                 },
+                "reply": "The character direction is now part of the plan.",
             },
             {
                 "capability": "story_builder",
@@ -497,11 +500,6 @@ def test_story_turn_can_update_one_plan_step_after_story_state(client, monkeypat
                         "updates": {"status": "done", "artifact_ref": "story_state"},
                     },
                 },
-            },
-            {
-                "capability": "story_builder",
-                "artifact_intent": "update_story",
-                "reply": "The character direction is now part of the plan.",
             },
         ]
     )
@@ -576,11 +574,7 @@ def test_graph_proposal_updates_plan_without_bypassing_confirmation(client, monk
                     },
                 },
             }
-        return {
-            "capability": "graph_builder",
-            "artifact_intent": "none",
-            "reply": "Review the canvas proposal before applying it.",
-        }
+        raise AssertionError("unexpected extra provider call")
 
     monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
     result = kernel.run_assistant_kernel_turn(
@@ -597,6 +591,7 @@ def test_graph_proposal_updates_plan_without_bypassing_confirmation(client, monk
     ]
     assert result.next_action.kind == "confirm_graph"
     assert result.next_action.requires_confirmation is True
+    assert provider_calls == 2
     assert store_assistant.list_assistant_plans(session["assistant_session_id"])[0]["status"] == "validated"
     current = store_assistant.get_assistant_session(session["assistant_session_id"])
     graph_step = current["summary_json"]["production_plan"]["steps"][3]

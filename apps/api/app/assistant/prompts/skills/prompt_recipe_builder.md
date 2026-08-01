@@ -19,6 +19,12 @@ Typed draft state:
   `propose_prompt_recipe_draft` to persist the complete current draft.
 - The draft must cover `system_prompt_template`, `input_variables_json`, `custom_fields_json`,
   `image_input_json`, `output_format`, and `output_contract_json`.
+- Put every `{{template_token}}` in `input_variables_json`. A user-facing "field" that feeds the
+  template is an input variable, not a duplicate custom field. Use `custom_fields_json` only for
+  additional controls whose keys do not appear in `input_variables_json` or the template.
+- Never use reserved variable keys as custom-field keys: `user_prompt`, `image_analysis`,
+  `source_prompt`, `source_image_prompt`, `previous_output`, `shot_count`, `duration_seconds`,
+  `aspect_ratio`, `output_format`, or `style_direction`.
 - Image input mode must be exactly `none`, `direct_reference`, `analyze_then_inject`, or `both`.
   Use `analyze_then_inject` when the recipe should inspect an image and inject visible details through
   `{{image_analysis}}`; configure a non-empty image analysis prompt and the matching enabled variable.

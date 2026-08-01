@@ -190,6 +190,7 @@ def test_recipe_turn_cannot_finish_with_prose_only_draft(client, monkeypatch) ->
     kernel = importlib.import_module("app.assistant.kernel")
     session = _session(client)
     draft = _recipe_draft("kernel_recipe_required_typed_draft")
+    calls = []
     steps = iter(
         [
             {
@@ -204,15 +205,16 @@ def test_recipe_turn_cannot_finish_with_prose_only_draft(client, monkeypatch) ->
                     "name": "propose_prompt_recipe_draft",
                     "arguments": json.dumps({"draft": draft}),
                 },
-            },
-            {
-                "capability": "recipe_builder",
-                "artifact_intent": "draft_recipe",
                 "reply": "The structured draft is ready.",
             },
         ]
     )
-    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+
+    def provider_step(**_kwargs):
+        calls.append(True)
+        return next(steps)
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
 
     result = kernel.run_assistant_kernel_turn(
         session=session,
@@ -224,6 +226,7 @@ def test_recipe_turn_cannot_finish_with_prose_only_draft(client, monkeypatch) ->
 
     assert any(item.kind == "recipe_draft" for item in result.artifacts)
     assert result.trace.tool_calls[0].tool_name == "propose_prompt_recipe_draft"
+    assert len(calls) == 2
 
 
 def test_recipe_save_requires_one_time_server_confirmation(client, monkeypatch) -> None:
@@ -472,3 +475,33 @@ def test_recipe_clarification_keeps_bounded_recent_graph_context(client) -> None
     assert len(context["recent_conversation"]) <= 6
     assert any("graph" in item["text"].lower() for item in context["recent_conversation"])
     assert "propose_graph_operations" in instruction
+
+
+def test_recipe_session_context_exposes_latest_saved_artifact(client) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    store_assistant = importlib.import_module("app.store_assistant")
+    session = _session(client)
+    store_assistant.create_assistant_message(
+        {
+            "assistant_session_id": session["assistant_session_id"],
+            "role": "system_summary",
+            "content_text": "Saved the confirmed assistant artifact.",
+            "content_json": {
+                "saved_artifact": {
+                    "kind": "prompt_recipe",
+                    "id": "recipe_storyboard",
+                    "key": "storyboard_prompts",
+                    "label": "Storyboard Prompts",
+                }
+            },
+        }
+    )
+
+    context = kernel._kernel_session_context(session)
+
+    assert context["latest_saved_artifact"] == {
+        "kind": "prompt_recipe",
+        "id": "recipe_storyboard",
+        "key": "storyboard_prompts",
+        "label": "Storyboard Prompts",
+    }

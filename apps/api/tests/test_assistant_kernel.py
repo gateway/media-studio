@@ -799,6 +799,7 @@ def test_kernel_graph_proposal_is_validated_priced_and_confirmable(client, monke
             {
                 "capability": "graph_builder",
                 "tool_call": {"name": "list_graph_node_types", "arguments": {"query": "prompt"}},
+                "reply": "I found the relevant prompt nodes and will build the graph next.",
             },
             {
                 "capability": "graph_builder",
@@ -1462,6 +1463,82 @@ def test_kernel_graph_confirmation_rejects_stale_proposal(client, monkeypatch) -
     assert approved_response.status_code == 200, approved_response.text
     assert approved_response.json()["plan"]["assistant_plan_id"] == second_action["proposal_id"]
     assert approved_response.json()["workflow"]["nodes"][0]["fields"]["text"] == "second prompt"
+
+
+def test_kernel_reissues_confirmation_for_current_validated_proposal(client, monkeypatch) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    workflow = {
+        "schema_version": 1,
+        "workflow_id": "workflow-reissued-kernel-plan",
+        "name": "Reissued proposal graph",
+        "nodes": [],
+        "edges": [],
+        "metadata": {},
+    }
+    session = client.post(
+        "/media/assistant/sessions",
+        json={"owner_kind": "graph_workflow", "owner_id": workflow["workflow_id"], "workflow": workflow},
+    ).json()
+    steps = iter(
+        [
+            {
+                "capability": "graph_builder",
+                "tool_call": {
+                    "name": "propose_graph_operations",
+                    "arguments": {
+                        "summary": "Add a prompt.",
+                        "operations": [
+                            {
+                                "op": "add_node",
+                                "node_ref": "prompt",
+                                "node_type": "prompt.text",
+                                "position": {"x": 0, "y": 0},
+                                "fields": {"text": "A quiet harbor"},
+                            }
+                        ],
+                    },
+                },
+                "reply": "The proposal is ready for review.",
+            },
+            {
+                "capability": "graph_builder",
+                "reply": "The current proposal is ready for review.",
+            },
+        ]
+    )
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+
+    first = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={"content_text": "Add a prompt.", "workflow": workflow},
+    ).json()["messages"][-1]["content_json"]["kernel_turn"]["next_action"]
+    second = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={"content_text": "Let me approve the current proposal.", "workflow": workflow},
+    ).json()["messages"][-1]["content_json"]["kernel_turn"]["next_action"]
+
+    assert second["kind"] == "confirm_graph"
+    assert second["proposal_id"] == first["proposal_id"]
+    assert second["confirmation_token"] != first["confirmation_token"]
+    stale = client.post(
+        f"/media/assistant/plans/{first['proposal_id']}/apply",
+        json={
+            "workflow": workflow,
+            "proposal_id": first["proposal_id"],
+            "confirmation_token": first["confirmation_token"],
+        },
+    )
+    assert stale.status_code == 400
+    approved = client.post(
+        f"/media/assistant/plans/{second['proposal_id']}/apply",
+        json={
+            "workflow": workflow,
+            "proposal_id": second["proposal_id"],
+            "confirmation_token": second["confirmation_token"],
+        },
+    )
+    assert approved.status_code == 200
+    assert approved.json()["workflow"]["nodes"][0]["fields"]["text"] == "A quiet harbor"
 
 
 def test_kernel_run_request_returns_typed_confirmation_without_submitting_a_job(client, monkeypatch) -> None:

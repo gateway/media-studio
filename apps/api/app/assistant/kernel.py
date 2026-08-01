@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from threading import Event
@@ -25,6 +26,7 @@ from .provider_support import (
 )
 from .schemas import (
     AssistantArtifactIntent,
+    AssistantGraphPlan,
     AssistantKernelArtifact,
     AssistantKernelCapability,
     AssistantKernelProviderStep,
@@ -120,20 +122,22 @@ def _kernel_instruction() -> str:
         "backend JSON block in the reply. A preset draft or revision and its test graph are separate user turns: after "
         "propose_media_preset_draft succeeds, reply and stop. Build a priced test graph only when the current request "
         "asks for one, using artifact_intent none. A validated applied test graph is required before a save request. "
-        "For Prompt Recipes, use search_prompt_recipes and get_prompt_recipe for saved state, validate and persist the "
+        "For Prompt Recipes, call get_prompt_recipe directly when session context supplies the exact saved id or key; "
+        "otherwise use search_prompt_recipes then get_prompt_recipe. Validate and persist the "
         "complete editable contract through propose_prompt_recipe_draft, and request save confirmation only when the user asks. "
         "For story work, keep the premise, characters, world rules, continuity facts, and shots in update_story_state. "
         "For an end-to-end production request, use propose_production_plan to persist ordered work with stable ids and "
         "dependencies. Ground model limits with list_media_models first and express arithmetic as typed derived constraints. "
         "When active_production_plan exists and work changes, call update_production_plan_step after the work tool so the "
-        "checklist remains current. Update only the named step and named constraints. A blocked step can proceed only after "
+        "checklist remains current, and include the concise success reply on that update. Update only the named step and "
+        "named constraints. A blocked step can proceed only after "
         "its dependencies are done or the user explicitly skips each dependency with a reason; never invent an override. "
         "Mark done only with a session-owned completed artifact reference. Graph proposals use assistant_plan:<proposal_id> "
         "and remain in_progress until their existing confirmation is applied. Story work may use story_state. "
         "Respect exact shot counts. For a one-shot revision, preserve every other shot exactly. For a requested story graph, "
         "build from active_story_state through the shared graph tools and do not update story state merely to create the graph. "
-        "When calling propose_graph_operations, include the concise user-facing success reply in the same step; it will be used "
-        "only if the server validates the proposal. "
+        "When calling a tool that completes the selected artifact intent, include the concise user-facing success reply in the "
+        "same step; it will be used only if the server validates the artifact. "
         "Encode the complete tool argument object as JSON in tool_call.arguments. "
         "Return either one tool_call or a user-facing reply. Do not claim facts about Media Studio state "
         "until a tool result provides them. The server owns confirmation actions; never invent one in prose. "
@@ -296,6 +300,16 @@ def _kernel_session_context(
         ),
         None,
     ) if session_id else None
+    latest_saved_artifact = next(
+        (
+            message.get("content_json", {}).get("saved_artifact")
+            for message in reversed(store_assistant.list_assistant_messages(session_id))
+            if message.get("role") == "system_summary"
+            and isinstance(message.get("content_json"), dict)
+            and isinstance(message.get("content_json", {}).get("saved_artifact"), dict)
+        ),
+        None,
+    ) if session_id else None
     return {
         "active_preset_draft": preset_draft if isinstance(preset_draft, dict) else None,
         "active_recipe_draft": recipe_draft if isinstance(recipe_draft, dict) else None,
@@ -303,6 +317,7 @@ def _kernel_session_context(
         "active_production_plan": production_plan if isinstance(production_plan, dict) else None,
         "latest_graph_proposal_id": summary.get("kernel_proposal_id"),
         "latest_applied_test_plan_id": latest_applied_test_plan_id,
+        "latest_saved_artifact": latest_saved_artifact,
         "recent_conversation": _recent_conversation(
             session,
             exclude_message_id=exclude_message_id,
@@ -316,6 +331,7 @@ def _next_action_for_artifacts(
     *,
     requested_action: AssistantNextAction | None = None,
     workflow: GraphWorkflow | None = None,
+    session: Dict[str, Any] | None = None,
 ) -> AssistantNextAction:
     if capability == "preset_builder":
         preset_draft = next(
@@ -372,6 +388,37 @@ def _next_action_for_artifacts(
         None,
     )
     if not proposal:
+        if workflow is not None and session is not None:
+            summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
+            proposal_id = str(summary.get("kernel_proposal_id") or "")
+            plan = store_assistant.get_assistant_plan(proposal_id) if proposal_id else None
+            belongs_to_session = plan and str(plan.get("assistant_session_id") or "") == str(
+                session.get("assistant_session_id") or ""
+            )
+            if belongs_to_session and str(plan.get("status") or "") == "validated":
+                graph_plan = AssistantGraphPlan.model_validate(plan.get("plan_json") or {})
+                expected_fingerprint = str(graph_plan.metadata.get("base_workflow_fingerprint") or "")
+                if expected_fingerprint == workflow_fingerprint(workflow):
+                    confirmation_token = new_id("confirm")
+                    graph_plan.metadata["confirmation_token_hash"] = hashlib.sha256(
+                        confirmation_token.encode("utf-8")
+                    ).hexdigest()
+                    store_assistant.create_or_update_assistant_plan(
+                        {**plan, "plan_json": graph_plan.model_dump(mode="json")}
+                    )
+                    return AssistantNextAction(
+                        kind="confirm_graph",
+                        label="Add to canvas",
+                        proposal_id=proposal_id,
+                        confirmation_token=confirmation_token,
+                        requires_confirmation=True,
+                        payload={"proposal_id": proposal_id, "confirmation_token": confirmation_token},
+                        price_estimate=(
+                            plan.get("pricing_json")
+                            if isinstance(plan.get("pricing_json"), dict)
+                            else None
+                        ),
+                    )
         if (
             requested_action
             and requested_action.kind == "run_workflow"
@@ -613,6 +660,7 @@ def run_assistant_kernel_turn(
     provider_steps: List[AssistantKernelProviderTrace] = []
     tool_traces = []
     artifacts: List[AssistantKernelArtifact] = []
+    pending_success_reply = ""
     tool_steps = 0
     provider_call_index = 0
     artifact_retry_requested = False
@@ -783,19 +831,47 @@ def run_assistant_kernel_turn(
                         data=execution.result,
                     )
                 )
+            completed_artifact = KERNEL_REQUIRED_ARTIFACTS.get(selected_artifact_intent or "none")
+            artifact_completes_intent = (
+                completed_artifact is not None and artifact_kind == completed_artifact
+            )
             if (
-                step.tool_call.name == "propose_graph_operations"
-                and execution.result is not None
+                execution.result is not None
                 and execution.trace.error is None
                 and str(step.reply or "").strip()
-                and not isinstance(
-                    (session.get("summary_json") or {}).get("production_plan"),
-                    dict,
+                and (artifact_completes_intent or artifact_kind == "graph_proposal")
+            ):
+                pending_success_reply = str(step.reply or "").strip()
+            has_active_production_plan = isinstance(
+                (session.get("summary_json") or {}).get("production_plan"),
+                dict,
+            )
+            completes_turn = (
+                artifact_completes_intent and not has_active_production_plan
+            ) or (
+                step.tool_call.name == "propose_graph_operations"
+                and not has_active_production_plan
+            ) or (
+                step.tool_call.name == "update_production_plan_step"
+                and any(
+                    (
+                        completed_artifact is not None
+                        and artifact.kind == completed_artifact
+                    )
+                    or artifact.kind == "graph_proposal"
+                    for artifact in artifacts
                 )
+            )
+            success_reply = str(step.reply or "").strip() or pending_success_reply
+            if (
+                completes_turn
+                and execution.result is not None
+                and execution.trace.error is None
+                and success_reply
             ):
                 elapsed = time.perf_counter() - started
                 return AssistantKernelTurnResult(
-                    reply=str(step.reply or ""),
+                    reply=success_reply,
                     capability=selected_capability,
                     trace=AssistantKernelTrace(
                         capability=selected_capability,
@@ -813,6 +889,7 @@ def run_assistant_kernel_turn(
                         artifacts,
                         requested_action=step.requested_action,
                         workflow=workflow,
+                        session=session,
                     ),
                 )
             messages = [
@@ -876,5 +953,6 @@ def run_assistant_kernel_turn(
                 artifacts,
                 requested_action=step.requested_action,
                 workflow=workflow,
+                session=session,
             ),
         )

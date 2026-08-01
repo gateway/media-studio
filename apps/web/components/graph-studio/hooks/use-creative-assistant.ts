@@ -68,7 +68,7 @@ function savedArtifactGraphPrompt(message: AssistantMessage) {
     const exactPreset = artifact.key ? ` named ${artifact.label} with key ${artifact.key}` : ` named ${artifact.label}`;
     return `Create a clean replacement workflow that uses the saved Media Preset${exactPreset}. Leave required image inputs empty so the user can attach the correct images before running.`;
   }
-  return `Create a clean replacement workflow that uses the saved Prompt Recipe named ${artifact.label}, then sends the rendered prompt into an image model with preview and save image nodes.`;
+  return `Create a clean replacement workflow that uses the saved Prompt Recipe named ${artifact.label}, then sends the rendered prompt into a compatible text-to-image model with preview and save image nodes.`;
 }
 
 function savedArtifactEditorUrl(message: AssistantMessage, returnTo?: string) {

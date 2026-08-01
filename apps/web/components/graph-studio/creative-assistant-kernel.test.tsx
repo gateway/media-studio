@@ -128,6 +128,54 @@ it("renders and applies only the kernel-owned graph confirmation", async () => {
   });
 });
 
+it("requests a text-to-image model when wiring a saved Prompt Recipe", async () => {
+  const savedRecipeMessage = {
+    assistant_message_id: "message-recipe-saved",
+    assistant_session_id: "session-1",
+    role: "system_summary",
+    content_text: "Saved the confirmed assistant artifact.",
+    content_json: {
+      activity_kind: "prompt_recipe_saved",
+      saved_artifact: {
+        kind: "prompt_recipe",
+        id: "recipe-1",
+        key: "storyboard_prompt_writer",
+        label: "Storyboard Prompt Writer",
+      },
+    },
+  };
+  const fetchMock = vi.fn((url: string) => {
+    if (url.includes("/media/assistant/sessions?")) {
+      return jsonResponse({ items: [{ ...session, messages: [savedRecipeMessage] }] });
+    }
+    if (url.endsWith("/media/assistant/sessions/session-1/plans")) return jsonResponse(plan);
+    return jsonResponse({});
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(
+    <CreativeAssistantPanel
+      open
+      workspaceKey="tab-saved-recipe"
+      workflowId="workflow-1"
+      workflowName="Assistant Graph"
+      workflow={workflow}
+      references={[]}
+      importImageFile={vi.fn()}
+      onApplyWorkflow={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+
+  fireEvent.click(await screen.findByRole("button", { name: "Use Storyboard Prompt Writer in this graph" }));
+  await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/plans"))).toBe(true));
+  const planCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/plans"));
+  const request = JSON.parse(String(planCall?.[1]?.body));
+  expect(request.message).toContain("Storyboard Prompt Writer");
+  expect(request.message).toContain("text-to-image model");
+  expect(request.workflow.nodes).toHaveLength(0);
+});
+
 it("saves a kernel preset only after the user clicks its server-owned confirmation", async () => {
   const assistantMessage = {
     assistant_message_id: "message-preset-kernel",
