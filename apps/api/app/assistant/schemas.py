@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from ..graph.schemas import GraphEstimateResponse, GraphValidationResult, GraphWorkflow
 from ..schemas import PresetUpsertRequest, PromptRecipeUpsertRequest
+from .production_plan import ProductionPlan
 
 
 AssistantOwnerKind = Literal["graph_workflow", "studio_project", "media_preset", "prompt_recipe", "standalone"]
@@ -30,6 +31,7 @@ AssistantArtifactIntent = Literal[
     "revise_recipe",
     "save_recipe",
     "update_story",
+    "propose_production_plan",
     "diagnose_run",
 ]
 AssistantNextActionKind = Literal[
@@ -347,6 +349,7 @@ class AssistantSession(BaseModel):
     messages: List[AssistantMessage] = Field(default_factory=list)
     attachments: List[AssistantAttachment] = Field(default_factory=list)
     latest_plan: Optional[Dict[str, Any]] = None
+    production_plan: Optional[ProductionPlan] = None
 
 
 class AssistantSessionListResponse(BaseModel):

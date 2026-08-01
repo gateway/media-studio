@@ -108,11 +108,17 @@ def _latest_relevant_session_plan(record: dict[str, Any]) -> dict[str, Any] | No
 
 def _shape_session(record: dict[str, Any]) -> AssistantSession:
     session_id = str(record["assistant_session_id"])
+    summary = record.get("summary_json") if isinstance(record.get("summary_json"), dict) else {}
     return AssistantSession(
         **record,
         messages=store_assistant.list_assistant_messages(session_id),
         attachments=store_assistant.list_assistant_attachments(session_id),
         latest_plan=_latest_relevant_session_plan(record),
+        production_plan=(
+            summary.get("production_plan")
+            if isinstance(summary.get("production_plan"), dict)
+            else None
+        ),
     )
 
 

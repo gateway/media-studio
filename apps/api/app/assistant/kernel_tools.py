@@ -36,6 +36,13 @@ from .preset_kernel import (
     propose_media_preset_draft,
     search_presets,
 )
+from .production_plan import (
+    ProductionPlanError,
+    ProposeProductionPlanArguments,
+    ReadProductionPlanArguments,
+    propose_production_plan,
+    read_production_plan,
+)
 from .recipe_kernel import (
     GetPromptRecipeArguments,
     ProposePromptRecipeDraftArguments,
@@ -75,6 +82,7 @@ KERNEL_TOOL_ACTIVITIES = {
     "analyze_reference_images": ("reference_analysis", "Analyzed your reference"),
     "propose_media_preset_draft": ("preset_draft", "Prepared preset details"),
     "propose_prompt_recipe_draft": ("recipe_draft", "Prepared recipe details"),
+    "propose_production_plan": ("production_plan", "Prepared a production plan"),
     "update_story_state": ("story_update", "Updated the story"),
     "read_run_evidence": ("run_check", "Checked the latest run"),
 }
@@ -128,6 +136,7 @@ class KernelToolContext:
     session_id: Optional[str] = None
     session: Dict[str, Any] = field(default_factory=dict)
     attachments: List[Dict[str, Any]] = field(default_factory=list)
+    tool_evidence: List[Dict[str, Any]] = field(default_factory=list)
     cancel_event: Event | None = None
     timeout_seconds: Optional[float] = None
 
@@ -664,6 +673,20 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         ),
         handler=list_media_models,
     ),
+    "read_production_plan": KernelToolDefinition(
+        name="read_production_plan",
+        description="Read the active typed production plan for this assistant session.",
+        arguments_model=ReadProductionPlanArguments,
+        allowed_capabilities=frozenset({"story_builder"}),
+        handler=read_production_plan,
+    ),
+    "propose_production_plan": KernelToolDefinition(
+        name="propose_production_plan",
+        description="Validate and persist an ordered production plan with stable ids, dependencies, and grounded constraints.",
+        arguments_model=ProposeProductionPlanArguments,
+        allowed_capabilities=frozenset({"story_builder"}),
+        handler=propose_production_plan,
+    ),
     "propose_media_preset_draft": KernelToolDefinition(
         name="propose_media_preset_draft",
         description="Validate and store an editable typed Media Preset draft; it becomes save-confirmable only with an applied priced test graph.",
@@ -817,6 +840,12 @@ def execute_kernel_tool(
                 retryable=exc.retryable,
             )
         except RecipeKernelError as exc:
+            error = AssistantKernelToolError(
+                code=exc.code,
+                message=exc.message,
+                retryable=exc.retryable,
+            )
+        except ProductionPlanError as exc:
             error = AssistantKernelToolError(
                 code=exc.code,
                 message=exc.message,

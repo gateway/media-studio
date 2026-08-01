@@ -48,6 +48,7 @@ def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -
         "revise_recipe",
         "save_recipe",
         "update_story",
+        "propose_production_plan",
         "diagnose_run",
     ]
 

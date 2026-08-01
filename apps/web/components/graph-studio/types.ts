@@ -215,6 +215,33 @@ export type AssistantNextAction = {
   price_estimate?: Record<string, unknown> | null;
 };
 
+export type AssistantProductionConstraint = {
+  name: string;
+  value: string | number | boolean;
+  source: "user_request" | "model_catalog" | "derived";
+  model_key?: string | null;
+  catalog_path?: string | null;
+  derived_from?: string[];
+  operator?: "ceil_divide" | null;
+};
+
+export type AssistantProductionPlanStep = {
+  id: string;
+  kind: "character_sheet" | "environment_sheet" | "storyboard" | "recipe" | "graph" | "run" | "stitch";
+  title: string;
+  status: "proposed" | "ready" | "in_progress" | "done" | "skipped";
+  depends_on: string[];
+  artifact_ref?: string | null;
+  notes: string;
+};
+
+export type AssistantProductionPlan = {
+  version: 1;
+  goal: string;
+  constraints: AssistantProductionConstraint[];
+  steps: AssistantProductionPlanStep[];
+};
+
 export type AssistantSession = {
   assistant_session_id: string;
   owner_kind: "graph_workflow" | "studio_project" | "media_preset" | "prompt_recipe" | "standalone";
@@ -227,6 +254,7 @@ export type AssistantSession = {
   attachments: AssistantAttachment[];
   summary_json?: Record<string, unknown>;
   latest_plan?: AssistantPlanResponse | null;
+  production_plan?: AssistantProductionPlan | null;
   created_at?: string | null;
   updated_at?: string | null;
 };

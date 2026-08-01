@@ -33,6 +33,7 @@ import type { MediaImagePickerItem } from "@/components/media/media-image-picker
 import { useMediaImagePickerPagination } from "@/components/media/use-media-image-picker-pagination";
 import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
 import type { MediaReference } from "@/lib/types";
+import { ProductionPlanChecklist } from "./production-plan-checklist";
 
 const ASSISTANT_IMAGE_REFERENCE_LIMIT = 8;
 const ASSISTANT_MODE_STORAGE_PREFIX = "media-studio:graph-assistant-mode:";
@@ -1087,6 +1088,9 @@ export function CreativeAssistantPanel({
         ) : null}
 
         <div className="graph-assistant-body">
+          {assistant.session?.production_plan ? (
+            <ProductionPlanChecklist plan={assistant.session.production_plan} />
+          ) : null}
           <section ref={threadRef} className="graph-assistant-thread" aria-label="Assistant messages">
           {showPresetLoopStarter ? (
             <div className="graph-assistant-loop-starter" aria-label="Preset builder shortcuts">

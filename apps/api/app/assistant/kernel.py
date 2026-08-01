@@ -52,7 +52,7 @@ KERNEL_ARTIFACT_INTENTS: Dict[AssistantKernelCapability, frozenset[AssistantArti
     "graph_builder": frozenset({"none"}),
     "preset_builder": frozenset({"none", "draft_preset", "revise_preset", "save_preset"}),
     "recipe_builder": frozenset({"none", "draft_recipe", "revise_recipe", "save_recipe"}),
-    "story_builder": frozenset({"none", "update_story"}),
+    "story_builder": frozenset({"none", "update_story", "propose_production_plan"}),
     "run_debugger": frozenset({"none", "diagnose_run"}),
 }
 KERNEL_REQUIRED_ARTIFACTS: Dict[AssistantArtifactIntent, str] = {
@@ -63,6 +63,7 @@ KERNEL_REQUIRED_ARTIFACTS: Dict[AssistantArtifactIntent, str] = {
     "revise_recipe": "recipe_draft",
     "save_recipe": "recipe_draft",
     "update_story": "story_state",
+    "propose_production_plan": "production_plan",
     "diagnose_run": "run_evidence",
 }
 KERNEL_ARTIFACT_ERRORS = {
@@ -77,6 +78,10 @@ KERNEL_ARTIFACT_ERRORS = {
     "story_state": (
         "typed_story_state_required",
         "Before replying, call update_story_state with the complete current typed story state.",
+    ),
+    "production_plan": (
+        "typed_production_plan_required",
+        "Before replying, call propose_production_plan with the complete grounded production plan.",
     ),
     "run_evidence": (
         "run_evidence_required",
@@ -118,6 +123,8 @@ def _kernel_instruction() -> str:
         "For Prompt Recipes, use search_prompt_recipes and get_prompt_recipe for saved state, validate and persist the "
         "complete editable contract through propose_prompt_recipe_draft, and request save confirmation only when the user asks. "
         "For story work, keep the premise, characters, world rules, continuity facts, and shots in update_story_state. "
+        "For an end-to-end production request, use propose_production_plan to persist ordered work with stable ids and "
+        "dependencies. Ground model limits with list_media_models first and express arithmetic as typed derived constraints. "
         "Respect exact shot counts. For a one-shot revision, preserve every other shot exactly. For a requested story graph, "
         "build from active_story_state through the shared graph tools and do not update story state merely to create the graph. "
         "When calling propose_graph_operations, include the concise user-facing success reply in the same step; it will be used "
@@ -273,6 +280,7 @@ def _kernel_session_context(
     preset_draft = summary.get("kernel_preset_draft")
     recipe_draft = summary.get("kernel_recipe_draft")
     story_state = summary.get("kernel_story_state")
+    production_plan = summary.get("production_plan")
     session_id = str(session.get("assistant_session_id") or "")
     latest_applied_test_plan_id = next(
         (
@@ -286,6 +294,7 @@ def _kernel_session_context(
         "active_preset_draft": preset_draft if isinstance(preset_draft, dict) else None,
         "active_recipe_draft": recipe_draft if isinstance(recipe_draft, dict) else None,
         "active_story_state": story_state if isinstance(story_state, dict) else None,
+        "active_production_plan": production_plan if isinstance(production_plan, dict) else None,
         "latest_graph_proposal_id": summary.get("kernel_proposal_id"),
         "latest_applied_test_plan_id": latest_applied_test_plan_id,
         "recent_conversation": _recent_conversation(
@@ -735,6 +744,11 @@ def run_assistant_kernel_turn(
                     session_id=str(session.get("assistant_session_id") or "") or None,
                     session=session,
                     attachments=list(attachments or []),
+                    tool_evidence=[
+                        trace.evidence
+                        for trace in tool_traces
+                        if isinstance(trace.evidence, dict)
+                    ],
                     cancel_event=cancel_event,
                     timeout_seconds=max_wall_seconds - (time.perf_counter() - started),
                 ),
@@ -749,6 +763,7 @@ def run_assistant_kernel_turn(
                 "propose_media_preset_draft": "preset_draft",
                 "propose_prompt_recipe_draft": "recipe_draft",
                 "update_story_state": "story_state",
+                "propose_production_plan": "production_plan",
                 "read_run_evidence": "run_evidence",
             }.get(step.tool_call.name)
             if execution.result is not None and artifact_kind:
