@@ -4,7 +4,7 @@ import hashlib
 import json
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from threading import Event
 from typing import Any, Callable, Dict, FrozenSet, List, Optional
 
@@ -133,6 +133,7 @@ class KernelToolFailure(Exception):
 class KernelToolContext:
     workflow: Optional[GraphWorkflow]
     canvas_context: Dict[str, Any]
+    capability: AssistantKernelCapability | None = None
     user_text: str = ""
     artifact_intent: AssistantArtifactIntent = "none"
     run_id: Optional[str] = None
@@ -309,6 +310,20 @@ def _read_run_evidence(arguments: BaseModel, context: KernelToolContext) -> Dict
     ]
     events = store.list_graph_run_events(run_id)
     artifacts = store.list_graph_artifacts_for_run(run_id)
+    preset_test = None
+    if context.capability == "preset_builder":
+        from .run_confirmation import PresetRunEvidenceError, bind_completed_preset_run
+
+        if not context.session_id:
+            raise KernelToolFailure(
+                code="preset_test_session_missing",
+                message="The Media Assistant session is unavailable.",
+                retryable=False,
+            )
+        try:
+            preset_test = bind_completed_preset_run(context.session_id, run)
+        except PresetRunEvidenceError as exc:
+            raise KernelToolFailure(code=exc.code, message=str(exc), retryable=False) from exc
     return {
         "run": {
             "run_id": run_id,
@@ -351,6 +366,7 @@ def _read_run_evidence(arguments: BaseModel, context: KernelToolContext) -> Dict
             "edge_count": len(workflow.get("edges") or []),
             "failed_nodes": relevant_nodes,
         },
+        "preset_test": preset_test,
     }
 
 
@@ -618,9 +634,9 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
     ),
     "read_run_evidence": KernelToolDefinition(
         name="read_run_evidence",
-        description="Read a selected or latest failed run with failed node results, events, artifacts, and matching workflow nodes.",
+        description="Read a selected run with node results, events, artifacts, and matching workflow nodes; preset work also binds completed output to its confirmed session test plan.",
         arguments_model=ReadRunEvidenceArguments,
-        allowed_capabilities=frozenset({"run_debugger"}),
+        allowed_capabilities=frozenset({"preset_builder", "run_debugger"}),
         handler=_read_run_evidence,
     ),
     "list_graph_node_types": KernelToolDefinition(
@@ -823,7 +839,10 @@ def execute_kernel_tool(
     else:
         try:
             parsed_arguments = definition.arguments_model.model_validate(parsed_payload)
-            result = definition.handler(parsed_arguments, context)
+            result = definition.handler(
+                parsed_arguments,
+                replace(context, capability=capability),
+            )
         except ValidationError as exc:
             error = AssistantKernelToolError(
                 code="invalid_tool_arguments",

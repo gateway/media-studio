@@ -320,7 +320,7 @@ it("saves a kernel recipe only after the user clicks its server-owned confirmati
 });
 
 it("runs only after the user clicks the typed kernel action", async () => {
-  const onRunWorkflow = vi.fn();
+  const onRunWorkflow = vi.fn().mockResolvedValue({ run_id: "graph-run-1" });
   const fetchMock = vi.fn((url: string) => {
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
@@ -348,9 +348,6 @@ it("runs only after the user clicks the typed kernel action", async () => {
         }],
       });
     }
-    if (url.endsWith("/media/assistant/sessions/session-1/run-confirmations")) {
-      return jsonResponse({ confirmed: true });
-    }
     return jsonResponse({});
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -377,13 +374,12 @@ it("runs only after the user clicks the typed kernel action", async () => {
   await waitFor(() => expect(screen.getByRole("button", { name: "Review and run" })).toBeTruthy());
   expect(onRunWorkflow).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Review and run" }));
-  await waitFor(() => expect(onRunWorkflow).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(onRunWorkflow).toHaveBeenCalledWith({
+    sessionId: "session-1",
+    token: "run-token-1",
+  }));
   expect(screen.queryByRole("button", { name: "Review and run" })).toBeNull();
-  const confirmationCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/run-confirmations"));
-  expect(JSON.parse(String(confirmationCall?.[1]?.body))).toMatchObject({
-    workflow,
-    confirmation_token: "run-token-1",
-  });
+  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/run-confirmations"))).toBe(false);
 });
 
 it("preserves kernel reply markdown and renders only safe typed tool activity", async () => {

@@ -21,7 +21,7 @@ import type {
   AssistantSession,
   GraphWorkflowPayload,
 } from "../types";
-import { jsonFetch } from "../utils/graph-api";
+import { JsonFetchError, jsonFetch } from "../utils/graph-api";
 import { blankGraphWorkflowPayload } from "../utils/graph-tabs";
 import { buildCreativeAssistantCanvasContext } from "../utils/creative-assistant-canvas-context";
 
@@ -220,7 +220,7 @@ export function useCreativeAssistant({
   onBeforeReviewNavigate?: () => void;
   onAssistantSessionChange?: (assistantSessionId: string | null) => void;
   onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; baseWorkflow?: GraphWorkflowPayload }) => Promise<void> | void;
-  onRunWorkflow?: () => Promise<unknown> | void;
+  onRunWorkflow?: (assistantConfirmation?: { sessionId: string; token: string }) => Promise<unknown> | void;
   onEvent?: (message: string, tone?: "success" | "warning" | "error" | "muted") => void;
 }) {
   const [session, setSession] = useState<AssistantSession | null>(null);
@@ -228,6 +228,7 @@ export function useCreativeAssistant({
   const [plan, setPlan] = useState<AssistantPlanResponse | null>(null);
   const [status, setStatus] = useState<AssistantStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [runConfirmationNeedsRecheck, setRunConfirmationNeedsRecheck] = useState(false);
   const [providerReadiness, setProviderReadiness] = useState<AssistantProviderReadiness>({
     checked: false,
     ready: false,
@@ -285,6 +286,7 @@ export function useCreativeAssistant({
     planApplyWorkflowRef.current = null;
     setDraft("");
     setError(null);
+    setRunConfirmationNeedsRecheck(false);
     setStatus("idle");
   }, [setScopedSession]);
 
@@ -624,22 +626,14 @@ export function useCreativeAssistant({
     }
     setStatus("sending");
     setError(null);
+    setRunConfirmationNeedsRecheck(false);
     try {
       const currentSession = session ?? (await ensureSession());
-      const confirmation = await runAbortableRequest((signal) =>
-        jsonFetch<{ confirmed: boolean }>(
-          `/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/run-confirmations`,
-          {
-            method: "POST",
-            signal,
-            body: JSON.stringify({
-              workflow,
-              confirmation_token: nextAction.confirmation_token,
-            }),
-          },
-        ),
-      );
-      if (!confirmation.confirmed) return null;
+      const created = await onRunWorkflow({
+        sessionId: currentSession.assistant_session_id,
+        token: nextAction.confirmation_token,
+      });
+      if (!created) return null;
       setScopedSession((current) => current ? {
         ...current,
         summary_json: {
@@ -650,10 +644,13 @@ export function useCreativeAssistant({
           },
         },
       } : current);
-      return onRunWorkflow();
+      return created;
     } catch (requestError) {
       const message = assistantErrorMessage(requestError, "Unable to confirm this graph run.");
       setError(message);
+      setRunConfirmationNeedsRecheck(
+        requestError instanceof JsonFetchError && requestError.code === "workflow_fingerprint_mismatch",
+      );
       onEvent?.(message, "error");
       return null;
     } finally {
@@ -813,6 +810,7 @@ export function useCreativeAssistant({
     if (session && sessionWorkspaceKeyRef.current !== requestWorkspaceKey) return null;
     setStatus("sending");
     setError(null);
+    setRunConfirmationNeedsRecheck(false);
     try {
       const currentSession = await ensureSession();
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
@@ -1058,6 +1056,7 @@ export function useCreativeAssistant({
       status,
       busy,
       error,
+      runConfirmationNeedsRecheck,
       providerReadiness,
       canPlan,
       canApply,
@@ -1100,6 +1099,7 @@ export function useCreativeAssistant({
       createPromptRecipeDraft,
       draft,
       error,
+      runConfirmationNeedsRecheck,
       plan,
       providerReadiness,
       removeAttachment,

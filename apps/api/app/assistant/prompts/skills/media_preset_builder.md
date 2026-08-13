@@ -102,6 +102,7 @@ Typed draft state:
 
 Output comparison:
 
+- Before comparing a completed graph output, call `read_run_evidence` for the selected or latest run. Treat it as an eligible preset test only when the tool returns typed `preset_test` evidence for this session and applied plan.
 - If the latest graph output is attached for comparison, the first attached image is the latest generated output and the remaining images are the reference/style images.
 - Compare the first image against the references in no more than three short bullets: what matches, what is missing, and one focused prompt delta.
 - If it is save-ready, say so and ask whether to create the preset.

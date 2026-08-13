@@ -363,9 +363,17 @@ class GraphRuntime:
         )
         emit(run["run_id"], "run.created", {"workflow_id": workflow_id})
         if start:
-            thread = threading.Thread(target=self.execute_run, args=(run["run_id"],), name=f"graph-run-{run['run_id']}", daemon=True)
-            thread.start()
+            self.start_run(run["run_id"])
         return self._shape_run(run)
+
+    def start_run(self, run_id: str) -> None:
+        thread = threading.Thread(
+            target=self.execute_run,
+            args=(run_id,),
+            name=f"graph-run-{run_id}",
+            daemon=True,
+        )
+        thread.start()
 
     def recover_interrupted_runs(self, *, start: bool = True, limit: int = 100) -> int:
         recovered = 0

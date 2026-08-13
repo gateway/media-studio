@@ -8,6 +8,8 @@ from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import StreamingResponse
 
 from .. import store
+from ..assistant.run_confirmation import PresetRunEvidenceError, associate_confirmed_preset_run
+from ..assistant.schemas import AssistantRunConfirmationRequest
 from .normalization import materialize_workflow_defaults
 from .pricing import estimate_graph_workflow
 from .registry import registry
@@ -227,7 +229,33 @@ def create_run(workflow_id: str, payload: Optional[GraphRunCreateRequest] = None
         else _workflow_from_record(record)
     )
     try:
-        return runtime.create_run(workflow_id, workflow, start=True)
+        assistant_session_id = str(payload.assistant_session_id or "") if payload else ""
+        assistant_token = str(payload.assistant_confirmation_token or "") if payload else ""
+        if bool(assistant_session_id) != bool(assistant_token):
+            raise _bad_request("Assistant session and confirmation token must be provided together.")
+        if not assistant_session_id:
+            return runtime.create_run(workflow_id, workflow, start=True)
+        run = runtime.create_run(workflow_id, workflow, start=False)
+        try:
+            associate_confirmed_preset_run(
+                assistant_session_id,
+                run.run_id,
+                AssistantRunConfirmationRequest(
+                    workflow=workflow,
+                    confirmation_token=assistant_token,
+                ),
+            )
+        except PresetRunEvidenceError as exc:
+            store.update_graph_run(
+                run.run_id,
+                {"status": "cancelled", "error": str(exc), "finished_at": store.utcnow_iso()},
+            )
+            raise HTTPException(
+                status_code=400,
+                detail={"code": exc.code, "message": str(exc)},
+            ) from exc
+        runtime.start_run(run.run_id)
+        return run
     except ValueError as exc:
         raise _bad_request(str(exc))
 

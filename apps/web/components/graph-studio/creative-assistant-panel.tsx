@@ -718,7 +718,7 @@ export function CreativeAssistantPanel({
   onAssistantSessionChange?: (assistantSessionId: string | null) => void;
   onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[] }) => Promise<void> | void;
   onUndoLastAssistantChange?: () => void;
-  onRunWorkflow?: () => Promise<unknown> | void;
+  onRunWorkflow?: (assistantConfirmation?: { sessionId: string; token: string }) => Promise<unknown> | void;
   onOpenPreview?: (preview: GraphMediaPreview, collection?: GraphMediaPreview[]) => void;
   onClose: () => void;
   onEvent?: (message: string, tone?: "success" | "warning" | "error" | "muted") => void;
@@ -899,6 +899,7 @@ export function CreativeAssistantPanel({
       ? assistant.nextAction
       : null;
   const kernelRunAction =
+    !assistant.runConfirmationNeedsRecheck &&
     assistant.nextAction?.kind === "run_workflow" && assistant.nextAction.requires_confirmation
       ? assistant.nextAction
       : null;
@@ -1537,6 +1538,18 @@ export function CreativeAssistantPanel({
 
         <footer className="graph-assistant-footer">
           {assistant.error ? <p className="graph-assistant-error">{assistant.error}</p> : null}
+          {assistant.runConfirmationNeedsRecheck ? (
+            <button
+              type="button"
+              className="graph-assistant-card-action-primary"
+              disabled={assistant.busy}
+              onClick={() => void assistant.sendContentMessage(
+                "Please check the current graph and current pricing again, then ask me for confirmation before starting it.",
+              )}
+            >
+              Recheck graph and pricing
+            </button>
+          ) : null}
           <div className="graph-assistant-compose-row">
             <textarea
               value={assistant.draft}

@@ -9,6 +9,7 @@ from .. import store_assistant
 from .cancellation import AssistantRequestCancelled, AssistantSessionBusy, track_session
 from .kernel import run_assistant_kernel_turn
 from .provider_support import AssistantProviderChatError, sync_assistant_session_provider
+from .run_confirmation import applied_preset_test_plan_id
 from .schemas import AssistantMessageCreateRequest
 from .turn_trace import build_assistant_turn_trace
 from .voice import lint_assistant_reply
@@ -112,11 +113,13 @@ def create_kernel_message(
     )
     run_confirmation = None
     if result.next_action.kind == "run_workflow" and result.next_action.confirmation_token:
+        fingerprint = str((result.next_action.payload or {}).get("workflow_fingerprint") or "")
         run_confirmation = {
             "confirmation_token_hash": hashlib.sha256(
                 result.next_action.confirmation_token.encode("utf-8")
             ).hexdigest(),
-            "workflow_fingerprint": (result.next_action.payload or {}).get("workflow_fingerprint"),
+            "workflow_fingerprint": fingerprint,
+            "test_plan_id": applied_preset_test_plan_id(session_id, fingerprint),
             "consumed": False,
         }
     return store_assistant.create_or_update_assistant_session(

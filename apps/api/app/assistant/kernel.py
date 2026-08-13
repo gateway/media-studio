@@ -288,6 +288,7 @@ def _kernel_session_context(
 ) -> Dict[str, Any]:
     summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
     preset_draft = summary.get("kernel_preset_draft")
+    preset_run_evidence = summary.get("kernel_preset_run_evidence")
     recipe_draft = summary.get("kernel_recipe_draft")
     story_state = summary.get("kernel_story_state")
     production_plan = summary.get("production_plan")
@@ -312,6 +313,9 @@ def _kernel_session_context(
     ) if session_id else None
     return {
         "active_preset_draft": preset_draft if isinstance(preset_draft, dict) else None,
+        "active_preset_run_evidence": (
+            preset_run_evidence if isinstance(preset_run_evidence, dict) else None
+        ),
         "active_recipe_draft": recipe_draft if isinstance(recipe_draft, dict) else None,
         "active_story_state": story_state if isinstance(story_state, dict) else None,
         "active_production_plan": production_plan if isinstance(production_plan, dict) else None,
