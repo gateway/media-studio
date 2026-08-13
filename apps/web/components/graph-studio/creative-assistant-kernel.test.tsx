@@ -4,22 +4,18 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, expect, it, vi } from "vitest";
 
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
-import type { AssistantPlanResponse, GraphWorkflowPayload } from "./types";
+import type { AssistantPlanResponse } from "./types";
+import {
+  assistantJsonResponse as jsonResponse,
+  assistantTestSession as session,
+  assistantTestWorkflow as workflow,
+} from "./creative-assistant-test-fixtures";
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   window.localStorage?.clear?.();
 });
-
-const workflow: GraphWorkflowPayload = {
-  schema_version: 1,
-  workflow_id: "workflow-1",
-  name: "Assistant Graph",
-  nodes: [],
-  edges: [],
-  metadata: {},
-};
 
 const plan: AssistantPlanResponse = {
   plan: {
@@ -44,19 +40,6 @@ const plan: AssistantPlanResponse = {
   validation: { valid: true, errors: [], warnings: [] },
   pricing: { pricing_summary: { total: { estimated_credits: 0, estimated_cost_usd: 0 } }, nodes: {}, warnings: [] },
 };
-
-const session = {
-  assistant_session_id: "session-1",
-  owner_kind: "graph_workflow",
-  owner_id: "workflow-1",
-  provider_kind: "codex_local",
-  status: "active",
-  attachments: [],
-};
-
-function jsonResponse(payload: unknown) {
-  return Promise.resolve(new Response(JSON.stringify(payload), { status: 200, headers: { "content-type": "application/json" } }));
-}
 
 it("renders and applies only the kernel-owned graph confirmation", async () => {
   const onApplyWorkflow = vi.fn();
@@ -192,7 +175,7 @@ it("saves a kernel preset only after the user clicks its server-owned confirmati
         requires_confirmation: true,
         payload: {
           proposal_id: "aspreset-1",
-          confirmation_token: "preset-token-1",
+          confirmation_token: "preset-token-1", quality_state: "quality_verified",
         },
       },
     },
@@ -395,6 +378,7 @@ it("runs only after the user clicks the typed kernel action", async () => {
   expect(onRunWorkflow).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Review and run" }));
   await waitFor(() => expect(onRunWorkflow).toHaveBeenCalledTimes(1));
+  expect(screen.queryByRole("button", { name: "Review and run" })).toBeNull();
   const confirmationCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/run-confirmations"));
   expect(JSON.parse(String(confirmationCall?.[1]?.body))).toMatchObject({
     workflow,

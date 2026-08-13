@@ -38,9 +38,6 @@ const PRESET_LOOP_START_MESSAGES: Record<PresetLoopLane, string> = {
   both: "Can you create both image-to-image and text-to-image media presets from these reference images?",
 };
 
-const APPROVED_TEST_WORKFLOW_SAVE_MESSAGE =
-  "This result is close enough. Create the official Media Preset now from this approved workflow. Use the latest generated image as the thumbnail when available.";
-
 type AssistantProviderReadiness = {
   checked: boolean;
   ready: boolean;
@@ -165,19 +162,14 @@ function latestKernelNextAction(session: AssistantSession | null): AssistantNext
   if (kind !== "none" && (!label || !actionPayload)) return null;
   const presetProposal = session?.summary_json?.kernel_preset_proposal;
   const recipeProposal = session?.summary_json?.kernel_recipe_proposal;
+  const runConfirmation = session?.summary_json?.kernel_run_confirmation;
+  const consumed = (entry: unknown) => Boolean(
+    entry && typeof entry === "object" && (entry as Record<string, unknown>).consumed === true,
+  );
   if (
-    kind === "save_media_preset" &&
-    presetProposal &&
-    typeof presetProposal === "object" &&
-    (presetProposal as Record<string, unknown>).consumed === true
-  ) {
-    return null;
-  }
-  if (
-    kind === "save_prompt_recipe" &&
-    recipeProposal &&
-    typeof recipeProposal === "object" &&
-    (recipeProposal as Record<string, unknown>).consumed === true
+    (kind === "run_workflow" && consumed(runConfirmation)) ||
+    (kind === "save_media_preset" && consumed(presetProposal)) ||
+    (kind === "save_prompt_recipe" && consumed(recipeProposal))
   ) {
     return null;
   }
@@ -648,6 +640,16 @@ export function useCreativeAssistant({
         ),
       );
       if (!confirmation.confirmed) return null;
+      setScopedSession((current) => current ? {
+        ...current,
+        summary_json: {
+          ...current.summary_json,
+          kernel_run_confirmation: {
+            ...(current.summary_json?.kernel_run_confirmation as Record<string, unknown> ?? {}),
+            consumed: true,
+          },
+        },
+      } : current);
       return onRunWorkflow();
     } catch (requestError) {
       const message = assistantErrorMessage(requestError, "Unable to confirm this graph run.");
@@ -657,7 +659,7 @@ export function useCreativeAssistant({
     } finally {
       setStatus("idle");
     }
-  }, [busy, ensureSession, nextAction, onEvent, onRunWorkflow, runAbortableRequest, session, workflow]);
+  }, [busy, ensureSession, nextAction, onEvent, onRunWorkflow, runAbortableRequest, session, setScopedSession, workflow]);
 
   const createPlanFromMessage = useCallback(async (
     message: string,
@@ -782,32 +784,6 @@ export function useCreativeAssistant({
     }
   }, [onApplyWorkflow, onEvent, workflow]);
 
-  const createAndApplyPlanFromContent = useCallback(async (
-    message: string,
-    assistantSession?: AssistantSession,
-  ) => {
-    if (busy) return null;
-    const baseWorkflow = workflow;
-    const createdPlan = await createPlanFromMessage(message, {
-      appendUserMessage: false,
-      assistantSession,
-      workflowOverride: baseWorkflow,
-      showPlan: false,
-    });
-    if (!createdPlan) return null;
-    if ((createdPlan.graph_plan.operations ?? []).length === 0) {
-      setPlan(createdPlan);
-      onEvent?.("Assistant needs one prerequisite before changing the canvas.", "warning");
-      return null;
-    }
-    if (createdPlan.plan.status !== "validated") {
-      setPlan(createdPlan);
-      onEvent?.("Assistant workflow needs review before it can be applied.", "warning");
-      return null;
-    }
-    return applyPlanResponse(createdPlan, baseWorkflow);
-  }, [applyPlanResponse, busy, createPlanFromMessage, onEvent, workflow]);
-
   const useSavedArtifactInGraph = useCallback(async (message: AssistantMessage) => {
     const artifact = savedArtifactFromMessage(message);
     const prompt = savedArtifactGraphPrompt(message);
@@ -907,15 +883,6 @@ export function useCreativeAssistant({
         skipAutoActions: true,
       }),
     [sendContentMessage],
-  );
-
-  const saveApprovedSandboxAsPreset = useCallback(
-    async () => {
-      if (busy) return null;
-      const currentSession = await ensureSession();
-      return saveMediaPresetFromMessage(APPROVED_TEST_WORKFLOW_SAVE_MESSAGE, currentSession.assistant_session_id);
-    },
-    [busy, ensureSession, saveMediaPresetFromMessage],
   );
 
   const createPlan = useCallback(async () => {
@@ -1098,13 +1065,11 @@ export function useCreativeAssistant({
       sendMessage,
       sendContentMessage,
       startPresetLoop,
-      saveApprovedSandboxAsPreset,
       confirmPresetSave,
       confirmRecipeSave,
       confirmRunWorkflow,
       createPlan,
       createPlanFromContent,
-      createAndApplyPlanFromContent,
       createPromptRecipeDraft,
       createMediaPresetDraft,
       saveMediaPresetFromMessage,
@@ -1131,7 +1096,6 @@ export function useCreativeAssistant({
       confirmRunWorkflow,
       createMediaPresetDraft,
       createPlan,
-      createAndApplyPlanFromContent,
       createPlanFromContent,
       createPromptRecipeDraft,
       draft,
@@ -1144,7 +1108,6 @@ export function useCreativeAssistant({
       savePromptRecipeFromMessage,
       sendContentMessage,
       sendMessage,
-      saveApprovedSandboxAsPreset,
       startPresetLoop,
       session,
       status,
