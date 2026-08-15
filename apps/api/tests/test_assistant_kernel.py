@@ -1704,16 +1704,27 @@ def test_kernel_traces_voice_violations_without_rewriting_provider_reply(client,
     assert trace["voice_violations"] == [{"code": "banned_vocabulary", "terms": ["sandbox"]}]
 
 
-def test_kernel_trace_records_grounded_guidance_without_creating_an_action(
+@pytest.mark.parametrize(
+    ("capability", "assistant_mode", "user_text"),
+    [
+        ("general", None, "What would you improve first?"),
+        ("recipe_builder", "recipe", "Which input would make this recipe more useful?"),
+        ("graph_builder", "graph", "Which node would make this graph more useful?"),
+    ],
+)
+def test_kernel_trace_records_shared_grounded_guidance_without_creating_an_action(
     client,
     monkeypatch,
+    capability,
+    assistant_mode,
+    user_text,
 ) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
     monkeypatch.setattr(
         kernel,
         "run_kernel_provider_step",
         lambda **_kwargs: {
-            "capability": "general",
+            "capability": capability,
             "reply": "A concise recommendation grounded in the current canvas.",
             "guidance": {
                 "suggestion_count": 1,
@@ -1744,15 +1755,17 @@ def test_kernel_trace_records_grounded_guidance_without_creating_an_action(
     response = client.post(
         f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
         json={
-            "content_text": "What would you improve first?",
+            "content_text": user_text,
             "workflow": workflow,
             "canvas_context": {"workflow_name": workflow["name"]},
+            "assistant_mode": assistant_mode,
         },
     )
 
     assert response.status_code == 200, response.text
     content_json = response.json()["messages"][-1]["content_json"]
     turn = content_json["kernel_turn"]
+    assert turn["capability"] == capability
     assert "apps/api/app/assistant/prompts/response_policy.md" in content_json[
         "loaded_prompt_assets"
     ]
