@@ -23,11 +23,9 @@ Status: COMPLETE. The confirmed environment-branch failure is covered by a no-ne
 
 ## Resume After Compaction
 
-Before continuing, read WORK_STATE.md first, then CAMPAIGN.md, then read the active task in TASKS.md,
-then read the linked SPEC.md and PLAN.md sections. Do not rely only on chat summary.
-Continue only from the active task unless the user changes direction.
+There is no active task. Before opening new work, read this file and the relevant current task/spec documents; do not resume a historical phase from the evidence below.
 
-## Active Task
+## Historical Phase 33 Evidence
 
 - Phase 33 is terminally complete. Zero-credit preflight `grun_02e170898650` compiled three six-panel sheets at 3,945 / 3,829 / 3,913 characters with exact dialogue, no contraction corruption, and no media jobs. Character is `@image1`, Environment is `@image2`, and Boards 2-3 use the immediate previous board as `@image3`.
 - Paid run `grun_95ca568765eb` completed Board 1 `job_825880176d32` / raw `asset_22f4fbaad9bf`, Board 2 `job_68733fa6c331` / raw `asset_b67cf3c0c12f`, and Board 3 `job_bbd359f4ebc0` / raw `asset_cfe6dfc13a98`. Saved 2048x1152 sheets are `asset_graph_8160a296ed46fdf43f38aa9a`, `asset_graph_3bf3103063e8610509a599f0`, and `asset_graph_b3b1198cc4b373d8dd9c283f` in Sadi (`project_ab78ce28660d`).
