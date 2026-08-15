@@ -647,6 +647,68 @@ def test_graph_run_summary_lists_do_not_embed_full_run_payloads(client) -> None:
     assert "nodes" not in item
 
 
+def test_failed_graph_run_summary_reports_provider_credits_from_persisted_run_node(client, app_modules, monkeypatch) -> None:
+    from app.graph.runtime import runtime
+
+    workflow = {
+        "schema_version": 1,
+        "name": "Provider credit history",
+        "nodes": [
+            {
+                "id": "model",
+                "type": "model.kie.gpt_image_2_text_to_image",
+                "position": {"x": 0, "y": 0},
+                "fields": {"prompt": "A steel travel mug.", "aspect_ratio": "1:1", "resolution": "1K"},
+            },
+            {"id": "preview", "type": "preview.image", "position": {"x": 420, "y": 0}, "fields": {}},
+        ],
+        "edges": [
+            {"id": "edge-model-preview", "source": "model", "source_port": "image", "target": "preview", "target_port": "image"}
+        ],
+    }
+    created = client.post("/media/graph/workflows", json=workflow).json()
+    run = runtime.create_run(created["workflow_id"], GraphWorkflow(**workflow), start=False)
+    _, jobs = app_modules["store"].create_batch_and_jobs(
+        {"status": "completed", "model_key": "gpt-image-2-text-to-image", "task_mode": "text_to_image"},
+        [
+            {
+                "model_key": "gpt-image-2-text-to-image",
+                "task_mode": "text_to_image",
+                "status": "completed",
+                "final_status_json": {"raw_response": {"data": {"creditsConsumed": 6}}},
+            }
+        ],
+    )
+    node_metrics = {"model": {"job_id": jobs[0]["job_id"]}}
+    app_modules["store"].update_graph_run_node(
+        run.run_id,
+        "model",
+        {"status": "completed", "metrics_json": node_metrics["model"]},
+    )
+    app_modules["store"].update_graph_run(run.run_id, {"status": "failed", "metrics_json": {"actual_cost_usd": 0.0}})
+    queried_job_ids: list[list[str]] = []
+    list_job_statuses_by_ids = app_modules["store"].list_job_statuses_by_ids
+    monkeypatch.setattr(
+        app_modules["store"],
+        "list_job_statuses_by_ids",
+        lambda job_ids: queried_job_ids.append(job_ids) or list_job_statuses_by_ids(job_ids),
+    )
+    monkeypatch.setattr(
+        app_modules["store"],
+        "get_job",
+        lambda _job_id: pytest.fail("summary hydration must not query provider jobs individually"),
+    )
+
+    response = client.get(f"/media/graph/workflows/{created['workflow_id']}/runs/summary?limit=10")
+
+    assert response.status_code == 200, response.text
+    item = next(candidate for candidate in response.json()["items"] if candidate["run_id"] == run.run_id)
+    assert item["status"] == "failed"
+    assert item["metrics_json"]["actual_credits"] == 6
+    assert item["metrics_json"]["actual_cost_usd"] == 0
+    assert queried_job_ids == [[jobs[0]["job_id"]]]
+
+
 def test_graph_node_definitions_include_valid_layout_metadata(client) -> None:
     response = client.get("/media/graph/node-definitions")
     assert response.status_code == 200, response.text

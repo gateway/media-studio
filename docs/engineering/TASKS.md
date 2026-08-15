@@ -910,7 +910,7 @@ These tasks are documented from REVIEW-1305 and are not implicitly authorized fo
 - [x] VERIFY-2606 - Inspect all three originals and exact specs, record accounting/acceptance, refreeze the six storyboard GPT/Save nodes, save the workflow, and verify an empty queue/zero estimate.
 - [x] BUG-2607 - Prevent the art-only compiler from joining a truncated narrative clause directly to the next user-owned field; exact replay remains below 4,200 characters.
 - [x] VERIFY-2608 - Pass 39 focused compiler tests and the complete release gate: 863 backend / 758 web plus lint, typecheck, build, genericity, schema, file-size, and diff checks.
-- [ ] BUG-2610 - Correct Graph Run History cost presentation so externally billed KIE runs do not display `$0.00` when the balance and provider jobs show paid usage.
+- [x] BUG-2610 - Correct Graph Run History cost presentation so externally billed KIE runs report provider-observed credits instead of `$0.00`; historical runs are hydrated from their persisted job provenance without a migration.
 - [ ] PAID-2611 - Optional separately authorized post-BUG-2607 visual trilogy for stricter cat anatomy, cockpit-lift staging, Board 1 establishing scale, and sealed exterior state. No authorization exists.
 
 Guardrails: preserve the selected Character, Environment, story inputs, 23-node/37-edge topology, reference order, provider/model/pricing settings, and unrelated dirty changes. Shared code and recipe text remain campaign-agnostic. The PAID-2605 authorization is consumed; no further paid run is authorized.

@@ -333,7 +333,7 @@ Exit criteria: no missing or duplicated required metadata reaches a provider; al
 
 Tasks: TEST-2601, BUG-2602, CONTRACT-2603, VERIFY-2604, PAID-2605, VERIFY-2606.
 
-Outcome: complete. `grun_26f886636aea` consumed the one paid authorization, deterministic metadata/layout gates pass, the workflow is refrozen, and strict visual-art exceptions are recorded under VERIFY-2606. BUG-2607/VERIFY-2608 close the no-paid post-run clause-boundary regression; BUG-2610 and optional PAID-2611 remain future work.
+Outcome: complete. `grun_26f886636aea` consumed the one paid authorization, deterministic metadata/layout gates pass, the workflow is refrozen, and strict visual-art exceptions are recorded under VERIFY-2606. BUG-2607/VERIFY-2608 close the no-paid post-run clause-boundary regression. BUG-2610 now reports provider-observed KIE credits in Run History; optional PAID-2611 remains future work.
 
 ## Phase 27 - Legacy-layout fidelity and compact metadata correction
 

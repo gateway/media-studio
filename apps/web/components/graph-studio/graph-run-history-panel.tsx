@@ -20,9 +20,13 @@ function outputCount(run: GraphRunHistoryItem): number {
   return run.nodes?.reduce((total, node) => total + (node.artifacts?.length ?? 0), 0) ?? 0;
 }
 
-function actualCost(run: GraphRunHistoryItem): number | null {
-  const value = run.metrics_json?.actual_cost_usd;
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+function runSpend(run: GraphRunHistoryItem): string | null {
+  const credits = run.metrics_json?.actual_credits;
+  if (typeof credits === "number" && Number.isFinite(credits) && credits > 0) {
+    return `${credits.toLocaleString()} cr`;
+  }
+  const cost = run.metrics_json?.actual_cost_usd;
+  return typeof cost === "number" && Number.isFinite(cost) && cost > 0 ? formatUsdAmount(cost) : null;
 }
 
 export function GraphRunHistoryPanel({
@@ -68,7 +72,7 @@ export function GraphRunHistoryPanel({
             </span>
             <span className="graph-run-history-meta">
               {runDuration(run)} · {run.node_count ?? run.nodes?.length ?? 0} nodes · {outputCount(run)} artifacts
-              {actualCost(run) != null ? ` · ${formatUsdAmount(actualCost(run))}` : ""}
+              {runSpend(run) ? ` · ${runSpend(run)}` : ""}
             </span>
           </button>
           <button type="button" aria-label={`Restore run ${run.run_id}`} title="Restore run snapshot" onClick={() => void onRestoreRun(run)}>

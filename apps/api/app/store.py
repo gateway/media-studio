@@ -49,6 +49,7 @@ from .store_graph import (
     list_graph_artifacts_for_run,
     list_graph_run_events,
     list_graph_run_nodes,
+    list_graph_run_node_metrics_for_runs,
     list_graph_run_summaries,
     list_graph_run_summaries_for_workflow,
     list_graph_runs,
@@ -508,6 +509,18 @@ def list_jobs_for_batches(batch_ids: List[str], include_dismissed: bool = True) 
     query = f"SELECT * FROM media_jobs WHERE {' AND '.join(clauses)} ORDER BY created_at DESC"
     with get_connection() as connection:
         rows = connection.execute(query, params).fetchall()
+    return [_decode_row(row) for row in rows]
+
+
+def list_job_statuses_by_ids(job_ids: List[str]) -> List[Dict[str, Any]]:
+    if not job_ids:
+        return []
+    placeholders = ",".join("?" for _ in job_ids)
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"SELECT job_id, final_status_json FROM media_jobs WHERE job_id IN ({placeholders})",
+            job_ids,
+        ).fetchall()
     return [_decode_row(row) for row in rows]
 
 

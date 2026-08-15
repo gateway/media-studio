@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
-from typing import Dict, List
+from typing import Dict, List, Mapping, Optional
 
 from .. import store
 from .artifacts import output_payload_to_refs, register_output_artifacts
@@ -50,6 +51,37 @@ from .validator import validate_workflow
 logger = logging.getLogger(__name__)
 
 
+def provider_spend_metrics(
+    node_metrics_by_id: Dict[str, Dict],
+    jobs_by_id: Optional[Mapping[str, Dict]] = None,
+) -> Dict[str, float]:
+    total_credits = 0.0
+    found_credits = False
+    job_ids = {
+        str(metrics.get("job_id") or "").strip()
+        for metrics in node_metrics_by_id.values()
+        if str(metrics.get("job_id") or "").strip()
+    }
+    jobs = (
+        jobs_by_id
+        if jobs_by_id is not None
+        else {job_id: store.get_job(job_id) or {} for job_id in job_ids}
+    )
+    for job_id in job_ids:
+        job = jobs.get(job_id) or {}
+        status = job.get("final_status_json") if isinstance(job.get("final_status_json"), dict) else {}
+        raw = status.get("raw_response") if isinstance(status.get("raw_response"), dict) else {}
+        data = raw.get("data") if isinstance(raw.get("data"), dict) else {}
+        credits = data.get("creditsConsumed")
+        if isinstance(credits, bool) or not isinstance(credits, (int, float)):
+            continue
+        if not math.isfinite(float(credits)) or float(credits) <= 0:
+            continue
+        total_credits += float(credits)
+        found_credits = True
+    return {"actual_credits": round(total_credits, 4)} if found_credits else {}
+
+
 def _aggregate_usage_metrics(node_metrics_by_id: Dict[str, Dict]) -> Dict[str, object]:
     usage_event_ids: List[str] = []
     provider_response_ids: List[str] = []
@@ -86,6 +118,7 @@ def _aggregate_usage_metrics(node_metrics_by_id: Dict[str, Dict]) -> Dict[str, o
         "cache_write_tokens": cache_write_tokens,
         "usage_event_ids": usage_event_ids,
         "provider_response_ids": provider_response_ids,
+        **provider_spend_metrics(node_metrics_by_id),
     }
 
 
