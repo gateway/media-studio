@@ -6,7 +6,8 @@
 
 - Reproduced `MAO-001` offline before the fix: an Environment Sheet prompt containing storyboard vocabulary failed GPT Image 2 preflight with `panel sequence is empty; expected [1..8]`.
 - Added typed Prompt Recipe execution semantics. Environment and storyboard art-only prompts bypass metadata-row validation; explicit metadata storyboards still fail closed when rows are missing; unknown/untyped prompts keep legacy detection.
-- Focused backend verification passed 66 prompt-semantics/preflight tests and 177 Graph Studio tests. Focused web verification passed 10 Assistant panel tests, including a delayed successful turn that removes `Thinking…` without refresh. Web typecheck and the production Studio build passed.
+- Focused backend verification passed 66 prompt-semantics/preflight tests and 177 Graph Studio tests. The final full suites passed 729 backend and 719 web tests. The delayed-success Assistant regression passed in its own focused module; web typecheck, lint, production build, repo hygiene, storyboard genericity, style drift, and Studio smoke also passed.
+- The current slice's file-size check is clean. The repository-wide gate still reports the unchanged fixed-point overages in `apps/api/app/store.py` (906/900) and `apps/api/tests/test_graph_studio.py` (7,015/7,000); this closeout did not widen either file.
 - In-app-browser proof used a fresh empty workflow and two natural, intentionally vague turns about a lonely sci-fi station. The Assistant narrowed the tone, made a concrete creative suggestion, and asked one useful follow-up. The busy state cleared after both turns; the graph remained unchanged and no apply, run, save, provider job, paid action, or credit spend occurred.
 - `MEDIA_ASSISTANT_ORCHESTRATION_TASKS.md` now crosswalks every historical MAO task to its current implementation evidence or successor campaign and retires the obsolete backlog.
 
