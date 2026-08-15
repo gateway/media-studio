@@ -7,6 +7,10 @@ from pathlib import Path
 
 PROMPT_ASSET_ROOT = Path(__file__).with_name("prompts")
 PROMPT_ASSET_REPO_PREFIX = "apps/api/app/assistant/prompts/"
+SHARED_PROMPT_ASSETS = (
+    f"{PROMPT_ASSET_REPO_PREFIX}persona.md",
+    f"{PROMPT_ASSET_REPO_PREFIX}response_policy.md",
+)
 
 
 @dataclass(frozen=True)
@@ -63,7 +67,7 @@ def assistant_thread_prompt_assembly(
     return ThreadPromptAssembly(
         base_instructions=prompt_asset("persona.md"),
         developer_instructions="\n\n".join(section for section in developer_sections if section),
-        loaded_assets=capability_prompt_assets,
+        loaded_assets=(*SHARED_PROMPT_ASSETS, *capability_prompt_assets),
     )
 
 
@@ -79,7 +83,7 @@ def assistant_system_prompt_assembly(
     return PromptAssembly(
         prompt=prompt,
         prompt_route=prompt_route or "general",
-        loaded_assets=asset_paths,
+        loaded_assets=thread_assembly.loaded_assets,
         char_count=len(prompt),
     )
 

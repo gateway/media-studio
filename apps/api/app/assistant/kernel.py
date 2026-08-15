@@ -16,8 +16,8 @@ from .kernel_tools import (
     KernelToolContext,
     execute_kernel_tool,
     kernel_tool_catalog,
-    workflow_fingerprint,
 )
+from .provenance import preset_test_workflow_fingerprint, workflow_fingerprint
 from .prompt_assets import assistant_thread_prompt_assembly
 from .provider_support import (
     AssistantProviderChatError,
@@ -29,6 +29,7 @@ from .schemas import (
     AssistantGraphPlan,
     AssistantKernelArtifact,
     AssistantKernelCapability,
+    AssistantKernelGuidance,
     AssistantKernelProviderStep,
     AssistantKernelProviderTrace,
     AssistantKernelTrace,
@@ -121,7 +122,11 @@ def _kernel_instruction() -> str:
         "For Media Presets, keep editable state in propose_media_preset_draft, use real model scope, and never emit a "
         "backend JSON block in the reply. A preset draft or revision and its test graph are separate user turns: after "
         "propose_media_preset_draft succeeds, reply and stop. Build a priced test graph only when the current request "
-        "asks for one, using artifact_intent none. A validated applied test graph is required before a save request. "
+        "asks for one, using artifact_intent none. Pass normal user-supplied preset samples through field_values rather "
+        "than asking the user to edit placeholder syntax. For a completed preset test, bind read_run_evidence before "
+        "analyze_preset_output, keep generated-output and style-reference roles separate, and persist the user's explicit "
+        "approve, continue, or stop choice with record_preset_quality_decision. Never start a refinement run automatically. "
+        "A validated applied test graph is required before a save request. "
         "For Prompt Recipes, call get_prompt_recipe directly when session context supplies the exact saved id or key; "
         "otherwise use search_prompt_recipes then get_prompt_recipe. Validate and persist the "
         "complete editable contract through propose_prompt_recipe_draft, and request save confirmation only when the user asks. "
@@ -177,7 +182,20 @@ def _kernel_user_turn_message(
     attachments: List[Dict[str, Any]],
     session: Dict[str, Any],
     current_message_id: Optional[str] = None,
+    selected_run_id: Optional[str] = None,
+    workflow: GraphWorkflow | None = None,
 ) -> Dict[str, str]:
+    session_context = _kernel_session_context(
+        session,
+        exclude_message_id=current_message_id,
+    )
+    if workflow is not None:
+        from .run_confirmation import applied_preset_test_plan_id
+
+        session_context["current_applied_test_plan_id"] = applied_preset_test_plan_id(
+            str(session.get("assistant_session_id") or ""),
+            workflow,
+        )
     return _kernel_input_message(
         role="user",
         marker="MEDIA_STUDIO_USER_TURN_V1",
@@ -188,11 +206,9 @@ def _kernel_user_turn_message(
         payload={
             "user_request": user_text,
             "ui_mode_hint": assistant_mode,
+            "selected_run_id": str(selected_run_id or "") or None,
             "attachment_context": _kernel_attachment_context(attachments),
-            "session_context": _kernel_session_context(
-                session,
-                exclude_message_id=current_message_id,
-            ),
+            "session_context": session_context,
         },
         max_bytes=KERNEL_USER_TURN_MAX_BYTES,
     )
@@ -242,6 +258,40 @@ def _kernel_reasoning_effort(
     return "high" if selected_capability == "graph_builder" else "medium"
 
 
+def _grounded_guidance(
+    guidance: AssistantKernelGuidance,
+    *,
+    user_text: str,
+    session: Dict[str, Any],
+    workflow: GraphWorkflow | None,
+    tool_traces: List[Any],
+) -> AssistantKernelGuidance:
+    available = {"user_request"} if user_text.strip() else set()
+    summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
+    if any(
+        summary.get(key)
+        for key in (
+            "kernel_preset_draft",
+            "kernel_recipe_draft",
+            "kernel_story_state",
+            "production_plan",
+            "kernel_proposal_id",
+        )
+    ):
+        available.add("session_state")
+    if workflow is not None:
+        available.add("workflow_context")
+    if tool_traces:
+        available.add("tool_result")
+    return guidance.model_copy(
+        update={
+            "evidence_sources": [
+                source for source in guidance.evidence_sources if source in available
+            ]
+        }
+    )
+
+
 def _kernel_attachment_context(attachments: List[Dict[str, Any]]) -> Dict[str, Any]:
     items = [
         {
@@ -289,6 +339,10 @@ def _kernel_session_context(
     summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
     preset_draft = summary.get("kernel_preset_draft")
     preset_run_evidence = summary.get("kernel_preset_run_evidence")
+    preset_output_comparison = summary.get("kernel_preset_output_comparison")
+    preset_quality = summary.get("kernel_preset_quality")
+    preset_proposal = summary.get("kernel_preset_proposal")
+    preset_refinement_history = summary.get("kernel_preset_refinement_history")
     recipe_draft = summary.get("kernel_recipe_draft")
     story_state = summary.get("kernel_story_state")
     production_plan = summary.get("production_plan")
@@ -315,6 +369,20 @@ def _kernel_session_context(
         "active_preset_draft": preset_draft if isinstance(preset_draft, dict) else None,
         "active_preset_run_evidence": (
             preset_run_evidence if isinstance(preset_run_evidence, dict) else None
+        ),
+        "active_preset_output_comparison": (
+            preset_output_comparison if isinstance(preset_output_comparison, dict) else None
+        ),
+        "active_preset_quality": preset_quality if isinstance(preset_quality, dict) else None,
+        "unverified_save_offered": bool(
+            isinstance(preset_proposal, dict)
+            and preset_proposal.get("unverified_save_offered_message_id")
+            and not preset_proposal.get("consumed")
+        ),
+        "preset_refinement_history": (
+            preset_refinement_history[-8:]
+            if isinstance(preset_refinement_history, list)
+            else []
         ),
         "active_recipe_draft": recipe_draft if isinstance(recipe_draft, dict) else None,
         "active_story_state": story_state if isinstance(story_state, dict) else None,
@@ -349,15 +417,18 @@ def _next_action_for_artifacts(
         if preset_draft:
             proposal_id = str(preset_draft.get("proposal_id") or "")
             confirmation_token = str(preset_draft.get("confirmation_token") or "")
+            save_mode = str(preset_draft.get("save_mode") or "")
             return AssistantNextAction(
                 kind="save_media_preset",
-                label="Save preset",
+                label="Save verified preset" if save_mode == "verified" else "Save unverified draft",
                 proposal_id=proposal_id,
                 confirmation_token=confirmation_token,
                 requires_confirmation=True,
                 payload={
                     "proposal_id": proposal_id,
                     "confirmation_token": confirmation_token,
+                    "quality_state": preset_draft.get("quality_state"),
+                    "save_mode": save_mode,
                 },
             )
     if capability == "recipe_builder":
@@ -393,6 +464,41 @@ def _next_action_for_artifacts(
     )
     if not proposal:
         if workflow is not None and session is not None:
+            if (
+                requested_action
+                and requested_action.kind == "run_workflow"
+                and requested_action.requires_confirmation
+                and capability in {"graph_builder", "preset_builder", "run_debugger"}
+            ):
+                fingerprint = workflow_fingerprint(workflow)
+                summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
+                from .run_confirmation import applied_preset_test_plan_id
+
+                applied_test_plan_id = applied_preset_test_plan_id(
+                    str(session.get("assistant_session_id") or ""),
+                    workflow,
+                )
+                if isinstance(summary.get("kernel_preset_draft"), dict):
+                    if not applied_test_plan_id:
+                        return AssistantNextAction()
+                if applied_test_plan_id:
+                    fingerprint = preset_test_workflow_fingerprint(workflow)
+                confirmation_token = new_id("confirm")
+                try:
+                    price_estimate = estimate_graph_workflow(workflow).model_dump(mode="json")
+                except Exception:
+                    price_estimate = None
+                return AssistantNextAction(
+                    kind="run_workflow",
+                    label="Review and run",
+                    confirmation_token=confirmation_token,
+                    requires_confirmation=True,
+                    payload={
+                        "confirmation_token": confirmation_token,
+                        "workflow_fingerprint": fingerprint,
+                    },
+                    price_estimate=price_estimate,
+                )
             summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
             proposal_id = str(summary.get("kernel_proposal_id") or "")
             plan = store_assistant.get_assistant_plan(proposal_id) if proposal_id else None
@@ -423,30 +529,6 @@ def _next_action_for_artifacts(
                             else None
                         ),
                     )
-        if (
-            requested_action
-            and requested_action.kind == "run_workflow"
-            and requested_action.requires_confirmation
-            and capability in {"graph_builder", "preset_builder", "run_debugger"}
-            and workflow is not None
-        ):
-            fingerprint = workflow_fingerprint(workflow)
-            confirmation_token = new_id("confirm")
-            try:
-                price_estimate = estimate_graph_workflow(workflow).model_dump(mode="json")
-            except Exception:
-                price_estimate = None
-            return AssistantNextAction(
-                kind="run_workflow",
-                label="Review and run",
-                confirmation_token=confirmation_token,
-                requires_confirmation=True,
-                payload={
-                    "confirmation_token": confirmation_token,
-                    "workflow_fingerprint": fingerprint,
-                },
-                price_estimate=price_estimate,
-            )
         return AssistantNextAction()
     proposal_id = str(proposal.get("proposal_id") or "")
     confirmation_token = str(proposal.get("confirmation_token") or "")
@@ -657,6 +739,8 @@ def run_assistant_kernel_turn(
             attachments=list(attachments or []),
             session=session,
             current_message_id=client_user_message_id,
+            selected_run_id=run_id,
+            workflow=workflow,
         )
     ]
     loaded_prompt_assets: List[str] = list(thread_assembly.loaded_assets)
@@ -800,6 +884,7 @@ def run_assistant_kernel_turn(
                     workflow=workflow,
                     canvas_context=canvas_context,
                     user_text=user_text,
+                    user_message_id=client_user_message_id,
                     artifact_intent=selected_artifact_intent or "none",
                     run_id=run_id,
                     session_id=str(session.get("assistant_session_id") or "") or None,
@@ -821,6 +906,8 @@ def run_assistant_kernel_turn(
                 "validate_current_workflow": "graph_validation",
                 "propose_graph_operations": "graph_proposal",
                 "analyze_reference_images": "reference_analysis",
+                "analyze_preset_output": "output_comparison",
+                "record_preset_quality_decision": "quality_decision",
                 "propose_media_preset_draft": "preset_draft",
                 "propose_prompt_recipe_draft": "recipe_draft",
                 "update_story_state": "story_state",
@@ -856,6 +943,11 @@ def run_assistant_kernel_turn(
                 step.tool_call.name == "propose_graph_operations"
                 and not has_active_production_plan
             ) or (
+                step.tool_call.name == "record_preset_quality_decision"
+                and isinstance(execution.result, dict)
+                and execution.result.get("decision") in {"approve", "stop"}
+                and bool(str(step.reply or "").strip())
+            ) or (
                 step.tool_call.name == "update_production_plan_step"
                 and any(
                     (
@@ -866,7 +958,10 @@ def run_assistant_kernel_turn(
                     for artifact in artifacts
                 )
             )
-            success_reply = str(step.reply or "").strip() or pending_success_reply
+            fallback_reply = execution.trace.activity.label if execution.trace.activity else ""
+            if artifact_kind == "run_evidence":
+                fallback_reply = ""
+            success_reply = str(step.reply or "").strip() or pending_success_reply or fallback_reply
             if (
                 completes_turn
                 and execution.result is not None
@@ -874,6 +969,13 @@ def run_assistant_kernel_turn(
                 and success_reply
             ):
                 elapsed = time.perf_counter() - started
+                guidance = _grounded_guidance(
+                    step.guidance,
+                    user_text=user_text,
+                    session=session,
+                    workflow=workflow,
+                    tool_traces=tool_traces,
+                )
                 return AssistantKernelTurnResult(
                     reply=success_reply,
                     capability=selected_capability,
@@ -886,6 +988,7 @@ def run_assistant_kernel_turn(
                         step_count=tool_steps,
                         duration_ms=int(elapsed * 1000),
                         termination="completed",
+                        guidance=guidance,
                     ),
                     artifacts=artifacts,
                     next_action=_next_action_for_artifacts(
@@ -937,6 +1040,55 @@ def run_assistant_kernel_turn(
                 )
             ]
             continue
+        guidance = _grounded_guidance(
+            step.guidance,
+            user_text=user_text,
+            session=session,
+            workflow=workflow,
+            tool_traces=tool_traces,
+        )
+        if guidance.suggestion_count and not guidance.evidence_sources:
+            messages = [
+                _kernel_tool_result_message(
+                    tool_name="kernel_policy",
+                    result=None,
+                    error={
+                        "code": "guidance_evidence_required",
+                        "message": (
+                            "Ground recommendations in the user request, session state, workflow "
+                            "context, or a tool result; otherwise ask one short question."
+                        ),
+                    },
+                )
+            ]
+            continue
+        next_action = _next_action_for_artifacts(
+            selected_capability,
+            artifacts,
+            requested_action=step.requested_action,
+            workflow=workflow,
+            session=session,
+        )
+        if (
+            step.requested_action
+            and step.requested_action.kind == "run_workflow"
+            and next_action.kind != "run_workflow"
+            and isinstance((session.get("summary_json") or {}).get("kernel_preset_draft"), dict)
+        ):
+            messages = [
+                _kernel_tool_result_message(
+                    tool_name="kernel_policy",
+                    result=None,
+                    error={
+                        "code": "current_preset_test_plan_required",
+                        "message": (
+                            "The current graph no longer matches this session's applied preset test plan. "
+                            "Explain that the reviewed test graph must be rebuilt before another run; do not offer Run."
+                        ),
+                    },
+                )
+            ]
+            continue
         elapsed = time.perf_counter() - started
         return AssistantKernelTurnResult(
             reply=reply,
@@ -950,13 +1102,8 @@ def run_assistant_kernel_turn(
                 step_count=tool_steps,
                 duration_ms=int(elapsed * 1000),
                 termination="completed",
+                guidance=guidance,
             ),
             artifacts=artifacts,
-            next_action=_next_action_for_artifacts(
-                selected_capability,
-                artifacts,
-                requested_action=step.requested_action,
-                workflow=workflow,
-                session=session,
-            ),
+            next_action=next_action,
         )

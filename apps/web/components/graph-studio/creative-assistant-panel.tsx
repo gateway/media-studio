@@ -888,12 +888,22 @@ export function CreativeAssistantPanel({
     assistant.nextAction.proposal_id === plan?.plan.assistant_plan_id
       ? assistant.nextAction
       : null;
-  const kernelPresetSaveAction =
+  const presetSaveAction =
     assistant.nextAction?.kind === "save_media_preset" &&
-    assistant.nextAction.requires_confirmation &&
-    assistant.nextAction.payload?.quality_state === "quality_verified"
+    assistant.nextAction.requires_confirmation
       ? assistant.nextAction
       : null;
+  const verifiedPresetSaveAction =
+    presetSaveAction?.payload?.save_mode === "verified" &&
+    presetSaveAction.payload?.quality_state === "quality_verified"
+      ? presetSaveAction
+      : null;
+  const unverifiedPresetSaveAction =
+    presetSaveAction?.payload?.save_mode === "unverified" &&
+    presetSaveAction.payload?.quality_state !== "quality_verified"
+      ? presetSaveAction
+      : null;
+  const kernelPresetSaveAction = verifiedPresetSaveAction ?? unverifiedPresetSaveAction;
   const kernelRecipeSaveAction =
     assistant.nextAction?.kind === "save_prompt_recipe" && assistant.nextAction.requires_confirmation
       ? assistant.nextAction
@@ -1321,14 +1331,18 @@ export function CreativeAssistantPanel({
 
           {kernelPresetSaveAction ? (
             <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Media Preset save confirmation">
-              <p>The validated preset draft is ready to save.</p>
+              <p>
+                {verifiedPresetSaveAction
+                  ? "This preset has completed visual review and is ready to save."
+                  : "This draft has not been visually verified. Save it only if you accept the missing output proof."}
+              </p>
               <div className="graph-assistant-card-actions">
                 <button
                   type="button"
-                  className="graph-assistant-card-action-primary"
+                  className={verifiedPresetSaveAction ? "graph-assistant-card-action-primary" : undefined}
                   disabled={assistant.busy}
                   onClick={() => void assistant.confirmPresetSave()}
-                  aria-label="Save confirmed Media Preset"
+                  aria-label={verifiedPresetSaveAction ? "Save confirmed Media Preset" : "Save unverified draft"}
                 >
                   {assistant.status === "savingPreset" ? <LoaderCircle size={15} /> : <PackagePlus size={15} />}
                   <span>{kernelPresetSaveAction.label}</span>

@@ -125,9 +125,13 @@ function persistedPlanForWorkflow(
   const persistedPlan = assistantSession.latest_plan ?? null;
   if (!persistedPlan) return null;
   if (persistedPlan.plan.assistant_session_id !== assistantSession.assistant_session_id) return null;
+  const planWorkflowId = persistedPlan.workflow.workflow_id ?? null;
   if (workflowId) {
-    if (assistantSession.owner_kind !== "graph_workflow" || assistantSession.owner_id !== workflowId) return null;
-    const planWorkflowId = persistedPlan.workflow.workflow_id ?? null;
+    const workflowOwnsSession =
+      assistantSession.owner_kind === "graph_workflow" && assistantSession.owner_id === workflowId;
+    const standalonePlanTargetsWorkflow =
+      assistantSession.owner_kind === "standalone" && !assistantSession.owner_id && planWorkflowId === workflowId;
+    if (!workflowOwnsSession && !standalonePlanTargetsWorkflow) return null;
     if (planWorkflowId !== workflowId && persistedPlan.plan.applied_workflow_id !== workflowId) return null;
   } else if (assistantSession.owner_kind !== "standalone" || persistedPlan.workflow.workflow_id) {
     return null;

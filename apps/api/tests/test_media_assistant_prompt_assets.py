@@ -18,7 +18,11 @@ def test_thread_prompt_places_stable_assets_once_in_protocol_instructions() -> N
     assert assembly.base_instructions == prompt_asset("persona.md")
     assert prompt_asset("response_policy.md") in assembly.developer_instructions
     assert "typed tool catalog" in assembly.developer_instructions
-    assert assembly.loaded_assets == skill_assets
+    assert assembly.loaded_assets == (
+        "apps/api/app/assistant/prompts/persona.md",
+        "apps/api/app/assistant/prompts/response_policy.md",
+        *skill_assets,
+    )
     for asset_path in skill_assets:
         assert prompt_asset(asset_path) not in assembly.base_instructions
         assert prompt_asset(asset_path) in assembly.developer_instructions
@@ -46,6 +50,10 @@ def test_kernel_capability_assemblies_include_shared_policy_and_only_the_selecte
 
         assert prompt_asset("persona.md") in assembly.prompt
         assert prompt_asset("response_policy.md") in assembly.prompt
-        assert set(assembly.loaded_assets) == {selected_asset}
+        assert set(assembly.loaded_assets) == {
+            "apps/api/app/assistant/prompts/persona.md",
+            "apps/api/app/assistant/prompts/response_policy.md",
+            selected_asset,
+        }
         for other_asset in skill_assets - {selected_asset}:
             assert prompt_asset(other_asset) not in assembly.prompt

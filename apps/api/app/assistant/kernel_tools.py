@@ -6,7 +6,7 @@ import re
 import time
 from dataclasses import dataclass, field, replace
 from threading import Event
-from typing import Any, Callable, Dict, FrozenSet, List, Optional
+from typing import Any, Callable, Dict, FrozenSet, List, Literal, Optional
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -21,9 +21,13 @@ from .canvas_context import compact_canvas_context
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
 from .graph_plan import apply_graph_plan
 from .reference_analysis import (
+    AnalyzePresetOutputArguments,
     AnalyzeReferenceImagesArguments,
+    RecordPresetQualityDecisionArguments,
     ReferenceAnalysisError,
+    analyze_preset_output,
     analyze_reference_images,
+    record_preset_quality_decision,
 )
 from .preset_kernel import (
     GetPresetArguments,
@@ -36,6 +40,7 @@ from .preset_kernel import (
     propose_media_preset_draft,
     search_presets,
 )
+from .provenance import preset_quality_contract_hash, workflow_fingerprint
 from .production_plan import (
     ProductionPlanError,
     ProposeProductionPlanArguments,
@@ -82,6 +87,8 @@ KERNEL_TOOL_ACTIVITIES = {
     "validate_current_workflow": ("graph_validation", "Checked your graph"),
     "propose_graph_operations": ("graph_proposal", "Prepared a graph proposal"),
     "analyze_reference_images": ("reference_analysis", "Analyzed your reference"),
+    "analyze_preset_output": ("output_comparison", "Compared the generated result"),
+    "record_preset_quality_decision": ("output_comparison", "Recorded your quality decision"),
     "propose_media_preset_draft": ("preset_draft", "Prepared preset details"),
     "propose_prompt_recipe_draft": ("recipe_draft", "Prepared recipe details"),
     "propose_production_plan": ("production_plan", "Prepared a production plan"),
@@ -111,7 +118,11 @@ class ValidateCurrentWorkflowArguments(BaseModel):
 
 class ProposeGraphOperationsArguments(BaseModel):
     summary: str = Field(min_length=1, max_length=800)
-    operations: List[AssistantGraphOperation] = Field(min_length=1, max_length=64)
+    operations: List[AssistantGraphOperation] = Field(default_factory=list, max_length=64)
+    template_id: Optional[
+        Literal["preset_style_t2i_sandbox_v1", "preset_style_i2i_sandbox_v1"]
+    ] = None
+    field_values: Optional[Dict[str, str]] = Field(default=None, min_length=1, max_length=3)
     questions: List[str] = Field(default_factory=list, max_length=8)
     warnings: List[str] = Field(default_factory=list, max_length=8)
 
@@ -135,6 +146,7 @@ class KernelToolContext:
     canvas_context: Dict[str, Any]
     capability: AssistantKernelCapability | None = None
     user_text: str = ""
+    user_message_id: Optional[str] = None
     artifact_intent: AssistantArtifactIntent = "none"
     run_id: Optional[str] = None
     session_id: Optional[str] = None
@@ -169,12 +181,6 @@ def _workflow_title(node: Any) -> str:
     metadata = node.metadata if isinstance(node.metadata, dict) else {}
     ui = metadata.get("ui") if isinstance(metadata.get("ui"), dict) else {}
     return str(ui.get("customTitle") or node.type)
-
-
-def workflow_fingerprint(workflow: GraphWorkflow) -> str:
-    payload = materialize_workflow_defaults(workflow).model_dump(mode="json")
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _read_current_workflow(
@@ -517,10 +523,221 @@ def _validate_current_workflow(arguments: BaseModel, context: KernelToolContext)
     }
 
 
+PRESET_TEST_GRAPH_TEMPLATES = {
+    "preset_style_t2i_sandbox_v1": {
+        "mode": "text_to_image",
+        "model_key": "gpt-image-2-text-to-image",
+        "node_type": "model.kie.gpt_image_2_text_to_image",
+    },
+    "preset_style_i2i_sandbox_v1": {
+        "mode": "image_to_image",
+        "model_key": "gpt-image-2-image-to-image",
+        "node_type": "model.kie.gpt_image_2_image_to_image",
+    },
+}
+
+
+def _preset_test_graph_operations(
+    template_id: str,
+    context: KernelToolContext,
+    field_values: Optional[Dict[str, str]] = None,
+) -> tuple[List[AssistantGraphOperation], Dict[str, Any]]:
+    template = PRESET_TEST_GRAPH_TEMPLATES[template_id]
+    session = store_assistant.get_assistant_session(context.session_id or "") or context.session
+    summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
+    draft = summary.get("kernel_preset_draft") if isinstance(summary.get("kernel_preset_draft"), dict) else None
+    if not draft:
+        raise KernelToolFailure(
+            code="preset_test_draft_required",
+            message="Prepare the Media Preset draft before proposing its test graph.",
+        )
+    rules = draft.get("rules_json") if isinstance(draft.get("rules_json"), dict) else {}
+    mode = str(rules.get("preset_lane") or "")
+    slots = draft.get("input_slots_json") if isinstance(draft.get("input_slots_json"), list) else []
+    model_key = str(draft.get("model_key") or "")
+    prompt_template = str(draft.get("prompt_template") or "")
+    fields = draft.get("input_schema_json") if isinstance(draft.get("input_schema_json"), list) else []
+    configured_fields = {
+        str(item.get("key") or ""): item
+        for item in fields
+        if isinstance(item, dict) and str(item.get("key") or "")
+    }
+    supplied_field_values: Optional[Dict[str, str]] = None
+    if configured_fields:
+        supplied_field_values = {
+            str(key): str(value).strip()
+            for key, value in (field_values or {}).items()
+        }
+        invalid_keys = sorted(set(supplied_field_values) - set(configured_fields))
+        invalid_values = sorted(
+            key
+            for key, value in supplied_field_values.items()
+            if not value or len(value) > 300
+        )
+        if invalid_keys or invalid_values:
+            raise KernelToolFailure(
+                code="preset_test_field_value_invalid",
+                message="Use non-empty sample values for fields in the active Media Preset draft.",
+                details={"invalid_keys": invalid_keys, "invalid_values": invalid_values},
+            )
+        missing_field_values = [
+            key
+            for key in configured_fields
+            if key not in supplied_field_values
+        ]
+        if missing_field_values:
+            raise KernelToolFailure(
+                code="preset_test_field_values_required",
+                message="Provide normal sample values for each preset field before building the test graph.",
+                details={"missing_field_keys": missing_field_values},
+            )
+        for key, value in supplied_field_values.items():
+            token = "{{" + key + "}}"
+            if token not in prompt_template:
+                raise KernelToolFailure(
+                    code="preset_test_field_value_invalid",
+                    message="A supplied field is not used by the active preset prompt template.",
+                    details={"unused_field_key": key},
+                )
+            prompt_template = prompt_template.replace(token, value)
+    if mode != template["mode"] or model_key != template["model_key"]:
+        raise KernelToolFailure(
+            code="preset_test_template_mismatch",
+            message="The selected test graph does not match the active preset lane and GPT Image 2 model.",
+            details={"draft_mode": mode, "draft_model_key": model_key, "template_id": template_id},
+        )
+    if mode == "text_to_image" and slots:
+        raise KernelToolFailure(
+            code="preset_test_template_mismatch",
+            message="A text-to-image preset test cannot include runtime image slots.",
+        )
+    if mode == "image_to_image" and not slots:
+        raise KernelToolFailure(
+            code="preset_test_template_mismatch",
+            message="An image-to-image preset test requires at least one runtime image slot.",
+        )
+
+    definitions = registry.definitions_by_type()
+    model_definition = definitions.get(template["node_type"])
+    if not model_definition:
+        raise KernelToolFailure(
+            code="preset_test_model_unavailable",
+            message="The selected GPT Image 2 model is not available in the current catalog.",
+            retryable=False,
+        )
+    allowed_model_fields = {field.id for field in model_definition.fields}
+    draft_options = draft.get("default_options_json") if isinstance(draft.get("default_options_json"), dict) else {}
+    model_fields = {key: value for key, value in draft_options.items() if key in allowed_model_fields}
+    operations: List[AssistantGraphOperation] = []
+    for index, slot in enumerate(slots):
+        label = str(slot.get("label") or f"Image input {index + 1}") if isinstance(slot, dict) else f"Image input {index + 1}"
+        operations.append(
+            AssistantGraphOperation(
+                op="add_node",
+                node_ref=f"preset_image_{index + 1}",
+                node_type="media.load_image",
+                title=label,
+                position={"x": 0, "y": index * 360},
+            )
+        )
+    operations.extend(
+        [
+            AssistantGraphOperation(
+                op="add_node",
+                node_ref="preset_prompt",
+                node_type="prompt.text",
+                title="Draft Preset Prompt",
+                position={"x": 0, "y": max(0, len(slots) * 360)},
+                fields={"text": prompt_template},
+            ),
+            AssistantGraphOperation(
+                op="add_node",
+                node_ref="preset_model",
+                node_type=template["node_type"],
+                title="GPT Image 2 Test",
+                position={"x": 520, "y": 180},
+                fields=model_fields,
+            ),
+            AssistantGraphOperation(
+                op="add_node",
+                node_ref="preset_preview",
+                node_type="preview.image",
+                title="Preset Test Preview",
+                position={"x": 1040, "y": 180},
+            ),
+            AssistantGraphOperation(
+                op="connect_nodes",
+                source_ref="preset_prompt",
+                source_port="text",
+                target_ref="preset_model",
+                target_port="prompt",
+            ),
+        ]
+    )
+    for index in range(len(slots)):
+        operations.append(
+            AssistantGraphOperation(
+                op="connect_nodes",
+                source_ref=f"preset_image_{index + 1}",
+                source_port="image",
+                target_ref="preset_model",
+                target_port="image_refs",
+            )
+        )
+    operations.append(
+        AssistantGraphOperation(
+            op="connect_nodes",
+            source_ref="preset_model",
+            source_port="image",
+            target_ref="preset_preview",
+            target_port="image",
+        )
+    )
+    return operations, {
+        "template_id": template_id,
+        "template_mode": mode,
+        "template_slot_count": len(slots),
+        "template_model_key": model_key,
+        "template_field_keys": list(configured_fields),
+        "template_field_values_supplied": supplied_field_values is not None,
+        "preset_quality_contract_hash": preset_quality_contract_hash(draft),
+    }
+
+
 def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) -> Dict[str, Any]:
     options = ProposeGraphOperationsArguments.model_validate(arguments)
+    operations = options.operations
+    metadata: Dict[str, Any] = {"kernel_proposal": True}
+    session_summary = context.session.get("summary_json") if isinstance(context.session.get("summary_json"), dict) else {}
+    active_preset_draft = session_summary.get("kernel_preset_draft")
+    template_id = options.template_id
+    if context.capability == "preset_builder" and isinstance(active_preset_draft, dict):
+        rules = active_preset_draft.get("rules_json") if isinstance(active_preset_draft.get("rules_json"), dict) else {}
+        template_id = template_id or (
+            "preset_style_i2i_sandbox_v1"
+            if rules.get("preset_lane") == "image_to_image"
+            else "preset_style_t2i_sandbox_v1"
+        )
+        operations = []
+    if template_id:
+        if operations:
+            raise KernelToolFailure(
+                code="preset_test_template_operations_conflict",
+                message="A standard preset test graph cannot be combined with hand-authored graph operations.",
+            )
+        operations, template_metadata = _preset_test_graph_operations(
+            template_id,
+            context,
+            options.field_values,
+        )
+        metadata.update(template_metadata)
+    elif not operations:
+        raise KernelToolFailure(
+            code="invalid_graph_operations",
+            message="Provide at least one graph operation or a standard preset test template.",
+        )
     definitions = registry.definitions_by_type()
-    for index, operation in enumerate(options.operations):
+    for index, operation in enumerate(operations):
         if operation.op == "add_node" and operation.node_type not in definitions:
             raise KernelToolFailure(
                 code="invalid_graph_operations",
@@ -532,11 +749,11 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     )
     graph_plan = AssistantGraphPlan(
         summary=options.summary,
-        operations=options.operations,
+        operations=operations,
         questions=options.questions,
         warnings=options.warnings,
         requires_confirmation=True,
-        metadata={"kernel_proposal": True},
+        metadata=metadata,
     )
     try:
         planned_workflow = apply_graph_plan(base_workflow, graph_plan)
@@ -544,7 +761,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
         raise KernelToolFailure(
             code="invalid_graph_operations",
             message=str(exc),
-            details={"operation_count": len(options.operations)},
+            details={"operation_count": len(operations)},
         ) from exc
     validation = validate_workflow(planned_workflow)
     layout_errors = graph_plan_layout_errors(base_workflow, planned_workflow, graph_plan)
@@ -664,7 +881,7 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
     ),
     "propose_graph_operations": KernelToolDefinition(
         name="propose_graph_operations",
-        description="Apply typed graph operations in memory, validate and layout-check the result, price it, and persist a confirmable proposal.",
+        description="Build a standard preset test graph by template id, or apply typed graph operations; validate, layout-check, price, and persist the confirmable proposal.",
         arguments_model=ProposeGraphOperationsArguments,
         allowed_capabilities=frozenset({"graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}),
         handler=_propose_graph_operations,
@@ -715,7 +932,7 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
     ),
     "propose_media_preset_draft": KernelToolDefinition(
         name="propose_media_preset_draft",
-        description="Validate and store an editable typed Media Preset draft; it becomes save-confirmable only with an applied priced test graph.",
+        description="Validate and store an editable typed Media Preset draft; verified save requires approved output evidence, while an explicit unverified save remains separately confirmation-gated.",
         arguments_model=ProposeMediaPresetDraftArguments,
         allowed_capabilities=frozenset({"preset_builder"}),
         handler=propose_media_preset_draft,
@@ -778,6 +995,20 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         ),
         handler=analyze_reference_images,
     ),
+    "analyze_preset_output": KernelToolDefinition(
+        name="analyze_preset_output",
+        description="Compare a session-owned generated preset output against attached style references with explicit image roles and one focused prompt delta.",
+        arguments_model=AnalyzePresetOutputArguments,
+        allowed_capabilities=frozenset({"preset_builder"}),
+        handler=analyze_preset_output,
+    ),
+    "record_preset_quality_decision": KernelToolDefinition(
+        name="record_preset_quality_decision",
+        description="Persist the user's approve, continue, or stop decision for the latest session-owned preset output comparison without starting or saving anything.",
+        arguments_model=RecordPresetQualityDecisionArguments,
+        allowed_capabilities=frozenset({"preset_builder"}),
+        handler=record_preset_quality_decision,
+    ),
 }
 
 
@@ -794,6 +1025,8 @@ def kernel_tool_catalog(capability: AssistantKernelCapability | None = None) -> 
                 "propose_media_preset_draft",
                 "propose_prompt_recipe_draft",
                 "update_story_state",
+                "record_preset_quality_decision",
+                "analyze_preset_output",
             },
         }
         for definition in KERNEL_TOOLS.values()

@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 const DEFAULT_API_URL = process.env.MEDIA_STUDIO_API_URL || "http://127.0.0.1:8000";
 const DEFAULT_WEB_URL = process.env.MEDIA_STUDIO_WEB_URL || "http://127.0.0.1:3000";
 
@@ -53,8 +56,45 @@ async function fetchJson(url) {
   return { response, payload };
 }
 
-function check(id, ok, message, details = undefined) {
-  return { id, ok: ok === null ? null : Boolean(ok), message, ...(details === undefined ? {} : { details }) };
+const ENVIRONMENT_BLOCKED_CODES = new Set([
+  "EACCES",
+  "EAI_AGAIN",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "ENOTFOUND",
+  "EPERM",
+]);
+
+export function classifyFetchError(error) {
+  const cause = error && typeof error === "object" ? error.cause : null;
+  const code = String(cause?.code || error?.code || "").toUpperCase();
+  if (code === "ECONNREFUSED") return "connection_refused";
+  if (ENVIRONMENT_BLOCKED_CODES.has(code)) return "environment_blocked";
+  return "unexpected_response";
+}
+
+export function classifyHealthResponse(response, payload) {
+  if (!response?.ok) return "server_unhealthy";
+  if (!payload || typeof payload !== "object" || Array.isArray(payload) || typeof payload.status !== "string") {
+    return "unexpected_response";
+  }
+  return payload.status === "ok" ? "ready" : "server_unhealthy";
+}
+
+function errorDetails(error) {
+  const cause = error && typeof error === "object" ? error.cause : null;
+  const code = String(cause?.code || error?.code || "");
+  return code ? { code } : undefined;
+}
+
+function check(id, ok, message, details = undefined, classification = undefined) {
+  return {
+    id,
+    ok: ok === null ? null : Boolean(ok),
+    message,
+    ...(details === undefined ? {} : { details }),
+    ...(classification === undefined ? {} : { classification }),
+  };
 }
 
 async function main() {
@@ -63,7 +103,8 @@ async function main() {
 
   try {
     const { response, payload } = await fetchJson(`${options.apiUrl}/health`);
-    checks.push(check("api_health", response.ok && payload?.status === "ok", `API health ${response.status}`, payload));
+    const classification = classifyHealthResponse(response, payload);
+    checks.push(check("api_health", classification === "ready", `API health ${response.status}`, payload, classification));
     const runnerHealthy = payload?.runner_health === "healthy" || payload?.runner?.status === "healthy";
     checks.push(check("runner_health", runnerHealthy, runnerHealthy ? "Runner healthy" : "Runner is not healthy", payload?.runner_health ?? payload?.runner));
     const queuedJobs = Number(payload?.queued_jobs ?? payload?.queue?.queued_jobs ?? 0);
@@ -78,14 +119,27 @@ async function main() {
       ),
     );
   } catch (error) {
-    checks.push(check("api_health", false, error instanceof Error ? error.message : String(error)));
+    checks.push(check(
+      "api_health",
+      false,
+      error instanceof Error ? error.message : String(error),
+      errorDetails(error),
+      classifyFetchError(error),
+    ));
   }
 
   try {
     const response = await fetch(`${options.webUrl}/graph-studio`, { cache: "no-store" });
-    checks.push(check("web_graph_studio", response.ok, `Graph Studio route ${response.status}`));
+    const classification = response.ok ? "ready" : "server_unhealthy";
+    checks.push(check("web_graph_studio", response.ok, `Graph Studio route ${response.status}`, undefined, classification));
   } catch (error) {
-    checks.push(check("web_graph_studio", false, error instanceof Error ? error.message : String(error)));
+    checks.push(check(
+      "web_graph_studio",
+      false,
+      error instanceof Error ? error.message : String(error),
+      errorDetails(error),
+      classifyFetchError(error),
+    ));
   }
 
   checks.push(
@@ -96,8 +150,12 @@ async function main() {
   );
 
   const hardFailed = checks.some((item) => item.ok === false && !String(item.id).startsWith("browser_"));
+  const failedClassifications = checks.filter((item) => item.ok === false).map((item) => item.classification);
+  const classification = ["environment_blocked", "connection_refused", "server_unhealthy", "unexpected_response"]
+    .find((candidate) => failedClassifications.includes(candidate)) || "ready";
   const result = {
     ok: !hardFailed,
+    classification,
     generated_at: new Date().toISOString(),
     api_url: options.apiUrl,
     web_url: options.webUrl,
@@ -107,7 +165,9 @@ async function main() {
   process.exit(hardFailed ? 1 : 0);
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}

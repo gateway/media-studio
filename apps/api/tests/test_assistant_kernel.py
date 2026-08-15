@@ -51,6 +51,14 @@ def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -
         "propose_production_plan",
         "diagnose_run",
     ]
+    with pytest.raises(ValueError):
+        schemas.AssistantKernelProviderStep.model_validate(
+            {
+                "capability": "general",
+                "reply": "Too many competing recommendations.",
+                "guidance": {"suggestion_count": 3},
+            }
+        )
 
 
 def test_kernel_instruction_exposes_every_capability_tool_for_a_wrong_ui_hint(app_modules) -> None:
@@ -64,6 +72,22 @@ def test_kernel_instruction_exposes_every_capability_tool_for_a_wrong_ui_hint(ap
     assert "propose_prompt_recipe_draft" in instruction
     assert "update_story_state" in instruction
     assert "read_run_evidence" in instruction
+
+
+def test_kernel_user_turn_exposes_the_selected_run_id(app_modules) -> None:
+    del app_modules
+    kernel = importlib.import_module("app.assistant.kernel")
+
+    message = kernel._kernel_user_turn_message(
+        user_text="Review the finished preset test.",
+        assistant_mode="preset",
+        attachments=[],
+        session={"assistant_session_id": "asst-selected-run", "summary_json": {}},
+        selected_run_id="grun-selected-output",
+    )
+    payload = json.loads(message["content"].split("PAYLOAD_JSON\n", 1)[1])
+
+    assert payload["selected_run_id"] == "grun-selected-output"
 
 
 def test_model_capability_choice_overrides_a_wrong_ui_hint(app_modules, monkeypatch) -> None:
@@ -342,6 +366,12 @@ def test_six_step_kernel_turn_uses_one_session_key_and_one_process_spawn(
     turn_trace = importlib.import_module("app.assistant.turn_trace")
     persisted_trace = turn_trace.build_assistant_turn_trace(
         {"kernel_turn": result.model_dump(mode="json")}
+    )
+    assert result.trace.termination == "completed"
+    assert len(result.trace.provider_steps) == 7
+    assert all(
+        tool.duration_ms >= 0 and tool.result_size_bytes > 0
+        for tool in result.trace.tool_calls
     )
     assert persisted_trace["provider_process_spawns"] == 1
     assert persisted_trace["provider_prompt_bytes"] == 2800
@@ -794,6 +824,7 @@ def test_kernel_limits_provider_call_to_remaining_wall_budget(app_modules, monke
 
 def test_kernel_graph_proposal_is_validated_priced_and_confirmable(client, monkeypatch) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
+    provider_calls = 0
     provider_steps = iter(
         [
             {
@@ -837,7 +868,12 @@ def test_kernel_graph_proposal_is_validated_priced_and_confirmable(client, monke
             },
         ]
     )
-    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(provider_steps))
+    def provider_step(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return next(provider_steps)
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
     workflow = {
         "schema_version": 1,
         "workflow_id": "workflow-kernel-graph",
@@ -891,6 +927,7 @@ def test_kernel_graph_proposal_is_validated_priced_and_confirmable(client, monke
         "label": "Prepared a graph proposal",
         "tone": "success",
     }
+    assert provider_calls == 4
     assert payload["latest_plan"]["plan"]["assistant_plan_id"] == action["proposal_id"]
     assert workflow["nodes"] == []
 
@@ -1316,6 +1353,7 @@ def test_kernel_returns_invalid_graph_feedback_for_bounded_correction(client, mo
 
 def test_kernel_can_validate_current_graph_without_proposing_a_change(client, monkeypatch) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
+    provider_calls = 0
     provider_steps = iter(
         [
             {
@@ -1328,7 +1366,12 @@ def test_kernel_can_validate_current_graph_without_proposing_a_change(client, mo
             },
         ]
     )
-    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(provider_steps))
+    def provider_step(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return next(provider_steps)
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
     workflow = {
         "schema_version": 1,
         "name": "Invalid preview graph",
@@ -1360,6 +1403,7 @@ def test_kernel_can_validate_current_graph_without_proposing_a_change(client, mo
     assert validation["validation"]["errors"]
     assert "pricing_summary" in validation["pricing"]
     assert turn["next_action"]["kind"] == "none"
+    assert provider_calls == 2
 
 
 def test_kernel_graph_confirmation_rejects_stale_proposal(client, monkeypatch) -> None:
@@ -1658,6 +1702,153 @@ def test_kernel_traces_voice_violations_without_rewriting_provider_reply(client,
     trace = assistant_message["content_json"]["kernel_turn"]["trace"]
     assert assistant_message["content_text"] == provider_reply
     assert trace["voice_violations"] == [{"code": "banned_vocabulary", "terms": ["sandbox"]}]
+
+
+def test_kernel_trace_records_grounded_guidance_without_creating_an_action(
+    client,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    monkeypatch.setattr(
+        kernel,
+        "run_kernel_provider_step",
+        lambda **_kwargs: {
+            "capability": "general",
+            "reply": "A concise recommendation grounded in the current canvas.",
+            "guidance": {
+                "suggestion_count": 1,
+                "evidence_sources": ["workflow_context"],
+                "satisfaction_state": "needs_work",
+            },
+        },
+    )
+    workflow = {
+        "schema_version": 1,
+        "name": "Guidance graph",
+        "nodes": [
+            {
+                "id": "prompt",
+                "type": "prompt.text",
+                "position": {"x": 0, "y": 0},
+                "fields": {"text": "A quiet harbor at dusk."},
+            }
+        ],
+        "edges": [],
+        "metadata": {},
+    }
+    session = client.post(
+        "/media/assistant/sessions",
+        json={"owner_kind": "graph_workflow", "workflow": workflow},
+    ).json()
+
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={
+            "content_text": "What would you improve first?",
+            "workflow": workflow,
+            "canvas_context": {"workflow_name": workflow["name"]},
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    content_json = response.json()["messages"][-1]["content_json"]
+    turn = content_json["kernel_turn"]
+    assert "apps/api/app/assistant/prompts/response_policy.md" in content_json[
+        "loaded_prompt_assets"
+    ]
+    assert turn["trace"]["guidance"] == {
+        "suggestion_count": 1,
+        "evidence_sources": ["workflow_context"],
+        "satisfaction_state": "needs_work",
+    }
+    assert turn["next_action"]["kind"] == "none"
+
+
+def test_kernel_retries_guidance_that_claims_missing_evidence(client, monkeypatch) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    calls = 0
+
+    def provider_step(**_kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return {
+                "capability": "general",
+                "reply": "A recommendation without available evidence.",
+                "guidance": {
+                    "suggestion_count": 1,
+                    "evidence_sources": ["tool_result"],
+                    "satisfaction_state": "needs_work",
+                },
+            }
+        return {
+            "capability": "general",
+            "reply": "A direct answer without a recommendation.",
+            "guidance": {
+                "suggestion_count": 0,
+                "evidence_sources": [],
+                "satisfaction_state": "unknown",
+            },
+        }
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
+    session = client.post("/media/assistant/sessions", json={"owner_kind": "standalone"}).json()
+
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={"content_text": "What would you recommend?"},
+    )
+
+    assert response.status_code == 200, response.text
+    turn = response.json()["messages"][-1]["content_json"]["kernel_turn"]
+    assert calls == 2
+    assert turn["trace"]["guidance"]["suggestion_count"] == 0
+    assert turn["trace"]["guidance"]["evidence_sources"] == []
+    assert turn["next_action"]["kind"] == "none"
+
+
+def test_satisfied_guidance_stops_without_changing_the_active_draft(
+    client,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    store_assistant = importlib.import_module("app.store_assistant")
+    active_draft = {
+        "key": "kept_draft",
+        "label": "Kept Draft",
+        "rules_json": {"preset_lane": "text_to_image"},
+    }
+    monkeypatch.setattr(
+        kernel,
+        "run_kernel_provider_step",
+        lambda **_kwargs: {
+            "capability": "preset_builder",
+            "artifact_intent": "none",
+            "reply": "A concise acknowledgement with no invented improvement.",
+            "guidance": {
+                "suggestion_count": 0,
+                "evidence_sources": ["session_state", "user_request"],
+                "satisfaction_state": "satisfied",
+            },
+        },
+    )
+    session = client.post("/media/assistant/sessions", json={"owner_kind": "standalone"}).json()
+    store_assistant.create_or_update_assistant_session(
+        {**session, "summary_json": {"kernel_preset_draft": active_draft}}
+    )
+
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={"content_text": "That is exactly what I wanted."},
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    turn = payload["messages"][-1]["content_json"]["kernel_turn"]
+    assert turn["trace"]["guidance"]["satisfaction_state"] == "satisfied"
+    assert turn["trace"]["guidance"]["suggestion_count"] == 0
+    assert turn["next_action"]["kind"] == "none"
+    assert payload["summary_json"]["kernel_preset_draft"] == active_draft
 
 
 def test_message_route_always_uses_kernel_for_canvas_questions(client, monkeypatch) -> None:

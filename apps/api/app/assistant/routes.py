@@ -19,7 +19,6 @@ from .cancellation import AssistantSessionBusy
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
 from .graph_plan import apply_graph_plan
 from .kernel_route import create_kernel_message
-from .kernel_tools import workflow_fingerprint
 from .limits import ASSISTANT_IMAGE_ATTACHMENT_LIMIT, is_image_attachment
 from .preset_confirmation import (
     PresetConfirmationError,
@@ -31,6 +30,7 @@ from .provider_support import (
     assistant_provider_fields,
     cancel_assistant_session,
 )
+from .provenance import workflow_fingerprint
 from .recipe_confirmation import (
     RecipeConfirmationError,
     consume_recipe_confirmation,

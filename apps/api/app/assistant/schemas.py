@@ -34,6 +34,13 @@ AssistantArtifactIntent = Literal[
     "propose_production_plan",
     "diagnose_run",
 ]
+AssistantGuidanceEvidence = Literal[
+    "user_request",
+    "session_state",
+    "workflow_context",
+    "tool_result",
+]
+AssistantSatisfactionState = Literal["unknown", "needs_work", "satisfied"]
 AssistantNextActionKind = Literal[
     "none",
     "confirm_graph",
@@ -174,12 +181,37 @@ class AssistantKernelToolCallRequest(BaseModel):
         raise ValueError("Tool arguments must be a JSON object encoded as a string.")
 
 
+class AssistantKernelGuidance(BaseModel):
+    suggestion_count: int = Field(
+        default=0,
+        ge=0,
+        le=2,
+        description="Number of distinct recommendations in the user-facing reply.",
+    )
+    evidence_sources: List[AssistantGuidanceEvidence] = Field(
+        default_factory=list,
+        max_length=4,
+        description="Available typed sources actually used to support recommendations.",
+    )
+    satisfaction_state: AssistantSatisfactionState = Field(
+        default="unknown",
+        description="Whether the user said the current result meets their goal.",
+    )
+
+
 class AssistantKernelProviderStep(BaseModel):
     capability: AssistantKernelCapability
     artifact_intent: AssistantArtifactIntent = "none"
-    reply: Optional[str] = None
+    reply: Optional[str] = Field(
+        default=None,
+        description=(
+            "Natural user-facing response. Include it with a terminal tool call so a validated "
+            "artifact can finish the turn without another provider step."
+        ),
+    )
     tool_call: Optional[AssistantKernelToolCallRequest] = None
     requested_action: AssistantNextAction = Field(default_factory=AssistantNextAction)
+    guidance: AssistantKernelGuidance = Field(default_factory=AssistantKernelGuidance)
 
 
 class AssistantKernelToolError(BaseModel):
@@ -235,6 +267,7 @@ class AssistantKernelTrace(BaseModel):
     duration_ms: int = 0
     termination: str = "completed"
     voice_violations: List[AssistantVoiceViolation] = Field(default_factory=list)
+    guidance: AssistantKernelGuidance = Field(default_factory=AssistantKernelGuidance)
 
 
 class AssistantKernelArtifact(BaseModel):

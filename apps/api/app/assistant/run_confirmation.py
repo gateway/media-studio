@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 from .. import store, store_assistant
 from ..graph.schemas import GraphWorkflow
-from .kernel_tools import workflow_fingerprint
+from .provenance import preset_test_workflow_fingerprint, workflow_fingerprint
 from .schemas import AssistantRunConfirmationRequest
 
 
@@ -15,6 +15,14 @@ class PresetRunEvidenceError(ValueError):
     def __init__(self, code: str, message: str):
         super().__init__(message)
         self.code = code
+
+
+def _confirmed_workflow_fingerprint(confirmation: dict, workflow: GraphWorkflow) -> str:
+    return (
+        preset_test_workflow_fingerprint(workflow)
+        if str(confirmation.get("test_plan_id") or "")
+        else workflow_fingerprint(workflow)
+    )
 
 
 def bind_completed_preset_run(session_id: str, run: dict) -> dict:
@@ -58,11 +66,15 @@ def bind_completed_preset_run(session_id: str, run: dict) -> dict:
             "The preset test run or applied plan is missing its workflow snapshot.",
         )
     fingerprint = str(confirmation.get("workflow_fingerprint") or "")
-    run_fingerprint = workflow_fingerprint(GraphWorkflow.model_validate(run_workflow))
-    plan_fingerprint = workflow_fingerprint(GraphWorkflow.model_validate(plan_workflow))
-    if not fingerprint or not hmac.compare_digest(run_fingerprint, fingerprint) or not hmac.compare_digest(
+    run_plan_fingerprint = preset_test_workflow_fingerprint(
+        GraphWorkflow.model_validate(run_workflow)
+    )
+    plan_fingerprint = preset_test_workflow_fingerprint(
+        GraphWorkflow.model_validate(plan_workflow)
+    )
+    if not fingerprint or not hmac.compare_digest(run_plan_fingerprint, fingerprint) or not hmac.compare_digest(
         plan_fingerprint,
-        fingerprint,
+        run_plan_fingerprint,
     ):
         raise PresetRunEvidenceError(
             "preset_test_workflow_mismatch",
@@ -97,13 +109,18 @@ def bind_completed_preset_run(session_id: str, run: dict) -> dict:
         "status": status,
         "output_asset_ids": output_asset_ids,
     }
+    updated_summary = {**summary, "kernel_preset_run_evidence": evidence}
+    prior_comparison = summary.get("kernel_preset_output_comparison")
+    if (
+        not isinstance(prior_comparison, dict)
+        or str(prior_comparison.get("run_id") or "") != evidence["run_id"]
+    ):
+        updated_summary.pop("kernel_preset_output_comparison", None)
+        updated_summary.pop("kernel_preset_quality", None)
     store_assistant.create_or_update_assistant_session(
         {
             **session,
-            "summary_json": {
-                **summary,
-                "kernel_preset_run_evidence": evidence,
-            },
+            "summary_json": updated_summary,
         }
     )
     return evidence
@@ -127,7 +144,7 @@ def associate_confirmed_preset_run(
     supplied_hash = hashlib.sha256(payload.confirmation_token.encode("utf-8")).hexdigest()
     if not hmac.compare_digest(str(confirmation.get("confirmation_token_hash") or ""), supplied_hash):
         raise PresetRunEvidenceError("preset_test_confirmation_invalid", "This run confirmation is invalid.")
-    fingerprint = workflow_fingerprint(payload.workflow)
+    fingerprint = _confirmed_workflow_fingerprint(confirmation, payload.workflow)
     if not hmac.compare_digest(str(confirmation.get("workflow_fingerprint") or ""), fingerprint):
         raise PresetRunEvidenceError(
             "workflow_fingerprint_mismatch",
@@ -138,7 +155,10 @@ def associate_confirmed_preset_run(
         raise PresetRunEvidenceError("preset_test_run_missing", "The confirmed graph run is unavailable.")
     run_workflow = run.get("workflow_json")
     if not isinstance(run_workflow, dict) or not hmac.compare_digest(
-        workflow_fingerprint(GraphWorkflow.model_validate(run_workflow)),
+        _confirmed_workflow_fingerprint(
+            confirmation,
+            GraphWorkflow.model_validate(run_workflow),
+        ),
         fingerprint,
     ):
         raise PresetRunEvidenceError(
@@ -162,7 +182,8 @@ def associate_confirmed_preset_run(
     )
 
 
-def applied_preset_test_plan_id(session_id: str, fingerprint: str) -> str | None:
+def applied_preset_test_plan_id(session_id: str, workflow: GraphWorkflow) -> str | None:
+    fingerprint = preset_test_workflow_fingerprint(workflow)
     for plan in store_assistant.list_assistant_plans(session_id):
         if str(plan.get("status") or "") != "applied":
             continue
@@ -176,7 +197,7 @@ def applied_preset_test_plan_id(session_id: str, fingerprint: str) -> str | None
         if not isinstance(workflow, dict):
             continue
         if hmac.compare_digest(
-            workflow_fingerprint(GraphWorkflow.model_validate(workflow)),
+            preset_test_workflow_fingerprint(GraphWorkflow.model_validate(workflow)),
             fingerprint,
         ):
             return str(plan.get("assistant_plan_id") or "") or None
@@ -197,9 +218,10 @@ def confirm_kernel_run_action(
     supplied_hash = hashlib.sha256(payload.confirmation_token.encode("utf-8")).hexdigest()
     if not hmac.compare_digest(str(confirmation.get("confirmation_token_hash") or ""), supplied_hash):
         raise HTTPException(status_code=400, detail="This run confirmation is invalid.")
+    supplied_fingerprint = _confirmed_workflow_fingerprint(confirmation, payload.workflow)
     if not hmac.compare_digest(
         str(confirmation.get("workflow_fingerprint") or ""),
-        workflow_fingerprint(payload.workflow),
+        supplied_fingerprint,
     ):
         raise HTTPException(
             status_code=400,

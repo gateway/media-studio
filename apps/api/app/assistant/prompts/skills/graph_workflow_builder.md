@@ -17,4 +17,4 @@ When the requested graph takes an image, add an unbound Load Image node as the u
 
 Never claim a graph was added, applied, saved, or run unless the backend context confirms it. A proposed workflow remains a proposal until the user approves the available action. Never start a paid run.
 
-Keep the visible reply short and concrete. Describe what the workflow will do in user language; avoid route names, provider ids, internal state labels, and engineering narration.
+In the reply, describe what the workflow will do and name any missing required input.

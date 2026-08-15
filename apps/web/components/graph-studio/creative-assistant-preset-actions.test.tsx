@@ -125,6 +125,57 @@ function appliedPresetPlan(mode: "text_to_image" | "image_to_image", required = 
   };
 }
 
+it("restores a pending plan when a standalone session's graph later gains a workflow id", async () => {
+  const restoredPlan = appliedPresetPlan("text_to_image");
+  restoredPlan.plan.status = "validated";
+  const assistantMessage = {
+    assistant_message_id: "message-plan-confirmation",
+    assistant_session_id: "session-1",
+    role: "assistant",
+    content_text: "The test graph is ready for review.",
+    content_json: {
+      mode: "assistant_kernel",
+      next_action: {
+        kind: "confirm_graph",
+        label: "Add to canvas",
+        proposal_id: restoredPlan.plan.assistant_plan_id,
+        confirmation_token: "confirm-token-1",
+        requires_confirmation: true,
+        payload: { confirmation_token: "confirm-token-1" },
+      },
+    },
+  };
+  vi.stubGlobal("fetch", vi.fn((url: string) => {
+    if (url.endsWith("/media/assistant/sessions/session-1")) {
+      return jsonResponse({
+        ...session,
+        owner_kind: "standalone",
+        owner_id: null,
+        messages: [assistantMessage],
+        latest_plan: restoredPlan,
+      });
+    }
+    return jsonResponse({});
+  }));
+
+  render(
+    <CreativeAssistantPanel
+      open
+      workspaceKey="tab-restored-plan"
+      workflowId="workflow-1"
+      workflowName="Preset test"
+      workflow={workflow}
+      references={[]}
+      importImageFile={vi.fn()}
+      initialAssistantSessionId="session-1"
+      onApplyWorkflow={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+
+  await waitFor(() => expect(screen.getByRole("button", { name: "Add to canvas" })).toBeTruthy());
+});
+
 it("offers one primary Create test graph action for a preset draft", async () => {
   const { fetchMock } = renderPresetSession("tab-draft", {
     ...session,
@@ -159,6 +210,34 @@ it("makes the applied text-to-image next action Run test without offering Save",
   expect(await screen.findByText(/no image input is needed/i)).toBeTruthy();
   expect(screen.getByRole("button", { name: "Run test" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: /save.*preset/i })).toBeNull();
+});
+
+it("shows unverified save as a warned secondary action", async () => {
+  renderPresetSession("tab-unverified-save", {
+    ...session,
+    messages: [{
+      assistant_message_id: "message-unverified-save",
+      assistant_session_id: "session-1",
+      role: "assistant",
+      content_text: "You chose to keep the draft without visual proof.",
+      content_json: {
+        mode: "assistant_kernel",
+        next_action: {
+          kind: "save_media_preset",
+          label: "Save unverified draft",
+          proposal_id: "proposal-unverified",
+          confirmation_token: "token-unverified",
+          requires_confirmation: true,
+          payload: { quality_state: "test_ready", save_mode: "unverified" },
+        },
+      },
+    }],
+  });
+
+  const action = await screen.findByRole("button", { name: "Save unverified draft" });
+  expect(screen.getByText(/has not been visually verified/i)).toBeTruthy();
+  expect(action.classList.contains("graph-assistant-card-action-primary")).toBe(false);
+  expect(screen.queryByRole("button", { name: "Save verified preset" })).toBeNull();
 });
 
 it.each([

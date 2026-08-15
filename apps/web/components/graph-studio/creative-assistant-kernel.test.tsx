@@ -172,13 +172,13 @@ it("saves a kernel preset only after the user clicks its server-owned confirmati
       mode: "assistant_kernel",
       next_action: {
         kind: "save_media_preset",
-        label: "Save preset",
+        label: "Save verified preset",
         proposal_id: "aspreset-1",
         confirmation_token: "preset-token-1",
         requires_confirmation: true,
         payload: {
           proposal_id: "aspreset-1",
-          confirmation_token: "preset-token-1", quality_state: "quality_verified",
+          confirmation_token: "preset-token-1", quality_state: "quality_verified", save_mode: "verified",
         },
       },
     },
@@ -240,6 +240,34 @@ it("saves a kernel preset only after the user clicks its server-owned confirmati
     confirmation_token: "preset-token-1",
   });
   await waitFor(() => expect(screen.queryByRole("button", { name: "Save confirmed Media Preset" })).toBeNull());
+});
+
+it("does not offer primary preset save for an applied graph without quality proof", async () => {
+  const appliedPlan: AssistantPlanResponse = { ...plan, plan: { ...plan.plan, status: "applied", applied_workflow_id: "workflow-1" } };
+  const fetchMock = vi.fn((url: string) => {
+    if (url.includes("/media/assistant/sessions?")) {
+      return jsonResponse({ items: [{ ...session, messages: [], latest_plan: appliedPlan }] });
+    }
+    return jsonResponse({});
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(
+    <CreativeAssistantPanel
+      open
+      workspaceKey="tab-unverified-preset"
+      workflowId="workflow-1"
+      workflowName="Assistant Graph"
+      workflow={workflow}
+      references={[]}
+      importImageFile={vi.fn()}
+      onApplyWorkflow={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Media Presets" }));
+  await waitFor(() => expect(screen.getByLabelText("Added graph status")).toBeTruthy());
+  expect(screen.queryByText("Save as preset")).toBeNull();
 });
 
 it("saves a kernel recipe only after the user clicks its server-owned confirmation", async () => {

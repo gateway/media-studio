@@ -90,6 +90,14 @@ def _applied_preset_plan(store_assistant, session_id: str, workflow: dict) -> di
     )
 
 
+def _preset_fingerprint(workflow: dict) -> str:
+    run_confirmation = importlib.import_module("app.assistant.run_confirmation")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    return run_confirmation.preset_test_workflow_fingerprint(
+        graph_schemas.GraphWorkflow.model_validate(workflow)
+    )
+
+
 def test_run_confirmation_records_the_applied_preset_test_plan(client, app_modules, monkeypatch) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
     graph_routes = importlib.import_module("app.graph.routes")
@@ -150,6 +158,207 @@ def test_run_confirmation_records_the_applied_preset_test_plan(client, app_modul
     assert stored_confirmation["confirmed_at"]
     assert stored_confirmation["assistant_run_id"] == created.json()["run_id"]
     assert started_run_ids == [created.json()["run_id"]]
+
+    run_id = created.json()["run_id"]
+    app_modules["store"].update_graph_run(
+        run_id,
+        {"status": "completed", "finished_at": app_modules["store"].utcnow_iso()},
+    )
+    app_modules["store"].create_graph_artifact(
+        {
+            "artifact_id": "artifact-browser-output",
+            "workflow_id": workflow["workflow_id"],
+            "run_id": run_id,
+            "node_id": "preset-model",
+            "node_type": "model.kie.gpt_image_2_text_to_image",
+            "output_port": "image",
+            "output_index": 0,
+            "kind": "asset",
+            "media_type": "image",
+            "asset_id": "asset-browser-output",
+        }
+    )
+    monkeypatch.setattr(
+        kernel,
+        "run_kernel_provider_step",
+        lambda **_kwargs: {
+            "capability": "preset_builder",
+            "artifact_intent": "none",
+            "reply": "The selected generated output is ready for comparison.",
+        },
+    )
+
+    follow_up = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={
+            "content_text": "Compare the paid output with the intended preset style.",
+            "workflow": workflow,
+            "run_id": run_id,
+            "assistant_mode": "preset",
+        },
+    )
+
+    assert follow_up.status_code == 200, follow_up.text
+    follow_up_summary = follow_up.json()["summary_json"]
+    assert follow_up_summary["kernel_run_confirmation"]["assistant_run_id"] == run_id
+    assert follow_up_summary["kernel_run_confirmation"]["consumed"] is True
+    assert follow_up_summary["kernel_preset_run_evidence"]["run_id"] == run_id
+    assert follow_up_summary["kernel_preset_run_evidence"]["output_asset_ids"] == [
+        "asset-browser-output"
+    ]
+
+
+def test_preset_run_confirmation_requires_the_current_applied_test_plan(
+    client,
+    app_modules,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    workflow = _workflow("workflow-changed-after-apply")
+    session = _session(client, workflow)
+    _applied_preset_plan(app_modules["store_assistant"], session["assistant_session_id"], workflow)
+    session = app_modules["store_assistant"].create_or_update_assistant_session(
+        {
+            **session,
+            "summary_json": {
+                **(session.get("summary_json") or {}),
+                "kernel_preset_draft": {"key": "current-preset-draft"},
+            },
+        }
+    )
+    changed_workflow = json.loads(json.dumps(workflow))
+    changed_workflow["nodes"][0]["fields"]["text"] = "A changed prompt after apply"
+    provider_steps = iter(
+        [
+            {
+                "capability": "graph_builder",
+                "artifact_intent": "none",
+                "reply": "The graph can be confirmed now.",
+                "requested_action": {
+                    "kind": "run_workflow",
+                    "label": "Review and run",
+                    "requires_confirmation": True,
+                },
+            },
+            {
+                "capability": "graph_builder",
+                "artifact_intent": "none",
+                "reply": "I need to rebuild the reviewed preset test before it can run.",
+            },
+        ]
+    )
+    provider_calls = []
+
+    def provider_step(**_kwargs):
+        provider_calls.append(True)
+        return next(provider_steps)
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
+
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={
+            "content_text": "Can we test this version?",
+            "workflow": changed_workflow,
+            "assistant_mode": "preset",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    latest = response.json()["messages"][-1]["content_json"]
+    assert latest["next_action"]["kind"] == "none"
+    assert len(provider_calls) == 2
+    assert response.json()["summary_json"]["kernel_run_confirmation"] is None
+
+
+def test_preset_run_confirmation_ignores_canvas_presentation_metadata(
+    client,
+    app_modules,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    workflow = _workflow("workflow-canvas-metadata")
+    session = _session(client, workflow)
+    plan = _applied_preset_plan(
+        app_modules["store_assistant"],
+        session["assistant_session_id"],
+        workflow,
+    )
+    duplicate = app_modules["store_assistant"].create_or_update_assistant_plan(
+        {
+            **plan,
+            "assistant_plan_id": "plan-duplicate-canvas-metadata",
+            "status": "validated",
+            "plan_json": {
+                **plan["plan_json"],
+                "metadata": {
+                    **plan["plan_json"]["metadata"],
+                    "base_workflow_fingerprint": importlib.import_module(
+                        "app.assistant.kernel_tools"
+                    ).workflow_fingerprint(
+                        importlib.import_module("app.graph.schemas").GraphWorkflow.model_validate(workflow)
+                    ),
+                },
+            },
+        }
+    )
+    session = app_modules["store_assistant"].create_or_update_assistant_session(
+        {
+            **session,
+            "summary_json": {
+                **(session.get("summary_json") or {}),
+                "kernel_preset_draft": {"key": "current-preset-draft"},
+                "kernel_proposal_id": duplicate["assistant_plan_id"],
+            },
+        }
+    )
+    canvas_workflow = json.loads(json.dumps(workflow))
+    canvas_workflow["metadata"] = {"created_by": "graph-studio", "groups": []}
+    for node in canvas_workflow["nodes"]:
+        node["metadata"] = {
+            "style": {"width": 420},
+            "ui": {
+                "collapsed": False,
+                "advancedExpanded": False,
+                "customTitle": node["type"],
+                "heightMode": "auto",
+            },
+            "execution": {
+                "mode": "enabled",
+                "cached_run_id": None,
+                "cached_artifact_ids": {},
+            },
+        }
+    provider_messages = []
+
+    def provider_step(**kwargs):
+        provider_messages.extend(kwargs["messages"])
+        return {
+            "capability": "preset_builder",
+            "artifact_intent": "none",
+            "reply": "The current graph is ready for confirmation.",
+            "requested_action": {
+                "kind": "run_workflow",
+                "label": "Review and run",
+                "requires_confirmation": True,
+            },
+        }
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
+
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={
+            "content_text": "Can you check the current graph before I run it?",
+            "workflow": canvas_workflow,
+            "assistant_mode": "preset",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["messages"][-1]["content_json"]["next_action"]["kind"] == "run_workflow"
+    assert response.json()["summary_json"]["kernel_run_confirmation"]["test_plan_id"] == plan["assistant_plan_id"]
+    assert plan["assistant_plan_id"] in provider_messages[0]["content"]
 
 
 def _confirmed_session(store_assistant, session: dict, plan: dict, fingerprint: str) -> dict:
@@ -239,10 +448,27 @@ def test_completed_preset_run_is_bound_to_its_session_plan_and_fingerprint(clien
     workflow = _workflow()
     session = _session(client, workflow)
     plan = _applied_preset_plan(app_modules["store_assistant"], session["assistant_session_id"], workflow)
-    fingerprint = tools.workflow_fingerprint(tools.GraphWorkflow.model_validate(workflow))
+    fingerprint = _preset_fingerprint(workflow)
     session = _confirmed_session(app_modules["store_assistant"], session, plan, fingerprint)
     run = _completed_run(app_modules["store"], workflow)
     session = _associate_session(app_modules["store_assistant"], session, run["run_id"])
+    session = app_modules["store_assistant"].create_or_update_assistant_session(
+        {
+            **session,
+            "summary_json": {
+                **session["summary_json"],
+                "kernel_preset_output_comparison": {
+                    "comparison_id": "presetcmp-older-run",
+                    "run_id": "run-older-preset-evidence",
+                },
+                "kernel_preset_quality": {
+                    "quality_state": "quality_verified",
+                    "comparison_id": "presetcmp-older-run",
+                    "run_id": "run-older-preset-evidence",
+                },
+            },
+        }
+    )
 
     evidence = _read_preset_run_evidence(tools, workflow, session, run["run_id"])
 
@@ -257,7 +483,67 @@ def test_completed_preset_run_is_bound_to_its_session_plan_and_fingerprint(clien
     }
     stored = app_modules["store_assistant"].get_assistant_session(session["assistant_session_id"])
     assert stored["summary_json"]["kernel_preset_run_evidence"] == evidence.result["preset_test"]
+    assert "kernel_preset_output_comparison" not in stored["summary_json"]
+    assert "kernel_preset_quality" not in stored["summary_json"]
     assert kernel._kernel_session_context(stored)["active_preset_run_evidence"] == evidence.result["preset_test"]
+
+
+def test_completed_preset_run_accepts_canvas_presentation_metadata(client, app_modules) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    workflow = _workflow("workflow-completed-canvas-metadata")
+    session = _session(client, workflow)
+    plan = _applied_preset_plan(app_modules["store_assistant"], session["assistant_session_id"], workflow)
+    canvas_workflow = json.loads(json.dumps(workflow))
+    canvas_workflow["metadata"] = {"created_by": "graph-studio", "groups": []}
+    for node in canvas_workflow["nodes"]:
+        node["metadata"] = {
+            "style": {"width": 420},
+            "ui": {"collapsed": False, "advancedExpanded": False, "heightMode": "auto"},
+            "execution": {"mode": "enabled", "cached_run_id": None, "cached_artifact_ids": {}},
+        }
+    fingerprint = _preset_fingerprint(canvas_workflow)
+    session = _confirmed_session(app_modules["store_assistant"], session, plan, fingerprint)
+    run = _completed_run(app_modules["store"], canvas_workflow, "run-canvas-metadata")
+    session = _associate_session(app_modules["store_assistant"], session, run["run_id"])
+
+    evidence = _read_preset_run_evidence(tools, canvas_workflow, session, run["run_id"])
+
+    assert evidence.trace.error is None
+    assert evidence.result["preset_test"]["test_plan_id"] == plan["assistant_plan_id"]
+
+
+def test_preset_run_confirmation_accepts_later_canvas_presentation_changes(client, app_modules) -> None:
+    workflow = _workflow("workflow-confirmation-canvas-metadata")
+    session = _session(client, workflow)
+    plan = _applied_preset_plan(app_modules["store_assistant"], session["assistant_session_id"], workflow)
+    token = "confirmation-canvas-metadata"
+    app_modules["store_assistant"].create_or_update_assistant_session(
+        {
+            **session,
+            "summary_json": {
+                "kernel_run_confirmation": {
+                    "confirmation_token_hash": hashlib.sha256(token.encode("utf-8")).hexdigest(),
+                    "test_plan_id": plan["assistant_plan_id"],
+                    "workflow_fingerprint": _preset_fingerprint(workflow),
+                    "consumed": False,
+                }
+            },
+        }
+    )
+    canvas_workflow = json.loads(json.dumps(workflow))
+    canvas_workflow["nodes"][0]["metadata"] = {
+        "style": {"width": 512},
+        "ui": {"collapsed": True, "heightMode": "manual"},
+        "execution": {"mode": "enabled", "cached_run_id": None, "cached_artifact_ids": {}},
+    }
+
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/run-confirmations",
+        json={"workflow": canvas_workflow, "confirmation_token": token},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {"confirmed": True}
 
 
 def test_preset_run_evidence_rejects_wrong_session_plan(client, app_modules) -> None:
@@ -266,7 +552,7 @@ def test_preset_run_evidence_rejects_wrong_session_plan(client, app_modules) -> 
     owner = _session(client, workflow)
     other = _session(client, workflow)
     owner_plan = _applied_preset_plan(app_modules["store_assistant"], owner["assistant_session_id"], workflow)
-    fingerprint = tools.workflow_fingerprint(tools.GraphWorkflow.model_validate(workflow))
+    fingerprint = _preset_fingerprint(workflow)
     other = _confirmed_session(app_modules["store_assistant"], other, owner_plan, fingerprint)
     run = _completed_run(app_modules["store"], workflow, "run-wrong-session")
     other = _associate_session(app_modules["store_assistant"], other, run["run_id"])
@@ -283,7 +569,7 @@ def test_preset_run_evidence_rejects_unsuccessful_runs(client, app_modules, stat
     workflow = _workflow(f"workflow-{status}-run")
     session = _session(client, workflow)
     plan = _applied_preset_plan(app_modules["store_assistant"], session["assistant_session_id"], workflow)
-    fingerprint = tools.workflow_fingerprint(tools.GraphWorkflow.model_validate(workflow))
+    fingerprint = _preset_fingerprint(workflow)
     session = _confirmed_session(app_modules["store_assistant"], session, plan, fingerprint)
     run = _completed_run(app_modules["store"], workflow, f"run-{status}", status=status)
     session = _associate_session(app_modules["store_assistant"], session, run["run_id"])
@@ -299,7 +585,7 @@ def test_preset_run_evidence_rejects_a_different_workflow_snapshot(client, app_m
     workflow = _workflow("workflow-confirmed")
     session = _session(client, workflow)
     plan = _applied_preset_plan(app_modules["store_assistant"], session["assistant_session_id"], workflow)
-    fingerprint = tools.workflow_fingerprint(tools.GraphWorkflow.model_validate(workflow))
+    fingerprint = _preset_fingerprint(workflow)
     session = _confirmed_session(app_modules["store_assistant"], session, plan, fingerprint)
     changed = {
         **workflow,
@@ -319,7 +605,7 @@ def test_preset_run_evidence_rejects_an_unassociated_older_matching_run(client, 
     workflow = _workflow("workflow-older-matching-run")
     session = _session(client, workflow)
     plan = _applied_preset_plan(app_modules["store_assistant"], session["assistant_session_id"], workflow)
-    fingerprint = tools.workflow_fingerprint(tools.GraphWorkflow.model_validate(workflow))
+    fingerprint = _preset_fingerprint(workflow)
     older_run = _completed_run(app_modules["store"], workflow, "run-older-matching")
     session = _confirmed_session(app_modules["store_assistant"], session, plan, fingerprint)
 
@@ -334,7 +620,7 @@ def test_preset_run_evidence_does_not_count_an_image_loader_asset_as_output(clie
     workflow = _workflow("workflow-loader-asset-only")
     session = _session(client, workflow)
     plan = _applied_preset_plan(app_modules["store_assistant"], session["assistant_session_id"], workflow)
-    fingerprint = tools.workflow_fingerprint(tools.GraphWorkflow.model_validate(workflow))
+    fingerprint = _preset_fingerprint(workflow)
     session = _confirmed_session(app_modules["store_assistant"], session, plan, fingerprint)
     run = _completed_run(app_modules["store"], workflow, "run-loader-asset-only")
     app_modules["store"].create_graph_artifact(
@@ -359,7 +645,7 @@ def test_invalid_confirmation_never_starts_the_created_run(client, app_modules, 
     workflow = _workflow("workflow-invalid-confirmation")
     session = _session(client, workflow)
     plan = _applied_preset_plan(app_modules["store_assistant"], session["assistant_session_id"], workflow)
-    fingerprint = tools.workflow_fingerprint(tools.GraphWorkflow.model_validate(workflow))
+    fingerprint = _preset_fingerprint(workflow)
     app_modules["store_assistant"].create_or_update_assistant_session(
         {
             **session,

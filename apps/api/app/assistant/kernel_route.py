@@ -5,14 +5,42 @@ from typing import Any, Dict, List
 
 from fastapi import HTTPException
 
-from .. import store_assistant
+from .. import store, store_assistant
 from .cancellation import AssistantRequestCancelled, AssistantSessionBusy, track_session
 from .kernel import run_assistant_kernel_turn
 from .provider_support import AssistantProviderChatError, sync_assistant_session_provider
-from .run_confirmation import applied_preset_test_plan_id
+from .run_confirmation import (
+    PresetRunEvidenceError,
+    applied_preset_test_plan_id,
+    bind_completed_preset_run,
+)
 from .schemas import AssistantMessageCreateRequest
 from .turn_trace import build_assistant_turn_trace
 from .voice import lint_assistant_reply
+
+
+def _bind_selected_completed_preset_run(
+    session: Dict[str, Any],
+    payload: AssistantMessageCreateRequest,
+) -> Dict[str, Any]:
+    run_id = str(payload.run_id or "").strip()
+    summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
+    confirmation = summary.get("kernel_run_confirmation")
+    if (
+        not run_id
+        or not isinstance(confirmation, dict)
+        or confirmation.get("consumed") is not True
+        or str(confirmation.get("assistant_run_id") or "") != run_id
+    ):
+        return session
+    run = store.get_graph_run(run_id)
+    if not run or str(run.get("status") or "") != "completed":
+        return session
+    try:
+        bind_completed_preset_run(str(session["assistant_session_id"]), run)
+    except PresetRunEvidenceError:
+        return session
+    return store_assistant.get_assistant_session(str(session["assistant_session_id"])) or session
 
 
 def create_kernel_message(
@@ -26,6 +54,7 @@ def create_kernel_message(
     try:
         with track_session(session_id) as cancel_event:
             session = sync_assistant_session_provider(session)
+            session = _bind_selected_completed_preset_run(session, payload)
             user_message = store_assistant.create_assistant_message(
                 {
                     "assistant_session_id": session_id,
@@ -111,7 +140,12 @@ def create_kernel_message(
         if isinstance(refreshed_session.get("summary_json"), dict)
         else {}
     )
-    run_confirmation = None
+    existing_confirmation = summary.get("kernel_run_confirmation")
+    run_confirmation = (
+        existing_confirmation
+        if isinstance(existing_confirmation, dict) and existing_confirmation.get("consumed") is True
+        else None
+    )
     if result.next_action.kind == "run_workflow" and result.next_action.confirmation_token:
         fingerprint = str((result.next_action.payload or {}).get("workflow_fingerprint") or "")
         run_confirmation = {
@@ -119,7 +153,11 @@ def create_kernel_message(
                 result.next_action.confirmation_token.encode("utf-8")
             ).hexdigest(),
             "workflow_fingerprint": fingerprint,
-            "test_plan_id": applied_preset_test_plan_id(session_id, fingerprint),
+            "test_plan_id": (
+                applied_preset_test_plan_id(session_id, payload.workflow)
+                if payload.workflow is not None
+                else None
+            ),
             "consumed": False,
         }
     return store_assistant.create_or_update_assistant_session(

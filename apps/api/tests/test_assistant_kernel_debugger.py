@@ -91,6 +91,7 @@ def test_debugger_diagnosis_requires_typed_failed_run_evidence(
     kernel = importlib.import_module("app.assistant.kernel")
     workflow, run = _failed_run(app_modules)
     session = _session(client, workflow)
+    provider_calls = 0
     steps = iter(
         [
             {
@@ -110,7 +111,12 @@ def test_debugger_diagnosis_requires_typed_failed_run_evidence(
             },
         ]
     )
-    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+    def provider_step(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return next(steps)
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
 
     response = client.post(
         f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
@@ -127,6 +133,7 @@ def test_debugger_diagnosis_requires_typed_failed_run_evidence(
     assert evidence["failed_nodes"][0]["node_id"] == "prompt"
     assert evidence["events"][-1]["event_type"] == "node.failed"
     assert turn["trace"]["tool_calls"][0].get("error") is None
+    assert provider_calls == 3
 
 
 def test_debugger_fix_is_validated_priced_and_confirmation_gated(
