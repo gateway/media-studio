@@ -1,8 +1,26 @@
 # Media Assistant Orchestration and Storyboard Execution Tasks
 
-Last updated: 2026-07-24  
-Status: Planned; no implementation task started  
+Last updated: 2026-08-15
+Status: Complete; historical backlog crosswalked and retired
 Spec: [Media Assistant Orchestration and Storyboard Execution Spec](MEDIA_ASSISTANT_ORCHESTRATION_SPEC.md)
+
+## Resolution Crosswalk
+
+The task bodies below preserve the original 2026-07-24 plan and their status lines are historical snapshots, not active work. Current disposition is authoritative here.
+
+| Original task | Disposition | Current evidence |
+| --- | --- | --- |
+| `MAO-001` | Completed | The no-network graph executor regression reproduced the exact environment-branch `panel sequence is empty` failure before the runtime fix and now passes. |
+| `MAO-002` | Retired as superseded | `LOCAL-MA-013/015` and `LOCAL-MASC-005/006` replaced legacy skill/phrase routing with typed kernel decisions and isolated artifact state. |
+| `MAO-003` | Retired as superseded | `LOCAL-MA-013`, `LOCAL-MARP-010/017`, and the delayed-turn panel regression cover restored typed state, explicit actions, and busy-state completion. |
+| `MAO-101` | Retired as superseded | The deleted legacy `story_graph.py` path was replaced by bounded Environment Sheet and Storyboard v2 Prompt Recipe contracts; the typed execution fix removes its confirmed runtime consequence. |
+| `MAO-102` | Completed | Built-in Prompt Recipes publish typed execution semantics; GPT Image 2 preflight consumes them while preserving a fail-safe fallback for untyped workflows. |
+| `MAO-201` | Retired as superseded | The Media Assistant kernel and capability registry now own typed turn decisions and action boundaries. |
+| `MAO-202` | Retired as superseded | Kernel session state separates preset, recipe, graph, story, run-evidence, and confirmation artifacts. |
+| `MAO-301` | Retired as superseded | `LOCAL-MA-010`, `LOCAL-MASC-011`, and `LOCAL-MARP-016` provide Prompt Recipe creation plus recipe/graph conversation proof. |
+| `MAO-401` | Retired as superseded | Current typed assistant cards, applied-plan restoration, and the focused delayed-success regression cover the surviving UI contract. |
+| `MAO-402` | Retired as superseded | Typed kernel actions replaced legacy phrase arbitration while keeping explicit apply/run/save boundaries. |
+| `MAO-501` | Retired as superseded and verified | `LOCAL-MASC-011`, `LOCAL-MARP-014/016`, and the 2026-08-15 vague-language browser walk provide the current end-to-end evidence. |
 
 ## Execution Rules
 
@@ -234,7 +252,6 @@ Spec: [Media Assistant Orchestration and Storyboard Execution Spec](MEDIA_ASSIST
 - Batch eligible: No.
 - Campaign eligible: No.
 
-## Recommended Next Task
+## Retirement
 
-Start with `MAO-001`. It is the narrowest safe task and converts the confirmed live failure into a deterministic red signal before any runtime or orchestration change.
-
+No MAO task remains active. Future Media Assistant work should be opened against the current kernel and typed artifact contracts rather than reviving these legacy file-level tasks.

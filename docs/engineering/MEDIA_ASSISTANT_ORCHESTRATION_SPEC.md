@@ -1,8 +1,16 @@
 # Media Assistant Orchestration and Storyboard Execution Spec
 
-Last updated: 2026-07-24  
-Mode: Read-only audit and bug-fix planning  
-Status: Audit complete; implementation not started
+Last updated: 2026-08-15
+Mode: Implementation closure
+Status: Resolved; remaining legacy work retired into successor Media Assistant campaigns
+
+## Resolution
+
+The live execution failure is closed. Built-in Prompt Recipes now publish typed prompt semantics, and the GPT Image 2 runtime uses that provenance to distinguish environment sheets, metadata-bearing storyboard sheets, and storyboard art-only sources. Unknown or legacy prompts keep the conservative content-based preflight fallback.
+
+The broader orchestration findings were resolved by the later `LOCAL-MA`, `LOCAL-MASC`, and `LOCAL-MARP` kernel, continuity, preset-loop, recipe, graph, and browser-verification campaigns. The original MAO implementation paths no longer describe the current architecture, so they are crosswalked and retired in the companion task list instead of being restored.
+
+Closure proof includes a deterministic no-network regression of the original environment-branch failure, a delayed-turn UI regression for the stale `Thinking…` concern, and a two-turn in-app-browser conversation using vague human language. The browser proof produced useful collaborative guidance, cleared its busy state, and performed no graph mutation, run, save, provider call, or paid action.
 
 ## Objective
 
@@ -264,4 +272,3 @@ git diff --check
 ```
 
 New Phase 0 tests must run without network, provider calls, media jobs, saved workflows, or credit changes.
-

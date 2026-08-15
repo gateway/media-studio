@@ -1,10 +1,18 @@
 # Engineering Work State
 
-Last updated: 2026-07-19
-Current objective: preserve the completed Phase 33 two-capacitor/Bolts paid trilogy and its accepted saved outputs; no further provider run is authorized.
-Active task ID: None (Phase 33 terminal)
-Current phase: Phase 33 revised-story full paid trilogy
-Status: COMPLETE. The user's one full-trilogy authorization was consumed once by `grun_95ca568765eb`. All three provider, compositor, and Save branches completed for exactly 30 credits / $0.15 with no retry. The trilogy passes the verified two-capacitor state progression, Bolts walking beside the pilot through the ramp and into the cockpit, assigned dialogue on all three boards, ordered Character/Environment/previous-board references, single-ship lift/departure, deterministic layout, and readable metadata. All three recipe outputs and all nine storyboard art/compositor/Save nodes are Frozen at approximately zero estimated cost.
+Last updated: 2026-08-15
+Current objective: close the superseded Media Assistant orchestration backlog against the current kernel/runtime.
+Active task ID: None
+Current phase: Media Assistant orchestration closeout
+Status: COMPLETE. The confirmed environment-branch failure is covered by a no-network typed-provenance regression, the stale `Thinking…` concern has a focused delayed-success UI regression, vague human-language browser guidance passes without side effects, and all historical MAO tasks are completed or crosswalked to successor campaigns.
+
+## 2026-08-15 — Media Assistant orchestration backlog closed
+
+- Prompt Recipe outputs now carry typed execution semantics for environment, storyboard metadata, and supported reference-analysis recipes. Storyboard art-only outputs reuse their existing typed source contract.
+- GPT Image 2 storyboard preflight follows typed provenance. Unknown and legacy workflows retain the conservative content-based fallback.
+- The exact MAO environment failure was reproduced before the fix and passes afterward without a network request, media job, or credit spend.
+- A delayed successful Assistant response clears the visible busy state without refresh. A fresh two-turn browser conversation accepted vague sci-fi ideation, offered concise creative guidance, asked one useful question at a time, and did not mutate or run the graph.
+- The companion MAO task list is the authoritative retirement crosswalk. No MAO task remains active.
 
 ## 2026-07-23 - Media Assistant reference-storyboard Phase 5 complete
 
