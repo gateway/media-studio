@@ -343,10 +343,18 @@ class KieModelExecutor(GraphExecutor):
         )
         budget = enforce_prompt_budget(model_key, prompt)
         shaped_prompt = shape_kie_graph_prompt(model_key, prompt, task_mode=task_mode, max_chars=budget.get("max_chars"))
+        prompt_metadata = prompt_inputs[0].metadata if prompt_inputs else {}
+        prompt_semantics = str(prompt_metadata.get("prompt_semantics") or "")
+        if (
+            not prompt_semantics
+            and prompt_metadata.get("storyboard_art_source_contract") == STORYBOARD_ART_SOURCE_CONTRACT
+        ):
+            prompt_semantics = "storyboard_art_only"
         storyboard_preflight = validate_storyboard_metadata_preflight(
             model_key=model_key,
             original_prompt=prompt,
             submitted_prompt=shaped_prompt.prompt,
+            prompt_semantics=prompt_semantics,
         )
         if storyboard_preflight is not None:
             context.record_node_metric(node, "storyboard_metadata_preflight", "passed")

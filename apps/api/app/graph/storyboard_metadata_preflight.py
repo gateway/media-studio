@@ -115,6 +115,15 @@ class StoryboardMetadataPreflightResult:
     panel_count: int
 
 
+STORYBOARD_METADATA_PROMPT_SEMANTICS = "storyboard_sheet_with_metadata"
+PROMPT_SEMANTICS_WITHOUT_STORYBOARD_METADATA = {
+    "environment_sheet",
+    "storyboard_art_only",
+    "character_reference",
+    "ordinary_image_prompt",
+}
+
+
 def _normalized_model_key(value: str) -> str:
     return str(value or "").strip().lower().replace("_", "-")
 
@@ -545,12 +554,15 @@ def validate_storyboard_metadata_preflight(
     model_key: str,
     original_prompt: str,
     submitted_prompt: str,
+    prompt_semantics: str = "",
 ) -> StoryboardMetadataPreflightResult | None:
     """Fail before provider submission when a storyboard metadata row is malformed."""
 
     if not _normalized_model_key(model_key).startswith("gpt-image-2"):
         return None
-    if not _looks_like_storyboard(original_prompt):
+    if prompt_semantics in PROMPT_SEMANTICS_WITHOUT_STORYBOARD_METADATA:
+        return None
+    if prompt_semantics != STORYBOARD_METADATA_PROMPT_SEMANTICS and not _looks_like_storyboard(original_prompt):
         return None
 
     expected_count = _expected_panel_count(original_prompt)

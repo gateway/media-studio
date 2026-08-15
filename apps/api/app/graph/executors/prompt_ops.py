@@ -23,6 +23,7 @@ from ..prompt_recipe_refs import (
 )
 from ..schemas import GraphOutputRef, GraphWorkflowNode
 from ..storyboard_sheet_spec import STORYBOARD_METADATA_DISPLAY_LIMITS, storyboard_sheet_spec_from_recipe_result
+from ..storyboard_metadata_preflight import STORYBOARD_METADATA_PROMPT_SEMANTICS
 from .base import GraphExecutionContext, GraphExecutor
 
 
@@ -62,6 +63,11 @@ STORYBOARD_V2_RECIPE_KEYS = {
     "storyboard_v2",
     "cinematic_3x2_storyboard_v2",
     "storyboard-continuation-v1",
+}
+PROMPT_RECIPE_SEMANTICS = {
+    "environment-sheet-v1": "environment_sheet",
+    "environment-plate-v1": "environment_sheet",
+    "image-analysis-character-reference": "character_reference",
 }
 STORYBOARD_CONTRACT_REPAIR_ATTEMPTS = 2
 STORYBOARD_PRIVATE_NAME_EXCLUDE = {
@@ -1863,6 +1869,13 @@ class PromptRecipeExecutor(GraphExecutor):
             "provider_model_id": canonical["provider_model_id"],
             "image_count": canonical["image_count"],
         }
+        prompt_semantics = (
+            STORYBOARD_METADATA_PROMPT_SEMANTICS
+            if _is_storyboard_v2_recipe(recipe)
+            else PROMPT_RECIPE_SEMANTICS.get(str(recipe.get("key") or "").strip().lower())
+        )
+        if prompt_semantics:
+            metadata["prompt_semantics"] = prompt_semantics
         context.record_node_metric(node, "recipe_key", canonical["recipe_key"])
         context.record_node_metric(node, "output_format", canonical["output_format"])
         context.record_node_metric(node, "prompt_count", len(canonical.get("prompts") or []))
