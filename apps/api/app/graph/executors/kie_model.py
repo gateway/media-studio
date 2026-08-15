@@ -12,7 +12,10 @@ from ..prompt_shaping import shape_kie_graph_prompt
 from ..registry import registry
 from ..schemas import GraphOutputRef, GraphWorkflowNode
 from ..storyboard_sheet_spec import STORYBOARD_ART_SOURCE_CONTRACT
-from ..storyboard_metadata_preflight import validate_storyboard_metadata_preflight
+from ..storyboard_metadata_preflight import (
+    STORYBOARD_ART_PROMPT_SEMANTICS,
+    validate_storyboard_metadata_preflight,
+)
 from .base import GraphExecutionContext, GraphExecutor, GraphRunCancelled
 
 
@@ -349,7 +352,7 @@ class KieModelExecutor(GraphExecutor):
             not prompt_semantics
             and prompt_metadata.get("storyboard_art_source_contract") == STORYBOARD_ART_SOURCE_CONTRACT
         ):
-            prompt_semantics = "storyboard_art_only"
+            prompt_semantics = STORYBOARD_ART_PROMPT_SEMANTICS
         storyboard_preflight = validate_storyboard_metadata_preflight(
             model_key=model_key,
             original_prompt=prompt,

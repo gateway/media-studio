@@ -23,7 +23,12 @@ from ..prompt_recipe_refs import (
 )
 from ..schemas import GraphOutputRef, GraphWorkflowNode
 from ..storyboard_sheet_spec import STORYBOARD_METADATA_DISPLAY_LIMITS, storyboard_sheet_spec_from_recipe_result
-from ..storyboard_metadata_preflight import STORYBOARD_METADATA_PROMPT_SEMANTICS
+from ..storyboard_metadata_preflight import (
+    CHARACTER_REFERENCE_PROMPT_SEMANTICS,
+    ENVIRONMENT_SHEET_PROMPT_SEMANTICS,
+    ORDINARY_IMAGE_PROMPT_SEMANTICS,
+    STORYBOARD_METADATA_PROMPT_SEMANTICS,
+)
 from .base import GraphExecutionContext, GraphExecutor
 
 
@@ -65,9 +70,10 @@ STORYBOARD_V2_RECIPE_KEYS = {
     "storyboard-continuation-v1",
 }
 PROMPT_RECIPE_SEMANTICS = {
-    "environment-sheet-v1": "environment_sheet",
-    "environment-plate-v1": "environment_sheet",
-    "image-analysis-character-reference": "character_reference",
+    "environment-sheet-v1": ENVIRONMENT_SHEET_PROMPT_SEMANTICS,
+    "environment-plate-v1": ENVIRONMENT_SHEET_PROMPT_SEMANTICS,
+    "image-analysis-character-reference": CHARACTER_REFERENCE_PROMPT_SEMANTICS,
+    "image-prompt-director": ORDINARY_IMAGE_PROMPT_SEMANTICS,
 }
 STORYBOARD_CONTRACT_REPAIR_ATTEMPTS = 2
 STORYBOARD_PRIVATE_NAME_EXCLUDE = {

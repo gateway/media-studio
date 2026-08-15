@@ -115,12 +115,16 @@ class StoryboardMetadataPreflightResult:
     panel_count: int
 
 
+ENVIRONMENT_SHEET_PROMPT_SEMANTICS = "environment_sheet"
 STORYBOARD_METADATA_PROMPT_SEMANTICS = "storyboard_sheet_with_metadata"
+STORYBOARD_ART_PROMPT_SEMANTICS = "storyboard_art_only"
+CHARACTER_REFERENCE_PROMPT_SEMANTICS = "character_reference"
+ORDINARY_IMAGE_PROMPT_SEMANTICS = "ordinary_image_prompt"
 PROMPT_SEMANTICS_WITHOUT_STORYBOARD_METADATA = {
-    "environment_sheet",
-    "storyboard_art_only",
-    "character_reference",
-    "ordinary_image_prompt",
+    ENVIRONMENT_SHEET_PROMPT_SEMANTICS,
+    STORYBOARD_ART_PROMPT_SEMANTICS,
+    CHARACTER_REFERENCE_PROMPT_SEMANTICS,
+    ORDINARY_IMAGE_PROMPT_SEMANTICS,
 }
 
 
