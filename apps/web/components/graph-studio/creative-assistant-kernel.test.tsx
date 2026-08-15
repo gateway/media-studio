@@ -132,6 +132,9 @@ it("requests a text-to-image model when wiring a saved Prompt Recipe", async () 
       return jsonResponse({ items: [{ ...session, messages: [savedRecipeMessage] }] });
     }
     if (url.endsWith("/media/assistant/sessions/session-1/plans")) return jsonResponse(plan);
+    if (url.endsWith("/media/assistant/sessions/session-1")) {
+      return jsonResponse({ ...session, messages: [savedRecipeMessage], latest_plan: plan });
+    }
     return jsonResponse({});
   });
   vi.stubGlobal("fetch", fetchMock);

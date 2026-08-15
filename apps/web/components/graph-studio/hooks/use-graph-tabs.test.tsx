@@ -152,6 +152,35 @@ describe("useGraphTabs", () => {
     expect(window.location.pathname + window.location.search).toBe("/graph-studio");
   });
 
+  it("associates a returned assistant session with the restored active tab", async () => {
+    const healthResponse = deferred<Response>();
+    vi.stubGlobal("fetch", vi.fn(() => healthResponse.promise));
+    window.history.replaceState(null, "", "/graph-studio?assistantSession=session-9");
+    writeGraphTabSession("install-return", "target-tab", [
+      tab("dream-tab", "Dream Magazine Cover Portrait"),
+      tab("target-tab", "Assistant draft workflow"),
+    ]);
+
+    const { result } = renderHook(() => useGraphTabs());
+
+    await act(async () => {
+      await Promise.resolve();
+      healthResponse.resolve(
+        new Response(JSON.stringify({ install_id: "install-return" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+      await healthResponse.promise;
+      await Promise.resolve();
+    });
+
+    expect(result.current.activeTabId).toBe("target-tab");
+    expect(result.current.tabs.find((item) => item.tab_id === "target-tab")?.assistant_session_id).toBe("session-9");
+    expect(result.current.tabs.find((item) => item.tab_id === "dream-tab")?.assistant_session_id).toBeNull();
+    expect(window.location.pathname + window.location.search).toBe("/graph-studio");
+  });
+
   it("opens a blank workflow tab without inheriting the active assistant session", async () => {
     const healthResponse = deferred<Response>();
     vi.stubGlobal("fetch", vi.fn(() => healthResponse.promise));

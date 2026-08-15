@@ -62,8 +62,8 @@ function savedArtifactGraphPrompt(message: AssistantMessage) {
   const artifact = savedArtifactFromMessage(message);
   if (!artifact) return "";
   if (artifact.kind === "media_preset") {
-    const exactPreset = artifact.key ? ` named ${artifact.label} with key ${artifact.key}` : ` named ${artifact.label}`;
-    return `Create a clean replacement workflow that uses the saved Media Preset${exactPreset}. Leave required image inputs empty so the user can attach the correct images before running.`;
+    const exactPreset = artifact.key ? ` and key ${artifact.key}` : "";
+    return `Create a clean replacement workflow that uses the saved Media Preset named ${artifact.label} with exact id ${artifact.id}${exactPreset}. Fill every required text field with useful alternate sample values so the graph validates and the user can change them through visible form controls. Leave required image inputs empty so the user can attach the correct images before running.`;
   }
   return `Create a clean replacement workflow that uses the saved Prompt Recipe named ${artifact.label}, then sends the rendered prompt into a compatible text-to-image model with preview and save image nodes.`;
 }
@@ -684,8 +684,8 @@ export function useCreativeAssistant({
       }
       setDraft("");
       planApplyWorkflowRef.current = requestWorkflow;
-      const result = await runAbortableRequest((signal) =>
-        jsonFetch<AssistantPlanResponse>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/plans`, {
+      const { result, updatedSession } = await runAbortableRequest(async (signal) => {
+        const result = await jsonFetch<AssistantPlanResponse>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/plans`, {
           method: "POST",
           signal,
           body: JSON.stringify({
@@ -696,15 +696,20 @@ export function useCreativeAssistant({
             run_id: latestRunId ?? null,
             assistant_mode: assistantMode,
           }),
-        }),
-      );
+        });
+        const updatedSession = await jsonFetch<AssistantSession>(
+          `/api/control/media/assistant/sessions/${currentSession.assistant_session_id}`,
+          { signal },
+        );
+        return { result, updatedSession };
+      });
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       if (options?.showPlan === false) {
         setPlan(null);
       } else {
         setPlan(result);
       }
-      setScopedSession((current) => (current ? { ...current, status: result.validation.valid ? "plan_ready" : "failed" } : current));
+      setScopedSession({ ...updatedSession, status: result.validation.valid ? "plan_ready" : "failed" });
       if (options?.showPlan !== false) {
         onEvent?.(result.validation.valid ? "Assistant plan is ready." : "Assistant plan needs fixes.", result.validation.valid ? "success" : "warning");
       }

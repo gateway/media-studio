@@ -133,6 +133,7 @@ export function useGraphTabs() {
   }, [activeTabId, storageScope, tabs]);
 
   useEffect(() => {
+    if (!storageScope) return;
     const requested = requestedGraphRestoreParamsFromLocation();
     if (!requested.tabId && !requested.assistantSessionId) return;
     const requestedTab = requested.tabId ? tabs.find((tab) => tab.tab_id === requested.tabId) : null;
@@ -160,7 +161,7 @@ export function useGraphTabs() {
       );
     }
     clearRequestedGraphRestoreParamsFromLocation();
-  }, [activeTabId, tabs]);
+  }, [activeTabId, storageScope, tabs]);
 
   const updateTab = useCallback((tabId: string | null, snapshot: GraphTabSnapshot) => {
     if (!tabId) return;
