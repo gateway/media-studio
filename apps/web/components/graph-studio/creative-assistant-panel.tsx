@@ -1308,10 +1308,12 @@ export function CreativeAssistantPanel({
                         type="button"
                         disabled={assistant.busy}
                         onClick={() => void assistant.useSavedArtifactInGraph(message)}
-                        aria-label={`Use ${savedArtifactLabel(message)} in this graph`}
+                        aria-label={savedArtifactKind(message) === "media_preset"
+                          ? `Test ${savedArtifactLabel(message)} in a clean graph`
+                          : `Replace current graph with ${savedArtifactLabel(message)}`}
                       >
                         <Sparkles size={13} aria-hidden="true" />
-                        <span>{savedArtifactKind(message) === "media_preset" ? "Test saved preset" : "Use in this graph"}</span>
+                        <span>{savedArtifactKind(message) === "media_preset" ? "Test saved preset" : "Replace graph"}</span>
                       </button>
                       <button
                         type="button"

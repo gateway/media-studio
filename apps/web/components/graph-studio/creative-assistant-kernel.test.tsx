@@ -112,6 +112,14 @@ it("renders and applies only the kernel-owned graph confirmation", async () => {
 });
 
 it("requests a text-to-image model when wiring a saved Prompt Recipe", async () => {
+  const occupiedWorkflow = {
+    ...workflow,
+    nodes: [
+      { id: "recipe", type: "prompt.recipe", position: { x: 0, y: 0 }, fields: { recipe_id: "recipe-old" } },
+      { id: "model", type: "model.kie.gpt_image_2_text_to_image", position: { x: 400, y: 0 }, fields: {} },
+      { id: "preview", type: "preview.image", position: { x: 800, y: 0 }, fields: {} },
+    ],
+  };
   const savedRecipeMessage = {
     assistant_message_id: "message-recipe-saved",
     assistant_session_id: "session-1",
@@ -145,7 +153,7 @@ it("requests a text-to-image model when wiring a saved Prompt Recipe", async () 
       workspaceKey="tab-saved-recipe"
       workflowId="workflow-1"
       workflowName="Assistant Graph"
-      workflow={workflow}
+      workflow={occupiedWorkflow}
       references={[]}
       importImageFile={vi.fn()}
       onApplyWorkflow={vi.fn()}
@@ -153,11 +161,13 @@ it("requests a text-to-image model when wiring a saved Prompt Recipe", async () 
     />,
   );
 
-  fireEvent.click(await screen.findByRole("button", { name: "Use Storyboard Prompt Writer in this graph" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Replace current graph with Storyboard Prompt Writer" }));
   await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/plans"))).toBe(true));
   const planCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/plans"));
   const request = JSON.parse(String(planCall?.[1]?.body));
   expect(request.message).toContain("Storyboard Prompt Writer");
+  expect(request.message).toContain("recipe-1");
+  expect(request.message).toContain("clean replacement workflow");
   expect(request.message).toContain("text-to-image model");
   expect(request.workflow.nodes).toHaveLength(0);
 });
