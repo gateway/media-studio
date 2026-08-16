@@ -8,6 +8,20 @@ import { graphPricingNeedsConfirmation } from "../utils/graph-pricing";
 
 type PricingConfirmationState = { estimate: GraphEstimateResponse; resolve: (confirmed: boolean) => void };
 
+const EMPTY_GRAPH_ESTIMATE: GraphEstimateResponse = {
+  pricing_summary: {
+    total: { estimated_credits: 0, estimated_cost_usd: 0 },
+    per_output: { estimated_credits: 0, estimated_cost_usd: 0 },
+    has_numeric_estimate: true,
+    has_unknown_pricing: false,
+    is_authoritative: true,
+    is_stale: false,
+    output_count: 0,
+  },
+  nodes: {},
+  warnings: [],
+};
+
 export function useGraphPricingEstimate({
   workflowId,
   workflowName,
@@ -64,8 +78,11 @@ export function useGraphPricingEstimate({
 
   const refreshGraphEstimate = useCallback(async () => {
     if (!pricingWorkflowPayload || !workflowSignature) {
+      latestRequest.current += 1;
       setGraphEstimate(null);
       lastResolvedSignatureRef.current = null;
+      inFlightSignatureRef.current = null;
+      inFlightPromiseRef.current = null;
       return null;
     }
     if (lastResolvedSignatureRef.current === workflowSignature && graphEstimate) {
@@ -80,7 +97,7 @@ export function useGraphPricingEstimate({
     latestRequest.current = requestId;
     inFlightSignatureRef.current = workflowSignature;
     recordStudioRuntimeMetric("graphEstimate.networkRequest");
-    inFlightPromiseRef.current = jsonFetch<GraphEstimateResponse>("/api/control/media/graph/estimate", {
+    const requestPromise = jsonFetch<GraphEstimateResponse>("/api/control/media/graph/estimate", {
       method: "POST",
       body: JSON.stringify(pricingWorkflowPayload),
     })
@@ -92,17 +109,24 @@ export function useGraphPricingEstimate({
         return estimate;
       })
       .finally(() => {
-        if (inFlightSignatureRef.current === workflowSignature) {
+        if (inFlightPromiseRef.current === requestPromise) {
           inFlightSignatureRef.current = null;
           inFlightPromiseRef.current = null;
         }
       });
-    return inFlightPromiseRef.current;
+    inFlightPromiseRef.current = requestPromise;
+    return requestPromise;
   }, [graphEstimate, pricingWorkflowPayload, workflowSignature]);
 
   useEffect(() => {
-    if (!workflowSignature) return;
+    if (!workflowSignature) {
+      void refreshGraphEstimate();
+      return;
+    }
     if (lastResolvedSignatureRef.current === workflowSignature) return;
+    latestRequest.current += 1;
+    inFlightSignatureRef.current = null;
+    inFlightPromiseRef.current = null;
     const timer = window.setTimeout(() => {
       refreshGraphEstimate().catch((error) => appendConsole(`Graph estimate failed: ${(error as Error).message}`));
     }, 500);
@@ -127,7 +151,19 @@ export function useGraphPricingEstimate({
     });
   }, []);
 
-  const pricingByNode = useMemo(() => graphEstimate?.nodes ?? {}, [graphEstimate]);
+  const currentGraphEstimate = !workflowSignature
+    ? EMPTY_GRAPH_ESTIMATE
+    : lastResolvedSignatureRef.current === workflowSignature
+      ? graphEstimate
+      : null;
+  const pricingByNode = useMemo(() => currentGraphEstimate?.nodes ?? {}, [currentGraphEstimate]);
 
-  return { graphEstimate, pricingByNode, refreshGraphEstimate, confirmPricingForRun, pricingConfirmation, answerPricingConfirmation };
+  return {
+    graphEstimate: currentGraphEstimate,
+    pricingByNode,
+    refreshGraphEstimate,
+    confirmPricingForRun,
+    pricingConfirmation,
+    answerPricingConfirmation,
+  };
 }
