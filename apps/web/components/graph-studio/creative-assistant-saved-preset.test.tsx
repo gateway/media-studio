@@ -121,7 +121,7 @@ it("passes exact preset identity and usable field values into saved-preset graph
     />,
   );
 
-  fireEvent.click(await screen.findByRole("button", { name: "Use Navy Field Guide in this graph" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Test Navy Field Guide in a clean graph" }));
   await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/plans"))).toBe(true));
   const planCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/plans"));
   const request = JSON.parse(String(planCall?.[1]?.body));
