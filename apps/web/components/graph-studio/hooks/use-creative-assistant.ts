@@ -27,7 +27,7 @@ import { buildCreativeAssistantCanvasContext } from "../utils/creative-assistant
 
 export type AssistantMode = "preset" | "recipe" | "graph";
 
-type AssistantStatus = "idle" | "sending" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling";
+type AssistantStatus = "idle" | "sending" | "running" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling";
 export type PresetLoopLane = "text_to_image" | "image_to_image" | "both";
 
 const ASSISTANT_REQUEST_TIMEOUT_MS = 130_000;
@@ -246,8 +246,10 @@ export function useCreativeAssistant({
   const initialAssistantSessionIdRef = useRef(initialAssistantSessionId);
   const sessionWorkspaceKeyRef = useRef<string | null>(null);
   const planApplyWorkflowRef = useRef<GraphWorkflowPayload | null>(null);
+  const activeRunOperationRef = useRef<symbol | null>(null);
 
-  const busy = status !== "idle";
+  const scopedStatus = workspaceKeyRef.current === workspaceKey ? status : "idle";
+  const busy = scopedStatus !== "idle";
   const canPlan = draft.trim().length > 0 && !busy;
   const nextAction = useMemo(() => latestKernelNextAction(session), [session]);
   const latestPayload = useMemo(() => latestAssistantPayload(session), [session]);
@@ -285,6 +287,7 @@ export function useCreativeAssistant({
       activeTimeoutRef.current = null;
     }
     sessionWorkspaceKeyRef.current = null;
+    activeRunOperationRef.current = null;
     setScopedSession(null);
     setPlan(null);
     planApplyWorkflowRef.current = null;
@@ -628,7 +631,10 @@ export function useCreativeAssistant({
     ) {
       return null;
     }
-    setStatus("sending");
+    const requestWorkspaceKey = workspaceKeyRef.current;
+    const operation = Symbol("assistant-run");
+    activeRunOperationRef.current = operation;
+    setStatus("running");
     setError(null);
     setRunConfirmationNeedsRecheck(false);
     try {
@@ -637,6 +643,7 @@ export function useCreativeAssistant({
         sessionId: currentSession.assistant_session_id,
         token: nextAction.confirmation_token,
       });
+      if (activeRunOperationRef.current !== operation || workspaceKeyRef.current !== requestWorkspaceKey) return null;
       if (!created) return null;
       setScopedSession((current) => current ? {
         ...current,
@@ -650,6 +657,7 @@ export function useCreativeAssistant({
       } : current);
       return created;
     } catch (requestError) {
+      if (activeRunOperationRef.current !== operation || workspaceKeyRef.current !== requestWorkspaceKey) return null;
       const message = assistantErrorMessage(requestError, "Unable to confirm this graph run.");
       setError(message);
       setRunConfirmationNeedsRecheck(
@@ -658,7 +666,10 @@ export function useCreativeAssistant({
       onEvent?.(message, "error");
       return null;
     } finally {
-      setStatus("idle");
+      if (activeRunOperationRef.current === operation) {
+        activeRunOperationRef.current = null;
+        if (workspaceKeyRef.current === requestWorkspaceKey) setStatus("idle");
+      }
     }
   }, [busy, ensureSession, nextAction, onEvent, onRunWorkflow, runAbortableRequest, session, setScopedSession, workflow]);
 
@@ -1062,7 +1073,7 @@ export function useCreativeAssistant({
       draft,
       setDraft,
       plan,
-      status,
+      status: scopedStatus,
       busy,
       error,
       runConfirmationNeedsRecheck,
@@ -1119,7 +1130,7 @@ export function useCreativeAssistant({
       sendMessage,
       startPresetLoop,
       session,
-      status,
+      scopedStatus,
       useSavedArtifactInGraph,
     ],
   );

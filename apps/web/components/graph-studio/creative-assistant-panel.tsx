@@ -119,8 +119,9 @@ function inferAssistantModeFromSession(session: ReturnType<typeof useCreativeAss
   return null;
 }
 
-const ASSISTANT_STATUS_COPY: Record<"sending" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling", string> = {
+const ASSISTANT_STATUS_COPY: Record<"sending" | "running" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling", string> = {
   sending: "Thinking through your request…",
+  running: "Starting the confirmed graph run…",
   planning: "Building the graph…",
   draftingRecipe: "Drafting a Prompt Recipe for review…",
   draftingPreset: "Drafting a Media Preset for review…",
@@ -130,6 +131,11 @@ const ASSISTANT_STATUS_COPY: Record<"sending" | "planning" | "draftingRecipe" | 
   uploading: "Attaching reference image…",
   cancelling: "Stopping the current assistant action…",
 };
+const ASSISTANT_SENDING_PROGRESS = [
+  ASSISTANT_STATUS_COPY.sending,
+  "Reviewing your request and the available Media Studio context…",
+  "Still working through the details and next useful step…",
+] as const;
 
 const ASSISTANT_MODES: Array<{
   id: AssistantMode;
@@ -765,6 +771,20 @@ export function CreativeAssistantPanel({
     onRunWorkflow,
     onEvent,
   });
+  const [sendingProgressStage, setSendingProgressStage] = useState(0);
+  useEffect(() => {
+    if (assistant.status !== "sending") {
+      setSendingProgressStage(0);
+      return;
+    }
+    setSendingProgressStage(0);
+    const reviewingTimer = window.setTimeout(() => setSendingProgressStage(1), 8_000);
+    const continuingTimer = window.setTimeout(() => setSendingProgressStage(2), 24_000);
+    return () => {
+      window.clearTimeout(reviewingTimer);
+      window.clearTimeout(continuingTimer);
+    };
+  }, [assistant.status, workspaceKey]);
   useEffect(() => {
     const sessionId = assistant.session?.assistant_session_id ?? null;
     if (!sessionId) {
@@ -927,7 +947,11 @@ export function CreativeAssistantPanel({
   const planActionAriaLabel = kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add reviewed graph");
   const planActionTitle = kernelGraphAction?.label || (planMissingMedia ? "Add the graph so you can choose the missing media on the canvas" : "Add the reviewed graph");
   const pricing = pricingText(plan?.pricing.pricing_summary.total);
-  const busyText = assistant.status === "idle" ? null : ASSISTANT_STATUS_COPY[assistant.status];
+  const busyText = assistant.status === "idle"
+    ? null
+    : assistant.status === "sending"
+      ? ASSISTANT_SENDING_PROGRESS[sendingProgressStage]
+      : ASSISTANT_STATUS_COPY[assistant.status];
   const readOnlyProvider = Boolean(
     assistant.session?.provider_kind && assistant.session.provider_kind !== "codex_local",
   );
@@ -1296,7 +1320,12 @@ export function CreativeAssistantPanel({
             </section>
           ) : null}
           {busyText ? (
-            <div className="graph-assistant-message graph-assistant-message-assistant graph-assistant-message-thinking" role="status" aria-live="polite">
+            <div
+              className="graph-assistant-message graph-assistant-message-assistant graph-assistant-message-thinking"
+              role="status"
+              aria-label={assistant.status === "running" ? "Assistant run progress" : "Assistant progress"}
+              aria-live="polite"
+            >
               <span>Media Assistant</span>
               <div className="graph-assistant-thinking">
                 <p>{busyText}</p>
