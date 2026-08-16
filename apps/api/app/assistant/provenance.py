@@ -25,9 +25,8 @@ _PRESET_QUALITY_CONTRACT_KEYS = (
 
 
 def _execution_workflow_payload(workflow: GraphWorkflow) -> Dict[str, Any]:
-    normalized = materialize_workflow_defaults(workflow)
     nodes = []
-    for node in normalized.nodes:
+    for node in workflow.nodes:
         metadata = node.metadata if isinstance(node.metadata, dict) else {}
         execution = metadata.get("execution") if isinstance(metadata.get("execution"), dict) else {}
         nodes.append(
@@ -52,7 +51,7 @@ def _execution_workflow_payload(workflow: GraphWorkflow) -> Dict[str, Any]:
                     "target": edge.target,
                     "target_port": edge.target_port,
                 }
-                for edge in normalized.edges
+                for edge in workflow.edges
             ],
             key=lambda item: (
                 item["source"],
@@ -64,18 +63,43 @@ def _execution_workflow_payload(workflow: GraphWorkflow) -> Dict[str, Any]:
     }
 
 
+def _workflow_validation_payload(workflow: GraphWorkflow) -> Dict[str, Any]:
+    metadata = workflow.metadata if isinstance(workflow.metadata, dict) else {}
+    assistant_plan = metadata.get("assistant_plan") if isinstance(metadata.get("assistant_plan"), dict) else {}
+    quality_gate = {
+        key: assistant_plan.get(key)
+        for key in (
+            "template_id",
+            "prompt_quality_gate_required",
+            "prompt_quality_passed",
+            "prompt_quality_prompt_hash",
+        )
+        if key in assistant_plan
+    }
+    prompt_titles = {}
+    if quality_gate.get("prompt_quality_gate_required"):
+        for node in workflow.nodes:
+            if node.type != "prompt.text":
+                continue
+            ui = node.metadata.get("ui") if isinstance(node.metadata.get("ui"), dict) else {}
+            prompt_titles[node.id] = str(ui.get("customTitle") or "")
+    return {"assistant_plan": quality_gate, "prompt_titles": prompt_titles}
+
+
 def workflow_fingerprint(workflow: GraphWorkflow) -> str:
     normalized = materialize_workflow_defaults(workflow)
+    metadata = normalized.metadata if isinstance(normalized.metadata, dict) else {}
     payload = {
-        "workflow_id": normalized.workflow_id,
+        "workflow_id": normalized.workflow_id or str(metadata.get("workflow_id") or ""),
         **_execution_workflow_payload(normalized),
+        "validation": _workflow_validation_payload(normalized),
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def preset_test_workflow_fingerprint(workflow: GraphWorkflow) -> str:
-    payload = _execution_workflow_payload(workflow)
+    payload = _execution_workflow_payload(materialize_workflow_defaults(workflow))
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 

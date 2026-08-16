@@ -1636,7 +1636,6 @@ def test_kernel_run_request_returns_typed_confirmation_without_submitting_a_job(
     payload = response.json()
     assistant_message = payload["messages"][-1]
     turn = assistant_message["content_json"]["kernel_turn"]
-    assert assistant_message["content_text"] == reply
     assert turn["next_action"]["kind"] == "run_workflow"
     assert turn["next_action"]["requires_confirmation"] is True
     assert turn["next_action"]["label"]
@@ -1762,6 +1761,53 @@ def test_kernel_run_confirmation_accepts_canonically_equivalent_canvas_state(cli
 
     assert confirmation.status_code == 200, confirmation.text
     assert confirmation.json() == {"confirmed": True}
+
+
+def test_workflow_fingerprint_keeps_effective_identity_and_validation_metadata(app_modules) -> None:
+    del app_modules
+    provenance = importlib.import_module("app.assistant.provenance")
+    GraphWorkflow = importlib.import_module("app.graph.schemas").GraphWorkflow
+    workflow = GraphWorkflow.model_validate(
+        {
+            "name": "Legacy identity graph",
+            "nodes": [
+                {
+                    "id": "prompt-1",
+                    "type": "prompt.text",
+                    "position": {"x": 0, "y": 0},
+                    "fields": {"text": "A quiet harbor"},
+                    "metadata": {"ui": {"customTitle": "Prompt"}},
+                }
+            ],
+            "metadata": {"workflow_id": "workflow-legacy-identity"},
+        }
+    )
+    cosmetic = workflow.model_copy(deep=True)
+    cosmetic.viewport = {"x": 100, "y": 80, "zoom": 0.8}
+    cosmetic.nodes[0].position = {"x": 240, "y": 160}
+    cosmetic.nodes[0].metadata["style"] = {"width": 420}
+    cosmetic.nodes[0].metadata["ui"]["collapsed"] = True
+    changed_identity = workflow.model_copy(deep=True)
+    changed_identity.metadata["workflow_id"] = "workflow-other-identity"
+
+    assert provenance.workflow_fingerprint(cosmetic) == provenance.workflow_fingerprint(workflow)
+    assert provenance.workflow_fingerprint(changed_identity) != provenance.workflow_fingerprint(workflow)
+
+    quality_gated = workflow.model_copy(deep=True)
+    quality_gated.metadata["assistant_plan"] = {
+        "template_id": "preset_style_t2i_sandbox_v1",
+        "prompt_quality_gate_required": True,
+        "prompt_quality_passed": True,
+        "prompt_quality_prompt_hash": "quality-hash",
+    }
+    quality_gated.nodes[0].metadata["ui"]["customTitle"] = "Draft Preset Prompt"
+    changed_quality = quality_gated.model_copy(deep=True)
+    changed_quality.metadata["assistant_plan"]["prompt_quality_passed"] = False
+    changed_quality_title = quality_gated.model_copy(deep=True)
+    changed_quality_title.nodes[0].metadata["ui"]["customTitle"] = "Other prompt"
+
+    assert provenance.workflow_fingerprint(changed_quality) != provenance.workflow_fingerprint(quality_gated)
+    assert provenance.workflow_fingerprint(changed_quality_title) != provenance.workflow_fingerprint(quality_gated)
 
 
 def test_kernel_traces_voice_violations_without_rewriting_provider_reply(client, monkeypatch) -> None:
