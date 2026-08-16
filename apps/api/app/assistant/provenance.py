@@ -24,13 +24,7 @@ _PRESET_QUALITY_CONTRACT_KEYS = (
 )
 
 
-def workflow_fingerprint(workflow: GraphWorkflow) -> str:
-    payload = materialize_workflow_defaults(workflow).model_dump(mode="json")
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
-
-def preset_test_workflow_fingerprint(workflow: GraphWorkflow) -> str:
+def _execution_workflow_payload(workflow: GraphWorkflow) -> Dict[str, Any]:
     normalized = materialize_workflow_defaults(workflow)
     nodes = []
     for node in normalized.nodes:
@@ -48,7 +42,7 @@ def preset_test_workflow_fingerprint(workflow: GraphWorkflow) -> str:
                 },
             }
         )
-    payload = {
+    return {
         "nodes": sorted(nodes, key=lambda item: item["id"]),
         "edges": sorted(
             [
@@ -68,6 +62,20 @@ def preset_test_workflow_fingerprint(workflow: GraphWorkflow) -> str:
             ),
         ),
     }
+
+
+def workflow_fingerprint(workflow: GraphWorkflow) -> str:
+    normalized = materialize_workflow_defaults(workflow)
+    payload = {
+        "workflow_id": normalized.workflow_id,
+        **_execution_workflow_payload(normalized),
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def preset_test_workflow_fingerprint(workflow: GraphWorkflow) -> str:
+    payload = _execution_workflow_payload(workflow)
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 

@@ -930,6 +930,19 @@ def test_kernel_graph_proposal_is_validated_priced_and_confirmable(client, monke
     assert provider_calls == 4
     assert payload["latest_plan"]["plan"]["assistant_plan_id"] == action["proposal_id"]
     assert workflow["nodes"] == []
+    canvas_workflow = json.loads(json.dumps(workflow))
+    canvas_workflow["viewport"] = {"x": 80, "y": 120, "zoom": 0.9}
+    canvas_workflow["metadata"] = {"created_by": "graph-studio", "groups": []}
+    applied = client.post(
+        f"/media/assistant/plans/{action['proposal_id']}/apply",
+        json={
+            "workflow": canvas_workflow,
+            "proposal_id": action["proposal_id"],
+            "confirmation_token": action["confirmation_token"],
+        },
+    )
+    assert applied.status_code == 200, applied.text
+    assert len(applied.json()["workflow"]["nodes"]) == 1
 
 
 def test_plan_endpoint_uses_kernel_and_returns_its_typed_proposal(client, monkeypatch) -> None:
@@ -1658,6 +1671,22 @@ def test_kernel_run_request_returns_typed_confirmation_without_submitting_a_job(
     )
     assert confirmation.status_code == 200, confirmation.text
     assert confirmation.json() == {"confirmed": True}
+    refreshed = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={"content_text": "Review this run again", "workflow": workflow},
+    )
+    refreshed_action = refreshed.json()["messages"][-1]["content_json"]["kernel_turn"]["next_action"]
+    other_workflow = json.loads(json.dumps(workflow))
+    other_workflow["workflow_id"] = "workflow-unrelated-run-confirmation"
+    unrelated = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/run-confirmations",
+        json={
+            "workflow": other_workflow,
+            "confirmation_token": refreshed_action["confirmation_token"],
+        },
+    )
+    assert unrelated.status_code == 400
+    assert unrelated.json()["detail"]["code"] == "workflow_fingerprint_mismatch"
     replay = client.post(
         f"/media/assistant/sessions/{session['assistant_session_id']}/run-confirmations",
         json={
@@ -1666,6 +1695,73 @@ def test_kernel_run_request_returns_typed_confirmation_without_submitting_a_job(
         },
     )
     assert replay.status_code == 400
+
+
+def test_kernel_run_confirmation_accepts_canonically_equivalent_canvas_state(client, monkeypatch) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    monkeypatch.setattr(
+        kernel,
+        "run_kernel_provider_step",
+        lambda **_kwargs: {
+            "capability": "graph_builder",
+            "reply": "The current graph is ready for review.",
+            "requested_action": {
+                "kind": "run_workflow",
+                "label": "Review and run",
+                "requires_confirmation": True,
+            },
+        },
+    )
+    workflow = {
+        "schema_version": 1,
+        "workflow_id": "workflow-canonical-run-confirmation",
+        "name": "Canonical run graph",
+        "nodes": [
+            {
+                "id": "prompt-1",
+                "type": "prompt.text",
+                "position": {"x": 0, "y": 0},
+                "fields": {"text": "A quiet harbor"},
+            },
+            {
+                "id": "preview-1",
+                "type": "preview.image",
+                "position": {"x": 600, "y": 0},
+                "fields": {},
+            },
+        ],
+        "edges": [],
+        "metadata": {},
+    }
+    session = client.post(
+        "/media/assistant/sessions",
+        json={"owner_kind": "graph_workflow", "owner_id": workflow["workflow_id"], "workflow": workflow},
+    ).json()
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={"content_text": "Review this run", "workflow": workflow},
+    )
+    action = response.json()["messages"][-1]["content_json"]["kernel_turn"]["next_action"]
+    canvas_workflow = json.loads(json.dumps(workflow))
+    canvas_workflow["viewport"] = {"x": 160, "y": 80, "zoom": 0.85}
+    canvas_workflow["metadata"] = {"created_by": "graph-studio", "groups": []}
+    canvas_workflow["nodes"][0]["position"] = {"x": 120, "y": 240}
+    canvas_workflow["nodes"][0]["metadata"] = {
+        "style": {"width": 420},
+        "ui": {"collapsed": False, "customTitle": "Harbor prompt"},
+        "execution": {"mode": "enabled", "cached_run_id": None, "cached_artifact_ids": {}},
+    }
+
+    confirmation = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/run-confirmations",
+        json={
+            "workflow": canvas_workflow,
+            "confirmation_token": action["confirmation_token"],
+        },
+    )
+
+    assert confirmation.status_code == 200, confirmation.text
+    assert confirmation.json() == {"confirmed": True}
 
 
 def test_kernel_traces_voice_violations_without_rewriting_provider_reply(client, monkeypatch) -> None:
