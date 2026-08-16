@@ -1636,6 +1636,7 @@ def test_kernel_run_request_returns_typed_confirmation_without_submitting_a_job(
     payload = response.json()
     assistant_message = payload["messages"][-1]
     turn = assistant_message["content_json"]["kernel_turn"]
+    assert assistant_message["content_text"] == reply
     assert turn["next_action"]["kind"] == "run_workflow"
     assert turn["next_action"]["requires_confirmation"] is True
     assert turn["next_action"]["label"]
