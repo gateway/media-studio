@@ -61,12 +61,11 @@ function savedArtifactFromMessage(message: AssistantMessage) {
 function savedArtifactGraphPrompt(message: AssistantMessage) {
   const artifact = savedArtifactFromMessage(message);
   if (!artifact) return "";
+  const exactKey = artifact.key ? ` and key ${artifact.key}` : "";
   if (artifact.kind === "media_preset") {
-    const exactPreset = artifact.key ? ` and key ${artifact.key}` : "";
-    return `Create a clean replacement workflow that uses the saved Media Preset named ${artifact.label} with exact id ${artifact.id}${exactPreset}. Fill every required text field with useful alternate sample values so the graph validates and the user can change them through visible form controls. Leave required image inputs empty so the user can attach the correct images before running.`;
+    return `Create a clean replacement workflow that uses the saved Media Preset named ${artifact.label} with exact id ${artifact.id}${exactKey}. Fill every required text field with useful alternate sample values so the graph validates and the user can change them through visible form controls. Leave required image inputs empty so the user can attach the correct images before running.`;
   }
-  const exactRecipe = artifact.key ? ` and key ${artifact.key}` : "";
-  return `Create a clean replacement workflow that uses the saved Prompt Recipe named ${artifact.label} with exact id ${artifact.id}${exactRecipe}, then sends the rendered prompt into a compatible text-to-image model with preview and save image nodes.`;
+  return `Create a clean replacement workflow that uses the saved Prompt Recipe named ${artifact.label} with exact id ${artifact.id}${exactKey}, then sends the rendered prompt into a compatible text-to-image model with preview and save image nodes.`;
 }
 
 function savedArtifactEditorUrl(message: AssistantMessage, returnTo?: string) {
