@@ -524,8 +524,15 @@ def test_recipe_reuse_requires_explicit_intent_before_adding_another_paid_path(c
     blocked = tools.execute_kernel_tool(
         tool_name="propose_graph_operations",
         arguments={"summary": "Add another recipe image path.", "operations": operations},
-        capability="recipe_builder",
+        capability="graph_builder",
         context=context,
+    )
+    explicit_context = tools.KernelToolContext(
+        workflow=workflow,
+        canvas_context={},
+        session_id=session["assistant_session_id"],
+        session=session,
+        user_text="Keep the current image path and add a second paid output using this recipe.",
     )
     composed = tools.execute_kernel_tool(
         tool_name="propose_graph_operations",
@@ -534,8 +541,8 @@ def test_recipe_reuse_requires_explicit_intent_before_adding_another_paid_path(c
             "operations": operations,
             "additional_paid_path_intent": "explicitly_requested",
         },
-        capability="recipe_builder",
-        context=context,
+        capability="graph_builder",
+        context=explicit_context,
     )
 
     assert blocked.trace.error is not None

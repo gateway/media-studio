@@ -410,6 +410,16 @@ function savedArtifactKind(message: AssistantSessionMessage) {
   return String((artifact as Record<string, unknown>).kind || "").trim();
 }
 
+function savedArtifactGraphAction(message: AssistantSessionMessage, graphOccupied: boolean) {
+  const label = savedArtifactLabel(message);
+  if (savedArtifactKind(message) === "media_preset") {
+    return { ariaLabel: `Test ${label} in a clean graph`, label: "Test saved preset" };
+  }
+  return graphOccupied
+    ? { ariaLabel: `Replace current graph with ${label}`, label: "Replace graph" }
+    : { ariaLabel: `Create a clean graph with ${label}`, label: "Create graph" };
+}
+
 function isSavedArtifactActivityMessage(message: AssistantSessionMessage) {
   return Boolean(savedArtifactLabel(message));
 }
@@ -1298,8 +1308,10 @@ export function CreativeAssistantPanel({
           ) : null}
           {visibleActivityMessages.length ? (
             <section className="graph-assistant-activity-log" aria-label="Assistant activity">
-              {visibleActivityMessages.map((message) => (
-                <div className="graph-assistant-activity-item" key={message.assistant_message_id}>
+              {visibleActivityMessages.map((message) => {
+                const graphAction = savedArtifactGraphAction(message, Boolean(workflow.nodes.length));
+                return (
+                  <div className="graph-assistant-activity-item" key={message.assistant_message_id}>
                   <span>{activityMessageTitle(message)}</span>
                   <p>{message.content_text}</p>
                   {savedArtifactLabel(message) ? (
@@ -1308,18 +1320,10 @@ export function CreativeAssistantPanel({
                         type="button"
                         disabled={assistant.busy}
                         onClick={() => void assistant.useSavedArtifactInGraph(message)}
-                        aria-label={savedArtifactKind(message) === "media_preset"
-                          ? `Test ${savedArtifactLabel(message)} in a clean graph`
-                          : workflow.nodes.length
-                            ? `Replace current graph with ${savedArtifactLabel(message)}`
-                            : `Create a clean graph with ${savedArtifactLabel(message)}`}
+                        aria-label={graphAction.ariaLabel}
                       >
                         <Sparkles size={13} aria-hidden="true" />
-                        <span>{savedArtifactKind(message) === "media_preset"
-                          ? "Test saved preset"
-                          : workflow.nodes.length
-                            ? "Replace graph"
-                            : "Create graph"}</span>
+                        <span>{graphAction.label}</span>
                       </button>
                       <button
                         type="button"
@@ -1332,8 +1336,9 @@ export function CreativeAssistantPanel({
                       </button>
                     </div>
                   ) : null}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </section>
           ) : null}
 

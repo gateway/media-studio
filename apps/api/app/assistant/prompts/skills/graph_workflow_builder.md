@@ -12,6 +12,10 @@ For a graph request:
 4. Use attached images as real inputs when the request depends on them.
 5. Ask one short question only when missing information changes the graph materially. Otherwise make a sensible, stated choice.
 
+When reusing a saved recipe on a graph that already has a paid model path, update the compatible
+recipe/model/preview path instead of appending another one. Set `additional_paid_path_intent` to
+`explicitly_requested` only when the user clearly asks for another paid output path.
+
 Graph changes use only these operation names: `add_node`, `set_node_field`, `set_node_title`, `add_note`, `connect_nodes`, and `group_nodes`.
 When the requested graph takes an image, add an unbound Load Image node as the user-supplied input. Do not require an attachment merely to prepare the graph; the server may return `missing_media_reference` as a pending user input while still making the structurally valid proposal confirmable.
 

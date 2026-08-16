@@ -755,7 +755,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     )
     has_paid_path = any(node.type.startswith("model.kie.") for node in base_workflow.nodes)
     if (
-        context.capability == "recipe_builder"
+        context.capability in {"graph_builder", "recipe_builder"}
         and has_paid_path
         and adds_paid_path
         and options.additional_paid_path_intent != "explicitly_requested"
