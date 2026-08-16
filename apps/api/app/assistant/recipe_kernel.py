@@ -38,6 +38,7 @@ class GetPromptRecipeArguments(BaseModel):
 
 class ValidatePromptRecipeDraftArguments(BaseModel):
     draft: Dict[str, Any]
+    existing_recipe_id: Optional[str] = Field(default=None, max_length=160)
 
 
 class KernelPromptRecipeImageInputConfig(PromptRecipeImageInputConfig):
@@ -76,6 +77,7 @@ class KernelPromptRecipeDraft(BaseModel):
 
 class ProposePromptRecipeDraftArguments(BaseModel):
     draft: KernelPromptRecipeDraft
+    existing_recipe_id: Optional[str] = Field(default=None, max_length=160)
     request_save_confirmation: bool = False
 
 
@@ -180,7 +182,17 @@ def _editable_recipe_id(
     draft_key: str,
     current_draft: Any,
     prior_proposal: Any,
+    requested_recipe_id: Optional[str] = None,
 ) -> Optional[str]:
+    if requested_recipe_id:
+        requested = store.get_prompt_recipe(requested_recipe_id)
+        if not requested or str(requested.get("key") or "") != draft_key:
+            raise RecipeKernelError(
+                code="prompt_recipe_revision_mismatch",
+                message="The requested existing Prompt Recipe does not match this draft key.",
+                retryable=False,
+            )
+        return requested_recipe_id
     existing = store.get_prompt_recipe_by_key(draft_key)
     prior_existing_recipe_id = (
         str(prior_proposal.get("existing_recipe_id") or "")
@@ -211,6 +223,7 @@ def validate_prompt_recipe_draft(arguments: BaseModel, context: Any) -> Dict[str
             draft_key=str(options.draft.get("key") or ""),
             current_draft=summary.get("kernel_recipe_draft"),
             prior_proposal=summary.get("kernel_recipe_proposal"),
+            requested_recipe_id=options.existing_recipe_id,
         ),
     )
     return {
@@ -243,6 +256,7 @@ def propose_prompt_recipe_draft(arguments: BaseModel, context: Any) -> Dict[str,
         draft_key=draft_key,
         current_draft=current_draft,
         prior_proposal=prior_proposal,
+        requested_recipe_id=options.existing_recipe_id,
     )
     draft = _validated_draft(options.draft, recipe_id=editable_recipe_id)
     if isinstance(current_draft, dict) and context.artifact_intent == "revise_recipe":

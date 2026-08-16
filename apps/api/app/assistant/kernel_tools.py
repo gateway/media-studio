@@ -16,6 +16,8 @@ from ..graph.pricing import estimate_graph_workflow
 from ..graph.registry import registry
 from ..graph.schemas import GraphWorkflow
 from ..graph.validator import validate_workflow
+from ..service_errors import ServiceError
+from ..service_prompt_recipe_validation import prompt_recipe_media_generation
 from ..store_support import new_id
 from .canvas_context import compact_canvas_context
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
@@ -116,6 +118,12 @@ class ValidateCurrentWorkflowArguments(BaseModel):
     include_pricing: bool = True
 
 
+class DerivedRecipeDefaultsOverride(BaseModel):
+    recipe_id: str = Field(min_length=1, max_length=160)
+    model_key: Optional[str] = Field(default=None, max_length=160)
+    default_options_json: Dict[str, Any] = Field(default_factory=dict)
+
+
 class ProposeGraphOperationsArguments(BaseModel):
     summary: str = Field(min_length=1, max_length=800)
     operations: List[AssistantGraphOperation] = Field(default_factory=list, max_length=64)
@@ -126,6 +134,10 @@ class ProposeGraphOperationsArguments(BaseModel):
     questions: List[str] = Field(default_factory=list, max_length=8)
     warnings: List[str] = Field(default_factory=list, max_length=8)
     additional_paid_path_intent: Literal["not_requested", "explicitly_requested"] = "not_requested"
+    derived_recipe_defaults_overrides: List[DerivedRecipeDefaultsOverride] = Field(
+        default_factory=list,
+        max_length=4,
+    )
 
 
 class ReadRunEvidenceArguments(BaseModel):
@@ -783,6 +795,92 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
             message=str(exc),
             details={"operation_count": len(operations)},
         ) from exc
+    materialized_workflow = materialize_workflow_defaults(
+        planned_workflow,
+        definitions_by_type=definitions,
+    )
+    nodes_by_id = {node.id: node for node in materialized_workflow.nodes}
+    requested_overrides = {
+        override.recipe_id: override
+        for override in options.derived_recipe_defaults_overrides
+    }
+    used_overrides = set()
+    derived_defaults_overrides = []
+    for edge in materialized_workflow.edges:
+        source = nodes_by_id.get(edge.source)
+        target = nodes_by_id.get(edge.target)
+        if (
+            source is None
+            or target is None
+            or source.type != "prompt.recipe"
+            or edge.source_port != "text"
+            or edge.target_port != "prompt"
+        ):
+            continue
+        recipe = store.get_prompt_recipe(str(source.fields.get("recipe_id") or ""))
+        if not recipe:
+            continue
+        try:
+            generation = prompt_recipe_media_generation(recipe)
+        except ServiceError as exc:
+            raise KernelToolFailure(
+                code="invalid_prompt_recipe_media_generation",
+                message=str(exc),
+                retryable=False,
+            ) from exc
+        if generation is None:
+            continue
+        target_definition = definitions.get(target.type)
+        actual_model_key = str((target_definition.source if target_definition else {}).get("model_key") or "")
+        mismatched_options = {
+            key: {"expected": value, "actual": target.fields.get(key)}
+            for key, value in generation["default_options_json"].items()
+            if target.fields.get(key) != value
+        }
+        if actual_model_key != generation["model_key"] or mismatched_options:
+            recipe_id = str(recipe.get("recipe_id") or "")
+            mismatch = {
+                "source_recipe_id": recipe_id,
+                "source_preset_id": generation["source_preset_id"],
+                "expected_model_key": generation["model_key"],
+                "actual_model_key": actual_model_key,
+                "mismatched_options": mismatched_options,
+            }
+            requested = requested_overrides.get(recipe_id)
+            model_override_matches = (
+                (actual_model_key == generation["model_key"] and requested and requested.model_key is None)
+                or (requested and requested.model_key == actual_model_key)
+            )
+            options_override_matches = bool(requested) and requested.default_options_json == {
+                key: values["actual"]
+                for key, values in mismatched_options.items()
+            }
+            if not context.user_message_id or not model_override_matches or not options_override_matches:
+                raise KernelToolFailure(
+                    code="derived_recipe_defaults_mismatch",
+                    message=(
+                        "Use the model and generation defaults stored with this preset-derived recipe, "
+                        "or mark a user-requested change as an explicit override."
+                    ),
+                    details=mismatch,
+                )
+            used_overrides.add(recipe_id)
+            derived_defaults_overrides.append(mismatch)
+    unused_overrides = sorted(set(requested_overrides) - used_overrides)
+    if unused_overrides:
+        raise KernelToolFailure(
+            code="derived_recipe_defaults_override_unused",
+            message="Only request overrides for inherited recipe settings that actually change.",
+            details={"recipe_ids": unused_overrides},
+        )
+    if derived_defaults_overrides:
+        graph_plan.metadata["derived_recipe_defaults_override"] = {
+            "user_message_id": context.user_message_id,
+            "changes": derived_defaults_overrides,
+        }
+        graph_plan.warnings.append(
+            "This graph changes generation defaults inherited from a preset-derived recipe."
+        )
     validation = validate_workflow(planned_workflow)
     layout_errors = graph_plan_layout_errors(base_workflow, planned_workflow, graph_plan)
     pending_user_inputs = [
@@ -910,14 +1008,14 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         name="search_presets",
         description="Search active Media Presets and inspect their compact model and input scope.",
         arguments_model=SearchPresetsArguments,
-        allowed_capabilities=frozenset({"general", "graph_builder", "preset_builder"}),
+        allowed_capabilities=frozenset({"general", "graph_builder", "preset_builder", "recipe_builder"}),
         handler=search_presets,
     ),
     "get_preset": KernelToolDefinition(
         name="get_preset",
         description="Read one Media Preset by id or key in its full editable contract shape.",
         arguments_model=GetPresetArguments,
-        allowed_capabilities=frozenset({"general", "graph_builder", "preset_builder"}),
+        allowed_capabilities=frozenset({"general", "graph_builder", "preset_builder", "recipe_builder"}),
         handler=get_preset,
     ),
     "list_media_models": KernelToolDefinition(

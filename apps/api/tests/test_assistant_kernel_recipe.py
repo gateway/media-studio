@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib
 import json
 
+import pytest
+
 
 def _session(client):
     return client.post(
@@ -92,6 +94,28 @@ def _recipe_draft(key: str, *, image_input: bool = False):
         "source_kind": "custom",
         "priority": 0,
     }
+
+
+def _create_image_preset(store, *, preset_id: str, key: str):
+    return store.create_or_update_preset(
+        {
+            "preset_id": preset_id,
+            "key": key,
+            "label": "Approved Generation Defaults",
+            "category": "image",
+            "status": "active",
+            "model_key": "gpt-image-2-text-to-image",
+            "source_kind": "custom",
+            "applies_to_models_json": ["gpt-image-2-text-to-image"],
+            "applies_to_task_modes_json": ["text_to_image"],
+            "applies_to_input_patterns_json": ["prompt_only"],
+            "prompt_template": "Create a {{destination}} travel poster.",
+            "input_schema_json": [{"key": "destination", "label": "Destination", "required": True}],
+            "input_slots_json": [],
+            "default_options_json": {"resolution": "2K", "aspect_ratio": "3:4"},
+            "rules_json": {"preset_lane": "text_to_image"},
+        }
+    )
 
 
 def test_recipe_tools_read_catalog_validate_and_persist_typed_state(client) -> None:
@@ -342,6 +366,54 @@ def test_recipe_save_requires_one_time_server_confirmation(client, monkeypatch) 
     assert updated.json()["record"]["image_input_json"]["enabled"] is True
 
 
+def test_fresh_session_can_propose_a_revision_for_an_explicit_saved_recipe(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    service = importlib.import_module("app.service_prompt_recipe_validation")
+    schemas = importlib.import_module("app.schemas")
+    session = _session(client)
+    original = _recipe_draft("fresh_session_recipe_revision")
+    saved = service.upsert_prompt_recipe(schemas.PromptRecipeUpsertRequest.model_validate(original))
+    other = service.upsert_prompt_recipe(
+        schemas.PromptRecipeUpsertRequest.model_validate(
+            _recipe_draft("different_fresh_session_recipe")
+        )
+    )
+    revised = {**original, "description": "Updated from an approved Media Preset."}
+    context = tools.KernelToolContext(
+        workflow=None,
+        canvas_context={},
+        session_id=session["assistant_session_id"],
+        session=session,
+        user_text="Update this saved recipe from its approved preset.",
+        artifact_intent="revise_recipe",
+    )
+
+    validated = tools.execute_kernel_tool(
+        tool_name="validate_prompt_recipe_draft",
+        arguments={"draft": revised, "existing_recipe_id": saved["recipe_id"]},
+        capability="recipe_builder",
+        context=context,
+    )
+    proposed = tools.execute_kernel_tool(
+        tool_name="propose_prompt_recipe_draft",
+        arguments={"draft": revised, "existing_recipe_id": saved["recipe_id"]},
+        capability="recipe_builder",
+        context=context,
+    )
+    wrong_recipe = tools.execute_kernel_tool(
+        tool_name="propose_prompt_recipe_draft",
+        arguments={"draft": revised, "existing_recipe_id": other["recipe_id"]},
+        capability="recipe_builder",
+        context=context,
+    )
+
+    assert validated.trace.error is None
+    assert proposed.trace.error is None
+    assert proposed.result["draft"]["description"] == revised["description"]
+    assert wrong_recipe.trace.error is not None
+    assert wrong_recipe.trace.error.code == "prompt_recipe_revision_mismatch"
+
+
 def test_recipe_save_rejects_an_unconfirmed_legacy_draft(client) -> None:
     session = _session(client)
 
@@ -445,6 +517,277 @@ def test_saved_recipe_can_be_wired_into_a_validated_image_graph(client) -> None:
     assert any(
         edge["source"] == recipe_node["id"] and edge["source_port"] == "text"
         for edge in proposed.result["workflow"]["edges"]
+    )
+
+
+def test_recipe_builder_can_read_source_preset_generation_defaults(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    store = importlib.import_module("app.store")
+    session = _session(client)
+    preset = _create_image_preset(
+        store,
+        preset_id="preset-derived-recipe-source",
+        key="derived-recipe-source",
+    )
+    context = tools.KernelToolContext(
+        workflow=None,
+        canvas_context={},
+        session_id=session["assistant_session_id"],
+        session=session,
+        user_text="Turn my approved preset into a reusable recipe.",
+    )
+
+    fetched = tools.execute_kernel_tool(
+        tool_name="get_preset",
+        arguments={"preset_id_or_key": preset["preset_id"]},
+        capability="recipe_builder",
+        context=context,
+    )
+    draft = _recipe_draft("recipe_with_source_preset_defaults")
+    draft["rules_json"]["media_generation"] = {
+        "source_preset_id": preset["preset_id"],
+        "model_key": fetched.result["model_key"],
+        "default_options_json": dict(fetched.result["default_options_json"]),
+    }
+    proposed = tools.execute_kernel_tool(
+        tool_name="propose_prompt_recipe_draft",
+        arguments={"draft": draft},
+        capability="recipe_builder",
+        context=context,
+    )
+    draft["rules_json"]["media_generation"]["default_options_json"]["resolution"] = "1K"
+    invented = tools.execute_kernel_tool(
+        tool_name="propose_prompt_recipe_draft",
+        arguments={"draft": draft},
+        capability="recipe_builder",
+        context=context,
+    )
+    service = importlib.import_module("app.service_prompt_recipe_validation")
+    schemas = importlib.import_module("app.schemas")
+
+    assert fetched.trace.error is None
+    assert fetched.result["model_key"] == "gpt-image-2-text-to-image"
+    assert fetched.result["default_options_json"] == {"resolution": "2K", "aspect_ratio": "3:4"}
+    assert proposed.trace.error is None
+    assert proposed.result["draft"]["rules_json"]["media_generation"] == {
+        "source_preset_id": preset["preset_id"],
+        "model_key": "gpt-image-2-text-to-image",
+        "default_options_json": {"resolution": "2K", "aspect_ratio": "3:4"},
+    }
+    assert invented.trace.error is not None
+    assert invented.trace.error.code == "invalid_prompt_recipe_draft"
+    saved = service.upsert_prompt_recipe(
+        schemas.PromptRecipeUpsertRequest.model_validate(proposed.result["draft"])
+    )
+    with pytest.raises(service.ServiceError, match="must match a real saved Media Preset"):
+        service.upsert_prompt_recipe(
+            schemas.PromptRecipeUpsertRequest.model_validate(draft),
+            recipe_id=saved["recipe_id"],
+        )
+
+
+def test_derived_recipe_graph_requires_approved_generation_defaults(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    service = importlib.import_module("app.service_prompt_recipe_validation")
+    schemas = importlib.import_module("app.schemas")
+    store = importlib.import_module("app.store")
+    session = _session(client)
+    preset = _create_image_preset(
+        store,
+        preset_id="preset-approved-generation-defaults",
+        key="approved-generation-defaults",
+    )
+    draft = _recipe_draft("derived_recipe_generation_defaults")
+    draft["rules_json"]["media_generation"] = {
+        "source_preset_id": preset["preset_id"],
+        "model_key": "gpt-image-2-text-to-image",
+        "default_options_json": {"resolution": "2K", "aspect_ratio": "3:4"},
+    }
+    saved = service.upsert_prompt_recipe(schemas.PromptRecipeUpsertRequest.model_validate(draft))
+    tools.registry.invalidate()
+    context = tools.KernelToolContext(
+        workflow=tools.GraphWorkflow(name="Derived recipe graph"),
+        canvas_context={},
+        session_id=session["assistant_session_id"],
+        session=session,
+        user_text="Create a graph from my approved recipe.",
+    )
+    operations = [
+        {
+            "op": "add_node",
+            "node_ref": "recipe",
+            "node_type": "prompt.recipe",
+            "position": {"x": 0, "y": 0},
+            "fields": {
+                "recipe_id": saved["recipe_id"],
+                "story_idea": "Rome travel poster",
+                "shot_count": "6",
+                "aspect_feel": "Portrait",
+            },
+        },
+        {
+            "op": "add_node",
+            "node_ref": "model",
+            "node_type": "model.kie.gpt_image_2_text_to_image",
+            "position": {"x": 480, "y": 0},
+            "fields": {"aspect_ratio": "3:4", "resolution": "1K"},
+        },
+        {"op": "add_node", "node_ref": "preview", "node_type": "preview.image", "position": {"x": 960, "y": 0}},
+        {"op": "connect_nodes", "source_ref": "recipe", "source_port": "text", "target_ref": "model", "target_port": "prompt"},
+        {"op": "connect_nodes", "source_ref": "model", "source_port": "image", "target_ref": "preview", "target_port": "image"},
+    ]
+
+    mismatched = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={"summary": "Build the derived recipe graph.", "operations": operations},
+        capability="recipe_builder",
+        context=context,
+    )
+    override_context = tools.KernelToolContext(
+        workflow=context.workflow,
+        canvas_context={},
+        session_id=session["assistant_session_id"],
+        session=session,
+        user_text="Use 1K instead of the recipe's inherited 2K setting for this graph.",
+        user_message_id="msg-explicit-derived-recipe-override",
+    )
+    overridden = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Build the recipe graph with the requested lower resolution.",
+            "operations": operations,
+            "derived_recipe_defaults_overrides": [
+                {
+                    "recipe_id": saved["recipe_id"],
+                    "default_options_json": {"resolution": "1K"},
+                }
+            ],
+        },
+        capability="recipe_builder",
+        context=override_context,
+    )
+    overreaching_operations = json.loads(json.dumps(operations))
+    overreaching_operations[1]["fields"]["aspect_ratio"] = "1:1"
+    overreaching = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Change more settings than the user requested.",
+            "operations": overreaching_operations,
+            "derived_recipe_defaults_overrides": [
+                {
+                    "recipe_id": saved["recipe_id"],
+                    "default_options_json": {"resolution": "1K"},
+                }
+            ],
+        },
+        capability="recipe_builder",
+        context=override_context,
+    )
+    model_override_operations = json.loads(json.dumps(operations))
+    model_override_operations[1]["node_type"] = "model.kie.nano_banana_2"
+    model_override_operations[1]["fields"]["resolution"] = "2K"
+    model_override_context = tools.KernelToolContext(
+        workflow=context.workflow,
+        canvas_context={},
+        session_id=session["assistant_session_id"],
+        session=session,
+        user_text="Use Nano Banana 2 instead of GPT Image 2, but keep the approved 2K and 3:4 settings.",
+        user_message_id="msg-explicit-derived-recipe-model-override",
+    )
+    omitted_model_override = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Build the recipe graph with Nano Banana 2.",
+            "operations": model_override_operations,
+        },
+        capability="recipe_builder",
+        context=model_override_context,
+    )
+    wrong_model_override = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Build the recipe graph with Nano Banana 2.",
+            "operations": model_override_operations,
+            "derived_recipe_defaults_overrides": [
+                {
+                    "recipe_id": saved["recipe_id"],
+                    "model_key": "nano-banana-pro",
+                    "default_options_json": {},
+                }
+            ],
+        },
+        capability="recipe_builder",
+        context=model_override_context,
+    )
+    exact_model_override = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Build the recipe graph with Nano Banana 2.",
+            "operations": model_override_operations,
+            "derived_recipe_defaults_overrides": [
+                {
+                    "recipe_id": saved["recipe_id"],
+                    "model_key": "nano-banana-2",
+                    "default_options_json": {},
+                }
+            ],
+        },
+        capability="recipe_builder",
+        context=model_override_context,
+    )
+    operations[1]["fields"]["resolution"] = "2K"
+    inherited = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={"summary": "Build the recipe graph with its approved defaults.", "operations": operations},
+        capability="recipe_builder",
+        context=context,
+    )
+    extraneous_model_override = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Build the recipe graph with its approved defaults.",
+            "operations": operations,
+            "derived_recipe_defaults_overrides": [
+                {
+                    "recipe_id": saved["recipe_id"],
+                    "model_key": "gpt-image-2-text-to-image",
+                    "default_options_json": {},
+                }
+            ],
+        },
+        capability="recipe_builder",
+        context=model_override_context,
+    )
+
+    assert mismatched.trace.error is not None
+    assert mismatched.trace.error.code == "derived_recipe_defaults_mismatch"
+    assert overridden.trace.error is None, overridden.trace.error
+    assert overreaching.trace.error is not None
+    assert overreaching.trace.error.code == "derived_recipe_defaults_mismatch"
+    assert omitted_model_override.trace.error is not None
+    assert omitted_model_override.trace.error.code == "derived_recipe_defaults_mismatch"
+    assert wrong_model_override.trace.error is not None
+    assert wrong_model_override.trace.error.code == "derived_recipe_defaults_mismatch"
+    assert exact_model_override.trace.error is None, exact_model_override.trace.error
+    assert inherited.trace.error is None, inherited.trace.error
+    assert extraneous_model_override.trace.error is not None
+    assert extraneous_model_override.trace.error.code == "derived_recipe_defaults_override_unused"
+    store_assistant = importlib.import_module("app.store_assistant")
+    override_plan = store_assistant.get_assistant_plan(overridden.result["proposal_id"])
+    overridden_model = next(
+        node for node in overridden.result["workflow"]["nodes"] if node["type"].startswith("model.kie.")
+    )
+    model = next(node for node in inherited.result["workflow"]["nodes"] if node["type"].startswith("model.kie."))
+    assert overridden_model["fields"]["resolution"] == "1K"
+    assert override_plan["plan_json"]["warnings"]
+    assert override_plan["plan_json"]["metadata"]["derived_recipe_defaults_override"]["user_message_id"] == (
+        override_context.user_message_id
+    )
+    assert model["fields"]["resolution"] == "2K"
+    assert model["fields"]["aspect_ratio"] == "3:4"
+    assert (
+        inherited.result["pricing"]["pricing_summary"]["total"]["estimated_credits"]
+        > overridden.result["pricing"]["pricing_summary"]["total"]["estimated_credits"]
     )
 
 

@@ -33,6 +33,7 @@ PROMPT_RECIPE_OUTPUT_FORMATS = {
 PROMPT_RECIPE_FIELD_TYPES = {"text", "textarea", "number", "select", "boolean"}
 PROMPT_RECIPE_IMAGE_MODES = {"none", "direct_reference", "analyze_then_inject", "both"}
 PROMPT_RECIPE_SOURCE_KINDS = {"custom", "imported", "builtin", "built_in_override"}
+PROMPT_RECIPE_MEDIA_GENERATION_RULE_KEY = "media_generation"
 PROMPT_RECIPE_RESERVED_VARIABLES = {
     "user_prompt": "User Prompt",
     "image_analysis": "Image Analysis",
@@ -45,6 +46,52 @@ PROMPT_RECIPE_RESERVED_VARIABLES = {
     "output_format": "Output Format",
     "style_direction": "Style Direction",
 }
+
+
+def prompt_recipe_media_generation(recipe: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    rules = recipe.get("rules_json") if isinstance(recipe.get("rules_json"), dict) else {}
+    raw_contract = rules.get(PROMPT_RECIPE_MEDIA_GENERATION_RULE_KEY)
+    if raw_contract is None:
+        return None
+    if not isinstance(raw_contract, dict):
+        raise ServiceError("Prompt Recipe media-generation provenance is invalid.")
+    source_preset_id = str(raw_contract.get("source_preset_id") or "").strip()
+    model_key = str(raw_contract.get("model_key") or "").strip()
+    default_options = raw_contract.get("default_options_json")
+    if (
+        not source_preset_id
+        or not model_key
+        or not isinstance(default_options, dict)
+        or set(raw_contract) != {"source_preset_id", "model_key", "default_options_json"}
+    ):
+        raise ServiceError("Prompt Recipe media-generation provenance is invalid.")
+    return {
+        "source_preset_id": source_preset_id,
+        "model_key": model_key,
+        "default_options_json": dict(default_options),
+    }
+
+
+def _validate_prompt_recipe_media_generation(
+    recipe: Dict[str, Any],
+    *,
+    recipe_id: Optional[str],
+) -> None:
+    contract = prompt_recipe_media_generation(recipe)
+    if contract is None:
+        return
+    existing = store.get_prompt_recipe(recipe_id) if recipe_id else None
+    existing_contract = prompt_recipe_media_generation(existing) if isinstance(existing, dict) else None
+    if existing_contract == contract:
+        return
+    preset = store.get_preset(contract["source_preset_id"])
+    expected = {
+        "source_preset_id": contract["source_preset_id"],
+        "model_key": str((preset or {}).get("model_key") or ""),
+        "default_options_json": dict((preset or {}).get("default_options_json") or {}),
+    }
+    if not preset or contract != expected:
+        raise ServiceError("Derived recipe generation defaults must match a real saved Media Preset.")
 
 
 def _normalize_prompt_recipe_field_input_kind(value: Any, *, key: str) -> str:
@@ -420,6 +467,8 @@ def validate_prompt_recipe_payload(payload: PromptRecipeUpsertRequest, recipe_id
         image_analysis_prompt=image_analysis_prompt,
     )
 
+    rules = {**payload.rules_json, "allow_external_variables": allow_external_variables}
+    _validate_prompt_recipe_media_generation({"rules_json": rules}, recipe_id=recipe_id)
     return {
         "key": key,
         "label": label,
@@ -436,7 +485,7 @@ def validate_prompt_recipe_payload(payload: PromptRecipeUpsertRequest, recipe_id
         "image_input_json": image_input,
         "validation_warnings_json": validation_warnings,
         "default_options_json": payload.default_options_json,
-        "rules_json": {**payload.rules_json, "allow_external_variables": allow_external_variables},
+        "rules_json": rules,
         "thumbnail_path": payload.thumbnail_path,
         "thumbnail_url": payload.thumbnail_url,
         "notes": payload.notes or "",

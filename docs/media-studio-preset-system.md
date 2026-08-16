@@ -543,7 +543,14 @@ Seeded Prompt Recipes:
 - `image-analysis-character-reference`
 - `prompt-shortener`
 
-Prompt Recipes are not yet consumed by Graph Studio nodes. The saved record shape is intentionally graph-ready so a future node can load a recipe by id/key and use `system_prompt_template`, `input_variables_json`, `custom_fields_json`, `image_input_json`, `output_format`, `output_contract_json`, `default_options_json`, and `rules_json`.
+Graph Studio consumes saved Prompt Recipes through `prompt.recipe` nodes. A recipe node exposes the
+recipe's configured variables and can feed its `text` output into a compatible media-model prompt.
+Recipes derived from an approved Media Preset may store a typed `rules_json.media_generation` contract
+containing `source_preset_id`, `model_key`, and `default_options_json`. New graphs inherit that exact
+media-generation contract unless the user explicitly requests an override; the reviewed graph proposal
+records the bound user message and changed settings. Standalone and older recipes without this typed
+provenance retain their existing behavior. Recipe `default_options_json` remains reserved for the Prompt
+Recipe runtime itself, such as token and temperature defaults.
 
 Prompt Recipes now include a server-backed Draft Assistant in the editor:
 

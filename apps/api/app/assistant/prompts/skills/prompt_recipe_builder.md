@@ -30,12 +30,23 @@ Typed draft state:
   `{{image_analysis}}`; configure a non-empty image analysis prompt and the matching enabled variable.
 - On revisions, start from `active_recipe_draft` and update structured variables, fields, image behavior,
   template, or output contract directly. Never recover draft state from assistant prose.
+- When revising a saved recipe in a fresh session, pass the exact `recipe_id` returned by
+  `get_prompt_recipe` as `existing_recipe_id` to validation and proposal tools. Never infer editable
+  identity from the label or key alone.
+- When the user derives a Prompt Recipe from a saved Media Preset, inspect that preset with
+  `get_preset` and preserve its exact `model_key` and `default_options_json` under
+  `rules_json.media_generation` as `source_preset_id`, `model_key`, and `default_options_json`.
+  Do not infer this contract from notes, labels, or an older recipe that lacks typed provenance.
 - Keep fields limited to user-facing creative content. Never put routing instructions, graph actions,
   serialized field labels, or product-planning prose into a recipe field.
 - Set `request_save_confirmation` only when the user explicitly asks to save. The server owns the
   confirmation action; never invent or claim a save in prose.
 - For graph requests, inspect the saved recipe and real `prompt.recipe` schema, then produce a typed
   graph proposal with valid connections. Do not resubmit a recipe draft merely because a recipe is used.
+- When a saved recipe has `rules_json.media_generation`, use its exact model and generation defaults
+  in the graph. When the user plainly asks to change one of those settings, list only that recipe id
+  and the exact changed model or option value in `derived_recipe_defaults_overrides`. Never include an
+  inherited setting the user did not ask to change.
 - When the current workflow already has a paid generation path, reuse a compatible recipe/model/preview
   path instead of appending another paid path. If the requested recipe cannot safely reuse that path,
   ask whether to replace the graph or start a fresh workflow. Add another paid branch only when the user
