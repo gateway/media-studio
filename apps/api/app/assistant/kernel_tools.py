@@ -23,11 +23,12 @@ from .canvas_context import compact_canvas_context
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
 from .graph_plan import apply_graph_plan
 from .reference_analysis import (
-    AnalyzePresetOutputArguments,
+    AnalyzeGeneratedOutputArguments,
     AnalyzeReferenceImagesArguments,
     RecordPresetQualityDecisionArguments,
     ReferenceAnalysisError,
     analyze_preset_output,
+    analyze_recipe_output,
     analyze_reference_images,
     record_preset_quality_decision,
 )
@@ -90,6 +91,7 @@ KERNEL_TOOL_ACTIVITIES = {
     "propose_graph_operations": ("graph_proposal", "Prepared a graph proposal"),
     "analyze_reference_images": ("reference_analysis", "Analyzed your reference"),
     "analyze_preset_output": ("output_comparison", "Compared the generated result"),
+    "analyze_recipe_output": ("output_comparison", "Compared the generated result"),
     "record_preset_quality_decision": ("output_comparison", "Recorded your quality decision"),
     "propose_media_preset_draft": ("preset_draft", "Prepared preset details"),
     "propose_prompt_recipe_draft": ("recipe_draft", "Prepared recipe details"),
@@ -330,8 +332,9 @@ def _read_run_evidence(arguments: BaseModel, context: KernelToolContext) -> Dict
     events = store.list_graph_run_events(run_id)
     artifacts = store.list_graph_artifacts_for_run(run_id)
     preset_test = None
+    recipe_run = None
     if context.capability == "preset_builder":
-        from .run_confirmation import PresetRunEvidenceError, bind_completed_preset_run
+        from .run_confirmation import RunEvidenceError, bind_completed_preset_run
 
         if not context.session_id:
             raise KernelToolFailure(
@@ -341,7 +344,20 @@ def _read_run_evidence(arguments: BaseModel, context: KernelToolContext) -> Dict
             )
         try:
             preset_test = bind_completed_preset_run(context.session_id, run)
-        except PresetRunEvidenceError as exc:
+        except RunEvidenceError as exc:
+            raise KernelToolFailure(code=exc.code, message=str(exc), retryable=False) from exc
+    elif context.capability == "recipe_builder":
+        from .run_confirmation import RunEvidenceError, bind_completed_recipe_run
+
+        if not context.session_id:
+            raise KernelToolFailure(
+                code="recipe_session_missing",
+                message="The Media Assistant session is unavailable.",
+                retryable=False,
+            )
+        try:
+            recipe_run = bind_completed_recipe_run(context.session_id, run)
+        except RunEvidenceError as exc:
             raise KernelToolFailure(code=exc.code, message=str(exc), retryable=False) from exc
     return {
         "run": {
@@ -386,6 +402,7 @@ def _read_run_evidence(arguments: BaseModel, context: KernelToolContext) -> Dict
             "failed_nodes": relevant_nodes,
         },
         "preset_test": preset_test,
+        "recipe_run": recipe_run,
     }
 
 
@@ -969,9 +986,9 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
     ),
     "read_run_evidence": KernelToolDefinition(
         name="read_run_evidence",
-        description="Read a selected run with node results, events, artifacts, and matching workflow nodes; preset work also binds completed output to its confirmed session test plan.",
+        description="Read a selected run with node results, events, artifacts, and matching workflow nodes; preset and recipe work also bind completed image output to the exact confirmed assistant run.",
         arguments_model=ReadRunEvidenceArguments,
-        allowed_capabilities=frozenset({"preset_builder", "run_debugger"}),
+        allowed_capabilities=frozenset({"preset_builder", "recipe_builder", "run_debugger"}),
         handler=_read_run_evidence,
     ),
     "list_graph_node_types": KernelToolDefinition(
@@ -1116,9 +1133,16 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
     "analyze_preset_output": KernelToolDefinition(
         name="analyze_preset_output",
         description="Compare a session-owned generated preset output against attached style references with explicit image roles and one focused prompt delta.",
-        arguments_model=AnalyzePresetOutputArguments,
+        arguments_model=AnalyzeGeneratedOutputArguments,
         allowed_capabilities=frozenset({"preset_builder"}),
         handler=analyze_preset_output,
+    ),
+    "analyze_recipe_output": KernelToolDefinition(
+        name="analyze_recipe_output",
+        description="Compare a session-owned generated recipe output against attached source references with explicit image roles and one focused prompt delta.",
+        arguments_model=AnalyzeGeneratedOutputArguments,
+        allowed_capabilities=frozenset({"recipe_builder"}),
+        handler=analyze_recipe_output,
     ),
     "record_preset_quality_decision": KernelToolDefinition(
         name="record_preset_quality_decision",
@@ -1145,6 +1169,7 @@ def kernel_tool_catalog(capability: AssistantKernelCapability | None = None) -> 
                 "update_story_state",
                 "record_preset_quality_decision",
                 "analyze_preset_output",
+                "analyze_recipe_output",
             },
         }
         for definition in KERNEL_TOOLS.values()

@@ -23,13 +23,13 @@ class AnalyzeReferenceImagesArguments(BaseModel):
     focus: Optional[str] = Field(default=None, max_length=500)
 
 
-class AnalyzePresetOutputArguments(BaseModel):
+class AnalyzeGeneratedOutputArguments(BaseModel):
     output_asset_id: str = Field(min_length=1, max_length=160)
     reference_ids: List[str] = Field(min_length=1, max_length=ASSISTANT_IMAGE_ATTACHMENT_LIMIT)
     focus: Optional[str] = Field(default=None, max_length=500)
 
 
-class PresetOutputComparison(BaseModel):
+class GeneratedOutputComparison(BaseModel):
     matches: List[str] = Field(default_factory=list, max_length=5)
     missing_or_drifting: List[str] = Field(default_factory=list, max_length=5)
     prompt_delta: str = Field(default="", max_length=1200)
@@ -37,7 +37,7 @@ class PresetOutputComparison(BaseModel):
     meaningful_gap: bool = False
 
     @model_validator(mode="after")
-    def validate_grounded_delta(self) -> "PresetOutputComparison":
+    def validate_grounded_delta(self) -> "GeneratedOutputComparison":
         if not self.matches and not self.missing_or_drifting:
             raise ValueError("Output comparison requires at least one visible observation.")
         if self.meaningful_gap and (not self.missing_or_drifting or not self.prompt_delta.strip()):
@@ -92,13 +92,13 @@ def _analysis_response_format() -> Dict[str, Any]:
     }
 
 
-def _comparison_response_format() -> Dict[str, Any]:
+def _comparison_response_format(output_kind: str = "preset") -> Dict[str, Any]:
     return {
         "type": "json_schema",
         "json_schema": {
-            "name": "media_assistant_preset_output_comparison",
+            "name": f"media_assistant_{output_kind}_output_comparison",
             "strict": True,
-            "schema": PresetOutputComparison.model_json_schema(),
+            "schema": GeneratedOutputComparison.model_json_schema(),
         },
     }
 
@@ -143,7 +143,7 @@ def _reference_paths(attachments: List[Dict[str, Any]]) -> List[str]:
     return paths
 
 
-def _asset_image_path(asset_id: str) -> str:
+def _asset_image_path(asset_id: str, output_kind: str = "preset") -> str:
     try:
         return str(
             graph_ref_path(
@@ -153,8 +153,8 @@ def _asset_image_path(asset_id: str) -> str:
         )
     except ValueError as exc:
         raise ReferenceAnalysisError(
-            code="preset_output_inaccessible",
-            message="The generated preset test output is missing or inaccessible.",
+            code=f"{output_kind}_output_inaccessible",
+            message=f"The generated {output_kind} output is missing or inaccessible.",
         ) from exc
 
 
@@ -173,43 +173,56 @@ def _active_session(context: Any) -> Dict[str, Any]:
     return session
 
 
-def analyze_preset_output(arguments: BaseModel, context: Any) -> Dict[str, Any]:
-    options = AnalyzePresetOutputArguments.model_validate(arguments)
+def _analyze_output(arguments: BaseModel, context: Any, *, output_kind: Literal["preset", "recipe"]) -> Dict[str, Any]:
+    options = AnalyzeGeneratedOutputArguments.model_validate(arguments)
     session = _active_session(context)
     summary = dict(session.get("summary_json") or {})
-    run_evidence = summary.get("kernel_preset_run_evidence")
+    run_evidence_key = f"kernel_{output_kind}_run_evidence"
+    comparison_key = f"kernel_{output_kind}_output_comparison"
+    run_evidence = summary.get(run_evidence_key)
     if (
         not isinstance(run_evidence, dict)
         or run_evidence.get("status") != "completed"
         or options.output_asset_id not in list(run_evidence.get("output_asset_ids") or [])
     ):
         raise ReferenceAnalysisError(
-            code="preset_output_not_session_owned",
-            message="Review only a completed output bound to this Media Assistant preset test.",
+            code=f"{output_kind}_output_not_session_owned",
+            message=f"Review only a completed output bound to this Media Assistant {output_kind} run.",
+        )
+    selected_run_id = str(context.run_id or "")
+    if selected_run_id and selected_run_id != str(run_evidence.get("run_id") or ""):
+        raise ReferenceAnalysisError(
+            code=f"{output_kind}_output_run_mismatch",
+            message=f"Review only output from the currently selected {output_kind} run.",
         )
     selected = _selected_attachments(options.reference_ids, list(context.attachments or []))
-    draft = summary.get("kernel_preset_draft") if isinstance(summary.get("kernel_preset_draft"), dict) else {}
-    rules = draft.get("rules_json") if isinstance(draft.get("rules_json"), dict) else {}
-    analysis_id = str(rules.get("analysis_id") or "")
-    analysis_cache = summary.get("reference_analysis_cache")
-    style_reference_ids = {
-        str(reference_id)
-        for cached in (analysis_cache.values() if isinstance(analysis_cache, dict) else [])
-        if isinstance(cached, dict) and str(cached.get("analysis_id") or "") == analysis_id
-        for reference_id in list(cached.get("reference_ids") or [])
-        if str(reference_id)
-    }
-    requested_reference_ids = {str(item.get("reference_id") or "") for item in selected}
-    if not analysis_id or requested_reference_ids != style_reference_ids:
-        raise ReferenceAnalysisError(
-            code="preset_style_reference_mismatch",
-            message="Review only the style references that produced this preset's visual analysis.",
-        )
-    output_path = _asset_image_path(options.output_asset_id)
+    if output_kind == "preset":
+        draft = summary.get("kernel_preset_draft") if isinstance(summary.get("kernel_preset_draft"), dict) else {}
+        rules = draft.get("rules_json") if isinstance(draft.get("rules_json"), dict) else {}
+        analysis_id = str(rules.get("analysis_id") or "")
+        analysis_cache = summary.get("reference_analysis_cache")
+        style_reference_ids = {
+            str(reference_id)
+            for cached in (analysis_cache.values() if isinstance(analysis_cache, dict) else [])
+            if isinstance(cached, dict) and str(cached.get("analysis_id") or "") == analysis_id
+            for reference_id in list(cached.get("reference_ids") or [])
+            if str(reference_id)
+        }
+        requested_reference_ids = {str(item.get("reference_id") or "") for item in selected}
+        if not analysis_id or requested_reference_ids != style_reference_ids:
+            raise ReferenceAnalysisError(
+                code="preset_style_reference_mismatch",
+                message="Review only the style references that produced this preset's visual analysis.",
+            )
+    output_path = (
+        _asset_image_path(options.output_asset_id)
+        if output_kind == "preset"
+        else _asset_image_path(options.output_asset_id, output_kind)
+    )
     reference_paths = _reference_paths(selected)
     focus = str(options.focus or "").strip()
     instruction = (
-        "The first supplied image is the generated preset test output. Every remaining image is a style "
+        f"The first supplied image is the generated {output_kind} output. Every remaining image is a source "
         "reference and must never be described as generated output. Compare only visible evidence. Return "
         "what matches, what is missing or drifting, one focused prompt delta, the traits that must remain "
         "unchanged, and whether the gap is meaningful. Do not invent a defect to justify another generation. "
@@ -219,7 +232,7 @@ def analyze_preset_output(arguments: BaseModel, context: Any) -> Dict[str, Any]:
         {
             "role": "system",
             "content": (
-                "You are the Media Assistant preset-output comparison tool. Fill every field in the requested "
+                f"You are the Media Assistant {output_kind}-output comparison tool. Fill every field in the requested "
                 "schema with concise observations grounded only in the supplied images."
             ),
         },
@@ -235,38 +248,38 @@ def analyze_preset_output(arguments: BaseModel, context: Any) -> Dict[str, Any]:
     if runtime.provider_kind != "codex_local":
         raise ReferenceAnalysisError(
             code="analysis_provider_unsupported",
-            message="The configured assistant provider cannot compare preset output through the kernel.",
+            message=f"The configured assistant provider cannot compare {output_kind} output through the kernel.",
         )
     try:
         provider_result = enhancement_provider.run_codex_local_chat(
             model_id=runtime.provider_model_id,
             messages=messages,
-            response_format=_comparison_response_format(),
-            error_context="media assistant preset output comparison",
+            response_format=_comparison_response_format(output_kind),
+            error_context=f"media assistant {output_kind} output comparison",
             timeout_seconds=context.timeout_seconds,
             cancel_event=context.cancel_event,
         )
-        comparison = PresetOutputComparison.model_validate_json(
+        comparison = GeneratedOutputComparison.model_validate_json(
             str(provider_result.get("generated_text") or "{}")
         )
     except (enhancement_provider.EnhancementProviderError, ValidationError) as exc:
         raise ReferenceAnalysisError(
-            code="preset_output_comparison_failed",
+            code=f"{output_kind}_output_comparison_failed",
             message=str(exc),
             retryable=True,
         ) from exc
 
     latest_session = _active_session(context)
     latest_summary = dict(latest_session.get("summary_json") or {})
-    latest_run_evidence = latest_summary.get("kernel_preset_run_evidence")
+    latest_run_evidence = latest_summary.get(run_evidence_key)
     if (
         not isinstance(latest_run_evidence, dict)
         or str(latest_run_evidence.get("run_id") or "") != str(run_evidence.get("run_id") or "")
         or options.output_asset_id not in list(latest_run_evidence.get("output_asset_ids") or [])
     ):
         raise ReferenceAnalysisError(
-            code="preset_output_evidence_changed",
-            message="A newer preset test completed while this output was being reviewed. Review the latest output instead.",
+            code=f"{output_kind}_output_evidence_changed",
+            message=f"A newer {output_kind} run completed while this output was being reviewed. Review the latest output instead.",
         )
     session = latest_session
     summary = latest_summary
@@ -286,24 +299,36 @@ def analyze_preset_output(arguments: BaseModel, context: Any) -> Dict[str, Any]:
         ).encode("utf-8")
     ).hexdigest()[:24]
     result = {
-        "comparison_id": f"presetcmp_{comparison_hash}",
+        "comparison_id": f"{output_kind}cmp_{comparison_hash}",
         "run_id": str(run_evidence.get("run_id") or ""),
         "output_asset_id": options.output_asset_id,
         "reference_ids": reference_ids,
         "image_roles": [
             {"role": "generated_output", "asset_id": options.output_asset_id},
             *[
-                {"role": "style_reference", "reference_id": reference_id}
+                {
+                    "role": "style_reference" if output_kind == "preset" else "source_reference",
+                    "reference_id": reference_id,
+                }
                 for reference_id in reference_ids
             ],
         ],
         "comparison": comparison.model_dump(mode="json"),
         "quality_state": "reviewed",
     }
-    summary["kernel_preset_output_comparison"] = result
-    summary.pop("kernel_preset_quality", None)
+    summary[comparison_key] = result
+    if output_kind == "preset":
+        summary.pop("kernel_preset_quality", None)
     store_assistant.create_or_update_assistant_session({**session, "summary_json": summary})
     return result
+
+
+def analyze_preset_output(arguments: BaseModel, context: Any) -> Dict[str, Any]:
+    return _analyze_output(arguments, context, output_kind="preset")
+
+
+def analyze_recipe_output(arguments: BaseModel, context: Any) -> Dict[str, Any]:
+    return _analyze_output(arguments, context, output_kind="recipe")
 
 
 def record_preset_quality_decision(arguments: BaseModel, context: Any) -> Dict[str, Any]:

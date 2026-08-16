@@ -119,6 +119,8 @@ def _kernel_instruction() -> str:
         "propose_graph_operations; use validate_current_workflow for review-only requests and correct typed "
         "tool errors within the turn. "
         "When attached reference images matter, call analyze_reference_images and ground the reply in its typed evidence. "
+        "Do not analyze attached references merely because they are present: when a saved recipe graph has image-input "
+        "mode none, keep them attached for post-run comparison and state truthfully that the graph does not consume them. "
         "For Media Presets, keep editable state in propose_media_preset_draft, use real model scope, and never emit a "
         "backend JSON block in the reply. A preset draft or revision and its test graph are separate user turns: after "
         "propose_media_preset_draft succeeds, reply and stop. Build a priced test graph only when the current request "
@@ -130,6 +132,8 @@ def _kernel_instruction() -> str:
         "For Prompt Recipes, call get_prompt_recipe directly when session context supplies the exact saved id or key; "
         "otherwise use search_prompt_recipes then get_prompt_recipe. Validate and persist the "
         "complete editable contract through propose_prompt_recipe_draft, and request save confirmation only when the user asks. "
+        "For a completed recipe image run, call read_run_evidence before analyze_recipe_output, compare the generated "
+        "pixels with attached source references, and keep any prompt refinement or another paid run confirmation-gated. "
         "For story work, keep the premise, characters, world rules, continuity facts, and shots in update_story_state. "
         "For an end-to-end production request, use propose_production_plan to persist ordered work with stable ids and "
         "dependencies. Ground model limits with list_media_models first and express arithmetic as typed derived constraints. "
@@ -344,6 +348,8 @@ def _kernel_session_context(
     preset_proposal = summary.get("kernel_preset_proposal")
     preset_refinement_history = summary.get("kernel_preset_refinement_history")
     recipe_draft = summary.get("kernel_recipe_draft")
+    recipe_run_evidence = summary.get("kernel_recipe_run_evidence")
+    recipe_output_comparison = summary.get("kernel_recipe_output_comparison")
     story_state = summary.get("kernel_story_state")
     production_plan = summary.get("production_plan")
     session_id = str(session.get("assistant_session_id") or "")
@@ -385,6 +391,12 @@ def _kernel_session_context(
             else []
         ),
         "active_recipe_draft": recipe_draft if isinstance(recipe_draft, dict) else None,
+        "active_recipe_run_evidence": (
+            recipe_run_evidence if isinstance(recipe_run_evidence, dict) else None
+        ),
+        "active_recipe_output_comparison": (
+            recipe_output_comparison if isinstance(recipe_output_comparison, dict) else None
+        ),
         "active_story_state": story_state if isinstance(story_state, dict) else None,
         "active_production_plan": production_plan if isinstance(production_plan, dict) else None,
         "latest_graph_proposal_id": summary.get("kernel_proposal_id"),
@@ -907,6 +919,7 @@ def run_assistant_kernel_turn(
                 "propose_graph_operations": "graph_proposal",
                 "analyze_reference_images": "reference_analysis",
                 "analyze_preset_output": "output_comparison",
+                "analyze_recipe_output": "output_comparison",
                 "record_preset_quality_decision": "quality_decision",
                 "propose_media_preset_draft": "preset_draft",
                 "propose_prompt_recipe_draft": "recipe_draft",

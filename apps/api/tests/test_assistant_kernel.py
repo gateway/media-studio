@@ -72,6 +72,7 @@ def test_kernel_instruction_exposes_every_capability_tool_for_a_wrong_ui_hint(ap
     assert "propose_prompt_recipe_draft" in instruction
     assert "update_story_state" in instruction
     assert "read_run_evidence" in instruction
+    assert "analyze_recipe_output" in instruction
 
 
 def test_kernel_user_turn_exposes_the_selected_run_id(app_modules) -> None:

@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import StreamingResponse
 
 from .. import store
-from ..assistant.run_confirmation import PresetRunEvidenceError, associate_confirmed_preset_run
+from ..assistant.run_confirmation import RunEvidenceError, associate_confirmed_assistant_run
 from ..assistant.schemas import AssistantRunConfirmationRequest
 from .normalization import materialize_workflow_defaults
 from .pricing import estimate_graph_workflow
@@ -265,7 +265,7 @@ def create_run(workflow_id: str, payload: Optional[GraphRunCreateRequest] = None
             return runtime.create_run(workflow_id, workflow, start=True)
         run = runtime.create_run(workflow_id, workflow, start=False)
         try:
-            associate_confirmed_preset_run(
+            associate_confirmed_assistant_run(
                 assistant_session_id,
                 run.run_id,
                 AssistantRunConfirmationRequest(
@@ -273,7 +273,7 @@ def create_run(workflow_id: str, payload: Optional[GraphRunCreateRequest] = None
                     confirmation_token=assistant_token,
                 ),
             )
-        except PresetRunEvidenceError as exc:
+        except RunEvidenceError as exc:
             store.update_graph_run(
                 run.run_id,
                 {"status": "cancelled", "error": str(exc), "finished_at": store.utcnow_iso()},

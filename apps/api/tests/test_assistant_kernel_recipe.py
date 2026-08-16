@@ -923,6 +923,119 @@ def test_recipe_clarification_keeps_bounded_recent_graph_context(client) -> None
     assert "propose_graph_operations" in instruction
 
 
+def test_recipe_without_image_input_builds_graph_without_analyzing_attached_references(
+    client,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    service = importlib.import_module("app.service_prompt_recipe_validation")
+    schemas = importlib.import_module("app.schemas")
+    store = importlib.import_module("app.store")
+    session = _session(client)
+    preset = _create_image_preset(
+        store,
+        preset_id="preset-no-recipe-image-input",
+        key="no-recipe-image-input",
+    )
+    draft = _recipe_draft("recipe_without_image_input")
+    draft["rules_json"]["media_generation"] = {
+        "source_preset_id": preset["preset_id"],
+        "model_key": "gpt-image-2-text-to-image",
+        "default_options_json": {"resolution": "2K", "aspect_ratio": "3:4"},
+    }
+    saved = service.upsert_prompt_recipe(
+        schemas.PromptRecipeUpsertRequest.model_validate(draft)
+    )
+    importlib.import_module("app.graph.registry").registry.invalidate()
+    operations = [
+        {
+            "op": "add_node",
+            "node_ref": "recipe",
+            "node_type": "prompt.recipe",
+            "position": {"x": 0, "y": 0},
+            "fields": {
+                "recipe_id": saved["recipe_id"],
+                "story_idea": "Tokyo travel poster",
+                "shot_count": "6",
+                "aspect_feel": "Portrait",
+            },
+        },
+        {
+            "op": "add_node",
+            "node_ref": "model",
+            "node_type": "model.kie.gpt_image_2_text_to_image",
+            "position": {"x": 480, "y": 0},
+            "fields": {"resolution": "2K", "aspect_ratio": "3:4"},
+        },
+        {
+            "op": "add_node",
+            "node_ref": "preview",
+            "node_type": "preview.image",
+            "position": {"x": 960, "y": 0},
+        },
+        {
+            "op": "connect_nodes",
+            "source_ref": "recipe",
+            "source_port": "text",
+            "target_ref": "model",
+            "target_port": "prompt",
+        },
+        {
+            "op": "connect_nodes",
+            "source_ref": "model",
+            "source_port": "image",
+            "target_ref": "preview",
+            "target_port": "image",
+        },
+    ]
+    steps = iter(
+        [
+            {
+                "capability": "recipe_builder",
+                "tool_call": {
+                    "name": "get_prompt_recipe",
+                    "arguments": {"recipe_id_or_key": saved["recipe_id"]},
+                },
+            },
+            {
+                "capability": "recipe_builder",
+                "tool_call": {
+                    "name": "propose_graph_operations",
+                    "arguments": {
+                        "summary": "Build the saved recipe graph.",
+                        "operations": operations,
+                    },
+                },
+                "reply": "The graph is ready for review.",
+            },
+        ]
+    )
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+
+    result = kernel.run_assistant_kernel_turn(
+        session=session,
+        user_text="Use my saved recipe to build a Tokyo graph with these style references.",
+        workflow=kernel.GraphWorkflow(name="Recipe graph"),
+        canvas_context={},
+        assistant_mode="graph",
+        attachments=[
+            {
+                "assistant_attachment_id": "attachment-style-reference",
+                "reference_id": "reference-style",
+                "kind": "image",
+                "label": "Style reference",
+            }
+        ],
+    )
+
+    assert result.trace.termination == "completed"
+    assert [trace.tool_name for trace in result.trace.tool_calls] == [
+        "get_prompt_recipe",
+        "propose_graph_operations",
+    ]
+    assert any(artifact.kind == "graph_proposal" for artifact in result.artifacts)
+
+
 def test_recipe_session_context_exposes_latest_saved_artifact(client) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
     store_assistant = importlib.import_module("app.store_assistant")

@@ -55,8 +55,15 @@ Typed draft state:
 - In a saved-recipe graph, populate every required enabled variable. Also populate any template variable
   whose saved default is empty, including optional `image_analysis`; use a neutral user-facing value such
   as "No reference images provided" when the user supplied none.
+- When the saved recipe's image-input mode is `none`, do not spend a graph-building step analyzing attached
+  references or imply that the graph consumes them. Keep them attached as source evidence for the optional
+  post-run output comparison instead.
 - Connect the recipe's `text` output to the image model's prompt input, and connect every model image
   output to a preview or save node. A recipe-to-model graph is incomplete with a dangling model output.
+- After a confirmed recipe graph produces an image, call `read_run_evidence` for that exact run before
+  `analyze_recipe_output`. Compare the generated output with only the attached source references requested
+  by the user. Keep visible observations separate from the suggested prompt delta, and never apply that
+  delta, change the graph or recipe, or request another paid run without the user's explicit confirmation.
 
 Do not invent saved recipes, field values, or image analysis. Ask one question only when the desired
 output shape is genuinely ambiguous. Do not claim the recipe was created, saved, added to a graph, or

@@ -277,6 +277,220 @@ def test_preset_output_comparison_role_tags_session_owned_output_before_style_re
     assert stored["summary_json"]["kernel_preset_output_comparison"] == execution.result
 
 
+def test_recipe_output_comparison_uses_exact_run_output_and_attached_references(
+    client,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    tools, analysis_module, store_assistant, session, attachments = _analysis_context(
+        client,
+        monkeypatch,
+        tmp_path,
+    )
+    output_path = _generated_output_path(tmp_path, "recipe-output.png")
+    summary = dict(session.get("summary_json") or {})
+    summary["kernel_recipe_run_evidence"] = {
+        "assistant_session_id": session["assistant_session_id"],
+        "run_id": "grun-recipe-output",
+        "workflow_fingerprint": "workflow-recipe-output",
+        "status": "completed",
+        "output_asset_ids": ["asset-recipe-output"],
+    }
+    session = store_assistant.create_or_update_assistant_session(
+        {**session, "summary_json": summary}
+    )
+    monkeypatch.setattr(analysis_module, "_asset_image_path", lambda _asset_id, _kind="preset": str(output_path))
+    captured_paths = []
+
+    def multimodal_content(*, text, image_paths):
+        captured_paths.extend(image_paths)
+        return [{"type": "text", "text": text}]
+
+    monkeypatch.setattr(
+        analysis_module.enhancement_provider,
+        "build_openai_compatible_multimodal_content",
+        multimodal_content,
+    )
+    monkeypatch.setattr(
+        analysis_module.enhancement_provider,
+        "run_codex_local_chat",
+        lambda **_kwargs: {"generated_text": json.dumps(OUTPUT_COMPARISON_PAYLOAD)},
+    )
+
+    execution = tools.execute_kernel_tool(
+        tool_name="analyze_recipe_output",
+        arguments={
+            "output_asset_id": "asset-recipe-output",
+            "reference_ids": ["reference-analysis-1"],
+            "focus": "compare the result with the source style",
+        },
+        capability="recipe_builder",
+        context=tools.KernelToolContext(
+            workflow=None,
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=session,
+            attachments=attachments,
+        ),
+    )
+
+    assert execution.trace.error is None
+    assert captured_paths == [str(output_path), str(tmp_path / "reference.png")]
+    assert execution.result["image_roles"] == [
+        {"role": "generated_output", "asset_id": "asset-recipe-output"},
+        {"role": "source_reference", "reference_id": "reference-analysis-1"},
+    ]
+    assert execution.result["comparison"] == OUTPUT_COMPARISON_PAYLOAD
+    stored = store_assistant.get_assistant_session(session["assistant_session_id"])
+    assert stored["summary_json"]["kernel_recipe_output_comparison"] == execution.result
+
+
+def test_recipe_output_comparison_rejects_output_outside_bound_run(
+    client,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    tools, analysis_module, store_assistant, session, attachments = _analysis_context(
+        client,
+        monkeypatch,
+        tmp_path,
+    )
+    summary = dict(session.get("summary_json") or {})
+    summary["kernel_recipe_run_evidence"] = {
+        "assistant_session_id": session["assistant_session_id"],
+        "run_id": "grun-recipe-output",
+        "status": "completed",
+        "output_asset_ids": ["asset-owned-recipe-output"],
+    }
+    session = store_assistant.create_or_update_assistant_session(
+        {**session, "summary_json": summary}
+    )
+    provider_called = False
+
+    def provider(**_kwargs):
+        nonlocal provider_called
+        provider_called = True
+        return {"generated_text": json.dumps(OUTPUT_COMPARISON_PAYLOAD)}
+
+    monkeypatch.setattr(analysis_module.enhancement_provider, "run_codex_local_chat", provider)
+
+    execution = tools.execute_kernel_tool(
+        tool_name="analyze_recipe_output",
+        arguments={
+            "output_asset_id": "asset-unrelated-output",
+            "reference_ids": ["reference-analysis-1"],
+        },
+        capability="recipe_builder",
+        context=tools.KernelToolContext(
+            workflow=None,
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=session,
+            attachments=attachments,
+        ),
+    )
+
+    assert execution.result is None
+    assert execution.trace.error.code == "recipe_output_not_session_owned"
+    assert provider_called is False
+
+
+def test_recipe_output_comparison_rejects_evidence_from_a_different_selected_run(
+    client,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    tools, analysis_module, store_assistant, session, attachments = _analysis_context(
+        client,
+        monkeypatch,
+        tmp_path,
+    )
+    summary = dict(session.get("summary_json") or {})
+    summary["kernel_recipe_run_evidence"] = {
+        "assistant_session_id": session["assistant_session_id"],
+        "run_id": "grun-prior-recipe-output",
+        "status": "completed",
+        "output_asset_ids": ["asset-prior-recipe-output"],
+    }
+    session = store_assistant.create_or_update_assistant_session(
+        {**session, "summary_json": summary}
+    )
+
+    execution = tools.execute_kernel_tool(
+        tool_name="analyze_recipe_output",
+        arguments={
+            "output_asset_id": "asset-prior-recipe-output",
+            "reference_ids": ["reference-analysis-1"],
+        },
+        capability="recipe_builder",
+        context=tools.KernelToolContext(
+            workflow=None,
+            canvas_context={},
+            run_id="grun-new-unreviewable-output",
+            session_id=session["assistant_session_id"],
+            session=session,
+            attachments=attachments,
+        ),
+    )
+
+    assert execution.result is None
+    assert execution.trace.error.code == "recipe_output_run_mismatch"
+
+
+def test_recipe_output_comparison_reports_unsupported_provider_for_recipe(
+    client,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    tools, analysis_module, store_assistant, session, attachments = _analysis_context(
+        client,
+        monkeypatch,
+        tmp_path,
+    )
+    output_path = _generated_output_path(tmp_path, "unsupported-recipe-output.png")
+    summary = dict(session.get("summary_json") or {})
+    summary["kernel_recipe_run_evidence"] = {
+        "assistant_session_id": session["assistant_session_id"],
+        "run_id": "grun-unsupported-recipe-output",
+        "status": "completed",
+        "output_asset_ids": ["asset-unsupported-recipe-output"],
+    }
+    session = store_assistant.create_or_update_assistant_session(
+        {**session, "summary_json": summary}
+    )
+    monkeypatch.setattr(
+        analysis_module,
+        "_asset_image_path",
+        lambda _asset_id, _kind="preset": str(output_path),
+    )
+    monkeypatch.setattr(
+        analysis_module,
+        "resolve_assistant_provider_runtime",
+        lambda _session: type("Runtime", (), {"provider_kind": "openai"})(),
+    )
+
+    execution = tools.execute_kernel_tool(
+        tool_name="analyze_recipe_output",
+        arguments={
+            "output_asset_id": "asset-unsupported-recipe-output",
+            "reference_ids": ["reference-analysis-1"],
+        },
+        capability="recipe_builder",
+        context=tools.KernelToolContext(
+            workflow=None,
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=session,
+            attachments=attachments,
+        ),
+    )
+
+    assert execution.result is None
+    assert execution.trace.error.code == "analysis_provider_unsupported"
+    assert "recipe" in execution.trace.error.message
+    assert "preset" not in execution.trace.error.message
+
+
 def test_preset_output_comparison_rejects_output_outside_bound_run(client, monkeypatch, tmp_path) -> None:
     tools, analysis_module, store_assistant, session, attachments = _analysis_context(
         client,
@@ -902,13 +1116,18 @@ def test_preset_output_comparison_rejects_asset_path_outside_data_root(
 
 def test_output_comparison_tools_are_truthfully_classified_as_mutating(client) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
-    catalog = {
+    preset_catalog = {
         item["name"]: item
         for item in tools.kernel_tool_catalog("preset_builder")
     }
+    recipe_catalog = {
+        item["name"]: item
+        for item in tools.kernel_tool_catalog("recipe_builder")
+    }
 
-    assert catalog["analyze_preset_output"]["read_only"] is False
-    assert catalog["record_preset_quality_decision"]["read_only"] is False
+    assert preset_catalog["analyze_preset_output"]["read_only"] is False
+    assert preset_catalog["record_preset_quality_decision"]["read_only"] is False
+    assert recipe_catalog["analyze_recipe_output"]["read_only"] is False
 
 
 def test_preset_output_path_uses_typed_asset_ref_and_image_constraint(client, monkeypatch, tmp_path) -> None:
