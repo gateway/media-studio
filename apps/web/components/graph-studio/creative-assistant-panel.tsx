@@ -1310,10 +1310,16 @@ export function CreativeAssistantPanel({
                         onClick={() => void assistant.useSavedArtifactInGraph(message)}
                         aria-label={savedArtifactKind(message) === "media_preset"
                           ? `Test ${savedArtifactLabel(message)} in a clean graph`
-                          : `Replace current graph with ${savedArtifactLabel(message)}`}
+                          : workflow.nodes.length
+                            ? `Replace current graph with ${savedArtifactLabel(message)}`
+                            : `Create a clean graph with ${savedArtifactLabel(message)}`}
                       >
                         <Sparkles size={13} aria-hidden="true" />
-                        <span>{savedArtifactKind(message) === "media_preset" ? "Test saved preset" : "Replace graph"}</span>
+                        <span>{savedArtifactKind(message) === "media_preset"
+                          ? "Test saved preset"
+                          : workflow.nodes.length
+                            ? "Replace graph"
+                            : "Create graph"}</span>
                       </button>
                       <button
                         type="button"

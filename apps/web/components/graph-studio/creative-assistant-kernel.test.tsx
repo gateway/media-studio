@@ -135,13 +135,50 @@ it("requests a text-to-image model when wiring a saved Prompt Recipe", async () 
       },
     },
   };
+  const recipePlan: AssistantPlanResponse = {
+    ...plan,
+    workflow: {
+      ...workflow,
+      nodes: [
+        { id: "recipe-new", type: "prompt.recipe", position: { x: 0, y: 0 }, fields: { recipe_id: "recipe-1" } },
+        { id: "model-new", type: "model.kie.gpt_image_2_text_to_image", position: { x: 400, y: 0 }, fields: {} },
+        { id: "preview-new", type: "preview.image", position: { x: 800, y: 0 }, fields: {} },
+      ],
+      edges: [
+        { id: "recipe-model", source: "recipe-new", source_port: "text", target: "model-new", target_port: "prompt" },
+        { id: "model-preview", source: "model-new", source_port: "image", target: "preview-new", target_port: "image" },
+      ],
+    },
+    pricing: { pricing_summary: { total: { estimated_credits: 6, estimated_cost_usd: 0.03 } }, nodes: {}, warnings: [] },
+  };
+  const confirmedPlanMessage = {
+    assistant_message_id: "message-recipe-plan",
+    assistant_session_id: "session-1",
+    role: "assistant",
+    content_text: "The replacement graph is ready for review.",
+    content_json: {
+      mode: "assistant_kernel",
+      next_action: {
+        kind: "confirm_graph",
+        label: "Add to canvas",
+        proposal_id: "plan-1",
+        confirmation_token: "confirm-plan-1",
+        requires_confirmation: true,
+        payload: { proposal_id: "plan-1", confirmation_token: "confirm-plan-1" },
+      },
+    },
+  };
+  const onApplyWorkflow = vi.fn();
   const fetchMock = vi.fn((url: string) => {
     if (url.includes("/media/assistant/sessions?")) {
       return jsonResponse({ items: [{ ...session, messages: [savedRecipeMessage] }] });
     }
-    if (url.endsWith("/media/assistant/sessions/session-1/plans")) return jsonResponse(plan);
+    if (url.endsWith("/media/assistant/sessions/session-1/plans")) return jsonResponse(recipePlan);
     if (url.endsWith("/media/assistant/sessions/session-1")) {
-      return jsonResponse({ ...session, messages: [savedRecipeMessage], latest_plan: plan });
+      return jsonResponse({ ...session, messages: [savedRecipeMessage, confirmedPlanMessage], latest_plan: recipePlan });
+    }
+    if (url.endsWith("/media/assistant/plans/plan-1/apply")) {
+      return jsonResponse({ ...recipePlan, plan: { ...recipePlan.plan, status: "applied" } });
     }
     return jsonResponse({});
   });
@@ -156,7 +193,7 @@ it("requests a text-to-image model when wiring a saved Prompt Recipe", async () 
       workflow={occupiedWorkflow}
       references={[]}
       importImageFile={vi.fn()}
-      onApplyWorkflow={vi.fn()}
+      onApplyWorkflow={onApplyWorkflow}
       onClose={vi.fn()}
     />,
   );
@@ -170,6 +207,51 @@ it("requests a text-to-image model when wiring a saved Prompt Recipe", async () 
   expect(request.message).toContain("clean replacement workflow");
   expect(request.message).toContain("text-to-image model");
   expect(request.workflow.nodes).toHaveLength(0);
+  fireEvent.click(await screen.findByRole("button", { name: "Add to canvas" }));
+  await waitFor(() => expect(onApplyWorkflow).toHaveBeenCalled());
+  const appliedWorkflow = onApplyWorkflow.mock.calls[0]?.[0];
+  expect(appliedWorkflow.nodes).toHaveLength(3);
+  expect(appliedWorkflow.nodes.filter((node: { type: string }) => node.type.startsWith("model.kie."))).toHaveLength(1);
+  expect(recipePlan.pricing.pricing_summary.total).toMatchObject({ estimated_credits: 6, estimated_cost_usd: 0.03 });
+  const applyCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/media/assistant/plans/plan-1/apply"));
+  expect(JSON.parse(String(applyCall?.[1]?.body))).toMatchObject({
+    proposal_id: "plan-1",
+    confirmation_token: "confirm-plan-1",
+  });
+});
+
+it("offers to create rather than replace a saved-recipe graph on an empty canvas", async () => {
+  const savedRecipeMessage = {
+    assistant_message_id: "message-recipe-saved-empty",
+    assistant_session_id: "session-1",
+    role: "system_summary",
+    content_text: "Saved the confirmed assistant artifact.",
+    content_json: {
+      activity_kind: "prompt_recipe_saved",
+      saved_artifact: { kind: "prompt_recipe", id: "recipe-1", key: "storyboard_prompt_writer", label: "Storyboard Prompt Writer" },
+    },
+  };
+  vi.stubGlobal("fetch", vi.fn((url: string) => {
+    if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [{ ...session, messages: [savedRecipeMessage] }] });
+    return jsonResponse({});
+  }));
+
+  render(
+    <CreativeAssistantPanel
+      open
+      workspaceKey="tab-empty-recipe"
+      workflowId="workflow-1"
+      workflowName="Assistant Graph"
+      workflow={workflow}
+      references={[]}
+      importImageFile={vi.fn()}
+      onApplyWorkflow={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+
+  expect(await screen.findByRole("button", { name: "Create a clean graph with Storyboard Prompt Writer" })).toBeTruthy();
+  expect(screen.getByText("Create graph")).toBeTruthy();
 });
 
 it("saves a kernel preset only after the user clicks its server-owned confirmation", async () => {

@@ -448,6 +448,102 @@ def test_saved_recipe_can_be_wired_into_a_validated_image_graph(client) -> None:
     )
 
 
+def test_recipe_reuse_requires_explicit_intent_before_adding_another_paid_path(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    service = importlib.import_module("app.service_prompt_recipe_validation")
+    schemas = importlib.import_module("app.schemas")
+    session = _session(client)
+    saved = service.upsert_prompt_recipe(
+        schemas.PromptRecipeUpsertRequest.model_validate(
+            _recipe_draft("kernel_recipe_reuse_paid_path_contract")
+        )
+    )
+    workflow = tools.GraphWorkflow.model_validate(
+        {
+            "schema_version": 1,
+            "name": "Occupied recipe graph",
+            "nodes": [
+                {
+                    "id": "existing-recipe",
+                    "type": "prompt.recipe",
+                    "position": {"x": 0, "y": 0},
+                    "fields": {
+                        "recipe_id": saved["recipe_id"],
+                        "story_idea": "A coastal journey.",
+                        "shot_count": "6",
+                        "aspect_feel": "Cinematic wide",
+                    },
+                },
+                {
+                    "id": "existing-model",
+                    "type": "model.kie.gpt_image_2_text_to_image",
+                    "position": {"x": 480, "y": 0},
+                    "fields": {"aspect_ratio": "16:9", "resolution": "1K"},
+                },
+                {
+                    "id": "existing-preview",
+                    "type": "preview.image",
+                    "position": {"x": 960, "y": 0},
+                    "fields": {},
+                },
+            ],
+            "edges": [
+                {"id": "existing-recipe-model", "source": "existing-recipe", "source_port": "text", "target": "existing-model", "target_port": "prompt"},
+                {"id": "existing-model-preview", "source": "existing-model", "source_port": "image", "target": "existing-preview", "target_port": "image"},
+            ],
+            "metadata": {},
+        }
+    )
+    operations = [
+        {
+            "op": "add_node",
+            "node_ref": "second-recipe",
+            "node_type": "prompt.recipe",
+            "position": {"x": 0, "y": 700},
+            "fields": {"recipe_id": saved["recipe_id"], "story_idea": "A city journey.", "shot_count": "6", "aspect_feel": "Portrait"},
+        },
+        {
+            "op": "add_node",
+            "node_ref": "second-model",
+            "node_type": "model.kie.gpt_image_2_text_to_image",
+            "position": {"x": 480, "y": 700},
+            "fields": {"aspect_ratio": "3:4", "resolution": "1K"},
+        },
+        {"op": "add_node", "node_ref": "second-preview", "node_type": "preview.image", "position": {"x": 960, "y": 700}, "fields": {}},
+        {"op": "connect_nodes", "source_ref": "second-recipe", "source_port": "text", "target_ref": "second-model", "target_port": "prompt"},
+        {"op": "connect_nodes", "source_ref": "second-model", "source_port": "image", "target_ref": "second-preview", "target_port": "image"},
+    ]
+    context = tools.KernelToolContext(
+        workflow=workflow,
+        canvas_context={},
+        session_id=session["assistant_session_id"],
+        session=session,
+        user_text="Can you use my saved travel recipe here again?",
+    )
+
+    blocked = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={"summary": "Add another recipe image path.", "operations": operations},
+        capability="recipe_builder",
+        context=context,
+    )
+    composed = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Add the explicitly requested second recipe image path.",
+            "operations": operations,
+            "additional_paid_path_intent": "explicitly_requested",
+        },
+        capability="recipe_builder",
+        context=context,
+    )
+
+    assert blocked.trace.error is not None
+    assert blocked.trace.error.code == "duplicate_paid_path_requires_explicit_intent"
+    assert composed.trace.error is None, composed.trace.error
+    assert len([node for node in composed.result["workflow"]["nodes"] if node["type"].startswith("model.kie.")]) == 2
+
+
 def test_recipe_clarification_keeps_bounded_recent_graph_context(client) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
     store_assistant = importlib.import_module("app.store_assistant")

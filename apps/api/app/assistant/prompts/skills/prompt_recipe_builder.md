@@ -39,7 +39,8 @@ Typed draft state:
 - When the current workflow already has a paid generation path, reuse a compatible recipe/model/preview
   path instead of appending another paid path. If the requested recipe cannot safely reuse that path,
   ask whether to replace the graph or start a fresh workflow. Add another paid branch only when the user
-  clearly asks to compose multiple outputs.
+  clearly asks to compose multiple outputs; in that case set `additional_paid_path_intent` to
+  `explicitly_requested` in the graph proposal.
 - In a saved-recipe graph, populate every required enabled variable. Also populate any template variable
   whose saved default is empty, including optional `image_analysis`; use a neutral user-facing value such
   as "No reference images provided" when the user supplied none.

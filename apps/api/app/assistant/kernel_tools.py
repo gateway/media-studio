@@ -125,6 +125,7 @@ class ProposeGraphOperationsArguments(BaseModel):
     field_values: Optional[Dict[str, str]] = Field(default=None, min_length=1, max_length=3)
     questions: List[str] = Field(default_factory=list, max_length=8)
     warnings: List[str] = Field(default_factory=list, max_length=8)
+    additional_paid_path_intent: Literal["not_requested", "explicitly_requested"] = "not_requested"
 
 
 class ReadRunEvidenceArguments(BaseModel):
@@ -747,6 +748,25 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     base_workflow = context.workflow or GraphWorkflow(
         name=str(context.canvas_context.get("workflow_name") or "New workflow"),
     )
+    adds_paid_path = any(
+        operation.op == "add_node"
+        and str(operation.node_type or "").startswith("model.kie.")
+        for operation in operations
+    )
+    has_paid_path = any(node.type.startswith("model.kie.") for node in base_workflow.nodes)
+    if (
+        context.capability == "recipe_builder"
+        and has_paid_path
+        and adds_paid_path
+        and options.additional_paid_path_intent != "explicitly_requested"
+    ):
+        raise KernelToolFailure(
+            code="duplicate_paid_path_requires_explicit_intent",
+            message=(
+                "Reuse the compatible paid recipe path, or ask whether to replace the graph or "
+                "start fresh. Add another paid path only when the user explicitly requests one."
+            ),
+        )
     graph_plan = AssistantGraphPlan(
         summary=options.summary,
         operations=operations,
