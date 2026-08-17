@@ -1067,11 +1067,17 @@ def test_saved_recipe_template_builds_complete_image_graph_without_catalog_walk(
             "enabled": True,
             "required": True,
         },
+        {
+            "key": "paper_texture",
+            "label": "Paper Texture",
+            "enabled": True,
+            "required": True,
+        },
     ]
     draft["custom_fields_json"] = []
     draft["system_prompt_template"] = (
         "Create a travel poster for {{destination}} with {{travel_tagline}} "
-        "and signposts for {{signpost_places}}."
+        "and signposts for {{signpost_places}} using {{paper_texture}}."
     )
     draft["rules_json"] = {
         "intended_media_model": "gpt-image-2-text-to-image",
@@ -1109,6 +1115,7 @@ def test_saved_recipe_template_builds_complete_image_graph_without_catalog_walk(
                             "destination": "Lisbon, Portugal",
                             "travel_tagline": "Sunlit stories by the sea",
                             "signpost_places": "Lisbon, Sintra, Cascais",
+                            "paper_texture": "Layered torn paper",
                         },
                         "derived_recipe_defaults_overrides": [
                             {
@@ -1178,6 +1185,7 @@ def test_saved_recipe_template_builds_complete_image_graph_without_catalog_walk(
     assert recipe_node["fields"]["destination"] == "Lisbon, Portugal"
     assert recipe_node["fields"]["travel_tagline"] == "Sunlit stories by the sea"
     assert recipe_node["fields"]["signpost_places"] == "Lisbon, Sintra, Cascais"
+    assert recipe_node["fields"]["paper_texture"] == "Layered torn paper"
     assert model_node["fields"]["resolution"] == "2K"
     assert model_node["fields"]["aspect_ratio"] == "3:4"
     assert graph_artifact["pricing"]["pricing_summary"]["total"]["estimated_credits"] == 10.0
@@ -1193,6 +1201,7 @@ def test_saved_recipe_template_builds_complete_image_graph_without_catalog_walk(
             "field_values": {
                 "destination": "Lisbon, Portugal",
                 "travel_tagline": "Sunlit stories by the sea",
+                "paper_texture": "Layered torn paper",
             },
         },
         capability="graph_builder",
@@ -1208,6 +1217,115 @@ def test_saved_recipe_template_builds_complete_image_graph_without_catalog_walk(
     assert missing_field.trace.error is not None
     assert missing_field.trace.error.code == "saved_recipe_graph_field_values_required"
     assert missing_field.trace.error.details == {"missing_field_keys": ["signpost_places"]}
+
+    invalid_option = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Build with an unsupported requested setting.",
+            "template_id": "saved_recipe_image_v1",
+            "recipe_id": saved["recipe_id"],
+            "field_values": {
+                "destination": "Lisbon, Portugal",
+                "travel_tagline": "Sunlit stories by the sea",
+                "signpost_places": "Lisbon, Sintra, Cascais",
+                "paper_texture": "Layered torn paper",
+            },
+            "derived_recipe_defaults_overrides": [
+                {
+                    "recipe_id": saved["recipe_id"],
+                    "model_key": "gpt-image-2-text-to-image",
+                    "default_options_json": {"unsupported_quality": "high"},
+                }
+            ],
+        },
+        capability="graph_builder",
+        context=tools.KernelToolContext(
+            workflow=tools.GraphWorkflow(name="Fresh invalid workflow"),
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=session,
+            user_text="Use high unsupported quality.",
+            user_message_id="msg-invalid-recipe-option",
+        ),
+    )
+
+    assert invalid_option.trace.error is not None
+    assert invalid_option.trace.error.code == "saved_recipe_graph_option_invalid"
+    assert invalid_option.trace.error.details == {
+        "invalid_option_keys": ["unsupported_quality"]
+    }
+
+
+def test_saved_recipe_template_uses_typed_generation_defaults_and_valid_falsy_fields(
+    client,
+) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    service = importlib.import_module("app.service_prompt_recipe_validation")
+    schemas = importlib.import_module("app.schemas")
+    store = importlib.import_module("app.store")
+    store_assistant = importlib.import_module("app.store_assistant")
+    session = _session(client)
+    preset = _create_image_preset(
+        store,
+        preset_id="preset-typed-recipe-graph",
+        key="typed-recipe-graph",
+    )
+    draft = _recipe_draft("typed_recipe_graph")
+    draft["custom_fields_json"].extend(
+        [
+            {
+                "key": "include_border",
+                "label": "Include Border",
+                "type": "boolean",
+                "required": True,
+                "default_value": False,
+            },
+            {
+                "key": "grain_amount",
+                "label": "Grain Amount",
+                "type": "number",
+                "required": True,
+                "default_value": 0,
+            },
+        ]
+    )
+    draft["rules_json"]["media_generation"] = {
+        "source_preset_id": preset["preset_id"],
+        "model_key": "gpt-image-2-text-to-image",
+        "default_options_json": {"resolution": "2K", "aspect_ratio": "3:4"},
+    }
+    saved = service.upsert_prompt_recipe(
+        schemas.PromptRecipeUpsertRequest.model_validate(draft)
+    )
+    tools.registry.invalidate()
+
+    proposed = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Build the typed saved-recipe graph.",
+            "template_id": "saved_recipe_image_v1",
+            "recipe_id": saved["recipe_id"],
+            "field_values": {"story_idea": "A city journey"},
+        },
+        capability="graph_builder",
+        context=tools.KernelToolContext(
+            workflow=tools.GraphWorkflow(name="Fresh typed workflow"),
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=session,
+        ),
+    )
+
+    assert proposed.trace.error is None
+    stored_plan = store_assistant.get_assistant_plan(proposed.result["proposal_id"])
+    assert stored_plan["plan_json"]["metadata"]["template_generation_source"] == "saved_recipe"
+    model_node = next(
+        node
+        for node in proposed.result["workflow"]["nodes"]
+        if node["type"] == "model.kie.gpt_image_2_text_to_image"
+    )
+    assert model_node["fields"]["resolution"] == "2K"
+    assert model_node["fields"]["aspect_ratio"] == "3:4"
 
 
 def test_recipe_session_context_exposes_latest_saved_artifact(client) -> None:

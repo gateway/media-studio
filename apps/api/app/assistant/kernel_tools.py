@@ -144,7 +144,7 @@ class ProposeGraphOperationsArguments(BaseModel):
         ]
     ] = None
     recipe_id: Optional[str] = Field(default=None, max_length=160)
-    field_values: Optional[Dict[str, str]] = Field(default=None, min_length=1, max_length=3)
+    field_values: Optional[Dict[str, str]] = Field(default=None, min_length=1)
     questions: List[str] = Field(default_factory=list, max_length=8)
     warnings: List[str] = Field(default_factory=list, max_length=8)
     additional_paid_path_intent: Literal["not_requested", "explicitly_requested"] = "not_requested"
@@ -638,7 +638,7 @@ def _saved_recipe_graph_operations(
         key
         for key, item in configured_by_key.items()
         if key not in supplied_values
-        and not str(item.get("default_value") or "").strip()
+        and item.get("default_value") in (None, "", [], {})
         and (bool(item.get("required")) or "{{" + key + "}}" in template)
     ]
     if missing_keys:
@@ -704,10 +704,19 @@ def _saved_recipe_graph_operations(
         )
     model_definition = matching_models[0]
     allowed_model_fields = {field.id for field in model_definition.fields}
+    invalid_model_fields = sorted(
+        set(generation["default_options_json"]) - allowed_model_fields
+    )
+    if invalid_model_fields:
+        raise KernelToolFailure(
+            code="saved_recipe_graph_option_invalid",
+            message="The requested generation settings are not supported by this model.",
+            retryable=False,
+            details={"invalid_option_keys": invalid_model_fields},
+        )
     model_fields = {
         key: value
         for key, value in generation["default_options_json"].items()
-        if key in allowed_model_fields
     }
     recipe_fields = {
         "recipe_category": str(recipe.get("category") or "utility"),
