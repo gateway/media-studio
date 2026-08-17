@@ -1698,19 +1698,24 @@ def test_kernel_run_request_returns_typed_confirmation_without_submitting_a_job(
     assert replay.status_code == 400
 
 
-def test_validated_run_intent_creates_confirmation_without_provider_action_flags(client, monkeypatch) -> None:
+@pytest.mark.parametrize("capability", ["graph_builder", "recipe_builder"])
+def test_validated_run_intent_creates_confirmation_without_provider_action_flags(
+    client,
+    monkeypatch,
+    capability,
+) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
     steps = iter(
         [
             {
-                "capability": "graph_builder",
+                "capability": capability,
                 "tool_call": {
                     "name": "validate_current_workflow",
                     "arguments": {"request_run_confirmation": True},
                 },
             },
             {
-                "capability": "graph_builder",
+                "capability": capability,
                 "reply": "The checked graph is ready for your confirmation.",
             },
         ]
@@ -1788,7 +1793,15 @@ def test_kernel_run_confirmation_accepts_canonically_equivalent_canvas_state(cli
     action = response.json()["messages"][-1]["content_json"]["kernel_turn"]["next_action"]
     canvas_workflow = json.loads(json.dumps(workflow))
     canvas_workflow["viewport"] = {"x": 160, "y": 80, "zoom": 0.85}
-    canvas_workflow["metadata"] = {"created_by": "graph-studio", "groups": []}
+    canvas_workflow["metadata"] = {
+        "created_by": "graph-studio",
+        "groups": [],
+        "pricing": {
+            "state": "settled",
+            "estimated_credits": 10,
+            "estimated_cost_usd": 0.05,
+        },
+    }
     canvas_workflow["nodes"][0]["position"] = {"x": 120, "y": 240}
     canvas_workflow["nodes"][0]["metadata"] = {
         "style": {"width": 420},

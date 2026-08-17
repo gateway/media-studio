@@ -492,7 +492,8 @@ def _next_action_for_artifacts(
                 requested_action
                 and requested_action.kind == "run_workflow"
                 and requested_action.requires_confirmation
-                and capability in {"graph_builder", "preset_builder", "run_debugger"}
+                and capability
+                in {"graph_builder", "preset_builder", "recipe_builder", "run_debugger"}
             ):
                 fingerprint = workflow_fingerprint(workflow)
                 summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}

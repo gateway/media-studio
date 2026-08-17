@@ -49,6 +49,30 @@ def _confirmed_workflow_fingerprint(confirmation: dict, workflow: GraphWorkflow)
     )
 
 
+def _matching_confirmation_fingerprint(
+    confirmation: dict,
+    workflow: GraphWorkflow,
+) -> str | None:
+    fingerprint = _confirmed_workflow_fingerprint(confirmation, workflow)
+    expected = str(confirmation.get("workflow_fingerprint") or "")
+    if expected and hmac.compare_digest(expected, fingerprint):
+        return fingerprint
+    if assistant_run_confirmation_kind(confirmation) == "preset_test":
+        return None
+    metadata = dict(workflow.metadata) if isinstance(workflow.metadata, dict) else {}
+    identity = str(workflow.workflow_id or metadata.get("workflow_id") or "")
+    if not identity:
+        return None
+    # A new graph receives its durable ID when the run path saves it.
+    metadata.pop("workflow_id", None)
+    unsaved = workflow.model_copy(
+        update={"workflow_id": None, "metadata": metadata},
+        deep=True,
+    )
+    unsaved_fingerprint = _confirmed_workflow_fingerprint(confirmation, unsaved)
+    return fingerprint if expected and hmac.compare_digest(expected, unsaved_fingerprint) else None
+
+
 def _preset_output_model_node_ids(workflow: dict) -> set[str]:
     return {
         str(node.get("id") or "")
@@ -289,8 +313,8 @@ def associate_confirmed_assistant_run(
             _confirmation_error_code(confirmation, "confirmation_invalid", capability=capability),
             "This run confirmation is invalid.",
         )
-    fingerprint = _confirmed_workflow_fingerprint(confirmation, payload.workflow)
-    if not hmac.compare_digest(str(confirmation.get("workflow_fingerprint") or ""), fingerprint):
+    fingerprint = _matching_confirmation_fingerprint(confirmation, payload.workflow)
+    if not fingerprint:
         raise RunEvidenceError(
             "workflow_fingerprint_mismatch",
             "The graph changed after this run confirmation was prepared.",
@@ -321,6 +345,7 @@ def associate_confirmed_assistant_run(
                 **summary,
                 "kernel_run_confirmation": {
                     **confirmation,
+                    "workflow_fingerprint": fingerprint,
                     "assistant_run_id": run_id,
                     "consumed": True,
                     "confirmed_at": confirmed_at,
@@ -366,11 +391,11 @@ def confirm_kernel_run_action(
     supplied_hash = hashlib.sha256(payload.confirmation_token.encode("utf-8")).hexdigest()
     if not hmac.compare_digest(str(confirmation.get("confirmation_token_hash") or ""), supplied_hash):
         raise HTTPException(status_code=400, detail="This run confirmation is invalid.")
-    supplied_fingerprint = _confirmed_workflow_fingerprint(confirmation, payload.workflow)
-    if not hmac.compare_digest(
-        str(confirmation.get("workflow_fingerprint") or ""),
-        supplied_fingerprint,
-    ):
+    supplied_fingerprint = _matching_confirmation_fingerprint(
+        confirmation,
+        payload.workflow,
+    )
+    if not supplied_fingerprint:
         raise HTTPException(
             status_code=400,
             detail={
@@ -385,6 +410,7 @@ def confirm_kernel_run_action(
                 **summary,
                 "kernel_run_confirmation": {
                     **confirmation,
+                    "workflow_fingerprint": supplied_fingerprint,
                     "consumed": True,
                     "confirmed_at": store_assistant.utcnow_iso(),
                 },
