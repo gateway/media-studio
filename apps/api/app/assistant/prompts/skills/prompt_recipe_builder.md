@@ -41,8 +41,15 @@ Typed draft state:
   serialized field labels, or product-planning prose into a recipe field.
 - Set `request_save_confirmation` only when the user explicitly asks to save. The server owns the
   confirmation action; never invent or claim a save in prose.
-- For graph requests, inspect the saved recipe and real `prompt.recipe` schema, then produce a typed
-  graph proposal with valid connections. Do not resubmit a recipe draft merely because a recipe is used.
+- For a standard image graph request that names a saved recipe, supplies its field values, and uses typed
+  generation defaults, read that recipe and use the `saved_recipe_image_v1` graph template directly. The
+  template validates the real recipe, model, fields, ports, workflow, and price. Inspect graph schemas only
+  for nonstandard or unresolved graph shapes. Do not resubmit a recipe draft merely because a recipe is used.
+- If an older saved recipe lacks typed generation defaults but the current user message supplies the exact
+  model and settings, use `saved_recipe_image_v1` with one exact `derived_recipe_defaults_overrides` entry.
+  Copy `rules_json.intended_media_model` exactly as `model_key`; do not shorten or relabel it.
+  If any required generation setting is unresolved, ask one focused clarification instead of inspecting graph
+  schemas. This compatibility path is only for graph review; do not treat it as saved preset provenance.
 - When a saved recipe has `rules_json.media_generation`, use its exact model and generation defaults
   in the graph. When the user plainly asks to change one of those settings, list only that recipe id
   and the exact changed model or option value in `derived_recipe_defaults_overrides`. Never include an

@@ -122,7 +122,14 @@ class ValidateCurrentWorkflowArguments(BaseModel):
 
 class DerivedRecipeDefaultsOverride(BaseModel):
     recipe_id: str = Field(min_length=1, max_length=160)
-    model_key: Optional[str] = Field(default=None, max_length=160)
+    model_key: Optional[str] = Field(
+        default=None,
+        max_length=160,
+        description=(
+            "Exact Graph Studio model key. When a saved recipe returns "
+            "rules_json.intended_media_model, copy that value exactly."
+        ),
+    )
     default_options_json: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -130,8 +137,13 @@ class ProposeGraphOperationsArguments(BaseModel):
     summary: str = Field(min_length=1, max_length=800)
     operations: List[AssistantGraphOperation] = Field(default_factory=list, max_length=64)
     template_id: Optional[
-        Literal["preset_style_t2i_sandbox_v1", "preset_style_i2i_sandbox_v1"]
+        Literal[
+            "preset_style_t2i_sandbox_v1",
+            "preset_style_i2i_sandbox_v1",
+            "saved_recipe_image_v1",
+        ]
     ] = None
+    recipe_id: Optional[str] = Field(default=None, max_length=160)
     field_values: Optional[Dict[str, str]] = Field(default=None, min_length=1, max_length=3)
     questions: List[str] = Field(default_factory=list, max_length=8)
     warnings: List[str] = Field(default_factory=list, max_length=8)
@@ -567,6 +579,189 @@ PRESET_TEST_GRAPH_TEMPLATES = {
 }
 
 
+def _saved_recipe_graph_operations(
+    recipe_id: Optional[str],
+    field_values: Optional[Dict[str, str]],
+    requested_overrides: List[DerivedRecipeDefaultsOverride],
+) -> tuple[List[AssistantGraphOperation], Dict[str, Any]]:
+    recipe = store.get_prompt_recipe(str(recipe_id or ""))
+    if not recipe or str(recipe.get("status") or "") != "active":
+        raise KernelToolFailure(
+            code="saved_recipe_graph_recipe_required",
+            message="Choose an active saved Prompt Recipe before preparing its graph.",
+        )
+    image_input = (
+        recipe.get("image_input_json")
+        if isinstance(recipe.get("image_input_json"), dict)
+        else {}
+    )
+    configured_inputs = [
+        item
+        for item in [
+            *(recipe.get("input_variables_json") or []),
+            *(recipe.get("custom_fields_json") or []),
+        ]
+        if isinstance(item, dict)
+        and str(item.get("key") or "")
+        and bool(item.get("enabled", True))
+    ]
+    if str(image_input.get("mode") or "none") != "none" or any(
+        str(item.get("input_kind") or "none") == "image"
+        for item in configured_inputs
+    ):
+        raise KernelToolFailure(
+            code="saved_recipe_graph_template_unsupported",
+            message="This saved recipe needs an image-aware graph proposal.",
+        )
+    configured_by_key = {
+        str(item.get("key") or ""): item
+        for item in configured_inputs
+    }
+    supplied_values = {
+        str(key): str(value).strip()
+        for key, value in (field_values or {}).items()
+    }
+    invalid_keys = sorted(set(supplied_values) - set(configured_by_key))
+    invalid_values = sorted(
+        key
+        for key, value in supplied_values.items()
+        if not value or len(value) > 300
+    )
+    if invalid_keys or invalid_values:
+        raise KernelToolFailure(
+            code="saved_recipe_graph_field_value_invalid",
+            message="Use non-empty values for fields in the selected saved recipe.",
+            details={"invalid_keys": invalid_keys, "invalid_values": invalid_values},
+        )
+    template = str(recipe.get("system_prompt_template") or "")
+    missing_keys = [
+        key
+        for key, item in configured_by_key.items()
+        if key not in supplied_values
+        and not str(item.get("default_value") or "").strip()
+        and (bool(item.get("required")) or "{{" + key + "}}" in template)
+    ]
+    if missing_keys:
+        raise KernelToolFailure(
+            code="saved_recipe_graph_field_values_required",
+            message="Provide the missing saved-recipe field values before preparing its graph.",
+            details={"missing_field_keys": missing_keys},
+        )
+    try:
+        generation = prompt_recipe_media_generation(recipe)
+    except ServiceError as exc:
+        raise KernelToolFailure(
+            code="invalid_prompt_recipe_media_generation",
+            message=str(exc),
+            retryable=False,
+        ) from exc
+    recipe_id = str(recipe.get("recipe_id") or "")
+    requested_override = next(
+        (item for item in requested_overrides if item.recipe_id == recipe_id),
+        None,
+    )
+    generation_source = "saved_recipe"
+    if generation is None:
+        if (
+            requested_override is None
+            or not requested_override.model_key
+            or not requested_override.default_options_json
+        ):
+            raise KernelToolFailure(
+                code="saved_recipe_graph_generation_defaults_required",
+                message=(
+                    "This saved recipe predates typed generation defaults. "
+                    "Provide the exact model and settings requested in this turn."
+                ),
+            )
+        generation = {
+            "model_key": requested_override.model_key,
+            "default_options_json": dict(requested_override.default_options_json),
+        }
+        generation_source = "user_request"
+    elif requested_override is not None:
+        generation = {
+            **generation,
+            "model_key": requested_override.model_key or generation["model_key"],
+            "default_options_json": {
+                **generation["default_options_json"],
+                **requested_override.default_options_json,
+            },
+        }
+    definitions = registry.definitions_by_type()
+    matching_models = [
+        definition
+        for definition in definitions.values()
+        if str((definition.source or {}).get("model_key") or "")
+        == generation["model_key"]
+        and str((definition.source or {}).get("output_media_type") or "") == "image"
+    ]
+    if len(matching_models) != 1:
+        raise KernelToolFailure(
+            code="saved_recipe_graph_model_unavailable",
+            message="The saved recipe's image model is not uniquely available in Graph Studio.",
+            retryable=False,
+        )
+    model_definition = matching_models[0]
+    allowed_model_fields = {field.id for field in model_definition.fields}
+    model_fields = {
+        key: value
+        for key, value in generation["default_options_json"].items()
+        if key in allowed_model_fields
+    }
+    recipe_fields = {
+        "recipe_category": str(recipe.get("category") or "utility"),
+        "recipe_id": str(recipe.get("recipe_id") or ""),
+        **supplied_values,
+    }
+    operations = [
+        AssistantGraphOperation(
+            op="add_node",
+            node_ref="recipe_prompt",
+            node_type="prompt.recipe",
+            title=str(recipe.get("label") or "Saved Prompt Recipe"),
+            position={"x": 80, "y": 120},
+            fields=recipe_fields,
+        ),
+        AssistantGraphOperation(
+            op="add_node",
+            node_ref="recipe_model",
+            node_type=model_definition.type,
+            title=f"{model_definition.title} Test",
+            position={"x": 580, "y": 120},
+            fields=model_fields,
+        ),
+        AssistantGraphOperation(
+            op="add_node",
+            node_ref="recipe_preview",
+            node_type="preview.image",
+            title="Recipe Test Preview",
+            position={"x": 1040, "y": 120},
+        ),
+        AssistantGraphOperation(
+            op="connect_nodes",
+            source_ref="recipe_prompt",
+            source_port="text",
+            target_ref="recipe_model",
+            target_port="prompt",
+        ),
+        AssistantGraphOperation(
+            op="connect_nodes",
+            source_ref="recipe_model",
+            source_port="image",
+            target_ref="recipe_preview",
+            target_port="image",
+        ),
+    ]
+    return operations, {
+        "template_id": "saved_recipe_image_v1",
+        "template_recipe_id": str(recipe.get("recipe_id") or ""),
+        "template_model_key": generation["model_key"],
+        "template_field_keys": sorted(supplied_values),
+        "template_generation_source": generation_source,
+    }
+
+
 def _preset_test_graph_operations(
     template_id: str,
     context: KernelToolContext,
@@ -752,14 +947,33 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     if template_id:
         if operations:
             raise KernelToolFailure(
-                code="preset_test_template_operations_conflict",
-                message="A standard preset test graph cannot be combined with hand-authored graph operations.",
+                code=(
+                    "saved_recipe_graph_template_operations_conflict"
+                    if template_id == "saved_recipe_image_v1"
+                    else "preset_test_template_operations_conflict"
+                ),
+                message="A standard graph template cannot be combined with hand-authored graph operations.",
             )
-        operations, template_metadata = _preset_test_graph_operations(
-            template_id,
-            context,
-            options.field_values,
-        )
+        if template_id == "saved_recipe_image_v1":
+            operations, template_metadata = _saved_recipe_graph_operations(
+                options.recipe_id,
+                options.field_values,
+                options.derived_recipe_defaults_overrides,
+            )
+            if template_metadata["template_generation_source"] == "user_request":
+                if not context.user_message_id:
+                    raise KernelToolFailure(
+                        code="saved_recipe_graph_generation_request_required",
+                        message="The requested generation settings must be tied to the current user message.",
+                        retryable=False,
+                    )
+                template_metadata["template_generation_user_message_id"] = context.user_message_id
+        else:
+            operations, template_metadata = _preset_test_graph_operations(
+                template_id,
+                context,
+                options.field_values,
+            )
         metadata.update(template_metadata)
     elif not operations:
         raise KernelToolFailure(
@@ -821,7 +1035,11 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
         override.recipe_id: override
         for override in options.derived_recipe_defaults_overrides
     }
-    used_overrides = set()
+    used_overrides = (
+        {str(graph_plan.metadata.get("template_recipe_id") or "")}
+        if graph_plan.metadata.get("template_generation_source") == "user_request"
+        else set()
+    )
     derived_defaults_overrides = []
     for edge in materialized_workflow.edges:
         source = nodes_by_id.get(edge.source)
@@ -897,6 +1115,10 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
         }
         graph_plan.warnings.append(
             "This graph changes generation defaults inherited from a preset-derived recipe."
+        )
+    elif graph_plan.metadata.get("template_generation_source") == "user_request":
+        graph_plan.warnings.append(
+            "This graph uses generation settings from the current request because the saved recipe predates typed preset provenance."
         )
     validation = validate_workflow(planned_workflow)
     layout_errors = graph_plan_layout_errors(base_workflow, planned_workflow, graph_plan)

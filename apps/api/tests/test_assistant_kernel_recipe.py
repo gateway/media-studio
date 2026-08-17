@@ -1036,6 +1036,180 @@ def test_recipe_without_image_input_builds_graph_without_analyzing_attached_refe
     assert any(artifact.kind == "graph_proposal" for artifact in result.artifacts)
 
 
+def test_saved_recipe_template_builds_complete_image_graph_without_catalog_walk(
+    client,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    service = importlib.import_module("app.service_prompt_recipe_validation")
+    schemas = importlib.import_module("app.schemas")
+    store = importlib.import_module("app.store")
+    store_assistant = importlib.import_module("app.store_assistant")
+    session = _session(client)
+    draft = _recipe_draft("bounded_recipe_graph")
+    draft["input_variables_json"] = [
+        {
+            "key": "destination",
+            "label": "Destination",
+            "enabled": True,
+            "required": True,
+        },
+        {
+            "key": "travel_tagline",
+            "label": "Travel Tagline",
+            "enabled": True,
+            "required": True,
+        },
+        {
+            "key": "signpost_places",
+            "label": "Signpost Places",
+            "enabled": True,
+            "required": True,
+        },
+    ]
+    draft["custom_fields_json"] = []
+    draft["system_prompt_template"] = (
+        "Create a travel poster for {{destination}} with {{travel_tagline}} "
+        "and signposts for {{signpost_places}}."
+    )
+    draft["rules_json"] = {
+        "intended_media_model": "gpt-image-2-text-to-image",
+        "generation_defaults": {"resolution": "2K", "aspect_ratio": "3:4"},
+    }
+    saved = service.upsert_prompt_recipe(
+        schemas.PromptRecipeUpsertRequest.model_validate(draft)
+    )
+    tools.registry.invalidate()
+    steps = iter(
+        [
+            {
+                "capability": "graph_builder",
+                "tool_call": {
+                    "name": "search_prompt_recipes",
+                    "arguments": {"query": "Storyboard Prompt Writer", "limit": 5},
+                },
+            },
+            {
+                "capability": "graph_builder",
+                "tool_call": {
+                    "name": "get_prompt_recipe",
+                    "arguments": {"recipe_id_or_key": saved["recipe_id"]},
+                },
+            },
+            {
+                "capability": "graph_builder",
+                "tool_call": {
+                    "name": "propose_graph_operations",
+                    "arguments": {
+                        "summary": "Build the saved Lisbon travel recipe graph.",
+                        "template_id": "saved_recipe_image_v1",
+                        "recipe_id": saved["recipe_id"],
+                        "field_values": {
+                            "destination": "Lisbon, Portugal",
+                            "travel_tagline": "Sunlit stories by the sea",
+                            "signpost_places": "Lisbon, Sintra, Cascais",
+                        },
+                        "derived_recipe_defaults_overrides": [
+                            {
+                                "recipe_id": saved["recipe_id"],
+                                "model_key": "gpt-image-2-text-to-image",
+                                "default_options_json": {
+                                    "resolution": "2K",
+                                    "aspect_ratio": "3:4",
+                                },
+                            }
+                        ],
+                    },
+                },
+                "reply": "The saved-recipe graph is ready for review.",
+            },
+        ]
+    )
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+
+    result = kernel.run_assistant_kernel_turn(
+        session=session,
+        user_text=(
+            "Use the saved recipe for Lisbon with these three fields at its approved "
+            "GPT Image 2, 2K, 3:4 settings."
+        ),
+        workflow=kernel.GraphWorkflow(name="Fresh recipe workflow"),
+        canvas_context={},
+        assistant_mode="graph",
+        client_user_message_id="msg-bounded-recipe-graph",
+    )
+    graph_artifact = next(
+        artifact.data
+        for artifact in result.artifacts
+        if artifact.kind == "graph_proposal"
+    )
+
+    assert result.trace.termination == "completed"
+    assert result.trace.step_count == 3
+    assert [trace.tool_name for trace in result.trace.tool_calls] == [
+        "search_prompt_recipes",
+        "get_prompt_recipe",
+        "propose_graph_operations",
+    ]
+    assert graph_artifact["confirmable"] is True
+    assert graph_artifact["diff_summary"]["nodes_added"] == [
+        {
+            "id": "assistant-recipe-prompt",
+            "type": "prompt.recipe",
+            "title": "Storyboard Prompt Writer",
+        },
+        {
+            "id": "assistant-recipe-model",
+            "type": "model.kie.gpt_image_2_text_to_image",
+            "title": "GPT Image 2 Text to Image Test",
+        },
+        {
+            "id": "assistant-recipe-preview",
+            "type": "preview.image",
+            "title": "Recipe Test Preview",
+        },
+    ]
+    workflow = graph_artifact["workflow"]
+    assert len(workflow["nodes"]) == 3
+    assert len(workflow["edges"]) == 2
+    recipe_node, model_node, _preview_node = workflow["nodes"]
+    assert recipe_node["fields"]["recipe_id"] == saved["recipe_id"]
+    assert recipe_node["fields"]["destination"] == "Lisbon, Portugal"
+    assert recipe_node["fields"]["travel_tagline"] == "Sunlit stories by the sea"
+    assert recipe_node["fields"]["signpost_places"] == "Lisbon, Sintra, Cascais"
+    assert model_node["fields"]["resolution"] == "2K"
+    assert model_node["fields"]["aspect_ratio"] == "3:4"
+    assert graph_artifact["pricing"]["pricing_summary"]["total"]["estimated_credits"] == 10.0
+    stored_plan = store_assistant.get_assistant_plan(graph_artifact["proposal_id"])
+    assert stored_plan["plan_json"]["metadata"]["template_generation_source"] == "user_request"
+
+    missing_field = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Build an incomplete saved recipe graph.",
+            "template_id": "saved_recipe_image_v1",
+            "recipe_id": saved["recipe_id"],
+            "field_values": {
+                "destination": "Lisbon, Portugal",
+                "travel_tagline": "Sunlit stories by the sea",
+            },
+        },
+        capability="graph_builder",
+        context=tools.KernelToolContext(
+            workflow=tools.GraphWorkflow(name="Fresh incomplete workflow"),
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=session,
+            user_text="Use the saved recipe for Lisbon.",
+        ),
+    )
+
+    assert missing_field.trace.error is not None
+    assert missing_field.trace.error.code == "saved_recipe_graph_field_values_required"
+    assert missing_field.trace.error.details == {"missing_field_keys": ["signpost_places"]}
+
+
 def test_recipe_session_context_exposes_latest_saved_artifact(client) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
     store_assistant = importlib.import_module("app.store_assistant")
