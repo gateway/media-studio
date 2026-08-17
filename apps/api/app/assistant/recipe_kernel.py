@@ -16,6 +16,7 @@ from ..schemas import (
 from ..service_errors import ServiceError
 from ..service_prompt_recipe_validation import validate_prompt_recipe_payload
 from ..store_support import new_id
+from .provenance import recipe_quality_contract_hash
 
 
 class RecipeKernelError(Exception):
@@ -259,6 +260,16 @@ def propose_prompt_recipe_draft(arguments: BaseModel, context: Any) -> Dict[str,
         requested_recipe_id=options.existing_recipe_id,
     )
     draft = _validated_draft(options.draft, recipe_id=editable_recipe_id)
+    run_evidence = summary.get("kernel_recipe_run_evidence")
+    if (
+        isinstance(run_evidence, dict)
+        and str(run_evidence.get("recipe_quality_contract_hash") or "")
+        != recipe_quality_contract_hash(draft)
+    ):
+        summary.pop("kernel_recipe_run_association", None)
+        summary.pop("kernel_recipe_run_evidence", None)
+        summary.pop("kernel_recipe_output_comparison", None)
+        summary.pop("kernel_recipe_quality", None)
     if isinstance(current_draft, dict) and context.artifact_intent == "revise_recipe":
         if _full_recipe_contract(current_draft) == draft:
             raise RecipeKernelError(

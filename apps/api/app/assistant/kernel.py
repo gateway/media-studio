@@ -22,6 +22,7 @@ from .prompt_assets import assistant_thread_prompt_assembly
 from .provider_support import (
     AssistantProviderChatError,
     assistant_codex_session_key,
+    assistant_provider_generation,
     resolve_assistant_provider_runtime,
 )
 from .schemas import (
@@ -53,8 +54,8 @@ KERNEL_CAPABILITY_PROMPTS: Dict[AssistantKernelCapability, str] = {
 KERNEL_ARTIFACT_INTENTS: Dict[AssistantKernelCapability, frozenset[AssistantArtifactIntent]] = {
     "general": frozenset({"none"}),
     "graph_builder": frozenset({"none"}),
-    "preset_builder": frozenset({"none", "draft_preset", "revise_preset", "save_preset"}),
-    "recipe_builder": frozenset({"none", "draft_recipe", "revise_recipe", "save_recipe"}),
+    "preset_builder": frozenset({"none", "draft_preset", "revise_preset", "save_preset", "quality_decision"}),
+    "recipe_builder": frozenset({"none", "draft_recipe", "revise_recipe", "save_recipe", "quality_decision"}),
     "story_builder": frozenset({"none", "update_story", "propose_production_plan"}),
     "run_debugger": frozenset({"none", "diagnose_run"}),
 }
@@ -65,6 +66,7 @@ KERNEL_REQUIRED_ARTIFACTS: Dict[AssistantArtifactIntent, str] = {
     "draft_recipe": "recipe_draft",
     "revise_recipe": "recipe_draft",
     "save_recipe": "recipe_draft",
+    "quality_decision": "quality_decision",
     "update_story": "story_state",
     "propose_production_plan": "production_plan",
     "diagnose_run": "run_evidence",
@@ -90,6 +92,10 @@ KERNEL_ARTIFACT_ERRORS = {
         "run_evidence_required",
         "Before diagnosing or proposing a fix, call read_run_evidence.",
     ),
+    "quality_decision": (
+        "typed_quality_decision_required",
+        "Before replying, record the user's explicit output-quality decision with the capability's quality-decision tool.",
+    ),
 }
 
 
@@ -104,10 +110,49 @@ def _provider_step_schema() -> Dict[str, Any]:
     }
 
 
+def _sync_kernel_prompt_thread(
+    session: Dict[str, Any],
+    thread_assembly: Any,
+) -> Dict[str, Any]:
+    fingerprint = hashlib.sha256(
+        (
+            thread_assembly.base_instructions
+            + "\n\n"
+            + thread_assembly.developer_instructions
+        ).encode("utf-8")
+    ).hexdigest()
+    snapshot = (
+        dict(session.get("state_snapshot_json"))
+        if isinstance(session.get("state_snapshot_json"), dict)
+        else {}
+    )
+    if str(snapshot.get("kernel_prompt_fingerprint") or "") == fingerprint:
+        return session
+    updated = {
+        **session,
+        "state_snapshot_json": {
+            **snapshot,
+            "kernel_prompt_fingerprint": fingerprint,
+        },
+    }
+    if session.get("provider_thread_id"):
+        enhancement_provider.codex_local_provider.close_codex_local_skill_session(
+            assistant_codex_session_key(session)
+        )
+        updated["provider_thread_id"] = None
+        updated["state_snapshot_json"]["provider_generation"] = (
+            assistant_provider_generation(session) + 1
+        )
+    stored = store_assistant.create_or_update_assistant_session(updated)
+    session.update(stored)
+    return session
+
+
 def _kernel_instruction() -> str:
     catalog = kernel_tool_catalog()
     return (
-        "Select exactly one Media Assistant capability and one artifact_intent from the semantic request. "
+        "Select exactly one Media Assistant capability and one artifact_intent from the semantic request. Use "
+        "quality_decision when the user approves, continues refining, or stops after an active output comparison. "
         "Repeat both values unchanged on every step in this turn. The UI mode is only a non-binding hint. "
         "Use general for conversation that needs no Media Studio state; graph_builder to inspect, validate, or propose "
         "changes to a workflow; preset_builder to draft, revise, test, or prepare a Media Preset for confirmation; "
@@ -136,7 +181,8 @@ def _kernel_instruction() -> str:
         "otherwise use search_prompt_recipes then get_prompt_recipe. Validate and persist the "
         "complete editable contract through propose_prompt_recipe_draft, and request save confirmation only when the user asks. "
         "For a completed recipe image run, call read_run_evidence before analyze_recipe_output, compare the generated "
-        "pixels with attached source references, and keep any prompt refinement or another paid run confirmation-gated. "
+        "pixels with attached source references, and persist the user's explicit approve, continue, or stop choice with "
+        "record_recipe_quality_decision. Keep any prompt refinement or another paid run confirmation-gated. "
         "For story work, keep the premise, characters, world rules, continuity facts, and shots in update_story_state. "
         "For an end-to-end production request, use propose_production_plan to persist ordered work with stable ids and "
         "dependencies. Ground model limits with list_media_models first and express arithmetic as typed derived constraints. "
@@ -400,6 +446,11 @@ def _kernel_session_context(
         ),
         "active_recipe_output_comparison": (
             recipe_output_comparison if isinstance(recipe_output_comparison, dict) else None
+        ),
+        "active_recipe_quality": (
+            summary.get("kernel_recipe_quality")
+            if isinstance(summary.get("kernel_recipe_quality"), dict)
+            else None
         ),
         "active_story_state": story_state if isinstance(story_state, dict) else None,
         "active_production_plan": production_plan if isinstance(production_plan, dict) else None,
@@ -768,6 +819,7 @@ def run_assistant_kernel_turn(
         tuple(KERNEL_CAPABILITY_PROMPTS.values()),
         developer_addendum=_kernel_instruction(),
     )
+    session = _sync_kernel_prompt_thread(session, thread_assembly)
     messages: List[Dict[str, Any]] = [
         _kernel_user_turn_message(
             user_text=user_text,
@@ -834,6 +886,36 @@ def run_assistant_kernel_turn(
             compact_before_turn=provider_call_index == 1,
         )
         step = AssistantKernelProviderStep.model_validate(raw_step)
+        quality_decision = step.guidance.quality_decision
+        quality_tool = {
+            "preset_builder": "record_preset_quality_decision",
+            "recipe_builder": "record_recipe_quality_decision",
+        }.get(step.capability)
+        summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
+        has_active_comparison = isinstance(
+            summary.get(
+                "kernel_preset_output_comparison"
+                if step.capability == "preset_builder"
+                else "kernel_recipe_output_comparison"
+            ),
+            dict,
+        )
+        if (
+            quality_decision != "none"
+            and quality_tool
+            and has_active_comparison
+            and step.tool_call is None
+        ):
+            step = AssistantKernelProviderStep.model_validate(
+                {
+                    **step.model_dump(mode="json"),
+                    "artifact_intent": "quality_decision",
+                    "tool_call": {
+                        "name": quality_tool,
+                        "arguments": json.dumps({"decision": quality_decision}),
+                    },
+                }
+            )
         if step.artifact_intent not in KERNEL_ARTIFACT_INTENTS[step.capability]:
             messages = [
                 _kernel_tool_result_message(
@@ -957,6 +1039,7 @@ def run_assistant_kernel_turn(
                 "analyze_preset_output": "output_comparison",
                 "analyze_recipe_output": "output_comparison",
                 "record_preset_quality_decision": "quality_decision",
+                "record_recipe_quality_decision": "quality_decision",
                 "propose_media_preset_draft": "preset_draft",
                 "propose_prompt_recipe_draft": "recipe_draft",
                 "update_story_state": "story_state",
@@ -992,7 +1075,10 @@ def run_assistant_kernel_turn(
                 step.tool_call.name == "propose_graph_operations"
                 and not has_active_production_plan
             ) or (
-                step.tool_call.name == "record_preset_quality_decision"
+                step.tool_call.name in {
+                    "record_preset_quality_decision",
+                    "record_recipe_quality_decision",
+                }
                 and isinstance(execution.result, dict)
                 and execution.result.get("decision") in {"approve", "stop"}
                 and bool(str(step.reply or "").strip())

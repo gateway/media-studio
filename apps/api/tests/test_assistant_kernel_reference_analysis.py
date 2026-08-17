@@ -299,6 +299,16 @@ def test_recipe_output_comparison_uses_exact_run_output_and_attached_references(
     session = store_assistant.create_or_update_assistant_session(
         {**session, "summary_json": summary}
     )
+    monkeypatch.setattr(
+        analysis_module.store,
+        "get_graph_run",
+        lambda _run_id: {"run_id": "grun-recipe-output"},
+    )
+    monkeypatch.setattr(
+        importlib.import_module("app.assistant.run_confirmation"),
+        "bind_completed_recipe_run",
+        lambda _session_id, _run: summary["kernel_recipe_run_evidence"],
+    )
     monkeypatch.setattr(analysis_module, "_asset_image_path", lambda _asset_id, _kind="preset": str(output_path))
     captured_paths = []
 
@@ -457,6 +467,16 @@ def test_recipe_output_comparison_reports_unsupported_provider_for_recipe(
     }
     session = store_assistant.create_or_update_assistant_session(
         {**session, "summary_json": summary}
+    )
+    monkeypatch.setattr(
+        analysis_module.store,
+        "get_graph_run",
+        lambda _run_id: {"run_id": "grun-unsupported-recipe-output"},
+    )
+    monkeypatch.setattr(
+        importlib.import_module("app.assistant.run_confirmation"),
+        "bind_completed_recipe_run",
+        lambda _session_id, _run: summary["kernel_recipe_run_evidence"],
     )
     monkeypatch.setattr(
         analysis_module,
@@ -1001,6 +1021,72 @@ def test_preset_quality_approval_fails_without_output_comparison(client) -> None
     assert execution.trace.error.code == "preset_output_comparison_required"
 
 
+def test_quality_decision_intent_requires_typed_record_before_reply(
+    client,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    store_assistant = importlib.import_module("app.store_assistant")
+    session = client.post(
+        "/media/assistant/sessions",
+        json={"owner_kind": "standalone", "provider_kind": "codex_local"},
+    ).json()
+    session = store_assistant.create_or_update_assistant_session(
+        {
+            **session,
+            "summary_json": {
+                "kernel_preset_run_evidence": {
+                    "assistant_session_id": session["assistant_session_id"],
+                    "run_id": "grun-required-quality",
+                    "status": "completed",
+                    "output_asset_ids": ["asset-required-quality"],
+                },
+                "kernel_preset_output_comparison": {
+                    "comparison_id": "presetcmp-required-quality",
+                    "run_id": "grun-required-quality",
+                    "output_asset_id": "asset-required-quality",
+                    "comparison": {
+                        "matches": ["approved visual language"],
+                        "missing_or_drifting": [],
+                        "prompt_delta": "",
+                        "preserve_traits": ["approved visual language"],
+                        "meaningful_gap": False,
+                    },
+                    "quality_state": "reviewed",
+                },
+            },
+        }
+    )
+    steps = iter(
+        [
+            {
+                "capability": "preset_builder",
+                "artifact_intent": "none",
+                "reply": "Approval recorded.",
+                "guidance": {
+                    "evidence_sources": ["user_request", "session_state"],
+                    "satisfaction_state": "satisfied",
+                    "quality_decision": "approve",
+                },
+            },
+        ]
+    )
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+
+    result = kernel.run_assistant_kernel_turn(
+        session=session,
+        user_text="This is good enough. Approve it.",
+        workflow=None,
+        canvas_context={},
+        assistant_mode="preset",
+    )
+
+    assert result.trace.tool_calls[-1].tool_name == "record_preset_quality_decision"
+    assert result.artifacts[-1].kind == "quality_decision"
+    stored = store_assistant.get_assistant_session(session["assistant_session_id"])
+    assert stored["summary_json"]["kernel_preset_quality"]["quality_state"] == "quality_verified"
+
+
 def test_preset_quality_continue_requires_meaningful_review_gap(client) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
     store_assistant = importlib.import_module("app.store_assistant")
@@ -1128,6 +1214,7 @@ def test_output_comparison_tools_are_truthfully_classified_as_mutating(client) -
     assert preset_catalog["analyze_preset_output"]["read_only"] is False
     assert preset_catalog["record_preset_quality_decision"]["read_only"] is False
     assert recipe_catalog["analyze_recipe_output"]["read_only"] is False
+    assert recipe_catalog["record_recipe_quality_decision"]["read_only"] is False
 
 
 def test_preset_output_path_uses_typed_asset_ref_and_image_constraint(client, monkeypatch, tmp_path) -> None:

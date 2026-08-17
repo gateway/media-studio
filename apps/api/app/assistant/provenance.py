@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 from ..graph.normalization import materialize_workflow_defaults
 from ..graph.schemas import GraphWorkflow
-from ..schemas import PresetUpsertRequest
+from ..schemas import PresetUpsertRequest, PromptRecipeUpsertRequest
 
 
 _PRESET_QUALITY_CONTRACT_KEYS = (
@@ -19,6 +19,19 @@ _PRESET_QUALITY_CONTRACT_KEYS = (
     "requires_image",
     "input_schema_json",
     "input_slots_json",
+    "default_options_json",
+    "rules_json",
+)
+
+_RECIPE_QUALITY_CONTRACT_KEYS = (
+    "system_prompt_template",
+    "image_analysis_prompt",
+    "user_prompt_placeholder",
+    "output_format",
+    "output_contract_json",
+    "input_variables_json",
+    "custom_fields_json",
+    "image_input_json",
     "default_options_json",
     "rules_json",
 )
@@ -121,5 +134,12 @@ def recipe_plan_workflow_fingerprint(workflow: GraphWorkflow) -> str:
 def preset_quality_contract_hash(draft: Dict[str, Any]) -> str:
     normalized = PresetUpsertRequest.model_validate(draft).model_dump(mode="json")
     contract = {key: normalized.get(key) for key in _PRESET_QUALITY_CONTRACT_KEYS}
+    canonical = json.dumps(contract, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def recipe_quality_contract_hash(recipe: Dict[str, Any]) -> str:
+    normalized = PromptRecipeUpsertRequest.model_validate(recipe).model_dump(mode="json")
+    contract = {key: normalized.get(key) for key in _RECIPE_QUALITY_CONTRACT_KEYS}
     canonical = json.dumps(contract, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

@@ -47,8 +47,11 @@ class GeneratedOutputComparison(BaseModel):
         return self
 
 
-class RecordPresetQualityDecisionArguments(BaseModel):
+class RecordQualityDecisionArguments(BaseModel):
     decision: Literal["approve", "continue", "stop"]
+
+
+RecordPresetQualityDecisionArguments = RecordQualityDecisionArguments
 
 
 class ReferenceAnalysisError(Exception):
@@ -214,6 +217,23 @@ def _analyze_output(arguments: BaseModel, context: Any, *, output_kind: Literal[
                 code="preset_style_reference_mismatch",
                 message="Review only the style references that produced this preset's visual analysis.",
             )
+    else:
+        from .run_confirmation import RunEvidenceError, bind_completed_recipe_run
+
+        run = store.get_graph_run(str(run_evidence.get("run_id") or ""))
+        if not run:
+            raise ReferenceAnalysisError(
+                code="recipe_run_missing",
+                message="The reviewed recipe run is unavailable.",
+            )
+        try:
+            run_evidence = bind_completed_recipe_run(
+                str(session.get("assistant_session_id") or ""), run
+            )
+        except RunEvidenceError as exc:
+            raise ReferenceAnalysisError(code=exc.code, message=str(exc)) from exc
+        session = _active_session(context)
+        summary = dict(session.get("summary_json") or {})
     output_path = (
         _asset_image_path(options.output_asset_id)
         if output_kind == "preset"
@@ -317,8 +337,7 @@ def _analyze_output(arguments: BaseModel, context: Any, *, output_kind: Literal[
         "quality_state": "reviewed",
     }
     summary[comparison_key] = result
-    if output_kind == "preset":
-        summary.pop("kernel_preset_quality", None)
+    summary.pop(f"kernel_{output_kind}_quality", None)
     store_assistant.create_or_update_assistant_session({**session, "summary_json": summary})
     return result
 
@@ -331,17 +350,46 @@ def analyze_recipe_output(arguments: BaseModel, context: Any) -> Dict[str, Any]:
     return _analyze_output(arguments, context, output_kind="recipe")
 
 
-def record_preset_quality_decision(arguments: BaseModel, context: Any) -> Dict[str, Any]:
-    options = RecordPresetQualityDecisionArguments.model_validate(arguments)
+def _record_quality_decision(
+    arguments: BaseModel,
+    context: Any,
+    *,
+    output_kind: Literal["preset", "recipe"],
+) -> Dict[str, Any]:
+    options = RecordQualityDecisionArguments.model_validate(arguments)
     session = _active_session(context)
     summary = dict(session.get("summary_json") or {})
-    comparison = summary.get("kernel_preset_output_comparison")
-    run_evidence = summary.get("kernel_preset_run_evidence")
+    comparison = summary.get(f"kernel_{output_kind}_output_comparison")
+    run_evidence = summary.get(f"kernel_{output_kind}_run_evidence")
     if not isinstance(comparison, dict):
         raise ReferenceAnalysisError(
-            code="preset_output_comparison_required",
+            code=f"{output_kind}_output_comparison_required",
             message="Review the actual generated output before recording a quality decision.",
         )
+    if output_kind == "recipe":
+        from .run_confirmation import RunEvidenceError, bind_completed_recipe_run
+
+        run = store.get_graph_run(str(comparison.get("run_id") or ""))
+        if not run:
+            raise ReferenceAnalysisError(
+                code="recipe_run_missing",
+                message="The reviewed recipe run is unavailable.",
+            )
+        try:
+            run_evidence = bind_completed_recipe_run(
+                str(session.get("assistant_session_id") or ""),
+                run,
+            )
+        except RunEvidenceError as exc:
+            raise ReferenceAnalysisError(code=exc.code, message=str(exc)) from exc
+        session = _active_session(context)
+        summary = dict(session.get("summary_json") or {})
+        comparison = summary.get("kernel_recipe_output_comparison")
+        if not isinstance(comparison, dict):
+            raise ReferenceAnalysisError(
+                code="recipe_output_comparison_stale",
+                message="Review the latest generated output before recording a quality decision.",
+            )
     output_asset_id = str(comparison.get("output_asset_id") or "")
     comparison_result = (
         comparison.get("comparison")
@@ -354,13 +402,13 @@ def record_preset_quality_decision(arguments: BaseModel, context: Any) -> Dict[s
         or output_asset_id not in list(run_evidence.get("output_asset_ids") or [])
     ):
         raise ReferenceAnalysisError(
-            code="preset_output_comparison_stale",
+            code=f"{output_kind}_output_comparison_stale",
             message="Review the latest generated output before recording a quality decision.",
         )
     user_text = str(getattr(context, "user_text", "") or "").strip()
     if not user_text:
         raise ReferenceAnalysisError(
-            code="preset_quality_user_decision_required",
+            code=f"{output_kind}_quality_user_decision_required",
             message="A quality decision must come from the user's current message.",
         )
     if options.decision == "continue" and (
@@ -368,7 +416,7 @@ def record_preset_quality_decision(arguments: BaseModel, context: Any) -> Dict[s
         or not str(comparison_result.get("prompt_delta") or "").strip()
     ):
         raise ReferenceAnalysisError(
-            code="preset_refinement_delta_missing",
+            code=f"{output_kind}_refinement_delta_missing",
             message="The visual review did not identify a meaningful prompt improvement to apply.",
         )
     quality_state = {
@@ -386,9 +434,30 @@ def record_preset_quality_decision(arguments: BaseModel, context: Any) -> Dict[s
         "user_statement_hash": hashlib.sha256(user_text.encode("utf-8")).hexdigest(),
         "recorded_at": store_assistant.utcnow_iso(),
     }
-    summary["kernel_preset_quality"] = result
+    if output_kind == "recipe":
+        result.update(
+            {
+                key: run_evidence[key]
+                for key in (
+                    "recipe_plan_id",
+                    "recipe_id",
+                    "recipe_quality_contract_hash",
+                    "workflow_fingerprint",
+                    "eligible_model_node_ids",
+                )
+            }
+        )
+    summary[f"kernel_{output_kind}_quality"] = result
     store_assistant.create_or_update_assistant_session({**session, "summary_json": summary})
     return result
+
+
+def record_preset_quality_decision(arguments: BaseModel, context: Any) -> Dict[str, Any]:
+    return _record_quality_decision(arguments, context, output_kind="preset")
+
+
+def record_recipe_quality_decision(arguments: BaseModel, context: Any) -> Dict[str, Any]:
+    return _record_quality_decision(arguments, context, output_kind="recipe")
 
 
 def analyze_reference_images(arguments: BaseModel, context: Any) -> Dict[str, Any]:

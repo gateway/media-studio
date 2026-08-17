@@ -15,7 +15,7 @@ def _recipe_workflow() -> dict:
                 "id": "recipe-prompt",
                 "type": "prompt.recipe",
                 "position": {"x": 0, "y": 0},
-                "fields": {"recipe_id": "recipe-travel-poster"},
+                "fields": {"recipe_id": "prompt-recipe-image-prompt-director"},
             },
             {
                 "id": "recipe-model",
@@ -50,7 +50,8 @@ def _recipe_workflow() -> dict:
     }
 
 
-def _session(client, store_assistant, workflow: dict, run_id: str) -> dict:
+def _session(client, app_modules, workflow: dict, run_id: str) -> dict:
+    store_assistant = app_modules["store_assistant"]
     session = client.post(
         "/media/assistant/sessions",
         json={
@@ -62,6 +63,28 @@ def _session(client, store_assistant, workflow: dict, run_id: str) -> dict:
     ).json()
     fingerprint = importlib.import_module("app.assistant.provenance").workflow_fingerprint(
         importlib.import_module("app.graph.schemas").GraphWorkflow.model_validate(workflow)
+    )
+    provenance = importlib.import_module("app.assistant.provenance")
+    recipe_id = workflow["nodes"][0]["fields"]["recipe_id"]
+    recipe = app_modules["store"].get_prompt_recipe(recipe_id)
+    plan = store_assistant.create_or_update_assistant_plan(
+        {
+            "assistant_session_id": session["assistant_session_id"],
+            "status": "applied",
+            "capability": "recipe_builder",
+            "plan_json": {
+                "metadata": {
+                    "kernel_proposal": True,
+                    "template_id": "saved_recipe_image_v1",
+                    "template_recipe_id": recipe_id,
+                    "recipe_quality_contract_hash": provenance.recipe_quality_contract_hash(recipe),
+                }
+            },
+            "validation_json": {"valid": True, "errors": [], "warnings": []},
+            "pricing_json": {},
+            "workflow_json": workflow,
+            "applied_workflow_id": workflow["workflow_id"],
+        }
     )
     return store_assistant.create_or_update_assistant_session(
         {
@@ -76,6 +99,17 @@ def _session(client, store_assistant, workflow: dict, run_id: str) -> dict:
                     "consumed": True,
                     "confirmed_at": store_assistant.utcnow_iso(),
                 },
+                "kernel_recipe_run_association": {
+                    "assistant_session_id": session["assistant_session_id"],
+                    "recipe_plan_id": plan["assistant_plan_id"],
+                    "recipe_id": recipe_id,
+                    "recipe_quality_contract_hash": provenance.recipe_quality_contract_hash(recipe),
+                    "workflow_fingerprint": fingerprint,
+                    "confirmation_token_hash": "confirmation-hash",
+                    "run_id": run_id,
+                    "eligible_model_node_ids": ["recipe-model"],
+                    "associated_at": store_assistant.utcnow_iso(),
+                },
             },
         }
     )
@@ -89,7 +123,32 @@ def _completed_run(store, workflow: dict, run_id: str, *, node_id: str = "recipe
             "workflow_json": workflow,
             "status": "completed",
         },
-        [],
+        [
+            {
+                "node_id": "recipe-prompt",
+                "node_type": "prompt.recipe",
+                "status": "completed",
+                "input_snapshot_json": {
+                    "recipe_id": workflow["nodes"][0]["fields"]["recipe_id"]
+                },
+            },
+            {
+                "node_id": "recipe-model",
+                "node_type": "model.kie.gpt_image_2_text_to_image",
+                "status": "completed",
+            },
+            *(
+                [
+                    {
+                        "node_id": node_id,
+                        "node_type": "model.kie.gpt_image_2_text_to_image",
+                        "status": "completed",
+                    }
+                ]
+                if node_id != "recipe-model"
+                else []
+            ),
+        ],
     )
     store.create_graph_artifact(
         {
@@ -142,7 +201,7 @@ def test_completed_recipe_run_is_bound_to_exact_session_confirmation(client, app
     run = _completed_run(app_modules["store"], workflow, "run-recipe-evidence")
     session = _session(
         client,
-        app_modules["store_assistant"],
+        app_modules,
         workflow,
         run["run_id"],
     )
@@ -152,9 +211,13 @@ def test_completed_recipe_run_is_bound_to_exact_session_confirmation(client, app
     assert execution.trace.error is None
     assert execution.result["recipe_run"] == {
         "assistant_session_id": session["assistant_session_id"],
+        "recipe_plan_id": session["summary_json"]["kernel_recipe_run_association"]["recipe_plan_id"],
+        "recipe_id": "prompt-recipe-image-prompt-director",
+        "recipe_quality_contract_hash": session["summary_json"]["kernel_recipe_run_association"]["recipe_quality_contract_hash"],
         "run_id": run["run_id"],
         "workflow_fingerprint": session["summary_json"]["kernel_run_confirmation"]["workflow_fingerprint"],
         "status": "completed",
+        "eligible_model_node_ids": ["recipe-model"],
         "output_asset_ids": ["asset-run-recipe-evidence"],
     }
     stored = app_modules["store_assistant"].get_assistant_session(session["assistant_session_id"])
@@ -210,10 +273,11 @@ def test_recipe_confirmation_settles_first_persisted_identity_without_accepting_
                 "status": "applied",
                 "capability": "graph_builder",
                 "plan_json": {
-                    "metadata": {
-                        "kernel_proposal": True,
-                        "template_id": "saved_recipe_image_v1",
-                    }
+                        "metadata": {
+                            "kernel_proposal": True,
+                            "template_id": "saved_recipe_image_v1",
+                            "template_recipe_id": workflow["nodes"][0]["fields"]["recipe_id"],
+                        }
                 },
                 "validation_json": {"valid": True, "errors": [], "warnings": []},
                 "pricing_json": {},
@@ -265,6 +329,13 @@ def test_recipe_confirmation_settles_first_persisted_identity_without_accepting_
     assert confirmation["workflow_fingerprint"] == provenance.workflow_fingerprint(
         graph_schemas.GraphWorkflow.model_validate(persisted_workflow)
     )
+    association = stored["summary_json"]["kernel_recipe_run_association"]
+    assert association["assistant_session_id"] == session["assistant_session_id"]
+    assert association["recipe_plan_id"] == confirmation["recipe_plan_id"]
+    assert association["recipe_id"] == workflow["nodes"][0]["fields"]["recipe_id"]
+    assert association["run_id"] == started.json()["run_id"]
+    assert association["eligible_model_node_ids"] == ["recipe-model"]
+    assert association["recipe_quality_contract_hash"]
     plan = app_modules["store_assistant"].get_assistant_plan(
         confirmation["recipe_plan_id"]
     )
@@ -381,7 +452,7 @@ def test_recipe_run_evidence_rejects_older_matching_run(client, app_modules) -> 
     older = _completed_run(app_modules["store"], workflow, "run-older-recipe")
     session = _session(
         client,
-        app_modules["store_assistant"],
+        app_modules,
         workflow,
         associated["run_id"],
     )
@@ -411,7 +482,7 @@ def test_recipe_run_evidence_rejects_output_from_disconnected_model(client, app_
         "run-disconnected-recipe-output",
         node_id="unrelated-model",
     )
-    session = _session(client, app_modules["store_assistant"], workflow, run["run_id"])
+    session = _session(client, app_modules, workflow, run["run_id"])
 
     execution = _read_recipe_run(tools, workflow, session, run["run_id"])
 
@@ -419,6 +490,221 @@ def test_recipe_run_evidence_rejects_output_from_disconnected_model(client, app_
     assert execution.trace.error.code == "recipe_output_missing"
     stored = app_modules["store_assistant"].get_assistant_session(session["assistant_session_id"])
     assert "kernel_recipe_run_evidence" not in stored["summary_json"]
+
+
+def test_completed_recipe_run_can_relink_only_from_exact_persisted_evidence(
+    client,
+    app_modules,
+) -> None:
+    run_confirmation = importlib.import_module("app.assistant.run_confirmation")
+    workflow = _recipe_workflow()
+    run = _completed_run(app_modules["store"], workflow, "run-recipe-safe-relink")
+    session = _session(client, app_modules, workflow, run["run_id"])
+    linked = run_confirmation.bind_completed_recipe_run(
+        session["assistant_session_id"], run
+    )
+    stored = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )
+    summary = dict(stored["summary_json"])
+    summary.pop("kernel_recipe_run_association")
+    summary["kernel_recipe_run_evidence"] = {
+        key: linked[key]
+        for key in (
+            "assistant_session_id",
+            "run_id",
+            "workflow_fingerprint",
+            "status",
+            "output_asset_ids",
+        )
+    }
+    app_modules["store_assistant"].create_or_update_assistant_session(
+        {**stored, "summary_json": summary}
+    )
+
+    relinked = run_confirmation.bind_completed_recipe_run(
+        session["assistant_session_id"], run
+    )
+
+    assert relinked["recipe_plan_id"]
+    assert relinked["recipe_id"] == "prompt-recipe-image-prompt-director"
+    repaired = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )["summary_json"]["kernel_recipe_run_association"]
+    assert repaired["relinked_from_completed_evidence"] is True
+
+
+def test_recipe_quality_contract_ignores_name_only_changes_and_rejects_creative_changes(
+    client,
+    app_modules,
+) -> None:
+    run_confirmation = importlib.import_module("app.assistant.run_confirmation")
+    workflow = _recipe_workflow()
+    run = _completed_run(app_modules["store"], workflow, "run-recipe-contract")
+    session = _session(client, app_modules, workflow, run["run_id"])
+    recipe_id = workflow["nodes"][0]["fields"]["recipe_id"]
+    recipe = app_modules["store"].get_prompt_recipe(recipe_id)
+
+    app_modules["store"].create_or_update_prompt_recipe(
+        {**recipe, "label": "Renamed recipe"}
+    )
+    assert run_confirmation.bind_completed_recipe_run(
+        session["assistant_session_id"], run
+    )["recipe_id"] == recipe_id
+
+    renamed = app_modules["store"].get_prompt_recipe(recipe_id)
+    app_modules["store"].create_or_update_prompt_recipe(
+        {**renamed, "system_prompt_template": "A changed creative contract {{user_prompt}}"}
+    )
+    try:
+        run_confirmation.bind_completed_recipe_run(session["assistant_session_id"], run)
+    except run_confirmation.RunEvidenceError as exc:
+        assert exc.code == "recipe_workflow_mismatch"
+    else:
+        raise AssertionError("A changed recipe contract must invalidate run evidence")
+
+
+def test_recipe_quality_approval_persists_the_exact_run_contract(
+    client,
+    app_modules,
+) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    workflow = _recipe_workflow()
+    run = _completed_run(app_modules["store"], workflow, "run-recipe-quality")
+    session = _session(client, app_modules, workflow, run["run_id"])
+    evidence = importlib.import_module(
+        "app.assistant.run_confirmation"
+    ).bind_completed_recipe_run(session["assistant_session_id"], run)
+    stored = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )
+    comparison = {
+        "comparison_id": "recipecmp-quality",
+        "run_id": run["run_id"],
+        "output_asset_id": evidence["output_asset_ids"][0],
+        "reference_ids": ["reference-travel-one", "reference-travel-two"],
+        "comparison": {
+            "matches": ["layered paper shapes"],
+            "missing_or_drifting": [],
+            "prompt_delta": "",
+            "preserve_traits": ["layered paper shapes"],
+            "meaningful_gap": False,
+        },
+        "quality_state": "reviewed",
+    }
+    session = app_modules["store_assistant"].create_or_update_assistant_session(
+        {
+            **stored,
+            "summary_json": {
+                **stored["summary_json"],
+                "kernel_recipe_output_comparison": comparison,
+            },
+        }
+    )
+
+    execution = tools.execute_kernel_tool(
+        tool_name="record_recipe_quality_decision",
+        arguments={"decision": "approve"},
+        capability="recipe_builder",
+        context=tools.KernelToolContext(
+            workflow=tools.GraphWorkflow.model_validate(workflow),
+            canvas_context={},
+            user_text="That result is good enough; approve it.",
+            session_id=session["assistant_session_id"],
+            session=session,
+        ),
+    )
+
+    assert execution.trace.error is None
+    assert execution.result["quality_state"] == "quality_verified"
+    assert execution.result["recipe_plan_id"] == evidence["recipe_plan_id"]
+    assert execution.result["recipe_id"] == evidence["recipe_id"]
+    assert execution.result["workflow_fingerprint"] == evidence["workflow_fingerprint"]
+    assert execution.result["run_id"] == run["run_id"]
+    assert execution.result["output_asset_id"] == evidence["output_asset_ids"][0]
+    assert execution.result["eligible_model_node_ids"] == ["recipe-model"]
+    saved_quality = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )["summary_json"]["kernel_recipe_quality"]
+    assert saved_quality == execution.result
+
+
+def test_recipe_draft_revision_invalidates_quality_but_name_only_revision_preserves_it(
+    client,
+    app_modules,
+) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    workflow = _recipe_workflow()
+    run = _completed_run(app_modules["store"], workflow, "run-recipe-revision")
+    session = _session(client, app_modules, workflow, run["run_id"])
+    evidence = importlib.import_module(
+        "app.assistant.run_confirmation"
+    ).bind_completed_recipe_run(session["assistant_session_id"], run)
+    recipe = app_modules["store"].get_prompt_recipe(evidence["recipe_id"])
+    session = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )
+    session = app_modules["store_assistant"].create_or_update_assistant_session(
+        {
+            **session,
+            "summary_json": {
+                **session["summary_json"],
+                "kernel_recipe_draft": recipe,
+                "kernel_recipe_output_comparison": {"comparison_id": "comparison-revision"},
+                "kernel_recipe_quality": {"quality_state": "quality_verified"},
+            },
+        }
+    )
+
+    renamed = tools.execute_kernel_tool(
+        tool_name="propose_prompt_recipe_draft",
+        arguments={
+            "draft": {**recipe, "label": "Renamed recipe draft"},
+            "existing_recipe_id": evidence["recipe_id"],
+        },
+        capability="recipe_builder",
+        context=tools.KernelToolContext(
+            workflow=None,
+            canvas_context={},
+            artifact_intent="revise_recipe",
+            session_id=session["assistant_session_id"],
+            session=session,
+        ),
+    )
+    assert renamed.trace.error is None
+    after_rename = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )
+    assert after_rename["summary_json"]["kernel_recipe_run_evidence"] == evidence
+    assert after_rename["summary_json"]["kernel_recipe_quality"]["quality_state"] == "quality_verified"
+
+    revised = tools.execute_kernel_tool(
+        tool_name="propose_prompt_recipe_draft",
+        arguments={
+            "draft": {
+                **renamed.result["draft"],
+                "system_prompt_template": "A revised visual contract {{user_prompt}}",
+            },
+            "existing_recipe_id": evidence["recipe_id"],
+        },
+        capability="recipe_builder",
+        context=tools.KernelToolContext(
+            workflow=None,
+            canvas_context={},
+            artifact_intent="revise_recipe",
+            session_id=session["assistant_session_id"],
+            session=after_rename,
+        ),
+    )
+
+    assert revised.trace.error is None
+    after_revision = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )["summary_json"]
+    assert "kernel_recipe_run_association" not in after_revision
+    assert "kernel_recipe_run_evidence" not in after_revision
+    assert "kernel_recipe_output_comparison" not in after_revision
+    assert "kernel_recipe_quality" not in after_revision
 
 
 def _invalid_confirmation_response(

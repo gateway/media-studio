@@ -1416,6 +1416,19 @@ def test_saved_recipe_refinement_updates_its_applied_lane_without_duplicating_th
                     "consumed": True,
                     "confirmed_at": store_assistant.utcnow_iso(),
                 },
+                "kernel_recipe_run_association": {
+                    "assistant_session_id": session["assistant_session_id"],
+                    "recipe_plan_id": first.result["proposal_id"],
+                    "recipe_id": saved["recipe_id"],
+                    "recipe_quality_contract_hash": importlib.import_module(
+                        "app.assistant.provenance"
+                    ).recipe_quality_contract_hash(saved),
+                    "workflow_fingerprint": fingerprint,
+                    "confirmation_token_hash": "fixture-confirmation-hash",
+                    "run_id": run_id,
+                    "eligible_model_node_ids": [model_node.id],
+                    "associated_at": store_assistant.utcnow_iso(),
+                },
             },
         }
     )

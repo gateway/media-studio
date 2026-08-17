@@ -47,6 +47,7 @@ def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -
         "draft_recipe",
         "revise_recipe",
         "save_recipe",
+        "quality_decision",
         "update_story",
         "propose_production_plan",
         "diagnose_run",
@@ -186,6 +187,43 @@ def test_kernel_rejects_artifact_intent_switch_mid_turn(app_modules, monkeypatch
     assert result.capability == "recipe_builder"
     assert result.reply
     assert len(result.trace.tool_calls) == 1
+
+
+def test_kernel_prompt_change_rotates_only_the_stale_provider_thread(
+    app_modules,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    store_assistant = app_modules["store_assistant"]
+    session = store_assistant.create_or_update_assistant_session(
+        {
+            "provider_kind": "codex_local",
+            "provider_thread_id": "thread-with-old-prompts",
+            "state_snapshot_json": {
+                "provider_generation": 3,
+                "kernel_prompt_fingerprint": "old-prompt-fingerprint",
+            },
+        }
+    )
+    closed = []
+    monkeypatch.setattr(
+        kernel.enhancement_provider.codex_local_provider,
+        "close_codex_local_skill_session",
+        closed.append,
+    )
+    assembly = SimpleNamespace(
+        base_instructions="current base",
+        developer_instructions="current developer",
+    )
+
+    updated = kernel._sync_kernel_prompt_thread(session, assembly)
+    repeated = kernel._sync_kernel_prompt_thread(updated, assembly)
+
+    assert closed == [f"{session['assistant_session_id']}:3"]
+    assert updated["provider_thread_id"] is None
+    assert updated["state_snapshot_json"]["provider_generation"] == 4
+    assert updated["state_snapshot_json"]["kernel_prompt_fingerprint"] != "old-prompt-fingerprint"
+    assert repeated["state_snapshot_json"] == updated["state_snapshot_json"]
 
 
 def test_kernel_provider_step_persists_thread_id_and_records_lifecycle(
@@ -2042,6 +2080,7 @@ def test_kernel_trace_records_shared_grounded_guidance_without_creating_an_actio
         "suggestion_count": 1,
         "evidence_sources": ["workflow_context"],
         "satisfaction_state": "needs_work",
+        "quality_decision": "none",
     }
     assert turn["next_action"]["kind"] == "none"
 

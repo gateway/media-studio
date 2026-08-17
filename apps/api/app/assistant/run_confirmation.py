@@ -10,6 +10,7 @@ from ..graph.schemas import GraphWorkflow
 from .provenance import (
     preset_test_workflow_fingerprint,
     recipe_plan_workflow_fingerprint,
+    recipe_quality_contract_hash,
     workflow_fingerprint,
 )
 from .schemas import AssistantRunConfirmationRequest
@@ -184,6 +185,132 @@ def _generated_image_asset_ids(run_id: str, model_node_ids: set[str]) -> list[st
     )
 
 
+def _recipe_id_from_plan(plan: dict) -> str:
+    metadata = (plan.get("plan_json") or {}).get("metadata") or {}
+    return str(metadata.get("template_recipe_id") or "")
+
+
+def _workflow_has_recipe(workflow: dict, recipe_id: str) -> bool:
+    return any(
+        isinstance(node, dict)
+        and str(node.get("type") or "") == "prompt.recipe"
+        and str((node.get("fields") or {}).get("recipe_id") or "") == recipe_id
+        for node in workflow.get("nodes", [])
+    )
+
+
+def _recipe_run_association(
+    session_id: str,
+    confirmation: dict,
+    plan: dict,
+    workflow: dict,
+    run_id: str,
+    fingerprint: str,
+) -> dict:
+    recipe_id = _recipe_id_from_plan(plan)
+    recipe = store.get_prompt_recipe(recipe_id) if recipe_id else None
+    model_node_ids = sorted(_recipe_output_model_node_ids(workflow))
+    contract_hash = recipe_quality_contract_hash(recipe) if recipe else ""
+    plan_metadata = (plan.get("plan_json") or {}).get("metadata") or {}
+    planned_contract_hash = str(
+        plan_metadata.get("recipe_quality_contract_hash") or ""
+    )
+    if (
+        not recipe
+        or not model_node_ids
+        or not _workflow_has_recipe(workflow, recipe_id)
+        or (
+            planned_contract_hash
+            and not hmac.compare_digest(planned_contract_hash, contract_hash)
+        )
+    ):
+        raise RunEvidenceError(
+            "recipe_workflow_mismatch",
+            "The confirmed workflow is missing its saved recipe or eligible output model.",
+        )
+    return {
+        "assistant_session_id": session_id,
+        "recipe_plan_id": str(plan.get("assistant_plan_id") or ""),
+        "recipe_id": recipe_id,
+        "recipe_quality_contract_hash": contract_hash,
+        "workflow_fingerprint": fingerprint,
+        "confirmation_token_hash": str(confirmation.get("confirmation_token_hash") or ""),
+        "run_id": run_id,
+        "eligible_model_node_ids": model_node_ids,
+        "associated_at": store_assistant.utcnow_iso(),
+    }
+
+
+def _legacy_recipe_run_association(
+    session_id: str,
+    summary: dict,
+    run: dict,
+    workflow: dict,
+) -> dict | None:
+    evidence = summary.get("kernel_recipe_run_evidence")
+    run_id = str(run.get("run_id") or "")
+    fingerprint = workflow_fingerprint(GraphWorkflow.model_validate(workflow))
+    if (
+        not isinstance(evidence, dict)
+        or str(evidence.get("assistant_session_id") or "") != session_id
+        or str(evidence.get("run_id") or "") != run_id
+        or str(evidence.get("status") or "") != "completed"
+        or not hmac.compare_digest(
+            str(evidence.get("workflow_fingerprint") or ""), fingerprint
+        )
+    ):
+        return None
+    plan = _matching_applied_recipe_plan(session_id, GraphWorkflow.model_validate(workflow))
+    if not plan:
+        return None
+    recipe_id = _recipe_id_from_plan(plan)
+    recipe = store.get_prompt_recipe(recipe_id) if recipe_id else None
+    if not recipe or str(recipe.get("updated_at") or "") > str(run.get("created_at") or ""):
+        return None
+    node_types = {
+        str(node.get("id") or ""): str(node.get("type") or "")
+        for node in workflow.get("nodes", [])
+        if isinstance(node, dict)
+    }
+    recipe_node_ids = {
+        node_id
+        for node_id, node_type in node_types.items()
+        if node_type == "prompt.recipe"
+    }
+    model_node_ids = _recipe_output_model_node_ids(workflow)
+    run_nodes = {
+        str(node.get("node_id") or ""): node
+        for node in store.list_graph_run_nodes(run_id)
+    }
+    recipe_was_executed = any(
+        str((run_nodes.get(node_id) or {}).get("input_snapshot_json", {}).get("recipe_id") or "")
+        == recipe_id
+        for node_id in recipe_node_ids
+    )
+    models_were_executed = bool(model_node_ids) and all(
+        node_id in run_nodes for node_id in model_node_ids
+    )
+    output_asset_ids = _generated_image_asset_ids(run_id, model_node_ids)
+    if (
+        not recipe_was_executed
+        or not models_were_executed
+        or output_asset_ids != sorted(str(item) for item in evidence.get("output_asset_ids") or [])
+    ):
+        return None
+    return {
+        "assistant_session_id": session_id,
+        "recipe_plan_id": str(plan.get("assistant_plan_id") or ""),
+        "recipe_id": recipe_id,
+        "recipe_quality_contract_hash": recipe_quality_contract_hash(recipe),
+        "workflow_fingerprint": fingerprint,
+        "confirmation_token_hash": "",
+        "run_id": run_id,
+        "eligible_model_node_ids": sorted(model_node_ids),
+        "associated_at": store_assistant.utcnow_iso(),
+        "relinked_from_completed_evidence": True,
+    }
+
+
 def bind_completed_preset_run(session_id: str, run: dict) -> dict:
     session = store_assistant.get_assistant_session(session_id)
     if not session:
@@ -278,21 +405,24 @@ def bind_completed_recipe_run(session_id: str, run: dict) -> dict:
     if not session:
         raise RunEvidenceError("recipe_session_missing", "The Media Assistant session is unavailable.")
     summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
-    confirmation = summary.get("kernel_run_confirmation")
-    if (
-        not isinstance(confirmation, dict)
-        or confirmation.get("consumed") is not True
-        or assistant_run_confirmation_kind(
-            confirmation,
-            capability=summary.get("kernel_capability"),
+    association = summary.get("kernel_recipe_run_association")
+    workflow = run.get("workflow_json")
+    if not isinstance(workflow, dict):
+        raise RunEvidenceError(
+            "recipe_workflow_missing",
+            "The recipe run is missing its workflow snapshot.",
         )
-        != "recipe"
-    ):
+    if not isinstance(association, dict):
+        association = _legacy_recipe_run_association(session_id, summary, run, workflow)
+    if not isinstance(association, dict):
         raise RunEvidenceError(
             "recipe_run_not_confirmed",
-            "This run was not started from the current Media Assistant recipe workflow confirmation.",
+            "This run is not linked to a confirmed Media Assistant recipe workflow.",
         )
-    if str(confirmation.get("assistant_run_id") or "") != str(run.get("run_id") or ""):
+    if (
+        str(association.get("assistant_session_id") or "") != session_id
+        or str(association.get("run_id") or "") != str(run.get("run_id") or "")
+    ):
         raise RunEvidenceError(
             "recipe_run_mismatch",
             "This run was not started from the current Media Assistant recipe workflow confirmation.",
@@ -303,26 +433,47 @@ def bind_completed_recipe_run(session_id: str, run: dict) -> dict:
             "recipe_run_not_completed",
             f"The linked recipe run is {status or 'unavailable'}, not completed.",
         )
-    workflow = run.get("workflow_json")
-    if not isinstance(workflow, dict):
-        raise RunEvidenceError(
-            "recipe_workflow_missing",
-            "The recipe run is missing its workflow snapshot.",
-        )
-    fingerprint = str(confirmation.get("workflow_fingerprint") or "")
+    fingerprint = str(association.get("workflow_fingerprint") or "")
     run_fingerprint = workflow_fingerprint(GraphWorkflow.model_validate(workflow))
-    has_recipe = any(
-        isinstance(node, dict) and str(node.get("type") or "") == "prompt.recipe"
-        for node in workflow.get("nodes", [])
+    plan_id = str(association.get("recipe_plan_id") or "")
+    plan = _matching_applied_recipe_plan(
+        session_id,
+        GraphWorkflow.model_validate(workflow),
+        plan_id or None,
     )
-    if not fingerprint or not hmac.compare_digest(run_fingerprint, fingerprint) or not has_recipe:
+    recipe_id = str(association.get("recipe_id") or "")
+    recipe = store.get_prompt_recipe(recipe_id) if recipe_id else None
+    contract_hash = str(association.get("recipe_quality_contract_hash") or "")
+    plan_metadata = (plan.get("plan_json") or {}).get("metadata") if plan else {}
+    planned_contract_hash = str(
+        (plan_metadata or {}).get("recipe_quality_contract_hash") or ""
+    )
+    model_node_ids = _recipe_output_model_node_ids(workflow)
+    associated_model_node_ids = {
+        str(item) for item in association.get("eligible_model_node_ids") or []
+    }
+    if (
+        not fingerprint
+        or not hmac.compare_digest(run_fingerprint, fingerprint)
+        or not plan
+        or _recipe_id_from_plan(plan) != recipe_id
+        or not _workflow_has_recipe(workflow, recipe_id)
+        or not recipe
+        or not contract_hash
+        or not hmac.compare_digest(recipe_quality_contract_hash(recipe), contract_hash)
+        or (
+            planned_contract_hash
+            and not hmac.compare_digest(planned_contract_hash, contract_hash)
+        )
+        or model_node_ids != associated_model_node_ids
+    ):
         raise RunEvidenceError(
             "recipe_workflow_mismatch",
-            "The completed run does not match the confirmed recipe workflow.",
+            "The completed run no longer matches the confirmed recipe workflow and contract.",
         )
     output_asset_ids = _generated_image_asset_ids(
         str(run.get("run_id") or ""),
-        _recipe_output_model_node_ids(workflow),
+        model_node_ids,
     )
     if not output_asset_ids:
         raise RunEvidenceError(
@@ -331,18 +482,27 @@ def bind_completed_recipe_run(session_id: str, run: dict) -> dict:
         )
     evidence = {
         "assistant_session_id": session_id,
+        "recipe_plan_id": plan_id,
+        "recipe_id": recipe_id,
+        "recipe_quality_contract_hash": contract_hash,
         "run_id": str(run.get("run_id") or ""),
         "workflow_fingerprint": fingerprint,
         "status": status,
+        "eligible_model_node_ids": sorted(model_node_ids),
         "output_asset_ids": output_asset_ids,
     }
-    updated_summary = {**summary, "kernel_recipe_run_evidence": evidence}
+    updated_summary = {
+        **summary,
+        "kernel_recipe_run_association": association,
+        "kernel_recipe_run_evidence": evidence,
+    }
     prior_comparison = summary.get("kernel_recipe_output_comparison")
     if (
         not isinstance(prior_comparison, dict)
         or str(prior_comparison.get("run_id") or "") != evidence["run_id"]
     ):
         updated_summary.pop("kernel_recipe_output_comparison", None)
+        updated_summary.pop("kernel_recipe_quality", None)
     store_assistant.create_or_update_assistant_session(
         {**session, "summary_json": updated_summary}
     )
@@ -391,15 +551,22 @@ def associate_confirmed_assistant_run(
             "workflow_fingerprint_mismatch",
             "The graph changed after this run confirmation was prepared.",
         )
-    if assistant_run_confirmation_kind(confirmation, capability=capability) == "recipe" and not _recipe_plan_for_confirmation(
-        session_id,
+    confirmation_kind = assistant_run_confirmation_kind(
         confirmation,
-        payload.workflow,
-    ):
-        raise RunEvidenceError(
-            "workflow_fingerprint_mismatch",
-            "The graph changed after this run confirmation was prepared.",
+        capability=capability,
+    )
+    recipe_plan = None
+    if confirmation_kind == "recipe":
+        recipe_plan = _recipe_plan_for_confirmation(
+            session_id,
+            confirmation,
+            payload.workflow,
         )
+        if not recipe_plan:
+            raise RunEvidenceError(
+                "workflow_fingerprint_mismatch",
+                "The graph changed after this run confirmation was prepared.",
+            )
     run = store.get_graph_run(run_id)
     if not run:
         raise RunEvidenceError(
@@ -419,19 +586,29 @@ def associate_confirmed_assistant_run(
             "The started run does not match the confirmed graph.",
         )
     confirmed_at = store_assistant.utcnow_iso()
+    updated_summary = {
+        **summary,
+        "kernel_run_confirmation": {
+            **confirmation,
+            "workflow_fingerprint": fingerprint,
+            "assistant_run_id": run_id,
+            "consumed": True,
+            "confirmed_at": confirmed_at,
+        },
+    }
+    if recipe_plan:
+        updated_summary["kernel_recipe_run_association"] = _recipe_run_association(
+            session_id,
+            confirmation,
+            recipe_plan,
+            run_workflow,
+            run_id,
+            fingerprint,
+        )
     store_assistant.create_or_update_assistant_session(
         {
             **session,
-            "summary_json": {
-                **summary,
-                "kernel_run_confirmation": {
-                    **confirmation,
-                    "workflow_fingerprint": fingerprint,
-                    "assistant_run_id": run_id,
-                    "consumed": True,
-                    "confirmed_at": confirmed_at,
-                },
-            },
+            "summary_json": updated_summary,
         }
     )
 

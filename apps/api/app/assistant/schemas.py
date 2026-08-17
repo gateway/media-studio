@@ -30,6 +30,7 @@ AssistantArtifactIntent = Literal[
     "draft_recipe",
     "revise_recipe",
     "save_recipe",
+    "quality_decision",
     "update_story",
     "propose_production_plan",
     "diagnose_run",
@@ -196,6 +197,13 @@ class AssistantKernelGuidance(BaseModel):
     satisfaction_state: AssistantSatisfactionState = Field(
         default="unknown",
         description="Whether the user said the current result meets their goal.",
+    )
+    quality_decision: Literal["none", "approve", "continue", "stop"] = Field(
+        default="none",
+        description=(
+            "The user's explicit decision about the active generated-output comparison. "
+            "Use none when the user is asking a question or has not decided."
+        ),
     )
 
 

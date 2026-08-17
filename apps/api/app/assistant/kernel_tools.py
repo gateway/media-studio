@@ -31,6 +31,7 @@ from .reference_analysis import (
     analyze_recipe_output,
     analyze_reference_images,
     record_preset_quality_decision,
+    record_recipe_quality_decision,
 )
 from .preset_kernel import (
     GetPresetArguments,
@@ -46,6 +47,7 @@ from .preset_kernel import (
 from .provenance import (
     preset_quality_contract_hash,
     preset_test_workflow_fingerprint,
+    recipe_quality_contract_hash,
     workflow_fingerprint,
 )
 from .production_plan import (
@@ -97,6 +99,7 @@ KERNEL_TOOL_ACTIVITIES = {
     "analyze_preset_output": ("output_comparison", "Compared the generated result"),
     "analyze_recipe_output": ("output_comparison", "Compared the generated result"),
     "record_preset_quality_decision": ("output_comparison", "Recorded your quality decision"),
+    "record_recipe_quality_decision": ("output_comparison", "Recorded your quality decision"),
     "propose_media_preset_draft": ("preset_draft", "Prepared preset details"),
     "propose_prompt_recipe_draft": ("recipe_draft", "Prepared recipe details"),
     "propose_production_plan": ("production_plan", "Prepared a production plan"),
@@ -1150,6 +1153,7 @@ def _saved_recipe_graph_operations(
         "template_model_key": generation["model_key"],
         "template_field_keys": sorted(supplied_values),
         "template_generation_source": generation_source,
+        "recipe_quality_contract_hash": recipe_quality_contract_hash(recipe),
         "template_refinement": existing_lane is not None,
         "replace_existing_test_lane": replace_existing_lane,
     }
@@ -1850,6 +1854,13 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         allowed_capabilities=frozenset({"preset_builder"}),
         handler=record_preset_quality_decision,
     ),
+    "record_recipe_quality_decision": KernelToolDefinition(
+        name="record_recipe_quality_decision",
+        description="Persist the user's approve, continue, or stop decision for the latest session-owned recipe output comparison without starting or saving anything.",
+        arguments_model=RecordPresetQualityDecisionArguments,
+        allowed_capabilities=frozenset({"recipe_builder"}),
+        handler=record_recipe_quality_decision,
+    ),
 }
 
 
@@ -1867,6 +1878,7 @@ def kernel_tool_catalog(capability: AssistantKernelCapability | None = None) -> 
                 "propose_prompt_recipe_draft",
                 "update_story_state",
                 "record_preset_quality_decision",
+                "record_recipe_quality_decision",
                 "analyze_preset_output",
                 "analyze_recipe_output",
             },
