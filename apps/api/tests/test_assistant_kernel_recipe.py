@@ -1297,13 +1297,18 @@ def test_saved_recipe_template_builds_complete_image_graph_without_catalog_walk(
 
 def test_saved_recipe_refinement_updates_its_applied_lane_without_duplicating_the_model(
     client,
+    monkeypatch,
+    tmp_path,
 ) -> None:
+    analysis_module = importlib.import_module("app.assistant.reference_analysis")
     graph_schemas = importlib.import_module("app.graph.schemas")
     schemas = importlib.import_module("app.schemas")
     service = importlib.import_module("app.service_prompt_recipe_validation")
+    store = importlib.import_module("app.store")
     store_assistant = importlib.import_module("app.store_assistant")
     tools = importlib.import_module("app.assistant.kernel_tools")
     session = _session(client)
+    workflow_id = "workflow-recipe-refinement"
     draft = _recipe_draft("recipe_refinement_lane")
     draft["input_variables_json"] = [
         {
@@ -1341,7 +1346,10 @@ def test_saved_recipe_refinement_updates_its_applied_lane_without_duplicating_th
         },
         capability="graph_builder",
         context=tools.KernelToolContext(
-            workflow=graph_schemas.GraphWorkflow(name="Recipe refinement"),
+            workflow=graph_schemas.GraphWorkflow(
+                workflow_id=workflow_id,
+                name="Recipe refinement",
+            ),
             canvas_context={},
             session_id=session["assistant_session_id"],
             session=session,
@@ -1353,6 +1361,7 @@ def test_saved_recipe_refinement_updates_its_applied_lane_without_duplicating_th
         json={
             "workflow": {
                 "schema_version": 1,
+                "workflow_id": workflow_id,
                 "name": "Recipe refinement",
                 "nodes": [],
                 "edges": [],
@@ -1364,6 +1373,131 @@ def test_saved_recipe_refinement_updates_its_applied_lane_without_duplicating_th
     )
     assert applied.status_code == 200, applied.text
     applied_workflow = graph_schemas.GraphWorkflow.model_validate(applied.json()["workflow"])
+
+    run_id = "run-recipe-refinement"
+    model_node = next(node for node in applied_workflow.nodes if node.type.startswith("model.kie."))
+    store.create_graph_run(
+        {
+            "run_id": run_id,
+            "workflow_id": applied_workflow.workflow_id,
+            "workflow_json": applied_workflow.model_dump(mode="json"),
+            "status": "completed",
+        },
+        [],
+    )
+    store.create_graph_artifact(
+        {
+            "artifact_id": "artifact-recipe-refinement",
+            "workflow_id": applied_workflow.workflow_id,
+            "run_id": run_id,
+            "node_id": model_node.id,
+            "node_type": model_node.type,
+            "output_port": "image",
+            "output_index": 0,
+            "kind": "asset",
+            "media_type": "image",
+            "asset_id": "asset-recipe-refinement",
+        }
+    )
+    session = store_assistant.get_assistant_session(session["assistant_session_id"])
+    fingerprint = importlib.import_module("app.assistant.provenance").workflow_fingerprint(
+        applied_workflow
+    )
+    session = store_assistant.create_or_update_assistant_session(
+        {
+            **session,
+            "summary_json": {
+                **session["summary_json"],
+                "kernel_capability": "recipe_builder",
+                "kernel_run_confirmation": {
+                    "workflow_fingerprint": fingerprint,
+                    "assistant_run_id": run_id,
+                    "confirmation_kind": "recipe",
+                    "consumed": True,
+                    "confirmed_at": store_assistant.utcnow_iso(),
+                },
+            },
+        }
+    )
+    evidence = tools.execute_kernel_tool(
+        tool_name="read_run_evidence",
+        arguments={"run_id": run_id},
+        capability="recipe_builder",
+        context=tools.KernelToolContext(
+            workflow=applied_workflow,
+            canvas_context={},
+            run_id=run_id,
+            session_id=session["assistant_session_id"],
+            session=session,
+        ),
+    )
+    assert evidence.trace.error is None
+    assert evidence.result["recipe_run"]["output_asset_ids"] == [
+        "asset-recipe-refinement"
+    ]
+
+    output_path = tmp_path / "recipe-output.png"
+    reference_path = tmp_path / "recipe-reference.png"
+    output_path.write_bytes(b"\x89PNG\r\n\x1a\n")
+    reference_path.write_bytes(b"\x89PNG\r\n\x1a\n")
+    attachment = store_assistant.create_assistant_attachment(
+        {
+            "assistant_session_id": session["assistant_session_id"],
+            "reference_id": "reference-recipe-refinement",
+            "kind": "image",
+            "label": "Travel style reference",
+        }
+    )
+    monkeypatch.setattr(
+        analysis_module.store,
+        "get_reference_media",
+        lambda _reference_id: {"stored_path": str(reference_path)},
+    )
+    monkeypatch.setattr(
+        analysis_module,
+        "_asset_image_path",
+        lambda asset_id, _kind="preset": (
+            str(output_path)
+            if asset_id == "asset-recipe-refinement"
+            else str(reference_path)
+        ),
+    )
+    monkeypatch.setattr(
+        analysis_module.enhancement_provider,
+        "build_openai_compatible_multimodal_content",
+        lambda **_kwargs: [{"type": "text", "text": "Compare output and reference."}],
+    )
+    comparison_payload = {
+        "matches": ["layered travel ephemera"],
+        "missing_or_drifting": ["the composition is too spacious"],
+        "prompt_delta": "Use denser overlapping travel ephemera.",
+        "preserve_traits": ["paper collage", "travel typography"],
+        "meaningful_gap": True,
+    }
+    monkeypatch.setattr(
+        analysis_module.enhancement_provider,
+        "run_codex_local_chat",
+        lambda **_kwargs: {"generated_text": json.dumps(comparison_payload)},
+    )
+    comparison = tools.execute_kernel_tool(
+        tool_name="analyze_recipe_output",
+        arguments={
+            "output_asset_id": "asset-recipe-refinement",
+            "reference_ids": ["reference-recipe-refinement"],
+            "focus": "Compare this test with the attached travel style.",
+        },
+        capability="recipe_builder",
+        context=tools.KernelToolContext(
+            workflow=applied_workflow,
+            canvas_context={},
+            run_id=run_id,
+            session_id=session["assistant_session_id"],
+            session=store_assistant.get_assistant_session(session["assistant_session_id"]),
+            attachments=[attachment],
+        ),
+    )
+    assert comparison.trace.error is None
+    assert comparison.result["comparison"] == comparison_payload
 
     # The browser keeps execution cache state but does not round-trip internal
     # assistant node metadata after applying and running the graph.
@@ -1378,30 +1512,31 @@ def test_saved_recipe_refinement_updates_its_applied_lane_without_duplicating_th
     prompt_node = next(
         node for node in applied_workflow.nodes if node.type == "prompt.recipe"
     )
-    unsupported = tools.execute_kernel_tool(
-        tool_name="propose_graph_operations",
-        arguments={
-            "summary": "Try an input the selected recipe does not expose.",
-            "operations": [
-                {
-                    "op": "set_node_field",
-                    "node_id": prompt_node.id,
-                    "fields": {"user_prompt": "This field is unavailable."},
-                }
-            ],
-        },
-        capability="graph_builder",
-        context=tools.KernelToolContext(
-            workflow=applied_workflow,
-            canvas_context={},
-            session_id=session["assistant_session_id"],
-            session=store_assistant.get_assistant_session(session["assistant_session_id"]),
-            user_message_id="msg-invalid-recipe-refinement",
-        ),
-    )
-    assert unsupported.trace.error is not None
-    assert unsupported.trace.error.code == "saved_recipe_refinement_field_invalid"
-    assert unsupported.trace.error.details == {"invalid_field_keys": ["user_prompt"]}
+    for field_key in ("user_prompt", "recipe_id"):
+        unsupported = tools.execute_kernel_tool(
+            tool_name="propose_graph_operations",
+            arguments={
+                "summary": "Try an input the selected recipe does not expose.",
+                "operations": [
+                    {
+                        "op": "set_node_field",
+                        "node_id": prompt_node.id,
+                        "fields": {field_key: "This field is unavailable."},
+                    }
+                ],
+            },
+            capability="graph_builder",
+            context=tools.KernelToolContext(
+                workflow=applied_workflow,
+                canvas_context={},
+                session_id=session["assistant_session_id"],
+                session=store_assistant.get_assistant_session(session["assistant_session_id"]),
+                user_message_id=f"msg-invalid-recipe-refinement-{field_key}",
+            ),
+        )
+        assert unsupported.trace.error is not None
+        assert unsupported.trace.error.code == "saved_recipe_refinement_field_invalid"
+        assert unsupported.trace.error.details == {"invalid_field_keys": [field_key]}
     prompt_node.fields["user_prompt"] = "A stale browser-only field value."
 
     hand_authored = tools.execute_kernel_tool(
@@ -1436,6 +1571,10 @@ def test_saved_recipe_refinement_updates_its_applied_lane_without_duplicating_th
     assert hand_authored_metadata["template_id"] == "saved_recipe_image_v1"
     assert hand_authored_metadata["template_recipe_id"] == saved["recipe_id"]
     assert hand_authored_metadata["template_refinement"] is True
+    assert hand_authored.result["pricing"]["pricing_summary"]["total"] == {
+        "estimated_credits": 10.0,
+        "estimated_cost_usd": 0.05,
+    }
     refined_prompt = next(
         node
         for node in hand_authored.result["workflow"]["nodes"]

@@ -730,29 +730,29 @@ def _saved_recipe_refinement_metadata(
         and str(node.metadata["assistant"].get("semantic_ref") or "")
         in {"recipe_prompt", "recipe_model", "recipe_preview"}
     })
-    editable_ids = {
-        lane_node_ids[key] for key in {"recipe_prompt", "recipe_model"} if key in lane_node_ids
-    }
+    lane_ids = set(lane_node_ids.values())
+    prompt_node_id = lane_node_ids.get("recipe_prompt")
     current_node_ids = {node.id for node in context.workflow.nodes}
-    current_nodes = {node.id: node for node in context.workflow.nodes}
-    if not all(
-        operation.op in {"set_node_field", "set_node_title"}
-        and str(operation.node_id or "") in editable_ids
-        for operation in operations
-    ) or not editable_ids.issubset(current_node_ids):
+    if not lane_ids.issubset(current_node_ids):
         return {}
-    definitions = registry.definitions_by_type()
+    if not any(str(operation.node_id or "") in lane_ids for operation in operations):
+        return {}
+    if not all(
+        operation.op == "set_node_field"
+        and str(operation.node_id or "") == prompt_node_id
+        for operation in operations
+    ):
+        raise KernelToolFailure(
+            code="saved_recipe_refinement_operation_invalid",
+            message="A saved-recipe creative refinement may update only the recipe node's Run Refinement field.",
+            retryable=True,
+        )
     invalid_field_keys = sorted(
         {
             key
             for operation in operations
-            if operation.op == "set_node_field"
             for key in operation.fields
-            if not any(
-                field.id == key
-                and _node_field_available(current_nodes[str(operation.node_id)], field)
-                for field in definitions[current_nodes[str(operation.node_id)].type].fields
-            )
+            if key != "refinement"
         }
     )
     if invalid_field_keys:
@@ -819,6 +819,69 @@ def _offer_test_lane_replacement(
                 },
             },
         }
+    )
+
+
+def _workflow_is_replaceable_test_lane(workflow: GraphWorkflow) -> bool:
+    groups = workflow.metadata.get("groups") if isinstance(workflow.metadata, dict) else []
+    if groups:
+        return False
+    paid_nodes = [node for node in workflow.nodes if node.type.startswith("model.kie.")]
+    prompt_nodes = [node for node in workflow.nodes if node.type in {"prompt.text", "prompt.recipe"}]
+    preview_nodes = [node for node in workflow.nodes if node.type == "preview.image"]
+    image_nodes = [node for node in workflow.nodes if node.type == "media.load_image"]
+    if (
+        len(paid_nodes) != 1
+        or len(prompt_nodes) != 1
+        or len(preview_nodes) != 1
+        or len(workflow.nodes) != len(image_nodes) + 3
+    ):
+        return False
+    model_id = paid_nodes[0].id
+    expected_edges = {
+        (prompt_nodes[0].id, "text", model_id, "prompt"),
+        (model_id, "image", preview_nodes[0].id, "image"),
+        *{
+            (node.id, "image", model_id, "image_refs")
+            for node in image_nodes
+        },
+    }
+    actual_edges = {
+        (edge.source, edge.source_port, edge.target, edge.target_port)
+        for edge in workflow.edges
+    }
+    return actual_edges == expected_edges
+
+
+def _authorize_test_lane_replacement(
+    context: KernelToolContext,
+    *,
+    template_id: str,
+    contract: Dict[str, Any],
+    replacement_intent: str,
+    replacement_error_code: str,
+) -> bool:
+    if context.workflow is None or not _workflow_is_replaceable_test_lane(context.workflow):
+        raise KernelToolFailure(
+            code="test_lane_replacement_unsafe",
+            message="This workflow contains composition outside one canonical test lane, so it cannot be replaced safely.",
+            retryable=False,
+        )
+    if replacement_intent == "explicitly_requested" and _test_lane_replacement_authorized(
+        context,
+        template_id=template_id,
+        contract=contract,
+    ):
+        return True
+    _offer_test_lane_replacement(
+        context,
+        template_id=template_id,
+        contract=contract,
+    )
+    raise KernelToolFailure(
+        code=replacement_error_code,
+        message="Ask whether to replace the existing test lane, then prepare that reviewed replacement only after approval.",
+        retryable=False,
     )
 
 
@@ -1071,25 +1134,13 @@ def _saved_recipe_graph_operations(
     elif context.workflow is not None and any(
         node.type.startswith("model.kie.") for node in context.workflow.nodes
     ):
-        replace_existing_lane = (
-            replacement_intent == "explicitly_requested"
-            and _test_lane_replacement_authorized(
-                context,
-                template_id="saved_recipe_image_v1",
-                contract=replacement_contract,
-            )
+        replace_existing_lane = _authorize_test_lane_replacement(
+            context,
+            template_id="saved_recipe_image_v1",
+            contract=replacement_contract,
+            replacement_intent=replacement_intent,
+            replacement_error_code="saved_recipe_test_lane_replacement_required",
         )
-        if not replace_existing_lane:
-            _offer_test_lane_replacement(
-                context,
-                template_id="saved_recipe_image_v1",
-                contract=replacement_contract,
-            )
-            raise KernelToolFailure(
-                code="saved_recipe_test_lane_replacement_required",
-                message="Ask whether to replace the existing test lane, then prepare that reviewed replacement only after approval.",
-                retryable=False,
-            )
         operations = new_lane_operations
     else:
         operations = new_lane_operations
@@ -1253,25 +1304,13 @@ def _preset_test_graph_operations(
             "template_mode": mode,
             "template_model_key": model_key,
         }
-        replace_existing_lane = (
-            replacement_intent == "explicitly_requested"
-            and _test_lane_replacement_authorized(
-                context,
-                template_id=template_id,
-                contract=replacement_contract,
-            )
+        replace_existing_lane = _authorize_test_lane_replacement(
+            context,
+            template_id=template_id,
+            contract=replacement_contract,
+            replacement_intent=replacement_intent,
+            replacement_error_code="preset_test_lane_replacement_required",
         )
-        if not replace_existing_lane:
-            _offer_test_lane_replacement(
-                context,
-                template_id=template_id,
-                contract=replacement_contract,
-            )
-            raise KernelToolFailure(
-                code="preset_test_lane_replacement_required",
-                message="Ask whether to replace the existing test lane, then prepare that reviewed replacement only after approval.",
-                retryable=False,
-            )
     operations: List[AssistantGraphOperation] = []
     for index, slot in enumerate(slots):
         label = str(slot.get("label") or f"Image input {index + 1}") if isinstance(slot, dict) else f"Image input {index + 1}"

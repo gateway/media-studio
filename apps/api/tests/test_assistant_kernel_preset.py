@@ -1315,6 +1315,47 @@ def test_preset_refinement_does_not_reuse_another_sessions_applied_lane(client) 
     replaced_session = store_assistant.get_assistant_session(other_session["assistant_session_id"])
     assert replaced_session["summary_json"].get("kernel_test_lane_replacement_offer") is None
 
+    composed_workflow = replaced.json()["workflow"]
+    composed_workflow["nodes"].append(
+        {
+            "id": "unrelated-review-note",
+            "type": "utility.note",
+            "position": {"x": 80, "y": 700},
+            "fields": {"body": "Preserve this unrelated review note."},
+            "metadata": {},
+        }
+    )
+    composed_session = _session(client)
+    composed_summary = dict(composed_session.get("summary_json") or {})
+    composed_summary["kernel_preset_draft"] = draft
+    composed_session = store_assistant.create_or_update_assistant_session(
+        {**composed_session, "summary_json": composed_summary}
+    )
+    unsafe = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Do not erase unrelated composition.",
+            "template_id": "preset_style_t2i_sandbox_v1",
+            "field_values": {"location": "Kyoto"},
+        },
+        capability="preset_builder",
+        context=tools.KernelToolContext(
+            workflow=graph_schemas.GraphWorkflow.model_validate(composed_workflow),
+            canvas_context={},
+            session_id=composed_session["assistant_session_id"],
+            session=composed_session,
+            user_message_id="msg-unsafe-test-lane-replacement",
+        ),
+    )
+    assert unsafe.trace.error is not None
+    assert unsafe.trace.error.code == "test_lane_replacement_unsafe"
+    stored_composed_session = store_assistant.get_assistant_session(
+        composed_session["assistant_session_id"]
+    )
+    assert stored_composed_session["summary_json"].get(
+        "kernel_test_lane_replacement_offer"
+    ) is None
+
 
 def test_preset_test_graph_rejects_unknown_human_field_value_before_plan_persistence(client) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
