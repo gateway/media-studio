@@ -21,6 +21,7 @@ def assistant_run_confirmation_kind(
     confirmation: object,
     *,
     capability: object = None,
+    workflow: GraphWorkflow | None = None,
 ) -> str:
     explicit_kind = (
         str(confirmation.get("confirmation_kind") or "")
@@ -31,6 +32,10 @@ def assistant_run_confirmation_kind(
         return explicit_kind
     if isinstance(confirmation, dict) and confirmation.get("test_plan_id"):
         return "preset_test"
+    if workflow is not None and _recipe_output_model_node_ids(
+        workflow.model_dump(mode="json")
+    ):
+        return "recipe"
     if str(capability or "") == "recipe_builder":
         return "recipe"
     return "graph"

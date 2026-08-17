@@ -403,6 +403,16 @@ def prompt_node_definitions() -> List[GraphNodeDefinition]:
                     options=prompt_recipe_picker_options(active_recipe_catalog),
                     help_text="Choose the saved Prompt Recipe to run. The fields below update to match the selected recipe.",
                 ),
+                GraphNodeField(
+                    id="refinement",
+                    label="Run Refinement",
+                    type="textarea",
+                    required=False,
+                    default="",
+                    placeholder="Optional creative adjustment for this graph run.",
+                    help_text="Apply a graph-local creative adjustment without changing the saved Prompt Recipe.",
+                    advanced=True,
+                ),
                 *prompt_recipe_dynamic_fields(all_recipe_catalog),
                 *prompt_provider_selection_fields(),
                 *prompt_generation_runtime_fields(

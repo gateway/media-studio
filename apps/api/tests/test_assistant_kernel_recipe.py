@@ -1218,6 +1218,7 @@ def test_saved_recipe_template_builds_complete_image_graph_without_catalog_walk(
     assert missing_field.trace.error.code == "saved_recipe_graph_field_values_required"
     assert missing_field.trace.error.details == {"missing_field_keys": ["signpost_places"]}
 
+
     invalid_option = tools.execute_kernel_tool(
         tool_name="propose_graph_operations",
         arguments={
@@ -1292,6 +1293,228 @@ def test_saved_recipe_template_builds_complete_image_graph_without_catalog_walk(
     assert invalid_value.trace.error.details == {
         "invalid_option_value_keys": ["resolution"]
     }
+
+
+def test_saved_recipe_refinement_updates_its_applied_lane_without_duplicating_the_model(
+    client,
+) -> None:
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    schemas = importlib.import_module("app.schemas")
+    service = importlib.import_module("app.service_prompt_recipe_validation")
+    store_assistant = importlib.import_module("app.store_assistant")
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    session = _session(client)
+    draft = _recipe_draft("recipe_refinement_lane")
+    draft["input_variables_json"] = [
+        {
+            "key": "destination",
+            "label": "Destination",
+            "enabled": True,
+            "required": True,
+        }
+    ]
+    draft["custom_fields_json"] = []
+    draft["system_prompt_template"] = "Create a paper travel poster for {{destination}}."
+    draft["rules_json"] = {
+        "intended_media_model": "gpt-image-2-text-to-image",
+        "generation_defaults": {"resolution": "2K", "aspect_ratio": "3:4"},
+    }
+    saved = service.upsert_prompt_recipe(
+        schemas.PromptRecipeUpsertRequest.model_validate(draft)
+    )
+    tools.registry.invalidate()
+    override = [
+        {
+            "recipe_id": saved["recipe_id"],
+            "model_key": "gpt-image-2-text-to-image",
+            "default_options_json": {"resolution": "2K", "aspect_ratio": "3:4"},
+        }
+    ]
+    first = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Prepare the saved recipe test.",
+            "template_id": "saved_recipe_image_v1",
+            "recipe_id": saved["recipe_id"],
+            "field_values": {"destination": "Kyoto"},
+            "derived_recipe_defaults_overrides": override,
+        },
+        capability="graph_builder",
+        context=tools.KernelToolContext(
+            workflow=graph_schemas.GraphWorkflow(name="Recipe refinement"),
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=session,
+            user_message_id="msg-first-recipe-test",
+        ),
+    )
+    applied = client.post(
+        f"/media/assistant/plans/{first.result['proposal_id']}/apply",
+        json={
+            "workflow": {
+                "schema_version": 1,
+                "name": "Recipe refinement",
+                "nodes": [],
+                "edges": [],
+                "metadata": {},
+            },
+            "proposal_id": first.result["proposal_id"],
+            "confirmation_token": first.result["confirmation_token"],
+        },
+    )
+    assert applied.status_code == 200, applied.text
+    applied_workflow = graph_schemas.GraphWorkflow.model_validate(applied.json()["workflow"])
+
+    # The browser keeps execution cache state but does not round-trip internal
+    # assistant node metadata after applying and running the graph.
+    for node in applied_workflow.nodes:
+        node.metadata.pop("assistant", None)
+        node.metadata["execution"] = {
+            "mode": "enabled",
+            "cached_run_id": "grun-browser-test",
+            "cached_artifact_ids": {"image": ["artifact-browser-test"]},
+        }
+
+    prompt_node = next(
+        node for node in applied_workflow.nodes if node.type == "prompt.recipe"
+    )
+    unsupported = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Try an input the selected recipe does not expose.",
+            "operations": [
+                {
+                    "op": "set_node_field",
+                    "node_id": prompt_node.id,
+                    "fields": {"user_prompt": "This field is unavailable."},
+                }
+            ],
+        },
+        capability="graph_builder",
+        context=tools.KernelToolContext(
+            workflow=applied_workflow,
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=store_assistant.get_assistant_session(session["assistant_session_id"]),
+            user_message_id="msg-invalid-recipe-refinement",
+        ),
+    )
+    assert unsupported.trace.error is not None
+    assert unsupported.trace.error.code == "saved_recipe_refinement_field_invalid"
+    assert unsupported.trace.error.details == {"invalid_field_keys": ["user_prompt"]}
+    prompt_node.fields["user_prompt"] = "A stale browser-only field value."
+
+    hand_authored = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Tighten the approved travel collage prompt.",
+            "operations": [
+                {
+                    "op": "set_node_field",
+                    "node_id": prompt_node.id,
+                    "fields": {
+                        "refinement": "Use tightly overlapping travel ephemera."
+                    },
+                }
+            ],
+        },
+        capability="graph_builder",
+        context=tools.KernelToolContext(
+            workflow=applied_workflow,
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=store_assistant.get_assistant_session(session["assistant_session_id"]),
+            user_message_id="msg-hand-authored-recipe-refinement",
+        ),
+    )
+
+    assert hand_authored.trace.error is None, hand_authored.trace.error
+    assert hand_authored.result["diff_summary"]["nodes_added"] == []
+    assert len(hand_authored.result["workflow"]["nodes"]) == 3
+    assert len(hand_authored.result["workflow"]["edges"]) == 2
+    hand_authored_metadata = hand_authored.result["workflow"]["metadata"]["assistant_plan"]
+    assert hand_authored_metadata["template_id"] == "saved_recipe_image_v1"
+    assert hand_authored_metadata["template_recipe_id"] == saved["recipe_id"]
+    assert hand_authored_metadata["template_refinement"] is True
+    refined_prompt = next(
+        node
+        for node in hand_authored.result["workflow"]["nodes"]
+        if node["id"] == prompt_node.id
+    )
+    assert refined_prompt["fields"]["refinement"] == "Use tightly overlapping travel ephemera."
+
+    refined = client.post(
+        f"/media/assistant/plans/{hand_authored.result['proposal_id']}/apply",
+        json={
+            "workflow": applied_workflow.model_dump(mode="json"),
+            "proposal_id": hand_authored.result["proposal_id"],
+            "confirmation_token": hand_authored.result["confirmation_token"],
+        },
+    )
+    assert refined.status_code == 200, refined.text
+    refined_workflow = graph_schemas.GraphWorkflow.model_validate(refined.json()["workflow"])
+    assert next(
+        node for node in refined_workflow.nodes if node.id == prompt_node.id
+    ).fields["refinement"] == "Use tightly overlapping travel ephemera."
+
+    continued = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Continue refining the same browser-shaped lane.",
+            "operations": [
+                {
+                    "op": "set_node_field",
+                    "node_id": prompt_node.id,
+                    "fields": {"refinement": "Use denser overlapping travel ephemera."},
+                }
+            ],
+        },
+        capability="graph_builder",
+        context=tools.KernelToolContext(
+            workflow=refined_workflow,
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=store_assistant.get_assistant_session(session["assistant_session_id"]),
+            user_message_id="msg-continued-recipe-refinement",
+        ),
+    )
+    assert continued.trace.error is None, continued.trace.error
+    assert continued.result["workflow"]["metadata"]["assistant_plan"]["template_refinement"] is True
+
+    second = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Refine the same recipe test for Porto.",
+            "template_id": "saved_recipe_image_v1",
+            "recipe_id": saved["recipe_id"],
+            "field_values": {"destination": "Porto"},
+            "derived_recipe_defaults_overrides": override,
+        },
+        capability="graph_builder",
+        context=tools.KernelToolContext(
+            workflow=refined_workflow,
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=store_assistant.get_assistant_session(session["assistant_session_id"]),
+            user_message_id="msg-refine-recipe-test",
+        ),
+    )
+
+    assert second.trace.error is None, second.trace.error
+    assert len(second.result["workflow"]["nodes"]) == 3
+    assert len(second.result["workflow"]["edges"]) == 2
+    assert sum(
+        node["type"].startswith("model.kie.")
+        for node in second.result["workflow"]["nodes"]
+    ) == 1
+    assert second.result["diff_summary"]["nodes_added"] == []
+    recipe_node = next(
+        node
+        for node in second.result["workflow"]["nodes"]
+        if node["type"] == "prompt.recipe"
+    )
+    assert recipe_node["fields"]["destination"] == "Porto"
+    assert second.result["workflow"]["metadata"]["assistant_plan"]["template_refinement"] is True
 
 
 def test_saved_recipe_template_uses_typed_generation_defaults_and_valid_falsy_fields(

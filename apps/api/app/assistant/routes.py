@@ -501,15 +501,25 @@ def apply_plan(
             "The canvas changed after this graph proposal was created. Ask for a fresh proposal."
         )
     try:
-        workflow = (
-            apply_graph_plan(base_workflow, graph_plan)
-            if graph_plan.operations
-            else base_workflow
-        )
+        if graph_plan.metadata.get("replace_existing_test_lane"):
+            workflow = GraphWorkflow.model_validate(plan.get("workflow_json") or {})
+        elif graph_plan.operations:
+            workflow = apply_graph_plan(base_workflow, graph_plan)
+        else:
+            workflow = base_workflow
     except ValueError as exc:
         raise _bad_request(str(exc))
     validation = validate_workflow(workflow)
-    layout_errors = graph_plan_layout_errors(base_workflow, workflow, graph_plan)
+    layout_base = (
+        GraphWorkflow(
+            schema_version=base_workflow.schema_version,
+            workflow_id=base_workflow.workflow_id,
+            name=base_workflow.name,
+        )
+        if graph_plan.metadata.get("replace_existing_test_lane")
+        else base_workflow
+    )
+    layout_errors = graph_plan_layout_errors(layout_base, workflow, graph_plan)
     if layout_errors:
         raise _bad_request(layout_errors[0].message)
     graph_plan.metadata["diff_summary"] = graph_plan_diff_summary(
@@ -533,10 +543,9 @@ def apply_plan(
             "applied_workflow_id": workflow.workflow_id,
         }
     )
-    session = store_assistant.get_assistant_session(
-        str(plan["assistant_session_id"])
-    )
+    session = store_assistant.get_assistant_session(str(plan["assistant_session_id"]))
     if session:
+        summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
         store_assistant.create_assistant_message(
             {
                 "assistant_session_id": session["assistant_session_id"],
@@ -551,7 +560,18 @@ def apply_plan(
             }
         )
         store_assistant.create_or_update_assistant_session(
-            {**session, "status": "active"}
+            {
+                **session,
+                "status": "active",
+                "summary_json": {
+                    **summary,
+                    **(
+                        {"kernel_test_lane_replacement_offer": None}
+                        if graph_plan.metadata.get("replace_existing_test_lane")
+                        else {}
+                    ),
+                },
+            }
         )
     return AssistantPlanApplyResponse(
         plan=AssistantPlan(**updated),

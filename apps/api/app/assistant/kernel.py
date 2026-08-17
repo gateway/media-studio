@@ -153,8 +153,9 @@ def _kernel_instruction() -> str:
         "Encode the complete tool argument object as JSON in tool_call.arguments. "
         "Return either one tool_call or a user-facing reply. Do not claim facts about Media Studio state "
         "until a tool result provides them. The server owns confirmation actions; never invent one in prose. "
-        "If the user explicitly asks to run the current graph, return a concise reply and request run_workflow "
-        "with requires_confirmation true; never claim the run started. Do not request save actions because the "
+        "If the user explicitly asks to run the current graph, call validate_current_workflow with "
+        "request_run_confirmation=true, then return a concise reply; the server creates the confirmation action. "
+        "Never claim the run started. Do not request save actions because the "
         "server derives those from validated drafts. If the user asks to just talk or not build anything, do not "
         "propose graph operations and leave requested_action as none. "
         "Keep the reply compact and free of internal tool, route, provider, or capability vocabulary.\n\n"
@@ -412,6 +413,14 @@ def _kernel_session_context(
     }
 
 
+def _graph_confirmation_label(metadata: Dict[str, Any]) -> str:
+    if metadata.get("replace_existing_test_lane"):
+        return "Replace test lane"
+    if metadata.get("template_refinement"):
+        return "Apply refinement"
+    return "Add to canvas"
+
+
 def _next_action_for_artifacts(
     capability: AssistantKernelCapability,
     artifacts: List[AssistantKernelArtifact],
@@ -533,7 +542,7 @@ def _next_action_for_artifacts(
                     )
                     return AssistantNextAction(
                         kind="confirm_graph",
-                        label="Add to canvas",
+                        label=_graph_confirmation_label(graph_plan.metadata),
                         proposal_id=proposal_id,
                         confirmation_token=confirmation_token,
                         requires_confirmation=True,
@@ -547,9 +556,20 @@ def _next_action_for_artifacts(
         return AssistantNextAction()
     proposal_id = str(proposal.get("proposal_id") or "")
     confirmation_token = str(proposal.get("confirmation_token") or "")
+    proposal_workflow = proposal.get("workflow") if isinstance(proposal.get("workflow"), dict) else {}
+    proposal_metadata = (
+        proposal_workflow.get("metadata")
+        if isinstance(proposal_workflow.get("metadata"), dict)
+        else {}
+    )
+    assistant_plan_metadata = (
+        proposal_metadata.get("assistant_plan")
+        if isinstance(proposal_metadata.get("assistant_plan"), dict)
+        else {}
+    )
     return AssistantNextAction(
         kind="confirm_graph",
-        label="Add to canvas",
+        label=_graph_confirmation_label(assistant_plan_metadata),
         proposal_id=proposal_id,
         confirmation_token=confirmation_token,
         requires_confirmation=True,
@@ -763,6 +783,7 @@ def run_assistant_kernel_turn(
     provider_steps: List[AssistantKernelProviderTrace] = []
     tool_traces = []
     artifacts: List[AssistantKernelArtifact] = []
+    requested_run_action: AssistantNextAction | None = None
     pending_success_reply = ""
     tool_steps = 0
     provider_call_index = 0
@@ -916,6 +937,17 @@ def run_assistant_kernel_turn(
             )
             tool_steps += 1
             tool_traces.append(execution.trace)
+            if (
+                step.tool_call.name == "validate_current_workflow"
+                and isinstance(execution.result, dict)
+                and execution.result.get("run_confirmation_requested") is True
+                and isinstance(execution.result.get("validation"), dict)
+                and execution.result["validation"].get("valid") is True
+            ):
+                requested_run_action = AssistantNextAction(
+                    kind="run_workflow",
+                    requires_confirmation=True,
+                )
             artifact_kind = {
                 "read_current_workflow": "current_workflow",
                 "validate_current_workflow": "graph_validation",
@@ -1010,7 +1042,11 @@ def run_assistant_kernel_turn(
                     next_action=_next_action_for_artifacts(
                         selected_capability,
                         artifacts,
-                        requested_action=step.requested_action,
+                        requested_action=(
+                            step.requested_action
+                            if step.requested_action.kind == "run_workflow"
+                            else requested_run_action
+                        ),
                         workflow=workflow,
                         session=session,
                     ),
@@ -1081,7 +1117,11 @@ def run_assistant_kernel_turn(
         next_action = _next_action_for_artifacts(
             selected_capability,
             artifacts,
-            requested_action=step.requested_action,
+            requested_action=(
+                step.requested_action
+                if step.requested_action.kind == "run_workflow"
+                else requested_run_action
+            ),
             workflow=workflow,
             session=session,
         )

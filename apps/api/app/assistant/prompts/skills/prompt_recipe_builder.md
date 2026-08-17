@@ -56,7 +56,8 @@ Typed draft state:
   inherited setting the user did not ask to change.
 - When the current workflow already has a paid generation path, reuse a compatible recipe/model/preview
   path instead of appending another paid path. If the requested recipe cannot safely reuse that path,
-  ask whether to replace the graph or start a fresh workflow. Add another paid branch only when the user
+  ask whether to replace the test lane. After the user approves in a later turn, retry with
+  `test_lane_replacement_intent=explicitly_requested` so the UI can review the replacement. Add another paid branch only when the user
   clearly asks to compose multiple outputs; in that case set `additional_paid_path_intent` to
   `explicitly_requested` in the graph proposal.
 - In a saved-recipe graph, populate every required enabled variable. Also populate any template variable

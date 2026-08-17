@@ -123,6 +123,19 @@ def _read_recipe_run(tools, workflow: dict, session: dict, run_id: str):
     )
 
 
+def test_recipe_run_confirmation_is_derived_from_the_workflow_not_ui_capability() -> None:
+    run_confirmation = importlib.import_module("app.assistant.run_confirmation")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+
+    kind = run_confirmation.assistant_run_confirmation_kind(
+        {},
+        capability="graph_builder",
+        workflow=graph_schemas.GraphWorkflow.model_validate(_recipe_workflow()),
+    )
+
+    assert kind == "recipe"
+
+
 def test_completed_recipe_run_is_bound_to_exact_session_confirmation(client, app_modules) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
     workflow = _recipe_workflow()

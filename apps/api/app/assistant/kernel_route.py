@@ -165,6 +165,7 @@ def create_kernel_message(
         confirmation_kind = assistant_run_confirmation_kind(
             {"test_plan_id": test_plan_id},
             capability=result.capability,
+            workflow=payload.workflow,
         )
         run_confirmation = {
             "confirmation_token_hash": hashlib.sha256(

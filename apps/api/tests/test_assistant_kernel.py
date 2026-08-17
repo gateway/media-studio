@@ -1698,6 +1698,49 @@ def test_kernel_run_request_returns_typed_confirmation_without_submitting_a_job(
     assert replay.status_code == 400
 
 
+def test_validated_run_intent_creates_confirmation_without_provider_action_flags(client, monkeypatch) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    steps = iter(
+        [
+            {
+                "capability": "graph_builder",
+                "tool_call": {
+                    "name": "validate_current_workflow",
+                    "arguments": {"request_run_confirmation": True},
+                },
+            },
+            {
+                "capability": "graph_builder",
+                "reply": "The checked graph is ready for your confirmation.",
+            },
+        ]
+    )
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+    workflow = {
+        "schema_version": 1,
+        "workflow_id": "workflow-tool-bound-run-confirmation",
+        "name": "Tool-bound run confirmation",
+        "nodes": [],
+        "edges": [],
+        "metadata": {},
+    }
+    session = client.post(
+        "/media/assistant/sessions",
+        json={"owner_kind": "graph_workflow", "owner_id": workflow["workflow_id"], "workflow": workflow},
+    ).json()
+
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={"content_text": "Go ahead and run the current graph.", "workflow": workflow},
+    )
+
+    assert response.status_code == 200, response.text
+    turn = response.json()["messages"][-1]["content_json"]["kernel_turn"]
+    assert turn["next_action"]["kind"] == "run_workflow"
+    assert turn["next_action"]["requires_confirmation"] is True
+    assert turn["trace"]["tool_calls"][0]["tool_name"] == "validate_current_workflow"
+
+
 def test_kernel_run_confirmation_accepts_canonically_equivalent_canvas_state(client, monkeypatch) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
     monkeypatch.setattr(

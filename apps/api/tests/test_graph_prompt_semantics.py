@@ -47,8 +47,11 @@ def test_builtin_prompt_recipes_publish_typed_prompt_semantics(client, monkeypat
     from app.graph.executors.base import GraphExecutionContext
     from app.graph.schemas import GraphWorkflow, GraphWorkflowNode
 
+    rendered_prompts: list[str] = []
+
     def provider_reply(**kwargs):
         system_prompt = str(kwargs["messages"][0]["content"])
+        rendered_prompts.append(system_prompt)
         generated_text = (
             _complete_storyboard_prompt()
             if "Storyboard v2 prompt compiler" in system_prompt
@@ -92,11 +95,16 @@ def test_builtin_prompt_recipes_publish_typed_prompt_semantics(client, monkeypat
     ordinary = execute(
         "prompt-recipe-image-prompt-director",
         user_prompt="A quiet portrait at a station.",
+        refinement="Increase the tightly overlapping paper ephemera.",
     )
 
     assert environment["prompt_semantics"] == "environment_sheet"
     assert storyboard["prompt_semantics"] == "storyboard_sheet_with_metadata"
     assert ordinary["prompt_semantics"] == "ordinary_image_prompt"
+    assert any(
+        "Increase the tightly overlapping paper ephemera." in prompt
+        for prompt in rendered_prompts
+    )
     assert prompt_ops.PROMPT_RECIPE_SEMANTICS["image-analysis-character-reference"] == "character_reference"
 
 

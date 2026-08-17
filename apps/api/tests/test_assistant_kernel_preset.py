@@ -1083,6 +1083,239 @@ def test_preset_test_graph_compiles_human_field_values_without_mutating_reusable
     assert stored["summary_json"]["kernel_preset_draft"]["input_schema_json"] == draft["input_schema_json"]
 
 
+def test_preset_refinement_updates_the_applied_test_lane_without_adding_a_paid_path(client) -> None:
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    provenance = importlib.import_module("app.assistant.provenance")
+    run_confirmation = importlib.import_module("app.assistant.run_confirmation")
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    store_assistant = importlib.import_module("app.store_assistant")
+    session = _session(client)
+    original = _preset_draft("kernel_refined_test_lane")
+    summary = dict(session.get("summary_json") or {})
+    summary["kernel_preset_draft"] = original
+    session = store_assistant.create_or_update_assistant_session({**session, "summary_json": summary})
+
+    first = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Prepare the first preset test.",
+            "template_id": "preset_style_t2i_sandbox_v1",
+            "field_values": {"location": "Kyoto"},
+        },
+        capability="preset_builder",
+        context=tools.KernelToolContext(
+            workflow=graph_schemas.GraphWorkflow(name="Preset refinement"),
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=session,
+        ),
+    )
+    applied_first = client.post(
+        f"/media/assistant/plans/{first.result['proposal_id']}/apply",
+        json={
+            "workflow": {
+                "schema_version": 1,
+                "name": "Preset refinement",
+                "nodes": [],
+                "edges": [],
+                "metadata": {},
+            },
+            "proposal_id": first.result["proposal_id"],
+            "confirmation_token": first.result["confirmation_token"],
+        },
+    )
+    assert applied_first.status_code == 200, applied_first.text
+    first_workflow = graph_schemas.GraphWorkflow.model_validate(applied_first.json()["workflow"])
+
+    revised = json.loads(json.dumps(original))
+    revised["prompt_template"] = "Clean graphic travel board for {{location}} with open title space"
+    revised["default_options_json"]["aspect_ratio"] = "3:4"
+    refreshed = store_assistant.get_assistant_session(session["assistant_session_id"])
+    refreshed_summary = dict(refreshed.get("summary_json") or {})
+    refreshed_summary["kernel_preset_draft"] = revised
+    refreshed = store_assistant.create_or_update_assistant_session(
+        {**refreshed, "summary_json": refreshed_summary}
+    )
+
+    second = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Apply the approved focused refinement.",
+            "template_id": "preset_style_t2i_sandbox_v1",
+            "field_values": {"location": "Kyoto"},
+        },
+        capability="preset_builder",
+        context=tools.KernelToolContext(
+            workflow=first_workflow,
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=refreshed,
+        ),
+    )
+
+    assert second.trace.error is None, second.trace.error
+    assert len(second.result["workflow"]["nodes"]) == 3
+    assert len(second.result["workflow"]["edges"]) == 2
+    assert sum(
+        node["type"].startswith("model.kie.")
+        for node in second.result["workflow"]["nodes"]
+    ) == 1
+    assert second.result["diff_summary"]["nodes_added"] == []
+    assert {
+        node["id"] for node in second.result["diff_summary"]["nodes_changed"]
+    } == {"assistant-preset-prompt", "assistant-preset-model"}
+    assert second.result["pricing"] == first.result["pricing"]
+    metadata = second.result["workflow"]["metadata"]["assistant_plan"]
+    assert metadata["preset_quality_contract_hash"] == provenance.preset_quality_contract_hash(
+        revised
+    )
+
+    applied_second = client.post(
+        f"/media/assistant/plans/{second.result['proposal_id']}/apply",
+        json={
+            "workflow": first_workflow.model_dump(mode="json"),
+            "proposal_id": second.result["proposal_id"],
+            "confirmation_token": second.result["confirmation_token"],
+        },
+    )
+    assert applied_second.status_code == 200, applied_second.text
+    revised_workflow = graph_schemas.GraphWorkflow.model_validate(applied_second.json()["workflow"])
+    assert run_confirmation.applied_preset_test_plan_id(
+        session["assistant_session_id"], revised_workflow
+    ) == second.result["proposal_id"]
+
+
+def test_preset_refinement_does_not_reuse_another_sessions_applied_lane(client) -> None:
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    store_assistant = importlib.import_module("app.store_assistant")
+    owner_session = _session(client)
+    draft = _preset_draft("kernel_session_owned_test_lane")
+    owner_summary = dict(owner_session.get("summary_json") or {})
+    owner_summary["kernel_preset_draft"] = draft
+    owner_session = store_assistant.create_or_update_assistant_session(
+        {**owner_session, "summary_json": owner_summary}
+    )
+    first = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Prepare the owner session's test lane.",
+            "template_id": "preset_style_t2i_sandbox_v1",
+            "field_values": {"location": "Kyoto"},
+        },
+        capability="preset_builder",
+        context=tools.KernelToolContext(
+            workflow=graph_schemas.GraphWorkflow(name="Owned preset lane"),
+            canvas_context={},
+            session_id=owner_session["assistant_session_id"],
+            session=owner_session,
+        ),
+    )
+    applied = client.post(
+        f"/media/assistant/plans/{first.result['proposal_id']}/apply",
+        json={
+            "workflow": {
+                "schema_version": 1,
+                "name": "Owned preset lane",
+                "nodes": [],
+                "edges": [],
+                "metadata": {},
+            },
+            "proposal_id": first.result["proposal_id"],
+            "confirmation_token": first.result["confirmation_token"],
+        },
+    )
+    assert applied.status_code == 200, applied.text
+
+    other_session = _session(client)
+    other_summary = dict(other_session.get("summary_json") or {})
+    other_summary["kernel_preset_draft"] = draft
+    other_session = store_assistant.create_or_update_assistant_session(
+        {**other_session, "summary_json": other_summary}
+    )
+    blocked = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Try to refine an unrelated session's lane.",
+            "template_id": "preset_style_t2i_sandbox_v1",
+            "field_values": {"location": "Kyoto"},
+        },
+        capability="preset_builder",
+        context=tools.KernelToolContext(
+            workflow=graph_schemas.GraphWorkflow.model_validate(applied.json()["workflow"]),
+            canvas_context={},
+            session_id=other_session["assistant_session_id"],
+            session=other_session,
+            user_message_id="msg-offer-test-lane-replacement",
+        ),
+    )
+
+    assert blocked.result is None
+    assert blocked.trace.error.code == "preset_test_lane_replacement_required"
+    assert store_assistant.list_assistant_plans(other_session["assistant_session_id"]) == []
+
+    unconfirmed = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Do not trust a same-turn replacement flag.",
+            "template_id": "preset_style_t2i_sandbox_v1",
+            "field_values": {"location": "Kyoto"},
+            "test_lane_replacement_intent": "explicitly_requested",
+        },
+        capability="preset_builder",
+        context=tools.KernelToolContext(
+            workflow=graph_schemas.GraphWorkflow.model_validate(applied.json()["workflow"]),
+            canvas_context={},
+            session_id=other_session["assistant_session_id"],
+            session=store_assistant.get_assistant_session(other_session["assistant_session_id"]),
+            user_message_id="msg-offer-test-lane-replacement",
+        ),
+    )
+    assert unconfirmed.result is None
+    assert unconfirmed.trace.error.code == "preset_test_lane_replacement_required"
+    assert store_assistant.list_assistant_plans(other_session["assistant_session_id"]) == []
+
+    replacement = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Replace the reviewed test lane.",
+            "template_id": "preset_style_t2i_sandbox_v1",
+            "field_values": {"location": "Kyoto"},
+            "test_lane_replacement_intent": "explicitly_requested",
+        },
+        capability="preset_builder",
+        context=tools.KernelToolContext(
+            workflow=graph_schemas.GraphWorkflow.model_validate(applied.json()["workflow"]),
+            canvas_context={},
+            session_id=other_session["assistant_session_id"],
+            session=store_assistant.get_assistant_session(other_session["assistant_session_id"]),
+            user_message_id="msg-approve-test-lane-replacement",
+        ),
+    )
+
+    assert replacement.trace.error is None, replacement.trace.error
+    assert len(replacement.result["workflow"]["nodes"]) == 3
+    assert sum(
+        node["type"].startswith("model.kie.")
+        for node in replacement.result["workflow"]["nodes"]
+    ) == 1
+    assert replacement.result["workflow"]["metadata"]["assistant_plan"][
+        "replace_existing_test_lane"
+    ] is True
+    replaced = client.post(
+        f"/media/assistant/plans/{replacement.result['proposal_id']}/apply",
+        json={
+            "workflow": applied.json()["workflow"],
+            "proposal_id": replacement.result["proposal_id"],
+            "confirmation_token": replacement.result["confirmation_token"],
+        },
+    )
+    assert replaced.status_code == 200, replaced.text
+    assert len(replaced.json()["workflow"]["nodes"]) == 3
+    replaced_session = store_assistant.get_assistant_session(other_session["assistant_session_id"])
+    assert replaced_session["summary_json"].get("kernel_test_lane_replacement_offer") is None
+
+
 def test_preset_test_graph_rejects_unknown_human_field_value_before_plan_persistence(client) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
     store_assistant = importlib.import_module("app.store_assistant")

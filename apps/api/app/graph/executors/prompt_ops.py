@@ -1757,6 +1757,13 @@ class PromptRecipeExecutor(GraphExecutor):
         unresolved = _unresolved_prompt_recipe_tokens(rendered_template)
         if unresolved:
             raise ValueError("Prompt Recipe unresolved template variables: %s" % ", ".join(unresolved))
+        refinement = str(node.fields.get("refinement") or "").strip()
+        if refinement:
+            rendered_template = (
+                f"{rendered_template}\n\n"
+                "ADDITIONAL CREATIVE REFINEMENT FOR THIS RUN:\n"
+                f"{refinement}"
+            )
 
         use_direct_image_context = image_mode in {"direct_reference", "both"} and bool(image_paths)
         provider = _provider_config(node, has_image=use_direct_image_context)

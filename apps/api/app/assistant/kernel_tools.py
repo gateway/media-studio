@@ -14,7 +14,7 @@ from .. import store, store_assistant
 from ..graph.normalization import materialize_workflow_defaults
 from ..graph.pricing import estimate_graph_workflow
 from ..graph.registry import registry
-from ..graph.schemas import GraphWorkflow
+from ..graph.schemas import GraphWorkflow, GraphWorkflowNode
 from ..graph.validator import validate_workflow
 from ..service_errors import ServiceError
 from ..service_prompt_recipe_validation import prompt_recipe_media_generation
@@ -43,7 +43,11 @@ from .preset_kernel import (
     propose_media_preset_draft,
     search_presets,
 )
-from .provenance import preset_quality_contract_hash, workflow_fingerprint
+from .provenance import (
+    preset_quality_contract_hash,
+    preset_test_workflow_fingerprint,
+    workflow_fingerprint,
+)
 from .production_plan import (
     ProductionPlanError,
     ProposeProductionPlanArguments,
@@ -118,6 +122,7 @@ class InspectGraphNodeSchemasArguments(BaseModel):
 
 class ValidateCurrentWorkflowArguments(BaseModel):
     include_pricing: bool = True
+    request_run_confirmation: bool = False
 
 
 class DerivedRecipeDefaultsOverride(BaseModel):
@@ -148,6 +153,7 @@ class ProposeGraphOperationsArguments(BaseModel):
     questions: List[str] = Field(default_factory=list, max_length=8)
     warnings: List[str] = Field(default_factory=list, max_length=8)
     additional_paid_path_intent: Literal["not_requested", "explicitly_requested"] = "not_requested"
+    test_lane_replacement_intent: Literal["not_requested", "explicitly_requested"] = "not_requested"
     derived_recipe_defaults_overrides: List[DerivedRecipeDefaultsOverride] = Field(
         default_factory=list,
         max_length=4,
@@ -562,6 +568,7 @@ def _validate_current_workflow(arguments: BaseModel, context: KernelToolContext)
         "name": workflow.name,
         "validation": validation.model_dump(mode="json"),
         "pricing": estimate_graph_workflow(workflow).model_dump(mode="json") if options.include_pricing else {},
+        "run_confirmation_requested": options.request_run_confirmation,
     }
 
 
@@ -579,10 +586,248 @@ PRESET_TEST_GRAPH_TEMPLATES = {
 }
 
 
+def _matching_applied_template_plan(
+    context: KernelToolContext,
+    *,
+    template_id: str,
+    expected_metadata: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    if not context.session_id or context.workflow is None:
+        return None
+    current_fingerprint = _template_lane_workflow_fingerprint(context.workflow)
+    return next(
+        (
+            plan
+            for plan in store_assistant.list_assistant_plans(context.session_id)
+            if str(plan.get("status") or "") == "applied"
+            and str(((plan.get("plan_json") or {}).get("metadata") or {}).get("template_id") or "")
+            == template_id
+            and all(
+                ((plan.get("plan_json") or {}).get("metadata") or {}).get(key) == value
+                for key, value in (expected_metadata or {}).items()
+            )
+            and isinstance(plan.get("workflow_json"), dict)
+            and _template_lane_workflow_fingerprint(
+                GraphWorkflow.model_validate(plan["workflow_json"])
+            )
+            == current_fingerprint
+        ),
+        None,
+    )
+
+
+def _template_lane_workflow_fingerprint(workflow: GraphWorkflow) -> str:
+    comparable = workflow.model_copy(deep=True)
+    definitions = registry.definitions_by_type()
+    for node in comparable.nodes:
+        definition = definitions.get(node.type)
+        if definition is not None:
+            node.fields = {
+                key: value
+                for key, value in node.fields.items()
+                if any(
+                    _node_field_available(node, field)
+                    for field in definition.fields
+                    if field.id == key
+                )
+            }
+        execution = (
+            node.metadata.get("execution")
+            if isinstance(node.metadata.get("execution"), dict)
+            else {}
+        )
+        node.metadata["execution"] = {
+            "mode": str(execution.get("mode") or "enabled")
+        }
+    return preset_test_workflow_fingerprint(comparable)
+
+
+def _node_field_available(node: GraphWorkflowNode, field: Any) -> bool:
+    return bool(
+        not isinstance(field.visible_if, dict)
+        or field.visible_if.get("field") != "recipe_id"
+        or node.fields.get("recipe_id") in (field.visible_if.get("in") or [])
+    )
+
+
+def _applied_template_lane_nodes(
+    context: KernelToolContext,
+    *,
+    template_id: str,
+    expected_node_types: Dict[str, str],
+    expected_metadata: Optional[Dict[str, Any]] = None,
+    replacement_error_code: str,
+) -> Optional[Dict[str, str]]:
+    matching_plan = _matching_applied_template_plan(
+        context,
+        template_id=template_id,
+        expected_metadata=expected_metadata,
+    )
+    if matching_plan is None:
+        return None
+    plan_workflow = GraphWorkflow.model_validate(matching_plan["workflow_json"])
+    plan_metadata = (matching_plan.get("plan_json") or {}).get("metadata") or {}
+    stored_node_ids = (
+        plan_metadata.get("template_lane_node_ids")
+        if isinstance(plan_metadata.get("template_lane_node_ids"), dict)
+        else {}
+    )
+    nodes_by_ref: Dict[str, str] = {
+        str(key): str(value)
+        for key, value in stored_node_ids.items()
+        if key in expected_node_types and value
+    }
+    for node in plan_workflow.nodes:
+        assistant_metadata = (
+            node.metadata.get("assistant")
+            if isinstance(node.metadata.get("assistant"), dict)
+            else {}
+        )
+        semantic_ref = str(assistant_metadata.get("semantic_ref") or "")
+        if semantic_ref in expected_node_types and semantic_ref not in nodes_by_ref:
+            if node.type != expected_node_types[semantic_ref]:
+                raise KernelToolFailure(
+                    code=replacement_error_code,
+                    message="Review replacing the existing test lane before applying this refinement.",
+                    retryable=False,
+                )
+            nodes_by_ref[semantic_ref] = node.id
+    current_nodes = {node.id: node for node in context.workflow.nodes}
+    if set(nodes_by_ref) != set(expected_node_types) or any(
+        node_id not in current_nodes
+        or current_nodes[node_id].type != expected_node_types[semantic_ref]
+        for semantic_ref, node_id in nodes_by_ref.items()
+    ):
+        raise KernelToolFailure(
+            code=replacement_error_code,
+            message="Review replacing the existing test lane before applying this refinement.",
+            retryable=False,
+        )
+    return nodes_by_ref
+
+
+def _saved_recipe_refinement_metadata(
+    context: KernelToolContext,
+    operations: List[AssistantGraphOperation],
+) -> Dict[str, Any]:
+    plan = _matching_applied_template_plan(
+        context,
+        template_id="saved_recipe_image_v1",
+    )
+    if plan is None or context.workflow is None or not operations:
+        return {}
+    plan_workflow = GraphWorkflow.model_validate(plan["workflow_json"])
+    previous = (plan.get("plan_json") or {}).get("metadata") or {}
+    lane_node_ids = {
+        str(key): str(value)
+        for key, value in (previous.get("template_lane_node_ids") or {}).items()
+        if key in {"recipe_prompt", "recipe_model", "recipe_preview"} and value
+    }
+    lane_node_ids.update({
+        str(node.metadata["assistant"].get("semantic_ref") or ""): node.id
+        for node in plan_workflow.nodes
+        if isinstance(node.metadata.get("assistant"), dict)
+        and str(node.metadata["assistant"].get("semantic_ref") or "")
+        in {"recipe_prompt", "recipe_model", "recipe_preview"}
+    })
+    editable_ids = {
+        lane_node_ids[key] for key in {"recipe_prompt", "recipe_model"} if key in lane_node_ids
+    }
+    current_node_ids = {node.id for node in context.workflow.nodes}
+    current_nodes = {node.id: node for node in context.workflow.nodes}
+    if not all(
+        operation.op in {"set_node_field", "set_node_title"}
+        and str(operation.node_id or "") in editable_ids
+        for operation in operations
+    ) or not editable_ids.issubset(current_node_ids):
+        return {}
+    definitions = registry.definitions_by_type()
+    invalid_field_keys = sorted(
+        {
+            key
+            for operation in operations
+            if operation.op == "set_node_field"
+            for key in operation.fields
+            if not any(
+                field.id == key
+                and _node_field_available(current_nodes[str(operation.node_id)], field)
+                for field in definitions[current_nodes[str(operation.node_id)].type].fields
+            )
+        }
+    )
+    if invalid_field_keys:
+        raise KernelToolFailure(
+            code="saved_recipe_refinement_field_invalid",
+            message="Use fields supported by the selected Prompt Recipe for this refinement.",
+            details={"invalid_field_keys": invalid_field_keys},
+            retryable=True,
+        )
+    inherited_keys = {
+        "template_id",
+        "template_recipe_id",
+        "template_model_key",
+        "template_field_keys",
+        "template_generation_source",
+    }
+    return {
+        **{key: previous[key] for key in inherited_keys if key in previous},
+        "template_lane_node_ids": lane_node_ids,
+        "template_refinement": True,
+    }
+
+
+def _test_lane_replacement_authorized(
+    context: KernelToolContext,
+    *,
+    template_id: str,
+    contract: Dict[str, Any],
+) -> bool:
+    if not context.session_id or not context.user_message_id or context.workflow is None:
+        return False
+    session = store_assistant.get_assistant_session(context.session_id) or context.session
+    summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
+    offer = summary.get("kernel_test_lane_replacement_offer")
+    return bool(
+        isinstance(offer, dict)
+        and offer.get("template_id") == template_id
+        and offer.get("contract") == contract
+        and offer.get("workflow_fingerprint") == workflow_fingerprint(context.workflow)
+        and str(offer.get("offered_user_message_id") or "") != context.user_message_id
+    )
+
+
+def _offer_test_lane_replacement(
+    context: KernelToolContext,
+    *,
+    template_id: str,
+    contract: Dict[str, Any],
+) -> None:
+    if not context.session_id or context.workflow is None:
+        return
+    session = store_assistant.get_assistant_session(context.session_id) or context.session
+    summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
+    store_assistant.create_or_update_assistant_session(
+        {
+            **session,
+            "summary_json": {
+                **summary,
+                "kernel_test_lane_replacement_offer": {
+                    "template_id": template_id,
+                    "contract": contract,
+                    "workflow_fingerprint": workflow_fingerprint(context.workflow),
+                    "offered_user_message_id": context.user_message_id,
+                },
+            },
+        }
+    )
+
+
 def _saved_recipe_graph_operations(
     recipe_id: Optional[str],
     field_values: Optional[Dict[str, str]],
     requested_overrides: List[DerivedRecipeDefaultsOverride],
+    context: KernelToolContext,
+    replacement_intent: str,
 ) -> tuple[List[AssistantGraphOperation], Dict[str, Any]]:
     recipe = store.get_prompt_recipe(str(recipe_id or ""))
     if not recipe or str(recipe.get("status") or "") != "active":
@@ -742,15 +987,17 @@ def _saved_recipe_graph_operations(
             details={"invalid_option_value_keys": invalid_model_values},
         )
     model_fields = {
-        key: value
-        for key, value in generation["default_options_json"].items()
+        field.id: field.default
+        for field in model_definition.fields
+        if field.default is not None
     }
+    model_fields.update(generation["default_options_json"])
     recipe_fields = {
         "recipe_category": str(recipe.get("category") or "utility"),
         "recipe_id": str(recipe.get("recipe_id") or ""),
         **supplied_values,
     }
-    operations = [
+    new_lane_operations = [
         AssistantGraphOperation(
             op="add_node",
             node_ref="recipe_prompt",
@@ -789,12 +1036,71 @@ def _saved_recipe_graph_operations(
             target_port="image",
         ),
     ]
+    existing_lane = _applied_template_lane_nodes(
+        context,
+        template_id="saved_recipe_image_v1",
+        expected_node_types={
+            "recipe_prompt": "prompt.recipe",
+            "recipe_model": model_definition.type,
+            "recipe_preview": "preview.image",
+        },
+        expected_metadata={
+            "template_recipe_id": recipe_id,
+            "template_model_key": generation["model_key"],
+        },
+        replacement_error_code="saved_recipe_test_lane_replacement_required",
+    )
+    replacement_contract = {
+        "recipe_id": recipe_id,
+        "model_key": generation["model_key"],
+    }
+    replace_existing_lane = False
+    if existing_lane is not None:
+        operations = [
+            AssistantGraphOperation(
+                op="set_node_field",
+                node_id=existing_lane["recipe_prompt"],
+                fields=recipe_fields,
+            ),
+            AssistantGraphOperation(
+                op="set_node_field",
+                node_id=existing_lane["recipe_model"],
+                fields=model_fields,
+            ),
+        ]
+    elif context.workflow is not None and any(
+        node.type.startswith("model.kie.") for node in context.workflow.nodes
+    ):
+        replace_existing_lane = (
+            replacement_intent == "explicitly_requested"
+            and _test_lane_replacement_authorized(
+                context,
+                template_id="saved_recipe_image_v1",
+                contract=replacement_contract,
+            )
+        )
+        if not replace_existing_lane:
+            _offer_test_lane_replacement(
+                context,
+                template_id="saved_recipe_image_v1",
+                contract=replacement_contract,
+            )
+            raise KernelToolFailure(
+                code="saved_recipe_test_lane_replacement_required",
+                message="Ask whether to replace the existing test lane, then prepare that reviewed replacement only after approval.",
+                retryable=False,
+            )
+        operations = new_lane_operations
+    else:
+        operations = new_lane_operations
     return operations, {
         "template_id": "saved_recipe_image_v1",
         "template_recipe_id": str(recipe.get("recipe_id") or ""),
         "template_model_key": generation["model_key"],
         "template_field_keys": sorted(supplied_values),
         "template_generation_source": generation_source,
+        "template_refinement": existing_lane is not None,
+        "replace_existing_test_lane": replace_existing_lane,
     }
 
 
@@ -802,6 +1108,7 @@ def _preset_test_graph_operations(
     template_id: str,
     context: KernelToolContext,
     field_values: Optional[Dict[str, str]] = None,
+    replacement_intent: str = "not_requested",
 ) -> tuple[List[AssistantGraphOperation], Dict[str, Any]]:
     template = PRESET_TEST_GRAPH_TEMPLATES[template_id]
     session = store_assistant.get_assistant_session(context.session_id or "") or context.session
@@ -888,7 +1195,83 @@ def _preset_test_graph_operations(
         )
     allowed_model_fields = {field.id for field in model_definition.fields}
     draft_options = draft.get("default_options_json") if isinstance(draft.get("default_options_json"), dict) else {}
-    model_fields = {key: value for key, value in draft_options.items() if key in allowed_model_fields}
+    model_fields = {
+        field.id: field.default
+        for field in model_definition.fields
+        if field.default is not None
+    }
+    model_fields.update(
+        {key: value for key, value in draft_options.items() if key in allowed_model_fields}
+    )
+    expected_node_types = {
+        "preset_prompt": "prompt.text",
+        "preset_model": template["node_type"],
+        "preset_preview": "preview.image",
+        **{
+            f"preset_image_{index + 1}": "media.load_image"
+            for index in range(len(slots))
+        },
+    }
+    existing_lane = _applied_template_lane_nodes(
+        context,
+        template_id=template_id,
+        expected_node_types=expected_node_types,
+        expected_metadata={
+            "template_mode": mode,
+            "template_model_key": model_key,
+        },
+        replacement_error_code="preset_test_lane_replacement_required",
+    )
+    if existing_lane is not None:
+        return [
+            AssistantGraphOperation(
+                op="set_node_field",
+                node_id=existing_lane["preset_prompt"],
+                fields={"text": prompt_template},
+            ),
+            AssistantGraphOperation(
+                op="set_node_field",
+                node_id=existing_lane["preset_model"],
+                fields=model_fields,
+            ),
+        ], {
+            "template_id": template_id,
+            "template_mode": mode,
+            "template_slot_count": len(slots),
+            "template_model_key": model_key,
+            "template_field_keys": list(configured_fields),
+            "template_field_values_supplied": supplied_field_values is not None,
+            "preset_quality_contract_hash": preset_quality_contract_hash(draft),
+            "template_refinement": True,
+        }
+    replace_existing_lane = False
+    if context.workflow is not None and any(
+        node.type.startswith("model.kie.") for node in context.workflow.nodes
+    ):
+        replacement_contract = {
+            "preset_quality_contract_hash": preset_quality_contract_hash(draft),
+            "template_mode": mode,
+            "template_model_key": model_key,
+        }
+        replace_existing_lane = (
+            replacement_intent == "explicitly_requested"
+            and _test_lane_replacement_authorized(
+                context,
+                template_id=template_id,
+                contract=replacement_contract,
+            )
+        )
+        if not replace_existing_lane:
+            _offer_test_lane_replacement(
+                context,
+                template_id=template_id,
+                contract=replacement_contract,
+            )
+            raise KernelToolFailure(
+                code="preset_test_lane_replacement_required",
+                message="Ask whether to replace the existing test lane, then prepare that reviewed replacement only after approval.",
+                retryable=False,
+            )
     operations: List[AssistantGraphOperation] = []
     for index, slot in enumerate(slots):
         label = str(slot.get("label") or f"Image input {index + 1}") if isinstance(slot, dict) else f"Image input {index + 1}"
@@ -962,6 +1345,7 @@ def _preset_test_graph_operations(
         "template_field_keys": list(configured_fields),
         "template_field_values_supplied": supplied_field_values is not None,
         "preset_quality_contract_hash": preset_quality_contract_hash(draft),
+        "replace_existing_test_lane": replace_existing_lane,
     }
 
 
@@ -995,6 +1379,8 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
                 options.recipe_id,
                 options.field_values,
                 options.derived_recipe_defaults_overrides,
+                context,
+                options.test_lane_replacement_intent,
             )
             if template_metadata["template_generation_source"] == "user_request":
                 if not context.user_message_id:
@@ -1009,6 +1395,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
                 template_id,
                 context,
                 options.field_values,
+                options.test_lane_replacement_intent,
             )
         metadata.update(template_metadata)
     elif not operations:
@@ -1016,6 +1403,8 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
             code="invalid_graph_operations",
             message="Provide at least one graph operation or a standard preset test template.",
         )
+    if not template_id:
+        metadata.update(_saved_recipe_refinement_metadata(context, operations))
     definitions = registry.definitions_by_type()
     for index, operation in enumerate(operations):
         if operation.op == "add_node" and operation.node_type not in definitions:
@@ -1027,6 +1416,21 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     base_workflow = context.workflow or GraphWorkflow(
         name=str(context.canvas_context.get("workflow_name") or "New workflow"),
     )
+    graph_plan = AssistantGraphPlan(
+        summary=options.summary,
+        operations=operations,
+        questions=options.questions,
+        warnings=options.warnings,
+        requires_confirmation=True,
+        metadata=metadata,
+    )
+    planning_base_workflow = base_workflow
+    if graph_plan.metadata.get("replace_existing_test_lane"):
+        planning_base_workflow = GraphWorkflow(
+            schema_version=base_workflow.schema_version,
+            workflow_id=base_workflow.workflow_id,
+            name=base_workflow.name,
+        )
     adds_paid_path = any(
         operation.op == "add_node"
         and str(operation.node_type or "").startswith("model.kie.")
@@ -1037,6 +1441,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
         context.capability in {"graph_builder", "recipe_builder"}
         and has_paid_path
         and adds_paid_path
+        and not graph_plan.metadata.get("replace_existing_test_lane")
         and options.additional_paid_path_intent != "explicitly_requested"
     ):
         raise KernelToolFailure(
@@ -1046,16 +1451,8 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
                 "start fresh. Add another paid path only when the user explicitly requests one."
             ),
         )
-    graph_plan = AssistantGraphPlan(
-        summary=options.summary,
-        operations=operations,
-        questions=options.questions,
-        warnings=options.warnings,
-        requires_confirmation=True,
-        metadata=metadata,
-    )
     try:
-        planned_workflow = apply_graph_plan(base_workflow, graph_plan)
+        planned_workflow = apply_graph_plan(planning_base_workflow, graph_plan)
     except ValueError as exc:
         raise KernelToolFailure(
             code="invalid_graph_operations",
@@ -1157,7 +1554,11 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
             "This graph uses generation settings from the current request because the saved recipe predates typed preset provenance."
         )
     validation = validate_workflow(planned_workflow)
-    layout_errors = graph_plan_layout_errors(base_workflow, planned_workflow, graph_plan)
+    layout_errors = graph_plan_layout_errors(
+        planning_base_workflow,
+        planned_workflow,
+        graph_plan,
+    )
     pending_user_inputs = [
         error.model_dump(mode="json")
         for error in validation.errors
