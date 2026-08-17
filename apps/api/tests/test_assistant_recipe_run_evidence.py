@@ -492,6 +492,55 @@ def test_recipe_run_evidence_rejects_output_from_disconnected_model(client, app_
     assert "kernel_recipe_run_evidence" not in stored["summary_json"]
 
 
+def test_recipe_run_evidence_rejects_output_from_another_recipe_lane(
+    client,
+    app_modules,
+) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    workflow = _recipe_workflow()
+    workflow["nodes"].extend(
+        [
+            {
+                "id": "unrelated-recipe",
+                "type": "prompt.recipe",
+                "position": {"x": 0, "y": 400},
+                "fields": {"recipe_id": "another-saved-recipe"},
+            },
+            {
+                "id": "unrelated-model",
+                "type": "model.kie.gpt_image_2_text_to_image",
+                "position": {"x": 400, "y": 400},
+                "fields": {},
+            },
+        ]
+    )
+    workflow["edges"].append(
+        {
+            "id": "edge-unrelated-recipe-model",
+            "source": "unrelated-recipe",
+            "source_port": "text",
+            "target": "unrelated-model",
+            "target_port": "prompt",
+        }
+    )
+    run = _completed_run(
+        app_modules["store"],
+        workflow,
+        "run-other-recipe-output",
+        node_id="unrelated-model",
+    )
+    session = _session(client, app_modules, workflow, run["run_id"])
+
+    execution = _read_recipe_run(tools, workflow, session, run["run_id"])
+
+    assert execution.result is None
+    assert execution.trace.error.code == "recipe_output_missing"
+    stored = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )
+    assert "kernel_recipe_run_evidence" not in stored["summary_json"]
+
+
 def test_completed_recipe_run_can_relink_only_from_exact_persisted_evidence(
     client,
     app_modules,
@@ -534,6 +583,52 @@ def test_completed_recipe_run_can_relink_only_from_exact_persisted_evidence(
     assert repaired["relinked_from_completed_evidence"] is True
 
 
+def test_completed_recipe_run_does_not_guess_between_duplicate_matching_plans(
+    client,
+    app_modules,
+) -> None:
+    run_confirmation = importlib.import_module("app.assistant.run_confirmation")
+    workflow = _recipe_workflow()
+    run = _completed_run(app_modules["store"], workflow, "run-recipe-ambiguous-relink")
+    session = _session(client, app_modules, workflow, run["run_id"])
+    linked = run_confirmation.bind_completed_recipe_run(
+        session["assistant_session_id"], run
+    )
+    store_assistant = app_modules["store_assistant"]
+    plan = store_assistant.get_assistant_plan(linked["recipe_plan_id"])
+    duplicate_plan = dict(plan)
+    duplicate_plan.pop("assistant_plan_id")
+    duplicate_plan = store_assistant.create_or_update_assistant_plan(duplicate_plan)
+    stored = store_assistant.get_assistant_session(session["assistant_session_id"])
+    summary = dict(stored["summary_json"])
+    summary.pop("kernel_recipe_run_association")
+    summary["kernel_recipe_run_evidence"] = {
+        key: linked[key]
+        for key in (
+            "assistant_session_id",
+            "run_id",
+            "workflow_fingerprint",
+            "status",
+            "output_asset_ids",
+        )
+    }
+    summary["kernel_run_confirmation"] = {
+        **summary["kernel_run_confirmation"],
+        "assistant_run_id": "run-newer-confirmation",
+        "recipe_plan_id": duplicate_plan["assistant_plan_id"],
+    }
+    store_assistant.create_or_update_assistant_session(
+        {**stored, "summary_json": summary}
+    )
+
+    try:
+        run_confirmation.bind_completed_recipe_run(session["assistant_session_id"], run)
+    except run_confirmation.RunEvidenceError as exc:
+        assert exc.code == "recipe_run_not_confirmed"
+    else:
+        raise AssertionError("Ambiguous legacy evidence must not guess a recipe plan")
+
+
 def test_recipe_quality_contract_ignores_name_only_changes_and_rejects_creative_changes(
     client,
     app_modules,
@@ -544,6 +639,25 @@ def test_recipe_quality_contract_ignores_name_only_changes_and_rejects_creative_
     session = _session(client, app_modules, workflow, run["run_id"])
     recipe_id = workflow["nodes"][0]["fields"]["recipe_id"]
     recipe = app_modules["store"].get_prompt_recipe(recipe_id)
+    evidence = run_confirmation.bind_completed_recipe_run(
+        session["assistant_session_id"], run
+    )
+    stored = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )
+    app_modules["store_assistant"].create_or_update_assistant_session(
+        {
+            **stored,
+            "summary_json": {
+                **stored["summary_json"],
+                "kernel_recipe_output_comparison": {
+                    "comparison_id": "contract-review",
+                    "run_id": run["run_id"],
+                },
+                "kernel_recipe_quality": {"quality_state": "quality_verified"},
+            },
+        }
+    )
 
     app_modules["store"].create_or_update_prompt_recipe(
         {**recipe, "label": "Renamed recipe"}
@@ -551,6 +665,14 @@ def test_recipe_quality_contract_ignores_name_only_changes_and_rejects_creative_
     assert run_confirmation.bind_completed_recipe_run(
         session["assistant_session_id"], run
     )["recipe_id"] == recipe_id
+    renamed_session = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )
+    renamed_context = importlib.import_module("app.assistant.kernel")._kernel_session_context(
+        renamed_session
+    )
+    assert renamed_context["active_recipe_run_evidence"] == evidence
+    assert renamed_context["active_recipe_quality"]["quality_state"] == "quality_verified"
 
     renamed = app_modules["store"].get_prompt_recipe(recipe_id)
     app_modules["store"].create_or_update_prompt_recipe(
@@ -562,6 +684,15 @@ def test_recipe_quality_contract_ignores_name_only_changes_and_rejects_creative_
         assert exc.code == "recipe_workflow_mismatch"
     else:
         raise AssertionError("A changed recipe contract must invalidate run evidence")
+    changed_session = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )
+    changed_context = importlib.import_module("app.assistant.kernel")._kernel_session_context(
+        changed_session
+    )
+    assert changed_context["active_recipe_run_evidence"] is None
+    assert changed_context["active_recipe_output_comparison"] is None
+    assert changed_context["active_recipe_quality"] is None
 
 
 def test_recipe_quality_approval_persists_the_exact_run_contract(

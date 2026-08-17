@@ -90,6 +90,8 @@ def _matching_applied_recipe_plan(
     session_id: str,
     workflow: GraphWorkflow,
     plan_id: str | None = None,
+    *,
+    require_unique: bool = False,
 ) -> dict | None:
     plans = (
         [store_assistant.get_assistant_plan(plan_id)]
@@ -98,6 +100,7 @@ def _matching_applied_recipe_plan(
     )
     workflow_id = _workflow_identity(workflow)
     fingerprint = recipe_plan_workflow_fingerprint(workflow)
+    matches = []
     for plan in plans:
         if not plan or str(plan.get("assistant_session_id") or "") != session_id:
             continue
@@ -119,8 +122,10 @@ def _matching_applied_recipe_plan(
             ),
             fingerprint,
         ):
-            return plan
-    return None
+            matches.append(plan)
+    if not matches or (require_unique and len(matches) != 1):
+        return None
+    return matches[0]
 
 
 def _recipe_plan_for_confirmation(
@@ -155,19 +160,36 @@ def _preset_output_model_node_ids(workflow: dict) -> set[str]:
     }
 
 
-def _recipe_output_model_node_ids(workflow: dict) -> set[str]:
-    node_types = {
-        str(node.get("id") or ""): str(node.get("type") or "")
+def _recipe_output_model_node_ids(
+    workflow: dict,
+    recipe_id: str | None = None,
+) -> set[str]:
+    nodes = {
+        str(node.get("id") or ""): node
         for node in workflow.get("nodes", [])
         if isinstance(node, dict) and str(node.get("id") or "")
+    }
+    recipe_node_ids = {
+        node_id
+        for node_id, node in nodes.items()
+        if str(node.get("type") or "") == "prompt.recipe"
+        and (
+            recipe_id is None
+            or str((node.get("fields") or {}).get("recipe_id") or "") == recipe_id
+        )
+    }
+    model_node_ids = {
+        node_id
+        for node_id, node in nodes.items()
+        if str(node.get("type") or "").startswith("model.kie.")
     }
     return {
         str(edge.get("target") or "")
         for edge in workflow.get("edges", [])
         if isinstance(edge, dict)
-        and node_types.get(str(edge.get("source") or "")) == "prompt.recipe"
+        and str(edge.get("source") or "") in recipe_node_ids
         and str(edge.get("source_port") or "") == "text"
-        and node_types.get(str(edge.get("target") or ""), "").startswith("model.kie.")
+        and str(edge.get("target") or "") in model_node_ids
         and str(edge.get("target_port") or "") == "prompt"
     }
 
@@ -209,7 +231,7 @@ def _recipe_run_association(
 ) -> dict:
     recipe_id = _recipe_id_from_plan(plan)
     recipe = store.get_prompt_recipe(recipe_id) if recipe_id else None
-    model_node_ids = sorted(_recipe_output_model_node_ids(workflow))
+    model_node_ids = sorted(_recipe_output_model_node_ids(workflow, recipe_id))
     contract_hash = recipe_quality_contract_hash(recipe) if recipe else ""
     plan_metadata = (plan.get("plan_json") or {}).get("metadata") or {}
     planned_contract_hash = str(
@@ -260,7 +282,27 @@ def _legacy_recipe_run_association(
         )
     ):
         return None
-    plan = _matching_applied_recipe_plan(session_id, GraphWorkflow.model_validate(workflow))
+    confirmation = summary.get("kernel_run_confirmation")
+    confirmation_matches_run = (
+        isinstance(confirmation, dict)
+        and assistant_run_confirmation_kind(confirmation) == "recipe"
+        and confirmation.get("consumed") is True
+        and str(confirmation.get("assistant_run_id") or "") == run_id
+        and hmac.compare_digest(
+            str(confirmation.get("workflow_fingerprint") or ""), fingerprint
+        )
+    )
+    confirmed_plan_id = (
+        str(confirmation.get("recipe_plan_id") or "")
+        if confirmation_matches_run
+        else ""
+    )
+    plan = _matching_applied_recipe_plan(
+        session_id,
+        GraphWorkflow.model_validate(workflow),
+        confirmed_plan_id or None,
+        require_unique=not confirmed_plan_id,
+    )
     if not plan:
         return None
     recipe_id = _recipe_id_from_plan(plan)
@@ -277,7 +319,7 @@ def _legacy_recipe_run_association(
         for node_id, node_type in node_types.items()
         if node_type == "prompt.recipe"
     }
-    model_node_ids = _recipe_output_model_node_ids(workflow)
+    model_node_ids = _recipe_output_model_node_ids(workflow, recipe_id)
     run_nodes = {
         str(node.get("node_id") or ""): node
         for node in store.list_graph_run_nodes(run_id)
@@ -448,7 +490,7 @@ def bind_completed_recipe_run(session_id: str, run: dict) -> dict:
     planned_contract_hash = str(
         (plan_metadata or {}).get("recipe_quality_contract_hash") or ""
     )
-    model_node_ids = _recipe_output_model_node_ids(workflow)
+    model_node_ids = _recipe_output_model_node_ids(workflow, recipe_id)
     associated_model_node_ids = {
         str(item) for item in association.get("eligible_model_node_ids") or []
     }

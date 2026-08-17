@@ -6,7 +6,7 @@ import time
 from threading import Event
 from typing import Any, Dict, List, Optional
 
-from .. import enhancement_provider, external_llm_usage, store_assistant
+from .. import enhancement_provider, external_llm_usage, store, store_assistant
 from ..graph.pricing import estimate_graph_workflow
 from ..graph.schemas import GraphWorkflow
 from ..store_support import new_id
@@ -17,7 +17,11 @@ from .kernel_tools import (
     execute_kernel_tool,
     kernel_tool_catalog,
 )
-from .provenance import preset_test_workflow_fingerprint, workflow_fingerprint
+from .provenance import (
+    preset_test_workflow_fingerprint,
+    recipe_quality_contract_hash,
+    workflow_fingerprint,
+)
 from .prompt_assets import assistant_thread_prompt_assembly
 from .provider_support import (
     AssistantProviderChatError,
@@ -400,6 +404,20 @@ def _kernel_session_context(
     recipe_draft = summary.get("kernel_recipe_draft")
     recipe_run_evidence = summary.get("kernel_recipe_run_evidence")
     recipe_output_comparison = summary.get("kernel_recipe_output_comparison")
+    recipe_quality = summary.get("kernel_recipe_quality")
+    if isinstance(recipe_run_evidence, dict):
+        recipe = store.get_prompt_recipe(str(recipe_run_evidence.get("recipe_id") or ""))
+        contract_hash = str(
+            recipe_run_evidence.get("recipe_quality_contract_hash") or ""
+        )
+        if (
+            not recipe
+            or not contract_hash
+            or contract_hash != recipe_quality_contract_hash(recipe)
+        ):
+            recipe_run_evidence = None
+            recipe_output_comparison = None
+            recipe_quality = None
     story_state = summary.get("kernel_story_state")
     production_plan = summary.get("production_plan")
     session_id = str(session.get("assistant_session_id") or "")
@@ -448,9 +466,7 @@ def _kernel_session_context(
             recipe_output_comparison if isinstance(recipe_output_comparison, dict) else None
         ),
         "active_recipe_quality": (
-            summary.get("kernel_recipe_quality")
-            if isinstance(summary.get("kernel_recipe_quality"), dict)
-            else None
+            recipe_quality if isinstance(recipe_quality, dict) else None
         ),
         "active_story_state": story_state if isinstance(story_state, dict) else None,
         "active_production_plan": production_plan if isinstance(production_plan, dict) else None,
