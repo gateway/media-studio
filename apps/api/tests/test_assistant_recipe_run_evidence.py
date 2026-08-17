@@ -177,6 +177,13 @@ def test_recipe_confirmation_settles_first_persisted_identity_without_accepting_
         status="active"
     )[0]["recipe_id"]
     workflow["nodes"][0]["fields"]["user_prompt"] = "A quiet harbor"
+    workflow["nodes"][1]["metadata"] = {
+        "execution": {
+            "mode": "enabled",
+            "cached_run_id": "run-prior-result",
+            "cached_artifact_ids": {"image": ["asset-prior-result"]},
+        }
+    }
     unsaved_fingerprint = provenance.workflow_fingerprint(
         graph_schemas.GraphWorkflow.model_validate(workflow)
     )
@@ -193,6 +200,9 @@ def test_recipe_confirmation_settles_first_persisted_identity_without_accepting_
         }
         plan_workflow["nodes"][0]["metadata"] = {
             "assistant": {"semantic_ref": "recipe_prompt"}
+        }
+        plan_workflow["nodes"][1]["metadata"] = {
+            "execution": {"mode": "enabled"}
         }
         plan = app_modules["store_assistant"].create_or_update_assistant_plan(
             {

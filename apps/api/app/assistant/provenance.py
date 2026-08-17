@@ -104,6 +104,20 @@ def preset_test_workflow_fingerprint(workflow: GraphWorkflow) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def recipe_plan_workflow_fingerprint(workflow: GraphWorkflow) -> str:
+    comparable = materialize_workflow_defaults(workflow).model_copy(deep=True)
+    for node in comparable.nodes:
+        execution = (
+            node.metadata.get("execution")
+            if isinstance(node.metadata.get("execution"), dict)
+            else {}
+        )
+        node.metadata["execution"] = {
+            "mode": str(execution.get("mode") or "enabled")
+        }
+    return preset_test_workflow_fingerprint(comparable)
+
+
 def preset_quality_contract_hash(draft: Dict[str, Any]) -> str:
     normalized = PresetUpsertRequest.model_validate(draft).model_dump(mode="json")
     contract = {key: normalized.get(key) for key in _PRESET_QUALITY_CONTRACT_KEYS}

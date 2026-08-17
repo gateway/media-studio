@@ -7,7 +7,11 @@ from fastapi import HTTPException
 
 from .. import store, store_assistant
 from ..graph.schemas import GraphWorkflow
-from .provenance import preset_test_workflow_fingerprint, workflow_fingerprint
+from .provenance import (
+    preset_test_workflow_fingerprint,
+    recipe_plan_workflow_fingerprint,
+    workflow_fingerprint,
+)
 from .schemas import AssistantRunConfirmationRequest
 
 
@@ -92,7 +96,7 @@ def _matching_applied_recipe_plan(
         else store_assistant.list_assistant_plans(session_id)
     )
     workflow_id = _workflow_identity(workflow)
-    fingerprint = preset_test_workflow_fingerprint(workflow)
+    fingerprint = recipe_plan_workflow_fingerprint(workflow)
     for plan in plans:
         if not plan or str(plan.get("assistant_session_id") or "") != session_id:
             continue
@@ -109,7 +113,7 @@ def _matching_applied_recipe_plan(
         if applied_workflow_id and workflow_id != applied_workflow_id:
             continue
         if hmac.compare_digest(
-            preset_test_workflow_fingerprint(
+            recipe_plan_workflow_fingerprint(
                 GraphWorkflow.model_validate(plan_workflow)
             ),
             fingerprint,
