@@ -703,9 +703,9 @@ def _saved_recipe_graph_operations(
             retryable=False,
         )
     model_definition = matching_models[0]
-    allowed_model_fields = {field.id for field in model_definition.fields}
+    model_fields_by_id = {field.id: field for field in model_definition.fields}
     invalid_model_fields = sorted(
-        set(generation["default_options_json"]) - allowed_model_fields
+        set(generation["default_options_json"]) - set(model_fields_by_id)
     )
     if invalid_model_fields:
         raise KernelToolFailure(
@@ -713,6 +713,33 @@ def _saved_recipe_graph_operations(
             message="The requested generation settings are not supported by this model.",
             retryable=False,
             details={"invalid_option_keys": invalid_model_fields},
+        )
+    invalid_model_values = []
+    for key, value in generation["default_options_json"].items():
+        field = model_fields_by_id[key]
+        allowed_values = [
+            option.get("value") if isinstance(option, dict) else option
+            for option in field.options
+        ]
+        invalid = bool(allowed_values) and value not in allowed_values
+        if not invalid and (field.min is not None or field.max is not None):
+            try:
+                numeric_value = float(value)
+            except (TypeError, ValueError):
+                invalid = True
+            else:
+                invalid = (
+                    (field.min is not None and numeric_value < field.min)
+                    or (field.max is not None and numeric_value > field.max)
+                )
+        if invalid:
+            invalid_model_values.append(key)
+    if invalid_model_values:
+        raise KernelToolFailure(
+            code="saved_recipe_graph_option_value_invalid",
+            message="The requested generation setting values are not supported by this model.",
+            retryable=False,
+            details={"invalid_option_value_keys": invalid_model_values},
         )
     model_fields = {
         key: value

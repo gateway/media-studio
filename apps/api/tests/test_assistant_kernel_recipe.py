@@ -1255,6 +1255,44 @@ def test_saved_recipe_template_builds_complete_image_graph_without_catalog_walk(
         "invalid_option_keys": ["unsupported_quality"]
     }
 
+    invalid_option_arguments = {
+        "summary": "Build with an unsupported requested value.",
+        "template_id": "saved_recipe_image_v1",
+        "recipe_id": saved["recipe_id"],
+        "field_values": {
+            "destination": "Lisbon, Portugal",
+            "travel_tagline": "Sunlit stories by the sea",
+            "signpost_places": "Lisbon, Sintra, Cascais",
+            "paper_texture": "Layered torn paper",
+        },
+        "derived_recipe_defaults_overrides": [
+            {
+                "recipe_id": saved["recipe_id"],
+                "model_key": "gpt-image-2-text-to-image",
+                "default_options_json": {"resolution": "20K"},
+            }
+        ],
+    }
+    invalid_value = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments=invalid_option_arguments,
+        capability="graph_builder",
+        context=tools.KernelToolContext(
+            workflow=tools.GraphWorkflow(name="Fresh invalid value workflow"),
+            canvas_context={},
+            session_id=session["assistant_session_id"],
+            session=session,
+            user_text="Use 20K resolution.",
+            user_message_id="msg-invalid-recipe-option-value",
+        ),
+    )
+
+    assert invalid_value.trace.error is not None
+    assert invalid_value.trace.error.code == "saved_recipe_graph_option_value_invalid"
+    assert invalid_value.trace.error.details == {
+        "invalid_option_value_keys": ["resolution"]
+    }
+
 
 def test_saved_recipe_template_uses_typed_generation_defaults_and_valid_falsy_fields(
     client,
