@@ -1226,6 +1226,8 @@ def test_preset_refinement_does_not_reuse_another_sessions_applied_lane(client) 
         },
     )
     assert applied.status_code == 200, applied.text
+    existing_workflow = applied.json()["workflow"]
+    existing_workflow["metadata"]["created_by"] = "graph-studio"
 
     other_session = _session(client)
     other_summary = dict(other_session.get("summary_json") or {})
@@ -1242,7 +1244,7 @@ def test_preset_refinement_does_not_reuse_another_sessions_applied_lane(client) 
         },
         capability="preset_builder",
         context=tools.KernelToolContext(
-            workflow=graph_schemas.GraphWorkflow.model_validate(applied.json()["workflow"]),
+            workflow=graph_schemas.GraphWorkflow.model_validate(existing_workflow),
             canvas_context={},
             session_id=other_session["assistant_session_id"],
             session=other_session,
@@ -1264,7 +1266,7 @@ def test_preset_refinement_does_not_reuse_another_sessions_applied_lane(client) 
         },
         capability="preset_builder",
         context=tools.KernelToolContext(
-            workflow=graph_schemas.GraphWorkflow.model_validate(applied.json()["workflow"]),
+            workflow=graph_schemas.GraphWorkflow.model_validate(existing_workflow),
             canvas_context={},
             session_id=other_session["assistant_session_id"],
             session=store_assistant.get_assistant_session(other_session["assistant_session_id"]),
@@ -1285,7 +1287,7 @@ def test_preset_refinement_does_not_reuse_another_sessions_applied_lane(client) 
         },
         capability="preset_builder",
         context=tools.KernelToolContext(
-            workflow=graph_schemas.GraphWorkflow.model_validate(applied.json()["workflow"]),
+            workflow=graph_schemas.GraphWorkflow.model_validate(existing_workflow),
             canvas_context={},
             session_id=other_session["assistant_session_id"],
             session=store_assistant.get_assistant_session(other_session["assistant_session_id"]),
@@ -1302,16 +1304,18 @@ def test_preset_refinement_does_not_reuse_another_sessions_applied_lane(client) 
     assert replacement.result["workflow"]["metadata"]["assistant_plan"][
         "replace_existing_test_lane"
     ] is True
+    assert replacement.result["workflow"]["metadata"]["created_by"] == "graph-studio"
     replaced = client.post(
         f"/media/assistant/plans/{replacement.result['proposal_id']}/apply",
         json={
-            "workflow": applied.json()["workflow"],
+            "workflow": existing_workflow,
             "proposal_id": replacement.result["proposal_id"],
             "confirmation_token": replacement.result["confirmation_token"],
         },
     )
     assert replaced.status_code == 200, replaced.text
     assert len(replaced.json()["workflow"]["nodes"]) == 3
+    assert replaced.json()["workflow"]["metadata"]["created_by"] == "graph-studio"
     replaced_session = store_assistant.get_assistant_session(other_session["assistant_session_id"])
     assert replaced_session["summary_json"].get("kernel_test_lane_replacement_offer") is None
 

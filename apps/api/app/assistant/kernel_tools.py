@@ -1469,6 +1469,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
             schema_version=base_workflow.schema_version,
             workflow_id=base_workflow.workflow_id,
             name=base_workflow.name,
+            metadata=base_workflow.metadata,
         )
     adds_paid_path = any(
         operation.op == "add_node"
