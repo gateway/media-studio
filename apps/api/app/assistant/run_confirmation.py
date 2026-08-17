@@ -81,6 +81,43 @@ def _matching_confirmation_fingerprint(
     return fingerprint if expected and hmac.compare_digest(expected, unsaved_fingerprint) else None
 
 
+def _matching_applied_recipe_plan(
+    session_id: str,
+    workflow: GraphWorkflow,
+    plan_id: str | None = None,
+) -> dict | None:
+    plans = (
+        [store_assistant.get_assistant_plan(plan_id)]
+        if plan_id
+        else store_assistant.list_assistant_plans(session_id)
+    )
+    workflow_id = _workflow_identity(workflow)
+    fingerprint = preset_test_workflow_fingerprint(workflow)
+    for plan in plans:
+        if not plan or str(plan.get("assistant_session_id") or "") != session_id:
+            continue
+        if str(plan.get("status") or "") != "applied":
+            continue
+        metadata = (plan.get("plan_json") or {}).get("metadata") or {}
+        plan_workflow = plan.get("workflow_json")
+        if (
+            str(metadata.get("template_id") or "") != "saved_recipe_image_v1"
+            or not isinstance(plan_workflow, dict)
+        ):
+            continue
+        applied_workflow_id = str(plan.get("applied_workflow_id") or "")
+        if applied_workflow_id and workflow_id != applied_workflow_id:
+            continue
+        if hmac.compare_digest(
+            preset_test_workflow_fingerprint(
+                GraphWorkflow.model_validate(plan_workflow)
+            ),
+            fingerprint,
+        ):
+            return plan
+    return None
+
+
 def _recipe_plan_for_confirmation(
     session_id: str,
     confirmation: dict,
@@ -88,33 +125,15 @@ def _recipe_plan_for_confirmation(
 ) -> dict | None:
     if assistant_run_confirmation_kind(confirmation) != "recipe":
         return None
-    plan_id = str(confirmation.get("recipe_plan_id") or "")
-    plan = store_assistant.get_assistant_plan(plan_id) if plan_id else None
-    if (
-        not plan
-        or str(plan.get("assistant_session_id") or "") != session_id
-        or str(plan.get("status") or "") != "applied"
-    ):
-        return None
-    metadata = (plan.get("plan_json") or {}).get("metadata") or {}
-    plan_workflow = plan.get("workflow_json")
-    if (
-        str(metadata.get("template_id") or "") != "saved_recipe_image_v1"
-        or not isinstance(plan_workflow, dict)
-    ):
+    plan = _matching_applied_recipe_plan(
+        session_id,
+        workflow,
+        str(confirmation.get("recipe_plan_id") or "") or None,
+    )
+    if not plan:
         return None
     workflow_id = _workflow_identity(workflow)
     applied_workflow_id = str(plan.get("applied_workflow_id") or "")
-    if applied_workflow_id and workflow_id != applied_workflow_id:
-        return None
-    plan_fingerprint = preset_test_workflow_fingerprint(
-        GraphWorkflow.model_validate(plan_workflow)
-    )
-    if not hmac.compare_digest(
-        plan_fingerprint,
-        preset_test_workflow_fingerprint(workflow),
-    ):
-        return None
     if workflow_id and not applied_workflow_id:
         plan = store_assistant.create_or_update_assistant_plan(
             {**plan, "applied_workflow_id": workflow_id}
@@ -440,35 +459,8 @@ def applied_recipe_plan_id(
     workflow: GraphWorkflow,
     proposal_id: str | None = None,
 ) -> str | None:
-    plans = (
-        [store_assistant.get_assistant_plan(str(proposal_id))]
-        if proposal_id
-        else store_assistant.list_assistant_plans(session_id)
-    )
-    workflow_id = _workflow_identity(workflow)
-    fingerprint = preset_test_workflow_fingerprint(workflow)
-    for plan in plans:
-        if not plan or str(plan.get("assistant_session_id") or "") != session_id:
-            continue
-        if str(plan.get("status") or "") != "applied":
-            continue
-        metadata = (plan.get("plan_json") or {}).get("metadata") or {}
-        if str(metadata.get("template_id") or "") != "saved_recipe_image_v1":
-            continue
-        plan_workflow = plan.get("workflow_json")
-        if not isinstance(plan_workflow, dict):
-            continue
-        applied_workflow_id = str(plan.get("applied_workflow_id") or "")
-        if applied_workflow_id and workflow_id != applied_workflow_id:
-            continue
-        if hmac.compare_digest(
-            preset_test_workflow_fingerprint(
-                GraphWorkflow.model_validate(plan_workflow)
-            ),
-            fingerprint,
-        ):
-            return str(plan.get("assistant_plan_id") or "") or None
-    return None
+    plan = _matching_applied_recipe_plan(session_id, workflow, proposal_id)
+    return str((plan or {}).get("assistant_plan_id") or "") or None
 
 
 def confirm_kernel_run_action(

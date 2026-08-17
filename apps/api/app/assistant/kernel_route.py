@@ -17,7 +17,7 @@ from .run_confirmation import (
     bind_completed_preset_run,
     bind_completed_recipe_run,
 )
-from .schemas import AssistantMessageCreateRequest
+from .schemas import AssistantMessageCreateRequest, AssistantNextAction
 from .turn_trace import build_assistant_turn_trace
 from .voice import lint_assistant_reply
 
@@ -126,24 +126,6 @@ def create_kernel_message(
     except AssistantProviderChatError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     result.trace.voice_violations = lint_assistant_reply(result.reply)
-    turn_payload = result.model_dump(mode="json", exclude_none=True)
-    content_json = {
-        "mode": "assistant_kernel",
-        "capability": result.capability,
-        "assistant_response_kind": "answer",
-        "next_action": result.next_action.model_dump(mode="json", exclude_none=True),
-        "loaded_prompt_assets": result.trace.loaded_prompt_assets,
-        "kernel_turn": turn_payload,
-    }
-    content_json["assistant_turn_trace"] = build_assistant_turn_trace(content_json, result.reply)
-    store_assistant.create_assistant_message(
-        {
-            "assistant_session_id": session_id,
-            "role": "assistant",
-            "content_text": result.reply,
-            "content_json": content_json,
-        }
-    )
     refreshed_session = store_assistant.get_assistant_session(session_id) or session
     summary = (
         refreshed_session.get("summary_json")
@@ -177,16 +159,37 @@ def create_kernel_message(
             if confirmation_kind == "recipe" and payload.workflow is not None
             else None
         )
-        run_confirmation = {
-            "confirmation_token_hash": hashlib.sha256(
-                result.next_action.confirmation_token.encode("utf-8")
-            ).hexdigest(),
-            "workflow_fingerprint": fingerprint,
-            "test_plan_id": test_plan_id,
-            "recipe_plan_id": recipe_plan_id,
-            "confirmation_kind": confirmation_kind,
-            "consumed": False,
+        if confirmation_kind == "recipe" and not recipe_plan_id:
+            result.next_action = AssistantNextAction()
+        else:
+            run_confirmation = {
+                "confirmation_token_hash": hashlib.sha256(
+                    result.next_action.confirmation_token.encode("utf-8")
+                ).hexdigest(),
+                "workflow_fingerprint": fingerprint,
+                "test_plan_id": test_plan_id,
+                "recipe_plan_id": recipe_plan_id,
+                "confirmation_kind": confirmation_kind,
+                "consumed": False,
+            }
+    turn_payload = result.model_dump(mode="json", exclude_none=True)
+    content_json = {
+        "mode": "assistant_kernel",
+        "capability": result.capability,
+        "assistant_response_kind": "answer",
+        "next_action": result.next_action.model_dump(mode="json", exclude_none=True),
+        "loaded_prompt_assets": result.trace.loaded_prompt_assets,
+        "kernel_turn": turn_payload,
+    }
+    content_json["assistant_turn_trace"] = build_assistant_turn_trace(content_json, result.reply)
+    store_assistant.create_assistant_message(
+        {
+            "assistant_session_id": session_id,
+            "role": "assistant",
+            "content_text": result.reply,
+            "content_json": content_json,
         }
+    )
     return store_assistant.create_or_update_assistant_session(
         {
             **refreshed_session,

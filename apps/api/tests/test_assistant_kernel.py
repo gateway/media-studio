@@ -1698,6 +1698,51 @@ def test_kernel_run_request_returns_typed_confirmation_without_submitting_a_job(
     assert replay.status_code == 400
 
 
+def test_recipe_run_action_is_not_exposed_without_an_applied_recipe_plan(
+    client,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    steps = iter(
+        [
+            {
+                "capability": "recipe_builder",
+                "tool_call": {
+                    "name": "validate_current_workflow",
+                    "arguments": {"request_run_confirmation": True},
+                },
+            },
+            {"capability": "recipe_builder", "reply": "The graph check is complete."},
+        ]
+    )
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+    workflow = {
+        "schema_version": 1,
+        "workflow_id": "workflow-recipe-run-without-plan",
+        "name": "Unbound recipe run",
+        "nodes": [],
+        "edges": [],
+        "metadata": {},
+    }
+    session = client.post(
+        "/media/assistant/sessions",
+        json={"owner_kind": "graph_workflow", "owner_id": workflow["workflow_id"]},
+    ).json()
+
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={"content_text": "Run this recipe graph.", "workflow": workflow},
+    )
+
+    assert response.status_code == 200, response.text
+    turn = response.json()["messages"][-1]["content_json"]["kernel_turn"]
+    assert turn["next_action"]["kind"] == "none"
+    stored = importlib.import_module("app.store_assistant").get_assistant_session(
+        session["assistant_session_id"]
+    )
+    assert not stored["summary_json"].get("kernel_run_confirmation")
+
+
 @pytest.mark.parametrize("capability", ["graph_builder", "recipe_builder"])
 def test_validated_run_intent_creates_confirmation_without_provider_action_flags(
     client,
@@ -1733,6 +1778,30 @@ def test_validated_run_intent_creates_confirmation_without_provider_action_flags
         "/media/assistant/sessions",
         json={"owner_kind": "graph_workflow", "owner_id": workflow["workflow_id"], "workflow": workflow},
     ).json()
+    if capability == "recipe_builder":
+        store_assistant = importlib.import_module("app.store_assistant")
+        plan = store_assistant.create_or_update_assistant_plan(
+            {
+                "assistant_session_id": session["assistant_session_id"],
+                "status": "applied",
+                "capability": "graph_builder",
+                "plan_json": {
+                    "metadata": {
+                        "kernel_proposal": True,
+                        "template_id": "saved_recipe_image_v1",
+                    }
+                },
+                "validation_json": {"valid": True, "errors": [], "warnings": []},
+                "pricing_json": {},
+                "workflow_json": workflow,
+            }
+        )
+        store_assistant.create_or_update_assistant_session(
+            {
+                **session,
+                "summary_json": {"kernel_proposal_id": plan["assistant_plan_id"]},
+            }
+        )
 
     response = client.post(
         f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
