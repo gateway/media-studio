@@ -49,6 +49,20 @@ def _confirmed_workflow_fingerprint(confirmation: dict, workflow: GraphWorkflow)
     )
 
 
+def _workflow_identity(workflow: GraphWorkflow) -> str:
+    metadata = workflow.metadata if isinstance(workflow.metadata, dict) else {}
+    return str(workflow.workflow_id or metadata.get("workflow_id") or "")
+
+
+def _without_workflow_identity(workflow: GraphWorkflow) -> GraphWorkflow:
+    metadata = dict(workflow.metadata) if isinstance(workflow.metadata, dict) else {}
+    metadata.pop("workflow_id", None)
+    return workflow.model_copy(
+        update={"workflow_id": None, "metadata": metadata},
+        deep=True,
+    )
+
+
 def _matching_confirmation_fingerprint(
     confirmation: dict,
     workflow: GraphWorkflow,
@@ -59,18 +73,53 @@ def _matching_confirmation_fingerprint(
         return fingerprint
     if assistant_run_confirmation_kind(confirmation) == "preset_test":
         return None
-    metadata = dict(workflow.metadata) if isinstance(workflow.metadata, dict) else {}
-    identity = str(workflow.workflow_id or metadata.get("workflow_id") or "")
-    if not identity:
+    if not _workflow_identity(workflow):
         return None
     # A new graph receives its durable ID when the run path saves it.
-    metadata.pop("workflow_id", None)
-    unsaved = workflow.model_copy(
-        update={"workflow_id": None, "metadata": metadata},
-        deep=True,
-    )
+    unsaved = _without_workflow_identity(workflow)
     unsaved_fingerprint = _confirmed_workflow_fingerprint(confirmation, unsaved)
     return fingerprint if expected and hmac.compare_digest(expected, unsaved_fingerprint) else None
+
+
+def _recipe_plan_for_confirmation(
+    session_id: str,
+    confirmation: dict,
+    workflow: GraphWorkflow,
+) -> dict | None:
+    if assistant_run_confirmation_kind(confirmation) != "recipe":
+        return None
+    plan_id = str(confirmation.get("recipe_plan_id") or "")
+    plan = store_assistant.get_assistant_plan(plan_id) if plan_id else None
+    if (
+        not plan
+        or str(plan.get("assistant_session_id") or "") != session_id
+        or str(plan.get("status") or "") != "applied"
+    ):
+        return None
+    metadata = (plan.get("plan_json") or {}).get("metadata") or {}
+    plan_workflow = plan.get("workflow_json")
+    if (
+        str(metadata.get("template_id") or "") != "saved_recipe_image_v1"
+        or not isinstance(plan_workflow, dict)
+    ):
+        return None
+    workflow_id = _workflow_identity(workflow)
+    applied_workflow_id = str(plan.get("applied_workflow_id") or "")
+    if applied_workflow_id and workflow_id != applied_workflow_id:
+        return None
+    plan_fingerprint = preset_test_workflow_fingerprint(
+        GraphWorkflow.model_validate(plan_workflow)
+    )
+    if not hmac.compare_digest(
+        plan_fingerprint,
+        preset_test_workflow_fingerprint(workflow),
+    ):
+        return None
+    if workflow_id and not applied_workflow_id:
+        plan = store_assistant.create_or_update_assistant_plan(
+            {**plan, "applied_workflow_id": workflow_id}
+        )
+    return plan
 
 
 def _preset_output_model_node_ids(workflow: dict) -> set[str]:
@@ -319,6 +368,15 @@ def associate_confirmed_assistant_run(
             "workflow_fingerprint_mismatch",
             "The graph changed after this run confirmation was prepared.",
         )
+    if assistant_run_confirmation_kind(confirmation, capability=capability) == "recipe" and not _recipe_plan_for_confirmation(
+        session_id,
+        confirmation,
+        payload.workflow,
+    ):
+        raise RunEvidenceError(
+            "workflow_fingerprint_mismatch",
+            "The graph changed after this run confirmation was prepared.",
+        )
     run = store.get_graph_run(run_id)
     if not run:
         raise RunEvidenceError(
@@ -377,6 +435,42 @@ def applied_preset_test_plan_id(session_id: str, workflow: GraphWorkflow) -> str
     return None
 
 
+def applied_recipe_plan_id(
+    session_id: str,
+    workflow: GraphWorkflow,
+    proposal_id: str | None = None,
+) -> str | None:
+    plans = (
+        [store_assistant.get_assistant_plan(str(proposal_id))]
+        if proposal_id
+        else store_assistant.list_assistant_plans(session_id)
+    )
+    workflow_id = _workflow_identity(workflow)
+    fingerprint = preset_test_workflow_fingerprint(workflow)
+    for plan in plans:
+        if not plan or str(plan.get("assistant_session_id") or "") != session_id:
+            continue
+        if str(plan.get("status") or "") != "applied":
+            continue
+        metadata = (plan.get("plan_json") or {}).get("metadata") or {}
+        if str(metadata.get("template_id") or "") != "saved_recipe_image_v1":
+            continue
+        plan_workflow = plan.get("workflow_json")
+        if not isinstance(plan_workflow, dict):
+            continue
+        applied_workflow_id = str(plan.get("applied_workflow_id") or "")
+        if applied_workflow_id and workflow_id != applied_workflow_id:
+            continue
+        if hmac.compare_digest(
+            preset_test_workflow_fingerprint(
+                GraphWorkflow.model_validate(plan_workflow)
+            ),
+            fingerprint,
+        ):
+            return str(plan.get("assistant_plan_id") or "") or None
+    return None
+
+
 def confirm_kernel_run_action(
     session_id: str,
     payload: AssistantRunConfirmationRequest,
@@ -396,6 +490,18 @@ def confirm_kernel_run_action(
         payload.workflow,
     )
     if not supplied_fingerprint:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "workflow_fingerprint_mismatch",
+                "message": "The graph changed after this run confirmation was prepared.",
+            },
+        )
+    if assistant_run_confirmation_kind(confirmation) == "recipe" and not _recipe_plan_for_confirmation(
+        session_id,
+        confirmation,
+        payload.workflow,
+    ):
         raise HTTPException(
             status_code=400,
             detail={

@@ -11,6 +11,7 @@ from .kernel import run_assistant_kernel_turn
 from .provider_support import AssistantProviderChatError, sync_assistant_session_provider
 from .run_confirmation import (
     RunEvidenceError,
+    applied_recipe_plan_id,
     applied_preset_test_plan_id,
     assistant_run_confirmation_kind,
     bind_completed_preset_run,
@@ -167,12 +168,22 @@ def create_kernel_message(
             capability=result.capability,
             workflow=payload.workflow,
         )
+        recipe_plan_id = (
+            applied_recipe_plan_id(
+                session_id,
+                payload.workflow,
+                summary.get("kernel_proposal_id"),
+            )
+            if confirmation_kind == "recipe" and payload.workflow is not None
+            else None
+        )
         run_confirmation = {
             "confirmation_token_hash": hashlib.sha256(
                 result.next_action.confirmation_token.encode("utf-8")
             ).hexdigest(),
             "workflow_fingerprint": fingerprint,
             "test_plan_id": test_plan_id,
+            "recipe_plan_id": recipe_plan_id,
             "confirmation_kind": confirmation_kind,
             "consumed": False,
         }
@@ -183,7 +194,8 @@ def create_kernel_message(
             "summary_json": {
                 **summary,
                 "kernel_capability": result.capability,
-                "kernel_proposal_id": result.next_action.proposal_id,
+                "kernel_proposal_id": result.next_action.proposal_id
+                or summary.get("kernel_proposal_id"),
                 "kernel_run_confirmation": run_confirmation,
             },
         }

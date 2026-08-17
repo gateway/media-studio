@@ -186,15 +186,41 @@ def test_recipe_confirmation_settles_first_persisted_identity_without_accepting_
             "/media/assistant/sessions",
             json={"owner_kind": "standalone", "provider_kind": "codex_local"},
         ).json()
+        plan_workflow = json.loads(json.dumps(workflow))
+        plan_workflow["metadata"]["assistant_plan"] = {
+            "kernel_proposal": True,
+            "template_id": "saved_recipe_image_v1",
+        }
+        plan_workflow["nodes"][0]["metadata"] = {
+            "assistant": {"semantic_ref": "recipe_prompt"}
+        }
+        plan = app_modules["store_assistant"].create_or_update_assistant_plan(
+            {
+                "assistant_session_id": session["assistant_session_id"],
+                "status": "applied",
+                "capability": "graph_builder",
+                "plan_json": {
+                    "metadata": {
+                        "kernel_proposal": True,
+                        "template_id": "saved_recipe_image_v1",
+                    }
+                },
+                "validation_json": {"valid": True, "errors": [], "warnings": []},
+                "pricing_json": {},
+                "workflow_json": plan_workflow,
+            }
+        )
         return app_modules["store_assistant"].create_or_update_assistant_session(
             {
                 **session,
                 "summary_json": {
                     "kernel_capability": "graph_builder",
+                    "kernel_proposal_id": plan["assistant_plan_id"],
                     "kernel_run_confirmation": {
                         "confirmation_token_hash": hashlib.sha256(b"settle-token").hexdigest(),
                         "workflow_fingerprint": unsaved_fingerprint,
                         "confirmation_kind": "recipe",
+                        "recipe_plan_id": plan["assistant_plan_id"],
                         "consumed": False,
                     },
                 },
@@ -229,6 +255,10 @@ def test_recipe_confirmation_settles_first_persisted_identity_without_accepting_
     assert confirmation["workflow_fingerprint"] == provenance.workflow_fingerprint(
         graph_schemas.GraphWorkflow.model_validate(persisted_workflow)
     )
+    plan = app_modules["store_assistant"].get_assistant_plan(
+        confirmation["recipe_plan_id"]
+    )
+    assert plan["applied_workflow_id"] == workflow_id
 
     changed_workflow = json.loads(json.dumps(persisted_workflow))
     changed_workflow["nodes"][0]["fields"]["user_prompt"] = "A different harbor"
@@ -244,6 +274,94 @@ def test_recipe_confirmation_settles_first_persisted_identity_without_accepting_
 
     assert rejected.status_code == 400
     assert rejected.json()["detail"]["code"] == "workflow_fingerprint_mismatch"
+
+    copied = client.post("/media/graph/workflows", json=workflow)
+    assert copied.status_code == 200, copied.text
+    copied_workflow_id = copied.json()["workflow_id"]
+    copied_workflow = {**workflow, "workflow_id": copied_workflow_id}
+    app_modules["store_assistant"].create_or_update_assistant_session(
+        {
+            **stored,
+            "summary_json": {
+                **stored["summary_json"],
+                "kernel_run_confirmation": {
+                    **confirmation,
+                    "confirmation_token_hash": hashlib.sha256(b"copy-token").hexdigest(),
+                    "workflow_fingerprint": unsaved_fingerprint,
+                    "assistant_run_id": None,
+                    "consumed": False,
+                },
+            },
+        }
+    )
+    rejected_copy = client.post(
+        f"/media/graph/workflows/{copied_workflow_id}/runs",
+        json={
+            "workflow": copied_workflow,
+            "assistant_session_id": session["assistant_session_id"],
+            "assistant_confirmation_token": "copy-token",
+        },
+    )
+
+    assert rejected_copy.status_code == 400
+    assert rejected_copy.json()["detail"]["code"] == "workflow_fingerprint_mismatch"
+
+
+def test_recipe_run_confirmation_requires_the_session_applied_recipe_plan(
+    client,
+    app_modules,
+    monkeypatch,
+) -> None:
+    graph_routes = importlib.import_module("app.graph.routes")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    provenance = importlib.import_module("app.assistant.provenance")
+    workflow = _recipe_workflow()
+    workflow["nodes"][0]["fields"]["recipe_id"] = app_modules["store"].list_prompt_recipes(
+        status="active"
+    )[0]["recipe_id"]
+    workflow["nodes"][0]["fields"]["user_prompt"] = "A quiet harbor"
+    session = client.post(
+        "/media/assistant/sessions",
+        json={"owner_kind": "standalone", "provider_kind": "codex_local"},
+    ).json()
+    app_modules["store_assistant"].create_or_update_assistant_session(
+        {
+            **session,
+            "summary_json": {
+                "kernel_capability": "recipe_builder",
+                "kernel_run_confirmation": {
+                    "confirmation_token_hash": hashlib.sha256(b"no-plan-token").hexdigest(),
+                    "workflow_fingerprint": provenance.workflow_fingerprint(
+                        graph_schemas.GraphWorkflow.model_validate(workflow)
+                    ),
+                    "confirmation_kind": "recipe",
+                    "consumed": False,
+                },
+            },
+        }
+    )
+    app_modules["store"].create_or_update_graph_workflow(
+        {
+            "workflow_id": workflow["workflow_id"],
+            "name": workflow["name"],
+            "workflow_json": workflow,
+        }
+    )
+    started_run_ids = []
+    monkeypatch.setattr(graph_routes.runtime, "start_run", started_run_ids.append)
+
+    rejected = client.post(
+        f"/media/graph/workflows/{workflow['workflow_id']}/runs",
+        json={
+            "workflow": workflow,
+            "assistant_session_id": session["assistant_session_id"],
+            "assistant_confirmation_token": "no-plan-token",
+        },
+    )
+
+    assert rejected.status_code == 400
+    assert rejected.json()["detail"]["code"] == "workflow_fingerprint_mismatch"
+    assert started_run_ids == []
 
 
 def test_recipe_run_evidence_rejects_older_matching_run(client, app_modules) -> None:
