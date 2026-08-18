@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -12,6 +13,10 @@ def main() -> int:
     repo_root = repo_root_for(__file__)
     ensure_shared_python(repo_root, __file__, sys.argv[1:])
     sys.path.insert(0, str(repo_root / "apps" / "api"))
+
+    # The committed schema represents the default release surface. Experimental
+    # Assistant routes remain available only in explicitly enabled dev builds.
+    os.environ["NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG"] = "0"
 
     from app.main import app  # noqa: E402
 
