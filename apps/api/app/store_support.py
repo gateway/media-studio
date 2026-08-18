@@ -70,6 +70,27 @@ def new_id(prefix: str) -> str:
     return "%s_%s" % (prefix, uuid.uuid4().hex[:12])
 
 
+def positive_int(value: Any) -> Optional[int]:
+    try:
+        next_value = int(value)
+    except (TypeError, ValueError):
+        return None
+    return next_value if next_value > 0 else None
+
+
+def asset_output_dimensions(payload: Any) -> tuple[Optional[int], Optional[int]]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("outputs"), list):
+        return None, None
+    for output in payload["outputs"]:
+        if not isinstance(output, dict):
+            continue
+        width = positive_int(output.get("width"))
+        height = positive_int(output.get("height"))
+        if width and height:
+            return width, height
+    return None, None
+
+
 def _json_default(column: str) -> Any:
     if column.endswith("_json"):
         if column in {

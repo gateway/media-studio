@@ -13,6 +13,7 @@ from .queue_limits import (
     QUEUE_DEFAULT_POLL_SECONDS,
 )
 from .store_support import (
+    asset_output_dimensions,
     decode_row,
     ensure_column,
     insert_or_update,
@@ -29,30 +30,6 @@ class SchemaMigration:
     version: int
     description: str
     apply: Callable[[sqlite3.Connection], None]
-
-
-def _positive_int(value: Any) -> Optional[int]:
-    try:
-        next_value = int(value)
-    except (TypeError, ValueError):
-        return None
-    return next_value if next_value > 0 else None
-
-
-def _dimensions_from_asset_payload(payload: Any) -> tuple[Optional[int], Optional[int]]:
-    if not isinstance(payload, dict):
-        return None, None
-    outputs = payload.get("outputs")
-    if not isinstance(outputs, list):
-        return None, None
-    for output in outputs:
-        if not isinstance(output, dict):
-            continue
-        width = _positive_int(output.get("width"))
-        height = _positive_int(output.get("height"))
-        if width and height:
-            return width, height
-    return None, None
 
 
 def _backfill_media_asset_dimensions(connection: sqlite3.Connection) -> None:
@@ -72,7 +49,7 @@ def _backfill_media_asset_dimensions(connection: sqlite3.Connection) -> None:
             payload = json.loads(row["payload_json"] or "{}")
         except (TypeError, ValueError):
             continue
-        width, height = _dimensions_from_asset_payload(payload)
+        width, height = asset_output_dimensions(payload)
         if not width or not height:
             continue
         connection.execute(

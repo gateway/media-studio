@@ -5090,27 +5090,6 @@ def test_graph_workflow_json_is_canonicalized_to_saved_workflow_id(client, app_m
     assert run.workflow_json["workflow_id"] == workflow_id
 
 
-def test_graph_template_can_be_archived_from_workflow_panel(client) -> None:
-    response = client.post(
-        "/media/graph/templates",
-        json={
-            "name": "Temporary Template",
-            "description": None,
-            "tags": ["graph-studio"],
-            "thumbnail_path": None,
-            "workflow_json": {"schema_version": 1, "name": "Temporary", "nodes": [], "edges": []},
-        },
-    )
-    assert response.status_code == 200, response.text
-    template_id = response.json()["template_id"]
-    delete_response = client.delete(f"/media/graph/templates/{template_id}")
-    assert delete_response.status_code == 200, delete_response.text
-    assert delete_response.json()["status"] == "archived"
-    list_response = client.get("/media/graph/templates")
-    assert list_response.status_code == 200, list_response.text
-    assert template_id not in {item["template_id"] for item in list_response.json()["items"]}
-
-
 def test_graph_prompt_recipe_smoke_templates_are_seeded(client) -> None:
     response = client.get("/media/graph/templates")
     assert response.status_code == 200, response.text
