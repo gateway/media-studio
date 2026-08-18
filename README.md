@@ -175,7 +175,7 @@ For normal use, prefer the platform launcher or `npm run start:studio`. The stan
 
 ### Release Flags
 
-Graph Studio hides the experimental Media Assistant chat button by default. To expose it for internal debugging, set `NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=1` in `.env` and restart the web app so Next.js picks up the client-side flag.
+Graph Studio and the API disable the experimental Media Assistant by default. To enable it for internal debugging, set `NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=1` in `.env` and restart Media Studio so both processes pick up the shared flag.
 
 See [Media Assistant](docs/media-assistant.md) for its current architecture, confirmation boundaries, and experimental release status.
 

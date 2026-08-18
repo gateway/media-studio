@@ -136,7 +136,8 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
-app.include_router(assistant_router)
+if settings.media_assistant_enabled:
+    app.include_router(assistant_router)
 app.include_router(graph_router)
 settings.data_root.mkdir(parents=True, exist_ok=True)
 
@@ -252,6 +253,7 @@ def health() -> HealthResponse:
         codex_local_command_available=bool(codex_status.get("command_available")),
         codex_local_login_configured=bool(codex_status.get("login_configured")),
         codex_local_ready=bool(codex_status.get("ready")),
+        media_assistant_enabled=settings.media_assistant_enabled,
         runner_name=runner.display_name,
         runner_mode=runner.mode,
         runner_attached_to=runner.attached_to,

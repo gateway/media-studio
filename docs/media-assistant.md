@@ -4,12 +4,14 @@ Media Assistant is an experimental Graph Studio collaborator for building and re
 
 ## Current exposure boundary
 
-The Graph Studio panel is visible only when both conditions are true:
+Operational Assistant API routes are enabled only when
+`NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=1` is present when the API starts.
+The Graph Studio panel has two additional requirements:
 
-1. `NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=1` was present when the web app started.
-2. API health reports Codex Local ready.
+1. the same flag was present when the web app started;
+2. API health reports both the backend gate enabled and Codex Local ready.
 
-The example environment leaves this flag unset. This is currently a UI exposure control, not a backend kill switch: Assistant API routes are mounted with the Media Studio API and use the existing control-token access boundary. Do not enable the panel for general users until the release checklist and backend gating work are complete.
+The example environment leaves this flag unset. The API fails closed with `404` for operational Assistant routes when disabled, while normal Studio, Graph, Preset, Recipe, health, and provider-configuration routes remain available. Existing control-token access still applies when the Assistant is enabled. Do not enable the panel for general users until the release checklist is complete.
 
 ## Responsibilities
 

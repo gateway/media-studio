@@ -5,7 +5,17 @@ export function isGraphAssistantDebugEnabled() {
 }
 
 export function isGraphAssistantAvailable(
-  health: { codex_local_ready?: unknown } | null | undefined,
+  health:
+    | {
+        codex_local_ready?: unknown;
+        media_assistant_enabled?: unknown;
+      }
+    | null
+    | undefined,
 ) {
-  return isGraphAssistantDebugEnabled() && health?.codex_local_ready === true;
+  return (
+    isGraphAssistantDebugEnabled() &&
+    health?.media_assistant_enabled === true &&
+    health.codex_local_ready === true
+  );
 }

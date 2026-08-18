@@ -34,16 +34,37 @@ describe("isGraphAssistantDebugEnabled", () => {
 });
 
 describe("isGraphAssistantAvailable", () => {
-  it("requires the debug flag and a proven Codex Local connection", () => {
+  it("requires the debug flag, backend gate, and a proven Codex Local connection", () => {
     delete process.env.NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG;
 
-    expect(isGraphAssistantAvailable({ codex_local_ready: true })).toBe(false);
+    expect(
+      isGraphAssistantAvailable({
+        media_assistant_enabled: true,
+        codex_local_ready: true,
+      }),
+    ).toBe(false);
 
     process.env.NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG = "1";
 
     expect(isGraphAssistantAvailable(null)).toBe(false);
     expect(isGraphAssistantAvailable({})).toBe(false);
-    expect(isGraphAssistantAvailable({ codex_local_ready: false })).toBe(false);
-    expect(isGraphAssistantAvailable({ codex_local_ready: true })).toBe(true);
+    expect(
+      isGraphAssistantAvailable({
+        media_assistant_enabled: false,
+        codex_local_ready: true,
+      }),
+    ).toBe(false);
+    expect(
+      isGraphAssistantAvailable({
+        media_assistant_enabled: true,
+        codex_local_ready: false,
+      }),
+    ).toBe(false);
+    expect(
+      isGraphAssistantAvailable({
+        media_assistant_enabled: true,
+        codex_local_ready: true,
+      }),
+    ).toBe(true);
   });
 });

@@ -27,6 +27,7 @@ def test_health_endpoint(client) -> None:
     assert payload["codex_local_command_available"] in {True, False}
     assert payload["codex_local_login_configured"] in {True, False}
     assert payload["codex_local_ready"] in {True, False}
+    assert payload["media_assistant_enabled"] is True
     assert payload["queue_enabled"] is True
     assert payload["runner_name"] == "Media Studio Runner"
     assert payload["runner_mode"] == "embedded"

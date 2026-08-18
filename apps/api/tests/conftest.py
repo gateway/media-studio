@@ -44,6 +44,7 @@ def app_modules(tmp_path: Path):
     os.environ["MEDIA_BACKGROUND_POLL_ENABLED"] = "0"
     os.environ["MEDIA_PRICING_REFRESH_ON_STARTUP"] = "0"
     os.environ["MEDIA_STUDIO_CONTROL_API_TOKEN"] = CONTROL_HEADERS["x-media-studio-control-token"]
+    os.environ["NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG"] = "1"
 
     for name in sorted([key for key in sys.modules.keys() if key == "app" or key.startswith("app.")], reverse=True):
         sys.modules.pop(name, None)

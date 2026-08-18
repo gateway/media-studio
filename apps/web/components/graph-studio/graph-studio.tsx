@@ -282,7 +282,10 @@ function GraphStudioClient() {
         if (!response.ok) {
           throw new Error(`Health check returned ${response.status}.`);
         }
-        return (await response.json()) as { codex_local_ready?: unknown };
+        return (await response.json()) as {
+          codex_local_ready?: unknown;
+          media_assistant_enabled?: unknown;
+        };
       })
       .then((payload) => {
         if (cancelled) return;

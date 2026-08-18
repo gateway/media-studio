@@ -191,6 +191,7 @@ export type ControlApiHealthData = {
   codex_local_command_available?: boolean;
   codex_local_login_configured?: boolean;
   codex_local_ready?: boolean;
+  media_assistant_enabled?: boolean;
   runner_name?: string;
   runner_mode?: string;
   runner_attached_to?: string;
