@@ -54,4 +54,3 @@ def test_prompt_budget_unknown_model_limit_is_non_blocking(app_modules, monkeypa
         "max_chars": None,
         "over_limit": False,
     }
-

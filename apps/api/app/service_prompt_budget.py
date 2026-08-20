@@ -42,4 +42,3 @@ def enforce_prompt_budget(model_key: str, prompt: str) -> Dict[str, Any]:
             % (model_key, current_chars, max_chars)
         )
     return summary
-
