@@ -478,8 +478,8 @@ def test_renderer_matches_reference_hierarchy_without_duplicate_shot_row() -> No
     assert rendered.metadata["header_geometry"]["title_font_size"] >= 26
     assert rendered.metadata["header_geometry"]["production_label_font_size"] >= 12
     assert rendered.metadata["header_geometry"]["production_value_font_size"] >= 13
-    assert rendered.metadata["display_font_family"]
-    assert rendered.metadata["body_font_family"]
+    assert rendered.metadata["display_font_family"] == "BarlowCondensed-Bold"
+    assert rendered.metadata["body_font_family"] == "BarlowCondensed-Regular"
     for panel in rendered.metadata["panel_geometry"]:
         assert panel["heading_text"] == f"{panel['panel']:02d} — RELAY BEAT {panel['panel']}"
         assert panel["heading_height"] >= 36

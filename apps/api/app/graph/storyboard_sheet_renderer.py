@@ -20,12 +20,13 @@ SHEET_WIDTH = 2048
 SHEET_HEIGHT = 1152
 SQUARE_SHEET_HEIGHT = 2048
 SHEET_METADATA_LABELS = ("CAMERA", "ACTION", "MOTION", "DIALOG", "NOTES")
+_FONT_ASSETS = Path(__file__).with_name("assets")
 _BODY_FONT_CANDIDATES = (
+    _FONT_ASSETS / "BarlowCondensed-Regular.ttf",
     Path("/System/Library/Fonts/Supplemental/Arial Narrow.ttf"),
     Path("/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed.ttf"),
     Path("/usr/share/fonts/truetype/liberation2/LiberationSansNarrow-Regular.ttf"),
     Path("C:/Windows/Fonts/arialn.ttf"),
-    Path(__file__).with_name("assets") / "DejaVuSans.ttf",
     Path("/System/Library/Fonts/SFNS.ttf"),
     Path("/System/Library/Fonts/Supplemental/Arial.ttf"),
     Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
@@ -33,6 +34,7 @@ _BODY_FONT_CANDIDATES = (
     Path("C:/Windows/Fonts/arial.ttf"),
 )
 _DISPLAY_FONT_CANDIDATES = (
+    _FONT_ASSETS / "BarlowCondensed-Bold.ttf",
     Path("/System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf"),
     Path("/System/Library/Fonts/Supplemental/Arial Narrow Bold.ttf"),
     Path("/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf"),
