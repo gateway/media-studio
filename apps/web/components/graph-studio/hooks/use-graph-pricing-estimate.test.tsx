@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 
@@ -18,11 +18,10 @@ vi.mock("../utils/graph-pricing-preferences", () => ({
 
 import { jsonFetch } from "../utils/graph-api";
 
-function makeEstimate(): GraphEstimateResponse {
+function makeEstimate(estimatedCredits = 0): GraphEstimateResponse {
   return {
     pricing_summary: {
-      estimated_credits: 0,
-      estimated_cost_usd: 0,
+      total: { estimated_credits: estimatedCredits, estimated_cost_usd: estimatedCredits * 0.005 },
       has_numeric_estimate: true,
       has_unknown_pricing: false,
       is_authoritative: true,
@@ -39,8 +38,9 @@ function Harness() {
   const [runtimeStatus, setRuntimeStatus] = useState("idle");
   const [provider, setProvider] = useState("codex_local");
   const [cachedRunId, setCachedRunId] = useState<string | null>(null);
+  const [blank, setBlank] = useState(false);
   const appendConsole = vi.fn();
-  const nodes = [
+  const nodes = blank ? [] : [
     {
       id: "node-1",
       position: { x: 0, y: 0 },
@@ -72,9 +72,9 @@ function Harness() {
     edges: [],
     metadata: {},
   });
-  useGraphPricingEstimate({
-    workflowId: "workflow-1",
-    workflowName: "Steve test",
+  const { graphEstimate } = useGraphPricingEstimate({
+    workflowId: blank ? null : "workflow-1",
+    workflowName: blank ? "New workflow" : "Steve test",
     nodes,
     edges: [] as StudioEdge[],
     availableCredits: 100,
@@ -93,6 +93,15 @@ function Harness() {
       <button type="button" onClick={() => setCachedRunId((current) => (current ? null : "run-1"))}>
         Toggle execution cache
       </button>
+      <button type="button" onClick={() => setBlank(true)}>
+        New blank workflow
+      </button>
+      <button type="button" onClick={() => setBlank(false)}>
+        Restore priced workflow
+      </button>
+      <output aria-label="Estimated credits">
+        {graphEstimate?.pricing_summary.total?.estimated_credits ?? "pending"}
+      </output>
     </div>
   );
 }
@@ -132,5 +141,72 @@ describe("useGraphPricingEstimate", () => {
     fireEvent.click(screen.getByRole("button", { name: "Change provider" }));
     await flushEstimateTimer();
     expect(jsonFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears one workflow's estimate while another workflow is being priced", async () => {
+    vi.mocked(jsonFetch)
+      .mockResolvedValueOnce(makeEstimate(10) as never)
+      .mockResolvedValueOnce(makeEstimate(6) as never)
+      .mockResolvedValueOnce(makeEstimate(6) as never);
+
+    render(<Harness />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(screen.getByRole("status", { name: "Estimated credits" }).textContent).toBe("10");
+
+    fireEvent.click(screen.getByRole("button", { name: "Change provider" }));
+    expect(screen.getByRole("status", { name: "Estimated credits" }).textContent).toBe("pending");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(screen.getByRole("status", { name: "Estimated credits" }).textContent).toBe("6");
+
+    fireEvent.click(screen.getByRole("button", { name: "New blank workflow" }));
+    expect(screen.getByRole("status", { name: "Estimated credits" }).textContent).toBe("0");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(jsonFetch).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(screen.getByRole("button", { name: "Restore priced workflow" }));
+    expect(screen.getByRole("status", { name: "Estimated credits" }).textContent).toBe("pending");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(screen.getByRole("status", { name: "Estimated credits" }).textContent).toBe("6");
+    expect(jsonFetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("starts a current request after a rapid workflow round trip invalidates an in-flight request", async () => {
+    let resolveStaleRequest: (estimate: GraphEstimateResponse) => void = () => undefined;
+    let resolveCurrentRequest: (estimate: GraphEstimateResponse) => void = () => undefined;
+    const staleRequest = new Promise<GraphEstimateResponse>((resolve) => {
+      resolveStaleRequest = resolve;
+    });
+    const currentRequest = new Promise<GraphEstimateResponse>((resolve) => {
+      resolveCurrentRequest = resolve;
+    });
+    vi.mocked(jsonFetch)
+      .mockReturnValueOnce(staleRequest as never)
+      .mockReturnValueOnce(currentRequest as never);
+
+    render(<Harness />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(jsonFetch).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Change provider" }));
+    fireEvent.click(screen.getByRole("button", { name: "Change provider" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(jsonFetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => resolveStaleRequest(makeEstimate(10)));
+    expect(screen.getByRole("status", { name: "Estimated credits" }).textContent).toBe("pending");
+    await act(async () => resolveCurrentRequest(makeEstimate(6)));
+    expect(screen.getByRole("status", { name: "Estimated credits" }).textContent).toBe("6");
   });
 });

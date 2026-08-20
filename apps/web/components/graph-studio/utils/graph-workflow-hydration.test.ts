@@ -77,6 +77,7 @@ describe("hydrateGraphWorkflowForCanvas", () => {
     expect(hydrated.nodes[0].style?.height).toBe(520);
     expect(hydrated.nodes[0].style?.minHeight).toBeLessThan(520);
     expect(hydrated.nodes[0].data.onEnsureNodeHeight).toBe(handlers.onEnsureNodeHeight);
+    expect(hydrated.nodes[0].data.userSizedHeight).toBe(false);
   });
 
   it("round-trips saved node size and keeps hydrated edges reconnectable", () => {
@@ -90,7 +91,7 @@ describe("hydrateGraphWorkflowForCanvas", () => {
           type: "media.load_image",
           position: { x: 0, y: 0 },
           fields: {},
-          metadata: { style: { width: 720, height: 840 } },
+          metadata: { style: { width: 720, height: 840 }, ui: { heightMode: "manual" } },
         },
         {
           id: "preview",
@@ -115,6 +116,7 @@ describe("hydrateGraphWorkflowForCanvas", () => {
 
     expect(hydrated.nodes.find((node) => node.id === "load")?.style?.width).toBe(720);
     expect(hydrated.nodes.find((node) => node.id === "load")?.style?.height).toBe(840);
+    expect(hydrated.nodes.find((node) => node.id === "load")?.data.userSizedHeight).toBe(true);
     expect(hydrated.edges[0]).toMatchObject({
       source: "load",
       target: "preview",
@@ -136,6 +138,78 @@ describe("hydrateGraphWorkflowForCanvas", () => {
     );
     const savedAgain = workflowFromCanvas("workflow-1", "Resize smoke", resizedNodes, hydrated.edges);
     expect(savedAgain.nodes.find((node) => node.id === "load")?.metadata?.style).toMatchObject({ width: 720, height: 900 });
+    expect(savedAgain.nodes.find((node) => node.id === "load")?.metadata?.ui).toMatchObject({ heightMode: "manual" });
+  });
+
+  it("does not treat saved generated heights as user-sized without the explicit UI flag", () => {
+    const workflow: GraphWorkflowPayload = {
+      schema_version: 1,
+      workflow_id: "workflow-1",
+      name: "Generated recipe",
+      nodes: [
+        {
+          id: "recipe",
+          type: "prompt.recipe",
+          position: { x: 0, y: 0 },
+          fields: {},
+          metadata: { style: { width: 720, height: 840 } },
+        },
+      ],
+      edges: [],
+      metadata: {},
+    };
+    const promptRecipeDefinition: GraphNodeDefinition = {
+      type: "prompt.recipe",
+      title: "Prompt Recipe",
+      category: "Prompt",
+      fields: [],
+      ports: { inputs: [], outputs: [] },
+      ui: { default_size: { width: 720, height: 840 } },
+    };
+
+    const hydrated = hydrateGraphWorkflowForCanvas({
+      workflow,
+      definitionsByType: new Map([[promptRecipeDefinition.type, promptRecipeDefinition]]),
+      handlers,
+    });
+
+    expect(hydrated.nodes[0].style?.height).toBe(840);
+    expect(hydrated.nodes[0].data.userSizedHeight).toBe(false);
+  });
+
+  it("ignores stale userSizedHeight UI metadata written by earlier development builds", () => {
+    const workflow: GraphWorkflowPayload = {
+      schema_version: 1,
+      workflow_id: "workflow-1",
+      name: "Stale generated recipe",
+      nodes: [
+        {
+          id: "recipe",
+          type: "prompt.recipe",
+          position: { x: 0, y: 0 },
+          fields: {},
+          metadata: { style: { width: 720, height: 840 }, ui: { userSizedHeight: true } },
+        },
+      ],
+      edges: [],
+      metadata: {},
+    };
+    const promptRecipeDefinition: GraphNodeDefinition = {
+      type: "prompt.recipe",
+      title: "Prompt Recipe",
+      category: "Prompt",
+      fields: [],
+      ports: { inputs: [], outputs: [] },
+      ui: { default_size: { width: 720, height: 840 } },
+    };
+
+    const hydrated = hydrateGraphWorkflowForCanvas({
+      workflow,
+      definitionsByType: new Map([[promptRecipeDefinition.type, promptRecipeDefinition]]),
+      handlers,
+    });
+
+    expect(hydrated.nodes[0].data.userSizedHeight).toBe(false);
   });
 
   it("drops saved edges whose handles are not exposed by the current node contract", () => {

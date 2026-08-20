@@ -1,114 +1,96 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, Optional
+
+from ..schemas import PresetUpsertRequest
 
 
-def _slug(value: str) -> str:
-    return re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", value.strip().lower())).strip("_")
+_PRESET_LANES = {"text_to_image", "image_to_image"}
+_WORD_RE = re.compile(r"[a-z0-9]+")
 
 
-def _display_label(value: str) -> str:
-    cleaned = " ".join(value.split()).strip()
-    if cleaned and cleaned == cleaned.lower():
-        return " / ".join(part.strip().title() for part in cleaned.split(" / "))
-    return cleaned
+def _normalized_phrase(value: Any) -> str:
+    return " ".join(_WORD_RE.findall(str(value or "").lower()))
 
 
-def infer_runtime_image_slots_from_text(message: str) -> List[Dict[str, Any]]:
-    """Infer explicit runtime image slots from normal user phrasing.
-
-    Reference/style attachments are not runtime inputs. This helper only returns
-    slots when the user asks for an image input/input image in the preset.
-    """
-    text = " ".join(str(message or "").split())
-    lowered = text.lower()
-    face_body_input = re.search(r"\bface\b.{0,40}\bbody\b.{0,30}\binputs?\b", lowered) or re.search(
-        r"\binputs?\b.{0,30}\bface\b.{0,40}\bbody\b",
-        lowered,
+def validate_assistant_preset_slots(
+    draft: PresetUpsertRequest,
+    *,
+    user_text: str = "",
+    current_draft: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    lane = str(draft.rules_json.get("preset_lane") or "").strip()
+    slots = draft.input_slots_json
+    task_modes = {str(value) for value in draft.applies_to_task_modes}
+    input_patterns = {str(value) for value in draft.applies_to_input_patterns}
+    runtime_roles = draft.rules_json.get("runtime_image_roles")
+    current_rules = (
+        current_draft.get("rules_json")
+        if isinstance(current_draft, dict) and isinstance(current_draft.get("rules_json"), dict)
+        else {}
     )
-    if "image input" not in lowered and "input image" not in lowered and not face_body_input:
-        return []
+    current_runtime_roles = current_rules.get("runtime_image_roles")
+    user_phrase_haystack = f" {_normalized_phrase(user_text)} "
+    issues: list[str] = []
 
-    count_map = {
-        "one": 1,
-        "two": 2,
-        "three": 3,
-        "four": 4,
-        "five": 5,
+    if lane not in _PRESET_LANES:
+        issues.append("Choose one preset lane: text_to_image or image_to_image.")
+    elif lane == "text_to_image":
+        if slots or draft.requires_image or runtime_roles:
+            issues.append("Text-to-image presets cannot define runtime image slots.")
+        if "text_to_image" not in task_modes or "image_edit" in task_modes:
+            issues.append("Text-to-image presets must use only the text_to_image task mode.")
+        if input_patterns != {"prompt_only"}:
+            issues.append("Text-to-image presets must use the prompt_only input pattern.")
+    else:
+        if not slots or not draft.requires_image or not any(slot.get("required") for slot in slots):
+            issues.append("Image-to-image presets need a required runtime image slot.")
+        if "image_edit" not in task_modes or "text_to_image" in task_modes:
+            issues.append("Image-to-image presets must use only the image_edit task mode.")
+        if not input_patterns.intersection({"image_edit", "single_image"}) or "prompt_only" in input_patterns:
+            issues.append(
+                "Image-to-image presets must use a catalog-supported image input pattern."
+            )
+        slot_keys = {str(slot.get("key") or "").strip() for slot in slots}
+        if not isinstance(runtime_roles, dict) or set(runtime_roles) != slot_keys:
+            issues.append(
+                "Add rules_json.runtime_image_roles keyed by slot key; each value needs "
+                "role and exact user_evidence."
+            )
+        else:
+            for slot in slots:
+                key = str(slot.get("key") or "").strip()
+                role = runtime_roles.get(key)
+                if not isinstance(role, dict) or not str(role.get("role") or "").strip():
+                    issues.append(
+                        f'rules_json.runtime_image_roles["{key}"] needs a named role.'
+                    )
+                    continue
+                evidence = _normalized_phrase(role.get("user_evidence"))
+                role_was_approved = (
+                    isinstance(current_runtime_roles, dict)
+                    and current_runtime_roles.get(key) == role
+                )
+                if (
+                    not role_was_approved
+                    and (not evidence or f" {evidence} " not in user_phrase_haystack)
+                ):
+                    issues.append(
+                        f'rules_json.runtime_image_roles["{key}"] needs exact '
+                        "user_evidence from the user request."
+                    )
+
+    if issues:
+        raise ValueError(" ".join(issues))
+    return {
+        "lane": lane,
+        "runtime_slot_count": len(slots),
+        "input_patterns": sorted(input_patterns),
+        "style_reference_role": "analysis_only",
+        "runtime_roles": {
+            key: value.get("role")
+            for key, value in (runtime_roles.items() if isinstance(runtime_roles, dict) else [])
+            if isinstance(value, dict)
+        },
     }
-    requested_count = 0
-    count_match = re.search(r"\b(\d+|one|two|three|four|five)\s+(?:runtime\s+)?(?:image inputs?|input images?)\b", lowered)
-    if count_match:
-        raw_count = count_match.group(1)
-        requested_count = int(raw_count) if raw_count.isdigit() else count_map.get(raw_count, 0)
-
-    labels: List[str] = []
-    if face_body_input:
-        labels = ["Face Reference", "Body Reference"]
-
-    named_match = re.search(
-        r"\b(?:runtime\s+)?(?:image input|input image)s?\s+named\s+(.+?)(?:[.;]|\n|$)",
-        text,
-        flags=re.IGNORECASE,
-    )
-    if not labels and named_match:
-        raw_names = named_match.group(1)
-        raw_names = re.sub(r"\b(?:before|then|and then|with fields?|fields?)\b.*$", "", raw_names, flags=re.IGNORECASE).strip()
-        labels = [part.strip(" `\"'.,;:-") for part in re.split(r"\s*,\s*|\s+\band\b\s+", raw_names) if part.strip(" `\"'.,;:-")]
-        if requested_count > 1 and len(labels) == 1:
-            words = labels[0].split()
-            image_chunks: List[str] = []
-            current_chunk: List[str] = []
-            for word in words:
-                current_chunk.append(word)
-                if word.lower().strip(".,;:-") == "image":
-                    image_chunks.append(" ".join(current_chunk))
-                    current_chunk = []
-            if len(image_chunks) == requested_count:
-                labels = image_chunks
-
-    if not labels:
-        role_pair_match = re.search(
-            r"\b(?:one|1|first|image\s*1)\s+(?:as|for|is)\s+(?:a|an|the\s+)?(.+?)\s+(?:and|,)\s+(?:one|1|second|image\s*2)\s+(?:as|for|is)\s+(?:a|an|the\s+)?(.+?)(?:[.;]|\n|$)",
-            text,
-            flags=re.IGNORECASE,
-        )
-        if role_pair_match:
-            labels = [
-                role_pair_match.group(1).strip(" `\"'.,;:-"),
-                role_pair_match.group(2).strip(" `\"'.,;:-"),
-            ]
-
-    if not labels:
-        role_match = re.search(
-            r"\b(?:runtime\s+)?(?:image input|input image)s?\s+for\s+(?:the\s+)?(.+?)(?:[.;]|\n|$)",
-            text,
-            flags=re.IGNORECASE,
-        )
-        if role_match:
-            raw_role = role_match.group(1)
-            raw_role = re.sub(r"\b(?:before|then|and then|with fields?|fields?|plus|suggest|ask)\b.*$", "", raw_role, flags=re.IGNORECASE).strip()
-            raw_role = re.sub(r"\s+or\s+", " / ", raw_role, flags=re.IGNORECASE)
-            label = raw_role.strip(" `\"'.,;:-")
-            if label:
-                labels = [label]
-
-    if not labels and requested_count > 0:
-        labels = [f"Image Input {index + 1}" for index in range(requested_count)]
-
-    normalized: List[Dict[str, Any]] = []
-    seen: set[str] = set()
-    for index, label in enumerate(labels[:5]):
-        cleaned_label = _display_label(label) or f"Image Input {index + 1}"
-        cleaned_label = re.sub(r"^(?:and|or)\s+", "", cleaned_label, flags=re.IGNORECASE).strip() or f"Image Input {index + 1}"
-        if cleaned_label.lower() == "face":
-            cleaned_label = "Face Reference"
-        elif cleaned_label.lower() in {"body", "full body", "full-body"}:
-            cleaned_label = "Body Reference"
-        key = _slug(cleaned_label) or f"image_{index + 1}"
-        if key in seen:
-            key = f"{key}_{index + 1}"
-        seen.add(key)
-        normalized.append({"key": key, "label": cleaned_label, "required": True})
-    return normalized

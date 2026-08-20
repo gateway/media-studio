@@ -27,6 +27,7 @@ def test_health_endpoint(client) -> None:
     assert payload["codex_local_command_available"] in {True, False}
     assert payload["codex_local_login_configured"] in {True, False}
     assert payload["codex_local_ready"] in {True, False}
+    assert payload["media_assistant_enabled"] is True
     assert payload["queue_enabled"] is True
     assert payload["runner_name"] == "Media Studio Runner"
     assert payload["runner_mode"] == "embedded"
@@ -82,6 +83,16 @@ def test_media_files_serves_windows_absolute_data_path(client, app_modules) -> N
 
 def test_media_files_rejects_paths_outside_data_root(client) -> None:
     response = client.get("/media/files/E%3A/Development/other/private.txt")
+
+    assert response.status_code == 404
+
+
+def test_media_files_rejects_codex_runtime_credentials(client, app_modules) -> None:
+    auth_path = app_modules["main"].settings.data_root / "runtime" / "codex-local" / "home" / "auth.json"
+    auth_path.parent.mkdir(parents=True, exist_ok=True)
+    auth_path.write_text('{"access_token":"private"}')
+
+    response = client.get(f"/media/files/{quote(str(auth_path), safe='/')}")
 
     assert response.status_code == 404
 
@@ -1281,8 +1292,8 @@ def test_prompt_recipe_drafting_config_defaults_and_save(client) -> None:
     assert initial.status_code == 200, initial.text
     assert initial.json()["config_key"] == "prompt_recipe_drafting"
     assert initial.json()["enabled"] is True
-    assert initial.json()["provider_kind"] == "openrouter"
-    assert initial.json()["provider_model_id"] is None
+    assert initial.json()["provider_kind"] == "codex_local"
+    assert initial.json()["provider_model_id"] == "gpt-5.6-sol"
     assert initial.json()["temperature"] == 0.2
     assert initial.json()["max_tokens"] == 1800
 
@@ -1581,7 +1592,13 @@ def test_local_openai_provider_probes_return_bad_request_for_connection_failures
 
 
 def test_prompt_recipe_draft_requires_configured_model(client) -> None:
-    response = client.post("/prompt-recipes/draft", json={"idea": "Create a cinematic video director recipe."})
+    response = client.post(
+        "/prompt-recipes/draft",
+        json={
+            "idea": "Create a cinematic video director recipe.",
+            "provider_kind": "local_openai",
+        },
+    )
     assert response.status_code == 400
     assert "Configure a Prompt Recipe Drafting model" in response.text
 
@@ -2406,6 +2423,12 @@ def test_enhance_preview_uses_saved_openrouter_config(client, app_modules, monke
 
 def test_enhance_preview_uses_preview_prompt_policy_for_builtin_helper(client, app_modules, monkeypatch) -> None:
     captured: dict[str, object] = {}
+    builtin_config = {
+        **app_modules["service"]._resolved_enhancement_config("nano-banana-2"),
+        "provider_kind": "builtin",
+        "provider_label": "Built-in",
+        "provider_model_id": None,
+    }
 
     def fake_dry_run_prompt_enhancement(request):
         captured["prompt_policy"] = request.get("prompt_policy")
@@ -2421,6 +2444,11 @@ def test_enhance_preview_uses_preview_prompt_policy_for_builtin_helper(client, a
         app_modules["service"].kie_adapter,
         "dry_run_prompt_enhancement",
         fake_dry_run_prompt_enhancement,
+    )
+    monkeypatch.setattr(
+        app_modules["service"],
+        "_resolved_enhancement_config",
+        lambda _model_key: builtin_config,
     )
 
     response = client.post(

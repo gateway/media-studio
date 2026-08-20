@@ -51,6 +51,7 @@ export type GraphNodeField = {
   hidden?: boolean;
   connectable?: boolean;
   port_type?: string | null;
+  reference_role?: string | null;
   visible_if?: {
     field?: string;
     equals?: unknown;
@@ -104,6 +105,7 @@ export type GraphNodeData = {
   collapsed?: boolean;
   advancedExpanded?: boolean;
   autoSizedHeight?: number | null;
+  userSizedHeight?: boolean | null;
   mediaAutoFitSignature?: string | null;
   accentColor?: string | null;
   nodeColor?: string | null;
@@ -203,6 +205,43 @@ export type GraphWorkflowPayload = {
   metadata?: Record<string, unknown>;
 };
 
+export type AssistantNextAction = {
+  kind: "none" | "confirm_graph" | "save_media_preset" | "save_prompt_recipe" | "apply_repair" | "run_workflow";
+  label?: string | null;
+  proposal_id?: string | null;
+  confirmation_token?: string | null;
+  requires_confirmation: boolean;
+  payload?: Record<string, unknown>;
+  price_estimate?: Record<string, unknown> | null;
+};
+
+export type AssistantProductionConstraint = {
+  name: string;
+  value: string | number | boolean;
+  source: "user_request" | "model_catalog" | "derived";
+  model_key?: string | null;
+  catalog_path?: string | null;
+  derived_from?: string[];
+  operator?: "ceil_divide" | null;
+};
+
+export type AssistantProductionPlanStep = {
+  id: string;
+  kind: "character_sheet" | "environment_sheet" | "storyboard" | "recipe" | "graph" | "run" | "stitch";
+  title: string;
+  status: "proposed" | "ready" | "in_progress" | "done" | "skipped";
+  depends_on: string[];
+  artifact_ref?: string | null;
+  notes: string;
+};
+
+export type AssistantProductionPlan = {
+  version: 1;
+  goal: string;
+  constraints: AssistantProductionConstraint[];
+  steps: AssistantProductionPlanStep[];
+};
+
 export type AssistantSession = {
   assistant_session_id: string;
   owner_kind: "graph_workflow" | "studio_project" | "media_preset" | "prompt_recipe" | "standalone";
@@ -213,6 +252,9 @@ export type AssistantSession = {
   title?: string | null;
   messages: AssistantMessage[];
   attachments: AssistantAttachment[];
+  summary_json?: Record<string, unknown>;
+  latest_plan?: AssistantPlanResponse | null;
+  production_plan?: AssistantProductionPlan | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -251,6 +293,7 @@ export type AssistantPlan = {
   assistant_session_id: string;
   status: "draft" | "validated" | "applied" | "rejected" | "failed";
   capability: AssistantGraphPlan["capability"];
+  applied_workflow_id?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };

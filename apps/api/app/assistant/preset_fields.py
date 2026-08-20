@@ -1,162 +1,133 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable
+
+from ..schemas import PresetUpsertRequest
 
 
-def slug_field_key(value: str, fallback: str = "custom_field") -> str:
-    slug = re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", value.strip().lower())).strip("_")
-    return slug or fallback
+_WORD_RE = re.compile(r"[a-z0-9]+")
+_GENERIC_FIELD_LABELS = {
+    "accent palette",
+    "character role",
+    "detail notes",
+    "hero archetype",
+    "hero brief",
+    "optional notes",
+    "scene brief",
+    "style notes",
+    "subject archetype",
+    "subject brief",
+}
 
 
-def preset_field(key: str, label: str, *, required: bool = True, placeholder: str | None = None) -> Dict[str, Any]:
-    return {
-        "key": key,
-        "label": label,
-        "placeholder": placeholder or f"{label}.",
-        "default_value": "",
-        "required": required,
-    }
+def _normalized_words(value: Any) -> list[str]:
+    return _WORD_RE.findall(str(value or "").lower())
 
 
-def _text(value: str) -> str:
-    return " ".join(str(value or "").lower().split())
-
-
-def _title_label(value: str) -> str:
-    cleaned = re.sub(r"[_-]+", " ", str(value or ""))
-    cleaned = re.sub(r"\s*/\s*", " / ", cleaned)
-    cleaned = re.sub(r"\s+", " ", cleaned).strip(" .,:;\"'")
-    return cleaned.title()
-
-
-def _valid_field_label(label: str) -> bool:
-    normalized = _text(label)
-    if len(normalized) < 3 or len(normalized) > 48:
-        return False
-    blocked_exact = {
-        "field",
-        "fields",
-        "form field",
-        "form fields",
-        "input",
-        "inputs",
-        "image",
-        "images",
-        "runtime image",
-        "that make sense",
-        "minimal",
-        "useful fields",
-        "minimal fields",
-    }
-    if normalized in blocked_exact:
-        return False
-    return not any(token in normalized for token in ("sandbox", "preset", "runtime image", "input image"))
-
-
-def _dedupe_fields(fields: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    unique_fields: Dict[str, Dict[str, Any]] = {}
-    for field in fields:
-        key = str(field.get("key") or "").strip()
-        label = str(field.get("label") or "").strip()
-        if not key or not label:
+def latest_reference_analysis(summary: Dict[str, Any]) -> Dict[str, Any] | None:
+    cache = summary.get("reference_analysis_cache")
+    if not isinstance(cache, dict):
+        return None
+    for entry in reversed(list(cache.values())):
+        if (
+            not isinstance(entry, dict)
+            or not entry.get("reference_ids")
+            or str(entry.get("goal") or "") not in {"preset_design", "style_reference"}
+        ):
             continue
-        unique_fields[key] = field
-    return list(unique_fields.values())
+        analysis = entry.get("analysis")
+        values = analysis.get("replaceable_elements") if isinstance(analysis, dict) else None
+        if isinstance(values, list):
+            return entry
+    return None
 
 
-def _split_field_list(value: str) -> List[str]:
-    cleaned = re.sub(r"\b(and|plus)\b", ",", str(value or ""), flags=re.IGNORECASE)
-    return [_title_label(part) for part in cleaned.split(",") if _valid_field_label(part)]
-
-
-def _named_fields_from_message(message: str) -> List[Dict[str, Any]]:
-    text = _text(message)
-    candidates: List[str] = []
-    patterns = [
-        r"\buse\s+(.{3,120}?)\s+as\s+(?:the\s+)?(?:(?:one|two|three|four|\d+)\s+)?fields?\b",
-        r"\bkeep\s+(?:the\s+)?(?:approved\s+)?fields?\s+(.{3,120}?)(?:\.|,|$|\b(?:before|then|create|build|make|test|sandbox|save|do not)\b)",
-        r"\bfields?\s*:\s+(.{3,120}?)(?:\.|$|\b(?:before|then|create|build|make|test|sandbox|save)\b)",
-        r"\bfields?\s+(?:called|named|for|as|should be|are)\s+(.{3,120}?)(?:\.|$|\b(?:before|then|create|build|make|test|sandbox)\b)",
-        r"\b(?:the\s+)?(?:one|two|three|four|\d+)\s+fields?\s+(?!called\b|named\b|for\b|as\b)(.{3,120}?)(?:\.|$|\b(?:before|then|create|build|make|test|sandbox)\b)",
-        r"\badd\s+(?:the\s+)?fields?\s+(?!for\b)(.{3,120}?)(?:\.|$|\b(?:before|then|create|build|make|test|sandbox)\b)",
-    ]
-    for pattern in patterns:
-        for match in re.finditer(pattern, text):
-            candidates.extend(_split_field_list(match.group(1)))
-
-    named_match = re.search(r"\bfield named\s+([a-z0-9 _/-]{2,48})", text)
-    if named_match:
-        candidates.append(_title_label(named_match.group(1)))
-
-    return [
-        preset_field(slug_field_key(label), label, required=True)
-        for label in candidates
-        if _valid_field_label(label)
-    ][:4]
-
-
-def wants_suggested_preset_fields(message: str) -> bool:
-    text = _text(message)
-    return any(
-        token in text
-        for token in (
-            "suggest two useful fields",
-            "suggest useful fields",
-            "recommend minimal useful",
-            "few form fields",
-            "form fields that make sense",
-            "fields that make sense",
-            "one or two editable fields",
-            "editable fields",
-            "input fields",
-        )
-    )
-
-
-def default_reference_style_fields(*, has_runtime_image_slot: bool) -> List[Dict[str, Any]]:
-    if has_runtime_image_slot:
-        return [
-            preset_field("pose_framing", "Pose / Framing", required=False, placeholder="Optional pose, crop, or composition guidance."),
-        ]
-    return []
-
-
-def infer_explicit_preset_fields(message: str) -> List[Dict[str, Any]]:
-    text = _text(message)
-    named_fields = _named_fields_from_message(message)
-    if named_fields:
-        return named_fields
-    fields: List[Dict[str, Any]] = []
-    field_specs = [
-        ("scene_setting", "Scene / Setting", ("scene details", "scene direction")),
-        ("color_accent", "Color Accent", ("color accent", "accent color", "color palette")),
-        ("text_or_slogan", "Text or Slogan", ("text or slogan", "slogan text", "slogan", "caption text")),
-        ("visual_style", "Visual Style", ("visual style field", "visual_style")),
-        ("product_name", "Product Name", ("product name", "product_name")),
-        ("product_details", "Product Details", ("product details",)),
-        ("year", "Year", ("year field", "year input", "year value", "enter a year", "enter the year", "input a year", "provide a year", "choose a year", "type a year", "take a year", "takes a year", "using the year")),
-    ]
-    for key, label, terms in field_specs:
-        if any(term in text for term in terms):
-            fields.append(preset_field(key, label, required=key not in {"detail_notes", "visual_style"}))
-    return _dedupe_fields(fields)
-
-
-def infer_preset_contract_fields(
-    message: str,
+def latest_replaceable_elements(
+    summary: Dict[str, Any],
     *,
-    base_fields: List[Dict[str, Any]] | None = None,
-    has_runtime_image_slot: bool,
-    has_style_reference: bool,
-) -> List[Dict[str, Any]]:
-    base_fields = base_fields or []
-    explicit_fields = infer_explicit_preset_fields(message)
-    if explicit_fields:
-        return explicit_fields
-    if base_fields and has_style_reference and not wants_suggested_preset_fields(message):
-        return _dedupe_fields(base_fields)
-    if wants_suggested_preset_fields(message) or (has_style_reference and not base_fields):
-        default_fields = default_reference_style_fields(has_runtime_image_slot=has_runtime_image_slot)
-        return _dedupe_fields([*base_fields, *default_fields])
+    analysis_id: str = "",
+) -> list[str]:
+    cache = summary.get("reference_analysis_cache")
+    if not isinstance(cache, dict):
+        return []
+    entries = list(cache.values())
+    if analysis_id:
+        entries = [
+            entry
+            for entry in entries
+            if isinstance(entry, dict)
+            and str(entry.get("analysis_id") or "") == analysis_id
+        ]
+    else:
+        approved = latest_reference_analysis(summary)
+        if approved:
+            entries = [approved]
+    for entry in reversed(entries):
+        analysis = entry.get("analysis") if isinstance(entry, dict) else None
+        values = analysis.get("replaceable_elements") if isinstance(analysis, dict) else None
+        if isinstance(values, list):
+            return [str(value).strip() for value in values if str(value).strip()]
     return []
+
+
+def validate_assistant_preset_fields(
+    draft: PresetUpsertRequest,
+    *,
+    replaceable_elements: Iterable[str] = (),
+    user_text: str = "",
+) -> Dict[str, Any]:
+    issues: list[str] = []
+    if not 1 <= len(draft.input_schema_json) <= 3:
+        issues.append("Use between one and three concrete text fields.")
+    normalized_user_text = " ".join(_normalized_words(user_text))
+    user_phrase_haystack = f" {normalized_user_text} "
+    normalized_evidence = {
+        " ".join(_normalized_words(value))
+        for value in replaceable_elements
+        if _normalized_words(value)
+    }
+    field_evidence = draft.rules_json.get("field_evidence")
+    if normalized_evidence and not isinstance(field_evidence, dict):
+        issues.append(
+            "Reference-based fields need rules_json.field_evidence keyed by field key."
+        )
+        field_evidence = {}
+    for field in draft.input_schema_json:
+        key = str(field.get("key") or "").strip()
+        label = str(field.get("label") or field.get("key") or "").strip()
+        label_words = _normalized_words(label)
+        placeholder = str(field.get("placeholder") or "").strip()
+        help_text = str(field.get("help_text") or field.get("description") or "").strip()
+        if not label or len(label_words) > 5:
+            issues.append("Each field needs a short, user-facing label of at most five words.")
+        if not placeholder:
+            issues.append(f'Field "{label}" needs an example or input hint.')
+        if len(_normalized_words(help_text)) < 3:
+            issues.append(f'Field "{label}" must explain what it changes in the output.')
+        normalized_label = " ".join(label_words)
+        explicitly_requested = bool(
+            normalized_label and f" {normalized_label} " in user_phrase_haystack
+        )
+        if normalized_label in _GENERIC_FIELD_LABELS and not explicitly_requested:
+            issues.append(
+                f'Field "{label}" is too broad. Name one concrete replaceable element instead.'
+            )
+        if normalized_evidence:
+            evidence = " ".join(_normalized_words(field_evidence.get(key)))
+            grounded_by_reference = evidence in normalized_evidence
+            grounded_by_user = bool(
+                evidence and f" {evidence} " in user_phrase_haystack
+            )
+            if not evidence or not (grounded_by_reference or grounded_by_user):
+                issues.append(
+                    f'Field "{label}" needs evidence from replaceable_elements or the user request.'
+                )
+    if issues:
+        raise ValueError(" ".join(issues))
+    return {
+        "score": 10,
+        "passed": True,
+        "field_count": len(draft.input_schema_json),
+        "evidence_count": len(field_evidence) if isinstance(field_evidence, dict) else 0,
+    }

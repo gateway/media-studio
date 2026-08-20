@@ -58,6 +58,17 @@
             "title": "Dismissed",
             "type": "boolean"
           },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
           "favorited": {
             "default": false,
             "title": "Favorited",
@@ -84,6 +95,17 @@
               }
             ],
             "title": "Generation Kind"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
           },
           "hero_original_path": {
             "anyOf": [
@@ -273,6 +295,17 @@
               }
             ],
             "title": "Task Mode"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
           }
         },
         "required": [
@@ -282,1272 +315,6 @@
           "status"
         ],
         "title": "AssetRecord",
-        "type": "object"
-      },
-      "AssistantArtifactSaveResponse": {
-        "properties": {
-          "artifact_kind": {
-            "enum": [
-              "media_preset",
-              "prompt_recipe"
-            ],
-            "title": "Artifact Kind",
-            "type": "string"
-          },
-          "assistant_session": {
-            "$ref": "#/components/schemas/AssistantSession"
-          },
-          "capability": {
-            "enum": [
-              "answer_question",
-              "plan_graph",
-              "draft_prompt_recipe",
-              "draft_media_preset",
-              "save_prompt_recipe",
-              "save_media_preset",
-              "inspect_media",
-              "repair_graph"
-            ],
-            "title": "Capability",
-            "type": "string"
-          },
-          "created": {
-            "default": true,
-            "title": "Created",
-            "type": "boolean"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "record": {
-            "additionalProperties": true,
-            "title": "Record",
-            "type": "object"
-          }
-        },
-        "required": [
-          "capability",
-          "artifact_kind",
-          "record",
-          "message",
-          "assistant_session"
-        ],
-        "title": "AssistantArtifactSaveResponse",
-        "type": "object"
-      },
-      "AssistantAttachment": {
-        "properties": {
-          "assistant_attachment_id": {
-            "title": "Assistant Attachment Id",
-            "type": "string"
-          },
-          "assistant_session_id": {
-            "title": "Assistant Session Id",
-            "type": "string"
-          },
-          "created_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created At"
-          },
-          "kind": {
-            "default": "image",
-            "title": "Kind",
-            "type": "string"
-          },
-          "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label"
-          },
-          "metadata_json": {
-            "additionalProperties": true,
-            "title": "Metadata Json",
-            "type": "object"
-          },
-          "reference_id": {
-            "title": "Reference Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "assistant_attachment_id",
-          "assistant_session_id",
-          "reference_id"
-        ],
-        "title": "AssistantAttachment",
-        "type": "object"
-      },
-      "AssistantAttachmentCreateRequest": {
-        "properties": {
-          "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label"
-          },
-          "reference_id": {
-            "title": "Reference Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "reference_id"
-        ],
-        "title": "AssistantAttachmentCreateRequest",
-        "type": "object"
-      },
-      "AssistantDraftCreateRequest": {
-        "properties": {
-          "assistant_mode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assistant Mode"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "run_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Run Id"
-          },
-          "workflow": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GraphWorkflow"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "title": "AssistantDraftCreateRequest",
-        "type": "object"
-      },
-      "AssistantGraphOperation": {
-        "properties": {
-          "body": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Body"
-          },
-          "color": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Color"
-          },
-          "fields": {
-            "additionalProperties": true,
-            "title": "Fields",
-            "type": "object"
-          },
-          "group_ref": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Group Ref"
-          },
-          "node_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Node Id"
-          },
-          "node_ref": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Node Ref"
-          },
-          "node_refs": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Node Refs",
-            "type": "array"
-          },
-          "node_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Node Type"
-          },
-          "op": {
-            "title": "Op",
-            "type": "string"
-          },
-          "position": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "title": "Position",
-            "type": "object"
-          },
-          "source_port": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Port"
-          },
-          "source_ref": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Ref"
-          },
-          "target_port": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Target Port"
-          },
-          "target_ref": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Target Ref"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          }
-        },
-        "required": [
-          "op"
-        ],
-        "title": "AssistantGraphOperation",
-        "type": "object"
-      },
-      "AssistantGraphPlan": {
-        "properties": {
-          "capability": {
-            "default": "plan_graph",
-            "enum": [
-              "answer_question",
-              "plan_graph",
-              "draft_prompt_recipe",
-              "draft_media_preset",
-              "save_prompt_recipe",
-              "save_media_preset",
-              "inspect_media",
-              "repair_graph"
-            ],
-            "title": "Capability",
-            "type": "string"
-          },
-          "metadata": {
-            "additionalProperties": true,
-            "title": "Metadata",
-            "type": "object"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/AssistantGraphOperation"
-            },
-            "title": "Operations",
-            "type": "array"
-          },
-          "questions": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Questions",
-            "type": "array"
-          },
-          "requires_confirmation": {
-            "default": true,
-            "title": "Requires Confirmation",
-            "type": "boolean"
-          },
-          "summary": {
-            "title": "Summary",
-            "type": "string"
-          },
-          "warnings": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Warnings",
-            "type": "array"
-          }
-        },
-        "required": [
-          "summary"
-        ],
-        "title": "AssistantGraphPlan",
-        "type": "object"
-      },
-      "AssistantMediaInspectionResponse": {
-        "properties": {
-          "attachment_counts": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "title": "Attachment Counts",
-            "type": "object"
-          },
-          "capability": {
-            "default": "inspect_media",
-            "enum": [
-              "answer_question",
-              "plan_graph",
-              "draft_prompt_recipe",
-              "draft_media_preset",
-              "save_prompt_recipe",
-              "save_media_preset",
-              "inspect_media",
-              "repair_graph"
-            ],
-            "title": "Capability",
-            "type": "string"
-          },
-          "media_summary": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Media Summary",
-            "type": "array"
-          }
-        },
-        "title": "AssistantMediaInspectionResponse",
-        "type": "object"
-      },
-      "AssistantMediaPresetDraftResponse": {
-        "properties": {
-          "capability": {
-            "default": "draft_media_preset",
-            "enum": [
-              "answer_question",
-              "plan_graph",
-              "draft_prompt_recipe",
-              "draft_media_preset",
-              "save_prompt_recipe",
-              "save_media_preset",
-              "inspect_media",
-              "repair_graph"
-            ],
-            "title": "Capability",
-            "type": "string"
-          },
-          "draft": {
-            "$ref": "#/components/schemas/PresetUpsertRequest"
-          },
-          "media_summary": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Media Summary",
-            "type": "array"
-          },
-          "review_url": {
-            "title": "Review Url",
-            "type": "string"
-          },
-          "validation_warnings": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Validation Warnings",
-            "type": "array"
-          }
-        },
-        "required": [
-          "draft",
-          "review_url"
-        ],
-        "title": "AssistantMediaPresetDraftResponse",
-        "type": "object"
-      },
-      "AssistantMediaPresetSaveRequest": {
-        "properties": {
-          "assistant_mode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assistant Mode"
-          },
-          "draft": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PresetUpsertRequest"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "run_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Run Id"
-          },
-          "workflow": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GraphWorkflow"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "title": "AssistantMediaPresetSaveRequest",
-        "type": "object"
-      },
-      "AssistantMessage": {
-        "properties": {
-          "assistant_message_id": {
-            "title": "Assistant Message Id",
-            "type": "string"
-          },
-          "assistant_session_id": {
-            "title": "Assistant Session Id",
-            "type": "string"
-          },
-          "content_json": {
-            "additionalProperties": true,
-            "title": "Content Json",
-            "type": "object"
-          },
-          "content_text": {
-            "default": "",
-            "title": "Content Text",
-            "type": "string"
-          },
-          "created_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created At"
-          },
-          "role": {
-            "enum": [
-              "user",
-              "assistant",
-              "system_summary",
-              "tool"
-            ],
-            "title": "Role",
-            "type": "string"
-          }
-        },
-        "required": [
-          "assistant_message_id",
-          "assistant_session_id",
-          "role"
-        ],
-        "title": "AssistantMessage",
-        "type": "object"
-      },
-      "AssistantMessageCreateRequest": {
-        "properties": {
-          "assistant_mode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assistant Mode"
-          },
-          "attachment_ids": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Attachment Ids",
-            "type": "array"
-          },
-          "content_text": {
-            "title": "Content Text",
-            "type": "string"
-          },
-          "metadata": {
-            "additionalProperties": true,
-            "title": "Metadata",
-            "type": "object"
-          },
-          "run_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Run Id"
-          },
-          "workflow": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GraphWorkflow"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "content_text"
-        ],
-        "title": "AssistantMessageCreateRequest",
-        "type": "object"
-      },
-      "AssistantPlan": {
-        "properties": {
-          "applied_workflow_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Applied Workflow Id"
-          },
-          "assistant_plan_id": {
-            "title": "Assistant Plan Id",
-            "type": "string"
-          },
-          "assistant_session_id": {
-            "title": "Assistant Session Id",
-            "type": "string"
-          },
-          "capability": {
-            "default": "plan_graph",
-            "enum": [
-              "answer_question",
-              "plan_graph",
-              "draft_prompt_recipe",
-              "draft_media_preset",
-              "save_prompt_recipe",
-              "save_media_preset",
-              "inspect_media",
-              "repair_graph"
-            ],
-            "title": "Capability",
-            "type": "string"
-          },
-          "created_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created At"
-          },
-          "plan_json": {
-            "additionalProperties": true,
-            "title": "Plan Json",
-            "type": "object"
-          },
-          "pricing_json": {
-            "additionalProperties": true,
-            "title": "Pricing Json",
-            "type": "object"
-          },
-          "status": {
-            "default": "draft",
-            "enum": [
-              "draft",
-              "validated",
-              "applied",
-              "rejected",
-              "failed"
-            ],
-            "title": "Status",
-            "type": "string"
-          },
-          "updated_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Updated At"
-          },
-          "validation_json": {
-            "additionalProperties": true,
-            "title": "Validation Json",
-            "type": "object"
-          },
-          "workflow_json": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Workflow Json"
-          }
-        },
-        "required": [
-          "assistant_plan_id",
-          "assistant_session_id"
-        ],
-        "title": "AssistantPlan",
-        "type": "object"
-      },
-      "AssistantPlanApplyRequest": {
-        "properties": {
-          "workflow": {
-            "$ref": "#/components/schemas/GraphWorkflow"
-          }
-        },
-        "required": [
-          "workflow"
-        ],
-        "title": "AssistantPlanApplyRequest",
-        "type": "object"
-      },
-      "AssistantPlanApplyResponse": {
-        "properties": {
-          "plan": {
-            "$ref": "#/components/schemas/AssistantPlan"
-          },
-          "pricing": {
-            "$ref": "#/components/schemas/GraphEstimateResponse"
-          },
-          "validation": {
-            "$ref": "#/components/schemas/GraphValidationResult"
-          },
-          "workflow": {
-            "$ref": "#/components/schemas/GraphWorkflow"
-          }
-        },
-        "required": [
-          "plan",
-          "workflow",
-          "validation",
-          "pricing"
-        ],
-        "title": "AssistantPlanApplyResponse",
-        "type": "object"
-      },
-      "AssistantPlanCreateRequest": {
-        "properties": {
-          "assistant_mode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assistant Mode"
-          },
-          "capability": {
-            "default": "plan_graph",
-            "enum": [
-              "answer_question",
-              "plan_graph",
-              "draft_prompt_recipe",
-              "draft_media_preset",
-              "save_prompt_recipe",
-              "save_media_preset",
-              "inspect_media",
-              "repair_graph"
-            ],
-            "title": "Capability",
-            "type": "string"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Message"
-          },
-          "run_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Run Id"
-          },
-          "workflow": {
-            "$ref": "#/components/schemas/GraphWorkflow"
-          }
-        },
-        "required": [
-          "workflow"
-        ],
-        "title": "AssistantPlanCreateRequest",
-        "type": "object"
-      },
-      "AssistantPlanResponse": {
-        "properties": {
-          "graph_plan": {
-            "$ref": "#/components/schemas/AssistantGraphPlan"
-          },
-          "plan": {
-            "$ref": "#/components/schemas/AssistantPlan"
-          },
-          "pricing": {
-            "$ref": "#/components/schemas/GraphEstimateResponse"
-          },
-          "validation": {
-            "$ref": "#/components/schemas/GraphValidationResult"
-          },
-          "workflow": {
-            "$ref": "#/components/schemas/GraphWorkflow"
-          }
-        },
-        "required": [
-          "plan",
-          "graph_plan",
-          "workflow",
-          "validation",
-          "pricing"
-        ],
-        "title": "AssistantPlanResponse",
-        "type": "object"
-      },
-      "AssistantPromptRecipeDraftResponse": {
-        "properties": {
-          "capability": {
-            "default": "draft_prompt_recipe",
-            "enum": [
-              "answer_question",
-              "plan_graph",
-              "draft_prompt_recipe",
-              "draft_media_preset",
-              "save_prompt_recipe",
-              "save_media_preset",
-              "inspect_media",
-              "repair_graph"
-            ],
-            "title": "Capability",
-            "type": "string"
-          },
-          "draft": {
-            "$ref": "#/components/schemas/PromptRecipeUpsertRequest"
-          },
-          "media_summary": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Media Summary",
-            "type": "array"
-          },
-          "review_url": {
-            "title": "Review Url",
-            "type": "string"
-          },
-          "validation_warnings": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Validation Warnings",
-            "type": "array"
-          }
-        },
-        "required": [
-          "draft",
-          "review_url"
-        ],
-        "title": "AssistantPromptRecipeDraftResponse",
-        "type": "object"
-      },
-      "AssistantPromptRecipeSaveRequest": {
-        "properties": {
-          "assistant_mode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assistant Mode"
-          },
-          "draft": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PromptRecipeUpsertRequest"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "run_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Run Id"
-          },
-          "workflow": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GraphWorkflow"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "title": "AssistantPromptRecipeSaveRequest",
-        "type": "object"
-      },
-      "AssistantRepairCreateRequest": {
-        "properties": {
-          "run_id": {
-            "title": "Run Id",
-            "type": "string"
-          },
-          "workflow": {
-            "$ref": "#/components/schemas/GraphWorkflow"
-          }
-        },
-        "required": [
-          "run_id",
-          "workflow"
-        ],
-        "title": "AssistantRepairCreateRequest",
-        "type": "object"
-      },
-      "AssistantRepairResponse": {
-        "properties": {
-          "capability": {
-            "default": "repair_graph",
-            "enum": [
-              "answer_question",
-              "plan_graph",
-              "draft_prompt_recipe",
-              "draft_media_preset",
-              "save_prompt_recipe",
-              "save_media_preset",
-              "inspect_media",
-              "repair_graph"
-            ],
-            "title": "Capability",
-            "type": "string"
-          },
-          "failed_nodes": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Failed Nodes",
-            "type": "array"
-          },
-          "graph_plan": {
-            "$ref": "#/components/schemas/AssistantGraphPlan"
-          },
-          "pricing": {
-            "$ref": "#/components/schemas/GraphEstimateResponse"
-          },
-          "run_id": {
-            "title": "Run Id",
-            "type": "string"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          },
-          "summary": {
-            "title": "Summary",
-            "type": "string"
-          },
-          "validation": {
-            "$ref": "#/components/schemas/GraphValidationResult"
-          },
-          "workflow": {
-            "$ref": "#/components/schemas/GraphWorkflow"
-          }
-        },
-        "required": [
-          "run_id",
-          "status",
-          "summary",
-          "graph_plan",
-          "workflow",
-          "validation",
-          "pricing"
-        ],
-        "title": "AssistantRepairResponse",
-        "type": "object"
-      },
-      "AssistantSession": {
-        "properties": {
-          "assistant_session_id": {
-            "title": "Assistant Session Id",
-            "type": "string"
-          },
-          "attachments": {
-            "items": {
-              "$ref": "#/components/schemas/AssistantAttachment"
-            },
-            "title": "Attachments",
-            "type": "array"
-          },
-          "created_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created At"
-          },
-          "messages": {
-            "items": {
-              "$ref": "#/components/schemas/AssistantMessage"
-            },
-            "title": "Messages",
-            "type": "array"
-          },
-          "owner_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Owner Id"
-          },
-          "owner_kind": {
-            "default": "standalone",
-            "enum": [
-              "graph_workflow",
-              "studio_project",
-              "media_preset",
-              "prompt_recipe",
-              "standalone"
-            ],
-            "title": "Owner Kind",
-            "type": "string"
-          },
-          "provider_kind": {
-            "default": "codex_local",
-            "title": "Provider Kind",
-            "type": "string"
-          },
-          "provider_model_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider Model Id"
-          },
-          "provider_thread_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider Thread Id"
-          },
-          "state_snapshot_json": {
-            "additionalProperties": true,
-            "title": "State Snapshot Json",
-            "type": "object"
-          },
-          "status": {
-            "default": "active",
-            "enum": [
-              "active",
-              "thinking",
-              "plan_ready",
-              "applying",
-              "failed",
-              "archived"
-            ],
-            "title": "Status",
-            "type": "string"
-          },
-          "summary_json": {
-            "additionalProperties": true,
-            "title": "Summary Json",
-            "type": "object"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "updated_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Updated At"
-          }
-        },
-        "required": [
-          "assistant_session_id"
-        ],
-        "title": "AssistantSession",
-        "type": "object"
-      },
-      "AssistantSessionCreateRequest": {
-        "properties": {
-          "assistant_mode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assistant Mode"
-          },
-          "owner_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Owner Id"
-          },
-          "owner_kind": {
-            "default": "standalone",
-            "enum": [
-              "graph_workflow",
-              "studio_project",
-              "media_preset",
-              "prompt_recipe",
-              "standalone"
-            ],
-            "title": "Owner Kind",
-            "type": "string"
-          },
-          "provider_kind": {
-            "default": "codex_local",
-            "title": "Provider Kind",
-            "type": "string"
-          },
-          "provider_model_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider Model Id"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "workflow": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GraphWorkflow"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "title": "AssistantSessionCreateRequest",
-        "type": "object"
-      },
-      "AssistantSessionListResponse": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/AssistantSession"
-            },
-            "title": "Items",
-            "type": "array"
-          }
-        },
-        "title": "AssistantSessionListResponse",
         "type": "object"
       },
       "BatchRecord": {
@@ -3399,6 +2166,17 @@
             ],
             "title": "Port Type"
           },
+          "reference_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Role"
+          },
           "required": {
             "default": false,
             "title": "Required",
@@ -3625,6 +2403,28 @@
       },
       "GraphRunCreateRequest": {
         "properties": {
+          "assistant_confirmation_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assistant Confirmation Token"
+          },
+          "assistant_session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assistant Session Id"
+          },
           "workflow": {
             "anyOf": [
               {
@@ -4656,6 +3456,11 @@
             "title": "Local Openai Ready",
             "type": "boolean"
           },
+          "media_assistant_enabled": {
+            "default": false,
+            "title": "Media Assistant Enabled",
+            "type": "boolean"
+          },
           "openrouter_api_key_configured": {
             "default": false,
             "title": "Openrouter Api Key Configured",
@@ -5314,6 +4119,227 @@
         "title": "JobsListResponse",
         "type": "object"
       },
+      "MediaAssistantConfigRecord": {
+        "properties": {
+          "config_key": {
+            "title": "Config Key",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "max_tokens": {
+            "default": 1800,
+            "title": "Max Tokens",
+            "type": "integer"
+          },
+          "provider_base_url_configured": {
+            "default": false,
+            "title": "Provider Base Url Configured",
+            "type": "boolean"
+          },
+          "provider_capabilities_json": {
+            "additionalProperties": true,
+            "title": "Provider Capabilities Json",
+            "type": "object"
+          },
+          "provider_credential_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Credential Source"
+          },
+          "provider_kind": {
+            "default": "codex_local",
+            "title": "Provider Kind",
+            "type": "string"
+          },
+          "provider_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Label"
+          },
+          "provider_last_tested_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Last Tested At"
+          },
+          "provider_model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Model Id"
+          },
+          "provider_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Status"
+          },
+          "provider_supports_images": {
+            "default": true,
+            "title": "Provider Supports Images",
+            "type": "boolean"
+          },
+          "supports_media_studio_tools": {
+            "default": true,
+            "title": "Supports Media Studio Tools",
+            "type": "boolean"
+          },
+          "temperature": {
+            "default": 0.2,
+            "title": "Temperature",
+            "type": "number"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "config_key"
+        ],
+        "title": "MediaAssistantConfigRecord",
+        "type": "object"
+      },
+      "MediaAssistantConfigUpsertRequest": {
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "max_tokens": {
+            "default": 1800,
+            "title": "Max Tokens",
+            "type": "integer"
+          },
+          "provider_base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Base Url"
+          },
+          "provider_capabilities_json": {
+            "additionalProperties": true,
+            "title": "Provider Capabilities Json",
+            "type": "object"
+          },
+          "provider_kind": {
+            "default": "codex_local",
+            "title": "Provider Kind",
+            "type": "string"
+          },
+          "provider_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Label"
+          },
+          "provider_last_tested_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Last Tested At"
+          },
+          "provider_model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Model Id"
+          },
+          "provider_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Status"
+          },
+          "provider_supports_images": {
+            "default": true,
+            "title": "Provider Supports Images",
+            "type": "boolean"
+          },
+          "temperature": {
+            "default": 0.2,
+            "title": "Temperature",
+            "type": "number"
+          }
+        },
+        "title": "MediaAssistantConfigUpsertRequest",
+        "type": "object"
+      },
       "MediaRefInput": {
         "properties": {
           "asset_id": {
@@ -5348,6 +4374,17 @@
               }
             ],
             "title": "Filename"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
           },
           "mime_type": {
             "anyOf": [
@@ -5403,6 +4440,17 @@
               }
             ],
             "title": "Url"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
           }
         },
         "title": "MediaRefInput",
@@ -5693,6 +4741,11 @@
             ],
             "title": "Base Builtin Key"
           },
+          "category": {
+            "default": "general",
+            "title": "Category",
+            "type": "string"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -5941,6 +4994,11 @@
               }
             ],
             "title": "Base Builtin Key"
+          },
+          "category": {
+            "default": "general",
+            "title": "Category",
+            "type": "string"
           },
           "default_options_json": {
             "additionalProperties": true,
@@ -6620,6 +5678,11 @@
             ],
             "title": "Help Text"
           },
+          "input_kind": {
+            "default": "none",
+            "title": "Input Kind",
+            "type": "string"
+          },
           "key": {
             "title": "Key",
             "type": "string"
@@ -6645,6 +5708,11 @@
               }
             ],
             "title": "Placeholder"
+          },
+          "reference_role": {
+            "default": "none",
+            "title": "Reference Role",
+            "type": "string"
           },
           "required": {
             "default": false,
@@ -6823,7 +5891,7 @@
             "title": "Provider Credential Source"
           },
           "provider_kind": {
-            "default": "openrouter",
+            "default": "codex_local",
             "title": "Provider Kind",
             "type": "string"
           },
@@ -6872,7 +5940,7 @@
             "title": "Provider Status"
           },
           "provider_supports_images": {
-            "default": false,
+            "default": true,
             "title": "Provider Supports Images",
             "type": "boolean"
           },
@@ -6928,7 +5996,7 @@
             "type": "object"
           },
           "provider_kind": {
-            "default": "openrouter",
+            "default": "codex_local",
             "title": "Provider Kind",
             "type": "string"
           },
@@ -6977,7 +6045,7 @@
             "title": "Provider Status"
           },
           "provider_supports_images": {
-            "default": false,
+            "default": true,
             "title": "Provider Supports Images",
             "type": "boolean"
           },
@@ -7011,6 +6079,13 @@
             "default": "none",
             "title": "Mode",
             "type": "string"
+          },
+          "reference_roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reference Roles",
+            "type": "array"
           },
           "required": {
             "default": false,
@@ -7488,12 +6563,22 @@
             "title": "Enabled",
             "type": "boolean"
           },
+          "input_kind": {
+            "default": "none",
+            "title": "Input Kind",
+            "type": "string"
+          },
           "key": {
             "title": "Key",
             "type": "string"
           },
           "label": {
             "title": "Label",
+            "type": "string"
+          },
+          "reference_role": {
+            "default": "none",
+            "title": "Reference Role",
             "type": "string"
           },
           "required": {
@@ -8468,7 +7553,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "pattern": "^(image|video)?$",
+                  "pattern": "^(image|video|audio)?$",
                   "type": "string"
                 },
                 {
@@ -8540,6 +7625,32 @@
                 }
               ],
               "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "compact",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Compact",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           }
         ],
@@ -8772,141 +7883,30 @@
         "summary": "Favorite Asset"
       }
     },
-    "/media/assistant/plans/{plan_id}/apply": {
-      "post": {
-        "operationId": "apply_plan_media_assistant_plans__plan_id__apply_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "plan_id",
-            "required": true,
-            "schema": {
-              "title": "Plan Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AssistantPlanApplyRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantPlanApplyResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Apply Plan",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions": {
+    "/media/assistant-config": {
       "get": {
-        "operationId": "list_sessions_media_assistant_sessions_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "owner_kind",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Owner Kind"
-            }
-          },
-          {
-            "in": "query",
-            "name": "owner_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Owner Id"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "maximum": 50,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
+        "operationId": "get_media_assistant_config_media_assistant_config_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AssistantSessionListResponse"
+                  "$ref": "#/components/schemas/MediaAssistantConfigRecord"
                 }
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
-        "summary": "List Sessions",
-        "tags": [
-          "media-assistant"
-        ]
+        "summary": "Get Media Assistant Config"
       },
-      "post": {
-        "operationId": "create_session_media_assistant_sessions_post",
+      "patch": {
+        "operationId": "update_media_assistant_config_media_assistant_config_patch",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AssistantSessionCreateRequest"
+                "$ref": "#/components/schemas/MediaAssistantConfigUpsertRequest"
               }
             }
           },
@@ -8917,7 +7917,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AssistantSession"
+                  "$ref": "#/components/schemas/MediaAssistantConfigRecord"
                 }
               }
             },
@@ -8934,115 +7934,17 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create Session",
-        "tags": [
-          "media-assistant"
-        ]
+        "summary": "Update Media Assistant Config"
       }
     },
-    "/media/assistant/sessions/{session_id}": {
-      "get": {
-        "operationId": "get_session_media_assistant_sessions__session_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantSession"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Session",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/archive": {
+    "/media/assistant-config/probe": {
       "post": {
-        "operationId": "archive_session_media_assistant_sessions__session_id__archive_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantSession"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Archive Session",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/attachments": {
-      "post": {
-        "operationId": "create_attachment_media_assistant_sessions__session_id__attachments_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
+        "operationId": "probe_media_assistant_config_media_assistant_config_probe_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AssistantAttachmentCreateRequest"
+                "$ref": "#/components/schemas/EnhancementProviderProbeRequest"
               }
             }
           },
@@ -9053,7 +7955,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AssistantAttachment"
+                  "$ref": "#/components/schemas/EnhancementProviderProbeResponse"
                 }
               }
             },
@@ -9070,555 +7972,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create Attachment",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/attachments/{attachment_id}": {
-      "delete": {
-        "operationId": "delete_attachment_media_assistant_sessions__session_id__attachments__attachment_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "attachment_id",
-            "required": true,
-            "schema": {
-              "title": "Attachment Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Delete Attachment Media Assistant Sessions  Session Id  Attachments  Attachment Id  Delete",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Attachment",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/cancel": {
-      "post": {
-        "operationId": "cancel_session_media_assistant_sessions__session_id__cancel_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantSession"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Cancel Session",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/debug-trace": {
-      "get": {
-        "operationId": "get_session_debug_trace_media_assistant_sessions__session_id__debug_trace_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Session Debug Trace Media Assistant Sessions  Session Id  Debug Trace Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Session Debug Trace",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/media-inspection": {
-      "get": {
-        "operationId": "inspect_session_media_media_assistant_sessions__session_id__media_inspection_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantMediaInspectionResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Inspect Session Media",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/messages": {
-      "post": {
-        "operationId": "create_message_media_assistant_sessions__session_id__messages_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AssistantMessageCreateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantSession"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create Message",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/plans": {
-      "post": {
-        "operationId": "create_plan_media_assistant_sessions__session_id__plans_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AssistantPlanCreateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantPlanResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create Plan",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/preset-drafts": {
-      "post": {
-        "operationId": "create_media_preset_draft_media_assistant_sessions__session_id__preset_drafts_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AssistantDraftCreateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantMediaPresetDraftResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create Media Preset Draft",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/preset-saves": {
-      "post": {
-        "operationId": "save_media_preset_from_assistant_media_assistant_sessions__session_id__preset_saves_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AssistantMediaPresetSaveRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantArtifactSaveResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Save Media Preset From Assistant",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/recipe-drafts": {
-      "post": {
-        "operationId": "create_prompt_recipe_draft_media_assistant_sessions__session_id__recipe_drafts_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AssistantDraftCreateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantPromptRecipeDraftResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create Prompt Recipe Draft",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/recipe-saves": {
-      "post": {
-        "operationId": "save_prompt_recipe_from_assistant_media_assistant_sessions__session_id__recipe_saves_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AssistantPromptRecipeSaveRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantArtifactSaveResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Save Prompt Recipe From Assistant",
-        "tags": [
-          "media-assistant"
-        ]
-      }
-    },
-    "/media/assistant/sessions/{session_id}/repair": {
-      "post": {
-        "operationId": "repair_graph_run_media_assistant_sessions__session_id__repair_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AssistantRepairCreateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantRepairResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Repair Graph Run",
-        "tags": [
-          "media-assistant"
-        ]
+        "summary": "Probe Media Assistant Config"
       }
     },
     "/media/batches": {
@@ -11715,6 +10069,22 @@
           },
           {
             "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
             "name": "status",
             "required": false,
             "schema": {
@@ -12735,6 +11105,22 @@
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           }
         ],

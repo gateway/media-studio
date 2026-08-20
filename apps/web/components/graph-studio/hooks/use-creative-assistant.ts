@@ -12,6 +12,7 @@ import type {
   AssistantArtifactSaveResponse,
   AssistantMessage,
   AssistantMediaPresetDraftResponse,
+  AssistantNextAction,
   AssistantPlan,
   AssistantPlanResponse,
   AssistantPromptRecipeDraftResponse,
@@ -20,27 +21,13 @@ import type {
   AssistantSession,
   GraphWorkflowPayload,
 } from "../types";
-import { jsonFetch } from "../utils/graph-api";
+import { JsonFetchError, jsonFetch } from "../utils/graph-api";
 import { blankGraphWorkflowPayload } from "../utils/graph-tabs";
-import {
-  isAssistantSavedPresetWorkflowRequest,
-  latestAssistantResponseKind,
-  latestAssistantRunApprovalSource,
-  latestAssistantSuggestedAction,
-  resolveCreativeAssistantAutoAction,
-  sessionHasImageAttachment,
-  sessionHasOutputComparisonForRun,
-  type AssistantMode,
-} from "../utils/creative-assistant-intent";
 import { buildCreativeAssistantCanvasContext } from "../utils/creative-assistant-canvas-context";
-export {
-  resolveCreativeAssistantAutoAction,
-  shouldAutoPlanAssistantMessage,
-  type AssistantMode,
-  type CreativeAssistantAutoAction,
-} from "../utils/creative-assistant-intent";
 
-type AssistantStatus = "idle" | "sending" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling";
+export type AssistantMode = "preset" | "recipe" | "graph";
+
+type AssistantStatus = "idle" | "sending" | "running" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling";
 export type PresetLoopLane = "text_to_image" | "image_to_image" | "both";
 
 const ASSISTANT_REQUEST_TIMEOUT_MS = 130_000;
@@ -50,11 +37,6 @@ const PRESET_LOOP_START_MESSAGES: Record<PresetLoopLane, string> = {
   image_to_image: "Can you create an image-to-image media preset from these reference images?",
   both: "Can you create both image-to-image and text-to-image media presets from these reference images?",
 };
-
-const APPROVED_TEST_WORKFLOW_SAVE_MESSAGE =
-  "This result is close enough. Create the official Media Preset now from this approved workflow. Use the latest generated image as the thumbnail when available.";
-const AUTO_OUTPUT_COMPARE_MESSAGE =
-  "Compare the latest generated output against the attached reference style. Keep it short: what matches, what is missing, and whether to refine once or save the preset.";
 
 type AssistantProviderReadiness = {
   checked: boolean;
@@ -79,11 +61,11 @@ function savedArtifactFromMessage(message: AssistantMessage) {
 function savedArtifactGraphPrompt(message: AssistantMessage) {
   const artifact = savedArtifactFromMessage(message);
   if (!artifact) return "";
+  const exactKey = artifact.key ? ` and key ${artifact.key}` : "";
   if (artifact.kind === "media_preset") {
-    const exactPreset = artifact.key ? ` named ${artifact.label} with key ${artifact.key}` : ` named ${artifact.label}`;
-    return `Create a clean replacement workflow that uses the saved Media Preset${exactPreset}. Leave required image inputs empty so the user can attach the correct images before running.`;
+    return `Create a clean replacement workflow that uses the saved Media Preset named ${artifact.label} with exact id ${artifact.id}${exactKey}. Fill every required text field with useful alternate sample values so the graph validates and the user can change them through visible form controls. Leave required image inputs empty so the user can attach the correct images before running.`;
   }
-  return `Create a clean replacement workflow that uses the saved Prompt Recipe named ${artifact.label}, then sends the rendered prompt into an image model with preview and save image nodes.`;
+  return `Create a clean replacement workflow that uses the saved Prompt Recipe named ${artifact.label} with exact id ${artifact.id}${exactKey}, then sends the rendered prompt into a compatible text-to-image model with preview and save image nodes.`;
 }
 
 function savedArtifactEditorUrl(message: AssistantMessage, returnTo?: string) {
@@ -136,6 +118,27 @@ function appendOptimisticUserMessage(
   };
 }
 
+function persistedPlanForWorkflow(
+  assistantSession: AssistantSession,
+  workflowId: string | null,
+) {
+  const persistedPlan = assistantSession.latest_plan ?? null;
+  if (!persistedPlan) return null;
+  if (persistedPlan.plan.assistant_session_id !== assistantSession.assistant_session_id) return null;
+  const planWorkflowId = persistedPlan.workflow.workflow_id ?? null;
+  if (workflowId) {
+    const workflowOwnsSession =
+      assistantSession.owner_kind === "graph_workflow" && assistantSession.owner_id === workflowId;
+    const standalonePlanTargetsWorkflow =
+      assistantSession.owner_kind === "standalone" && !assistantSession.owner_id && planWorkflowId === workflowId;
+    if (!workflowOwnsSession && !standalonePlanTargetsWorkflow) return null;
+    if (planWorkflowId !== workflowId && persistedPlan.plan.applied_workflow_id !== workflowId) return null;
+  } else if (assistantSession.owner_kind !== "standalone" || persistedPlan.workflow.workflow_id) {
+    return null;
+  }
+  return persistedPlan;
+}
+
 function latestAssistantPayload(session: AssistantSession | null) {
   if (!session) return null;
   for (let index = session.messages.length - 1; index >= 0; index -= 1) {
@@ -146,12 +149,43 @@ function latestAssistantPayload(session: AssistantSession | null) {
   return null;
 }
 
-function isSelectedNodeFieldEditReply(payload: Record<string, unknown> | null) {
-  if (!payload) return false;
-  return (
-    payload.suggested_action === "create_graph_plan" &&
-    (payload.mode === "deterministic_selected_node_field_edit" || payload.assistant_prompt_route === "selected_node_field_edit")
+function latestKernelNextAction(session: AssistantSession | null): AssistantNextAction | null {
+  const payload = latestAssistantPayload(session);
+  if (payload?.mode !== "assistant_kernel") return null;
+  const rawAction = payload.next_action;
+  if (!rawAction || typeof rawAction !== "object") return null;
+  const action = rawAction as Record<string, unknown>;
+  const kind = String(action.kind || "");
+  if (!["none", "confirm_graph", "save_media_preset", "save_prompt_recipe", "apply_repair", "run_workflow"].includes(kind)) {
+    return null;
+  }
+  const label = typeof action.label === "string" && action.label.trim() ? action.label : null;
+  const actionPayload = action.payload && typeof action.payload === "object"
+    ? action.payload as Record<string, unknown>
+    : null;
+  if (kind !== "none" && (!label || !actionPayload)) return null;
+  const presetProposal = session?.summary_json?.kernel_preset_proposal;
+  const recipeProposal = session?.summary_json?.kernel_recipe_proposal;
+  const runConfirmation = session?.summary_json?.kernel_run_confirmation;
+  const consumed = (entry: unknown) => Boolean(
+    entry && typeof entry === "object" && (entry as Record<string, unknown>).consumed === true,
   );
+  if (
+    (kind === "run_workflow" && consumed(runConfirmation)) ||
+    (kind === "save_media_preset" && consumed(presetProposal)) ||
+    (kind === "save_prompt_recipe" && consumed(recipeProposal))
+  ) {
+    return null;
+  }
+  return {
+    kind: kind as AssistantNextAction["kind"],
+    label,
+    proposal_id: typeof action.proposal_id === "string" ? action.proposal_id : null,
+    confirmation_token: typeof action.confirmation_token === "string" ? action.confirmation_token : null,
+    requires_confirmation: action.requires_confirmation === true,
+    payload: actionPayload ?? {},
+    price_estimate: action.price_estimate && typeof action.price_estimate === "object" ? action.price_estimate as Record<string, unknown> : null,
+  };
 }
 
 export function useCreativeAssistant({
@@ -190,7 +224,7 @@ export function useCreativeAssistant({
   onBeforeReviewNavigate?: () => void;
   onAssistantSessionChange?: (assistantSessionId: string | null) => void;
   onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; baseWorkflow?: GraphWorkflowPayload }) => Promise<void> | void;
-  onRunWorkflow?: () => Promise<unknown> | void;
+  onRunWorkflow?: (assistantConfirmation?: { sessionId: string; token: string }) => Promise<unknown> | void;
   onEvent?: (message: string, tone?: "success" | "warning" | "error" | "muted") => void;
 }) {
   const [session, setSession] = useState<AssistantSession | null>(null);
@@ -198,6 +232,7 @@ export function useCreativeAssistant({
   const [plan, setPlan] = useState<AssistantPlanResponse | null>(null);
   const [status, setStatus] = useState<AssistantStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [runConfirmationNeedsRecheck, setRunConfirmationNeedsRecheck] = useState(false);
   const [providerReadiness, setProviderReadiness] = useState<AssistantProviderReadiness>({
     checked: false,
     ready: false,
@@ -211,11 +246,27 @@ export function useCreativeAssistant({
   const initialAssistantSessionIdRef = useRef(initialAssistantSessionId);
   const sessionWorkspaceKeyRef = useRef<string | null>(null);
   const planApplyWorkflowRef = useRef<GraphWorkflowPayload | null>(null);
-  const autoComparedRunKeysRef = useRef<Set<string>>(new Set());
+  const activeRunOperationRef = useRef<symbol | null>(null);
 
-  const busy = status !== "idle";
+  const scopedStatus = workspaceKeyRef.current === workspaceKey ? status : "idle";
+  const busy = scopedStatus !== "idle";
   const canPlan = draft.trim().length > 0 && !busy;
-  const canApply = Boolean(plan?.plan.status === "validated" && !busy);
+  const nextAction = useMemo(() => latestKernelNextAction(session), [session]);
+  const latestPayload = useMemo(() => latestAssistantPayload(session), [session]);
+  const kernelActionRequired = latestPayload?.mode === "assistant_kernel";
+  const canApply = Boolean(
+    plan?.plan.status === "validated" &&
+    !busy &&
+    (
+      !kernelActionRequired ||
+      (
+        nextAction?.kind === "confirm_graph" &&
+        nextAction.requires_confirmation &&
+        nextAction.proposal_id === plan.plan.assistant_plan_id &&
+        Boolean(nextAction.confirmation_token)
+      )
+    ),
+  );
   const canvasContext = useMemo(
     () => buildCreativeAssistantCanvasContext(workflow, { selectedNodeIds, selectedGroupIds }),
     [selectedGroupIds, selectedNodeIds, workflow],
@@ -235,11 +286,14 @@ export function useCreativeAssistant({
       clearTimeout(activeTimeoutRef.current);
       activeTimeoutRef.current = null;
     }
+    sessionWorkspaceKeyRef.current = null;
+    activeRunOperationRef.current = null;
     setScopedSession(null);
     setPlan(null);
     planApplyWorkflowRef.current = null;
     setDraft("");
     setError(null);
+    setRunConfirmationNeedsRecheck(false);
     setStatus("idle");
   }, [setScopedSession]);
 
@@ -286,12 +340,21 @@ export function useCreativeAssistant({
     }
   }, []);
 
+  const hydrateExistingSession = useCallback((existing: AssistantSession, expectedWorkspaceKey: string) => {
+    if (workspaceKeyRef.current !== expectedWorkspaceKey) return false;
+    const persistedPlan = persistedPlanForWorkflow(existing, workflowId);
+    setScopedSession(existing);
+    setPlan(persistedPlan);
+    planApplyWorkflowRef.current = persistedPlan?.plan.status === "validated" ? workflow : null;
+    return true;
+  }, [setScopedSession, workflow, workflowId]);
+
   const loadExistingSession = useCallback(async () => {
+    const expectedWorkspaceKey = workspaceKeyRef.current;
     if (initialAssistantSessionId) {
       if (session?.assistant_session_id === initialAssistantSessionId) return session;
       const existing = await jsonFetch<AssistantSession>(`/api/control/media/assistant/sessions/${encodeURIComponent(initialAssistantSessionId)}`);
-      setScopedSession(existing);
-      return existing;
+      return hydrateExistingSession(existing, expectedWorkspaceKey) ? existing : null;
     }
     if (session) return session;
     if (!workflowId) return null;
@@ -299,11 +362,12 @@ export function useCreativeAssistant({
       `/api/control/media/assistant/sessions?owner_kind=graph_workflow&owner_id=${encodeURIComponent(workflowId)}&limit=1`,
     );
     const latest = existing.items?.[0] ?? null;
-    if (latest) setScopedSession(latest);
+    if (latest && !hydrateExistingSession(latest, expectedWorkspaceKey)) return null;
     return latest;
-  }, [initialAssistantSessionId, session, setScopedSession, workflowId]);
+  }, [hydrateExistingSession, initialAssistantSessionId, session, workflowId]);
 
   const ensureSession = useCallback(async () => {
+    const expectedWorkspaceKey = workspaceKeyRef.current;
     if (session) return session;
     const latest = await loadExistingSession();
     if (latest) return latest;
@@ -315,10 +379,10 @@ export function useCreativeAssistant({
         workflow,
         canvas_context: canvasContext,
         assistant_mode: assistantMode,
-        provider_kind: "codex_local",
         title: `${workflowName || "Graph"} assistant`,
       }),
     });
+    if (workspaceKeyRef.current !== expectedWorkspaceKey) return created;
     setScopedSession(created);
     return created;
   }, [assistantMode, canvasContext, loadExistingSession, session, setScopedSession, workflow, workflowId, workflowName]);
@@ -431,7 +495,11 @@ export function useCreativeAssistant({
     }
   }, [onEvent]);
 
-  const saveMediaPresetFromMessage = useCallback(async (message: string, assistantSessionId?: string | null) => {
+  const saveMediaPresetFromMessage = useCallback(async (
+    message: string,
+    assistantSessionId?: string | null,
+    confirmation?: AssistantNextAction | null,
+  ) => {
     const currentSession = assistantSessionId ? ({ assistant_session_id: assistantSessionId } as AssistantSession) : session ?? (await ensureSession());
     setStatus("savingPreset");
     setError(null);
@@ -440,7 +508,18 @@ export function useCreativeAssistant({
         jsonFetch<AssistantArtifactSaveResponse>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/preset-saves`, {
           method: "POST",
           signal,
-          body: JSON.stringify({ message, workflow, run_id: latestRunId ?? null, assistant_mode: assistantMode }),
+          body: JSON.stringify({
+            message,
+            workflow,
+            run_id: latestRunId ?? null,
+            assistant_mode: assistantMode,
+            ...(confirmation?.kind === "save_media_preset"
+              ? {
+                  proposal_id: confirmation.proposal_id,
+                  confirmation_token: confirmation.confirmation_token,
+                }
+              : {}),
+          }),
         }),
       );
       setScopedSession(result.assistant_session);
@@ -461,7 +540,28 @@ export function useCreativeAssistant({
     }
   }, [assistantMode, ensureSession, latestRunId, onEvent, refreshDefinitionsAfterAssistantSave, runAbortableRequest, session, setScopedSession, workflow]);
 
-  const savePromptRecipeFromMessage = useCallback(async (message: string, assistantSessionId?: string | null) => {
+  const confirmPresetSave = useCallback(async () => {
+    if (
+      busy ||
+      nextAction?.kind !== "save_media_preset" ||
+      !nextAction.proposal_id ||
+      !nextAction.confirmation_token
+    ) {
+      return null;
+    }
+    const currentSession = session ?? (await ensureSession());
+    return saveMediaPresetFromMessage(
+      "Save the approved Media Preset draft.",
+      currentSession.assistant_session_id,
+      nextAction,
+    );
+  }, [busy, ensureSession, nextAction, saveMediaPresetFromMessage, session]);
+
+  const savePromptRecipeFromMessage = useCallback(async (
+    message: string,
+    assistantSessionId?: string | null,
+    confirmation?: AssistantNextAction | null,
+  ) => {
     const currentSession = assistantSessionId ? ({ assistant_session_id: assistantSessionId } as AssistantSession) : session ?? (await ensureSession());
     setStatus("savingRecipe");
     setError(null);
@@ -470,7 +570,18 @@ export function useCreativeAssistant({
         jsonFetch<AssistantArtifactSaveResponse>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/recipe-saves`, {
           method: "POST",
           signal,
-          body: JSON.stringify({ message, workflow, run_id: latestRunId ?? null, assistant_mode: assistantMode }),
+          body: JSON.stringify({
+            message,
+            workflow,
+            run_id: latestRunId ?? null,
+            assistant_mode: assistantMode,
+            ...(confirmation?.kind === "save_prompt_recipe"
+              ? {
+                  proposal_id: confirmation.proposal_id,
+                  confirmation_token: confirmation.confirmation_token,
+                }
+              : {}),
+          }),
         }),
       );
       setScopedSession(result.assistant_session);
@@ -491,9 +602,89 @@ export function useCreativeAssistant({
     }
   }, [assistantMode, ensureSession, latestRunId, onEvent, refreshDefinitionsAfterAssistantSave, runAbortableRequest, session, setScopedSession, workflow]);
 
-  const createPlanFromMessage = useCallback(async (message: string, options?: { appendUserMessage?: boolean; workflowOverride?: GraphWorkflowPayload; showPlan?: boolean }) => {
+  const confirmRecipeSave = useCallback(async () => {
+    if (
+      busy ||
+      nextAction?.kind !== "save_prompt_recipe" ||
+      !nextAction.proposal_id ||
+      !nextAction.confirmation_token
+    ) {
+      return null;
+    }
+    const currentSession = session ?? (await ensureSession());
+    return savePromptRecipeFromMessage(
+      "Save the approved Prompt Recipe draft.",
+      currentSession.assistant_session_id,
+      nextAction,
+    );
+  }, [busy, ensureSession, nextAction, savePromptRecipeFromMessage, session]);
+
+  const confirmRunWorkflow = useCallback(async () => {
+    const payloadToken = String(nextAction?.payload?.confirmation_token || "");
+    if (
+      busy ||
+      nextAction?.kind !== "run_workflow" ||
+      !nextAction.requires_confirmation ||
+      !nextAction.confirmation_token ||
+      payloadToken !== nextAction.confirmation_token ||
+      !onRunWorkflow
+    ) {
+      return null;
+    }
+    const requestWorkspaceKey = workspaceKeyRef.current;
+    const operation = Symbol("assistant-run");
+    activeRunOperationRef.current = operation;
+    setStatus("running");
+    setError(null);
+    setRunConfirmationNeedsRecheck(false);
+    try {
+      const currentSession = session ?? (await ensureSession());
+      const created = await onRunWorkflow({
+        sessionId: currentSession.assistant_session_id,
+        token: nextAction.confirmation_token,
+      });
+      if (activeRunOperationRef.current !== operation || workspaceKeyRef.current !== requestWorkspaceKey) return null;
+      if (!created) return null;
+      setScopedSession((current) => current ? {
+        ...current,
+        summary_json: {
+          ...current.summary_json,
+          kernel_run_confirmation: {
+            ...(current.summary_json?.kernel_run_confirmation as Record<string, unknown> ?? {}),
+            consumed: true,
+          },
+        },
+      } : current);
+      return created;
+    } catch (requestError) {
+      if (activeRunOperationRef.current !== operation || workspaceKeyRef.current !== requestWorkspaceKey) return null;
+      const message = assistantErrorMessage(requestError, "Unable to confirm this graph run.");
+      setError(message);
+      setRunConfirmationNeedsRecheck(
+        requestError instanceof JsonFetchError && requestError.code === "workflow_fingerprint_mismatch",
+      );
+      onEvent?.(message, "error");
+      return null;
+    } finally {
+      if (activeRunOperationRef.current === operation) {
+        activeRunOperationRef.current = null;
+        if (workspaceKeyRef.current === requestWorkspaceKey) setStatus("idle");
+      }
+    }
+  }, [busy, ensureSession, nextAction, onEvent, onRunWorkflow, runAbortableRequest, session, setScopedSession, workflow]);
+
+  const createPlanFromMessage = useCallback(async (
+    message: string,
+    options?: {
+      appendUserMessage?: boolean;
+      assistantSession?: AssistantSession;
+      workflowOverride?: GraphWorkflowPayload;
+      showPlan?: boolean;
+    },
+  ) => {
     const normalizedMessage = message.trim();
     if (!normalizedMessage || busy) return null;
+    const requestWorkspaceKey = workspaceKeyRef.current;
     const requestWorkflow = options?.workflowOverride ?? workflow;
     const requestCanvasContext = options?.workflowOverride
       ? buildCreativeAssistantCanvasContext(requestWorkflow, { selectedNodeIds, selectedGroupIds })
@@ -501,14 +692,15 @@ export function useCreativeAssistant({
     setStatus("planning");
     setError(null);
     try {
-      const currentSession = session ?? (await ensureSession());
+      const currentSession = options?.assistantSession ?? session ?? (await ensureSession());
+      if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       if (options?.appendUserMessage ?? true) {
         setScopedSession((current) => appendOptimisticUserMessage(current, currentSession, normalizedMessage, { source: "plan_graph", assistant_mode: assistantMode }));
       }
       setDraft("");
       planApplyWorkflowRef.current = requestWorkflow;
-      const result = await runAbortableRequest((signal) =>
-        jsonFetch<AssistantPlanResponse>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/plans`, {
+      const { result, updatedSession } = await runAbortableRequest(async (signal) => {
+        const result = await jsonFetch<AssistantPlanResponse>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/plans`, {
           method: "POST",
           signal,
           body: JSON.stringify({
@@ -519,14 +711,20 @@ export function useCreativeAssistant({
             run_id: latestRunId ?? null,
             assistant_mode: assistantMode,
           }),
-        }),
-      );
+        });
+        const updatedSession = await jsonFetch<AssistantSession>(
+          `/api/control/media/assistant/sessions/${currentSession.assistant_session_id}`,
+          { signal },
+        );
+        return { result, updatedSession };
+      });
+      if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       if (options?.showPlan === false) {
         setPlan(null);
       } else {
         setPlan(result);
       }
-      setScopedSession((current) => (current ? { ...current, status: result.validation.valid ? "plan_ready" : "failed" } : current));
+      setScopedSession({ ...updatedSession, status: result.validation.valid ? "plan_ready" : "failed" });
       if (options?.showPlan !== false) {
         onEvent?.(result.validation.valid ? "Assistant plan is ready." : "Assistant plan needs fixes.", result.validation.valid ? "success" : "warning");
       }
@@ -545,7 +743,12 @@ export function useCreativeAssistant({
     }
   }, [assistantMode, busy, canvasContext, ensureSession, latestRunId, onEvent, runAbortableRequest, selectedGroupIds, selectedNodeIds, session, setScopedSession, workflow]);
 
-  const applyPlanResponse = useCallback(async (planResponse: AssistantPlanResponse, applyWorkflow: GraphWorkflowPayload) => {
+  const applyPlanResponse = useCallback(async (
+    planResponse: AssistantPlanResponse,
+    applyWorkflow: GraphWorkflowPayload,
+    confirmation?: AssistantNextAction | null,
+  ) => {
+    const applyWorkspaceKey = workspaceKeyRef.current;
     setStatus("applying");
     setError(null);
     try {
@@ -556,8 +759,17 @@ export function useCreativeAssistant({
         pricing: GraphEstimateResponse;
       }>(`/api/control/media/assistant/plans/${planResponse.plan.assistant_plan_id}/apply`, {
         method: "POST",
-        body: JSON.stringify({ workflow: applyWorkflow }),
+        body: JSON.stringify({
+          workflow: applyWorkflow,
+          ...(confirmation?.kind === "confirm_graph"
+            ? {
+                proposal_id: confirmation.proposal_id,
+                confirmation_token: confirmation.confirmation_token,
+              }
+            : {}),
+        }),
       });
+      if (workspaceKeyRef.current !== applyWorkspaceKey) return null;
       setPlan({
         ...planResponse,
         plan: result.plan,
@@ -589,28 +801,6 @@ export function useCreativeAssistant({
     }
   }, [onApplyWorkflow, onEvent, workflow]);
 
-  const createAndApplyPlanFromContent = useCallback(async (message: string) => {
-    if (busy) return null;
-    const baseWorkflow = workflow;
-    const createdPlan = await createPlanFromMessage(message, {
-      appendUserMessage: false,
-      workflowOverride: baseWorkflow,
-      showPlan: false,
-    });
-    if (!createdPlan) return null;
-    if ((createdPlan.graph_plan.operations ?? []).length === 0) {
-      setPlan(createdPlan);
-      onEvent?.("Assistant needs one prerequisite before changing the canvas.", "warning");
-      return null;
-    }
-    if (createdPlan.plan.status !== "validated") {
-      setPlan(createdPlan);
-      onEvent?.("Assistant workflow needs review before it can be applied.", "warning");
-      return null;
-    }
-    return applyPlanResponse(createdPlan, baseWorkflow);
-  }, [applyPlanResponse, busy, createPlanFromMessage, onEvent, workflow]);
-
   const useSavedArtifactInGraph = useCallback(async (message: AssistantMessage) => {
     const artifact = savedArtifactFromMessage(message);
     const prompt = savedArtifactGraphPrompt(message);
@@ -636,10 +826,14 @@ export function useCreativeAssistant({
   const sendContentMessage = useCallback(async (rawContent: string, options?: { clearDraft?: boolean; metadata?: Record<string, unknown>; skipAutoActions?: boolean }) => {
     const content = rawContent.trim();
     if (!content || busy) return null;
+    const requestWorkspaceKey = workspaceKeyRef.current;
+    if (session && sessionWorkspaceKeyRef.current !== requestWorkspaceKey) return null;
     setStatus("sending");
     setError(null);
+    setRunConfirmationNeedsRecheck(false);
     try {
       const currentSession = await ensureSession();
+      if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       setScopedSession((current) =>
         appendOptimisticUserMessage(current, currentSession, content, {
           source: "chat",
@@ -662,50 +856,25 @@ export function useCreativeAssistant({
           }),
         }),
       );
+      if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       setScopedSession(updated);
       onEvent?.("Assistant message saved.", "muted");
-      if (!options?.skipAutoActions) {
-        const suggestedAction = latestAssistantSuggestedAction(updated);
-        const responseKind = latestAssistantResponseKind(updated);
-        const runApprovalSource = latestAssistantRunApprovalSource(updated);
-        const savedPresetWorkflowRequest = isAssistantSavedPresetWorkflowRequest(content);
-        const selectedNodeFieldEditReply = isSelectedNodeFieldEditReply(latestAssistantPayload(updated));
-        const autoAction = selectedNodeFieldEditReply
-          ? "create_and_apply_graph_plan"
-          : resolveCreativeAssistantAutoAction({
-              content,
-              assistantMode,
-              suggestedAction,
-              responseKind,
-              runApprovalSource,
-              canRunWorkflow: Boolean(onRunWorkflow),
-            });
-        if (autoAction === "run_workflow" && onRunWorkflow) {
-          onEvent?.("Starting assistant-requested graph test.", "success");
-          await onRunWorkflow();
-        } else if (autoAction === "save_media_preset") {
+      const kernelPayload = latestAssistantPayload(updated);
+      if (kernelPayload?.mode === "assistant_kernel") {
+        const action = latestKernelNextAction(updated);
+        const persistedPlan = persistedPlanForWorkflow(updated, workflowId);
+        if (
+          action?.kind === "confirm_graph" &&
+          action.proposal_id &&
+          persistedPlan?.plan.assistant_plan_id === action.proposal_id
+        ) {
+          setPlan(persistedPlan);
+          planApplyWorkflowRef.current = workflow;
+        } else {
           setPlan(null);
           planApplyWorkflowRef.current = null;
-          await saveMediaPresetFromMessage(content, currentSession.assistant_session_id);
-        } else if (autoAction === "save_prompt_recipe") {
-          setPlan(null);
-          planApplyWorkflowRef.current = null;
-          await savePromptRecipeFromMessage(content, currentSession.assistant_session_id);
-        } else if (autoAction === "create_prompt_recipe_draft") {
-          setPlan(null);
-          planApplyWorkflowRef.current = null;
-          setStatus("draftingRecipe");
-          await createPromptRecipeDraftFromMessage(content, currentSession.assistant_session_id);
-        } else if (autoAction === "create_media_preset_draft") {
-          await createMediaPresetDraftFromMessage(content, currentSession.assistant_session_id);
-        } else if (autoAction === "create_and_apply_graph_plan") {
-          await createAndApplyPlanFromContent(content);
-        } else if (autoAction === "create_graph_plan") {
-          await createPlanFromMessage(content, {
-            appendUserMessage: false,
-            workflowOverride: savedPresetWorkflowRequest ? blankGraphWorkflowPayload("Saved Media Preset workflow") : undefined,
-          });
         }
+        return updated;
       }
       return updated;
     } catch (requestError) {
@@ -720,31 +889,9 @@ export function useCreativeAssistant({
     } finally {
       setStatus("idle");
     }
-  }, [assistantMode, busy, canvasContext, createAndApplyPlanFromContent, createMediaPresetDraftFromMessage, createPlanFromMessage, createPromptRecipeDraftFromMessage, ensureSession, latestRunId, onEvent, onRunWorkflow, runAbortableRequest, saveMediaPresetFromMessage, savePromptRecipeFromMessage, setScopedSession, workflow]);
+  }, [assistantMode, busy, canvasContext, ensureSession, latestRunId, onEvent, runAbortableRequest, setScopedSession, workflow, workflowId]);
 
   const sendMessage = useCallback(async () => sendContentMessage(draft), [draft, sendContentMessage]);
-
-  useEffect(() => {
-    if (!enabled || assistantMode !== "preset") return;
-    if (latestRunStatus !== "completed" || !latestRunId) return;
-    if (busy) return;
-    if (!sessionHasImageAttachment(session)) return;
-    if (sessionHasOutputComparisonForRun(session, latestRunId)) return;
-    const sessionId = session?.assistant_session_id;
-    if (!sessionId) return;
-    const dedupeKey = `${sessionId}:${latestRunId}`;
-    if (autoComparedRunKeysRef.current.has(dedupeKey)) return;
-    autoComparedRunKeysRef.current.add(dedupeKey);
-    void sendContentMessage(AUTO_OUTPUT_COMPARE_MESSAGE, {
-      clearDraft: false,
-      metadata: { source: "auto_output_compare", auto_compare: true },
-      skipAutoActions: true,
-    }).then((updatedSession) => {
-      if (!updatedSession?.messages?.some((message) => message.content_json?.output_aware === true && message.content_json?.latest_run_id === latestRunId)) {
-        autoComparedRunKeysRef.current.delete(dedupeKey);
-      }
-    });
-  }, [assistantMode, busy, enabled, latestRunId, latestRunStatus, sendContentMessage, session]);
 
   const startPresetLoop = useCallback(
     async (lane: PresetLoopLane) =>
@@ -754,15 +901,6 @@ export function useCreativeAssistant({
         skipAutoActions: true,
       }),
     [sendContentMessage],
-  );
-
-  const saveApprovedSandboxAsPreset = useCallback(
-    async () => {
-      if (busy) return null;
-      const currentSession = await ensureSession();
-      return saveMediaPresetFromMessage(APPROVED_TEST_WORKFLOW_SAVE_MESSAGE, currentSession.assistant_session_id);
-    },
-    [busy, ensureSession, saveMediaPresetFromMessage],
   );
 
   const createPlan = useCallback(async () => {
@@ -904,8 +1042,8 @@ export function useCreativeAssistant({
 
   const applyPlan = useCallback(async () => {
     if (!plan || !canApply) return null;
-    return applyPlanResponse(plan, planApplyWorkflowRef.current ?? workflow);
-  }, [applyPlanResponse, canApply, plan, workflow]);
+    return applyPlanResponse(plan, planApplyWorkflowRef.current ?? workflow, nextAction);
+  }, [applyPlanResponse, canApply, nextAction, plan, workflow]);
 
   const cancelAssistant = useCallback(async () => {
     activeAbortControllerRef.current?.abort();
@@ -935,19 +1073,22 @@ export function useCreativeAssistant({
       draft,
       setDraft,
       plan,
-      status,
+      status: scopedStatus,
       busy,
       error,
+      runConfirmationNeedsRecheck,
       providerReadiness,
       canPlan,
       canApply,
+      nextAction,
       sendMessage,
       sendContentMessage,
       startPresetLoop,
-      saveApprovedSandboxAsPreset,
+      confirmPresetSave,
+      confirmRecipeSave,
+      confirmRunWorkflow,
       createPlan,
       createPlanFromContent,
-      createAndApplyPlanFromContent,
       createPromptRecipeDraft,
       createMediaPresetDraft,
       saveMediaPresetFromMessage,
@@ -966,15 +1107,19 @@ export function useCreativeAssistant({
       attachReference,
       busy,
       canApply,
+      nextAction,
       canPlan,
       cancelAssistant,
+      confirmPresetSave,
+      confirmRecipeSave,
+      confirmRunWorkflow,
       createMediaPresetDraft,
       createPlan,
-      createAndApplyPlanFromContent,
       createPlanFromContent,
       createPromptRecipeDraft,
       draft,
       error,
+      runConfirmationNeedsRecheck,
       plan,
       providerReadiness,
       removeAttachment,
@@ -983,10 +1128,9 @@ export function useCreativeAssistant({
       savePromptRecipeFromMessage,
       sendContentMessage,
       sendMessage,
-      saveApprovedSandboxAsPreset,
       startPresetLoop,
       session,
-      status,
+      scopedStatus,
       useSavedArtifactInGraph,
     ],
   );

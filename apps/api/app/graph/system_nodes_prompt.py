@@ -19,6 +19,48 @@ def prompt_node_definitions() -> List[GraphNodeDefinition]:
     max_recipe_images = max((int((recipe.get("image_input") or {}).get("max_files") or 0) for recipe in all_recipe_catalog), default=0)
     return [
         GraphNodeDefinition(
+            type="storyboard.compile",
+            title="Compile Storyboard",
+            description="Compile either Storyboard v2 recipe result into one validated sheet spec and art-only image prompt.",
+            help_text="Connect the JSON Result output from Storyboard v2 or Storyboard Continuation. The art prompt contains no sheet chrome; the typed spec drives deterministic layout and metadata.",
+            category="Prompt",
+            search_aliases=["storyboard", "compile", "sheet spec", "art only", "metadata"],
+            tags=["storyboard", "prompt", "json", "utility"],
+            source={"kind": "system"},
+            execution={"executor": "storyboard.compile", "mode": "sync", "cacheable": True, "output_node": False},
+            limits={"panel_counts": [4, 6, 9], "max_art_prompt_chars": 4200},
+            ui={
+                "default_size": {"width": 380, "height": 360},
+                "min_size": {"width": 320, "height": 300},
+                "max_size": {"width": 720, "height": 700},
+                "color": "text",
+                "accent": "purple",
+                "icon": "sparkles",
+                "preview": False,
+                "field_layout": "stack",
+            },
+            ports={
+                "inputs": [
+                    GraphNodePort(
+                        id="result",
+                        label="Recipe Result",
+                        type="json",
+                        required=True,
+                        min=1,
+                        max=1,
+                        accepts=["json"],
+                        description="Canonical JSON Result output from a storyboard Prompt Recipe node.",
+                    )
+                ],
+                "outputs": [
+                    GraphNodePort(id="prompt", label="Art Prompt", type="text", description="Art-only source-grid prompt matching the compiled sheet spec."),
+                    GraphNodePort(id="spec", label="Sheet Spec", type="json", description="Validated StoryboardSheetSpec v1."),
+                    GraphNodePort(id="panel_prompts", label="Panel Prompts", type="json", description="Ordered optional per-panel prompts matching the compiled panel count."),
+                ],
+            },
+            fields=[],
+        ),
+        GraphNodeDefinition(
             type="prompt.text",
             title="Prompt Text",
             description="Reusable text prompt that can feed one or more model prompt inputs.",
@@ -361,6 +403,16 @@ def prompt_node_definitions() -> List[GraphNodeDefinition]:
                     options=prompt_recipe_picker_options(active_recipe_catalog),
                     help_text="Choose the saved Prompt Recipe to run. The fields below update to match the selected recipe.",
                 ),
+                GraphNodeField(
+                    id="refinement",
+                    label="Run Refinement",
+                    type="textarea",
+                    required=False,
+                    default="",
+                    placeholder="Optional creative adjustment for this graph run.",
+                    help_text="Apply a graph-local creative adjustment without changing the saved Prompt Recipe.",
+                    advanced=True,
+                ),
                 *prompt_recipe_dynamic_fields(all_recipe_catalog),
                 *prompt_provider_selection_fields(),
                 *prompt_generation_runtime_fields(
@@ -375,8 +427,8 @@ def prompt_node_definitions() -> List[GraphNodeDefinition]:
         GraphNodeDefinition(
             type="prompt.parse",
             title="Prompt Parse",
-            description="Split a Prompt Recipe result payload into reusable prompt outputs.",
-            help_text="Connect the JSON Result output from a Prompt Recipe node to fan out normalized prompt text outputs.",
+            description="Split a Prompt Recipe result or compiler prompt list into reusable prompt outputs.",
+            help_text="Connect a Prompt Recipe JSON Result or Compile Storyboard Panel Prompts output to fan out normalized prompt text outputs.",
             category="Prompt",
             search_aliases=["prompt parse", "split prompts", "recipe parse", "fanout", "json parse"],
             tags=["prompt", "text", "json", "utility"],
@@ -401,7 +453,7 @@ def prompt_node_definitions() -> List[GraphNodeDefinition]:
                         required=True,
                         max=1,
                         accepts=["json"],
-                        description="Canonical Prompt Recipe result payload.",
+                        description="Canonical Prompt Recipe result payload or JSON prompt list.",
                     )
                 ],
                 "outputs": [

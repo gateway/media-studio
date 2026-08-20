@@ -12,6 +12,7 @@ from .db_backup import backup_database
 from .db import get_connection
 from .settings import settings
 from .store_support import (
+    asset_output_dimensions,
     bootstrap_connection_schema,
     database_has_user_schema,
     connect_path,
@@ -25,6 +26,7 @@ from .store_support import (
     list_pending_migrations,
     next_queue_position as _next_queue_position,
     new_id,
+    positive_int,
     upsert_table as _upsert_table,
     utcnow_iso,
 )
@@ -49,6 +51,7 @@ from .store_graph import (
     list_graph_artifacts_for_run,
     list_graph_run_events,
     list_graph_run_nodes,
+    list_graph_run_node_metrics_for_runs,
     list_graph_run_summaries,
     list_graph_run_summaries_for_workflow,
     list_graph_runs,
@@ -511,6 +514,18 @@ def list_jobs_for_batches(batch_ids: List[str], include_dismissed: bool = True) 
     return [_decode_row(row) for row in rows]
 
 
+def list_job_statuses_by_ids(job_ids: List[str]) -> List[Dict[str, Any]]:
+    if not job_ids:
+        return []
+    placeholders = ",".join("?" for _ in job_ids)
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"SELECT job_id, final_status_json FROM media_jobs WHERE job_id IN ({placeholders})",
+            job_ids,
+        ).fetchall()
+    return [_decode_row(row) for row in rows]
+
+
 def update_batch(batch_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     current = get_batch(batch_id)
     if not current:
@@ -696,36 +711,14 @@ def get_assets_by_job_id(job_id: str) -> List[Dict[str, Any]]:
     return [_decode_row(row) for row in rows]
 
 
-def _positive_int(value: Any) -> Optional[int]:
-    try:
-        next_value = int(value)
-    except (TypeError, ValueError):
-        return None
-    return next_value if next_value > 0 else None
-
-
-def _asset_output_dimensions(payload: Dict[str, Any]) -> Tuple[Optional[int], Optional[int]]:
-    outputs = payload.get("outputs")
-    if not isinstance(outputs, list):
-        return None, None
-    for output in outputs:
-        if not isinstance(output, dict):
-            continue
-        width = _positive_int(output.get("width"))
-        height = _positive_int(output.get("height"))
-        if width and height:
-            return width, height
-    return None, None
-
-
 def create_or_update_asset(payload: Dict[str, Any]) -> Dict[str, Any]:
     payload = payload.copy()
     payload.setdefault("asset_id", new_id("asset"))
     payload.setdefault("created_at", utcnow_iso())
-    if not _positive_int(payload.get("width")) or not _positive_int(payload.get("height")):
+    if not positive_int(payload.get("width")) or not positive_int(payload.get("height")):
         payload_json = payload.get("payload_json")
         if isinstance(payload_json, dict):
-            width, height = _asset_output_dimensions(payload_json)
+            width, height = asset_output_dimensions(payload_json)
             if width and height:
                 payload.setdefault("width", width)
                 payload.setdefault("height", height)

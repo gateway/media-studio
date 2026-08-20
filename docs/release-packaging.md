@@ -17,6 +17,7 @@ These docs are intended to be safe for public release after final review:
 - `docs/runtime-and-supervision.md`
 - `docs/advanced-runtime.md`
 - `docs/pricing-integration.md`
+- `docs/media-assistant.md`
 - `docs/media-studio-preset-system.md`
 - `docs/graph-studio-design.md`
 - `docs/graph-studio-node-authoring.md`

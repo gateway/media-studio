@@ -149,19 +149,7 @@ export function GraphNodeMediaPreview({
                   type="button"
                   aria-label="Replace media from library"
                   onPointerDown={(event) => event.stopPropagation()}
-                  onPointerUp={(event) => {
-                    event.stopPropagation();
-                    openNodeImageLibrary(nodeId, data);
-                  }}
-                  onMouseUp={(event) => {
-                    event.stopPropagation();
-                    openNodeImageLibrary(nodeId, data);
-                  }}
                   onMouseDown={(event) => event.stopPropagation()}
-                  onClickCapture={(event) => {
-                    event.stopPropagation();
-                    openNodeImageLibrary(nodeId, data);
-                  }}
                   onClick={(event) => {
                     event.stopPropagation();
                     openNodeImageLibrary(nodeId, data);
@@ -189,19 +177,7 @@ export function GraphNodeMediaPreview({
             type="button"
             aria-label="Choose media from library"
             onPointerDown={(event) => event.stopPropagation()}
-            onPointerUp={(event) => {
-              event.stopPropagation();
-              openNodeImageLibrary(nodeId, data);
-            }}
-            onMouseUp={(event) => {
-              event.stopPropagation();
-              openNodeImageLibrary(nodeId, data);
-            }}
             onMouseDown={(event) => event.stopPropagation()}
-            onClickCapture={(event) => {
-              event.stopPropagation();
-              openNodeImageLibrary(nodeId, data);
-            }}
             onClick={(event) => {
               event.stopPropagation();
               openNodeImageLibrary(nodeId, data);

@@ -4,12 +4,19 @@ import re
 from typing import Any, Dict, List, Optional
 
 from . import store
+from .graph.prompt_recipe_refs import (
+    PROMPT_RECIPE_FIELD_INPUT_KINDS,
+    PROMPT_RECIPE_FIELD_REFERENCE_ROLES,
+    prompt_recipe_field_input_kind,
+    prompt_recipe_field_reference_role,
+)
 from .service_errors import ServiceError
 from .schemas import PromptRecipeDraftRequest, PromptRecipeUpsertRequest
 
 PROMPT_RECIPE_TOKEN_RE = re.compile(r"\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}")
 PROMPT_RECIPE_ANY_TOKEN_RE = re.compile(r"\{\{([^}]+)\}\}")
-PROMPT_RECIPE_KEY_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+PROMPT_RECIPE_KEY_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
+PROMPT_RECIPE_VARIABLE_KEY_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 PROMPT_RECIPE_IMAGE_REFERENCE_RE = re.compile(
     r"\[\[\s*image[_\s-]*reference\s*(\d+)\s*\]\]|\[\s*image\s+reference\s+(\d+)\s*\]|@image\s*(\d+)",
     re.IGNORECASE,
@@ -26,6 +33,7 @@ PROMPT_RECIPE_OUTPUT_FORMATS = {
 PROMPT_RECIPE_FIELD_TYPES = {"text", "textarea", "number", "select", "boolean"}
 PROMPT_RECIPE_IMAGE_MODES = {"none", "direct_reference", "analyze_then_inject", "both"}
 PROMPT_RECIPE_SOURCE_KINDS = {"custom", "imported", "builtin", "built_in_override"}
+PROMPT_RECIPE_MEDIA_GENERATION_RULE_KEY = "media_generation"
 PROMPT_RECIPE_RESERVED_VARIABLES = {
     "user_prompt": "User Prompt",
     "image_analysis": "Image Analysis",
@@ -39,11 +47,77 @@ PROMPT_RECIPE_RESERVED_VARIABLES = {
     "style_direction": "Style Direction",
 }
 
+
+def prompt_recipe_media_generation(recipe: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    rules = recipe.get("rules_json") if isinstance(recipe.get("rules_json"), dict) else {}
+    raw_contract = rules.get(PROMPT_RECIPE_MEDIA_GENERATION_RULE_KEY)
+    if raw_contract is None:
+        return None
+    if not isinstance(raw_contract, dict):
+        raise ServiceError("Prompt Recipe media-generation provenance is invalid.")
+    source_preset_id = str(raw_contract.get("source_preset_id") or "").strip()
+    model_key = str(raw_contract.get("model_key") or "").strip()
+    default_options = raw_contract.get("default_options_json")
+    if (
+        not source_preset_id
+        or not model_key
+        or not isinstance(default_options, dict)
+        or set(raw_contract) != {"source_preset_id", "model_key", "default_options_json"}
+    ):
+        raise ServiceError("Prompt Recipe media-generation provenance is invalid.")
+    return {
+        "source_preset_id": source_preset_id,
+        "model_key": model_key,
+        "default_options_json": dict(default_options),
+    }
+
+
+def _validate_prompt_recipe_media_generation(
+    recipe: Dict[str, Any],
+    *,
+    recipe_id: Optional[str],
+) -> None:
+    contract = prompt_recipe_media_generation(recipe)
+    if contract is None:
+        return
+    existing = store.get_prompt_recipe(recipe_id) if recipe_id else None
+    existing_contract = prompt_recipe_media_generation(existing) if isinstance(existing, dict) else None
+    if existing_contract == contract:
+        return
+    preset = store.get_preset(contract["source_preset_id"])
+    expected = {
+        "source_preset_id": contract["source_preset_id"],
+        "model_key": str((preset or {}).get("model_key") or ""),
+        "default_options_json": dict((preset or {}).get("default_options_json") or {}),
+    }
+    if not preset or contract != expected:
+        raise ServiceError("Derived recipe generation defaults must match a real saved Media Preset.")
+
+
+def _normalize_prompt_recipe_field_input_kind(value: Any, *, key: str) -> str:
+    return prompt_recipe_field_input_kind({"input_kind": value}, key=key)
+
+
+def _normalize_prompt_recipe_field_reference_role(value: Any, *, input_kind: str) -> str:
+    return prompt_recipe_field_reference_role(
+        {"input_kind": input_kind, "reference_role": value},
+    )
+
+
 def _clean_prompt_recipe_key(value: str, label: str) -> str:
     key = str(value or "").strip()
     if not key:
         raise ServiceError("%s is required." % label)
     if not PROMPT_RECIPE_KEY_RE.match(key):
+        raise ServiceError("%s must start with a lowercase letter and use only lowercase letters, numbers, hyphens, and underscores." % label)
+    return key
+
+
+def _clean_prompt_recipe_variable_key(value: str, label: str) -> str:
+    key = str(value or "").strip()
+    if not key:
+        raise ServiceError("%s is required." % label)
+    if not PROMPT_RECIPE_VARIABLE_KEY_RE.match(key):
         raise ServiceError("%s must start with a lowercase letter and use only lowercase letters, numbers, and underscores." % label)
     return key
 
@@ -74,6 +148,24 @@ def _prompt_recipe_variable(key: str, *, required: bool = False) -> Dict[str, An
         "default_value": "",
         "description": "",
     }
+
+
+def _normalize_prompt_recipe_reference_roles(value: Any) -> List[str]:
+    if isinstance(value, str):
+        raw_values = [item.strip() for item in value.split(",")]
+    elif isinstance(value, list):
+        raw_values = [str(item).strip() for item in value]
+    else:
+        raw_values = []
+    roles: List[str] = []
+    seen: set[str] = set()
+    for raw_value in raw_values:
+        role = raw_value.lower()
+        if role == "none" or role not in PROMPT_RECIPE_FIELD_REFERENCE_ROLES or role in seen:
+            continue
+        seen.add(role)
+        roles.append(role)
+    return roles
 
 
 def _prompt_recipe_validation_warnings(
@@ -170,6 +262,7 @@ def _normalize_prompt_recipe_draft_payload(raw_payload: Dict[str, Any], request:
                 if not variable_key:
                     continue
                 explicit_label = str(item.get("label") or item.get("title") or "").strip()
+                input_kind = _normalize_prompt_recipe_field_input_kind(item.get("input_kind") or item.get("inputKind"), key=variable_key)
                 normalized_variables.append(
                     {
                         "key": variable_key,
@@ -179,6 +272,11 @@ def _normalize_prompt_recipe_draft_payload(raw_payload: Dict[str, Any], request:
                         "required": bool(item.get("required", variable_key == "user_prompt")),
                         "default_value": str(item.get("default_value") or item.get("defaultValue") or item.get("default") or ""),
                         "description": str(item.get("description") or item.get("prompt") or ""),
+                        "input_kind": input_kind,
+                        "reference_role": _normalize_prompt_recipe_field_reference_role(
+                            item.get("reference_role") or item.get("referenceRole"),
+                            input_kind=input_kind,
+                        ),
                     }
                 )
         payload["input_variables"] = normalized_variables
@@ -254,7 +352,7 @@ def validate_prompt_recipe_payload(payload: PromptRecipeUpsertRequest, recipe_id
     malformed_tokens = [
         match.group(1).strip()
         for match in PROMPT_RECIPE_ANY_TOKEN_RE.finditer(template)
-        if not PROMPT_RECIPE_KEY_RE.match(match.group(1).strip())
+        if not PROMPT_RECIPE_VARIABLE_KEY_RE.match(match.group(1).strip())
     ]
     if malformed_tokens:
         raise ServiceError("Invalid prompt recipe variable token: %s" % ", ".join(sorted(set(malformed_tokens))))
@@ -262,10 +360,12 @@ def validate_prompt_recipe_payload(payload: PromptRecipeUpsertRequest, recipe_id
     variables = [item.model_dump() if hasattr(item, "model_dump") else dict(item) for item in payload.input_variables_json]
     variable_by_key: Dict[str, Dict[str, Any]] = {}
     for variable in variables:
-        variable_key = _clean_prompt_recipe_key(str(variable.get("key") or ""), "Variable key")
+        variable_key = _clean_prompt_recipe_variable_key(str(variable.get("key") or ""), "Variable key")
         variable["key"] = variable_key
         variable["token"] = "{{%s}}" % variable_key
         variable["label"] = str(variable.get("label") or PROMPT_RECIPE_RESERVED_VARIABLES.get(variable_key) or variable_key.replace("_", " ").title()).strip()
+        variable["input_kind"] = _normalize_prompt_recipe_field_input_kind(variable.get("input_kind"), key=variable_key)
+        variable["reference_role"] = _normalize_prompt_recipe_field_reference_role(variable.get("reference_role"), input_kind=variable["input_kind"])
         variable_by_key[variable_key] = variable
     if not variable_by_key:
         variable_by_key["user_prompt"] = _prompt_recipe_variable("user_prompt", required=True)
@@ -276,7 +376,7 @@ def validate_prompt_recipe_payload(payload: PromptRecipeUpsertRequest, recipe_id
     custom_fields = [item.model_dump() if hasattr(item, "model_dump") else dict(item) for item in payload.custom_fields_json]
     custom_keys: set[str] = set()
     for field in custom_fields:
-        field_key = _clean_prompt_recipe_key(str(field.get("key") or ""), "Custom field key")
+        field_key = _clean_prompt_recipe_variable_key(str(field.get("key") or ""), "Custom field key")
         if field_key in PROMPT_RECIPE_RESERVED_VARIABLES:
             raise ServiceError("Custom field key conflicts with reserved variable: %s" % field_key)
         if field_key in variable_by_key:
@@ -296,6 +396,8 @@ def validate_prompt_recipe_payload(payload: PromptRecipeUpsertRequest, recipe_id
         field["type"] = field_type
         field["label"] = str(field.get("label") or field_key.replace("_", " ").title()).strip()
         field["options"] = normalized_options
+        field["input_kind"] = _normalize_prompt_recipe_field_input_kind(field.get("input_kind"), key=field_key)
+        field["reference_role"] = _normalize_prompt_recipe_field_reference_role(field.get("reference_role"), input_kind=field["input_kind"])
         custom_keys.add(field_key)
 
     allowed_tokens = set(variable_by_key.keys()) | custom_keys
@@ -311,7 +413,8 @@ def validate_prompt_recipe_payload(payload: PromptRecipeUpsertRequest, recipe_id
     image_input["mode"] = image_mode
     image_input["enabled"] = bool(image_input.get("enabled", False))
     image_input["required"] = bool(image_input.get("required", False))
-    image_input["analysis_variable"] = _clean_prompt_recipe_key(str(image_input.get("analysis_variable") or "image_analysis"), "Image analysis variable")
+    image_input["analysis_variable"] = _clean_prompt_recipe_variable_key(str(image_input.get("analysis_variable") or "image_analysis"), "Image analysis variable")
+    image_input["reference_roles"] = _normalize_prompt_recipe_reference_roles(image_input.get("reference_roles") or image_input.get("referenceRoles"))
     try:
         image_input["max_files"] = max(0, int(image_input.get("max_files") or (1 if image_input["enabled"] else 0)))
     except (TypeError, ValueError):
@@ -338,6 +441,13 @@ def validate_prompt_recipe_payload(payload: PromptRecipeUpsertRequest, recipe_id
             raise ServiceError("Template uses {{%s}}, so image input mode must analyze images." % analysis_variable)
     if image_input["enabled"] and image_mode in {"analyze_then_inject", "both"} and not image_analysis_prompt.strip():
         raise ServiceError("Image analysis mode needs an Image Analysis Prompt.")
+    has_image_field_input = any(variable.get("input_kind") == "image" for variable in variable_by_key.values()) or any(
+        field.get("input_kind") == "image" for field in custom_fields
+    )
+    if has_image_field_input and not image_input["enabled"]:
+        raise ServiceError("Image field inputs require Prompt Recipe image input to be enabled.")
+    if has_image_field_input and image_input["max_files"] < 1:
+        raise ServiceError("Image field inputs require Prompt Recipe image Max Files to be at least 1.")
     highest_image_reference = _highest_prompt_recipe_image_reference_index(template, image_analysis_prompt)
     if highest_image_reference:
         if not image_input["enabled"]:
@@ -357,6 +467,8 @@ def validate_prompt_recipe_payload(payload: PromptRecipeUpsertRequest, recipe_id
         image_analysis_prompt=image_analysis_prompt,
     )
 
+    rules = {**payload.rules_json, "allow_external_variables": allow_external_variables}
+    _validate_prompt_recipe_media_generation({"rules_json": rules}, recipe_id=recipe_id)
     return {
         "key": key,
         "label": label,
@@ -373,7 +485,7 @@ def validate_prompt_recipe_payload(payload: PromptRecipeUpsertRequest, recipe_id
         "image_input_json": image_input,
         "validation_warnings_json": validation_warnings,
         "default_options_json": payload.default_options_json,
-        "rules_json": {**payload.rules_json, "allow_external_variables": allow_external_variables},
+        "rules_json": rules,
         "thumbnail_path": payload.thumbnail_path,
         "thumbnail_url": payload.thumbnail_url,
         "notes": payload.notes or "",

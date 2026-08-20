@@ -87,6 +87,7 @@ class AppSettings(BaseModel):
     media_studio_supervisor: Optional[str] = None
     media_studio_install_id: str = "install-local"
     media_studio_public_api_base_url: Optional[str] = None
+    media_assistant_enabled: bool = False
     control_api_token: str = "media-studio-local-control-token"
     kie_api_key: Optional[str] = None
     openrouter_api_key: Optional[str] = None
@@ -138,6 +139,9 @@ settings = AppSettings(
         os.getenv("MEDIA_STUDIO_PUBLIC_API_BASE_URL")
         or os.getenv("MEDIA_STUDIO_PUBLIC_CALLBACK_BASE_URL")
         or None
+    ),
+    media_assistant_enabled=(
+        os.getenv("NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG", "").strip() == "1"
     ),
     control_api_token=_resolve_control_api_token(_env_str("MEDIA_STUDIO_APP_ENV", "development")),
     kie_api_key=os.getenv("KIE_API_KEY"),

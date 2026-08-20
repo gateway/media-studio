@@ -111,7 +111,7 @@ export function PromptRecipeEditorScreen({
     () => selectedRecipe?.validation_warnings_json ?? selectedRecipe?.validation_warnings ?? [],
   );
   const [draftOverrideProviderKind, setDraftOverrideProviderKind] = useState(
-    (initialDraftingConfig?.provider_kind as SharedLlmProviderKind) ?? "openrouter",
+    (initialDraftingConfig?.provider_kind as SharedLlmProviderKind) ?? "codex_local",
   );
   const [draftOverrideModelId, setDraftOverrideModelId] = useState("");
   const [draftOverrideOpenRouterQuery, setDraftOverrideOpenRouterQuery] = useState("");

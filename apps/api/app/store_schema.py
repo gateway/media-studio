@@ -13,6 +13,7 @@ from .queue_limits import (
     QUEUE_DEFAULT_POLL_SECONDS,
 )
 from .store_support import (
+    asset_output_dimensions,
     decode_row,
     ensure_column,
     insert_or_update,
@@ -29,30 +30,6 @@ class SchemaMigration:
     version: int
     description: str
     apply: Callable[[sqlite3.Connection], None]
-
-
-def _positive_int(value: Any) -> Optional[int]:
-    try:
-        next_value = int(value)
-    except (TypeError, ValueError):
-        return None
-    return next_value if next_value > 0 else None
-
-
-def _dimensions_from_asset_payload(payload: Any) -> tuple[Optional[int], Optional[int]]:
-    if not isinstance(payload, dict):
-        return None, None
-    outputs = payload.get("outputs")
-    if not isinstance(outputs, list):
-        return None, None
-    for output in outputs:
-        if not isinstance(output, dict):
-            continue
-        width = _positive_int(output.get("width"))
-        height = _positive_int(output.get("height"))
-        if width and height:
-            return width, height
-    return None, None
 
 
 def _backfill_media_asset_dimensions(connection: sqlite3.Connection) -> None:
@@ -72,7 +49,7 @@ def _backfill_media_asset_dimensions(connection: sqlite3.Connection) -> None:
             payload = json.loads(row["payload_json"] or "{}")
         except (TypeError, ValueError):
             continue
-        width, height = _dimensions_from_asset_payload(payload)
+        width, height = asset_output_dimensions(payload)
         if not width or not height:
             continue
         connection.execute(
@@ -305,8 +282,8 @@ def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
                         "fields": {
                             "recipe_id": "prompt-recipe-image-prompt-director",
                             "user_prompt": "Turn this into a premium cinematic portrait prompt for a lone explorer on a rainy neon street.",
-                            "provider": "openrouter",
-                            "model_id": "openai/gpt-4o-mini",
+                            "provider": "studio_default",
+                            "model_id": "",
                             "external_variables_json": '{"aspect_ratio":"16:9","style_direction":"cinematic realism"}',
                         },
                     },
@@ -340,9 +317,9 @@ def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
                             "recipe_id": "prompt-recipe-image-prompt-director",
                             "recipe_category": "image",
                             "user_prompt": "Create a polished cinematic portrait prompt using the reference as the main identity.",
-                            "provider": "openrouter",
-                            "model_id": "openai/gpt-4o-mini",
-                            "provider_supports_images": True,
+                            "provider": "studio_default",
+                            "model_id": "",
+                            "provider_supports_images": None,
                             "style_direction": "cinematic realism",
                             "aspect_ratio": "16:9",
                         },
@@ -380,9 +357,9 @@ def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
                             "recipe_id": "prompt-recipe-image-prompt-director",
                             "recipe_category": "image",
                             "user_prompt": "Use the ordered references to create one prompt that preserves face, body styling, and product continuity.",
-                            "provider": "openrouter",
-                            "model_id": "openai/gpt-4o-mini",
-                            "provider_supports_images": True,
+                            "provider": "studio_default",
+                            "model_id": "",
+                            "provider_supports_images": None,
                             "style_direction": "premium editorial realism",
                             "aspect_ratio": "16:9",
                         },
@@ -421,9 +398,9 @@ def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
                             "recipe_id": "prompt-recipe-video-director-multi-shot-json",
                             "recipe_category": "video",
                             "user_prompt": "Create four cinematic video prompts for an escalating sci-fi escape sequence.",
-                            "provider": "openrouter",
-                            "model_id": "openai/gpt-4o-mini",
-                            "provider_supports_images": True,
+                            "provider": "studio_default",
+                            "model_id": "",
+                            "provider_supports_images": None,
                             "style_direction": "cinematic sci-fi realism",
                             "shot_count": "4",
                             "duration_seconds": "5",
@@ -470,9 +447,9 @@ def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
                             "recipe_id": "prompt-recipe-storyboard-shot-sequence-3x3",
                             "recipe_category": "image",
                             "user_prompt": "Create a nine-panel storyboard about a lone operative stealing critical data from a collapsing alien fortress.",
-                            "provider": "openrouter",
-                            "model_id": "openai/gpt-4o-mini",
-                            "provider_supports_images": True,
+                            "provider": "studio_default",
+                            "model_id": "",
+                            "provider_supports_images": None,
                             "style_direction": "cinematic sci-fi realism",
                             "shot_count": "9",
                             "aspect_ratio": "16:9",
@@ -528,9 +505,9 @@ def _seed_default_graph_templates(connection: sqlite3.Connection) -> None:
                             "recipe_id": "prompt-recipe-image-analysis-character-reference",
                             "recipe_category": "analysis",
                             "user_prompt": "Describe the character and continuity-critical details.",
-                            "provider": "openrouter",
-                            "model_id": "openai/gpt-4o-mini",
-                            "provider_supports_images": True,
+                            "provider": "studio_default",
+                            "model_id": "",
+                            "provider_supports_images": None,
                         },
                     },
                     {"id": "display", "type": "display.any", "position": {"x": 560, "y": 0}, "fields": {}},
@@ -729,7 +706,7 @@ def _apply_prompt_recipe_drafting_config_schema(connection: sqlite3.Connection) 
         CREATE TABLE IF NOT EXISTS media_prompt_recipe_drafting_configs (
             config_key TEXT PRIMARY KEY,
             enabled INTEGER NOT NULL DEFAULT 1,
-            provider_kind TEXT NOT NULL DEFAULT 'openrouter',
+            provider_kind TEXT NOT NULL DEFAULT 'codex_local',
             provider_label TEXT,
             provider_model_id TEXT,
             provider_base_url TEXT,
@@ -999,6 +976,125 @@ def _apply_graph_rollout_hardening_cleanup(connection: sqlite3.Connection) -> No
             """,
             (now, name),
         )
+
+
+OLD_HARDCODED_PROMPT_RECIPE_PROVIDER = "openrouter"
+OLD_HARDCODED_PROMPT_RECIPE_MODEL = "openai/gpt-4o-mini"
+LEGACY_PROMPT_RECIPE_NODE_TYPE_MAP = {
+    "prompt.recipe.image_prompt_director": ("prompt-recipe-image-prompt-director", "image"),
+    "prompt.recipe.video_director_multi_shot_json": ("prompt-recipe-video-director-multi-shot-json", "video"),
+    "prompt.recipe.image_analysis_character_reference": ("prompt-recipe-image-analysis-character-reference", "analysis"),
+    "prompt.recipe.storyboard_shot_sequence_3x3": ("prompt-recipe-storyboard-shot-sequence-3x3", "image"),
+}
+
+
+def _normalize_prompt_recipe_node_provider_fields(workflow_json: Any) -> bool:
+    if not isinstance(workflow_json, dict):
+        return False
+    nodes = workflow_json.get("nodes")
+    if not isinstance(nodes, list):
+        return False
+    changed = False
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        node_type = str(node.get("type") or "").strip()
+        if not node_type.startswith("prompt.recipe"):
+            continue
+        legacy_recipe = LEGACY_PROMPT_RECIPE_NODE_TYPE_MAP.get(node_type)
+        fields = node.get("fields")
+        if not isinstance(fields, dict):
+            if not legacy_recipe:
+                continue
+            fields = {}
+            node["fields"] = fields
+        if legacy_recipe:
+            recipe_id, recipe_category = legacy_recipe
+            node["type"] = "prompt.recipe"
+            if not str(fields.get("recipe_id") or "").strip():
+                fields["recipe_id"] = recipe_id
+            if not str(fields.get("recipe_category") or "").strip():
+                fields["recipe_category"] = recipe_category
+            changed = True
+        provider = str(fields.get("provider") or "").strip()
+        model_id = str(fields.get("model_id") or "").strip()
+        if not provider or (
+            provider == OLD_HARDCODED_PROMPT_RECIPE_PROVIDER and model_id == OLD_HARDCODED_PROMPT_RECIPE_MODEL
+        ):
+            fields["provider"] = "studio_default"
+            fields["model_id"] = ""
+            fields["provider_model_label"] = ""
+            fields["provider_supports_images"] = None
+            fields["provider_capabilities_json"] = {}
+            fields.pop("model_supports_images", None)
+            changed = True
+            continue
+        if provider != OLD_HARDCODED_PROMPT_RECIPE_PROVIDER or model_id != OLD_HARDCODED_PROMPT_RECIPE_MODEL:
+            continue
+    return changed
+
+
+def _normalize_prompt_recipe_provider_json_table(
+    connection: sqlite3.Connection,
+    table_name: str,
+    primary_key: str,
+    json_column: str,
+    *,
+    updated_at_column: bool = False,
+) -> None:
+    if not table_exists(connection, table_name):
+        return
+    rows = connection.execute(f"SELECT {primary_key}, {json_column} FROM {table_name}").fetchall()
+    now = utcnow_iso()
+    for row in rows:
+        raw_json = row[json_column]
+        try:
+            workflow_json = json.loads(raw_json or "{}") if isinstance(raw_json, str) else raw_json
+        except (TypeError, ValueError):
+            continue
+        if not _normalize_prompt_recipe_node_provider_fields(workflow_json):
+            continue
+        payload = json.dumps(workflow_json, separators=(",", ":"), sort_keys=True)
+        if updated_at_column:
+            connection.execute(
+                f"UPDATE {table_name} SET {json_column} = ?, updated_at = ? WHERE {primary_key} = ?",
+                (payload, now, row[primary_key]),
+            )
+        else:
+            connection.execute(
+                f"UPDATE {table_name} SET {json_column} = ? WHERE {primary_key} = ?",
+                (payload, row[primary_key]),
+            )
+
+
+def _apply_prompt_recipe_studio_default_provider_backfill(connection: sqlite3.Connection) -> None:
+    _normalize_prompt_recipe_provider_json_table(
+        connection,
+        "graph_workflows",
+        "workflow_id",
+        "workflow_json",
+        updated_at_column=True,
+    )
+    _normalize_prompt_recipe_provider_json_table(
+        connection,
+        "graph_templates",
+        "template_id",
+        "workflow_json",
+        updated_at_column=True,
+    )
+    _normalize_prompt_recipe_provider_json_table(
+        connection,
+        "graph_workflow_versions",
+        "version_id",
+        "workflow_json",
+    )
+    _normalize_prompt_recipe_provider_json_table(
+        connection,
+        "assistant_plans",
+        "assistant_plan_id",
+        "workflow_json",
+        updated_at_column=True,
+    )
 
 
 def _apply_baseline_schema(connection: sqlite3.Connection) -> None:
@@ -1776,6 +1872,156 @@ MIGRATIONS = [
         migration_id="20260628_029_prompt_recipe_storyboard_full_dialogue",
         version=29,
         description="Refresh Storyboard built-in recipes with stricter full-dialogue behavior.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260701_030_prompt_recipe_studio_default_provider",
+        version=30,
+        description="Normalize old hardcoded OpenRouter Prompt Recipe graph nodes to Studio default.",
+        apply=_apply_prompt_recipe_studio_default_provider_backfill,
+    ),
+    SchemaMigration(
+        migration_id="20260701_031_prompt_recipe_studio_default_provider_specialized_nodes",
+        version=31,
+        description="Normalize specialized Prompt Recipe graph nodes to Studio default.",
+        apply=_apply_prompt_recipe_studio_default_provider_backfill,
+    ),
+    SchemaMigration(
+        migration_id="20260701_032_prompt_recipe_legacy_node_type_conversion",
+        version=32,
+        description="Convert legacy specialized Prompt Recipe graph nodes to the current base node type.",
+        apply=_apply_prompt_recipe_studio_default_provider_backfill,
+    ),
+    SchemaMigration(
+        migration_id="20260701_033_prompt_recipe_food_storyboard_host_seed",
+        version=33,
+        description="Refresh built-in Prompt Recipes with Food Storyboard Host support.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260705_034_prompt_recipe_seedance_storyboard_video_director_seed",
+        version=34,
+        description="Refresh built-in Prompt Recipes with Seedance storyboard video director support.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260706_035_prompt_recipe_neutral_storyboard_subject_labels",
+        version=35,
+        description="Refresh storyboard Prompt Recipes to use neutral subject labels in metadata and video prompts.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260706_036_prompt_recipe_seedance_video_prompt_boilerplate",
+        version=36,
+        description="Refresh Seedance storyboard video director prompt to avoid non-creative execution boilerplate.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260706_037_prompt_recipe_seedance_plain_language_notes",
+        version=37,
+        description="Refresh Seedance storyboard video director prompt to avoid raw metadata wording.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260706_038_prompt_recipe_environment_sheet_v1",
+        version=38,
+        description="Refresh built-in Prompt Recipes with Environment Sheet v1 support.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260707_039_prompt_recipe_storyboard_environment_sheet_lock",
+        version=39,
+        description="Refresh Storyboard v2 Prompt Recipe with optional Environment Sheet location-lock guidance.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260707_040_prompt_recipe_seedance_environment_reference_lock",
+        version=40,
+        description="Refresh Seedance storyboard video director Prompt Recipe with optional Environment Sheet reference lock guidance.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260707_041_prompt_recipe_typed_reference_role_blocks",
+        version=41,
+        description="Refresh Storyboard Prompt Recipes with typed reference role block support.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260709_042_prompt_recipe_storyboard_continuity_prompt_cleanup",
+        version=42,
+        description="Refresh Storyboard v2 Prompt Recipe with private handoff and final prompt cleanup rules.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260712_043_prompt_recipe_storyboard_sequence_quality_refresh",
+        version=43,
+        description="Refresh built-in storyboard recipes with sequence layout, handoff, dialogue, wardrobe, and subject-design controls.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260712_044_prompt_recipe_storyboard_user_owned_board_identity",
+        version=44,
+        description="Refresh storyboard recipes with user-owned board title and production metadata fields.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260713_045_prompt_recipe_storyboard_six_row_metadata",
+        version=45,
+        description="Refresh storyboard recipes with the six-row metadata contract and combined camera framing.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260713_046_prompt_recipe_storyboard_mandatory_metadata_rows",
+        version=46,
+        description="Require every storyboard panel to render all six metadata row labels even when values are blank.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260714_047_prompt_recipe_storyboard_non_empty_metadata_values",
+        version=47,
+        description="Require non-empty storyboard metadata values except for silent dialogue rows.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260714_048_prompt_recipe_storyboard_shared_sheet_contract",
+        version=48,
+        description="Align Storyboard v2 and Continuation on one shared visible-sheet contract and provider defaults.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260716_049_prompt_recipe_storyboard_distinct_metadata_roles",
+        version=49,
+        description="Require distinct ACTION, MOTION, and NOTES semantics in both built-in storyboard recipes.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260716_050_prompt_recipe_storyboard_metadata_completion_audit",
+        version=50,
+        description="Require a final per-panel six-row metadata completion audit in both built-in storyboard recipes.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260716_051_prompt_recipe_storyboard_user_owned_panel_notes",
+        version=51,
+        description="Add user-owned per-panel NOTES cues to both built-in storyboard recipes.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260716_052_prompt_recipe_storyboard_concise_display_contract",
+        version=52,
+        description="Align storyboard recipes on SHOT-once presentation and concise readable metadata budgets.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260728_053_prompt_recipe_seedance_storyboard_sheet_modes",
+        version=53,
+        description="Refresh the Seedance storyboard video director for metadata-rich and scene-number-only storyboard sheets.",
+        apply=seed_default_prompt_recipes,
+    ),
+    SchemaMigration(
+        migration_id="20260728_054_prompt_recipe_seedance_reference_layout",
+        version=54,
+        description="Refresh the Seedance storyboard video director with explicit two- and three-reference layouts.",
         apply=seed_default_prompt_recipes,
     ),
 ]

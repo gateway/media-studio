@@ -57,6 +57,7 @@ docs/review-remediation-plan.md
 logs/
 tmp/
 tmp-*
+tmp_*
 temp/
 output/
 outputs/

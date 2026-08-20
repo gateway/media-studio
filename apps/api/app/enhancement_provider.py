@@ -709,6 +709,11 @@ def run_codex_local_chat(
     codex_session_key: Optional[str] = None,
     provider_thread_id: Optional[str] = None,
     force_new_codex_session: bool = False,
+    thread_base_instructions: Optional[str] = None,
+    thread_developer_instructions: Optional[str] = None,
+    reasoning_effort: Optional[str] = None,
+    client_user_message_id: Optional[str] = None,
+    compact_before_turn: bool = False,
 ) -> Dict[str, Any]:
     try:
         return codex_local_provider.run_codex_local_chat(
@@ -721,6 +726,11 @@ def run_codex_local_chat(
             codex_session_key=codex_session_key,
             provider_thread_id=provider_thread_id,
             force_new_codex_session=force_new_codex_session,
+            thread_base_instructions=thread_base_instructions,
+            thread_developer_instructions=thread_developer_instructions,
+            reasoning_effort=reasoning_effort,
+            client_user_message_id=client_user_message_id,
+            compact_before_turn=compact_before_turn,
         )
     except codex_local_provider.CodexLocalProviderError as exc:
         raise EnhancementProviderError(str(exc)) from exc

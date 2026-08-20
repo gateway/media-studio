@@ -12,14 +12,17 @@ import tempfile
 import time
 import zlib
 from pathlib import Path
-from threading import Event, Lock
+from threading import Event, Lock, Thread
 from typing import Any, Dict, List, Optional, Tuple
 
 
-CODEX_APP_SERVER_TIMEOUT_SECONDS = 120
+CODEX_APP_SERVER_TIMEOUT_SECONDS = 300
 CODEX_LOCAL_CATALOG_CACHE_TTL_SECONDS = 300
 CODEX_LOCAL_SKILL_SESSION_TTL_SECONDS = 900
-CODEX_LOCAL_DEFAULT_MODEL = "gpt-5.4"
+CODEX_LOCAL_SKILL_SESSION_REAP_SECONDS = 60
+CODEX_LOCAL_COMPACTION_TRIGGER_RATIO = 0.70
+CODEX_LOCAL_COMPACTION_HYSTERESIS_RATIO = 0.10
+CODEX_LOCAL_DEFAULT_MODEL = "gpt-5.6-sol"
 CODEX_LOCAL_PROVIDER_BASE_URL = "codex://app-server"
 CODEX_LOCAL_PROVIDER_CREDENTIAL_SOURCE = "codex_local_login"
 CODEX_LOCAL_JSON_OBJECT_INSTRUCTION = (
@@ -43,6 +46,12 @@ _CODEX_LOCAL_CATALOG_CACHE: Dict[str, Any] = {
 }
 _CODEX_LOCAL_SKILL_SESSIONS: Dict[str, "_ManagedCodexLocalSession"] = {}
 _CODEX_LOCAL_SKILL_SESSIONS_LOCK = Lock()
+_CODEX_LOCAL_MODEL_REASONING: Dict[str, Tuple[Tuple[str, ...], Optional[str]]] = {}
+_CODEX_LOCAL_MODEL_REASONING_LOCK = Lock()
+_CODEX_LOCAL_SKILL_SESSION_REAPER_LOCK = Lock()
+_CODEX_LOCAL_HOME_LOCK = Lock()
+_CODEX_LOCAL_SKILL_SESSION_REAPER_STOP = Event()
+_CODEX_LOCAL_SKILL_SESSION_REAPER: Thread | None = None
 
 
 class CodexLocalProviderError(Exception):
@@ -240,18 +249,43 @@ def _source_codex_home() -> Path:
     return Path.home() / ".codex"
 
 
-def _prepare_isolated_codex_home(temp_root: Path) -> Path:
-    source_home = _source_codex_home()
-    source_auth = source_home / "auth.json"
-    if not source_auth.exists():
-        raise CodexLocalProviderError("Codex Local is not logged in. Run `codex login` first.")
-    isolated_home = temp_root / "codex-home"
-    isolated_home.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source_auth, isolated_home / "auth.json")
-    installation_id = source_home / "installation_id"
-    if installation_id.exists():
-        shutil.copy2(installation_id, isolated_home / "installation_id")
-    return isolated_home
+def _codex_runtime_root() -> Path:
+    data_root = Path(os.environ.get("MEDIA_STUDIO_DATA_ROOT") or "/tmp/media-studio-data").expanduser()
+    runtime_root = data_root / "runtime" / "codex-local"
+    runtime_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    runtime_root.chmod(0o700)
+    return runtime_root
+
+
+def _codex_working_directory() -> Path:
+    working_directory = _codex_runtime_root() / "work"
+    working_directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    working_directory.chmod(0o700)
+    return working_directory
+
+
+def _refresh_codex_credential(source: Path, destination: Path) -> None:
+    if not source.exists():
+        return
+    if destination.exists() and source.stat().st_mtime_ns <= destination.stat().st_mtime_ns:
+        destination.chmod(0o600)
+        return
+    shutil.copy2(source, destination)
+    destination.chmod(0o600)
+
+
+def _prepare_isolated_codex_home() -> Path:
+    with _CODEX_LOCAL_HOME_LOCK:
+        source_home = _source_codex_home()
+        source_auth = source_home / "auth.json"
+        if not source_auth.exists():
+            raise CodexLocalProviderError("Codex Local is not logged in. Run `codex login` first.")
+        isolated_home = _codex_runtime_root() / "home"
+        isolated_home.mkdir(parents=True, exist_ok=True, mode=0o700)
+        isolated_home.chmod(0o700)
+        _refresh_codex_credential(source_auth, isolated_home / "auth.json")
+        _refresh_codex_credential(source_home / "installation_id", isolated_home / "installation_id")
+        return isolated_home
 
 
 def _message_to_turn_input(messages: List[Dict[str, Any]], temp_root: Path) -> List[Dict[str, Any]]:
@@ -327,6 +361,57 @@ def _normalize_model(model: Dict[str, Any]) -> Dict[str, Any]:
         },
     }
     return normalized
+
+
+def _clamp_reasoning_effort(
+    session: "_CodexAppServerSession",
+    model_id: str,
+    requested_effort: Optional[str],
+) -> Optional[str]:
+    requested = str(requested_effort or "").strip()
+    if not requested:
+        return None
+    with _CODEX_LOCAL_MODEL_REASONING_LOCK:
+        cached = _CODEX_LOCAL_MODEL_REASONING.get(model_id)
+    if cached is None:
+        selected = next(
+            (
+                model
+                for model in session.list_models()
+                if str(model.get("id") or model.get("model") or "").strip() == model_id
+            ),
+            {},
+        )
+        supported_values: List[str] = []
+        for value in selected.get("supportedReasoningEfforts") or []:
+            raw_value = value.get("reasoningEffort") if isinstance(value, dict) else value
+            normalized_value = str(raw_value or "").strip()
+            if normalized_value:
+                supported_values.append(normalized_value)
+        supported = tuple(supported_values)
+        default = str(selected.get("defaultReasoningEffort") or "").strip() or None
+        cached = (supported, default)
+        with _CODEX_LOCAL_MODEL_REASONING_LOCK:
+            _CODEX_LOCAL_MODEL_REASONING[model_id] = cached
+    supported, default = cached
+    if requested in supported:
+        return requested
+    return default if default in supported else None
+
+
+def _thread_setup_kwargs(
+    *,
+    cwd: str,
+    model: str,
+    base_instructions: Optional[str],
+    developer_instructions: Optional[str],
+) -> Dict[str, Any]:
+    kwargs: Dict[str, Any] = {"cwd": cwd, "model": model}
+    if base_instructions is not None:
+        kwargs["base_instructions"] = base_instructions
+    if developer_instructions is not None:
+        kwargs["developer_instructions"] = developer_instructions
+    return kwargs
 
 
 def _normalize_model_catalog(models: List[Dict[str, Any]], selected_model_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -454,6 +539,16 @@ def _normalize_usage_snapshot(snapshot: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _compaction_threshold(context_window: int) -> int:
+    measured_threshold = int(context_window * CODEX_LOCAL_COMPACTION_TRIGGER_RATIO)
+    override = str(
+        os.environ.get("MEDIA_STUDIO_CODEX_COMPACTION_THRESHOLD_TOKENS") or ""
+    ).strip()
+    if override.isdigit() and int(override) > 0:
+        return min(int(override), measured_threshold)
+    return measured_threshold
+
+
 class _ManagedCodexLocalSession:
     def __init__(self, *, key: str, temp_root: Path, session: "_CodexAppServerSession", thread_id: str, model_id: str) -> None:
         self.key = key
@@ -463,7 +558,38 @@ class _ManagedCodexLocalSession:
         self.model_id = model_id
         self.created_at = time.monotonic()
         self.last_used_at = self.created_at
+        self.context_input_tokens = 0
+        self.model_context_window = 0
+        self.next_compaction_input_tokens = 0
         self.lock = Lock()
+
+    def record_usage(self, usage: Dict[str, Any]) -> None:
+        context_input_tokens = int(usage.get("prompt_tokens") or 0)
+        context_window = int(usage.get("model_context_window") or 0)
+        if context_window <= 0:
+            return
+        self.context_input_tokens = context_input_tokens
+        self.model_context_window = context_window
+        base_threshold = _compaction_threshold(context_window)
+        if not self.next_compaction_input_tokens or context_input_tokens < base_threshold:
+            self.next_compaction_input_tokens = base_threshold
+
+    def compaction_due(self) -> bool:
+        return bool(
+            self.model_context_window
+            and self.next_compaction_input_tokens
+            and self.context_input_tokens >= self.next_compaction_input_tokens
+        )
+
+    def defer_next_compaction(self) -> int:
+        hysteresis = int(
+            self.model_context_window * CODEX_LOCAL_COMPACTION_HYSTERESIS_RATIO
+        )
+        self.next_compaction_input_tokens = min(
+            self.model_context_window,
+            self.context_input_tokens + max(hysteresis, 1),
+        )
+        return self.next_compaction_input_tokens
 
     def close(self) -> None:
         try:
@@ -483,6 +609,44 @@ def _close_expired_codex_local_skill_sessions(now: float | None = None) -> None:
         expired = [_CODEX_LOCAL_SKILL_SESSIONS.pop(key) for key in expired_keys if key in _CODEX_LOCAL_SKILL_SESSIONS]
     for managed in expired:
         managed.close()
+
+
+def start_codex_local_skill_session_reaper() -> None:
+    global _CODEX_LOCAL_SKILL_SESSION_REAPER, _CODEX_LOCAL_SKILL_SESSION_REAPER_STOP
+    with _CODEX_LOCAL_SKILL_SESSION_REAPER_LOCK:
+        if _CODEX_LOCAL_SKILL_SESSION_REAPER and _CODEX_LOCAL_SKILL_SESSION_REAPER.is_alive():
+            return
+        stop_event = Event()
+        _CODEX_LOCAL_SKILL_SESSION_REAPER_STOP = stop_event
+
+        def reap_until_stopped() -> None:
+            while not stop_event.wait(CODEX_LOCAL_SKILL_SESSION_REAP_SECONDS):
+                _close_expired_codex_local_skill_sessions()
+
+        _CODEX_LOCAL_SKILL_SESSION_REAPER = Thread(
+            target=reap_until_stopped,
+            name="codex-local-session-reaper",
+            daemon=True,
+        )
+        _CODEX_LOCAL_SKILL_SESSION_REAPER.start()
+
+
+def stop_codex_local_skill_session_reaper() -> None:
+    global _CODEX_LOCAL_SKILL_SESSION_REAPER
+    with _CODEX_LOCAL_SKILL_SESSION_REAPER_LOCK:
+        thread = _CODEX_LOCAL_SKILL_SESSION_REAPER
+        _CODEX_LOCAL_SKILL_SESSION_REAPER = None
+        _CODEX_LOCAL_SKILL_SESSION_REAPER_STOP.set()
+    if thread:
+        thread.join(timeout=2)
+
+
+def codex_local_skill_session_reaper_running() -> bool:
+    with _CODEX_LOCAL_SKILL_SESSION_REAPER_LOCK:
+        return bool(
+            _CODEX_LOCAL_SKILL_SESSION_REAPER
+            and _CODEX_LOCAL_SKILL_SESSION_REAPER.is_alive()
+        )
 
 
 def close_codex_local_skill_sessions() -> None:
@@ -509,7 +673,9 @@ def _managed_codex_local_session(
     model_id: str,
     timeout_seconds: float,
     preferred_thread_id: str | None,
-) -> tuple[_ManagedCodexLocalSession, bool]:
+    base_instructions: str | None = None,
+    developer_instructions: str | None = None,
+) -> tuple[_ManagedCodexLocalSession, bool, List[str]]:
     _close_expired_codex_local_skill_sessions()
     existing: _ManagedCodexLocalSession | None = None
     with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
@@ -520,17 +686,53 @@ def _managed_codex_local_session(
             and (not preferred_thread_id or existing.thread_id == preferred_thread_id)
         ):
             existing.last_used_at = time.monotonic()
-            return existing, True
+            return existing, True, ["thread_live_reused"]
         if existing:
             _CODEX_LOCAL_SKILL_SESSIONS.pop(session_key, None)
     if existing:
         existing.close()
 
     temp_root = Path(tempfile.mkdtemp(prefix="media-studio-codex-local-skill-"))
+    session: _CodexAppServerSession | None = None
     try:
         session = _CodexAppServerSession(temp_root=temp_root, timeout_seconds=int(timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS))
         session.__enter__()
-        thread_result = session.start_thread(cwd=str(temp_root), model=model_id)
+        working_directory = str(_codex_working_directory())
+        thread_lifecycle: List[str] = []
+        if preferred_thread_id:
+            try:
+                thread_result = session.resume_thread(
+                    thread_id=preferred_thread_id,
+                    **_thread_setup_kwargs(
+                        cwd=working_directory,
+                        model=model_id,
+                        base_instructions=base_instructions,
+                        developer_instructions=developer_instructions,
+                    ),
+                )
+                thread_lifecycle.append("thread_resumed")
+            except CodexLocalProviderError:
+                thread_result = session.start_thread(
+                    **_thread_setup_kwargs(
+                        cwd=working_directory,
+                        model=model_id,
+                        base_instructions=base_instructions,
+                        developer_instructions=developer_instructions,
+                    )
+                )
+                thread_lifecycle.extend(
+                    ["thread_resume_failed", "fallback_hydrated", "thread_replaced"]
+                )
+        else:
+            thread_result = session.start_thread(
+                **_thread_setup_kwargs(
+                    cwd=working_directory,
+                    model=model_id,
+                    base_instructions=base_instructions,
+                    developer_instructions=developer_instructions,
+                )
+            )
+            thread_lifecycle.append("thread_started")
         thread = thread_result.get("thread") if isinstance(thread_result.get("thread"), dict) else {}
         thread_id = str(thread.get("id") or "").strip()
         if not thread_id:
@@ -543,11 +745,16 @@ def _managed_codex_local_session(
             model_id=model_id,
         )
     except Exception:
+        if session is not None:
+            try:
+                session.__exit__(None, None, None)
+            except Exception:
+                pass
         shutil.rmtree(temp_root, ignore_errors=True)
         raise
     with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
         _CODEX_LOCAL_SKILL_SESSIONS[session_key] = managed
-    return managed, False
+    return managed, False, thread_lifecycle
 
 
 class _CodexAppServerSession:
@@ -562,7 +769,7 @@ class _CodexAppServerSession:
         binary = codex_command_path()
         if not binary:
             raise CodexLocalProviderError("The `codex` command is not installed or not on PATH.")
-        isolated_codex_home = _prepare_isolated_codex_home(self.temp_root)
+        isolated_codex_home = _prepare_isolated_codex_home()
         env = {**_codex_app_server_env(), "CODEX_HOME": str(isolated_codex_home)}
         self.proc = subprocess.Popen(
             [binary, "app-server", "--listen", "stdio://"],
@@ -596,21 +803,171 @@ class _CodexAppServerSession:
         result = self._request("model/list", {})
         return list(result.get("data") or [])
 
-    def start_thread(self, *, cwd: str, model: str) -> Dict[str, Any]:
+    def start_thread(
+        self,
+        *,
+        cwd: str,
+        model: str,
+        base_instructions: str | None = None,
+        developer_instructions: str | None = None,
+    ) -> Dict[str, Any]:
+        params: Dict[str, Any] = {
+            "ephemeral": False,
+            "cwd": cwd,
+            "approvalPolicy": "never",
+            "sandbox": "read-only",
+            "model": model,
+        }
+        if base_instructions is not None:
+            params["baseInstructions"] = base_instructions
+        if developer_instructions is not None:
+            params["developerInstructions"] = developer_instructions
         result = self._request(
             "thread/start",
-            {
-                "ephemeral": True,
-                "cwd": cwd,
-                "approvalPolicy": "never",
-                "sandbox": "read-only",
-                "model": model,
-            },
+            params,
         )
         thread = result.get("thread")
         if not isinstance(thread, dict) or not str(thread.get("id") or "").strip():
             raise CodexLocalProviderError("Codex Local did not return a thread id.")
         return result
+
+    def resume_thread(
+        self,
+        *,
+        thread_id: str,
+        cwd: str,
+        model: str,
+        base_instructions: str | None = None,
+        developer_instructions: str | None = None,
+    ) -> Dict[str, Any]:
+        params: Dict[str, Any] = {
+            "threadId": thread_id,
+            "cwd": cwd,
+            "approvalPolicy": "never",
+            "sandbox": "read-only",
+            "model": model,
+        }
+        if base_instructions is not None:
+            params["baseInstructions"] = base_instructions
+        if developer_instructions is not None:
+            params["developerInstructions"] = developer_instructions
+        result = self._request(
+            "thread/resume",
+            params,
+        )
+        thread = result.get("thread")
+        if not isinstance(thread, dict) or not str(thread.get("id") or "").strip():
+            raise CodexLocalProviderError("Codex Local did not return a resumed thread id.")
+        return result
+
+    def interrupt_turn(self, *, thread_id: str, turn_id: str) -> None:
+        self._request(
+            "turn/interrupt",
+            {"threadId": thread_id, "turnId": turn_id},
+            timeout_seconds=5,
+        )
+
+    def archive_thread(self, *, thread_id: str) -> None:
+        self._request("thread/archive", {"threadId": thread_id})
+
+    def compact_thread(
+        self,
+        *,
+        thread_id: str,
+        cancel_event: Event | None = None,
+    ) -> Dict[str, Any]:
+        notifications: List[Dict[str, Any]] = []
+        self._request(
+            "thread/compact/start",
+            {"threadId": thread_id},
+            notifications=notifications,
+        )
+        compaction_turn_id = ""
+        usage_snapshot: Dict[str, Any] = {}
+        model_context_window: int | None = None
+        item_completed = False
+        turn_completed = False
+        thread_idle = False
+        completed = False
+        failure_message = ""
+
+        def handle_message(message: Dict[str, Any]) -> None:
+            nonlocal compaction_turn_id, usage_snapshot, model_context_window
+            nonlocal item_completed, turn_completed, thread_idle, completed, failure_message
+            method = str(message.get("method") or "").strip()
+            params = message.get("params") if isinstance(message.get("params"), dict) else {}
+            if str(params.get("threadId") or "").strip() != thread_id:
+                return
+            if method == "turn/started":
+                turn = params.get("turn") if isinstance(params.get("turn"), dict) else {}
+                compaction_turn_id = str(turn.get("id") or "").strip()
+                item_completed = False
+                turn_completed = False
+                thread_idle = False
+                completed = False
+                return
+            if method == "thread/status/changed":
+                status = params.get("status") if isinstance(params.get("status"), dict) else {}
+                thread_idle = str(status.get("type") or "").strip() == "idle"
+                completed = item_completed and (turn_completed or thread_idle)
+                return
+            turn = params.get("turn") if isinstance(params.get("turn"), dict) else {}
+            event_turn_id = str(params.get("turnId") or turn.get("id") or "").strip()
+            if not compaction_turn_id or event_turn_id != compaction_turn_id:
+                return
+            if method == "thread/tokenUsage/updated":
+                token_usage = params.get("tokenUsage") if isinstance(params.get("tokenUsage"), dict) else {}
+                usage_snapshot = dict(token_usage.get("last") or {})
+                raw_window = token_usage.get("modelContextWindow")
+                model_context_window = int(raw_window) if raw_window is not None else None
+                return
+            if method == "item/completed":
+                item = params.get("item") if isinstance(params.get("item"), dict) else {}
+                item_completed = (
+                    str(item.get("type") or "").strip() == "contextCompaction"
+                )
+                completed = item_completed and (turn_completed or thread_idle)
+                return
+            if method == "error":
+                error = params.get("error") if isinstance(params.get("error"), dict) else {}
+                failure_message = _clean_codex_error_message(error.get("message"))
+                return
+            if method == "turn/completed":
+                turn_completed = str(turn.get("status") or "").strip() == "completed"
+                completed = item_completed and turn_completed
+                if not turn_completed:
+                    error = turn.get("error") if isinstance(turn.get("error"), dict) else {}
+                    failure_message = _clean_codex_error_message(error.get("message"))
+
+        for notification in notifications:
+            handle_message(notification)
+        deadline = time.monotonic() + self.timeout_seconds
+        while not completed and not failure_message:
+            if cancel_event and cancel_event.is_set():
+                if compaction_turn_id:
+                    self.interrupt_turn(thread_id=thread_id, turn_id=compaction_turn_id)
+                raise CodexLocalProviderCancelled("Codex Local compaction was interrupted.")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise CodexLocalProviderError(
+                    "Codex Local timed out while compacting the thread."
+                )
+            message = self._read_message(
+                min(remaining, 0.25) if cancel_event else remaining,
+                allow_timeout=bool(cancel_event),
+            )
+            if message is not None:
+                handle_message(message)
+        if failure_message:
+            raise CodexLocalProviderError(failure_message)
+        usage = _normalize_usage_snapshot(usage_snapshot)
+        if model_context_window is not None:
+            usage["model_context_window"] = model_context_window
+        return {
+            "completed": True,
+            "provider_turn_id": compaction_turn_id or None,
+            "usage": usage,
+        }
 
     def run_turn(
         self,
@@ -619,6 +976,8 @@ class _CodexAppServerSession:
         input_items: List[Dict[str, Any]],
         output_schema: Optional[Dict[str, Any]] = None,
         cancel_event: Event | None = None,
+        effort: Optional[str] = None,
+        client_user_message_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         notifications: List[Dict[str, Any]] = []
         params: Dict[str, Any] = {
@@ -627,6 +986,10 @@ class _CodexAppServerSession:
         }
         if output_schema is not None:
             params["outputSchema"] = output_schema
+        if effort is not None:
+            params["effort"] = effort
+        if client_user_message_id is not None:
+            params["clientUserMessageId"] = client_user_message_id
         result = self._request("turn/start", params, notifications=notifications)
         turn = result.get("turn") if isinstance(result, dict) else None
         turn_id = str((turn or {}).get("id") or "").strip()
@@ -659,12 +1022,13 @@ class _CodexAppServerSession:
         agent_text_chunks: List[str] = []
         final_text = ""
         usage_snapshot: Dict[str, Any] = {}
+        model_context_window: int | None = None
         turn_completed = False
         turn_failed_message = ""
         events: List[Dict[str, Any]] = list(initial_notifications)
 
         def handle_message(message: Dict[str, Any]) -> bool:
-            nonlocal final_text, usage_snapshot, turn_completed, turn_failed_message
+            nonlocal final_text, usage_snapshot, model_context_window, turn_completed, turn_failed_message
             events.append(message)
             method = str(message.get("method") or "").strip()
             params = message.get("params") if isinstance(message.get("params"), dict) else {}
@@ -683,11 +1047,19 @@ class _CodexAppServerSession:
             if method == "thread/tokenUsage/updated" and str(params.get("turnId") or "").strip() == turn_id:
                 token_usage = params.get("tokenUsage") if isinstance(params.get("tokenUsage"), dict) else {}
                 usage_snapshot = dict(token_usage.get("last") or token_usage.get("total") or {})
+                raw_window = token_usage.get("modelContextWindow")
+                model_context_window = int(raw_window) if raw_window is not None else None
                 return False
             if method == "thread/status/changed" and str(params.get("threadId") or "").strip() == thread_id:
                 status = params.get("status") if isinstance(params.get("status"), dict) else {}
                 status_type = str(status.get("type") or "").strip()
-                if status_type == "idle" and (final_text or agent_text_chunks or turn_failed_message or usage_snapshot):
+                if status_type == "idle" and (final_text or agent_text_chunks):
+                    # App Server can emit transient retry errors before a successful
+                    # answer. A final answer followed by idle is authoritative.
+                    turn_failed_message = ""
+                    turn_completed = True
+                    return True
+                if status_type == "idle" and (turn_failed_message or usage_snapshot):
                     turn_completed = True
                     return True
                 if status_type == "systemError" and turn_failed_message:
@@ -704,6 +1076,10 @@ class _CodexAppServerSession:
                     return False
                 if str(turn.get("status") or "").strip() != "completed":
                     turn_failed_message = _clean_codex_error_message((turn.get("error") or {}).get("message") if isinstance(turn.get("error"), dict) else "")
+                else:
+                    # Successful terminal state supersedes transient `error`
+                    # notifications such as stream reconnect attempts.
+                    turn_failed_message = ""
                 turn_completed = True
                 return True
             return False
@@ -715,8 +1091,8 @@ class _CodexAppServerSession:
         deadline = time.monotonic() + self.timeout_seconds
         while not turn_completed:
             if cancel_event and cancel_event.is_set():
-                self._cancel_turn(thread_id=thread_id, turn_id=turn_id)
-                raise CodexLocalProviderCancelled("Codex Local request was cancelled.")
+                self.interrupt_turn(thread_id=thread_id, turn_id=turn_id)
+                raise CodexLocalProviderCancelled("Codex Local turn was interrupted.")
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise CodexLocalProviderError("Codex Local timed out while waiting for a response.")
@@ -730,9 +1106,12 @@ class _CodexAppServerSession:
             raise CodexLocalProviderError(turn_failed_message)
         if not resolved_text:
             raise CodexLocalProviderError("Codex Local returned an empty response.")
+        usage = _normalize_usage_snapshot(usage_snapshot)
+        if model_context_window is not None:
+            usage["model_context_window"] = model_context_window
         return {
             "generated_text": resolved_text,
-            "usage": _normalize_usage_snapshot(usage_snapshot),
+            "usage": usage,
             "provider_thread_id": thread_id,
             "provider_session_id": thread_id,
             "provider_turn_id": turn_id,
@@ -745,12 +1124,6 @@ class _CodexAppServerSession:
         if params is not None:
             payload["params"] = params
         self._send(payload)
-
-    def _cancel_turn(self, *, thread_id: str, turn_id: str) -> None:
-        try:
-            self._notify("turn/cancel", {"threadId": thread_id, "turnId": turn_id})
-        except CodexLocalProviderError:
-            pass
 
     def _request(
         self,
@@ -810,6 +1183,25 @@ class _CodexAppServerSession:
         if not isinstance(parsed, dict):
             raise CodexLocalProviderError("Codex Local App Server returned an invalid message.")
         return parsed
+
+
+def archive_codex_local_thread(*, session_key: str, thread_id: str) -> bool:
+    normalized_thread_id = str(thread_id or "").strip()
+    if not normalized_thread_id:
+        return False
+    close_codex_local_skill_session(session_key)
+    temp_root = Path(tempfile.mkdtemp(prefix="media-studio-codex-local-archive-"))
+    try:
+        with _CodexAppServerSession(
+            temp_root=temp_root,
+            timeout_seconds=30,
+        ) as session:
+            session.archive_thread(thread_id=normalized_thread_id)
+        return True
+    except CodexLocalProviderError:
+        return False
+    finally:
+        shutil.rmtree(temp_root, ignore_errors=True)
 
 
 def _probe_bundle(*, model_id: Optional[str], require_images: bool) -> Tuple[Dict[str, Any], Dict[str, Any], List[Dict[str, Any]], Dict[str, Any]]:
@@ -914,7 +1306,13 @@ def run_codex_local_chat(
     codex_session_key: Optional[str] = None,
     provider_thread_id: Optional[str] = None,
     force_new_codex_session: bool = False,
+    thread_base_instructions: Optional[str] = None,
+    thread_developer_instructions: Optional[str] = None,
+    reasoning_effort: Optional[str] = None,
+    client_user_message_id: Optional[str] = None,
+    compact_before_turn: bool = False,
 ) -> Dict[str, Any]:
+    started_at = time.perf_counter()
     del error_context
     output_schema = _response_format_to_output_schema(response_format)
     selected_model_id = str(model_id or CODEX_LOCAL_DEFAULT_MODEL)
@@ -922,25 +1320,77 @@ def run_codex_local_chat(
     preferred_thread_id = str(provider_thread_id or "").strip() or None
     provider_thread_reused = False
     fallback_mode: str | None = None
+    thread_lifecycle: List[str] = []
+    prompt_bytes = 0
+    actual_reasoning_effort: Optional[str] = None
+    compaction: Dict[str, Any] | None = None
 
     if session_key:
         if force_new_codex_session:
             close_codex_local_skill_session(session_key)
-        managed, provider_thread_reused = _managed_codex_local_session(
+        managed, provider_thread_reused, managed_lifecycle = _managed_codex_local_session(
             session_key=session_key,
             model_id=selected_model_id,
             timeout_seconds=timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS,
             preferred_thread_id=preferred_thread_id,
+            base_instructions=thread_base_instructions,
+            developer_instructions=thread_developer_instructions,
         )
+        thread_lifecycle.extend(managed_lifecycle)
         try:
             with managed.lock:
+                if compact_before_turn and managed.compaction_due():
+                    triggering_usage = {
+                        "prompt_tokens": managed.context_input_tokens,
+                        "model_context_window": managed.model_context_window,
+                    }
+                    next_threshold = managed.defer_next_compaction()
+                    try:
+                        compacted = managed.session.compact_thread(
+                            thread_id=managed.thread_id,
+                            cancel_event=cancel_event,
+                        )
+                        compaction = {
+                            "outcome": "completed",
+                            "thread_id": managed.thread_id,
+                            "provider_turn_id": compacted.get("provider_turn_id"),
+                            "triggering_usage": triggering_usage,
+                            "completion_usage": dict(compacted.get("usage") or {}),
+                            "next_eligible_threshold": next_threshold,
+                        }
+                        thread_lifecycle.append("thread_compacted")
+                    except CodexLocalProviderCancelled:
+                        raise
+                    except CodexLocalProviderError as exc:
+                        compaction = {
+                            "outcome": "failed_resumable",
+                            "thread_id": managed.thread_id,
+                            "triggering_usage": triggering_usage,
+                            "error": str(exc),
+                            "next_eligible_threshold": next_threshold,
+                        }
+                        thread_lifecycle.append("thread_compaction_failed")
                 input_items = _message_to_turn_input(_messages_for_response_format(messages, response_format), managed.temp_root)
-                result = managed.session.run_turn(
-                    thread_id=managed.thread_id,
-                    input_items=input_items,
-                    output_schema=output_schema,
-                    cancel_event=cancel_event,
+                prompt_bytes = len(json.dumps(input_items, separators=(",", ":")).encode("utf-8"))
+                actual_reasoning_effort = _clamp_reasoning_effort(
+                    managed.session,
+                    selected_model_id,
+                    reasoning_effort,
                 )
+                turn_kwargs: Dict[str, Any] = {
+                    "thread_id": managed.thread_id,
+                    "input_items": input_items,
+                    "output_schema": output_schema,
+                    "cancel_event": cancel_event,
+                }
+                if actual_reasoning_effort is not None:
+                    turn_kwargs["effort"] = actual_reasoning_effort
+                if client_user_message_id is not None:
+                    turn_kwargs["client_user_message_id"] = client_user_message_id
+                result = managed.session.run_turn(
+                    **turn_kwargs,
+                )
+                managed.record_usage(dict(result.get("usage") or {}))
                 managed.last_used_at = time.monotonic()
         except Exception:
             with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
@@ -952,11 +1402,62 @@ def run_codex_local_chat(
         temp_root = Path(tempfile.mkdtemp(prefix="media-studio-codex-local-chat-"))
         try:
             input_items = _message_to_turn_input(_messages_for_response_format(messages, response_format), temp_root)
+            prompt_bytes = len(json.dumps(input_items, separators=(",", ":")).encode("utf-8"))
             with _CodexAppServerSession(temp_root=temp_root, timeout_seconds=timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS) as session:
-                thread_result = session.start_thread(cwd=str(temp_root), model=selected_model_id)
+                working_directory = str(_codex_working_directory())
+                if preferred_thread_id:
+                    try:
+                        thread_result = session.resume_thread(
+                            thread_id=preferred_thread_id,
+                            **_thread_setup_kwargs(
+                                cwd=working_directory,
+                                model=selected_model_id,
+                                base_instructions=thread_base_instructions,
+                                developer_instructions=thread_developer_instructions,
+                            ),
+                        )
+                        thread_lifecycle.append("thread_resumed")
+                    except CodexLocalProviderError:
+                        thread_lifecycle.extend(
+                            ["thread_resume_failed", "fallback_hydrated", "thread_replaced"]
+                        )
+                        fallback_mode = "provider_thread_unavailable"
+                        thread_result = session.start_thread(
+                            **_thread_setup_kwargs(
+                                cwd=working_directory,
+                                model=selected_model_id,
+                                base_instructions=thread_base_instructions,
+                                developer_instructions=thread_developer_instructions,
+                            )
+                        )
+                else:
+                    thread_result = session.start_thread(
+                        **_thread_setup_kwargs(
+                            cwd=working_directory,
+                            model=selected_model_id,
+                            base_instructions=thread_base_instructions,
+                            developer_instructions=thread_developer_instructions,
+                        )
+                    )
+                    thread_lifecycle.append("thread_started")
                 thread = thread_result.get("thread") if isinstance(thread_result.get("thread"), dict) else {}
                 thread_id = str(thread.get("id") or "").strip()
-                result = session.run_turn(thread_id=thread_id, input_items=input_items, output_schema=output_schema, cancel_event=cancel_event)
+                actual_reasoning_effort = _clamp_reasoning_effort(
+                    session,
+                    selected_model_id,
+                    reasoning_effort,
+                )
+                turn_kwargs = {
+                    "thread_id": thread_id,
+                    "input_items": input_items,
+                    "output_schema": output_schema,
+                    "cancel_event": cancel_event,
+                }
+                if actual_reasoning_effort is not None:
+                    turn_kwargs["effort"] = actual_reasoning_effort
+                if client_user_message_id is not None:
+                    turn_kwargs["client_user_message_id"] = client_user_message_id
+                result = session.run_turn(**turn_kwargs)
         finally:
             shutil.rmtree(temp_root, ignore_errors=True)
     usage = dict(result.get("usage") or {})
@@ -969,6 +1470,16 @@ def run_codex_local_chat(
         provider_response_id = provider_response_id or f"{result_thread_id}:{result_turn_id}"
     elif result_thread_id:
         provider_response_id = provider_response_id or result_thread_id
+    process_lifecycle = "process_reused" if provider_thread_reused else "process_spawned"
+    reuse_mode = (
+        "live_process"
+        if provider_thread_reused
+        else "disk_resume"
+        if "thread_resumed" in thread_lifecycle
+        else "replacement_thread"
+        if "thread_replaced" in thread_lifecycle
+        else "new_thread"
+    )
     return {
         "provider_kind": "codex_local",
         "provider_model_id": selected_model_id,
@@ -977,12 +1488,20 @@ def run_codex_local_chat(
         "provider_thread_id": result_thread_id or None,
         "provider_turn_id": result_turn_id or None,
         "provider_thread_reused": provider_thread_reused,
+        "process_lifecycle": process_lifecycle,
+        "reuse_mode": reuse_mode,
         "fallback_mode": fallback_mode,
+        "thread_lifecycle": thread_lifecycle,
         "provider_response_id": provider_response_id or None,
         "usage": usage,
         "prompt_tokens": usage.get("prompt_tokens"),
         "completion_tokens": usage.get("completion_tokens"),
         "total_tokens": usage.get("total_tokens"),
+        "latency_ms": int((time.perf_counter() - started_at) * 1000),
+        "prompt_bytes": prompt_bytes,
+        "reasoning_effort": actual_reasoning_effort,
+        "client_user_message_id": client_user_message_id,
+        "compaction": compaction,
         "cost": None,
         "generated_text": str(result.get("generated_text") or "").strip(),
         "warnings": [],

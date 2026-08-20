@@ -259,6 +259,18 @@ def list_graph_run_nodes(run_id: str) -> List[Dict[str, Any]]:
     return [_decode_row(row) for row in rows]
 
 
+def list_graph_run_node_metrics_for_runs(run_ids: list[str]) -> List[Dict[str, Any]]:
+    if not run_ids:
+        return []
+    placeholders = ",".join("?" for _ in run_ids)
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"SELECT run_id, node_id, metrics_json FROM graph_run_nodes WHERE run_id IN ({placeholders}) ORDER BY rowid ASC",
+            run_ids,
+        ).fetchall()
+    return [_decode_row(row) for row in rows]
+
+
 def get_graph_run_node(run_id: str, node_id: str) -> Optional[Dict[str, Any]]:
     with get_connection() as connection:
         row = connection.execute(

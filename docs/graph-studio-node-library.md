@@ -253,6 +253,20 @@ Do not add tensor or latent types unless Media Studio adds local ML execution.
 - Behavior: pass-through only; it does not create new media files. It preserves the ordered reference media ids and records split lineage artifacts for inspection.
 - Guardrails: fails clearly when the requested output count is higher than the received image count.
 
+### `storyboard.compile`
+
+- Inputs: canonical Prompt Recipe `result` JSON from Storyboard v2 or Storyboard Continuation.
+- Outputs: one art-only `prompt`, one typed `spec`, and six optional `panel_prompts` as JSON.
+- Purpose: normalize both storyboard recipes into `StoryboardSheetSpec` v1 while keeping campaign content in recipe/workflow inputs.
+- Guardrails: exactly six ordered panels; meaningful SHOT values; complete ACTION/MOTION/NOTES clauses; CAMERA angle/movement/lens contract; exact dialogue; art prompt at most 4,200 characters and free of production-sheet chrome.
+
+### `image.storyboard_sheet`
+
+- Inputs: `images` as either one provenance-compatible art-only wide 2x3 source grid or exactly six ordered images, plus a `StoryboardSheetSpec` JSON input. The compositor reflows source-grid reading order into the final 3x2 sheet.
+- Outputs: one deterministic 2048x1152 image reference and JSON layout metadata.
+- Purpose: render the amber condensed title and inline production strip, exact 3x2 geometry, one SHOT heading above each image, and five stacked CAMERA/ACTION/MOTION/DIALOG/NOTES rows outside the generative image model.
+- Guardrails: Pillow only; max 4096px source dimension; data-root output; exact dialogue; only DIALOG may be blank; text wraps inside fixed rows and execution fails rather than clipping; one-image model assets must prove the current art-only source contract; historical complete sheets fail instead of becoming nested panel fragments; derived reference media records compositor lineage.
+
 ## Selective Execution
 
 Node execution mode is stored in workflow node metadata as `metadata.execution.mode`.

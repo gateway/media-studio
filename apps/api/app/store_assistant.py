@@ -152,6 +152,13 @@ def list_assistant_plans(session_id: str) -> List[Dict[str, Any]]:
     return _list_by_session("assistant_plans", session_id, order_by="created_at DESC")
 
 
+def reject_validated_assistant_plans(session_id: str) -> None:
+    for plan in list_assistant_plans(session_id):
+        if str(plan.get("status") or "") != "validated":
+            continue
+        create_or_update_assistant_plan({**plan, "status": "rejected"})
+
+
 def create_assistant_turn_usage(payload: Dict[str, Any]) -> Dict[str, Any]:
     item = payload.copy()
     item.setdefault("assistant_turn_usage_id", new_id("asuse"))

@@ -24,7 +24,12 @@ def graph_ref_record(ref: GraphOutputRef) -> Optional[Dict[str, Any]]:
     return None
 
 
-def graph_ref_path(ref: GraphOutputRef, *, expected_media_type: Optional[str] = None) -> Path:
+def graph_ref_path(
+    ref: GraphOutputRef,
+    *,
+    expected_media_type: Optional[str] = None,
+    prefer_web_variant: bool = False,
+) -> Path:
     if ref.reference_id:
         record = store.get_reference_media(str(ref.reference_id))
         if not record:
@@ -45,7 +50,12 @@ def graph_ref_path(ref: GraphOutputRef, *, expected_media_type: Optional[str] = 
             raise ValueError("Referenced graph asset does not exist.")
         if expected_media_type and str(record.get("generation_kind") or "") != expected_media_type:
             raise ValueError(f"Expected {expected_media_type} asset.")
-        for key in ("hero_original_path", "hero_web_path", "hero_poster_path", "hero_thumb_path"):
+        path_keys = (
+            ("hero_web_path", "hero_original_path", "hero_poster_path", "hero_thumb_path")
+            if prefer_web_variant
+            else ("hero_original_path", "hero_web_path", "hero_poster_path", "hero_thumb_path")
+        )
+        for key in path_keys:
             value = str(record.get(key) or "")
             if not value:
                 continue

@@ -448,6 +448,8 @@ function ensureWebBuild(runtime) {
     ...walkFiles(path.join(mediaRoot, "apps", "web", "components")),
     ...walkFiles(path.join(mediaRoot, "apps", "web", "hooks")),
     ...walkFiles(path.join(mediaRoot, "apps", "web", "lib")),
+    path.join(mediaRoot, ".env"),
+    path.join(mediaRoot, "apps", "web", ".env.local"),
     path.join(mediaRoot, "apps", "web", "next.config.ts"),
     path.join(mediaRoot, "apps", "web", "tsconfig.json"),
     ...packageFiles,

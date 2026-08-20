@@ -1,3 +1,10 @@
+export class JsonFetchError extends Error {
+  constructor(message: string, readonly code: string | null = null) {
+    super(message);
+    this.name = "JsonFetchError";
+  }
+}
+
 export async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -9,13 +16,20 @@ export async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> 
   });
   if (!response.ok) {
     let message = `Request failed with ${response.status}`;
+    let code: string | null = null;
     try {
       const payload = await response.json();
-      message = payload.detail ?? payload.error ?? message;
+      const detail = payload.detail ?? payload.error;
+      if (detail && typeof detail === "object") {
+        message = typeof detail.message === "string" ? detail.message : message;
+        code = typeof detail.code === "string" ? detail.code : null;
+      } else if (typeof detail === "string") {
+        message = detail;
+      }
     } catch {
       // Keep the generic status message.
     }
-    throw new Error(message);
+    throw new JsonFetchError(message, code);
   }
   return (await response.json()) as T;
 }

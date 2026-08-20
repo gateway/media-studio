@@ -26,6 +26,7 @@ export default async function StudioLlmSettingsPage({
       </div>
       <LlmSettingsConsole
         enhancementConfigs={snapshot.enhancementConfigs.data?.configs ?? []}
+        mediaAssistantConfig={snapshot.mediaAssistantConfig.data?.config ?? null}
         promptRecipeDraftingConfig={snapshot.promptRecipeDraftingConfig.data?.config ?? null}
         openRouterSpend={snapshot.externalLlmUsageSummary.data?.summary ?? null}
         health={snapshot.status.data ?? {}}

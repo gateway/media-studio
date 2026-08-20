@@ -138,6 +138,9 @@ function Harness(props: HarnessProps) {
       <button type="button" onClick={() => void runWorkflow()}>
         Run workflow
       </button>
+      <button type="button" onClick={() => void runWorkflow({ sessionId: "session-1", token: "token-1" })}>
+        Run confirmed workflow
+      </button>
     </div>
   );
 }
@@ -294,6 +297,34 @@ describe("useGraphRunLifecycle", () => {
       ),
     );
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/runs"))).toBe(false);
+  });
+
+  it("sends assistant confirmation with the same request that creates the run", async () => {
+    const fetchMock = vi.mocked(jsonFetch);
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/validate")) return { valid: true, errors: [], warnings: [] } as never;
+      if (url.endsWith("/runs")) {
+        expect(JSON.parse(String(init?.body))).toMatchObject({
+          assistant_session_id: "session-1",
+          assistant_confirmation_token: "token-1",
+        });
+        return makeRun({ run_id: "confirmed-run-1" }) as never;
+      }
+      return makeRun() as never;
+    });
+
+    render(
+      <Harness
+        refreshCredits={vi.fn().mockResolvedValue(undefined)}
+        refreshImageAssets={vi.fn().mockResolvedValue(undefined)}
+        refreshAssetsByIds={vi.fn().mockResolvedValue(undefined)}
+        refreshReferenceMedia={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Run confirmed workflow" }));
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/runs"))).toBe(true));
   });
 
   it("reconciles terminal run state even when the event stream stays active", async () => {

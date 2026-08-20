@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { BrainCircuit, Cable, Coins, Image as ImageIcon, Sparkles } from "lucide-react";
+import { BrainCircuit, Cable, Coins, Image as ImageIcon, MessageCircle, Sparkles } from "lucide-react";
 
 import { adminButtonClassName, adminInsetPanelClassName } from "@/components/admin-controls";
 import { SectionDisclosure } from "@/components/collapsible-sections";
@@ -24,6 +24,7 @@ import {
 import type {
   ControlApiHealthData,
   ExternalLlmUsageSummary,
+  MediaAssistantConfig,
   MediaEnhancementConfig,
   PromptRecipeDraftingConfig,
 } from "@/lib/types";
@@ -112,11 +113,13 @@ function settingsIconCard({
 
 export function LlmSettingsConsole({
   enhancementConfigs,
+  mediaAssistantConfig,
   promptRecipeDraftingConfig,
   openRouterSpend,
   health,
 }: {
   enhancementConfigs: MediaEnhancementConfig[];
+  mediaAssistantConfig: MediaAssistantConfig | null;
   promptRecipeDraftingConfig: PromptRecipeDraftingConfig | null;
   openRouterSpend: ExternalLlmUsageSummary | null;
   health: MediaStudioHealthSummary | ControlApiHealthData;
@@ -128,6 +131,7 @@ export function LlmSettingsConsole({
   );
   const enhancementProvider = enhancementConfigs.find((config) => config.model_key === "__studio_enhancement__") ?? null;
   const draftingProviderLabel = llmProviderLabel(promptRecipeDraftingConfig?.provider_kind);
+  const assistantProviderLabel = llmProviderLabel(mediaAssistantConfig?.provider_kind);
   const enhancementProviderLabel = llmProviderLabel(enhancementProvider?.provider_kind || "builtin");
   const enhancementDefaultsReady =
     enhancementProvider?.provider_kind === "builtin" ||
@@ -138,6 +142,10 @@ export function LlmSettingsConsole({
     promptRecipeDraftingConfig?.provider_model_id || promptRecipeDraftingConfig?.provider_label,
   );
   const draftingStatus = draftingDefaultsReady ? readyStatus() : notSetUpStatus();
+  const assistantDefaultsReady = Boolean(
+    mediaAssistantConfig?.provider_model_id || mediaAssistantConfig?.provider_label,
+  );
+  const assistantStatus = assistantDefaultsReady ? readyStatus() : notSetUpStatus();
   const billingStatus = readyStatus();
 
   return (
@@ -146,9 +154,9 @@ export function LlmSettingsConsole({
         <PanelHeader
           eyebrow="AI Settings"
           title="Set up default models"
-          description="Choose the default model for Prompt Enhance and for recipe drafts. Graph workflows still choose their own models inside each node."
+          description="Choose defaults for Prompt Enhance, recipe drafts, and the Media Assistant. Graph workflow nodes still own their generation models."
         />
-        <div className="mt-5 grid gap-3 lg:grid-cols-3">
+        <div className="mt-5 grid gap-3 lg:grid-cols-4">
           {settingsIconCard({
             icon: <Sparkles className="size-3.5" />,
             label: "Prompt Enhance button",
@@ -169,6 +177,22 @@ export function LlmSettingsConsole({
                 </div>
                 <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">
                   Only used when Media Studio writes the first draft of a Prompt Recipe.
+                </div>
+              </>
+            ),
+          })}
+          {settingsIconCard({
+            icon: <MessageCircle className="size-3.5" />,
+            label: "Media Assistant",
+            children: (
+              <>
+                <div className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">
+                  Default model: <span className="font-medium text-[var(--foreground)]">{assistantProviderLabel}</span>
+                </div>
+                <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">
+                  {mediaAssistantConfig?.supports_media_studio_tools === false
+                    ? "Read-only chat. Graph building needs Codex Local."
+                    : "Codex Local can use the approved Media Studio tools."}
                 </div>
               </>
             ),
@@ -252,7 +276,38 @@ export function LlmSettingsConsole({
           statusSlot={<StatusPill label={draftingStatus.label} tone={draftingStatus.tone} />}
           defaultOpen={false}
         >
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4 sm:px-6">
+            <div className="max-w-2xl text-sm leading-6 text-[var(--muted-strong)]">
+              Create and edit Prompt Recipes from the Prompt Recipes admin page. Recipe fields can expose graph inputs as
+              text handles or image handles; image handles use the recipe image settings below for analysis or direct
+              reference behavior.
+            </div>
+            <Link href="/presets?tab=prompt-recipes" className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
+              Open Prompt Recipes
+            </Link>
+          </div>
           <PromptRecipeDraftingSettingsPanel initialConfig={promptRecipeDraftingConfig} embedded />
+        </SectionDisclosure>
+      </Panel>
+
+      <Panel className="overflow-hidden p-0">
+        <SectionDisclosure
+          title="Media Assistant model"
+          description="Choose the provider used for assistant conversation and Media Studio actions."
+          summary={`Using: ${assistantProviderLabel}`}
+          detail={
+            mediaAssistantConfig?.supports_media_studio_tools === false
+              ? "This provider is chat only. Switch to Codex Local for graph building and Studio actions."
+              : "Codex Local runs with isolated, read-only filesystem access and the approved Studio tool surface."
+          }
+          statusSlot={<StatusPill label={assistantStatus.label} tone={assistantStatus.tone} />}
+          defaultOpen={false}
+        >
+          <PromptRecipeDraftingSettingsPanel
+            purpose="media_assistant"
+            initialConfig={mediaAssistantConfig}
+            embedded
+          />
         </SectionDisclosure>
       </Panel>
 

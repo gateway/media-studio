@@ -138,7 +138,7 @@ describe("computeGraphNodeLayout", () => {
     });
   });
 
-  it("preserves deliberate manual height above the latest auto-height", () => {
+  it("resizes auto-managed nodes back to measured content even when the wrapper is taller", () => {
     expect(
       resolveGraphContentAutoHeight({
         requiredHeight: 430,
@@ -147,7 +147,7 @@ describe("computeGraphNodeLayout", () => {
         currentHeight: 700,
         previousAutoHeight: 430,
       }),
-    ).toEqual({ height: 700, minHeight: 300, autoSizedHeight: 430 });
+    ).toEqual({ height: 430, minHeight: 300, autoSizedHeight: 430 });
   });
 
   it("keeps a manual shrink when the wrapper still contains unchanged measured content", () => {

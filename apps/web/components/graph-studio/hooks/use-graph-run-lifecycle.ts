@@ -242,7 +242,7 @@ export function useGraphRunLifecycle({
     [validationErrorLabel],
   );
 
-  const runWorkflow = useCallback(async () => {
+  const runWorkflow = useCallback(async (assistantConfirmation?: { sessionId: string; token: string }) => {
     try {
       resetNodeRunState();
       setRun(null);
@@ -270,16 +270,22 @@ export function useGraphRunLifecycle({
       }
       const created = await jsonFetch<GraphRun>(`/api/control/media/graph/workflows/${id}/runs`, {
         method: "POST",
-        body: JSON.stringify({ workflow: workflowFromCanvas(id, workflowName, nodes, edges) }),
+        body: JSON.stringify({
+          workflow: workflowFromCanvas(id, workflowName, nodes, edges),
+          assistant_session_id: assistantConfirmation?.sessionId,
+          assistant_confirmation_token: assistantConfirmation?.token,
+        }),
       });
       setRun(created);
       runRef.current = created;
       applyRunNodesToCanvas(created);
       appendConsole(`Started graph run ${created.run_id}.`);
+      return created;
     } catch (error) {
       const message = (error as Error).message || "Graph run failed to start.";
       appendConsole(`Run failed to start: ${message}`);
       applyValidationErrorsToNodes([{ message }]);
+      if (assistantConfirmation) throw error;
     }
   }, [
     appendConsole,

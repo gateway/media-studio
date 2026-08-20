@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { workflowFromCanvas } from "@/components/graph-studio/utils/graph-serialization";
 import { hydrateGraphWorkflowForCanvas } from "@/components/graph-studio/utils/graph-workflow-hydration";
+import { graphNodeDataWithExecutionMode } from "@/components/graph-studio/utils/graph-node-runtime";
 import { inputGraphHandleId, outputGraphHandleId } from "@/components/graph-studio/utils/graph-port-handles";
 import { buildWorkflowBundle, parseWorkflowImportFile, sanitizeWorkflowForExport } from "@/components/graph-studio/utils/graph-workflow-transfer";
 import type { GraphNodeDefinition, StudioNode } from "@/components/graph-studio/types";
@@ -122,6 +123,152 @@ describe("graph workflow serialization", () => {
     });
   });
 
+  it("round-trips a frozen cache when the displayed run used an older mode", () => {
+    const modelDefinition: GraphNodeDefinition = {
+      type: "model.kie.test",
+      title: "Cached model",
+      category: "Models/Image",
+      fields: [],
+      ports: { inputs: [], outputs: [{ id: "image", label: "Image", type: "image" }] },
+    };
+    const hydrated = hydrateGraphWorkflowForCanvas({
+      workflow: {
+        schema_version: 1,
+        workflow_id: "workflow-frozen",
+        name: "Frozen cache",
+        nodes: [
+          {
+            id: "model",
+            type: modelDefinition.type,
+            position: { x: 0, y: 0 },
+            fields: {},
+            metadata: {
+              execution: {
+                mode: "frozen",
+                cached_run_id: "run-success",
+                cached_artifact_ids: { image: ["asset-environment"] },
+              },
+            },
+          },
+        ],
+        edges: [],
+      },
+      definitionsByType: new Map([[modelDefinition.type, modelDefinition]]),
+      handlers: { onFieldChange: vi.fn() },
+      run: {
+        run_id: "run-later",
+        workflow_id: "workflow-frozen",
+        status: "completed",
+        nodes: [
+          {
+            node_id: "model",
+            node_type: modelDefinition.type,
+            status: "skipped",
+            output_snapshot_json: {},
+            metrics_json: { execution_mode: "muted" },
+          },
+        ],
+      },
+    });
+
+    expect(hydrated.nodes[0].data.executionMode).toBe("frozen");
+    expect(hydrated.nodes[0].data.executionCache).toMatchObject({
+      cachedRunId: "run-success",
+      cachedArtifactIds: { image: ["asset-environment"] },
+    });
+
+    const savedAgain = workflowFromCanvas(
+      "workflow-frozen",
+      "Frozen cache",
+      hydrated.nodes,
+      hydrated.edges,
+    );
+    expect(savedAgain.nodes[0].metadata?.execution).toMatchObject({
+      mode: "frozen",
+      cached_run_id: "run-success",
+      cached_artifact_ids: { image: ["asset-environment"] },
+    });
+  });
+
+  it("pins the newest completed node output when a later node makes the overall run fail", () => {
+    const modelDefinition: GraphNodeDefinition = {
+      type: "model.kie.test",
+      title: "Cached model",
+      category: "Models/Image",
+      fields: [],
+      ports: { inputs: [], outputs: [{ id: "image", label: "Image", type: "image" }] },
+    };
+    const hydrated = hydrateGraphWorkflowForCanvas({
+      workflow: {
+        schema_version: 1,
+        workflow_id: "workflow-recovery",
+        name: "Recovery cache",
+        nodes: [
+          {
+            id: "model",
+            type: modelDefinition.type,
+            position: { x: 0, y: 0 },
+            fields: {},
+            metadata: {
+              execution: {
+                mode: "enabled",
+                cached_run_id: "run-old",
+                cached_artifact_ids: { image: ["artifact-old"] },
+              },
+            },
+          },
+        ],
+        edges: [],
+      },
+      definitionsByType: new Map([[modelDefinition.type, modelDefinition]]),
+      handlers: { onFieldChange: vi.fn() },
+      run: {
+        run_id: "run-new",
+        workflow_id: "workflow-recovery",
+        status: "failed",
+        nodes: [
+          {
+            run_id: "run-new",
+            node_id: "model",
+            node_type: modelDefinition.type,
+            status: "completed",
+            output_snapshot_json: { image: [{ asset_id: "asset-new" }] },
+            artifacts: [
+              {
+                artifact_id: "artifact-new",
+                workflow_id: "workflow-recovery",
+                run_id: "run-new",
+                node_id: "model",
+                node_type: modelDefinition.type,
+                output_port: "image",
+                output_index: 0,
+                kind: "asset",
+              },
+            ],
+            metrics_json: { execution_mode: "enabled" },
+          },
+        ],
+      },
+    });
+
+    const mutedNodes = hydrated.nodes.map((node) => ({
+      ...node,
+      data: graphNodeDataWithExecutionMode(node.data, "frozen"),
+    }));
+    const savedAgain = workflowFromCanvas(
+      "workflow-recovery",
+      "Recovery cache",
+      mutedNodes,
+      hydrated.edges,
+    );
+
+    expect(savedAgain.nodes[0].metadata?.execution).toMatchObject({
+      mode: "frozen",
+      cached_run_id: "run-new",
+      cached_artifact_ids: { image: ["artifact-new"] },
+    });
+  });
+
   it("drops stale provider-backed model metadata when the saved provider no longer matches", () => {
     const promptRecipeDefinition: GraphNodeDefinition = {
       type: "prompt.recipe",
@@ -238,6 +385,7 @@ describe("graph workflow serialization", () => {
         definition: loadDefinition,
         fields: {},
         autoSizedHeight: 404,
+        userSizedHeight: true,
       },
       style: {
         width: 520,
@@ -250,6 +398,9 @@ describe("graph workflow serialization", () => {
     expect(workflow.nodes[0].metadata?.style).toMatchObject({
       width: 520,
       height: 680,
+    });
+    expect(workflow.nodes[0].metadata?.ui).toMatchObject({
+      heightMode: "manual",
     });
 
     const hydrated = hydrateGraphWorkflowForCanvas({

@@ -41,6 +41,10 @@ function displayText(value: unknown): string {
   }
 }
 
+function formatCharacterCount(value: string): string {
+  return `${value.length.toLocaleString()} characters`;
+}
+
 function fallbackCopyTextToClipboard(text: string): boolean {
   if (typeof document === "undefined") {
     return false;
@@ -156,6 +160,7 @@ export function GraphNodeDisplayAny({ data }: { data: GraphNodeData }) {
       ) : null}
       {text ? (
         <div className="graph-display-any-text-wrap">
+          <div className="graph-display-any-text-meta">{formatCharacterCount(text)}</div>
           <button
             type="button"
             className="graph-display-any-copy nodrag nopan"

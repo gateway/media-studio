@@ -78,4 +78,47 @@ describe("useGraphProviderModelCatalog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     await waitFor(() => expect(probe).toHaveBeenCalledTimes(2));
   });
+
+  it("does not continuously retry a failed refresh of a stale catalog", async () => {
+    const probe = vi.mocked(probeSharedProviderCatalogRequest);
+    probe.mockReset();
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          openrouter_api_key_configured: true,
+          codex_local_command_available: true,
+          codex_local_login_configured: true,
+          codex_local_ready: true,
+          local_openai_configured: false,
+          local_openai_ready: false,
+        }),
+      }),
+    );
+    probe.mockResolvedValueOnce({
+      ok: true,
+      credentialSource: "codex_local_login",
+      selectedModel: null,
+      availableModels: [{ id: "gpt-5.4", label: "GPT-5.4", provider: "codex_local", supports_images: true, input_modalities: ["text", "image"] }],
+    });
+
+    const first = render(<Harness />);
+    await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("ready"));
+    first.unmount();
+
+    now.mockReturnValue(6 * 60 * 1000 + 1_000);
+    probe.mockResolvedValue({
+      ok: false,
+      error: "temporary provider failure",
+      credentialSource: null,
+      selectedModel: null,
+      availableModels: [],
+    });
+    render(<Harness />);
+
+    await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("error"));
+    await waitFor(() => expect(probe).toHaveBeenCalledTimes(2));
+  });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { Handle, NodeResizer, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 import { GraphNodeFieldControl } from "./graph-node-field";
@@ -9,7 +9,7 @@ import { GraphNodeDisplayAny } from "./graph-node-display-any";
 import { GraphNodeHelp } from "./graph-node-help";
 import { GraphNodeMediaPreview, dropNodeImage, readGraphMediaDragPayload } from "./graph-node-media-preview";
 import type { GraphNodeData, StudioNode } from "./types";
-import { computeGraphNodeLayout, GRAPH_NODE_AUTO_HEIGHT_HARD_MAX, graphNodeUsesContentAutoHeight } from "./utils/graph-node-layout";
+import { computeGraphNodeLayout, GRAPH_NODE_AUTO_HEIGHT_HARD_MAX, graphNodeUsesContentAutoHeight, shouldSyncGraphContentAutoHeight } from "./utils/graph-node-layout";
 import { graphExecutionModeClass, graphExecutionModeLabel, normalizeGraphExecutionMode } from "./utils/graph-node-execution";
 import { graphExtraLayoutRows, graphPreviewHeaderFieldIds, graphVisibleFieldMetrics } from "./utils/graph-node-fields";
 import { visibleGraphInputPorts, visibleGraphOutputPorts } from "./utils/graph-node-ports";
@@ -22,6 +22,18 @@ import { resolveGraphNodeDefinition } from "./utils/graph-effective-node-definit
 import { graphMediaPresetFieldOverride, graphMediaPresetSelectionSummary } from "./utils/graph-media-preset";
 import { graphPromptAdvancedSummary, graphPromptNodeHeaderSummary, graphPromptRuntimeFieldOverride } from "./utils/graph-prompt-provider";
 import { graphPromptRecipeFieldOverride, graphPromptRecipeImageWarning, graphPromptRecipeSelectionSummary } from "./utils/graph-prompt-recipe";
+
+const PROMPT_RECIPE_REFERENCE_ROLE_PORT_IDS: Record<string, string> = {
+  character: "character_ref",
+  environment: "environment_ref",
+  prop: "prop_refs",
+  style: "style_ref",
+  additional: "additional_refs",
+};
+
+function isPromptRecipeRolePortId(value: string | undefined): value is string {
+  return Boolean(value);
+}
 
 export function measureGraphNodeContentHeight(header: HTMLElement, body: HTMLElement) {
   const children = Array.from(body.children);
@@ -64,9 +76,12 @@ export function measureGraphNodeContentHeight(header: HTMLElement, body: HTMLEle
   const paddingBottom = Number.parseFloat(style.paddingBottom || "0") || 0;
   const childContentHeight = children.length ? Math.ceil(contentBottom + paddingBottom) : 0;
   const scrollHeight = Math.ceil(body.scrollHeight || 0);
-  // Flexed bodies can report stale wrapper height as scrollHeight; only trust small scroll deltas.
+  const clientHeight = Math.ceil(Number(body.clientHeight) || bodyRect?.height || 0);
+  // Flexed bodies can report stale wrapper height as scrollHeight. Trust real body overflow, or small scroll deltas.
   const bodyContentHeight = children.length
-    ? scrollHeight > childContentHeight && scrollHeight <= childContentHeight + 96
+    ? clientHeight > 0 && scrollHeight > clientHeight + 2
+      ? Math.max(scrollHeight, childContentHeight)
+      : scrollHeight > childContentHeight && scrollHeight <= childContentHeight + 96
       ? scrollHeight
       : childContentHeight
     : scrollHeight;
@@ -80,6 +95,9 @@ export function graphNodeContentHeightTargets(header: HTMLElement, body: HTMLEle
 
 export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const updateNodeInternals = useUpdateNodeInternals();
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const definition = useMemo(
     () => resolveGraphNodeDefinition(data.definition, data.fields),
     [data.definition, data.fields],
@@ -108,11 +126,19 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
     previewHeaderFieldIds: graphPreviewHeaderFieldIds(definition),
     extraLayoutRows: graphExtraLayoutRows(definition, data.fields),
   });
+  const fieldOwnedTopRolePorts = new Set(
+    fieldMetrics.visibleFields
+      .filter((field) => (field.connectable || field.port_type) && field.port_type === "image")
+      .map((field) => PROMPT_RECIPE_REFERENCE_ROLE_PORT_IDS[String(field.reference_role ?? "").trim()])
+      .filter(isPromptRecipeRolePortId),
+  );
+  const hidesUnusedFieldOwnedTopRolePort = (portId: string) => fieldOwnedTopRolePorts.has(portId) && !connectedInputPorts.has(portId);
   const previewHeaderFields = fieldMetrics.previewHeaderFields;
   const primaryBodyFields = fieldMetrics.primaryBodyFields.filter((field) => field.type !== "asset_picker" && field.type !== "reference_media_picker");
   const advancedBodyFields = fieldMetrics.advancedBodyFields.filter((field) => field.type !== "asset_picker" && field.type !== "reference_media_picker");
-  const visibleInputPorts = visibleGraphInputPorts(definition, data.fields).filter((port) => !connectableFieldIds.has(port.id));
-  const collapsedInputPorts = visibleGraphInputPorts(definition, data.fields);
+  const allVisibleInputPorts = visibleGraphInputPorts(definition, data.fields).filter((port) => !hidesUnusedFieldOwnedTopRolePort(port.id));
+  const visibleInputPorts = allVisibleInputPorts.filter((port) => !connectableFieldIds.has(port.id));
+  const collapsedInputPorts = allVisibleInputPorts;
   const effectiveOutputPorts = visibleGraphOutputPorts(definition, data.fields);
   const inputPortKey = collapsedInputPorts.map((port) => port.id).join("|");
   const outputPortKey = effectiveOutputPorts.map((port) => port.id).join("|");
@@ -153,6 +179,52 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
     const frame = window.requestAnimationFrame(() => updateNodeInternals(id));
     return () => window.cancelAnimationFrame(frame);
   }, [advancedExpanded, collapsed, contentMeasureKey, data.autoSizedHeight, id, inputPortKey, outputPortKey, updateNodeInternals]);
+  const autoSizedHeight = data.autoSizedHeight ?? null;
+  const userSizedHeight = Boolean(data.userSizedHeight);
+  const onEnsureNodeHeight = data.onEnsureNodeHeight;
+  const measureAndSyncContentHeight = useCallback(() => {
+    if (!usesContentAutoHeight || collapsed || userSizedHeight) return;
+    const root = rootRef.current;
+    const header = headerRef.current;
+    const body = bodyRef.current;
+    if (!root || !header || !body) return;
+    const requiredHeight = measureGraphNodeContentHeight(header, body);
+    const currentWrapperHeight = Number(root.offsetHeight) || root.getBoundingClientRect().height;
+    if (
+      !shouldSyncGraphContentAutoHeight({
+        requiredHeight,
+        currentWrapperHeight,
+        previousMeasuredHeight: autoSizedHeight,
+      })
+    ) {
+      return;
+    }
+    onEnsureNodeHeight?.(id, requiredHeight);
+  }, [autoSizedHeight, collapsed, id, onEnsureNodeHeight, userSizedHeight, usesContentAutoHeight]);
+  useEffect(() => {
+    if (!usesContentAutoHeight || collapsed || userSizedHeight) return;
+    const header = headerRef.current;
+    const body = bodyRef.current;
+    if (!header || !body || typeof ResizeObserver === "undefined") return;
+    let frame: number | null = null;
+    const scheduleMeasure = () => {
+      if (frame != null) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        measureAndSyncContentHeight();
+        updateNodeInternals(id);
+      });
+    };
+    const observer = new ResizeObserver(scheduleMeasure);
+    graphNodeContentHeightTargets(header, body).forEach((target) => observer.observe(target));
+    scheduleMeasure();
+    const settledMeasure = window.setTimeout(scheduleMeasure, 250);
+    return () => {
+      if (frame != null) window.cancelAnimationFrame(frame);
+      window.clearTimeout(settledMeasure);
+      observer.disconnect();
+    };
+  }, [advancedExpanded, collapsed, contentMeasureKey, id, inputPortKey, measureAndSyncContentHeight, outputPortKey, updateNodeInternals, userSizedHeight, usesContentAutoHeight]);
   const inputHandleClass = (port: GraphNodeData["definition"]["ports"]["inputs"][number]) => {
     const compatible = activeConnection?.from === "output" && graphPortAccepts(activeConnection.portType, port);
     const connected = connectedInputPorts.has(port.id);
@@ -223,7 +295,8 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const advancedSummary = graphPromptAdvancedSummary(definition.type, data.fields);
   return (
     <div
-      className={`graph-node ${statusClass} ${executionClass} ${hasTracingBorder ? "graph-node-tracing" : ""} ${showPreview ? "graph-node-media-container" : ""} ${usesContentAutoHeight ? "graph-node-content-auto" : ""} ${collapsed ? "graph-node-collapsed" : ""}`}
+      ref={rootRef}
+      className={`graph-node ${statusClass} ${executionClass} ${hasTracingBorder ? "graph-node-tracing" : ""} ${showPreview ? "graph-node-media-container" : ""} ${usesContentAutoHeight ? "graph-node-content-auto" : ""} ${userSizedHeight ? "graph-node-user-sized" : ""} ${collapsed ? "graph-node-collapsed" : ""}`}
       style={nodeStyle}
       data-testid={`graph-node-${definition.type}`}
       onDragOver={(event) => {
@@ -291,7 +364,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
           ) : null}
         </div>
       ) : null}
-      <div className="graph-node-header">
+      <div className="graph-node-header" ref={headerRef}>
         <div className="graph-node-header-text">
           {data.isRenamingTitle ? (
             <input
@@ -383,7 +456,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
           </div>
         ) : null}
       </div>
-      {!collapsed ? <div className="graph-node-body">
+      {!collapsed ? <div className="graph-node-body" ref={bodyRef}>
         {visibleInputPorts.length || effectiveOutputPorts.length ? (
           <div className="graph-node-port-band">
             <div className="graph-node-port-stack graph-node-port-stack-inputs">

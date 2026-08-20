@@ -295,11 +295,11 @@ describe("PromptRecipeEditorScreen", () => {
     );
   });
 
-  it("keeps variables and contracts collapsed by default and allows expanding them", () => {
+  it("keeps advanced graph inputs and contracts collapsed by default and allows expanding them", () => {
     render(<PromptRecipeEditorScreen recipes={[]} />);
 
     const draftAssistantDisclosure = screen.getByText("Generate from an idea").closest("details");
-    const variablesDisclosure = screen.getByText("Reserved inputs and custom fields").closest("details");
+    const variablesDisclosure = screen.getByText("Advanced graph inputs").closest("details");
     const contractsDisclosure = screen.getByText("Output contract and runtime defaults").closest("details");
 
     expect(draftAssistantDisclosure?.hasAttribute("open")).toBe(false);
@@ -307,7 +307,7 @@ describe("PromptRecipeEditorScreen", () => {
     expect(contractsDisclosure?.hasAttribute("open")).toBe(false);
 
     fireEvent.click(screen.getByText("Generate from an idea"));
-    fireEvent.click(screen.getByText("Reserved inputs and custom fields"));
+    fireEvent.click(screen.getByText("Advanced graph inputs"));
     fireEvent.click(screen.getByText("Output contract and runtime defaults"));
 
     expect(draftAssistantDisclosure?.hasAttribute("open")).toBe(true);

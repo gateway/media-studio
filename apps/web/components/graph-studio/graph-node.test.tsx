@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GraphNode, graphNodeContentHeightTargets, measureGraphNodeContentHeight } from "./graph-node";
@@ -64,6 +64,26 @@ describe("measureGraphNodeContentHeight", () => {
     } as unknown as HTMLElement;
 
     expect(measureGraphNodeContentHeight(header, body)).toBe(245);
+  });
+
+  it("uses real body overflow so hidden lower recipe fields grow the wrapper", () => {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        getComputedStyle: () => ({ display: "block", paddingBottom: "12px", position: "static" }),
+      },
+    });
+    const header = { offsetHeight: 64 } as HTMLElement;
+    const body = {
+      clientHeight: 769,
+      children: [
+        { offsetTop: 12, offsetHeight: 28 },
+        { offsetTop: 96, offsetHeight: 52 },
+      ],
+      scrollHeight: 1078,
+    } as unknown as HTMLElement;
+
+    expect(measureGraphNodeContentHeight(header, body)).toBe(1144);
   });
 
   it("measures nested advanced content so expanded fields stay inside the wrapper", () => {
@@ -256,5 +276,185 @@ describe("measureGraphNodeContentHeight", () => {
 
     expect(getByTestId("node-resizer").getAttribute("data-min-height")).toBe("560");
     expect(Number(getByTestId("node-resizer").getAttribute("data-max-height"))).toBeGreaterThan(1600);
+  });
+
+  it("marks manually resized content-auto nodes so textarea fields can stretch", () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class ResizeObserver {
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      },
+    );
+    const definition: GraphNodeDefinition = {
+      type: "prompt.text",
+      title: "Prompt Text",
+      description: "Pass through typed text.",
+      category: "Prompt",
+      source: {},
+      execution: {},
+      limits: {},
+      ui: { min_size: { width: 280, height: 180 } },
+      fields: [{ id: "text", label: "Prompt", type: "textarea" }],
+      ports: { inputs: [], outputs: [] },
+    };
+    const data: GraphNodeData = {
+      definition,
+      fields: { text: "Long prompt text" },
+      userSizedHeight: true,
+      onFieldChange: vi.fn(),
+    };
+
+    const { container } = render(<GraphNode id="prompt-1" data={data} selected={false} type="graphNode" dragging={false} zIndex={1} isConnectable={true} positionAbsoluteX={0} positionAbsoluteY={0} /> as never);
+
+    expect(container.querySelector(".graph-node-content-auto.graph-node-user-sized textarea")).not.toBeNull();
+  });
+
+  it("renders matching input ports beside connectable fields instead of the top port stack", () => {
+    const definition: GraphNodeDefinition = {
+      type: "prompt.recipe",
+      title: "Prompt Recipe",
+      description: "Run a prompt recipe.",
+      category: "Prompt",
+      source: {},
+      execution: {},
+      limits: {},
+      fields: [{ id: "setting", label: "Setting", type: "textarea", connectable: true, port_type: "image" }],
+      ports: {
+        inputs: [
+          { id: "setting", label: "Setting", type: "image", accepts: ["image"] },
+          { id: "image_refs", label: "Image Refs", type: "image", accepts: ["image"], array: true },
+        ],
+        outputs: [],
+      },
+    };
+    const data: GraphNodeData = {
+      definition,
+      fields: { setting: "" },
+      onFieldChange: vi.fn(),
+    };
+
+    const { container } = render(<GraphNode id="recipe-1" data={data} selected={false} type="graphNode" dragging={false} zIndex={1} isConnectable={true} positionAbsoluteX={0} positionAbsoluteY={0} /> as never);
+
+    expect(container.querySelector(".graph-node-field-connectable[data-input-port='setting']")).not.toBeNull();
+    expect(container.querySelector(".graph-node-port-row[data-input-port='setting']")).toBeNull();
+    expect(container.querySelector(".graph-node-port-row[data-input-port='image_refs']")).not.toBeNull();
+  });
+
+  it("hides unused top reference ports when a field owns that reference role", () => {
+    const definition: GraphNodeDefinition = {
+      type: "prompt.recipe",
+      title: "Prompt Recipe",
+      description: "Run a prompt recipe.",
+      category: "Prompt",
+      source: {},
+      execution: {},
+      limits: {},
+      fields: [{ id: "setting", label: "Setting", type: "textarea", connectable: true, port_type: "image", reference_role: "environment" }],
+      ports: {
+        inputs: [
+          { id: "setting", label: "Setting", type: "image", accepts: ["image"] },
+          { id: "character_ref", label: "Character Ref", type: "image", accepts: ["image"] },
+          { id: "environment_ref", label: "Environment Ref", type: "image", accepts: ["image"] },
+          { id: "image_refs", label: "Image Refs", type: "image", accepts: ["image"], array: true },
+        ],
+        outputs: [],
+      },
+    };
+    const data: GraphNodeData = {
+      definition,
+      fields: { setting: "" },
+      onFieldChange: vi.fn(),
+    };
+
+    const { container } = render(<GraphNode id="recipe-1" data={data} selected={false} type="graphNode" dragging={false} zIndex={1} isConnectable={true} positionAbsoluteX={0} positionAbsoluteY={0} /> as never);
+
+    expect(container.querySelector(".graph-node-field-connectable[data-input-port='setting']")).not.toBeNull();
+    expect(container.querySelector(".graph-node-port-row[data-input-port='environment_ref']")).toBeNull();
+    expect(container.querySelector(".graph-node-port-row[data-input-port='character_ref']")).not.toBeNull();
+    expect(container.querySelector(".graph-node-port-row[data-input-port='image_refs']")).not.toBeNull();
+  });
+
+  it("keeps connected top reference ports visible for repair when a field owns that role", () => {
+    const definition: GraphNodeDefinition = {
+      type: "prompt.recipe",
+      title: "Prompt Recipe",
+      description: "Run a prompt recipe.",
+      category: "Prompt",
+      source: {},
+      execution: {},
+      limits: {},
+      fields: [{ id: "setting", label: "Setting", type: "textarea", connectable: true, port_type: "image", reference_role: "environment" }],
+      ports: {
+        inputs: [
+          { id: "setting", label: "Setting", type: "image", accepts: ["image"] },
+          { id: "environment_ref", label: "Environment Ref", type: "image", accepts: ["image"] },
+        ],
+        outputs: [],
+      },
+    };
+    const data: GraphNodeData = {
+      definition,
+      fields: { setting: "" },
+      connectedInputPorts: ["environment_ref"],
+      onFieldChange: vi.fn(),
+    };
+
+    const { container } = render(<GraphNode id="recipe-1" data={data} selected={false} type="graphNode" dragging={false} zIndex={1} isConnectable={true} positionAbsoluteX={0} positionAbsoluteY={0} /> as never);
+
+    expect(container.querySelector(".graph-node-port-row[data-input-port='environment_ref']")).not.toBeNull();
+  });
+
+  it("requests measured auto-height growth for rendered node content", async () => {
+    let resizeCallback: ResizeObserverCallback | null = null;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.stubGlobal(
+      "ResizeObserver",
+      class ResizeObserver {
+        constructor(callback: ResizeObserverCallback) {
+          resizeCallback = callback;
+        }
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      },
+    );
+    const onEnsureNodeHeight = vi.fn();
+    const definition: GraphNodeDefinition = {
+      type: "prompt.recipe",
+      title: "Prompt Recipe",
+      description: "Run a prompt recipe.",
+      category: "Prompt",
+      source: {},
+      execution: {},
+      limits: {},
+      ui: { min_size: { width: 360, height: 560 } },
+      fields: [],
+      ports: { inputs: [], outputs: [] },
+    };
+    const data: GraphNodeData = {
+      definition,
+      fields: {},
+      autoSizedHeight: 560,
+      onEnsureNodeHeight,
+      onFieldChange: vi.fn(),
+    };
+
+    const { container } = render(<GraphNode id="recipe-1" data={data} selected={false} type="graphNode" dragging={false} zIndex={1} isConnectable={true} positionAbsoluteX={0} positionAbsoluteY={0} /> as never);
+    const root = container.querySelector(".graph-node") as HTMLElement;
+    const header = container.querySelector(".graph-node-header") as HTMLElement;
+    const body = container.querySelector(".graph-node-body") as HTMLElement;
+    Object.defineProperty(root, "offsetHeight", { configurable: true, value: 560 });
+    Object.defineProperty(header, "offsetHeight", { configurable: true, value: 64 });
+    Object.defineProperty(body, "scrollHeight", { configurable: true, value: 900 });
+
+    resizeCallback?.([], {} as ResizeObserver);
+
+    await waitFor(() => expect(onEnsureNodeHeight).toHaveBeenCalledWith("recipe-1", 966));
   });
 });

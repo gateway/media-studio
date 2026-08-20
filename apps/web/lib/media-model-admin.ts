@@ -117,6 +117,22 @@ export async function savePromptRecipeDraftingConfigRequest(payload: Record<stri
   };
 }
 
+export async function saveMediaAssistantConfigRequest(payload: Record<string, unknown>) {
+  const response = await fetch("/api/control/media-assistant-config", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const result = (await response.json()) as
+    | { ok?: boolean; error?: string; config?: PromptRecipeDraftingConfig }
+    | (PromptRecipeDraftingConfig & { ok?: boolean; error?: string });
+  return {
+    ok: response.ok && result.ok !== false,
+    error: result.error,
+    config: parseSavedPromptRecipeDraftingConfig(result),
+  };
+}
+
 export async function probePromptRecipeDraftingProviderRequest(payload: {
   provider_kind: "openrouter" | "local_openai" | "codex_local";
   provider_model_id: string | null;
@@ -124,6 +140,33 @@ export async function probePromptRecipeDraftingProviderRequest(payload: {
   require_images: boolean;
 }) {
   const response = await fetch("/api/control/prompt-recipe-drafting-config/probe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const result = (await response.json()) as {
+    ok?: boolean;
+    error?: string;
+    credential_source?: string | null;
+    selected_model?: MediaEnhancementProviderModel | null;
+    available_models?: MediaEnhancementProviderModel[];
+  };
+  return {
+    ok: response.ok && result.ok !== false,
+    error: result.error,
+    credentialSource: result.credential_source ?? null,
+    selectedModel: result.selected_model ?? null,
+    availableModels: result.available_models ?? [],
+  };
+}
+
+export async function probeMediaAssistantProviderRequest(payload: {
+  provider_kind: "openrouter" | "local_openai" | "codex_local";
+  provider_model_id: string | null;
+  provider_base_url: string | null;
+  require_images: boolean;
+}) {
+  const response = await fetch("/api/control/media-assistant-config/probe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

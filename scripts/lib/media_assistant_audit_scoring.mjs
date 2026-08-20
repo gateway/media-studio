@@ -164,13 +164,6 @@ export function scoreGenerationDirectness({ prompt, slots, minScore }) {
   return { score: finalScore, passed: finalScore >= minScore && issues.length === 0, issues };
 }
 
-function fieldText(field) {
-  return [field.label, field.key, field.description, field.placeholder, field.default_value]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean)
-    .join(" ");
-}
-
 export function scoreFieldUsefulness({ fields, prompt, minScore }) {
   const issues = [];
   let score = 10;
@@ -185,7 +178,6 @@ export function scoreFieldUsefulness({ fields, prompt, minScore }) {
   for (const field of fields) {
     const label = String(field.label || field.key || "").trim();
     const key = String(field.key || "").trim();
-    const joined = fieldText(field).toLowerCase();
     const words = label.split(/[\s/_-]+/).filter(Boolean);
     if (!label || !key) {
       score -= 2;
@@ -196,17 +188,19 @@ export function scoreFieldUsefulness({ fields, prompt, minScore }) {
       score -= 1;
       issues.push(`field "${label}" is too wordy for normal users`);
     }
-    if (!/[a-z][a-z0-9_]*$/i.test(key)) {
+    if (!/^[a-z][a-z0-9_]*$/i.test(key)) {
       score -= 1;
       issues.push(`field "${label}" has a weak key`);
     }
-    if (/(brief|notes?|details?|style|archetype|palette|vibe|direction|concept)$/i.test(label)) {
-      score -= 2;
-      issues.push(`field "${label}" reads abstract; rewrite it as a concrete replaceable element`);
-    }
-    if (!/(title|text|headline|word|phrase|quote|copy|banner|name|model|year|era|marker|code|label|destination|location|landmark|route|road|highway|drive|animal|pet|creature|companion|cast|class|role|prop|product|vehicle|car|logo|team|outfit|wardrobe|footwear|shoe|sneaker|gear|accessory|accessories|color|moon|sun|disc|planet|portal|sky|cloud|star|symbol|symbols|spirit|room|decor|collectible|foreground|landscape|message|number|slogan|tagline|setting|background|character|subject|mascot|snack|treat|weapon|sword|blade|brand|damage|wear|weathering|scratch|scratches|scuff|scuffs|dent|dents|augmentation|augmentations|prosthetic|prosthetics|implant|implants)/i.test(joined)) {
+    const inputHint = field.placeholder || field.default_value || field.example;
+    if (!String(inputHint || "").trim()) {
       score -= 1;
-      issues.push(`field "${label}" may not be concrete enough for a user to fill quickly`);
+      issues.push(`field "${label}" needs a concrete input hint`);
+    }
+    const guidance = String(field.help_text || field.description || "").trim();
+    if (guidance.split(/\s+/).filter(Boolean).length < 3) {
+      score -= 1;
+      issues.push(`field "${label}" must explain its visible outcome`);
     }
     if (prompt && !String(prompt).toLowerCase().includes(label.toLowerCase()) && !String(prompt).includes(`{{${key}}}`)) {
       score -= 1;
@@ -236,15 +230,19 @@ export function scoreImageSlots({ slots, mode, prompt, minScore }) {
   for (const slot of slots) {
     const label = String(slot.label || slot.key || "").trim();
     const key = String(slot.key || "").trim();
-    const joined = [label, key, slot.description].map((value) => String(value || "").toLowerCase()).join(" ");
     if (!label || !key) {
       score -= 2;
       issues.push("image slot is missing a label or key");
       continue;
     }
-    if (/(reference|image|subject)$/i.test(label) && !/(face|body|person|character|subject|creature|product|vehicle|car|pet|animal|logo|room|background|location|wardrobe|outfit|prop|object|brand|identity|pose)/i.test(joined)) {
+    const guidance = String(slot.help_text || slot.description || "").trim();
+    if (guidance.split(/\s+/).filter(Boolean).length < 3) {
       score -= 1;
-      issues.push(`slot "${label}" needs a clearer role than a generic reference image`);
+      issues.push(`slot "${label}" must explain its visible asset role`);
+    }
+    if (isI2I && !slot.required) {
+      score -= 1;
+      issues.push(`slot "${label}" must be required for the image-to-image lane`);
     }
     if (prompt && !String(prompt).includes(`[[${key}]]`) && !String(prompt).toLowerCase().includes(label.toLowerCase())) {
       score -= 2;

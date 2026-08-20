@@ -27,9 +27,19 @@ function metricDetail(metrics: Record<string, unknown> | undefined) {
 }
 
 function skippedActivity(executionMode: unknown, skipReason: unknown): GraphNodeActivity {
+  if (skipReason === "upstream_failed") {
+    return {
+      label: "Skipped",
+      detail: "Blocked by failed node",
+      tone: "muted",
+    };
+  }
+  if (executionMode === "muted") {
+    return { label: "Muted", detail: "No output generated", tone: "muted" };
+  }
   if (executionMode === "frozen") {
     return {
-      label: "Muted",
+      label: "Frozen",
       detail: skipReason === "missing_cached_output" ? "No cached output" : "No output generated",
       tone: "muted",
     };

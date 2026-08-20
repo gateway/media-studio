@@ -3,6 +3,8 @@ import type {
   PromptRecipeCategory,
   PromptRecipeCustomField,
   PromptRecipeDraftPayload,
+  PromptRecipeFieldInputKind,
+  PromptRecipeFieldReferenceRole,
   PromptRecipeImageInput,
   PromptRecipeOutputFormat,
   PromptRecipeVariable,
@@ -23,20 +25,29 @@ export const PROMPT_RECIPE_OUTPUT_FORMATS: Array<{ value: PromptRecipeOutputForm
   { value: "structured_shot_sequence", label: "Structured Shot Sequence" },
 ];
 
+export const PROMPT_RECIPE_FIELD_INPUT_KINDS = ["none", "text", "image"] as const;
+export const PROMPT_RECIPE_FIELD_REFERENCE_ROLES = ["none", "character", "environment", "prop", "style", "additional", "generic"] as const;
+const PROMPT_RECIPE_DEFAULT_TEXT_INPUT_KEYS = new Set(["user_prompt", "source_prompt", "previous_output", "previous_storyboard_prompt", "continuation_brief"]);
+
 export const PROMPT_RECIPE_RESERVED_VARIABLES: PromptRecipeVariable[] = [
-  { key: "user_prompt", token: "{{user_prompt}}", label: "User Prompt", enabled: true, required: false, default_value: "", description: "User creative direction." },
+  { key: "user_prompt", token: "{{user_prompt}}", label: "User Prompt", enabled: true, required: false, default_value: "", description: "User creative direction.", input_kind: "text" },
   { key: "image_analysis", token: "{{image_analysis}}", label: "Image Analysis", enabled: false, required: false, default_value: "", description: "Analyzed reference-image description." },
-  { key: "source_prompt", token: "{{source_prompt}}", label: "Source Prompt", enabled: false, required: false, default_value: "", description: "Prompt text from an upstream node." },
+  { key: "source_prompt", token: "{{source_prompt}}", label: "Source Prompt", enabled: false, required: false, default_value: "", description: "Prompt text from an upstream node.", input_kind: "text" },
   { key: "source_image_prompt", token: "{{source_image_prompt}}", label: "Source Image Prompt", enabled: false, required: false, default_value: "", description: "Prompt used to create an upstream image." },
-  { key: "previous_output", token: "{{previous_output}}", label: "Previous Output", enabled: false, required: false, default_value: "", description: "Prior LLM output." },
+  { key: "reference_role_block", token: "{{reference_role_block}}", label: "Reference Role Block", enabled: false, required: false, default_value: "", description: "Graph-generated ordered image reference role map." },
+  { key: "reference_priority_rule", token: "{{reference_priority_rule}}", label: "Reference Priority Rule", enabled: false, required: false, default_value: "", description: "Graph-generated typed reference priority guidance." },
+  { key: "background_mode_block", token: "{{background_mode_block}}", label: "Background Mode Block", enabled: false, required: false, default_value: "", description: "Graph-generated background mode guidance." },
+  { key: "previous_output", token: "{{previous_output}}", label: "Previous Output", enabled: false, required: false, default_value: "", description: "Prior LLM output.", input_kind: "text" },
   { key: "shot_count", token: "{{shot_count}}", label: "Shot Count", enabled: false, required: false, default_value: "4", description: "Number of prompts or shots to create." },
   { key: "duration_seconds", token: "{{duration_seconds}}", label: "Duration Seconds", enabled: false, required: false, default_value: "5", description: "Target duration for a video shot." },
   { key: "aspect_ratio", token: "{{aspect_ratio}}", label: "Aspect Ratio", enabled: false, required: false, default_value: "16:9", description: "Target media aspect ratio." },
   { key: "output_format", token: "{{output_format}}", label: "Output Format", enabled: false, required: false, default_value: "", description: "Preferred returned format." },
   { key: "style_direction", token: "{{style_direction}}", label: "Style Direction", enabled: false, required: false, default_value: "", description: "Visual or genre direction." },
 ];
+export const PROMPT_RECIPE_RESERVED_VARIABLE_KEYS = new Set(PROMPT_RECIPE_RESERVED_VARIABLES.map((variable) => variable.key));
 
-export const PROMPT_RECIPE_KEY_RE = /^[a-z][a-z0-9_]*$/;
+export const PROMPT_RECIPE_KEY_RE = /^[a-z][a-z0-9_-]*$/;
+export const PROMPT_RECIPE_VARIABLE_KEY_RE = /^[a-z][a-z0-9_]*$/;
 const TOKEN_RE = /\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/g;
 const ANY_TOKEN_RE = /\{\{([^}]+)\}\}/g;
 const IMAGE_REFERENCE_RE = /\[\[\s*image[_\s-]*reference\s*(\d+)\s*\]\]|\[\s*image\s+reference\s+(\d+)\s*\]|@image\s*(\d+)/gi;
@@ -48,7 +59,7 @@ export function detectPromptRecipeVariables(template: string) {
 export function detectInvalidPromptRecipeTokens(template: string) {
   return Array.from(template.matchAll(ANY_TOKEN_RE))
     .map((match) => match[1].trim())
-    .filter((token) => !PROMPT_RECIPE_KEY_RE.test(token));
+    .filter((token) => !PROMPT_RECIPE_VARIABLE_KEY_RE.test(token));
 }
 
 export function highestPromptRecipeImageReferenceIndex(...values: string[]) {
@@ -73,6 +84,25 @@ export function slugifyPromptRecipeKey(value: string) {
     .replace(/_+/g, "_");
 }
 
+export function normalizePromptRecipeFieldInputKind(value: unknown, key = "") {
+  const inputKind = String(value ?? "").trim().toLowerCase();
+  if ((PROMPT_RECIPE_FIELD_INPUT_KINDS as readonly string[]).includes(inputKind)) {
+    return inputKind as (typeof PROMPT_RECIPE_FIELD_INPUT_KINDS)[number];
+  }
+  return PROMPT_RECIPE_DEFAULT_TEXT_INPUT_KEYS.has(key) ? "text" : "none";
+}
+
+export function normalizePromptRecipeFieldReferenceRole(value: unknown, inputKind: PromptRecipeFieldInputKind | string | undefined) {
+  if (inputKind !== "image") {
+    return "none";
+  }
+  const referenceRole = String(value ?? "").trim().toLowerCase();
+  if ((PROMPT_RECIPE_FIELD_REFERENCE_ROLES as readonly string[]).includes(referenceRole)) {
+    return referenceRole as PromptRecipeFieldReferenceRole;
+  }
+  return "none";
+}
+
 export function defaultPromptRecipeVariables(template = "{{user_prompt}}"): PromptRecipeVariable[] {
   const tokens = new Set(detectPromptRecipeVariables(template));
   tokens.add("user_prompt");
@@ -91,24 +121,50 @@ export function defaultPromptRecipeImageInput(): PromptRecipeImageInput {
     mode: "none",
     analysis_variable: "image_analysis",
     max_files: 0,
+    reference_roles: [],
   };
 }
 
 export function normalizePromptRecipeVariables(variables: PromptRecipeVariable[], template: string) {
   const byKey = new Map(variables.map((variable) => [variable.key, variable]));
   const tokens = new Set(detectPromptRecipeVariables(template));
-  return PROMPT_RECIPE_RESERVED_VARIABLES.map((reserved) => {
+  const reservedVariables = PROMPT_RECIPE_RESERVED_VARIABLES.map((reserved) => {
     const existing = byKey.get(reserved.key);
     return {
       ...reserved,
       ...existing,
       token: `{{${reserved.key}}}`,
       enabled: Boolean(existing?.enabled ?? tokens.has(reserved.key)),
+      input_kind: normalizePromptRecipeFieldInputKind(existing?.input_kind ?? reserved.input_kind, reserved.key),
+      reference_role: normalizePromptRecipeFieldReferenceRole(existing?.reference_role, normalizePromptRecipeFieldInputKind(existing?.input_kind ?? reserved.input_kind, reserved.key)),
     };
   });
+  const seenExtraKeys = new Set<string>();
+  const recipeVariables = variables
+    .filter((variable) => variable.key && !PROMPT_RECIPE_RESERVED_VARIABLE_KEYS.has(variable.key))
+    .filter((variable) => {
+      if (seenExtraKeys.has(variable.key)) {
+        return false;
+      }
+      seenExtraKeys.add(variable.key);
+      return true;
+    })
+    .map((variable) => {
+      const inputKind = normalizePromptRecipeFieldInputKind(variable.input_kind, variable.key);
+      return {
+        ...variable,
+        token: `{{${variable.key}}}`,
+        label: variable.label || variable.key,
+        enabled: Boolean(variable.enabled ?? tokens.has(variable.key)),
+        input_kind: inputKind,
+        reference_role: normalizePromptRecipeFieldReferenceRole(variable.reference_role, inputKind),
+      };
+    });
+  return [...reservedVariables, ...recipeVariables];
 }
 
 export function normalizePromptRecipeCustomField(field: Partial<PromptRecipeCustomField>): PromptRecipeCustomField {
+  const inputKind = normalizePromptRecipeFieldInputKind(field.input_kind, field.key ?? "");
   return {
     key: field.key ?? "",
     label: field.label ?? "",
@@ -118,6 +174,8 @@ export function normalizePromptRecipeCustomField(field: Partial<PromptRecipeCust
     required: Boolean(field.required),
     help_text: field.help_text ?? "",
     options: field.options ?? [],
+    input_kind: inputKind,
+    reference_role: normalizePromptRecipeFieldReferenceRole(field.reference_role, inputKind),
   };
 }
 
@@ -148,7 +206,7 @@ export function validatePromptRecipeDraft({
     return "Recipe name is required.";
   }
   if (!PROMPT_RECIPE_KEY_RE.test(key)) {
-    return "Recipe key must start with a lowercase letter and use lowercase letters, numbers, and underscores.";
+    return "Recipe key must start with a lowercase letter and use lowercase letters, numbers, hyphens, and underscores.";
   }
   if (!PROMPT_RECIPE_CATEGORIES.some((entry) => entry.value === category)) {
     return "Choose a valid category.";
@@ -165,9 +223,14 @@ export function validatePromptRecipeDraft({
   }
   const variableKeys = new Set(variables.map((variable) => variable.key));
   const reservedKeys = new Set(PROMPT_RECIPE_RESERVED_VARIABLES.map((variable) => variable.key));
+  for (const variable of variables) {
+    if (!PROMPT_RECIPE_FIELD_INPUT_KINDS.includes(normalizePromptRecipeFieldInputKind(variable.input_kind, variable.key))) {
+      return `Variable ${variable.key} has an unsupported graph input kind.`;
+    }
+  }
   const customKeys = new Set<string>();
   for (const field of customFields) {
-    if (!PROMPT_RECIPE_KEY_RE.test(field.key)) {
+    if (!PROMPT_RECIPE_VARIABLE_KEY_RE.test(field.key)) {
       return "Custom field keys must start with a lowercase letter and use lowercase letters, numbers, and underscores.";
     }
     if (reservedKeys.has(field.key) || variableKeys.has(field.key)) {
@@ -185,6 +248,9 @@ export function validatePromptRecipeDraft({
         return `Select field ${field.key} has duplicate options.`;
       }
     }
+    if (!PROMPT_RECIPE_FIELD_INPUT_KINDS.includes(normalizePromptRecipeFieldInputKind(field.input_kind, field.key))) {
+      return `Custom field ${field.key} has an unsupported graph input kind.`;
+    }
     customKeys.add(field.key);
   }
   const templateTokens = detectPromptRecipeVariables(template);
@@ -198,7 +264,7 @@ export function validatePromptRecipeDraft({
   }
   const maxFiles = Math.max(0, Number(imageInput.max_files) || 0);
   const analysisVariable = imageInput.analysis_variable?.trim() || "image_analysis";
-  if (!PROMPT_RECIPE_KEY_RE.test(analysisVariable)) {
+  if (!PROMPT_RECIPE_VARIABLE_KEY_RE.test(analysisVariable)) {
     return "Image analysis variable must start with a lowercase letter and use lowercase letters, numbers, and underscores.";
   }
   if (!imageInput.enabled) {
@@ -232,6 +298,13 @@ export function validatePromptRecipeDraft({
   }
   if (imageInput.enabled && ["analyze_then_inject", "both"].includes(imageInput.mode) && !imageAnalysisPrompt.trim()) {
     return "Image analysis mode needs an Image Analysis Prompt.";
+  }
+  const hasImageFieldInput = [...variables, ...customFields].some((item) => normalizePromptRecipeFieldInputKind(item.input_kind, item.key) === "image");
+  if (hasImageFieldInput && !imageInput.enabled) {
+    return "Image field inputs require image input to be enabled.";
+  }
+  if (hasImageFieldInput && maxFiles < 1) {
+    return "Image field inputs require Max Files to be at least 1.";
   }
   const highestImageReference = highestPromptRecipeImageReferenceIndex(template, imageAnalysisPrompt);
   if (highestImageReference > 0) {

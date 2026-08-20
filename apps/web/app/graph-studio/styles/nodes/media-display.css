@@ -162,15 +162,18 @@
   position: absolute;
   right: 0.45rem;
   bottom: 0.45rem;
+  z-index: 85;
   display: flex;
   gap: 0.35rem;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s ease;
 }
 
 .graph-node-preview:hover .graph-node-preview-actions,
 .graph-node-preview:focus-within .graph-node-preview-actions {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .graph-node-preview-actions button {
@@ -304,8 +307,19 @@
 .graph-display-any-text-wrap {
   position: relative;
   display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.graph-display-any-text-meta {
+  margin: 0 0 0.35rem;
+  color: var(--graph-text-muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .graph-display-any-text-wrap .graph-display-any-text {

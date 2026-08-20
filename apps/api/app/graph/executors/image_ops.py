@@ -6,9 +6,16 @@ from typing import Any, Dict, List, Tuple
 
 from PIL import Image, ImageColor, ImageOps
 
-from ... import service
-from ..media_refs import graph_ref_path
+from ... import service, store
+from ..media_refs import graph_ref_path, graph_ref_record
 from ..schemas import GraphOutputRef, GraphWorkflowNode
+from ..storyboard_sheet_renderer import render_storyboard_sheet
+from ..storyboard_sheet_spec import (
+    STORYBOARD_ART_SOURCE_CONTRACT,
+    storyboard_source_grid_id_for_panel_count,
+    storyboard_art_source_prompt_is_compatible,
+    storyboard_sheet_spec_from_mapping,
+)
 from .base import GraphExecutionContext, GraphExecutor
 
 
@@ -296,6 +303,93 @@ class ImageGridSliceExecutor(GraphExecutor):
                 )
             ],
         }
+
+
+class StoryboardSheetExecutor(GraphExecutor):
+    node_type = "image.storyboard_sheet"
+    max_dimension = 4096
+
+    def execute(self, node: GraphWorkflowNode, context: GraphExecutionContext) -> Dict[str, List[GraphOutputRef]]:
+        image_refs = context.inputs_for(node, "images")
+        spec_refs = context.inputs_for(node, "spec")
+        if not spec_refs or not isinstance(spec_refs[0].value, dict):
+            raise ValueError("Storyboard Sheet requires a StoryboardSheetSpec JSON input.")
+        spec = storyboard_sheet_spec_from_mapping(spec_refs[0].value)
+        panel_count = len(spec.panels)
+        source_grid = storyboard_source_grid_id_for_panel_count(panel_count)
+        if len(image_refs) not in {1, panel_count}:
+            raise ValueError(
+                f"Storyboard Sheet requires one {source_grid} source grid or exactly "
+                f"{panel_count} ordered image inputs."
+            )
+        _validate_storyboard_art_sources(image_refs, panel_count=panel_count)
+        started = perf_counter()
+        images: List[Image.Image] = []
+        for ref in image_refs:
+            source_path = graph_ref_path(ref, expected_media_type="image")
+            with Image.open(source_path) as image:
+                normalized = ImageOps.exif_transpose(image)
+                if normalized.width > self.max_dimension or normalized.height > self.max_dimension:
+                    raise ValueError("Storyboard Sheet source exceeds the maximum dimension.")
+                images.append(normalized.convert("RGB").copy())
+        rendered = render_storyboard_sheet(images, spec)
+        parent_ids = [ref.asset_id or ref.reference_id or ref.metadata.get("artifact_id") for ref in image_refs]
+        output_ref, output_width, output_height = _save_reference_image(
+            node,
+            rendered.image,
+            "png",
+            "storyboard-sheet",
+            metadata={
+                **rendered.metadata,
+                "lineage": {
+                    "transform_type": "image.storyboard_sheet",
+                    "parent_media_ids": [item for item in parent_ids if item],
+                    "transform_params": {
+                        "contract_version": spec.contract_version,
+                        "layout_version": spec.layout_version,
+                        "input_mode": rendered.metadata["input_mode"],
+                    },
+                },
+            },
+        )
+        context.record_node_metric(node, "utility_processing_duration_seconds", round(perf_counter() - started, 4))
+        context.record_node_metric(node, "output_width", output_width)
+        context.record_node_metric(node, "output_height", output_height)
+        context.record_node_metric(node, "storyboard_input_mode", rendered.metadata["input_mode"])
+        return {
+            "image": [output_ref],
+            "metadata": [GraphOutputRef(kind="value", media_type="json", value=rendered.metadata)],
+        }
+
+
+def _validate_storyboard_art_sources(image_refs: List[GraphOutputRef], *, panel_count: int = 6) -> None:
+    if len(image_refs) != 1:
+        return
+    expected_grid = storyboard_source_grid_id_for_panel_count(panel_count)
+    source = image_refs[0]
+    declared_contract = str(source.metadata.get("storyboard_art_source_contract") or "").strip()
+    declared_grid = str(source.metadata.get("storyboard_source_grid") or "").strip().lower()
+    if not source.asset_id:
+        # Manual reference-media grids remain a supported authoring path. They
+        # have no provider prompt provenance, so the operator owns their shape.
+        return
+    record = graph_ref_record(source) or {}
+    payload = record.get("payload_json") if isinstance(record.get("payload_json"), dict) else {}
+    declared_contract = declared_contract or str(payload.get("storyboard_art_source_contract") or "").strip()
+    declared_grid = declared_grid or str(payload.get("storyboard_source_grid") or "").strip().lower()
+    if declared_contract == STORYBOARD_ART_SOURCE_CONTRACT and declared_grid == expected_grid:
+        return
+    job_id = str(source.job_id or record.get("job_id") or "").strip()
+    job = store.get_job(job_id) if job_id else None
+    prompt = ""
+    if job:
+        prompt = str(job.get("final_prompt_used") or job.get("raw_prompt") or "")
+    if not storyboard_art_source_prompt_is_compatible(prompt, panel_count=panel_count):
+        raise ValueError(
+            "Storyboard Sheet rejected a cached complete-sheet or unknown model asset. "
+            f"Generate the source with the current art-only {expected_grid} source contract, "
+            f"or connect {panel_count} ordered panel images."
+        )
 
 
 class ImageSplitExecutor(GraphExecutor):

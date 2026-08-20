@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const DEFAULT_API_URL = process.env.MEDIA_STUDIO_API_URL || "http://127.0.0.1:8000";
 const DEFAULT_WEB_URL = process.env.MEDIA_STUDIO_WEB_URL || "http://127.0.0.1:3000";
@@ -116,16 +117,18 @@ function promptNode(workflowPayload) {
 }
 
 function contractFields(brief) {
-  return brief?.preset_contract?.fields || brief?.preset_contract?.form_fields || [];
+  return brief?.input_schema_json || brief?.preset_contract?.fields || brief?.preset_contract?.form_fields || [];
 }
 
 function contractSlots(brief) {
-  return brief?.preset_contract?.image_slots || [];
+  return brief?.input_slots_json || brief?.preset_contract?.image_slots || [];
 }
 
-function latestMediaPresetTrace(debugTrace) {
-  const traces = Array.isArray(debugTrace?.trace) ? debugTrace.trace : [];
-  return [...traces].reverse().find((item) => item?.skill === "media_preset_builder") || null;
+function latestReferenceAnalysis(summary) {
+  const entries = Object.values(summary?.reference_analysis_cache || {}).filter(
+    (entry) => entry && typeof entry === "object",
+  );
+  return entries.at(-1)?.analysis || null;
 }
 
 function naturalPrompt(mode, refCount) {
@@ -167,6 +170,86 @@ function slotTokensPresent(prompt, slots) {
   });
 }
 
+function kernelTrace(message) {
+  const content = message?.content_json;
+  const turn = content && typeof content === "object" ? content.kernel_turn : null;
+  return turn && typeof turn === "object" && turn.trace && typeof turn.trace === "object"
+    ? turn.trace
+    : {};
+}
+
+function turnTelemetry(name, message) {
+  const trace = kernelTrace(message);
+  const providerSteps = Array.isArray(trace.provider_steps) ? trace.provider_steps : [];
+  const toolSteps = Array.isArray(trace.tool_calls) ? trace.tool_calls : [];
+  return {
+    name,
+    duration_ms: Number(trace.duration_ms || 0),
+    provider_steps: providerSteps.length,
+    tool_steps: toolSteps.length,
+    provider_latency_ms: providerSteps.reduce((total, step) => total + Number(step?.latency_ms || 0), 0),
+    termination: String(trace.termination || ""),
+  };
+}
+
+export function buildNoPaidProofTelemetry({
+  sessionId,
+  intakeMessage,
+  planMessage,
+  summary,
+  selectedRefs,
+  plan,
+  jobIdsBefore,
+  jobIdsAfter,
+}) {
+  const messages = [intakeMessage, planMessage].filter(Boolean);
+  const traces = messages.map(kernelTrace);
+  const providerSteps = traces.flatMap((trace) => (Array.isArray(trace.provider_steps) ? trace.provider_steps : []));
+  const toolSteps = traces.flatMap((trace) => (Array.isArray(trace.tool_calls) ? trace.tool_calls : []));
+  const cacheEntries = Object.values(summary?.reference_analysis_cache || {}).filter(
+    (entry) => entry && typeof entry === "object",
+  );
+  const latestCache = cacheEntries[cacheEntries.length - 1] || {};
+  const price = plan?.pricing?.pricing_summary?.total || {};
+  const previousJobs = new Set(jobIdsBefore || []);
+  const newJobIds = (jobIdsAfter || []).filter((jobId) => !previousJobs.has(jobId));
+  const threadIds = providerSteps.map((step) => String(step?.provider_thread_id || "")).filter(Boolean);
+
+  return {
+    schema_version: 1,
+    assistant_session_id: sessionId,
+    provider: {
+      thread_id: threadIds[threadIds.length - 1] || null,
+      process_spawns: providerSteps.filter((step) => step?.process_lifecycle === "process_spawned").length,
+      reuse_modes: [...new Set(providerSteps.map((step) => step?.reuse_mode).filter(Boolean))],
+    },
+    turns: [
+      turnTelemetry("reference_intake", intakeMessage),
+      ...(planMessage ? [turnTelemetry("test_graph_plan", planMessage)] : []),
+    ],
+    attachments: {
+      reference_count: selectedRefs.length,
+      attachment_set_hash: String(latestCache.attachment_set_hash || ""),
+      cache_statuses: [...new Set(toolSteps.map((step) => step?.cache_status).filter(Boolean))],
+    },
+    plan: {
+      assistant_plan_id: plan?.plan?.assistant_plan_id || null,
+      workflow_fingerprint: plan?.graph_plan?.metadata?.base_workflow_fingerprint || null,
+      validation_valid: plan?.validation?.valid === true,
+      validation_error_count: Array.isArray(plan?.validation?.errors) ? plan.validation.errors.length : 0,
+      estimated_credits: price.estimated_credits ?? null,
+      estimated_cost_usd: price.estimated_cost_usd ?? null,
+      pricing_authoritative: plan?.pricing?.pricing_summary?.is_authoritative === true || price.authoritative === true,
+    },
+    run: {
+      run_id: null,
+      new_job_ids: newJobIds,
+      no_job_created: newJobIds.length === 0,
+    },
+    saved_preset: { preset_id: null, key: null },
+  };
+}
+
 async function main() {
   loadDotEnv();
   const options = parseArgs(process.argv.slice(2));
@@ -197,7 +280,7 @@ async function main() {
   }
 
   const health = await api("/health");
-  checks.push(check("api_health", health?.status === "ok", "API health is ok", health));
+  checks.push(check("api_health", health?.status === "ok", "API health is ok", { status: health?.status }));
   checks.push(check("runner_health", health?.runner_health === "healthy", "Runner is healthy", { runner_health: health?.runner_health }));
   checks.push(check("queue_observed", Number(health?.queued_jobs || 0) >= 0 && Number(health?.running_jobs || 0) >= 0, "Queue state observed", {
     queued_jobs: health?.queued_jobs,
@@ -206,6 +289,7 @@ async function main() {
 
   const webResponse = await fetch(`${options.webUrl}/graph-studio`, { cache: "no-store" });
   checks.push(check("web_graph_studio", webResponse.ok, `Graph Studio route ${webResponse.status}`));
+  const jobsBefore = await api("/media/jobs?limit=500");
 
   const refsPayload = await api("/media/reference-media?kind=image&limit=500");
   const refs = referenceMap(refsPayload.items || []);
@@ -218,6 +302,7 @@ async function main() {
 
   const ownerId = `qa-preset-loop-${options.mode}-${Date.now()}`;
   const baseWorkflow = workflow(`QA preset loop ${options.mode}`);
+  baseWorkflow.workflow_id = ownerId;
   checks.push(check("fresh_workflow_without_database_deletion", baseWorkflow.nodes.length === 0 && baseWorkflow.edges.length === 0, "Fresh empty workflow object created; database was not reset/deleted/truncated."));
 
   const session = await api("/media/assistant/sessions", {
@@ -255,19 +340,30 @@ async function main() {
     }),
   });
   const latestMessage = intake.messages?.[intake.messages.length - 1] || {};
-  const brief = intake.summary_json?.reference_style_brief || latestMessage.content_json?.reference_style_brief || null;
+  const intakeSummary = intake.summary_json || {};
+  const brief = intakeSummary.reference_style_brief || latestMessage.content_json?.reference_style_brief || latestReferenceAnalysis(intakeSummary);
+  const draft = intakeSummary.kernel_preset_draft || brief;
   checks.push(check("natural_user_prompt_sent", true, "Natural user prompt sent through assistant messages", { user_prompt: userPrompt }));
   checks.push(check("style_brief_created", Boolean(brief), "Structured reference style brief created"));
   checks.push(check("assistant_reply_compact", String(latestMessage.content_text || "").length <= 900, "Assistant reply stayed compact", {
     reply_preview: String(latestMessage.content_text || "").slice(0, 500),
   }));
 
-  const debugTrace = await api(`/media/assistant/sessions/${sessionId}/debug-trace`);
-  const trace = latestMediaPresetTrace(debugTrace);
-  checks.push(check("active_skill_media_preset_builder", trace?.skill === "media_preset_builder", "Active skill is media_preset_builder", trace ? { skill: trace.skill } : null));
-  checks.push(check("provider_called", trace?.provider_called === true, "Provider was called for fresh reference analysis", trace ? { provider_called: trace.provider_called } : null));
-  checks.push(check("provider_thread_id_exists", Boolean(trace?.provider_thread_id), "Provider thread id exists", trace ? { provider_thread_id: trace.provider_thread_id } : null));
-  checks.push(check("cache_decision_correct", trace?.cache_decision === "none" || trace?.cache_decision === "same_loop_reuse", "Cache decision is valid for this turn", trace ? { cache_decision: trace.cache_decision } : null));
+  const intakeKernelTrace = kernelTrace(latestMessage);
+  const intakeProviderSteps = Array.isArray(intakeKernelTrace.provider_steps) ? intakeKernelTrace.provider_steps : [];
+  const intakeToolSteps = Array.isArray(intakeKernelTrace.tool_calls) ? intakeKernelTrace.tool_calls : [];
+  const providerThreadId = intakeProviderSteps.map((step) => step?.provider_thread_id).filter(Boolean).at(-1) || intake.provider_thread_id || null;
+  const cacheStatuses = intakeToolSteps.map((step) => step?.cache_status).filter(Boolean);
+  checks.push(check("active_skill_media_preset_builder", latestMessage.content_json?.capability === "preset_builder", "Active capability is preset_builder", {
+    capability: latestMessage.content_json?.capability || null,
+  }));
+  checks.push(check("provider_called", intakeProviderSteps.length > 0, "Provider was called for fresh reference analysis", {
+    provider_steps: intakeProviderSteps.length,
+  }));
+  checks.push(check("provider_thread_id_exists", Boolean(providerThreadId), "Provider thread id exists", { provider_thread_id: providerThreadId }));
+  checks.push(check("reference_cache_observed", cacheStatuses.includes("miss") || cacheStatuses.includes("hit"), "Reference-analysis cache status is recorded", {
+    cache_statuses: cacheStatuses,
+  }));
 
   const plan = await api(`/media/assistant/sessions/${sessionId}/plans`, {
     method: "POST",
@@ -280,8 +376,8 @@ async function main() {
   });
   const planMetadata = plan.graph_plan?.metadata || {};
   const prompt = promptNode(plan.workflow)?.fields?.text || "";
-  const fields = contractFields(brief);
-  const slots = contractSlots(brief);
+  const fields = contractFields(draft);
+  const slots = contractSlots(draft);
   const fieldChecks = fieldTokensPresent(prompt, fields);
   const slotChecks = slotTokensPresent(prompt, slots);
   const expectedTemplate = options.mode === "text-to-image" ? "preset_style_t2i_sandbox_v1" : "preset_style_i2i_sandbox_v1";
@@ -301,6 +397,22 @@ async function main() {
     error_count: plan.validation?.errors?.length || 0,
   }));
   checks.push(check("screenshots_only_when_useful", true, "No screenshot captured: API/trace checks were sufficient for this no-paid QA run."));
+  const sessionAfterPlan = await api(`/media/assistant/sessions/${sessionId}`);
+  const planMessage = [...(sessionAfterPlan.messages || [])].reverse().find(
+    (message) => message.role === "assistant" && message.assistant_message_id !== latestMessage.assistant_message_id,
+  );
+  const jobsAfter = await api("/media/jobs?limit=500");
+  const proofTelemetry = buildNoPaidProofTelemetry({
+    sessionId,
+    intakeMessage: latestMessage,
+    planMessage,
+    summary: sessionAfterPlan.summary_json || intake.summary_json || {},
+    selectedRefs,
+    plan,
+    jobIdsBefore: (jobsBefore.items || []).map((job) => job.job_id),
+    jobIdsAfter: (jobsAfter.items || []).map((job) => job.job_id),
+  });
+  checks.push(check("no_paid_job_created", proofTelemetry.run.no_job_created, "No media job was created by the no-paid proof", proofTelemetry.run));
 
   const report = {
     ok: checks.every((item) => item.ok),
@@ -312,7 +424,15 @@ async function main() {
     workflow_owner_id: ownerId,
     reference_filenames: selectedRefs.map((ref) => ref.original_filename),
     checks,
-    trace_summary: trace,
+    proof_telemetry: proofTelemetry,
+    trace_summary: {
+      capability: latestMessage.content_json?.capability || null,
+      provider_thread_id: providerThreadId,
+      provider_steps: intakeProviderSteps.length,
+      tool_steps: intakeToolSteps.length,
+      duration_ms: Number(intakeKernelTrace.duration_ms || 0),
+      termination: intakeKernelTrace.termination || null,
+    },
     plan_summary: {
       assistant_plan_id: plan.plan?.assistant_plan_id,
       template_id: planMetadata.template_id,
@@ -334,7 +454,9 @@ async function main() {
   process.exit(report.ok ? 0 : 1);
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}

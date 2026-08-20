@@ -27,5 +27,8 @@ package-dir = {"" = "."}
 [tool.setuptools.packages.find]
 where = ["."]
 
+[tool.setuptools.package-data]
+"app.graph" = ["assets/*.ttf", "assets/OFL.txt"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

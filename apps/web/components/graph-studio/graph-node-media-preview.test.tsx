@@ -159,4 +159,48 @@ describe("GraphNodeMediaPreview", () => {
 
     expect(onOpenImageLibrary).toHaveBeenCalledWith("load-motion", "video");
   });
+
+  it("opens replacement once for one complete pointer click sequence", () => {
+    const onOpenImageLibrary = vi.fn();
+    const onOpenEvent = vi.fn();
+    window.addEventListener("graph-studio-open-image-library", onOpenEvent);
+    render(
+      <GraphNodeMediaPreview
+        nodeId="load-portrait"
+        data={makeNodeData({
+          definition: {
+            type: "media.load_image",
+            title: "Load Image",
+            category: "Media",
+            ports: { inputs: [], outputs: [] },
+            fields: [],
+          },
+          mediaPreview: {
+            mediaType: "image",
+            url: "/references/portrait-thumb.webp",
+          },
+          onOpenImageLibrary,
+        })}
+        isLoadMedia
+        isSaveMedia={false}
+      />,
+    );
+
+    const replace = screen.getByRole("button", {
+      name: "Replace media from library",
+    });
+    fireEvent.pointerDown(replace);
+    fireEvent.pointerUp(replace);
+    fireEvent.mouseUp(replace);
+    fireEvent.click(replace, { detail: 1 });
+
+    expect(onOpenImageLibrary).toHaveBeenCalledTimes(1);
+    expect(onOpenImageLibrary).toHaveBeenCalledWith("load-portrait", "image");
+    expect(onOpenEvent).toHaveBeenCalledTimes(1);
+    expect((onOpenEvent.mock.calls[0][0] as CustomEvent).detail).toEqual({
+      nodeId: "load-portrait",
+      mediaType: "image",
+    });
+    window.removeEventListener("graph-studio-open-image-library", onOpenEvent);
+  });
 });

@@ -9,7 +9,22 @@ import type { GraphRun, GraphRunTransportMetrics, GraphWorkspaceTab } from "./ty
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
+
+function rect(left: number, width: number) {
+  return {
+    x: left,
+    y: 0,
+    left,
+    top: 0,
+    right: left + width,
+    bottom: 28,
+    width,
+    height: 28,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
 
 function makeRun(overrides: Partial<GraphRun> = {}): GraphRun {
   return {
@@ -119,6 +134,46 @@ describe("GraphToolbar", () => {
     expect(pricingPill.textContent).toContain("price ? + unknown");
     expect(pricingPill.getAttribute("title")).toContain("Unknown model pricing");
     expect(container.querySelector(".graph-pricing-warning-count")).toBeNull();
+  });
+
+  it("hides the graph pricing pill when the graph cost is included", () => {
+    renderToolbar(null, {
+      graphPricing: {
+        pricing_summary: {
+          total: { estimated_credits: null, estimated_cost_usd: null },
+          pricing_status: "subscription_included",
+          has_numeric_estimate: false,
+          has_unknown_pricing: false,
+        },
+        nodes: {},
+        warnings: [],
+      },
+    });
+
+    expect(screen.queryByTestId("graph-pricing-balance")).toBeNull();
+  });
+
+  it("anchors the workflow menu under the active tab", () => {
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function getToolbarRect() {
+      const element = this as Element;
+      if (element.classList.contains("graph-toolbar")) return rect(100, 800);
+      if (element.classList.contains("graph-workflow-tab-shell") && element.textContent?.includes("Background workflow")) {
+        return rect(310, 108);
+      }
+      return rect(100, 108);
+    });
+    const tabs: GraphWorkspaceTab[] = [
+      { tab_id: "tab-1", workflow_name: "Current workflow", workflow_id: "workflow-1", run_id: null, run_status: null, dirty: false },
+      { tab_id: "tab-2", workflow_name: "Background workflow", workflow_id: "workflow-2", run_id: null, run_status: null, dirty: false },
+    ];
+
+    renderToolbar(null, {
+      tabs,
+      activeTabId: "tab-2",
+      workflowMenuOpen: true,
+    });
+
+    expect(screen.getByTestId("graph-workflow-menu").style.getPropertyValue("--graph-workflow-menu-left")).toBe("210px");
   });
 
   it("exposes a close other tabs action from the active workflow menu", () => {

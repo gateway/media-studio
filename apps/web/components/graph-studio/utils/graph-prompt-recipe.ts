@@ -20,6 +20,8 @@ type PromptRecipeSelectionSummary = {
   details: string[];
 };
 
+const PROMPT_RECIPE_IMAGE_PORTS = new Set(["character_ref", "environment_ref", "prop_refs", "style_ref", "additional_refs", "image_refs"]);
+
 export type PromptRecipeCatalogItem = {
   recipe_id: string;
   key: string;
@@ -124,7 +126,7 @@ export function graphPromptRecipeImageWarning(
   if (!imageInput?.enabled) return null;
   const mode = String(imageInput.mode ?? "none").trim();
   if (!mode || mode === "none") return null;
-  if (connectedInputPorts.includes("image_refs")) return null;
+  if (connectedInputPorts.some((portId) => PROMPT_RECIPE_IMAGE_PORTS.has(portId))) return null;
   return "This recipe can look at images, but no images are connected to Image References.";
 }
 

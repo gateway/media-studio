@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
-from typing import Dict, List
+from typing import Dict, List, Mapping, Optional
 
 from .. import store
 from .artifacts import output_payload_to_refs, register_output_artifacts
@@ -23,6 +24,7 @@ from .executors.image_ops import (
     ImagePadExecutor,
     ImageResizeExecutor,
     ImageSplitExecutor,
+    StoryboardSheetExecutor,
     ImageTransformExecutor,
 )
 from .executors.kie_model import KieModelExecutor, completed_kie_job_outputs, wait_for_existing_kie_job
@@ -31,6 +33,7 @@ from .executors.media_save import SaveAudioExecutor, SaveImageExecutor, SaveImag
 from .executors.preset_ops import PresetRenderExecutor
 from .executors.preview_ops import PreviewAudioExecutor, PreviewImageExecutor, PreviewVideoExecutor
 from .executors.prompt_ops import PromptConcatExecutor, PromptImageAnalyzerExecutor, PromptLlmExecutor, PromptParseExecutor, PromptRecipeExecutor, PromptTextExecutor
+from .executors.storyboard_ops import StoryboardCompileExecutor
 from .executors.video_ops import (
     VideoConvertContainerExecutor,
     VideoCombineExecutor,
@@ -46,6 +49,37 @@ from .schemas import GraphRun, GraphRunNode, GraphWorkflow
 from .validator import validate_workflow
 
 logger = logging.getLogger(__name__)
+
+
+def provider_spend_metrics(
+    node_metrics_by_id: Dict[str, Dict],
+    jobs_by_id: Optional[Mapping[str, Dict]] = None,
+) -> Dict[str, float]:
+    total_credits = 0.0
+    found_credits = False
+    job_ids = {
+        str(metrics.get("job_id") or "").strip()
+        for metrics in node_metrics_by_id.values()
+        if str(metrics.get("job_id") or "").strip()
+    }
+    jobs = (
+        jobs_by_id
+        if jobs_by_id is not None
+        else {job_id: store.get_job(job_id) or {} for job_id in job_ids}
+    )
+    for job_id in job_ids:
+        job = jobs.get(job_id) or {}
+        status = job.get("final_status_json") if isinstance(job.get("final_status_json"), dict) else {}
+        raw = status.get("raw_response") if isinstance(status.get("raw_response"), dict) else {}
+        data = raw.get("data") if isinstance(raw.get("data"), dict) else {}
+        credits = data.get("creditsConsumed")
+        if isinstance(credits, bool) or not isinstance(credits, (int, float)):
+            continue
+        if not math.isfinite(float(credits)) or float(credits) <= 0:
+            continue
+        total_credits += float(credits)
+        found_credits = True
+    return {"actual_credits": round(total_credits, 4)} if found_credits else {}
 
 
 def _aggregate_usage_metrics(node_metrics_by_id: Dict[str, Dict]) -> Dict[str, object]:
@@ -84,6 +118,7 @@ def _aggregate_usage_metrics(node_metrics_by_id: Dict[str, Dict]) -> Dict[str, o
         "cache_write_tokens": cache_write_tokens,
         "usage_event_ids": usage_event_ids,
         "provider_response_ids": provider_response_ids,
+        **provider_spend_metrics(node_metrics_by_id),
     }
 
 
@@ -119,6 +154,42 @@ def _output_payload(outputs: Dict[str, List]) -> Dict[str, List[Dict]]:
     return {key: [item.model_dump(mode="json") for item in value] for key, value in outputs.items()}
 
 
+def _usable_cached_output_for_node(workflow_id: str, node) -> tuple[Dict[str, List] | None, str | None]:
+    cached = cached_output_for_node(workflow_id, node)
+    if not cached:
+        return None, None
+    cached_run_id = str(cached.get("run_id") or "")
+    output_snapshot = cached.get("output_snapshot_json") or {}
+    if not cached_artifacts_available(node, cached_run_id):
+        return None, None
+    if not cached_output_media_available(output_snapshot):
+        return None, None
+    return output_payload_to_refs(output_snapshot), cached_run_id
+
+
+def _snapshot_ref_value(ref) -> object:
+    if getattr(ref, "kind", None) == "value":
+        return getattr(ref, "value", None)
+    return ref.model_dump(mode="json")
+
+
+def _resolved_input_snapshot(node, context: GraphExecutionContext) -> Dict[str, object]:
+    snapshot: Dict[str, object] = dict(node.fields)
+    incoming_by_port: Dict[str, List[object]] = {}
+    for edge in context.workflow.edges:
+        if edge.target != node.id:
+            continue
+        values = [_snapshot_ref_value(ref) for ref in context.edge_outputs.get(edge.id, [])]
+        if not values:
+            continue
+        incoming_by_port.setdefault(edge.target_port, []).extend(values)
+    for port_id, values in incoming_by_port.items():
+        if port_id in snapshot and snapshot.get(port_id) not in ("", None, [], {}):
+            snapshot[f"{port_id}__field_value"] = snapshot[port_id]
+        snapshot[port_id] = values[0] if len(values) == 1 else values
+    return snapshot
+
+
 def _is_interrupted_run(record: Dict) -> bool:
     status = str(record.get("status") or "").strip()
     if status in {"queued", "running", "cancelling"}:
@@ -126,7 +197,7 @@ def _is_interrupted_run(record: Dict) -> bool:
     if status != "failed":
         return False
     error = str(record.get("error") or "").lower()
-    if "interrupted" in error:
+    if "interrupted" in error or error.startswith("poll failed:"):
         return True
     for event in store.list_graph_run_events(str(record.get("run_id") or "")):
         if str(event.get("event_type") or "") != "run.failed":
@@ -135,6 +206,49 @@ def _is_interrupted_run(record: Dict) -> bool:
         if payload.get("interrupted") is True:
             return True
     return False
+
+
+def _can_reuse_resume_node(record: Dict) -> bool:
+    status = str(record.get("status") or "").strip()
+    if status in {"completed", "cached", "bypassed"}:
+        return True
+    if status != "skipped":
+        return False
+    metrics = record.get("metrics_json") if isinstance(record.get("metrics_json"), dict) else {}
+    return str(metrics.get("skip_reason") or "").strip() != "upstream_failed"
+
+
+def _node_execution_priority(node) -> int:
+    if str(node.type or "").startswith("media.save_"):
+        return 0
+    if str(node.type or "").startswith("preview.") or node.type == "display.any":
+        return 1
+    if str(node.type or "").startswith("model.kie."):
+        return 30
+    return 10
+
+
+def _prioritized_execution_order(workflow: GraphWorkflow, execution_order: List[str], depends_on_by_id: Dict[str, set[str]]) -> List[str]:
+    nodes_by_id = {node.id: node for node in workflow.nodes}
+    original_index = {node_id: index for index, node_id in enumerate(execution_order)}
+    remaining = list(execution_order)
+    completed: set[str] = set()
+    ordered: List[str] = []
+    while remaining:
+        ready = [node_id for node_id in remaining if depends_on_by_id.get(node_id, set()).issubset(completed)]
+        if not ready:
+            return execution_order
+        node_id = min(
+            ready,
+            key=lambda candidate: (
+                _node_execution_priority(nodes_by_id[candidate]),
+                original_index.get(candidate, 0),
+            ),
+        )
+        remaining.remove(node_id)
+        completed.add(node_id)
+        ordered.append(node_id)
+    return ordered
 
 
 def _submitted_kie_events_by_node(run_id: str) -> Dict[str, Dict]:
@@ -151,6 +265,59 @@ def _submitted_kie_events_by_node(run_id: str) -> Dict[str, Dict]:
     return submitted
 
 
+def _skip_queued_nodes_after_failure(
+    *,
+    run_id: str,
+    workflow: GraphWorkflow,
+    failed_node_id: str | None,
+    context: GraphExecutionContext | None,
+    node_metrics_by_id: Dict[str, Dict],
+) -> List[str]:
+    nodes_by_id = {node.id: node for node in workflow.nodes}
+    skipped_node_ids: List[str] = []
+    for run_node in store.list_graph_run_nodes(run_id):
+        if str(run_node.get("status") or "").strip() != "queued":
+            continue
+        node_id = str(run_node.get("node_id") or "")
+        node = nodes_by_id.get(node_id)
+        execution_mode = _node_execution_mode(node) if node else "enabled"
+        skip_reason = "muted" if execution_mode == "muted" else "upstream_failed"
+        metrics = {
+            "execution_mode": execution_mode,
+            "skip_reason": skip_reason,
+            "blocked_by_node_id": failed_node_id,
+            "output_ref_count": 0,
+        }
+        node_metrics_by_id[node_id] = metrics
+        output_payload = {}
+        if node and execution_mode == "muted":
+            cached_outputs, cached_run_id = _usable_cached_output_for_node(str(workflow.workflow_id or ""), node)
+            if cached_outputs:
+                output_payload = _output_payload(cached_outputs)
+                metrics.update(
+                    {
+                        "cached": True,
+                        "carried_forward": True,
+                        "cached_run_id": cached_run_id,
+                        "output_ref_count": sum(len(value) for value in cached_outputs.values()),
+                    }
+                )
+        update_payload = {
+            "status": "skipped",
+            "progress": 1,
+            "error": None,
+            "output_snapshot_json": output_payload,
+            "metrics_json": metrics,
+            "finished_at": store.utcnow_iso(),
+        }
+        if context and node_id in context.node_input_snapshots:
+            update_payload["input_snapshot_json"] = context.node_input_snapshots[node_id]
+        store.update_graph_run_node(run_id, node_id, update_payload)
+        emit(run_id, "node.skipped", {"execution_mode": execution_mode, "reason": skip_reason, "metrics": metrics}, node_id=node_id)
+        skipped_node_ids.append(node_id)
+    return skipped_node_ids
+
+
 class GraphRuntime:
     def __init__(self) -> None:
         executors: List[GraphExecutor] = [
@@ -159,6 +326,7 @@ class GraphRuntime:
             PromptLlmExecutor(),
             PromptImageAnalyzerExecutor(),
             PromptRecipeExecutor(),
+            StoryboardCompileExecutor(),
             PromptParseExecutor(),
             LoadImageExecutor(),
             LoadVideoExecutor(),
@@ -167,6 +335,7 @@ class GraphRuntime:
             ImageTransformExecutor(),
             ImageResizeExecutor(),
             ImageGridSliceExecutor(),
+            StoryboardSheetExecutor(),
             ImageSplitExecutor(),
             ImageCropExecutor(),
             ImagePadExecutor(),
@@ -227,16 +396,32 @@ class GraphRuntime:
         )
         emit(run["run_id"], "run.created", {"workflow_id": workflow_id})
         if start:
-            thread = threading.Thread(target=self.execute_run, args=(run["run_id"],), name=f"graph-run-{run['run_id']}", daemon=True)
-            thread.start()
+            self.start_run(run["run_id"])
         return self._shape_run(run)
+
+    def start_run(self, run_id: str) -> None:
+        thread = threading.Thread(
+            target=self.execute_run,
+            args=(run_id,),
+            name=f"graph-run-{run_id}",
+            daemon=True,
+        )
+        thread.start()
 
     def recover_interrupted_runs(self, *, start: bool = True, limit: int = 100) -> int:
         recovered = 0
         for run in store.list_graph_runs(limit=limit):
             if not _is_interrupted_run(run):
                 continue
-            result = self.recover_run(str(run["run_id"]), start=start)
+            run_id = str(run["run_id"])
+            try:
+                result = self.recover_run(run_id, start=start)
+            except Exception:
+                # Historical run snapshots can outlive the node/port contracts
+                # they were compiled against. One incompatible snapshot must not
+                # prevent Media Studio from starting and recovering newer runs.
+                logger.exception("Skipped incompatible interrupted Graph Studio run %s during startup recovery.", run_id)
+                continue
             if result["recovered"]:
                 recovered += 1
         return recovered
@@ -257,12 +442,12 @@ class GraphRuntime:
         recovered_node_ids: List[str] = []
         resumable_node_ids: List[str] = []
         terminal_provider_failures: List[str] = []
+        depends_on_by_id = {node_id: set(compiled_node.depends_on) for node_id, compiled_node in compiled.nodes.items()}
 
-        for node_id in compiled.execution_order:
+        for node_id in _prioritized_execution_order(workflow, compiled.execution_order, depends_on_by_id):
             node = nodes_by_id[node_id]
             existing = run_nodes_by_id.get(node.id) or {}
-            existing_status = str(existing.get("status") or "").strip()
-            if existing_status in {"completed", "cached", "bypassed", "skipped"}:
+            if _can_reuse_resume_node(existing):
                 context.publish_outputs(node, output_payload_to_refs(existing.get("output_snapshot_json") or {}))
                 continue
             submitted = submitted_by_node.get(node.id)
@@ -439,7 +624,8 @@ class GraphRuntime:
             existing_run_nodes = {str(item.get("node_id") or ""): item for item in store.list_graph_run_nodes(run_id)} if resume else {}
             active_node_id = None
             node_metrics_by_id: Dict[str, Dict] = {}
-            for node_id in compiled.execution_order:
+            depends_on_by_id = {node_id: set(compiled_node.depends_on) for node_id, compiled_node in compiled.nodes.items()}
+            for node_id in _prioritized_execution_order(workflow, compiled.execution_order, depends_on_by_id):
                 context.raise_if_cancel_requested()
                 node = nodes_by_id[node_id]
                 active_node_id = node.id
@@ -447,16 +633,29 @@ class GraphRuntime:
                 definition = compiled.node_definitions.get(node.type)
                 existing_run_node = existing_run_nodes.get(node.id)
                 if resume and existing_run_node:
-                    existing_status = str(existing_run_node.get("status") or "").strip()
-                    if existing_status in {"completed", "cached", "bypassed", "skipped"}:
+                    if _can_reuse_resume_node(existing_run_node):
                         outputs = output_payload_to_refs(existing_run_node.get("output_snapshot_json") or {})
                         context.publish_outputs(node, outputs)
                         node_metrics_by_id[node.id] = dict(existing_run_node.get("metrics_json") or {})
                         active_node_id = None
                         continue
                 if execution_mode == "muted":
-                    context.publish_outputs(node, {})
-                    node_metrics = {"execution_mode": "muted", "output_ref_count": 0}
+                    cached_outputs, cached_run_id = _usable_cached_output_for_node(str(run["workflow_id"]), node)
+                    if cached_outputs:
+                        context.publish_outputs(node, cached_outputs)
+                        output_payload = _output_payload(cached_outputs)
+                        node_metrics = {
+                            "execution_mode": "muted",
+                            "skip_reason": "muted",
+                            "cached": True,
+                            "carried_forward": True,
+                            "cached_run_id": cached_run_id,
+                            "output_ref_count": sum(len(value) for value in cached_outputs.values()),
+                        }
+                    else:
+                        context.publish_outputs(node, {})
+                        output_payload = {}
+                        node_metrics = {"execution_mode": "muted", "skip_reason": "muted", "cached": False, "output_ref_count": 0}
                     node_metrics_by_id[node.id] = node_metrics
                     store.update_graph_run_node(
                         run_id,
@@ -465,12 +664,12 @@ class GraphRuntime:
                             "status": "skipped",
                             "progress": 1,
                             "error": None,
-                            "output_snapshot_json": {},
+                            "output_snapshot_json": output_payload,
                             "metrics_json": node_metrics,
                             "finished_at": store.utcnow_iso(),
                         },
                     )
-                    emit(run_id, "node.skipped", {"execution_mode": "muted"}, node_id=node.id)
+                    emit(run_id, "node.skipped", {"execution_mode": "muted", **output_payload, "metrics": node_metrics}, node_id=node.id)
                     active_node_id = None
                     continue
                 if execution_mode == "frozen":
@@ -555,9 +754,20 @@ class GraphRuntime:
                     raise ValueError(f"No executor for node type: {node.type}")
                 emit(run_id, "node.queued", node_id=node.id)
                 node_started_monotonic = time.perf_counter()
-                store.update_graph_run_node(run_id, node.id, {"status": "running", "started_at": store.utcnow_iso(), "progress": 0.1})
-                emit(run_id, "node.started", {"node_type": node.type}, node_id=node.id)
                 input_refs = context.all_inputs_for(node)
+                input_snapshot = _resolved_input_snapshot(node, context)
+                context.record_node_input_snapshot(node, input_snapshot)
+                store.update_graph_run_node(
+                    run_id,
+                    node.id,
+                    {
+                        "status": "running",
+                        "started_at": store.utcnow_iso(),
+                        "progress": 0.1,
+                        "input_snapshot_json": input_snapshot,
+                    },
+                )
+                emit(run_id, "node.started", {"node_type": node.type}, node_id=node.id)
                 if resume and node.type.startswith("model.kie.") and existing_run_node:
                     metrics = existing_run_node.get("metrics_json") or {}
                     job_id = str(metrics.get("job_id") or "").strip()
@@ -592,6 +802,7 @@ class GraphRuntime:
                         "status": "completed",
                         "progress": 1,
                         "error": None,
+                        "input_snapshot_json": context.node_input_snapshots.get(node.id, input_snapshot),
                         "output_snapshot_json": output_payload,
                         "metrics_json": node_metrics,
                         "finished_at": store.utcnow_iso(),
@@ -647,22 +858,35 @@ class GraphRuntime:
                 **_aggregate_usage_metrics(context.node_metrics if "context" in locals() else {}),
             }
             if "active_node_id" in locals() and active_node_id:
+                failed_node_update = {
+                    "status": "failed",
+                    "progress": 1,
+                    "error": str(exc),
+                    "metrics_json": {
+                        **(context.node_metrics.get(active_node_id, {}) if "context" in locals() else {}),
+                        "duration_seconds": round(time.perf_counter() - node_started_monotonic, 4) if "node_started_monotonic" in locals() else None,
+                        "error": str(exc),
+                    },
+                    "finished_at": store.utcnow_iso(),
+                }
+                if "context" in locals() and active_node_id in context.node_input_snapshots:
+                    failed_node_update["input_snapshot_json"] = context.node_input_snapshots[active_node_id]
                 store.update_graph_run_node(
                     run_id,
                     active_node_id,
-                    {
-                        "status": "failed",
-                        "progress": 1,
-                        "error": str(exc),
-                        "metrics_json": {
-                            **(context.node_metrics.get(active_node_id, {}) if "context" in locals() else {}),
-                            "duration_seconds": round(time.perf_counter() - node_started_monotonic, 4) if "node_started_monotonic" in locals() else None,
-                            "error": str(exc),
-                        },
-                        "finished_at": store.utcnow_iso(),
-                    },
+                    failed_node_update,
                 )
                 emit(run_id, "node.failed", {"error": str(exc)}, node_id=active_node_id)
+            skipped_after_failure = _skip_queued_nodes_after_failure(
+                run_id=run_id,
+                workflow=workflow if "workflow" in locals() else GraphWorkflow(name="Failed graph", nodes=[], edges=[]),
+                failed_node_id=active_node_id if "active_node_id" in locals() else None,
+                context=context if "context" in locals() else None,
+                node_metrics_by_id=node_metrics_by_id if "node_metrics_by_id" in locals() else {},
+            )
+            if skipped_after_failure:
+                failed_metrics["skipped_node_count"] = len(skipped_after_failure)
+                failed_metrics["skipped_node_ids"] = skipped_after_failure
             store.update_graph_run(run_id, {"status": "failed", "error": str(exc), "metrics_json": failed_metrics, "finished_at": store.utcnow_iso()})
             emit(run_id, "run.failed", {"error": str(exc), "metrics": failed_metrics})
 

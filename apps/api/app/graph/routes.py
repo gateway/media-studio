@@ -8,10 +8,12 @@ from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import StreamingResponse
 
 from .. import store
+from ..assistant.run_confirmation import RunEvidenceError, associate_confirmed_assistant_run
+from ..assistant.schemas import AssistantRunConfirmationRequest
 from .normalization import materialize_workflow_defaults
 from .pricing import estimate_graph_workflow
 from .registry import registry
-from .runtime import runtime
+from .runtime import provider_spend_metrics, runtime
 from .schemas import (
     GraphArtifact,
     GraphArtifactsResponse,
@@ -70,6 +72,9 @@ def _workflow_record(record: dict) -> GraphWorkflowRecord:
 
 def _shape_run(record: dict) -> GraphRun:
     shaped = runtime._shape_run(record)
+    shaped.metrics_json.update(
+        provider_spend_metrics({node.node_id: node.metrics_json for node in shaped.nodes})
+    )
     artifacts_by_node: dict[str, list[GraphArtifact]] = {}
     for artifact in store.list_graph_artifacts_for_run(record["run_id"]):
         artifacts_by_node.setdefault(str(artifact["node_id"]), []).append(GraphArtifact(**artifact))
@@ -79,12 +84,13 @@ def _shape_run(record: dict) -> GraphRun:
 
 
 def _shape_run_summary(record: dict) -> GraphRunSummary:
+    metrics = record.get("metrics_json") if isinstance(record.get("metrics_json"), dict) else {}
     return GraphRunSummary(
         run_id=str(record["run_id"]),
         workflow_id=str(record["workflow_id"]),
         status=str(record.get("status") or "queued"),
         schema_version=int(record.get("schema_version") or 1),
-        metrics_json=record.get("metrics_json") if isinstance(record.get("metrics_json"), dict) else {},
+        metrics_json=metrics,
         error=record.get("error"),
         node_count=int(record.get("node_count") or 0),
         artifact_count=int(record.get("artifact_count") or 0),
@@ -93,6 +99,30 @@ def _shape_run_summary(record: dict) -> GraphRunSummary:
         finished_at=record.get("finished_at"),
         updated_at=record.get("updated_at"),
     )
+
+
+def _shape_run_summaries(records: list[dict]) -> list[GraphRunSummary]:
+    node_metrics_by_run: dict[str, dict[str, dict]] = {}
+    for run_node in store.list_graph_run_node_metrics_for_runs([str(record["run_id"]) for record in records]):
+        metrics = run_node.get("metrics_json")
+        if not isinstance(metrics, dict):
+            continue
+        node_metrics_by_run.setdefault(str(run_node["run_id"]), {})[str(run_node["node_id"])] = metrics
+    job_ids = {
+        str(metrics.get("job_id") or "").strip()
+        for nodes in node_metrics_by_run.values()
+        for metrics in nodes.values()
+        if str(metrics.get("job_id") or "").strip()
+    }
+    jobs_by_id = {str(job["job_id"]): job for job in store.list_job_statuses_by_ids(sorted(job_ids))}
+    summaries: list[GraphRunSummary] = []
+    for record in records:
+        summary = _shape_run_summary(record)
+        summary.metrics_json.update(
+            provider_spend_metrics(node_metrics_by_run.get(summary.run_id, {}), jobs_by_id)
+        )
+        summaries.append(summary)
+    return summaries
 
 
 def _shape_run_status(record: dict) -> GraphRunStatusResponse:
@@ -227,7 +257,33 @@ def create_run(workflow_id: str, payload: Optional[GraphRunCreateRequest] = None
         else _workflow_from_record(record)
     )
     try:
-        return runtime.create_run(workflow_id, workflow, start=True)
+        assistant_session_id = str(payload.assistant_session_id or "") if payload else ""
+        assistant_token = str(payload.assistant_confirmation_token or "") if payload else ""
+        if bool(assistant_session_id) != bool(assistant_token):
+            raise _bad_request("Assistant session and confirmation token must be provided together.")
+        if not assistant_session_id:
+            return runtime.create_run(workflow_id, workflow, start=True)
+        run = runtime.create_run(workflow_id, workflow, start=False)
+        try:
+            associate_confirmed_assistant_run(
+                assistant_session_id,
+                run.run_id,
+                AssistantRunConfirmationRequest(
+                    workflow=workflow,
+                    confirmation_token=assistant_token,
+                ),
+            )
+        except RunEvidenceError as exc:
+            store.update_graph_run(
+                run.run_id,
+                {"status": "cancelled", "error": str(exc), "finished_at": store.utcnow_iso()},
+            )
+            raise HTTPException(
+                status_code=400,
+                detail={"code": exc.code, "message": str(exc)},
+            ) from exc
+        runtime.start_run(run.run_id)
+        return run
     except ValueError as exc:
         raise _bad_request(str(exc))
 
@@ -243,7 +299,8 @@ def list_workflow_runs(workflow_id: str, limit: int = Query(default=50, ge=1, le
 def list_workflow_run_summaries(workflow_id: str, limit: int = Query(default=15, ge=1, le=50)) -> GraphRunSummaryListResponse:
     if not store.get_graph_workflow(workflow_id):
         raise _not_found("workflow")
-    return GraphRunSummaryListResponse(items=[_shape_run_summary(item) for item in store.list_graph_run_summaries_for_workflow(workflow_id, limit=limit)])
+    records = store.list_graph_run_summaries_for_workflow(workflow_id, limit=limit)
+    return GraphRunSummaryListResponse(items=_shape_run_summaries(records))
 
 
 @router.get("/runs", response_model=GraphRunListResponse)
@@ -253,7 +310,7 @@ def list_runs(limit: int = Query(default=100, ge=1, le=500)) -> GraphRunListResp
 
 @router.get("/runs/summary", response_model=GraphRunSummaryListResponse)
 def list_run_summaries(limit: int = Query(default=15, ge=1, le=50)) -> GraphRunSummaryListResponse:
-    return GraphRunSummaryListResponse(items=[_shape_run_summary(item) for item in store.list_graph_run_summaries(limit=limit)])
+    return GraphRunSummaryListResponse(items=_shape_run_summaries(store.list_graph_run_summaries(limit=limit)))
 
 
 @router.get("/runs/{run_id}", response_model=GraphRun)

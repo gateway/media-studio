@@ -63,4 +63,10 @@ describe("GraphNodeDisplayAny", () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("Seedance output text"));
     expect(copyButton.getAttribute("title")).toBe("Copied");
   });
+
+  it("shows a character count for rendered text", () => {
+    const { container } = render(<GraphNodeDisplayAny data={makeDisplayNodeData()} />);
+
+    expect(within(container).getByText("20 characters")).toBeTruthy();
+  });
 });
