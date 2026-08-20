@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from ..seedance import is_seedance_model
 from .schemas import GraphNodeField
 
 
@@ -16,11 +17,6 @@ def title_from_key(value: str) -> str:
 
 def normalized_model_key(value: str) -> str:
     return str(value or "").strip().lower().replace("_", "-")
-
-
-def is_seedance_model(model_key: str) -> bool:
-    normalized = normalized_model_key(model_key)
-    return normalized == "seedance-2.0" or normalized.startswith("seedance-2.0")
 
 
 def is_suno_model(model_key: str) -> bool:

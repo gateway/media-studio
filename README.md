@@ -44,6 +44,7 @@ Current model surfaces include:
 - `nano-banana-2` - fast text-to-image and image editing.
 - `nano-banana-pro` - higher-end text-to-image and image editing.
 - `seedance-2.0` - text-to-video, first/last frame video, and multimodal reference video.
+- `seedance-2.5` - text-to-video, first/last frame video, and expanded multimodal reference video with up to 30 images, 10 videos, and 10 audio references.
 - `kling-2.6-t2v` - Kling 2.6 text-to-video.
 - `kling-2.6-i2v` - Kling 2.6 image-to-video.
 - `kling-3.0-t2v` - Kling 3.0 text-to-video.

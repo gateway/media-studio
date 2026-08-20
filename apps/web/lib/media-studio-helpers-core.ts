@@ -33,6 +33,7 @@ import {
 import { toControlApiDataPreviewPath, toControlApiProxyPath } from "./media-paths";
 
 export { isRecord } from "@/lib/utils";
+export { isSeedanceModel } from "@/lib/seedance-model";
 export { supportedModelInputPatterns } from "@/lib/studio-model-support";
 export {
   mediaDisplayUrl,
@@ -291,7 +292,7 @@ export function applyPromptReferenceMention(
 }
 
 export const MULTI_SHOT_MODEL_KEYS = new Set(["kling-3.0-t2v", "kling-3.0-i2v"]);
-export const SEEDANCE_MODEL_KEYS = new Set(["seedance-2.0", "seedance-2.0-fast", "seedance-2.0-mini"]);
+export const SEEDANCE_MODEL_KEYS = new Set(["seedance-2.0", "seedance-2.0-fast", "seedance-2.0-mini", "seedance-2.5"]);
 
 const LEGACY_STRUCTURED_IMAGE_PRESET_MODEL_KEYS = [
   "nano-banana-2",
@@ -419,11 +420,6 @@ export function resolveStudioPresetTargetModel(
     return fallbackModelKey;
   }
   return supportedModels[0] ?? null;
-}
-
-export function isSeedanceModel(modelKey: string | null | undefined) {
-  const normalized = String(modelKey ?? "").trim().toLowerCase().replaceAll("_", "-");
-  return normalized === "seedance-2.0" || normalized.startsWith("seedance-2.0-");
 }
 
 export function modelSupportsImageDrivenInputs(model: MediaModelSummary | null) {

@@ -5,6 +5,7 @@ import json
 from typing import Any, Dict, List, Set
 
 from .. import store
+from ..seedance import is_seedance_model
 from .execution_cache import cached_artifacts_available, cached_output_for_node, cached_output_media_available
 from .normalization import materialize_workflow_defaults
 from .prompt_provider_defaults import studio_default_prompt_provider_config
@@ -16,11 +17,6 @@ from .validator_prompt_recipe import (
 )
 
 PRESET_TEST_TEMPLATE_IDS = {"preset_style_t2i_sandbox_v1", "preset_style_i2i_sandbox_v1"}
-
-
-def _is_seedance_2_model(model_key: str) -> bool:
-    normalized = str(model_key or "").strip().lower().replace("_", "-")
-    return normalized == "seedance-2.0" or normalized.startswith("seedance-2.0-")
 
 
 def _field_value(fields: Dict[str, Any], definition: object, field_id: str) -> Any:
@@ -204,7 +200,7 @@ def _validate_seedance_input_mode(
     errors: List[GraphError],
 ) -> None:
     source = definition.source if isinstance(definition.source, dict) else {}
-    if source.get("kind") != "kie_model" or not _is_seedance_2_model(str(source.get("model_key") or "")):
+    if source.get("kind") != "kie_model" or not is_seedance_model(source.get("model_key")):
         return
 
     start_count = available_incoming_by_target_port[(node.id, "start_frame")]
@@ -224,7 +220,7 @@ def _validate_seedance_input_mode(
         errors.append(
             GraphError(
                 code="seedance_last_frame_requires_start_frame",
-                message="Seedance 2.0 needs a Start Frame when an End Frame is connected.",
+                message="Seedance needs a Start Frame when an End Frame is connected.",
                 node_id=node.id,
                 port_id="end_frame",
             )
@@ -233,7 +229,7 @@ def _validate_seedance_input_mode(
         errors.append(
             GraphError(
                 code="seedance_input_modes_are_mutually_exclusive",
-                message="Seedance 2.0 can use Start/End Frames or multimodal references, but not both in the same run.",
+                message="Seedance can use Start/End Frames or multimodal references, but not both in the same run.",
                 node_id=node.id,
                 port_id="start_frame" if start_count > 0 else "end_frame",
             )

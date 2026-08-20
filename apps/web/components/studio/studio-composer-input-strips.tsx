@@ -115,6 +115,9 @@ type StudioSeedanceReferenceStripProps = {
   referenceImages: AttachmentRecord[];
   referenceVideos: AttachmentRecord[];
   referenceAudios: AttachmentRecord[];
+  maxImageReferences: number;
+  maxVideoReferences: number;
+  maxAudioReferences: number;
   buildAttachmentPreview: AttachmentPreviewBuilder;
   onSetDragActive: (value: boolean) => void;
   onReferenceDrop: (event: DragEvent<HTMLDivElement>, kind: "images" | "videos" | "audios") => void;
@@ -129,6 +132,9 @@ export function StudioSeedanceReferenceStrip({
   referenceImages,
   referenceVideos,
   referenceAudios,
+  maxImageReferences,
+  maxVideoReferences,
+  maxAudioReferences,
   buildAttachmentPreview,
   onSetDragActive,
   onReferenceDrop,
@@ -144,7 +150,7 @@ export function StudioSeedanceReferenceStrip({
       tokenHint: "image@",
       attachments: referenceImages,
       accept: "image/*",
-      maxLabel: "9",
+      maxLabel: maxImageReferences,
       tileClassName: STUDIO_COMPOSER_TILE_CLASS_NAME,
       addTileClassName: STUDIO_COMPOSER_ADD_TILE_CLASS_NAME,
       plusIconClassName: STUDIO_COMPOSER_PLUS_ICON_CLASS_NAME,
@@ -156,7 +162,7 @@ export function StudioSeedanceReferenceStrip({
       tokenHint: "video@",
       attachments: referenceVideos,
       accept: "video/*",
-      maxLabel: "3",
+      maxLabel: maxVideoReferences,
       tileClassName: STUDIO_COMPOSER_TILE_CLASS_NAME,
       addTileClassName: STUDIO_COMPOSER_ADD_TILE_CLASS_NAME,
       plusIconClassName: STUDIO_COMPOSER_PLUS_ICON_CLASS_NAME,
@@ -168,7 +174,7 @@ export function StudioSeedanceReferenceStrip({
       tokenHint: "audio@",
       attachments: referenceAudios,
       accept: "audio/*",
-      maxLabel: "3",
+      maxLabel: maxAudioReferences,
       tileClassName: STUDIO_COMPOSER_TILE_CLASS_NAME,
       addTileClassName: STUDIO_COMPOSER_ADD_TILE_CLASS_NAME,
       plusIconClassName: STUDIO_COMPOSER_PLUS_ICON_CLASS_NAME,
@@ -234,7 +240,7 @@ export function StudioSeedanceReferenceStrip({
                   testId={`seedance-group-tile-${group.key}-${attachment.id}`}
                 />
               ))}
-              {group.attachments.length < Number(group.maxLabel) ? (
+              {group.attachments.length < group.maxLabel ? (
                 <label className={cn("studio-composer-add-control flex shrink-0 cursor-pointer items-center justify-center transition", group.addTileClassName)}>
                   {(() => {
                     const AddIcon = studioMediaSlotAddTileIcon(

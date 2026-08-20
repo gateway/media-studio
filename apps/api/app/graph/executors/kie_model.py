@@ -4,6 +4,7 @@ import time
 from typing import Dict, List, Optional
 
 from ... import service, store
+from ...seedance import is_seedance_model
 from ...schemas import MediaRefInput, ValidateRequest
 from ...service_prompt_budget import enforce_prompt_budget
 from ..cancellation import GRAPH_RUN_CANCELLED_MESSAGE, cancel_batch_jobs
@@ -19,9 +20,6 @@ from ..storyboard_metadata_preflight import (
 from .base import GraphExecutionContext, GraphExecutor, GraphRunCancelled
 
 
-SEEDANCE_MODEL_KEYS = {"seedance-2.0", "seedance_2_0"}
-
-
 def _adaptive_graph_kie_poll_interval(elapsed_seconds: float) -> float:
     if elapsed_seconds < 10:
         return 0.5
@@ -34,11 +32,6 @@ def _adaptive_graph_kie_poll_interval(elapsed_seconds: float) -> float:
 
 def _normalized_model_key(model_key: str) -> str:
     return str(model_key or "").strip().lower().replace("_", "-")
-
-
-def _is_seedance_model(model_key: str) -> bool:
-    normalized = _normalized_model_key(model_key)
-    return normalized in SEEDANCE_MODEL_KEYS or normalized.startswith("seedance-2.0")
 
 
 def _is_suno_model(model_key: str) -> bool:
@@ -282,7 +275,7 @@ class KieModelExecutor(GraphExecutor):
     def execute(self, node: GraphWorkflowNode, context: GraphExecutionContext) -> Dict[str, List[GraphOutputRef]]:
         definition = registry.get_definition(node.type)
         model_key = str(definition.source.get("model_key") or "nano-banana-pro")
-        seedance_model = _is_seedance_model(model_key)
+        seedance_model = is_seedance_model(model_key)
         start_frame_refs = context.inputs_for(node, "start_frame")
         end_frame_refs = context.inputs_for(node, "end_frame")
         legacy_image_refs = context.inputs_for(node, "image_refs")
@@ -406,7 +399,7 @@ def _select_task_mode(
     ordered_candidates: List[str] = []
     normalized_model_key = _normalized_model_key(model_key or "")
     if output_media_type == "video":
-        if _is_seedance_model(normalized_model_key) and (has_images or has_videos or has_audios):
+        if is_seedance_model(normalized_model_key) and (has_images or has_videos or has_audios):
             ordered_candidates.append("reference_to_video")
         if has_images:
             ordered_candidates.extend(["image_to_video", "i2v"])
@@ -427,7 +420,7 @@ def _select_task_mode(
     if task_modes:
         return task_modes[0]
     if output_media_type == "video":
-        if _is_seedance_model(normalized_model_key) and (has_images or has_videos or has_audios):
+        if is_seedance_model(normalized_model_key) and (has_images or has_videos or has_audios):
             return "reference_to_video"
         return "image_to_video" if has_images else "text_to_video"
     if output_media_type == "audio":
