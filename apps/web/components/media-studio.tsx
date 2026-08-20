@@ -1334,6 +1334,9 @@ export function MediaStudio({
         referenceImages={seedanceReferenceImages}
         referenceVideos={seedanceReferenceVideos}
         referenceAudios={seedanceReferenceAudios}
+        maxImageReferences={maxImageInputs}
+        maxVideoReferences={maxVideoInputs}
+        maxAudioReferences={maxAudioInputs}
         buildAttachmentPreview={buildAttachmentPreview}
         onSetDragActive={setIsDragActive}
         onReferenceDrop={(event, kind) => void handleSeedanceReferenceDrop(event, kind)}

@@ -1,5 +1,6 @@
 import type { MediaModelSummary } from "@/lib/types";
 import { isRecord } from "@/lib/utils";
+import { isSeedanceModel } from "@/lib/seedance-model";
 
 export const HIDDEN_STUDIO_OPTION_KEYS = new Set<string>();
 
@@ -23,11 +24,6 @@ export type StudioModelSupport = {
   supportSummary: string | null;
   unsupportedOptionKeys: string[];
 };
-
-function isSeedance2Model(modelKey: string | null | undefined) {
-  const normalized = String(modelKey ?? "").trim().toLowerCase().replaceAll("_", "-");
-  return normalized === "seedance-2.0" || normalized.startsWith("seedance-2.0-");
-}
 
 function modelInputLimit(model: MediaModelSummary | null, inputKey: "image_inputs" | "video_inputs" | "audio_inputs") {
   const candidate = model?.[inputKey];
@@ -56,23 +52,37 @@ export function supportedModelInputPatterns(model: MediaModelSummary | null) {
 }
 
 export function optionChoices(schema: Record<string, unknown>, currentValue: unknown) {
+  let declared: unknown[] = [];
   if (Array.isArray(schema.allowed)) {
-    return schema.allowed as unknown[];
+    declared = schema.allowed;
+  } else if (Array.isArray(schema.enum)) {
+    declared = schema.enum;
+  } else if (Array.isArray(schema.allowed_values)) {
+    declared = schema.allowed_values;
+  } else if (Array.isArray(schema.choices)) {
+    declared = schema.choices;
   }
-  if (Array.isArray(schema.enum)) {
-    return schema.enum as unknown[];
+  if (schema.type === "int_range" && typeof schema.min === "number" && typeof schema.max === "number") {
+    const min = Number(schema.min);
+    const max = Number(schema.max);
+    if (Number.isInteger(min) && Number.isInteger(max) && max >= min) {
+      const ranged = Array.from({ length: max - min + 1 }, (_, index) => min + index);
+      if (declared.length > 0) {
+        return [...declared, ...ranged.filter((value) => !declared.includes(value))];
+      }
+      if (max - min <= 20) {
+        return ranged;
+      }
+    }
   }
-  if (Array.isArray(schema.allowed_values)) {
-    return schema.allowed_values as unknown[];
-  }
-  if (Array.isArray(schema.choices)) {
-    return schema.choices as unknown[];
+  if (declared.length > 0) {
+    return declared;
   }
   if (schema.type === "bool" || schema.type === "boolean" || typeof currentValue === "boolean" || typeof schema.default === "boolean") {
     return [true, false] as unknown[];
   }
   if (
-    (schema.type === "int_range" || schema.type === "float_range" || schema.type === "number_range") &&
+    (schema.type === "float_range" || schema.type === "number_range") &&
     typeof schema.min === "number" &&
     typeof schema.max === "number"
   ) {
@@ -169,7 +179,7 @@ export function deriveStudioModelSupport(model: MediaModelSummary | null): Studi
     };
   }
 
-  if (patternSet.has("multimodal_reference") && !isSeedance2Model(model.key)) {
+  if (patternSet.has("multimodal_reference") && !isSeedanceModel(model.key)) {
     const hiddenReason = "Studio only exposes multimodal reference contracts through the dedicated Seedance flow right now.";
     return {
       status: "unsupported",
@@ -204,7 +214,7 @@ export function deriveStudioModelSupport(model: MediaModelSummary | null): Studi
     Array.from(patternSet).every((pattern) => pattern === "prompt_only" || pattern === "single_image" || pattern === "image_edit") &&
     (patternSet.has("single_image") || patternSet.has("image_edit"));
   const supportedSeedance =
-    isSeedance2Model(model.key) &&
+    isSeedanceModel(model.key) &&
     Array.from(patternSet).every((pattern) =>
       pattern === "prompt_only" ||
       pattern === "single_image" ||

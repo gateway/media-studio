@@ -402,7 +402,7 @@ class GraphNodeRegistry:
                 if is_suno_model
                 else "Runs a KIE model. Credits are estimated from current fields and connected media before Run."
                 if not _is_seedance_model(model_key)
-                else "Runs Seedance 2.0. Use either Start/End Frames or multimodal references, not both in one run."
+                else f"Runs {model.get('label') or 'Seedance'}. Use either Start/End Frames or multimodal references, not both in one run."
             ),
             category=f"Models/{_title_from_key(output_media_type)}",
             search_aliases=[part for part in [*_slug(model_key).split("_"), output_media_type, "kie", "model"] if part],

@@ -537,6 +537,7 @@
 
 .graph-node-port-band {
   display: grid;
+  flex: 0 0 auto;
   grid-template-columns: minmax(0, 1fr) minmax(72px, auto);
   align-items: start;
   gap: 0.65rem;

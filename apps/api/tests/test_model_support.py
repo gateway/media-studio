@@ -99,6 +99,32 @@ def test_seedance_mini_multimodal_contract_is_exposed() -> None:
     assert support["studio_support_summary"] == "Studio can use the dedicated Seedance frame and reference composer for this contract."
 
 
+def test_seedance_25_multimodal_contract_is_exposed() -> None:
+    support = derive_studio_model_support(
+        {
+            "key": "seedance-2.5",
+            "input_patterns": ["prompt_only", "single_image", "first_last_frames", "multimodal_reference"],
+            "raw": {
+                "inputs": {
+                    "image": {"required_min": 0, "required_max": 30},
+                    "video": {"required_min": 0, "required_max": 10},
+                    "audio": {"required_min": 0, "required_max": 10},
+                },
+                "options": {
+                    "resolution": {"type": "enum", "allowed": ["480p", "720p", "1080p"], "default": "720p"},
+                    "duration": {"type": "int_range", "allowed": [-1], "min": 4.0, "max": 30.0, "required": True},
+                },
+            },
+        }
+    )
+
+    assert support["studio_exposed"] is True
+    assert support["studio_support_status"] == "fully_supported"
+    assert support["studio_unsupported_option_keys"] == []
+    duration = next(option for option in support["studio_dynamic_options"] if option["key"] == "duration")
+    assert duration["allowed"] == [-1, *range(4, 31)]
+
+
 def test_kling_turbo_i2v_contract_with_unknown_image_max_is_exposed() -> None:
     support = derive_studio_model_support(
         {

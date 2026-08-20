@@ -341,7 +341,7 @@ Expected `model.kie.kling_3_0_i2v` contract:
 - Fields: prompt, `mode`, `sound`, `duration` from 3 through 15, `aspect_ratio`, `multi_shots`
 - Outputs: `video`, advanced `job`
 
-Seedance 2.0 exposes explicit `start_frame` and `end_frame` ports plus separate `reference_images`, `reference_videos`, and `reference_audios` ports. These represent mutually exclusive scenarios: text-to-video with no media, image-to-video with Start/End Frames, or multimodal reference-to-video with reference media. Graph validation must reject workflows that mix Start/End Frames with reference images, videos, or audio.
+Seedance 2.0 and Seedance 2.5 expose explicit `start_frame` and `end_frame` ports plus separate `reference_images`, `reference_videos`, and `reference_audios` ports. These represent mutually exclusive scenarios: text-to-video with no media, image-to-video with Start/End Frames, or multimodal reference-to-video with reference media. Graph validation must reject workflows that mix Start/End Frames with reference images, videos, or audio. Seedance 2.5 derives its expanded 30-image, 10-video, and 10-audio limits and its 480p/720p/1080p, 4-30 second, MP4/MOV options directly from the connected KIE model contract.
 
 Expected `model.kie.nano_banana_pro` help behavior:
 

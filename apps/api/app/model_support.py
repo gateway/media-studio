@@ -4,6 +4,8 @@ import hashlib
 import json
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from .seedance import is_seedance_model
+
 
 KNOWN_STUDIO_INPUT_PATTERNS = {
     "prompt_only",
@@ -54,23 +56,39 @@ def _unique(values: Iterable[str]) -> List[str]:
     return result
 
 
-def _is_seedance_2_model(model_key: Any) -> bool:
-    normalized = str(model_key or "").strip().lower().replace("_", "-")
-    return normalized == "seedance-2.0" or normalized.startswith("seedance-2.0-")
-
-
 def supported_model_input_patterns(model: Dict[str, Any]) -> List[str]:
     return _unique([*model.get("input_patterns", []), *_prompt_patterns(model.get("raw") or {})])
 
 
 def option_choices(schema: Dict[str, Any], current_value: Any = None) -> List[Any]:
+    declared: List[Any] = []
     for key in ("allowed", "enum", "allowed_values", "choices"):
         value = schema.get(key)
         if isinstance(value, list):
-            return value
+            declared = value
+            break
+    if schema.get("type") == "int_range":
+        minimum = schema.get("min")
+        maximum = schema.get("max")
+        if (
+            isinstance(minimum, (int, float))
+            and isinstance(maximum, (int, float))
+            and float(minimum).is_integer()
+            and float(maximum).is_integer()
+            and maximum >= minimum
+        ):
+            minimum_int = int(minimum)
+            maximum_int = int(maximum)
+            ranged = list(range(minimum_int, maximum_int + 1))
+            if declared:
+                return [*declared, *(value for value in ranged if value not in declared)]
+            if maximum_int - minimum_int <= 20:
+                return ranged
+    if declared:
+        return declared
     if schema.get("type") in {"bool", "boolean"} or isinstance(current_value, bool) or isinstance(schema.get("default"), bool):
         return [True, False]
-    if schema.get("type") in {"int_range", "float_range", "number_range"}:
+    if schema.get("type") in {"float_range", "number_range"}:
         minimum = schema.get("min")
         maximum = schema.get("max")
         if isinstance(minimum, int) and isinstance(maximum, int) and maximum >= minimum and maximum - minimum <= 20:
@@ -189,7 +207,7 @@ def derive_studio_model_support(model: Dict[str, Any]) -> Dict[str, Any]:
         status = "unsupported"
         support_summary = _unsupported_summary(hidden_reason, unsupported_option_keys)
         supported_patterns = [pattern for pattern in patterns if pattern in KNOWN_STUDIO_INPUT_PATTERNS]
-    elif "multimodal_reference" in pattern_set and not _is_seedance_2_model(model.get("key")):
+    elif "multimodal_reference" in pattern_set and not is_seedance_model(model.get("key")):
         hidden_reason = "Studio only exposes multimodal reference contracts through the dedicated Seedance flow right now."
         status = "unsupported"
         support_summary = _unsupported_summary(hidden_reason, unsupported_option_keys)
@@ -220,7 +238,7 @@ def derive_studio_model_support(model: Dict[str, Any]) -> Dict[str, Any]:
             and all(pattern in {"prompt_only", "single_image", "image_edit"} for pattern in pattern_set)
             and ("single_image" in pattern_set or "image_edit" in pattern_set)
         )
-        supported_seedance = _is_seedance_2_model(model.get("key")) and all(
+        supported_seedance = is_seedance_model(model.get("key")) and all(
             pattern in {"prompt_only", "single_image", "first_last_frames", "multimodal_reference"} for pattern in pattern_set
         )
         hidden_reason = None

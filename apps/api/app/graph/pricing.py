@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from .. import enhancement_provider, kie_adapter, store
 from ..pricing import summarize_estimated_cost
+from ..seedance import is_seedance_model
 from .executors.kie_model import _select_task_mode
 from .normalization import materialize_workflow_defaults
 from .preset_catalog import MODEL_OPTION_FIELD_PREFIX
@@ -35,10 +36,6 @@ UNKNOWN_EXTERNAL_LLM_PRICING_SUMMARY = {
     "total": {"estimated_credits": None, "estimated_cost_usd": None},
 }
 
-
-def _is_seedance_2_model(model_key: str) -> bool:
-    normalized = str(model_key or "").strip().lower().replace("_", "-")
-    return normalized == "seedance-2.0" or normalized.startswith("seedance-2.0-")
 
 SUBSCRIPTION_EXTERNAL_LLM_PRICING_SUMMARY = {
     "currency": "USD",
@@ -729,7 +726,7 @@ def _pricing_request_media(
     definitions: Dict[str, GraphNodeDefinition],
 ) -> Dict[str, List[Dict[str, Any]]]:
     model_key = str(definition.source.get("model_key") or node.type.replace("model.kie.", "").replace("_", "-"))
-    if not _is_seedance_2_model(model_key):
+    if not is_seedance_model(model_key):
         return {
             "images": _pricing_media_for_incoming_edges(workflow, node.id, definitions, expected_type="image"),
             "videos": _pricing_media_for_incoming_edges(workflow, node.id, definitions, expected_type="video"),

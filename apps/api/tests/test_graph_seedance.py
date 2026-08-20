@@ -7,6 +7,56 @@ from test_graph_studio import (
 )
 
 
+def test_graph_seedance_25_definition_uses_existing_seedance_contract(client) -> None:
+    response = client.get("/media/graph/node-definitions")
+    assert response.status_code == 200, response.text
+    definition = next(item for item in response.json()["items"] if item["type"] == "model.kie.seedance_2_5")
+
+    inputs = {port["id"]: port for port in definition["ports"]["inputs"]}
+    fields = {field["id"]: field for field in definition["fields"]}
+    assert definition["source"]["model_key"] == "seedance-2.5"
+    assert inputs["start_frame"]["max"] == 1
+    assert inputs["end_frame"]["max"] == 1
+    assert inputs["reference_images"]["max"] == 30
+    assert inputs["reference_videos"]["max"] == 10
+    assert inputs["reference_audios"]["max"] == 10
+    assert fields["resolution"]["options"] == ["480p", "720p", "1080p"]
+    assert fields["duration"]["default"] == 5
+    assert fields["duration"]["options"] == [-1]
+    assert fields["duration"]["max"] == 30
+    assert fields["output_format"]["options"] == ["mp4", "mov"]
+    assert fields["nsfw_checker"]["default"] is False
+
+
+def test_graph_seedance_25_reuses_mutually_exclusive_input_validation(client, app_modules) -> None:
+    start_reference_id = _create_named_reference_image(app_modules, name="seedance-25-start.png")
+    style_reference_id = _create_named_reference_image(app_modules, name="seedance-25-style.png")
+    workflow = {
+        "schema_version": 1,
+        "name": "Seedance 2.5 mixed modes",
+        "nodes": [
+            {"id": "start", "type": "media.load_image", "position": {"x": 0, "y": 0}, "fields": {"reference_id": start_reference_id}},
+            {"id": "style", "type": "media.load_image", "position": {"x": 0, "y": 220}, "fields": {"reference_id": style_reference_id}},
+            {
+                "id": "model",
+                "type": "model.kie.seedance_2_5",
+                "position": {"x": 360, "y": 0},
+                "fields": {"prompt": "Animate the subject.", "duration": 5, "resolution": "720p", "aspect_ratio": "16:9"},
+            },
+        ],
+        "edges": [
+            {"id": "start-model", "source": "start", "source_port": "image", "target": "model", "target_port": "start_frame"},
+            {"id": "style-model", "source": "style", "source_port": "image", "target": "model", "target_port": "reference_images"},
+        ],
+    }
+    created = client.post("/media/graph/workflows", json=workflow)
+    assert created.status_code == 200, created.text
+
+    response = client.post(f"/media/graph/workflows/{created.json()['workflow_id']}/validate", json=workflow)
+    assert response.status_code == 200, response.text
+    assert any(error["code"] == "seedance_input_modes_are_mutually_exclusive" for error in response.json()["errors"])
+
+
 def test_graph_seedance_output_last_frame_wires_image_output_offline(client, app_modules, monkeypatch) -> None:
     output_video_id = _create_reference_video(app_modules, name="graph-seedance-output-last-frame-video.mp4")
     output_image_id = _create_named_reference_image(app_modules, name="graph-seedance-output-last-frame.png")

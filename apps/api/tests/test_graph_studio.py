@@ -3198,6 +3198,7 @@ def test_graph_kie_pricing_multiplier_fields_are_covered(client) -> None:
         "seedance-2.0": {"pricing_variant"},
         "seedance-2.0-fast": {"pricing_variant"},
         "seedance-2.0-mini": {"pricing_variant"},
+        "seedance-2.5": {"pricing_variant"},
     }
 
     missing_coverage = []

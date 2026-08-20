@@ -1,6 +1,7 @@
 import type { MediaAsset, MediaValidationResponse } from "@/lib/types";
 import { formatCreditsAmount, formatUsdAmount, isRecord } from "@/lib/utils";
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
+import { isSeedanceModel } from "@/lib/seedance-model";
 import { motionVideoDurationFromAsset, motionVideoDurationFromAttachments } from "@/lib/studio-motion-validation";
 
 function pricingOptionValue(value: unknown) {
@@ -24,11 +25,6 @@ function pricingNumber(value: unknown) {
     }
   }
   return null;
-}
-
-function isSeedance2Model(modelKey: string | null | undefined) {
-  const normalized = String(modelKey ?? "").trim().toLowerCase().replaceAll("_", "-");
-  return normalized === "seedance-2.0" || normalized.startsWith("seedance-2.0-");
 }
 
 function isKlingMotionControlModel(modelKey: string | null | undefined) {
@@ -58,7 +54,7 @@ export function deriveStudioPricingOptions({
     Object.assign(derived, deriveKling30PricingOptions(options));
   }
 
-  if (isSeedance2Model(modelKey)) {
+  if (isSeedanceModel(modelKey)) {
     const hasVideoInput =
       attachments.some((attachment) => attachment.kind === "videos") ||
       sourceAsset?.generation_kind === "video";
