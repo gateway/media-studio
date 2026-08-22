@@ -1410,8 +1410,10 @@ def test_saved_recipe_refinement_updates_its_applied_lane_without_duplicating_th
                 **session["summary_json"],
                 "kernel_capability": "recipe_builder",
                 "kernel_run_confirmation": {
+                    "confirmation_token_hash": "fixture-confirmation-hash",
                     "workflow_fingerprint": fingerprint,
                     "assistant_run_id": run_id,
+                    "recipe_plan_id": first.result["proposal_id"],
                     "confirmation_kind": "recipe",
                     "consumed": True,
                     "confirmed_at": store_assistant.utcnow_iso(),
