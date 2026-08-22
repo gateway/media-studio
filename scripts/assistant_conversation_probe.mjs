@@ -10,6 +10,11 @@ import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
 
+import {
+  planPreviewFromSession,
+  workflowForProbeSession,
+} from "./lib/assistant_conversation_probe_contract.mjs";
+
 const execFile = promisify(execFileCallback);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptDir, "..");
@@ -464,7 +469,10 @@ async function runScenario({ apiBaseUrl, token, dbPath, scenario, sessions, refe
   if (scenario.setup.global_check) {
     return { id: scenario.id, group: scenario.group, skipped_turn: true, rubric_notes: scenario.rubric_notes };
   }
-  const workflow = workflowFixture(scenario.setup.workflow || "blank");
+  const workflow = workflowForProbeSession(
+    workflowFixture(scenario.setup.workflow || "blank"),
+    scenario.session_key,
+  );
   let session = sessions.get(scenario.session_key);
   if (!session || !scenario.setup.continue_session) {
     session = await createSession({ apiBaseUrl, token, scenario, workflow, references });
@@ -490,24 +498,7 @@ async function runScenario({ apiBaseUrl, token, dbPath, scenario, sessions, refe
     const assistantMessage = [...session.messages].reverse().find((message) => message.role === "assistant");
     const reply = String(assistantMessage?.content_text || "");
     const contentJson = assistantMessage?.content_json ?? {};
-    let plan = null;
-    if (scenario.mechanical.plan_preview) {
-      try {
-        plan = await apiJson(apiBaseUrl, token, `/media/assistant/sessions/${session.assistant_session_id}/plans`, {
-          method: "POST",
-          body: JSON.stringify({
-            message: turn.user,
-            workflow,
-            canvas_context: canvasContext(workflow),
-            capability: "plan_graph",
-            run_id: scenario.setup.run_id ?? null,
-            assistant_mode: scenario.setup.assistant_mode ?? "graph",
-          }),
-        });
-      } catch (error) {
-        plan = { error: error instanceof Error ? error.message : String(error) };
-      }
-    }
+    const plan = planPreviewFromSession(session, scenario.mechanical);
     const jobsAfter = await jobCount(apiBaseUrl, token);
     const usage = await latestUsage(dbPath, session.assistant_session_id);
     turns.push({
