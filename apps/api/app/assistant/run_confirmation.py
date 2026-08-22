@@ -90,8 +90,6 @@ def _matching_applied_recipe_plan(
     session_id: str,
     workflow: GraphWorkflow,
     plan_id: str | None = None,
-    *,
-    require_unique: bool = False,
 ) -> dict | None:
     plans = (
         [store_assistant.get_assistant_plan(plan_id)]
@@ -123,9 +121,7 @@ def _matching_applied_recipe_plan(
             fingerprint,
         ):
             matches.append(plan)
-    if not matches or (require_unique and len(matches) != 1):
-        return None
-    return matches[0]
+    return matches[0] if len(matches) == 1 else None
 
 
 def _recipe_plan_for_confirmation(
@@ -297,11 +293,12 @@ def _legacy_recipe_run_association(
         if confirmation_matches_run
         else ""
     )
+    if not confirmation_matches_run:
+        return None
     plan = _matching_applied_recipe_plan(
         session_id,
         GraphWorkflow.model_validate(workflow),
         confirmed_plan_id or None,
-        require_unique=not confirmed_plan_id,
     )
     if not plan:
         return None
@@ -353,7 +350,7 @@ def _legacy_recipe_run_association(
     }
 
 
-def bind_completed_preset_run(session_id: str, run: dict) -> dict:
+def _bind_completed_preset_run(session_id: str, run: dict) -> dict:
     session = store_assistant.get_assistant_session(session_id)
     if not session:
         raise RunEvidenceError("preset_test_session_missing", "The Media Assistant session is unavailable.")
@@ -442,7 +439,7 @@ def bind_completed_preset_run(session_id: str, run: dict) -> dict:
     return evidence
 
 
-def bind_completed_recipe_run(session_id: str, run: dict) -> dict:
+def _bind_completed_recipe_run(session_id: str, run: dict) -> dict:
     session = store_assistant.get_assistant_session(session_id)
     if not session:
         raise RunEvidenceError("recipe_session_missing", "The Media Assistant session is unavailable.")
@@ -494,6 +491,13 @@ def bind_completed_recipe_run(session_id: str, run: dict) -> dict:
     associated_model_node_ids = {
         str(item) for item in association.get("eligible_model_node_ids") or []
     }
+    confirmation = summary.get("kernel_run_confirmation")
+    confirmation_token_hash = (
+        str(confirmation.get("confirmation_token_hash") or "")
+        if isinstance(confirmation, dict)
+        else ""
+    )
+    association_token_hash = str(association.get("confirmation_token_hash") or "")
     if (
         not fingerprint
         or not hmac.compare_digest(run_fingerprint, fingerprint)
@@ -508,6 +512,14 @@ def bind_completed_recipe_run(session_id: str, run: dict) -> dict:
             and not hmac.compare_digest(planned_contract_hash, contract_hash)
         )
         or model_node_ids != associated_model_node_ids
+        or (
+            not association.get("relinked_from_completed_evidence")
+            and confirmation_token_hash
+            and not hmac.compare_digest(
+                confirmation_token_hash,
+                association_token_hash,
+            )
+        )
     ):
         raise RunEvidenceError(
             "recipe_workflow_mismatch",
@@ -549,6 +561,44 @@ def bind_completed_recipe_run(session_id: str, run: dict) -> dict:
         {**session, "summary_json": updated_summary}
     )
     return evidence
+
+
+def bind_completed_assistant_run(
+    session_id: str,
+    run: dict,
+    *,
+    expected_kind: str | None = None,
+) -> dict:
+    """Bind one completed preset or recipe run through its persisted confirmation."""
+    session = store_assistant.get_assistant_session(session_id)
+    if not session and expected_kind in {"preset_test", "recipe"}:
+        raise RunEvidenceError(
+            f"{expected_kind}_session_missing",
+            "The Media Assistant session is unavailable.",
+        )
+    summary = (
+        session.get("summary_json")
+        if session and isinstance(session.get("summary_json"), dict)
+        else {}
+    )
+    confirmation = summary.get("kernel_run_confirmation")
+    confirmation_kind = assistant_run_confirmation_kind(
+        confirmation,
+        capability=summary.get("kernel_capability"),
+    )
+    if expected_kind and confirmation_kind != expected_kind:
+        raise RunEvidenceError(
+            f"{expected_kind}_run_not_confirmed",
+            "This run is not linked to the current Assistant confirmation.",
+        )
+    if confirmation_kind == "preset_test":
+        return _bind_completed_preset_run(session_id, run)
+    if confirmation_kind == "recipe":
+        return _bind_completed_recipe_run(session_id, run)
+    raise RunEvidenceError(
+        "assistant_run_evidence_unsupported",
+        "Only confirmed preset and recipe runs produce Assistant review evidence.",
+    )
 
 
 def _confirmation_error_code(

@@ -354,32 +354,30 @@ def _read_run_evidence(arguments: BaseModel, context: KernelToolContext) -> Dict
     artifacts = store.list_graph_artifacts_for_run(run_id)
     preset_test = None
     recipe_run = None
-    if context.capability == "preset_builder":
-        from .run_confirmation import RunEvidenceError, bind_completed_preset_run
+    if context.capability in {"preset_builder", "recipe_builder"}:
+        from .run_confirmation import RunEvidenceError, bind_completed_assistant_run
 
+        evidence_kind = (
+            "preset_test" if context.capability == "preset_builder" else "recipe"
+        )
         if not context.session_id:
             raise KernelToolFailure(
-                code="preset_test_session_missing",
+                code=f"{evidence_kind}_session_missing",
                 message="The Media Assistant session is unavailable.",
                 retryable=False,
             )
         try:
-            preset_test = bind_completed_preset_run(context.session_id, run)
-        except RunEvidenceError as exc:
-            raise KernelToolFailure(code=exc.code, message=str(exc), retryable=False) from exc
-    elif context.capability == "recipe_builder":
-        from .run_confirmation import RunEvidenceError, bind_completed_recipe_run
-
-        if not context.session_id:
-            raise KernelToolFailure(
-                code="recipe_session_missing",
-                message="The Media Assistant session is unavailable.",
-                retryable=False,
+            evidence = bind_completed_assistant_run(
+                context.session_id,
+                run,
+                expected_kind=evidence_kind,
             )
-        try:
-            recipe_run = bind_completed_recipe_run(context.session_id, run)
         except RunEvidenceError as exc:
             raise KernelToolFailure(code=exc.code, message=str(exc), retryable=False) from exc
+        if evidence_kind == "preset_test":
+            preset_test = evidence
+        else:
+            recipe_run = evidence
     return {
         "run": {
             "run_id": run_id,

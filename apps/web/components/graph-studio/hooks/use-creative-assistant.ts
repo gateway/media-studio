@@ -245,7 +245,6 @@ export function useCreativeAssistant({
   const workspaceKeyRef = useRef(workspaceKey);
   const initialAssistantSessionIdRef = useRef(initialAssistantSessionId);
   const sessionWorkspaceKeyRef = useRef<string | null>(null);
-  const planApplyWorkflowRef = useRef<GraphWorkflowPayload | null>(null);
   const activeRunOperationRef = useRef<symbol | null>(null);
 
   const scopedStatus = workspaceKeyRef.current === workspaceKey ? status : "idle";
@@ -290,7 +289,6 @@ export function useCreativeAssistant({
     activeRunOperationRef.current = null;
     setScopedSession(null);
     setPlan(null);
-    planApplyWorkflowRef.current = null;
     setDraft("");
     setError(null);
     setRunConfirmationNeedsRecheck(false);
@@ -345,9 +343,8 @@ export function useCreativeAssistant({
     const persistedPlan = persistedPlanForWorkflow(existing, workflowId);
     setScopedSession(existing);
     setPlan(persistedPlan);
-    planApplyWorkflowRef.current = persistedPlan?.plan.status === "validated" ? workflow : null;
     return true;
-  }, [setScopedSession, workflow, workflowId]);
+  }, [setScopedSession, workflowId]);
 
   const loadExistingSession = useCallback(async () => {
     const expectedWorkspaceKey = workspaceKeyRef.current;
@@ -698,7 +695,6 @@ export function useCreativeAssistant({
         setScopedSession((current) => appendOptimisticUserMessage(current, currentSession, normalizedMessage, { source: "plan_graph", assistant_mode: assistantMode }));
       }
       setDraft("");
-      planApplyWorkflowRef.current = requestWorkflow;
       const { result, updatedSession } = await runAbortableRequest(async (signal) => {
         const result = await jsonFetch<AssistantPlanResponse>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/plans`, {
           method: "POST",
@@ -869,10 +865,8 @@ export function useCreativeAssistant({
           persistedPlan?.plan.assistant_plan_id === action.proposal_id
         ) {
           setPlan(persistedPlan);
-          planApplyWorkflowRef.current = workflow;
         } else {
           setPlan(null);
-          planApplyWorkflowRef.current = null;
         }
         return updated;
       }
@@ -1042,7 +1036,7 @@ export function useCreativeAssistant({
 
   const applyPlan = useCallback(async () => {
     if (!plan || !canApply) return null;
-    return applyPlanResponse(plan, planApplyWorkflowRef.current ?? workflow, nextAction);
+    return applyPlanResponse(plan, workflow, nextAction);
   }, [applyPlanResponse, canApply, nextAction, plan, workflow]);
 
   const cancelAssistant = useCallback(async () => {

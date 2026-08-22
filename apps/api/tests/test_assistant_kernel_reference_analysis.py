@@ -306,8 +306,8 @@ def test_recipe_output_comparison_uses_exact_run_output_and_attached_references(
     )
     monkeypatch.setattr(
         importlib.import_module("app.assistant.run_confirmation"),
-        "bind_completed_recipe_run",
-        lambda _session_id, _run: summary["kernel_recipe_run_evidence"],
+        "bind_completed_assistant_run",
+        lambda _session_id, _run, **_kwargs: summary["kernel_recipe_run_evidence"],
     )
     monkeypatch.setattr(analysis_module, "_asset_image_path", lambda _asset_id, _kind="preset": str(output_path))
     captured_paths = []
@@ -475,8 +475,8 @@ def test_recipe_output_comparison_reports_unsupported_provider_for_recipe(
     )
     monkeypatch.setattr(
         importlib.import_module("app.assistant.run_confirmation"),
-        "bind_completed_recipe_run",
-        lambda _session_id, _run: summary["kernel_recipe_run_evidence"],
+        "bind_completed_assistant_run",
+        lambda _session_id, _run, **_kwargs: summary["kernel_recipe_run_evidence"],
     )
     monkeypatch.setattr(
         analysis_module,

@@ -226,6 +226,71 @@ def test_completed_recipe_run_is_bound_to_exact_session_confirmation(client, app
     assert context["active_recipe_run_evidence"] == execution.result["recipe_run"]
 
 
+def test_authoritative_completed_run_binding_preserves_recipe_evidence_contract(
+    client,
+    app_modules,
+) -> None:
+    run_confirmation = importlib.import_module("app.assistant.run_confirmation")
+    workflow = _recipe_workflow()
+    run = _completed_run(
+        app_modules["store"],
+        workflow,
+        "run-recipe-authoritative-binding",
+    )
+    session = _session(client, app_modules, workflow, run["run_id"])
+
+    evidence = run_confirmation.bind_completed_assistant_run(
+        session["assistant_session_id"],
+        run,
+    )
+
+    assert evidence["assistant_session_id"] == session["assistant_session_id"]
+    assert evidence["recipe_plan_id"]
+    assert evidence["recipe_id"] == "prompt-recipe-image-prompt-director"
+    assert evidence["run_id"] == run["run_id"]
+    assert evidence["eligible_model_node_ids"] == ["recipe-model"]
+    assert evidence["output_asset_ids"] == ["asset-run-recipe-authoritative-binding"]
+
+
+def test_authoritative_recipe_binding_rejects_a_different_confirmation_token(
+    client,
+    app_modules,
+) -> None:
+    run_confirmation = importlib.import_module("app.assistant.run_confirmation")
+    workflow = _recipe_workflow()
+    run = _completed_run(
+        app_modules["store"],
+        workflow,
+        "run-recipe-confirmation-token-mismatch",
+    )
+    session = _session(client, app_modules, workflow, run["run_id"])
+    stored = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )
+    summary = dict(stored["summary_json"])
+    summary["kernel_run_confirmation"] = {
+        **summary["kernel_run_confirmation"],
+        "confirmation_token_hash": "current-confirmation-hash",
+    }
+    summary["kernel_recipe_run_association"] = {
+        **summary["kernel_recipe_run_association"],
+        "confirmation_token_hash": "different-confirmation-hash",
+    }
+    app_modules["store_assistant"].create_or_update_assistant_session(
+        {**stored, "summary_json": summary}
+    )
+
+    try:
+        run_confirmation.bind_completed_assistant_run(
+            session["assistant_session_id"],
+            run,
+        )
+    except run_confirmation.RunEvidenceError as exc:
+        assert exc.code == "recipe_workflow_mismatch"
+    else:
+        raise AssertionError("Recipe evidence must stay bound to the exact confirmation")
+
+
 def test_recipe_confirmation_settles_first_persisted_identity_without_accepting_edits(
     client,
     app_modules,
@@ -549,7 +614,7 @@ def test_completed_recipe_run_can_relink_only_from_exact_persisted_evidence(
     workflow = _recipe_workflow()
     run = _completed_run(app_modules["store"], workflow, "run-recipe-safe-relink")
     session = _session(client, app_modules, workflow, run["run_id"])
-    linked = run_confirmation.bind_completed_recipe_run(
+    linked = run_confirmation.bind_completed_assistant_run(
         session["assistant_session_id"], run
     )
     stored = app_modules["store_assistant"].get_assistant_session(
@@ -571,7 +636,7 @@ def test_completed_recipe_run_can_relink_only_from_exact_persisted_evidence(
         {**stored, "summary_json": summary}
     )
 
-    relinked = run_confirmation.bind_completed_recipe_run(
+    relinked = run_confirmation.bind_completed_assistant_run(
         session["assistant_session_id"], run
     )
 
@@ -591,7 +656,7 @@ def test_completed_recipe_run_does_not_guess_between_duplicate_matching_plans(
     workflow = _recipe_workflow()
     run = _completed_run(app_modules["store"], workflow, "run-recipe-ambiguous-relink")
     session = _session(client, app_modules, workflow, run["run_id"])
-    linked = run_confirmation.bind_completed_recipe_run(
+    linked = run_confirmation.bind_completed_assistant_run(
         session["assistant_session_id"], run
     )
     store_assistant = app_modules["store_assistant"]
@@ -622,7 +687,7 @@ def test_completed_recipe_run_does_not_guess_between_duplicate_matching_plans(
     )
 
     try:
-        run_confirmation.bind_completed_recipe_run(session["assistant_session_id"], run)
+        run_confirmation.bind_completed_assistant_run(session["assistant_session_id"], run)
     except run_confirmation.RunEvidenceError as exc:
         assert exc.code == "recipe_run_not_confirmed"
     else:
@@ -639,7 +704,7 @@ def test_recipe_quality_contract_ignores_name_only_changes_and_rejects_creative_
     session = _session(client, app_modules, workflow, run["run_id"])
     recipe_id = workflow["nodes"][0]["fields"]["recipe_id"]
     recipe = app_modules["store"].get_prompt_recipe(recipe_id)
-    evidence = run_confirmation.bind_completed_recipe_run(
+    evidence = run_confirmation.bind_completed_assistant_run(
         session["assistant_session_id"], run
     )
     stored = app_modules["store_assistant"].get_assistant_session(
@@ -662,7 +727,7 @@ def test_recipe_quality_contract_ignores_name_only_changes_and_rejects_creative_
     app_modules["store"].create_or_update_prompt_recipe(
         {**recipe, "label": "Renamed recipe"}
     )
-    assert run_confirmation.bind_completed_recipe_run(
+    assert run_confirmation.bind_completed_assistant_run(
         session["assistant_session_id"], run
     )["recipe_id"] == recipe_id
     renamed_session = app_modules["store_assistant"].get_assistant_session(
@@ -679,7 +744,7 @@ def test_recipe_quality_contract_ignores_name_only_changes_and_rejects_creative_
         {**renamed, "system_prompt_template": "A changed creative contract {{user_prompt}}"}
     )
     try:
-        run_confirmation.bind_completed_recipe_run(session["assistant_session_id"], run)
+        run_confirmation.bind_completed_assistant_run(session["assistant_session_id"], run)
     except run_confirmation.RunEvidenceError as exc:
         assert exc.code == "recipe_workflow_mismatch"
     else:
@@ -705,7 +770,7 @@ def test_recipe_quality_approval_persists_the_exact_run_contract(
     session = _session(client, app_modules, workflow, run["run_id"])
     evidence = importlib.import_module(
         "app.assistant.run_confirmation"
-    ).bind_completed_recipe_run(session["assistant_session_id"], run)
+    ).bind_completed_assistant_run(session["assistant_session_id"], run)
     stored = app_modules["store_assistant"].get_assistant_session(
         session["assistant_session_id"]
     )
@@ -770,7 +835,7 @@ def test_recipe_draft_revision_invalidates_quality_but_name_only_revision_preser
     session = _session(client, app_modules, workflow, run["run_id"])
     evidence = importlib.import_module(
         "app.assistant.run_confirmation"
-    ).bind_completed_recipe_run(session["assistant_session_id"], run)
+    ).bind_completed_assistant_run(session["assistant_session_id"], run)
     recipe = app_modules["store"].get_prompt_recipe(evidence["recipe_id"])
     session = app_modules["store_assistant"].get_assistant_session(
         session["assistant_session_id"]

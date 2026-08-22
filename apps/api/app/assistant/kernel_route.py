@@ -14,8 +14,7 @@ from .run_confirmation import (
     applied_recipe_plan_id,
     applied_preset_test_plan_id,
     assistant_run_confirmation_kind,
-    bind_completed_preset_run,
-    bind_completed_recipe_run,
+    bind_completed_assistant_run,
 )
 from .schemas import AssistantMessageCreateRequest, AssistantNextAction
 from .turn_trace import build_assistant_turn_trace
@@ -40,14 +39,7 @@ def _bind_selected_completed_assistant_run(
     if not run or str(run.get("status") or "") != "completed":
         return session
     try:
-        confirmation_kind = assistant_run_confirmation_kind(
-            confirmation,
-            capability=summary.get("kernel_capability"),
-        )
-        if confirmation_kind == "preset_test":
-            bind_completed_preset_run(str(session["assistant_session_id"]), run)
-        elif confirmation_kind == "recipe":
-            bind_completed_recipe_run(str(session["assistant_session_id"]), run)
+        bind_completed_assistant_run(str(session["assistant_session_id"]), run)
     except RunEvidenceError:
         return session
     return store_assistant.get_assistant_session(str(session["assistant_session_id"])) or session

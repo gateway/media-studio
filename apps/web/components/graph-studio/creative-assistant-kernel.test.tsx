@@ -41,7 +41,7 @@ const plan: AssistantPlanResponse = {
   pricing: { pricing_summary: { total: { estimated_credits: 0, estimated_cost_usd: 0 } }, nodes: {}, warnings: [] },
 };
 
-it("renders and applies only the kernel-owned graph confirmation", async () => {
+it("sends the live canvas when applying a kernel-owned graph confirmation", async () => {
   const onApplyWorkflow = vi.fn();
   const fetchMock = vi.fn((url: string) => {
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
@@ -79,7 +79,7 @@ it("renders and applies only the kernel-owned graph confirmation", async () => {
   });
   vi.stubGlobal("fetch", fetchMock);
 
-  render(
+  const rendered = render(
     <CreativeAssistantPanel
       open
       workspaceKey="tab-1"
@@ -100,12 +100,29 @@ it("renders and applies only the kernel-owned graph confirmation", async () => {
   await waitFor(() => expect(screen.getByRole("button", { name: "Add to canvas" })).toBeTruthy());
   expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/plans"))).toBe(false);
   expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/apply"))).toBe(false);
+  const changedWorkflow = {
+    ...workflow,
+    nodes: [{ id: "manual-note", type: "utility.note", position: { x: 80, y: 80 }, fields: { text: "Keep me" } }],
+  };
+  rendered.rerender(
+    <CreativeAssistantPanel
+      open
+      workspaceKey="tab-1"
+      workflowId="workflow-1"
+      workflowName="Assistant Graph"
+      workflow={changedWorkflow}
+      references={[]}
+      importImageFile={vi.fn()}
+      onApplyWorkflow={onApplyWorkflow}
+      onClose={vi.fn()}
+    />,
+  );
   fireEvent.click(screen.getByRole("button", { name: "Add to canvas" }));
 
   await waitFor(() => expect(onApplyWorkflow).toHaveBeenCalled());
   const applyCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/media/assistant/plans/plan-1/apply"));
   expect(JSON.parse(String(applyCall?.[1]?.body))).toMatchObject({
-    workflow,
+    workflow: changedWorkflow,
     proposal_id: "plan-1",
     confirmation_token: "confirm-token-1",
   });

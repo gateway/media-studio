@@ -218,7 +218,7 @@ def _analyze_output(arguments: BaseModel, context: Any, *, output_kind: Literal[
                 message="Review only the style references that produced this preset's visual analysis.",
             )
     else:
-        from .run_confirmation import RunEvidenceError, bind_completed_recipe_run
+        from .run_confirmation import RunEvidenceError, bind_completed_assistant_run
 
         run = store.get_graph_run(str(run_evidence.get("run_id") or ""))
         if not run:
@@ -227,8 +227,10 @@ def _analyze_output(arguments: BaseModel, context: Any, *, output_kind: Literal[
                 message="The reviewed recipe run is unavailable.",
             )
         try:
-            run_evidence = bind_completed_recipe_run(
-                str(session.get("assistant_session_id") or ""), run
+            run_evidence = bind_completed_assistant_run(
+                str(session.get("assistant_session_id") or ""),
+                run,
+                expected_kind="recipe",
             )
         except RunEvidenceError as exc:
             raise ReferenceAnalysisError(code=exc.code, message=str(exc)) from exc
@@ -367,7 +369,7 @@ def _record_quality_decision(
             message="Review the actual generated output before recording a quality decision.",
         )
     if output_kind == "recipe":
-        from .run_confirmation import RunEvidenceError, bind_completed_recipe_run
+        from .run_confirmation import RunEvidenceError, bind_completed_assistant_run
 
         run = store.get_graph_run(str(comparison.get("run_id") or ""))
         if not run:
@@ -376,9 +378,10 @@ def _record_quality_decision(
                 message="The reviewed recipe run is unavailable.",
             )
         try:
-            run_evidence = bind_completed_recipe_run(
+            run_evidence = bind_completed_assistant_run(
                 str(session.get("assistant_session_id") or ""),
                 run,
+                expected_kind="recipe",
             )
         except RunEvidenceError as exc:
             raise ReferenceAnalysisError(code=exc.code, message=str(exc)) from exc
