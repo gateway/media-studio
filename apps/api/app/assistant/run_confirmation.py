@@ -342,7 +342,7 @@ def _legacy_recipe_run_association(
         "recipe_id": recipe_id,
         "recipe_quality_contract_hash": recipe_quality_contract_hash(recipe),
         "workflow_fingerprint": fingerprint,
-        "confirmation_token_hash": "",
+        "confirmation_token_hash": str(confirmation.get("confirmation_token_hash") or ""),
         "run_id": run_id,
         "eligible_model_node_ids": sorted(model_node_ids),
         "associated_at": store_assistant.utcnow_iso(),
@@ -350,22 +350,13 @@ def _legacy_recipe_run_association(
     }
 
 
-def _bind_completed_preset_run(session_id: str, run: dict) -> dict:
-    session = store_assistant.get_assistant_session(session_id)
-    if not session:
-        raise RunEvidenceError("preset_test_session_missing", "The Media Assistant session is unavailable.")
-    summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
-    confirmation = summary.get("kernel_run_confirmation")
-    if not isinstance(confirmation, dict) or confirmation.get("consumed") is not True:
-        raise RunEvidenceError(
-            "preset_test_run_not_confirmed",
-            "This run was not started from the current Media Assistant confirmation.",
-        )
-    if str(confirmation.get("assistant_run_id") or "") != str(run.get("run_id") or ""):
-        raise RunEvidenceError(
-            "preset_test_run_mismatch",
-            "This run was not started from the current Media Assistant confirmation.",
-        )
+def _bind_completed_preset_run(
+    session_id: str,
+    run: dict,
+    session: dict,
+    summary: dict,
+    confirmation: dict,
+) -> dict:
     plan_id = str(confirmation.get("test_plan_id") or "")
     plan = store_assistant.get_assistant_plan(plan_id) if plan_id else None
     if (
@@ -397,10 +388,7 @@ def _bind_completed_preset_run(session_id: str, run: dict) -> dict:
     plan_fingerprint = preset_test_workflow_fingerprint(
         GraphWorkflow.model_validate(plan_workflow)
     )
-    if not fingerprint or not hmac.compare_digest(run_plan_fingerprint, fingerprint) or not hmac.compare_digest(
-        plan_fingerprint,
-        run_plan_fingerprint,
-    ):
+    if not hmac.compare_digest(plan_fingerprint, run_plan_fingerprint):
         raise RunEvidenceError(
             "preset_test_workflow_mismatch",
             "The completed run does not match the confirmed applied preset test graph.",
@@ -439,11 +427,13 @@ def _bind_completed_preset_run(session_id: str, run: dict) -> dict:
     return evidence
 
 
-def _bind_completed_recipe_run(session_id: str, run: dict) -> dict:
-    session = store_assistant.get_assistant_session(session_id)
-    if not session:
-        raise RunEvidenceError("recipe_session_missing", "The Media Assistant session is unavailable.")
-    summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
+def _bind_completed_recipe_run(
+    session_id: str,
+    run: dict,
+    session: dict,
+    summary: dict,
+    confirmation: dict,
+) -> dict:
     association = summary.get("kernel_recipe_run_association")
     workflow = run.get("workflow_json")
     if not isinstance(workflow, dict):
@@ -491,13 +481,9 @@ def _bind_completed_recipe_run(session_id: str, run: dict) -> dict:
     associated_model_node_ids = {
         str(item) for item in association.get("eligible_model_node_ids") or []
     }
-    confirmation = summary.get("kernel_run_confirmation")
-    confirmation_token_hash = (
-        str(confirmation.get("confirmation_token_hash") or "")
-        if isinstance(confirmation, dict)
-        else ""
-    )
+    confirmation_token_hash = str(confirmation.get("confirmation_token_hash") or "")
     association_token_hash = str(association.get("confirmation_token_hash") or "")
+    confirmed_plan_id = str(confirmation.get("recipe_plan_id") or "")
     if (
         not fingerprint
         or not hmac.compare_digest(run_fingerprint, fingerprint)
@@ -513,12 +499,17 @@ def _bind_completed_recipe_run(session_id: str, run: dict) -> dict:
         )
         or model_node_ids != associated_model_node_ids
         or (
-            not association.get("relinked_from_completed_evidence")
-            and confirmation_token_hash
-            and not hmac.compare_digest(
-                confirmation_token_hash,
-                association_token_hash,
-            )
+            not confirmed_plan_id
+            and not association.get("relinked_from_completed_evidence")
+        )
+        or (
+            confirmed_plan_id
+            and not hmac.compare_digest(confirmed_plan_id, plan_id)
+        )
+        or not association_token_hash
+        or not hmac.compare_digest(
+            confirmation_token_hash,
+            association_token_hash,
         )
     ):
         raise RunEvidenceError(
@@ -571,14 +562,19 @@ def bind_completed_assistant_run(
 ) -> dict:
     """Bind one completed preset or recipe run through its persisted confirmation."""
     session = store_assistant.get_assistant_session(session_id)
-    if not session and expected_kind in {"preset_test", "recipe"}:
+    if not session:
+        error_kind = (
+            expected_kind
+            if expected_kind in {"preset_test", "recipe"}
+            else "assistant"
+        )
         raise RunEvidenceError(
-            f"{expected_kind}_session_missing",
+            f"{error_kind}_session_missing",
             "The Media Assistant session is unavailable.",
         )
     summary = (
         session.get("summary_json")
-        if session and isinstance(session.get("summary_json"), dict)
+        if isinstance(session.get("summary_json"), dict)
         else {}
     )
     confirmation = summary.get("kernel_run_confirmation")
@@ -586,19 +582,49 @@ def bind_completed_assistant_run(
         confirmation,
         capability=summary.get("kernel_capability"),
     )
-    if expected_kind and confirmation_kind != expected_kind:
+    evidence_kind = expected_kind or confirmation_kind
+    if (
+        not isinstance(confirmation, dict)
+        or evidence_kind not in {"preset_test", "recipe"}
+        or confirmation_kind != evidence_kind
+        or confirmation.get("consumed") is not True
+        or not str(confirmation.get("confirmation_token_hash") or "")
+    ):
         raise RunEvidenceError(
-            f"{expected_kind}_run_not_confirmed",
+            f"{evidence_kind}_run_not_confirmed",
             "This run is not linked to the current Assistant confirmation.",
         )
-    if confirmation_kind == "preset_test":
-        return _bind_completed_preset_run(session_id, run)
-    if confirmation_kind == "recipe":
-        return _bind_completed_recipe_run(session_id, run)
-    raise RunEvidenceError(
-        "assistant_run_evidence_unsupported",
-        "Only confirmed preset and recipe runs produce Assistant review evidence.",
+    run_id = str(run.get("run_id") or "")
+    if not run_id or str(confirmation.get("assistant_run_id") or "") != run_id:
+        raise RunEvidenceError(
+            f"{evidence_kind}_run_mismatch",
+            "This run was not started from the current Media Assistant confirmation.",
+        )
+    workflow = run.get("workflow_json")
+    if not isinstance(workflow, dict):
+        raise RunEvidenceError(
+            f"{evidence_kind}_workflow_missing",
+            "The confirmed run is missing its workflow snapshot.",
+        )
+    confirmation_fingerprint = str(confirmation.get("workflow_fingerprint") or "")
+    run_fingerprint = _confirmed_workflow_fingerprint(
+        confirmation,
+        GraphWorkflow.model_validate(workflow),
     )
+    if not confirmation_fingerprint or not hmac.compare_digest(
+        confirmation_fingerprint,
+        run_fingerprint,
+    ):
+        raise RunEvidenceError(
+            f"{evidence_kind}_workflow_mismatch",
+            "The completed run does not match the current Assistant confirmation.",
+        )
+    binder = (
+        _bind_completed_preset_run
+        if evidence_kind == "preset_test"
+        else _bind_completed_recipe_run
+    )
+    return binder(session_id, run, session, summary, confirmation)
 
 
 def _confirmation_error_code(

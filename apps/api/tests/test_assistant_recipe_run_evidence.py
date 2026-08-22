@@ -93,8 +93,10 @@ def _session(client, app_modules, workflow: dict, run_id: str) -> dict:
                 "kernel_recipe_draft": {"key": "travel-poster"},
                 "kernel_capability": "recipe_builder",
                 "kernel_run_confirmation": {
+                    "confirmation_token_hash": "confirmation-hash",
                     "workflow_fingerprint": fingerprint,
                     "assistant_run_id": run_id,
+                    "recipe_plan_id": plan["assistant_plan_id"],
                     "confirmation_kind": "recipe",
                     "consumed": True,
                     "confirmed_at": store_assistant.utcnow_iso(),
@@ -289,6 +291,65 @@ def test_authoritative_recipe_binding_rejects_a_different_confirmation_token(
         assert exc.code == "recipe_workflow_mismatch"
     else:
         raise AssertionError("Recipe evidence must stay bound to the exact confirmation")
+
+
+def test_authoritative_recipe_binding_rejects_a_missing_plan_link(
+    client,
+    app_modules,
+) -> None:
+    run_confirmation = importlib.import_module("app.assistant.run_confirmation")
+    workflow = _recipe_workflow()
+    run = _completed_run(app_modules["store"], workflow, "run-recipe-no-plan-link")
+    session = _session(client, app_modules, workflow, run["run_id"])
+    stored = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )
+    summary = dict(stored["summary_json"])
+    summary["kernel_run_confirmation"] = {
+        **summary["kernel_run_confirmation"],
+        "recipe_plan_id": "",
+    }
+    app_modules["store_assistant"].create_or_update_assistant_session(
+        {**stored, "summary_json": summary}
+    )
+
+    try:
+        run_confirmation.bind_completed_assistant_run(
+            session["assistant_session_id"], run
+        )
+    except run_confirmation.RunEvidenceError as exc:
+        assert exc.code == "recipe_workflow_mismatch"
+    else:
+        raise AssertionError("Current recipe evidence requires the confirmed plan link")
+
+
+def test_authoritative_recipe_binding_rejects_a_missing_confirmation(
+    client,
+    app_modules,
+) -> None:
+    run_confirmation = importlib.import_module("app.assistant.run_confirmation")
+    workflow = _recipe_workflow()
+    run = _completed_run(app_modules["store"], workflow, "run-recipe-no-confirmation")
+    session = _session(client, app_modules, workflow, run["run_id"])
+    stored = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )
+    summary = dict(stored["summary_json"])
+    summary.pop("kernel_run_confirmation")
+    app_modules["store_assistant"].create_or_update_assistant_session(
+        {**stored, "summary_json": summary}
+    )
+
+    try:
+        run_confirmation.bind_completed_assistant_run(
+            session["assistant_session_id"],
+            run,
+            expected_kind="recipe",
+        )
+    except run_confirmation.RunEvidenceError as exc:
+        assert exc.code == "recipe_run_not_confirmed"
+    else:
+        raise AssertionError("Recipe evidence requires the current confirmation")
 
 
 def test_recipe_confirmation_settles_first_persisted_identity_without_accepting_edits(
@@ -648,6 +709,56 @@ def test_completed_recipe_run_can_relink_only_from_exact_persisted_evidence(
     assert repaired["relinked_from_completed_evidence"] is True
 
 
+def test_relinked_recipe_evidence_rejects_a_newer_pending_confirmation(
+    client,
+    app_modules,
+) -> None:
+    run_confirmation = importlib.import_module("app.assistant.run_confirmation")
+    workflow = _recipe_workflow()
+    run = _completed_run(app_modules["store"], workflow, "run-recipe-stale-relink")
+    session = _session(client, app_modules, workflow, run["run_id"])
+    linked = run_confirmation.bind_completed_assistant_run(
+        session["assistant_session_id"], run
+    )
+    store_assistant = app_modules["store_assistant"]
+    stored = store_assistant.get_assistant_session(session["assistant_session_id"])
+    summary = dict(stored["summary_json"])
+    summary.pop("kernel_recipe_run_association")
+    summary["kernel_recipe_run_evidence"] = {
+        key: linked[key]
+        for key in (
+            "assistant_session_id",
+            "run_id",
+            "workflow_fingerprint",
+            "status",
+            "output_asset_ids",
+        )
+    }
+    store_assistant.create_or_update_assistant_session(
+        {**stored, "summary_json": summary}
+    )
+    run_confirmation.bind_completed_assistant_run(session["assistant_session_id"], run)
+    stored = store_assistant.get_assistant_session(session["assistant_session_id"])
+    summary = dict(stored["summary_json"])
+    summary["kernel_run_confirmation"] = {
+        **summary["kernel_run_confirmation"],
+        "assistant_run_id": "run-newer-pending",
+        "consumed": False,
+    }
+    store_assistant.create_or_update_assistant_session(
+        {**stored, "summary_json": summary}
+    )
+
+    try:
+        run_confirmation.bind_completed_assistant_run(
+            session["assistant_session_id"], run
+        )
+    except run_confirmation.RunEvidenceError as exc:
+        assert exc.code == "recipe_run_not_confirmed"
+    else:
+        raise AssertionError("Relinked evidence cannot outlive its confirmation")
+
+
 def test_completed_recipe_run_does_not_guess_between_duplicate_matching_plans(
     client,
     app_modules,
@@ -679,8 +790,7 @@ def test_completed_recipe_run_does_not_guess_between_duplicate_matching_plans(
     }
     summary["kernel_run_confirmation"] = {
         **summary["kernel_run_confirmation"],
-        "assistant_run_id": "run-newer-confirmation",
-        "recipe_plan_id": duplicate_plan["assistant_plan_id"],
+        "recipe_plan_id": "",
     }
     store_assistant.create_or_update_assistant_session(
         {**stored, "summary_json": summary}

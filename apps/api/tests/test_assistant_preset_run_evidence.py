@@ -368,6 +368,7 @@ def _confirmed_session(store_assistant, session: dict, plan: dict, fingerprint: 
             "summary_json": {
                 **(session.get("summary_json") or {}),
                 "kernel_run_confirmation": {
+                    "confirmation_token_hash": "confirmation-hash",
                     "test_plan_id": plan["assistant_plan_id"],
                     "workflow_fingerprint": fingerprint,
                     "consumed": True,
