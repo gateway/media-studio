@@ -309,3 +309,49 @@ def test_assistant_graph_plan_drops_a_group_that_contains_only_a_note(app_module
     result = graph_plan.apply_graph_plan(workflow, plan)
 
     assert result.metadata["groups"] == []
+
+
+def test_assistant_graph_plan_separates_explicit_group_frames(app_modules) -> None:
+    del app_modules
+    graph_plan = importlib.import_module("app.assistant.graph_plan")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    assistant_schemas = importlib.import_module("app.assistant.schemas")
+    workflow = graph_schemas.GraphWorkflow(name="Two branches", nodes=[], edges=[], metadata={})
+    plan = assistant_schemas.AssistantGraphPlan.model_validate(
+        {
+            "summary": "Build two separately grouped branches.",
+            "operations": [
+                {
+                    "op": "add_node",
+                    "node_ref": node_ref,
+                    "node_type": "prompt.text",
+                    "position": {"x": x, "y": y},
+                }
+                for node_ref, x, y in [
+                    ("a_left", 0, 0),
+                    ("a_right", 1000, 0),
+                    ("b_left", 0, 500),
+                    ("b_right", 1000, 500),
+                ]
+            ]
+            + [
+                {
+                    "op": "group_nodes",
+                    "group_ref": "branch_a",
+                    "title": "Branch A",
+                    "node_refs": ["a_left", "a_right"],
+                },
+                {
+                    "op": "group_nodes",
+                    "group_ref": "branch_b",
+                    "title": "Branch B",
+                    "node_refs": ["b_left", "b_right"],
+                },
+            ],
+        }
+    )
+
+    result = graph_plan.apply_graph_plan(workflow, plan)
+
+    first_group, second_group = result.metadata["groups"]
+    assert _has_gap(first_group["bounds"], second_group["bounds"], 96)

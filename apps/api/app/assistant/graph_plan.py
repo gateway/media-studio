@@ -221,6 +221,53 @@ def _layout_added_nodes(nodes_by_id: Dict[str, GraphWorkflowNode], added_node_id
         }
 
 
+def _space_added_groups(
+    groups: List[Dict[str, Any]],
+    nodes_by_id: Dict[str, GraphWorkflowNode],
+) -> None:
+    placed: List[tuple[Dict[str, Any], set[str]]] = []
+    for group in groups:
+        member_ids = {
+            str(node_id)
+            for node_id in group.get("node_ids", [])
+            if str(node_id) in nodes_by_id
+        }
+        if not member_ids:
+            continue
+        while True:
+            group_bounds = _compute_group_bounds(nodes_by_id[node_id] for node_id in member_ids)
+            conflict = next(
+                (
+                    candidate
+                    for candidate, candidate_ids in placed
+                    if member_ids.isdisjoint(candidate_ids)
+                    and not _rects_have_gap(
+                        group_bounds,
+                        candidate["bounds"],
+                        ASSISTANT_GRAPH_NODE_GAP,
+                    )
+                ),
+                None,
+            )
+            if conflict is None:
+                group["bounds"] = group_bounds
+                break
+            conflict_bounds = conflict["bounds"]
+            offset_y = (
+                conflict_bounds["y"]
+                + conflict_bounds["height"]
+                + ASSISTANT_GRAPH_NODE_GAP
+                - group_bounds["y"]
+            )
+            for node_id in member_ids:
+                node = nodes_by_id[node_id]
+                node.position = {
+                    "x": float(node.position.get("x", 0)),
+                    "y": float(node.position.get("y", 0)) + offset_y,
+                }
+        placed.append((group, member_ids))
+
+
 def _shift_added_section_from_existing(
     workflow: GraphWorkflow,
     nodes_by_id: Dict[str, GraphWorkflowNode],
@@ -436,6 +483,10 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
                 if node_id in nodes_by_id
             )
             normalized_groups.append(group)
+        _space_added_groups(
+            [group for group in normalized_groups if str(group.get("id") or "") in added_group_ids],
+            nodes_by_id,
+        )
         metadata["groups"] = normalized_groups
         next_workflow.metadata = metadata
     if plan.metadata:
