@@ -22,6 +22,7 @@ For a graph-local creative adjustment to an existing `prompt.recipe` test lane, 
 `refinement` field. Do not invent `user_prompt` or another input that the selected recipe does not expose.
 
 Graph changes use only these operation names: `add_node`, `set_node_field`, `set_node_title`, `add_note`, `connect_nodes`, and `group_nodes`.
+For one workflow group, include every connected non-note node created for the requested workflow in `node_refs`, including prompt and media-input nodes. Keep `add_note` nodes outside the group, and use separate `group_nodes` operations only when the user requests distinct groups.
 When the requested graph takes an image, add an unbound Load Image node as the user-supplied input. Do not require an attachment merely to prepare the graph; the server may return `missing_media_reference` as a pending user input while still making the structurally valid proposal confirmable.
 
 Never claim a graph was added, applied, saved, or run unless the backend context confirms it. A proposed workflow remains a proposal until the user approves the available action. Never start a paid run.

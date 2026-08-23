@@ -9,6 +9,8 @@ from ..graph.schemas import GraphWorkflow, GraphWorkflowEdge, GraphWorkflowNode
 from .schemas import AssistantGraphOperation, AssistantGraphPlan
 
 ASSISTANT_GRAPH_SECTION_GAP = 320.0
+ASSISTANT_GRAPH_NODE_GAP = 96.0
+ASSISTANT_GRAPH_GROUP_PADDING = 96.0
 
 
 def _slug(value: str) -> str:
@@ -81,7 +83,7 @@ def _compute_group_bounds(nodes: Iterable[GraphWorkflowNode]) -> Dict[str, float
     members = list(nodes)
     if not members:
         return {"x": 0, "y": 0, "width": 260, "height": 220}
-    padding = 80
+    padding = ASSISTANT_GRAPH_GROUP_PADDING
     left = min(node.position.get("x", 0) for node in members)
     top = min(node.position.get("y", 0) for node in members)
     right = max(node.position.get("x", 0) + _node_layout_size_for_bounds(node.type)[0] for node in members)
@@ -151,57 +153,136 @@ def _existing_graph_section_bounds(workflow: GraphWorkflow) -> Dict[str, float] 
     return _bounds_union(bounds)
 
 
-def _new_graph_section_bounds(operations: Iterable[AssistantGraphOperation], definitions: Dict[str, Any]) -> Dict[str, float] | None:
-    bounds = []
-    for operation in operations:
-        if operation.op == "add_note":
-            node_type = "utility.note"
-        elif operation.op == "add_node" and operation.node_type:
-            node_type = operation.node_type
-        else:
-            continue
-        if node_type not in definitions:
-            continue
-        width, height = _node_layout_size_for_bounds(node_type)
-        bounds.append(
-            {
-                "x": float(operation.position.get("x", 0)),
-                "y": float(operation.position.get("y", 0)),
-                "width": width,
-                "height": height,
-            }
-        )
-    return _bounds_union(bounds)
+def _rects_have_gap(first: Dict[str, float], second: Dict[str, float], gap: float) -> bool:
+    return not _rects_overlap(_expand_bounds(first, gap / 2), _expand_bounds(second, gap / 2))
 
 
-def _new_graph_section_offset(workflow: GraphWorkflow, operations: Iterable[AssistantGraphOperation], definitions: Dict[str, Any]) -> Dict[str, float]:
+def _space_added_nodes(nodes: List[GraphWorkflowNode]) -> None:
+    if len(nodes) < 2:
+        return
+    original_positions = {node.id: dict(node.position) for node in nodes}
+    placed: List[GraphWorkflowNode] = []
+    for node in nodes:
+        width = _node_layout_size_for_bounds(node.type)[0]
+        while True:
+            node_bounds = _bounds_for_node(node)
+            conflict = next(
+                (
+                    candidate
+                    for candidate in placed
+                    if not _rects_have_gap(
+                        node_bounds,
+                        _bounds_for_node(candidate),
+                        ASSISTANT_GRAPH_NODE_GAP,
+                    )
+                ),
+                None,
+            )
+            if conflict is None:
+                break
+            conflict_bounds = _bounds_for_node(conflict)
+            conflict_width = _node_layout_size_for_bounds(conflict.type)[0]
+            same_column = abs(
+                float(original_positions[node.id].get("x", 0))
+                - float(original_positions[conflict.id].get("x", 0))
+            ) < min(width, conflict_width) / 2
+            if same_column:
+                node.position = {
+                    "x": float(node.position.get("x", 0)),
+                    "y": conflict_bounds["y"] + conflict_bounds["height"] + ASSISTANT_GRAPH_NODE_GAP,
+                }
+            else:
+                node.position = {
+                    "x": conflict_bounds["x"] + conflict_bounds["width"] + ASSISTANT_GRAPH_NODE_GAP,
+                    "y": float(node.position.get("y", 0)),
+                }
+        placed.append(node)
+
+
+def _layout_added_nodes(nodes_by_id: Dict[str, GraphWorkflowNode], added_node_ids: List[str]) -> None:
+    added_nodes = [nodes_by_id[node_id] for node_id in added_node_ids if node_id in nodes_by_id]
+    notes = [node for node in added_nodes if node.type == "utility.note"]
+    graph_nodes = [node for node in added_nodes if node.type != "utility.note"]
+    _space_added_nodes(notes)
+    _space_added_nodes(graph_nodes)
+    if not notes or not graph_nodes:
+        return
+    note_bounds = [_bounds_for_node(node) for node in notes]
+    note_bottom = max(bounds["y"] + bounds["height"] for bounds in note_bounds)
+    graph_top = min(_bounds_for_node(node)["y"] for node in graph_nodes)
+    minimum_graph_top = note_bottom + ASSISTANT_GRAPH_NODE_GAP + ASSISTANT_GRAPH_GROUP_PADDING
+    if graph_top >= minimum_graph_top:
+        return
+    offset = minimum_graph_top - graph_top
+    for node in graph_nodes:
+        node.position = {
+            "x": float(node.position.get("x", 0)),
+            "y": float(node.position.get("y", 0)) + offset,
+        }
+
+
+def _shift_added_section_from_existing(
+    workflow: GraphWorkflow,
+    nodes_by_id: Dict[str, GraphWorkflowNode],
+    added_node_ids: List[str],
+) -> None:
     existing_bounds = _existing_graph_section_bounds(workflow)
-    new_bounds = _new_graph_section_bounds(operations, definitions)
-    if not existing_bounds or not new_bounds:
-        return {"x": 0.0, "y": 0.0}
-    if not _rects_overlap(_expand_bounds(existing_bounds, ASSISTANT_GRAPH_SECTION_GAP), new_bounds):
-        return {"x": 0.0, "y": 0.0}
-    return {
-        "x": existing_bounds["x"] + existing_bounds["width"] + ASSISTANT_GRAPH_SECTION_GAP - new_bounds["x"],
-        "y": 0.0,
-    }
+    added_bounds = _bounds_union(
+        _bounds_for_node(nodes_by_id[node_id])
+        for node_id in added_node_ids
+        if node_id in nodes_by_id
+    )
+    if not existing_bounds or not added_bounds:
+        return
+    if not _rects_overlap(_expand_bounds(existing_bounds, ASSISTANT_GRAPH_SECTION_GAP), added_bounds):
+        return
+    offset_x = existing_bounds["x"] + existing_bounds["width"] + ASSISTANT_GRAPH_SECTION_GAP - added_bounds["x"]
+    for node_id in added_node_ids:
+        node = nodes_by_id.get(node_id)
+        if not node:
+            continue
+        node.position = {
+            "x": float(node.position.get("x", 0)) + offset_x,
+            "y": float(node.position.get("y", 0)),
+        }
 
 
-def _shifted_position(position: Dict[str, Any], offset: Dict[str, float]) -> Dict[str, float]:
-    return {
-        "x": float(position.get("x", 0)) + float(offset.get("x", 0)),
-        "y": float(position.get("y", 0)) + float(offset.get("y", 0)),
+def _connected_added_node_ids(
+    workflow: GraphWorkflow,
+    nodes_by_id: Dict[str, GraphWorkflowNode],
+    added_node_ids: List[str],
+    member_ids: List[str],
+) -> List[str]:
+    eligible_ids = {
+        node_id
+        for node_id in added_node_ids
+        if node_id in nodes_by_id and nodes_by_id[node_id].type != "utility.note"
     }
+    neighbors = {node_id: set() for node_id in eligible_ids}
+    for edge in workflow.edges:
+        if edge.source not in eligible_ids or edge.target not in eligible_ids:
+            continue
+        neighbors[edge.source].add(edge.target)
+        neighbors[edge.target].add(edge.source)
+    connected_ids = {node_id for node_id in member_ids if node_id in eligible_ids}
+    pending = list(connected_ids)
+    while pending:
+        node_id = pending.pop()
+        for neighbor_id in neighbors[node_id] - connected_ids:
+            connected_ids.add(neighbor_id)
+            pending.append(neighbor_id)
+    return [node_id for node_id in added_node_ids if node_id in connected_ids]
 
 
 def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> GraphWorkflow:
     definitions = registry.definitions_by_type()
     next_workflow = materialize_workflow_defaults(workflow).model_copy(deep=True)
-    graph_section_offset = _new_graph_section_offset(next_workflow, plan.operations, definitions)
     existing_ids = {node.id for node in next_workflow.nodes}
     node_refs: Dict[str, str] = {}
     nodes_by_id: Dict[str, GraphWorkflowNode] = {node.id: node for node in next_workflow.nodes}
     edges_by_id = {edge.id for edge in next_workflow.edges}
+    added_node_ids: List[str] = []
+    added_group_ids: set[str] = set()
 
     def resolve_node_id(reference: str | None, explicit_id: str | None = None) -> str | None:
         return node_refs.get(reference or "") or (
@@ -223,12 +304,13 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
             node = GraphWorkflowNode(
                 id=node_id,
                 type=operation.node_type,
-                position=_shifted_position(operation.position, graph_section_offset),
+                position={"x": float(operation.position.get("x", 0)), "y": float(operation.position.get("y", 0))},
                 fields=fields,
                 metadata=metadata,
             )
             next_workflow.nodes.append(node)
             nodes_by_id[node_id] = node
+            added_node_ids.append(node_id)
             if operation.node_ref:
                 node_refs[operation.node_ref] = node_id
             continue
@@ -260,12 +342,13 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
             node = GraphWorkflowNode(
                 id=node_id,
                 type=node_type,
-                position=_shifted_position(operation.position, graph_section_offset),
+                position={"x": float(operation.position.get("x", 0)), "y": float(operation.position.get("y", 0))},
                 fields={**_default_fields(node_type), "body": operation.body or operation.fields.get("body") or ""},
                 metadata={"ui": {"customTitle": operation.title or "Guide"}},
             )
             next_workflow.nodes.append(node)
             nodes_by_id[node_id] = node
+            added_node_ids.append(node_id)
             if operation.node_ref:
                 node_refs[operation.node_ref] = node_id
             continue
@@ -310,6 +393,7 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
                     "execution": {"mode": "enabled"},
                 }
             )
+            added_group_ids.add(group_id)
             metadata["groups"] = groups
             next_workflow.metadata = metadata
             continue
@@ -319,6 +403,41 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
 
         raise ValueError(f"Unsupported assistant graph operation: {operation.op}")
 
+    _layout_added_nodes(nodes_by_id, added_node_ids)
+    _shift_added_section_from_existing(workflow, nodes_by_id, added_node_ids)
+    if added_group_ids:
+        metadata = dict(next_workflow.metadata)
+        groups = [dict(group) for group in metadata.get("groups") or []]
+        normalized_groups = []
+        for group in groups:
+            if str(group.get("id") or "") not in added_group_ids:
+                normalized_groups.append(group)
+                continue
+            node_ids = group.get("node_ids") if isinstance(group.get("node_ids"), list) else []
+            node_ids = [
+                node_id
+                for node_id in node_ids
+                if node_id in nodes_by_id and nodes_by_id[node_id].type != "utility.note"
+            ]
+            if len(added_group_ids) == 1:
+                expanded_node_ids = _connected_added_node_ids(
+                    next_workflow,
+                    nodes_by_id,
+                    added_node_ids,
+                    node_ids,
+                )
+                node_ids = [*node_ids, *(node_id for node_id in expanded_node_ids if node_id not in node_ids)]
+            if not node_ids:
+                continue
+            group["node_ids"] = node_ids
+            group["bounds"] = _compute_group_bounds(
+                nodes_by_id[node_id]
+                for node_id in node_ids
+                if node_id in nodes_by_id
+            )
+            normalized_groups.append(group)
+        metadata["groups"] = normalized_groups
+        next_workflow.metadata = metadata
     if plan.metadata:
         metadata = dict(next_workflow.metadata)
         metadata["assistant_plan"] = dict(plan.metadata)
