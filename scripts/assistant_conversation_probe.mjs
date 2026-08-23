@@ -11,7 +11,9 @@ import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
 
 import {
+  evaluateMechanicalTurn,
   planPreviewFromSession,
+  toolCallsFromTrace,
   workflowForProbeSession,
 } from "./lib/assistant_conversation_probe_contract.mjs";
 
@@ -20,21 +22,6 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptDir, "..");
 const suiteRoot = path.join(root, "docs", "development", "artifacts", "assistant-conversation-suite");
 const defaultRunRoot = path.join(root, "docs", "development", "artifacts", "assistant-runs");
-const bannedVocabulary = [
-  "sandbox",
-  "plan card",
-  "reviewable workflow",
-  "assistant_prompt_route",
-  "provider_",
-  "codex_local",
-  "node_ref",
-  "chain-of-thought",
-  "create_workflow",
-  "create_prompt_recipe",
-  "create_media_preset",
-  "plan_graph",
-];
-
 function parseArgs(argv) {
   const options = { group: null, scenario: null, validateOnly: false, outputRoot: defaultRunRoot };
   for (let index = 0; index < argv.length; index += 1) {
@@ -339,32 +326,6 @@ async function latestUsage(dbPath, sessionId) {
   }
 }
 
-function plainWordCount(text) {
-  return String(text || "")
-    .replace(/[`*_>#-]/g, " ")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean).length;
-}
-
-function presentationAnomalies(text) {
-  const value = String(text || "");
-  const lines = value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const anomalies = [];
-  if (value.includes("MEDIA_ASSISTANT_") || value.includes("REFERENCE_STYLE_")) anomalies.push("internal_marker");
-  if (lines.at(-1)?.startsWith("-") && lines.at(-1)?.endsWith("?")) anomalies.push("question_embedded_in_list");
-  if (/\{\s*"(?:mode|assistant_prompt_route|provider_kind)"/.test(value)) anomalies.push("raw_internal_json");
-  return anomalies;
-}
-
-function toolCallsFromTrace(trace) {
-  if (!trace || typeof trace !== "object") return [];
-  for (const key of ["tool_calls", "tools", "calls"]) {
-    if (Array.isArray(trace[key])) return trace[key];
-  }
-  return [];
-}
-
 function providerMetricsFromTrace(trace) {
   const providerSteps = Array.isArray(trace?.provider_steps) ? trace.provider_steps : [];
   return {
@@ -378,63 +339,6 @@ function providerMetricsFromTrace(trace) {
     prompt_bytes: Number(trace?.provider_prompt_bytes || 0),
     latency_ms: Number(trace?.provider_latency_ms || 0),
     total_tokens: Number(trace?.provider_total_tokens || 0),
-  };
-}
-
-function mechanicalChecks({ scenario, reply, contentJson, plan, jobsBefore, jobsAfter }) {
-  const lower = reply.toLowerCase();
-  const bannedHits = bannedVocabulary.filter((term) => lower.includes(term));
-  const wordCount = plainWordCount(reply);
-  const trace = contentJson.assistant_turn_trace ?? null;
-  const toolCalls = toolCallsFromTrace(trace);
-  const nextAction = contentJson.next_action ?? null;
-  const legacySuggestedAction = contentJson.suggested_action ?? null;
-  const actionShapeValid = nextAction === null
-    ? Boolean(scenario.mechanical.expect_no_next_action) || !legacySuggestedAction
-    : typeof nextAction === "object" && typeof nextAction.kind === "string";
-  const price = plan?.pricing?.pricing_summary?.total ?? null;
-  const checks = {
-    banned_vocabulary: { pass: bannedHits.length === 0, hits: bannedHits },
-    reply_length: { pass: wordCount <= 150, words: wordCount, max_words: 150 },
-    presentation: { pass: presentationAnomalies(reply).length === 0, anomalies: presentationAnomalies(reply) },
-    tool_evidence: {
-      pass: !scenario.mechanical.require_tool_evidence || toolCalls.length > 0,
-      required: Boolean(scenario.mechanical.require_tool_evidence),
-      tool_call_count: toolCalls.length,
-    },
-    action_shape: {
-      pass: actionShapeValid,
-      next_action: nextAction,
-      legacy_suggested_action: legacySuggestedAction,
-    },
-    workflow_validity: {
-      pass: !scenario.mechanical.plan_preview || Boolean(plan?.validation?.valid),
-      checked: Boolean(scenario.mechanical.plan_preview),
-      valid: plan?.validation?.valid ?? null,
-    },
-    price_present: {
-      pass: !scenario.mechanical.plan_preview || price !== null,
-      checked: Boolean(scenario.mechanical.plan_preview),
-      price,
-    },
-    no_unconfirmed_mutation: {
-      pass: plan?.plan?.status !== "applied" && jobsAfter === jobsBefore,
-      plan_status: plan?.plan?.status ?? null,
-      jobs_before: jobsBefore,
-      jobs_after: jobsAfter,
-    },
-    confirmation: {
-      pass: !scenario.mechanical.expect_confirmation || Boolean(
-        contentJson.requires_confirmation
-        || nextAction?.requires_confirmation
-        || /confirm|approval|approve|before (?:i|we) run|which.*run/i.test(reply),
-      ),
-      required: Boolean(scenario.mechanical.expect_confirmation),
-    },
-  };
-  return {
-    ...checks,
-    pass: Object.values(checks).every((check) => check.pass),
   };
 }
 
@@ -526,7 +430,7 @@ async function runScenario({ apiBaseUrl, token, dbPath, scenario, sessions, refe
           }
         : null,
       token_usage: usage,
-      checks: mechanicalChecks({ scenario, reply, contentJson, plan, jobsBefore, jobsAfter }),
+      checks: evaluateMechanicalTurn({ scenario, reply, contentJson, plan, jobsBefore, jobsAfter }),
     });
   }
   return {
@@ -575,13 +479,13 @@ function renderSummary(results, runtime) {
     `Provider: real Codex Local (${runtime.model})`,
     `Mechanical scenarios passing: ${passing}/${scored.length}`,
     "",
-    "| Scenario | Mechanical | Banned terms | Words | Tools | Plan valid | Price | Presentation |",
-    "| --- | --- | --- | ---: | ---: | --- | --- | --- |",
+    "| Scenario | Mechanical | Banned terms | Words | Tools | Typed tools | Lifecycle | Steps | Plan valid | Price | Presentation |",
+    "| --- | --- | --- | ---: | ---: | --- | --- | --- | --- | --- | --- |",
   ];
   for (const result of scored) {
     const checks = result.turns.at(-1)?.checks;
     lines.push(
-      `| ${result.id} | ${result.pass ? "pass" : "fail"} | ${checks.banned_vocabulary.hits.join(", ") || "none"} | ${checks.reply_length.words} | ${checks.tool_evidence.tool_call_count} | ${checks.workflow_validity.checked ? String(checks.workflow_validity.valid) : "n/a"} | ${checks.price_present.checked ? (checks.price_present.price === null ? "missing" : "present") : "n/a"} | ${checks.presentation.anomalies.join(", ") || "none"} |`,
+      `| ${result.id} | ${result.pass ? "pass" : "fail"} | ${checks.banned_vocabulary.hits.join(", ") || "none"} | ${checks.reply_length.words} | ${checks.tool_evidence.tool_call_count} | ${checks.typed_actions.pass ? "pass" : "fail"} | ${checks.process_lifecycle.pass ? "pass" : "fail"} | ${checks.step_limit.step_count}/${checks.step_limit.max_tool_steps} | ${checks.workflow_validity.checked ? String(checks.workflow_validity.valid) : "n/a"} | ${checks.price_present.checked ? (checks.price_present.price === null ? "missing" : "present") : "n/a"} | ${checks.presentation.anomalies.join(", ") || "none"} |`,
     );
   }
   lines.push(

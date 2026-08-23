@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+cd "$ROOT"
+
+node --test scripts/lib/assistant_conversation_probe_contract.test.mjs
+
+"$ROOT/scripts/with_shared_python.sh" -m pytest -q \
+  apps/api/tests/test_assistant_kernel.py::test_kernel_provider_schema_preserves_nonempty_tool_arguments \
+  apps/api/tests/test_assistant_kernel.py::test_six_step_kernel_turn_uses_one_session_key_and_one_process_spawn \
+  apps/api/tests/test_assistant_kernel.py::test_kernel_canvas_inventory_returns_grounded_typed_turn \
+  apps/api/tests/test_assistant_kernel.py::test_kernel_stops_at_tool_step_budget \
+  apps/api/tests/test_assistant_kernel.py::test_kernel_graph_proposal_is_validated_priced_and_confirmable \
+  apps/api/tests/test_assistant_kernel.py::test_kernel_run_request_returns_typed_confirmation_without_submitting_a_job \
+  apps/api/tests/test_assistant_kernel.py::test_kernel_traces_voice_violations_without_rewriting_provider_reply \
+  apps/api/tests/test_assistant_kernel.py::test_kernel_retries_guidance_that_claims_missing_evidence \
+  apps/api/tests/test_assistant_graph_plan.py \
+  apps/api/tests/test_assistant_confirmation_routes.py \
+  apps/api/tests/test_media_assistant_prompt_assets.py \
+  apps/api/tests/test_media_assistant_feature_gate.py

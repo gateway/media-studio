@@ -13,6 +13,7 @@
     "setup:shared-env": "./scripts/setup_shared_env.sh",
     "generate:api-specs": "./scripts/with_shared_python.sh ./scripts/generate_api_specs.py",
     "quality": "./scripts/run-quality-gates",
+    "quality:assistant-ci": "bash ./scripts/run-media-assistant-ci-gate",
     "quality:file-size": "python3 ./scripts/check_file_size_guardrails.py",
     "quality:theme-drift": "python3 ./scripts/check_style_drift.py",
     "release:verify": "./scripts/run-release-gates",

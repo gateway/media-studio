@@ -1,0 +1,78 @@
+name: media-assistant-ci
+
+on:
+  push:
+    branches:
+      - main
+      - "codex/**"
+    paths:
+      - ".github/workflows/media-assistant-ci.yml"
+      - "apps/api/app/assistant/**"
+      - "apps/api/app/codex_local_provider.py"
+      - "apps/api/app/enhancement_provider.py"
+      - "apps/api/app/main.py"
+      - "apps/api/app/settings.py"
+      - "apps/api/tests/test_assistant*.py"
+      - "apps/api/tests/test_graph_prompt_semantics.py"
+      - "apps/api/tests/test_media_assistant*.py"
+      - "docs/media-assistant.md"
+      - "package.json"
+      - "scripts/assistant_conversation_probe.mjs"
+      - "scripts/lib/assistant_conversation_probe_contract*"
+      - "scripts/run-media-assistant-ci-gate"
+  pull_request:
+    paths:
+      - ".github/workflows/media-assistant-ci.yml"
+      - "apps/api/app/assistant/**"
+      - "apps/api/app/codex_local_provider.py"
+      - "apps/api/app/enhancement_provider.py"
+      - "apps/api/app/main.py"
+      - "apps/api/app/settings.py"
+      - "apps/api/tests/test_assistant*.py"
+      - "apps/api/tests/test_graph_prompt_semantics.py"
+      - "apps/api/tests/test_media_assistant*.py"
+      - "docs/media-assistant.md"
+      - "package.json"
+      - "scripts/assistant_conversation_probe.mjs"
+      - "scripts/lib/assistant_conversation_probe_contract*"
+      - "scripts/run-media-assistant-ci-gate"
+
+jobs:
+  mechanical-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out Media Studio
+        uses: actions/checkout@v5
+
+      - name: Check out KIE API dependency
+        uses: actions/checkout@v5
+        with:
+          repository: gateway/kie-api
+          path: kie-api
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Install shared Python environment
+        run: |
+          python -m venv kie-api/.venv
+          kie-api/.venv/bin/pip install --upgrade pip
+          kie-api/.venv/bin/pip install -e ./kie-api
+          kie-api/.venv/bin/pip install -e ./apps/api[dev]
+
+      - name: Run deterministic Media Assistant contract
+        env:
+          KIE_API_KEY: ""
+          MEDIA_ENABLE_LIVE_SUBMIT: "false"
+          MEDIA_STUDIO_KIE_API_REPO_PATH: ${{ github.workspace }}/kie-api
+          OPENROUTER_API_KEY: ""
+        run: npm run quality:assistant-ci
