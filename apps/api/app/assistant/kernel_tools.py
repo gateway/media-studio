@@ -448,23 +448,89 @@ def _list_graph_node_types(arguments: BaseModel, _context: KernelToolContext) ->
         score = sum(1 for token in query_tokens if token in haystack)
         if query and not score:
             continue
-        ranked_matches.append(
-            (
-                score,
+        summary = {
+            "type": definition.type,
+            "title": definition.title,
+            "description": definition.description,
+            "category": definition.category,
+            "input_ports": [port.id for port in definition.ports.get("inputs", [])],
+            "output_ports": [port.id for port in definition.ports.get("outputs", [])],
+            "field_ids": [field.id for field in definition.fields],
+        }
+        compact_definition = _compact_graph_node_definition(definition)
+        operation_schema = {
+            "type": definition.type,
+            "title": definition.title,
+            "description": definition.description,
+            "category": definition.category,
+            "inputs": [
                 {
-                    "type": definition.type,
-                    "title": definition.title,
-                    "description": definition.description,
-                    "category": definition.category,
-                    "input_ports": [port.id for port in definition.ports.get("inputs", [])],
-                    "output_ports": [port.id for port in definition.ports.get("outputs", [])],
-                    "field_ids": [field.id for field in definition.fields],
-                },
-            )
-        )
+                    key: value
+                    for key, value in port.items()
+                    if key in {"id", "type", "array", "required", "accepts"}
+                }
+                for port in compact_definition["ports"]["inputs"]
+            ],
+            "outputs": [
+                {
+                    key: value
+                    for key, value in port.items()
+                    if key in {"id", "type", "array", "required", "accepts"}
+                }
+                for port in compact_definition["ports"]["outputs"]
+            ],
+            "fields": [
+                {
+                    key: value
+                    for key, value in field.items()
+                    if key in {
+                        "id",
+                        "type",
+                        "required",
+                        "default",
+                        "min",
+                        "max",
+                        "step",
+                        "options",
+                    }
+                }
+                for field in compact_definition["fields"]
+            ],
+        }
+        ranked_matches.append((score, summary, operation_schema))
     ranked_matches.sort(key=lambda item: item[0], reverse=True)
-    matches = [item for _, item in ranked_matches[: options.limit]]
-    return {"query": options.query, "count": len(matches), "node_types": matches}
+    selected = ranked_matches[: options.limit]
+    summaries = [summary for _, summary, _ in selected]
+    matches = []
+    omitted = []
+    per_schema_budget = KERNEL_SCHEMA_RESULT_TARGET_BYTES // 8
+    for (_, summary, operation_schema) in selected:
+        schema_size = len(json.dumps(operation_schema, separators=(",", ":")).encode("utf-8"))
+        if schema_size > per_schema_budget:
+            matches.append(summary)
+            omitted.append(str(summary["type"]))
+        else:
+            matches.append(operation_schema)
+    result = {
+        "query": options.query,
+        "count": len(matches),
+        "node_types": matches,
+        "schema_omitted_node_types": omitted,
+        "instruction": (
+            "Use these exact fields and typed ports for graph operations. Inspect only omitted "
+            "node types or unresolved option values and limits."
+        ),
+    }
+    encoded_size = len(json.dumps(result, separators=(",", ":")).encode("utf-8"))
+    for index in range(len(matches) - 1, -1, -1):
+        if encoded_size <= KERNEL_SCHEMA_RESULT_TARGET_BYTES:
+            break
+        if "fields" not in matches[index]:
+            continue
+        matches[index] = summaries[index]
+        omitted.insert(0, str(summaries[index]["type"]))
+        encoded_size = len(json.dumps(result, separators=(",", ":")).encode("utf-8"))
+    return result
 
 
 def _compact_graph_node_definition(definition: Any) -> Dict[str, Any]:
@@ -1694,7 +1760,11 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
     ),
     "list_graph_node_types": KernelToolDefinition(
         name="list_graph_node_types",
-        description="List real Graph Studio node types relevant to a search phrase before choosing node types.",
+        description=(
+            "List real Graph Studio node types relevant to a search phrase with compact operation fields "
+            "and typed ports. Inspect full schemas separately only for reported omissions or unresolved "
+            "option values and limits."
+        ),
         arguments_model=ListGraphNodeTypesArguments,
         allowed_capabilities=frozenset({"graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}),
         handler=_list_graph_node_types,

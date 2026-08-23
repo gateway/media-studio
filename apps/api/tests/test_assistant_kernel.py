@@ -475,6 +475,43 @@ def test_graph_discovery_handles_natural_queries_within_result_budget(app_module
     assert all({"ports", "fields", "limits", "ui"}.issubset(item) for item in inspected.result["definitions"])
 
 
+def test_graph_discovery_returns_operation_schemas_in_the_catalog_result(app_modules) -> None:
+    del app_modules
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    context = tools.KernelToolContext(workflow=None, canvas_context={})
+
+    discovered = tools.execute_kernel_tool(
+        tool_name="list_graph_node_types",
+        arguments={
+            "query": "text prompt GPT Image 2 preview save image",
+            "limit": 30,
+        },
+        capability="graph_builder",
+        context=context,
+    )
+
+    assert discovered.trace.error is None
+    by_type = {item["type"]: item for item in discovered.result["node_types"]}
+    for node_type in (
+        "prompt.text",
+        "model.kie.gpt_image_2_text_to_image",
+        "preview.image",
+        "media.save_image",
+    ):
+        assert {"inputs", "outputs", "fields"}.issubset(by_type[node_type])
+        assert node_type not in discovered.result["schema_omitted_node_types"]
+    assert {item["id"] for item in by_type["prompt.text"]["outputs"]} == {"text"}
+    model_fields = {
+        item["id"]: item
+        for item in by_type["model.kie.gpt_image_2_text_to_image"]["fields"]
+    }
+    assert model_fields["aspect_ratio"]["type"] == "select"
+    assert model_fields["resolution"]["type"] == "select"
+    assert "16:9" in model_fields["aspect_ratio"]["options"]
+    assert "1K" in model_fields["resolution"]["options"]
+    assert discovered.trace.result_size_bytes <= tools.KERNEL_SCHEMA_RESULT_TARGET_BYTES
+
+
 def test_kernel_canvas_inventory_returns_grounded_typed_turn(client, monkeypatch) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
     provider_steps = iter(
