@@ -98,6 +98,25 @@ def _preset_fingerprint(workflow: dict) -> str:
     )
 
 
+def test_preset_fingerprint_keeps_frozen_artifact_identity() -> None:
+    approved = _workflow("workflow-frozen-preset-output")
+    approved["nodes"][1]["metadata"] = {
+        "execution": {
+            "mode": "frozen",
+            "cached_run_id": "run-approved-output",
+            "cached_artifact_ids": {"image": ["artifact-approved-output"]},
+        }
+    }
+    changed = json.loads(json.dumps(approved))
+    changed["nodes"][1]["metadata"]["execution"] = {
+        "mode": "frozen",
+        "cached_run_id": "run-other-output",
+        "cached_artifact_ids": {"image": ["artifact-other-output"]},
+    }
+
+    assert _preset_fingerprint(approved) != _preset_fingerprint(changed)
+
+
 def test_run_confirmation_records_the_applied_preset_test_plan(client, app_modules, monkeypatch) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
     graph_routes = importlib.import_module("app.graph.routes")
@@ -258,6 +277,64 @@ def test_toolbar_run_associates_an_exact_applied_preset_test(
     assert confirmation["test_plan_id"] == plan["assistant_plan_id"]
     assert confirmation["assistant_run_id"] == run_id
     assert confirmation["consumed"] is True
+    assert confirmation["workflow_fingerprint"] == _preset_fingerprint(workflow)
+
+
+def test_toolbar_rerun_associates_when_only_prior_execution_cache_changed(
+    client,
+    app_modules,
+    monkeypatch,
+) -> None:
+    graph_routes = importlib.import_module("app.graph.routes")
+    workflow = _workflow("workflow-toolbar-preset-rerun")
+    session = _session(client, workflow)
+    plan = _applied_preset_plan(
+        app_modules["store_assistant"],
+        session["assistant_session_id"],
+        workflow,
+    )
+    rerun_workflow = json.loads(json.dumps(workflow))
+    for node in rerun_workflow["nodes"]:
+        node["metadata"] = {
+            "execution": {
+                "mode": "enabled",
+                "cached_run_id": "run-prior-preset-test",
+                "cached_artifact_ids": {"image": [f"artifact-prior-{node['id']}"]},
+            }
+        }
+    app_modules["store"].create_or_update_graph_workflow(
+        {
+            "workflow_id": workflow["workflow_id"],
+            "name": workflow["name"],
+            "workflow_json": rerun_workflow,
+        }
+    )
+    real_create_run = graph_routes.runtime.create_run
+    started_run_ids = []
+
+    def create_without_start(workflow_id, payload, *, start=True):
+        return real_create_run(workflow_id, payload, start=False)
+
+    monkeypatch.setattr(graph_routes.runtime, "create_run", create_without_start)
+    monkeypatch.setattr(graph_routes.runtime, "start_run", started_run_ids.append)
+
+    response = client.post(
+        f"/media/graph/workflows/{workflow['workflow_id']}/runs",
+        json={
+            "workflow": rerun_workflow,
+            "assistant_context_session_id": session["assistant_session_id"],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    run_id = response.json()["run_id"]
+    assert started_run_ids == [run_id]
+    confirmation = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )["summary_json"]["kernel_run_confirmation"]
+    assert confirmation["confirmation_source"] == "toolbar_run"
+    assert confirmation["test_plan_id"] == plan["assistant_plan_id"]
+    assert confirmation["assistant_run_id"] == run_id
     assert confirmation["workflow_fingerprint"] == _preset_fingerprint(workflow)
 
 
@@ -640,6 +717,36 @@ def test_completed_preset_run_accepts_canvas_presentation_metadata(client, app_m
 
     assert evidence.trace.error is None
     assert evidence.result["preset_test"]["test_plan_id"] == plan["assistant_plan_id"]
+
+
+def test_completed_preset_rerun_accepts_prior_execution_cache(client, app_modules) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    workflow = _workflow("workflow-completed-preset-rerun")
+    session = _session(client, workflow)
+    plan = _applied_preset_plan(
+        app_modules["store_assistant"],
+        session["assistant_session_id"],
+        workflow,
+    )
+    fingerprint = _preset_fingerprint(workflow)
+    session = _confirmed_session(app_modules["store_assistant"], session, plan, fingerprint)
+    rerun_workflow = json.loads(json.dumps(workflow))
+    for node in rerun_workflow["nodes"]:
+        node["metadata"] = {
+            "execution": {
+                "mode": "enabled",
+                "cached_run_id": "run-prior-preset-test",
+                "cached_artifact_ids": {"image": [f"artifact-prior-{node['id']}"]},
+            }
+        }
+    run = _completed_run(app_modules["store"], rerun_workflow, "run-completed-preset-rerun")
+    session = _associate_session(app_modules["store_assistant"], session, run["run_id"])
+
+    evidence = _read_preset_run_evidence(tools, rerun_workflow, session, run["run_id"])
+
+    assert evidence.trace.error is None
+    assert evidence.result["preset_test"]["test_plan_id"] == plan["assistant_plan_id"]
+    assert evidence.result["preset_test"]["workflow_fingerprint"] == fingerprint
 
 
 def test_preset_run_confirmation_accepts_later_canvas_presentation_changes(client, app_modules) -> None:

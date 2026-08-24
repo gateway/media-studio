@@ -112,7 +112,24 @@ def workflow_fingerprint(workflow: GraphWorkflow) -> str:
 
 
 def preset_test_workflow_fingerprint(workflow: GraphWorkflow) -> str:
-    payload = _execution_workflow_payload(materialize_workflow_defaults(workflow))
+    comparable = materialize_workflow_defaults(workflow).model_copy(deep=True)
+    for node in comparable.nodes:
+        execution = (
+            node.metadata.get("execution")
+            if isinstance(node.metadata.get("execution"), dict)
+            else {}
+        )
+        mode = str(execution.get("mode") or "enabled")
+        node.metadata["execution"] = (
+            {"mode": mode}
+            if mode == "enabled"
+            else {
+                "mode": mode,
+                "cached_run_id": execution.get("cached_run_id") or None,
+                "cached_artifact_ids": execution.get("cached_artifact_ids") or {},
+            }
+        )
+    payload = _execution_workflow_payload(comparable)
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -128,7 +145,9 @@ def recipe_plan_workflow_fingerprint(workflow: GraphWorkflow) -> str:
         node.metadata["execution"] = {
             "mode": str(execution.get("mode") or "enabled")
         }
-    return preset_test_workflow_fingerprint(comparable)
+    payload = _execution_workflow_payload(comparable)
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def preset_quality_contract_hash(draft: Dict[str, Any]) -> str:
