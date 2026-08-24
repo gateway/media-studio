@@ -753,6 +753,52 @@ def applied_preset_test_plan_id(session_id: str, workflow: GraphWorkflow) -> str
     return None
 
 
+def associate_toolbar_preset_run(
+    session_id: str,
+    run_id: str,
+    workflow: GraphWorkflow,
+) -> bool:
+    """Attach a toolbar run only when it exactly matches an applied preset test."""
+    session = store_assistant.get_assistant_session(session_id)
+    run = store.get_graph_run(run_id)
+    plan_id = applied_preset_test_plan_id(session_id, workflow)
+    if not session or not run or not plan_id:
+        return False
+    run_workflow = run.get("workflow_json")
+    if not isinstance(run_workflow, dict):
+        return False
+    fingerprint = preset_test_workflow_fingerprint(workflow)
+    stored_fingerprint = preset_test_workflow_fingerprint(
+        GraphWorkflow.model_validate(run_workflow)
+    )
+    if not hmac.compare_digest(stored_fingerprint, fingerprint):
+        return False
+    summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
+    confirmed_at = store_assistant.utcnow_iso()
+    token_hash = hashlib.sha256(
+        f"toolbar-run:{session_id}:{run_id}:{fingerprint}".encode("utf-8")
+    ).hexdigest()
+    store_assistant.create_or_update_assistant_session(
+        {
+            **session,
+            "summary_json": {
+                **summary,
+                "kernel_run_confirmation": {
+                    "confirmation_kind": "preset_test",
+                    "confirmation_source": "toolbar_run",
+                    "confirmation_token_hash": token_hash,
+                    "test_plan_id": plan_id,
+                    "workflow_fingerprint": fingerprint,
+                    "assistant_run_id": run_id,
+                    "consumed": True,
+                    "confirmed_at": confirmed_at,
+                },
+            },
+        }
+    )
+    return True
+
+
 def applied_recipe_plan_id(
     session_id: str,
     workflow: GraphWorkflow,

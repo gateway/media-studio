@@ -139,4 +139,45 @@ Assistant-relevant pushes and pull requests also run `npm run quality:assistant-
 
 This mechanical gate does not judge whether a live reply feels human, is contextually useful, or makes the best creative choice. Exact live conversations and the Human / Grounded / Correct / Useful / Safe browser rubric remain mandatory at the release boundary.
 
+## Release checklist
+
+The Assistant remains an explicit per-install pilot until all of these criteria pass on one release candidate:
+
+- **Correctness and safety:** the exact continuous browser walks for presets, graphs, recipes, production planning, restart continuity, and voice/safety score Human, Grounded, Correct, Useful, and Safe on every accepted reply. There are no HTTP 5xx responses or timeouts, unconfirmed graph mutations, saves, or provider jobs. Recipe proof includes populated graph construction and stale-canvas rejection; run proof stops at a typed confirmation unless a paid run was separately approved.
+- **Verification currency:** the mechanical probe, full browser pass, release gate, and Studio smoke run on the candidate commit. A later change to Assistant runtime, provider lifecycle, panel/actions, or run-evidence behavior invalidates the affected proof and requires that portion to be rerun.
+- **Latency and provider steps:** across three isolated real-provider conversation-suite runs, ordinary replies have wall-time p50 at or below 15 seconds and p95 at or below 30 seconds. Reference-analysis replies are reported separately and have p95 at or below 60 seconds with truthful visible progress. At least 90% of replies complete in no more than two provider steps, none exceed four, and no turn exhausts its step or wall-clock budget.
+- **Cost:** across those three runs, summed provider tokens average no more than 50,000 per accepted reply and p95 is no more than 100,000. Maximum tokens in one provider step are reported separately. Media-generation credits remain governed by the normal priced confirmation and are never implied by conversation alone.
+- **Continuity:** the existing lowered-threshold compaction proof remains valid unless provider lifecycle code changed, and the release browser pass proves thread recovery plus correct recall across an API restart.
+- **Staged rollout:** `NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=1` remains the per-install opt-in. Before considering any default exposure change, record at least 100 attempted pilot Assistant requests across ordinary preset, recipe, and graph work, reporting accepted replies and failures separately.
+- **Release hygiene:** Tickets 04–08 and the standing release gates pass; the Assistant route adapter retains file-size headroom; Assistant package growth has a reviewed package-total cap; and no migration or saved-artifact compatibility change is introduced without separate approval.
+
+Immediately disable the per-install flag and stop the pilot after any unconfirmed mutation, save, spend, cross-session evidence use, wrong-run/output association, stale quality approval, data loss, saved-artifact incompatibility, or auth boundary failure. Also stop after a reproducible rubric zero, two or more HTTP 5xx/timeouts in a rolling 100 attempted requests, ordinary-reply p95 above 45 seconds in two consecutive 50-attempt windows, or repeated budget exhaustion. Re-enable only after a focused regression test, the affected browser walk, and exact-candidate verification pass again.
+
+Meeting this checklist does not change the default feature gate. Default exposure is a separate human release decision.
+
+## Pilot decision — 2026-08-24
+
+**NO-GO.** Keep the Assistant behind the existing per-install opt-in. The deterministic and full release gates pass, but the exact real-provider candidate does not meet the latency, token, provider-step, availability, or complete-proof criteria above.
+
+Three isolated 23-turn conversation suites produced these distributions:
+
+| Run | Mechanical | Ordinary p50 / p95 | Reference p95 | Tokens avg / p95 | Replies in ≤2 steps | Max steps |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 17 / 23 | 20.3s / 64.1s | 51.9s | 80.9k / 149.7k | 69.6% | 5 |
+| 2 | 16 / 23 | 17.0s / 56.4s | 94.1s | 77.3k / 142.5k | 69.6% | 5 |
+| 3 | 16 / 23 | 12.8s / 32.8s | 48.5s | 73.5k / 174.8k | 73.9% | 6 |
+
+No suite exhausted its provider-step budget, but every suite exceeded at least one accepted ceiling. The strict fixture also rejected several turns where the live Assistant safely asked for missing inputs instead of manufacturing a graph; those contract deviations remain failures until the fixture and intended contract are reconciled deliberately.
+
+The continuous human browser pass covered reference-backed preset design, graph construction, saved Prompt Recipe reuse, stale-canvas rejection, production/story work, API-restart continuity, conversational guidance, invalid/empty graph review, and repair. Preset, graph, recipe, restart, and safety responses were grounded and useful, and no provider media job or credit spend occurred without an explicit run action. One real saved-recipe defect was fixed test-first: when graph planning persisted a useful clarification but returned the known no-plan 400, the panel now renders that clarification; unrelated 5xx errors remain visible, and Stop owns the recovery refresh so a late response cannot replace cancelled state.
+
+Remaining release blockers:
+
+- Ordinary and reference latency, token volume, and provider-step distributions exceed the checklist ceilings.
+- The 45-second production walk returned three HTTP 502 responses: the first three-storyboard attempt and both attempts to revise only Shot 2. A manual retry recovered the storyboard creation, but the narrow Shot 2 revision never completed. The API-restart follow-up did resume the same provider thread from disk and correctly recalled the 1K Shot 1 graph, 9:16 revision, typed image wires, and Preview-over-Save layout.
+- The Assistant package-total file-size guardrail required by the release checklist is not yet implemented. The 600-line route adapter cap passes with 378 lines, but that is not a substitute for the reviewed package cap.
+- The private-reference audit is now authorized and passed at 9 / 10 overall (9 structural, 10 conversation, fields, slots, planner, and directness). One GPT Image 2 browser run completed successfully for exactly 6 credits with no retry, but it was started from the ordinary toolbar before toolbar-run provenance was preserved, so it cannot count as the required comparison or reusable-artifact proof. Exact applied-preset toolbar runs are now linked server-side; changed graphs remain unlinked. A separate no-run browser walk prepared the output asset → Seedance 2.5 graph at 5 seconds, 720p, audio enabled, with Preview Video and Save Video. Its authoritative estimate is 315 credits / $1.58, and it remains unexecuted pending exact-price confirmation.
+
+Verification on the reviewed post-fix working tree: `npm run quality:assistant-ci` passed (11 deterministic contract tests and 26 backend tests); the focused Assistant, saved-artifact, run-lifecycle, provenance, audit-scoring, and pricing suites passed; `npm run release:verify:full` passed with 792 backend tests and 735 web tests plus lint, typecheck, production build, Studio browser smoke, clean-database bootstrap, migration status, and diff formatting. Earlier independent Standards and Spec Compliance reviews reported no remaining findings after their 5xx and cancellation concerns were fixed; the final Ticket 08 review found the toolbar provenance gap and one-cent Assistant-plan rounding drift, fixed both test-first, and found no further actionable issue.
+
 Historical engineering campaigns and paid-proof logs are preserved by the archive tag `archive/media-assistant-development-2026-08-18`. The changelog records shipped outcomes; this document owns the current architecture and safety boundary.

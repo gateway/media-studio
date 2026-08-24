@@ -9,7 +9,11 @@ import {
   readSkipGraphPricingConfirmationPreference,
   writeSkipGraphPricingConfirmationPreference,
 } from "@/components/graph-studio/utils/graph-pricing-preferences";
-import { graphEstimateToolbarLabel, graphPricingNeedsConfirmation } from "@/components/graph-studio/utils/graph-pricing";
+import {
+  assistantPlanPricingLabel,
+  graphEstimateToolbarLabel,
+  graphPricingNeedsConfirmation,
+} from "@/components/graph-studio/utils/graph-pricing";
 
 const storage = new Map<string, string>();
 const localStorageMock = {
@@ -38,6 +42,12 @@ afterEach(() => {
 });
 
 describe("graph pricing confirmation", () => {
+  it("rounds Assistant plan prices the same way as the applied graph estimate", () => {
+    expect(assistantPlanPricingLabel({ estimated_credits: 315, estimated_cost_usd: 1.575 })).toBe(
+      "~315 cr · $1.58",
+    );
+  });
+
   it("passes through the opt-out flag when confirmed", () => {
     const onAnswer = vi.fn();
     render(

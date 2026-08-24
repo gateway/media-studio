@@ -12,6 +12,17 @@ export function formatGraphUsd(value: number | null | undefined) {
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+export function assistantPlanPricingLabel(total: {
+  estimated_credits?: number | null;
+  estimated_cost_usd?: number | null;
+} | null | undefined) {
+  const credits = typeof total?.estimated_credits === "number"
+    ? `~${formatGraphCredits(total.estimated_credits)} cr`
+    : null;
+  const cost = formatGraphUsd(total?.estimated_cost_usd);
+  return [credits, cost].filter(Boolean).join(" · ") || "No estimate";
+}
+
 function graphCreditUsdLabel(summary: GraphNodePricingEstimate["pricing_summary"] | GraphEstimateResponse["pricing_summary"]) {
   const creditsValue = summary.total?.estimated_credits;
   const usd = formatGraphUsd(summary.total?.estimated_cost_usd);

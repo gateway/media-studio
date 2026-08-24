@@ -1,5 +1,9 @@
 export class JsonFetchError extends Error {
-  constructor(message: string, readonly code: string | null = null) {
+  constructor(
+    message: string,
+    readonly code: string | null = null,
+    readonly status: number | null = null,
+  ) {
     super(message);
     this.name = "JsonFetchError";
   }
@@ -29,7 +33,7 @@ export async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> 
     } catch {
       // Keep the generic status message.
     }
-    throw new JsonFetchError(message, code);
+    throw new JsonFetchError(message, code, response.status);
   }
   return (await response.json()) as T;
 }

@@ -86,6 +86,39 @@ function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
+const NO_CONFIRMABLE_GRAPH_PROPOSAL = "The assistant did not produce a confirmable graph proposal.";
+
+function isClarificationPlanError(error: unknown) {
+  return error instanceof JsonFetchError &&
+    error.status === 400 &&
+    error.message === NO_CONFIRMABLE_GRAPH_PROPOSAL;
+}
+
+function hasNewPlanClarification(
+  previousSession: AssistantSession,
+  refreshedSession: AssistantSession,
+  userMessage: string,
+) {
+  const previousMessageIds = new Set(
+    previousSession.messages.map((message) => message.assistant_message_id),
+  );
+  const newMessages = refreshedSession.messages.filter(
+    (message) => !previousMessageIds.has(message.assistant_message_id),
+  );
+  return newMessages.some((message, index) => {
+    const nextAction = message.content_json?.next_action;
+    const hasMatchingUserMessage = newMessages
+      .slice(0, index)
+      .some((candidate) => candidate.role === "user" && candidate.content_text.trim() === userMessage);
+    return message.role === "assistant" &&
+      message.content_text.trim().length > 0 &&
+      nextAction !== null &&
+      typeof nextAction === "object" &&
+      (nextAction as Record<string, unknown>).kind === "none" &&
+      hasMatchingUserMessage;
+  });
+}
+
 function buildOptimisticUserMessage(sessionId: string, contentText: string) {
   return {
     assistant_message_id: `optimistic-user-${Date.now()}`,
@@ -695,26 +728,47 @@ export function useCreativeAssistant({
         setScopedSession((current) => appendOptimisticUserMessage(current, currentSession, normalizedMessage, { source: "plan_graph", assistant_mode: assistantMode }));
       }
       setDraft("");
-      const { result, updatedSession } = await runAbortableRequest(async (signal) => {
-        const result = await jsonFetch<AssistantPlanResponse>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/plans`, {
-          method: "POST",
-          signal,
-          body: JSON.stringify({
-            message: normalizedMessage,
-            workflow: requestWorkflow,
-            canvas_context: requestCanvasContext,
-            capability: "plan_graph",
-            run_id: latestRunId ?? null,
-            assistant_mode: assistantMode,
-          }),
-        });
-        const updatedSession = await jsonFetch<AssistantSession>(
-          `/api/control/media/assistant/sessions/${currentSession.assistant_session_id}`,
-          { signal },
-        );
-        return { result, updatedSession };
+      const planRequest = await runAbortableRequest(async (signal) => {
+        try {
+          const result = await jsonFetch<AssistantPlanResponse>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/plans`, {
+            method: "POST",
+            signal,
+            body: JSON.stringify({
+              message: normalizedMessage,
+              workflow: requestWorkflow,
+              canvas_context: requestCanvasContext,
+              capability: "plan_graph",
+              run_id: latestRunId ?? null,
+              assistant_mode: assistantMode,
+            }),
+          });
+          const updatedSession = await jsonFetch<AssistantSession>(
+            `/api/control/media/assistant/sessions/${currentSession.assistant_session_id}`,
+            { signal },
+          );
+          return { kind: "plan" as const, result, updatedSession };
+        } catch (requestError) {
+          if (!isClarificationPlanError(requestError)) throw requestError;
+          const refreshedSession = await jsonFetch<AssistantSession>(
+            `/api/control/media/assistant/sessions/${currentSession.assistant_session_id}`,
+            { signal },
+          );
+          if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+          if (!hasNewPlanClarification(currentSession, refreshedSession, normalizedMessage)) {
+            throw requestError;
+          }
+          return { kind: "clarification" as const, updatedSession: refreshedSession };
+        }
       });
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
+      if (planRequest.kind === "clarification") {
+        setScopedSession(planRequest.updatedSession);
+        setPlan(null);
+        setError(null);
+        onEvent?.("Assistant needs more information.", "muted");
+        return null;
+      }
+      const { result, updatedSession } = planRequest;
       if (options?.showPlan === false) {
         setPlan(null);
       } else {

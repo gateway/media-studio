@@ -48,7 +48,7 @@ export function auditPromptQuality({ prompt, brief, fields, slots, minScore }) {
     return !text.includes(`[[${slot.key}]]`) && !(label && lowered.includes(label) && lowered.includes("image"));
   });
   let score = 0;
-  if (text.split(/\s+/).length >= 90 && populatedCategories >= 7 && totalTraits >= 20) score += 2;
+  if (text.split(/\s+/).length >= 90 && populatedCategories >= 7 && totalTraits >= 20) score += 3;
   if (fieldMisses.length === 0) score += 1;
   if (slotMisses.length === 0) score += 2;
   if (blocked.length === 0) score += 1;

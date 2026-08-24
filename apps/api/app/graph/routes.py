@@ -8,7 +8,11 @@ from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import StreamingResponse
 
 from .. import store
-from ..assistant.run_confirmation import RunEvidenceError, associate_confirmed_assistant_run
+from ..assistant.run_confirmation import (
+    RunEvidenceError,
+    associate_confirmed_assistant_run,
+    associate_toolbar_preset_run,
+)
 from ..assistant.schemas import AssistantRunConfirmationRequest
 from .normalization import materialize_workflow_defaults
 from .pricing import estimate_graph_workflow
@@ -259,8 +263,16 @@ def create_run(workflow_id: str, payload: Optional[GraphRunCreateRequest] = None
     try:
         assistant_session_id = str(payload.assistant_session_id or "") if payload else ""
         assistant_token = str(payload.assistant_confirmation_token or "") if payload else ""
+        assistant_context_session_id = str(payload.assistant_context_session_id or "") if payload else ""
         if bool(assistant_session_id) != bool(assistant_token):
             raise _bad_request("Assistant session and confirmation token must be provided together.")
+        if assistant_context_session_id and assistant_session_id:
+            raise _bad_request("Assistant context cannot be combined with a confirmation token.")
+        if assistant_context_session_id:
+            run = runtime.create_run(workflow_id, workflow, start=False)
+            associate_toolbar_preset_run(assistant_context_session_id, run.run_id, workflow)
+            runtime.start_run(run.run_id)
+            return run
         if not assistant_session_id:
             return runtime.create_run(workflow_id, workflow, start=True)
         run = runtime.create_run(workflow_id, workflow, start=False)

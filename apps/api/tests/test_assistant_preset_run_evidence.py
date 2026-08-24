@@ -208,6 +208,135 @@ def test_run_confirmation_records_the_applied_preset_test_plan(client, app_modul
     ]
 
 
+def test_toolbar_run_associates_an_exact_applied_preset_test(
+    client,
+    app_modules,
+    monkeypatch,
+) -> None:
+    graph_routes = importlib.import_module("app.graph.routes")
+    workflow = _workflow("workflow-toolbar-preset-test")
+    session = _session(client, workflow)
+    plan = _applied_preset_plan(
+        app_modules["store_assistant"],
+        session["assistant_session_id"],
+        workflow,
+    )
+    app_modules["store"].create_or_update_graph_workflow(
+        {
+            "workflow_id": workflow["workflow_id"],
+            "name": workflow["name"],
+            "workflow_json": workflow,
+        }
+    )
+    real_create_run = graph_routes.runtime.create_run
+    create_starts = []
+    started_run_ids = []
+
+    def create_without_start(workflow_id, payload, *, start=True):
+        create_starts.append(start)
+        return real_create_run(workflow_id, payload, start=False)
+
+    monkeypatch.setattr(graph_routes.runtime, "create_run", create_without_start)
+    monkeypatch.setattr(graph_routes.runtime, "start_run", started_run_ids.append)
+
+    response = client.post(
+        f"/media/graph/workflows/{workflow['workflow_id']}/runs",
+        json={
+            "workflow": workflow,
+            "assistant_context_session_id": session["assistant_session_id"],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    run_id = response.json()["run_id"]
+    assert create_starts == [False]
+    assert started_run_ids == [run_id]
+    confirmation = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )["summary_json"]["kernel_run_confirmation"]
+    assert confirmation["confirmation_source"] == "toolbar_run"
+    assert confirmation["test_plan_id"] == plan["assistant_plan_id"]
+    assert confirmation["assistant_run_id"] == run_id
+    assert confirmation["consumed"] is True
+    assert confirmation["workflow_fingerprint"] == _preset_fingerprint(workflow)
+
+
+def test_toolbar_run_does_not_associate_a_changed_preset_graph(
+    client,
+    app_modules,
+    monkeypatch,
+) -> None:
+    graph_routes = importlib.import_module("app.graph.routes")
+    workflow = _workflow("workflow-toolbar-changed")
+    session = _session(client, workflow)
+    _applied_preset_plan(
+        app_modules["store_assistant"],
+        session["assistant_session_id"],
+        workflow,
+    )
+    changed = json.loads(json.dumps(workflow))
+    changed["nodes"][0]["fields"]["text"] = "Changed after the Assistant plan was applied"
+    app_modules["store"].create_or_update_graph_workflow(
+        {
+            "workflow_id": workflow["workflow_id"],
+            "name": workflow["name"],
+            "workflow_json": changed,
+        }
+    )
+    real_create_run = graph_routes.runtime.create_run
+    started_run_ids = []
+
+    def create_without_start(workflow_id, payload, *, start=True):
+        return real_create_run(workflow_id, payload, start=False)
+
+    monkeypatch.setattr(graph_routes.runtime, "create_run", create_without_start)
+    monkeypatch.setattr(graph_routes.runtime, "start_run", started_run_ids.append)
+
+    response = client.post(
+        f"/media/graph/workflows/{workflow['workflow_id']}/runs",
+        json={
+            "workflow": changed,
+            "assistant_context_session_id": session["assistant_session_id"],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert started_run_ids == [response.json()["run_id"]]
+    stored = app_modules["store_assistant"].get_assistant_session(
+        session["assistant_session_id"]
+    )
+    assert stored["summary_json"].get("kernel_run_confirmation") is None
+
+
+def test_toolbar_context_cannot_be_mixed_with_token_confirmation(
+    client,
+    app_modules,
+) -> None:
+    workflow = _workflow("workflow-toolbar-mixed-confirmation")
+    app_modules["store"].create_or_update_graph_workflow(
+        {
+            "workflow_id": workflow["workflow_id"],
+            "name": workflow["name"],
+            "workflow_json": workflow,
+        }
+    )
+
+    response = client.post(
+        f"/media/graph/workflows/{workflow['workflow_id']}/runs",
+        json={
+            "workflow": workflow,
+            "assistant_session_id": "session-confirmed",
+            "assistant_confirmation_token": "token-confirmed",
+            "assistant_context_session_id": "session-toolbar",
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"] == (
+        "Assistant context cannot be combined with a confirmation token."
+    )
+
+
 def test_preset_run_confirmation_requires_the_current_applied_test_plan(
     client,
     app_modules,

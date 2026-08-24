@@ -103,8 +103,9 @@ function configuredMinScore() {
   return Number.isFinite(value) ? value : DEFAULT_MIN_SCORE;
 }
 
-const workflow = (name) => ({
+const workflow = (name, workflowId) => ({
   schema_version: 1,
+  workflow_id: workflowId,
   name,
   nodes: [],
   edges: [],
@@ -149,6 +150,38 @@ function promptNode(workflowPayload) {
   });
 }
 
+function currentPresetBrief(summary, legacyBrief) {
+  if (legacyBrief) return legacyBrief;
+  const draft = summary?.kernel_preset_draft;
+  const analyses = Object.values(summary?.reference_analysis_cache || {});
+  const analysis = analyses.at(-1)?.analysis;
+  if (!draft || !analysis) return null;
+  return {
+    visual_analysis: {
+      medium: analysis.medium || [],
+      palette: analysis.palette || [],
+      line_shape_language: analysis.line_shape_language || [],
+      composition: analysis.composition || [],
+      subject_treatment: analysis.subject_treatment || [],
+      environment_props: analysis.environment_props || analysis.environment || [],
+      texture_lighting: [
+        ...(analysis.texture_lighting || []),
+        ...(analysis.texture || []),
+        ...(analysis.lighting || []),
+      ],
+      typography_text_energy: analysis.typography_text_energy || analysis.typography || [],
+      mood: analysis.mood || [],
+    },
+    preset_contract: {
+      fields: draft.input_schema_json || [],
+      image_slots: draft.input_slots_json || [],
+    },
+    preset_direction: {
+      title: draft.label || "",
+    },
+  };
+}
+
 async function runCase(testCase, refs, mode, minScore) {
   const found = testCase.filenames.map((filename) => refs.get(filename.toLowerCase()));
   const missing = testCase.filenames.filter((_, index) => !found[index]);
@@ -157,7 +190,7 @@ async function runCase(testCase, refs, mode, minScore) {
   }
 
   const ownerId = `prompt-audit-${testCase.id}-${mode}-${Date.now()}`;
-  const baseWorkflow = workflow(`Prompt audit ${testCase.id} ${mode}`);
+  const baseWorkflow = workflow(`Prompt audit ${testCase.id} ${mode}`, ownerId);
   const session = await api("/media/assistant/sessions", {
     method: "POST",
     body: JSON.stringify({
@@ -202,14 +235,17 @@ async function runCase(testCase, refs, mode, minScore) {
     throw new Error(`Transient reference analysis failure: ${latestText.slice(0, 220)}`);
   }
   const summary = message.summary_json || {};
-  const brief = summary.reference_style_brief || latest.content_json?.reference_style_brief || null;
+  const brief = currentPresetBrief(
+    summary,
+    summary.reference_style_brief || latest.content_json?.reference_style_brief || null,
+  );
 
   const plan = await api(`/media/assistant/sessions/${sessionId}/plans`, {
     method: "POST",
     body: JSON.stringify({
       message: mode === "text-to-image"
-        ? "Create the text-to-image test workflow now with the suggested fields."
-        : "Create the image-to-image test workflow now with the suggested setup.",
+        ? "Create the text-to-image test workflow now. Use one concise, plausible test value of your choice for every suggested field, based on the draft and reference; do not ask me to supply field values."
+        : "Create the image-to-image test workflow now. Use one concise, plausible test value of your choice for every suggested field, based on the draft and reference; do not ask me to supply field values.",
       workflow: baseWorkflow,
       capability: "plan_graph",
       assistant_mode: "preset",
@@ -217,13 +253,14 @@ async function runCase(testCase, refs, mode, minScore) {
   });
 
   const prompt = promptNode(plan.workflow)?.fields?.text || "";
+  const templatePrompt = summary.kernel_preset_draft?.prompt_template || prompt;
   const fields = brief?.preset_contract?.fields || [];
   const slots = mode === "text-to-image" ? [] : brief?.preset_contract?.image_slots || [];
-  const quality = auditPromptQuality({ prompt, brief, fields, slots, minScore });
-  const fixQuality = scoreFixMyPhotoPlanner({ prompt, brief, fields, slots, minScore });
+  const quality = auditPromptQuality({ prompt: templatePrompt, brief, fields, slots, minScore });
+  const fixQuality = scoreFixMyPhotoPlanner({ prompt: templatePrompt, brief, fields, slots, minScore });
   const directQuality = scoreGenerationDirectness({ prompt, slots, minScore });
-  const fieldQuality = scoreFieldUsefulness({ fields, prompt, minScore });
-  const slotQuality = scoreImageSlots({ slots, mode, prompt, minScore });
+  const fieldQuality = scoreFieldUsefulness({ fields, prompt: templatePrompt, minScore });
+  const slotQuality = scoreImageSlots({ slots, mode, prompt: templatePrompt, minScore });
   const conversationQuality = scoreConversation({ assistantReply: latest.content_text, fields, slots, minScore });
   const localCombinedScore = Math.min(
     quality.score,
@@ -306,6 +343,7 @@ async function runCase(testCase, refs, mode, minScore) {
     plan_prompt_quality_score: plan.graph_plan?.metadata?.prompt_quality_score,
     plan_fixmyphoto_planner_score: plan.graph_plan?.metadata?.fixmyphoto_planner_score,
     plan_generation_directness_score: plan.graph_plan?.metadata?.generation_directness_score,
+    template_prompt_preview: templatePrompt.slice(0, 900),
     prompt_preview: prompt.slice(0, 900),
   };
 }

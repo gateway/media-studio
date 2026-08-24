@@ -86,6 +86,7 @@ type HarnessProps = {
   refreshReferenceMedia: () => Promise<void>;
   appendConsole?: ReturnType<typeof vi.fn>;
   applyValidationErrorsToNodes?: ReturnType<typeof vi.fn>;
+  assistantContextSessionId?: string | null;
 };
 
 function Harness(props: HarnessProps) {
@@ -121,6 +122,7 @@ function Harness(props: HarnessProps) {
     refreshReferenceMedia: props.refreshReferenceMedia,
     setConsoleLines: vi.fn(),
     appendConsole,
+    assistantContextSessionId: props.assistantContextSessionId,
   });
 
   return (
@@ -304,10 +306,12 @@ describe("useGraphRunLifecycle", () => {
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.endsWith("/validate")) return { valid: true, errors: [], warnings: [] } as never;
       if (url.endsWith("/runs")) {
-        expect(JSON.parse(String(init?.body))).toMatchObject({
+        const body = JSON.parse(String(init?.body));
+        expect(body).toMatchObject({
           assistant_session_id: "session-1",
           assistant_confirmation_token: "token-1",
         });
+        expect(body).not.toHaveProperty("assistant_context_session_id");
         return makeRun({ run_id: "confirmed-run-1" }) as never;
       }
       return makeRun() as never;
@@ -315,6 +319,7 @@ describe("useGraphRunLifecycle", () => {
 
     render(
       <Harness
+        assistantContextSessionId="session-toolbar"
         refreshCredits={vi.fn().mockResolvedValue(undefined)}
         refreshImageAssets={vi.fn().mockResolvedValue(undefined)}
         refreshAssetsByIds={vi.fn().mockResolvedValue(undefined)}
@@ -325,6 +330,35 @@ describe("useGraphRunLifecycle", () => {
     fireEvent.click(screen.getByRole("button", { name: "Run confirmed workflow" }));
 
     await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/runs"))).toBe(true));
+  });
+
+  it("sends the active Assistant session as provenance context for a toolbar run", async () => {
+    const fetchMock = vi.mocked(jsonFetch);
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith("/validate")) return { valid: true, errors: [], warnings: [] } as never;
+      if (url.endsWith("/runs")) {
+        return makeRun({ run_id: "toolbar-run-1" }) as never;
+      }
+      return makeRun() as never;
+    });
+
+    render(
+      <Harness
+        assistantContextSessionId="session-toolbar"
+        refreshCredits={vi.fn().mockResolvedValue(undefined)}
+        refreshImageAssets={vi.fn().mockResolvedValue(undefined)}
+        refreshAssetsByIds={vi.fn().mockResolvedValue(undefined)}
+        refreshReferenceMedia={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Run workflow" }));
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/runs"))).toBe(true));
+    const runCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/runs"));
+    expect(JSON.parse(String(runCall?.[1]?.body))).toMatchObject({
+      assistant_context_session_id: "session-toolbar",
+    });
   });
 
   it("reconciles terminal run state even when the event stream stays active", async () => {

@@ -1796,6 +1796,7 @@ function GraphStudioClient() {
     setConsoleLines,
     appendConsole,
     confirmPricingForRun,
+    assistantContextSessionId: activeTab?.assistant_session_id ?? null,
   });
 
   const onDrop = useCallback(

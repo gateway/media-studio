@@ -24,6 +24,7 @@ import type { CSSProperties, ChangeEvent, DragEvent, ReactElement } from "react"
 import type { AssistantPlanResponse, GraphError, GraphMediaPreview, GraphWorkflowPayload } from "./types";
 import { type AssistantMode, type PresetLoopLane, useCreativeAssistant } from "./hooks/use-creative-assistant";
 import { previewFromReference } from "./utils/graph-media-preview";
+import { assistantPlanPricingLabel } from "./utils/graph-pricing";
 import {
   fetchReferenceImagePickerPage,
   referenceImagePickerItem,
@@ -571,14 +572,6 @@ function templateDisplayLabel(templateId: string) {
   }
 }
 
-function pricingText(total: unknown) {
-  if (!total || typeof total !== "object") return "No estimate";
-  const payload = total as { estimated_credits?: number | null; estimated_cost_usd?: number | null };
-  const credits = typeof payload.estimated_credits === "number" ? `~${payload.estimated_credits.toLocaleString()} cr` : null;
-  const cost = typeof payload.estimated_cost_usd === "number" ? `$${payload.estimated_cost_usd.toFixed(2)}` : null;
-  return [credits, cost].filter(Boolean).join(" · ") || "No estimate";
-}
-
 function normalizedGraphIssueMessage(issue: GraphError | string | null | undefined) {
   return (typeof issue === "string" ? issue : issue?.message || "").trim().toLowerCase();
 }
@@ -946,7 +939,7 @@ export function CreativeAssistantPanel({
   const planActionLabel = kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add graph");
   const planActionAriaLabel = kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add reviewed graph");
   const planActionTitle = kernelGraphAction?.label || (planMissingMedia ? "Add the graph so you can choose the missing media on the canvas" : "Add the reviewed graph");
-  const pricing = pricingText(plan?.pricing.pricing_summary.total);
+  const pricing = assistantPlanPricingLabel(plan?.pricing.pricing_summary.total);
   const busyText = assistant.status === "idle"
     ? null
     : assistant.status === "sending"

@@ -268,6 +268,7 @@ class GraphRunCreateRequest(BaseModel):
     workflow: Optional[GraphWorkflow] = None
     assistant_session_id: Optional[str] = None
     assistant_confirmation_token: Optional[str] = None
+    assistant_context_session_id: Optional[str] = None
 
 
 class GraphNodeDefinitionsResponse(BaseModel):

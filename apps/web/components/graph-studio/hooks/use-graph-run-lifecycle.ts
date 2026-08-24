@@ -154,6 +154,7 @@ export function useGraphRunLifecycle({
   setConsoleLines,
   appendConsole,
   confirmPricingForRun,
+  assistantContextSessionId,
 }: {
   run: GraphRun | null;
   setRun: (run: GraphRun | null) => void;
@@ -174,6 +175,7 @@ export function useGraphRunLifecycle({
   setConsoleLines: (lines: string[]) => void;
   appendConsole: (line: string) => void;
   confirmPricingForRun?: () => Promise<boolean>;
+  assistantContextSessionId?: string | null;
 }) {
   const [eventStreamActive, setEventStreamActive] = useState(false);
   const [transportMetrics, setTransportMetrics] = useState<GraphRunTransportMetrics>(() => emptyTransportMetrics());
@@ -274,6 +276,7 @@ export function useGraphRunLifecycle({
           workflow: workflowFromCanvas(id, workflowName, nodes, edges),
           assistant_session_id: assistantConfirmation?.sessionId,
           assistant_confirmation_token: assistantConfirmation?.token,
+          assistant_context_session_id: assistantConfirmation ? undefined : assistantContextSessionId,
         }),
       });
       setRun(created);
@@ -291,6 +294,7 @@ export function useGraphRunLifecycle({
     appendConsole,
     applyRunNodesToCanvas,
     applyValidationErrorsToNodes,
+    assistantContextSessionId,
     confirmPricingForRun,
     edges,
     nodes,

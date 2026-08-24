@@ -2,9 +2,48 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  auditPromptQuality,
   scoreFieldUsefulness,
   scoreImageSlots,
 } from "./media_assistant_audit_scoring.mjs";
+
+
+test("structural audit accepts strong natural visual language without taxonomy labels", () => {
+  const traits = ["one", "two", "three"];
+  const result = auditPromptQuality({
+    prompt: `
+      Vertical travel poster for {{destination}} with a dense layered paper-cut skyline, a large torn cream title card,
+      oversized regional lettering, and a shallow foreground of landmarks, local transport, food, flowers, stamps,
+      clouds, and postcard fragments. Use forest green, warm cream, brick red, turquoise water, terracotta buildings,
+      ochre details, faded ink grain, worn painted type, deckled edges, subtle halftone, and soft paper shadows.
+      Keep the title dominant and legible, place the landmark silhouettes high in the frame, cluster the lifestyle
+      objects below, and leave deliberate breathing room around every text zone. Bright Mediterranean daylight,
+      joyful nostalgic energy, playful scale, pale cutout borders, romantic handmade character, and abundant detail.
+      Avoid copied logos, stray lettering, duplicated landmarks, glossy digital surfaces, sparse modern styling,
+      photorealistic perspective, and weak title hierarchy. The destination must remain the unmistakable regional focus.
+    `,
+    brief: {
+      visual_analysis: {
+        medium: traits,
+        palette: traits,
+        line_shape_language: traits,
+        composition: traits,
+        subject_treatment: traits,
+        environment_props: traits,
+        texture_lighting: traits,
+        typography_text_energy: traits,
+        mood: traits,
+      },
+    },
+    fields: [{ key: "destination", label: "Destination" }],
+    slots: [],
+    minScore: 9,
+  });
+
+  assert.equal(result.score, 9);
+  assert.equal(result.passed, true);
+  assert.deepEqual(result.issues, []);
+});
 
 
 test("field audit accepts a concrete evidence-backed style choice", () => {
