@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib
 
+import pytest
+
 
 NODE_ENVELOPES = {
     "utility.note": (360, 320),
@@ -171,6 +173,105 @@ def test_assistant_graph_plan_preserves_existing_nodes_and_avoids_them(app_modul
     added = nodes["assistant-generator"]
     assert existing.position == {"x": 80.0, "y": 220.0}
     assert _has_gap(_rect(existing), _rect(added), 96)
+
+
+def test_add_node_group_ref_expands_existing_selected_group(app_modules) -> None:
+    del app_modules
+    graph_plan = importlib.import_module("app.assistant.graph_plan")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    assistant_schemas = importlib.import_module("app.assistant.schemas")
+    workflow = graph_schemas.GraphWorkflow.model_validate(
+        {
+            "name": "Product hero",
+            "nodes": [
+                {"id": "prompt", "type": "prompt.text", "position": {"x": 0, "y": 0}, "fields": {}},
+                {
+                    "id": "model",
+                    "type": "model.kie.gpt_image_2_text_to_image",
+                    "position": {"x": 520, "y": 0},
+                    "fields": {},
+                },
+                {"id": "preview", "type": "preview.image", "position": {"x": 1000, "y": 0}, "fields": {}},
+            ],
+            "edges": [],
+            "metadata": {
+                "groups": [
+                    {
+                        "id": "product-hero-group",
+                        "title": "Product Hero Generation",
+                        "node_ids": ["prompt", "model", "preview"],
+                        "bounds": {"x": -500, "y": -400, "width": 2200, "height": 1800},
+                    }
+                ]
+            },
+        }
+    )
+    plan = assistant_schemas.AssistantGraphPlan.model_validate(
+        {
+            "summary": "Add Save Image to the selected product group.",
+            "operations": [
+                {
+                    "op": "add_node",
+                    "node_ref": "save",
+                    "node_type": "media.save_image",
+                    "position": {"x": 1480, "y": 0},
+                    "group_ref": "product-hero-group",
+                },
+                {
+                    "op": "connect_nodes",
+                    "source_ref": "model",
+                    "source_port": "image",
+                    "target_ref": "save",
+                    "target_port": "image",
+                },
+            ],
+        }
+    )
+
+    result = graph_plan.apply_graph_plan(workflow, plan)
+
+    assert len(result.metadata["groups"]) == 1
+    group = result.metadata["groups"][0]
+    assert group["id"] == "product-hero-group"
+    assert group["node_ids"] == ["prompt", "model", "preview", "assistant-save"]
+    save = next(node for node in result.nodes if node.id == "assistant-save")
+    save_bounds = _rect(save)
+    assert group["bounds"]["x"] == -500
+    assert group["bounds"]["y"] == -400
+    assert group["bounds"]["height"] >= 1800
+    assert group["bounds"]["x"] + group["bounds"]["width"] >= save_bounds["x"] + save_bounds["width"] + 96
+    assert group["bounds"]["y"] + group["bounds"]["height"] >= save_bounds["y"] + save_bounds["height"] + 96
+
+
+def test_add_node_rejects_unknown_group_ref(app_modules) -> None:
+    del app_modules
+    graph_plan = importlib.import_module("app.assistant.graph_plan")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    assistant_schemas = importlib.import_module("app.assistant.schemas")
+    workflow = graph_schemas.GraphWorkflow.model_validate(
+        {
+            "name": "Product hero",
+            "nodes": [],
+            "edges": [],
+            "metadata": {"groups": []},
+        }
+    )
+    plan = assistant_schemas.AssistantGraphPlan.model_validate(
+        {
+            "summary": "Add Save Image to a missing group.",
+            "operations": [
+                {
+                    "op": "add_node",
+                    "node_ref": "save",
+                    "node_type": "media.save_image",
+                    "group_ref": "missing-group",
+                }
+            ],
+        }
+    )
+
+    with pytest.raises(ValueError, match="unknown group"):
+        graph_plan.apply_graph_plan(workflow, plan)
 
 
 def test_single_assistant_group_includes_connected_prompt_inputs_but_not_notes(app_modules) -> None:

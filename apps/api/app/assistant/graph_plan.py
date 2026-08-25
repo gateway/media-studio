@@ -330,6 +330,9 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
     edges_by_id = {edge.id for edge in next_workflow.edges}
     added_node_ids: List[str] = []
     added_group_ids: set[str] = set()
+    expanded_group_ids: set[str] = set()
+    group_refs: Dict[str, str] = {}
+    requested_group_memberships: List[tuple[str, str]] = []
 
     def resolve_node_id(reference: str | None, explicit_id: str | None = None) -> str | None:
         return node_refs.get(reference or "") or (
@@ -360,6 +363,8 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
             added_node_ids.append(node_id)
             if operation.node_ref:
                 node_refs[operation.node_ref] = node_id
+            if operation.group_ref:
+                requested_group_memberships.append((node_id, operation.group_ref))
             continue
 
         if operation.op == "set_node_field":
@@ -441,6 +446,9 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
                 }
             )
             added_group_ids.add(group_id)
+            group_refs[group_id] = group_id
+            if operation.group_ref:
+                group_refs[operation.group_ref] = group_id
             metadata["groups"] = groups
             next_workflow.metadata = metadata
             continue
@@ -450,14 +458,37 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
 
         raise ValueError(f"Unsupported assistant graph operation: {operation.op}")
 
+    if requested_group_memberships:
+        metadata = dict(next_workflow.metadata)
+        groups = [dict(group) for group in metadata.get("groups") or []]
+        groups_by_id = {
+            str(group.get("id") or ""): group
+            for group in groups
+            if str(group.get("id") or "")
+        }
+        for node_id, group_ref in requested_group_memberships:
+            group_id = group_refs.get(group_ref, group_ref)
+            group = groups_by_id.get(group_id)
+            if not group:
+                raise ValueError(f"Cannot add a node to an unknown group: {group_ref}")
+            node_ids = list(group.get("node_ids") or [])
+            if node_id not in node_ids:
+                node_ids.append(node_id)
+            group["node_ids"] = node_ids
+            expanded_group_ids.add(group_id)
+        metadata["groups"] = groups
+        next_workflow.metadata = metadata
+
     _layout_added_nodes(nodes_by_id, added_node_ids)
     _shift_added_section_from_existing(workflow, nodes_by_id, added_node_ids)
-    if added_group_ids:
+    resized_group_ids = added_group_ids | expanded_group_ids
+    if resized_group_ids:
         metadata = dict(next_workflow.metadata)
         groups = [dict(group) for group in metadata.get("groups") or []]
         normalized_groups = []
         for group in groups:
-            if str(group.get("id") or "") not in added_group_ids:
+            group_id = str(group.get("id") or "")
+            if group_id not in resized_group_ids:
                 normalized_groups.append(group)
                 continue
             node_ids = group.get("node_ids") if isinstance(group.get("node_ids"), list) else []
@@ -466,7 +497,7 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
                 for node_id in node_ids
                 if node_id in nodes_by_id and nodes_by_id[node_id].type != "utility.note"
             ]
-            if len(added_group_ids) == 1:
+            if group_id in added_group_ids and len(added_group_ids) == 1:
                 expanded_node_ids = _connected_added_node_ids(
                     next_workflow,
                     nodes_by_id,
@@ -477,11 +508,16 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
             if not node_ids:
                 continue
             group["node_ids"] = node_ids
-            group["bounds"] = _compute_group_bounds(
+            required_bounds = _compute_group_bounds(
                 nodes_by_id[node_id]
                 for node_id in node_ids
                 if node_id in nodes_by_id
             )
+            existing_bounds = group.get("bounds")
+            if group_id in expanded_group_ids and group_id not in added_group_ids and isinstance(existing_bounds, dict):
+                group["bounds"] = _bounds_union([existing_bounds, required_bounds]) or required_bounds
+            else:
+                group["bounds"] = required_bounds
             normalized_groups.append(group)
         _space_added_groups(
             [group for group in normalized_groups if str(group.get("id") or "") in added_group_ids],

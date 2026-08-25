@@ -125,6 +125,50 @@ describe("GraphCanvas", () => {
     });
   });
 
+  it("reports a visible group title selection to its parent", () => {
+    const onSelectGroup = vi.fn();
+
+    const { getByText } = render(
+      <GraphCanvas
+        nodes={[] as any}
+        edges={[] as any}
+        showMiniMap={false}
+        groups={[
+          {
+            id: "group-product-hero",
+            title: "Product Hero Generation",
+            color: "default",
+            node_ids: ["prompt", "model"],
+            bounds: { x: 20, y: 30, width: 640, height: 420 },
+            execution: { mode: "enabled" },
+          },
+        ] as any}
+        activeConnection={null}
+        onNodesChange={vi.fn()}
+        onEdgesChange={vi.fn()}
+        onConnect={vi.fn()}
+        onConnectStart={vi.fn()}
+        onConnectEnd={vi.fn()}
+        onReconnect={vi.fn()}
+        onReconnectEnd={vi.fn()}
+        isValidConnection={vi.fn().mockReturnValue(true)}
+        setNodes={vi.fn()}
+        setEdges={vi.fn()}
+        setNodeSearch={vi.fn()}
+        setWorkflowMenuOpen={vi.fn()}
+        setNodeContextMenu={vi.fn()}
+        setGroupContextMenu={vi.fn()}
+        openNodeSearch={vi.fn()}
+        selectedGroupIds={[]}
+        onSelectGroup={onSelectGroup}
+      />,
+    );
+
+    fireEvent.click(getByText("Product Hero Generation"));
+
+    expect(onSelectGroup).toHaveBeenCalledWith("group-product-hero");
+  });
+
   it("keeps tracked React Flow props stable across identical rerenders", () => {
     const baseProps = {
       nodes: [{ id: "node-1", position: { x: 0, y: 0 }, selected: false, data: {} }] as any,

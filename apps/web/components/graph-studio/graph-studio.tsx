@@ -64,6 +64,7 @@ import {
 import { useGraphRunHistory } from "./hooks/use-graph-run-history";
 import { useGraphStudioSupport } from "./hooks/use-graph-studio-support";
 import { useGraphAssistantHistory } from "./hooks/use-graph-assistant-history";
+import { useAssistantGroupSelection } from "./hooks/use-assistant-group-selection";
 import { useGraphTabWorkspace } from "./hooks/use-graph-tab-workspace";
 import { useGraphTabs } from "./hooks/use-graph-tabs";
 import { useGraphTemplates } from "./hooks/use-graph-templates";
@@ -256,6 +257,10 @@ function GraphStudioClient() {
   } = useGraphWorkflowMenuState();
   const [historyReady, setHistoryReady] = useState(false);
   const [groups, setGroups] = useState<GraphGroup[]>([]);
+  const {
+    selectedGroupIds: selectedAssistantGroupIds,
+    setSelectedGroupIds: setSelectedAssistantGroupIds,
+  } = useAssistantGroupSelection(activeTabId, groups);
   const {
     nodeContextMenu,
     setNodeContextMenu,
@@ -2125,6 +2130,7 @@ function GraphStudioClient() {
               latestRunId={run?.run_id ?? activeTab?.run_id ?? null}
               latestRunStatus={run?.status ?? activeTab?.run_status ?? null}
               selectedNodeIds={selectedAssistantNodeIds}
+              selectedGroupIds={selectedAssistantGroupIds}
               initialAssistantSessionId={activeTab?.assistant_session_id ?? null}
               reviewReturnTo={`/graph-studio?tab=${encodeURIComponent(activeTabId)}`}
               references={references}
@@ -2167,6 +2173,8 @@ function GraphStudioClient() {
             setNodeContextMenu={setNodeContextMenu}
             setGroupContextMenu={setGroupContextMenu}
             openNodeSearch={openCanvasNodeSearch}
+            selectedGroupIds={selectedAssistantGroupIds}
+            onSelectGroup={(groupId) => setSelectedAssistantGroupIds(groupId ? [groupId] : [])}
           />
           <GraphConsole
             open={consoleOpen}

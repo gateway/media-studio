@@ -17,6 +17,10 @@
   cursor: move;
 }
 
+.graph-group-frame-selected {
+  box-shadow: 0 0 0 2px var(--graph-group-accent);
+}
+
 .graph-group-frame-title {
   position: absolute;
   z-index: 2;

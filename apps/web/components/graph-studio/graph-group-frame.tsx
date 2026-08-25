@@ -17,10 +17,14 @@ function viewportZoom(element: HTMLElement): number {
 export function GraphGroupFrame({
   group,
   color,
+  selected = false,
+  onSelect,
   onContextMenu,
 }: {
   group: GraphGroup;
   color: GraphNodeColorChoice;
+  selected?: boolean;
+  onSelect?: (groupId: string) => void;
   onContextMenu: (event: MouseEvent, group: GraphGroup) => void;
 }) {
   const mode = normalizeGraphExecutionMode(group.execution?.mode);
@@ -98,7 +102,7 @@ export function GraphGroupFrame({
   } as CSSProperties;
   return (
     <>
-      <div className={`graph-group-frame graph-group-frame-${mode}`} data-testid="graph-group-frame" style={frameStyle} />
+      <div className={`graph-group-frame graph-group-frame-${mode}${selected ? " graph-group-frame-selected" : ""}`} data-testid="graph-group-frame" style={frameStyle} />
       <div
         className="graph-group-frame-title"
         style={titleStyle}
@@ -135,6 +139,7 @@ export function GraphGroupFrame({
             }}
             onClick={(event) => {
               event.stopPropagation();
+              onSelect?.(group.id);
               setEditing(true);
             }}
           >

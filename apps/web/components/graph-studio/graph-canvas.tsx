@@ -140,6 +140,8 @@ export function GraphCanvas({
   setNodeContextMenu,
   setGroupContextMenu,
   openNodeSearch,
+  selectedGroupIds = [],
+  onSelectGroup,
 }: {
   nodes: StudioNode[];
   edges: StudioEdge[];
@@ -161,6 +163,8 @@ export function GraphCanvas({
   setNodeContextMenu: (value: { nodeIds: string[]; anchorNodeId: string; x: number; y: number } | null) => void;
   setGroupContextMenu: (value: { groupId: string; x: number; y: number } | null) => void;
   openNodeSearch: (x: number, y: number, connection?: GraphNodeSearchPopoverState["connection"]) => void;
+  selectedGroupIds?: string[];
+  onSelectGroup?: (groupId: string | null) => void;
 }) {
   const [deleteEdgeId, setDeleteEdgeId] = useState<string | null>(null);
   const connectionWasActive = useRef(false);
@@ -286,8 +290,9 @@ export function GraphCanvas({
       setWorkflowMenuOpen(false);
       setNodeContextMenu(null);
       setGroupContextMenu(null);
+      onSelectGroup?.(null);
     },
-    [setGroupContextMenu, setNodeContextMenu, setNodeSearch, setWorkflowMenuOpen],
+    [onSelectGroup, setGroupContextMenu, setNodeContextMenu, setNodeSearch, setWorkflowMenuOpen],
   );
 
   return (
@@ -379,12 +384,15 @@ export function GraphCanvas({
                 key={group.id}
                 group={group}
                 color={color}
+                selected={selectedGroupIds.includes(group.id)}
+                onSelect={onSelectGroup}
                 onContextMenu={(event, targetGroup) => {
                   event.preventDefault();
                   event.stopPropagation();
                   setNodeSearch(null);
                   setNodeContextMenu(null);
                   setWorkflowMenuOpen(false);
+                  onSelectGroup?.(targetGroup.id);
                   setGroupContextMenu({ groupId: targetGroup.id, x: event.clientX, y: event.clientY });
                 }}
               />
