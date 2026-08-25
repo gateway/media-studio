@@ -241,6 +241,8 @@ def _read_current_workflow(
         edges = [edge.model_dump(mode="json") for edge in workflow.edges]
         workflow_id = workflow.workflow_id
         workflow_name = workflow.name
+        metadata = workflow.metadata if isinstance(workflow.metadata, dict) else {}
+        groups = (compact_canvas_context({"groups": metadata.get("groups")}) or {}).get("groups") or []
     else:
         nodes = [
             {
@@ -256,6 +258,7 @@ def _read_current_workflow(
         edges = list(canvas.get("edges") or [])
         workflow_id = canvas.get("workflow_id")
         workflow_name = canvas.get("workflow_name")
+        groups = list(canvas.get("groups") or [])
     selection = {
         "available": bool(canvas.get("selection_available")),
         "selected_node_ids": list(canvas.get("selected_node_ids") or []),
@@ -268,6 +271,7 @@ def _read_current_workflow(
         "edge_count": len(edges),
         "nodes": nodes,
         "edges": edges,
+        "groups": groups,
         "selection": selection if options.include_selection else {},
     }
 

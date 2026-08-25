@@ -545,7 +545,16 @@ def test_kernel_canvas_inventory_returns_grounded_typed_turn(client, monkeypatch
             }
         ],
         "edges": [],
-        "metadata": {},
+        "metadata": {
+            "groups": [
+                {
+                    "id": "lighthouse-group",
+                    "title": "Lighthouse setup",
+                    "node_ids": ["prompt-1"],
+                    "bounds": {"x": 40, "y": 20, "width": 420, "height": 280},
+                }
+            ]
+        },
     }
     session = client.post(
         "/media/assistant/sessions",
@@ -576,6 +585,7 @@ def test_kernel_canvas_inventory_returns_grounded_typed_turn(client, monkeypatch
                     }
                 ],
                 "edges": [],
+                "groups": workflow["metadata"]["groups"],
             },
             "assistant_mode": "graph",
         },
@@ -597,6 +607,14 @@ def test_kernel_canvas_inventory_returns_grounded_typed_turn(client, monkeypatch
     assert workflow_artifact["data"]["workflow_id"] == workflow["workflow_id"]
     assert workflow_artifact["data"]["nodes"][0]["fields"] == {"text": "A lighthouse at night"}
     assert workflow_artifact["data"]["selection"]["selected_node_ids"] == ["prompt-1"]
+    assert workflow_artifact["data"]["groups"] == [
+        {
+            "id": "lighthouse-group",
+            "title": "Lighthouse setup",
+            "node_ids": ["prompt-1"],
+            "bounds": {"x": 40.0, "y": 20.0, "width": 420.0, "height": 280.0},
+        }
+    ]
     assert payload["summary_json"]["kernel_capability"] == "general"
 
 
