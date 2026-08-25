@@ -231,10 +231,12 @@ it("requests a text-to-image model when wiring a saved Prompt Recipe", async () 
   expect(appliedWorkflow.nodes.filter((node: { type: string }) => node.type.startsWith("model.kie."))).toHaveLength(1);
   expect(recipePlan.pricing.pricing_summary.total).toMatchObject({ estimated_credits: 6, estimated_cost_usd: 0.03 });
   const applyCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/media/assistant/plans/plan-1/apply"));
-  expect(JSON.parse(String(applyCall?.[1]?.body))).toMatchObject({
+  const applyRequest = JSON.parse(String(applyCall?.[1]?.body));
+  expect(applyRequest).toMatchObject({
     proposal_id: "plan-1",
     confirmation_token: "confirm-plan-1",
   });
+  expect(applyRequest.workflow.nodes).toHaveLength(0);
 });
 
 it("offers to create rather than replace a saved-recipe graph on an empty canvas", async () => {

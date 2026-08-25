@@ -77,6 +77,17 @@ const clarificationMessage = {
 };
 
 it("passes exact preset identity and usable field values into saved-preset graph planning", async () => {
+  const occupiedWorkflow = {
+    ...workflow,
+    nodes: [
+      {
+        id: "existing-model",
+        type: "model.kie.gpt_image_2_image_to_image",
+        position: { x: 0, y: 0 },
+        fields: { aspect_ratio: "3:4", resolution: "2K" },
+      },
+    ],
+  };
   const savedPresetMessage = {
     assistant_message_id: "message-preset-saved",
     assistant_session_id: "session-1",
@@ -142,13 +153,13 @@ it("passes exact preset identity and usable field values into saved-preset graph
   });
   vi.stubGlobal("fetch", fetchMock);
 
-  render(
+  const rendered = render(
     <CreativeAssistantPanel
       open
       workspaceKey="tab-saved-preset"
       workflowId="workflow-1"
       workflowName="Assistant Graph"
-      workflow={workflow}
+      workflow={occupiedWorkflow}
       references={[]}
       importImageFile={vi.fn()}
       onApplyWorkflow={onApplyWorkflow}
@@ -168,6 +179,33 @@ it("passes exact preset identity and usable field values into saved-preset graph
   await waitFor(() => expect(onApplyWorkflow).toHaveBeenCalled());
   const applyCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/media/assistant/plans/plan-1/apply"));
   expect(JSON.parse(String(applyCall?.[1]?.body)).workflow.nodes).toHaveLength(0);
+
+  fireEvent.click(screen.getByRole("button", { name: "Test Navy Field Guide in a clean graph" }));
+  await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/plans"))).toHaveLength(2));
+  const changedWorkflow = {
+    ...occupiedWorkflow,
+    nodes: [
+      ...occupiedWorkflow.nodes,
+      { id: "manual-note", type: "utility.note", position: { x: 500, y: 0 }, fields: { text: "Keep me" } },
+    ],
+  };
+  rendered.rerender(
+    <CreativeAssistantPanel
+      open
+      workspaceKey="tab-saved-preset"
+      workflowId="workflow-1"
+      workflowName="Assistant Graph"
+      workflow={changedWorkflow}
+      references={[]}
+      importImageFile={vi.fn()}
+      onApplyWorkflow={onApplyWorkflow}
+      onClose={vi.fn()}
+    />,
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Add to canvas" }));
+  await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/apply"))).toHaveLength(2));
+  const secondApplyCall = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/apply"))[1];
+  expect(JSON.parse(String(secondApplyCall?.[1]?.body)).workflow.nodes).toHaveLength(2);
 });
 
 it("shows the persisted clarification when saved-artifact graph planning needs input", async () => {

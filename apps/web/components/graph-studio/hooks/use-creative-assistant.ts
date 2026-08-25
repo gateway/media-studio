@@ -22,7 +22,7 @@ import type {
   GraphWorkflowPayload,
 } from "../types";
 import { JsonFetchError, jsonFetch } from "../utils/graph-api";
-import { blankGraphWorkflowPayload } from "../utils/graph-tabs";
+import { blankGraphWorkflowPayload, graphWorkflowSnapshotSignature } from "../utils/graph-tabs";
 import { buildCreativeAssistantCanvasContext } from "../utils/creative-assistant-canvas-context";
 
 export type AssistantMode = "preset" | "recipe" | "graph";
@@ -279,6 +279,11 @@ export function useCreativeAssistant({
   const initialAssistantSessionIdRef = useRef(initialAssistantSessionId);
   const sessionWorkspaceKeyRef = useRef<string | null>(null);
   const activeRunOperationRef = useRef<symbol | null>(null);
+  const planWorkflowOverrideRef = useRef<{
+    planId: string;
+    baseWorkflow: GraphWorkflowPayload;
+    sourceWorkflowSignature: string | null;
+  } | null>(null);
 
   const scopedStatus = workspaceKeyRef.current === workspaceKey ? status : "idle";
   const busy = scopedStatus !== "idle";
@@ -320,6 +325,7 @@ export function useCreativeAssistant({
     }
     sessionWorkspaceKeyRef.current = null;
     activeRunOperationRef.current = null;
+    planWorkflowOverrideRef.current = null;
     setScopedSession(null);
     setPlan(null);
     setDraft("");
@@ -716,6 +722,7 @@ export function useCreativeAssistant({
     if (!normalizedMessage || busy) return null;
     const requestWorkspaceKey = workspaceKeyRef.current;
     const requestWorkflow = options?.workflowOverride ?? workflow;
+    const sourceWorkflowSignature = graphWorkflowSnapshotSignature(workflow);
     const requestCanvasContext = options?.workflowOverride
       ? buildCreativeAssistantCanvasContext(requestWorkflow, { selectedNodeIds, selectedGroupIds })
       : canvasContext;
@@ -769,6 +776,13 @@ export function useCreativeAssistant({
         return null;
       }
       const { result, updatedSession } = planRequest;
+      planWorkflowOverrideRef.current = options?.workflowOverride
+        ? {
+            planId: result.plan.assistant_plan_id,
+            baseWorkflow: requestWorkflow,
+            sourceWorkflowSignature,
+          }
+        : null;
       if (options?.showPlan === false) {
         setPlan(null);
       } else {
@@ -907,6 +921,7 @@ export function useCreativeAssistant({
         }),
       );
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
+      planWorkflowOverrideRef.current = null;
       setScopedSession(updated);
       onEvent?.("Assistant message saved.", "muted");
       const kernelPayload = latestAssistantPayload(updated);
@@ -1090,7 +1105,12 @@ export function useCreativeAssistant({
 
   const applyPlan = useCallback(async () => {
     if (!plan || !canApply) return null;
-    return applyPlanResponse(plan, workflow, nextAction);
+    const override = planWorkflowOverrideRef.current;
+    const applyWorkflow = override?.planId === plan.plan.assistant_plan_id &&
+      override.sourceWorkflowSignature === graphWorkflowSnapshotSignature(workflow)
+      ? override.baseWorkflow
+      : workflow;
+    return applyPlanResponse(plan, applyWorkflow, nextAction);
   }, [applyPlanResponse, canApply, nextAction, plan, workflow]);
 
   const cancelAssistant = useCallback(async () => {
