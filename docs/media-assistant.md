@@ -139,6 +139,12 @@ Assistant-relevant pushes and pull requests also run `npm run quality:assistant-
 
 This mechanical gate does not judge whether a live reply feels human, is contextually useful, or makes the best creative choice. Exact live conversations and the Human / Grounded / Correct / Useful / Safe browser rubric remain mandatory at the release boundary.
 
+### Assistant package-growth boundary
+
+`scripts/check_file_size_guardrails.py` caps the recursively counted Python source under `apps/api/app/assistant/` at 11,299 lines, the exact total on reviewed post-Ticket-7 candidate `8abd72b`. The count includes every `*.py` source file, ignores `__pycache__` and non-Python artifacts, and runs in both `npm run quality:assistant-ci` and the release quality gates. Individual-file caps remain in force, so the package cap cannot be bypassed by splitting a large module.
+
+Do not raise the cap merely to make a gate pass. An approved increase must accompany necessary, reviewed Assistant capability, state the before/after package total and why equivalent deletion or reuse was not appropriate, retain the individual-file caps, and include the cap change in the same review. Net-neutral refactors and reductions need no cap change.
+
 ## Release checklist
 
 The Assistant remains an explicit per-install pilot until all of these criteria pass on one release candidate:
@@ -198,7 +204,6 @@ Human in-app-browser verification used the ordinary prompt “It failed, what ha
 Remaining release blockers:
 
 - Ordinary latency, token volume, and provider-step distributions exceed the checklist ceilings. Reference analysis met its separate 60-second p95 ceiling in all three Ticket 07 samples.
-- The Assistant package-total file-size guardrail required by the release checklist is not yet implemented. The 600-line route adapter cap passes with 378 lines, but that is not a substitute for the reviewed package cap.
 - Prompt Recipe and Media Preset persistence/reuse are now proven; the paid Seedance video proof remains unproven. The private-reference audit passed at 9 / 10 overall (9 structural, 10 conversation, fields, slots, planner, and directness). The original 6-credit GPT Image 2 run predated toolbar provenance and correctly did not count. A later approved toolbar run completed once for exactly 6 credits (`898.6` → `892.6`). After the API restarted on the candidate code, the exact-match association seam recovered Assistant session `asst_8878b5814d6b`, applied plan `asplan_7f25e03a511b`, run `grun_820ebbb0163f`, and output `asset_68d42d766885` as the same preset-test evidence. The Assistant then returned a grounded visual comparison with Matches / Missing-or-drifting / one prompt change, without another provider job. The no-run output asset → Seedance 2.5 graph remains correctly configured at 5 seconds, 720p, audio enabled, with a motion/audio prompt, Preview Video, Save Video, and an authoritative 315-credit / $1.58 estimate.
 
 Verification on candidate `86ded2ab5635ae96509278283be9b7fd28439093`: `npm run quality:assistant-ci` passed (11 deterministic contract tests and 26 backend tests); the focused preset/recipe evidence and preset-kernel suites passed 93 tests; and `npm run release:verify:full` passed with 795 backend tests and 735 web tests plus repository hygiene, genericity, file-size and style guardrails, lint, typecheck, production build, Studio browser smoke, clean-database bootstrap, migration status, and diff formatting. The in-app browser restored the exact Assistant proof session, displayed the grounded comparison and explicit no-run assurance, retained the 892.6-credit balance, and reported no browser errors. Earlier independent Standards and Spec Compliance reviews reported no remaining findings after their 5xx and cancellation concerns were fixed; the final Ticket 08 review found the toolbar provenance gap and one-cent Assistant-plan rounding drift, fixed both test-first, and found no further actionable issue.

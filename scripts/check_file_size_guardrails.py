@@ -13,6 +13,15 @@ class FileGuardrail:
     owner: str
 
 
+@dataclass(frozen=True)
+class PackageGuardrail:
+    path: str
+    max_lines: int
+    owner: str
+    source_suffix: str = ".py"
+    excluded_directories: tuple[str, ...] = ("__pycache__",)
+
+
 GUARDRAILS = (
     # Release rollup note: these caps intentionally cover the Media Assistant release diff.
     # Split focused modules/tests in a follow-up cleanup PR before lowering the caps again.
@@ -43,10 +52,26 @@ GUARDRAILS = (
     FileGuardrail("apps/api/tests/test_api_smoke.py", 3250, "API smoke tests; release cap"),
 )
 
+# Exact Python-source total on the reviewed post-Ticket-7 candidate 8abd72b.
+# Deliberate net growth requires updating this value with a review note.
+ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
+    "apps/api/app/assistant",
+    11_299,
+    "Media Assistant Python source package; reviewed candidate cap",
+)
+
 
 def count_lines(path: Path) -> int:
     with path.open("r", encoding="utf-8", errors="ignore") as handle:
         return sum(1 for _ in handle)
+
+
+def package_source_files(package_root: Path, guardrail: PackageGuardrail) -> tuple[Path, ...]:
+    return tuple(
+        path
+        for path in sorted(package_root.rglob(f"*{guardrail.source_suffix}"))
+        if not any(part in guardrail.excluded_directories for part in path.relative_to(package_root).parts)
+    )
 
 
 def main() -> int:
@@ -65,6 +90,22 @@ def main() -> int:
         print(f"{line_count:>6} {guardrail.max_lines:>6}  {guardrail.path}  [{status}] {guardrail.owner}")
         if line_count > guardrail.max_lines:
             failures.append(f"{guardrail.path}: {line_count} lines exceeds max {guardrail.max_lines}")
+
+    package_guardrail = ASSISTANT_PACKAGE_GUARDRAIL
+    package_root = repo_root / package_guardrail.path
+    if not package_root.is_dir():
+        failures.append(f"{package_guardrail.path} is missing")
+    else:
+        package_lines = sum(count_lines(path) for path in package_source_files(package_root, package_guardrail))
+        status = "OK" if package_lines <= package_guardrail.max_lines else "FAIL"
+        print(
+            f"{package_lines:>6} {package_guardrail.max_lines:>6}  {package_guardrail.path}  "
+            f"[{status}] {package_guardrail.owner}"
+        )
+        if package_lines > package_guardrail.max_lines:
+            failures.append(
+                f"{package_guardrail.path}: {package_lines} lines exceeds max {package_guardrail.max_lines}"
+            )
 
     if failures:
         print("File-size guardrail failed:", file=sys.stderr)

@@ -6,6 +6,8 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 cd "$ROOT"
 
+"$ROOT/scripts/with_shared_python.sh" "$ROOT/scripts/check_file_size_guardrails.py"
+
 node --test scripts/lib/assistant_conversation_probe_contract.test.mjs
 
 "$ROOT/scripts/with_shared_python.sh" -m pytest -q \
@@ -19,5 +21,6 @@ node --test scripts/lib/assistant_conversation_probe_contract.test.mjs
   apps/api/tests/test_assistant_kernel.py::test_kernel_retries_guidance_that_claims_missing_evidence \
   apps/api/tests/test_assistant_graph_plan.py \
   apps/api/tests/test_assistant_confirmation_routes.py \
+  apps/api/tests/test_file_size_guardrails.py \
   apps/api/tests/test_media_assistant_prompt_assets.py \
   apps/api/tests/test_media_assistant_feature_gate.py
