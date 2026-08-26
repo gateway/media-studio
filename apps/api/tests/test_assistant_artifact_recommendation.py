@@ -6,12 +6,21 @@ from types import SimpleNamespace
 import pytest
 
 
-def _context(module, stage: str, *, output: str = "image", references: int = 0, story: bool = False):
+def _context(
+    module,
+    stage: str,
+    *,
+    output: str = "image",
+    purpose: str = "",
+    story_values=(),
+    references=(),
+):
     return module.ArtifactRecommendationContext(
         stage=stage,
         requested_output=output,
-        reference_count=references,
-        story_context_available=story,
+        purpose=purpose,
+        story_values=story_values,
+        references=references,
     )
 
 
@@ -77,12 +86,12 @@ def test_recommender_returns_two_strong_character_matches_and_excludes_internal_
     ]
 
     first = module.recommend_saved_artifacts(
-        _context(module, "character_sheet", story=True),
+        _context(module, "character_sheet", purpose="practical salvage crew character sheet"),
         presets=presets,
         recipes=recipes,
     )
     second = module.recommend_saved_artifacts(
-        _context(module, "character_sheet", story=True),
+        _context(module, "character_sheet", purpose="practical salvage crew character sheet"),
         presets=list(reversed(presets)),
         recipes=list(reversed(recipes)),
     )
@@ -119,7 +128,7 @@ def test_recommender_matches_environment_and_storyboard_purposes(
     )
 
     result = module.recommend_saved_artifacts(
-        _context(module, stage, story=True),
+        _context(module, stage, purpose=description),
         presets=[],
         recipes=[recipe],
     )
@@ -166,7 +175,12 @@ def test_recommender_reports_only_genuinely_missing_required_inputs(app_modules)
         recipes=[recipe],
     )[0]
     satisfied = module.recommend_saved_artifacts(
-        _context(module, "character_sheet", references=1, story=True),
+        _context(
+            module,
+            "character_sheet",
+            story_values=(("character_brief", "A practical salvage crew."),),
+            references=(("reference-1", "character reference"),),
+        ),
         presets=[],
         recipes=[recipe],
     )[0]
@@ -175,6 +189,166 @@ def test_recommender_reports_only_genuinely_missing_required_inputs(app_modules)
     assert missing.missing_required_inputs == ("Character brief", "Reference image")
     assert satisfied.required_inputs == ("Character brief", "Reference image")
     assert satisfied.missing_required_inputs == ()
+
+
+def test_eligibility_uses_hard_structured_test_boundary_without_rejecting_attachment_language(app_modules) -> None:
+    del app_modules
+    module = importlib.import_module("app.assistant.artifact_recommendation")
+    deterministic_test = _preset(
+        preset_id="preset-deterministic-test",
+        key="storyboard_character_sheet_generator_deterministic_test_44285c2f",
+        label="Storyboard Character Sheet Generator Deterministic Test 44285c2f",
+        description="Deterministic planner test preset.",
+        rules_json={"assistant_recommendation_eligible": True},
+    )
+    legitimate = _recipe(
+        description="Builds a character sheet from a user attachment and a production brief.",
+    )
+
+    assert module.artifact_is_recommendation_eligible(deterministic_test) is False
+    assert module.artifact_is_recommendation_eligible(legitimate) is True
+
+
+def test_video_prompt_accepts_video_recipe_when_requested_output_is_prompt(app_modules) -> None:
+    del app_modules
+    module = importlib.import_module("app.assistant.artifact_recommendation")
+    result = module.recommend_saved_artifacts(
+        _context(
+            module,
+            "video_prompt",
+            output="prompt",
+            purpose="turn the approved storyboard into a Seedance video prompt",
+        ),
+        presets=[],
+        recipes=[
+            _recipe(
+                recipe_id="recipe-seedance",
+                key="seedance-storyboard-video-director-v1",
+                label="Seedance Storyboard Video Director v1",
+                description="Turns a completed storyboard into a Seedance-ready video prompt.",
+                category="video",
+            )
+        ],
+    )
+
+    assert [item.identity for item in result] == ["recipe-seedance"]
+    assert result[0].missing_required_inputs == ("Character brief",)
+
+
+def test_storyboard_prompt_requires_actual_story_state_value_not_stage_description(app_modules) -> None:
+    del app_modules
+    module = importlib.import_module("app.assistant.artifact_recommendation")
+    recipe = _recipe(
+        recipe_id="recipe-seedance-video",
+        key="seedance-storyboard-video-director-v1",
+        label="Seedance Storyboard Video Director v1",
+        description="Turns a storyboard prompt into a Seedance video prompt.",
+        category="video",
+        input_variables_json=[
+            {"key": "source_prompt", "label": "Storyboard Prompt Text", "required": True}
+        ],
+    )
+
+    described = module.recommend_saved_artifacts(
+        _context(
+            module,
+            "video_prompt",
+            output="prompt",
+            purpose="turn the approved salvage storyboard into a five-second clip",
+        ),
+        presets=[],
+        recipes=[recipe],
+    )[0]
+    resolved = module.recommend_saved_artifacts(
+        _context(
+            module,
+            "video_prompt",
+            output="prompt",
+            purpose="turn the approved salvage storyboard into a five-second clip",
+            story_values=(("source_prompt", "Shot 1: the crew enters the flooded drydock."),),
+        ),
+        presets=[],
+        recipes=[recipe],
+    )[0]
+
+    assert described.missing_required_inputs == ("Storyboard Prompt Text",)
+    assert resolved.missing_required_inputs == ()
+
+
+def test_defaults_and_compatible_current_purpose_resolve_only_matching_required_inputs(app_modules) -> None:
+    del app_modules
+    module = importlib.import_module("app.assistant.artifact_recommendation")
+    recipe = _recipe(
+        recipe_id="recipe-environment",
+        key="environment-plate-v1",
+        label="Environment Plate v1",
+        description="Creates an environment plate prompt.",
+        input_variables_json=[
+            {"key": "environment_brief", "label": "Environment Brief", "required": True},
+            {"key": "visual_style", "label": "Visual Style", "required": True},
+            {"key": "camera_view", "label": "Camera View", "required": True, "default_value": "Wide"},
+        ],
+    )
+
+    result = module.recommend_saved_artifacts(
+        _context(
+            module,
+            "environment",
+            purpose="a flooded orbital drydock for the salvage crew",
+        ),
+        presets=[],
+        recipes=[recipe],
+    )[0]
+
+    assert result.missing_required_inputs == ("Visual Style",)
+    assert result.resolved_input_bindings == (
+        ("environment_brief", "current_request", "a flooded orbital drydock for the salvage crew"),
+        ("camera_view", "default", "Wide"),
+    )
+
+
+def test_purpose_priority_avoids_niche_storyboard_and_model_catalog_keeps_nano_preset(app_modules) -> None:
+    del app_modules
+    module = importlib.import_module("app.assistant.artifact_recommendation")
+    generic = _recipe(
+        recipe_id="recipe-clean-storyboard",
+        key="cleanest_storyboard_director",
+        label="Cleanest Storyboard Director",
+        description="Transforms a creative brief into a polished storyboard image prompt.",
+        priority=650,
+    )
+    food = _recipe(
+        recipe_id="recipe-food",
+        key="food-storyboard-host-v1",
+        label="Food Storyboard Host v1",
+        description="Creates a cooking or food-making storyboard from a food brief.",
+        priority=459,
+    )
+    nano = _preset(
+        preset_id="preset-nano-storyboard",
+        key="cleanest-storyboard-sheet",
+        label="Cleanest Storyboard Sheet",
+        description="Reusable storyboard sheet preset.",
+        model_key="nano-banana-2",
+        applies_to_task_modes_json=[],
+        priority=700,
+    )
+
+    result = module.recommend_saved_artifacts(
+        _context(
+            module,
+            "storyboard",
+            purpose="cinematic salvage crew storyboard",
+        ),
+        presets=[nano],
+        recipes=[food, generic],
+        model_task_modes={"nano-banana-2": ("image_edit",)},
+    )
+
+    assert [item.identity for item in result] == [
+        "preset-nano-storyboard",
+        "recipe-clean-storyboard",
+    ]
 
 
 def _tool_context() -> SimpleNamespace:
@@ -213,11 +387,21 @@ def test_tool_searches_once_and_remembers_direct_construction_choice(app_modules
     _stub_persistence(monkeypatch, module)
 
     first = module.recommend_saved_artifacts_tool(
-        module.RecommendSavedArtifactsArguments(stage="character_sheet", requested_output="image"),
+        module.RecommendSavedArtifactsArguments(
+            stage="character_sheet",
+            stage_instance_id="salvage_crew",
+            requested_output="image",
+            purpose="practical salvage crew character sheet",
+        ),
         context,
     )
     repeated = module.recommend_saved_artifacts_tool(
-        module.RecommendSavedArtifactsArguments(stage="character_sheet", requested_output="image"),
+        module.RecommendSavedArtifactsArguments(
+            stage="character_sheet",
+            stage_instance_id="salvage_crew",
+            requested_output="image",
+            purpose="practical salvage crew character sheet",
+        ),
         context,
     )
     declined = module.record_artifact_recommendation_decision(
@@ -228,7 +412,12 @@ def test_tool_searches_once_and_remembers_direct_construction_choice(app_modules
         context,
     )
     after_decline = module.recommend_saved_artifacts_tool(
-        module.RecommendSavedArtifactsArguments(stage="character_sheet", requested_output="image"),
+        module.RecommendSavedArtifactsArguments(
+            stage="character_sheet",
+            stage_instance_id="salvage_crew",
+            requested_output="image",
+            purpose="practical salvage crew character sheet",
+        ),
         context,
     )
 
@@ -255,7 +444,12 @@ def test_selection_returns_exact_identity_provenance_and_only_missing_inputs(app
     _stub_persistence(monkeypatch, module)
 
     offered = module.recommend_saved_artifacts_tool(
-        module.RecommendSavedArtifactsArguments(stage="character_sheet", requested_output="image"),
+        module.RecommendSavedArtifactsArguments(
+            stage="character_sheet",
+            stage_instance_id="salvage_crew",
+            requested_output="image",
+            purpose="practical salvage crew character sheet",
+        ),
         context,
     )
     selected = module.record_artifact_recommendation_decision(
@@ -270,13 +464,52 @@ def test_selection_returns_exact_identity_provenance_and_only_missing_inputs(app
 
     assert len(offered["candidates"]) == 1
     assert selected["identity"] == "recipe-character-sheet"
-    assert selected["missing_required_inputs"] == ["Character brief"]
+    assert selected["missing_required_inputs"] == []
+    assert selected["resolved_input_bindings"] == [
+        {
+            "input_key": "character_brief",
+            "source": "current_request",
+            "value": "practical salvage crew character sheet",
+        }
+    ]
     assert selected["provenance"] == {
         "source": "saved_artifact_catalog",
         "artifact_kind": "prompt_recipe",
         "identity": "recipe-character-sheet",
         "key": "character-sheet-prompt-writer",
     }
+
+
+def test_separate_stage_instances_can_each_search_in_one_session(app_modules, monkeypatch) -> None:
+    del app_modules
+    module = importlib.import_module("app.assistant.artifact_recommendation_tools")
+    context = _tool_context()
+    calls = {"recipes": 0}
+    monkeypatch.setattr(module.store, "list_presets", lambda: [])
+
+    def recipes(*, status):
+        calls["recipes"] += 1
+        return [_recipe()]
+
+    monkeypatch.setattr(module.store, "list_prompt_recipes", recipes)
+    _stub_persistence(monkeypatch, module)
+    monkeypatch.setattr(module, "_model_task_modes", lambda: {})
+
+    for instance, purpose in (
+        ("salvage_crew", "practical salvage crew character sheet"),
+        ("station_marshal", "station marshal character sheet"),
+    ):
+        module.recommend_saved_artifacts_tool(
+            module.RecommendSavedArtifactsArguments(
+                stage="character_sheet",
+                stage_instance_id=instance,
+                requested_output="image",
+                purpose=purpose,
+            ),
+            context,
+        )
+
+    assert calls["recipes"] == 2
 
 
 def test_kernel_exposes_typed_recommendation_tools_and_exact_name_bypass(app_modules) -> None:
@@ -290,5 +523,35 @@ def test_kernel_exposes_typed_recommendation_tools_and_exact_name_bypass(app_mod
     assert catalog["recommend_saved_artifacts"]["read_only"] is False
     assert catalog["record_artifact_recommendation_decision"]["read_only"] is False
     assert catalog["recommend_saved_artifacts"]["arguments_schema"]["properties"]["stage"]
+    assert "search_prompt_recipes" in catalog
+    assert "get_prompt_recipe" in catalog
     assert "Exact-name requests bypass recommendation" in instruction
     assert "continue with direct construction" in instruction
+
+    exact_search = tools.execute_kernel_tool(
+        tool_name="search_prompt_recipes",
+        arguments={"query": "Storyboard v2", "limit": 5},
+        capability="story_builder",
+        context=tools.KernelToolContext(workflow=None, canvas_context={}),
+    )
+    assert exact_search.trace.error is None
+    assert any("Storyboard v2" in str(item.get("label") or "") for item in exact_search.result["items"])
+
+
+def test_invalid_or_stale_decision_returns_typed_tool_error(app_modules) -> None:
+    del app_modules
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    execution = tools.execute_kernel_tool(
+        tool_name="record_artifact_recommendation_decision",
+        arguments={"stage": "character_sheet", "decision": "direct"},
+        capability="story_builder",
+        context=tools.KernelToolContext(
+            workflow=None,
+            canvas_context={},
+            session={"assistant_session_id": "asst-stale", "summary_json": {}},
+        ),
+    )
+
+    assert execution.result is None
+    assert execution.trace.error is not None
+    assert execution.trace.error.code == "artifact_recommendation_not_pending"

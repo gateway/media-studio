@@ -20,6 +20,7 @@ from ..service_errors import ServiceError
 from ..service_prompt_recipe_validation import prompt_recipe_media_generation
 from ..store_support import new_id
 from .artifact_recommendation_tools import (
+    ArtifactRecommendationToolError,
     RecommendSavedArtifactsArguments,
     RecordArtifactRecommendationDecisionArguments,
     recommend_saved_artifacts_tool,
@@ -1869,14 +1870,18 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         name="search_presets",
         description="Search active Media Presets and inspect their compact model and input scope.",
         arguments_model=SearchPresetsArguments,
-        allowed_capabilities=frozenset({"general", "graph_builder", "preset_builder", "recipe_builder"}),
+        allowed_capabilities=frozenset(
+            {"general", "graph_builder", "preset_builder", "recipe_builder", "story_builder"}
+        ),
         handler=search_presets,
     ),
     "get_preset": KernelToolDefinition(
         name="get_preset",
         description="Read one Media Preset by id or key in its full editable contract shape.",
         arguments_model=GetPresetArguments,
-        allowed_capabilities=frozenset({"general", "graph_builder", "preset_builder", "recipe_builder"}),
+        allowed_capabilities=frozenset(
+            {"general", "graph_builder", "preset_builder", "recipe_builder", "story_builder"}
+        ),
         handler=get_preset,
     ),
     "list_media_models": KernelToolDefinition(
@@ -1920,14 +1925,18 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         name="search_prompt_recipes",
         description="Search active Prompt Recipes and inspect variables, fields, output format, and image-input behavior.",
         arguments_model=SearchPromptRecipesArguments,
-        allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder"}),
+        allowed_capabilities=frozenset(
+            {"general", "graph_builder", "recipe_builder", "story_builder"}
+        ),
         handler=search_prompt_recipes,
     ),
     "get_prompt_recipe": KernelToolDefinition(
         name="get_prompt_recipe",
         description="Read one Prompt Recipe by id or key in its full editable contract shape.",
         arguments_model=GetPromptRecipeArguments,
-        allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder"}),
+        allowed_capabilities=frozenset(
+            {"general", "graph_builder", "recipe_builder", "story_builder"}
+        ),
         handler=get_prompt_recipe,
     ),
     "validate_prompt_recipe_draft": KernelToolDefinition(
@@ -2112,6 +2121,12 @@ def execute_kernel_tool(
                 details=exc.details,
             )
         except StoryKernelError as exc:
+            error = AssistantKernelToolError(
+                code=exc.code,
+                message=exc.message,
+                retryable=exc.retryable,
+            )
+        except ArtifactRecommendationToolError as exc:
             error = AssistantKernelToolError(
                 code=exc.code,
                 message=exc.message,
