@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import re
 from typing import Any, Dict, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -18,6 +20,7 @@ class RecommendSavedArtifactsArguments(BaseModel):
     stage_instance_id: str = Field(min_length=1, max_length=120, pattern=r"^[a-z0-9][a-z0-9_-]*$")
     requested_output: RequestedArtifactOutput = "any"
     purpose: str = Field(min_length=1, max_length=500)
+    available_input_keys: list[str] = Field(default_factory=list, max_length=8)
 
 
 class RecordArtifactRecommendationDecisionArguments(BaseModel):
@@ -27,7 +30,7 @@ class RecordArtifactRecommendationDecisionArguments(BaseModel):
         max_length=120,
         pattern=r"^[a-z0-9][a-z0-9_-]*$",
     )
-    decision: Literal["use", "direct"]
+    decision: Literal["use", "direct", "alternatives"]
     artifact_kind: Optional[Literal["media_preset", "prompt_recipe"]] = None
     identity: Optional[str] = Field(default=None, max_length=160)
 
@@ -40,8 +43,40 @@ class ArtifactRecommendationToolError(Exception):
         self.retryable = retryable
 
 
-def _state_key(stage: str, stage_instance_id: str) -> str:
-    return f"{stage}:{stage_instance_id}"
+_STAGE_INPUT_KEYS = {
+    "character_sheet": {"character_brief", "character_description", "subject", "user_prompt"},
+    "environment": {"environment_brief", "scene_brief", "user_prompt"},
+    "storyboard": {"scene_brief", "story_brief", "user_prompt"},
+    "video_prompt": {"source_prompt", "storyboard_prompt_text", "user_prompt"},
+}
+_MAX_STAGE_INSTANCES = 8
+
+
+def _state_key(arguments: RecommendSavedArtifactsArguments, context: Any) -> str:
+    summary = context.session.get("summary_json") if isinstance(context.session.get("summary_json"), dict) else {}
+    plan = summary.get("production_plan") if isinstance(summary.get("production_plan"), dict) else {}
+    plan_step_ids = {
+        str(step.get("step_id") or step.get("id") or "")
+        for step in plan.get("steps") or []
+        if isinstance(step, dict)
+    }
+    if arguments.stage_instance_id in plan_step_ids:
+        return f"{arguments.stage}:plan:{arguments.stage_instance_id}"
+    normalized_purpose = re.sub(r"\s+", " ", arguments.purpose.strip().casefold())
+    purpose_hash = hashlib.sha256(
+        f"{arguments.stage}\n{normalized_purpose}".encode("utf-8")
+    ).hexdigest()[:16]
+    return f"{arguments.stage}:purpose:{purpose_hash}"
+
+
+def _current_values(arguments: RecommendSavedArtifactsArguments, context: Any) -> tuple[tuple[str, str], ...]:
+    allowed = _STAGE_INPUT_KEYS[arguments.stage]
+    user_text = str(getattr(context, "user_text", "") or "").strip()
+    return tuple(
+        (key, user_text[:1200])
+        for key in dict.fromkeys(arguments.available_input_keys)
+        if key in allowed and user_text
+    )
 
 
 def _model_task_modes() -> Dict[str, tuple[str, ...]]:
@@ -119,6 +154,31 @@ def _references(attachments: Any) -> tuple[tuple[str, str], ...]:
     )
 
 
+def _recommendation_candidates(
+    recommendation_context: Dict[str, Any],
+    *,
+    exclude_identities: list[str] | None = None,
+) -> list[Dict[str, Any]]:
+    context = ArtifactRecommendationContext(
+        stage=recommendation_context["stage"],
+        requested_output=recommendation_context["requested_output"],
+        purpose=str(recommendation_context.get("purpose") or ""),
+        current_values=tuple(tuple(item) for item in recommendation_context.get("current_values") or []),
+        story_values=tuple(tuple(item) for item in recommendation_context.get("story_values") or []),
+        references=tuple(tuple(item) for item in recommendation_context.get("references") or []),
+    )
+    return [
+        candidate.as_dict()
+        for candidate in recommend_saved_artifacts(
+            context,
+            presets=store.list_presets(),
+            recipes=store.list_prompt_recipes(status="active"),
+            model_task_modes=_model_task_modes(),
+            exclude_identities=exclude_identities or [],
+        )
+    ]
+
+
 def _recommendation_summary(context: Any) -> Dict[str, Any]:
     summary = context.session.get("summary_json")
     if not isinstance(summary, dict):
@@ -153,7 +213,7 @@ def recommend_saved_artifacts_tool(arguments: BaseModel, context: Any) -> Dict[s
     options = RecommendSavedArtifactsArguments.model_validate(arguments)
     recommendation = _recommendation_summary(context)
     stages = recommendation["stages"]
-    state_key = _state_key(options.stage, options.stage_instance_id)
+    state_key = _state_key(options, context)
     existing = stages.get(state_key)
     if isinstance(existing, dict):
         status = str(existing.get("status") or "")
@@ -175,29 +235,30 @@ def recommend_saved_artifacts_tool(arguments: BaseModel, context: Any) -> Dict[s
 
     story_state = context.session.get("summary_json") or {}
     story_state = story_state.get("kernel_story_state") if isinstance(story_state, dict) else None
-    candidates = recommend_saved_artifacts(
-        ArtifactRecommendationContext(
-            stage=options.stage,
-            requested_output=options.requested_output,
-            purpose=options.purpose,
-            story_values=_story_values(story_state),
-            references=_references(context.attachments),
-        ),
-        presets=store.list_presets(),
-        recipes=store.list_prompt_recipes(status="active"),
-        model_task_modes=_model_task_modes(),
-    )
-    items = [candidate.as_dict() for candidate in candidates]
+    recommendation_context = {
+        "stage": options.stage,
+        "requested_output": options.requested_output,
+        "purpose": options.purpose,
+        "current_values": list(_current_values(options, context)),
+        "story_values": list(_story_values(story_state)),
+        "references": list(_references(context.attachments)),
+    }
+    items = _recommendation_candidates(recommendation_context)
     state = {
         "status": "offered" if items else "no_match",
         "requested_output": options.requested_output,
         "stage": options.stage,
         "stage_instance_id": options.stage_instance_id,
+        "stage_key": state_key,
         "purpose": options.purpose,
+        "recommendation_context": recommendation_context,
+        "excluded_identities": [],
         "candidates": items,
         "offered_message_id": context.user_message_id,
     }
     stages[state_key] = state
+    while len(stages) > _MAX_STAGE_INSTANCES:
+        stages.pop(next(iter(stages)))
     _persist_recommendation_summary(
         context,
         {**recommendation, "stages": stages},
@@ -218,8 +279,17 @@ def record_artifact_recommendation_decision(
     recommendation = _recommendation_summary(context)
     stages = recommendation["stages"]
     if options.stage_instance_id:
-        state_key = _state_key(options.stage, options.stage_instance_id)
-        existing = stages.get(state_key)
+        state_key, existing = next(
+            (
+                (key, state)
+                for key, state in reversed(list(stages.items()))
+                if isinstance(state, dict)
+                and str(state.get("stage") or "") == options.stage
+                and str(state.get("stage_instance_id") or "") == options.stage_instance_id
+                and str(state.get("status") or "") == "offered"
+            ),
+            ("", None),
+        )
     else:
         state_key, existing = next(
             (
@@ -250,6 +320,48 @@ def record_artifact_recommendation_decision(
             "stage": options.stage,
             "status": "declined",
             "direct_construction_available": True,
+        }
+
+    if options.decision == "alternatives":
+        excluded = [
+            *(
+                str(identity)
+                for identity in existing.get("excluded_identities") or []
+                if str(identity)
+            ),
+            *(
+                str(candidate.get("identity") or "")
+                for candidate in existing.get("candidates") or []
+                if isinstance(candidate, dict) and str(candidate.get("identity") or "")
+            ),
+        ]
+        recommendation_context = existing.get("recommendation_context")
+        if not isinstance(recommendation_context, dict):
+            raise ArtifactRecommendationToolError(
+                code="artifact_recommendation_context_missing",
+                message="The saved-artifact search context is no longer available; continue with direct construction.",
+                retryable=False,
+            )
+        items = _recommendation_candidates(
+            recommendation_context,
+            exclude_identities=list(dict.fromkeys(excluded)),
+        )
+        state = {
+            **existing,
+            "status": "offered" if items else "no_match",
+            "candidates": items,
+            "excluded_identities": list(dict.fromkeys(excluded)),
+            "decision_message_id": context.user_message_id,
+        }
+        stages[state_key] = state
+        _persist_recommendation_summary(context, {**recommendation, "stages": stages})
+        return {
+            "stage": options.stage,
+            "stage_instance_id": existing.get("stage_instance_id"),
+            "status": state["status"],
+            "candidates": items,
+            "direct_construction_available": True,
+            "searched": True,
         }
 
     identity = str(options.identity or "").strip()

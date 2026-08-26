@@ -12,6 +12,7 @@ def _context(
     *,
     output: str = "image",
     purpose: str = "",
+    current_values=(),
     story_values=(),
     references=(),
 ):
@@ -19,6 +20,7 @@ def _context(
         stage=stage,
         requested_output=output,
         purpose=purpose,
+        current_values=current_values,
         story_values=story_values,
         references=references,
     )
@@ -202,6 +204,8 @@ def test_eligibility_uses_hard_structured_test_boundary_without_rejecting_attach
         rules_json={"assistant_recommendation_eligible": True},
     )
     legitimate = _recipe(
+        key="test-kitchen-environment-sheet",
+        label="Test Kitchen Environment Sheet",
         description="Builds a character sheet from a user attachment and a production brief.",
     )
 
@@ -295,6 +299,7 @@ def test_defaults_and_compatible_current_purpose_resolve_only_matching_required_
             module,
             "environment",
             purpose="a flooded orbital drydock for the salvage crew",
+            current_values=(("environment_brief", "a flooded orbital drydock for the salvage crew"),),
         ),
         presets=[],
         recipes=[recipe],
@@ -303,7 +308,57 @@ def test_defaults_and_compatible_current_purpose_resolve_only_matching_required_
     assert result.missing_required_inputs == ("Visual Style",)
     assert result.resolved_input_bindings == (
         ("environment_brief", "current_request", "a flooded orbital drydock for the salvage crew"),
-        ("camera_view", "default", "Wide"),
+    )
+
+
+def test_stage_phrase_in_input_description_does_not_make_storyboard_a_character_producer(app_modules) -> None:
+    del app_modules
+    module = importlib.import_module("app.assistant.artifact_recommendation")
+    storyboard = _recipe(
+        recipe_id="recipe-storyboard-v2",
+        key="storyboard-v2",
+        label="Storyboard v2",
+        description="Creates a storyboard from an approved character sheet.",
+    )
+
+    result = module.recommend_saved_artifacts(
+        _context(module, "character_sheet", purpose="practical salvage crew character sheet"),
+        presets=[],
+        recipes=[_recipe(), storyboard],
+    )
+
+    assert [item.identity for item in result] == ["recipe-character-sheet"]
+
+
+def test_optional_prompt_and_role_specific_references_are_bound_without_reusing_one_reference(app_modules) -> None:
+    del app_modules
+    module = importlib.import_module("app.assistant.artifact_recommendation")
+    preset = _preset(
+        input_schema_json=[
+            {"key": "user_prompt", "label": "User Prompt", "required": False},
+        ],
+        input_slots_json=[
+            {"key": "character_reference", "label": "Character Reference", "required": False},
+            {"key": "environment_reference", "label": "Environment Reference", "required": False},
+        ],
+    )
+
+    result = module.recommend_saved_artifacts(
+        _context(
+            module,
+            "character_sheet",
+            purpose="practical salvage crew character sheet",
+            current_values=(("user_prompt", "practical salvage crew character sheet"),),
+            references=(("ref-character", "character reference"), ("ref-environment", "environment reference")),
+        ),
+        presets=[preset],
+        recipes=[],
+    )[0]
+
+    assert result.resolved_input_bindings == (
+        ("user_prompt", "current_request", "practical salvage crew character sheet"),
+        ("character_reference", "reference", "ref-character"),
+        ("environment_reference", "reference", "ref-environment"),
     )
 
 
@@ -356,6 +411,7 @@ def _tool_context() -> SimpleNamespace:
         session={"assistant_session_id": "asst-recommendation", "summary_json": {}},
         attachments=[],
         user_message_id="message-1",
+        user_text="practical salvage crew character sheet",
     )
 
 
@@ -392,6 +448,7 @@ def test_tool_searches_once_and_remembers_direct_construction_choice(app_modules
             stage_instance_id="salvage_crew",
             requested_output="image",
             purpose="practical salvage crew character sheet",
+            available_input_keys=["character_brief"],
         ),
         context,
     )
@@ -401,6 +458,7 @@ def test_tool_searches_once_and_remembers_direct_construction_choice(app_modules
             stage_instance_id="salvage_crew",
             requested_output="image",
             purpose="practical salvage crew character sheet",
+            available_input_keys=["character_brief"],
         ),
         context,
     )
@@ -417,6 +475,7 @@ def test_tool_searches_once_and_remembers_direct_construction_choice(app_modules
             stage_instance_id="salvage_crew",
             requested_output="image",
             purpose="practical salvage crew character sheet",
+            available_input_keys=["character_brief"],
         ),
         context,
     )
@@ -449,6 +508,7 @@ def test_selection_returns_exact_identity_provenance_and_only_missing_inputs(app
             stage_instance_id="salvage_crew",
             requested_output="image",
             purpose="practical salvage crew character sheet",
+            available_input_keys=["character_brief"],
         ),
         context,
     )
@@ -480,7 +540,7 @@ def test_selection_returns_exact_identity_provenance_and_only_missing_inputs(app
     }
 
 
-def test_separate_stage_instances_can_each_search_in_one_session(app_modules, monkeypatch) -> None:
+def test_server_stage_key_ignores_alias_but_changes_with_purpose(app_modules, monkeypatch) -> None:
     del app_modules
     module = importlib.import_module("app.assistant.artifact_recommendation_tools")
     context = _tool_context()
@@ -497,6 +557,7 @@ def test_separate_stage_instances_can_each_search_in_one_session(app_modules, mo
 
     for instance, purpose in (
         ("salvage_crew", "practical salvage crew character sheet"),
+        ("crew_sheet", "practical salvage crew character sheet"),
         ("station_marshal", "station marshal character sheet"),
     ):
         module.recommend_saved_artifacts_tool(
@@ -510,6 +571,65 @@ def test_separate_stage_instances_can_each_search_in_one_session(app_modules, mo
         )
 
     assert calls["recipes"] == 2
+
+
+def test_alternatives_returns_next_bounded_pair_and_stage_memory_is_pruned(app_modules, monkeypatch) -> None:
+    del app_modules
+    module = importlib.import_module("app.assistant.artifact_recommendation_tools")
+    context = _tool_context()
+    recipes = [
+        _recipe(
+            recipe_id=f"recipe-character-{index}",
+            key=f"character-sheet-{index}",
+            label=f"Character Sheet {index}",
+            priority=priority,
+        )
+        for index, priority in ((1, 300), (2, 200), (3, 100))
+    ]
+    monkeypatch.setattr(module.store, "list_presets", lambda: [])
+    monkeypatch.setattr(module.store, "list_prompt_recipes", lambda *, status: recipes)
+    monkeypatch.setattr(module, "_model_task_modes", lambda: {})
+    _stub_persistence(monkeypatch, module)
+
+    first = module.recommend_saved_artifacts_tool(
+        module.RecommendSavedArtifactsArguments(
+            stage="character_sheet",
+            stage_instance_id="crew",
+            requested_output="image",
+            purpose="practical salvage crew character sheet",
+            available_input_keys=["character_brief"],
+        ),
+        context,
+    )
+    alternatives = module.record_artifact_recommendation_decision(
+        module.RecordArtifactRecommendationDecisionArguments(
+            stage="character_sheet",
+            stage_instance_id="crew",
+            decision="alternatives",
+        ),
+        context,
+    )
+
+    assert [item["identity"] for item in first["candidates"]] == [
+        "recipe-character-1",
+        "recipe-character-2",
+    ]
+    assert [item["identity"] for item in alternatives["candidates"]] == [
+        "recipe-character-3",
+    ]
+
+    for index in range(9):
+        module.recommend_saved_artifacts_tool(
+            module.RecommendSavedArtifactsArguments(
+                stage="character_sheet",
+                stage_instance_id=f"character_{index}",
+                requested_output="image",
+                purpose=f"character sheet purpose {index}",
+            ),
+            context,
+        )
+    stages = context.session["summary_json"]["kernel_artifact_recommendation"]["stages"]
+    assert len(stages) == 8
 
 
 def test_kernel_exposes_typed_recommendation_tools_and_exact_name_bypass(app_modules) -> None:

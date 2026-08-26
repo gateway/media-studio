@@ -196,9 +196,12 @@ def _kernel_instruction() -> str:
         "At a meaningful transition into character-sheet, environment, storyboard, or video-prompt work, call "
         "recommend_saved_artifacts once with a stable stage_instance_id and concise production purpose unless the user "
         "named an exact saved preset or recipe. Reuse that stage_instance_id while continuing the same work; use a new "
-        "id only for a genuinely separate production-plan step or purpose. If the tool returns "
+        "id only for a genuinely separate production-plan step or purpose. Set available_input_keys only for typed fields "
+        "whose content the human actually supplied in the current message; the server binds those keys to the real user text. "
+        "If the tool returns "
         "candidates, offer no more than those two with the concise match reason and missing required inputs, and let "
-        "the user choose one or continue with direct construction. Do not imply that a saved "
+        "the user choose one, request the next bounded alternatives, or continue with direct construction. Record an "
+        "alternatives decision to retrieve the next deterministic pair. Do not imply that a saved "
         "artifact is required. If the tool returns no_match, continue directly without adding a recommendation question. "
         "If artifact_recommendation already shows an offered choice for that stage instance, do not search "
         "again while awaiting the decision. When the user selects one, call record_artifact_recommendation_decision with "
@@ -458,6 +461,36 @@ def _kernel_session_context(
         ),
         None,
     ) if session_id else None
+    compact_recommendation = None
+    if isinstance(artifact_recommendation, dict):
+        stages = artifact_recommendation.get("stages")
+        compact_stages = {}
+        if isinstance(stages, dict):
+            for key, state in list(stages.items())[-8:]:
+                if not isinstance(state, dict):
+                    continue
+                candidates = []
+                for candidate in state.get("candidates") or []:
+                    if not isinstance(candidate, dict):
+                        continue
+                    candidates.append(
+                        {
+                            field: candidate.get(field)
+                            for field in (
+                                "artifact_kind",
+                                "identity",
+                                "key",
+                                "label",
+                                "missing_required_inputs",
+                            )
+                        }
+                    )
+                compact_stages[str(key)] = {
+                    field: state.get(field)
+                    for field in ("status", "stage", "stage_instance_id", "stage_key")
+                }
+                compact_stages[str(key)]["candidates"] = candidates
+        compact_recommendation = {"stages": compact_stages}
     return {
         "active_preset_draft": preset_draft if isinstance(preset_draft, dict) else None,
         "active_preset_run_evidence": (
@@ -490,7 +523,7 @@ def _kernel_session_context(
         "active_story_state": story_state if isinstance(story_state, dict) else None,
         "active_production_plan": production_plan if isinstance(production_plan, dict) else None,
         "artifact_recommendation": (
-            artifact_recommendation if isinstance(artifact_recommendation, dict) else None
+            compact_recommendation
         ),
         "latest_graph_proposal_id": summary.get("kernel_proposal_id"),
         "latest_applied_test_plan_id": latest_applied_test_plan_id,

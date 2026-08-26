@@ -17,9 +17,6 @@ RequestedArtifactOutput = Literal["any", "image", "video", "prompt"]
 RECOMMENDATION_LIMIT = 2
 RECOMMENDATION_CONFIDENCE = 60
 
-_TECHNICAL_ARTIFACT_TOKENS = frozenset(
-    {"debug", "fixture", "internal", "regression", "test"}
-)
 _TECHNICAL_DESCRIPTIONS = frozenset(
     {
         "debug",
@@ -29,9 +26,6 @@ _TECHNICAL_DESCRIPTIONS = frozenset(
         "saved preset button routing regression.",
         "saved prompt recipe button routing regression.",
     }
-)
-_PURPOSE_INPUT_TOKENS = frozenset(
-    {"brief", "character", "description", "environment", "scene", "story", "subject"}
 )
 _PURPOSE_STOPWORDS = frozenset(
     {
@@ -74,6 +68,7 @@ class ArtifactRecommendationContext:
     stage: ProductionArtifactStage
     requested_output: RequestedArtifactOutput = "any"
     purpose: str = ""
+    current_values: Tuple[Tuple[str, str], ...] = ()
     story_values: Tuple[Tuple[str, str], ...] = ()
     references: Tuple[Tuple[str, str], ...] = ()
 
@@ -112,6 +107,7 @@ class _ArtifactInput:
     key: str
     label: str
     input_kind: Literal["text", "image"]
+    required: bool = False
     default_value: Any = None
 
 
@@ -119,6 +115,13 @@ def _normalized_text(record: Dict[str, Any]) -> str:
     return " ".join(
         str(record.get(key) or "").strip().casefold()
         for key in ("key", "label", "description", "category", "output_format")
+    )
+
+
+def _producer_text(record: Dict[str, Any]) -> str:
+    return " ".join(
+        str(record.get(key) or "").strip().casefold()
+        for key in ("key", "label")
     )
 
 
@@ -131,12 +134,22 @@ def _tokens(value: Any) -> frozenset[str]:
 
 
 def _hard_excluded(record: Dict[str, Any]) -> bool:
-    identity_tokens = _tokens(f"{record.get('key') or ''} {record.get('label') or ''}")
-    notes_tokens = _tokens(record.get("notes"))
+    identity = re.sub(
+        r"[^a-z0-9]+",
+        "_",
+        f"{record.get('key') or ''} {record.get('label') or ''}".casefold(),
+    ).strip("_")
+    notes = str(record.get("notes") or "").strip().casefold()
     description = str(record.get("description") or "").strip().casefold()
     return bool(
-        identity_tokens & _TECHNICAL_ARTIFACT_TOKENS
-        or notes_tokens & _TECHNICAL_ARTIFACT_TOKENS
+        identity.startswith("debug_")
+        or any(
+            marker in f"_{identity}_"
+            for marker in ("_deterministic_test_", "_attachment_test_", "_routing_test_", "_smoke_test_")
+        )
+        or notes.startswith("internal:")
+        or "[internal]" in notes
+        or notes in {"debug", "debug fixture", "regression fixture", "test fixture"}
         or description in _TECHNICAL_DESCRIPTIONS
     )
 
@@ -196,7 +209,7 @@ def _is_output_compatible(
     return requested_output != "prompt"
 
 
-def _required_inputs(kind: ArtifactKind, record: Dict[str, Any]) -> List[_ArtifactInput]:
+def _artifact_inputs(kind: ArtifactKind, record: Dict[str, Any]) -> List[_ArtifactInput]:
     inputs: List[_ArtifactInput] = []
     fields: Sequence[Any]
     if kind == "media_preset":
@@ -207,7 +220,7 @@ def _required_inputs(kind: ArtifactKind, record: Dict[str, Any]) -> List[_Artifa
             *(record.get("custom_fields_json") or []),
         ]
     for field in fields:
-        if not isinstance(field, dict) or not bool(field.get("required")):
+        if not isinstance(field, dict) or field.get("enabled") is False:
             continue
         key = str(field.get("key") or field.get("id") or "").strip()
         label = str(field.get("label") or key or "Required field").strip()
@@ -218,25 +231,34 @@ def _required_inputs(kind: ArtifactKind, record: Dict[str, Any]) -> List[_Artifa
                 key=key or re.sub(r"[^a-z0-9]+", "_", label.casefold()).strip("_"),
                 label=label,
                 input_kind="image" if input_kind in {"image", "file", "media"} else "text",
+                required=bool(field.get("required")),
                 default_value=default_value,
             )
         )
     if kind == "media_preset":
         for slot in record.get("input_slots_json") or []:
-            if not isinstance(slot, dict) or not bool(slot.get("required")):
+            if not isinstance(slot, dict) or slot.get("enabled") is False:
                 continue
             inputs.append(
                 _ArtifactInput(
                     key=str(slot.get("key") or "reference_image"),
                     label=str(slot.get("label") or slot.get("key") or "Reference image"),
                     input_kind="image",
+                    required=bool(slot.get("required")),
                     default_value=slot.get("default_value"),
                 )
             )
     else:
         image_input = record.get("image_input_json") if isinstance(record.get("image_input_json"), dict) else {}
-        if bool(image_input.get("required")) and str(image_input.get("mode") or "none") != "none":
-            inputs.append(_ArtifactInput(key="reference_image", label="Reference image", input_kind="image"))
+        if str(image_input.get("mode") or "none") != "none":
+            inputs.append(
+                _ArtifactInput(
+                    key="reference_image",
+                    label="Reference image",
+                    input_kind="image",
+                    required=bool(image_input.get("required")),
+                )
+            )
     deduped: List[_ArtifactInput] = []
     seen = set()
     for item in inputs:
@@ -252,57 +274,46 @@ def _has_default(value: Any) -> bool:
     return value is not None and (not isinstance(value, str) or bool(value.strip()))
 
 
-def _purpose_can_fill(item: _ArtifactInput, context: ArtifactRecommendationContext) -> bool:
-    if not context.purpose.strip():
-        return False
-    if item.key.casefold() == "user_prompt":
-        return True
-    field_tokens = _tokens(f"{item.key} {item.label}")
-    stage_tokens = {
-        "character_sheet": {"brief", "character", "description", "subject"},
-        "environment": {"brief", "environment"},
-        "storyboard": {"brief", "scene", "story"},
-        "video_prompt": set(),
-    }[context.stage]
-    return bool(field_tokens & _PURPOSE_INPUT_TOKENS & stage_tokens)
-
-
 def _resolve_inputs(
-    required: Sequence[_ArtifactInput],
+    inputs: Sequence[_ArtifactInput],
     context: ArtifactRecommendationContext,
 ) -> Tuple[Tuple[Tuple[str, str, str], ...], Tuple[str, ...]]:
+    current_values = {str(key).casefold(): str(value) for key, value in context.current_values if str(value).strip()}
     story_values = {str(key).casefold(): str(value) for key, value in context.story_values if str(value).strip()}
-    image_inputs = [item for item in required if item.input_kind == "image" and not _has_default(item.default_value)]
+    image_inputs = [item for item in inputs if item.input_kind == "image"]
+    unused_references = list(enumerate(context.references))
+    generic_reference_tokens = {"attachment", "image", "input", "media", "photo", "reference", "required", "optional"}
     resolved: List[Tuple[str, str, str]] = []
     missing: List[str] = []
-    for item in required:
-        if _has_default(item.default_value):
-            resolved.append((item.key, "default", str(item.default_value)))
-            continue
+    for item in inputs:
         if item.input_kind == "text":
+            current_value = current_values.get(item.key.casefold())
+            if current_value:
+                resolved.append((item.key, "current_request", current_value[:1200]))
+                continue
             exact_story_value = story_values.get(item.key.casefold())
             if exact_story_value:
                 resolved.append((item.key, "story_state", exact_story_value[:1200]))
                 continue
-            if _purpose_can_fill(item, context):
-                resolved.append((item.key, "current_request", context.purpose.strip()[:1200]))
-                continue
         elif context.references:
-            input_tokens = _tokens(f"{item.key} {item.label}")
+            input_tokens = _tokens(f"{item.key} {item.label}") - generic_reference_tokens
             matching_reference = next(
                 (
-                    reference
-                    for reference in context.references
-                    if input_tokens & _tokens(reference[1])
+                    (index, reference)
+                    for index, reference in unused_references
+                    if input_tokens & (_tokens(reference[1]) - generic_reference_tokens)
                 ),
                 None,
             )
             if matching_reference is None and len(image_inputs) == 1:
-                matching_reference = context.references[0]
+                matching_reference = unused_references[0] if unused_references else None
             if matching_reference is not None:
-                resolved.append((item.key, "reference", matching_reference[0]))
+                reference_index, reference = matching_reference
+                resolved.append((item.key, "reference", reference[0]))
+                unused_references = [entry for entry in unused_references if entry[0] != reference_index]
                 continue
-        missing.append(item.label)
+        if item.required and not _has_default(item.default_value):
+            missing.append(item.label)
     return tuple(resolved), tuple(missing)
 
 
@@ -314,8 +325,19 @@ def _candidate_score(
     missing_count: int,
 ) -> int:
     text = _normalized_text(record)
+    producer_text = _producer_text(record)
+    declared_stages = set()
+    for owner_key in ("rules_json", "default_options_json"):
+        owner = record.get(owner_key) if isinstance(record.get(owner_key), dict) else {}
+        values = owner.get("assistant_recommendation_stages")
+        if isinstance(values, list):
+            declared_stages.update(str(stage) for stage in values)
     phrase_score = max(
-        (75 for phrase in _STAGE_PHRASES[context.stage] if phrase in text),
+        (
+            85 if context.stage in declared_stages else 75
+            for phrase in _STAGE_PHRASES[context.stage]
+            if context.stage in declared_stages or phrase in producer_text
+        ),
         default=0,
     )
     if not phrase_score:
@@ -339,8 +361,9 @@ def _recommendation(
         return None
     if not _is_output_compatible(kind, record, context.requested_output, model_task_modes):
         return None
-    required = _required_inputs(kind, record)
-    resolved, missing = _resolve_inputs(required, context)
+    inputs = _artifact_inputs(kind, record)
+    required = [item for item in inputs if item.required]
+    resolved, missing = _resolve_inputs(inputs, context)
     score = _candidate_score(kind, record, context, len(resolved), len(missing))
     if score < RECOMMENDATION_CONFIDENCE:
         return None
@@ -372,13 +395,16 @@ def recommend_saved_artifacts(
     presets: Iterable[Dict[str, Any]],
     recipes: Iterable[Dict[str, Any]],
     model_task_modes: Dict[str, Tuple[str, ...]] | None = None,
+    exclude_identities: Iterable[str] = (),
 ) -> List[SavedArtifactRecommendation]:
     resolved_model_task_modes = model_task_modes or {}
+    excluded = set(exclude_identities)
     candidates = [
         candidate
         for kind, records in (("media_preset", presets), ("prompt_recipe", recipes))
         for record in records
         if (candidate := _recommendation(kind, record, context, resolved_model_task_modes)) is not None
+        and candidate.identity not in excluded
     ]
     candidates.sort(
         key=lambda item: (
