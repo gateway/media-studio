@@ -4,6 +4,11 @@ from dataclasses import dataclass
 import re
 from typing import Any, Dict, Iterable, List, Literal, Sequence, Tuple
 
+from ..graph.prompt_recipe_refs import (
+    PROMPT_RECIPE_FIELD_REFERENCE_ROLE_PORT_IDS,
+    PROMPT_RECIPE_GENERIC_IMAGE_PORT,
+)
+
 
 ArtifactKind = Literal["media_preset", "prompt_recipe"]
 ProductionArtifactStage = Literal[
@@ -109,6 +114,7 @@ class _ArtifactInput:
     input_kind: Literal["text", "image"]
     required: bool = False
     required_group: str | None = None
+    repeatable: bool = False
     default_value: Any = None
 
 
@@ -265,15 +271,15 @@ def _artifact_inputs(kind: ArtifactKind, record: Dict[str, Any]) -> List[_Artifa
             required_group = "prompt_recipe_references" if bool(image_input.get("required")) else None
             for index in range(max_files):
                 role = roles[index] if index < len(roles) else ""
-                role_key = re.sub(r"[^a-z0-9]+", "_", role.casefold()).strip("_")
-                if role_key:
-                    key = f"reference_{role_key}"
+                role_port = PROMPT_RECIPE_FIELD_REFERENCE_ROLE_PORT_IDS.get(role.casefold())
+                if role_port:
+                    key = role_port
                     label = f"{role.replace('_', ' ').title()} reference"
                 elif max_files == 1:
-                    key = "reference_image"
+                    key = PROMPT_RECIPE_GENERIC_IMAGE_PORT
                     label = "Reference image"
                 else:
-                    key = f"reference_image_{index + 1}"
+                    key = PROMPT_RECIPE_GENERIC_IMAGE_PORT
                     label = f"Reference image {index + 1}"
                 inputs.append(
                     _ArtifactInput(
@@ -282,13 +288,14 @@ def _artifact_inputs(kind: ArtifactKind, record: Dict[str, Any]) -> List[_Artifa
                         input_kind="image",
                         required=bool(required_group and index == 0),
                         required_group=required_group,
+                        repeatable=key == PROMPT_RECIPE_GENERIC_IMAGE_PORT,
                     )
                 )
     deduped: List[_ArtifactInput] = []
     seen = set()
     for item in inputs:
         normalized = item.key.casefold()
-        if normalized in seen:
+        if normalized in seen and not item.repeatable:
             continue
         seen.add(normalized)
         deduped.append(item)

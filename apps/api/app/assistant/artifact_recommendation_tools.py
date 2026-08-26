@@ -74,7 +74,11 @@ def _state_key(
             for key, state in reversed(list(stages.items()))
             if isinstance(state, dict)
             and str(state.get("stage") or "") == arguments.stage
-            and str(state.get("stage_instance_id") or "") == arguments.stage_instance_id
+            and arguments.stage_instance_id
+            in {
+                str(state.get("stage_instance_id") or ""),
+                *(str(alias) for alias in state.get("stage_instance_aliases") or []),
+            }
         ),
         None,
     )

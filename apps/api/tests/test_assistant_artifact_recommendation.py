@@ -249,7 +249,9 @@ def test_prompt_recipe_preserves_multiple_role_references_without_reuse(app_modu
             purpose="arctic rescue storyboard",
             references=(
                 ("ref-environment", "environment reference"),
+                ("ref-style", "generic style board"),
                 ("ref-character", "character reference"),
+                ("ref-prop", "generic prop board"),
             ),
         ),
         presets=[],
@@ -258,8 +260,10 @@ def test_prompt_recipe_preserves_multiple_role_references_without_reuse(app_modu
 
     assert result.missing_required_inputs == ()
     assert result.resolved_input_bindings == (
-        ("reference_character", "reference", "ref-character"),
-        ("reference_environment", "reference", "ref-environment"),
+        ("character_ref", "reference", "ref-character"),
+        ("environment_ref", "reference", "ref-environment"),
+        ("image_refs", "reference", "ref-style"),
+        ("image_refs", "reference", "ref-prop"),
     )
 
 
@@ -649,6 +653,14 @@ def test_equivalent_stage_alias_can_record_a_decision(app_modules, monkeypatch) 
         ),
         context,
     )
+    recached = module.recommend_saved_artifacts_tool(
+        module.RecommendSavedArtifactsArguments(
+            stage="character_sheet",
+            stage_instance_id="crew_sheet",
+            purpose="a practical character sheet for the salvage crew",
+        ),
+        context,
+    )
     decision = module.record_artifact_recommendation_decision(
         module.RecordArtifactRecommendationDecisionArguments(
             stage="character_sheet",
@@ -659,6 +671,7 @@ def test_equivalent_stage_alias_can_record_a_decision(app_modules, monkeypatch) 
     )
 
     assert cached["searched"] is False
+    assert recached["searched"] is False
     assert decision["status"] == "declined"
 
 
