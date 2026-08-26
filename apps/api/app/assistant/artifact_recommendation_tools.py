@@ -50,9 +50,14 @@ _STAGE_INPUT_KEYS = {
     "video_prompt": {"source_prompt", "storyboard_prompt_text", "user_prompt"},
 }
 _MAX_STAGE_INSTANCES = 8
+_MAX_STORY_VALUE_CHARS = 1200
 
 
-def _state_key(arguments: RecommendSavedArtifactsArguments, context: Any) -> str:
+def _state_key(
+    arguments: RecommendSavedArtifactsArguments,
+    context: Any,
+    stages: Dict[str, Any],
+) -> str:
     summary = context.session.get("summary_json") if isinstance(context.session.get("summary_json"), dict) else {}
     plan = summary.get("production_plan") if isinstance(summary.get("production_plan"), dict) else {}
     plan_step_ids = {
@@ -62,6 +67,18 @@ def _state_key(arguments: RecommendSavedArtifactsArguments, context: Any) -> str
     }
     if arguments.stage_instance_id in plan_step_ids:
         return f"{arguments.stage}:plan:{arguments.stage_instance_id}"
+    existing_alias_key = next(
+        (
+            key
+            for key, state in reversed(list(stages.items()))
+            if isinstance(state, dict)
+            and str(state.get("stage") or "") == arguments.stage
+            and str(state.get("stage_instance_id") or "") == arguments.stage_instance_id
+        ),
+        None,
+    )
+    if existing_alias_key:
+        return existing_alias_key
     normalized_purpose = re.sub(r"\s+", " ", arguments.purpose.strip().casefold())
     purpose_hash = hashlib.sha256(
         f"{arguments.stage}\n{normalized_purpose}".encode("utf-8")
@@ -130,7 +147,9 @@ def _story_values(story_state: Any) -> tuple[tuple[str, str], ...]:
     if storyboard_prompt:
         values["source_prompt"] = storyboard_prompt
         values["storyboard_prompt_text"] = storyboard_prompt
-    return tuple(sorted(values.items()))
+    return tuple(
+        sorted((key, value[:_MAX_STORY_VALUE_CHARS]) for key, value in values.items())
+    )
 
 
 def _references(attachments: Any) -> tuple[tuple[str, str], ...]:
@@ -213,7 +232,7 @@ def recommend_saved_artifacts_tool(arguments: BaseModel, context: Any) -> Dict[s
     options = RecommendSavedArtifactsArguments.model_validate(arguments)
     recommendation = _recommendation_summary(context)
     stages = recommendation["stages"]
-    state_key = _state_key(options, context)
+    state_key = _state_key(options, context, stages)
     existing = stages.get(state_key)
     if isinstance(existing, dict):
         status = str(existing.get("status") or "")

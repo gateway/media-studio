@@ -208,9 +208,53 @@ def test_eligibility_uses_hard_structured_test_boundary_without_rejecting_attach
         label="Test Kitchen Environment Sheet",
         description="Builds a character sheet from a user attachment and a production brief.",
     )
+    internal = _recipe(key="internal-character-sheet", label="Internal Character Sheet")
+    fixture = _recipe(key="character-sheet-fixture", label="Character Sheet Fixture")
+    unit_test = _recipe(key="character-sheet-unit-test", label="Character Sheet Unit Test")
 
     assert module.artifact_is_recommendation_eligible(deterministic_test) is False
+    assert module.artifact_is_recommendation_eligible(internal) is False
+    assert module.artifact_is_recommendation_eligible(fixture) is False
+    assert module.artifact_is_recommendation_eligible(unit_test) is False
     assert module.artifact_is_recommendation_eligible(legitimate) is True
+
+
+def test_prompt_recipe_preserves_multiple_role_references_without_reuse(app_modules) -> None:
+    del app_modules
+    module = importlib.import_module("app.assistant.artifact_recommendation")
+    recipe = _recipe(
+        recipe_id="recipe-storyboard-role-references",
+        key="storyboard-role-references",
+        label="Storyboard Role References",
+        description="Creates a storyboard from character and environment references.",
+        input_variables_json=[],
+        image_input_json={
+            "mode": "direct_reference",
+            "required": True,
+            "max_files": 4,
+            "reference_roles": ["character", "environment"],
+        },
+    )
+
+    result = module.recommend_saved_artifacts(
+        _context(
+            module,
+            "storyboard",
+            purpose="arctic rescue storyboard",
+            references=(
+                ("ref-environment", "environment reference"),
+                ("ref-character", "character reference"),
+            ),
+        ),
+        presets=[],
+        recipes=[recipe],
+    )[0]
+
+    assert result.missing_required_inputs == ()
+    assert result.resolved_input_bindings == (
+        ("reference_character", "reference", "ref-character"),
+        ("reference_environment", "reference", "ref-environment"),
+    )
 
 
 def test_video_prompt_accepts_video_recipe_when_requested_output_is_prompt(app_modules) -> None:
@@ -557,6 +601,7 @@ def test_server_stage_key_ignores_alias_but_changes_with_purpose(app_modules, mo
 
     for instance, purpose in (
         ("salvage_crew", "practical salvage crew character sheet"),
+        ("salvage_crew", "a practical character sheet for the salvage crew"),
         ("crew_sheet", "practical salvage crew character sheet"),
         ("station_marshal", "station marshal character sheet"),
     ):
@@ -571,6 +616,29 @@ def test_server_stage_key_ignores_alias_but_changes_with_purpose(app_modules, mo
         )
 
     assert calls["recipes"] == 2
+
+
+def test_story_values_are_bounded_before_persisting_recommendation_context(app_modules) -> None:
+    del app_modules
+    module = importlib.import_module("app.assistant.artifact_recommendation_tools")
+    long_value = "x" * 5000
+
+    values = dict(
+        module._story_values(
+            {
+                "premise": long_value,
+                "visual_style": long_value,
+                "characters": [{"name": "Lead", "description": long_value}],
+                "shots": [
+                    {"environment": long_value, "prompt": long_value},
+                    {"environment": long_value, "prompt": long_value},
+                ],
+            }
+        )
+    )
+
+    assert values
+    assert all(len(value) <= 1200 for value in values.values())
 
 
 def test_alternatives_returns_next_bounded_pair_and_stage_memory_is_pruned(app_modules, monkeypatch) -> None:

@@ -108,6 +108,7 @@ class _ArtifactInput:
     label: str
     input_kind: Literal["text", "image"]
     required: bool = False
+    required_group: str | None = None
     default_value: Any = None
 
 
@@ -143,6 +144,8 @@ def _hard_excluded(record: Dict[str, Any]) -> bool:
     description = str(record.get("description") or "").strip().casefold()
     return bool(
         identity.startswith("debug_")
+        or re.search(r"(?:^|_)(?:internal|fixture)(?:_|$)", identity)
+        or re.search(r"(?:^|_)(?:unit|integration|e2e)_test(?:_|$)", identity)
         or any(
             marker in f"_{identity}_"
             for marker in ("_deterministic_test_", "_attachment_test_", "_routing_test_", "_smoke_test_")
@@ -251,14 +254,34 @@ def _artifact_inputs(kind: ArtifactKind, record: Dict[str, Any]) -> List[_Artifa
     else:
         image_input = record.get("image_input_json") if isinstance(record.get("image_input_json"), dict) else {}
         if str(image_input.get("mode") or "none") != "none":
-            inputs.append(
-                _ArtifactInput(
-                    key="reference_image",
-                    label="Reference image",
-                    input_kind="image",
-                    required=bool(image_input.get("required")),
+            max_files = max(1, int(image_input.get("max_files") or 1))
+            roles = [
+                str(role).strip()
+                for role in image_input.get("reference_roles") or []
+                if str(role).strip()
+            ]
+            required_group = "prompt_recipe_references" if bool(image_input.get("required")) else None
+            for index in range(max_files):
+                role = roles[index] if index < len(roles) else ""
+                role_key = re.sub(r"[^a-z0-9]+", "_", role.casefold()).strip("_")
+                if role_key:
+                    key = f"reference_{role_key}"
+                    label = f"{role.replace('_', ' ').title()} reference"
+                elif max_files == 1:
+                    key = "reference_image"
+                    label = "Reference image"
+                else:
+                    key = f"reference_image_{index + 1}"
+                    label = f"Reference image {index + 1}"
+                inputs.append(
+                    _ArtifactInput(
+                        key=key,
+                        label="Reference image" if required_group and index == 0 else label,
+                        input_kind="image",
+                        required=bool(required_group and index == 0),
+                        required_group=required_group,
+                    )
                 )
-            )
     deduped: List[_ArtifactInput] = []
     seen = set()
     for item in inputs:
@@ -285,6 +308,7 @@ def _resolve_inputs(
     generic_reference_tokens = {"attachment", "image", "input", "media", "photo", "reference", "required", "optional"}
     resolved: List[Tuple[str, str, str]] = []
     missing: List[str] = []
+    unresolved_images: List[_ArtifactInput] = []
     for item in inputs:
         if item.input_kind == "text":
             current_value = current_values.get(item.key.casefold())
@@ -295,6 +319,8 @@ def _resolve_inputs(
             if exact_story_value:
                 resolved.append((item.key, "story_state", exact_story_value[:1200]))
                 continue
+            if item.required and not _has_default(item.default_value):
+                missing.append(item.label)
         elif context.references:
             input_tokens = _tokens(f"{item.key} {item.label}") - generic_reference_tokens
             matching_reference = next(
@@ -305,15 +331,40 @@ def _resolve_inputs(
                 ),
                 None,
             )
-            if matching_reference is None and len(image_inputs) == 1:
-                matching_reference = unused_references[0] if unused_references else None
             if matching_reference is not None:
                 reference_index, reference = matching_reference
                 resolved.append((item.key, "reference", reference[0]))
                 unused_references = [entry for entry in unused_references if entry[0] != reference_index]
                 continue
-        if item.required and not _has_default(item.default_value):
+            unresolved_images.append(item)
+        else:
+            unresolved_images.append(item)
+
+    for item in unresolved_images:
+        if not unused_references:
+            break
+        reference_index, reference = unused_references.pop(0)
+        resolved.append((item.key, "reference", reference[0]))
+
+    resolved_image_keys = {
+        key.casefold()
+        for key, source, _value in resolved
+        if source == "reference"
+    }
+    for item in image_inputs:
+        if (
+            item.required
+            and not item.required_group
+            and item.key.casefold() not in resolved_image_keys
+            and not _has_default(item.default_value)
+        ):
             missing.append(item.label)
+    for group in {item.required_group for item in image_inputs if item.required_group}:
+        grouped = [item for item in image_inputs if item.required_group == group]
+        if not any(item.key.casefold() in resolved_image_keys for item in grouped):
+            representative = next((item for item in grouped if item.required), grouped[0])
+            if not _has_default(representative.default_value):
+                missing.append(representative.label)
     return tuple(resolved), tuple(missing)
 
 
