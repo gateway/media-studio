@@ -136,6 +136,125 @@ def test_debugger_diagnosis_requires_typed_failed_run_evidence(
     assert provider_calls == 3
 
 
+def test_debugger_nonretryable_missing_evidence_does_not_force_duplicate_lookup(
+    client,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    workflow = {
+        "schema_version": 1,
+        "workflow_id": "workflow-kernel-debugger-no-run",
+        "name": "Debugger workflow without runs",
+        "nodes": [],
+        "edges": [],
+        "metadata": {},
+    }
+    session = _session(client, workflow)
+    provider_calls = 0
+    steps = iter(
+        [
+            {
+                "capability": "run_debugger",
+                "artifact_intent": "diagnose_run",
+                "tool_call": {"name": "read_run_evidence", "arguments": {}},
+            },
+            {
+                "capability": "run_debugger",
+                "artifact_intent": "diagnose_run",
+                "reply": "There is no failed run available to inspect, so I cannot diagnose it without guessing.",
+            },
+        ]
+    )
+
+    def provider_step(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return next(steps)
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
+
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={"content_text": "It failed, what happened?", "workflow": workflow},
+    )
+
+    assert response.status_code == 200, response.text
+    turn = response.json()["messages"][-1]["content_json"]["kernel_turn"]
+    assert turn["reply"] == "There is no failed run available to inspect, so I cannot diagnose it without guessing."
+    assert turn["artifacts"] == []
+    assert turn["trace"]["termination"] == "completed"
+    assert len(turn["trace"]["tool_calls"]) == 1
+    assert turn["trace"]["tool_calls"][0]["tool_name"] == "read_run_evidence"
+    assert turn["trace"]["tool_calls"][0]["error"]["code"] == "failed_run_not_found"
+    assert turn["trace"]["tool_calls"][0]["error"]["retryable"] is False
+    assert provider_calls == 2
+
+
+def test_debugger_bad_provider_run_id_does_not_bypass_selected_run_evidence(
+    client,
+    app_modules,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    workflow, selected_run = _failed_run(app_modules)
+    session = _session(client, workflow)
+    provider_calls = 0
+    steps = iter(
+        [
+            {
+                "capability": "run_debugger",
+                "artifact_intent": "diagnose_run",
+                "tool_call": {
+                    "name": "read_run_evidence",
+                    "arguments": {"run_id": "provider-invented-run"},
+                },
+            },
+            {
+                "capability": "run_debugger",
+                "artifact_intent": "diagnose_run",
+                "reply": "The selected run is unavailable.",
+            },
+            {
+                "capability": "run_debugger",
+                "artifact_intent": "diagnose_run",
+                "tool_call": {"name": "read_run_evidence", "arguments": {}},
+            },
+            {
+                "capability": "run_debugger",
+                "artifact_intent": "diagnose_run",
+                "reply": "The selected run failed because its panel sequence was empty.",
+            },
+        ]
+    )
+
+    def provider_step(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return next(steps)
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
+
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={
+            "content_text": "It failed, what happened?",
+            "workflow": workflow,
+            "run_id": selected_run["run_id"],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    turn = response.json()["messages"][-1]["content_json"]["kernel_turn"]
+    evidence = next(item["data"] for item in turn["artifacts"] if item["kind"] == "run_evidence")
+    assert turn["reply"] == "The selected run failed because its panel sequence was empty."
+    assert evidence["run"]["run_id"] == selected_run["run_id"]
+    assert [item["error"]["code"] if item.get("error") else None for item in turn["trace"]["tool_calls"]] == [
+        "selected_run_not_found",
+        None,
+    ]
+    assert provider_calls == 4
+
+
 def test_debugger_fix_is_validated_priced_and_confirmation_gated(
     client,
     app_modules,

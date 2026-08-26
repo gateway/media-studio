@@ -337,6 +337,21 @@ def _kernel_reasoning_effort(
     return "high" if selected_capability == "graph_builder" else "medium"
 
 
+def _required_artifact_has_terminal_error(
+    required_artifact: str | None,
+    tool_traces: List[Any],
+) -> bool:
+    if required_artifact != "run_evidence":
+        return False
+    return any(
+        trace.tool_name == "read_run_evidence"
+        and trace.error is not None
+        and trace.error.code == "failed_run_not_found"
+        and trace.error.retryable is False
+        for trace in tool_traces
+    )
+
+
 def _grounded_guidance(
     guidance: AssistantKernelGuidance,
     *,
@@ -1226,6 +1241,7 @@ def run_assistant_kernel_turn(
         if (
             required_artifact
             and not any(artifact.kind == required_artifact for artifact in artifacts)
+            and not _required_artifact_has_terminal_error(required_artifact, tool_traces)
             and not artifact_retry_requested
         ):
             artifact_retry_requested = True
