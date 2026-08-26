@@ -5,6 +5,13 @@ from typing import Any, Dict, Iterable, List
 from ..graph.normalization import materialize_workflow_defaults
 from ..graph.schemas import GraphError, GraphValidationResult, GraphWorkflow, GraphWorkflowNode
 from .schemas import AssistantGraphPlan
+from .workflow_layout import (
+    WORKFLOW_GROUP_PADDING,
+    WORKFLOW_NODE_GAP,
+    node_bounds,
+    rects_have_gap,
+    rects_overlap,
+)
 
 
 def _node_title(node: GraphWorkflowNode) -> str:
@@ -32,15 +39,6 @@ def _bounds(group: Dict[str, Any]) -> Dict[str, float] | None:
     }
 
 
-def _overlaps(first: Dict[str, float], second: Dict[str, float]) -> bool:
-    return not (
-        first["x"] + first["width"] <= second["x"]
-        or second["x"] + second["width"] <= first["x"]
-        or first["y"] + first["height"] <= second["y"]
-        or second["y"] + second["height"] <= first["y"]
-    )
-
-
 def _validation_summary(validation: GraphValidationResult | None) -> Dict[str, Any]:
     if validation is None:
         return {}
@@ -56,6 +54,69 @@ def _validation_summary(validation: GraphValidationResult | None) -> Dict[str, A
 def graph_plan_layout_errors(base_workflow: GraphWorkflow, next_workflow: GraphWorkflow, graph_plan: AssistantGraphPlan) -> List[GraphError]:
     if not graph_plan.operations:
         return []
+    if any(operation.op == "arrange_workflow" for operation in graph_plan.operations):
+        groups = _groups(next_workflow)
+        nodes_by_id = {node.id: node for node in next_workflow.nodes}
+        errors: List[GraphError] = []
+        for index, first in enumerate(groups):
+            first_bounds = _bounds(first)
+            if not first_bounds:
+                continue
+            for second in groups[index + 1 :]:
+                second_bounds = _bounds(second)
+                if second_bounds and not rects_have_gap(first_bounds, second_bounds, WORKFLOW_NODE_GAP):
+                    errors.append(
+                        GraphError(
+                            code="assistant_group_overlap",
+                            message=(
+                                f"Arranged group `{first.get('title') or first.get('id')}` does not have enough "
+                                f"space from `{second.get('title') or second.get('id')}`."
+                            ),
+                        )
+                    )
+                    break
+        for group in groups:
+            group_bounds = _bounds(group)
+            if not group_bounds:
+                continue
+            for node_id in group.get("node_ids") if isinstance(group.get("node_ids"), list) else []:
+                node = nodes_by_id.get(str(node_id))
+                if not node:
+                    continue
+                member_bounds = node_bounds(node)
+                enclosed = (
+                    group_bounds["x"] <= member_bounds["x"] - WORKFLOW_GROUP_PADDING
+                    and group_bounds["y"] <= member_bounds["y"] - WORKFLOW_GROUP_PADDING
+                    and group_bounds["x"] + group_bounds["width"]
+                    >= member_bounds["x"] + member_bounds["width"] + WORKFLOW_GROUP_PADDING
+                    and group_bounds["y"] + group_bounds["height"]
+                    >= member_bounds["y"] + member_bounds["height"] + WORKFLOW_GROUP_PADDING
+                )
+                if not enclosed:
+                    errors.append(
+                        GraphError(
+                            code="assistant_group_enclosure",
+                            message=(
+                                f"Arranged group `{group.get('title') or group.get('id')}` does not enclose "
+                                f"member node `{node_id}` with the required padding."
+                            ),
+                            node_id=str(node_id),
+                        )
+                    )
+                    break
+        for index, first in enumerate(next_workflow.nodes):
+            first_bounds = node_bounds(first)
+            for second in next_workflow.nodes[index + 1 :]:
+                if not rects_have_gap(first_bounds, node_bounds(second), WORKFLOW_NODE_GAP):
+                    errors.append(
+                        GraphError(
+                            code="assistant_node_spacing",
+                            message=f"Arranged nodes `{first.id}` and `{second.id}` do not have enough space.",
+                            node_id=second.id,
+                        )
+                    )
+                    break
+        return errors
     base_groups = _groups(base_workflow)
     base_group_ids = {str(group.get("id") or "") for group in base_groups}
     new_groups = [group for group in _groups(next_workflow) if str(group.get("id") or "") not in base_group_ids]
@@ -68,7 +129,7 @@ def graph_plan_layout_errors(base_workflow: GraphWorkflow, next_workflow: GraphW
             existing_bounds = _bounds(existing_group)
             if not existing_bounds:
                 continue
-            if _overlaps(existing_bounds, new_bounds):
+            if rects_overlap(existing_bounds, new_bounds):
                 errors.append(
                     GraphError(
                         code="assistant_group_overlap",
@@ -92,7 +153,12 @@ def graph_plan_diff_summary(
     next_nodes = {node.id: node for node in next_workflow.nodes}
     base_edges = {edge.id: edge for edge in base_workflow.edges}
     next_edges = {edge.id: edge for edge in next_workflow.edges}
-    base_group_ids = {str(group.get("id") or "") for group in _groups(base_workflow)}
+    base_groups = {
+        str(group.get("id") or ""): group
+        for group in _groups(base_workflow)
+        if str(group.get("id") or "")
+    }
+    base_group_ids = set(base_groups)
     changed_nodes = []
     for node_id, next_node in next_nodes.items():
         base_node = base_nodes.get(node_id)
@@ -115,6 +181,11 @@ def graph_plan_diff_summary(
             if node_id not in base_nodes
         ],
         "nodes_changed": changed_nodes,
+        "nodes_moved": [
+            {"id": node.id, "title": _node_title(node)}
+            for node_id, node in next_nodes.items()
+            if node_id in base_nodes and node.position != base_nodes[node_id].position
+        ],
         "edges_added": [
             {
                 "id": edge.id,
@@ -135,6 +206,15 @@ def graph_plan_diff_summary(
             }
             for group in _groups(next_workflow)
             if str(group.get("id") or "") not in base_group_ids
+        ],
+        "groups_repositioned": [
+            {
+                "id": str(group.get("id") or ""),
+                "title": str(group.get("title") or ""),
+            }
+            for group in _groups(next_workflow)
+            if str(group.get("id") or "") in base_groups
+            and _bounds(group) != _bounds(base_groups[str(group.get("id") or "")])
         ],
         "warnings": list(graph_plan.warnings[:8]),
         "layout_errors": [error.model_dump(mode="json") for error in list(layout_errors or [])[:8]],

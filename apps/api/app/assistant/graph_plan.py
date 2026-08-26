@@ -7,10 +7,19 @@ from ..graph.normalization import materialize_workflow_defaults
 from ..graph.registry import registry
 from ..graph.schemas import GraphWorkflow, GraphWorkflowEdge, GraphWorkflowNode
 from .schemas import AssistantGraphOperation, AssistantGraphPlan
-
-ASSISTANT_GRAPH_SECTION_GAP = 320.0
-ASSISTANT_GRAPH_NODE_GAP = 96.0
-ASSISTANT_GRAPH_GROUP_PADDING = 96.0
+from .workflow_layout import (
+    WORKFLOW_COLUMN_GAP as ASSISTANT_GRAPH_SECTION_GAP,
+    WORKFLOW_GROUP_PADDING as ASSISTANT_GRAPH_GROUP_PADDING,
+    WORKFLOW_NODE_GAP as ASSISTANT_GRAPH_NODE_GAP,
+    arrange_workflow,
+    bounds_union as _bounds_union,
+    compute_group_bounds as _compute_group_bounds,
+    expand_bounds as _expand_bounds,
+    node_bounds as _bounds_for_node,
+    node_layout_size as _node_layout_size_for_bounds,
+    rects_have_gap as _rects_have_gap,
+    rects_overlap as _rects_overlap,
+)
 
 
 def _slug(value: str) -> str:
@@ -36,103 +45,9 @@ def _default_fields(node_type: str) -> Dict[str, Any]:
     return fields
 
 
-def _default_size(node_type: str) -> tuple[float, float]:
-    definition = registry.get_definition(node_type)
-    size = definition.ui.get("default_size") if isinstance(definition.ui, dict) else None
-    if isinstance(size, dict):
-        return float(size.get("width") or 320), float(size.get("height") or 260)
-    return 320.0, 260.0
-
-
-def _node_layout_size_for_bounds(node_type: str) -> tuple[float, float]:
-    definition = registry.get_definition(node_type)
-    default_width, default_height = _default_size(node_type)
-    ui = definition.ui if isinstance(definition.ui, dict) else {}
-    min_size = ui.get("min_size") if isinstance(ui.get("min_size"), dict) else {}
-    min_width = float(min_size.get("width") or 0)
-    min_height = float(min_size.get("height") or 0)
-    visible_fields = [field for field in definition.fields if not field.hidden]
-    visible_ports = [
-        port
-        for port in [*definition.ports.get("inputs", []), *definition.ports.get("outputs", [])]
-        if not port.advanced
-    ]
-    textarea_count = sum(1 for field in visible_fields if field.type == "textarea")
-    has_preview = bool(ui.get("preview")) or node_type.startswith("media.load_") or node_type.startswith("media.save_")
-    content_height = 132 + len(visible_fields) * 52 + len(visible_ports) * 28 + textarea_count * 70 + (140 if has_preview else 0)
-    preview_width = 0
-    preview_height = 0
-    if has_preview and ("video" in node_type or any(port.type == "video" for port in visible_ports)):
-        preview_width = 380
-        preview_height = 360
-    elif has_preview and ("image" in node_type or any(port.type == "image" for port in visible_ports)):
-        preview_width = 360
-        preview_height = 360
-    return (
-        max(default_width, min_width, preview_width, 240.0),
-        max(default_height, min_height, preview_height, float(content_height), 170.0),
-    )
-
-
 def _port_ids(node_type: str, direction: str) -> set[str]:
     definition = registry.get_definition(node_type)
     return {port.id for port in definition.ports.get(direction, [])}
-
-
-def _compute_group_bounds(nodes: Iterable[GraphWorkflowNode]) -> Dict[str, float]:
-    members = list(nodes)
-    if not members:
-        return {"x": 0, "y": 0, "width": 260, "height": 220}
-    padding = ASSISTANT_GRAPH_GROUP_PADDING
-    left = min(node.position.get("x", 0) for node in members)
-    top = min(node.position.get("y", 0) for node in members)
-    right = max(node.position.get("x", 0) + _node_layout_size_for_bounds(node.type)[0] for node in members)
-    bottom = max(node.position.get("y", 0) + _node_layout_size_for_bounds(node.type)[1] for node in members)
-    return {
-        "x": left - padding,
-        "y": top - padding,
-        "width": max(220, right - left + padding * 2),
-        "height": max(220, bottom - top + padding * 2),
-    }
-
-
-def _rects_overlap(first: Dict[str, float], second: Dict[str, float]) -> bool:
-    return not (
-        first["x"] + first["width"] <= second["x"]
-        or second["x"] + second["width"] <= first["x"]
-        or first["y"] + first["height"] <= second["y"]
-        or second["y"] + second["height"] <= first["y"]
-    )
-
-
-def _expand_bounds(bounds: Dict[str, float], padding: float) -> Dict[str, float]:
-    return {
-        "x": float(bounds.get("x", 0)) - padding,
-        "y": float(bounds.get("y", 0)) - padding,
-        "width": float(bounds.get("width", 0)) + padding * 2,
-        "height": float(bounds.get("height", 0)) + padding * 2,
-    }
-
-
-def _bounds_for_node(node: GraphWorkflowNode) -> Dict[str, float]:
-    width, height = _node_layout_size_for_bounds(node.type)
-    return {
-        "x": float(node.position.get("x", 0)),
-        "y": float(node.position.get("y", 0)),
-        "width": width,
-        "height": height,
-    }
-
-
-def _bounds_union(bounds: Iterable[Dict[str, float]]) -> Dict[str, float] | None:
-    items = list(bounds)
-    if not items:
-        return None
-    left = min(float(item.get("x", 0)) for item in items)
-    top = min(float(item.get("y", 0)) for item in items)
-    right = max(float(item.get("x", 0)) + float(item.get("width", 0)) for item in items)
-    bottom = max(float(item.get("y", 0)) + float(item.get("height", 0)) for item in items)
-    return {"x": left, "y": top, "width": right - left, "height": bottom - top}
 
 
 def _existing_graph_section_bounds(workflow: GraphWorkflow) -> Dict[str, float] | None:
@@ -151,10 +66,6 @@ def _existing_graph_section_bounds(workflow: GraphWorkflow) -> Dict[str, float] 
             }
         )
     return _bounds_union(bounds)
-
-
-def _rects_have_gap(first: Dict[str, float], second: Dict[str, float], gap: float) -> bool:
-    return not _rects_overlap(_expand_bounds(first, gap / 2), _expand_bounds(second, gap / 2))
 
 
 def _space_added_nodes(nodes: List[GraphWorkflowNode]) -> None:
@@ -322,6 +233,9 @@ def _connected_added_node_ids(
 
 
 def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> GraphWorkflow:
+    arrange_requested = any(operation.op == "arrange_workflow" for operation in plan.operations)
+    if arrange_requested and len(plan.operations) != 1:
+        raise ValueError("Arrange workflow must be the only graph operation in a layout-only proposal.")
     definitions = registry.definitions_by_type()
     next_workflow = materialize_workflow_defaults(workflow).model_copy(deep=True)
     existing_ids = {node.id for node in next_workflow.nodes}
@@ -453,6 +367,9 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
             next_workflow.metadata = metadata
             continue
 
+        if operation.op == "arrange_workflow":
+            continue
+
         if operation.op in {"layout_nodes", "save_workflow", "set_provider_model", "set_execution_mode"}:
             continue
 
@@ -525,6 +442,8 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
         )
         metadata["groups"] = normalized_groups
         next_workflow.metadata = metadata
+    if arrange_requested:
+        next_workflow = arrange_workflow(next_workflow)
     if plan.metadata:
         metadata = dict(next_workflow.metadata)
         metadata["assistant_plan"] = dict(plan.metadata)

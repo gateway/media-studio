@@ -1464,6 +1464,13 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     options = ProposeGraphOperationsArguments.model_validate(arguments)
     operations = options.operations
     metadata: Dict[str, Any] = {"kernel_proposal": True}
+    if any(operation.op == "arrange_workflow" for operation in operations):
+        if len(operations) != 1:
+            raise KernelToolFailure(
+                code="invalid_graph_operations",
+                message="Use arrange_workflow by itself for a geometry-only proposal.",
+            )
+        metadata["arrange_workflow"] = True
     session_summary = context.session.get("summary_json") if isinstance(context.session.get("summary_json"), dict) else {}
     active_preset_draft = session_summary.get("kernel_preset_draft")
     template_id = options.template_id
@@ -1689,6 +1696,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
                 "layout_errors": [error.model_dump(mode="json") for error in layout_errors[:12]],
             },
         )
+    layout_requested = bool(graph_plan.metadata.get("arrange_workflow"))
     diff_summary = graph_plan_diff_summary(
         base_workflow,
         planned_workflow,
@@ -1696,6 +1704,20 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
         validation=validation,
         layout_errors=layout_errors,
     )
+    if (
+        layout_requested
+        and not diff_summary.get("nodes_moved")
+        and not diff_summary.get("groups_repositioned")
+    ):
+        graph_plan.operations = []
+        graph_plan.metadata["no_canvas_changes"] = True
+        diff_summary = graph_plan_diff_summary(
+            base_workflow,
+            planned_workflow,
+            graph_plan,
+            validation=validation,
+            layout_errors=layout_errors,
+        )
     pricing = estimate_graph_workflow(planned_workflow)
     confirmation_token = new_id("confirm")
     graph_plan.metadata.update(
@@ -1728,6 +1750,16 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
         "confirmation_token": confirmation_token,
         "summary": graph_plan.summary,
         "operations": [operation.model_dump(mode="json", exclude_none=True) for operation in graph_plan.operations],
+        "action_metadata": {
+            key: True
+            for key in (
+                "arrange_workflow",
+                "no_canvas_changes",
+                "replace_existing_test_lane",
+                "template_refinement",
+            )
+            if graph_plan.metadata.get(key)
+        },
         "workflow": planned_workflow.model_dump(mode="json"),
         "validation": validation.model_dump(mode="json"),
         "layout_errors": [],
@@ -1791,7 +1823,12 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
     ),
     "propose_graph_operations": KernelToolDefinition(
         name="propose_graph_operations",
-        description="Build a standard preset test graph by template id, or apply typed graph operations; validate, layout-check, price, and persist the confirmable proposal.",
+        description=(
+            "Build a standard preset test graph by template id, or apply typed graph operations; validate, "
+            "layout-check, price, and persist the confirmable proposal. For a layout-only request, use exactly "
+            "one arrange_workflow operation; the server deterministically moves existing nodes and recomputes "
+            "existing group bounds while preserving graph content, connections, identities, and membership."
+        ),
         arguments_model=ProposeGraphOperationsArguments,
         allowed_capabilities=frozenset({"graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}),
         handler=_propose_graph_operations,

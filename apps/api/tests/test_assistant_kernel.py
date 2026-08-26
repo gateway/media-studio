@@ -27,6 +27,7 @@ def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -
         "add_note",
         "connect_nodes",
         "group_nodes",
+        "arrange_workflow",
     ]
     step = schemas.AssistantKernelProviderStep.model_validate(
         {
@@ -74,6 +75,7 @@ def test_kernel_instruction_exposes_every_capability_tool_for_a_wrong_ui_hint(ap
     assert "update_story_state" in instruction
     assert "read_run_evidence" in instruction
     assert "analyze_recipe_output" in instruction
+    assert "arrange_workflow" in instruction
 
 
 def test_kernel_user_turn_exposes_the_selected_run_id(app_modules) -> None:
@@ -1037,6 +1039,57 @@ def test_kernel_graph_proposal_is_validated_priced_and_confirmable(client, monke
     )
     assert applied.status_code == 200, applied.text
     assert len(applied.json()["workflow"]["nodes"]) == 1
+
+
+def test_kernel_layout_proposal_uses_tidy_workflow_confirmation_label(app_modules) -> None:
+    del app_modules
+    kernel = importlib.import_module("app.assistant.kernel")
+    schemas = importlib.import_module("app.assistant.schemas")
+
+    action = kernel._next_action_for_artifacts(
+        "graph_builder",
+        [
+            schemas.AssistantKernelArtifact(
+                kind="graph_proposal",
+                data={
+                    "proposal_id": "asplan-layout",
+                    "confirmation_token": "confirm-layout",
+                    "action_metadata": {"arrange_workflow": True},
+                    "pricing": {},
+                },
+            )
+        ],
+    )
+
+    assert action.kind == "confirm_graph"
+    assert action.label == "Tidy workflow"
+
+
+def test_kernel_layout_noop_has_no_confirmation_action(app_modules) -> None:
+    del app_modules
+    kernel = importlib.import_module("app.assistant.kernel")
+    schemas = importlib.import_module("app.assistant.schemas")
+
+    action = kernel._next_action_for_artifacts(
+        "graph_builder",
+        [
+            schemas.AssistantKernelArtifact(
+                kind="graph_proposal",
+                data={
+                    "proposal_id": "asplan-layout-noop",
+                    "confirmation_token": "confirm-layout-noop",
+                    "action_metadata": {
+                        "arrange_workflow": True,
+                        "no_canvas_changes": True,
+                    },
+                    "pricing": {},
+                },
+            )
+        ],
+    )
+
+    assert action.kind == "none"
+    assert action.requires_confirmation is False
 
 
 def test_plan_endpoint_uses_kernel_and_returns_its_typed_proposal(client, monkeypatch) -> None:

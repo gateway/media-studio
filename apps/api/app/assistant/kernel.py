@@ -486,6 +486,8 @@ def _kernel_session_context(
 
 
 def _graph_confirmation_label(metadata: Dict[str, Any]) -> str:
+    if metadata.get("arrange_workflow"):
+        return "Tidy workflow"
     if metadata.get("replace_existing_test_lane"):
         return "Replace test lane"
     if metadata.get("template_refinement"):
@@ -604,6 +606,8 @@ def _next_action_for_artifacts(
             )
             if belongs_to_session and str(plan.get("status") or "") == "validated":
                 graph_plan = AssistantGraphPlan.model_validate(plan.get("plan_json") or {})
+                if graph_plan.metadata.get("no_canvas_changes"):
+                    return AssistantNextAction()
                 expected_fingerprint = str(graph_plan.metadata.get("base_workflow_fingerprint") or "")
                 if expected_fingerprint == workflow_fingerprint(workflow):
                     confirmation_token = new_id("confirm")
@@ -629,20 +633,16 @@ def _next_action_for_artifacts(
         return AssistantNextAction()
     proposal_id = str(proposal.get("proposal_id") or "")
     confirmation_token = str(proposal.get("confirmation_token") or "")
-    proposal_workflow = proposal.get("workflow") if isinstance(proposal.get("workflow"), dict) else {}
-    proposal_metadata = (
-        proposal_workflow.get("metadata")
-        if isinstance(proposal_workflow.get("metadata"), dict)
+    action_metadata = (
+        proposal.get("action_metadata")
+        if isinstance(proposal.get("action_metadata"), dict)
         else {}
     )
-    assistant_plan_metadata = (
-        proposal_metadata.get("assistant_plan")
-        if isinstance(proposal_metadata.get("assistant_plan"), dict)
-        else {}
-    )
+    if action_metadata.get("no_canvas_changes"):
+        return AssistantNextAction()
     return AssistantNextAction(
         kind="confirm_graph",
-        label=_graph_confirmation_label(assistant_plan_metadata),
+        label=_graph_confirmation_label(action_metadata),
         proposal_id=proposal_id,
         confirmation_token=confirmation_token,
         requires_confirmation=True,

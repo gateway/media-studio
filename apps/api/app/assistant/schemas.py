@@ -405,6 +405,7 @@ class AssistantGraphOperation(BaseModel):
         "add_note",
         "connect_nodes",
         "group_nodes",
+        "arrange_workflow",
     ]
     node_ref: Optional[str] = None
     node_type: Optional[str] = None

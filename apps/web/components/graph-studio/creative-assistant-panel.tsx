@@ -647,6 +647,7 @@ function planReviewTitle({
   valid,
   missingMedia = false,
   onlyFieldUpdates = false,
+  onlyLayoutUpdates = false,
 }: {
   appliedPresetWorkflow: boolean;
   planApplied: boolean;
@@ -654,12 +655,15 @@ function planReviewTitle({
   valid: boolean;
   missingMedia?: boolean;
   onlyFieldUpdates?: boolean;
+  onlyLayoutUpdates?: boolean;
 }) {
   if (appliedPresetWorkflow) return "Test graph ready";
   if (missingMedia) return "Choose missing media";
+  if (planApplied && onlyLayoutUpdates) return "Workflow layout updated";
   if (planApplied && onlyFieldUpdates) return "Node updated";
   if (planApplied) return "Graph added";
   if (noCanvasChanges) return "I need one thing first";
+  if (onlyLayoutUpdates) return valid ? "Workflow layout ready" : "Workflow layout needs review";
   return valid ? "Graph ready" : "Graph needs review";
 }
 
@@ -671,8 +675,11 @@ function noCanvasChangeSummary(plan: AssistantPlanResponse) {
   return plan.graph_plan.summary.trim() || "Nothing needs to change on the canvas yet.";
 }
 
-function graphPlanPrimaryCopy(plan: AssistantPlanResponse, options: { missingMedia: boolean; onlyFieldUpdates: boolean }) {
-  const { missingMedia, onlyFieldUpdates } = options;
+function graphPlanPrimaryCopy(plan: AssistantPlanResponse, options: { missingMedia: boolean; onlyFieldUpdates: boolean; onlyLayoutUpdates: boolean }) {
+  const { missingMedia, onlyFieldUpdates, onlyLayoutUpdates } = options;
+  if (onlyLayoutUpdates) {
+    return plan.graph_plan.summary.trim() || "I prepared a geometry-only workflow layout for review.";
+  }
   if (onlyFieldUpdates) {
     return plan.graph_plan.summary.trim() || "I updated the selected node on the canvas.";
   }
@@ -891,14 +898,27 @@ export function CreativeAssistantPanel({
 
   const plan = assistant.plan;
   const planApplied = plan?.plan.status === "applied";
-  const planOperationCount = plan?.graph_plan.operations?.length ?? 0;
+  const planOperations = plan?.graph_plan.operations ?? [];
+  const planMetadata = plan?.graph_plan.metadata ?? {};
+  const arrangeOperations = planOperations.filter((operation) => operation["op"] === "arrange_workflow");
+  const onlyArrangeOperations = arrangeOperations.length === 1 && planOperations.length === 1;
+  const layoutDiff = typeof planMetadata["diff_summary"] === "object" && planMetadata["diff_summary"] !== null
+    ? planMetadata["diff_summary"] as Record<string, unknown>
+    : {};
+  const movedNodeCount = Array.isArray(layoutDiff["nodes_moved"]) ? layoutDiff["nodes_moved"].length : null;
+  const movedGroupCount = Array.isArray(layoutDiff["groups_repositioned"]) ? layoutDiff["groups_repositioned"].length : null;
+  const arrangedNodeCount = movedNodeCount ?? plan?.workflow.nodes.length ?? 0;
+  const arrangedGroupCount = movedGroupCount ?? 0;
+  const planOperationCount = planOperations.length;
   const noCanvasChanges = Boolean(plan && planOperationCount === 0);
   const planMissingMedia = planHasMissingMedia(plan);
   const planOptionalEmptyMedia = planHasOptionalEmptyMedia(plan);
   const planStatusLabel = planApplied
-    ? "Added to canvas"
+    ? onlyArrangeOperations ? "Layout applied" : "Added to canvas"
     : plan && planOperationCount === 0
       ? "No changes required"
+      : onlyArrangeOperations
+        ? "Ready to tidy"
       : planMissingMedia
         ? "Needs media"
         : planOptionalEmptyMedia
@@ -967,8 +987,6 @@ export function CreativeAssistantPanel({
   const visibleActivityMessages = planApplied ? activityMessages.filter((message) => isSavedArtifactActivityMessage(message)) : activityMessages.slice(-1);
   const showPresetReferenceStarter = assistantMode === "preset" && imageAttachmentCount > 0 && !conversationalMessages.length && !assistant.busy;
   const showPresetLoopStarter = assistantMode === "preset" && !assistant.busy && !plan && !conversationalMessages.length;
-  const planOperations = plan?.graph_plan.operations ?? [];
-  const planMetadata = plan?.graph_plan.metadata ?? {};
   const templateId = typeof planMetadata["template_id"] === "string" ? planMetadata["template_id"] : "";
   const templateMode = typeof planMetadata["template_mode"] === "string" ? planMetadata["template_mode"] : "";
   const templateSlotCount = typeof planMetadata["template_slot_count"] === "number" ? planMetadata["template_slot_count"] : null;
@@ -1431,19 +1449,21 @@ export function CreativeAssistantPanel({
             >
             <div className="graph-assistant-plan-heading">
               {planApplied ? <CheckCircle2 size={15} /> : <Sparkles size={15} />}
-              <strong>{planReviewTitle({ appliedPresetWorkflow: presetTestReady, planApplied, noCanvasChanges, valid: plan.validation.valid, missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations })}</strong>
+              <strong>{planReviewTitle({ appliedPresetWorkflow: presetTestReady, planApplied, noCanvasChanges, valid: plan.validation.valid, missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}</strong>
               {!planApplied ? <small>{pricing}</small> : null}
             </div>
             <p>
               {appliedPresetWorkflow
                 ? appliedPresetNextStep
+                : planApplied && onlyArrangeOperations
+                  ? plan.graph_plan.summary.trim() || "The workflow layout is updated without changing graph content."
                 : planApplied && onlyFieldUpdateOperations
                   ? plan.graph_plan.summary.trim() || "I updated the selected node on the canvas. Want another adjustment?"
                 : planApplied
                   ? "Here's your graph. I added the nodes to the canvas. Want adjustments, or should we review the prompts?"
                   : noCanvasChanges
                     ? noCanvasChangeSummary(plan)
-                    : graphPlanPrimaryCopy(plan, { missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations })}
+                    : graphPlanPrimaryCopy(plan, { missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}
             </p>
             {planApplied && onlyFieldUpdateOperations && appliedFieldUpdateLabels.length ? (
               <p className="graph-assistant-edit-summary">Changed: {formatAssistantList(appliedFieldUpdateLabels)}</p>
@@ -1467,7 +1487,7 @@ export function CreativeAssistantPanel({
                       <PackagePlus size={13} aria-hidden="true" />
                       <span className="graph-assistant-plan-stat-label">Nodes</span>
                     </dt>
-                    <dd>{hasExplicitOperations ? addNodeOperations.length : plan.workflow.nodes.length}</dd>
+                    <dd>{onlyArrangeOperations ? arrangedNodeCount : hasExplicitOperations ? addNodeOperations.length : plan.workflow.nodes.length}</dd>
                   </div>
                   <div>
                     <dt aria-label="Connections" title="Connections">
@@ -1481,18 +1501,23 @@ export function CreativeAssistantPanel({
                       <Layers3 size={13} aria-hidden="true" />
                       <span className="graph-assistant-plan-stat-label">Groups</span>
                     </dt>
-                    <dd>{groupOperations.length}</dd>
+                    <dd>{onlyArrangeOperations ? arrangedGroupCount : groupOperations.length}</dd>
                   </div>
                   <div>
                     <dt aria-label="Updates" title="Updates">
                       <PencilLine size={13} aria-hidden="true" />
                       <span className="graph-assistant-plan-stat-label">Updates</span>
                     </dt>
-                    <dd>{fieldUpdateOperations.length}</dd>
+                    <dd>{fieldUpdateOperations.length + arrangeOperations.length}</dd>
                   </div>
                 </dl>
                 <div className="graph-assistant-plan-operation-list">
-                  {addNodeOperations.length ? (
+                  {onlyArrangeOperations ? (
+                    <span>
+                      Arrange {arrangedNodeCount} node{arrangedNodeCount === 1 ? "" : "s"}
+                      {arrangedGroupCount ? ` and ${arrangedGroupCount} group${arrangedGroupCount === 1 ? "" : "s"}` : ""}
+                    </span>
+                  ) : addNodeOperations.length ? (
                     <ul>
                       {addNodeOperations.slice(0, 5).map((operation, index) => (
                         <li key={`${String(operation["op"] || "operation")}-${String(operation["node_ref"] || operation["node_id"] || index)}`}>
@@ -1546,7 +1571,7 @@ export function CreativeAssistantPanel({
                 </button>
               </div>
             ) : null}
-            {planApplied && onlyFieldUpdateOperations && onUndoLastAssistantChange ? (
+            {planApplied && (onlyFieldUpdateOperations || onlyArrangeOperations) && onUndoLastAssistantChange ? (
               <div className="graph-assistant-card-actions">
                 <button
                   type="button"
@@ -1555,8 +1580,8 @@ export function CreativeAssistantPanel({
                     onUndoLastAssistantChange();
                     onEvent?.("Assistant change undone.", "muted");
                   }}
-                  aria-label="Undo assistant node edit"
-                  title="Undo the last assistant node edit"
+                  aria-label={onlyArrangeOperations ? "Undo assistant layout" : "Undo assistant node edit"}
+                  title={onlyArrangeOperations ? "Undo the last Assistant workflow layout" : "Undo the last assistant node edit"}
                 >
                   <Undo2 size={13} aria-hidden="true" />
                   <span>Undo change</span>
