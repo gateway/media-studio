@@ -135,21 +135,23 @@ def _tokens(value: Any) -> frozenset[str]:
 
 
 def _hard_excluded(record: Dict[str, Any]) -> bool:
-    identity = re.sub(
-        r"[^a-z0-9]+",
-        "_",
-        f"{record.get('key') or ''} {record.get('label') or ''}".casefold(),
-    ).strip("_")
+    identities = [
+        re.sub(r"[^a-z0-9]+", "_", str(record.get(field) or "").casefold()).strip("_")
+        for field in ("key", "label")
+    ]
+    technical_identity = any(
+        re.search(r"(?:^|_)(?:attachment|debug|fixture|internal|regression)(?:_|$)", identity)
+        or re.search(
+            r"(?:^|_)(?:attachment|deterministic|e2e|integration|routing|smoke|unit)_test(?:_|$)",
+            identity,
+        )
+        or re.search(r"(?:^|_)test(?:_[a-f0-9]{6,}|_\d+|$)", identity)
+        for identity in identities
+    )
     notes = str(record.get("notes") or "").strip().casefold()
     description = str(record.get("description") or "").strip().casefold()
     return bool(
-        identity.startswith("debug_")
-        or re.search(r"(?:^|_)(?:internal|fixture)(?:_|$)", identity)
-        or re.search(r"(?:^|_)(?:unit|integration|e2e)_test(?:_|$)", identity)
-        or any(
-            marker in f"_{identity}_"
-            for marker in ("_deterministic_test_", "_attachment_test_", "_routing_test_", "_smoke_test_")
-        )
+        technical_identity
         or notes.startswith("internal:")
         or "[internal]" in notes
         or notes in {"debug", "debug fixture", "regression fixture", "test fixture"}

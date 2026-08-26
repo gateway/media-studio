@@ -211,11 +211,17 @@ def test_eligibility_uses_hard_structured_test_boundary_without_rejecting_attach
     internal = _recipe(key="internal-character-sheet", label="Internal Character Sheet")
     fixture = _recipe(key="character-sheet-fixture", label="Character Sheet Fixture")
     unit_test = _recipe(key="character-sheet-unit-test", label="Character Sheet Unit Test")
+    debug = _recipe(key="character-sheet", label="Debug Character Sheet")
+    regression = _recipe(key="character-sheet-regression", label="Character Sheet Regression")
+    attachment = _recipe(key="character-sheet-attachment", label="Character Sheet Attachment")
 
     assert module.artifact_is_recommendation_eligible(deterministic_test) is False
     assert module.artifact_is_recommendation_eligible(internal) is False
     assert module.artifact_is_recommendation_eligible(fixture) is False
     assert module.artifact_is_recommendation_eligible(unit_test) is False
+    assert module.artifact_is_recommendation_eligible(debug) is False
+    assert module.artifact_is_recommendation_eligible(regression) is False
+    assert module.artifact_is_recommendation_eligible(attachment) is False
     assert module.artifact_is_recommendation_eligible(legitimate) is True
 
 
@@ -616,6 +622,44 @@ def test_server_stage_key_ignores_alias_but_changes_with_purpose(app_modules, mo
         )
 
     assert calls["recipes"] == 2
+
+
+def test_equivalent_stage_alias_can_record_a_decision(app_modules, monkeypatch) -> None:
+    del app_modules
+    module = importlib.import_module("app.assistant.artifact_recommendation_tools")
+    context = _tool_context()
+    monkeypatch.setattr(module.store, "list_presets", lambda: [])
+    monkeypatch.setattr(module.store, "list_prompt_recipes", lambda *, status: [_recipe()])
+    monkeypatch.setattr(module, "_model_task_modes", lambda: {})
+    _stub_persistence(monkeypatch, module)
+
+    module.recommend_saved_artifacts_tool(
+        module.RecommendSavedArtifactsArguments(
+            stage="character_sheet",
+            stage_instance_id="salvage_crew",
+            purpose="practical salvage crew character sheet",
+        ),
+        context,
+    )
+    cached = module.recommend_saved_artifacts_tool(
+        module.RecommendSavedArtifactsArguments(
+            stage="character_sheet",
+            stage_instance_id="crew_sheet",
+            purpose="practical salvage crew character sheet",
+        ),
+        context,
+    )
+    decision = module.record_artifact_recommendation_decision(
+        module.RecordArtifactRecommendationDecisionArguments(
+            stage="character_sheet",
+            stage_instance_id="crew_sheet",
+            decision="direct",
+        ),
+        context,
+    )
+
+    assert cached["searched"] is False
+    assert decision["status"] == "declined"
 
 
 def test_story_values_are_bounded_before_persisting_recommendation_context(app_modules) -> None:

@@ -50,6 +50,7 @@ _STAGE_INPUT_KEYS = {
     "video_prompt": {"source_prompt", "storyboard_prompt_text", "user_prompt"},
 }
 _MAX_STAGE_INSTANCES = 8
+_MAX_STAGE_ALIASES = 4
 _MAX_STORY_VALUE_CHARS = 1200
 
 
@@ -235,6 +236,19 @@ def recommend_saved_artifacts_tool(arguments: BaseModel, context: Any) -> Dict[s
     state_key = _state_key(options, context, stages)
     existing = stages.get(state_key)
     if isinstance(existing, dict):
+        aliases = list(
+            dict.fromkeys(
+                [
+                    *(str(alias) for alias in existing.get("stage_instance_aliases") or [] if str(alias)),
+                    str(existing.get("stage_instance_id") or ""),
+                    options.stage_instance_id,
+                ]
+            )
+        )[-_MAX_STAGE_ALIASES:]
+        if aliases != existing.get("stage_instance_aliases"):
+            existing = {**existing, "stage_instance_aliases": aliases}
+            stages[state_key] = existing
+            _persist_recommendation_summary(context, {**recommendation, "stages": stages})
         status = str(existing.get("status") or "")
         if status == "declined":
             return {
@@ -268,6 +282,7 @@ def recommend_saved_artifacts_tool(arguments: BaseModel, context: Any) -> Dict[s
         "requested_output": options.requested_output,
         "stage": options.stage,
         "stage_instance_id": options.stage_instance_id,
+        "stage_instance_aliases": [options.stage_instance_id],
         "stage_key": state_key,
         "purpose": options.purpose,
         "recommendation_context": recommendation_context,
@@ -304,7 +319,11 @@ def record_artifact_recommendation_decision(
                 for key, state in reversed(list(stages.items()))
                 if isinstance(state, dict)
                 and str(state.get("stage") or "") == options.stage
-                and str(state.get("stage_instance_id") or "") == options.stage_instance_id
+                and options.stage_instance_id
+                in {
+                    str(state.get("stage_instance_id") or ""),
+                    *(str(alias) for alias in state.get("stage_instance_aliases") or []),
+                }
                 and str(state.get("status") or "") == "offered"
             ),
             ("", None),
