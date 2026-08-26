@@ -193,6 +193,16 @@ def _kernel_instruction() -> str:
         "pixels with attached source references, and persist the user's explicit approve, continue, or stop choice with "
         "record_recipe_quality_decision. Keep any prompt refinement or another paid run confirmation-gated. "
         "For story work, keep the premise, characters, world rules, continuity facts, and shots in update_story_state. "
+        "At a meaningful transition into character-sheet, environment, storyboard, or video-prompt work, call "
+        "recommend_saved_artifacts once unless the user named an exact saved preset or recipe. If the tool returns "
+        "candidates, offer no more than those two with the concise match reason and missing required inputs, and let "
+        "the user choose one, ask for alternatives, or continue with direct construction. Do not imply that a saved "
+        "artifact is required. If artifact_recommendation already shows an offered choice for that stage, do not search "
+        "again while awaiting the decision. When the user selects one, call record_artifact_recommendation_decision with "
+        "its exact kind and identity, preserve that provenance, populate compatible story text and attached references, "
+        "and ask only for the returned missing required inputs. When the user declines, record decision direct and proceed "
+        "with ordinary construction in the same turn; never repeat that stage's suggestions. Exact-name requests bypass "
+        "recommendation: resolve them directly with search_presets/get_preset or search_prompt_recipes/get_prompt_recipe. "
         "For an end-to-end production request, use propose_production_plan to persist ordered work with stable ids and "
         "dependencies. Ground model limits with list_media_models first and express arithmetic as typed derived constraints. "
         "When active_production_plan exists and work changes, call update_production_plan_step after the work tool so the "
@@ -425,6 +435,7 @@ def _kernel_session_context(
             recipe_quality = None
     story_state = summary.get("kernel_story_state")
     production_plan = summary.get("production_plan")
+    artifact_recommendation = summary.get("kernel_artifact_recommendation")
     session_id = str(session.get("assistant_session_id") or "")
     latest_applied_test_plan_id = next(
         (
@@ -475,6 +486,9 @@ def _kernel_session_context(
         ),
         "active_story_state": story_state if isinstance(story_state, dict) else None,
         "active_production_plan": production_plan if isinstance(production_plan, dict) else None,
+        "artifact_recommendation": (
+            artifact_recommendation if isinstance(artifact_recommendation, dict) else None
+        ),
         "latest_graph_proposal_id": summary.get("kernel_proposal_id"),
         "latest_applied_test_plan_id": latest_applied_test_plan_id,
         "latest_saved_artifact": latest_saved_artifact,

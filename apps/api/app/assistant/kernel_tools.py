@@ -19,6 +19,12 @@ from ..graph.validator import validate_workflow
 from ..service_errors import ServiceError
 from ..service_prompt_recipe_validation import prompt_recipe_media_generation
 from ..store_support import new_id
+from .artifact_recommendation_tools import (
+    RecommendSavedArtifactsArguments,
+    RecordArtifactRecommendationDecisionArguments,
+    recommend_saved_artifacts_tool,
+    record_artifact_recommendation_decision,
+)
 from .canvas_context import compact_canvas_context
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
 from .graph_plan import apply_graph_plan
@@ -102,6 +108,8 @@ KERNEL_TOOL_ACTIVITIES = {
     "record_recipe_quality_decision": ("output_comparison", "Recorded your quality decision"),
     "propose_media_preset_draft": ("preset_draft", "Prepared preset details"),
     "propose_prompt_recipe_draft": ("recipe_draft", "Prepared recipe details"),
+    "recommend_saved_artifacts": ("artifact_catalog", "Checked saved production tools"),
+    "record_artifact_recommendation_decision": ("artifact_catalog", "Recorded your saved-tool choice"),
     "propose_production_plan": ("production_plan", "Prepared a production plan"),
     "update_production_plan_step": ("production_plan", "Updated the production plan"),
     "update_story_state": ("story_update", "Updated the story"),
@@ -1833,6 +1841,30 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         allowed_capabilities=frozenset({"graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}),
         handler=_propose_graph_operations,
     ),
+    "recommend_saved_artifacts": KernelToolDefinition(
+        name="recommend_saved_artifacts",
+        description=(
+            "At the start of a character-sheet, environment, storyboard, or video-prompt stage, "
+            "rank at most two eligible saved presets or recipes once; direct graph construction remains available."
+        ),
+        arguments_model=RecommendSavedArtifactsArguments,
+        allowed_capabilities=frozenset(
+            {"general", "graph_builder", "preset_builder", "recipe_builder", "story_builder"}
+        ),
+        handler=recommend_saved_artifacts_tool,
+    ),
+    "record_artifact_recommendation_decision": KernelToolDefinition(
+        name="record_artifact_recommendation_decision",
+        description=(
+            "Record whether the user selected one exact offered saved artifact or chose direct construction; "
+            "a direct choice suppresses repeat suggestions for that stage."
+        ),
+        arguments_model=RecordArtifactRecommendationDecisionArguments,
+        allowed_capabilities=frozenset(
+            {"general", "graph_builder", "preset_builder", "recipe_builder", "story_builder"}
+        ),
+        handler=record_artifact_recommendation_decision,
+    ),
     "search_presets": KernelToolDefinition(
         name="search_presets",
         description="Search active Media Presets and inspect their compact model and input scope.",
@@ -1990,6 +2022,8 @@ def kernel_tool_catalog(capability: AssistantKernelCapability | None = None) -> 
                 "record_recipe_quality_decision",
                 "analyze_preset_output",
                 "analyze_recipe_output",
+                "recommend_saved_artifacts",
+                "record_artifact_recommendation_decision",
             },
         }
         for definition in KERNEL_TOOLS.values()
