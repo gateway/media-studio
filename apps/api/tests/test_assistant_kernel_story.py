@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib
 import json
 
+import pytest
+
 
 def _session(client):
     return client.post(
@@ -294,10 +296,19 @@ def test_story_turn_cannot_finish_with_prose_only_state(client, monkeypatch) -> 
     assert result.trace.tool_calls[0].tool_name == "update_story_state"
 
 
-def test_story_shots_can_become_validated_priced_graph(client) -> None:
+@pytest.mark.parametrize("capability", ["graph_builder", "story_builder"])
+def test_story_shots_can_become_validated_priced_graph(client, capability: str) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
     graph_schemas = importlib.import_module("app.graph.schemas")
+    store_assistant = importlib.import_module("app.store_assistant")
     session = _session(client)
+    tools.execute_kernel_tool(
+        tool_name="update_story_state",
+        arguments={"state": _story_state(shot_count=6), "update_kind": "shot_list"},
+        capability="story_builder",
+        context=_context(tools, session, "Break that into six shots I can use as storyboard prompts."),
+    )
+    refreshed = store_assistant.get_assistant_session(session["assistant_session_id"])
     workflow = graph_schemas.GraphWorkflow(
         name="Story graph",
         nodes=[],
@@ -308,64 +319,16 @@ def test_story_shots_can_become_validated_priced_graph(client) -> None:
         workflow=workflow,
         canvas_context={},
         session_id=session["assistant_session_id"],
-        session=session,
+        session=refreshed,
         user_text="Now put those shots on the canvas as a graph I can run.",
     )
-    operations = []
-    for index, shot in enumerate(_story_state(shot_count=6)["shots"]):
-        y = 100 + index * 520
-        detailed_prompt = f"{shot['prompt']} " + ("Maintain cinematic continuity. " * 65)
-        operations.extend(
-            [
-                {
-                    "op": "add_node",
-                    "node_ref": f"prompt_{index}",
-                    "node_type": "prompt.text",
-                    "title": f"Shot {index + 1} Prompt",
-                    "position": {"x": 80, "y": y},
-                    "fields": {"text": detailed_prompt},
-                },
-                {
-                    "op": "add_node",
-                    "node_ref": f"model_{index}",
-                    "node_type": "model.kie.gpt_image_2_text_to_image",
-                    "title": f"Generate Shot {index + 1}",
-                    "position": {"x": 560, "y": y},
-                    "fields": {"aspect_ratio": "16:9", "resolution": "1K"},
-                },
-                {
-                    "op": "add_node",
-                    "node_ref": f"preview_{index}",
-                    "node_type": "preview.image",
-                    "title": f"Preview Shot {index + 1}",
-                    "position": {"x": 1040, "y": y},
-                    "fields": {},
-                },
-                {
-                    "op": "connect_nodes",
-                    "source_ref": f"prompt_{index}",
-                    "source_port": "text",
-                    "target_ref": f"model_{index}",
-                    "target_port": "prompt",
-                },
-                {
-                    "op": "connect_nodes",
-                    "source_ref": f"model_{index}",
-                    "source_port": "image",
-                    "target_ref": f"preview_{index}",
-                    "target_port": "image",
-                },
-            ]
-        )
     proposed = tools.execute_kernel_tool(
         tool_name="propose_graph_operations",
-        arguments=json.dumps(
-            {
-                "summary": "Create one runnable image chain per approved story shot.",
-                "operations": operations,
-            }
-        ),
-        capability="story_builder",
+        arguments={
+            "summary": "Create one runnable image chain per approved story shot.",
+            "template_id": "story_shots_image_v1",
+        },
+        capability=capability,
         context=context,
     )
 
@@ -376,7 +339,105 @@ def test_story_shots_can_become_validated_priced_graph(client) -> None:
     assert "workflow" not in proposed.result
     assert proposed.result["workflow_summary"]["node_count"] == 18
     assert proposed.result["workflow_summary"]["edge_count"] == 12
-    assert proposed.result["operations_count"] == 30
+    assert proposed.result["operations_count"] == 31
+    stored = store_assistant.get_assistant_plan(proposed.result["proposal_id"])
+    assert stored["plan_json"]["metadata"]["template_id"] == "story_shots_image_v1"
+    assert stored["plan_json"]["metadata"]["template_shot_count"] == 6
+
+
+def test_story_graph_template_requires_persisted_story_state(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    session = _session(client)
+    context = tools.KernelToolContext(
+        workflow=graph_schemas.GraphWorkflow(name="Story graph", nodes=[], edges=[], metadata={}),
+        canvas_context={},
+        session_id=session["assistant_session_id"],
+        session=session,
+        user_text="Put the story shots on the canvas.",
+    )
+
+    proposed = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={"summary": "Create the story graph.", "template_id": "story_shots_image_v1"},
+        capability="story_builder",
+        context=context,
+    )
+
+    assert proposed.trace.error is not None
+    assert proposed.trace.error.code == "story_graph_state_missing"
+
+
+def test_story_graph_template_requires_structured_shots(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    store_assistant = importlib.import_module("app.store_assistant")
+    session = _session(client)
+    tools.execute_kernel_tool(
+        tool_name="update_story_state",
+        arguments={"state": _story_state(), "update_kind": "story_development"},
+        capability="story_builder",
+        context=_context(tools, session, "Develop the story."),
+    )
+    context = tools.KernelToolContext(
+        workflow=graph_schemas.GraphWorkflow(name="Story graph", nodes=[], edges=[], metadata={}),
+        canvas_context={},
+        session_id=session["assistant_session_id"],
+        session=store_assistant.get_assistant_session(session["assistant_session_id"]),
+        user_text="Put the story shots on the canvas.",
+    )
+
+    proposed = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={"summary": "Create the story graph.", "template_id": "story_shots_image_v1"},
+        capability="story_builder",
+        context=context,
+    )
+
+    assert proposed.trace.error is not None
+    assert proposed.trace.error.code == "story_graph_shots_missing"
+
+
+def test_story_graph_template_rejects_other_capabilities_and_manual_operations(client) -> None:
+    tools = importlib.import_module("app.assistant.kernel_tools")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    session = _session(client)
+    context = tools.KernelToolContext(
+        workflow=graph_schemas.GraphWorkflow(name="Story graph", nodes=[], edges=[], metadata={}),
+        canvas_context={},
+        session_id=session["assistant_session_id"],
+        session=session,
+        user_text="Put the story shots on the canvas.",
+    )
+    unsupported = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={"summary": "Create the story graph.", "template_id": "story_shots_image_v1"},
+        capability="preset_builder",
+        context=context,
+    )
+    conflicting = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={
+            "summary": "Create the story graph.",
+            "template_id": "story_shots_image_v1",
+            "operations": [
+                {
+                    "op": "add_node",
+                    "node_ref": "manual_prompt",
+                    "node_type": "prompt.text",
+                    "position": {"x": 0, "y": 0},
+                    "fields": {"text": "Do not combine manual operations with the template."},
+                }
+            ],
+        },
+        capability="story_builder",
+        context=context,
+    )
+
+    assert unsupported.trace.error is not None
+    assert unsupported.trace.error.code == "story_graph_template_capability_required"
+    assert conflicting.trace.error is not None
+    assert conflicting.trace.error.code == "story_graph_template_operations_conflict"
 
 
 def test_story_graph_can_finish_with_validated_tool_step_reply(client, monkeypatch) -> None:

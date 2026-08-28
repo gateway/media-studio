@@ -76,6 +76,10 @@ def test_kernel_instruction_exposes_every_capability_tool_for_a_wrong_ui_hint(ap
     assert "read_run_evidence" in instruction
     assert "analyze_recipe_output" in instruction
     assert "arrange_workflow" in instruction
+    assert "template_id story_shots_image_v1" in instruction
+    assert "not for conversational story development, shot-list writing, or shot revision" in instruction
+    assert "identity continuity or a reusable character reference" in instruction
+    assert "requires an image-capable graph path" in instruction
 
 
 def test_kernel_user_turn_exposes_the_selected_run_id(app_modules) -> None:

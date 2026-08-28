@@ -52,11 +52,11 @@ GUARDRAILS = (
     FileGuardrail("apps/api/tests/test_api_smoke.py", 3250, "API smoke tests; release cap"),
 )
 
-# Exact Python-source total on the reviewed post-Ticket-7 candidate 8abd72b.
+# Exact Python-source total on the reviewed Ticket-9 responsiveness candidate.
 # Deliberate net growth requires updating this value with a review note.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    11_299,
+    11_395,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

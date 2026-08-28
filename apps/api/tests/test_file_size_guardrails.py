@@ -9,7 +9,7 @@ import sys
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GUARDRAIL_SCRIPT = REPO_ROOT / "scripts" / "check_file_size_guardrails.py"
-ASSISTANT_PACKAGE_CAP = 11_299
+ASSISTANT_PACKAGE_CAP = 11_395
 
 
 def _guardrail_fixture(tmp_path: Path) -> Path:
@@ -41,7 +41,7 @@ def test_assistant_package_growth_fails_with_review_guidance(tmp_path: Path) -> 
     result = _run_guardrail(script_path)
 
     assert result.returncode == 1
-    assert "apps/api/app/assistant: 11300 lines exceeds max 11299" in result.stderr
+    assert "apps/api/app/assistant: 11396 lines exceeds max 11395" in result.stderr
     assert "intentionally raise the guardrail with a review note" in result.stderr
 
 
@@ -57,4 +57,4 @@ def test_assistant_package_ignores_generated_and_non_python_artifacts(tmp_path: 
     result = _run_guardrail(script_path)
 
     assert result.returncode == 0, result.stderr
-    assert "     1  11299  apps/api/app/assistant  [OK]" in result.stdout
+    assert "     1  11395  apps/api/app/assistant  [OK]" in result.stdout

@@ -124,6 +124,10 @@ export function evaluateMechanicalTurn({
   const lower = String(reply || "").toLowerCase();
   const bannedHits = bannedVocabulary.filter((term) => lower.includes(term));
   const wordCount = plainWordCount(reply);
+  const configuredMaxWords = scenario.mechanical.max_reply_words;
+  const maxWords = Number.isInteger(configuredMaxWords) && configuredMaxWords > 0
+    ? configuredMaxWords
+    : 150;
   const trace = kernelTraceFromContent(contentJson);
   const summaryTrace = contentJson?.assistant_turn_trace ?? {};
   const toolCalls = toolCallsFromTrace(trace);
@@ -162,7 +166,7 @@ export function evaluateMechanicalTurn({
     && !["step_budget_exhausted", "wall_clock_budget_exhausted"].includes(termination);
   const checks = {
     banned_vocabulary: { pass: bannedHits.length === 0, hits: bannedHits },
-    reply_length: { pass: wordCount <= 150, words: wordCount, max_words: 150 },
+    reply_length: { pass: wordCount <= maxWords, words: wordCount, max_words: maxWords },
     presentation: {
       pass: presentationAnomalies(reply).length === 0,
       anomalies: presentationAnomalies(reply),

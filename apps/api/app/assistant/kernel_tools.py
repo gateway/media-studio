@@ -86,6 +86,7 @@ from .schemas import (
     AssistantKernelToolTrace,
 )
 from .story_kernel import (
+    KernelStoryState,
     ReadStoryStateArguments,
     StoryKernelError,
     UpdateStoryStateArguments,
@@ -158,6 +159,7 @@ class ProposeGraphOperationsArguments(BaseModel):
             "preset_style_t2i_sandbox_v1",
             "preset_style_i2i_sandbox_v1",
             "saved_recipe_image_v1",
+            "story_shots_image_v1",
         ]
     ] = None
     recipe_id: Optional[str] = Field(default=None, max_length=160)
@@ -664,6 +666,85 @@ PRESET_TEST_GRAPH_TEMPLATES = {
         "node_type": "model.kie.gpt_image_2_image_to_image",
     },
 }
+
+
+def _story_shots_image_operations(
+    context: KernelToolContext,
+) -> tuple[List[AssistantGraphOperation], Dict[str, Any]]:
+    story_result = read_story_state(ReadStoryStateArguments(), context)
+    if not story_result.get("exists"):
+        raise KernelToolFailure(
+            code="story_graph_state_missing",
+            message="Create and confirm the typed story shots before building their graph.",
+        )
+    state = KernelStoryState.model_validate(story_result["state"])
+    if not state.shots:
+        raise KernelToolFailure(
+            code="story_graph_shots_missing",
+            message="Add structured shots to the story before building their graph.",
+        )
+    operations: List[AssistantGraphOperation] = []
+    member_refs: List[str] = []
+    for index, shot in enumerate(state.shots):
+        row = index * 520
+        prompt_ref = f"story_shot_{shot.shot_number}_prompt"
+        model_ref = f"story_shot_{shot.shot_number}_model"
+        preview_ref = f"story_shot_{shot.shot_number}_preview"
+        member_refs.extend((prompt_ref, model_ref, preview_ref))
+        operations.extend(
+            [
+                AssistantGraphOperation(
+                    op="add_node",
+                    node_ref=prompt_ref,
+                    node_type="prompt.text",
+                    title=f"Shot {shot.shot_number} — {shot.title or 'Prompt'}",
+                    position={"x": 80, "y": row},
+                    fields={"mode": "replace", "text": shot.prompt},
+                ),
+                AssistantGraphOperation(
+                    op="add_node",
+                    node_ref=model_ref,
+                    node_type="model.kie.gpt_image_2_text_to_image",
+                    title=f"Generate Shot {shot.shot_number}",
+                    position={"x": 560, "y": row},
+                    fields={"aspect_ratio": "16:9", "resolution": "1K"},
+                ),
+                AssistantGraphOperation(
+                    op="add_node",
+                    node_ref=preview_ref,
+                    node_type="preview.image",
+                    title=f"Preview Shot {shot.shot_number}",
+                    position={"x": 1040, "y": row},
+                ),
+                AssistantGraphOperation(
+                    op="connect_nodes",
+                    source_ref=prompt_ref,
+                    source_port="text",
+                    target_ref=model_ref,
+                    target_port="prompt",
+                ),
+                AssistantGraphOperation(
+                    op="connect_nodes",
+                    source_ref=model_ref,
+                    source_port="image",
+                    target_ref=preview_ref,
+                    target_port="image",
+                ),
+            ]
+        )
+    operations.append(
+        AssistantGraphOperation(
+            op="group_nodes",
+            group_ref="story_shots",
+            title=f"{state.title or state.segment_title} — Storyboard",
+            node_refs=member_refs,
+        )
+    )
+    return operations, {
+        "template_id": "story_shots_image_v1",
+        "template_shot_count": len(state.shots),
+        "template_story_version": state.version,
+    }
 
 
 def _matching_applied_template_plan(
@@ -1494,14 +1575,21 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     if template_id:
         if operations:
             raise KernelToolFailure(
-                code=(
-                    "saved_recipe_graph_template_operations_conflict"
-                    if template_id == "saved_recipe_image_v1"
-                    else "preset_test_template_operations_conflict"
-                ),
+                code={
+                    "saved_recipe_image_v1": "saved_recipe_graph_template_operations_conflict",
+                    "story_shots_image_v1": "story_graph_template_operations_conflict",
+                }.get(template_id, "preset_test_template_operations_conflict"),
                 message="A standard graph template cannot be combined with hand-authored graph operations.",
             )
-        if template_id == "saved_recipe_image_v1":
+        if template_id == "story_shots_image_v1":
+            if context.capability not in {"story_builder", "graph_builder"}:
+                raise KernelToolFailure(
+                    code="story_graph_template_capability_required",
+                    message="Use the story graph template only for typed story or graph work.",
+                    retryable=False,
+                )
+            operations, template_metadata = _story_shots_image_operations(context)
+        elif template_id == "saved_recipe_image_v1":
             operations, template_metadata = _saved_recipe_graph_operations(
                 options.recipe_id,
                 options.field_values,
@@ -2166,6 +2254,7 @@ def execute_kernel_tool(
         and isinstance(result, dict)
         and len(encoded) > KERNEL_TOOL_RESULT_MAX_BYTES
     ):
+        proposed_operations = result.get("operations") if isinstance(result.get("operations"), list) else []
         proposed_workflow = result.get("workflow") if isinstance(result.get("workflow"), dict) else {}
         proposed_nodes = proposed_workflow.get("nodes") if isinstance(proposed_workflow.get("nodes"), list) else []
         proposed_edges = proposed_workflow.get("edges") if isinstance(proposed_workflow.get("edges"), list) else []
@@ -2174,7 +2263,7 @@ def execute_kernel_tool(
             for key, value in result.items()
             if key not in {"workflow", "operations"}
         }
-        result["operations_count"] = len(parsed_payload.get("operations") or [])
+        result["operations_count"] = len(proposed_operations)
         result["workflow_summary"] = {
             "workflow_id": proposed_workflow.get("workflow_id"),
             "name": proposed_workflow.get("name"),

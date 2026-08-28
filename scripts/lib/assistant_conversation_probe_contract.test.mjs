@@ -110,6 +110,19 @@ test("evaluateMechanicalTurn accepts a deterministic typed proposal trace", () =
   assert.equal(checks.step_limit.pass, true);
 });
 
+test("evaluateMechanicalTurn keeps concise chat strict but permits an explicit content-heavy limit", () => {
+  const defaultFixture = passingMechanicalFixture();
+  defaultFixture.reply = Array.from({ length: 151 }, () => "word").join(" ");
+  const boundedException = passingMechanicalFixture();
+  boundedException.scenario.mechanical.max_reply_words = 400;
+  boundedException.reply = Array.from({ length: 300 }, () => "word").join(" ");
+
+  assert.equal(evaluateMechanicalTurn(defaultFixture).reply_length.pass, false);
+  assert.equal(evaluateMechanicalTurn(defaultFixture).reply_length.max_words, 150);
+  assert.equal(evaluateMechanicalTurn(boundedException).reply_length.pass, true);
+  assert.equal(evaluateMechanicalTurn(boundedException).reply_length.max_words, 400);
+});
+
 test("evaluateMechanicalTurn rejects missing or malformed typed tool evidence", () => {
   const missing = passingMechanicalFixture();
   missing.contentJson.kernel_turn.trace.tool_calls = [];
