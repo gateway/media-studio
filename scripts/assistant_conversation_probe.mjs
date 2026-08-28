@@ -214,6 +214,34 @@ function workflowFixture(name) {
       ],
     };
   }
+  if (name === "existing_image_output") {
+    return {
+      ...base,
+      nodes: [
+        {
+          id: "prompt",
+          type: "prompt.text",
+          position: { x: 40, y: 80 },
+          fields: { text: "A quiet lighthouse at blue hour." },
+        },
+        {
+          id: "image-model",
+          type: "model.kie.gpt_image_2_text_to_image",
+          position: { x: 460, y: 80 },
+          fields: { aspect_ratio: "16:9", resolution: "1K" },
+        },
+      ],
+      edges: [
+        {
+          id: "edge-prompt-image-model",
+          source: "prompt",
+          source_port: "text",
+          target: "image-model",
+          target_port: "prompt",
+        },
+      ],
+    };
+  }
   if (name === "invalid_graph") {
     return {
       ...base,
@@ -492,7 +520,7 @@ function renderSummary(results, runtime) {
     "",
     "## Verified amended expectations",
     "",
-    "- G1, G2, and G3 are judged against their observed post-prompt-fix behavior; the baseline does not assume the Stage A prediction.",
+    "- Graph previews may remain safely unapplied while waiting for a user-selected image; that pending input does not make the graph structure invalid.",
     "- R1 and S1 are judged as conversational capabilities, including presentation quality, not against an exact sentence.",
     "- P1 must show real reference-aware intake without saving, applying, or running.",
     "",

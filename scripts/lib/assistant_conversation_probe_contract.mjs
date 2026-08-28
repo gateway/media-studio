@@ -113,6 +113,14 @@ function typedNextAction(
     && !Array.isArray(nextAction.payload);
 }
 
+function workflowPreviewIsAcceptable(plan) {
+  if (plan?.validation?.valid) return true;
+  const errors = plan?.validation?.errors;
+  return Array.isArray(errors)
+    && errors.length > 0
+    && errors.every((error) => error?.code === "missing_media_reference");
+}
+
 export function evaluateMechanicalTurn({
   scenario,
   reply,
@@ -160,6 +168,9 @@ export function evaluateMechanicalTurn({
   const maxToolSteps = Number(scenario.mechanical.max_tool_steps ?? 6);
   const stepCount = trace.step_count;
   const termination = String(trace.termination || "");
+  const pendingErrorCodes = Array.isArray(plan?.validation?.errors)
+    ? plan.validation.errors.map((error) => error?.code ?? null)
+    : [];
   const stepLimitValid = Number.isInteger(stepCount)
     && stepCount >= 0
     && stepCount <= maxToolSteps
@@ -188,9 +199,10 @@ export function evaluateMechanicalTurn({
       legacy_suggested_action: legacySuggestedAction,
     },
     workflow_validity: {
-      pass: !scenario.mechanical.plan_preview || Boolean(plan?.validation?.valid),
+      pass: !scenario.mechanical.plan_preview || workflowPreviewIsAcceptable(plan),
       checked: Boolean(scenario.mechanical.plan_preview),
       valid: plan?.validation?.valid ?? null,
+      pending_error_codes: pendingErrorCodes,
     },
     price_present: {
       pass: !scenario.mechanical.plan_preview || price !== null,

@@ -52,11 +52,13 @@ GUARDRAILS = (
     FileGuardrail("apps/api/tests/test_api_smoke.py", 3250, "API smoke tests; release cap"),
 )
 
-# Exact Python-source total on the reviewed Ticket-9 responsiveness candidate.
-# Deliberate net growth requires updating this value with a review note.
+# Ticket-10 adds 11 lines at the existing artifact-completion boundary so an
+# unapplied preset test graph cannot be described as save-confirmable. Reuse of
+# the typed preset result keeps the fix in the kernel; extraction would add a
+# module without reducing responsibility or source size.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    11_395,
+    11_406,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

@@ -2302,6 +2302,42 @@ def test_unverified_preset_save_is_separate_and_single_use(client) -> None:
     assert store.get_preset_by_key(key) is not None
 
 
+def test_preset_save_without_applied_test_graph_cannot_claim_confirmation_ready(
+    client,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    session = _session(client)
+    draft = _preset_draft("kernel_unapplied_save_reply")
+    steps = iter(
+        [
+            {
+                "capability": "preset_builder",
+                "artifact_intent": "save_preset",
+                "reply": "The preset is ready for the unverified-save confirmation.",
+                "tool_call": {
+                    "name": "propose_media_preset_draft",
+                    "arguments": json.dumps({"draft": draft}),
+                },
+            }
+        ]
+    )
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={"content_text": "Save it unverified.", "assistant_mode": "preset"},
+    )
+
+    assert response.status_code == 200, response.text
+    message = response.json()["messages"][-1]
+    assert message["content_text"] == (
+        "This preset needs an applied, priced test graph before it can be saved. "
+        "Would you like me to prepare that test graph?"
+    )
+    assert message["content_json"]["next_action"]["kind"] == "none"
+
+
 def test_unverified_preset_save_rechecks_plan_contract_at_write_time(client) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
     store_assistant = importlib.import_module("app.store_assistant")

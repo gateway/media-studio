@@ -133,6 +133,24 @@ test("evaluateMechanicalTurn rejects missing or malformed typed tool evidence", 
   assert.equal(evaluateMechanicalTurn(malformed).typed_actions.pass, false);
 });
 
+test("evaluateMechanicalTurn accepts a confirmable graph whose only pending input is media", () => {
+  const pendingMedia = passingMechanicalFixture();
+  pendingMedia.plan.validation = {
+    valid: false,
+    errors: [
+      {
+        code: "missing_media_reference",
+        message: "Choose an image before running this graph.",
+      },
+    ],
+  };
+
+  const checks = evaluateMechanicalTurn(pendingMedia);
+
+  assert.equal(checks.workflow_validity.pass, true);
+  assert.deepEqual(checks.workflow_validity.pending_error_codes, ["missing_media_reference"]);
+});
+
 test("evaluateMechanicalTurn requires the canonical tool_calls trace field", () => {
   const aliased = passingMechanicalFixture();
   aliased.contentJson.kernel_turn.trace.tools = aliased.contentJson.kernel_turn.trace.tool_calls;

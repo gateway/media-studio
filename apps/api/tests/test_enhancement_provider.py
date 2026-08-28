@@ -790,6 +790,64 @@ def test_run_codex_local_chat_resumes_durable_thread_in_fresh_process(monkeypatc
     assert Path(str(captured["cwd"])).name == "work"
 
 
+def test_managed_disk_resume_compacts_before_first_eligible_user_turn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = enhancement_provider.codex_local_provider
+    captured: list[str] = []
+
+    class _FakeSession:
+        def __init__(self, *, temp_root: Path, timeout_seconds: int) -> None:
+            return None
+
+        def __enter__(self) -> "_FakeSession":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def list_models(self) -> list[dict[str, object]]:
+            return []
+
+        def resume_thread(self, *, thread_id: str, **_kwargs) -> dict[str, object]:
+            captured.append("resume")
+            return {"thread": {"id": thread_id}}
+
+        def compact_thread(self, **_kwargs) -> dict[str, object]:
+            captured.append("compact")
+            return {
+                "completed": True,
+                "provider_turn_id": "turn-resume-compaction",
+                "usage": {"prompt_tokens": 0, "model_context_window": 100},
+            }
+
+        def run_turn(self, **kwargs) -> dict[str, object]:
+            captured.append("turn")
+            return {
+                "generated_text": "ok",
+                "provider_thread_id": kwargs["thread_id"],
+                "provider_turn_id": "turn-after-resume-compaction",
+                "usage": {"prompt_tokens": 10, "model_context_window": 100},
+            }
+
+    monkeypatch.setattr(provider, "_CodexAppServerSession", _FakeSession)
+    provider.close_codex_local_skill_sessions()
+
+    result = enhancement_provider.run_codex_local_chat(
+        model_id="gpt-compaction",
+        messages=[{"role": "user", "content": "What did we decide before the restart?"}],
+        codex_session_key="asst_resumed_compaction",
+        provider_thread_id="thread-resumed-compaction",
+        compact_before_turn=True,
+    )
+
+    assert captured == ["resume", "compact", "turn"]
+    assert result["reuse_mode"] == "disk_resume"
+    assert result["compaction"]["outcome"] == "completed"
+
+    provider.close_codex_local_skill_sessions()
+
+
 def test_run_codex_local_chat_hydrates_replacement_after_resume_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     provider = enhancement_provider.codex_local_provider
     captured: dict[str, object] = {}

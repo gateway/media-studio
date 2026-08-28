@@ -1191,6 +1191,17 @@ def run_assistant_kernel_turn(
                 fallback_reply = ""
             success_reply = str(step.reply or "").strip() or pending_success_reply or fallback_reply
             if (
+                selected_artifact_intent == "save_preset"
+                and artifact_kind == "preset_draft"
+                and isinstance(execution.result, dict)
+                and not execution.result.get("save_ready")
+                and execution.result.get("test_graph") is None
+            ):
+                success_reply = (
+                    "This preset needs an applied, priced test graph before it can be saved. "
+                    "Would you like me to prepare that test graph?"
+                )
+            if (
                 completes_turn
                 and execution.result is not None
                 and execution.trace.error is None
