@@ -4,6 +4,7 @@ import { networkInterfaces } from "node:os";
 import { mediaStudioAllowedDevOrigins } from "./lib/allowed-dev-origins";
 
 const nextConfig: NextConfig = {
+  agentRules: false,
   reactStrictMode: true,
   allowedDevOrigins: mediaStudioAllowedDevOrigins(process.env, networkInterfaces()),
   env: {
