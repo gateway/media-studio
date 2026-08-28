@@ -151,6 +151,31 @@ test("evaluateMechanicalTurn accepts a confirmable graph whose only pending inpu
   assert.deepEqual(checks.workflow_validity.pending_error_codes, ["missing_media_reference"]);
 });
 
+test("evaluateMechanicalTurn rejects pending media without a validated confirmable proposal", () => {
+  const missingAction = passingMechanicalFixture();
+  missingAction.plan.validation = {
+    valid: false,
+    errors: [{code: "missing_media_reference"}],
+  };
+  missingAction.contentJson.next_action = {
+    kind: "none",
+    requires_confirmation: false,
+  };
+  const rejected = structuredClone(missingAction);
+  rejected.plan.plan.status = "rejected";
+  rejected.contentJson.next_action = passingMechanicalFixture().contentJson.next_action;
+
+  assert.equal(evaluateMechanicalTurn(missingAction).workflow_validity.pass, false);
+  assert.equal(evaluateMechanicalTurn(rejected).workflow_validity.pass, false);
+});
+
+test("evaluateMechanicalTurn rejects a valid preview without graph confirmation", () => {
+  const missingAction = passingMechanicalFixture();
+  missingAction.contentJson.next_action = {kind: "none", requires_confirmation: false};
+
+  assert.equal(evaluateMechanicalTurn(missingAction).workflow_validity.pass, false);
+});
+
 test("evaluateMechanicalTurn requires the canonical tool_calls trace field", () => {
   const aliased = passingMechanicalFixture();
   aliased.contentJson.kernel_turn.trace.tools = aliased.contentJson.kernel_turn.trace.tool_calls;

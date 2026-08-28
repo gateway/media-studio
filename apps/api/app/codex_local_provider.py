@@ -1311,6 +1311,7 @@ def run_codex_local_chat(
     reasoning_effort: Optional[str] = None,
     client_user_message_id: Optional[str] = None,
     compact_before_turn: bool = False,
+    resume_usage: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     started_at = time.perf_counter()
     del error_context
@@ -1339,31 +1340,21 @@ def run_codex_local_chat(
         thread_lifecycle.extend(managed_lifecycle)
         try:
             with managed.lock:
-                resumed_without_usage = (
-                    "thread_resumed" in managed_lifecycle
-                    and managed.model_context_window <= 0
-                )
-                if compact_before_turn and (
-                    managed.compaction_due() or resumed_without_usage
-                ):
+                resumed_without_usage = "thread_resumed" in managed_lifecycle and managed.model_context_window <= 0
+                if resumed_without_usage and resume_usage:
+                    managed.record_usage(resume_usage)
+                if compact_before_turn and managed.compaction_due():
                     triggering_usage = {
                         "prompt_tokens": managed.context_input_tokens,
                         "model_context_window": managed.model_context_window,
                     }
-                    next_threshold = (
-                        0
-                        if resumed_without_usage
-                        else managed.defer_next_compaction()
-                    )
+                    next_threshold = managed.defer_next_compaction()
                     try:
                         compacted = managed.session.compact_thread(
                             thread_id=managed.thread_id,
                             cancel_event=cancel_event,
                         )
                         completion_usage = dict(compacted.get("usage") or {})
-                        if resumed_without_usage:
-                            managed.record_usage(completion_usage)
-                            next_threshold = managed.next_compaction_input_tokens
                         compaction = {
                             "outcome": "completed",
                             "thread_id": managed.thread_id,

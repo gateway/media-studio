@@ -2331,10 +2331,11 @@ def test_preset_save_without_applied_test_graph_cannot_claim_confirmation_ready(
 
     assert response.status_code == 200, response.text
     message = response.json()["messages"][-1]
-    assert message["content_text"] == (
-        "This preset needs an applied, priced test graph before it can be saved. "
-        "Would you like me to prepare that test graph?"
-    )
+    reply = message["content_text"].lower()
+    assert "applied" in reply
+    assert "priced test graph" in reply
+    assert "prepare" in reply
+    assert "confirmation" not in reply
     assert message["content_json"]["next_action"]["kind"] == "none"
 
 

@@ -243,6 +243,12 @@ def test_kernel_provider_step_persists_thread_id_and_records_lifecycle(
             "provider_kind": "codex_local",
             "provider_model_id": "gpt-5.6-sol",
             "state_snapshot_json": {"provider_generation": 3},
+            "summary_json": {
+                "kernel_provider_usage": {
+                    "prompt_tokens": 80,
+                    "model_context_window": 100,
+                }
+            },
         }
     )
     captured: dict[str, object] = {}
@@ -285,6 +291,10 @@ def test_kernel_provider_step_persists_thread_id_and_records_lifecycle(
     assert step["capability"] == "general"
     assert captured["codex_session_key"] == f"{session['assistant_session_id']}:3"
     assert captured["provider_thread_id"] is None
+    assert captured["resume_usage"] == {
+        "prompt_tokens": 80,
+        "model_context_window": 100,
+    }
     assert store_assistant.get_assistant_session(session["assistant_session_id"])["provider_thread_id"] == "thread-persisted"
     assert session["provider_thread_id"] == "thread-persisted"
     assert lifecycle == ["thread_resumed"]
@@ -843,6 +853,49 @@ def test_cancelled_kernel_turn_persists_interrupt_trace(
     assert [message["role"] for message in messages] == ["user", "system_summary"]
     trace = messages[-1]["content_json"]["assistant_turn_trace"]
     assert trace["cancellation_status"] == "interrupted"
+
+
+def test_completed_kernel_turn_persists_latest_provider_usage(
+    app_modules,
+    monkeypatch,
+) -> None:
+    kernel_route = importlib.import_module("app.assistant.kernel_route")
+    schemas = importlib.import_module("app.assistant.schemas")
+    store_assistant = app_modules["store_assistant"]
+    session = store_assistant.create_or_update_assistant_session({})
+    store_assistant.create_assistant_message(
+        {
+            "assistant_session_id": session["assistant_session_id"],
+            "role": "user",
+            "content_text": "This previous provider turn stalled.",
+            "content_json": {},
+        }
+    )
+    usage = {"prompt_tokens": 80, "model_context_window": 100}
+    sync_calls: list[bool] = []
+    result = schemas.AssistantKernelTurnResult(
+        reply="I remember the previous decision.",
+        capability="general",
+        trace=schemas.AssistantKernelTrace(
+            capability="general",
+            provider_steps=[schemas.AssistantKernelProviderTrace(usage=usage)],
+        ),
+    )
+    monkeypatch.setattr(
+        kernel_route,
+        "sync_assistant_session_provider",
+        lambda value, *, force_new_thread=False: sync_calls.append(force_new_thread) or value,
+    )
+    monkeypatch.setattr(kernel_route, "run_assistant_kernel_turn", lambda **_kwargs: result)
+
+    stored = kernel_route.create_kernel_message(
+        session=session,
+        payload=kernel_route.AssistantMessageCreateRequest(content_text="What did we decide?"),
+        attachments=[],
+    )
+
+    assert stored["summary_json"]["kernel_provider_usage"] == usage
+    assert sync_calls == [True]
 
 
 def test_cancel_endpoint_signals_only_the_target_session(

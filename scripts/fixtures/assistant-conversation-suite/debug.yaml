@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "group": "debug",
+  "scenarios": [
+    {
+      "id": "D1",
+      "session_key": "debug-journey",
+      "setup": {"workflow": "invalid_graph", "attachments": 0, "run_id": null},
+      "turns": [{"user": "It failed, what happened?"}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": true, "expect_no_mutation": true},
+      "rubric_notes": "With no completed run in the safe baseline, should state the missing run evidence and inspect the invalid graph if possible."
+    },
+    {
+      "id": "D2",
+      "session_key": "debug-journey",
+      "setup": {"continue_session": true, "workflow": "invalid_graph", "attachments": 0, "run_id": null},
+      "turns": [{"user": "Can you fix it?"}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": true, "expect_no_mutation": true},
+      "rubric_notes": "Should not invent a repair or mutate the graph without a grounded diagnosis and confirmation."
+    }
+  ]
+}

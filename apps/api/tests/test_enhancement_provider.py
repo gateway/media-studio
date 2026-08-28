@@ -790,8 +790,18 @@ def test_run_codex_local_chat_resumes_durable_thread_in_fresh_process(monkeypatc
     assert Path(str(captured["cwd"])).name == "work"
 
 
-def test_managed_disk_resume_compacts_before_first_eligible_user_turn(
+@pytest.mark.parametrize(
+    ("resume_prompt_tokens", "expected_events", "expected_compaction"),
+    [
+        (60, ["resume", "turn"], None),
+        (80, ["resume", "compact", "turn"], "completed"),
+    ],
+)
+def test_managed_disk_resume_compacts_only_when_persisted_usage_is_due(
     monkeypatch: pytest.MonkeyPatch,
+    resume_prompt_tokens: int,
+    expected_events: list[str],
+    expected_compaction: str | None,
 ) -> None:
     provider = enhancement_provider.codex_local_provider
     captured: list[str] = []
@@ -836,14 +846,20 @@ def test_managed_disk_resume_compacts_before_first_eligible_user_turn(
     result = enhancement_provider.run_codex_local_chat(
         model_id="gpt-compaction",
         messages=[{"role": "user", "content": "What did we decide before the restart?"}],
-        codex_session_key="asst_resumed_compaction",
+        codex_session_key=f"asst_resumed_compaction_{resume_prompt_tokens}",
         provider_thread_id="thread-resumed-compaction",
         compact_before_turn=True,
+        resume_usage={
+            "prompt_tokens": resume_prompt_tokens,
+            "model_context_window": 100,
+        },
     )
 
-    assert captured == ["resume", "compact", "turn"]
+    assert captured == expected_events
     assert result["reuse_mode"] == "disk_resume"
-    assert result["compaction"]["outcome"] == "completed"
+    assert (
+        result["compaction"]["outcome"] if result["compaction"] else None
+    ) == expected_compaction
 
     provider.close_codex_local_skill_sessions()
 

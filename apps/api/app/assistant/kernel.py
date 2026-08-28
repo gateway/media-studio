@@ -765,6 +765,7 @@ def run_kernel_provider_step(
             reasoning_effort=reasoning_effort,
             client_user_message_id=client_user_message_id,
             compact_before_turn=compact_before_turn,
+            resume_usage=(session.get("summary_json") or {}).get("kernel_provider_usage"),
         )
     except enhancement_provider.EnhancementProviderError as exc:
         if is_cancelled(cancel_event):
@@ -779,11 +780,8 @@ def run_kernel_provider_step(
         raise AssistantProviderChatError(str(exc)) from exc
     thread_id = str(result.get("provider_thread_id") or "").strip()
     if thread_id and thread_id != str(session.get("provider_thread_id") or "").strip():
-        session.update(
-            store_assistant.create_or_update_assistant_session(
-                {**session, "provider_thread_id": thread_id}
-            )
-        )
+        stored = store_assistant.create_or_update_assistant_session({**session, "provider_thread_id": thread_id})
+        session.update(stored)
     if provider_lifecycle is not None:
         provider_lifecycle.extend(
             str(event)
@@ -1193,9 +1191,8 @@ def run_assistant_kernel_turn(
             if (
                 selected_artifact_intent == "save_preset"
                 and artifact_kind == "preset_draft"
-                and isinstance(execution.result, dict)
-                and not execution.result.get("save_ready")
-                and execution.result.get("test_graph") is None
+                and not (execution.result or {}).get("save_ready")
+                and (execution.result or {}).get("test_graph") is None
             ):
                 success_reply = (
                     "This preset needs an applied, priced test graph before it can be saved. "

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "group": "story",
+  "scenarios": [
+    {
+      "id": "S1",
+      "session_key": "story-journey",
+      "setup": {"workflow": "blank", "attachments": 0},
+      "turns": [{"user": "I've got a story idea — a lighthouse keeper who finds something in the water. Help me build it out."}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": false, "expect_no_mutation": true},
+      "rubric_notes": "Should develop the idea conversationally and ask at most one meaningful question."
+    },
+    {
+      "id": "S2",
+      "session_key": "story-journey",
+      "setup": {"continue_session": true, "workflow": "blank", "attachments": 0},
+      "turns": [{"user": "Break that into six shots I can use as storyboard prompts."}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": false, "expect_no_mutation": true, "max_reply_words": 400},
+      "rubric_notes": "Should preserve story continuity and produce six distinct usable shots."
+    },
+    {
+      "id": "S3",
+      "session_key": "story-journey",
+      "setup": {"continue_session": true, "workflow": "blank", "attachments": 0},
+      "turns": [{"user": "Shot 4 is weak, make it more tense."}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": false, "expect_no_mutation": true},
+      "rubric_notes": "Should revise shot 4 in context without replacing the whole story."
+    },
+    {
+      "id": "S4",
+      "session_key": "story-journey",
+      "setup": {"continue_session": true, "workflow": "blank", "attachments": 0},
+      "turns": [{"user": "Now put those shots on the canvas as a graph I can run."}],
+      "mechanical": {"plan_preview": true, "require_tool_evidence": true, "expect_no_mutation": true, "expect_confirmation": true},
+      "rubric_notes": "Should propose a valid graph from the established six shots and wait for confirmation."
+    },
+    {
+      "id": "S5",
+      "session_key": "story-journey",
+      "setup": {"continue_session": true, "workflow": "blank", "attachments": 0},
+      "turns": [{"user": "Keep the same character across all of them — how do I do that?"}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": true, "expect_no_mutation": true},
+      "rubric_notes": "Should explain a concrete continuity method grounded in available Media Studio capabilities."
+    }
+  ]
+}

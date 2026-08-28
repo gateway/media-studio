@@ -55,7 +55,8 @@ def create_kernel_message(
     text = payload.content_text.strip()
     try:
         with track_session(session_id) as cancel_event:
-            session = sync_assistant_session_provider(session)
+            stalled_thread = any(item.get("role") == "user" for item in store_assistant.list_assistant_messages(session_id)[-1:])
+            session = sync_assistant_session_provider(session, force_new_thread=stalled_thread)
             session = _bind_selected_completed_assistant_run(session, payload)
             user_message = store_assistant.create_assistant_message(
                 {
@@ -182,12 +183,14 @@ def create_kernel_message(
             "content_json": content_json,
         }
     )
+    latest_usage = result.trace.provider_steps[-1].usage if result.trace.provider_steps else None
     return store_assistant.create_or_update_assistant_session(
         {
             **refreshed_session,
             "status": "active",
             "summary_json": {
                 **summary,
+                "kernel_provider_usage": latest_usage or summary.get("kernel_provider_usage"),
                 "kernel_capability": result.capability,
                 "kernel_proposal_id": result.next_action.proposal_id
                 or summary.get("kernel_proposal_id"),

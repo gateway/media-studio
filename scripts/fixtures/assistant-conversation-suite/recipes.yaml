@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "group": "recipes",
+  "scenarios": [
+    {
+      "id": "R1",
+      "session_key": "R1",
+      "setup": {"workflow": "blank", "attachments": 0, "assistant_mode": "recipe"},
+      "turns": [{"user": "I want a recipe that writes storyboard prompts for me. What should it ask me for?"}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": false, "expect_no_mutation": true},
+      "rubric_notes": "Should propose only fields that materially change storyboard prompts, with at most one question."
+    },
+    {
+      "id": "R2",
+      "session_key": "R2",
+      "setup": {"workflow": "blank", "attachments": 0, "assistant_mode": "recipe"},
+      "turns": [{"user": "Make a character sheet recipe — I want to describe a character and get a full sheet prompt back."}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": false, "expect_no_mutation": true},
+      "rubric_notes": "Should produce a recipe-shaped proposal, not a graph or a saved artifact."
+    },
+    {
+      "id": "R3",
+      "session_key": "R3",
+      "setup": {"workflow": "blank", "attachments": 0, "assistant_mode": "graph"},
+      "turns": [{"user": "Use my saved storyboard recipe in a graph and wire it into an image model."}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": true, "expect_no_mutation": true},
+      "rubric_notes": "Several saved storyboard recipes match, so it should inspect them and ask the user to choose one rather than inventing a selection."
+    },
+    {
+      "id": "R4",
+      "session_key": "R4",
+      "setup": {"workflow": "blank", "attachments": 1, "assistant_mode": "recipe"},
+      "turns": [{"user": "Can the recipe look at an image I give it?"}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": false, "expect_no_mutation": true},
+      "rubric_notes": "This is a capability question. It should explain that recipes can accept image inputs and distinguish that from actually inspecting or using the attached image."
+    }
+  ]
+}

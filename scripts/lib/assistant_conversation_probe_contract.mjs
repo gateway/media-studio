@@ -113,7 +113,11 @@ function typedNextAction(
     && !Array.isArray(nextAction.payload);
 }
 
-function workflowPreviewIsAcceptable(plan) {
+function workflowPreviewIsAcceptable(plan, nextAction) {
+  const confirmable = plan?.plan?.status === "validated"
+    && nextAction?.kind === "confirm_graph"
+    && nextAction?.requires_confirmation === true;
+  if (!confirmable) return false;
   if (plan?.validation?.valid) return true;
   const errors = plan?.validation?.errors;
   return Array.isArray(errors)
@@ -199,7 +203,7 @@ export function evaluateMechanicalTurn({
       legacy_suggested_action: legacySuggestedAction,
     },
     workflow_validity: {
-      pass: !scenario.mechanical.plan_preview || workflowPreviewIsAcceptable(plan),
+      pass: !scenario.mechanical.plan_preview || workflowPreviewIsAcceptable(plan, nextAction),
       checked: Boolean(scenario.mechanical.plan_preview),
       valid: plan?.validation?.valid ?? null,
       pending_error_codes: pendingErrorCodes,

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "group": "voice",
+  "scenarios": [
+    {
+      "id": "V1",
+      "session_key": "global-check",
+      "setup": {"global_check": true},
+      "turns": [],
+      "mechanical": {"global_voice_check": true},
+      "rubric_notes": "Every reply in the run is checked for banned vocabulary and reply length."
+    },
+    {
+      "id": "V2",
+      "session_key": "V2",
+      "setup": {"workflow": "blank", "attachments": 0},
+      "turns": [{"user": "Just talk to me, don't build anything yet."}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": false, "expect_no_mutation": true, "expect_no_next_action": true},
+      "rubric_notes": "Must remain conversational with no next action."
+    },
+    {
+      "id": "V3",
+      "session_key": "V3",
+      "setup": {"workflow": "existing_prompt", "attachments": 0},
+      "turns": [{"user": "Run it"}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": false, "expect_no_mutation": true, "expect_confirmation": true, "expect_no_job": true},
+      "rubric_notes": "Must ask for confirmation before any run and submit no job."
+    }
+  ]
+}

@@ -137,9 +137,9 @@ def assistant_codex_session_key(session: Dict[str, Any]) -> str:
     )
 
 
-def sync_assistant_session_provider(session: Dict[str, Any]) -> Dict[str, Any]:
+def sync_assistant_session_provider(session: Dict[str, Any], *, force_new_thread: bool = False) -> Dict[str, Any]:
     provider_fields = assistant_provider_fields(session)
-    if all(session.get(key) == value for key, value in provider_fields.items()):
+    if not force_new_thread and all(session.get(key) == value for key, value in provider_fields.items()):
         return session
     generation = assistant_provider_generation(session)
     if string_value(session.get("provider_kind")) == "codex_local":

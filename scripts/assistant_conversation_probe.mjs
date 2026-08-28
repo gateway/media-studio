@@ -20,7 +20,7 @@ import {
 const execFile = promisify(execFileCallback);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptDir, "..");
-const suiteRoot = path.join(root, "docs", "development", "artifacts", "assistant-conversation-suite");
+const suiteRoot = path.join(root, "scripts", "fixtures", "assistant-conversation-suite");
 const defaultRunRoot = path.join(root, "docs", "development", "artifacts", "assistant-runs");
 function parseArgs(argv) {
   const options = { group: null, scenario: null, validateOnly: false, outputRoot: defaultRunRoot };

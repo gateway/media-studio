@@ -9,6 +9,7 @@ cd "$ROOT"
 "$ROOT/scripts/with_shared_python.sh" "$ROOT/scripts/check_file_size_guardrails.py"
 
 node --test scripts/lib/assistant_conversation_probe_contract.test.mjs
+node scripts/assistant_conversation_probe.mjs --validate-only
 
 "$ROOT/scripts/with_shared_python.sh" -m pytest -q \
   apps/api/tests/test_assistant_kernel.py::test_kernel_provider_schema_preserves_nonempty_tool_arguments \

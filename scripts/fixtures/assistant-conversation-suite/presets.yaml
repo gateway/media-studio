@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "group": "presets",
+  "scenarios": [
+    {
+      "id": "P1",
+      "session_key": "preset-journey",
+      "setup": {"workflow": "blank", "attachments": 1, "assistant_mode": "preset"},
+      "turns": [{"user": "Here's a reference image, can you turn this into a media preset? I'd like an input image and maybe two or three form fields."}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": true, "expect_no_mutation": true},
+      "rubric_notes": "Should analyze the reference and propose a typed preset contract without saving."
+    },
+    {
+      "id": "P2",
+      "session_key": "preset-journey",
+      "setup": {"continue_session": true, "workflow": "blank", "attachments": 1, "assistant_mode": "preset"},
+      "turns": [{"user": "I don't like those fields, what else could I edit?"}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": false, "expect_no_mutation": true},
+      "rubric_notes": "Should remember the proposed contract and offer materially different fields."
+    },
+    {
+      "id": "P3",
+      "session_key": "preset-journey",
+      "setup": {"continue_session": true, "workflow": "blank", "attachments": 1, "assistant_mode": "preset"},
+      "turns": [{"user": "Make it text-to-image instead, I don't want to upload a photo every time."}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": false, "expect_no_mutation": true},
+      "rubric_notes": "Should change the reusable contract to text-to-image without reinterpreting the request."
+    },
+    {
+      "id": "P4",
+      "session_key": "preset-journey",
+      "setup": {"continue_session": true, "workflow": "blank", "attachments": 1, "assistant_mode": "preset"},
+      "turns": [{"user": "That result is close, what should I change?"}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": false, "expect_no_mutation": true},
+      "rubric_notes": "With no completed run in baseline setup, should say what evidence is missing instead of inventing a critique."
+    },
+    {
+      "id": "P5",
+      "session_key": "preset-journey",
+      "setup": {"continue_session": true, "workflow": "blank", "attachments": 1, "assistant_mode": "preset"},
+      "turns": [{"user": "Good enough, save it as a preset."}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": true, "expect_no_mutation": true, "expect_no_next_action": true},
+      "rubric_notes": "With no applied priced test graph, saving is unavailable even as unverified. It should ask to prepare the required test graph without saving or issuing a confirmation action."
+    }
+  ]
+}

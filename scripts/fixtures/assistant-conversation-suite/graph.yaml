@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "group": "graph",
+  "scenarios": [
+    {
+      "id": "G1",
+      "session_key": "G1",
+      "setup": {"workflow": "blank", "attachments": 0},
+      "turns": [{"user": "Can you make me a graph that takes a photo and restyles it into an oil painting, then saves it?"}],
+      "mechanical": {"plan_preview": true, "require_tool_evidence": false, "expect_no_mutation": true, "expect_confirmation": true},
+      "rubric_notes": "Should either propose a valid image-to-image graph or ask only where the source photo should come from."
+    },
+    {
+      "id": "G2",
+      "session_key": "G2",
+      "setup": {"workflow": "blank", "attachments": 2},
+      "turns": [{"user": "I want a face image and a product image going into a recipe that writes a prompt about the person holding the product, then into GPT Image 2."}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": true, "expect_no_mutation": true},
+      "rubric_notes": "The references visibly distinguish the person from the product. The missing reusable recipe and visual style are the unresolved choices; it should offer to draft that recipe and ask at most one concise style question."
+    },
+    {
+      "id": "G3",
+      "session_key": "G3",
+      "setup": {"workflow": "existing_image_output", "attachments": 0},
+      "turns": [{"user": "Add a save node to what I've already got on the canvas."}],
+      "mechanical": {"plan_preview": true, "require_tool_evidence": true, "expect_no_mutation": true, "expect_confirmation": true},
+      "rubric_notes": "Should add a save node after the existing image-producing model, grounded in the supplied canvas, and leave application for explicit confirmation."
+    },
+    {
+      "id": "G4",
+      "session_key": "G4",
+      "setup": {"workflow": "existing_prompt", "attachments": 0},
+      "turns": [{"user": "What's on my canvas right now?"}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": true, "expect_no_mutation": true},
+      "rubric_notes": "Should accurately describe the existing node without proposing a mutation."
+    },
+    {
+      "id": "G5",
+      "session_key": "G5",
+      "setup": {"workflow": "invalid_graph", "attachments": 0},
+      "turns": [{"user": "This graph looks wrong, can you check it before I run it?"}],
+      "mechanical": {"plan_preview": false, "require_tool_evidence": true, "expect_no_mutation": true},
+      "rubric_notes": "Should identify the concrete validation problem and never run the graph."
+    }
+  ]
+}
