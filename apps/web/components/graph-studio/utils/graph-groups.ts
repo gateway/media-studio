@@ -90,6 +90,15 @@ export function computeGraphGroupBounds(nodes: Node[], nodeIds: string[], fallba
   };
 }
 
+function expandGroupBoundsToFitNodes(bounds: GraphGroup["bounds"], nodes: Node[], nodeIds: string[]): GraphGroup["bounds"] {
+  const fitted = computeGraphGroupBounds(nodes, nodeIds, bounds);
+  const x = Math.min(bounds.x, fitted.x);
+  const y = Math.min(bounds.y, fitted.y);
+  const right = Math.max(bounds.x + bounds.width, fitted.x + fitted.width);
+  const bottom = Math.max(bounds.y + bounds.height, fitted.y + fitted.height);
+  return { x, y, width: right - x, height: bottom - y };
+}
+
 export function graphGroupsForCanvas(groups: GraphGroup[], nodes: Node[]): GraphGroup[] {
   const nodeIds = new Set(nodes.map((node) => node.id));
   return groups
@@ -101,7 +110,7 @@ export function graphGroupsForCanvas(groups: GraphGroup[], nodes: Node[]): Graph
     .map((group) => ({
       ...group,
       color: graphGroupColorChoiceId(group.color),
-      bounds: group.bounds,
+      bounds: expandGroupBoundsToFitNodes(group.bounds, nodes, group.node_ids),
       execution: { mode: groupExecutionModeForNodes(nodes, group.node_ids, normalizeGraphExecutionMode(group.execution?.mode)) },
     }));
 }
@@ -180,14 +189,19 @@ export function readGraphGroupsFromWorkflow(workflow?: GraphWorkflowPayload | nu
 }
 
 export function serializeGraphGroups(groups: GraphGroup[], nodes: StudioNode[]): GraphGroup[] {
-  return graphGroupsForCanvas(groups, nodes).map((group) => ({
-    id: group.id,
-    title: group.title,
-    color: group.color,
-    node_ids: group.node_ids,
-    bounds: group.bounds,
-    execution: { mode: groupExecutionModeForNodes(nodes, group.node_ids, normalizeGraphExecutionMode(group.execution?.mode)) },
-  }));
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  return groups.flatMap((group) => {
+    const memberIds = group.node_ids.filter((nodeId) => nodeIds.has(nodeId));
+    if (!memberIds.length) return [];
+    return [{
+      id: group.id,
+      title: group.title,
+      color: graphGroupColorChoiceId(group.color),
+      node_ids: memberIds,
+      bounds: group.bounds,
+      execution: { mode: groupExecutionModeForNodes(nodes, memberIds, normalizeGraphExecutionMode(group.execution?.mode)) },
+    }];
+  });
 }
 
 export function pruneGraphGroupMembership(groups: GraphGroup[], nodes: Node[]): GraphGroup[] {

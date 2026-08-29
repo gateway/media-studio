@@ -6,6 +6,7 @@ from typing import Any, Dict, Iterable, List, Set
 
 from ..graph.registry import registry
 from ..graph.schemas import GraphWorkflow, GraphWorkflowNode
+from ..graph.validator import visible_condition_passes
 
 
 WORKFLOW_COLUMN_GAP = 320.0
@@ -22,18 +23,19 @@ def _default_size(node_type: str) -> tuple[float, float]:
     return 320.0, 260.0
 
 
-def node_layout_size(node_type: str) -> tuple[float, float]:
+def node_layout_size(node_type: str, fields: Dict[str, Any] | None = None) -> tuple[float, float]:
     definition = registry.get_definition(node_type)
+    fields = fields or {}
     default_width, default_height = _default_size(node_type)
     ui = definition.ui if isinstance(definition.ui, dict) else {}
     min_size = ui.get("min_size") if isinstance(ui.get("min_size"), dict) else {}
     min_width = float(min_size.get("width") or 0)
     min_height = float(min_size.get("height") or 0)
-    visible_fields = [field for field in definition.fields if not field.hidden]
+    visible_fields = [field for field in definition.fields if not field.hidden and visible_condition_passes(field.visible_if, fields, definition)]
     visible_ports = [
         port
         for port in [*definition.ports.get("inputs", []), *definition.ports.get("outputs", [])]
-        if not port.advanced
+        if not port.advanced and visible_condition_passes(port.visible_if, fields, definition)
     ]
     textarea_count = sum(1 for field in visible_fields if field.type == "textarea")
     has_preview = bool(ui.get("preview")) or node_type.startswith("media.load_") or node_type.startswith("media.save_")
@@ -53,7 +55,7 @@ def node_layout_size(node_type: str) -> tuple[float, float]:
 
 
 def node_bounds(node: GraphWorkflowNode) -> Dict[str, float]:
-    width, height = node_layout_size(node.type)
+    width, height = node_layout_size(node.type, node.fields)
     return {
         "x": float(node.position.get("x", 0)),
         "y": float(node.position.get("y", 0)),
@@ -168,19 +170,16 @@ def _arrange_nodes(node_ids: List[str], workflow: GraphWorkflow, nodes_by_id: Di
     for column in columns.values():
         column.sort(key=lambda node: (_node_title(node).casefold(), node.id))
     column_widths = {
-        level: max(node_layout_size(node.type)[0] for node in column)
+        level: max(node_layout_size(node.type, node.fields)[0] for node in column)
         for level, column in columns.items()
     }
-    column_heights = {
-        level: sum(node_layout_size(node.type)[1] for node in column) + WORKFLOW_NODE_GAP * (len(column) - 1)
-        for level, column in columns.items()
-    }
+    column_heights = {level: sum(node_layout_size(node.type, node.fields)[1] for node in column) + WORKFLOW_NODE_GAP * (len(column) - 1) for level, column in columns.items()}
     max_height = max(column_heights.values())
     x = 0.0
     for level in sorted(columns):
         y = (max_height - column_heights[level]) / 2
         for node in columns[level]:
-            width, height = node_layout_size(node.type)
+            width, height = node_layout_size(node.type, node.fields)
             node.position = {
                 "x": x + (column_widths[level] - width) / 2,
                 "y": y,
@@ -324,6 +323,8 @@ def arrange_workflow(workflow: GraphWorkflow) -> GraphWorkflow:
     group_centers = sorted(_block_center_x(block) for block in group_blocks)
     for block in group_blocks:
         block.level = sum(1 for center in group_centers if center + WORKFLOW_COLUMN_GAP <= _block_center_x(block))
+    for level, block in enumerate(block for block in group_blocks if _shot_number(block.title) is None):
+        block.level = level % 3
     ungrouped_ids = set(nodes_by_id) - claimed_node_ids
     for component_index, component in enumerate(_ungrouped_components(ungrouped_ids, arranged)):
         first = nodes_by_id[component[0]]
@@ -331,19 +332,16 @@ def arrange_workflow(workflow: GraphWorkflow) -> GraphWorkflow:
         level = 0
         if group_blocks and all(nodes_by_id[node_id].type == "utility.note" for node_id in component):
             x, y = float(first.position.get("x", 0)), float(first.position.get("y", 0))
+            title_tokens = set(re.findall(r"[a-z0-9]+", _node_title(first).casefold())) - {"continuity", "group", "note", "notes", "production", "section", "shot"}
             anchor = min(
-                group_blocks, key=lambda block: ((block.bounds or {})["x"] + (block.bounds or {})["width"] / 2 - x) ** 2 + ((block.bounds or {})["y"] + (block.bounds or {})["height"] / 2 - y) ** 2
+                group_blocks,
+                key=lambda block: (
+                    -len(title_tokens & (set(re.findall(r"[a-z0-9]+", block.title.casefold())) - {"group", "production", "section", "shot"})),
+                    ((block.bounds or {})["x"] + (block.bounds or {})["width"] / 2 - x) ** 2 + ((block.bounds or {})["y"] + (block.bounds or {})["height"] / 2 - y) ** 2,
+                ),
             )
             order, level = anchor.order + 0.5, anchor.level
-        blocks.append(
-            _LayoutBlock(
-                id=f"nodes:{component[0]}",
-                title=_node_title(first),
-                node_ids=component,
-                order=order,
-                level=level,
-            )
-        )
+        blocks.append(_LayoutBlock(id=f"nodes:{component[0]}", title=_node_title(first), node_ids=component, order=order, level=level))
 
     block_by_node_id = {node_id: block.id for block in blocks for node_id in block.node_ids}
     for block in blocks:

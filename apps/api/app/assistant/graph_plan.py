@@ -74,7 +74,7 @@ def _space_added_nodes(nodes: List[GraphWorkflowNode]) -> None:
     original_positions = {node.id: dict(node.position) for node in nodes}
     placed: List[GraphWorkflowNode] = []
     for node in nodes:
-        width = _node_layout_size_for_bounds(node.type)[0]
+        width = _node_layout_size_for_bounds(node.type, node.fields)[0]
         while True:
             node_bounds = _bounds_for_node(node)
             conflict = next(
@@ -92,7 +92,7 @@ def _space_added_nodes(nodes: List[GraphWorkflowNode]) -> None:
             if conflict is None:
                 break
             conflict_bounds = _bounds_for_node(conflict)
-            conflict_width = _node_layout_size_for_bounds(conflict.type)[0]
+            conflict_width = _node_layout_size_for_bounds(conflict.type, conflict.fields)[0]
             same_column = abs(
                 float(original_positions[node.id].get("x", 0))
                 - float(original_positions[conflict.id].get("x", 0))

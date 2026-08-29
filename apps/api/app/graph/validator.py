@@ -32,7 +32,7 @@ def _values_equal(left: Any, right: Any) -> bool:
     return str(left if left is not None else "") == str(right if right is not None else "")
 
 
-def _visible_condition_passes(condition: Any, fields: Dict[str, Any], definition: object) -> bool:
+def visible_condition_passes(condition: Any, fields: Dict[str, Any], definition: object) -> bool:
     if not isinstance(condition, dict) or not condition.get("field"):
         return True
     current = _field_value(fields, definition, str(condition.get("field") or ""))
@@ -51,7 +51,7 @@ def _visible_ports(definition, direction: str, fields: Dict[str, Any]) -> List[o
     return [
         port
         for port in definition.ports.get(direction, [])
-        if _visible_condition_passes(getattr(port, "visible_if", None), fields, definition)
+        if visible_condition_passes(getattr(port, "visible_if", None), fields, definition)
     ]
 
 

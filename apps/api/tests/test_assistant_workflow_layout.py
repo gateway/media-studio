@@ -81,6 +81,7 @@ def test_arrange_keeps_ordered_production_groups_side_by_side_with_their_notes(a
                     "type": "utility.note",
                     "position": {"x": 0, "y": 0},
                     "fields": {"body": "Character continuity."},
+                    "metadata": {"ui": {"customTitle": "Character Continuity"}},
                 },
                 {"id": "storyboard", "type": "preview.image", "position": {"x": 1000, "y": 500}, "fields": {}},
                 {
@@ -88,6 +89,7 @@ def test_arrange_keeps_ordered_production_groups_side_by_side_with_their_notes(a
                     "type": "utility.note",
                     "position": {"x": 1000, "y": 0},
                     "fields": {"body": "Storyboard continuity."},
+                    "metadata": {"ui": {"customTitle": "Storyboard Continuity"}},
                 },
                 {
                     "id": "video",
@@ -105,6 +107,7 @@ def test_arrange_keeps_ordered_production_groups_side_by_side_with_their_notes(a
                     "type": "utility.note",
                     "position": {"x": 2000, "y": 0},
                     "fields": {"body": "Video continuity."},
+                    "metadata": {"ui": {"customTitle": "Shot 5 Continuity"}},
                 },
             ],
             "edges": [
@@ -166,9 +169,9 @@ def test_arrange_keeps_ordered_production_groups_side_by_side_with_their_notes(a
     stacked = workflow.model_copy(deep=True)
     stacked_nodes = {node.id: node for node in stacked.nodes}
     stacked_nodes["character"].position = {"x": 0, "y": 500}
-    stacked_nodes["character-note"].position = {"x": 0, "y": 0}
+    stacked_nodes["character-note"].position = {"x": 0, "y": 17000}
     stacked_nodes["storyboard"].position = {"x": 40, "y": 2500}
-    stacked_nodes["storyboard-note"].position = {"x": 40, "y": 2000}
+    stacked_nodes["storyboard-note"].position = {"x": 40, "y": 17500}
     stacked_groups = {group["id"]: group for group in stacked.metadata["groups"]}
     stacked_groups["character-group"]["bounds"] = {"x": -100, "y": 400, "width": 600, "height": 600}
     stacked_groups["storyboard-group"]["bounds"] = {"x": -60, "y": 2400, "width": 600, "height": 600}
@@ -177,9 +180,111 @@ def test_arrange_keeps_ordered_production_groups_side_by_side_with_their_notes(a
     stacked_groups = {group["id"]: group for group in arranged_stacked.metadata["groups"]}
     stacked_nodes = {node.id: node for node in arranged_stacked.nodes}
 
-    assert stacked_groups["character-group"]["bounds"]["y"] < stacked_nodes["character-note"].position["y"]
-    assert stacked_nodes["character-note"].position["y"] < stacked_groups["storyboard-group"]["bounds"]["y"]
-    assert stacked_groups["storyboard-group"]["bounds"]["y"] < stacked_nodes["storyboard-note"].position["y"]
+    assert stacked_groups["character-group"]["bounds"]["x"] < stacked_groups["storyboard-group"]["bounds"]["x"]
+    for group_id, note_id in [
+        ("character-group", "character-note"),
+        ("storyboard-group", "storyboard-note"),
+    ]:
+        bounds = stacked_groups[group_id]["bounds"]
+        assert bounds["x"] <= stacked_nodes[note_id].position["x"] <= bounds["x"] + bounds["width"]
+
+
+def test_arrange_uses_selected_prompt_recipe_fields_for_compact_spacing(app_modules) -> None:
+    del app_modules
+    graph_plan = importlib.import_module("app.assistant.graph_plan")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    assistant_schemas = importlib.import_module("app.assistant.schemas")
+    workflow = graph_schemas.GraphWorkflow.model_validate(
+        {
+            "name": "Prompt Recipe production section",
+            "nodes": [
+                {
+                    "id": "recipe",
+                    "type": "prompt.recipe",
+                    "position": {"x": 0, "y": 0},
+                    "fields": {
+                        "recipe_id": "prompt-recipe-image-prompt-director",
+                        "user_prompt": "Create six distinct cinematic storyboard panels.",
+                        "style_direction": "Maritime fantasy with cold water and warm brass light.",
+                    },
+                },
+                {
+                    "id": "image-model",
+                    "type": "model.kie.gpt_image_2_text_to_image",
+                    "position": {"x": 0, "y": 0},
+                    "fields": {"aspect_ratio": "16:9", "resolution": "2K"},
+                },
+                {"id": "preview", "type": "preview.image", "position": {"x": 0, "y": 0}, "fields": {}},
+            ],
+            "edges": [
+                {"id": "recipe-image", "source": "recipe", "source_port": "text", "target": "image-model", "target_port": "prompt"},
+                {"id": "image-preview", "source": "image-model", "source_port": "image", "target": "preview", "target_port": "image"},
+            ],
+            "metadata": {
+                "groups": [
+                    {
+                        "id": "storyboard-group",
+                        "title": "Six-Shot Storyboard",
+                        "node_ids": ["recipe", "image-model", "preview"],
+                        "bounds": {"x": 0, "y": 0, "width": 1000, "height": 800},
+                    }
+                ]
+            },
+        }
+    )
+
+    arranged = graph_plan.apply_graph_plan(workflow, _layout_plan(assistant_schemas))
+    nodes = {node.id: node for node in arranged.nodes}
+    group = arranged.metadata["groups"][0]
+
+    assert max(node.position["y"] for node in nodes.values()) - min(node.position["y"] for node in nodes.values()) < 1000
+    assert group["bounds"]["height"] < 1800
+
+
+def test_arrange_wraps_many_sections_and_does_not_anchor_notes_by_generic_words(app_modules) -> None:
+    del app_modules
+    graph_plan = importlib.import_module("app.assistant.graph_plan")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    assistant_schemas = importlib.import_module("app.assistant.schemas")
+    nodes = [
+        {"id": f"node-{index}", "type": "preview.image", "position": {"x": 0, "y": index * 1000}, "fields": {}}
+        for index in range(7)
+    ]
+    nodes.append(
+        {
+            "id": "generic-note",
+            "type": "utility.note",
+            "position": {"x": 0, "y": 6100},
+            "fields": {"body": "Applies to the nearby section."},
+            "metadata": {"ui": {"customTitle": "Production Notes"}},
+        }
+    )
+    workflow = graph_schemas.GraphWorkflow.model_validate(
+        {
+            "name": "Many production sections",
+            "nodes": nodes,
+            "edges": [],
+            "metadata": {
+                "groups": [
+                    {
+                        "id": f"group-{index}",
+                        "title": f"Production Section {index}",
+                        "node_ids": [f"node-{index}"],
+                        "bounds": {"x": 0, "y": index * 1000, "width": 600, "height": 600},
+                    }
+                    for index in range(7)
+                ]
+            },
+        }
+    )
+
+    arranged = graph_plan.apply_graph_plan(workflow, _layout_plan(assistant_schemas))
+    groups = {group["id"]: group for group in arranged.metadata["groups"]}
+    note = next(node for node in arranged.nodes if node.id == "generic-note")
+
+    assert len({group["bounds"]["x"] for group in groups.values()}) == 3
+    nearby = groups["group-6"]["bounds"]
+    assert nearby["x"] <= note.position["x"] <= nearby["x"] + nearby["width"]
 
 
 def test_arrange_is_idempotent_for_unequal_width_groups_in_one_column(app_modules) -> None:
