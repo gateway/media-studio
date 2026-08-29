@@ -78,4 +78,26 @@ describe("GraphLibraryDialog", () => {
     expect(screen.getByRole("button", { name: /prompt recipe/i })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /internal hidden debug/i })).toBeNull();
   });
+
+  it("keeps the starter template disabled until all required node definitions are ready", () => {
+    const requiredTypes = [
+      "prompt.text",
+      "media.load_image",
+      "model.kie.nano_banana_pro",
+      "media.save_image",
+    ];
+    const definitions = requiredTypes.map((type) =>
+      makeDefinition({ type, title: type }),
+    );
+    const { rerender, props } = renderLibraryDialog({
+      sidebarDialog: "workflows",
+      definitions: definitions.slice(0, -1),
+    });
+
+    const starter = screen.getByTestId("graph-template-nano-image-pipeline");
+    expect(starter.hasAttribute("disabled")).toBe(true);
+
+    rerender(<GraphLibraryDialog {...props} definitions={definitions} />);
+    expect(starter.hasAttribute("disabled")).toBe(false);
+  });
 });

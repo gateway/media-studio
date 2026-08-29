@@ -12,6 +12,13 @@ import { formatGraphTimestamp } from "./utils/graph-time";
 
 export type GraphSidebarDialog = "workflows" | "nodes" | "images" | "runs";
 
+const STARTER_TEMPLATE_NODE_TYPES = [
+  "prompt.text",
+  "media.load_image",
+  "model.kie.nano_banana_pro",
+  "media.save_image",
+];
+
 export function GraphLibraryDialog({
   sidebarDialog,
   definitions,
@@ -58,6 +65,9 @@ export function GraphLibraryDialog({
   onPinArtifact: (artifact: GraphArtifact) => void;
 }) {
   const [nodeLibraryQuery, setNodeLibraryQuery] = useState("");
+  const starterTemplateReady = STARTER_TEMPLATE_NODE_TYPES.every((type) =>
+    definitions.some((definition) => definition.type === type),
+  );
   const filteredDefinitionsByCategory = useMemo(() => {
     const query = nodeLibraryQuery.trim();
     if (!query) {
@@ -98,7 +108,7 @@ export function GraphLibraryDialog({
             </span>
           </button>
           <div className="graph-section-title">Starter Templates</div>
-          <button className="graph-dialog-row" data-testid="graph-template-nano-image-pipeline" type="button" onClick={onLoadStarterTemplate}>
+          <button className="graph-dialog-row" data-testid="graph-template-nano-image-pipeline" type="button" disabled={!starterTemplateReady} onClick={onLoadStarterTemplate}>
             <span className="graph-template-thumb" />
             <span>
               <strong>Nano image pipeline</strong>

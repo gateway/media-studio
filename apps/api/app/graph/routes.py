@@ -15,7 +15,9 @@ from ..assistant.run_confirmation import (
 )
 from ..assistant.schemas import AssistantRunConfirmationRequest
 from .normalization import materialize_workflow_defaults
+from .preset_catalog import media_preset_catalog
 from .pricing import estimate_graph_workflow
+from .prompt_recipe_catalog import prompt_recipe_catalog
 from .registry import registry
 from .runtime import provider_spend_metrics, runtime
 from .schemas import (
@@ -53,16 +55,31 @@ def _bad_request(message: str) -> HTTPException:
     return HTTPException(status_code=400, detail=message)
 
 
-def _workflow_from_record(record: dict) -> GraphWorkflow:
+def _workflow_from_record(
+    record: dict,
+    definitions_by_type: dict[str, GraphNodeDefinition] | None = None,
+    recipe_catalog_items: list[dict] | None = None,
+    preset_catalog_items: list[dict] | None = None,
+) -> GraphWorkflow:
     workflow_json = dict(record.get("workflow_json") or {})
     workflow_json["workflow_id"] = record["workflow_id"]
     workflow_json["name"] = record.get("name") or workflow_json.get("name") or "Untitled Graph"
     workflow_json["description"] = record.get("description") if record.get("description") is not None else workflow_json.get("description")
-    return materialize_workflow_defaults(GraphWorkflow(**workflow_json))
+    return materialize_workflow_defaults(
+        GraphWorkflow(**workflow_json),
+        definitions_by_type=definitions_by_type,
+        recipe_catalog_items=recipe_catalog_items,
+        preset_catalog_items=preset_catalog_items,
+    )
 
 
-def _workflow_record(record: dict) -> GraphWorkflowRecord:
-    workflow = _workflow_from_record(record)
+def _workflow_record(
+    record: dict,
+    definitions_by_type: dict[str, GraphNodeDefinition] | None = None,
+    recipe_catalog_items: list[dict] | None = None,
+    preset_catalog_items: list[dict] | None = None,
+) -> GraphWorkflowRecord:
+    workflow = _workflow_from_record(record, definitions_by_type, recipe_catalog_items, preset_catalog_items)
     return GraphWorkflowRecord(
         **{
             **record,
@@ -185,7 +202,15 @@ def estimate_workflow(payload: GraphWorkflow) -> GraphEstimateResponse:
 
 @router.get("/workflows", response_model=GraphWorkflowListResponse)
 def list_workflows() -> GraphWorkflowListResponse:
-    return GraphWorkflowListResponse(items=[_workflow_record(item) for item in store.list_graph_workflows()])
+    definitions_by_type = registry.definitions_by_type()
+    recipe_catalog_items = prompt_recipe_catalog(status="all")
+    preset_catalog_items = media_preset_catalog(status="all")
+    return GraphWorkflowListResponse(
+        items=[
+            _workflow_record(item, definitions_by_type, recipe_catalog_items, preset_catalog_items)
+            for item in store.list_graph_workflows()
+        ]
+    )
 
 
 @router.post("/workflows", response_model=GraphWorkflowRecord)
