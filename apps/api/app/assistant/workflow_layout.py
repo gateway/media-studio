@@ -200,6 +200,11 @@ class _LayoutBlock:
     bounds: Dict[str, float] | None = None
 
 
+def _block_center_x(block: _LayoutBlock) -> float:
+    bounds = block.bounds or {}
+    return float(bounds.get("x") or 0) + float(bounds.get("width") or 0) / 2
+
+
 def _ungrouped_components(
     ungrouped_ids: Set[str],
     workflow: GraphWorkflow,
@@ -316,11 +321,9 @@ def arrange_workflow(workflow: GraphWorkflow) -> GraphWorkflow:
         )
 
     group_blocks = tuple(blocks)
-    group_xs = sorted(float((block.bounds or {}).get("x") or 0) for block in group_blocks)
+    group_centers = sorted(_block_center_x(block) for block in group_blocks)
     for block in group_blocks:
-        block.level = sum(
-            1 for group_x in group_xs if group_x + WORKFLOW_COLUMN_GAP <= float((block.bounds or {}).get("x") or 0)
-        )
+        block.level = sum(1 for center in group_centers if center + WORKFLOW_COLUMN_GAP <= _block_center_x(block))
     ungrouped_ids = set(nodes_by_id) - claimed_node_ids
     for component_index, component in enumerate(_ungrouped_components(ungrouped_ids, arranged)):
         first = nodes_by_id[component[0]]
@@ -377,10 +380,7 @@ def arrange_workflow(workflow: GraphWorkflow) -> GraphWorkflow:
                 block.id,
             )
         )
-    column_widths = {
-        level: max((block.bounds or {})["width"] for block in column)
-        for level, column in columns.items()
-    }
+    column_widths = {level: max((block.bounds or {})["width"] for block in column) for level, column in columns.items()}
     shot_numbers = sorted(
         {
             shot_number

@@ -89,7 +89,17 @@ def test_arrange_keeps_ordered_production_groups_side_by_side_with_their_notes(a
                     "position": {"x": 1000, "y": 0},
                     "fields": {"body": "Storyboard continuity."},
                 },
-                {"id": "video", "type": "preview.video", "position": {"x": 2000, "y": 500}, "fields": {}},
+                {
+                    "id": "video",
+                    "type": "model.kie.seedance_2_5",
+                    "position": {"x": 2000, "y": 500},
+                    "fields": {
+                        "prompt": "Hold, then snap the cable as whale song begins.",
+                        "duration": 5,
+                        "resolution": "1080p",
+                        "aspect_ratio": "16:9",
+                    },
+                },
                 {
                     "id": "video-note",
                     "type": "utility.note",
@@ -103,7 +113,7 @@ def test_arrange_keeps_ordered_production_groups_side_by_side_with_their_notes(a
                     "source": "storyboard",
                     "source_port": "image",
                     "target": "video",
-                    "target_port": "video",
+                    "target_port": "start_frame",
                 }
             ],
             "metadata": {
@@ -170,6 +180,47 @@ def test_arrange_keeps_ordered_production_groups_side_by_side_with_their_notes(a
     assert stacked_groups["character-group"]["bounds"]["y"] < stacked_nodes["character-note"].position["y"]
     assert stacked_nodes["character-note"].position["y"] < stacked_groups["storyboard-group"]["bounds"]["y"]
     assert stacked_groups["storyboard-group"]["bounds"]["y"] < stacked_nodes["storyboard-note"].position["y"]
+
+
+def test_arrange_is_idempotent_for_unequal_width_groups_in_one_column(app_modules) -> None:
+    del app_modules
+    graph_plan = importlib.import_module("app.assistant.graph_plan")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    assistant_schemas = importlib.import_module("app.assistant.schemas")
+    workflow = graph_schemas.GraphWorkflow.model_validate(
+        {
+            "name": "Unequal groups in one column",
+            "nodes": [
+                {"id": "wide", "type": "preview.image", "position": {"x": 0, "y": 0}, "fields": {}},
+                {"id": "narrow", "type": "preview.image", "position": {"x": 0, "y": 1000}, "fields": {}},
+            ],
+            "edges": [],
+            "metadata": {
+                "groups": [
+                    {
+                        "id": "wide-group",
+                        "title": (
+                            "A deliberately oversized production group title that makes its computed bounds much wider "
+                            "than the neighboring section while both sections still share one visual column"
+                        ),
+                        "node_ids": ["wide"],
+                        "bounds": {"x": -100, "y": -100, "width": 1100, "height": 600},
+                    },
+                    {
+                        "id": "narrow-group",
+                        "title": "Narrow",
+                        "node_ids": ["narrow"],
+                        "bounds": {"x": 150, "y": 900, "width": 600, "height": 600},
+                    },
+                ]
+            },
+        }
+    )
+    plan = _layout_plan(assistant_schemas)
+
+    arranged = graph_plan.apply_graph_plan(workflow, plan)
+
+    assert graph_plan.apply_graph_plan(arranged, plan).model_dump(mode="json") == arranged.model_dump(mode="json")
 
 
 def test_arrange_noop_returns_no_confirmable_canvas_change(app_modules) -> None:
