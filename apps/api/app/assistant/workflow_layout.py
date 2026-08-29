@@ -194,7 +194,7 @@ class _LayoutBlock:
     id: str
     title: str
     node_ids: List[str]
-    order: int
+    order: float
     group_id: str | None = None
     level: int = 0
     bounds: Dict[str, float] | None = None
@@ -260,7 +260,7 @@ def _assign_block_levels(
         outgoing[source_id].add(target_id)
         indegree[target_id] += 1
     for block in blocks:
-        block.level = _stage_floor(block, nodes_by_id)
+        block.level = max(block.level, _stage_floor(block, nodes_by_id))
     pending = sorted(
         (block for block in blocks if indegree[block.id] == 0),
         key=lambda block: (block.order, block.title.casefold(), block.id),
@@ -300,11 +300,7 @@ def arrange_workflow(workflow: GraphWorkflow) -> GraphWorkflow:
         if not isinstance(group, dict):
             continue
         group_id = str(group.get("id") or "")
-        member_ids = [
-            str(node_id)
-            for node_id in group.get("node_ids", [])
-            if str(node_id) in nodes_by_id
-        ]
+        member_ids = [str(node_id) for node_id in group.get("node_ids", []) if str(node_id) in nodes_by_id]
         duplicates = claimed_node_ids.intersection(member_ids)
         if duplicates:
             duplicate = sorted(duplicates)[0]
@@ -314,31 +310,39 @@ def arrange_workflow(workflow: GraphWorkflow) -> GraphWorkflow:
             continue
         blocks.append(
             _LayoutBlock(
-                id=f"group:{group_id}",
-                title=str(group.get("title") or group_id),
-                node_ids=member_ids,
-                order=order,
-                group_id=group_id,
+                id=f"group:{group_id}", title=str(group.get("title") or group_id), node_ids=member_ids,
+                order=order, group_id=group_id, bounds=dict(group.get("bounds") or {}),
             )
         )
 
+    group_blocks = tuple(blocks)
+    group_xs = sorted(float((block.bounds or {}).get("x") or 0) for block in group_blocks)
+    for block in group_blocks:
+        block.level = sum(
+            1 for group_x in group_xs if group_x + WORKFLOW_COLUMN_GAP <= float((block.bounds or {}).get("x") or 0)
+        )
     ungrouped_ids = set(nodes_by_id) - claimed_node_ids
     for component_index, component in enumerate(_ungrouped_components(ungrouped_ids, arranged)):
         first = nodes_by_id[component[0]]
+        order = float(len(groups) + component_index)
+        level = 0
+        if group_blocks and all(nodes_by_id[node_id].type == "utility.note" for node_id in component):
+            x, y = float(first.position.get("x", 0)), float(first.position.get("y", 0))
+            anchor = min(
+                group_blocks, key=lambda block: ((block.bounds or {})["x"] + (block.bounds or {})["width"] / 2 - x) ** 2 + ((block.bounds or {})["y"] + (block.bounds or {})["height"] / 2 - y) ** 2
+            )
+            order, level = anchor.order + 0.5, anchor.level
         blocks.append(
             _LayoutBlock(
                 id=f"nodes:{component[0]}",
                 title=_node_title(first),
                 node_ids=component,
-                order=len(groups) + component_index,
+                order=order,
+                level=level,
             )
         )
 
-    block_by_node_id = {
-        node_id: block.id
-        for block in blocks
-        for node_id in block.node_ids
-    }
+    block_by_node_id = {node_id: block.id for block in blocks for node_id in block.node_ids}
     for block in blocks:
         _arrange_nodes(block.node_ids, arranged, nodes_by_id)
         if block.group_id:
@@ -349,7 +353,6 @@ def arrange_workflow(workflow: GraphWorkflow) -> GraphWorkflow:
         else:
             block.bounds = bounds_union(node_bounds(nodes_by_id[node_id]) for node_id in block.node_ids)
     _assign_block_levels(blocks, arranged, block_by_node_id, nodes_by_id)
-
     columns: Dict[int, List[_LayoutBlock]] = {}
     for block in blocks:
         columns.setdefault(block.level, []).append(block)
@@ -402,11 +405,7 @@ def arrange_workflow(workflow: GraphWorkflow) -> GraphWorkflow:
         shot_row_y[shot_number] = y
         y += shot_row_heights[shot_number] + WORKFLOW_ROW_GAP
     shot_region_height = max(0.0, y - (WORKFLOW_ROW_GAP if shot_numbers else 0.0))
-    group_by_id = {
-        str(group.get("id") or ""): group
-        for group in groups
-        if isinstance(group, dict) and str(group.get("id") or "")
-    }
+    group_by_id = {str(group.get("id") or ""): group for group in groups if isinstance(group, dict) and str(group.get("id") or "")}
     x = 0.0
     for level in sorted(columns):
         column = columns[level]
