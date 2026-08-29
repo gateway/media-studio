@@ -296,6 +296,37 @@ def test_story_turn_cannot_finish_with_prose_only_state(client, monkeypatch) -> 
     assert result.trace.tool_calls[0].tool_name == "update_story_state"
 
 
+def test_story_shot_list_reply_renders_the_validated_typed_shots(client, monkeypatch) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    session = _session(client)
+    state = _story_state(shot_count=6)
+    monkeypatch.setattr(
+        kernel,
+        "run_kernel_provider_step",
+        lambda **_kwargs: {
+            "capability": "story_builder",
+            "artifact_intent": "update_story",
+            "reply": "The six-shot draft is ready.",
+            "tool_call": {
+                "name": "update_story_state",
+                "arguments": json.dumps({"state": state, "update_kind": "shot_list"}),
+            },
+        },
+    )
+
+    result = kernel.run_assistant_kernel_turn(
+        session=session,
+        user_text="Draft exactly six usable storyboard shots.",
+        workflow=None,
+        canvas_context={},
+        assistant_mode="graph",
+    )
+
+    for shot in state["shots"]:
+        assert f"Shot {shot['shot_number']} — {shot['title']}" in result.reply
+        assert shot["prompt"] in result.reply
+
+
 @pytest.mark.parametrize("capability", ["graph_builder", "story_builder"])
 def test_story_shots_can_become_validated_priced_graph(client, capability: str) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")

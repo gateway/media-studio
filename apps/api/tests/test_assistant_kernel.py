@@ -1946,6 +1946,97 @@ def test_recipe_run_action_is_not_exposed_without_an_applied_recipe_plan(
     assert not stored["summary_json"].get("kernel_run_confirmation")
 
 
+def test_graph_run_with_recipe_node_keeps_typed_confirmation_without_recipe_plan(
+    client,
+    app_modules,
+    monkeypatch,
+) -> None:
+    kernel = importlib.import_module("app.assistant.kernel")
+    steps = iter(
+        [
+            {
+                "capability": "graph_builder",
+                "tool_call": {
+                    "name": "validate_current_workflow",
+                    "arguments": {"request_run_confirmation": True},
+                },
+            },
+            {"capability": "graph_builder", "reply": "The production graph is ready."},
+        ]
+    )
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+    recipe = app_modules["store"].list_prompt_recipes(status="active")[0]
+    recipe_fields = {
+        "recipe_id": recipe["recipe_id"],
+        **{
+            item["key"]: "Production brief"
+            for item in recipe.get("input_variables_json", [])
+            if item.get("enabled") and item.get("required")
+        },
+    }
+    workflow = {
+        "schema_version": 1,
+        "workflow_id": "workflow-production-run-with-recipe-section",
+        "name": "Production graph with recipe-backed section",
+        "nodes": [
+            {
+                "id": "recipe-prompt",
+                "type": "prompt.recipe",
+                "position": {"x": 0, "y": 0},
+                "fields": recipe_fields,
+            },
+            {
+                "id": "image-model",
+                "type": "model.kie.gpt_image_2_text_to_image",
+                "position": {"x": 400, "y": 0},
+                "fields": {},
+            },
+            {
+                "id": "image-preview",
+                "type": "preview.image",
+                "position": {"x": 800, "y": 0},
+                "fields": {},
+            },
+        ],
+        "edges": [
+            {
+                "id": "recipe-to-model",
+                "source": "recipe-prompt",
+                "source_port": "text",
+                "target": "image-model",
+                "target_port": "prompt",
+            },
+            {
+                "id": "model-to-preview",
+                "source": "image-model",
+                "source_port": "image",
+                "target": "image-preview",
+                "target_port": "image",
+            },
+        ],
+        "metadata": {},
+    }
+    session = client.post(
+        "/media/assistant/sessions",
+        json={"owner_kind": "graph_workflow", "owner_id": workflow["workflow_id"]},
+    ).json()
+
+    response = client.post(
+        f"/media/assistant/sessions/{session['assistant_session_id']}/messages",
+        json={"content_text": "Run this production graph.", "workflow": workflow},
+    )
+
+    assert response.status_code == 200, response.text
+    turn = response.json()["messages"][-1]["content_json"]["kernel_turn"]
+    assert turn["artifacts"][0]["data"]["validation"]["valid"], turn["artifacts"][0]["data"]["validation"]
+    assert turn["next_action"]["kind"] == "run_workflow", turn
+    assert turn["next_action"]["requires_confirmation"] is True
+    stored = importlib.import_module("app.store_assistant").get_assistant_session(
+        session["assistant_session_id"]
+    )
+    assert stored["summary_json"]["kernel_run_confirmation"]["confirmation_kind"] == "graph"
+
+
 @pytest.mark.parametrize("capability", ["graph_builder", "recipe_builder"])
 def test_validated_run_intent_creates_confirmation_without_provider_action_flags(
     client,

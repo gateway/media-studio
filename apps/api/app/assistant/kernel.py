@@ -41,6 +41,7 @@ from .schemas import (
     AssistantKernelTurnResult,
     AssistantNextAction,
 )
+from .story_kernel import format_story_shot_list_reply
 
 
 KERNEL_MAX_TOOL_STEPS = 6
@@ -1188,6 +1189,8 @@ def run_assistant_kernel_turn(
             if artifact_kind == "run_evidence":
                 fallback_reply = ""
             success_reply = str(step.reply or "").strip() or pending_success_reply or fallback_reply
+            if artifact_kind == "story_state":
+                success_reply = format_story_shot_list_reply(execution.result or {}) or success_reply
             if (
                 selected_artifact_intent == "save_preset"
                 and artifact_kind == "preset_draft"

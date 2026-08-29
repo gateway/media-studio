@@ -52,13 +52,12 @@ GUARDRAILS = (
     FileGuardrail("apps/api/tests/test_api_smoke.py", 3250, "API smoke tests; release cap"),
 )
 
-# Ticket-10 adds 11 lines at the existing artifact-completion boundary so an
-# unapplied preset test graph cannot be described as save-confirmable. Reuse of
-# the typed preset result keeps the fix in the kernel; extraction would add a
-# module without reducing responsibility or source size.
+# Ticket 11 adds the typed shot-list presentation boundary and distinguishes a
+# recipe-backed production graph from a dedicated recipe evidence run. Both
+# reuse existing typed results; no planner, route, or persistence owner was added.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    11_406,
+    11_424,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

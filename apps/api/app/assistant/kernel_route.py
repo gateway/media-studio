@@ -138,19 +138,26 @@ def create_kernel_message(
             if payload.workflow is not None
             else None
         )
-        confirmation_kind = assistant_run_confirmation_kind(
-            {"test_plan_id": test_plan_id},
-            capability=result.capability,
-            workflow=payload.workflow,
-        )
         recipe_plan_id = (
             applied_recipe_plan_id(
                 session_id,
                 payload.workflow,
                 summary.get("kernel_proposal_id"),
             )
-            if confirmation_kind == "recipe" and payload.workflow is not None
+            if payload.workflow is not None
             else None
+        )
+        confirmation_context = {"test_plan_id": test_plan_id}
+        if (
+            not test_plan_id
+            and result.capability == "graph_builder"
+            and not recipe_plan_id
+        ):
+            confirmation_context["confirmation_kind"] = "graph"
+        confirmation_kind = assistant_run_confirmation_kind(
+            confirmation_context,
+            capability=result.capability,
+            workflow=payload.workflow,
         )
         if confirmation_kind == "recipe" and not recipe_plan_id:
             result.next_action = AssistantNextAction()

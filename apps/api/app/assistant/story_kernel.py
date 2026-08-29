@@ -289,3 +289,14 @@ def update_story_state(arguments: BaseModel, context: Any) -> Dict[str, Any]:
         "changed_shot_numbers": changed_shots,
         "state": state,
     }
+
+
+def format_story_shot_list_reply(result: Dict[str, Any]) -> str:
+    if result.get("update_kind") != "shot_list":
+        return ""
+    shots = (result.get("state") or {}).get("shots") or []
+    sections = [
+        f"**Shot {shot['shot_number']} — {shot.get('title') or 'Untitled'}**\n{shot['prompt']}"
+        for shot in shots
+    ]
+    return "\n\n".join([f"Here are the {len(shots)} stored storyboard shots:", *sections])
