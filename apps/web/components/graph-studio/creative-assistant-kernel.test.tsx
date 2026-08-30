@@ -376,7 +376,6 @@ it("does not offer primary preset save for an applied graph without quality proo
       onClose={vi.fn()}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Media Presets" }));
   await waitFor(() => expect(screen.getByLabelText("Added graph status")).toBeTruthy());
   expect(screen.queryByText("Save as preset")).toBeNull();
 });

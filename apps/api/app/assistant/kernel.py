@@ -10,7 +10,7 @@ from .. import enhancement_provider, external_llm_usage, store, store_assistant
 from ..graph.pricing import estimate_graph_workflow
 from ..graph.schemas import GraphWorkflow
 from ..store_support import new_id
-from .cancellation import AssistantRequestCancelled, is_cancelled
+from .cancellation import AssistantRequestCancelled, is_cancelled, publish_session_progress
 from .kernel_tools import (
     KERNEL_TOOL_RESULT_MAX_BYTES,
     KernelToolContext,
@@ -45,7 +45,7 @@ from .story_kernel import format_story_shot_list_reply
 
 
 KERNEL_MAX_TOOL_STEPS = 6
-KERNEL_MAX_WALL_SECONDS = 90.0
+KERNEL_MAX_WALL_SECONDS = 180.0
 KERNEL_USER_TURN_MAX_BYTES = 96 * 1024
 KERNEL_TOOL_INPUT_MAX_BYTES = KERNEL_TOOL_RESULT_MAX_BYTES + 4096
 KERNEL_CAPABILITY_PROMPTS: Dict[AssistantKernelCapability, str] = {
@@ -190,6 +190,9 @@ def _kernel_instruction() -> str:
         "For Prompt Recipes, call get_prompt_recipe directly when session context supplies the exact saved id or key; "
         "otherwise use search_prompt_recipes then get_prompt_recipe. Validate and persist the "
         "complete editable contract through propose_prompt_recipe_draft, and request save confirmation only when the user asks. "
+        "For an exact saved Media Preset graph request, call get_preset and use its graph_usage contract directly. "
+        "Populate the preset.render fields from the supplied values, connect its image output to preview.image, and propose "
+        "the reviewed graph without reading an empty workflow or listing or inspecting graph node schemas first. "
         "For a completed recipe image run, call read_run_evidence before analyze_recipe_output, compare the generated "
         "pixels with attached source references, and persist the user's explicit approve, continue, or stop choice with "
         "record_recipe_quality_decision. Keep any prompt refinement or another paid run confirmation-gated. "
@@ -227,6 +230,9 @@ def _kernel_instruction() -> str:
         "build from active_story_state by calling propose_graph_operations with template_id story_shots_image_v1 and no "
         "hand-authored operations. Do not read an empty workflow or list node types first; the server validates the standard "
         "story graph. Do not update story state merely to create the graph. "
+        "When the user asks to correct an existing group membership and tidy the workflow together, include both "
+        "remove_nodes_from_group and arrange_workflow in the same propose_graph_operations call so the correction "
+        "and non-overlapping geometry apply atomically. Do not claim a tidy is included if arrange_workflow is absent. "
         "When calling a tool that completes the selected artifact intent, include the concise user-facing success reply in the "
         "same step; it will be used only if the server validates the artifact. "
         "Encode the complete tool argument object as JSON in tool_call.arguments. "
@@ -1112,6 +1118,13 @@ def run_assistant_kernel_turn(
             )
             tool_steps += 1
             tool_traces.append(execution.trace)
+            session_id = str(session.get("assistant_session_id") or "")
+            if session_id and execution.trace.activity and execution.trace.error is None:
+                publish_session_progress(
+                    session_id,
+                    stage="tool",
+                    label=execution.trace.activity.label,
+                )
             if (
                 step.tool_call.name == "validate_current_workflow"
                 and isinstance(execution.result, dict)

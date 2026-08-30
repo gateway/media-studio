@@ -31,6 +31,7 @@ Graph Studio and Prompt Recipe graph execution are available for local workflow 
 - A repo-local Codex skill for building/exporting graph templates lives at `.codex/skills/media-studio-graph-builder/`.
 - Saved workflows are database-backed; browser tab state is only a session convenience layer.
 - Prompt Recipes are a supported data-backed graph surface.
+- The **Media Assistant** is an experimental, opt-in Graph Studio collaborator that can discuss a creative goal; inspect the visible workflow; propose or extend connected graphs; help draft Presets and Prompt Recipes; organize production sections such as characters, environments, storyboards, and video shots; and request confirmation before consequential actions.
 - End-user custom executable nodes are **not** part of the current release boundary.
 
 Media Studio also now tracks **actual OpenRouter spend** for successful OpenRouter-backed Studio runs. That accounting is shown separately from the KIE credit and USD estimates used for KIE-powered image/video jobs.
@@ -178,7 +179,7 @@ For normal use, prefer the platform launcher or `npm run start:studio`. The stan
 
 Graph Studio and the API disable the experimental Media Assistant by default. To enable it for internal debugging, set `NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=1` in `.env` and restart Media Studio so both processes pick up the shared flag.
 
-See [Media Assistant](docs/media-assistant.md) for its current architecture, confirmation boundaries, and experimental release status.
+See [Media Assistant setup](docs/media-assistant-setup.md) for the Codex requirement and [Media Assistant](docs/media-assistant.md) for architecture, confirmation boundaries, and experimental release status.
 
 ## Cool Features
 
@@ -206,9 +207,11 @@ Media Studio can now use a local Codex App Server session, authenticated through
 - Graph `prompt.llm`
 - Graph `prompt.recipe`
 
+The experimental Graph Studio Media Assistant currently requires Codex CLI/App Server readiness. Without Codex, the rest of Media Studio continues to work, but the Assistant panel remains unavailable. Claude Code is not a drop-in replacement: Media Studio does not currently include a Claude Code runtime connector, session bridge, or tool/approval adapter. See [Media Assistant setup](docs/media-assistant-setup.md) for installation, feature-gate, provider, and troubleshooting details.
+
 Current rollout assumptions:
 
-- `codex_local` is **stateless per request**
+- prompt enhancement and Graph prompt calls use request-scoped Codex work; Media Assistant sessions deliberately reuse compatible persisted Codex threads for continuity
 - it is treated as **included in your Codex / ChatGPT plan**
 - Media Studio does **not** assign a USD estimate or spend ledger entry to `codex_local`
 - image generation is **not** part of the current Codex Local rollout boundary
@@ -250,6 +253,7 @@ Common shortcuts:
 | `P` | Open Presets |
 | `S` | Open Settings |
 | `C` | Toggle the bottom console |
+| `M` | Minimize or restore the Media Assistant in Graph Studio |
 | `Cmd/Ctrl+Z` | Undo |
 | Right-click empty Graph canvas | Open node search at the pointer |
 | Drag from an output port to an input port | Create a wire |
@@ -264,6 +268,8 @@ See [keyboard and mouse controls](docs/keyboard-mouse-controls.md) for the full 
 - [docs/getting-started-linux.md](docs/getting-started-linux.md)
 - [docs/getting-started-windows.md](docs/getting-started-windows.md)
 - [docs/keyboard-mouse-controls.md](docs/keyboard-mouse-controls.md)
+- [docs/media-assistant-setup.md](docs/media-assistant-setup.md)
+- [docs/media-assistant.md](docs/media-assistant.md)
 - [docs/advanced-runtime.md](docs/advanced-runtime.md)
 - [docs/pricing-integration.md](docs/pricing-integration.md)
 - [docs/release-packaging.md](docs/release-packaging.md)
@@ -278,6 +284,6 @@ AI coding assistants may be used to understand, debug, modify, or contribute to 
 
 ## Versioning
 
-The first public release line starts at `v1.0.0`. The current build is `v1.0.1`.
+The first public release line starts at `v1.0.0`. The current build is `v1.0.3`.
 
 When you ship a new build, update the root `package.json` version. The app reads that package version and displays it as `vX.Y.Z` in the admin nav, so testers can confirm exactly which build they are running.

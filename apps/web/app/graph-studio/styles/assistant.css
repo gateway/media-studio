@@ -1,10 +1,10 @@
 .graph-assistant-panel {
   --graph-assistant-width-max: 1180px;
   --graph-assistant-width-gutter: 96px;
-  --graph-assistant-height-max: 624px;
+  --graph-assistant-height-max: 718px;
   --graph-assistant-height-offset: 74px;
-  --graph-assistant-composer-height-min: 300px;
-  --graph-assistant-composer-height-max: 468px;
+  --graph-assistant-composer-height-min: 345px;
+  --graph-assistant-composer-height-max: 562px;
   --graph-assistant-composer-height-offset: 205px;
   --graph-assistant-reference-size: 82px;
   --graph-assistant-control-size: 28px;
@@ -248,13 +248,6 @@
   gap: 0.38rem;
 }
 
-.graph-assistant-mode-group {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.34rem;
-}
-
 .graph-assistant-header span {
   font-size: 0.95rem;
   font-weight: 900;
@@ -276,28 +269,6 @@
 .graph-assistant-header button {
   width: var(--graph-assistant-action-size);
   padding: 0;
-}
-
-.graph-assistant-header .graph-assistant-mode-button {
-  width: auto;
-  min-height: 30px;
-  padding: 0 0.58rem;
-  color: var(--graph-text-secondary);
-  background: color-mix(in srgb, var(--graph-surface-soft) 72%, transparent);
-}
-
-.graph-assistant-mode-button span {
-  color: inherit;
-  font-size: 0.66rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.graph-assistant-header .graph-assistant-mode-button-active {
-  border-color: var(--graph-accent-border);
-  color: var(--graph-panel);
-  background: var(--graph-accent);
 }
 
 .graph-assistant-selection-context {
@@ -486,65 +457,6 @@
   padding: 0.9rem;
   color: var(--graph-text-secondary);
   font-size: 0.86rem;
-}
-
-.graph-assistant-loop-starter {
-  display: grid;
-  gap: 0.58rem;
-  width: min(720px, 92%);
-  padding: 0.74rem 0.85rem;
-  border: 1px solid var(--graph-border-hairline);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--graph-surface-soft) 92%, transparent);
-}
-
-.graph-assistant-loop-starter > div:first-child {
-  display: grid;
-  gap: 0.16rem;
-}
-
-.graph-assistant-loop-starter strong {
-  color: var(--graph-text);
-  font-size: 0.78rem;
-}
-
-.graph-assistant-loop-starter span {
-  color: var(--graph-text-secondary);
-  font-size: 0.72rem;
-  line-height: 1.32;
-}
-
-.graph-assistant-loop-lanes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.42rem;
-}
-
-.graph-assistant-loop-lanes button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.34rem;
-  min-height: 32px;
-  border: 1px solid var(--graph-border-medium);
-  border-radius: var(--graph-assistant-radius-pill);
-  padding: 0 0.7rem;
-  color: var(--graph-text);
-  background: var(--graph-surface-soft);
-}
-
-.graph-assistant-loop-lanes button:hover,
-.graph-assistant-loop-lanes button:focus-visible {
-  border-color: var(--graph-accent-border);
-  color: var(--graph-panel);
-  background: var(--graph-accent);
-}
-
-.graph-assistant-loop-lanes button span {
-  color: inherit;
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .graph-assistant-readiness {
@@ -1081,8 +993,8 @@
 }
 
 .graph-assistant-footer textarea {
-  min-height: 72px;
-  max-height: 144px;
+  min-height: 99px;
+  max-height: 191px;
   resize: vertical;
   border: 1px solid var(--graph-border-medium);
   border-radius: 22px;

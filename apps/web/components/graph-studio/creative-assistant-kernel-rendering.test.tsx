@@ -128,7 +128,7 @@ it.each([
   );
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-  fireEvent.click(screen.getByRole("button", { name: "Media Presets" }));
+  expect(screen.queryByRole("group", { name: "Assistant mode" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Review and run" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Run it" })).toBeNull();
   expect(onRunWorkflow).not.toHaveBeenCalled();

@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from typing import Any, Dict, Iterable, List
 
-from ..graph.normalization import materialize_workflow_defaults
-from ..graph.schemas import GraphError, GraphValidationResult, GraphWorkflow, GraphWorkflowNode
-from .schemas import AssistantGraphPlan
-from .workflow_layout import (
+from ..graph.layout import (
     WORKFLOW_GROUP_PADDING,
     WORKFLOW_NODE_GAP,
     node_bounds,
     rects_have_gap,
     rects_overlap,
 )
+from ..graph.normalization import materialize_workflow_defaults
+from ..graph.schemas import GraphError, GraphValidationResult, GraphWorkflow, GraphWorkflowNode
+from .schemas import AssistantGraphPlan
 
 
 def _node_title(node: GraphWorkflowNode) -> str:

@@ -22,8 +22,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ChangeEvent, DragEvent, ReactElement } from "react";
 
 import type { AssistantPlanResponse, GraphError, GraphMediaPreview, GraphWorkflowPayload } from "./types";
-import { type AssistantMode, type PresetLoopLane, useCreativeAssistant } from "./hooks/use-creative-assistant";
-import { previewFromReference } from "./utils/graph-media-preview";
+import { type AssistantMode, useCreativeAssistant } from "./hooks/use-creative-assistant";
+import { isTextEntryTarget, previewFromReference } from "./utils/graph-media-preview";
 import { assistantPlanPricingLabel } from "./utils/graph-pricing";
 import {
   fetchReferenceImagePickerPage,
@@ -37,7 +37,6 @@ import type { MediaReference } from "@/lib/types";
 import { ProductionPlanChecklist } from "./production-plan-checklist";
 
 const ASSISTANT_IMAGE_REFERENCE_LIMIT = 8;
-const ASSISTANT_MODE_STORAGE_PREFIX = "media-studio:graph-assistant-mode:";
 const PRESET_FROM_REFERENCES_STARTER =
   "I attached reference images and want to turn their visual style into a reusable Media Preset. I am not sure what image inputs or editable fields I need. Guide me with short questions first before creating a test graph.";
 type AssistantSessionMessage = NonNullable<ReturnType<typeof useCreativeAssistant>["session"]>["messages"][number];
@@ -88,35 +87,26 @@ function assistantMessagePayload(message: AssistantSessionMessage): Record<strin
   return typeof payload === "object" ? (payload as Record<string, unknown>) : {};
 }
 
-function storedAssistantMode(workspaceKey: string): AssistantMode | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const value = window.localStorage.getItem(`${ASSISTANT_MODE_STORAGE_PREFIX}${workspaceKey}`);
-    return value === "preset" || value === "recipe" || value === "graph" ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-function persistAssistantMode(workspaceKey: string, mode: AssistantMode) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(`${ASSISTANT_MODE_STORAGE_PREFIX}${workspaceKey}`, mode);
-  } catch {
-    // Mode persistence is a convenience; the assistant must still work without storage.
-  }
-}
-
 function inferAssistantModeFromSession(session: ReturnType<typeof useCreativeAssistant>["session"]): AssistantMode | null {
   if (!session) return null;
   for (let index = session.messages.length - 1; index >= 0; index -= 1) {
     const payload = assistantMessagePayload(session.messages[index]);
     const metadata = typeof payload.metadata === "object" && payload.metadata ? (payload.metadata as Record<string, unknown>) : {};
+    const nextAction = payload.next_action && typeof payload.next_action === "object"
+      ? payload.next_action as Record<string, unknown>
+      : {};
+    if (payload.capability === "preset_builder" || payload.capability === "draft_media_preset" || payload.capability === "save_media_preset") return "preset";
+    if (payload.capability === "recipe_builder" || payload.capability === "draft_prompt_recipe" || payload.capability === "save_prompt_recipe") return "recipe";
+    if (payload.capability === "graph_builder" || payload.capability === "general" || payload.capability === "story_project" || payload.capability === "run_debugger") return "graph";
+    if (nextAction.kind === "save_media_preset" || payload.artifact_intent === "preset_draft") return "preset";
+    if (nextAction.kind === "save_prompt_recipe" || payload.artifact_intent === "recipe_draft") return "recipe";
     if (payload.preset_loop_lane || metadata.preset_loop_lane || payload.output_aware === true) return "preset";
     if (payload.assistant_mode === "preset" || metadata.assistant_mode === "preset") return "preset";
     if (payload.assistant_mode === "recipe" || metadata.assistant_mode === "recipe") return "recipe";
     if (payload.assistant_mode === "graph" || metadata.assistant_mode === "graph") return "graph";
   }
+  if (session.summary_json?.kernel_preset_draft || session.summary_json?.kernel_preset_proposal) return "preset";
+  if (session.summary_json?.kernel_recipe_draft || session.summary_json?.kernel_recipe_proposal) return "recipe";
   return null;
 }
 
@@ -138,65 +128,20 @@ const ASSISTANT_SENDING_PROGRESS = [
   "Still working through the details and next useful step…",
 ] as const;
 
-const ASSISTANT_MODES: Array<{
-  id: AssistantMode;
-  label: string;
-  title: string;
-  Icon: typeof PackagePlus;
-  placeholder: string;
-  empty: string;
-}> = [
-  {
-    id: "preset",
-    label: "Media Presets",
-    title: "Create, test, refine, and save Media Presets.",
-    Icon: PackagePlus,
-    placeholder: "Ask Media Assistant to analyze refs, suggest fields, or build a preset.",
-    empty: "Ask for a preset from references, field ideas, prompt help, or a test graph.",
-  },
-  {
-    id: "recipe",
-    label: "Recipes",
-    title: "Create, test, refine, and save Prompt Recipes.",
-    Icon: FileText,
-    placeholder: "Recipe mode: describe the reusable prompt workflow.",
-    empty: "Describe the Prompt Recipe you want to create, test, or refine.",
-  },
-  {
-    id: "graph",
-    label: "Graph",
-    title: "Create or explore Graph Studio workflows.",
-    Icon: Sparkles,
-    placeholder: "Graph mode: describe the graph workflow you want to build.",
-    empty: "Describe the graph you want. I can add it to the canvas when the request is clear.",
-  },
-];
+function assistantLiveProgressText(progress: ReturnType<typeof useCreativeAssistant>["progress"]) {
+  if (!progress?.active) return null;
+  const elapsed = `${progress.elapsed_seconds} seconds elapsed`;
+  if (progress.elapsed_seconds >= 120) {
+    return `${progress.label} · ${elapsed}. This is taking longer than usual, but it is still working. You can stop it at any time.`;
+  }
+  if (progress.stage === "thinking") {
+    return `${progress.label} ${elapsed}. No graph changes or runs have happened yet.`;
+  }
+  return `${progress.label} · ${elapsed}. Continuing…`;
+}
 
-const PRESET_LOOP_LANES: Array<{
-  id: PresetLoopLane;
-  label: string;
-  description: string;
-  Icon: typeof ImageIcon;
-}> = [
-  {
-    id: "text_to_image",
-    label: "Text-to-Image",
-    description: "No image input. Extract the attached refs into a reusable style prompt.",
-    Icon: FileText,
-  },
-  {
-    id: "image_to_image",
-    label: "Image-to-Image",
-    description: "One or more user-provided image inputs, with refs used only as style sources.",
-    Icon: ImageIcon,
-  },
-  {
-    id: "both",
-    label: "Both",
-    description: "Create separate image-input and text-only variants with distinct saved presets.",
-    Icon: Layers3,
-  },
-];
+const ASSISTANT_PLACEHOLDER = "Describe what you want to create, change, or understand.";
+const ASSISTANT_EMPTY_COPY = "Ask about this workflow, build or edit a graph, or create a reusable Media Preset or Prompt Recipe.";
 
 function isSystemActivityMessage(message: AssistantSessionMessage) {
   const payload = message.content_json ?? {};
@@ -739,18 +684,10 @@ export function CreativeAssistantPanel({
   onClose: () => void;
   onEvent?: (message: string, tone?: "success" | "warning" | "error" | "muted") => void;
 }) {
-  const [assistantMode, setAssistantMode] = useState<AssistantMode>(() => storedAssistantMode(workspaceKey) ?? "graph");
-  const inferredAssistantSessionIdRef = useRef<string | null>(null);
-  const userSelectedAssistantModeRef = useRef(false);
+  const [assistantMode, setAssistantMode] = useState<AssistantMode>("graph");
   useEffect(() => {
-    inferredAssistantSessionIdRef.current = null;
-    userSelectedAssistantModeRef.current = false;
-    setAssistantMode(storedAssistantMode(workspaceKey) ?? "graph");
+    setAssistantMode("graph");
   }, [workspaceKey]);
-  useEffect(() => {
-    persistAssistantMode(workspaceKey, assistantMode);
-  }, [assistantMode, workspaceKey]);
-  const activeMode = ASSISTANT_MODES.find((mode) => mode.id === assistantMode) ?? ASSISTANT_MODES[2];
   const assistant = useCreativeAssistant({
     workspaceKey,
     assistantMode,
@@ -786,28 +723,28 @@ export function CreativeAssistantPanel({
     };
   }, [assistant.status, workspaceKey]);
   useEffect(() => {
-    const sessionId = assistant.session?.assistant_session_id ?? null;
-    if (!sessionId) {
-      inferredAssistantSessionIdRef.current = null;
-      return;
-    }
-    if (userSelectedAssistantModeRef.current || inferredAssistantSessionIdRef.current === sessionId) return;
     const inferredMode = inferAssistantModeFromSession(assistant.session);
     if (!inferredMode) return;
-    inferredAssistantSessionIdRef.current = sessionId;
-    if (inferredMode && inferredMode !== assistantMode) {
+    if (inferredMode !== assistantMode) {
       setAssistantMode(inferredMode);
     }
   }, [assistant.session, assistantMode]);
-  const selectAssistantMode = (mode: AssistantMode) => {
-    userSelectedAssistantModeRef.current = true;
-    setAssistantMode(mode);
-  };
-  const threadRef = useRef<HTMLElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const initialAssistantSessionIdRef = useRef(initialAssistantSessionId);
   const [referenceSelectionId, setReferenceSelectionId] = useState<string | null>(null);
   const [localReferences, setLocalReferences] = useState<MediaReference[]>([]);
   const [minimized, setMinimized] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isTextEntryTarget(event.target)) return;
+      if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey || event.key.toLowerCase() !== "m") return;
+      event.preventDefault();
+      setMinimized((current) => !current);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
   const referencePicker = useMediaImagePickerPagination<MediaReference>({
     fetchPage: fetchReferenceImagePickerPage,
     getItemId: (reference) => reference.reference_id,
@@ -856,10 +793,20 @@ export function CreativeAssistantPanel({
     [assistant.session?.attachments, referenceLookup],
   );
   useEffect(() => {
-    const thread = threadRef.current;
-    if (!thread) return;
-    thread.scrollTop = thread.scrollHeight;
-  }, [assistant.session?.messages.length, assistant.status]);
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  }, [
+    assistant.draft,
+    assistant.nextAction?.kind,
+    assistant.plan?.plan.assistant_plan_id,
+    assistant.plan?.plan.status,
+    assistant.progress?.elapsed_seconds,
+    assistant.progress?.label,
+    assistant.session?.messages.length,
+    assistant.status,
+    open,
+  ]);
   useEffect(() => {
     const previousAssistantSessionId = initialAssistantSessionIdRef.current;
     initialAssistantSessionIdRef.current = initialAssistantSessionId;
@@ -960,11 +907,14 @@ export function CreativeAssistantPanel({
   const planActionAriaLabel = kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add reviewed graph");
   const planActionTitle = kernelGraphAction?.label || (planMissingMedia ? "Add the graph so you can choose the missing media on the canvas" : "Add the reviewed graph");
   const pricing = assistantPlanPricingLabel(plan?.pricing.pricing_summary.total);
+  const liveProgressText = assistantLiveProgressText(assistant.progress);
   const busyText = assistant.status === "idle"
     ? null
-    : assistant.status === "sending"
-      ? ASSISTANT_SENDING_PROGRESS[sendingProgressStage]
-      : ASSISTANT_STATUS_COPY[assistant.status];
+    : liveProgressText ?? (
+        assistant.status === "sending"
+          ? ASSISTANT_SENDING_PROGRESS[sendingProgressStage]
+          : ASSISTANT_STATUS_COPY[assistant.status]
+      );
   const readOnlyProvider = Boolean(
     assistant.session?.provider_kind && assistant.session.provider_kind !== "codex_local",
   );
@@ -985,14 +935,15 @@ export function CreativeAssistantPanel({
     ),
   );
   const visibleActivityMessages = planApplied ? activityMessages.filter((message) => isSavedArtifactActivityMessage(message)) : activityMessages.slice(-1);
-  const showPresetReferenceStarter = assistantMode === "preset" && imageAttachmentCount > 0 && !conversationalMessages.length && !assistant.busy;
-  const showPresetLoopStarter = assistantMode === "preset" && !assistant.busy && !plan && !conversationalMessages.length;
+  const showPresetReferenceStarter = imageAttachmentCount > 0 && !conversationalMessages.length && !assistant.busy;
   const templateId = typeof planMetadata["template_id"] === "string" ? planMetadata["template_id"] : "";
   const templateMode = typeof planMetadata["template_mode"] === "string" ? planMetadata["template_mode"] : "";
   const templateSlotCount = typeof planMetadata["template_slot_count"] === "number" ? planMetadata["template_slot_count"] : null;
-  const appliedPresetWorkflow = planApplied && assistantMode === "preset";
   const presetDraft = activePresetDraft(assistant.session);
   const presetActionProposal = presetDraft ?? legacyPresetProposal;
+  const appliedPresetWorkflow = planApplied && (
+    Boolean(presetActionProposal) || templateMode === "text_to_image" || templateMode === "image_to_image"
+  );
   const runConfirmationConsumed = Boolean(
     assistant.session?.summary_json?.kernel_run_confirmation &&
     typeof assistant.session.summary_json.kernel_run_confirmation === "object" &&
@@ -1059,7 +1010,8 @@ export function CreativeAssistantPanel({
           className="graph-assistant-minimized-pill"
           onClick={() => setMinimized(false)}
           aria-label="Expand Media Assistant"
-          title="Expand Media Assistant"
+          aria-keyshortcuts="M"
+          title="Expand Media Assistant (M)"
         >
           <MessageSquare size={16} aria-hidden="true" />
           <span>Media Assistant</span>
@@ -1086,7 +1038,7 @@ export function CreativeAssistantPanel({
                 <small>
                   {imageAttachmentCount ? `${imageAttachmentCount} / ${ASSISTANT_IMAGE_REFERENCE_LIMIT}` : `0 / ${ASSISTANT_IMAGE_REFERENCE_LIMIT}`}
                 </small>
-                <button type="button" onClick={() => setMinimized(true)} aria-label="Collapse Media Assistant" title="Collapse Media Assistant">
+                <button type="button" onClick={() => setMinimized(true)} aria-label="Collapse Media Assistant" aria-keyshortcuts="M" title="Collapse Media Assistant (M)">
                   <Minimize2 size={14} aria-hidden="true" />
                 </button>
               </div>
@@ -1154,24 +1106,9 @@ export function CreativeAssistantPanel({
         <header className="graph-assistant-header">
           <div className="graph-assistant-title">
             <span>Media Assistant</span>
-            <div className="graph-assistant-mode-group" aria-label="Assistant mode">
-              {ASSISTANT_MODES.map(({ id, label, title, Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={`graph-assistant-mode-button${assistantMode === id ? " graph-assistant-mode-button-active" : ""}`}
-                  aria-pressed={assistantMode === id}
-                  title={title}
-                  onClick={() => selectAssistantMode(id)}
-                >
-                  <Icon size={13} aria-hidden="true" />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
           </div>
           <div className="graph-assistant-header-actions">
-            {assistant.busy ? (
+            {assistant.cancellable ? (
               <button type="button" aria-label="Stop assistant request" title="Stop assistant request" onClick={() => void assistant.cancelAssistant()}>
                 <StopCircle size={15} />
               </button>
@@ -1189,33 +1126,11 @@ export function CreativeAssistantPanel({
           </section>
         ) : null}
 
-        <div className="graph-assistant-body">
+        <div ref={scrollContainerRef} className="graph-assistant-body">
           {assistant.session?.production_plan ? (
             <ProductionPlanChecklist plan={assistant.session.production_plan} />
           ) : null}
-          <section ref={threadRef} className="graph-assistant-thread" aria-label="Assistant messages">
-          {showPresetLoopStarter ? (
-            <div className="graph-assistant-loop-starter" aria-label="Preset builder shortcuts">
-              <div>
-                <strong>Start a preset</strong>
-                <span>Pick a path, or just ask naturally below.</span>
-              </div>
-              <div className="graph-assistant-loop-lanes">
-                {PRESET_LOOP_LANES.map(({ id, label, description, Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => void assistant.startPresetLoop(id)}
-                    aria-label={`Create ${label} preset`}
-                    title={description}
-                  >
-                    <Icon size={14} aria-hidden="true" />
-                    <span>{label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
+          <section className="graph-assistant-thread" aria-label="Assistant messages">
           {codexBlocker ? (
             <div className="graph-assistant-readiness" role="status">
               <strong>Codex Local needs setup for native chat.</strong>
@@ -1297,7 +1212,7 @@ export function CreativeAssistantPanel({
             ))
           ) : (
             <div className="graph-assistant-empty">
-              {activeMode.empty}
+              {ASSISTANT_EMPTY_COPY}
               {showPresetReferenceStarter ? (
                 <button
                   type="button"
@@ -1627,7 +1542,7 @@ export function CreativeAssistantPanel({
           <div className="graph-assistant-compose-row">
             <textarea
               value={assistant.draft}
-              placeholder={activeMode.placeholder}
+              placeholder={ASSISTANT_PLACEHOLDER}
               onChange={(event) => assistant.setDraft(event.target.value)}
               aria-label="Assistant message"
             />

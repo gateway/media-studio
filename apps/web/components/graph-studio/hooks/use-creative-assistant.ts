@@ -15,6 +15,7 @@ import type {
   AssistantNextAction,
   AssistantPlan,
   AssistantPlanResponse,
+  AssistantProgress,
   AssistantPromptRecipeDraftResponse,
   GraphEstimateResponse,
   GraphValidationResult,
@@ -28,15 +29,14 @@ import { buildCreativeAssistantCanvasContext } from "../utils/creative-assistant
 export type AssistantMode = "preset" | "recipe" | "graph";
 
 type AssistantStatus = "idle" | "sending" | "running" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling";
-export type PresetLoopLane = "text_to_image" | "image_to_image" | "both";
 
-const ASSISTANT_REQUEST_TIMEOUT_MS = 130_000;
-
-const PRESET_LOOP_START_MESSAGES: Record<PresetLoopLane, string> = {
-  text_to_image: "Can you create a text-to-image media preset from these reference images?",
-  image_to_image: "Can you create an image-to-image media preset from these reference images?",
-  both: "Can you create both image-to-image and text-to-image media presets from these reference images?",
-};
+const ASSISTANT_REQUEST_TIMEOUT_MS = 220_000;
+const ASSISTANT_TRACKED_TURN_STATUSES = new Set<AssistantStatus>([
+  "sending",
+  "planning",
+  "draftingRecipe",
+  "draftingPreset",
+]);
 
 type AssistantProviderReadiness = {
   checked: boolean;
@@ -264,6 +264,7 @@ export function useCreativeAssistant({
   const [draft, setDraft] = useState("");
   const [plan, setPlan] = useState<AssistantPlanResponse | null>(null);
   const [status, setStatus] = useState<AssistantStatus>("idle");
+  const [progress, setProgress] = useState<AssistantProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [runConfirmationNeedsRecheck, setRunConfirmationNeedsRecheck] = useState(false);
   const [providerReadiness, setProviderReadiness] = useState<AssistantProviderReadiness>({
@@ -275,6 +276,7 @@ export function useCreativeAssistant({
   });
   const activeAbortControllerRef = useRef<AbortController | null>(null);
   const activeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancellationPendingRef = useRef(false);
   const workspaceKeyRef = useRef(workspaceKey);
   const initialAssistantSessionIdRef = useRef(initialAssistantSessionId);
   const sessionWorkspaceKeyRef = useRef<string | null>(null);
@@ -287,6 +289,9 @@ export function useCreativeAssistant({
 
   const scopedStatus = workspaceKeyRef.current === workspaceKey ? status : "idle";
   const busy = scopedStatus !== "idle";
+  const cancellable = (
+    ASSISTANT_TRACKED_TURN_STATUSES.has(scopedStatus) && Boolean(session?.assistant_session_id)
+  ) || scopedStatus === "cancelling";
   const canPlan = draft.trim().length > 0 && !busy;
   const nextAction = useMemo(() => latestKernelNextAction(session), [session]);
   const latestPayload = useMemo(() => latestAssistantPayload(session), [session]);
@@ -317,8 +322,17 @@ export function useCreativeAssistant({
     });
   }, []);
 
+  const reportAbortableStop = useCallback((message: string) => {
+    if (!cancellationPendingRef.current) onEvent?.(message, "muted");
+  }, [onEvent]);
+
+  const finishAbortableOperation = useCallback(() => {
+    if (!cancellationPendingRef.current) setStatus("idle");
+  }, []);
+
   const resetAssistantState = useCallback(() => {
     activeAbortControllerRef.current?.abort();
+    cancellationPendingRef.current = false;
     if (activeTimeoutRef.current) {
       clearTimeout(activeTimeoutRef.current);
       activeTimeoutRef.current = null;
@@ -376,6 +390,34 @@ export function useCreativeAssistant({
       }
     }
   }, []);
+
+  useEffect(() => {
+    const sessionId = session?.assistant_session_id;
+    const tracksKernelProgress = ASSISTANT_TRACKED_TURN_STATUSES.has(scopedStatus);
+    if (!tracksKernelProgress || !sessionId) {
+      setProgress(null);
+      return;
+    }
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const poll = async () => {
+      try {
+        const next = await jsonFetch<AssistantProgress>(
+          `/api/control/media/assistant/sessions/${sessionId}/progress`,
+        );
+        if (!disposed) setProgress(next.active ? next : null);
+      } catch {
+        // The message request remains authoritative; progress is best-effort UI.
+      } finally {
+        if (!disposed) timer = setTimeout(poll, 2_000);
+      }
+    };
+    void poll();
+    return () => {
+      disposed = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [scopedStatus, session?.assistant_session_id]);
 
   const hydrateExistingSession = useCallback((existing: AssistantSession, expectedWorkspaceKey: string) => {
     if (workspaceKeyRef.current !== expectedWorkspaceKey) return false;
@@ -564,7 +606,7 @@ export function useCreativeAssistant({
       return result;
     } catch (requestError) {
       if (isAbortError(requestError)) {
-        onEvent?.("Media Preset save stopped.", "muted");
+        reportAbortableStop("Media Preset save stopped.");
         return null;
       }
       const errorMessage = assistantErrorMessage(requestError, "Unable to save Media Preset.");
@@ -572,9 +614,9 @@ export function useCreativeAssistant({
       onEvent?.(errorMessage, "error");
       return null;
     } finally {
-      setStatus("idle");
+      finishAbortableOperation();
     }
-  }, [assistantMode, ensureSession, latestRunId, onEvent, refreshDefinitionsAfterAssistantSave, runAbortableRequest, session, setScopedSession, workflow]);
+  }, [assistantMode, ensureSession, finishAbortableOperation, latestRunId, onEvent, refreshDefinitionsAfterAssistantSave, reportAbortableStop, runAbortableRequest, session, setScopedSession, workflow]);
 
   const confirmPresetSave = useCallback(async () => {
     if (
@@ -626,7 +668,7 @@ export function useCreativeAssistant({
       return result;
     } catch (requestError) {
       if (isAbortError(requestError)) {
-        onEvent?.("Prompt Recipe save stopped.", "muted");
+        reportAbortableStop("Prompt Recipe save stopped.");
         return null;
       }
       const errorMessage = assistantErrorMessage(requestError, "Unable to save Prompt Recipe.");
@@ -634,9 +676,9 @@ export function useCreativeAssistant({
       onEvent?.(errorMessage, "error");
       return null;
     } finally {
-      setStatus("idle");
+      finishAbortableOperation();
     }
-  }, [assistantMode, ensureSession, latestRunId, onEvent, refreshDefinitionsAfterAssistantSave, runAbortableRequest, session, setScopedSession, workflow]);
+  }, [assistantMode, ensureSession, finishAbortableOperation, latestRunId, onEvent, refreshDefinitionsAfterAssistantSave, reportAbortableStop, runAbortableRequest, session, setScopedSession, workflow]);
 
   const confirmRecipeSave = useCallback(async () => {
     if (
@@ -795,7 +837,7 @@ export function useCreativeAssistant({
       return result;
     } catch (requestError) {
       if (isAbortError(requestError)) {
-        onEvent?.("Assistant planning stopped.", "muted");
+        reportAbortableStop("Assistant planning stopped.");
         return null;
       }
       const errorMessage = assistantErrorMessage(requestError, "Unable to create assistant plan.");
@@ -803,9 +845,9 @@ export function useCreativeAssistant({
       onEvent?.(errorMessage, "error");
       return null;
     } finally {
-      setStatus("idle");
+      finishAbortableOperation();
     }
-  }, [assistantMode, busy, canvasContext, ensureSession, latestRunId, onEvent, runAbortableRequest, selectedGroupIds, selectedNodeIds, session, setScopedSession, workflow]);
+  }, [assistantMode, busy, canvasContext, ensureSession, finishAbortableOperation, latestRunId, onEvent, reportAbortableStop, runAbortableRequest, selectedGroupIds, selectedNodeIds, session, setScopedSession, workflow]);
 
   const applyPlanResponse = useCallback(async (
     planResponse: AssistantPlanResponse,
@@ -942,7 +984,7 @@ export function useCreativeAssistant({
       return updated;
     } catch (requestError) {
       if (isAbortError(requestError)) {
-        onEvent?.("Assistant request stopped.", "muted");
+        reportAbortableStop("Assistant request stopped.");
         return null;
       }
       const message = assistantErrorMessage(requestError, "Unable to send assistant message.");
@@ -950,21 +992,11 @@ export function useCreativeAssistant({
       onEvent?.(message, "error");
       return null;
     } finally {
-      setStatus("idle");
+      finishAbortableOperation();
     }
-  }, [assistantMode, busy, canvasContext, ensureSession, latestRunId, onEvent, runAbortableRequest, setScopedSession, workflow, workflowId]);
+  }, [assistantMode, busy, canvasContext, ensureSession, finishAbortableOperation, latestRunId, onEvent, reportAbortableStop, runAbortableRequest, setScopedSession, workflow, workflowId]);
 
   const sendMessage = useCallback(async () => sendContentMessage(draft), [draft, sendContentMessage]);
-
-  const startPresetLoop = useCallback(
-    async (lane: PresetLoopLane) =>
-      sendContentMessage(PRESET_LOOP_START_MESSAGES[lane], {
-        clearDraft: true,
-        metadata: { preset_loop_lane: lane, source: "guided_loop_ui" },
-        skipAutoActions: true,
-      }),
-    [sendContentMessage],
-  );
 
   const createPlan = useCallback(async () => {
     const message = draft.trim();
@@ -988,7 +1020,7 @@ export function useCreativeAssistant({
       return await createPromptRecipeDraftFromMessage(message, currentSession.assistant_session_id);
     } catch (requestError) {
       if (isAbortError(requestError)) {
-        onEvent?.("Prompt Recipe draft stopped.", "muted");
+        reportAbortableStop("Prompt Recipe draft stopped.");
         return null;
       }
       const errorMessage = assistantErrorMessage(requestError, "Unable to create Prompt Recipe draft.");
@@ -996,9 +1028,9 @@ export function useCreativeAssistant({
       onEvent?.(errorMessage, "error");
       return null;
     } finally {
-      setStatus("idle");
+      finishAbortableOperation();
     }
-  }, [assistantMode, busy, createPromptRecipeDraftFromMessage, draft, ensureSession, onEvent, session, setScopedSession]);
+  }, [assistantMode, busy, createPromptRecipeDraftFromMessage, draft, ensureSession, finishAbortableOperation, onEvent, reportAbortableStop, session, setScopedSession]);
 
   const createMediaPresetDraft = useCallback(async () => {
     const message = draft.trim();
@@ -1012,7 +1044,7 @@ export function useCreativeAssistant({
       return await createMediaPresetDraftFromMessage(message, currentSession.assistant_session_id);
     } catch (requestError) {
       if (isAbortError(requestError)) {
-        onEvent?.("Media Preset draft stopped.", "muted");
+        reportAbortableStop("Media Preset draft stopped.");
         return null;
       }
       const errorMessage = assistantErrorMessage(requestError, "Unable to create Media Preset draft.");
@@ -1020,9 +1052,9 @@ export function useCreativeAssistant({
       onEvent?.(errorMessage, "error");
       return null;
     } finally {
-      setStatus("idle");
+      finishAbortableOperation();
     }
-  }, [busy, createMediaPresetDraftFromMessage, draft, ensureSession, onEvent, session, setScopedSession]);
+  }, [busy, createMediaPresetDraftFromMessage, draft, ensureSession, finishAbortableOperation, onEvent, reportAbortableStop, session, setScopedSession]);
 
   const attachReference = useCallback(async (reference: MediaReference, label?: string | null) => {
     if (busy) return null;
@@ -1114,6 +1146,7 @@ export function useCreativeAssistant({
   }, [applyPlanResponse, canApply, nextAction, plan, workflow]);
 
   const cancelAssistant = useCallback(async () => {
+    cancellationPendingRef.current = true;
     activeAbortControllerRef.current?.abort();
     setStatus("cancelling");
     try {
@@ -1126,12 +1159,13 @@ export function useCreativeAssistant({
       }
       setError(null);
       onEvent?.("Assistant stopped.", "muted");
+      cancellationPendingRef.current = false;
+      setStatus("idle");
     } catch (requestError) {
       const message = assistantErrorMessage(requestError, "Unable to stop assistant.");
       setError(message);
       onEvent?.(message, "error");
-    } finally {
-      setStatus("idle");
+      setStatus("cancelling");
     }
   }, [loadExistingSession, onEvent, session, setScopedSession]);
 
@@ -1141,8 +1175,10 @@ export function useCreativeAssistant({
       draft,
       setDraft,
       plan,
+      progress,
       status: scopedStatus,
       busy,
+      cancellable,
       error,
       runConfirmationNeedsRecheck,
       providerReadiness,
@@ -1151,7 +1187,6 @@ export function useCreativeAssistant({
       nextAction,
       sendMessage,
       sendContentMessage,
-      startPresetLoop,
       confirmPresetSave,
       confirmRecipeSave,
       confirmRunWorkflow,
@@ -1174,6 +1209,7 @@ export function useCreativeAssistant({
       attachFile,
       attachReference,
       busy,
+      cancellable,
       canApply,
       nextAction,
       canPlan,
@@ -1189,6 +1225,7 @@ export function useCreativeAssistant({
       error,
       runConfirmationNeedsRecheck,
       plan,
+      progress,
       providerReadiness,
       removeAttachment,
       openSavedArtifactEditor,
@@ -1196,7 +1233,6 @@ export function useCreativeAssistant({
       savePromptRecipeFromMessage,
       sendContentMessage,
       sendMessage,
-      startPresetLoop,
       session,
       scopedStatus,
       useSavedArtifactInGraph,

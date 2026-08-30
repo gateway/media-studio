@@ -4,14 +4,10 @@ import re
 from typing import Any, Dict, Iterable, List, Tuple
 
 from ..graph.normalization import materialize_workflow_defaults
-from ..graph.registry import registry
-from ..graph.schemas import GraphWorkflow, GraphWorkflowEdge, GraphWorkflowNode
-from .schemas import AssistantGraphOperation, AssistantGraphPlan
-from .workflow_layout import (
+from ..graph.layout import (
     WORKFLOW_COLUMN_GAP as ASSISTANT_GRAPH_SECTION_GAP,
     WORKFLOW_GROUP_PADDING as ASSISTANT_GRAPH_GROUP_PADDING,
     WORKFLOW_NODE_GAP as ASSISTANT_GRAPH_NODE_GAP,
-    arrange_workflow,
     bounds_union as _bounds_union,
     compute_group_bounds as _compute_group_bounds,
     expand_bounds as _expand_bounds,
@@ -20,6 +16,10 @@ from .workflow_layout import (
     rects_have_gap as _rects_have_gap,
     rects_overlap as _rects_overlap,
 )
+from ..graph.registry import registry
+from ..graph.schemas import GraphWorkflow, GraphWorkflowEdge, GraphWorkflowNode
+from .schemas import AssistantGraphOperation, AssistantGraphPlan
+from .workflow_layout import arrange_workflow
 
 
 def _slug(value: str) -> str:
@@ -233,9 +233,15 @@ def _connected_added_node_ids(
 
 
 def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> GraphWorkflow:
-    arrange_requested = any(operation.op == "arrange_workflow" for operation in plan.operations)
-    if arrange_requested and len(plan.operations) != 1:
-        raise ValueError("Arrange workflow must be the only graph operation in a layout-only proposal.")
+    arrange_operations = [operation for operation in plan.operations if operation.op == "arrange_workflow"]
+    arrange_requested = bool(arrange_operations)
+    if arrange_requested and (
+        len(arrange_operations) != 1
+        or any(operation.op not in {"remove_nodes_from_group", "arrange_workflow"} for operation in plan.operations)
+    ):
+        raise ValueError(
+            "Arrange workflow may only be combined with group-membership removals in a layout repair proposal."
+        )
     definitions = registry.definitions_by_type()
     next_workflow = materialize_workflow_defaults(workflow).model_copy(deep=True)
     existing_ids = {node.id for node in next_workflow.nodes}
@@ -245,6 +251,7 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
     added_node_ids: List[str] = []
     added_group_ids: set[str] = set()
     expanded_group_ids: set[str] = set()
+    contracted_group_ids: set[str] = set()
     group_refs: Dict[str, str] = {}
     requested_group_memberships: List[tuple[str, str]] = []
 
@@ -367,6 +374,30 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
             next_workflow.metadata = metadata
             continue
 
+        if operation.op == "remove_nodes_from_group":
+            group_id = str(operation.group_ref or "")
+            metadata = dict(next_workflow.metadata)
+            groups = [dict(group) for group in metadata.get("groups") or []]
+            group = next(
+                (item for item in groups if str(item.get("id") or "") == group_id),
+                None,
+            )
+            if not group:
+                raise ValueError(f"Cannot remove nodes from an unknown group: {group_id or 'missing'}")
+            node_ids = [resolve_node_id(reference) for reference in operation.node_refs]
+            node_ids = [node_id for node_id in node_ids if node_id in nodes_by_id]
+            if not node_ids:
+                raise ValueError("Cannot remove unknown nodes from a group.")
+            group["node_ids"] = [
+                node_id
+                for node_id in group.get("node_ids") or []
+                if node_id not in node_ids
+            ]
+            metadata["groups"] = groups
+            next_workflow.metadata = metadata
+            contracted_group_ids.add(group_id)
+            continue
+
         if operation.op == "arrange_workflow":
             continue
 
@@ -398,7 +429,7 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
 
     _layout_added_nodes(nodes_by_id, added_node_ids)
     _shift_added_section_from_existing(workflow, nodes_by_id, added_node_ids)
-    resized_group_ids = added_group_ids | expanded_group_ids
+    resized_group_ids = added_group_ids | expanded_group_ids | contracted_group_ids
     if resized_group_ids:
         metadata = dict(next_workflow.metadata)
         groups = [dict(group) for group in metadata.get("groups") or []]

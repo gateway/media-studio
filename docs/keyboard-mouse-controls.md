@@ -37,6 +37,7 @@ Graph Studio shortcuts are ignored while you are typing in a node field.
 | --- | --- |
 | `Space` | Open node search |
 | `C` | Toggle the bottom console |
+| `M` | Minimize the Media Assistant to its bottom pill, or restore it |
 | `Cmd/Ctrl+Z` | Undo |
 | `Cmd/Ctrl+Shift+Z` / `Ctrl+Y` | Redo |
 | `Cmd/Ctrl+C` | Copy selected nodes |

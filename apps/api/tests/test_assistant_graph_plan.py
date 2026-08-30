@@ -311,6 +311,99 @@ def test_add_node_rejects_unknown_group_ref(app_modules) -> None:
         graph_plan.apply_graph_plan(workflow, plan)
 
 
+def test_remove_nodes_from_group_contracts_existing_group_without_changing_other_groups(app_modules) -> None:
+    del app_modules
+    graph_plan = importlib.import_module("app.assistant.graph_plan")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    assistant_schemas = importlib.import_module("app.assistant.schemas")
+    workflow = graph_schemas.GraphWorkflow.model_validate(
+        {
+            "name": "Correct overlapping memberships",
+            "nodes": [
+                {"id": "character", "type": "preview.image", "position": {"x": 0, "y": 0}, "fields": {}},
+                {"id": "poster", "type": "preview.image", "position": {"x": 480, "y": 0}, "fields": {}},
+            ],
+            "edges": [],
+            "metadata": {
+                "groups": [
+                    {
+                        "id": "character-group",
+                        "title": "Character",
+                        "node_ids": ["character"],
+                        "bounds": {"x": -96, "y": -96, "width": 552, "height": 552},
+                    },
+                    {
+                        "id": "poster-group",
+                        "title": "Poster",
+                        "node_ids": ["character", "poster"],
+                        "bounds": {"x": -96, "y": -96, "width": 1032, "height": 552},
+                    },
+                ]
+            },
+        }
+    )
+    plan = assistant_schemas.AssistantGraphPlan.model_validate(
+        {
+            "summary": "Remove the character node from the poster group only.",
+            "operations": [
+                {
+                    "op": "remove_nodes_from_group",
+                    "group_ref": "poster-group",
+                    "node_refs": ["character"],
+                }
+            ],
+        }
+    )
+
+    result = graph_plan.apply_graph_plan(workflow, plan)
+    groups = {group["id"]: group for group in result.metadata["groups"]}
+
+    assert groups["character-group"]["node_ids"] == ["character"]
+    assert groups["poster-group"]["node_ids"] == ["poster"]
+    assert groups["poster-group"]["bounds"] == graph_plan._compute_group_bounds(
+        [next(node for node in result.nodes if node.id == "poster")]
+    )
+
+
+def test_remove_nodes_from_group_can_be_combined_with_atomic_workflow_arrangement(app_modules) -> None:
+    del app_modules
+    graph_plan = importlib.import_module("app.assistant.graph_plan")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    assistant_schemas = importlib.import_module("app.assistant.schemas")
+    workflow = graph_schemas.GraphWorkflow.model_validate(
+        {
+            "name": "Repair and tidy",
+            "nodes": [
+                {"id": "character", "type": "preview.image", "position": {"x": 0, "y": 0}, "fields": {}},
+                {"id": "poster", "type": "preview.image", "position": {"x": 40, "y": 20}, "fields": {}},
+            ],
+            "edges": [],
+            "metadata": {
+                "groups": [
+                    {"id": "character-group", "title": "Character", "node_ids": ["character"], "bounds": {"x": -96, "y": -96, "width": 552, "height": 552}},
+                    {"id": "poster-group", "title": "Poster", "node_ids": ["character", "poster"], "bounds": {"x": -96, "y": -96, "width": 592, "height": 572}},
+                ]
+            },
+        }
+    )
+    plan = assistant_schemas.AssistantGraphPlan.model_validate(
+        {
+            "summary": "Repair the membership and tidy the workflow atomically.",
+            "operations": [
+                {"op": "remove_nodes_from_group", "group_ref": "poster-group", "node_refs": ["character"]},
+                {"op": "arrange_workflow"},
+            ],
+        }
+    )
+
+    result = graph_plan.apply_graph_plan(workflow, plan)
+    groups = {group["id"]: group for group in result.metadata["groups"]}
+
+    assert groups["character-group"]["node_ids"] == ["character"]
+    assert groups["poster-group"]["node_ids"] == ["poster"]
+    assert graph_plan._rects_have_gap(groups["character-group"]["bounds"], groups["poster-group"]["bounds"], 96)
+
+
 def test_single_assistant_group_includes_connected_prompt_inputs_but_not_notes(app_modules) -> None:
     del app_modules
     graph_plan = importlib.import_module("app.assistant.graph_plan")

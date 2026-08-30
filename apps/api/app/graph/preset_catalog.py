@@ -12,6 +12,29 @@ from .schemas import GraphNodeField, GraphNodePort
 MODEL_OPTION_FIELD_PREFIX = "option__"
 
 
+def media_preset_graph_usage(preset: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the canonical Graph Studio contract for one saved Media Preset."""
+    return {
+        "node_type": "preset.render",
+        "node_fields": {
+            "preset_id": str(preset.get("preset_id") or ""),
+            "preset_model_key": str(preset.get("model_key") or ""),
+        },
+        "text_field_ids": {
+            key: f"text__{slug(key)}"
+            for field in preset.get("input_schema_json") or []
+            if isinstance(field, dict) and (key := str(field.get("key") or "").strip())
+        },
+        "image_input_ports": {
+            key: f"slot__{slug(key)}"
+            for slot in preset.get("input_slots_json") or []
+            if isinstance(slot, dict) and (key := str(slot.get("key") or "").strip())
+        },
+        "output_ports": {"image": "image", "job": "job"},
+        "review_output": {"node_type": "preview.image", "input_port": "image"},
+    }
+
+
 def _model_labels() -> Dict[str, str]:
     labels: Dict[str, str] = {}
     for model in kie_adapter.list_models():

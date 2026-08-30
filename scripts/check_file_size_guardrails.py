@@ -52,12 +52,13 @@ GUARDRAILS = (
     FileGuardrail("apps/api/tests/test_api_smoke.py", 3250, "API smoke tests; release cap"),
 )
 
-# Ticket 11 adds the typed shot-list presentation boundary and distinguishes a
-# recipe-backed production graph from a dedicated recipe evidence run. Both
-# reuse existing typed results; no planner, route, or persistence owner was added.
+# Ticket 11 and its long-turn follow-up reuse the existing artifact, provider-
+# generation, single-flight, and typed-activity seams. The follow-up adds one
+# ephemeral progress response, coordinated time budgets, and full-turn cleanup
+# ownership; no persistence, worker, stream, dependency, or broad retry was added.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    11_424,
+    11_527,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

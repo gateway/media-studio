@@ -47,12 +47,15 @@ function nodeRect(node: Node): GraphGroup["bounds"] {
   return { x: node.position.x, y: node.position.y, width: nodeWidth(node), height: nodeHeight(node) };
 }
 
-function rectsTouchOrOverlap(a: GraphGroup["bounds"], b: GraphGroup["bounds"]): boolean {
-  const aRight = a.x + a.width;
-  const aBottom = a.y + a.height;
-  const bRight = b.x + b.width;
-  const bBottom = b.y + b.height;
-  return a.x <= bRight && aRight >= b.x && a.y <= bBottom && aBottom >= b.y;
+function rectContainsCenter(group: GraphGroup["bounds"], node: GraphGroup["bounds"]): boolean {
+  const centerX = node.x + node.width / 2;
+  const centerY = node.y + node.height / 2;
+  return (
+    centerX >= group.x &&
+    centerX <= group.x + group.width &&
+    centerY >= group.y &&
+    centerY <= group.y + group.height
+  );
 }
 
 export function graphGroupColorChoiceId(color: string | null | undefined): string {
@@ -212,7 +215,7 @@ export function syncGraphGroupMembership(groups: GraphGroup[], nodes: Node[]): G
   let changed = false;
   const next = groups
     .map((group) => {
-      const memberIds = nodes.filter((node) => rectsTouchOrOverlap(group.bounds, nodeRect(node))).map((node) => node.id);
+      const memberIds = nodes.filter((node) => rectContainsCenter(group.bounds, nodeRect(node))).map((node) => node.id);
       if (memberIds.length !== group.node_ids.length || memberIds.some((nodeId, index) => nodeId !== group.node_ids[index])) changed = true;
       return memberIds.length ? { ...group, node_ids: memberIds } : null;
     })

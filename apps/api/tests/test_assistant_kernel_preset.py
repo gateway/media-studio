@@ -5,6 +5,8 @@ import json
 
 import pytest
 
+from app.graph.prompt_recipe_catalog import slug
+
 
 def _preset_draft(key: str, *, fields=None, image_slot: bool = False):
     fields = fields or [
@@ -172,6 +174,26 @@ def test_preset_tools_read_real_catalog_models_and_full_contract(client) -> None
     assert fetched.trace.error is None
     assert fetched.result["key"] == preset["key"]
     assert "prompt_template" in fetched.result
+    assert fetched.result["graph_usage"] == {
+        "node_type": "preset.render",
+        "node_fields": {
+            "preset_id": preset["preset_id"],
+            "preset_model_key": preset["model_key"],
+        },
+        "text_field_ids": {
+            str(field["key"]): f"text__{slug(str(field['key']))}"
+            for field in preset.get("input_schema_json") or []
+        },
+        "image_input_ports": {
+            str(slot["key"]): f"slot__{slug(str(slot['key']))}"
+            for slot in preset.get("input_slots_json") or []
+        },
+        "output_ports": {"image": "image", "job": "job"},
+        "review_output": {
+            "node_type": "preview.image",
+            "input_port": "image",
+        },
+    }
     assert models.trace.error is None
     assert any("text_to_image" in item["task_modes"] for item in models.result["models"])
 

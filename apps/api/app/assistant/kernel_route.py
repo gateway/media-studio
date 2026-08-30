@@ -8,7 +8,11 @@ from fastapi import HTTPException
 from .. import store, store_assistant
 from .cancellation import AssistantRequestCancelled, AssistantSessionBusy, track_session
 from .kernel import run_assistant_kernel_turn
-from .provider_support import AssistantProviderChatError, sync_assistant_session_provider
+from .provider_support import (
+    AssistantProviderChatError,
+    assistant_story_provider_refresh_due,
+    sync_assistant_session_provider,
+)
 from .run_confirmation import (
     RunEvidenceError,
     applied_recipe_plan_id,
@@ -52,38 +56,60 @@ def create_kernel_message(
     attachments: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
     session_id = str(session["assistant_session_id"])
-    text = payload.content_text.strip()
     try:
         with track_session(session_id) as cancel_event:
-            stalled_thread = any(item.get("role") == "user" for item in store_assistant.list_assistant_messages(session_id)[-1:])
-            session = sync_assistant_session_provider(session, force_new_thread=stalled_thread)
-            session = _bind_selected_completed_assistant_run(session, payload)
-            user_message = store_assistant.create_assistant_message(
-                {
-                    "assistant_session_id": session_id,
-                    "role": "user",
-                    "content_text": text,
-                    "content_json": {
-                        "attachment_ids": payload.attachment_ids,
-                        "assistant_mode": payload.assistant_mode,
-                        "metadata": payload.metadata,
-                        "kernel_enabled": True,
-                    },
-                }
-            )
-            result = run_assistant_kernel_turn(
+            return _create_tracked_kernel_message(
                 session=session,
-                user_text=text,
-                workflow=payload.workflow,
-                canvas_context=payload.canvas_context,
-                assistant_mode=payload.assistant_mode,
-                run_id=payload.run_id,
+                payload=payload,
                 attachments=attachments,
                 cancel_event=cancel_event,
-                client_user_message_id=str(user_message.get("assistant_message_id") or "") or None,
             )
     except AssistantSessionBusy as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+def _create_tracked_kernel_message(
+    *,
+    session: Dict[str, Any],
+    payload: AssistantMessageCreateRequest,
+    attachments: List[Dict[str, Any]],
+    cancel_event: Any,
+) -> Dict[str, Any]:
+    session_id = str(session["assistant_session_id"])
+    text = payload.content_text.strip()
+    try:
+        stalled_thread = any(item.get("role") == "user" for item in store_assistant.list_assistant_messages(session_id)[-1:])
+        session = sync_assistant_session_provider(
+            session,
+            force_new_thread=(
+                stalled_thread or assistant_story_provider_refresh_due(session)
+            ),
+        )
+        session = _bind_selected_completed_assistant_run(session, payload)
+        user_message = store_assistant.create_assistant_message(
+            {
+                "assistant_session_id": session_id,
+                "role": "user",
+                "content_text": text,
+                "content_json": {
+                    "attachment_ids": payload.attachment_ids,
+                    "assistant_mode": payload.assistant_mode,
+                    "metadata": payload.metadata,
+                    "kernel_enabled": True,
+                },
+            }
+        )
+        result = run_assistant_kernel_turn(
+            session=session,
+            user_text=text,
+            workflow=payload.workflow,
+            canvas_context=payload.canvas_context,
+            assistant_mode=payload.assistant_mode,
+            run_id=payload.run_id,
+            attachments=attachments,
+            cancel_event=cancel_event,
+            client_user_message_id=str(user_message.get("assistant_message_id") or "") or None,
+        )
     except AssistantRequestCancelled as exc:
         store_assistant.create_assistant_message(
             {

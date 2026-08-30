@@ -1035,10 +1035,11 @@ describe("graph groups", () => {
     expect(resizeGraphGroupBounds([group], "group_1", { width: -200, height: -200 })[0].bounds).toEqual({ x: 0, y: 0, width: 180, height: 180 });
   });
 
-  it("syncs membership with any node touching group bounds", () => {
+  it("syncs membership by node center rather than incidental frame contact", () => {
     const nodes = [
       { id: "inside", position: { x: 20, y: 20 }, style: { width: 80, height: 80 }, data: {} },
-      { id: "touching", position: { x: 220, y: 40 }, style: { width: 80, height: 80 }, data: {} },
+      { id: "centered-at-edge", position: { x: 180, y: 40 }, style: { width: 80, height: 80 }, data: {} },
+      { id: "grazing", position: { x: 220, y: 40 }, style: { width: 80, height: 80 }, data: {} },
       { id: "outside", position: { x: 420, y: 20 }, style: { width: 80, height: 80 }, data: {} },
     ] as StudioNode[];
     const group = {
@@ -1049,7 +1050,7 @@ describe("graph groups", () => {
       bounds: { x: 0, y: 0, width: 220, height: 220 },
       execution: { mode: "enabled" as const },
     };
-    expect(syncGraphGroupMembership([group], nodes)[0].node_ids).toEqual(["inside", "touching"]);
+    expect(syncGraphGroupMembership([group], nodes)[0].node_ids).toEqual(["inside", "centered-at-edge"]);
   });
 
   it("removes nodes from group membership once they move completely off persisted bounds", () => {

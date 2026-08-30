@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import importlib
 import json
+from contextlib import contextmanager
 from pathlib import Path
-from threading import Event
+from threading import Event, Thread
 from types import SimpleNamespace
 
 import pytest
@@ -27,6 +28,7 @@ def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -
         "add_note",
         "connect_nodes",
         "group_nodes",
+        "remove_nodes_from_group",
         "arrange_workflow",
     ]
     step = schemas.AssistantKernelProviderStep.model_validate(
@@ -80,6 +82,8 @@ def test_kernel_instruction_exposes_every_capability_tool_for_a_wrong_ui_hint(ap
     assert "not for conversational story development, shot-list writing, or shot revision" in instruction
     assert "identity continuity or a reusable character reference" in instruction
     assert "requires an image-capable graph path" in instruction
+    assert "use its graph_usage contract directly" in instruction
+    assert "include both remove_nodes_from_group and arrange_workflow" in instruction
 
 
 def test_kernel_user_turn_exposes_the_selected_run_id(app_modules) -> None:
@@ -898,14 +902,98 @@ def test_completed_kernel_turn_persists_latest_provider_usage(
     assert sync_calls == [True]
 
 
+def test_kernel_turn_refreshes_provider_thread_before_measured_context_tail(
+    app_modules,
+    monkeypatch,
+) -> None:
+    kernel_route = importlib.import_module("app.assistant.kernel_route")
+    provider_support = importlib.import_module("app.assistant.provider_support")
+    schemas = importlib.import_module("app.assistant.schemas")
+    store_assistant = app_modules["store_assistant"]
+    closed_keys: list[str] = []
+    session = store_assistant.create_or_update_assistant_session(
+        {
+            "provider_kind": "codex_local",
+            "provider_model_id": "gpt-5.6-sol",
+            "provider_thread_id": "thread-at-measured-tail",
+            "state_snapshot_json": {"provider_generation": 4},
+            "summary_json": {
+                "kernel_story_state": {"version": 1},
+                "kernel_provider_usage": {
+                    "prompt_tokens": 47_651,
+                    "model_context_window": 258_400,
+                }
+            },
+        }
+    )
+    store_assistant.create_assistant_message(
+        {
+            "assistant_session_id": session["assistant_session_id"],
+            "role": "assistant",
+            "content_text": "The graph section is ready for review.",
+            "content_json": {},
+        }
+    )
+    monkeypatch.setattr(
+        provider_support.enhancement_provider.codex_local_provider,
+        "close_codex_local_skill_session",
+        closed_keys.append,
+    )
+
+    def complete_only_on_fresh_thread(*, session, **_kwargs):
+        assert session["provider_thread_id"] is None
+        return schemas.AssistantKernelTurnResult(
+            reply="Here are all six storyboard shots.",
+            capability="story_builder",
+            trace=schemas.AssistantKernelTrace(capability="story_builder"),
+        )
+
+    monkeypatch.setattr(
+        kernel_route,
+        "run_assistant_kernel_turn",
+        complete_only_on_fresh_thread,
+    )
+
+    stored = kernel_route.create_kernel_message(
+        session=session,
+        payload=kernel_route.AssistantMessageCreateRequest(
+            content_text="Draft exactly six distinct, usable storyboard shots."
+        ),
+        attachments=[],
+    )
+
+    assert closed_keys == [f"{session['assistant_session_id']}:4"]
+    assert stored["state_snapshot_json"]["provider_generation"] == 5
+
+
 def test_cancel_endpoint_signals_only_the_target_session(
     client,
     app_modules,
+    monkeypatch,
 ) -> None:
     cancellation = importlib.import_module("app.assistant.cancellation")
+    provider_support = importlib.import_module("app.assistant.provider_support")
     store_assistant = app_modules["store_assistant"]
     target = store_assistant.create_or_update_assistant_session({})
     other = store_assistant.create_or_update_assistant_session({})
+    waited_for: list[tuple[str, float]] = []
+
+    def finish_target_turn(session_id: str, timeout_seconds: float) -> bool:
+        waited_for.append((session_id, timeout_seconds))
+        current = store_assistant.get_assistant_session(session_id) or {}
+        store_assistant.create_or_update_assistant_session(
+            {
+                **current,
+                "summary_json": {"turn_cleanup_marker": "preserved"},
+            }
+        )
+        return True
+
+    monkeypatch.setattr(
+        provider_support,
+        "wait_for_session_idle",
+        finish_target_turn,
+    )
 
     with cancellation.track_session(target["assistant_session_id"]) as target_event:
         with cancellation.track_session(other["assistant_session_id"]) as other_event:
@@ -919,6 +1007,122 @@ def test_cancel_endpoint_signals_only_the_target_session(
             ] == "requested"
             assert target_event.is_set() is True
             assert other_event.is_set() is False
+            assert waited_for == [(target["assistant_session_id"], 5)]
+            assert response.json()["summary_json"]["turn_cleanup_marker"] == "preserved"
+
+
+def test_cancelled_turn_persists_interruption_before_single_flight_release(
+    app_modules,
+    monkeypatch,
+) -> None:
+    kernel_route = importlib.import_module("app.assistant.kernel_route")
+    cancellation = importlib.import_module("app.assistant.cancellation")
+    store_assistant = app_modules["store_assistant"]
+    session = store_assistant.create_or_update_assistant_session({})
+    order: list[str] = []
+
+    @contextmanager
+    def tracked(_session_id: str):
+        try:
+            yield Event()
+        finally:
+            order.append("released")
+
+    original_create_message = store_assistant.create_assistant_message
+
+    def record_message(payload):
+        if payload.get("role") == "system_summary":
+            order.append("persisted")
+        return original_create_message(payload)
+
+    monkeypatch.setattr(kernel_route, "track_session", tracked)
+    monkeypatch.setattr(store_assistant, "create_assistant_message", record_message)
+    monkeypatch.setattr(
+        kernel_route,
+        "run_assistant_kernel_turn",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            cancellation.AssistantRequestCancelled(
+                "Assistant kernel turn was cancelled.",
+                outcome="interrupted",
+            )
+        ),
+    )
+
+    with pytest.raises(kernel_route.HTTPException) as exc_info:
+        kernel_route.create_kernel_message(
+            session=session,
+            payload=kernel_route.AssistantMessageCreateRequest(content_text="Stop this turn."),
+            attachments=[],
+        )
+
+    assert exc_info.value.status_code == 409
+    assert order == ["persisted", "released"]
+
+
+def test_progress_endpoint_reports_only_safe_active_turn_milestones(
+    client,
+    app_modules,
+) -> None:
+    cancellation = importlib.import_module("app.assistant.cancellation")
+    store_assistant = app_modules["store_assistant"]
+    session = store_assistant.create_or_update_assistant_session({})
+    session_id = session["assistant_session_id"]
+
+    idle = client.get(f"/media/assistant/sessions/{session_id}/progress")
+    assert idle.status_code == 200
+    assert idle.json() == {
+        "active": False,
+        "stage": "idle",
+        "label": "",
+        "elapsed_seconds": 0,
+    }
+
+    with cancellation.track_session(session_id):
+        initial = client.get(f"/media/assistant/sessions/{session_id}/progress")
+        assert initial.status_code == 200
+        assert initial.json()["active"] is True
+        assert initial.json()["stage"] == "thinking"
+        assert initial.json()["label"] == "Thinking through your request…"
+
+        cancellation.publish_session_progress(
+            session_id,
+            stage="tool",
+            label="Checked your graph",
+        )
+        milestone = client.get(f"/media/assistant/sessions/{session_id}/progress")
+        assert milestone.status_code == 200
+        assert milestone.json()["active"] is True
+        assert milestone.json()["stage"] == "tool"
+        assert milestone.json()["label"] == "Checked your graph"
+        assert milestone.json()["elapsed_seconds"] >= 0
+
+    completed = client.get(f"/media/assistant/sessions/{session_id}/progress")
+    assert completed.json()["active"] is False
+
+
+def test_wait_for_idle_returns_after_progress_and_single_flight_cleanup(app_modules) -> None:
+    del app_modules
+    cancellation = importlib.import_module("app.assistant.cancellation")
+    session_id = "asst-cleanup-order"
+    entered = Event()
+    release = Event()
+
+    def tracked_turn() -> None:
+        with cancellation.track_session(session_id):
+            entered.set()
+            release.wait(timeout=2)
+
+    worker = Thread(target=tracked_turn)
+    worker.start()
+    assert entered.wait(timeout=2)
+    assert cancellation.cancel_session(session_id) is True
+    release.set()
+    assert cancellation.wait_for_session_idle(session_id, timeout_seconds=2) is True
+    assert cancellation.session_progress(session_id)["active"] is False
+    with cancellation.track_session(session_id):
+        pass
+    worker.join(timeout=2)
+    assert worker.is_alive() is False
 
 
 def test_kernel_stops_at_wall_clock_budget(app_modules, monkeypatch) -> None:
@@ -973,6 +1177,83 @@ def test_kernel_limits_provider_call_to_remaining_wall_budget(app_modules, monke
 
     assert observed_timeout == 8.75
     assert result.trace.termination == "completed"
+
+
+def test_kernel_default_budget_allows_a_three_minute_complex_turn(
+    app_modules,
+    monkeypatch,
+) -> None:
+    del app_modules
+    kernel = importlib.import_module("app.assistant.kernel")
+    observed_timeout = None
+    clock = iter([100.0, 100.5, 101.0])
+
+    monkeypatch.setattr(kernel.time, "perf_counter", lambda: next(clock))
+
+    def provider_step(**kwargs):
+        nonlocal observed_timeout
+        observed_timeout = kwargs["timeout_seconds"]
+        return {
+            "capability": "story_builder",
+            "reply": "The detailed production plan is ready.",
+        }
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
+
+    result = kernel.run_assistant_kernel_turn(
+        session={"provider_kind": "codex_local", "provider_model_id": "gpt-5.6-sol"},
+        user_text="Develop this complex story into a production plan.",
+        workflow=None,
+        canvas_context={},
+        assistant_mode="graph",
+    )
+
+    assert observed_timeout == 179.5
+    assert result.trace.termination == "completed"
+
+
+def test_kernel_publishes_completed_typed_activity_without_reasoning_text(
+    app_modules,
+    monkeypatch,
+) -> None:
+    del app_modules
+    kernel = importlib.import_module("app.assistant.kernel")
+    updates: list[tuple[str, str, str]] = []
+    provider_steps = iter(
+        [
+            {
+                "capability": "graph_builder",
+                "tool_call": {"name": "read_current_workflow", "arguments": {}},
+            },
+            {
+                "capability": "graph_builder",
+                "reply": "Your graph is ready for the next production choice.",
+            },
+        ]
+    )
+
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(provider_steps))
+    monkeypatch.setattr(
+        kernel,
+        "publish_session_progress",
+        lambda session_id, *, stage, label: updates.append((session_id, stage, label)),
+        raising=False,
+    )
+
+    result = kernel.run_assistant_kernel_turn(
+        session={
+            "assistant_session_id": "asst-progress",
+            "provider_kind": "codex_local",
+            "provider_model_id": "gpt-5.6-sol",
+        },
+        user_text="Review this graph and tell me what to do next.",
+        workflow=None,
+        canvas_context={},
+        assistant_mode="graph",
+    )
+
+    assert result.trace.termination == "completed"
+    assert updates == [("asst-progress", "tool", "Checked your graph")]
 
 
 def test_kernel_graph_proposal_is_validated_priced_and_confirmable(client, monkeypatch) -> None:

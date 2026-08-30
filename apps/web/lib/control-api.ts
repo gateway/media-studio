@@ -94,8 +94,8 @@ function toControlApiRawList(value: unknown): ControlApiRawList {
 }
 
 export const CONTROL_API_BASE_URL =
-  process.env.NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL ||
   process.env.MEDIA_STUDIO_CONTROL_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_MEDIA_STUDIO_CONTROL_API_BASE_URL ||
   "http://127.0.0.1:8000";
 const DEFAULT_LOCAL_CONTROL_API_TOKEN = "media-studio-local-control-token";
 const DEFAULT_CONTROL_API_TOKEN_PLACEHOLDER = "replace_with_a_unique_control_token";

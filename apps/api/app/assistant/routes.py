@@ -11,7 +11,7 @@ from ..graph.normalization import materialize_workflow_defaults
 from ..graph.pricing import estimate_graph_workflow
 from ..graph.schemas import GraphEstimateResponse, GraphValidationResult, GraphWorkflow
 from ..graph.validator import validate_workflow
-from .cancellation import AssistantSessionBusy
+from .cancellation import AssistantSessionBusy, session_progress
 from .confirmation_routes import create_confirmation_router
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
 from .graph_plan import apply_graph_plan
@@ -33,6 +33,7 @@ from .schemas import (
     AssistantPlanApplyResponse,
     AssistantPlanCreateRequest,
     AssistantPlanResponse,
+    AssistantProgress,
     AssistantSession,
     AssistantSessionCreateRequest,
     AssistantSessionListResponse,
@@ -146,6 +147,13 @@ def get_session(session_id: str) -> AssistantSession:
     if not record:
         raise _not_found("assistant session")
     return _shape_session(record)
+
+
+@router.get("/sessions/{session_id}/progress", response_model=AssistantProgress)
+def get_session_progress(session_id: str) -> AssistantProgress:
+    if not store_assistant.get_assistant_session(session_id):
+        raise _not_found("assistant session")
+    return AssistantProgress.model_validate(session_progress(session_id))
 
 
 @router.post("/sessions/{session_id}/messages", response_model=AssistantSession)
@@ -364,7 +372,10 @@ def cancel_session(session_id: str) -> AssistantSession:
     record = store_assistant.get_assistant_session(session_id)
     if not record:
         raise _not_found("assistant session")
-    return _shape_session(cancel_assistant_session(record))
+    try:
+        return _shape_session(cancel_assistant_session(record))
+    except AssistantSessionBusy as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.post("/sessions/{session_id}/archive", response_model=AssistantSession)

@@ -204,6 +204,34 @@ it("offers one primary Create test graph action for a preset draft", async () =>
   expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/apply"))).toBe(false);
 });
 
+it("does not surface an older preset draft action during a later general conversation", async () => {
+  renderPresetSession("tab-general-after-preset", {
+    ...session,
+    messages: [{
+      assistant_message_id: "message-general",
+      assistant_session_id: "session-1",
+      role: "assistant",
+      content_text: "You can ask naturally from one composer.",
+      content_json: {
+        mode: "assistant_kernel",
+        capability: "general",
+        next_action: { kind: "none", requires_confirmation: false },
+      },
+    }],
+    summary_json: {
+      kernel_preset_draft: {
+        label: "Older preset draft",
+        rules_json: { preset_lane: "text_to_image" },
+        input_slots_json: [],
+        input_schema_json: [],
+      },
+    },
+  });
+
+  await screen.findByText("You can ask naturally from one composer.");
+  expect(screen.queryByRole("button", { name: "Create test graph" })).toBeNull();
+});
+
 it("makes the applied text-to-image next action Run test without offering Save", async () => {
   renderPresetSession("tab-t2i", { ...session, messages: [], latest_plan: appliedPresetPlan("text_to_image") });
 

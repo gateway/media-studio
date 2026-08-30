@@ -19,6 +19,10 @@ from .limits import ASSISTANT_IMAGE_ATTACHMENT_LIMIT, is_image_attachment
 
 
 ASSISTANT_CHAT_DEFAULT_MAX_TOKENS = 900
+# Two continuous production journeys timed out after the reused Codex thread
+# reached 47,064 and 48,250 prompt tokens. Comparable one-step story turns
+# completed at or below 40,689, so refresh between those measured bands.
+ASSISTANT_CODEX_STORY_THREAD_REFRESH_TOKENS = 45_000
 
 
 class AssistantProviderChatError(Exception):
@@ -137,6 +141,22 @@ def assistant_codex_session_key(session: Dict[str, Any]) -> str:
     )
 
 
+def assistant_story_provider_refresh_due(session: Dict[str, Any]) -> bool:
+    summary = session.get("summary_json")
+    usage = summary.get("kernel_provider_usage") if isinstance(summary, dict) else None
+    if not isinstance(usage, dict):
+        return False
+    try:
+        return bool(
+            string_value(session.get("provider_kind")) == "codex_local"
+            and string_value(session.get("provider_thread_id"))
+            and isinstance(summary.get("kernel_story_state"), dict)
+            and int(usage.get("prompt_tokens") or 0) >= ASSISTANT_CODEX_STORY_THREAD_REFRESH_TOKENS
+        )
+    except (TypeError, ValueError):
+        return False
+
+
 def sync_assistant_session_provider(session: Dict[str, Any], *, force_new_thread: bool = False) -> Dict[str, Any]:
     provider_fields = assistant_provider_fields(session)
     if not force_new_thread and all(session.get(key) == value for key, value in provider_fields.items()):
@@ -177,19 +197,23 @@ def sync_active_assistant_session_providers() -> None:
 
 def cancel_assistant_session(record: Dict[str, Any]) -> Dict[str, Any]:
     session_id = string_value(record.get("assistant_session_id"))
+    cancellation_requested = cancel_session(session_id)
+    if cancellation_requested and not wait_for_session_idle(session_id, timeout_seconds=5):
+        raise AssistantSessionBusy("The assistant is still stopping. Try again in a moment.")
+    current = store_assistant.get_assistant_session(session_id) or record
     snapshot = (
-        dict(record.get("state_snapshot_json"))
-        if isinstance(record.get("state_snapshot_json"), dict)
+        dict(current.get("state_snapshot_json"))
+        if isinstance(current.get("state_snapshot_json"), dict)
         else {}
     )
     return store_assistant.create_or_update_assistant_session(
         {
-            **record,
+            **current,
             "status": "active",
             "state_snapshot_json": {
                 **snapshot,
                 "provider_cancellation_status": (
-                    "requested" if cancel_session(session_id) else "idle"
+                    "requested" if cancellation_requested else "idle"
                 ),
             },
         }

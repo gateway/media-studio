@@ -259,6 +259,13 @@ export type AssistantSession = {
   updated_at?: string | null;
 };
 
+export type AssistantProgress = {
+  active: boolean;
+  stage: "idle" | "thinking" | "tool";
+  label: string;
+  elapsed_seconds: number;
+};
+
 export type AssistantMessage = {
   assistant_message_id: string;
   assistant_session_id: string;

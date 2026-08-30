@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 
 
 def _layout_plan(assistant_schemas):
@@ -10,6 +11,36 @@ def _layout_plan(assistant_schemas):
             "operations": [{"op": "arrange_workflow"}],
         }
     )
+
+
+def test_selected_media_preset_fields_expand_backend_layout_height(app_modules) -> None:
+    del app_modules
+    graph_layout = importlib.import_module("app.graph.layout")
+    selected_preset = {
+        "preset_id": "preset-tall-character-sheet",
+        "default_model_key": "nano-banana-2",
+        "text_fields": [
+            {"key": "character_name", "type": "text"},
+            {"key": "clothing", "type": "text"},
+            {"key": "background", "type": "text"},
+            {"key": "panel_story_notes", "type": "text"},
+        ],
+        "image_slots": [
+            {"key": "face_reference"},
+            {"key": "full_body_reference"},
+        ],
+    }
+
+    _width, height = graph_layout.node_layout_size(
+        "preset.render",
+        {
+            "preset_id": selected_preset["preset_id"],
+            "preset_model_key": "nano-banana-2",
+            "__preset_catalog_item_json": json.dumps(selected_preset),
+        },
+    )
+
+    assert height >= 1_100
 
 
 def test_arrange_small_graph_handles_long_titles_and_nested_looking_groups(app_modules) -> None:

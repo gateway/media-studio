@@ -1554,11 +1554,18 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     options = ProposeGraphOperationsArguments.model_validate(arguments)
     operations = options.operations
     metadata: Dict[str, Any] = {"kernel_proposal": True}
-    if any(operation.op == "arrange_workflow" for operation in operations):
-        if len(operations) != 1:
+    arrange_operations = [operation for operation in operations if operation.op == "arrange_workflow"]
+    if arrange_operations:
+        if len(arrange_operations) != 1 or any(
+            operation.op not in {"remove_nodes_from_group", "arrange_workflow"}
+            for operation in operations
+        ):
             raise KernelToolFailure(
                 code="invalid_graph_operations",
-                message="Use arrange_workflow by itself for a geometry-only proposal.",
+                message=(
+                    "Use arrange_workflow by itself, or combine it only with remove_nodes_from_group "
+                    "for an atomic membership-and-layout repair."
+                ),
             )
         metadata["arrange_workflow"] = True
     session_summary = context.session.get("summary_json") if isinstance(context.session.get("summary_json"), dict) else {}
@@ -1922,9 +1929,11 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         name="propose_graph_operations",
         description=(
             "Build a standard preset test graph by template id, or apply typed graph operations; validate, "
-            "layout-check, price, and persist the confirmable proposal. For a layout-only request, use exactly "
-            "one arrange_workflow operation; the server deterministically moves existing nodes and recomputes "
-            "existing group bounds while preserving graph content, connections, identities, and membership."
+            "layout-check, price, and persist the confirmable proposal. For a layout-only request, use one "
+            "arrange_workflow operation; the server deterministically moves existing nodes and recomputes "
+            "existing group bounds while preserving graph content, connections, identities, and membership. "
+            "Use remove_nodes_from_group with an exact existing group id and node ids to repair an incorrect "
+            "membership; it may be combined with arrange_workflow in the same atomic repair proposal."
         ),
         arguments_model=ProposeGraphOperationsArguments,
         allowed_capabilities=frozenset({"graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}),

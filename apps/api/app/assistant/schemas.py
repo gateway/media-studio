@@ -397,6 +397,13 @@ class AssistantSessionListResponse(BaseModel):
     items: List[AssistantSession] = Field(default_factory=list)
 
 
+class AssistantProgress(BaseModel):
+    active: bool = False
+    stage: Literal["idle", "thinking", "tool"] = "idle"
+    label: str = ""
+    elapsed_seconds: int = Field(default=0, ge=0)
+
+
 class AssistantGraphOperation(BaseModel):
     op: Literal[
         "add_node",
@@ -405,6 +412,7 @@ class AssistantGraphOperation(BaseModel):
         "add_note",
         "connect_nodes",
         "group_nodes",
+        "remove_nodes_from_group",
         "arrange_workflow",
     ]
     node_ref: Optional[str] = None

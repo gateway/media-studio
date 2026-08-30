@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from .. import kie_adapter, store, store_assistant
+from ..graph.preset_catalog import media_preset_graph_usage
 from ..schemas import PresetUpsertRequest
 from ..service_errors import ServiceError
 from ..service_preset_validation import validate_preset_payload
@@ -86,12 +87,14 @@ def get_preset(arguments: BaseModel, _context: Any) -> Dict[str, Any]:
     record = store.get_preset(options.preset_id_or_key) or store.get_preset_by_key(options.preset_id_or_key)
     if not record:
         raise PresetKernelError(code="preset_not_found", message="That Media Preset does not exist.", retryable=False)
-    return PresetUpsertRequest.model_validate(
+    payload = PresetUpsertRequest.model_validate(
         {
             **record,
             "system_prompt_ids": record.get("system_prompt_ids_json") or [],
         }
     ).model_dump(mode="json")
+    payload["graph_usage"] = media_preset_graph_usage(record)
+    return payload
 
 
 _VIDEO_TASK_MODES = {
