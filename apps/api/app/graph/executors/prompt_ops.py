@@ -28,6 +28,8 @@ from ..storyboard_metadata_preflight import (
     ENVIRONMENT_SHEET_PROMPT_SEMANTICS,
     ORDINARY_IMAGE_PROMPT_SEMANTICS,
     STORYBOARD_METADATA_PROMPT_SEMANTICS,
+    USER_AUTHORED_PROMPT_SEMANTICS,
+    storyboard_prompt_has_metadata_rows,
 )
 from .base import GraphExecutionContext, GraphExecutor
 
@@ -1519,12 +1521,19 @@ class PromptTextExecutor(GraphExecutor):
             raise ValueError("Prompt Text requires typed text or connected text.")
         if len(text) > PROMPT_TEXT_MAX_CHARS:
             raise ValueError(f"Prompt Text output exceeds {PROMPT_TEXT_MAX_CHARS} characters.")
+        metadata = {
+            "type": "text",
+            "mode": mode,
+            "connected_input_count": len(connected_parts),
+        }
+        if typed_text and not connected_text and not storyboard_prompt_has_metadata_rows(text):
+            metadata["prompt_semantics"] = USER_AUTHORED_PROMPT_SEMANTICS
         return {
             "text": [
                 GraphOutputRef(
                     kind="value",
                     value=text,
-                    metadata={"type": "text", "mode": mode, "connected_input_count": len(connected_parts)},
+                    metadata=metadata,
                 )
             ]
         }

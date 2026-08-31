@@ -120,11 +120,13 @@ STORYBOARD_METADATA_PROMPT_SEMANTICS = "storyboard_sheet_with_metadata"
 STORYBOARD_ART_PROMPT_SEMANTICS = "storyboard_art_only"
 CHARACTER_REFERENCE_PROMPT_SEMANTICS = "character_reference"
 ORDINARY_IMAGE_PROMPT_SEMANTICS = "ordinary_image_prompt"
+USER_AUTHORED_PROMPT_SEMANTICS = "user_authored_prompt"
 PROMPT_SEMANTICS_WITHOUT_STORYBOARD_METADATA = {
     ENVIRONMENT_SHEET_PROMPT_SEMANTICS,
     STORYBOARD_ART_PROMPT_SEMANTICS,
     CHARACTER_REFERENCE_PROMPT_SEMANTICS,
     ORDINARY_IMAGE_PROMPT_SEMANTICS,
+    USER_AUTHORED_PROMPT_SEMANTICS,
 }
 
 
@@ -142,6 +144,16 @@ def _looks_like_text_free_storyboard_art_source(value: str) -> bool:
             text,
             flags=re.IGNORECASE,
         )
+    )
+
+
+def storyboard_prompt_has_metadata_rows(value: str) -> bool:
+    """Return whether a panel prompt contains any canonical production row."""
+
+    panels = _compact_panel_bodies(value) or _raw_panel_bodies(value)
+    return bool(panels) and any(
+        re.search(rf"\b{label}\s*:", value, flags=re.IGNORECASE)
+        for label in STORYBOARD_METADATA_LABELS
     )
 
 

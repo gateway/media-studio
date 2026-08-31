@@ -176,6 +176,61 @@ def test_gpt_image_2_preflight_uses_typed_prompt_semantics(client, monkeypatch) 
     ]
 
 
+def test_gpt_image_2_allows_untyped_storyboard_art_without_metadata_rows(client, monkeypatch) -> None:
+    from app.graph.executors import kie_model, prompt_ops
+    from app.graph.executors.base import GraphExecutionContext
+    from app.graph.schemas import GraphWorkflow, GraphWorkflowEdge, GraphWorkflowNode
+
+    submitted_prompts: list[str] = []
+
+    def submit_without_network(**kwargs):
+        submitted_prompts.append(kwargs["request"].prompt)
+        return {}
+
+    monkeypatch.setattr(kie_model, "submit_and_wait_for_kie_request", submit_without_network)
+    prompt = (
+        "Create a 3x3 storyboard contact sheet with six chronological keyframes. "
+        "Use the first six cells for the story and keep the bottom row black. "
+        "Do not render text, titles, captions, labels, or production metadata.\n\n"
+        + "\n\n".join(
+            f"PANEL {number} — {number}.0 SECONDS — DISTINCT VISUAL BEAT\n"
+            f"Show the same locked architecture while visual beat {number} unfolds."
+            for number in range(1, 7)
+        )
+    )
+    prompt_node = GraphWorkflowNode(id="prompt", type="prompt.text", fields={"text": prompt})
+    model = GraphWorkflowNode(id="model", type="model.kie.gpt_image_2_image_to_image")
+    workflow = GraphWorkflow(
+        name="Untyped storyboard art",
+        nodes=[prompt_node, model],
+        edges=[
+            GraphWorkflowEdge(
+                id="prompt-edge",
+                source="prompt",
+                source_port="text",
+                target="model",
+                target_port="prompt",
+            )
+        ],
+    )
+    prompt_context = GraphExecutionContext(
+        run_id="offline-user-authored-prompt",
+        workflow=GraphWorkflow(name="User-authored prompt", nodes=[prompt_node]),
+    )
+    prompt_outputs = prompt_ops.PromptTextExecutor().execute(prompt_node, prompt_context)["text"]
+    context = GraphExecutionContext(
+        run_id="offline-untyped-storyboard-art",
+        workflow=workflow,
+        edge_outputs={"prompt-edge": prompt_outputs},
+    )
+
+    kie_model.KieModelExecutor().execute(model, context)
+
+    assert len(submitted_prompts) == 1
+    assert "six chronological keyframes" in submitted_prompts[0]
+    assert prompt_outputs[0].metadata["prompt_semantics"] == "user_authored_prompt"
+
+
 def test_kernel_planned_storyboard_graph_executes_both_typed_branches_without_network(client, monkeypatch) -> None:
     kernel = importlib.import_module("app.assistant.kernel")
     prompt_ops = importlib.import_module("app.graph.executors.prompt_ops")
