@@ -14,7 +14,7 @@ The Codex CLI supports ChatGPT sign-in and other sign-in methods exposed by Code
 
 ### Quick check
 
-Run `codex` in a terminal. Complete sign-in if prompted, then exit the session. Start Media Studio with the Assistant flag enabled and open Graph Studio. The Assistant panel is available only when API health reports both the feature flag and Codex Local readiness.
+Run `codex` in a terminal. Complete sign-in if prompted, then exit the session. Start Media Studio with the Assistant flag enabled and open Graph Studio. The Media Assistant icon is always visible in Graph Studio. Until the feature flag and Codex Local readiness pass, it opens a setup panel showing the blocker, **Open Setup**, **AI Settings**, and **Check again**. The disabled state names the required environment flag and restart step. A failed health check is shown separately from missing Codex or sign-in. Once ready, the same entry opens the full Assistant. The setup panel does not create an Assistant session or enable operational actions. You do not need to keep a Codex terminal session running; Media Studio launches the runtime.
 
 If Codex is not available or not authenticated, the rest of Media Studio continues to work. The Assistant stays unavailable and its operational API routes remain disabled or fail closed according to the feature gate.
 
@@ -42,3 +42,10 @@ Adding another full Assistant runtime would require a deliberately implemented a
 - Use the normal Studio and Graph Studio surfaces if the Assistant is unavailable; existing saved artifacts remain usable without it.
 
 The feature remains a per-install pilot. See [Media Assistant](media-assistant.md) for architecture, safety boundaries, verification, and the current release decision.
+
+
+## Image generation defaults
+
+In **AI Settings → Media Assistant → Image generation defaults**, choose a text-to-image and/or image-to-image model. The choices come from the current eligible KIE catalog; no image model family is hardcoded into the preset test or storyboard templates. The conversation model is separate and continues to run the Assistant.
+
+Explicit requests take priority for new work. Existing preset drafts, saved presets, recipes and graph nodes keep their selected models. For unresolved new work, the Assistant uses the configured default or asks when the setting is **Ask when needed**. An unavailable choice produces a request to choose another model, rather than an automatic substitution. Newer catalog entries become selectable after the KIE catalog refresh/restart; onboarding does not silently change your defaults.

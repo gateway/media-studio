@@ -17,6 +17,7 @@ from ..graph.registry import registry
 from ..graph.schemas import GraphWorkflow, GraphWorkflowNode
 from ..graph.validator import validate_workflow
 from ..service_errors import ServiceError
+from ..service_image_models import resolve_image_model
 from ..service_prompt_recipe_validation import prompt_recipe_media_generation
 from ..store_support import new_id
 from .artifact_recommendation_tools import (
@@ -162,6 +163,7 @@ class ProposeGraphOperationsArguments(BaseModel):
             "story_shots_image_v1",
         ]
     ] = None
+    image_model_key: Optional[str] = Field(default=None, min_length=1, max_length=160, description="Explicit text-to-image model for a new storyboard; omit to use the configured default.")
     recipe_id: Optional[str] = Field(default=None, max_length=160)
     field_values: Optional[Dict[str, str]] = Field(default=None, min_length=1)
     questions: List[str] = Field(default_factory=list, max_length=8)
@@ -657,19 +659,16 @@ def _validate_current_workflow(arguments: BaseModel, context: KernelToolContext)
 PRESET_TEST_GRAPH_TEMPLATES = {
     "preset_style_t2i_sandbox_v1": {
         "mode": "text_to_image",
-        "model_key": "gpt-image-2-text-to-image",
-        "node_type": "model.kie.gpt_image_2_text_to_image",
     },
     "preset_style_i2i_sandbox_v1": {
         "mode": "image_to_image",
-        "model_key": "gpt-image-2-image-to-image",
-        "node_type": "model.kie.gpt_image_2_image_to_image",
     },
 }
 
 
 def _story_shots_image_operations(
     context: KernelToolContext,
+    model_key: Optional[str] = None,
 ) -> tuple[List[AssistantGraphOperation], Dict[str, Any]]:
     story_result = read_story_state(ReadStoryStateArguments(), context)
     if not story_result.get("exists"):
@@ -683,6 +682,12 @@ def _story_shots_image_operations(
             code="story_graph_shots_missing",
             message="Add structured shots to the story before building their graph.",
         )
+    model_definition = resolve_image_model("text_to_image", model_key)
+    model_fields = {field.id: field.default for field in model_definition.fields if field.default is not None}
+    for field in model_definition.fields:
+        preferred = {"aspect_ratio": "16:9", "resolution": "1K"}.get(field.id)
+        if preferred is not None and preferred in field.options:
+            model_fields[field.id] = preferred
     operations: List[AssistantGraphOperation] = []
     member_refs: List[str] = []
     for index, shot in enumerate(state.shots):
@@ -704,10 +709,10 @@ def _story_shots_image_operations(
                 AssistantGraphOperation(
                     op="add_node",
                     node_ref=model_ref,
-                    node_type="model.kie.gpt_image_2_text_to_image",
+                    node_type=model_definition.type,
                     title=f"Generate Shot {shot.shot_number}",
                     position={"x": 560, "y": row},
-                    fields={"aspect_ratio": "16:9", "resolution": "1K"},
+                    fields=model_fields,
                 ),
                 AssistantGraphOperation(
                     op="add_node",
@@ -742,6 +747,7 @@ def _story_shots_image_operations(
     )
     return operations, {
         "template_id": "story_shots_image_v1",
+        "template_model_key": model_definition.source["model_key"],
         "template_shot_count": len(state.shots),
         "template_story_version": state.version,
     }
@@ -1381,10 +1387,10 @@ def _preset_test_graph_operations(
                     details={"unused_field_key": key},
                 )
             prompt_template = prompt_template.replace(token, value)
-    if mode != template["mode"] or model_key != template["model_key"]:
+    if mode != template["mode"]:
         raise KernelToolFailure(
             code="preset_test_template_mismatch",
-            message="The selected test graph does not match the active preset lane and GPT Image 2 model.",
+            message="The selected test graph does not match the active preset lane.",
             details={"draft_mode": mode, "draft_model_key": model_key, "template_id": template_id},
         )
     if mode == "text_to_image" and slots:
@@ -1398,14 +1404,8 @@ def _preset_test_graph_operations(
             message="An image-to-image preset test requires at least one runtime image slot.",
         )
 
-    definitions = registry.definitions_by_type()
-    model_definition = definitions.get(template["node_type"])
-    if not model_definition:
-        raise KernelToolFailure(
-            code="preset_test_model_unavailable",
-            message="The selected GPT Image 2 model is not available in the current catalog.",
-            retryable=False,
-        )
+    model_definition = resolve_image_model(mode, model_key)
+    model_key = model_definition.source["model_key"]
     allowed_model_fields = {field.id for field in model_definition.fields}
     draft_options = draft.get("default_options_json") if isinstance(draft.get("default_options_json"), dict) else {}
     model_fields = {
@@ -1418,7 +1418,7 @@ def _preset_test_graph_operations(
     )
     expected_node_types = {
         "preset_prompt": "prompt.text",
-        "preset_model": template["node_type"],
+        "preset_model": model_definition.type,
         "preset_preview": "preview.image",
         **{
             f"preset_image_{index + 1}": "media.load_image"
@@ -1447,6 +1447,14 @@ def _preset_test_graph_operations(
                 node_id=existing_lane["preset_model"],
                 fields=model_fields,
             ),
+            *[
+                AssistantGraphOperation(
+                    op="set_node_field",
+                    node_id=existing_lane[f"preset_image_{index + 1}"],
+                    fields={"required_media": bool(slot.get("required", False))},
+                )
+                for index, slot in enumerate(slots)
+            ],
         ], {
             "template_id": template_id,
             "template_mode": mode,
@@ -1482,6 +1490,7 @@ def _preset_test_graph_operations(
                 node_ref=f"preset_image_{index + 1}",
                 node_type="media.load_image",
                 title=label,
+                fields={"required_media": bool(slot.get("required", False))},
                 position={"x": 0, "y": index * 360},
             )
         )
@@ -1498,8 +1507,8 @@ def _preset_test_graph_operations(
             AssistantGraphOperation(
                 op="add_node",
                 node_ref="preset_model",
-                node_type=template["node_type"],
-                title="GPT Image 2 Test",
+                node_type=model_definition.type,
+                title=f"{model_definition.title} Test",
                 position={"x": 520, "y": 180},
                 fields=model_fields,
             ),
@@ -1595,7 +1604,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
                     message="Use the story graph template only for typed story or graph work.",
                     retryable=False,
                 )
-            operations, template_metadata = _story_shots_image_operations(context)
+            operations, template_metadata = _story_shots_image_operations(context, options.image_model_key)
         elif template_id == "saved_recipe_image_v1":
             operations, template_metadata = _saved_recipe_graph_operations(
                 options.recipe_id,
@@ -2185,6 +2194,8 @@ def execute_kernel_tool(
                 message=exc.errors()[0].get("msg", "Invalid tool arguments."),
                 retryable=True,
             )
+        except ServiceError as exc:
+            error = AssistantKernelToolError(code="image_model_selection_required", message=str(exc), retryable=True)
         except KernelToolFailure as exc:
             error = AssistantKernelToolError(
                 code=exc.code,

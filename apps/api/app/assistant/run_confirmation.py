@@ -7,6 +7,7 @@ from fastapi import HTTPException
 
 from .. import store, store_assistant
 from ..graph.schemas import GraphWorkflow
+from ..graph.registry import registry
 from .provenance import (
     preset_test_workflow_fingerprint,
     recipe_plan_workflow_fingerprint,
@@ -148,11 +149,15 @@ def _recipe_plan_for_confirmation(
 
 
 def _preset_output_model_node_ids(workflow: dict) -> set[str]:
+    image_types = {item.type for item in registry.definitions_by_type().values()
+                   if (item.source or {}).get("kind") == "kie_model"
+                   and (item.source or {}).get("output_media_type") == "image"
+                   and any(port.id == "image" and port.type == "image" for port in item.ports.get("outputs", []))}
     return {
         str(node.get("id") or "")
         for node in workflow.get("nodes", [])
         if isinstance(node, dict)
-        and str(node.get("type") or "").startswith("model.kie.gpt_image_2_")
+        and str(node.get("type") or "") in image_types
     }
 
 

@@ -284,6 +284,6 @@ AI coding assistants may be used to understand, debug, modify, or contribute to 
 
 ## Versioning
 
-The first public release line starts at `v1.0.0`. The current build is `v1.0.3`.
+The first public release line starts at `v1.0.0`. The current build is `v1.0.4`. See [release notes](docs/releases/v1.0.4.md).
 
 When you ship a new build, update the root `package.json` version. The app reads that package version and displays it as `vX.Y.Z` in the admin nav, so testers can confirm exactly which build they are running.

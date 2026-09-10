@@ -4,7 +4,8 @@ import type { GraphGroup, GraphWorkflowPayload, StudioNode } from "../types";
 import { normalizeGraphExecutionMode, type GraphExecutionMode } from "./graph-node-execution";
 import { graphNodeDataWithExecutionMode } from "./graph-node-runtime";
 
-const GROUP_PADDING = 42;
+// Match the backend Assistant group enclosure contract.
+const GROUP_PADDING = 96;
 const MIN_GROUP_SIZE = 180;
 export const GRAPH_GROUP_MOVE_EVENT = "graph-studio:group-move";
 export const GRAPH_GROUP_RENAME_EVENT = "graph-studio:group-rename";
@@ -201,7 +202,7 @@ export function serializeGraphGroups(groups: GraphGroup[], nodes: StudioNode[]):
       title: group.title,
       color: graphGroupColorChoiceId(group.color),
       node_ids: memberIds,
-      bounds: group.bounds,
+      bounds: expandGroupBoundsToFitNodes(group.bounds, nodes, memberIds),
       execution: { mode: groupExecutionModeForNodes(nodes, memberIds, normalizeGraphExecutionMode(group.execution?.mode)) },
     }];
   });

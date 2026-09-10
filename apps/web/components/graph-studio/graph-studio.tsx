@@ -12,6 +12,7 @@ import {
 import { flushSync } from "react-dom";
 import {
   addEdge,
+  applyNodeChanges,
   ReactFlowProvider,
   useReactFlow,
   useEdgesState,
@@ -21,10 +22,6 @@ import {
 import { buildStudioGraphReturnHref } from "@/lib/studio-navigation";
 import { formatCreditsAmount } from "@/lib/utils";
 import {
-  isGraphAssistantAvailable,
-  isGraphAssistantDebugEnabled,
-} from "@/lib/graph-assistant-debug";
-import {
   GRAPH_NODE_DEFINITIONS_EVENT,
   GRAPH_NODE_DEFINITIONS_STORAGE_KEY,
   readGraphNodeDefinitionsRevision,
@@ -33,6 +30,8 @@ import { GraphCanvas } from "./graph-canvas";
 import { GraphConsole } from "./graph-console";
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
 import { GraphLeftRail } from "./graph-left-rail";
+import { GraphAssistantSetup } from "./graph-assistant-setup";
+import { useGraphAssistantAvailability } from "./hooks/use-graph-assistant-availability";
 import type { GraphSidebarDialog } from "./graph-library-dialogs";
 import { GraphPreviewOverlay } from "./graph-preview-overlay";
 import { GraphPricingConfirmation } from "./graph-pricing-confirmation";
@@ -63,6 +62,7 @@ import {
 } from "./hooks/use-graph-provider-model-catalog";
 import { useGraphRunHistory } from "./hooks/use-graph-run-history";
 import { useGraphStudioSupport } from "./hooks/use-graph-studio-support";
+import { useAssistantLayout } from "./hooks/use-assistant-layout";
 import { useGraphAssistantHistory } from "./hooks/use-graph-assistant-history";
 import { useAssistantGroupSelection } from "./hooks/use-assistant-group-selection";
 import { useGraphTabWorkspace } from "./hooks/use-graph-tab-workspace";
@@ -91,7 +91,7 @@ import type {
   StudioNode,
 } from "./types";
 import { jsonFetch } from "./utils/graph-api";
-import { graphGroupsForCanvas } from "./utils/graph-groups";
+import { graphGroupsForCanvas, pruneGraphGroupMembership } from "./utils/graph-groups";
 import { filterGraphNodeNoopChanges } from "./utils/graph-node-changes";
 import {
   assetIdsFromGraphRun,
@@ -175,7 +175,6 @@ export function GraphStudio() {
 
 function GraphStudioClient() {
   const { screenToFlowPosition } = useReactFlow<StudioNode, StudioEdge>();
-  const assistantDebugEnabled = isGraphAssistantDebugEnabled();
   const graphFixture = useMemo(() => graphStudioFixtureKind(), []);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [workflowName, setWorkflowName] = useState("New workflow");
@@ -238,9 +237,7 @@ function GraphStudioClient() {
   );
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
-  const [assistantConnectionProven, setAssistantConnectionProven] =
-    useState(false);
-  const assistantEnabled = assistantDebugEnabled && assistantConnectionProven;
+  const assistantAvailability = useGraphAssistantAvailability();
   const [assistantWorkspaceResetVersion, setAssistantWorkspaceResetVersion] =
     useState(0);
   const [consoleHeight, setConsoleHeight] = useState(170);
@@ -274,40 +271,6 @@ function GraphStudioClient() {
   const [renamingNodeId, setRenamingNodeId] = useState<string | null>(null);
   const [nodeRenameDraft, setNodeRenameDraft] = useState("");
 
-  useEffect(() => {
-    if (!assistantDebugEnabled) {
-      setAssistantConnectionProven(false);
-      setAssistantOpen(false);
-      return;
-    }
-
-    let cancelled = false;
-    fetch("/api/control/health", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`Health check returned ${response.status}.`);
-        }
-        return (await response.json()) as {
-          codex_local_ready?: unknown;
-          media_assistant_enabled?: unknown;
-        };
-      })
-      .then((payload) => {
-        if (cancelled) return;
-        const available = isGraphAssistantAvailable(payload);
-        setAssistantConnectionProven(available);
-        if (!available) setAssistantOpen(false);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setAssistantConnectionProven(false);
-        setAssistantOpen(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [assistantDebugEnabled]);
   const activeTab = useMemo(
     () => tabs.find((tab) => tab.tab_id === activeTabId) ?? null,
     [activeTabId, tabs],
@@ -337,6 +300,8 @@ function GraphStudioClient() {
   );
   const [nodes, setNodes, applyNodesChange] = useNodesState<StudioNode>([]);
   const nodesRef = useRef<StudioNode[]>([]);
+  const manualNodeMoveRef = useRef(false);
+  const { beginAssistantLayout, stopAssistantLayout } = useAssistantLayout({ nodes, setNodes, activeTabId });
   const onNodesChange = useCallback(
     (changes: Parameters<typeof applyNodesChange>[0]) => {
       const filteredChanges = filterGraphNodeNoopChanges(
@@ -344,6 +309,12 @@ function GraphStudioClient() {
         nodesRef.current,
       );
       if (!filteredChanges.length) return;
+      if (filteredChanges.some((change) => change.type === "position" && change.position)) {
+        stopAssistantLayout();
+        manualNodeMoveRef.current = true;
+        const movedNodes = applyNodeChanges(filteredChanges, nodesRef.current);
+        setGroups((current) => pruneGraphGroupMembership(current, movedNodes));
+      }
       const manuallySizedNodeIds = new Set<string>();
       filteredChanges.forEach((change) => {
         if ("id" in change && change.type === "dimensions" && change.resizing) {
@@ -370,7 +341,7 @@ function GraphStudioClient() {
         });
       }
     },
-    [applyNodesChange, setNodes],
+    [applyNodesChange, setNodes, stopAssistantLayout],
   );
   const [edges, setEdges, applyEdgesChange] = useEdgesState<StudioEdge>([]);
   const edgesRef = useRef<StudioEdge[]>([]);
@@ -683,6 +654,7 @@ function GraphStudioClient() {
     deleteGroup,
     setGroupExecutionMode,
   } = useGraphGroups({
+    manualNodeMoveRef,
     groups,
     nodes,
     setGroups,
@@ -1178,12 +1150,14 @@ function GraphStudioClient() {
           );
         }
       }
+      beginAssistantLayout(workflow, options?.baseWorkflow);
       applyAssistantWorkflowRef.current(workflow, {
         ...options,
         definitionsByType: refreshedDefinitionsByType,
       });
       if (refreshedDefinitionsByType) {
         const applyRefreshedCanvas = () => {
+          beginAssistantLayout(workflow, options?.baseWorkflow);
           const restored = hydrateGraphWorkflowForCanvas({
             workflow,
             definitionsByType: refreshedDefinitionsByType,
@@ -1219,7 +1193,7 @@ function GraphStudioClient() {
         });
       }
     },
-    [appendConsole, nodeHandlers, reloadNodeDefinitions, setEdges, setNodes],
+    [appendConsole, beginAssistantLayout, nodeHandlers, reloadNodeDefinitions, setEdges, setNodes],
   );
 
   const hydrateLastRun = useCallback(
@@ -2054,18 +2028,13 @@ function GraphStudioClient() {
           sidebarDialog={sidebarDialog}
           showMiniMap={showMiniMap}
           consoleOpen={consoleOpen}
-          assistantOpen={assistantEnabled && assistantOpen}
-          assistantEnabled={assistantEnabled}
+          assistantOpen={assistantOpen}
           onToggleDialog={(dialog) =>
             setSidebarDialog((current) => (current === dialog ? null : dialog))
           }
           onToggleMiniMap={() => setShowMiniMap((current) => !current)}
           onToggleConsole={() => setConsoleOpen((current) => !current)}
-          onToggleAssistant={() => {
-            if (assistantEnabled) {
-              setAssistantOpen((current) => !current);
-            }
-          }}
+          onToggleAssistant={() => setAssistantOpen((current) => !current)}
         />
         <main
           className={`graph-main ${consoleOpen ? "" : "graph-main-console-collapsed"}`}
@@ -2119,7 +2088,7 @@ function GraphStudioClient() {
             onRun={runWorkflow}
             onCancelRun={cancelRun}
           />
-          {assistantEnabled ? (
+          {assistantAvailability.status === "ready" ? (
             <CreativeAssistantPanel
               open={assistantOpen}
               bottomOffset={consoleOpen ? consoleHeight + 22 : 18}
@@ -2150,6 +2119,13 @@ function GraphStudioClient() {
               }}
               onClose={() => setAssistantOpen(false)}
               onEvent={(message) => appendConsole(message)}
+            />
+          ) : assistantOpen ? (
+            <GraphAssistantSetup
+              status={assistantAvailability.status}
+              bottomOffset={consoleOpen ? consoleHeight + 22 : 18}
+              onCheckAgain={assistantAvailability.checkAgain}
+              onClose={() => setAssistantOpen(false)}
             />
           ) : null}
           <GraphCanvas

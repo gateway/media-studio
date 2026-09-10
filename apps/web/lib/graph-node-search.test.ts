@@ -948,7 +948,7 @@ describe("graph groups", () => {
       { id: "a", position: { x: 100, y: 120 }, style: { width: 200, height: 160 }, data: { executionMode: "frozen" } },
       { id: "b", position: { x: 420, y: 260 }, style: { width: 180, height: 140 }, data: { executionMode: "frozen" } },
     ] as StudioNode[];
-    expect(computeGraphGroupBounds(nodes, ["a", "b"])).toMatchObject({ x: 58, y: 78, width: 584, height: 364 });
+    expect(computeGraphGroupBounds(nodes, ["a", "b"])).toMatchObject({ x: 4, y: 24, width: 692, height: 472 });
     const groups = [
       {
         id: "group_1",
@@ -959,16 +959,16 @@ describe("graph groups", () => {
         execution: { mode: "frozen" },
       },
     ];
-    expect(graphGroupsForCanvas(groups, nodes)[0].bounds).toEqual({ x: 0, y: 0, width: 642, height: 442 });
+    expect(graphGroupsForCanvas(groups, nodes)[0].bounds).toEqual({ x: 0, y: 0, width: 696, height: 496 });
     const serialized = serializeGraphGroups(groups, nodes);
     expect(serialized).toEqual([
       {
         ...groups[0],
-        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        bounds: { x: 0, y: 0, width: 696, height: 496 },
       },
     ]);
     const reloaded = readGraphGroupsFromWorkflow({ schema_version: 1, name: "Reloaded", nodes: [], edges: [], metadata: { groups: serialized } });
-    expect(graphGroupsForCanvas(reloaded, nodes)[0].bounds).toEqual({ x: 0, y: 0, width: 642, height: 442 });
+    expect(graphGroupsForCanvas(reloaded, nodes)[0].bounds).toEqual({ x: 0, y: 0, width: 696, height: 496 });
   });
 
   it("derives displayed and persisted group execution mode from member nodes", () => {

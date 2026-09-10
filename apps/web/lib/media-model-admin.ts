@@ -1,5 +1,6 @@
 import { STUDIO_NANO_MAX_OUTPUTS } from "@/lib/media-studio-helpers";
 import type {
+  MediaAssistantConfig,
   MediaEnhancementConfig,
   MediaEnhancementProviderModel,
   MediaModelQueuePolicy,
@@ -33,16 +34,16 @@ export function parseSavedEnhancementConfig(
   return null;
 }
 
-export function parseSavedPromptRecipeDraftingConfig(
+export function parseSavedPromptRecipeDraftingConfig<T extends PromptRecipeDraftingConfig>(
   result:
-    | { ok?: boolean; error?: string; config?: PromptRecipeDraftingConfig }
-    | (PromptRecipeDraftingConfig & { ok?: boolean; error?: string }),
+    | { ok?: boolean; error?: string; config?: T }
+    | (T & { ok?: boolean; error?: string }),
 ) {
   if ("config" in result && result.config) {
     return result.config;
   }
   if ("config_key" in result && typeof result.config_key === "string") {
-    return result as PromptRecipeDraftingConfig;
+    return result as T;
   }
   return null;
 }
@@ -124,8 +125,8 @@ export async function saveMediaAssistantConfigRequest(payload: Record<string, un
     body: JSON.stringify(payload),
   });
   const result = (await response.json()) as
-    | { ok?: boolean; error?: string; config?: PromptRecipeDraftingConfig }
-    | (PromptRecipeDraftingConfig & { ok?: boolean; error?: string });
+    | { ok?: boolean; error?: string; config?: MediaAssistantConfig }
+    | (MediaAssistantConfig & { ok?: boolean; error?: string });
   return {
     ok: response.ok && result.ok !== false,
     error: result.error,

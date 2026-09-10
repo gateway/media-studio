@@ -10,7 +10,6 @@ export function GraphLeftRail({
   showMiniMap,
   consoleOpen,
   assistantOpen,
-  assistantEnabled = false,
   galleryHref,
   onToggleDialog,
   onToggleMiniMap,
@@ -21,7 +20,6 @@ export function GraphLeftRail({
   showMiniMap: boolean;
   consoleOpen: boolean;
   assistantOpen: boolean;
-  assistantEnabled?: boolean;
   galleryHref: string;
   onToggleDialog: (dialog: SidebarDialog) => void;
   onToggleMiniMap: () => void;
@@ -69,18 +67,16 @@ export function GraphLeftRail({
       >
         <Images size={19} />
       </button>
-      {assistantEnabled ? (
-        <button
-          className={`graph-sidebar-icon ${assistantOpen ? "graph-sidebar-icon-active" : ""}`}
-          data-testid="graph-sidebar-assistant-button"
-          type="button"
-          aria-label={assistantOpen ? "Hide Media Assistant" : "Show Media Assistant"}
-          title={assistantOpen ? "Hide Media Assistant" : "Media Assistant"}
-          onClick={onToggleAssistant}
-        >
-          <MessageSquare size={19} />
-        </button>
-      ) : null}
+      <button
+        className={`graph-sidebar-icon ${assistantOpen ? "graph-sidebar-icon-active" : ""}`}
+        data-testid="graph-sidebar-assistant-button"
+        type="button"
+        aria-label={assistantOpen ? "Hide Media Assistant" : "Show Media Assistant"}
+        title={assistantOpen ? "Hide Media Assistant" : "Media Assistant"}
+        onClick={onToggleAssistant}
+      >
+        <MessageSquare size={19} />
+      </button>
       <button
         className={`graph-sidebar-icon ${sidebarDialog === "runs" ? "graph-sidebar-icon-active" : ""}`}
         data-testid="graph-sidebar-runs-button"

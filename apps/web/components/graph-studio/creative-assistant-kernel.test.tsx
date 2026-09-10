@@ -273,7 +273,7 @@ it("offers to create rather than replace a saved-recipe graph on an empty canvas
   expect(screen.getByText("Create graph")).toBeTruthy();
 });
 
-it("saves a kernel preset only after the user clicks its server-owned confirmation", async () => {
+it.each([undefined, "Media Preset saved, but its thumbnail could not be saved. Open the preset editor to add the image."])("saves a confirmed kernel preset and shows any partial-success warning (%s)", async (warning) => {
   const assistantMessage = {
     assistant_message_id: "message-preset-kernel",
     assistant_session_id: "session-1",
@@ -310,7 +310,8 @@ it("saves a kernel preset only after the user clicks its server-owned confirmati
         artifact_kind: "media_preset",
         created: true,
         record: { preset_id: "preset-1", key: "amber-board", label: "Amber Board" },
-        message: "Preset saved.",
+        message: warning || "Preset saved.",
+        warning,
         assistant_session: {
           ...session,
           messages: [assistantMessage],
@@ -351,6 +352,8 @@ it("saves a kernel preset only after the user clicks its server-owned confirmati
     confirmation_token: "preset-token-1",
   });
   await waitFor(() => expect(screen.queryByRole("button", { name: "Save confirmed Media Preset" })).toBeNull());
+  if (warning) expect(await screen.findByText(warning)).toBeTruthy();
+  expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/preset-saves"))).toHaveLength(1);
 });
 
 it("does not offer primary preset save for an applied graph without quality proof", async () => {

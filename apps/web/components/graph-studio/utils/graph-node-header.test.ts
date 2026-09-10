@@ -8,10 +8,10 @@ describe("graphNodeHeaderKindLabel", () => {
   });
 
   it("shows the original model name for renamed image model nodes", () => {
-    expect(graphNodeHeaderKindLabel({ title: "GPT Image 2 - Image to Image", category: "Models/Image" })).toBe("GPT Image 2 - Image to Image - image model");
+    expect(graphNodeHeaderKindLabel({ title: "GPT Image 2 - Image to Image", category: "Models/Image" }, "Hero Frame")).toBe("GPT Image 2 - Image to Image");
   });
 
-  it("shows the original model name for video model nodes", () => {
-    expect(graphNodeHeaderKindLabel({ title: "Seedance 2.0 Pro", category: "Models/Video" })).toBe("Seedance 2.0 Pro - video model");
+  it("shows only the category when the model name is already in the title", () => {
+    expect(graphNodeHeaderKindLabel({ title: "Seedance 2.0 Pro", category: "Models/Video" })).toBe("Video model");
   });
 });

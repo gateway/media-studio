@@ -1686,6 +1686,10 @@ def _apply_graph_artifacts_schema(connection: sqlite3.Connection) -> None:
     )
 
 
+def _apply_assistant_image_model_defaults(connection: sqlite3.Connection) -> None:
+    ensure_column(connection, "media_prompt_recipe_drafting_configs", "image_model_defaults_json", "TEXT NOT NULL DEFAULT '{}'")
+
+
 MIGRATIONS = [
     SchemaMigration(
         migration_id="20260419_001_tracked_baseline",
@@ -2024,7 +2028,14 @@ MIGRATIONS = [
         description="Refresh the Seedance storyboard video director with explicit two- and three-reference layouts.",
         apply=seed_default_prompt_recipes,
     ),
+    SchemaMigration(
+        migration_id="20260909_055_assistant_image_model_defaults",
+        version=55,
+        description="Add optional Assistant image-generation model defaults without changing saved artifacts.",
+        apply=_apply_assistant_image_model_defaults,
+    ),
 ]
+
 
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 

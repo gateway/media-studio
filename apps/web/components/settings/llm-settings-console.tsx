@@ -293,7 +293,7 @@ export function LlmSettingsConsole({
       <Panel className="overflow-hidden p-0">
         <SectionDisclosure
           title="Media Assistant model"
-          description="Choose the provider used for assistant conversation and Media Studio actions."
+          description="Choose the conversation provider and image generation defaults for new Assistant work."
           summary={`Using: ${assistantProviderLabel}`}
           detail={
             mediaAssistantConfig?.supports_media_studio_tools === false

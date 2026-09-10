@@ -585,12 +585,19 @@ class PromptRecipeDraftingConfigRecord(BaseModel):
     updated_at: Optional[str] = None
 
 
+class AssistantImageModelDefaults(BaseModel):
+    text_to_image: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    image_to_image: Optional[str] = Field(default=None, min_length=1, max_length=160)
+
+
 class MediaAssistantConfigUpsertRequest(PromptRecipeDraftingConfigUpsertRequest):
-    pass
+    image_model_defaults_json: Optional[AssistantImageModelDefaults] = None
 
 
 class MediaAssistantConfigRecord(PromptRecipeDraftingConfigRecord):
     supports_media_studio_tools: bool = True
+    image_model_defaults_json: AssistantImageModelDefaults = Field(default_factory=AssistantImageModelDefaults)
+    image_model_choices_json: Dict[str, List[Dict[str, str]]] = Field(default_factory=dict)
 
 
 class ExternalLlmUsageTotals(BaseModel):

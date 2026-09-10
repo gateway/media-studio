@@ -965,6 +965,14 @@ export type PromptRecipeDraftingConfig = {
 
 export type MediaAssistantConfig = PromptRecipeDraftingConfig & {
   supports_media_studio_tools: boolean;
+  image_model_choices_json?: {
+    text_to_image: Array<{ key: string; label: string }>;
+    image_to_image: Array<{ key: string; label: string }>;
+  };
+  image_model_defaults_json?: {
+    text_to_image: string | null;
+    image_to_image: string | null;
+  };
 };
 
 export type ExternalLlmUsageTotals = {

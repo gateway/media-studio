@@ -431,7 +431,7 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
         if source.type in {"media.load_image", "media.load_video", "media.load_audio"} and not source.fields.get("asset_id") and not source.fields.get("reference_id"):
             target_requires_media = _preset_slot_required_for_port(target, edge.target_port)
             if target_requires_media is None:
-                target_requires_media = bool(getattr(target_port, "required", False))
+                target_requires_media = bool(source.fields.get("required_media") or getattr(target_port, "required", False))
             if target_requires_media:
                 errors.append(
                     GraphError(

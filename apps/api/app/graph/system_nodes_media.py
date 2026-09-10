@@ -114,6 +114,7 @@ def media_node_definitions() -> List[GraphNodeDefinition]:
             fields=[
                 GraphNodeField(id="asset_id", label="Asset ID", type="asset_picker", required=False),
                 GraphNodeField(id="reference_id", label="Reference ID", type="reference_media_picker", required=False),
+                GraphNodeField(id="required_media", label="Required Media", type="boolean", required=False, hidden=True, help_text="Require this image for an Assistant preset runtime slot."),
             ],
         ),
         GraphNodeDefinition(

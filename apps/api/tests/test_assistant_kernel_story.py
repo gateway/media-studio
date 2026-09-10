@@ -358,6 +358,7 @@ def test_story_shots_can_become_validated_priced_graph(client, capability: str) 
         arguments={
             "summary": "Create one runnable image chain per approved story shot.",
             "template_id": "story_shots_image_v1",
+            "image_model_key": "gpt-image-2-text-to-image",
         },
         capability=capability,
         context=context,
@@ -367,11 +368,10 @@ def test_story_shots_can_become_validated_priced_graph(client, capability: str) 
     assert proposed.result["validation"]["valid"] is True
     assert proposed.result["confirmable"] is True
     assert proposed.result["pricing"]["pricing_summary"]["total"]["estimated_credits"] > 0
-    assert "workflow" not in proposed.result
-    assert proposed.result["workflow_summary"]["node_count"] == 18
-    assert proposed.result["workflow_summary"]["edge_count"] == 12
-    assert proposed.result["operations_count"] == 31
     stored = store_assistant.get_assistant_plan(proposed.result["proposal_id"])
+    assert len(stored["workflow_json"]["nodes"]) == 18
+    assert len(stored["workflow_json"]["edges"]) == 12
+    assert len(stored["plan_json"]["operations"]) == 31
     assert stored["plan_json"]["metadata"]["template_id"] == "story_shots_image_v1"
     assert stored["plan_json"]["metadata"]["template_shot_count"] == 6
 

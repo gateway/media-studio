@@ -342,6 +342,7 @@ export type AssistantArtifactSaveResponse = {
   created: boolean;
   record: Record<string, unknown>;
   message: string;
+  warning?: string;
   assistant_session: AssistantSession;
 };
 
