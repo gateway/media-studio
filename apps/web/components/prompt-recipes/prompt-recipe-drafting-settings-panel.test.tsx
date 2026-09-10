@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PromptRecipeDraftingSettingsPanel } from "@/components/prompt-recipes/prompt-recipe-drafting-settings-panel";
 import { __resetSharedProviderModelCatalogCacheForTests } from "@/hooks/use-shared-provider-model-catalog";
-import type { PromptRecipeDraftingConfig } from "@/lib/types";
+import type { MediaAssistantConfig, PromptRecipeDraftingConfig } from "@/lib/types";
 
 const {
   probeMediaAssistantProviderRequest,
@@ -218,6 +218,58 @@ describe("PromptRecipeDraftingSettingsPanel", () => {
 
     const modelSelect = screen.getByRole("combobox", { name: "Default model" }) as HTMLSelectElement;
     expect(Array.from(modelSelect.options).map((option) => option.text)).toContain("Local Director");
+  });
+
+  it("uses server-approved image choices and saves defaults without changing the conversation provider", async () => {
+    const initialConfig: MediaAssistantConfig = {
+      ...makeConfig(), config_key: "media_assistant", supports_media_studio_tools: false,
+      image_model_defaults_json: { text_to_image: null, image_to_image: null },
+      image_model_choices_json: {
+        text_to_image: [{ key: "new-text-model", label: "New text model" }],
+        image_to_image: [{ key: "new-edit-model", label: "New edit model" }],
+      },
+    };
+    saveMediaAssistantConfigRequest.mockImplementation(async (payload) => ({
+      ok: true, config: { ...initialConfig, ...payload },
+    }));
+    const view = render(<PromptRecipeDraftingSettingsPanel purpose="media_assistant" initialConfig={initialConfig} />);
+    const textSelect = screen.getByLabelText("Text to image") as HTMLSelectElement;
+    const editSelect = screen.getByLabelText("Image to image") as HTMLSelectElement;
+    expect(Array.from(textSelect.options).map((option) => option.value)).toEqual(["", "new-text-model"]);
+    expect(Array.from(editSelect.options).map((option) => option.value)).toEqual(["", "new-edit-model"]);
+    fireEvent.change(textSelect, { target: { value: "new-text-model" } });
+    fireEvent.change(editSelect, { target: { value: "new-edit-model" } });
+    fireEvent.click(screen.getByRole("button", { name: /save assistant defaults/i }));
+    await screen.findByText("Media Assistant defaults saved.");
+    expect(saveMediaAssistantConfigRequest).toHaveBeenCalledWith(expect.objectContaining({
+      provider_kind: initialConfig.provider_kind,
+      provider_model_id: initialConfig.provider_model_id,
+      provider_base_url: undefined,
+      image_model_defaults_json: { text_to_image: "new-text-model", image_to_image: "new-edit-model" },
+    }));
+    const saved = await saveMediaAssistantConfigRequest.mock.results[0].value;
+    view.rerender(<PromptRecipeDraftingSettingsPanel purpose="media_assistant" initialConfig={saved.config} />);
+    expect((screen.getByLabelText("Text to image") as HTMLSelectElement).value).toBe("new-text-model");
+    expect((screen.getByLabelText("Image to image") as HTMLSelectElement).value).toBe("new-edit-model");
+    fireEvent.change(screen.getByLabelText("Image to image"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: /save assistant defaults/i }));
+    await waitFor(() => expect(saveMediaAssistantConfigRequest).toHaveBeenLastCalledWith(expect.objectContaining({
+      image_model_defaults_json: { text_to_image: "new-text-model", image_to_image: null },
+    })));
+  });
+
+  it("preserves unavailable stored image defaults when saving provider settings", async () => {
+    const initialConfig: MediaAssistantConfig = {
+      ...makeConfig(), config_key: "media_assistant", supports_media_studio_tools: false,
+      image_model_defaults_json: { text_to_image: "removed-model", image_to_image: null },
+    };
+    saveMediaAssistantConfigRequest.mockResolvedValue({ ok: true, config: initialConfig });
+    render(<PromptRecipeDraftingSettingsPanel purpose="media_assistant" initialConfig={initialConfig} />);
+    expect((screen.getByLabelText("Text to image") as HTMLSelectElement).value).toBe("removed-model");
+    expect(screen.getByRole("option", { name: "removed-model (unavailable)" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /save assistant defaults/i }));
+    await screen.findByText("Media Assistant defaults saved.");
+    expect(saveMediaAssistantConfigRequest.mock.calls[0][0]).not.toHaveProperty("image_model_defaults_json");
   });
 
   it("owns Media Assistant provider selection and labels non-Codex providers as chat only", async () => {

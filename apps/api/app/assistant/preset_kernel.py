@@ -11,6 +11,7 @@ from .. import kie_adapter, store, store_assistant
 from ..graph.preset_catalog import media_preset_graph_usage
 from ..schemas import PresetUpsertRequest
 from ..service_errors import ServiceError
+from ..service_image_models import assistant_image_model_defaults
 from ..service_preset_validation import validate_preset_payload
 from ..store_support import new_id
 from .preset_fields import (
@@ -159,12 +160,9 @@ def _cost_basis(rule: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def _model_name_matches(requested: str, model: Dict[str, Any]) -> bool:
-    requested_name = re.sub(r"[^a-z0-9]+", "-", requested.lower()).strip("-")
-    for value in (model.get("key"), model.get("label")):
-        candidate = re.sub(r"[^a-z0-9]+", "-", str(value or "").lower()).strip("-")
-        if candidate == requested_name or candidate.startswith(f"{requested_name}-"):
-            return True
-    return False
+    requested_name = re.sub(r"[^a-z0-9.]+", "-", requested.lower()).strip("-")
+    label = re.sub(r"[^a-z0-9.]+", "-", str(model.get("label") or model.get("key") or "").lower()).strip("-")
+    return label == requested_name or label.startswith(f"{requested_name}-")
 
 
 def list_media_models(arguments: BaseModel, _context: Any) -> Dict[str, Any]:
@@ -234,6 +232,7 @@ def list_media_models(arguments: BaseModel, _context: Any) -> Dict[str, Any]:
             break
     return {
         "models": items,
+        "image_model_defaults": assistant_image_model_defaults(),
         "count": len(items),
         "catalog": {
             "kie_spec_version": kie_spec_version,

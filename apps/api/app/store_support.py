@@ -41,6 +41,7 @@ JSON_FIELDS = {
     "tags_json",
     "payload_json",
     "provider_capabilities_json",
+    "image_model_defaults_json",
     "metadata_json",
     "summary_json",
     "state_snapshot_json",

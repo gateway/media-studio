@@ -602,7 +602,8 @@ export function useCreativeAssistant({
       );
       setScopedSession(result.assistant_session);
       await refreshDefinitionsAfterAssistantSave("assistant-media-preset-saved");
-      onEvent?.(result.message || "Media Preset saved.", "success");
+      setError(result.warning ?? null);
+      onEvent?.(result.message || "Media Preset saved.", result.warning ? "warning" : "success");
       return result;
     } catch (requestError) {
       if (isAbortError(requestError)) {

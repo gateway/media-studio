@@ -162,7 +162,7 @@ export function GraphNode({ id, data, selected }: NodeProps<StudioNode>) {
   const promptRecipeImageWarning = definition.type === "prompt.recipe" ? graphPromptRecipeImageWarning(definition, data.fields, connectedInputPortIds) : null;
   const mediaPresetSummary = definition.type === "preset.render" ? graphMediaPresetSelectionSummary(definition, data.fields) : null;
   const promptHeaderSummary = graphPromptNodeHeaderSummary(definition.type, data.fields);
-  const nodeKindLabel = promptHeaderSummary ?? graphNodeHeaderKindLabel(definition);
+  const nodeKindLabel = promptHeaderSummary ?? graphNodeHeaderKindLabel(definition, displayTitle);
   const activityLabel = status === "idle" ? null : data.activityLabel;
   const collapsedHeight = 54;
   const usesContentAutoHeight = graphNodeUsesContentAutoHeight(definition);

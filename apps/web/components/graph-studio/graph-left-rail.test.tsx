@@ -15,7 +15,6 @@ function renderRail(overrides: Partial<Parameters<typeof GraphLeftRail>[0]> = {}
     showMiniMap: false,
     consoleOpen: false,
     assistantOpen: false,
-    assistantEnabled: false,
     galleryHref: "/studio",
     onToggleDialog: vi.fn(),
     onToggleMiniMap: vi.fn(),
@@ -27,15 +26,15 @@ function renderRail(overrides: Partial<Parameters<typeof GraphLeftRail>[0]> = {}
 }
 
 describe("GraphLeftRail", () => {
-  it("hides the Media Assistant button by default", () => {
+  it("keeps the Media Assistant setup entry discoverable by default", () => {
     renderRail();
 
-    expect(screen.queryByTestId("graph-sidebar-assistant-button")).toBeNull();
+    expect(screen.getByRole("button", { name: "Show Media Assistant" })).toBeTruthy();
   });
 
-  it("shows and toggles the Media Assistant button when debug-enabled", () => {
+  it("toggles the Media Assistant entry", () => {
     const onToggleAssistant = vi.fn();
-    renderRail({ assistantEnabled: true, onToggleAssistant });
+    renderRail({ onToggleAssistant });
 
     fireEvent.click(screen.getByTestId("graph-sidebar-assistant-button"));
 

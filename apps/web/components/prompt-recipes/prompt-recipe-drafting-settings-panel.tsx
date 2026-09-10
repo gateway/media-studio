@@ -27,10 +27,10 @@ import {
   providerModelFallback,
   resolveSelectedProviderModel,
 } from "@/lib/llm-provider-models";
-import type { PromptRecipeDraftingConfig } from "@/lib/types";
+import type { MediaAssistantConfig, PromptRecipeDraftingConfig } from "@/lib/types";
 
 type PromptRecipeDraftingSettingsPanelProps = {
-  initialConfig: PromptRecipeDraftingConfig | null;
+  initialConfig: PromptRecipeDraftingConfig | MediaAssistantConfig | null;
   embedded?: boolean;
   purpose?: "prompt_recipe" | "media_assistant";
 };
@@ -50,10 +50,24 @@ type DraftingFormState = {
   providerCredentialSource: string;
   temperature: number;
   maxTokens: number;
+  imageModelDefaults: NonNullable<MediaAssistantConfig["image_model_defaults_json"]>;
+  imageModelDefaultsTouched: boolean;
+  imageModelChoices: NonNullable<MediaAssistantConfig["image_model_choices_json"]>;
 };
 
-function formFromConfig(config: PromptRecipeDraftingConfig | null): DraftingFormState {
+function formFromConfig(config: PromptRecipeDraftingConfig | MediaAssistantConfig | null): DraftingFormState {
+  const imageDefaults = config && "image_model_defaults_json" in config ? config.image_model_defaults_json : null;
+  const imageChoices = config && "image_model_choices_json" in config ? config.image_model_choices_json : null;
   return {
+    imageModelChoices: {
+      text_to_image: imageChoices?.text_to_image ?? [],
+      image_to_image: imageChoices?.image_to_image ?? [],
+    },
+    imageModelDefaults: {
+      text_to_image: imageDefaults?.text_to_image ?? null,
+      image_to_image: imageDefaults?.image_to_image ?? null,
+    },
+    imageModelDefaultsTouched: false,
     enabled: config?.enabled !== false,
     providerKind: (config?.provider_kind as SharedLlmProviderKind) ?? "codex_local",
     providerLabel: config?.provider_label ?? "",
@@ -175,6 +189,9 @@ export function PromptRecipeDraftingSettingsPanel({
         ? saveMediaAssistantConfigRequest
         : savePromptRecipeDraftingConfigRequest;
       const result = await saveRequest({
+        ...(isAssistant && form.imageModelDefaultsTouched
+          ? { image_model_defaults_json: form.imageModelDefaults }
+          : {}),
         enabled: form.enabled,
         provider_kind: form.providerKind,
         provider_label: form.providerLabel || null,
@@ -245,7 +262,7 @@ export function PromptRecipeDraftingSettingsPanel({
       {notice ? <AdminActionNotice tone={notice.tone} text={notice.text} /> : null}
 
       <SharedLlmProviderIntroCard
-        accentLabel={isAssistant ? "Media Assistant model" : "Recipe draft model"}
+        accentLabel={isAssistant ? "Assistant conversation model" : "Recipe draft model"}
         summaryLines={[
           isAssistant
             ? form.providerKind === "codex_local"
@@ -508,6 +525,43 @@ export function PromptRecipeDraftingSettingsPanel({
           </div>
           <div className="text-sm leading-6 text-[var(--muted-strong)]">
             Most people should leave these alone. {isAssistant ? "Chat-only providers cannot inspect or change Media Studio state." : "Recipe drafting still returns text-first output even when the provider can accept images."}
+          </div>
+        </DraftingSettingsAccentCard>
+      ) : null}
+
+      {isAssistant ? (
+        <DraftingSettingsAccentCard label="Image generation defaults">
+          <p className="text-sm leading-6 text-[var(--muted-strong)]">
+            These models generate images; the conversation model above runs the Assistant.
+            Defaults apply to new work. Explicit requests and saved workflow, preset, or recipe choices take priority.
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {([
+              ["text_to_image", "Text to image"],
+              ["image_to_image", "Image to image"],
+            ] as const).map(([key, label]) => {
+              const choices = form.imageModelChoices[key];
+              const selected = form.imageModelDefaults[key];
+              return (
+                <AdminField key={key} label={label}>
+                  <select
+                    className="admin-input text-sm"
+                    value={selected ?? ""}
+                    onChange={(event) => setForm((current) => ({
+                      ...current,
+                      imageModelDefaults: { ...current.imageModelDefaults, [key]: event.target.value || null },
+                      imageModelDefaultsTouched: true,
+                    }))}
+                  >
+                    <option value="">Ask when needed</option>
+                    {selected && !choices.some((model) => model.key === selected) ? (
+                      <option value={selected}>{selected} (unavailable)</option>
+                    ) : null}
+                    {choices.map((model) => <option key={model.key} value={model.key}>{model.label}</option>)}
+                  </select>
+                </AdminField>
+              );
+            })}
           </div>
         </DraftingSettingsAccentCard>
       ) : null}

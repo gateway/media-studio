@@ -272,8 +272,8 @@ def test_pricing_endpoint_returns_normalized_snapshot(client) -> None:
     response = client.get("/media/pricing")
     assert response.status_code == 200
     payload = response.json()
-    assert payload["source"] == "site_pricing_page_api"
-    assert payload["source_url"] == "https://kie.ai/pricing"
+    assert payload["source"] == "site_pricing_page_and_market_page"
+    assert payload["source_url"] == "https://kie.ai/gpt-image-2-5"
     assert payload["rules"]
     assert any(rule["model_key"] == "nano-banana-2" for rule in payload["rules"])
     assert any(rule["model_key"] == "gpt-image-2-text-to-image" for rule in payload["rules"])
@@ -373,7 +373,7 @@ def test_pricing_estimate_returns_gpt_image_2_observed_totals(client) -> None:
     assert response.status_code == 200, response.text
     summary = response.json()["pricing_summary"]
     assert summary["pricing_status"] == "observed_site_pricing"
-    assert summary["pricing_source_kind"] == "site_pricing_page_api"
+    assert summary["pricing_source_kind"] == "site_pricing_page_and_market_page"
     assert summary["per_output"]["estimated_credits"] == pytest.approx(16.0)
     assert summary["per_output"]["estimated_cost_usd"] == pytest.approx(0.08)
     assert summary["total"]["estimated_credits"] == pytest.approx(32.0)

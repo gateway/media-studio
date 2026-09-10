@@ -184,7 +184,7 @@ describe("media-model-admin", () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ ok: true, config: { config_key: "media_assistant", provider_kind: "openrouter" } }),
+        json: async () => ({ ok: true, config: { config_key: "media_assistant", provider_kind: "openrouter", image_model_defaults_json: { text_to_image: "catalog-model", image_to_image: null } } }),
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -208,7 +208,7 @@ describe("media-model-admin", () => {
       require_images: false,
     });
 
-    expect(saved.config).toMatchObject({ config_key: "media_assistant" });
+    expect(saved.config).toMatchObject({ config_key: "media_assistant", image_model_defaults_json: { text_to_image: "catalog-model", image_to_image: null } });
     expect(probed.selectedModel).toMatchObject({ id: "assistant/model" });
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       "/api/control/media-assistant-config",

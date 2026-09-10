@@ -1,6 +1,6 @@
 # Media Assistant
 
-Media Assistant is an experimental Graph Studio collaborator for building and reviewing Media Studio artifacts through ordinary conversation. It is intentionally hidden from normal users while its release boundary is hardened.
+Media Assistant is an experimental Graph Studio collaborator for building and reviewing Media Studio artifacts through ordinary conversation. Its Graph Studio entry remains visible so users can discover setup requirements; operational actions remain opt-in.
 
 Media Assistant currently requires a ready local Codex CLI/App Server session. Media Studio's other surfaces continue to work without Codex, and Claude Code is not a drop-in Assistant runtime. See [Media Assistant setup](media-assistant-setup.md) for the exact requirement, provider boundary, and troubleshooting steps.
 
@@ -8,12 +8,12 @@ Media Assistant currently requires a ready local Codex CLI/App Server session. M
 
 Operational Assistant API routes are enabled only when
 `NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=1` is present when the API starts.
-The Graph Studio panel has two additional requirements:
+The operational Graph Studio Assistant has two additional requirements:
 
 1. the same flag was present when the web app started;
 2. API health reports both the backend gate enabled and Codex Local ready.
 
-The example environment leaves this flag unset. The API fails closed with `404` for operational Assistant routes when disabled, while normal Studio, Graph, Preset, Recipe, health, and provider-configuration routes remain available. Existing control-token access still applies when the Assistant is enabled. Do not enable the panel for general users until the release checklist is complete.
+The example environment leaves this flag unset. The API fails closed with `404` for operational Assistant routes when disabled, while normal Studio, Graph, Preset, Recipe, health, and provider-configuration routes remain available. Existing control-token access still applies when the Assistant is enabled. When these requirements are not met, the Assistant entry opens a setup panel with the reason, setup/settings links, and a readiness retry. It does not create an operational session.
 
 ## Responsibilities
 

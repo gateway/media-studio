@@ -11,6 +11,8 @@ from ..graph.pricing import estimate_graph_workflow
 from ..graph.schemas import GraphWorkflow
 from ..store_support import new_id
 from .cancellation import AssistantRequestCancelled, is_cancelled, publish_session_progress
+from ..service_image_models import assistant_image_model_defaults
+
 from .kernel_tools import (
     KERNEL_TOOL_RESULT_MAX_BYTES,
     KernelToolContext,
@@ -521,6 +523,7 @@ def _kernel_session_context(
                 compact_stages[str(key)]["candidates"] = candidates
         compact_recommendation = {"stages": compact_stages}
     return {
+        "image_model_defaults": assistant_image_model_defaults(),
         "active_preset_draft": preset_draft if isinstance(preset_draft, dict) else None,
         "active_preset_run_evidence": (
             preset_run_evidence if isinstance(preset_run_evidence, dict) else None

@@ -141,8 +141,10 @@ def default_media_assistant_config() -> Dict[str, Any]:
 
 
 def public_media_assistant_config(record: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    from .service_image_models import assistant_image_model_choices
+    choices = assistant_image_model_choices()
     if not record:
-        return default_media_assistant_config()
+        return {**default_media_assistant_config(), "image_model_choices_json": choices}
     provider_kind = str(record.get("provider_kind") or "codex_local").strip()
     stored_base_url = str(record.get("provider_base_url") or "").strip()
     payload = record.copy()
@@ -150,6 +152,7 @@ def public_media_assistant_config(record: Optional[Dict[str, Any]]) -> Dict[str,
     payload["provider_base_url_configured"] = bool(stored_base_url)
     payload["provider_credential_source"] = provider_credential_source(provider_kind, "")
     payload["supports_media_studio_tools"] = provider_kind == "codex_local"
+    payload["image_model_choices_json"] = choices
     payload.setdefault("enabled", True)
     payload.setdefault("temperature", MEDIA_ASSISTANT_DEFAULT_TEMPERATURE)
     payload.setdefault("max_tokens", MEDIA_ASSISTANT_DEFAULT_MAX_TOKENS)
@@ -186,6 +189,13 @@ def _upsert_feature_provider_config(
     if provider_kind not in PROMPT_RECIPE_DRAFTING_PROVIDERS:
         raise ServiceError("Unsupported provider.")
     existing = store.get_prompt_recipe_drafting_config(config_key) or {}
+    image_defaults = {}
+    if isinstance(payload, MediaAssistantConfigUpsertRequest) and payload.image_model_defaults_json is not None:
+        from .service_image_models import resolve_image_model
+        image_defaults = payload.image_model_defaults_json.model_dump()
+        for mode, model_key in image_defaults.items():
+            if model_key:
+                resolve_image_model(mode, model_key)
     provider_base_url = (
         str(payload.provider_base_url or "").strip() or None
         if "provider_base_url" in payload.model_fields_set
@@ -194,6 +204,7 @@ def _upsert_feature_provider_config(
     stored = store.create_or_update_prompt_recipe_drafting_config(
         {
             "config_key": config_key,
+            **({"image_model_defaults_json": image_defaults} if image_defaults else {}),
             "enabled": bool(payload.enabled),
             "provider_kind": provider_kind,
             "provider_label": str(payload.provider_label or "").strip() or None,

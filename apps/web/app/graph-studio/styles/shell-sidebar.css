@@ -1,4 +1,6 @@
-.graph-studio-shell {
+/* Node help is portaled to body and must share the Graph theme tokens. */
+.graph-studio-shell,
+.graph-node-help-popover {
   --graph-bg: #0e1110;
   --graph-panel-dark: #101312;
   --graph-panel-ink: #151817;
@@ -62,6 +64,9 @@
   --graph-shadow-surface: color-mix(in srgb, black 48%, transparent);
   --graph-shadow-soft: color-mix(in srgb, black 35%, transparent);
   --graph-control-radius: 8px;
+}
+
+.graph-studio-shell {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);
   height: 100vh;

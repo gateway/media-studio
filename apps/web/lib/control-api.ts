@@ -487,10 +487,24 @@ export function mapPromptRecipeDraftingConfigRecord(config: ControlApiRawRecord)
 }
 
 export function mapMediaAssistantConfigRecord(config: ControlApiRawRecord): MediaAssistantConfig {
+  const imageDefaults = toControlApiRawRecord(config.image_model_defaults_json);
+  const imageChoices = toControlApiRawRecord(config.image_model_choices_json);
+  const mapChoices = (value: unknown) => toControlApiRawList(value).map((item) => ({
+    key: String(item.key ?? ""),
+    label: String(item.label ?? item.key ?? ""),
+  }));
   return {
     ...mapPromptRecipeDraftingConfigRecord(config),
     config_key: String(config.config_key ?? "media_assistant"),
     supports_media_studio_tools: Boolean(config.supports_media_studio_tools),
+    image_model_choices_json: {
+      text_to_image: mapChoices(imageChoices.text_to_image),
+      image_to_image: mapChoices(imageChoices.image_to_image),
+    },
+    image_model_defaults_json: {
+      text_to_image: typeof imageDefaults.text_to_image === "string" ? imageDefaults.text_to_image : null,
+      image_to_image: typeof imageDefaults.image_to_image === "string" ? imageDefaults.image_to_image : null,
+    },
   };
 }
 

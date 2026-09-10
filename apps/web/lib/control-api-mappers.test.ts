@@ -7,11 +7,35 @@ import {
   mapAssetSummaryRecord,
   mapBatchRecord,
   mapJobRecord,
+  mapMediaAssistantConfigRecord,
   mapPricingResponseRecord,
   mapProjectRecord,
 } from "@/lib/control-api";
 
 describe("control-api domain mappers", () => {
+  it("preserves Assistant image defaults and treats older configs as unset", () => {
+    const choices = {
+      text_to_image: [{ key: "catalog-text", label: "Catalog Text" }],
+      image_to_image: [{ key: "catalog-edit", label: "Catalog Edit" }],
+    };
+    expect(mapMediaAssistantConfigRecord({
+      image_model_choices_json: choices,
+      config_key: "media_assistant",
+      provider_model_id: "conversation-model",
+      image_model_defaults_json: { text_to_image: "catalog-text", image_to_image: "catalog-edit" },
+    })).toMatchObject({
+      image_model_choices_json: choices,
+      provider_model_id: "conversation-model",
+      image_model_defaults_json: { text_to_image: "catalog-text", image_to_image: "catalog-edit" },
+    });
+    expect(mapMediaAssistantConfigRecord({}).image_model_choices_json).toEqual({
+      text_to_image: [], image_to_image: [],
+    });
+    expect(mapMediaAssistantConfigRecord({}).image_model_defaults_json).toEqual({
+      text_to_image: null, image_to_image: null,
+    });
+  });
+
   it("maps full media assets with payload, tags, and proxied media URLs", () => {
     const asset = mapAssetRecord({
       asset_id: "asset-1",

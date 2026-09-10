@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 
 import type { GraphNodeColorChoice } from "../graph-node-context-menu";
 import type { GraphGroup, StudioNode } from "../types";
 import {
   applyExecutionModeToNodes,
   computeGraphGroupBounds,
+  graphGroupsForCanvas,
   GRAPH_GROUP_MOVE_EVENT,
   GRAPH_GROUP_RENAME_EVENT,
   GRAPH_GROUP_RESIZE_EVENT,
@@ -23,12 +24,14 @@ type SetGroups = (updater: GraphGroup[] | ((current: GraphGroup[]) => GraphGroup
 type SetNodes = (updater: (current: StudioNode[]) => StudioNode[]) => void;
 
 export function useGraphGroups({
+  manualNodeMoveRef,
   groups,
   nodes,
   setGroups,
   setNodes,
   appendConsole,
 }: {
+  manualNodeMoveRef: MutableRefObject<boolean>;
   groups: GraphGroup[];
   nodes: StudioNode[];
   setGroups: SetGroups;
@@ -74,8 +77,11 @@ export function useGraphGroups({
   }, [setGroups, setNodes]);
 
   useEffect(() => {
-    setGroups((current) => pruneGraphGroupMembership(current, nodes));
-  }, [nodes, setGroups]);
+    if (manualNodeMoveRef.current) { manualNodeMoveRef.current = false; return; }
+    // Content growth and Assistant reflow retain membership and enlarge bounds.
+    // Manual node movement and group resizing explicitly reconcile membership.
+    setGroups((current) => graphGroupsForCanvas(current, nodes));
+  }, [manualNodeMoveRef, nodes, setGroups]);
 
   const createGroupFromSelection = useCallback(() => {
     const nodeIds = selectedNodeIdsForGroup(nodes);

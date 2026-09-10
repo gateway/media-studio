@@ -2,7 +2,7 @@
   "name": "media-studio",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "workspaces": [
     "apps/web"
   ],
