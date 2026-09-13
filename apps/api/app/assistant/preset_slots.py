@@ -19,19 +19,13 @@ def validate_assistant_preset_slots(
     *,
     user_text: str = "",
     current_draft: Optional[Dict[str, Any]] = None,
+    approved_sources: Dict[str, str] | None = None,
 ) -> Dict[str, Any]:
     lane = str(draft.rules_json.get("preset_lane") or "").strip()
     slots = draft.input_slots_json
     task_modes = {str(value) for value in draft.applies_to_task_modes}
     input_patterns = {str(value) for value in draft.applies_to_input_patterns}
     runtime_roles = draft.rules_json.get("runtime_image_roles")
-    current_rules = (
-        current_draft.get("rules_json")
-        if isinstance(current_draft, dict) and isinstance(current_draft.get("rules_json"), dict)
-        else {}
-    )
-    current_runtime_roles = current_rules.get("runtime_image_roles")
-    user_phrase_haystack = f" {_normalized_phrase(user_text)} "
     issues: list[str] = []
 
     if lane not in _PRESET_LANES:
@@ -68,17 +62,11 @@ def validate_assistant_preset_slots(
                     )
                     continue
                 evidence = _normalized_phrase(role.get("user_evidence"))
-                role_was_approved = (
-                    isinstance(current_runtime_roles, dict)
-                    and current_runtime_roles.get(key) == role
-                )
-                if (
-                    not role_was_approved
-                    and (not evidence or f" {evidence} " not in user_phrase_haystack)
-                ):
+                source = _normalized_phrase((approved_sources or {}).get(f"slot:{key}"))
+                if not source or not evidence or f" {evidence} " not in f" {source} ":
                     issues.append(
-                        f'rules_json.runtime_image_roles["{key}"] needs exact '
-                        "user_evidence from the user request."
+                        f'Slot "{key}" needs exact evidence of its approved image role. '
+                        f'Eligible retained source: {source or "none; ask the user to clarify the image role"}.'
                     )
 
     if issues:

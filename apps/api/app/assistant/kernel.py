@@ -24,6 +24,7 @@ from .provenance import (
     recipe_quality_contract_hash,
     workflow_fingerprint,
 )
+from .preset_approvals import record_preset_approvals
 from .prompt_assets import assistant_thread_prompt_assembly
 from .provider_support import (
     AssistantProviderChatError,
@@ -40,6 +41,7 @@ from .schemas import (
     AssistantKernelProviderStep,
     AssistantKernelProviderTrace,
     AssistantKernelTrace,
+    AssistantKernelToolTrace,
     AssistantKernelTurnResult,
     AssistantNextAction,
 )
@@ -525,6 +527,7 @@ def _kernel_session_context(
     return {
         "image_model_defaults": assistant_image_model_defaults(),
         "active_preset_draft": preset_draft if isinstance(preset_draft, dict) else None,
+        "preset_approvals": summary.get("kernel_preset_approvals") or {},
         "active_preset_run_evidence": (
             preset_run_evidence if isinstance(preset_run_evidence, dict) else None
         ),
@@ -1058,6 +1061,20 @@ def run_assistant_kernel_turn(
                     },
                 )
             ]
+            continue
+        try:
+            if step.capability == "preset_builder":
+                session = record_preset_approvals(
+                    session, step.guidance.preset_approvals, user_text, client_user_message_id,
+                )
+        except ValueError as exc:
+            error = {"code": "invalid_preset_approval", "message": str(exc), "retryable": True}
+            tool_traces.append(AssistantKernelToolTrace(
+                tool_name="preset_approval",
+                arguments_hash=hashlib.sha256(step.guidance.model_dump_json().encode()).hexdigest(),
+                duration_ms=0, result_size_bytes=0, error=error,
+            ))
+            messages = [_kernel_tool_result_message(tool_name="kernel_policy", result=None, error=error)]
             continue
         if step.tool_call is not None:
             completed_artifact = KERNEL_REQUIRED_ARTIFACTS.get(selected_artifact_intent or "none")

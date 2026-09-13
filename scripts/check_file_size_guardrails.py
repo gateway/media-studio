@@ -56,9 +56,11 @@ GUARDRAILS = (
 # generation, single-flight, and typed-activity seams. The follow-up adds one
 # ephemeral progress response, coordinated time budgets, and full-turn cleanup
 # ownership; no persistence, worker, stream, dependency, or broad retry was added.
+# LOCAL-MAREL-001 review: bounded approval provenance and readable assertion guards;
+# 65 unused schema lines removed first. Cap equals measured source, with no reserve.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    11_527,
+    11_576,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

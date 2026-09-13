@@ -76,7 +76,9 @@ def validate_assistant_preset_fields(
     *,
     replaceable_elements: Iterable[str] = (),
     user_text: str = "",
+    approved_sources: Dict[str, str] | None = None,
 ) -> Dict[str, Any]:
+    replaceable_elements = tuple(replaceable_elements)
     issues: list[str] = []
     if not 1 <= len(draft.input_schema_json) <= 3:
         issues.append("Use between one and three concrete text fields.")
@@ -105,9 +107,11 @@ def validate_assistant_preset_fields(
             issues.append(f'Field "{label}" needs an example or input hint.')
         if len(_normalized_words(help_text)) < 3:
             issues.append(f'Field "{label}" must explain what it changes in the output.')
+        retained = " ".join(_normalized_words((approved_sources or {}).get(f"field:{key}")))
+        eligible_user = f"{user_phrase_haystack} {retained} "
         normalized_label = " ".join(label_words)
         explicitly_requested = bool(
-            normalized_label and f" {normalized_label} " in user_phrase_haystack
+            normalized_label and f" {normalized_label} " in eligible_user
         )
         if normalized_label in _GENERIC_FIELD_LABELS and not explicitly_requested:
             issues.append(
@@ -116,12 +120,14 @@ def validate_assistant_preset_fields(
         if normalized_evidence:
             evidence = " ".join(_normalized_words(field_evidence.get(key)))
             grounded_by_reference = evidence in normalized_evidence
-            grounded_by_user = bool(
-                evidence and f" {evidence} " in user_phrase_haystack
+            grounded_by_user = any(
+                evidence and f" {evidence} " in f" {source} " and f" {normalized_label} " in f" {source} "
+                for source in (normalized_user_text, retained)
             )
             if not evidence or not (grounded_by_reference or grounded_by_user):
                 issues.append(
-                    f'Field "{label}" needs evidence from replaceable_elements or the user request.'
+                    f'Field "{label}" needs exact complete reference evidence or its explicit user approval. '
+                    f'Eligible reference entries: {list(replaceable_elements)[:12]}; user source: {eligible_user[:800]}'
                 )
     if issues:
         raise ValueError(" ".join(issues))

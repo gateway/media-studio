@@ -20,6 +20,7 @@ from .preset_fields import (
     validate_assistant_preset_fields,
 )
 from .preset_confirmation import preset_quality_is_verified
+from .preset_approvals import preset_approval_sources
 from .preset_slots import validate_assistant_preset_slots
 from .provenance import preset_quality_contract_hash
 
@@ -328,6 +329,7 @@ def propose_media_preset_draft(arguments: BaseModel, context: Any) -> Dict[str, 
     )
     current_analysis_id = str(current_rules.get("analysis_id") or "")
     try:
+        approved_sources = preset_approval_sources(summary, options.draft)
         field_quality = validate_assistant_preset_fields(
             options.draft,
             replaceable_elements=latest_replaceable_elements(
@@ -335,6 +337,7 @@ def propose_media_preset_draft(arguments: BaseModel, context: Any) -> Dict[str, 
                 analysis_id=current_analysis_id,
             ),
             user_text=str(getattr(context, "user_text", "") or ""),
+            approved_sources=approved_sources,
         )
     except ValueError as exc:
         raise PresetKernelError(code="invalid_media_preset_fields", message=str(exc)) from exc
@@ -342,6 +345,7 @@ def propose_media_preset_draft(arguments: BaseModel, context: Any) -> Dict[str, 
         lane_quality = validate_assistant_preset_slots(
             options.draft,
             user_text=str(getattr(context, "user_text", "") or ""),
+            approved_sources=approved_sources,
             current_draft=current_draft,
         )
     except ValueError as exc:

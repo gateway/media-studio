@@ -115,7 +115,17 @@ class AssistantKernelToolCallRequest(BaseModel):
         raise ValueError("Tool arguments must be a JSON object encoded as a string.")
 
 
+class AssistantPresetApproval(BaseModel):
+    kind: Literal["field", "slot", "lane"]
+    key: str = Field(min_length=1, max_length=80)
+    label: str = Field(min_length=1, max_length=80)
+    role: str = Field(default="", max_length=160)
+    source_span: str = Field(min_length=1, max_length=500)
+    action: Literal["approve", "withdraw", "replace"] = "approve"
+
+
 class AssistantKernelGuidance(BaseModel):
+    preset_approvals: List[AssistantPresetApproval] = Field(default_factory=list, max_length=11)
     suggestion_count: int = Field(
         default=0,
         ge=0,
