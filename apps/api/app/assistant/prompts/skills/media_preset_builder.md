@@ -96,6 +96,10 @@ Prompt rules:
 
 Typed draft state:
 
+- Resolve the image model under the shared image-generation selection policy before calling `propose_media_preset_draft`.
+  An unresolved model choice is a prerequisite to ask about, not a validation error to repair by choosing a model.
+  If a draft is rejected for missing required choices, ask for those choices instead of substituting them on retry.
+  You may still discuss reference-grounded field ideas while intake is incomplete; do not claim a completed draft.
 - Call `propose_media_preset_draft` with the full validated preset contract. Never print or reconstruct a backend JSON block in chat.
 - Use `analyze_reference_images` as the evidence source. Call `list_media_models` once per turn, scoped to the user-approved or evidence-supported task mode; never start with an unfiltered catalog request.
 - On revisions, start from `active_preset_draft` and change typed fields, slots, model mode, or prompt template directly.
