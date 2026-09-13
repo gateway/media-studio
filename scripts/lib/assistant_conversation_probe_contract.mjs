@@ -92,6 +92,7 @@ function typedNextAction(
   expectNoNextAction,
   expectConfirmation,
 ) {
+  if (expectNoNextAction && legacySuggestedAction) return false;
   if (nextAction === null || nextAction === undefined) {
     if (expectConfirmation) return false;
     return Boolean(expectNoNextAction) || !legacySuggestedAction;
@@ -102,6 +103,7 @@ function typedNextAction(
       && nextAction.requires_confirmation === false
       && !nextAction.confirmation_token;
   }
+  if (expectNoNextAction) return false;
   return confirmedActionKinds.has(nextAction.kind)
     && typeof nextAction.label === "string"
     && nextAction.label.length > 0
@@ -123,6 +125,30 @@ function workflowPreviewIsAcceptable(plan, nextAction) {
   return Array.isArray(errors)
     && errors.length > 0
     && errors.every((error) => error?.code === "missing_media_reference");
+}
+
+// Artifact evidence is structural. Whether a clarification is useful or correct
+// belongs to the browser rubric, never a reply-phrase classifier.
+export function requestedArtifactEvidence(contentJson, requiredKind) {
+  if (!requiredKind) return { checked: false, pass: true, status: "browser_review_required" };
+  const artifacts = contentJson?.kernel_turn?.artifacts;
+  const artifact = Array.isArray(artifacts) ? artifacts.find((item) =>
+    item?.kind === requiredKind
+    && item.data?.validation?.valid === true
+    && typeof item.data?.proposal_id === "string"
+    && item.data.proposal_id.length > 0
+    && item.data?.draft && typeof item.data.draft === "object"
+    && !Array.isArray(item.data.draft)
+    && Object.keys(item.data.draft).length > 0
+  ) : null;
+  return {
+    checked: true,
+    pass: Boolean(artifact),
+    required_kind: requiredKind,
+    status: artifact ? "artifact_complete" : "incomplete",
+    reason: artifact ? "Current-turn validated typed draft present."
+      : "No validated current-turn typed draft; browser review must distinguish clarification from a defect.",
+  };
 }
 
 export function evaluateMechanicalTurn({
@@ -179,7 +205,17 @@ export function evaluateMechanicalTurn({
     && stepCount >= 0
     && stepCount <= maxToolSteps
     && !["step_budget_exhausted", "wall_clock_budget_exhausted"].includes(termination);
+  const artifacts = contentJson?.kernel_turn?.artifacts;
+  const readyArtifacts = Array.isArray(artifacts)
+    ? artifacts.filter((item) => item?.data?.save_ready === true).map((item) => item.kind)
+    : [];
   const checks = {
+    save_readiness: {
+      checked: Boolean(scenario.mechanical.expect_save_unavailable),
+      pass: !scenario.mechanical.expect_save_unavailable || readyArtifacts.length === 0,
+      ready_artifact_kinds: readyArtifacts,
+    },
+    requested_artifact: requestedArtifactEvidence(contentJson, scenario.mechanical.required_artifact_kind),
     banned_vocabulary: { pass: bannedHits.length === 0, hits: bannedHits },
     reply_length: { pass: wordCount <= maxWords, words: wordCount, max_words: maxWords },
     presentation: {
@@ -226,7 +262,9 @@ export function evaluateMechanicalTurn({
       termination,
     },
     no_unconfirmed_mutation: {
-      pass: plan?.plan?.status !== "applied" && jobsAfter === jobsBefore,
+      pass: plan?.plan?.status !== "applied"
+        && Number.isInteger(jobsBefore) && jobsBefore >= 0
+        && Number.isInteger(jobsAfter) && jobsAfter === jobsBefore,
       plan_status: plan?.plan?.status ?? null,
       jobs_before: jobsBefore,
       jobs_after: jobsAfter,

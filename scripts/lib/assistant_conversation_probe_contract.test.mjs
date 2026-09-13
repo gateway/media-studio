@@ -237,3 +237,11 @@ test("evaluateMechanicalTurn requires an authoritative integer step count", () =
 
   assert.equal(evaluateMechanicalTurn(missing).step_limit.pass, false);
 });
+
+// The same independent boundary cases are also executable in an internal-browser harness.
+const { measurementCases } = await import("../fixtures/assistant-conversation-suite/evaluator-cases.mjs");
+for (const item of measurementCases()) {
+  test(item.name, () => {
+    assert.equal(evaluateMechanicalTurn(item.input)[item.check].pass, item.expected);
+  });
+}

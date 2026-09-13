@@ -180,16 +180,32 @@ async function loadScenarios(options) {
     if (options.group && payload.group !== options.group) continue;
     groups.push(payload);
   }
-  const scenarios = groups.flatMap((group) =>
+  let scenarios = groups.flatMap((group) =>
     group.scenarios
-      .filter((scenario) => !options.scenario || scenario.id === options.scenario)
       .map((scenario) => ({ ...scenario, group: group.group })),
   );
+  if (options.scenario) {
+    const targetIndex = scenarios.findIndex((scenario) => scenario.id === options.scenario);
+    const target = scenarios[targetIndex];
+    scenarios = target ? scenarios.filter((scenario, index) => index <= targetIndex
+      && scenario.session_key === target.session_key) : [];
+  }
   const ids = scenarios.map((scenario) => scenario.id);
   if (new Set(ids).size !== ids.length) throw new Error("Scenario ids must be unique.");
   for (const scenario of scenarios) {
     if (!scenario.id || !scenario.setup || !Array.isArray(scenario.turns) || !scenario.mechanical || !scenario.rubric_notes) {
       throw new Error(`${scenario.id || "Unknown scenario"} is missing required fields.`);
+    }
+    if (!scenario.setup.global_check) {
+      const defaults = scenario.setup.image_model_defaults;
+      if (!defaults || !["text_to_image", "image_to_image"].every((key) =>
+        Object.hasOwn(defaults, key) && (defaults[key] === null || typeof defaults[key] === "string")
+      )) throw new Error(`${scenario.id} must explicitly declare configured or unset image defaults.`);
+      if (scenario.setup.reference_kinds?.length !== scenario.setup.attachments
+        || scenario.setup.saved_library !== "built_in_catalog"
+        || typeof scenario.setup.continue_session !== "boolean") {
+        throw new Error(`${scenario.id} must declare references, library and session continuity.`);
+      }
     }
     for (const turn of scenario.turns) {
       if (!String(turn.user || "").trim()) throw new Error(`${scenario.id} contains an empty user turn.`);
@@ -401,6 +417,10 @@ async function runScenario({ apiBaseUrl, token, dbPath, scenario, sessions, refe
   if (scenario.setup.global_check) {
     return { id: scenario.id, group: scenario.group, skipped_turn: true, rubric_notes: scenario.rubric_notes };
   }
+  await apiJson(apiBaseUrl, token, "/media/assistant-config", {
+    method: "PATCH",
+    body: JSON.stringify({ image_model_defaults_json: scenario.setup.image_model_defaults }),
+  });
   const workflow = workflowForProbeSession(
     workflowFixture(scenario.setup.workflow || "blank"),
     scenario.session_key,
@@ -464,6 +484,7 @@ async function runScenario({ apiBaseUrl, token, dbPath, scenario, sessions, refe
   return {
     id: scenario.id,
     group: scenario.group,
+    variant_of: scenario.variant_of ?? null,
     session_id: session.assistant_session_id,
     setup: scenario.setup,
     rubric_notes: scenario.rubric_notes,
@@ -501,11 +522,15 @@ function renderSummary(results, runtime) {
   const scored = results.filter((result) => !result.skipped_turn);
   const passing = scored.filter((result) => result.pass).length;
   const lines = [
-    "# Media Assistant post-prompt-fix baseline",
+    "# Media Assistant measurement baseline — evaluator v2",
     "",
     `Captured: ${runtime.finished_at}`,
     `Provider: real Codex Local (${runtime.model})`,
-    `Mechanical scenarios passing: ${passing}/${scored.length}`,
+    `Mechanical scenarios passing (all captured): ${passing}/${scored.length}`,
+    `Original scenarios: ${scored.filter((r) => !r.variant_of && r.pass).length}/${scored.filter((r) => !r.variant_of).length}`,
+    `Additional variants: ${scored.filter((r) => r.variant_of && r.pass).length}/${scored.filter((r) => r.variant_of).length}`,
+    "V1 is an aggregate voice check and is excluded from conversation denominators.",
+    "These are mechanical results, not conversation-quality or requested-capability pass rates.",
     "",
     "| Scenario | Mechanical | Banned terms | Words | Tools | Typed tools | Lifecycle | Steps | Plan valid | Price | Presentation |",
     "| --- | --- | --- | ---: | ---: | --- | --- | --- | --- | --- | --- |",
@@ -518,15 +543,25 @@ function renderSummary(results, runtime) {
   }
   lines.push(
     "",
+    "## Per-turn evidence and capability status",
+    "",
+    "Artifact completion requires a validated current-turn typed draft. Incomplete evidence can be an appropriate clarification; the browser reviewer decides that separately. Non-artifact capability outcomes require browser review.",
+    "",
+    "| Scenario / turn | Failed mechanical checks | Artifact evidence | Evidence |",
+    "| --- | --- | --- | --- |",
+    ...scored.flatMap((result) => result.turns.map((turn, index) =>
+      `| ${result.id} / ${index + 1} | ${Object.entries(turn.checks).filter(([key, value]) => key !== "pass" && value.pass === false).map(([key]) => key).join(", ") || "none"} | ${turn.checks.requested_artifact.status} | [Transcript](transcript.md#${result.id.toLowerCase()}--${result.group}) · [Raw trace](trace.json) |`
+    )),
+    "",
     "## Verified amended expectations",
     "",
     "- Graph previews may remain safely unapplied while waiting for a user-selected image; that pending input does not make the graph structure invalid.",
     "- R1 and S1 are judged as conversational capabilities, including presentation quality, not against an exact sentence.",
-    "- P1 must show real reference-aware intake without saving, applying, or running.",
+    "- P1/R2 draft completion requires typed preset/recipe evidence; reference-aware clarification is scored separately in the browser rubric.",
     "",
     "## Manual in-app browser rubric",
     "",
-    "Manual scores use five binary fields: human, grounded, correct, useful, safe. Screenshots and completed scores are added after the HTTP baseline run.",
+    "Manual scores use five binary fields: human, grounded, correct, useful, safe, plus helpfulness 1–5 and a reason. Pending means not observed, never passing. Requested capability outcomes are completed, appropriate_clarification, architectural_limit, defect, or inconclusive. Record original and variant denominators separately in the browser report.",
     "",
     "| Scenario | Human | Grounded | Correct | Useful | Safe | Screenshot | Notes |",
     "| --- | --- | --- | --- | --- | --- | --- | --- |",
