@@ -79,7 +79,14 @@ class AssistantSessionCreateRequest(BaseModel):
     title: Optional[str] = None
 
 
+class AssistantRecipeContinuationAction(BaseModel):
+    id: str = Field(min_length=1, max_length=100)
+    token: str = Field(min_length=1, max_length=100)
+    action: Literal["draft", "return", "retry", "cancel"]
+
+
 class AssistantMessageCreateRequest(BaseModel):
+    continuation: Optional[AssistantRecipeContinuationAction] = None
     content_text: str
     workflow: Optional[GraphWorkflow] = None
     canvas_context: Dict[str, Any] = Field(default_factory=dict)

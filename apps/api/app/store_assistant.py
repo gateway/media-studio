@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from typing import Any, Dict, List, Optional
 
 from .db import get_connection
@@ -90,6 +92,37 @@ def get_assistant_message(message_id: str) -> Optional[Dict[str, Any]]:
 
 def list_assistant_messages(session_id: str) -> List[Dict[str, Any]]:
     return _list_by_session("assistant_messages", session_id)
+
+
+
+def recent_assistant_conversation(session_id: str, exclude_message_id: Optional[str] = None) -> List[Dict[str, str]]:
+    """Six eligible messages, chronological with message-ID ordering for timestamp ties."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            """SELECT role, substr(COALESCE(content_text, ''), 1, 800) AS text
+               FROM assistant_messages
+               WHERE assistant_session_id = ? AND role IN ('user', 'assistant')
+                 AND assistant_message_id != COALESCE(?, '')
+               ORDER BY created_at DESC, assistant_message_id DESC LIMIT 6""",
+            (session_id, exclude_message_id),
+        ).fetchall()
+    return [dict(row) for row in reversed(rows)]
+
+
+def latest_saved_assistant_artifact(session_id: str, exclude_message_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Read one valid saved-artifact object even when older than the recent-message window."""
+    with get_connection() as connection:
+        row = connection.execute(
+            """SELECT json_extract(content_json, '$.saved_artifact') AS artifact
+               FROM assistant_messages
+               WHERE assistant_session_id = ? AND role = 'system_summary'
+                 AND assistant_message_id != COALESCE(?, '')
+                 AND CASE WHEN json_valid(content_json)
+                          THEN json_type(content_json, '$.saved_artifact') END = 'object'
+               ORDER BY created_at DESC, assistant_message_id DESC LIMIT 1""",
+            (session_id, exclude_message_id),
+        ).fetchone()
+    return json.loads(row['artifact']) if row else None
 
 
 def create_assistant_attachment(payload: Dict[str, Any]) -> Dict[str, Any]:

@@ -58,9 +58,13 @@ GUARDRAILS = (
 # ownership; no persistence, worker, stream, dependency, or broad retry was added.
 # LOCAL-MAREL-001 review: bounded approval provenance and readable assertion guards;
 # 65 unused schema lines removed first. Cap equals measured source, with no reserve.
+# LOCAL-MAREL-006: reviewed session-owned recipe continuation, explicit retry,
+# cancellation and exact saved-recipe binding. Existing message/save/lock owners
+# are reused; no new storage table, worker, provider lifecycle or dependency.
+# Cap is the measured final source count, with no speculative reserve.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    11_576,
+    11_744,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

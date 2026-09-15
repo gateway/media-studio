@@ -15,6 +15,7 @@ from .preset_confirmation import (
     consume_preset_confirmation,
     resolve_confirmed_preset_draft,
 )
+from .recipe_continuation import bind_saved_recipe
 from .recipe_confirmation import (
     RecipeConfirmationError,
     consume_recipe_confirmation,
@@ -236,6 +237,7 @@ def create_confirmation_router(
             record=record,
             created=existing is None,
         )
+        bind_saved_recipe(session_id, record)
         updated = consume_recipe_confirmation(session_id, str(proposal["proposal_id"]))
         registry.invalidate()
         return AssistantArtifactSaveResponse(

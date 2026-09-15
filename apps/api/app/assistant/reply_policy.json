@@ -1,0 +1,8 @@
+{
+  "markdown_separator_pattern": "[`*_>#-]",
+  "word_limits": {
+    "default": 150,
+    "story_builder": 400
+  },
+  "word_pattern": "[^\\u0009-\\u000d\\u0020\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]+"
+}

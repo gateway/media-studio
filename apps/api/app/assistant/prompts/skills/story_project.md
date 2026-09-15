@@ -28,6 +28,7 @@ Default behavior:
 - For continuity work, use stable character ids, record visible identity traits in the character and continuity
   facts, and link the same character id plus relevant continuity notes into every applicable shot.
 - Format replies for chat readability with short paragraphs, markdown bullets or numbered shots, and real line breaks between sections.
+- Keep the complete rendered story reply within 400 words. For six-shot boards, keep each stored image prompt around 40–48 words and titles brief; retain character identity, camera, action, atmosphere and the distinguishing story beat. Put supporting continuity facts in typed shot/bible fields instead of repeating them in every visible prompt. Do not drop shots or truncate a stored prompt to meet the budget.
 - For storyboard replies, use a clear `Shot 1`, `Shot 2`, etc. structure so prompts can be recalled and converted into graph notes later.
 
 Do not:

@@ -13,6 +13,7 @@ from .provider_support import (
     assistant_story_provider_refresh_due,
     sync_assistant_session_provider,
 )
+from .recipe_continuation import run_recipe_continuation
 from .run_confirmation import (
     RunEvidenceError,
     applied_recipe_plan_id,
@@ -58,6 +59,10 @@ def create_kernel_message(
     session_id = str(session["assistant_session_id"])
     try:
         with track_session(session_id) as cancel_event:
+            if payload.continuation:
+                return run_recipe_continuation(session, payload, lambda current, request: _create_tracked_kernel_message(
+                    session=current, payload=request, attachments=attachments, cancel_event=cancel_event,
+                ), cancel_event)
             return _create_tracked_kernel_message(
                 session=session,
                 payload=payload,
@@ -144,7 +149,7 @@ def _create_tracked_kernel_message(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except AssistantProviderChatError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    result.trace.voice_violations = lint_assistant_reply(result.reply)
+    result.trace.voice_violations = lint_assistant_reply(result.reply, capability=result.capability)
     refreshed_session = store_assistant.get_assistant_session(session_id) or session
     summary = (
         refreshed_session.get("summary_json")

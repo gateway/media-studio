@@ -154,14 +154,15 @@ for index,(text,source,action,label,value) in enumerate(invalid):
     assert any(a.kind=='preset_draft' for a in result.artifacts)
 print('PASS negative, hypothetical, quoted, partial, unrelated-withdrawal and model-text sources rejected without erasing approvals')
 
-for wording in ('Convert this to text-to-image.', 'Switch to text-to-image.'):
+for wording in ('Convert this to text-to-image.', 'Switch to text-to-image.', 'Draft a text-to-image preset.', 'Create a text-to-image preset.'):
     state = copy.deepcopy(original_state)
     conversion = copy.deepcopy(convert)
     conversion['guidance']['preset_approvals'][0]['source_span'] = wording
-    result = turn(wording, 'projection-lane-wording', [conversion])
+    conversion_end = {'capability': conversion['capability'], 'artifact_intent': conversion['artifact_intent'], 'reply': 'I need clarification.'}
+    result = turn(wording, 'projection-lane-wording', [conversion, conversion_end, conversion_end])
     assert any(a.kind == 'preset_draft' for a in result.artifacts)
     assert not result.artifacts[0].data['draft']['input_slots_json']
-print('PASS Convert and Switch lane wording through full kernel')
+print('PASS Convert, Switch, Draft and Create lane wording through full kernel')
 
 state = copy.deepcopy(original_state)
 replacement_text = 'Replace Occupation with Profession as a text field.'
@@ -223,3 +224,30 @@ help_step['tool_call']['arguments']['draft']['rules_json']['runtime_image_roles'
 result = turn('Use Nano Banana 2.', 'projection-help-model', [help_step, end, end])
 assert any(a.kind == 'preset_draft' for a in result.artifacts), 'Direct Help me create intake must survive model-only continuation.'
 print('PASS direct Help me create request survives model-only continuation')
+
+
+# LOCAL-MAREL-003: direct requirement revisions at the same full-kernel boundary.
+for wording in ('Revise my requirement to allow Occupation as a text field.',
+                'Please revise the requirements to include Occupation as a text field.'):
+    state = copy.deepcopy(original_state)
+    revised = copy.deepcopy(step)
+    revised['guidance'] = {'preset_approvals': [{'kind': 'field', 'key': 'occupation', 'label': 'Occupation', 'role': '', 'source_span': wording, 'action': 'approve'}]}
+    result = turn(wording, 'projection-revise-requirement', [revised, end, end])
+    assert not any(t.error and t.error.code == 'invalid_preset_approval' for t in result.trace.tool_calls), 'A complete affirmative requirement revision is already explicit approval.'
+    assert any(a.kind == 'preset_draft' for a in result.artifacts)
+    assert result.artifacts[0].data['draft']['input_schema_json'] == draft['input_schema_json']
+print('PASS direct requirement revisions need no redundant Add confirmation')
+
+for wording in ('Revise my requirement to allow Occupation if I decide later.',
+                'Revise my requirement to allow Occupation?',
+                'Do not revise my requirement to allow Occupation.',
+                '“Revise my requirement to allow Occupation.”',
+                'Revise my requirement to allow Setting as a text field.'):
+    state = copy.deepcopy(original_state)
+    rejected = copy.deepcopy(revised)
+    rejected['guidance']['preset_approvals'][0]['source_span'] = wording
+    result = turn(wording, 'projection-revise-negative', [rejected, end, end])
+    assert any(t.error and t.error.code == 'invalid_preset_approval' for t in result.trace.tool_calls)
+    result = turn('Use Nano Banana 2.', 'projection-revise-negative-retained', [step])
+    assert any(a.kind == 'preset_draft' for a in result.artifacts)
+print('PASS conditional, question, negative, quoted and wrong-target revisions preserve safeguards')

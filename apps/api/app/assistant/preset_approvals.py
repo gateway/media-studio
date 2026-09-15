@@ -29,7 +29,7 @@ def _direct_assertion(change: Any, text: str) -> bool:
         return bool(removal or replacement and not re.search(_UNCONFIRMED, replacement[1]))
     request = re.fullmatch(
         r"(?:i (?:explicitly )?(?:want|request|approve|choose)|i (?:would|d) like|"
-        r"(?:please )?(?:help me (?:create|draft|make)|use|add|keep|include|replace|change|make|convert|switch)) (.+)", phrase,
+        r"(?:please )?(?:help me (?:create|draft|make)|revise (?:my|the) requirements? to (?:allow|include|use|add)|use|add|keep|include|replace|change|make|create|draft|convert|switch)) (.+)", phrase,
     )
     if change.action == "replace" and not re.match(r"(?:please )?(?:replace|change) ", phrase):
         return False

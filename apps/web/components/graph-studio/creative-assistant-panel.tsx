@@ -1,5 +1,6 @@
 "use client";
 
+import { RecipeContinuationCard } from "./recipe-continuation-card";
 import {
   CheckCircle2,
   FileText,
@@ -1130,6 +1131,12 @@ export function CreativeAssistantPanel({
           {assistant.session?.production_plan ? (
             <ProductionPlanChecklist plan={assistant.session.production_plan} />
           ) : null}
+          <RecipeContinuationCard
+            onCancelRunning={() => { void assistant.cancelAssistant(); }}
+            value={assistant.session?.summary_json?.kernel_recipe_continuation}
+            busy={assistant.busy}
+            onAction={(continuation, label) => { void assistant.sendContentMessage(label, { continuation, clearDraft: false }); }}
+          />
           <section className="graph-assistant-thread" aria-label="Assistant messages">
           {codexBlocker ? (
             <div className="graph-assistant-readiness" role="status">
