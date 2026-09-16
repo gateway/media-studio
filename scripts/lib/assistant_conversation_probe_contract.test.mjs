@@ -114,6 +114,7 @@ test("evaluateMechanicalTurn keeps concise chat strict but permits an explicit c
   const defaultFixture = passingMechanicalFixture();
   defaultFixture.reply = Array.from({ length: 151 }, () => "word").join(" ");
   const boundedException = passingMechanicalFixture();
+  boundedException.contentJson.kernel_turn.capability = "story_builder";
   boundedException.scenario.mechanical.max_reply_words = 400;
   boundedException.reply = Array.from({ length: 300 }, () => "word").join(" ");
 
@@ -245,3 +246,18 @@ for (const item of measurementCases()) {
     assert.equal(evaluateMechanicalTurn(item.input)[item.check].pass, item.expected);
   });
 }
+
+test("runtime capability selects the shared story allowance without a fixture override", () => {
+  const story = passingMechanicalFixture();
+  story.contentJson.kernel_turn.capability = "story_builder";
+  story.reply = "word ".repeat(300).trim();
+  const result = evaluateMechanicalTurn(story).reply_length;
+  assert.deepEqual(result, {pass: true, words: 300, max_words: 400});
+});
+
+test("a fixture cannot widen an ordinary reply beyond the shared policy", () => {
+  const ordinary = passingMechanicalFixture();
+  ordinary.scenario.mechanical.max_reply_words = 400;
+  ordinary.reply = "word ".repeat(151).trim();
+  assert.deepEqual(evaluateMechanicalTurn(ordinary).reply_length, {pass: false, words: 151, max_words: 150});
+});

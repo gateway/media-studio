@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .db_backup import backup_database
+from .store_preset_search import preset_search_sql, normalize_search_text
 from .db import get_connection
 from .settings import settings
 from .store_support import (
@@ -222,27 +223,27 @@ def list_presets_page(
     else:
         clauses.append("status != ?")
         params.append("archived")
-    query = (q or "").strip()
-    if query:
-        like = f"%{query.lower()}%"
-        clauses.append("(lower(key) LIKE ? OR lower(label) LIKE ? OR lower(COALESCE(description, '')) LIKE ?)")
-        params.extend([like, like, like])
+    search_clause, search_params, search_order, order_params = preset_search_sql(q)
+    if search_clause:
+        clauses.append(search_clause)
+        params.extend(search_params)
     normalized_category = (category or "").strip().lower()
     if normalized_category and normalized_category != "all":
         clauses.append("lower(COALESCE(category, 'general')) = ?")
         params.append(normalized_category)
     where_sql = " AND ".join(clauses)
     with get_connection() as connection:
+        connection.create_function("preset_search_normalize", 1, normalize_search_text, deterministic=True)
         total_row = connection.execute(f"SELECT COUNT(*) AS total FROM media_presets WHERE {where_sql}", params).fetchone()
         rows = connection.execute(
             f"""
             SELECT *
             FROM media_presets
             WHERE {where_sql}
-            ORDER BY priority DESC, updated_at DESC, key ASC
+            ORDER BY {search_order}priority DESC, updated_at DESC, key ASC
             LIMIT ? OFFSET ?
             """,
-            [*params, safe_limit, safe_offset],
+            [*params, *order_params, safe_limit, safe_offset],
         ).fetchall()
     total = int(total_row["total"] if total_row else 0)
     items = [_decode_row(row) for row in rows]

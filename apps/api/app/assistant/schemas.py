@@ -68,73 +68,6 @@ AssistantVisualAnalysisGoal = Literal[
     "output_critique",
 ]
 AssistantVisualTrait = Annotated[str, Field(min_length=1, max_length=300)]
-MediaPresetBuilderLane = Literal["text_to_image", "image_to_image", "both", "undecided"]
-MediaPresetBuilderState = Literal[
-    "intake",
-    "reference_analysis",
-    "contract_proposal",
-    "user_clarification",
-    "sandbox_plan",
-    "prompt_quality_gate",
-    "sandbox_run",
-    "output_comparison",
-    "prompt_refinement",
-    "approved_save",
-    "saved_preset_verification",
-    "signoff",
-]
-MediaPresetBuilderOperationName = Literal[
-    "ask_clarifying_question",
-    "create_test_workflow",
-    "update_test_prompt",
-    "run_workflow",
-    "compare_output",
-    "save_media_preset",
-    "test_saved_preset",
-]
-
-
-class MediaPresetBuilderSkillInput(BaseModel):
-    """Typed runtime contract for one Media Preset Builder skill turn."""
-
-    user_message: str
-    assistant_mode: Optional[str] = None
-    workflow_tab_id: Optional[str] = None
-    current_state: MediaPresetBuilderState = "intake"
-    requested_lane: MediaPresetBuilderLane = "undecided"
-    attachment_set_hash: str = ""
-    reference_ids: List[str] = Field(default_factory=list)
-    latest_run_id: Optional[str] = None
-    latest_output_asset_id: Optional[str] = None
-    approved_fields: List[Dict[str, Any]] = Field(default_factory=list)
-    approved_image_slots: List[Dict[str, Any]] = Field(default_factory=list)
-    force_fresh_analysis: bool = False
-
-
-class MediaPresetBuilderOperation(BaseModel):
-    name: MediaPresetBuilderOperationName
-    payload: Dict[str, Any] = Field(default_factory=dict)
-    requires_confirmation: bool = True
-
-
-class MediaPresetBuilderSkillOutput(BaseModel):
-    """Validated output envelope from the Media Preset Builder skill."""
-
-    next_state: MediaPresetBuilderState
-    user_reply: str
-    operations: List[MediaPresetBuilderOperation] = Field(default_factory=list)
-    reference_style_brief: Optional[Dict[str, Any]] = None
-    approved_fields: List[Dict[str, Any]] = Field(default_factory=list)
-    approved_image_slots: List[Dict[str, Any]] = Field(default_factory=list)
-    compiled_prompt: Optional[str] = None
-    prompt_quality_score: Optional[int] = None
-    prompt_quality_issues: List[str] = Field(default_factory=list)
-    output_check: Optional[Dict[str, Any]] = None
-    saved_preset_ids: List[str] = Field(default_factory=list)
-    provider_called: bool = False
-    cache_decision: str = "none"
-
-
 class AssistantSessionCreateRequest(BaseModel):
     owner_kind: AssistantOwnerKind = "standalone"
     owner_id: Optional[str] = None
@@ -146,7 +79,14 @@ class AssistantSessionCreateRequest(BaseModel):
     title: Optional[str] = None
 
 
+class AssistantRecipeContinuationAction(BaseModel):
+    id: str = Field(min_length=1, max_length=100)
+    token: str = Field(min_length=1, max_length=100)
+    action: Literal["draft", "return", "retry", "cancel"]
+
+
 class AssistantMessageCreateRequest(BaseModel):
+    continuation: Optional[AssistantRecipeContinuationAction] = None
     content_text: str
     workflow: Optional[GraphWorkflow] = None
     canvas_context: Dict[str, Any] = Field(default_factory=dict)
@@ -182,7 +122,17 @@ class AssistantKernelToolCallRequest(BaseModel):
         raise ValueError("Tool arguments must be a JSON object encoded as a string.")
 
 
+class AssistantPresetApproval(BaseModel):
+    kind: Literal["field", "slot", "lane"]
+    key: str = Field(min_length=1, max_length=80)
+    label: str = Field(min_length=1, max_length=80)
+    role: str = Field(default="", max_length=160)
+    source_span: str = Field(min_length=1, max_length=500)
+    action: Literal["approve", "withdraw", "replace"] = "approve"
+
+
 class AssistantKernelGuidance(BaseModel):
+    preset_approvals: List[AssistantPresetApproval] = Field(default_factory=list, max_length=11)
     suggestion_count: int = Field(
         default=0,
         ge=0,

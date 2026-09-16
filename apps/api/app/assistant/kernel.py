@@ -24,6 +24,7 @@ from .provenance import (
     recipe_quality_contract_hash,
     workflow_fingerprint,
 )
+from .preset_approvals import record_preset_approvals
 from .prompt_assets import assistant_thread_prompt_assembly
 from .provider_support import (
     AssistantProviderChatError,
@@ -40,6 +41,7 @@ from .schemas import (
     AssistantKernelProviderStep,
     AssistantKernelProviderTrace,
     AssistantKernelTrace,
+    AssistantKernelToolTrace,
     AssistantKernelTurnResult,
     AssistantNextAction,
 )
@@ -418,29 +420,6 @@ def _kernel_attachment_context(attachments: List[Dict[str, Any]]) -> Dict[str, A
     }
 
 
-def _recent_conversation(
-    session: Dict[str, Any],
-    *,
-    exclude_message_id: Optional[str] = None,
-) -> List[Dict[str, str]]:
-    session_id = str(session.get("assistant_session_id") or "")
-    if not session_id:
-        return []
-    messages = [
-        message
-        for message in store_assistant.list_assistant_messages(session_id)
-        if message.get("role") in {"user", "assistant"}
-        and message.get("assistant_message_id") != exclude_message_id
-    ][-6:]
-    return [
-        {
-            "role": str(message.get("role") or ""),
-            "text": str(message.get("content_text") or "")[:800],
-        }
-        for message in messages
-    ]
-
-
 def _kernel_session_context(
     session: Dict[str, Any],
     *,
@@ -482,15 +461,8 @@ def _kernel_session_context(
         ),
         None,
     ) if session_id else None
-    latest_saved_artifact = next(
-        (
-            message.get("content_json", {}).get("saved_artifact")
-            for message in reversed(store_assistant.list_assistant_messages(session_id))
-            if message.get("role") == "system_summary"
-            and isinstance(message.get("content_json"), dict)
-            and isinstance(message.get("content_json", {}).get("saved_artifact"), dict)
-        ),
-        None,
+    latest_saved_artifact = store_assistant.latest_saved_assistant_artifact(
+        session_id, exclude_message_id,
     ) if session_id else None
     compact_recommendation = None
     if isinstance(artifact_recommendation, dict):
@@ -525,6 +497,7 @@ def _kernel_session_context(
     return {
         "image_model_defaults": assistant_image_model_defaults(),
         "active_preset_draft": preset_draft if isinstance(preset_draft, dict) else None,
+        "preset_approvals": summary.get("kernel_preset_approvals") or {},
         "active_preset_run_evidence": (
             preset_run_evidence if isinstance(preset_run_evidence, dict) else None
         ),
@@ -560,10 +533,9 @@ def _kernel_session_context(
         "latest_graph_proposal_id": summary.get("kernel_proposal_id"),
         "latest_applied_test_plan_id": latest_applied_test_plan_id,
         "latest_saved_artifact": latest_saved_artifact,
-        "recent_conversation": _recent_conversation(
-            session,
-            exclude_message_id=exclude_message_id,
-        ),
+        "recent_conversation": store_assistant.recent_assistant_conversation(
+            session_id, exclude_message_id,
+        ) if session_id else [],
     }
 
 
@@ -833,7 +805,7 @@ def run_read_only_provider_turn(
         raise AssistantProviderChatError("Codex Local should use the tool-capable assistant kernel.")
     history = [
         {"role": item["role"], "content": item["text"]}
-        for item in _recent_conversation(session)
+        for item in store_assistant.recent_assistant_conversation(str(session.get("assistant_session_id") or ""))
     ]
     try:
         result = enhancement_provider.run_openai_compatible_chat(
@@ -970,7 +942,9 @@ def run_assistant_kernel_turn(
         provider_call_index += 1
         raw_step = run_kernel_provider_step(
             session=session,
-            messages=messages,
+            messages=[*messages, {"role": "system", "content": json.dumps(
+                {"remaining_tool_calls": max(0, max_tool_steps - tool_steps)},
+            )}],
             cancel_event=cancel_event,
             # The kernel wall clock owns provider-step timeouts for assistant turns.
             timeout_seconds=max_wall_seconds - elapsed,
@@ -1059,6 +1033,20 @@ def run_assistant_kernel_turn(
                 )
             ]
             continue
+        try:
+            if step.capability == "preset_builder":
+                session = record_preset_approvals(
+                    session, step.guidance.preset_approvals, user_text, client_user_message_id,
+                )
+        except ValueError as exc:
+            error = {"code": "invalid_preset_approval", "message": str(exc), "retryable": True}
+            tool_traces.append(AssistantKernelToolTrace(
+                tool_name="preset_approval",
+                arguments_hash=hashlib.sha256(step.guidance.model_dump_json().encode()).hexdigest(),
+                duration_ms=0, result_size_bytes=0, error=error,
+            ))
+            messages = [_kernel_tool_result_message(tool_name="kernel_policy", result=None, error=error)]
+            continue
         if step.tool_call is not None:
             completed_artifact = KERNEL_REQUIRED_ARTIFACTS.get(selected_artifact_intent or "none")
             if completed_artifact in {"preset_draft", "recipe_draft", "story_state"} and any(
@@ -1140,6 +1128,7 @@ def run_assistant_kernel_turn(
                     requires_confirmation=True,
                 )
             artifact_kind = {
+                "offer_recipe_continuation": "recipe_continuation",
                 "read_current_workflow": "current_workflow",
                 "validate_current_workflow": "graph_validation",
                 "propose_graph_operations": "graph_proposal",
@@ -1170,7 +1159,7 @@ def run_assistant_kernel_turn(
                 execution.result is not None
                 and execution.trace.error is None
                 and str(step.reply or "").strip()
-                and (artifact_completes_intent or artifact_kind == "graph_proposal")
+                and (artifact_completes_intent or artifact_kind in {"graph_proposal", "recipe_continuation"})
             ):
                 pending_success_reply = str(step.reply or "").strip()
             has_active_production_plan = isinstance(
@@ -1180,7 +1169,7 @@ def run_assistant_kernel_turn(
             completes_turn = (
                 artifact_completes_intent and not has_active_production_plan
             ) or (
-                step.tool_call.name == "propose_graph_operations"
+                step.tool_call.name in {"propose_graph_operations", "offer_recipe_continuation"}
                 and not has_active_production_plan
             ) or (
                 step.tool_call.name in {
@@ -1269,6 +1258,8 @@ def run_assistant_kernel_turn(
                     ),
                 )
             ]
+            if step.tool_call.name in {"list_graph_node_types", "inspect_graph_node_schemas"} and execution.trace.evidence is not None:
+                execution.trace.evidence["wire_bytes"] = len(messages[0]["content"].encode("utf-8"))
             continue
         reply = str(step.reply or "")
         required_artifact = KERNEL_REQUIRED_ARTIFACTS.get(selected_artifact_intent or "none")

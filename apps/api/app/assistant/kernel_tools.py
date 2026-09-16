@@ -78,6 +78,7 @@ from .recipe_kernel import (
     search_prompt_recipes,
     validate_prompt_recipe_draft,
 )
+from .recipe_continuation import OfferRecipeContinuationArguments, offer_recipe_continuation, validate_recipe_return_graph
 from .schemas import (
     AssistantArtifactIntent,
     AssistantGraphOperation,
@@ -1785,6 +1786,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
         graph_plan.warnings.append(
             "This graph uses generation settings from the current request because the saved recipe predates typed preset provenance."
         )
+    validate_recipe_return_graph(planned_workflow, context.session)
     validation = validate_workflow(planned_workflow)
     layout_errors = graph_plan_layout_errors(
         planning_base_workflow,
@@ -1933,6 +1935,13 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
             {"graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}
         ),
         handler=_validate_current_workflow,
+    ),
+    "offer_recipe_continuation": KernelToolDefinition(
+        name="offer_recipe_continuation",
+        description="After inspecting saved recipes, offer an explicit draft-and-return flow for requirements no eligible saved recipe meets. Does not draft, save, apply or run.",
+        arguments_model=OfferRecipeContinuationArguments,
+        allowed_capabilities=frozenset({"graph_builder"}),
+        handler=offer_recipe_continuation,
     ),
     "propose_graph_operations": KernelToolDefinition(
         name="propose_graph_operations",
@@ -2129,6 +2138,7 @@ def kernel_tool_catalog(capability: AssistantKernelCapability | None = None) -> 
             "allowed_capabilities": sorted(definition.allowed_capabilities),
             "read_only": definition.name
             not in {
+                "offer_recipe_continuation",
                 "propose_graph_operations",
                 "propose_media_preset_draft",
                 "propose_prompt_recipe_draft",
@@ -2306,6 +2316,21 @@ def execute_kernel_tool(
             retryable=True,
         )
         encoded = b"{}"
+    catalog_evidence = None
+    if error is None and tool_name in {"list_graph_node_types", "inspect_graph_node_schemas"}:
+        query_arguments = parsed_arguments.model_dump()
+        if "query" in query_arguments:
+            query_arguments["query"] = query_arguments["query"][:500]
+        entries = result.get("node_types", result.get("definitions", []))
+        catalog_evidence = {
+            "arguments": query_arguments,
+            "nodes": [{"type": entry["type"], "content_hash": _arguments_hash(entry),
+                       "bytes": len(json.dumps(entry, sort_keys=True, separators=(",", ":")).encode("utf-8"))}
+                      for entry in entries],
+            "omitted": result.get("schema_omitted_node_types", result.get("omitted_node_types", [])),
+        }
+    if error is None and tool_name == "search_prompt_recipes":
+        catalog_evidence = {"recipe_search": {"query": parsed_arguments.query, "result_count": len(result.get("items", []))}}
     activity = KERNEL_TOOL_ACTIVITIES.get(str(tool_name or ""))
     trace = AssistantKernelToolTrace(
         tool_name=str(tool_name or ""),
@@ -2315,7 +2340,7 @@ def execute_kernel_tool(
         evidence=(
             result
             if error is None and str(tool_name or "") == "list_media_models"
-            else None
+            else catalog_evidence
         ),
         cache_status=(
             result.get("cache_status")

@@ -498,3 +498,9 @@ export type GraphArtifact = {
 
 export type StudioNode = Node<GraphNodeData>;
 export type StudioEdge = Edge;
+
+export type AssistantRecipeContinuationAction = {
+  id: string;
+  token: string;
+  action: "draft" | "return" | "retry" | "cancel";
+};

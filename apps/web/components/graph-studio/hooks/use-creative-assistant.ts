@@ -8,6 +8,7 @@ import { invalidateGraphNodeDefinitions, refreshGraphNodeDefinitionsOnServer } f
 import { providerReadinessFromHealth } from "@/lib/llm-provider-health";
 import type { ControlApiHealthData } from "@/lib/types";
 import type {
+  AssistantRecipeContinuationAction,
   AssistantAttachment,
   AssistantArtifactSaveResponse,
   AssistantMessage,
@@ -310,8 +311,8 @@ export function useCreativeAssistant({
     ),
   );
   const canvasContext = useMemo(
-    () => buildCreativeAssistantCanvasContext(workflow, { selectedNodeIds, selectedGroupIds }),
-    [selectedGroupIds, selectedNodeIds, workflow],
+    () => ({ ...buildCreativeAssistantCanvasContext(workflow, { selectedNodeIds, selectedGroupIds }), workspace_key: workspaceKey }),
+    [selectedGroupIds, selectedNodeIds, workflow, workspaceKey],
   );
 
   const setScopedSession = useCallback((nextSession: SetStateAction<AssistantSession | null>) => {
@@ -930,7 +931,7 @@ export function useCreativeAssistant({
     openAssistantReviewUrl(url);
   }, [onBeforeReviewNavigate, onEvent, reviewReturnTo]);
 
-  const sendContentMessage = useCallback(async (rawContent: string, options?: { clearDraft?: boolean; metadata?: Record<string, unknown>; skipAutoActions?: boolean }) => {
+  const sendContentMessage = useCallback(async (rawContent: string, options?: { clearDraft?: boolean; metadata?: Record<string, unknown>; skipAutoActions?: boolean; continuation?: AssistantRecipeContinuationAction }) => {
     const content = rawContent.trim();
     if (!content || busy) return null;
     const requestWorkspaceKey = workspaceKeyRef.current;
@@ -955,6 +956,7 @@ export function useCreativeAssistant({
           signal,
           body: JSON.stringify({
             content_text: content,
+            continuation: options?.continuation,
             workflow,
             canvas_context: canvasContext,
             run_id: latestRunId ?? null,

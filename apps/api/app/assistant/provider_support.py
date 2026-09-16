@@ -201,6 +201,10 @@ def cancel_assistant_session(record: Dict[str, Any]) -> Dict[str, Any]:
     if cancellation_requested and not wait_for_session_idle(session_id, timeout_seconds=5):
         raise AssistantSessionBusy("The assistant is still stopping. Try again in a moment.")
     current = store_assistant.get_assistant_session(session_id) or record
+    summary = dict(current.get("summary_json") or {})
+    continuation = summary.get("kernel_recipe_continuation")
+    if isinstance(continuation, dict) and continuation.get("state") not in {"returned", "cancelled", "stale", "expired"}:
+        summary["kernel_recipe_continuation"] = {**continuation, "state": "cancelled"}
     snapshot = (
         dict(current.get("state_snapshot_json"))
         if isinstance(current.get("state_snapshot_json"), dict)
@@ -210,6 +214,7 @@ def cancel_assistant_session(record: Dict[str, Any]) -> Dict[str, Any]:
         {
             **current,
             "status": "active",
+            "summary_json": summary,
             "state_snapshot_json": {
                 **snapshot,
                 "provider_cancellation_status": (

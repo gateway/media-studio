@@ -1,3 +1,5 @@
+import replyPolicy from "../../apps/api/app/assistant/reply_policy.json" with {type: "json"};
+
 const bannedVocabulary = [
   "sandbox",
   "plan card",
@@ -36,11 +38,8 @@ export function workflowForProbeSession(workflow, sessionKey) {
 }
 
 function plainWordCount(text) {
-  return String(text || "")
-    .replace(/[`*_>#-]/g, " ")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean).length;
+  const plain = String(text || "").replace(new RegExp(replyPolicy.markdown_separator_pattern, "g"), " ");
+  return (plain.match(new RegExp(replyPolicy.word_pattern, "g")) || []).length;
 }
 
 function presentationAnomalies(text) {
@@ -162,11 +161,13 @@ export function evaluateMechanicalTurn({
   const lower = String(reply || "").toLowerCase();
   const bannedHits = bannedVocabulary.filter((term) => lower.includes(term));
   const wordCount = plainWordCount(reply);
+  const trace = kernelTraceFromContent(contentJson);
+  const capability = contentJson?.kernel_turn?.capability ?? trace.capability ?? contentJson?.capability;
+  const policyMaxWords = replyPolicy.word_limits[capability] ?? replyPolicy.word_limits.default;
   const configuredMaxWords = scenario.mechanical.max_reply_words;
   const maxWords = Number.isInteger(configuredMaxWords) && configuredMaxWords > 0
-    ? configuredMaxWords
-    : 150;
-  const trace = kernelTraceFromContent(contentJson);
+    ? Math.min(configuredMaxWords, policyMaxWords)
+    : policyMaxWords;
   const summaryTrace = contentJson?.assistant_turn_trace ?? {};
   const toolCalls = toolCallsFromTrace(trace);
   const malformedToolCalls = toolCalls.filter((call) => !typedToolCall(call));

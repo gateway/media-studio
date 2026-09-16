@@ -410,9 +410,24 @@ def test_image_to_image_slot_requires_explicit_user_evidence(client) -> None:
     assert result.trace.error.code == "invalid_media_preset_slots"
 
 
+def _approve_subject_image(session):
+    store_assistant = importlib.import_module("app.store_assistant")
+    approvals = importlib.import_module("app.assistant.preset_approvals")
+    schemas = importlib.import_module("app.assistant.schemas")
+    text = "Use Subject Image portrait as identity and likeness source."
+    message = store_assistant.create_assistant_message({
+        "assistant_session_id": session["assistant_session_id"],
+        "role": "user", "content_text": text, "content_json": {},
+    })
+    return approvals.record_preset_approvals(session, [schemas.AssistantPresetApproval(
+        kind="slot", key="subject_image", label="Subject Image",
+        role="identity and likeness source", source_span=text, action="approve",
+    )], text, message["assistant_message_id"])
+
+
 def test_image_to_image_preset_accepts_one_separate_runtime_portrait(client) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
-    session = _session(client)
+    session = _approve_subject_image(_session(client))
     draft = _preset_draft("kernel_i2i_portrait_role", image_slot=True)
     draft["input_slots_json"][0]["help_text"] = (
         "Provides the identity and likeness to preserve in the generated image."
@@ -451,7 +466,7 @@ def test_image_to_image_preset_accepts_one_separate_runtime_portrait(client) -> 
 def test_image_to_image_revision_preserves_an_approved_runtime_role(client) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
     store_assistant = importlib.import_module("app.store_assistant")
-    session = _session(client)
+    session = _approve_subject_image(_session(client))
     original = _preset_draft("kernel_i2i_role_revision", image_slot=True)
     original["rules_json"]["runtime_image_roles"] = {
         "subject_image": {
@@ -459,7 +474,7 @@ def test_image_to_image_revision_preserves_an_approved_runtime_role(client) -> N
             "user_evidence": "portrait",
         }
     }
-    session["summary_json"] = {"kernel_preset_draft": original}
+    session["summary_json"] = {**session["summary_json"], "kernel_preset_draft": original}
     store_assistant.create_or_update_assistant_session(session)
     revised = {**original, "label": "Revised portrait treatment"}
 
