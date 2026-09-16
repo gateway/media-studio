@@ -56,6 +56,7 @@ from app import store_assistant
 from app.assistant import kernel
 
 def forbid_provider(**kwargs): raise AssertionError('External provider is forbidden')
+external_provider_turn=kernel.run_read_only_provider_turn
 kernel.run_read_only_provider_turn=forbid_provider
 current={}
 store_assistant.create_or_update_assistant_session=lambda value: copy.deepcopy(value)
@@ -122,3 +123,23 @@ actual=observe(session,'projection-00')
 assert actual['latest_saved_artifact'] is None
 assert len(actual['recent_conversation'])==6
 print('PASS stable ties, exclusion before limit, roles, malformed JSON, truncation and old saved artifact')
+
+# Exercise the real read-only external-provider branch with the same bounded store.
+from types import SimpleNamespace
+projection=None
+kernel.run_read_only_provider_turn=external_provider_turn
+kernel.resolve_assistant_provider_runtime=lambda _:SimpleNamespace(provider_kind='local_openai',provider_base_url='http://unused.invalid',api_key='',provider_model_id='test/chat',temperature=0,max_tokens=128,credential_source='test')
+expected=store_assistant.recent_assistant_conversation(session['assistant_session_id'])
+external_calls=[]
+def external_chat(**kwargs):
+    external_calls.append(kwargs)
+    assert kwargs['messages'][1:]==[{'role':x['role'],'content':x['text']} for x in expected]
+    assert 'tools' not in kwargs
+    return {'generated_text':'Read-only discussion.', 'usage':{}}
+kernel.enhancement_provider.run_openai_compatible_chat=external_chat
+kernel.external_llm_usage.record_external_llm_usage=lambda **_:None
+reads.clear()
+result=kernel.run_assistant_kernel_turn(session=session,user_text='Read-only discussion.',workflow=None,canvas_context={},assistant_mode=None)
+assert len(external_calls)==1 and len(reads)==1 and sum(x['rows'] for x in reads)<=6
+assert result.trace.termination=='read_only_provider' and not result.trace.tool_calls and result.next_action.kind=='none'
+print('PASS external read-only provider uses one bounded history read and cannot create tools/actions')

@@ -805,7 +805,7 @@ def run_read_only_provider_turn(
         raise AssistantProviderChatError("Codex Local should use the tool-capable assistant kernel.")
     history = [
         {"role": item["role"], "content": item["text"]}
-        for item in _recent_conversation(session)
+        for item in store_assistant.recent_assistant_conversation(str(session.get("assistant_session_id") or ""))
     ]
     try:
         result = enhancement_provider.run_openai_compatible_chat(
