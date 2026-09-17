@@ -22,10 +22,11 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ChangeEvent, DragEvent, ReactElement } from "react";
 
-import type { AssistantPlanResponse, GraphError, GraphMediaPreview, GraphWorkflowPayload } from "./types";
+import type { AssistantPlanResponse, GraphError, GraphEstimateResponse, GraphMediaPreview, GraphWorkflowPayload } from "./types";
+import { AssistantResults, AssistantRunScope } from "./assistant-results";
 import { type AssistantMode, useCreativeAssistant } from "./hooks/use-creative-assistant";
 import { isTextEntryTarget, previewFromReference } from "./utils/graph-media-preview";
-import { assistantPlanPricingLabel } from "./utils/graph-pricing";
+import { assistantPlanPricingLabel, graphEstimateToolbarLabel } from "./utils/graph-pricing";
 import {
   fetchReferenceImagePickerPage,
   referenceImagePickerItem,
@@ -678,7 +679,7 @@ export function CreativeAssistantPanel({
   importImageFile: (file: File) => Promise<MediaReference>;
   onBeforeReviewNavigate?: () => void;
   onAssistantSessionChange?: (assistantSessionId: string | null) => void;
-  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[] }) => Promise<void> | void;
+  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; openInNewTab?: boolean }) => Promise<void> | void;
   onUndoLastAssistantChange?: () => void;
   onRunWorkflow?: (assistantConfirmation?: { sessionId: string; token: string }) => Promise<unknown> | void;
   onOpenPreview?: (preview: GraphMediaPreview, collection?: GraphMediaPreview[]) => void;
@@ -900,7 +901,7 @@ export function CreativeAssistantPanel({
       ? assistant.nextAction
       : null;
   const kernelRunAction =
-    !assistant.runConfirmationNeedsRecheck &&
+    !assistant.runConfirmationNeedsRecheck && !assistant.runConfirmationBlocker &&
     assistant.nextAction?.kind === "run_workflow" && assistant.nextAction.requires_confirmation
       ? assistant.nextAction
       : null;
@@ -1304,6 +1305,8 @@ export function CreativeAssistantPanel({
             </section>
           ) : null}
 
+          <AssistantResults selectionVersion={JSON.stringify(assistant.session?.summary_json?.selected_results ?? {})} sessionId={assistant.session?.assistant_session_id ?? null}
+            runId={latestRunId ?? null} runStatus={latestRunStatus} workspaceKey={workspaceKey} />
           {kernelPresetSaveAction ? (
             <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Media Preset save confirmation">
               <p>
@@ -1346,7 +1349,9 @@ export function CreativeAssistantPanel({
 
           {kernelRunAction ? (
             <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Graph run confirmation">
-              <p>Review the graph and pricing before starting the run.</p>
+              <p>{workflowName} · {graphEstimateToolbarLabel(kernelRunAction.price_estimate as GraphEstimateResponse)}</p>
+              <AssistantRunScope workflow={workflow} />
+              <p>Choosing Review and run submits this graph.</p>
               <div className="graph-assistant-card-actions">
                 <button
                   type="button"
@@ -1371,7 +1376,7 @@ export function CreativeAssistantPanel({
             >
             <div className="graph-assistant-plan-heading">
               {planApplied ? <CheckCircle2 size={15} /> : <Sparkles size={15} />}
-              <strong>{planReviewTitle({ appliedPresetWorkflow: presetTestReady, planApplied, noCanvasChanges, valid: plan.validation.valid, missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}</strong>
+              <strong>{planApplied && planMetadata.independent_stage ? "New stage opened" : planReviewTitle({ appliedPresetWorkflow: presetTestReady, planApplied, noCanvasChanges, valid: plan.validation.valid, missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}</strong>
               {!planApplied ? <small>{pricing}</small> : null}
             </div>
             <p>
@@ -1382,7 +1387,7 @@ export function CreativeAssistantPanel({
                 : planApplied && onlyFieldUpdateOperations
                   ? plan.graph_plan.summary.trim() || "I updated the selected node on the canvas. Want another adjustment?"
                 : planApplied
-                  ? "Here's your graph. I added the nodes to the canvas. Want adjustments, or should we review the prompts?"
+                  ? planMetadata.independent_stage ? "The independent stage is open in its own tab. This source workflow and its run are preserved." : "Here's your graph. I added the nodes to the canvas. Want adjustments, or should we review the prompts?"
                   : noCanvasChanges
                     ? noCanvasChangeSummary(plan)
                     : graphPlanPrimaryCopy(plan, { missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}
@@ -1534,7 +1539,8 @@ export function CreativeAssistantPanel({
 
         <footer className="graph-assistant-footer">
           {assistant.error ? <p className="graph-assistant-error">{assistant.error}</p> : null}
-          {assistant.runConfirmationNeedsRecheck ? (
+          {assistant.runConfirmationBlocker ? <p className="graph-assistant-error">{assistant.runConfirmationBlocker}</p> : null}
+          {assistant.runConfirmationNeedsRecheck || (assistant.runConfirmationBlocker && onRunWorkflow && !assistant.runSubmissionUncertain) ? (
             <button
               type="button"
               className="graph-assistant-card-action-primary"

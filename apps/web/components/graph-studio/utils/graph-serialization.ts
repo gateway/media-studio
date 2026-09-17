@@ -83,6 +83,7 @@ export function workflowFromCanvas(workflowId: string | null, name: string, node
       position: { x: node.position.x, y: node.position.y },
       fields: { ...(node.data as StudioNode["data"]).fields },
       metadata: {
+        ...((node.data as StudioNode["data"]).sourceResult ? { source_result: (node.data as StudioNode["data"]).sourceResult } : {}),
         style: {
           width: typeof node.width === "number" ? node.width : node.style?.width,
           height: (() => {

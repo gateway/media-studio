@@ -62,9 +62,11 @@ GUARDRAILS = (
 # cancellation and exact saved-recipe binding. Existing message/save/lock owners
 # are reused; no new storage table, worker, provider lifecycle or dependency.
 # Cap is the measured final source count, with no speculative reserve.
+# LOCAL-MALIVE-004/001: exact completed-result read/selection and independent-stage
+# handoff reuse graph artifacts/validation. Reviewed measured growth, no reserve.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    11_744,
+    11_961,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

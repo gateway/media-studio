@@ -112,6 +112,7 @@ export type GraphNodeData = {
   nodeHeaderColor?: string | null;
   customTitle?: string | null;
   executionMode?: GraphExecutionMode;
+  sourceResult?: Record<string, unknown>;
   executionCache?: {
     cachedRunId?: string | null;
     cachedArtifactIds?: Record<string, string[]>;

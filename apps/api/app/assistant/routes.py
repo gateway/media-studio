@@ -16,6 +16,7 @@ from .confirmation_routes import create_confirmation_router
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
 from .graph_plan import apply_graph_plan
 from .kernel_route import create_kernel_message
+from .results import router as results_router, validate_stage_results
 from .limits import ASSISTANT_IMAGE_ATTACHMENT_LIMIT, is_image_attachment
 from .provider_support import (
     archive_assistant_session,
@@ -64,10 +65,12 @@ def _latest_relevant_session_plan(record: dict[str, Any]) -> dict[str, Any] | No
         )
         workflow_id = str(workflow_payload.get("workflow_id") or "").strip()
         applied_workflow_id = str(plan_record.get("applied_workflow_id") or "").strip()
+        plan_metadata = (plan_record.get("plan_json") or {}).get("metadata") or {}
+        source_workflow_id = plan_metadata.get("source_workflow_id") if plan_metadata.get("independent_stage") else None
         if (
             owner_kind == "graph_workflow"
             and owner_id
-            and owner_id not in {workflow_id, applied_workflow_id}
+            and owner_id not in {workflow_id, applied_workflow_id, source_workflow_id}
         ):
             continue
         try:
@@ -248,6 +251,7 @@ def create_plan(
 
 
 router.include_router(create_confirmation_router(shape_session=_shape_session))
+router.include_router(results_router)
 
 
 @router.post("/plans/{plan_id}/apply", response_model=AssistantPlanApplyResponse)
@@ -287,7 +291,7 @@ def apply_plan(
             "The canvas changed after this graph proposal was created. Ask for a fresh proposal."
         )
     try:
-        if graph_plan.metadata.get("replace_existing_test_lane"):
+        if graph_plan.metadata.get("independent_stage") or graph_plan.metadata.get("replace_existing_test_lane"):
             workflow = GraphWorkflow.model_validate(plan.get("workflow_json") or {})
         elif graph_plan.operations:
             workflow = apply_graph_plan(base_workflow, graph_plan)
@@ -295,6 +299,11 @@ def apply_plan(
             workflow = base_workflow
     except ValueError as exc:
         raise _bad_request(str(exc))
+    if graph_plan.metadata.get("independent_stage"):
+        try:
+            validate_stage_results(str(plan["assistant_session_id"]), workflow, graph_plan.metadata.get("reused_results") or [])
+        except (ValueError, HTTPException) as exc:
+            raise _bad_request(str(getattr(exc, "detail", exc))) from exc
     validation = validate_workflow(workflow)
     layout_base = (
         GraphWorkflow(
@@ -302,7 +311,7 @@ def apply_plan(
             workflow_id=base_workflow.workflow_id,
             name=base_workflow.name,
         )
-        if graph_plan.metadata.get("replace_existing_test_lane")
+        if graph_plan.metadata.get("replace_existing_test_lane") or graph_plan.metadata.get("independent_stage")
         else base_workflow
     )
     layout_errors = graph_plan_layout_errors(layout_base, workflow, graph_plan)

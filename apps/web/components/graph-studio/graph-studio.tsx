@@ -2106,7 +2106,26 @@ function GraphStudioClient() {
               importImageFile={importImageFile}
               onBeforeReviewNavigate={snapshotActiveTab}
               onAssistantSessionChange={handleAssistantSessionChange}
-              onApplyWorkflow={applyAssistantWorkflowWithFreshDefinitions}
+              onApplyWorkflow={async (workflow, options) => {
+                if (options?.openInNewTab) {
+                  const sourceVersion = workspaceRestoreVersionRef.current;
+                  const sourceSignature = graphWorkflowSnapshotSignature(currentWorkflowPayload);
+                  const hydrationDefinitions = await graphDefinitionsForWorkflowHydration({ workflow, definitionsByType, reloadDefinitions: reloadNodeDefinitions });
+                  if (!restoreVersionIsCurrent(sourceVersion) || activeTabIdRef.current !== activeTabId || sourceSignature !== graphWorkflowSnapshotSignature(currentHistorySnapshotRef.current?.workflow)) {
+                    throw new Error('The source workflow changed while preparing the stage. Return to it and review again.');
+                  }
+                  markWorkspaceChanged();
+                  const sourceSnapshot = snapshotActiveTab();
+                  const nextTab = openWorkflowTab({ workflowId: null, workflowName: workflow.name, workflow,
+                    savedWorkflowSignature: null, workflowUpdatedAt: null, runId: null, runStatus: null,
+                    dirty: true }, sourceSnapshot);
+                  hydrateWorkflowPayload(workflow, { workflowId: null, run: null, definitionsByType: hydrationDefinitions });
+                  replaceHistoryForTab(nextTab.tab_id, { workflow, workflowId: null, workflowName: workflow.name, workflowUpdatedAt: null });
+                  setConsoleLines(['Independent stage opened. Previous workflow preserved; nothing has run.']);
+                  return;
+                }
+                return applyAssistantWorkflowWithFreshDefinitions(workflow, options);
+              }}
               onUndoLastAssistantChange={undoGraphChange}
               onRunWorkflow={runWorkflow}
               onOpenPreview={(preview, collection) => {

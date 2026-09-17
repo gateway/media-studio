@@ -9,6 +9,7 @@ from threading import Event
 from typing import Any, Callable, Dict, FrozenSet, List, Literal, Optional
 
 from pydantic import BaseModel, Field, ValidationError
+from fastapi import HTTPException
 
 from .. import store, store_assistant
 from ..graph.normalization import materialize_workflow_defaults
@@ -28,6 +29,7 @@ from .artifact_recommendation_tools import (
     record_artifact_recommendation_decision,
 )
 from .canvas_context import compact_canvas_context
+from .results import (ResultReuse, ReadResultsArguments, ResultSelection, read_results_tool, select_result_tool, stage_result_operations, validate_stage_results)
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
 from .graph_plan import apply_graph_plan
 from .reference_analysis import (
@@ -156,6 +158,8 @@ class DerivedRecipeDefaultsOverride(BaseModel):
 class ProposeGraphOperationsArguments(BaseModel):
     summary: str = Field(min_length=1, max_length=800)
     operations: List[AssistantGraphOperation] = Field(default_factory=list, max_length=64)
+    new_stage_name: Optional[str] = Field(default=None, min_length=1, max_length=160, description="Create a separate workflow and preserve the current graph. Use for independent stages or variants, never repurpose prior generators.")
+    reused_results: List[ResultReuse] = Field(default_factory=list, max_length=8, description="Exact selected outputs to materialize as loaders/text. Connect from their node_ref; do not reconstruct their content.")
     template_id: Optional[
         Literal[
             "preset_style_t2i_sandbox_v1",
@@ -248,6 +252,7 @@ def _read_current_workflow(
                 "type": node.type,
                 "title": _workflow_title(node),
                 "position": dict(node.position),
+                "execution": dict(node.metadata.get("execution") or {"mode": "enabled"}),
                 "fields": dict(node.fields) if options.include_fields else {},
             }
             for node in workflow.nodes
@@ -1564,6 +1569,18 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     options = ProposeGraphOperationsArguments.model_validate(arguments)
     operations = options.operations
     metadata: Dict[str, Any] = {"kernel_proposal": True}
+    if options.reused_results and not options.new_stage_name:
+        raise KernelToolFailure(code="independent_stage_required", message="Reuse completed results in a named independent stage.")
+    if options.new_stage_name:
+        if options.template_id:
+            raise KernelToolFailure(code="invalid_stage", message="Use explicit stage operations, not a replacement test template.")
+        try:
+            reuse_operations, bindings = stage_result_operations(str(context.session_id or ""), options.reused_results)
+        except (ValueError, HTTPException) as exc:
+            raise KernelToolFailure(code="result_unavailable", message=str(getattr(exc, 'detail', exc))) from exc
+        operations = reuse_operations + operations
+        operations = [operation.model_copy(update={"node_id": new_id("stage-node")}) if operation.op == "add_node" else operation for operation in operations]
+        metadata.update({"independent_stage": True, "source_workflow_id": context.workflow.workflow_id if context.workflow else None, "reused_results": bindings})
     arrange_operations = [operation for operation in operations if operation.op == "arrange_workflow"]
     if arrange_operations:
         if len(arrange_operations) != 1 or any(
@@ -1635,7 +1652,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
             code="invalid_graph_operations",
             message="Provide at least one graph operation or a standard preset test template.",
         )
-    if not template_id:
+    if not template_id and not options.new_stage_name:
         metadata.update(_saved_recipe_refinement_metadata(context, operations))
     definitions = registry.definitions_by_type()
     for index, operation in enumerate(operations):
@@ -1656,7 +1673,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
         requires_confirmation=True,
         metadata=metadata,
     )
-    planning_base_workflow = base_workflow
+    planning_base_workflow = GraphWorkflow(name=options.new_stage_name) if options.new_stage_name else base_workflow
     if graph_plan.metadata.get("replace_existing_test_lane"):
         planning_base_workflow = GraphWorkflow(
             schema_version=base_workflow.schema_version,
@@ -1672,6 +1689,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     has_paid_path = any(node.type.startswith("model.kie.") for node in base_workflow.nodes)
     if (
         context.capability in {"graph_builder", "recipe_builder"}
+        and not options.new_stage_name
         and has_paid_path
         and adds_paid_path
         and not graph_plan.metadata.get("replace_existing_test_lane")
@@ -1787,6 +1805,11 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
             "This graph uses generation settings from the current request because the saved recipe predates typed preset provenance."
         )
     validate_recipe_return_graph(planned_workflow, context.session)
+    if options.new_stage_name:
+        try:
+            validate_stage_results(str(context.session_id or ""), planned_workflow, metadata["reused_results"])
+        except (ValueError, HTTPException) as exc:
+            raise KernelToolFailure(code="result_unavailable", message=str(getattr(exc, 'detail', exc))) from exc
     validation = validate_workflow(planned_workflow)
     layout_errors = graph_plan_layout_errors(
         planning_base_workflow,
@@ -1813,7 +1836,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
         )
     layout_requested = bool(graph_plan.metadata.get("arrange_workflow"))
     diff_summary = graph_plan_diff_summary(
-        base_workflow,
+        planning_base_workflow,
         planned_workflow,
         graph_plan,
         validation=validation,
@@ -1872,6 +1895,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
                 "no_canvas_changes",
                 "replace_existing_test_lane",
                 "template_refinement",
+                "independent_stage",
             )
             if graph_plan.metadata.get(key)
         },
@@ -1886,6 +1910,8 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
 
 
 KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
+    "read_run_results": KernelToolDefinition(name="read_run_results", description="Read exact completed image, text, video or audio results from the selected session-owned run, with selectable artifact IDs, versions and availability. No execution; full text is materialized by reused_results.", arguments_model=ReadResultsArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=read_results_tool),
+    "select_run_result": KernelToolDefinition(name="select_run_result", description="Select or deselect the exact result the user chose from read_run_results, using its run_id, artifact_id and version. Never guess an ordinal across runs. Selection persists without generation.", arguments_model=ResultSelection, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=select_result_tool),
     "read_current_workflow": KernelToolDefinition(
         name="read_current_workflow",
         description="Read the current workflow identity, nodes, fields, edges, and selection without changing it.",
@@ -2149,6 +2175,7 @@ def kernel_tool_catalog(capability: AssistantKernelCapability | None = None) -> 
                 "analyze_recipe_output",
                 "recommend_saved_artifacts",
                 "record_artifact_recommendation_decision",
+                "select_run_result",
             },
         }
         for definition in KERNEL_TOOLS.values()
@@ -2198,6 +2225,8 @@ def execute_kernel_tool(
                 parsed_arguments,
                 replace(context, capability=capability),
             )
+        except HTTPException as exc:
+            error = AssistantKernelToolError(code="result_unavailable", message=str(exc.detail), retryable=True)
         except ValidationError as exc:
             error = AssistantKernelToolError(
                 code="invalid_tool_arguments",

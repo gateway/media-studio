@@ -710,7 +710,7 @@ def associate_confirmed_assistant_run(
         )
     confirmed_at = store_assistant.utcnow_iso()
     updated_summary = {
-        **summary,
+        "result_runs": {run_id: True},
         "kernel_run_confirmation": {
             **confirmation,
             "workflow_fingerprint": fingerprint,
@@ -728,12 +728,8 @@ def associate_confirmed_assistant_run(
             run_id,
             fingerprint,
         )
-    store_assistant.create_or_update_assistant_session(
-        {
-            **session,
-            "summary_json": updated_summary,
-        }
-    )
+    if not store_assistant.claim_assistant_run_confirmation(session_id, supplied_hash, updated_summary):
+        raise RunEvidenceError("run_not_confirmed", "This run confirmation is no longer available.")
 
 
 def applied_preset_test_plan_id(session_id: str, workflow: GraphWorkflow) -> str | None:
@@ -851,18 +847,13 @@ def confirm_kernel_run_action(
                 "message": "The graph changed after this run confirmation was prepared.",
             },
         )
-    store_assistant.create_or_update_assistant_session(
-        {
-            **session,
-            "summary_json": {
-                **summary,
-                "kernel_run_confirmation": {
-                    **confirmation,
-                    "workflow_fingerprint": supplied_fingerprint,
-                    "consumed": True,
-                    "confirmed_at": store_assistant.utcnow_iso(),
-                },
-            },
-        }
-    )
+    if not store_assistant.claim_assistant_run_confirmation(session_id, supplied_hash, {
+        "kernel_run_confirmation": {
+            **confirmation,
+            "workflow_fingerprint": supplied_fingerprint,
+            "consumed": True,
+            "confirmed_at": store_assistant.utcnow_iso(),
+        },
+    }):
+        raise HTTPException(status_code=400, detail="This run confirmation is no longer available.")
     return {"confirmed": True}

@@ -495,6 +495,7 @@ def _kernel_session_context(
                 compact_stages[str(key)]["candidates"] = candidates
         compact_recommendation = {"stages": compact_stages}
     return {
+        "selected_results": summary.get("selected_results") or {},
         "image_model_defaults": assistant_image_model_defaults(),
         "active_preset_draft": preset_draft if isinstance(preset_draft, dict) else None,
         "preset_approvals": summary.get("kernel_preset_approvals") or {},
@@ -540,6 +541,8 @@ def _kernel_session_context(
 
 
 def _graph_confirmation_label(metadata: Dict[str, Any]) -> str:
+    if metadata.get("independent_stage"):
+        return "Open new stage"
     if metadata.get("arrange_workflow"):
         return "Tidy workflow"
     if metadata.get("replace_existing_test_lane"):
@@ -1238,11 +1241,7 @@ def run_assistant_kernel_turn(
                     next_action=_next_action_for_artifacts(
                         selected_capability,
                         artifacts,
-                        requested_action=(
-                            step.requested_action
-                            if step.requested_action.kind == "run_workflow"
-                            else requested_run_action
-                        ),
+                        requested_action=requested_run_action or step.requested_action,
                         workflow=workflow,
                         session=session,
                     ),
@@ -1316,11 +1315,7 @@ def run_assistant_kernel_turn(
         next_action = _next_action_for_artifacts(
             selected_capability,
             artifacts,
-            requested_action=(
-                step.requested_action
-                if step.requested_action.kind == "run_workflow"
-                else requested_run_action
-            ),
+            requested_action=requested_run_action or step.requested_action,
             workflow=workflow,
             session=session,
         )

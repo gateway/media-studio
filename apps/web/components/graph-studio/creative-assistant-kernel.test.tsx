@@ -41,7 +41,9 @@ const plan: AssistantPlanResponse = {
   pricing: { pricing_summary: { total: { estimated_credits: 0, estimated_cost_usd: 0 } }, nodes: {}, warnings: [] },
 };
 
-it("sends the live canvas when applying a kernel-owned graph confirmation", async () => {
+it.each([false, true])("applies a session-owned graph confirmation, independent stage: %s", async (independent) => {
+  const label = independent ? "Open new stage" : "Add to canvas";
+  const activePlan = independent ? { ...plan, workflow: { ...plan.workflow, workflow_id: null }, graph_plan: { ...plan.graph_plan, metadata: { independent_stage: true, source_workflow_id: "workflow-1" } } } : plan;
   const onApplyWorkflow = vi.fn();
   const fetchMock = vi.fn((url: string) => {
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
@@ -58,7 +60,7 @@ it("sends the live canvas when applying a kernel-owned graph confirmation", asyn
             mode: "assistant_kernel",
             next_action: {
               kind: "confirm_graph",
-              label: "Add to canvas",
+              label,
               proposal_id: "plan-1",
               confirmation_token: "confirm-token-1",
               requires_confirmation: true,
@@ -69,11 +71,11 @@ it("sends the live canvas when applying a kernel-owned graph confirmation", asyn
             },
           },
         }],
-        latest_plan: plan,
+        latest_plan: activePlan,
       });
     }
     if (url.endsWith("/media/assistant/plans/plan-1/apply")) {
-      return jsonResponse({ ...plan, plan: { ...plan.plan, status: "applied" } });
+      return jsonResponse({ ...activePlan, plan: { ...activePlan.plan, status: "applied" } });
     }
     return Promise.resolve(new Response("not found", { status: 404 }));
   });
@@ -97,7 +99,7 @@ it("sends the live canvas when applying a kernel-owned graph confirmation", asyn
   });
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
 
-  await waitFor(() => expect(screen.getByRole("button", { name: "Add to canvas" })).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole("button", { name: label })).toBeTruthy());
   expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/plans"))).toBe(false);
   expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/apply"))).toBe(false);
   const changedWorkflow = {
@@ -117,9 +119,10 @@ it("sends the live canvas when applying a kernel-owned graph confirmation", asyn
       onClose={vi.fn()}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Add to canvas" }));
+  fireEvent.click(screen.getByRole("button", { name: label }));
 
   await waitFor(() => expect(onApplyWorkflow).toHaveBeenCalled());
+  expect(onApplyWorkflow.mock.calls[0][1].openInNewTab).toBe(independent);
   const applyCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/media/assistant/plans/plan-1/apply"));
   expect(JSON.parse(String(applyCall?.[1]?.body))).toMatchObject({
     workflow: changedWorkflow,
@@ -480,6 +483,7 @@ it("runs only after the user clicks the typed kernel action", async () => {
             mode: "assistant_kernel",
             next_action: {
               kind: "run_workflow",
+          price_estimate: { pricing_summary: { total: { estimated_credits: 0, estimated_cost_usd: 0 } } },
               label: "Review and run",
               confirmation_token: "run-token-1",
               requires_confirmation: true,

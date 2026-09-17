@@ -242,6 +242,12 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
     errors: List[GraphError] = []
     warnings: List[GraphError] = []
     _validate_assistant_prompt_quality_gate(workflow, errors)
+    from .result_binding import validate_result_binding
+    for source_node in workflow.nodes:
+        try:
+            validate_result_binding(source_node)
+        except (ValueError, OSError) as error:
+            errors.append(GraphError(code='source_result_changed', message=str(error), node_id=source_node.id))
     workflow_id = workflow.workflow_id or str(workflow.metadata.get("workflow_id") or "")
     frozen_cache_by_node_id: Dict[str, Dict[str, Any] | None] = {}
     muted_cache_by_node_id: Dict[str, Dict[str, Any] | None] = {}
