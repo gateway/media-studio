@@ -47,6 +47,7 @@ def _execution_workflow_payload(workflow: GraphWorkflow) -> Dict[str, Any]:
                 "id": node.id,
                 "type": node.type,
                 "fields": node.fields,
+                **({"source_result": metadata["source_result"]} if metadata.get("source_result") else {}),
                 "execution": {
                     "mode": str(execution.get("mode") or "enabled"),
                     "cached_run_id": execution.get("cached_run_id") or None,

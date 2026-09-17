@@ -86,7 +86,7 @@ describe("graph workflow serialization", () => {
             type: "media.load_image",
             position: { x: 10, y: 20 },
             fields: { reference_id: "ref-1" },
-            metadata: { ui: { collapsed: true, customTitle: "Source" }, execution: { mode: "frozen", cached_run_id: "run-1" } },
+            metadata: { source_result: { run_id: "origin-run", artifact_id: "origin-artifact", version: "v1" }, ui: { collapsed: true, customTitle: "Source" }, execution: { mode: "frozen", cached_run_id: "run-1" } },
           },
           { id: "preview", type: "preview.image", position: { x: 300, y: 20 }, fields: {} },
         ],
@@ -104,6 +104,7 @@ describe("graph workflow serialization", () => {
         nodes: [{ node_id: "preview", node_type: "preview.image", status: "completed", output_snapshot_json: { image: "asset-1" } }],
       },
     });
+    expect(workflowFromCanvas("workflow-1", "Hydrate", hydrated.nodes, hydrated.edges).nodes[0].metadata?.source_result).toEqual({ run_id: "origin-run", artifact_id: "origin-artifact", version: "v1" });
     expect(hydrated.nodes).toHaveLength(2);
     expect(hydrated.nodes[0].data).toMatchObject({
       fields: { reference_id: "ref-1" },

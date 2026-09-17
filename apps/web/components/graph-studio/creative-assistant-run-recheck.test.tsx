@@ -36,6 +36,7 @@ it("offers a safe recheck after the graph changes without starting a run", async
         mode: "assistant_kernel",
         next_action: {
           kind: "run_workflow",
+          price_estimate: { pricing_summary: { total: { estimated_credits: 0, estimated_cost_usd: 0 } } },
           label: "Review and run",
           confirmation_token: "run-token-stale",
           requires_confirmation: true,
@@ -104,6 +105,7 @@ it("keeps slow run progress distinct from assistant reasoning progress", async (
         mode: "assistant_kernel",
         next_action: {
           kind: "run_workflow",
+          price_estimate: { pricing_summary: { total: { estimated_credits: 0, estimated_cost_usd: 0 } } },
           label: "Review and run",
           confirmation_token: "run-token-slow",
           requires_confirmation: true,
@@ -133,7 +135,11 @@ it("keeps slow run progress distinct from assistant reasoning progress", async (
   );
   const runButton = await screen.findByRole("button", { name: "Review and run" });
   vi.useFakeTimers();
-  fireEvent.click(runButton);
+  act(() => {
+    runButton.click();
+    runButton.click();
+  });
+  expect(onRunWorkflow).toHaveBeenCalledTimes(1);
 
   const initialProgress = screen.getByRole("status", { name: "Assistant run progress" }).textContent;
   await act(async () => vi.advanceTimersByTime(30_000));
@@ -166,6 +172,7 @@ it("does not let a run from the previous workflow clear the current assistant tu
         mode: "assistant_kernel",
         next_action: {
           kind: "run_workflow",
+          price_estimate: { pricing_summary: { total: { estimated_credits: 0, estimated_cost_usd: 0 } } },
           label: "Review and run",
           confirmation_token: "run-token-navigation",
           requires_confirmation: true,
@@ -215,4 +222,76 @@ it("does not let a run from the previous workflow clear the current assistant tu
     resolveMessage?.(jsonResponse({ ...runSession, messages: [] }));
     await Promise.resolve();
   });
+});
+
+
+it.each([
+  { payload: { confirmation_token: "different-token" } },
+  { payload: null },
+  { label: null },
+  { price_estimate: null },
+])("shows a blocker instead of an unusable run action (%j)", async (invalidFields) => {
+  const onRunWorkflow = vi.fn();
+  const invalidSession = {
+    ...session,
+    messages: [{
+      assistant_message_id: "message-invalid-run",
+      assistant_session_id: "session-1",
+      role: "assistant",
+      content_text: "Ready for review.",
+      content_json: {
+        mode: "assistant_kernel",
+        next_action: {
+          kind: "run_workflow",
+          price_estimate: { pricing_summary: { total: { estimated_credits: 0, estimated_cost_usd: 0 } } },
+          label: "Review and run",
+          confirmation_token: "current-token",
+          requires_confirmation: true,
+          payload: { confirmation_token: "current-token" },
+          ...invalidFields,
+        },
+      },
+    }],
+  };
+  vi.stubGlobal("fetch", vi.fn((url: string) => url.includes("/media/assistant/sessions?")
+    ? jsonResponse({ items: [invalidSession] }) : jsonResponse({})));
+  render(<CreativeAssistantPanel open workspaceKey="invalid-confirmation" workflowId="workflow-1"
+    workflowName="Confirmation test" workflow={workflow} references={[]} importImageFile={vi.fn()}
+    onApplyWorkflow={vi.fn()} onRunWorkflow={onRunWorkflow} onClose={vi.fn()} />);
+
+  expect(await screen.findByRole("button", { name: "Recheck graph and pricing" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Review and run" })).toBeNull();
+  expect(screen.getByText(/run confirmation is incomplete|estimate is unavailable/i)).toBeTruthy();
+  expect(onRunWorkflow).not.toHaveBeenCalled();
+});
+
+
+it.each([
+  { outcome: undefined, expected: /run outcome is unknown.*run history/i, runnable: false },
+  { outcome: null, expected: /Run cancelled before spending credits/i, runnable: true },
+])("distinguishes an unconfirmed launch from cancellation ($outcome)", async ({ outcome, expected, runnable }) => {
+  const onRunWorkflow = vi.fn().mockResolvedValue(outcome);
+  const runSession = {
+    ...session,
+    messages: [{
+      assistant_message_id: "message-no-launch",
+      assistant_session_id: "session-1", role: "assistant", content_text: "Ready for review.",
+      content_json: { mode: "assistant_kernel", next_action: {
+        kind: "run_workflow",
+          price_estimate: { pricing_summary: { total: { estimated_credits: 0, estimated_cost_usd: 0 } } }, label: "Review and run", requires_confirmation: true,
+        confirmation_token: "launch-token", payload: { confirmation_token: "launch-token" },
+      } },
+    }],
+  };
+  vi.stubGlobal("fetch", vi.fn((url: string) => url.includes("/media/assistant/sessions?")
+    ? jsonResponse({ items: [runSession] }) : jsonResponse({})));
+  render(<CreativeAssistantPanel open workspaceKey="missing-launch" workflowId="workflow-1"
+    workflowName="Confirmation test" workflow={workflow} references={[]} importImageFile={vi.fn()}
+    onApplyWorkflow={vi.fn()} onRunWorkflow={onRunWorkflow} onClose={vi.fn()} />);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Review and run" }));
+  expect(await screen.findByText(expected)).toBeTruthy();
+  expect(Boolean(screen.queryByRole("button", { name: "Recheck graph and pricing" }))).toBe(false);
+  expect(Boolean(screen.queryByRole("button", { name: "Review and run" }))).toBe(runnable);
+  expect(onRunWorkflow).toHaveBeenCalledTimes(1);
 });

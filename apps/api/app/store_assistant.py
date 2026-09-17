@@ -36,6 +36,48 @@ def create_or_update_assistant_session(payload: Dict[str, Any]) -> Dict[str, Any
     return _upsert_table("assistant_sessions", "assistant_session_id", item)
 
 
+def claim_assistant_run_confirmation(
+    session_id: str, token_hash: str, summary_update: Dict[str, Any],
+) -> bool:
+    """Consume only the still-current unused token, without overwriting other session state."""
+    with get_connection() as connection:
+        result = connection.execute(
+            """UPDATE assistant_sessions
+               SET summary_json = json_patch(summary_json, ?), updated_at = ?
+               WHERE assistant_session_id = ?
+                 AND json_extract(summary_json, '$.kernel_run_confirmation.confirmation_token_hash') = ?
+                 AND COALESCE(json_extract(summary_json, '$.kernel_run_confirmation.consumed'), 0) = 0""",
+            (json.dumps(summary_update), utcnow_iso(), session_id, token_hash),
+        )
+        return result.rowcount == 1
+
+
+def set_assistant_result_selection(session_id: str, artifact_id: Optional[str], binding: Optional[Dict[str, Any]]) -> List[str]:
+    """Serialize selection edits across tabs without replacing stale session summaries.
+
+    artifact_id=None explicitly clears selections, including unavailable/orphaned outputs.
+    """
+    with get_connection() as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        row = connection.execute('SELECT summary_json FROM assistant_sessions WHERE assistant_session_id = ?', (session_id,)).fetchone()
+        if not row:
+            raise ValueError('The assistant session is unavailable.')
+        selections = (json.loads(row['summary_json']) or {}).get('selected_results') or {}
+        if artifact_id is None:
+            selections = {}
+        elif binding is None:
+            selections.pop(artifact_id, None)
+        else:
+            if len(selections) >= 8 and artifact_id not in selections:
+                raise ValueError('Select at most eight results for a stage.')
+            selections[artifact_id] = binding
+        connection.execute(
+            "UPDATE assistant_sessions SET summary_json = json_set(summary_json, '$.selected_results', json(?)), updated_at = ? WHERE assistant_session_id = ?",
+            (json.dumps(selections), utcnow_iso(), session_id),
+        )
+        return list(selections)
+
+
 def get_assistant_session(session_id: str) -> Optional[Dict[str, Any]]:
     with get_connection() as connection:
         row = connection.execute(

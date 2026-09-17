@@ -12,7 +12,7 @@ import type {
   StudioEdge,
   StudioNode,
 } from "../types";
-import { jsonFetch } from "../utils/graph-api";
+import { JsonFetchError, jsonFetch } from "../utils/graph-api";
 import { assetIdsFromGraphRun } from "../utils/graph-media-preview";
 import { formatGraphRunEventsForConsole } from "../utils/graph-run-events";
 
@@ -245,6 +245,7 @@ export function useGraphRunLifecycle({
   );
 
   const runWorkflow = useCallback(async (assistantConfirmation?: { sessionId: string; token: string }) => {
+    let submissionStarted = false;
     try {
       resetNodeRunState();
       setRun(null);
@@ -260,7 +261,9 @@ export function useGraphRunLifecycle({
       const { id, result } = await validateWorkflowForRun();
       if (!result.valid) {
         applyValidationErrorsToNodes(result.errors);
-        appendConsole(`Run blocked before spending credits: ${result.errors.map(validationRunBlockerLabel).join("; ")}`);
+        const message = `Run blocked before spending credits: ${result.errors.map(validationRunBlockerLabel).join("; ")}`;
+        appendConsole(message);
+        if (assistantConfirmation) throw new JsonFetchError(message, "graph_validation_failed");
         return;
       }
       if (result.warnings.length) {
@@ -268,8 +271,9 @@ export function useGraphRunLifecycle({
       }
       if (confirmPricingForRun && !(await confirmPricingForRun())) {
         appendConsole("Run cancelled before spending credits.");
-        return;
+        return null;
       }
+      submissionStarted = true;
       const created = await jsonFetch<GraphRun>(`/api/control/media/graph/workflows/${id}/runs`, {
         method: "POST",
         body: JSON.stringify({
@@ -288,6 +292,9 @@ export function useGraphRunLifecycle({
       const message = (error as Error).message || "Graph run failed to start.";
       appendConsole(`Run failed to start: ${message}`);
       applyValidationErrorsToNodes([{ message }]);
+      if (assistantConfirmation && submissionStarted && !(error instanceof JsonFetchError && error.status && error.status < 500)) {
+        throw new JsonFetchError("The run outcome is unknown. Check run history before preparing another run.", "run_start_unconfirmed");
+      }
       if (assistantConfirmation) throw error;
     }
   }, [

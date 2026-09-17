@@ -149,7 +149,6 @@ def _create_tracked_kernel_message(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except AssistantProviderChatError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    result.trace.voice_violations = lint_assistant_reply(result.reply, capability=result.capability)
     refreshed_session = store_assistant.get_assistant_session(session_id) or session
     summary = (
         refreshed_session.get("summary_json")
@@ -162,6 +161,13 @@ def _create_tracked_kernel_message(
         if isinstance(existing_confirmation, dict) and existing_confirmation.get("consumed") is True
         else None
     )
+    pricing = result.next_action.price_estimate or {}
+    pricing_summary = pricing.get("pricing_summary")
+    if result.next_action.kind == "run_workflow" and (
+        not isinstance(pricing_summary, dict) or pricing_summary.get("has_unknown_pricing")
+    ):
+        result.next_action = AssistantNextAction()
+        result.reply = "Run confirmation is blocked because pricing is unavailable. Recheck graph pricing. Nothing has started."
     if result.next_action.kind == "run_workflow" and result.next_action.confirmation_token:
         fingerprint = str((result.next_action.payload or {}).get("workflow_fingerprint") or "")
         test_plan_id = (
@@ -192,6 +198,10 @@ def _create_tracked_kernel_message(
         )
         if confirmation_kind == "recipe" and not recipe_plan_id:
             result.next_action = AssistantNextAction()
+            result.reply = (
+                "Run confirmation is blocked because this graph no longer matches an applied recipe plan. "
+                "Rebuild the reviewed recipe graph before requesting another confirmation. Nothing has started."
+            )
         else:
             run_confirmation = {
                 "confirmation_token_hash": hashlib.sha256(
@@ -203,6 +213,12 @@ def _create_tracked_kernel_message(
                 "confirmation_kind": confirmation_kind,
                 "consumed": False,
             }
+    if result.next_action.kind == "run_workflow" and run_confirmation:
+        result.reply = (
+            "Run confirmation is ready. Review the current graph and estimate; "
+            "choosing Review and run submits this graph. Nothing has started."
+        )
+    result.trace.voice_violations = lint_assistant_reply(result.reply, capability=result.capability)
     turn_payload = result.model_dump(mode="json", exclude_none=True)
     content_json = {
         "mode": "assistant_kernel",

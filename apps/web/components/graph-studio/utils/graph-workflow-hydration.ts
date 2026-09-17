@@ -86,6 +86,7 @@ export function hydrateGraphWorkflowForCanvas({
       customTitle: savedUi.customTitle,
       executionMode: savedUi.executionMode,
       executionCache: savedUi.executionCache,
+      sourceResult: savedNode.metadata?.source_result as Record<string, unknown> | undefined,
       autoSizedHeight: typeof effectiveStyle.height === "number" ? effectiveStyle.height : null,
       userSizedHeight: savedUi.userSizedHeight,
     };

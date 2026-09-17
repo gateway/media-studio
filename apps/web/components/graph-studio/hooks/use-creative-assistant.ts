@@ -160,13 +160,15 @@ function persistedPlanForWorkflow(
   if (!persistedPlan) return null;
   if (persistedPlan.plan.assistant_session_id !== assistantSession.assistant_session_id) return null;
   const planWorkflowId = persistedPlan.workflow.workflow_id ?? null;
+  const independentSource = persistedPlan.graph_plan.metadata?.independent_stage === true &&
+    persistedPlan.graph_plan.metadata?.source_workflow_id === workflowId && !planWorkflowId;
   if (workflowId) {
     const workflowOwnsSession =
       assistantSession.owner_kind === "graph_workflow" && assistantSession.owner_id === workflowId;
     const standalonePlanTargetsWorkflow =
-      assistantSession.owner_kind === "standalone" && !assistantSession.owner_id && planWorkflowId === workflowId;
+      assistantSession.owner_kind === "standalone" && !assistantSession.owner_id && (planWorkflowId === workflowId || independentSource);
     if (!workflowOwnsSession && !standalonePlanTargetsWorkflow) return null;
-    if (planWorkflowId !== workflowId && persistedPlan.plan.applied_workflow_id !== workflowId) return null;
+    if (!independentSource && planWorkflowId !== workflowId && persistedPlan.plan.applied_workflow_id !== workflowId) return null;
   } else if (assistantSession.owner_kind !== "standalone" || persistedPlan.workflow.workflow_id) {
     return null;
   }
@@ -197,7 +199,7 @@ function latestKernelNextAction(session: AssistantSession | null): AssistantNext
   const actionPayload = action.payload && typeof action.payload === "object"
     ? action.payload as Record<string, unknown>
     : null;
-  if (kind !== "none" && (!label || !actionPayload)) return null;
+  if (kind !== "none" && kind !== "run_workflow" && (!label || !actionPayload)) return null;
   const presetProposal = session?.summary_json?.kernel_preset_proposal;
   const recipeProposal = session?.summary_json?.kernel_recipe_proposal;
   const runConfirmation = session?.summary_json?.kernel_run_confirmation;
@@ -257,7 +259,7 @@ export function useCreativeAssistant({
   importImageFile: (file: File) => Promise<MediaReference>;
   onBeforeReviewNavigate?: () => void;
   onAssistantSessionChange?: (assistantSessionId: string | null) => void;
-  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; baseWorkflow?: GraphWorkflowPayload }) => Promise<void> | void;
+  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; baseWorkflow?: GraphWorkflowPayload; openInNewTab?: boolean }) => Promise<void> | void;
   onRunWorkflow?: (assistantConfirmation?: { sessionId: string; token: string }) => Promise<unknown> | void;
   onEvent?: (message: string, tone?: "success" | "warning" | "error" | "muted") => void;
 }) {
@@ -267,6 +269,7 @@ export function useCreativeAssistant({
   const [status, setStatus] = useState<AssistantStatus>("idle");
   const [progress, setProgress] = useState<AssistantProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [runSubmissionUncertain, setRunSubmissionUncertain] = useState(false);
   const [runConfirmationNeedsRecheck, setRunConfirmationNeedsRecheck] = useState(false);
   const [providerReadiness, setProviderReadiness] = useState<AssistantProviderReadiness>({
     checked: false,
@@ -295,6 +298,19 @@ export function useCreativeAssistant({
   ) || scopedStatus === "cancelling";
   const canPlan = draft.trim().length > 0 && !busy;
   const nextAction = useMemo(() => latestKernelNextAction(session), [session]);
+  const runPricingSummary = nextAction?.price_estimate?.pricing_summary;
+  const runConfirmationBlocker = runSubmissionUncertain
+    ? "The run outcome is unknown. Check run history and reload to reconcile its state before preparing another run."
+    : nextAction?.kind !== "run_workflow" ? null
+    : !nextAction.label || !nextAction.requires_confirmation || !nextAction.confirmation_token ||
+      nextAction.payload?.confirmation_token !== nextAction.confirmation_token
+      ? "The run confirmation is incomplete. Recheck the graph and pricing before running."
+      : !runPricingSummary || typeof runPricingSummary !== "object" ||
+        (runPricingSummary as Record<string, unknown>).has_unknown_pricing === true
+        ? "The current estimate is unavailable. Recheck the graph and pricing before running."
+      : !onRunWorkflow
+        ? "Run controls are unavailable here. Open this workflow in Graph Studio to run it."
+        : null;
   const latestPayload = useMemo(() => latestAssistantPayload(session), [session]);
   const kernelActionRequired = latestPayload?.mode === "assistant_kernel";
   const canApply = Boolean(
@@ -346,6 +362,7 @@ export function useCreativeAssistant({
     setDraft("");
     setError(null);
     setRunConfirmationNeedsRecheck(false);
+    setRunSubmissionUncertain(false);
     setStatus("idle");
   }, [setScopedSession]);
 
@@ -700,14 +717,10 @@ export function useCreativeAssistant({
   }, [busy, ensureSession, nextAction, savePromptRecipeFromMessage, session]);
 
   const confirmRunWorkflow = useCallback(async () => {
-    const payloadToken = String(nextAction?.payload?.confirmation_token || "");
     if (
-      busy ||
+      busy || activeRunOperationRef.current !== null ||
       nextAction?.kind !== "run_workflow" ||
-      !nextAction.requires_confirmation ||
-      !nextAction.confirmation_token ||
-      payloadToken !== nextAction.confirmation_token ||
-      !onRunWorkflow
+      runConfirmationBlocker || !nextAction.confirmation_token || !onRunWorkflow
     ) {
       return null;
     }
@@ -724,7 +737,13 @@ export function useCreativeAssistant({
         token: nextAction.confirmation_token,
       });
       if (activeRunOperationRef.current !== operation || workspaceKeyRef.current !== requestWorkspaceKey) return null;
-      if (!created) return null;
+      if (created === null) {
+        setError("Run cancelled before spending credits.");
+        return null;
+      }
+      if (!created || typeof created !== "object" || !("run_id" in created) || !created.run_id) {
+        throw new JsonFetchError("No run was confirmed. Check the graph console and run history before trying again.", "run_start_unconfirmed");
+      }
       setScopedSession((current) => current ? {
         ...current,
         summary_json: {
@@ -739,9 +758,11 @@ export function useCreativeAssistant({
     } catch (requestError) {
       if (activeRunOperationRef.current !== operation || workspaceKeyRef.current !== requestWorkspaceKey) return null;
       const message = assistantErrorMessage(requestError, "Unable to confirm this graph run.");
-      setError(message);
+      const uncertain = requestError instanceof JsonFetchError && requestError.code === "run_start_unconfirmed";
+      setRunSubmissionUncertain(uncertain);
+      setError(uncertain ? null : message);
       setRunConfirmationNeedsRecheck(
-        requestError instanceof JsonFetchError && requestError.code === "workflow_fingerprint_mismatch",
+        requestError instanceof JsonFetchError && ["workflow_fingerprint_mismatch", "graph_validation_failed"].includes(requestError.code ?? ""),
       );
       onEvent?.(message, "error");
       return null;
@@ -751,7 +772,7 @@ export function useCreativeAssistant({
         if (workspaceKeyRef.current === requestWorkspaceKey) setStatus("idle");
       }
     }
-  }, [busy, ensureSession, nextAction, onEvent, onRunWorkflow, runAbortableRequest, session, setScopedSession, workflow]);
+  }, [busy, ensureSession, nextAction, onEvent, onRunWorkflow, runConfirmationBlocker, session, setScopedSession]);
 
   const createPlanFromMessage = useCallback(async (
     message: string,
@@ -896,7 +917,7 @@ export function useCreativeAssistant({
         ...result.workflow.nodes.map((node) => node.id).filter((nodeId) => !previousNodeIds.has(nodeId)),
         ...result.workflow.nodes.map((node) => node.id).filter((nodeId) => updatedNodeIds.has(nodeId)),
       ]));
-      await onApplyWorkflow(result.workflow, { highlightNodeIds, baseWorkflow: workflow });
+      await onApplyWorkflow(result.workflow, { highlightNodeIds, baseWorkflow: workflow, openInNewTab: planResponse.graph_plan.metadata?.independent_stage === true });
       onEvent?.("Assistant plan applied to the canvas.", "success");
       return result;
     } catch (requestError) {
@@ -1184,6 +1205,8 @@ export function useCreativeAssistant({
       cancellable,
       error,
       runConfirmationNeedsRecheck,
+      runConfirmationBlocker,
+      runSubmissionUncertain,
       providerReadiness,
       canPlan,
       canApply,
@@ -1227,6 +1250,8 @@ export function useCreativeAssistant({
       draft,
       error,
       runConfirmationNeedsRecheck,
+      runConfirmationBlocker,
+      runSubmissionUncertain,
       plan,
       progress,
       providerReadiness,

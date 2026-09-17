@@ -7,7 +7,8 @@ import { useState } from "react";
 import type { GraphRun, GraphRunStatusSnapshot, GraphWorkflowPayload, GraphWorkflowRecord, StudioEdge, StudioNode } from "../types";
 import { useGraphRunLifecycle } from "./use-graph-run-lifecycle";
 
-vi.mock("../utils/graph-api", () => ({
+vi.mock("../utils/graph-api", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../utils/graph-api")>(),
   jsonFetch: vi.fn(),
 }));
 
@@ -91,6 +92,7 @@ type HarnessProps = {
 
 function Harness(props: HarnessProps) {
   const [run, setRun] = useState<GraphRun | null>(makeRun());
+  const [launchError, setLaunchError] = useState("");
   const [revision, setRevision] = useState(0);
   const appendConsole = props.appendConsole ?? vi.fn();
 
@@ -127,6 +129,7 @@ function Harness(props: HarnessProps) {
 
   return (
     <div>
+      <div data-testid="launch-error">{launchError}</div>
       <div data-testid="run-status">{run?.status ?? "none"}</div>
       <button type="button" onClick={() => setRevision((current) => current + 1)}>
         Rewrite run object
@@ -140,7 +143,7 @@ function Harness(props: HarnessProps) {
       <button type="button" onClick={() => void runWorkflow()}>
         Run workflow
       </button>
-      <button type="button" onClick={() => void runWorkflow({ sessionId: "session-1", token: "token-1" })}>
+      <button type="button" onClick={() => void runWorkflow({ sessionId: "session-1", token: "token-1" }).catch((error: Error) => setLaunchError(error.message))}>
         Run confirmed workflow
       </button>
     </div>
@@ -393,4 +396,17 @@ describe("useGraphRunLifecycle", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/control/media/graph/runs/run-1/status");
     vi.useRealTimers();
   });
+});
+
+
+it("surfaces an unknown submission outcome when the run response is lost", async () => {
+  vi.mocked(jsonFetch).mockImplementation(async (url) => {
+    if (String(url).endsWith("/validate")) return { valid: true, errors: [], warnings: [] } as never;
+    if (String(url).endsWith("/runs")) throw new TypeError("Failed to fetch");
+    return makeRunStatus() as never;
+  });
+  render(<Harness refreshCredits={vi.fn()} refreshImageAssets={vi.fn()}
+    refreshAssetsByIds={vi.fn()} refreshReferenceMedia={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Run confirmed workflow" }));
+  await waitFor(() => expect(screen.getByTestId("launch-error").textContent).toMatch(/run outcome is unknown/i));
 });
