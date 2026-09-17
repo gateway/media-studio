@@ -7,9 +7,6 @@ from unittest.mock import patch
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-with patch('sqlite3.connect', side_effect=AssertionError('No database')), patch('socket.socket.connect', side_effect=AssertionError('No network')):
-    from app.assistant import results
-    from fastapi import HTTPException
 
 
 class ResultTests(unittest.TestCase):
@@ -18,6 +15,10 @@ class ResultTests(unittest.TestCase):
         self.addCleanup(self.stack.close)
         self.stack.enter_context(patch('sqlite3.connect', side_effect=AssertionError('No database')))
         self.stack.enter_context(patch('socket.socket.connect', side_effect=AssertionError('No network')))
+        # Match the current app instance after fixture-driven module reloads.
+        global results, HTTPException
+        from app.assistant import results
+        from fastapi import HTTPException
         self.session = {'assistant_session_id': 'session-a', 'owner_kind': 'graph_workflow', 'owner_id': 'graph-a', 'summary_json': {}}
         self.run = {'run_id': 'run-a', 'workflow_id': 'graph-a', 'status': 'completed', 'workflow_json': {'name': 'Portraits', 'nodes': [{'id': 'direction', 'type': 'prompt.text', 'metadata': {'ui': {'customTitle': 'Portrait direction'}}}]}}
         self.artifacts = [{'artifact_id': 'text-a', 'run_id': 'run-a', 'workflow_id': 'graph-a', 'node_id': 'direction', 'node_type': 'prompt.text', 'output_port': 'text', 'output_index': 0, 'kind': 'text', 'value_json': {'value': 'Portrait: warm window light'}}]

@@ -14,14 +14,6 @@ from unittest.mock import patch
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-with patch("sqlite3.connect", side_effect=AssertionError("Database access forbidden")), patch(
-    "socket.socket.connect", side_effect=AssertionError("Network access forbidden")
-):
-    from app import kie_adapter
-    from app.assistant import kernel, kernel_route, run_confirmation
-    from app.assistant.schemas import AssistantMessageCreateRequest, AssistantRunConfirmationRequest
-    from fastapi import HTTPException
-    from app.graph.schemas import GraphWorkflow
 
 
 class RunHandoffTests(unittest.TestCase):
@@ -30,6 +22,15 @@ class RunHandoffTests(unittest.TestCase):
         self.addCleanup(self.stack.close)
         self.stack.enter_context(patch("sqlite3.connect", side_effect=AssertionError("Database access forbidden")))
         self.stack.enter_context(patch("socket.socket.connect", side_effect=AssertionError("Network access forbidden")))
+        # The pytest app fixture reloads app modules between tests. Bind the
+        # current owners before patching so direct and full-suite runs agree.
+        global kie_adapter, kernel, kernel_route, run_confirmation
+        global AssistantMessageCreateRequest, AssistantRunConfirmationRequest, HTTPException, GraphWorkflow
+        from app import kie_adapter
+        from app.assistant import kernel, kernel_route, run_confirmation
+        from app.assistant.schemas import AssistantMessageCreateRequest, AssistantRunConfirmationRequest
+        from fastapi import HTTPException
+        from app.graph.schemas import GraphWorkflow
         self.session = {"assistant_session_id": "handoff-test", "provider_kind": "codex_local", "summary_json": {}}
         for owner, name, value in [
             (kernel.store, "get_prompt_recipe_drafting_config", None),
