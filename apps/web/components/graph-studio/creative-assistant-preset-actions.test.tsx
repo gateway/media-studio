@@ -35,6 +35,10 @@ function renderPresetSession(
   };
   const fetchMock = vi.fn((url: string) => {
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [presetSession] });
+    if (url.endsWith(`/runs/${run?.id}/results`)) return jsonResponse({
+      run_id: run?.id, workflow_name: "Preset test", status: run?.status,
+      items: [], selected_artifact_ids: [],
+    });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) {
       const reviewPlan = appliedPresetPlan("text_to_image");
       reviewPlan.plan.status = "validated";
@@ -307,7 +311,7 @@ it("does not offer Run test for an applied graph without a price", async () => {
 });
 
 it("does not restore a consumed run confirmation after hydration", async () => {
-  const { fetchMock } = renderPresetSession("tab-consumed-run", {
+  renderPresetSession("tab-consumed-run", {
     ...session,
     summary_json: { kernel_run_confirmation: { consumed: true } },
     messages: [{
@@ -322,13 +326,14 @@ it("does not restore a consumed run confirmation after hydration", async () => {
           label: "Review and run",
           confirmation_token: "run-token-1",
           requires_confirmation: true,
+          price_estimate: { pricing_summary: { total: { estimated_credits: 8, estimated_cost_usd: 0.08 }, has_unknown_pricing: false } },
           payload: { confirmation_token: "run-token-1" },
         },
       },
     }],
   });
 
-  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  await screen.findByText("The graph is ready for confirmation.");
   expect(screen.queryByRole("button", { name: "Review and run" })).toBeNull();
 });
 
@@ -351,6 +356,7 @@ it("does not show Create test graph beside a run confirmation", async () => {
           label: "Review and run",
           confirmation_token: "run-token-2",
           requires_confirmation: true,
+          price_estimate: { pricing_summary: { total: { estimated_credits: 8, estimated_cost_usd: 0.08 }, has_unknown_pricing: false } },
           payload: { confirmation_token: "run-token-2" },
         },
       },
