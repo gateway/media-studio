@@ -259,7 +259,7 @@ export function useCreativeAssistant({
   importImageFile: (file: File) => Promise<MediaReference>;
   onBeforeReviewNavigate?: () => void;
   onAssistantSessionChange?: (assistantSessionId: string | null) => void;
-  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; baseWorkflow?: GraphWorkflowPayload; openInNewTab?: boolean }) => Promise<void> | void;
+  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; baseWorkflow?: GraphWorkflowPayload; openInNewTab?: boolean; assistantSessionId?: string }) => Promise<void> | void;
   onRunWorkflow?: (assistantConfirmation?: { sessionId: string; token: string }) => Promise<unknown> | void;
   onEvent?: (message: string, tone?: "success" | "warning" | "error" | "muted") => void;
 }) {
@@ -917,7 +917,11 @@ export function useCreativeAssistant({
         ...result.workflow.nodes.map((node) => node.id).filter((nodeId) => !previousNodeIds.has(nodeId)),
         ...result.workflow.nodes.map((node) => node.id).filter((nodeId) => updatedNodeIds.has(nodeId)),
       ]));
-      await onApplyWorkflow(result.workflow, { highlightNodeIds, baseWorkflow: workflow, openInNewTab: planResponse.graph_plan.metadata?.independent_stage === true });
+      await onApplyWorkflow(result.workflow, {
+        highlightNodeIds, baseWorkflow: workflow,
+        openInNewTab: planResponse.graph_plan.metadata?.independent_stage === true,
+        assistantSessionId: planResponse.plan.assistant_session_id,
+      });
       onEvent?.("Assistant plan applied to the canvas.", "success");
       return result;
     } catch (requestError) {

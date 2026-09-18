@@ -2118,6 +2118,7 @@ function GraphStudioClient() {
                   const sourceSnapshot = snapshotActiveTab();
                   const nextTab = openWorkflowTab({ workflowId: null, workflowName: workflow.name, workflow,
                     savedWorkflowSignature: null, workflowUpdatedAt: null, runId: null, runStatus: null,
+                    assistantSessionId: options.assistantSessionId ?? null,
                     dirty: true }, sourceSnapshot);
                   hydrateWorkflowPayload(workflow, { workflowId: null, run: null, definitionsByType: hydrationDefinitions });
                   beginAssistantLayout(workflow, undefined, nextTab.tab_id);
