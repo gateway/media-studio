@@ -13,17 +13,22 @@ from .. import store, store_assistant
 from .limits import ASSISTANT_IMAGE_ATTACHMENT_LIMIT
 
 
+def session_owns_run(session: dict, run: dict) -> bool:
+    """Recognize workflow ownership and server-recorded confirmed run associations."""
+    summary = session.get('summary_json') or {}
+    confirmation = summary.get('kernel_run_confirmation') or {}
+    return (
+        session.get('owner_kind') == 'graph_workflow'
+        and session.get('owner_id') == run.get('workflow_id')
+    ) or run.get('run_id') == confirmation.get('assistant_run_id') or run.get('run_id') in (summary.get('result_runs') or {})
+
+
 def owned_run(session_id: str, run_id: str) -> tuple[dict, dict]:
     session = store_assistant.get_assistant_session(session_id)
     run = store.get_graph_run(run_id)
     if not session or not run:
         raise HTTPException(status_code=404, detail='The assistant session or run is unavailable.')
-    summary = session.get('summary_json') or {}
-    confirmation = summary.get('kernel_run_confirmation') or {}
-    owned = (
-        session.get('owner_kind') == 'graph_workflow'
-        and session.get('owner_id') == run.get('workflow_id')
-    ) or run_id == confirmation.get('assistant_run_id') or run_id in (summary.get('result_runs') or {})
+    owned = session_owns_run(session, run)
     if not owned:
         raise HTTPException(status_code=409, detail='This run does not belong to this assistant conversation. Open its workflow to select a result.')
     return session, run

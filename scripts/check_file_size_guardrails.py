@@ -69,9 +69,10 @@ GUARDRAILS = (
 # MALIVE-009: selected-result inspection and bounded text paging reuse artifact
 # ownership/version checks and the vision provider; no approval or run bypass.
 # Result attachment UI: authoritative selection bindings (+2); workflow terminology (+1).
+# MALIVE-012: shared confirmed-run ownership for production completion; exact source cap.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_231,
+    12_243,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

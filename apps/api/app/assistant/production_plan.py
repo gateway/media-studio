@@ -8,6 +8,7 @@ from typing import Any, Dict, Literal, Optional, Union
 from pydantic import BaseModel, Field, model_validator
 
 from .. import store, store_assistant
+from .results import session_owns_run
 
 
 PlanValue = Union[int, float, bool, str]
@@ -300,7 +301,10 @@ def _artifact_state(artifact_ref: str, session: Dict[str, Any]) -> str:
             "complete"
             if run
             and str(run.get("status") or "") == "completed"
-            and str(run.get("workflow_id") or "") in _confirmed_workflow_ids(session_id, session)
+            and (
+                session_owns_run(session, run)
+                or str(run.get("workflow_id") or "") in _confirmed_workflow_ids(session_id, session)
+            )
             else "missing"
         )
     if prefix == "asset":
@@ -311,7 +315,10 @@ def _artifact_state(artifact_ref: str, session: Dict[str, Any]) -> str:
             if asset
             and str(asset.get("status") or "") == "completed"
             and run
-            and str(run.get("workflow_id") or "") in _confirmed_workflow_ids(session_id, session)
+            and (
+                session_owns_run(session, run)
+                or str(run.get("workflow_id") or "") in _confirmed_workflow_ids(session_id, session)
+            )
             else "missing"
         )
     return "missing"
