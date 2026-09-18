@@ -42,7 +42,7 @@ const plan: AssistantPlanResponse = {
 };
 
 it.each([false, true])("applies a session-owned graph confirmation, independent stage: %s", async (independent) => {
-  const label = independent ? "Open new stage" : "Add to canvas";
+  const label = independent ? "Open new workflow" : "Add to canvas";
   const activePlan = independent ? { ...plan, workflow: { ...plan.workflow, workflow_id: null }, graph_plan: { ...plan.graph_plan, metadata: { independent_stage: true, source_workflow_id: "workflow-1" } } } : plan;
   const onApplyWorkflow = vi.fn();
   const fetchMock = vi.fn((url: string) => {

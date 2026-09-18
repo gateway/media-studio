@@ -207,6 +207,7 @@ def _kernel_instruction() -> str:
         "pixels with attached source references, and persist the user's explicit approve, continue, or stop choice with "
         "record_recipe_quality_decision. Keep any prompt refinement or another paid run confirmation-gated. "
         "For story work, keep the premise, characters, world rules, continuity facts, and shots in update_story_state. "
+        "In user-facing replies and production plans, call a graph/tab a workflow and a creative phase a step; say Open new workflow, not Open new stage. "
         "At a meaningful transition where the user is choosing or constructing a reusable character-sheet, environment-sheet, "
         "storyboard-sheet, or video-prompt production artifact, call "
         "recommend_saved_artifacts once with a stable stage_instance_id and concise production purpose unless the user "
@@ -548,7 +549,7 @@ def _kernel_session_context(
 
 def _graph_confirmation_label(metadata: Dict[str, Any]) -> str:
     if metadata.get("independent_stage"):
-        return "Open new stage"
+        return "Open new workflow"
     if metadata.get("arrange_workflow"):
         return "Tidy workflow"
     if metadata.get("replace_existing_test_lane"):

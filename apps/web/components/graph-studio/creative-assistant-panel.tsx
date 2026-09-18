@@ -912,7 +912,7 @@ export function CreativeAssistantPanel({
     assistant.nextAction?.kind === "run_workflow" && assistant.nextAction.requires_confirmation
       ? assistant.nextAction
       : null;
-  const planActionLabel = kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add graph");
+  const planActionLabel = planMetadata.independent_stage ? "Open new workflow" : kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add graph");
   const planActionAriaLabel = kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add reviewed graph");
   const planActionTitle = kernelGraphAction?.label || (planMissingMedia ? "Add the graph so you can choose the missing media on the canvas" : "Add the reviewed graph");
   const pricing = assistantPlanPricingLabel(plan?.pricing.pricing_summary.total);
@@ -1388,7 +1388,7 @@ export function CreativeAssistantPanel({
             >
             <div className="graph-assistant-plan-heading">
               {planApplied ? <CheckCircle2 size={15} /> : <Sparkles size={15} />}
-              <strong>{planApplied && planMetadata.independent_stage ? "New stage opened" : planReviewTitle({ appliedPresetWorkflow: presetTestReady, planApplied, noCanvasChanges, valid: plan.validation.valid, missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}</strong>
+              <strong>{planApplied && planMetadata.independent_stage ? "New workflow opened" : planReviewTitle({ appliedPresetWorkflow: presetTestReady, planApplied, noCanvasChanges, valid: plan.validation.valid, missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}</strong>
               {!planApplied ? <small>{pricing}</small> : null}
             </div>
             <p>
@@ -1399,7 +1399,7 @@ export function CreativeAssistantPanel({
                 : planApplied && onlyFieldUpdateOperations
                   ? plan.graph_plan.summary.trim() || "I updated the selected node on the canvas. Want another adjustment?"
                 : planApplied
-                  ? planMetadata.independent_stage ? "The independent stage is open in its own tab. This source workflow and its run are preserved." : "Here's your graph. I added the nodes to the canvas. Want adjustments, or should we review the prompts?"
+                  ? planMetadata.independent_stage ? "The new workflow is open in its own tab with this conversation. The previous workflow and its run are preserved." : "Here's your graph. I added the nodes to the canvas. Want adjustments, or should we review the prompts?"
                   : noCanvasChanges
                     ? noCanvasChangeSummary(plan)
                     : graphPlanPrimaryCopy(plan, { missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}

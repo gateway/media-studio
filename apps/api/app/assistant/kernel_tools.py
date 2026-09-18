@@ -1575,7 +1575,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     operations = options.operations
     metadata: Dict[str, Any] = {"kernel_proposal": True}
     if options.reused_results and not options.new_stage_name:
-        raise KernelToolFailure(code="independent_stage_required", message="Reuse completed results in a named independent stage.")
+        raise KernelToolFailure(code="independent_stage_required", message="Reuse completed results in a named separate workflow.")
     if options.new_stage_name:
         if options.template_id:
             raise KernelToolFailure(code="invalid_stage", message="Use explicit stage operations, not a replacement test template.")
