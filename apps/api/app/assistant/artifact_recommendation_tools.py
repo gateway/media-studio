@@ -7,6 +7,7 @@ from typing import Any, Dict, Literal, Optional
 from pydantic import BaseModel, Field
 
 from .. import kie_adapter, store, store_assistant
+from .recipe_kernel import require_recipe_inspection
 from .artifact_recommendation import (
     ArtifactRecommendationContext,
     ProductionArtifactStage,
@@ -427,6 +428,11 @@ def record_artifact_recommendation_decision(
             code="artifact_recommendation_selection_invalid",
             message="Select one of the exact saved artifacts that was offered for this stage instance.",
         )
+    if artifact_kind == "prompt_recipe":
+        recipe = store.get_prompt_recipe(identity)
+        if not recipe:
+            raise ArtifactRecommendationToolError(code="artifact_recommendation_selection_invalid", message="The selected saved recipe is no longer available.")
+        require_recipe_inspection(recipe, context)
     state = {
         **existing,
         "status": "selected",

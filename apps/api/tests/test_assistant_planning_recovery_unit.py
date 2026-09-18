@@ -57,7 +57,11 @@ class PlanningRecoveryTests(unittest.TestCase):
         recovery = record_planning_recovery(session=self.session, workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, request="Build nine-panel board", attachments=[{"assistant_attachment_id": "character"}], traces=[], messages=[{"role": "tool", "content": "saved recipe evidence"}], reason="step_budget_exhausted")
         payload = AssistantMessageCreateRequest(content_text="Continue planning", workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, metadata={"planning_recovery_id": recovery["id"]})
         from unittest.mock import Mock
-        invoke = Mock(side_effect=lambda session, request, checkpoint: session)
+        def prepare_plan(session, request, checkpoint):
+            self.remember({**session, "summary_json": {**session["summary_json"], "kernel_proposal_id": "fresh-plan"}})
+            return self.session
+        self.stack.enter_context(patch.object(self.kernel.store_assistant, "get_assistant_plan", return_value={"assistant_session_id": "recovery-test", "status": "validated"}))
+        invoke = Mock(side_effect=prepare_plan)
         result = continue_planning(self.session, payload, [{"assistant_attachment_id": "character"}], invoke, None)
         self.assertEqual(result["summary_json"]["kernel_planning_recovery"]["state"], "completed")
         self.assertEqual(invoke.call_args.args[2]["messages"][0]["content"], "saved recipe evidence")
@@ -86,6 +90,15 @@ class PlanningRecoveryTests(unittest.TestCase):
         recovery = self.session["summary_json"]["kernel_planning_recovery"]
         self.assertEqual(recovery["completed"], ["Searched saved recipes"])
         self.assertIn("search_prompt_recipes", recovery["messages"][0]["content"])
+
+    def test_clarification_does_not_complete_recovery(self):
+        from app.assistant.planning_recovery import continue_planning, record_planning_recovery
+        from app.assistant.schemas import AssistantMessageCreateRequest
+        recovery = record_planning_recovery(session=self.session, workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, request="Build board", attachments=[], traces=[], messages=[], reason="step_budget_exhausted")
+        payload = AssistantMessageCreateRequest(content_text="Continue", workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, metadata={"planning_recovery_id": recovery["id"]})
+        result = continue_planning(self.session, payload, [], lambda current, request, checkpoint: current, None)
+        self.assertEqual(result["summary_json"]["kernel_planning_recovery"]["state"], "offered")
+        self.assertNotEqual(result["summary_json"]["kernel_planning_recovery"]["id"], recovery["id"])
 
 if __name__ == "__main__":
     unittest.main()

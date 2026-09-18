@@ -156,7 +156,7 @@ def search_prompt_recipes(arguments: BaseModel, _context: Any) -> Dict[str, Any]
     return {"items": items, "count": len(items)}
 
 
-def get_prompt_recipe(arguments: BaseModel, _context: Any) -> Dict[str, Any]:
+def get_prompt_recipe(arguments: BaseModel, context: Any) -> Dict[str, Any]:
     options = GetPromptRecipeArguments.model_validate(arguments)
     record = (
         store.get_prompt_recipe(options.recipe_id_or_key)
@@ -168,7 +168,30 @@ def get_prompt_recipe(arguments: BaseModel, _context: Any) -> Dict[str, Any]:
             message="That Prompt Recipe does not exist.",
             retryable=False,
         )
-    return _full_recipe_contract(record)
+    contract = _full_recipe_contract(record)
+    if context is not None and getattr(context, "session_id", None):
+        session = store_assistant.get_assistant_session(context.session_id) or context.session
+        summary = dict(session.get("summary_json") or {})
+        inspections = dict(summary.get("kernel_recipe_inspections") or {})
+        inspections[str(record["recipe_id"])] = recipe_quality_contract_hash(record)
+        # Retain only the most recently inspected recipes for this session.
+        inspections = dict(list(inspections.items())[-20:])
+        stored = store_assistant.create_or_update_assistant_session({
+            **session, "summary_json": {**summary, "kernel_recipe_inspections": inspections},
+        })
+        context.session.update(stored)
+    return contract
+
+
+def require_recipe_inspection(recipe: Dict[str, Any], context: Any) -> None:
+    session_id = getattr(context, "session_id", None)
+    session = (store_assistant.get_assistant_session(session_id) if session_id else None) or context.session or {}
+    inspections = (session.get("summary_json") or {}).get("kernel_recipe_inspections") or {}
+    if inspections.get(str(recipe.get("recipe_id") or "")) != recipe_quality_contract_hash(recipe):
+        raise RecipeKernelError(
+            code="recipe_inspection_required",
+            message=f"Inspect saved recipe {recipe.get('recipe_id') or recipe.get('key')} with get_prompt_recipe, compare its actual output constraints with the request, then retry. Do not change the saved recipe to resolve a mismatch.",
+        )
 
 
 def _validated_draft(

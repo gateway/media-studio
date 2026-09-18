@@ -76,6 +76,7 @@ from .recipe_kernel import (
     SearchPromptRecipesArguments,
     ValidatePromptRecipeDraftArguments,
     get_prompt_recipe,
+    require_recipe_inspection,
     propose_prompt_recipe_draft,
     search_prompt_recipes,
     validate_prompt_recipe_draft,
@@ -1073,6 +1074,7 @@ def _saved_recipe_graph_operations(
             code="saved_recipe_graph_recipe_required",
             message="Choose an active saved Prompt Recipe before preparing its graph.",
         )
+    require_recipe_inspection(recipe, context)
     image_input = (
         recipe.get("image_input_json")
         if isinstance(recipe.get("image_input_json"), dict)
@@ -1716,6 +1718,12 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
         planned_workflow,
         definitions_by_type=definitions,
     )
+    prior_recipes = {node.id: node.fields.get("recipe_id") for node in base_workflow.nodes if node.type == "prompt.recipe"}
+    for node in materialized_workflow.nodes:
+        if node.type == "prompt.recipe" and (adds_paid_path or prior_recipes.get(node.id) != node.fields.get("recipe_id")):
+            recipe = store.get_prompt_recipe(str(node.fields.get("recipe_id") or ""))
+            if recipe:
+                require_recipe_inspection(recipe, context)
     nodes_by_id = {node.id: node for node in materialized_workflow.nodes}
     requested_overrides = {
         override.recipe_id: override

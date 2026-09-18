@@ -56,6 +56,7 @@ def continue_planning(session, payload, attachments, invoke, cancel_event):
             or [item["assistant_attachment_id"] for item in attachments if item.get("assistant_attachment_id")] != recovery["attachment_ids"]):
         _persist(current, {**recovery, "state": "stale"})
         raise HTTPException(409, "The graph or references changed. Start a fresh request using the current inputs.")
+    prior_plan_id = (current.get("summary_json") or {}).get("kernel_proposal_id")
     current = _persist(current, {**recovery, "state": "resuming"})
     request = payload.model_copy(update={
         "content_text": f"Continue preparing this graph proposal: {recovery['request']}\nReuse completed checks in the checkpoint. Resolve remaining errors. Do not apply, save, run, or retry generation.",
@@ -68,5 +69,8 @@ def continue_planning(session, payload, attachments, invoke, cancel_event):
         raise
     latest = (updated.get("summary_json") or {}).get("kernel_planning_recovery") or {}
     if latest.get("id") == recovery["id"]:
-        updated = _persist(updated, {**recovery, "state": "completed"})
+        plan_id = (updated.get("summary_json") or {}).get("kernel_proposal_id")
+        plan = store_assistant.get_assistant_plan(plan_id) if plan_id and plan_id != prior_plan_id else None
+        complete = bool(plan and plan.get("assistant_session_id") == current["assistant_session_id"] and plan.get("status") == "validated")
+        updated = _persist(updated, {**recovery, "id": secrets.token_urlsafe(24), "state": "completed" if complete else "offered"})
     return updated
