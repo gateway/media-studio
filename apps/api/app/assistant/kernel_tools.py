@@ -100,7 +100,7 @@ from .story_kernel import (
 )
 
 
-KERNEL_TOOL_RESULT_MAX_BYTES = 32_768
+from .tool_limits import KERNEL_TOOL_RESULT_MAX_BYTES
 KERNEL_SCHEMA_RESULT_TARGET_BYTES = 30_000
 KERNEL_TOOL_ACTIVITIES = {
     "read_current_workflow": ("graph_check", "Checked your graph"),
@@ -1719,8 +1719,11 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
         definitions_by_type=definitions,
     )
     prior_recipes = {node.id: node.fields.get("recipe_id") for node in base_workflow.nodes if node.type == "prompt.recipe"}
+    prior_connections = {(edge.source, edge.source_port, edge.target, edge.target_port) for edge in base_workflow.edges}
+    newly_connected_sources = {edge.source for edge in materialized_workflow.edges
+                               if (edge.source, edge.source_port, edge.target, edge.target_port) not in prior_connections}
     for node in materialized_workflow.nodes:
-        if node.type == "prompt.recipe" and (adds_paid_path or prior_recipes.get(node.id) != node.fields.get("recipe_id")):
+        if node.type == "prompt.recipe" and (adds_paid_path or node.id in newly_connected_sources or prior_recipes.get(node.id) != node.fields.get("recipe_id")):
             recipe = store.get_prompt_recipe(str(node.fields.get("recipe_id") or ""))
             if recipe:
                 require_recipe_inspection(recipe, context)

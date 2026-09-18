@@ -37,5 +37,20 @@ class RecipeDiscoveryTests(unittest.TestCase):
             with self.assertRaises(recipe_kernel.RecipeKernelError):
                 recipe_kernel.require_recipe_inspection(recipe, context)
 
+    def test_undeliverable_recipe_does_not_count_as_inspected(self):
+        from app.assistant import recipe_kernel
+        from types import SimpleNamespace
+        recipe = {"recipe_id": "large", "key": "large", "label": "Large recipe", "category": "image", "system_prompt_template": "A" * 40000}
+        session = {"assistant_session_id": "recipe-proof", "summary_json": {}}
+        context = SimpleNamespace(session_id="recipe-proof", session=session)
+        def remember(record):
+            session.update(record)
+            return dict(session)
+        with patch.object(recipe_kernel.store_assistant, "get_assistant_session", return_value=session), patch.object(recipe_kernel.store_assistant, "create_or_update_assistant_session", side_effect=remember), patch.object(recipe_kernel.store, "get_prompt_recipe", return_value=recipe):
+            with self.assertRaises(recipe_kernel.RecipeKernelError):
+                recipe_kernel.get_prompt_recipe(recipe_kernel.GetPromptRecipeArguments(recipe_id_or_key="large"), context)
+            with self.assertRaises(recipe_kernel.RecipeKernelError):
+                recipe_kernel.require_recipe_inspection(recipe, context)
+
 if __name__ == "__main__":
     unittest.main()

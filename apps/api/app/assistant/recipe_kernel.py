@@ -17,6 +17,7 @@ from ..service_errors import ServiceError
 from ..service_prompt_recipe_validation import validate_prompt_recipe_payload
 from ..store_support import new_id
 from .provenance import recipe_quality_contract_hash
+from .tool_limits import KERNEL_TOOL_RESULT_MAX_BYTES
 
 
 class RecipeKernelError(Exception):
@@ -169,6 +170,8 @@ def get_prompt_recipe(arguments: BaseModel, context: Any) -> Dict[str, Any]:
             retryable=False,
         )
     contract = _full_recipe_contract(record)
+    if len(json.dumps(contract, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")) > KERNEL_TOOL_RESULT_MAX_BYTES:
+        raise RecipeKernelError(code="tool_result_too_large", message="The full saved recipe exceeds the assistant inspection limit. It has not been marked inspected; choose a supported recipe or inspect it in the recipe editor.")
     if context is not None and getattr(context, "session_id", None):
         session = store_assistant.get_assistant_session(context.session_id) or context.session
         summary = dict(session.get("summary_json") or {})
