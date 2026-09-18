@@ -62,7 +62,7 @@ export function AssistantResults({ sessionId, runId, runStatus, workspaceKey, se
   }
   return <section className="graph-assistant-message graph-assistant-message-assistant graph-assistant-results" aria-label="Run results">
     <strong>{data?.workflow_name || 'Graph results'} · {data?.status || runStatus || 'Loading'}</strong>
-    <p>Select results for the assistant to review or reuse in your next message. Selecting does not start a run. Click an image to view it full size.</p>
+    <p>The assistant can review or reuse checked results when you send a message. Checking a box does not start a run. Click an image to enlarge it.</p>
     {data?.error ? <p>{data.error}</p> : null}
     {error ? <p role="alert">{error}</p> : null}
     {data?.items.map((item, index) => {
@@ -78,19 +78,18 @@ export function AssistantResults({ sessionId, runId, runStatus, workspaceKey, se
       {item.available && item.url && item.media_type === 'video' ? <video src={item.url} controls preload="metadata" style={{ maxWidth: '100%' }} /> : null}
       {item.available && item.url && item.media_type === 'audio' ? <audio src={item.url} controls preload="metadata" /> : null}
       {!item.available ? <p>{item.blocker}</p> : null}
-      <div className="graph-assistant-card-actions">
-        <button type="button" className={selected ? 'graph-assistant-card-action-primary' : undefined}
-          disabled={(!item.available && !selected) || Boolean(selecting)} aria-pressed={selected}
-          aria-label={`${selected ? 'Selected for chat · Deselect' : 'Select for chat'} — result ${index + 1}: ${item.node_title}`}
-          onClick={() => void select(item)}>
-          {selected ? 'Selected for chat · Deselect' : 'Select for chat'}
-        </button>
-      </div>
+      <label className="graph-assistant-result-selection">
+        <input type="checkbox" checked={selected}
+          disabled={(!item.available && !selected) || Boolean(selecting)}
+          aria-label={`Include with my message — result ${index + 1}: ${item.node_title}`}
+          onChange={() => void select(item)} />
+        Include with my message
+      </label>
     </article>; })}
-    {data?.selected_artifact_ids.length ? <p>{data.selected_artifact_ids.length} selected for this conversation. Send a message describing what you want to do with them.</p> : null}
-    <div className="graph-assistant-card-actions">
-      <button type="button" disabled={!data?.selected_artifact_ids.length || Boolean(selecting)} onClick={() => void clearSelection()}>Deselect all results</button>
-      <button type="button" disabled={Boolean(selecting)} onClick={() => setRevision((value) => value + 1)}>Refresh results</button>
+    {data?.selected_artifact_ids.length ? <p>{data.selected_artifact_ids.length} {data.selected_artifact_ids.length === 1 ? 'result' : 'results'} included. Tell the assistant what you want to do with {data.selected_artifact_ids.length === 1 ? 'it' : 'them'}.</p> : null}
+    <div className="graph-assistant-card-actions graph-assistant-result-tools">
+      <button type="button" disabled={!data?.selected_artifact_ids.length || Boolean(selecting)} onClick={() => void clearSelection()}>Clear selection</button>
+      <button type="button" disabled={Boolean(selecting)} onClick={() => setRevision((value) => value + 1)}>Check for new results</button>
     </div>
   </section>;
 }
