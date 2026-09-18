@@ -66,9 +66,11 @@ GUARDRAILS = (
 # handoff reuse graph artifacts/validation. Reviewed measured growth, no reserve.
 # LOCAL-MALIVE-005/002/003: reviewed recipe inspection and session-owned planning
 # recovery, reusing existing store/lock/confirmation boundaries. Exact source cap.
+# MALIVE-009: selected-result inspection and bounded text paging reuse artifact
+# ownership/version checks and the vision provider; no approval or run bypass.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_133,
+    12_228,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

@@ -29,7 +29,7 @@ from .artifact_recommendation_tools import (
     record_artifact_recommendation_decision,
 )
 from .canvas_context import compact_canvas_context
-from .results import (ResultReuse, ReadResultsArguments, ResultSelection, read_results_tool, select_result_tool, stage_result_operations, validate_stage_results)
+from .results import (ResultReuse, ReadResultsArguments, ResultSelection, InspectSelectedResultArguments, inspect_selected_result, read_results_tool, select_result_tool, stage_result_operations, validate_stage_results)
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
 from .graph_plan import apply_graph_plan
 from .reference_analysis import (
@@ -111,6 +111,7 @@ KERNEL_TOOL_ACTIVITIES = {
     "validate_current_workflow": ("graph_validation", "Checked your graph"),
     "propose_graph_operations": ("graph_proposal", "Prepared a graph proposal"),
     "analyze_reference_images": ("reference_analysis", "Analyzed your reference"),
+    "inspect_selected_result": ("result_inspection", "Inspected your completed result"),
     "analyze_preset_output": ("output_comparison", "Compared the generated result"),
     "analyze_recipe_output": ("output_comparison", "Compared the generated result"),
     "record_preset_quality_decision": ("output_comparison", "Recorded your quality decision"),
@@ -1923,7 +1924,8 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
 
 
 KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
-    "read_run_results": KernelToolDefinition(name="read_run_results", description="Read exact completed image, text, video or audio results from the selected session-owned run, with selectable artifact IDs, versions and availability. No execution; full text is materialized by reused_results.", arguments_model=ReadResultsArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=read_results_tool),
+    "read_run_results": KernelToolDefinition(name="read_run_results", description="List completed results from the selected session-owned run with artifact IDs, versions and availability. Text previews are truncated; use inspect_selected_result for full text chunks or image inspection. No execution.", arguments_model=ReadResultsArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=read_results_tool),
+    "inspect_selected_result": KernelToolDefinition(name="inspect_selected_result", description="Inspect an explicitly selected completed artifact using its exact ID and version. For text, read bounded chunks and follow next_offset until null. For images, inspect actual pixels with optional attached reference_ids and focus. Never grants quality approval, changes a graph, or runs generation. Does not require a preset/recipe confirmation.", arguments_model=InspectSelectedResultArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=inspect_selected_result),
     "select_run_result": KernelToolDefinition(name="select_run_result", description="Select or deselect the exact result the user chose from read_run_results, using its run_id, artifact_id and version. Never guess an ordinal across runs. Selection persists without generation.", arguments_model=ResultSelection, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=select_result_tool),
     "read_current_workflow": KernelToolDefinition(
         name="read_current_workflow",

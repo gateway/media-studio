@@ -10,6 +10,7 @@ from ..graph.result_binding import artifact_version, validate_result_binding
 from ..settings import settings
 
 from .. import store, store_assistant
+from .limits import ASSISTANT_IMAGE_ATTACHMENT_LIMIT
 
 
 def owned_run(session_id: str, run_id: str) -> tuple[dict, dict]:
@@ -156,6 +157,44 @@ def validate_stage_results(session_id: str, workflow: Any, bindings: list[dict])
 
 class ReadResultsArguments(BaseModel):
     run_id: Optional[str] = Field(default=None, max_length=120)
+
+
+class InspectSelectedResultArguments(BaseModel):
+    artifact_id: str = Field(min_length=1, max_length=120)
+    version: str = Field(min_length=1, max_length=64)
+    text_offset: int = Field(default=0, ge=0)
+    text_limit: int = Field(default=4000, ge=1, le=4000)
+    focus: str = Field(default="", max_length=1000)
+    reference_ids: list[str] = Field(default_factory=list, max_length=ASSISTANT_IMAGE_ATTACHMENT_LIMIT)
+
+
+def _selected_result(session_id: str, artifact_id: str, version: str) -> dict:
+    items = selected_results(session_id, {artifact_id})
+    if len(items) != 1 or items[0]['version'] != version:
+        raise HTTPException(status_code=409, detail='Select this exact completed result before inspecting it. Missing or changed results cannot be inspected.')
+    return items[0]
+
+
+def inspect_selected_result(arguments: InspectSelectedResultArguments, context: Any) -> dict:
+    session_id = str(context.session_id or '')
+    item = _selected_result(session_id, arguments.artifact_id, arguments.version)
+    identity = {key: item[key] for key in ('artifact_id', 'run_id', 'version', 'media_type')}
+    if item.get('text') is not None:
+        text = item['text']
+        start = arguments.text_offset
+        if start > len(text):
+            raise HTTPException(status_code=400, detail='Text offset is beyond the completed result.')
+        end = min(len(text), start + arguments.text_limit)
+        return {**identity, 'text': text[start:end], 'text_offset': start,
+                'total_characters': len(text), 'next_offset': end if end < len(text) else None}
+    if item['media_type'] != 'image':
+        raise HTTPException(status_code=400, detail='Inspection currently supports completed text and images only.')
+    from .reference_analysis import analyze_result_image
+
+    analysis = analyze_result_image(item, arguments, context)
+    # Selection and file versions may change while the vision request is running.
+    _selected_result(session_id, arguments.artifact_id, arguments.version)
+    return {**identity, 'analysis': analysis, 'quality_approval': False}
 
 
 def read_results_tool(arguments: ReadResultsArguments, context: Any) -> dict:
