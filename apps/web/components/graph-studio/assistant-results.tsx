@@ -13,6 +13,7 @@ type Result = {
 type Results = {
   run_id: string; workflow_name: string; status: string; error?: string | null;
   items: Result[]; selected_artifact_ids: string[];
+  selected_result_bindings: Record<string, { run_id: string; version: string }>;
 };
 
 export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey, selectionVersion = '{}', enabled }: {
@@ -31,12 +32,13 @@ export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey,
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const version = ++requestVersion.current;
-    // Selections can include earlier runs in this conversation.
-    const bindings = JSON.parse(selectionVersion) as Record<string, { run_id: string }>;
-    const runIds = [...new Set([runId, ...Object.values(bindings).map((binding) => binding.run_id)])];
     async function refresh() {
       try {
-        const runs = await Promise.all(runIds.map((id) => jsonFetch<Results>(`/api/control/media/assistant/sessions/${encodeURIComponent(sessionId!)}/runs/${encodeURIComponent(id)}/results`)));
+        const readRun = (id: string) => jsonFetch<Results>(`/api/control/media/assistant/sessions/${encodeURIComponent(sessionId!)}/runs/${encodeURIComponent(id)}/results`);
+        const currentRun = await readRun(runId!);
+        // Read authoritative bindings: the parent session can lag behind local attachment changes.
+        const otherRunIds = [...new Set(Object.values(currentRun.selected_result_bindings).map((binding) => binding.run_id))].filter((id) => id !== runId);
+        const runs = [currentRun, ...await Promise.all(otherRunIds.map(readRun))];
         if (!cancelled && requestVersion.current === version) {
           setState({ key, data: runs[0], items: runs.flatMap((run) => run.items) });
           if (['queued', 'pending', 'running'].includes(runs[0].status)) timer = setTimeout(() => void refresh(), 3000);

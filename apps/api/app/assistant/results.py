@@ -61,6 +61,7 @@ def read_run_results(session_id: str, run_id: str) -> dict[str, Any]:
         'run_id': run_id, 'workflow_id': run.get('workflow_id'), 'workflow_name': workflow.get('name'),
         'status': run.get('status'), 'error': run.get('error'), 'items': items,
         'selected_artifact_ids': list(((session.get('summary_json') or {}).get('selected_results') or {}).keys()),
+        'selected_result_bindings': (session.get('summary_json') or {}).get('selected_results') or {},
     }
 
 
@@ -79,6 +80,7 @@ def select_run_result(session_id: str, payload: ResultSelection) -> dict:
     try:
         response['selected_artifact_ids'] = store_assistant.set_assistant_result_selection(
             session_id, payload.artifact_id, {'run_id': payload.run_id, 'version': payload.version} if payload.selected else None)
+        response['selected_result_bindings'] = (store_assistant.get_assistant_session(session_id).get('summary_json') or {}).get('selected_results') or {}
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     return response
