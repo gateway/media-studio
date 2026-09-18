@@ -956,6 +956,18 @@
   opacity: 0.48;
 }
 
+.graph-assistant-results article {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--graph-border-hairline);
+}
+
+.graph-assistant-results .graph-assistant-card-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
 .graph-assistant-card-action-primary {
   border-color: var(--graph-accent-border) !important;
   color: var(--graph-panel) !important;
