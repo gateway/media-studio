@@ -2120,6 +2120,7 @@ function GraphStudioClient() {
                     savedWorkflowSignature: null, workflowUpdatedAt: null, runId: null, runStatus: null,
                     dirty: true }, sourceSnapshot);
                   hydrateWorkflowPayload(workflow, { workflowId: null, run: null, definitionsByType: hydrationDefinitions });
+                  beginAssistantLayout(workflow, undefined, nextTab.tab_id);
                   replaceHistoryForTab(nextTab.tab_id, { workflow, workflowId: null, workflowName: workflow.name, workflowUpdatedAt: null });
                   setConsoleLines(['Independent stage opened. Previous workflow preserved; nothing has run.']);
                   return;

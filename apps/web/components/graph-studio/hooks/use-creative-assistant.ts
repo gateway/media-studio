@@ -1109,7 +1109,7 @@ export function useCreativeAssistant({
         current
           ? {
               ...current,
-              attachments: [attachment, ...current.attachments.filter((item) => item.assistant_attachment_id !== attachment.assistant_attachment_id)],
+              attachments: [...current.attachments.filter((item) => item.assistant_attachment_id !== attachment.assistant_attachment_id), attachment],
             }
           : {
               ...currentSession,

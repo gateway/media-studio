@@ -12,10 +12,10 @@ export function useAssistantLayout({ nodes, setNodes, activeTabId }: {
 }) {
   const scope = useRef<LayoutScope | null>(null);
   const stopAssistantLayout = useCallback(() => { scope.current = null; }, []);
-  const beginAssistantLayout = useCallback((workflow: GraphWorkflowPayload, base?: GraphWorkflowPayload) => {
+  const beginAssistantLayout = useCallback((workflow: GraphWorkflowPayload, base?: GraphWorkflowPayload, tabId = activeTabId) => {
     const previous = new Map(base?.nodes.map((node) => [node.id, node.position]) ?? []);
     scope.current = {
-      tabId: activeTabId,
+      tabId,
       positions: new Map(workflow.nodes.filter((node) => {
         const position = previous.get(node.id);
         return !position || position.x !== node.position.x || position.y !== node.position.y;
