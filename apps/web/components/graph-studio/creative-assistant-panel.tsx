@@ -913,8 +913,8 @@ export function CreativeAssistantPanel({
       ? assistant.nextAction
       : null;
   const planActionLabel = planMetadata.independent_stage ? "Open new workflow" : kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add graph");
-  const planActionAriaLabel = kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add reviewed graph");
-  const planActionTitle = kernelGraphAction?.label || (planMissingMedia ? "Add the graph so you can choose the missing media on the canvas" : "Add the reviewed graph");
+  const planActionAriaLabel = planMetadata.independent_stage ? planActionLabel : kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add reviewed graph");
+  const planActionTitle = planMetadata.independent_stage ? planActionLabel : kernelGraphAction?.label || (planMissingMedia ? "Add the graph so you can choose the missing media on the canvas" : "Add the reviewed graph");
   const pricing = assistantPlanPricingLabel(plan?.pricing.pricing_summary.total);
   const liveProgressText = assistantLiveProgressText(assistant.progress);
   const busyText = assistant.status === "idle"
