@@ -244,6 +244,9 @@ def _create_tracked_kernel_message(
             "content_json": content_json,
         }
     )
+    unused_offer = summary.get("kernel_recipe_continuation") or {}
+    if result.next_action.kind == "confirm_graph" and result.next_action.proposal_id and unused_offer.get("state") == "offered":
+        summary = {**summary, "kernel_recipe_continuation": {**unused_offer, "state": "cancelled"}}
     latest_usage = result.trace.provider_steps[-1].usage if result.trace.provider_steps else None
     return store_assistant.create_or_update_assistant_session(
         {
