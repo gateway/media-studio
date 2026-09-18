@@ -1268,6 +1268,15 @@ def run_assistant_kernel_turn(
                 execution.trace.evidence["wire_bytes"] = len(messages[0]["content"].encode("utf-8"))
             continue
         reply = str(step.reply or "")
+        if (tool_traces and tool_traces[-1].error
+                and tool_traces[-1].error.code == "recipe_inspection_required"
+                and not artifact_retry_requested):
+            artifact_retry_requested = True
+            messages = [_kernel_tool_result_message(
+                tool_name="kernel_policy", result=None,
+                error={"code": "complete_readonly_inspection", "message": "Inspect the specified current recipe with get_prompt_recipe and retry graph preparation. This is already authorized read-only work; do not ask permission to continue. If a real requirement conflicts, explain that constraint."},
+            )]
+            continue
         required_artifact = KERNEL_REQUIRED_ARTIFACTS.get(selected_artifact_intent or "none")
         if (
             required_artifact

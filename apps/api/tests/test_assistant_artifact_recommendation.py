@@ -566,6 +566,12 @@ def test_selection_returns_exact_identity_provenance_and_only_missing_inputs(app
         ),
         context,
     )
+    recipe_kernel = importlib.import_module("app.assistant.recipe_kernel")
+    recipe = _recipe(system_prompt_template="Create a character sheet from {{character_brief}}.")
+    context.session_id = context.session["assistant_session_id"]
+    monkeypatch.setattr(module.store, "get_prompt_recipe", lambda _identity: recipe)
+    monkeypatch.setattr(module.store_assistant, "get_assistant_session", lambda _identity: context.session)
+    recipe_kernel.get_prompt_recipe(recipe_kernel.GetPromptRecipeArguments(recipe_id_or_key=recipe["recipe_id"]), context)
     selected = module.record_artifact_recommendation_decision(
         module.RecordArtifactRecommendationDecisionArguments(
             stage="character_sheet",

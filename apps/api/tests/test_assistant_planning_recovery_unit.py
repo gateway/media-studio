@@ -100,5 +100,18 @@ class PlanningRecoveryTests(unittest.TestCase):
         self.assertEqual(result["summary_json"]["kernel_planning_recovery"]["state"], "offered")
         self.assertNotEqual(result["summary_json"]["kernel_planning_recovery"]["id"], recovery["id"])
 
+    def test_inspection_blocker_is_repaired_without_permission_question(self):
+        recipe = {"recipe_id": "board", "key": "board", "label": "Board", "category": "image", "status": "active", "system_prompt_template": "Make nine panels"}
+        steps = [
+            {"capability": "graph_builder", "tool_call": {"name": "propose_graph_operations", "arguments": {"summary": "Prepare board", "template_id": "saved_recipe_image_v1", "recipe_id": "board"}}},
+            {"capability": "graph_builder", "reply": "Shall I inspect it and continue?"},
+            {"capability": "graph_builder", "tool_call": {"name": "get_prompt_recipe", "arguments": {"recipe_id_or_key": "board"}}},
+            {"capability": "graph_builder", "reply": "The current recipe has been inspected; the image model choice is still needed."},
+        ]
+        with patch.object(self.kernel.store, "get_prompt_recipe", return_value=recipe), patch.object(self.kernel, "run_kernel_provider_step", side_effect=steps):
+            result = self.kernel.run_assistant_kernel_turn(session=self.session, user_text="Prepare board", workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, assistant_mode="graph")
+        self.assertEqual([trace.tool_name for trace in result.trace.tool_calls], ["propose_graph_operations", "get_prompt_recipe"])
+        self.assertNotIn("Shall I", result.reply)
+
 if __name__ == "__main__":
     unittest.main()
