@@ -925,14 +925,14 @@ def run_assistant_kernel_turn(
     tool_steps = 0
     provider_call_index = 0
     artifact_retry_requested = False
-    def budget_result(reason: str) -> AssistantKernelTurnResult:
+    def budget_result(reason: str, remaining: str | None = None) -> AssistantKernelTurnResult:
         capability = selected_capability or "general"
         recovery = None
         if capability == "graph_builder" or assistant_mode == "graph":
             recovery = record_planning_recovery(
                 session=session, workflow=workflow, canvas_context=canvas_context,
                 request=(planning_checkpoint or {}).get("request", user_text), attachments=list(attachments or []),
-                traces=tool_traces, messages=checkpoint_messages, reason=reason, prior=planning_checkpoint,
+                traces=tool_traces, messages=checkpoint_messages, reason=reason, prior=planning_checkpoint, remaining=remaining,
             )
         return AssistantKernelTurnResult(
             reply=("Planning paused at this turn's limit. Your completed checks are saved. Choose Continue planning to finish the proposal; nothing will run automatically."
@@ -1267,6 +1267,11 @@ def run_assistant_kernel_turn(
             if step.tool_call.name in {"list_graph_node_types", "inspect_graph_node_schemas"} and execution.trace.evidence is not None:
                 execution.trace.evidence["wire_bytes"] = len(messages[0]["content"].encode("utf-8"))
             continue
+        if (selected_capability == "graph_builder" and tool_steps >= max_tool_steps
+                and step.planning_remaining and step.planning_remaining.strip()
+                and not any(artifact.kind == "graph_proposal" for artifact in artifacts)
+                and requested_run_action is None):
+            return budget_result("step_budget_exhausted", step.planning_remaining.strip())
         reply = str(step.reply or "")
         if (tool_traces and tool_traces[-1].error
                 and tool_traces[-1].error.code == "recipe_inspection_required"

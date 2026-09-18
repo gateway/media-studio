@@ -68,7 +68,7 @@ GUARDRAILS = (
 # recovery, reusing existing store/lock/confirmation boundaries. Exact source cap.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_121,
+    12_130,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

@@ -91,6 +91,21 @@ class PlanningRecoveryTests(unittest.TestCase):
         self.assertEqual(recovery["completed"], ["Searched saved recipes"])
         self.assertIn("search_prompt_recipes", recovery["messages"][0]["content"])
 
+    def test_final_step_at_limit_preserves_unfinished_graph_planning(self):
+        for remaining in ["Inspect loader and preview contracts, then validate the proposal.", None]:
+            with self.subTest(remaining=remaining):
+                steps = [
+                    {"capability": "graph_builder", "tool_call": {"name": "search_prompt_recipes", "arguments": {"query": "storyboard"}}},
+                    {"capability": "graph_builder", "reply": "The inspected recipe supports nine panels.", "planning_remaining": remaining},
+                ]
+                with patch.object(self.kernel, "run_kernel_provider_step", side_effect=steps):
+                    result = self.kernel.run_assistant_kernel_turn(session=self.session, user_text="Prepare the board graph", workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, assistant_mode="graph", max_tool_steps=1)
+                self.assertEqual(result.trace.termination, "step_budget_exhausted" if remaining else "completed")
+                if remaining:
+                    recovery = self.session["summary_json"]["kernel_planning_recovery"]
+                    self.assertEqual(recovery["remaining"], remaining)
+                    self.assertEqual(recovery["completed"], ["Searched saved recipes"])
+
     def test_clarification_does_not_complete_recovery(self):
         from app.assistant.planning_recovery import continue_planning, record_planning_recovery
         from app.assistant.schemas import AssistantMessageCreateRequest

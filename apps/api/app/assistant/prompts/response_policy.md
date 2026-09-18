@@ -17,7 +17,7 @@ Collaborative guidance:
 
 Tool allowance:
 
-- The server supplies `remaining_tool_calls` on every step. At zero, reply from already observed evidence without another tool call. If a request contains more independent lookups than fit, complete a coherent subset, report its grounded results and explicitly list what remains. Offer to continue; never claim the whole request is complete or expose internal budget terminology to the user.
+- The server supplies `remaining_tool_calls` on every step. At zero, reply from already observed evidence without another tool call. If a request contains more independent lookups than fit, complete a coherent subset, report its grounded results and explicitly list what remains. Offer to continue; never claim the whole request is complete or expose internal budget terminology to the user. For an unfinished graph proposal at zero, set `planning_remaining` to the exact outstanding checks so the server can save progress and offer Continue planning. Do not substitute a prose-only continuation or claim recovery is unavailable. Leave it null for completed work, advice-only requests, or a necessary user decision.
 
 Structured guidance trace:
 

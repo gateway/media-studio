@@ -296,16 +296,18 @@ def test_kernel_planned_storyboard_graph_executes_both_typed_branches_without_ne
             shot_count="4",
         ),
     ]
+    planned_calls = iter([
+        {"name": "get_prompt_recipe", "arguments": {"recipe_id_or_key": "prompt-recipe-environment-sheet-v1"}},
+        {"name": "get_prompt_recipe", "arguments": {"recipe_id_or_key": "prompt-recipe-storyboard-v2-gpt-image-2"}},
+        {"name": "propose_graph_operations", "arguments": {"summary": "Prepare environment and storyboard test branches.", "operations": operations}},
+    ])
     monkeypatch.setattr(
         kernel,
         "run_kernel_provider_step",
         lambda **_kwargs: {
             "capability": "graph_builder",
-            "reply": "The graph is ready for review.",
-            "tool_call": {
-                "name": "propose_graph_operations",
-                "arguments": {"summary": "Prepare environment and storyboard test branches.", "operations": operations},
-            },
+            "reply": "Inspect the saved contracts before preparing the graph for review.",
+            "tool_call": next(planned_calls),
         },
     )
 
