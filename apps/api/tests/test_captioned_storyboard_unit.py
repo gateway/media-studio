@@ -43,5 +43,11 @@ class CaptionedStoryboardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "CAMERA row count"):
             validate_storyboard_metadata_preflight(model_key="gpt-image-2-image-to-image", original_prompt=prompt, submitted_prompt=prompt.replace("CAMERA:", "Caption:"))
 
+    def test_parenthesized_timing_from_assistant_brief_is_valid(self):
+        from app.graph.storyboard_metadata_preflight import validate_storyboard_metadata_preflight
+        prompt = "Storyboard. PANEL COUNT: 2\nPanel 1 (0–2s): The host squares off against the mug.\nCaption: Wide kitchen shot.\nPanel 2 (2–3.5s): The host stares down the mug.\nCaption: Low-angle close-up."
+        result = validate_storyboard_metadata_preflight(model_key="gpt-image-2-image-to-image", original_prompt=prompt, submitted_prompt=prompt)
+        self.assertEqual(result.panel_count, 2)
+
 if __name__ == "__main__":
     unittest.main()

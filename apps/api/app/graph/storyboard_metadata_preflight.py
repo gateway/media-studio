@@ -215,9 +215,12 @@ def _compact_panel_bodies(prompt: str) -> list[tuple[int, str]]:
 
 
 def _raw_panel_bodies(prompt: str) -> list[tuple[int, str]]:
+    time_range = r"\d+(?:\.\d+)?[ \t]*s?[ \t]*[–—-][ \t]*\d+(?:\.\d+)?[ \t]*s"
     heading = re.compile(
         r"(?im)^[ \t]*(?:\d+\.\s*)?(?:PANEL|CELL)\s+0?(?P<number>\d{1,2})"
-        r"(?:\s+IMAGE(?:\s+AND\s+METADATA)?)?(?:[ \t]*,[ \t]*\d+(?:\.\d+)?[ \t]*[–—-][ \t]*\d+(?:\.\d+)?[ \t]*s)?[ \t]*(?:[:\-—][ \t]*|$)",
+        r"(?:\s+IMAGE(?:\s+AND\s+METADATA)?)?"
+        rf"(?:[ \t]*,[ \t]*{time_range}|[ \t]*\({time_range}\))?"
+        r"[ \t]*(?:[:\-—][ \t]*|$)",
     )
     matches = list(heading.finditer(prompt))
     return [
