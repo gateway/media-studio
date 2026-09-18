@@ -1312,7 +1312,7 @@ export function CreativeAssistantPanel({
           ) : null}
 
           <AssistantResults selectionVersion={JSON.stringify(assistant.session?.summary_json?.selected_results ?? {})} sessionId={assistant.session?.assistant_session_id ?? null}
-            runId={latestRunId ?? null} runStatus={latestRunStatus} workspaceKey={workspaceKey} />
+            runId={latestRunId ?? null} runStatus={latestRunStatus} workspaceKey={workspaceKey} onOpenPreview={onOpenPreview} />
           {kernelPresetSaveAction ? (
             <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Media Preset save confirmation">
               <p>

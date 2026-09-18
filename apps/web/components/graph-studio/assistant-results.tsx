@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import type { GraphWorkflowPayload } from './types';
+import type { GraphMediaPreview, GraphWorkflowPayload } from './types';
 import { jsonFetch } from './utils/graph-api';
 
 type Result = {
@@ -14,8 +14,9 @@ type Results = {
   items: Result[]; selected_artifact_ids: string[];
 };
 
-export function AssistantResults({ sessionId, runId, runStatus, workspaceKey, selectionVersion }: {
+export function AssistantResults({ sessionId, runId, runStatus, workspaceKey, selectionVersion, onOpenPreview }: {
   sessionId: string | null; runId: string | null; runStatus?: string | null; workspaceKey: string; selectionVersion?: string;
+  onOpenPreview?: (preview: GraphMediaPreview) => void;
 }) {
   const key = `${workspaceKey}:${sessionId}:${runId}`;
   const activeKey = useRef(key);
@@ -66,7 +67,11 @@ export function AssistantResults({ sessionId, runId, runStatus, workspaceKey, se
     {data?.items.map((item, index) => <article key={item.artifact_id} aria-label={`Result ${index + 1}: ${item.node_title}`}>
       <p><strong>{index + 1}. {item.node_title}</strong> · {item.output_port} {item.output_index + 1}</p>
       {item.text != null ? <details><summary>Read completed text</summary><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.text}</pre></details> : null}
-      {item.available && item.url && item.media_type === 'image' ? <img src={item.url} alt={`${item.node_title} result ${item.output_index + 1}`} style={{ maxWidth: '100%' }} /> : null}
+      {item.available && item.url && item.media_type === 'image' ? <button
+        type="button" className="graph-node-preview-button" disabled={!onOpenPreview}
+        aria-label={`Open ${item.node_title} result ${item.output_index + 1} preview`}
+        onClick={() => onOpenPreview?.({ mediaType: 'image', url: item.url!, label: `${item.node_title} result ${item.output_index + 1}` })}
+      ><img src={item.url} alt={`${item.node_title} result ${item.output_index + 1}`} style={{ maxWidth: '100%' }} /></button> : null}
       {item.available && item.url && item.media_type === 'video' ? <video src={item.url} controls preload="metadata" style={{ maxWidth: '100%' }} /> : null}
       {item.available && item.url && item.media_type === 'audio' ? <audio src={item.url} controls preload="metadata" /> : null}
       {!item.available ? <p>{item.blocker}</p> : null}
