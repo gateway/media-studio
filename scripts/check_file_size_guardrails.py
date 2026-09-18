@@ -70,9 +70,10 @@ GUARDRAILS = (
 # ownership/version checks and the vision provider; no approval or run bypass.
 # Result attachment UI: authoritative selection bindings (+2); workflow terminology (+1).
 # MALIVE-012: shared confirmed-run ownership for production completion; exact source cap.
+# MALIVE-014: exact saved-recipe ports reuse the graph visibility owner.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_243,
+    12_258,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

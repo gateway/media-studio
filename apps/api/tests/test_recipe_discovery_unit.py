@@ -28,7 +28,7 @@ class RecipeDiscoveryTests(unittest.TestCase):
         def remember(record):
             session.update(record)
             return dict(session)
-        with patch.object(recipe_kernel.store_assistant, "get_assistant_session", return_value=session), patch.object(recipe_kernel.store_assistant, "create_or_update_assistant_session", side_effect=remember), patch.object(recipe_kernel.store, "get_prompt_recipe", return_value=recipe):
+        with patch.object(recipe_kernel.store_assistant, "get_assistant_session", return_value=session), patch.object(recipe_kernel.store_assistant, "create_or_update_assistant_session", side_effect=remember), patch.object(recipe_kernel.store, "get_prompt_recipe", return_value=recipe), patch.object(recipe_kernel.registry, "get_definition", return_value=SimpleNamespace(ports={}, fields=[])):
             with self.assertRaises(recipe_kernel.RecipeKernelError):
                 recipe_kernel.require_recipe_inspection(recipe, context)
             recipe_kernel.get_prompt_recipe(recipe_kernel.GetPromptRecipeArguments(recipe_id_or_key="saved-nine"), context)
@@ -46,11 +46,27 @@ class RecipeDiscoveryTests(unittest.TestCase):
         def remember(record):
             session.update(record)
             return dict(session)
-        with patch.object(recipe_kernel.store_assistant, "get_assistant_session", return_value=session), patch.object(recipe_kernel.store_assistant, "create_or_update_assistant_session", side_effect=remember), patch.object(recipe_kernel.store, "get_prompt_recipe", return_value=recipe):
+        with patch.object(recipe_kernel.store_assistant, "get_assistant_session", return_value=session), patch.object(recipe_kernel.store_assistant, "create_or_update_assistant_session", side_effect=remember), patch.object(recipe_kernel.store, "get_prompt_recipe", return_value=recipe), patch.object(recipe_kernel.registry, "get_definition", return_value=SimpleNamespace(ports={}, fields=[])):
             with self.assertRaises(recipe_kernel.RecipeKernelError):
                 recipe_kernel.get_prompt_recipe(recipe_kernel.GetPromptRecipeArguments(recipe_id_or_key="large"), context)
             with self.assertRaises(recipe_kernel.RecipeKernelError):
                 recipe_kernel.require_recipe_inspection(recipe, context)
+
+    def test_saved_recipe_inspection_filters_ports_by_selected_recipe(self):
+        from app.assistant import recipe_kernel
+        from app.graph.schemas import GraphNodePort
+        from types import SimpleNamespace
+        recipe = {"recipe_id": "saved-board", "key": "board", "label": "Board", "category": "image", "system_prompt_template": "Make six panels"}
+        definition = SimpleNamespace(fields=[], ports={"inputs": [
+            GraphNodePort(id="user_prompt", label="Brief", type="text"),
+            GraphNodePort(id="character_ref", label="Host", type="image", visible_if={"field": "recipe_id", "in": ["saved-board"]}),
+            GraphNodePort(id="additional_refs", label="Other", type="image", visible_if={"field": "recipe_id", "in": ["another-recipe"]}),
+        ], "outputs": [GraphNodePort(id="text", label="Prompt", type="text")]})
+        with patch.object(recipe_kernel.store, "get_prompt_recipe", return_value=recipe), patch.object(recipe_kernel.registry, "get_definition", return_value=definition):
+            result = recipe_kernel.get_prompt_recipe(recipe_kernel.GetPromptRecipeArguments(recipe_id_or_key="board"), None)
+        self.assertEqual(result["graph_node"]["fields"], {"recipe_id": "saved-board"})
+        self.assertEqual([p["id"] for p in result["graph_node"]["ports"]["inputs"]], ["user_prompt", "character_ref"])
+        self.assertEqual([p["id"] for p in result["graph_node"]["ports"]["outputs"]], ["text"])
 
 if __name__ == "__main__":
     unittest.main()

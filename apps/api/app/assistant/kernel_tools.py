@@ -646,7 +646,9 @@ def _inspect_graph_node_schemas(arguments: BaseModel, _context: KernelToolContex
         "instruction": (
             "Inspect omitted node types in a separate call."
             if omitted
-            else "Use these exact field ids, node types, and port ids in graph operations."
+            else "Use these exact field ids, node types, and port ids in graph operations. "
+            "For prompt.recipe, this is a union across recipes: use get_prompt_recipe graph_node "
+            "for the selected recipe_id and its exact available ports, not the union ports."
         ),
     }
 

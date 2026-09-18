@@ -7,6 +7,8 @@ from typing import Any, Dict, Literal, Optional
 from pydantic import BaseModel, Field, ValidationError
 
 from .. import store, store_assistant
+from ..graph.registry import registry
+from ..graph.validator import visible_condition_passes
 from ..schemas import (
     PromptRecipeCustomField,
     PromptRecipeImageInputConfig,
@@ -170,6 +172,17 @@ def get_prompt_recipe(arguments: BaseModel, context: Any) -> Dict[str, Any]:
             retryable=False,
         )
     contract = _full_recipe_contract(record)
+    definition = registry.get_definition("prompt.recipe")
+    node_fields = {"recipe_id": record["recipe_id"]}
+    contract["graph_node"] = {
+        "type": "prompt.recipe", "fields": node_fields,
+        "ports": {
+            side: [port.model_dump(mode="json", include={"id", "label", "type", "array", "required", "min", "max"}, exclude_none=True)
+                   for port in definition.ports.get(side, [])
+                   if visible_condition_passes(port.visible_if, node_fields, definition)]
+            for side in ("inputs", "outputs")
+        },
+    }
     if len(json.dumps(contract, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")) > KERNEL_TOOL_RESULT_MAX_BYTES:
         raise RecipeKernelError(code="tool_result_too_large", message="The full saved recipe exceeds the assistant inspection limit. It has not been marked inspected; choose a supported recipe or inspect it in the recipe editor.")
     if context is not None and getattr(context, "session_id", None):
