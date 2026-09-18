@@ -76,6 +76,7 @@ from .recipe_kernel import (
     SearchPromptRecipesArguments,
     ValidatePromptRecipeDraftArguments,
     get_prompt_recipe,
+    require_recipe_inspection,
     propose_prompt_recipe_draft,
     search_prompt_recipes,
     validate_prompt_recipe_draft,
@@ -99,10 +100,12 @@ from .story_kernel import (
 )
 
 
-KERNEL_TOOL_RESULT_MAX_BYTES = 32_768
+from .tool_limits import KERNEL_TOOL_RESULT_MAX_BYTES
 KERNEL_SCHEMA_RESULT_TARGET_BYTES = 30_000
 KERNEL_TOOL_ACTIVITIES = {
     "read_current_workflow": ("graph_check", "Checked your graph"),
+    "search_prompt_recipes": ("recipe_catalog", "Searched saved recipes"),
+    "get_prompt_recipe": ("recipe_contract", "Inspected the saved recipe contract"),
     "list_graph_node_types": ("graph_catalog", "Checked available graph parts"),
     "inspect_graph_node_schemas": ("graph_catalog", "Checked graph connections and settings"),
     "validate_current_workflow": ("graph_validation", "Checked your graph"),
@@ -1071,6 +1074,7 @@ def _saved_recipe_graph_operations(
             code="saved_recipe_graph_recipe_required",
             message="Choose an active saved Prompt Recipe before preparing its graph.",
         )
+    require_recipe_inspection(recipe, context)
     image_input = (
         recipe.get("image_input_json")
         if isinstance(recipe.get("image_input_json"), dict)
@@ -1714,6 +1718,15 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
         planned_workflow,
         definitions_by_type=definitions,
     )
+    prior_recipes = {node.id: node.fields.get("recipe_id") for node in base_workflow.nodes if node.type == "prompt.recipe"}
+    prior_connections = {(edge.source, edge.source_port, edge.target, edge.target_port) for edge in base_workflow.edges}
+    newly_connected_sources = {edge.source for edge in materialized_workflow.edges
+                               if (edge.source, edge.source_port, edge.target, edge.target_port) not in prior_connections}
+    for node in materialized_workflow.nodes:
+        if node.type == "prompt.recipe" and (adds_paid_path or node.id in newly_connected_sources or prior_recipes.get(node.id) != node.fields.get("recipe_id")):
+            recipe = store.get_prompt_recipe(str(node.fields.get("recipe_id") or ""))
+            if recipe:
+                require_recipe_inspection(recipe, context)
     nodes_by_id = {node.id: node for node in materialized_workflow.nodes}
     requested_overrides = {
         override.recipe_id: override
@@ -2064,7 +2077,7 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
     ),
     "search_prompt_recipes": KernelToolDefinition(
         name="search_prompt_recipes",
-        description="Search active Prompt Recipes and inspect variables, fields, output format, and image-input behavior.",
+        description="Find active Prompt Recipe candidates and declared constraints. Call get_prompt_recipe before recommending or binding one; names and search ranks are not proof of fit.",
         arguments_model=SearchPromptRecipesArguments,
         allowed_capabilities=frozenset(
             {"general", "graph_builder", "recipe_builder", "story_builder"}
@@ -2073,7 +2086,7 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
     ),
     "get_prompt_recipe": KernelToolDefinition(
         name="get_prompt_recipe",
-        description="Read one Prompt Recipe by id or key in its full editable contract shape.",
+        description="Inspect one saved Prompt Recipe in full. Check system prompt, output contract, fixed counts, controls/defaults and image roles against the request before recommending or binding it.",
         arguments_model=GetPromptRecipeArguments,
         allowed_capabilities=frozenset(
             {"general", "graph_builder", "recipe_builder", "story_builder"}

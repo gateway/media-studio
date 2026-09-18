@@ -14,6 +14,7 @@ from .provider_support import (
     sync_assistant_session_provider,
 )
 from .recipe_continuation import run_recipe_continuation
+from .planning_recovery import continue_planning
 from .run_confirmation import (
     RunEvidenceError,
     applied_recipe_plan_id,
@@ -59,6 +60,10 @@ def create_kernel_message(
     session_id = str(session["assistant_session_id"])
     try:
         with track_session(session_id) as cancel_event:
+            if payload.metadata.get("planning_recovery_id"):
+                return continue_planning(session, payload, attachments, lambda current, request, checkpoint: _create_tracked_kernel_message(
+                    session=current, payload=request, attachments=attachments, cancel_event=cancel_event, planning_checkpoint=checkpoint,
+                ), cancel_event)
             if payload.continuation:
                 return run_recipe_continuation(session, payload, lambda current, request: _create_tracked_kernel_message(
                     session=current, payload=request, attachments=attachments, cancel_event=cancel_event,
@@ -79,6 +84,7 @@ def _create_tracked_kernel_message(
     payload: AssistantMessageCreateRequest,
     attachments: List[Dict[str, Any]],
     cancel_event: Any,
+    planning_checkpoint: Any = None,
 ) -> Dict[str, Any]:
     session_id = str(session["assistant_session_id"])
     text = payload.content_text.strip()
@@ -95,7 +101,7 @@ def _create_tracked_kernel_message(
             {
                 "assistant_session_id": session_id,
                 "role": "user",
-                "content_text": text,
+                "content_text": "Continue planning" if planning_checkpoint else text,
                 "content_json": {
                     "attachment_ids": payload.attachment_ids,
                     "assistant_mode": payload.assistant_mode,
@@ -114,6 +120,7 @@ def _create_tracked_kernel_message(
             attachments=attachments,
             cancel_event=cancel_event,
             client_user_message_id=str(user_message.get("assistant_message_id") or "") or None,
+            planning_checkpoint=planning_checkpoint,
         )
     except AssistantRequestCancelled as exc:
         store_assistant.create_assistant_message(
@@ -237,6 +244,9 @@ def _create_tracked_kernel_message(
             "content_json": content_json,
         }
     )
+    unused_offer = summary.get("kernel_recipe_continuation") or {}
+    if result.next_action.kind == "confirm_graph" and result.next_action.proposal_id and unused_offer.get("state") == "offered":
+        summary = {**summary, "kernel_recipe_continuation": {**unused_offer, "state": "cancelled"}}
     latest_usage = result.trace.provider_steps[-1].usage if result.trace.provider_steps else None
     return store_assistant.create_or_update_assistant_session(
         {

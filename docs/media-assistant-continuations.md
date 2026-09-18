@@ -36,3 +36,15 @@ The field is optional for existing clients. Existing recipe-save, graph-apply an
 ## Validation limits
 
 Graph validation and pricing establish a reviewable proposal. They do not prove generated-image quality. Empty reference inputs must be supplied before execution. Provider response time varies; a bounded turn can require an explicit continuation.
+
+## Interrupted graph planning
+
+If graph planning reaches its time or tool limit, the assistant retains a planning checkpoint in the existing session. The card shows completed checks, errors and the remaining proposal work. **Continue planning** resumes preparation explicitly; it does not approve a generation, apply a graph or save a recipe. The original graph and selected references must still match. Changed or expired checkpoints require a fresh request.
+
+Successful preparation must produce a fresh validated proposal before recovery is marked complete. A clarification leaves recovery available. A transient failure produces a fresh retry action, and the browser refreshes that action before another attempt. No provider generation is retried automatically.
+
+## Saved recipe compatibility
+
+Search results identify candidates. The assistant must inspect the full current saved recipe contract before selecting or binding it: system prompt, output format, fixed requirements, available controls and image-reference behavior. Changing the recipe invalidates prior inspection evidence. A fixed nine-panel recipe is not a six-panel option; choose its supported format, direct construction, or explicitly draft a separate recipe.
+
+Text-port compatibility does not prove the generated text meets downstream requirements. GPT Image 2 storyboard preflight distinguishes captioned narrative boards from production metadata boards. Narrative boards retain their complete text, ordered Panel headings (including timed headings), scene descriptions and one nonempty Caption per panel. Production metadata boards keep the existing SHOT/CAMERA/ACTION/MOTION/DIALOG/NOTES checks. Preflight still runs before image submission. Completed inputs and frozen outputs are not regenerated to repair a later prompt.

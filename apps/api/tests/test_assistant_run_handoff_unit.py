@@ -105,6 +105,16 @@ class RunHandoffTests(unittest.TestCase):
             )
         return messages[-1]
 
+    def test_new_graph_proposal_retires_only_an_unused_recipe_offer(self):
+        from app.assistant.schemas import AssistantKernelTurnResult, AssistantKernelTrace, AssistantNextAction
+        for state in ["offered", "awaiting_save", "returning"]:
+            with self.subTest(state=state):
+                self.session["summary_json"] = {"kernel_recipe_continuation": {"id": "old-offer", "state": state}}
+                result = AssistantKernelTurnResult(reply="Graph ready for review.", capability="graph_builder", trace=AssistantKernelTrace(capability="graph_builder"), next_action=AssistantNextAction(kind="confirm_graph", proposal_id="new-plan"))
+                with patch.object(kernel_route, "run_assistant_kernel_turn", return_value=result):
+                    self.message_turn({"reply": "Ready."})
+                self.assertEqual(self.session["summary_json"]["kernel_recipe_continuation"]["state"], "cancelled" if state == "offered" else state)
+
     def test_executable_confirmation_does_not_repeat_provider_claim_that_it_is_blocked(self):
         message = self.message_turn({"reply": "Confirmation is blocked because no token was returned."})
         self.assertEqual(message["content_json"]["next_action"]["kind"], "run_workflow")

@@ -960,8 +960,10 @@ export function useCreativeAssistant({
     setStatus("sending");
     setError(null);
     setRunConfirmationNeedsRecheck(false);
+    let requestSessionId: string | undefined;
     try {
       const currentSession = await ensureSession();
+      requestSessionId = currentSession.assistant_session_id;
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       setScopedSession((current) =>
         appendOptimisticUserMessage(current, currentSession, content, {
@@ -1010,6 +1012,19 @@ export function useCreativeAssistant({
       if (isAbortError(requestError)) {
         reportAbortableStop("Assistant request stopped.");
         return null;
+      }
+      // A failed resume rotates its action ID. Refresh before re-enabling the
+      // button so the next explicit attempt uses the server's current checkpoint.
+      if (options?.metadata?.planning_recovery_id && requestSessionId) {
+        try {
+          const refreshed = await jsonFetch<AssistantSession>(`/api/control/media/assistant/sessions/${requestSessionId}`);
+          if (workspaceKeyRef.current === requestWorkspaceKey) setScopedSession(refreshed);
+        } catch {
+          if (workspaceKeyRef.current === requestWorkspaceKey) {
+            setError("Unable to refresh planning recovery. Reload this workspace before continuing.");
+          }
+          return null;
+        }
       }
       const message = assistantErrorMessage(requestError, "Unable to send assistant message.");
       setError(message);

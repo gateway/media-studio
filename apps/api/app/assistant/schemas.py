@@ -167,6 +167,10 @@ class AssistantKernelProviderStep(BaseModel):
             "artifact can finish the turn without another provider step."
         ),
     )
+    planning_remaining: Optional[str] = Field(
+        default=None, max_length=1200,
+        description="For an unfinished graph proposal at zero remaining_tool_calls, list the exact checks still needed. Use null for completed work, advice-only requests, or a user decision that is needed before proceeding.",
+    )
     tool_call: Optional[AssistantKernelToolCallRequest] = None
     requested_action: AssistantNextAction = Field(default_factory=AssistantNextAction)
     guidance: AssistantKernelGuidance = Field(default_factory=AssistantKernelGuidance)

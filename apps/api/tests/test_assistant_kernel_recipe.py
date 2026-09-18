@@ -13,6 +13,16 @@ def _session(client):
     ).json()
 
 
+def _inspect_saved_recipe(tools, session, recipe):
+    inspected = tools.execute_kernel_tool(
+        tool_name="get_prompt_recipe", arguments={"recipe_id_or_key": recipe["recipe_id"]},
+        capability="graph_builder", context=tools.KernelToolContext(
+            workflow=None, canvas_context={}, session_id=session["assistant_session_id"], session=session,
+        ),
+    )
+    assert inspected.trace.error is None
+
+
 def _recipe_draft(key: str, *, image_input: bool = False):
     variables = [
         {
@@ -439,6 +449,7 @@ def test_saved_recipe_can_be_wired_into_a_validated_image_graph(client) -> None:
             _recipe_draft("kernel_saved_storyboard_graph_contract")
         )
     )
+    _inspect_saved_recipe(tools, session, saved)
     registry.invalidate()
     workflow = {
         "schema_version": 1,
@@ -518,6 +529,23 @@ def test_saved_recipe_can_be_wired_into_a_validated_image_graph(client) -> None:
         edge["source"] == recipe_node["id"] and edge["source_port"] == "text"
         for edge in proposed.result["workflow"]["edges"]
     )
+
+    # Existing disconnected nodes still need inspection when a new edge binds them.
+    disconnected = tools.GraphWorkflow.model_validate(proposed.result["workflow"])
+    recipe_node = next(node for node in disconnected.nodes if node.type == "prompt.recipe")
+    model_node = next(node for node in disconnected.nodes if node.type.startswith("model.kie."))
+    disconnected.edges = [edge for edge in disconnected.edges if edge.source != recipe_node.id]
+    fresh_session = _session(client)
+    reconnect = tools.execute_kernel_tool(
+        tool_name="propose_graph_operations",
+        arguments={"summary": "Connect the existing recipe and generator", "operations": [
+            {"op": "connect_nodes", "source_ref": recipe_node.id, "source_port": "text", "target_ref": model_node.id, "target_port": "prompt"},
+        ]}, capability="graph_builder", context=tools.KernelToolContext(
+            workflow=disconnected, canvas_context={}, session_id=fresh_session["assistant_session_id"], session=fresh_session,
+        ),
+    )
+    assert reconnect.trace.error is not None
+    assert reconnect.trace.error.code == "recipe_inspection_required"
 
 
 def test_recipe_builder_can_read_source_preset_generation_defaults(client) -> None:
@@ -604,6 +632,7 @@ def test_derived_recipe_graph_requires_approved_generation_defaults(client) -> N
         "default_options_json": {"resolution": "2K", "aspect_ratio": "3:4"},
     }
     saved = service.upsert_prompt_recipe(schemas.PromptRecipeUpsertRequest.model_validate(draft))
+    _inspect_saved_recipe(tools, session, saved)
     tools.registry.invalidate()
     context = tools.KernelToolContext(
         workflow=tools.GraphWorkflow(name="Derived recipe graph"),
@@ -801,6 +830,7 @@ def test_recipe_reuse_requires_explicit_intent_before_adding_another_paid_path(c
             _recipe_draft("kernel_recipe_reuse_paid_path_contract")
         )
     )
+    _inspect_saved_recipe(tools, session, saved)
     workflow = tools.GraphWorkflow.model_validate(
         {
             "schema_version": 1,
@@ -1327,6 +1357,7 @@ def test_saved_recipe_refinement_updates_its_applied_lane_without_duplicating_th
     saved = service.upsert_prompt_recipe(
         schemas.PromptRecipeUpsertRequest.model_validate(draft)
     )
+    _inspect_saved_recipe(tools, session, saved)
     tools.registry.invalidate()
     override = [
         {
@@ -1712,6 +1743,7 @@ def test_saved_recipe_template_uses_typed_generation_defaults_and_valid_falsy_fi
     saved = service.upsert_prompt_recipe(
         schemas.PromptRecipeUpsertRequest.model_validate(draft)
     )
+    _inspect_saved_recipe(tools, session, saved)
     tools.registry.invalidate()
 
     proposed = tools.execute_kernel_tool(
