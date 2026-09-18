@@ -101,7 +101,7 @@ def _create_tracked_kernel_message(
             {
                 "assistant_session_id": session_id,
                 "role": "user",
-                "content_text": text,
+                "content_text": "Continue planning" if planning_checkpoint else text,
                 "content_json": {
                     "attachment_ids": payload.attachment_ids,
                     "assistant_mode": payload.assistant_mode,

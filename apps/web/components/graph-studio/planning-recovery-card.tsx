@@ -17,8 +17,9 @@ export function PlanningRecoveryCard({ value, busy, onContinue }: {
         <p>{String(record.request || "")}</p>
         {completed.length ? <ul>{completed.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p>No checks completed yet.</p>}
         {errors.map((error, index) => <p key={index}>{String((error as { message?: unknown })?.message || "A check needs attention.")}</p>)}
+        <p>{String(record.remaining || "Finish the proposal and review it before running.")}</p>
       </details>
-      <p>{String(record.remaining || "Finish the proposal and review it before running.")}</p>
+      <p>Continue preparing the proposal, then review it before running.</p>
       {record.state === "offered" ? <button className="graph-assistant-action-button" type="button" disabled={busy} onClick={() => onContinue(String(record.id))}>Continue planning</button> : <p>{record.state === "resuming" && busy ? "Continuing planning…" : "Start a fresh request using the current graph and references."}</p>}
       <span>Continuing does not start generation.</span>
     </section>
