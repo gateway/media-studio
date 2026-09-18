@@ -1323,7 +1323,10 @@ def _storyboard_append_to_last_metadata_row(text: str, *, labels: tuple[str, ...
         match = matches[-1]
         value = match.group("value").strip()
         separator = "; " if value else ""
-        replacement = f"{match.group('prefix')}{value.rstrip(' .;')}{separator}{addition.rstrip(' .;')}."
+        combined = f"{value.rstrip(' .;')}{separator}{addition.rstrip(' .;')}."
+        if len(combined) > STORYBOARD_METADATA_DISPLAY_LIMITS[label]:
+            continue
+        replacement = f"{match.group('prefix')}{combined}"
         return f"{text[:match.start()]}{replacement}{text[match.end():]}"
     return text
 
@@ -1340,7 +1343,12 @@ def _storyboard_preserve_requested_action_beats(text: str, values: Dict[str, str
     updated = _storyboard_append_to_last_metadata_row(text, labels=("NOTES", "ACTION"), addition=addition)
     if updated != text:
         return updated
-    return f"{text.rstrip()}\nNOTES: {addition}."
+    # Preserve reminders in the existing compiled continuity contract when
+    # neither display row has room; never create an over-budget metadata row.
+    heading = re.search(r"(?im)^[ \t]*PROP AND STATE CONTINUITY[ \t]*:[ \t]*", text)
+    if heading:
+        return f"{text[:heading.end()]}{addition}. {text[heading.end():]}"
+    return f"{text.rstrip()}\n\nPROP AND STATE CONTINUITY:\n{addition}."
 
 
 def _storyboard_text_from_structured_json(parsed_json: Any) -> str:

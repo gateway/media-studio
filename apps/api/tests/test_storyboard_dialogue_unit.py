@@ -5,6 +5,7 @@ from app.graph.executors.prompt_ops import (
     _sanitize_storyboard_v2_prompt_text,
     _storyboard_blank_non_spoken_dialog_rows,
     _storyboard_user_disabled_dialogue,
+    _storyboard_preserve_requested_action_beats,
 )
 
 
@@ -37,3 +38,24 @@ def test_exact_dialogue_survives_negative_metadata_routing_instruction() -> None
     for n in range(1, 7):
         assert f"PANEL {n:02d}" in sanitized
         assert f"NOTES: Preserve the prop position for beat {n}." in sanitized
+
+
+def test_action_reminder_respects_display_limits_and_preserves_continuity() -> None:
+    notes = "Keep the bent spoon visible and bottle cap open; label faces camera, illustrated figure stays printed, and nobody drinks."
+    action = "The host calmly stirs with the tiny barbell and delivers the final line."
+    values = {"user_prompt": "host opens red flip-top cap."}
+    text = f"PANEL 06\nACTION: {action}\nNOTES: {notes}"
+    result = _storyboard_preserve_requested_action_beats(text, values)
+    assert f"NOTES: {notes}" in result
+    assert "host opens red flip-top cap" in result
+    for line in result.splitlines():
+        if line.startswith("ACTION:"):
+            assert len(line.partition(":")[2].strip()) <= 136
+    full = text.replace(action, "The host studies the mug carefully while holding a tiny barbell above the coffee and maintaining a calm expression throughout the beat.")
+    for prefix in ("", "PROP AND STATE CONTINUITY: Preserve the mug position.\n\n"):
+        result = _storyboard_preserve_requested_action_beats(prefix + full, values)
+        assert f"NOTES: {notes}" in result
+        assert result.count("PROP AND STATE CONTINUITY:") == 1
+        assert "host opens red flip-top cap" in result
+        if prefix:
+            assert "Preserve the mug position." in result
