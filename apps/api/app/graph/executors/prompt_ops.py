@@ -1005,6 +1005,9 @@ def _storyboard_user_requested_visible_name(values: Dict[str, str]) -> bool:
 
 
 def _storyboard_user_disabled_dialogue(values: Dict[str, str]) -> bool:
+    # Exact user-authored speech is authoritative over incidental negative phrasing.
+    if _storyboard_requested_dialogue_values(values.get("dialogue_cues")):
+        return False
     text = "\n".join(str(values.get(key) or "") for key in ("user_prompt", "previous_output", "previous_storyboard_prompt", "continuation_brief", "style_direction"))
     normalized = " ".join(text.lower().split())
     return bool(
@@ -1019,7 +1022,7 @@ def _storyboard_user_disabled_dialogue(values: Dict[str, str]) -> bool:
 def _storyboard_blank_non_spoken_dialog_rows(text: str, *, force_no_dialogue: bool = False) -> str:
     if force_no_dialogue:
         return re.sub(
-            r"(?m)^(?P<prefix>\s*(?:[-*]\s*)?DIALOG\s*:\s*).*$",
+            r"(?m)^(?P<prefix>[ \t]*(?:[-*][ \t]*)?DIALOG[ \t]*:[ \t]*).*$",
             lambda match: match.group("prefix").rstrip() + " ",
             text,
         )
@@ -1038,7 +1041,7 @@ def _storyboard_blank_non_spoken_dialog_rows(text: str, *, force_no_dialogue: bo
         return match.group(0)
 
     return re.sub(
-        rf"(?m)^(?P<prefix>\s*(?:[-*]\s*)?DIALOG\s*:\s*)(?P<value>{non_spoken_values})\s*$",
+        rf"(?m)^(?P<prefix>[ \t]*(?:[-*][ \t]*)?DIALOG[ \t]*:[ \t]*)(?P<value>{non_spoken_values})[ \t]*$",
         replace_row,
         text,
         flags=re.IGNORECASE,
