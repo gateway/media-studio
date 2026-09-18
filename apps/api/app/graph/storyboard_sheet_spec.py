@@ -207,16 +207,21 @@ def _board_title(text: str) -> str:
 
 def _production_metadata(text: str) -> dict[str, str]:
     directive = _last_directive(text, "PRODUCTION METADATA")
-    search_text = directive or text
+    # Freeform generation instructions are not literal production field values.
+    if not re.search(r"\b(?:PROJECT|SEQUENCE|LOCATION|DATE|ARTIST)[ \t]*:", directive, flags=re.IGNORECASE):
+        directive = ""
     values: dict[str, str] = {}
     for index, key in enumerate(PRODUCTION_METADATA_KEYS):
         following = "|".join(PRODUCTION_METADATA_KEYS[index + 1 :])
-        boundary = rf"(?=\s*;?\s*(?:{following})\s*:|$)" if following else r"(?=\s*$)"
-        match = re.search(rf"\b{key}\s*:\s*(.*?)" + boundary, search_text, flags=re.IGNORECASE)
-        if not match and not directive:
-            match = re.search(rf"(?im)^\s*{key}\s*:\s*([^\r\n]*)", text)
-        values[key] = _clean_visible_storyboard_text(match.group(1)).strip("; ") if match else ""
-    missing = [key for key, value in values.items() if not value]
+        boundary = rf"(?=[ \t]*;?[ \t]*(?:{following})[ \t]*:|$)" if following else r"(?=[ \t]*$)"
+        pattern = rf"\b{key}[ \t]*:[ \t]*([^\r\n]*?)" + boundary
+        match = re.search(pattern, directive, flags=re.IGNORECASE | re.MULTILINE) if directive else None
+        if not match:
+            match = re.search(pattern, text, flags=re.IGNORECASE | re.MULTILINE)
+        if match:
+            values[key] = _clean_visible_storyboard_text(match.group(1)).strip("; ")
+    # Labels are required; unspecified user-owned values intentionally stay blank.
+    missing = [key for key in PRODUCTION_METADATA_KEYS if key not in values]
     if missing:
         raise ValueError(f"Storyboard sheet spec is missing production metadata: {', '.join(missing)}.")
     return values
@@ -399,7 +404,7 @@ def storyboard_sheet_spec_from_mapping(value: Mapping[str, Any]) -> StoryboardSh
     if not isinstance(production, Mapping):
         raise ValueError("Storyboard sheet spec production_metadata must be an object.")
     metadata = {key: _clean(production.get(key)) for key in PRODUCTION_METADATA_KEYS}
-    missing = [key for key, item in metadata.items() if not item]
+    missing = [key for key in PRODUCTION_METADATA_KEYS if key not in production]
     if missing:
         raise ValueError(f"Storyboard sheet spec is missing production metadata: {', '.join(missing)}.")
     visual_context = value.get("visual_context") if isinstance(value.get("visual_context"), Mapping) else {}

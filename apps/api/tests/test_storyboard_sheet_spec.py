@@ -895,3 +895,17 @@ def test_structured_sheet_spec_json_is_intermediate_not_provider_prompt() -> Non
     assert len(prompt) < 4200
     for forbidden in ("{", "}", '"contract_id"', '"panels"', '"production_metadata"', '"dialogue_cues"'):
         assert forbidden not in prompt
+
+
+def test_production_metadata_preserves_unknown_values_and_ignores_instructions() -> None:
+    result = _recipe_result(recipe_key="storyboard-v2-gpt-image-2", subject="The host wears an orange scarf.")
+    raw = result["raw_text"].split("PRODUCTION METADATA:")[0]
+    raw = raw.replace("DATE: —", "DATE:").replace("ARTIST: —", "ARTIST:")
+    raw += "PRODUCTION METADATA: Derive PROJECT, SEQUENCE and LOCATION only from the story brief; leave unspecified DATE and ARTIST values empty."
+    spec = storyboard_sheet_spec_from_recipe_result({"raw_text": raw})
+    assert spec.production_metadata["PROJECT"] == "ORBITAL RELAY"
+    assert spec.production_metadata["DATE"] == ""
+    assert spec.production_metadata["ARTIST"] == ""
+    assert storyboard_sheet_spec_from_mapping(spec.to_dict()).production_metadata == spec.production_metadata
+    with pytest.raises(ValueError, match="missing production metadata: ARTIST"):
+        storyboard_sheet_spec_from_recipe_result({"raw_text": raw.replace("ARTIST:\n", "")})
