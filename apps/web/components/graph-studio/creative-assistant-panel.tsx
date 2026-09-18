@@ -24,7 +24,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ChangeEvent, DragEvent, ReactElement } from "react";
 
 import type { AssistantPlanResponse, GraphError, GraphEstimateResponse, GraphMediaPreview, GraphWorkflowPayload } from "./types";
-import { AssistantResults, AssistantRunScope } from "./assistant-results";
+import { AssistantResults, AssistantResultAttachments, AssistantRunScope, useAssistantResults } from "./assistant-results";
 import { type AssistantMode, useCreativeAssistant } from "./hooks/use-creative-assistant";
 import { isTextEntryTarget, previewFromReference } from "./utils/graph-media-preview";
 import { assistantPlanPricingLabel, graphEstimateToolbarLabel } from "./utils/graph-pricing";
@@ -712,6 +712,12 @@ export function CreativeAssistantPanel({
     onEvent,
   });
   const [sendingProgressStage, setSendingProgressStage] = useState(0);
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const results = useAssistantResults({
+    sessionId: assistant.session?.assistant_session_id ?? null,
+    runId: latestRunId ?? null, runStatus: latestRunStatus, workspaceKey, enabled: open,
+    selectionVersion: JSON.stringify(assistant.session?.summary_json?.selected_results ?? {}),
+  });
   useEffect(() => {
     if (assistant.status !== "sending") {
       setSendingProgressStage(0);
@@ -1311,8 +1317,8 @@ export function CreativeAssistantPanel({
             </section>
           ) : null}
 
-          <AssistantResults selectionVersion={JSON.stringify(assistant.session?.summary_json?.selected_results ?? {})} sessionId={assistant.session?.assistant_session_id ?? null}
-            runId={latestRunId ?? null} runStatus={latestRunStatus} workspaceKey={workspaceKey} onOpenPreview={onOpenPreview} />
+          <AssistantResults results={results} disabled={assistant.busy} onOpenPreview={onOpenPreview}
+            onAsk={() => messageInputRef.current?.focus()} />
           {kernelPresetSaveAction ? (
             <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Media Preset save confirmation">
               <p>
@@ -1558,10 +1564,12 @@ export function CreativeAssistantPanel({
               Recheck graph and pricing
             </button>
           ) : null}
+          <AssistantResultAttachments results={results} disabled={assistant.busy} onOpenPreview={onOpenPreview} />
           <div className="graph-assistant-compose-row">
             <textarea
+              ref={messageInputRef}
               value={assistant.draft}
-              placeholder={ASSISTANT_PLACEHOLDER}
+              placeholder={results.selectedItems.length ? "What would you like to know or change about these results?" : ASSISTANT_PLACEHOLDER}
               onChange={(event) => assistant.setDraft(event.target.value)}
               aria-label="Assistant message"
             />
@@ -1569,7 +1577,7 @@ export function CreativeAssistantPanel({
               <button
                 type="button"
                 className="graph-assistant-action-button"
-                disabled={!assistant.draft.trim() || assistant.busy}
+                disabled={!assistant.draft.trim() || assistant.busy || results.busy}
                 onClick={() => void assistant.sendMessage()}
                 aria-label="Send chat message"
                 title="Send chat message"
