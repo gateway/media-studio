@@ -25,6 +25,7 @@ from .provenance import (
     workflow_fingerprint,
 )
 from .preset_approvals import record_preset_approvals
+from .planning_recovery import record_planning_recovery
 from .prompt_assets import assistant_thread_prompt_assembly
 from .provider_support import (
     AssistantProviderChatError,
@@ -877,6 +878,7 @@ def run_assistant_kernel_turn(
     run_id: Optional[str] = None,
     attachments: Optional[List[Dict[str, Any]]] = None,
     cancel_event: Event | None = None,
+    planning_checkpoint: Optional[Dict[str, Any]] = None,
     max_tool_steps: int = KERNEL_MAX_TOOL_STEPS,
     max_wall_seconds: float = KERNEL_MAX_WALL_SECONDS,
     client_user_message_id: Optional[str] = None,
@@ -907,6 +909,12 @@ def run_assistant_kernel_turn(
             workflow=workflow,
         )
     ]
+    if planning_checkpoint:
+        messages.append(_kernel_tool_result_message(
+            tool_name="planning_checkpoint", result={key: value for key, value in planning_checkpoint.items() if key != "messages"}, error=None,
+        ))
+    checkpoint_messages: List[Dict[str, Any]] = list((planning_checkpoint or {}).get("messages") or [])
+    messages.extend(checkpoint_messages)
     loaded_prompt_assets: List[str] = list(thread_assembly.loaded_assets)
     provider_lifecycle: List[str] = []
     provider_steps: List[AssistantKernelProviderTrace] = []
@@ -917,6 +925,28 @@ def run_assistant_kernel_turn(
     tool_steps = 0
     provider_call_index = 0
     artifact_retry_requested = False
+    def budget_result(reason: str) -> AssistantKernelTurnResult:
+        capability = selected_capability or "general"
+        recovery = None
+        if capability == "graph_builder" or assistant_mode == "graph":
+            recovery = record_planning_recovery(
+                session=session, workflow=workflow, canvas_context=canvas_context,
+                request=(planning_checkpoint or {}).get("request", user_text), attachments=list(attachments or []),
+                traces=tool_traces, messages=checkpoint_messages, reason=reason, prior=planning_checkpoint,
+            )
+        return AssistantKernelTurnResult(
+            reply=("Planning paused at this turn's limit. Your completed checks are saved. Choose Continue planning to finish the proposal; nothing will run automatically."
+                   if recovery else "I could not finish that safely within this turn's limit."),
+            capability=capability,
+            trace=AssistantKernelTrace(
+                capability=capability, loaded_prompt_assets=loaded_prompt_assets,
+                provider_lifecycle=provider_lifecycle, provider_steps=provider_steps,
+                tool_calls=tool_traces, step_count=tool_steps,
+                duration_ms=int((time.perf_counter() - started) * 1000), termination=reason,
+            ),
+            artifacts=artifacts, next_action=AssistantNextAction(),
+        )
+
     while True:
         if is_cancelled(cancel_event):
             raise AssistantRequestCancelled(
@@ -925,44 +955,33 @@ def run_assistant_kernel_turn(
             )
         elapsed = time.perf_counter() - started
         if elapsed >= max_wall_seconds:
-            capability = selected_capability or "general"
-            return AssistantKernelTurnResult(
-                reply="I could not finish that safely within this turn's time limit.",
-                capability=capability,
-                trace=AssistantKernelTrace(
-                    capability=capability,
-                    loaded_prompt_assets=loaded_prompt_assets,
-                    provider_lifecycle=provider_lifecycle,
-                    provider_steps=provider_steps,
-                    tool_calls=tool_traces,
-                    step_count=tool_steps,
-                    duration_ms=int(elapsed * 1000),
-                    termination="wall_clock_budget_exhausted",
-                ),
-                artifacts=artifacts,
-                next_action=AssistantNextAction(),
-            )
+            return budget_result("wall_clock_budget_exhausted")
         provider_call_index += 1
-        raw_step = run_kernel_provider_step(
-            session=session,
-            messages=[*messages, {"role": "system", "content": json.dumps(
-                {"remaining_tool_calls": max(0, max_tool_steps - tool_steps)},
-            )}],
-            cancel_event=cancel_event,
-            # The kernel wall clock owns provider-step timeouts for assistant turns.
-            timeout_seconds=max_wall_seconds - elapsed,
-            provider_lifecycle=provider_lifecycle,
-            provider_steps=provider_steps,
-            thread_base_instructions=thread_assembly.base_instructions,
-            thread_developer_instructions=thread_assembly.developer_instructions,
-            reasoning_effort=_kernel_reasoning_effort(selected_capability, tool_traces),
-            client_user_message_id=(
-                f"{client_user_message_id}:{provider_call_index}"
-                if client_user_message_id
-                else None
-            ),
-            compact_before_turn=provider_call_index == 1,
-        )
+        try:
+            raw_step = run_kernel_provider_step(
+                session=session,
+                messages=[*messages, {"role": "system", "content": json.dumps(
+                    {"remaining_tool_calls": max(0, max_tool_steps - tool_steps)},
+                )}],
+                cancel_event=cancel_event,
+                # The kernel wall clock owns provider-step timeouts for assistant turns.
+                timeout_seconds=max_wall_seconds - elapsed,
+                provider_lifecycle=provider_lifecycle,
+                provider_steps=provider_steps,
+                thread_base_instructions=thread_assembly.base_instructions,
+                thread_developer_instructions=thread_assembly.developer_instructions,
+                reasoning_effort=_kernel_reasoning_effort(selected_capability, tool_traces),
+                client_user_message_id=(
+                    f"{client_user_message_id}:{provider_call_index}"
+                    if client_user_message_id
+                    else None
+                ),
+                compact_before_turn=provider_call_index == 1,
+            )
+        except AssistantProviderChatError:
+            if time.perf_counter() - started >= max_wall_seconds:
+                return budget_result("wall_clock_budget_exhausted")
+            raise
         step = AssistantKernelProviderStep.model_validate(raw_step)
         quality_decision = step.guidance.quality_decision
         quality_tool = {
@@ -1070,23 +1089,7 @@ def run_assistant_kernel_turn(
                 ]
                 continue
             if tool_steps >= max_tool_steps:
-                elapsed = time.perf_counter() - started
-                return AssistantKernelTurnResult(
-                    reply="I could not finish that safely within this turn's tool limit.",
-                    capability=selected_capability,
-                    trace=AssistantKernelTrace(
-                        capability=selected_capability,
-                        loaded_prompt_assets=loaded_prompt_assets,
-                        provider_lifecycle=provider_lifecycle,
-                        provider_steps=provider_steps,
-                        tool_calls=tool_traces,
-                        step_count=tool_steps,
-                        duration_ms=int(elapsed * 1000),
-                        termination="step_budget_exhausted",
-                    ),
-                    artifacts=artifacts,
-                    next_action=AssistantNextAction(),
-                )
+                return budget_result("step_budget_exhausted")
             execution = execute_kernel_tool(
                 tool_name=step.tool_call.name,
                 arguments=step.tool_call.arguments,
@@ -1101,11 +1104,11 @@ def run_assistant_kernel_turn(
                     session_id=str(session.get("assistant_session_id") or "") or None,
                     session=session,
                     attachments=list(attachments or []),
-                    tool_evidence=[
+                    tool_evidence=[*(planning_checkpoint or {}).get("tool_evidence", []), *[
                         trace.evidence
                         for trace in tool_traces
                         if isinstance(trace.evidence, dict)
-                    ],
+                    ]],
                     cancel_event=cancel_event,
                     timeout_seconds=max_wall_seconds - (time.perf_counter() - started),
                 ),
@@ -1257,6 +1260,10 @@ def run_assistant_kernel_turn(
                     ),
                 )
             ]
+            checkpoint_messages.extend(messages)
+            # Store exact recent tool results, not truncated JSON or executable calls.
+            while len(json.dumps(checkpoint_messages).encode("utf-8")) > 64 * 1024:
+                checkpoint_messages.pop(0)
             if step.tool_call.name in {"list_graph_node_types", "inspect_graph_node_schemas"} and execution.trace.evidence is not None:
                 execution.trace.evidence["wire_bytes"] = len(messages[0]["content"].encode("utf-8"))
             continue

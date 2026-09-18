@@ -117,11 +117,16 @@ def search_prompt_recipes(arguments: BaseModel, _context: Any) -> Dict[str, Any]
                 "description": record.get("description"),
                 "category": record.get("category"),
                 "output_format": record.get("output_format"),
+                "output_contract_json": record.get("output_contract_json") or {},
+                "requires_full_inspection": True,
                 "input_variables": [
                     {
                         "key": item.get("key"),
                         "label": item.get("label"),
                         "required": bool(item.get("required")),
+                        "default_value": item.get("default_value"),
+                        "description": item.get("description") or item.get("help_text") or "",
+                        "options": item.get("options") or [],
                     }
                     for item in record.get("input_variables_json") or []
                 ],
@@ -131,6 +136,9 @@ def search_prompt_recipes(arguments: BaseModel, _context: Any) -> Dict[str, Any]
                         "label": item.get("label"),
                         "type": item.get("type"),
                         "required": bool(item.get("required")),
+                        "default_value": item.get("default_value"),
+                        "description": item.get("description") or item.get("help_text") or "",
+                        "options": item.get("options") or [],
                     }
                     for item in record.get("custom_fields_json") or []
                 ],
@@ -138,6 +146,7 @@ def search_prompt_recipes(arguments: BaseModel, _context: Any) -> Dict[str, Any]
                     "enabled": bool(image_input.get("enabled")),
                     "required": bool(image_input.get("required")),
                     "mode": image_input.get("mode") or "none",
+                    "reference_roles": image_input.get("reference_roles") or [],
                     "max_files": int(image_input.get("max_files") or 0),
                 },
             }

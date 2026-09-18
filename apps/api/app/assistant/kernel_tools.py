@@ -103,6 +103,8 @@ KERNEL_TOOL_RESULT_MAX_BYTES = 32_768
 KERNEL_SCHEMA_RESULT_TARGET_BYTES = 30_000
 KERNEL_TOOL_ACTIVITIES = {
     "read_current_workflow": ("graph_check", "Checked your graph"),
+    "search_prompt_recipes": ("recipe_catalog", "Searched saved recipes"),
+    "get_prompt_recipe": ("recipe_contract", "Inspected the saved recipe contract"),
     "list_graph_node_types": ("graph_catalog", "Checked available graph parts"),
     "inspect_graph_node_schemas": ("graph_catalog", "Checked graph connections and settings"),
     "validate_current_workflow": ("graph_validation", "Checked your graph"),
@@ -2064,7 +2066,7 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
     ),
     "search_prompt_recipes": KernelToolDefinition(
         name="search_prompt_recipes",
-        description="Search active Prompt Recipes and inspect variables, fields, output format, and image-input behavior.",
+        description="Find active Prompt Recipe candidates and declared constraints. Call get_prompt_recipe before recommending or binding one; names and search ranks are not proof of fit.",
         arguments_model=SearchPromptRecipesArguments,
         allowed_capabilities=frozenset(
             {"general", "graph_builder", "recipe_builder", "story_builder"}
@@ -2073,7 +2075,7 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
     ),
     "get_prompt_recipe": KernelToolDefinition(
         name="get_prompt_recipe",
-        description="Read one Prompt Recipe by id or key in its full editable contract shape.",
+        description="Inspect one saved Prompt Recipe in full. Check system prompt, output contract, fixed counts, controls/defaults and image roles against the request before recommending or binding it.",
         arguments_model=GetPromptRecipeArguments,
         allowed_capabilities=frozenset(
             {"general", "graph_builder", "recipe_builder", "story_builder"}

@@ -6,6 +6,8 @@ from typing import List
 
 from .storyboard_metadata_preflight import (
     compact_storyboard_camera_contract,
+    is_captioned_storyboard_prompt,
+    STORYBOARD_METADATA_PROMPT_SEMANTICS,
     compact_storyboard_metadata_capsules,
     storyboard_camera_contract_missing,
     storyboard_metadata_semantic_fragments,
@@ -1126,7 +1128,7 @@ def _compact_storyboard_prompt(prompt: str, *, target_chars: int) -> str:
     return candidate
 
 
-def shape_kie_graph_prompt(model_key: str, prompt: str, *, task_mode: str = "", max_chars: int | None = None) -> PromptShapeResult:
+def shape_kie_graph_prompt(model_key: str, prompt: str, *, task_mode: str = "", max_chars: int | None = None, prompt_semantics: str = "") -> PromptShapeResult:
     text = str(prompt or "").strip()
     original_chars = len(text)
     normalized_model = _normalized_model_key(model_key)
@@ -1134,7 +1136,9 @@ def shape_kie_graph_prompt(model_key: str, prompt: str, *, task_mode: str = "", 
     target_chars = GPT_IMAGE_2_COMPACT_PROMPT_CHARS
     if hard_limit is not None:
         target_chars = min(target_chars, max(1200, hard_limit - 500))
-    if not normalized_model.startswith("gpt-image-2"):
+    # The model's hard budget is enforced by the caller. A soft compaction
+    # target must not discard narrative beats or invent production metadata.
+    if not normalized_model.startswith("gpt-image-2") or (prompt_semantics != STORYBOARD_METADATA_PROMPT_SEMANTICS and is_captioned_storyboard_prompt(text)):
         return PromptShapeResult(
             prompt=text,
             changed=False,

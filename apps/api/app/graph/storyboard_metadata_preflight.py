@@ -217,7 +217,7 @@ def _compact_panel_bodies(prompt: str) -> list[tuple[int, str]]:
 def _raw_panel_bodies(prompt: str) -> list[tuple[int, str]]:
     heading = re.compile(
         r"(?im)^[ \t]*(?:\d+\.\s*)?(?:PANEL|CELL)\s+0?(?P<number>\d{1,2})"
-        r"(?:\s+IMAGE(?:\s+AND\s+METADATA)?)?\s*(?:[:\-—][ \t]*|$)",
+        r"(?:\s+IMAGE(?:\s+AND\s+METADATA)?)?(?:[ \t]*,[ \t]*\d+(?:\.\d+)?[ \t]*[–—-][ \t]*\d+(?:\.\d+)?[ \t]*s)?[ \t]*(?:[:\-—][ \t]*|$)",
     )
     matches = list(heading.finditer(prompt))
     return [
@@ -227,6 +227,28 @@ def _raw_panel_bodies(prompt: str) -> list[tuple[int, str]]:
         )
         for index, match in enumerate(matches)
     ]
+
+
+def is_captioned_storyboard_prompt(prompt: str) -> bool:
+    """Recognize narrative boards without weakening declared production rows."""
+    return (
+        _looks_like_storyboard(prompt)
+        and bool(re.search(r"(?im)^[ \t]*Caption[ \t]*:", prompt))
+        and not storyboard_prompt_has_metadata_rows(prompt)
+    )
+
+
+def _validate_captioned_storyboard(prompt: str, expected_count: int) -> StoryboardMetadataPreflightResult:
+    panels = _raw_panel_bodies(prompt)
+    numbers = [number for number, _ in panels]
+    if numbers != list(range(1, expected_count + 1)):
+        raise ValueError(f"Storyboard preflight failed: captioned panel sequence is {numbers}; expected 1–{expected_count}.")
+    for number, body in panels:
+        captions = re.findall(r"(?im)^[ \t]*Caption[ \t]*:([^\r\n]*)", body)
+        narrative = re.split(r"(?im)^[ \t]*Caption[ \t]*:", body, maxsplit=1)[0].strip()
+        if len(captions) != 1 or not captions[0].strip() or not narrative:
+            raise ValueError(f"Storyboard preflight failed: Panel {number:02d} needs a scene description and one nonempty Caption row.")
+    return StoryboardMetadataPreflightResult(panel_count=expected_count)
 
 
 def _panel_fields(body: str) -> dict[str, list[str]]:
@@ -582,6 +604,8 @@ def validate_storyboard_metadata_preflight(
         return None
 
     expected_count = _expected_panel_count(original_prompt)
+    if prompt_semantics != STORYBOARD_METADATA_PROMPT_SEMANTICS and is_captioned_storyboard_prompt(original_prompt):
+        return _validate_captioned_storyboard(submitted_prompt, expected_count)
     return validate_storyboard_metadata_rows(submitted_prompt, expected_count=expected_count)
 
 

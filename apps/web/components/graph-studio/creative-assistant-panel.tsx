@@ -1,6 +1,7 @@
 "use client";
 
 import { RecipeContinuationCard } from "./recipe-continuation-card";
+import { PlanningRecoveryCard } from "./planning-recovery-card";
 import {
   CheckCircle2,
   FileText,
@@ -1132,6 +1133,11 @@ export function CreativeAssistantPanel({
           {assistant.session?.production_plan ? (
             <ProductionPlanChecklist plan={assistant.session.production_plan} />
           ) : null}
+          <PlanningRecoveryCard
+            value={assistant.session?.summary_json?.kernel_planning_recovery}
+            busy={assistant.busy}
+            onContinue={(id) => { void assistant.sendContentMessage("Continue planning", { metadata: { planning_recovery_id: id }, clearDraft: false, skipAutoActions: true }); }}
+          />
           <RecipeContinuationCard
             onCancelRunning={() => { void assistant.cancelAssistant(); }}
             value={assistant.session?.summary_json?.kernel_recipe_continuation}

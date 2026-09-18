@@ -192,7 +192,11 @@ def _recommendation_candidates(
         references=tuple(tuple(item) for item in recommendation_context.get("references") or []),
     )
     return [
-        candidate.as_dict()
+        {
+            **candidate.as_dict(),
+            **({"requires_full_inspection": True, "inspection_tool": "get_prompt_recipe"}
+               if candidate.artifact_kind == "prompt_recipe" else {}),
+        }
         for candidate in recommend_saved_artifacts(
             context,
             presets=store.list_presets(),
