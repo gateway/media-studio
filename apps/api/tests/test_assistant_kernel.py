@@ -232,6 +232,7 @@ def test_kernel_prompt_change_rotates_only_the_stale_provider_thread(
     assert closed == [f"{session['assistant_session_id']}:3"]
     assert updated["provider_thread_id"] is None
     assert updated["state_snapshot_json"]["provider_generation"] == 4
+    assert updated["state_snapshot_json"]["provider_thread_reset_reason"] == "instructions_changed"
     assert updated["state_snapshot_json"]["kernel_prompt_fingerprint"] != "old-prompt-fingerprint"
     assert repeated["state_snapshot_json"] == updated["state_snapshot_json"]
 
@@ -902,9 +903,11 @@ def test_completed_kernel_turn_persists_latest_provider_usage(
     assert sync_calls == [True]
 
 
-def test_kernel_turn_refreshes_provider_thread_before_measured_context_tail(
+@pytest.mark.parametrize("prompt_tokens", [44_999, 45_000, 47_651, 180_880])
+def test_completed_story_turn_preserves_provider_thread_across_context_sizes(
     app_modules,
     monkeypatch,
+    prompt_tokens,
 ) -> None:
     kernel_route = importlib.import_module("app.assistant.kernel_route")
     provider_support = importlib.import_module("app.assistant.provider_support")
@@ -915,12 +918,12 @@ def test_kernel_turn_refreshes_provider_thread_before_measured_context_tail(
         {
             "provider_kind": "codex_local",
             "provider_model_id": "gpt-5.6-sol",
-            "provider_thread_id": "thread-at-measured-tail",
+            "provider_thread_id": "thread-continuing-story",
             "state_snapshot_json": {"provider_generation": 4},
             "summary_json": {
                 "kernel_story_state": {"version": 1},
                 "kernel_provider_usage": {
-                    "prompt_tokens": 47_651,
+                    "prompt_tokens": prompt_tokens,
                     "model_context_window": 258_400,
                 }
             },
@@ -940,8 +943,8 @@ def test_kernel_turn_refreshes_provider_thread_before_measured_context_tail(
         closed_keys.append,
     )
 
-    def complete_only_on_fresh_thread(*, session, **_kwargs):
-        assert session["provider_thread_id"] is None
+    def complete_on_existing_thread(*, session, **_kwargs):
+        assert session["provider_thread_id"] == "thread-continuing-story"
         return schemas.AssistantKernelTurnResult(
             reply="Here are all six storyboard shots.",
             capability="story_builder",
@@ -951,7 +954,7 @@ def test_kernel_turn_refreshes_provider_thread_before_measured_context_tail(
     monkeypatch.setattr(
         kernel_route,
         "run_assistant_kernel_turn",
-        complete_only_on_fresh_thread,
+        complete_on_existing_thread,
     )
 
     stored = kernel_route.create_kernel_message(
@@ -962,8 +965,9 @@ def test_kernel_turn_refreshes_provider_thread_before_measured_context_tail(
         attachments=[],
     )
 
-    assert closed_keys == [f"{session['assistant_session_id']}:4"]
-    assert stored["state_snapshot_json"]["provider_generation"] == 5
+    assert closed_keys == []
+    assert stored["provider_thread_id"] == "thread-continuing-story"
+    assert stored["state_snapshot_json"]["provider_generation"] == 4
 
 
 def test_cancel_endpoint_signals_only_the_target_session(

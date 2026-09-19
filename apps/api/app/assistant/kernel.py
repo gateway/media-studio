@@ -150,6 +150,7 @@ def _sync_kernel_prompt_thread(
             assistant_codex_session_key(session)
         )
         updated["provider_thread_id"] = None
+        updated["state_snapshot_json"]["provider_thread_reset_reason"] = "instructions_changed"
         updated["state_snapshot_json"]["provider_generation"] = (
             assistant_provider_generation(session) + 1
         )
@@ -923,6 +924,9 @@ def run_assistant_kernel_turn(
     messages.extend(checkpoint_messages)
     loaded_prompt_assets: List[str] = list(thread_assembly.loaded_assets)
     provider_lifecycle: List[str] = []
+    reset_reason = (session.get("state_snapshot_json") or {}).get("provider_thread_reset_reason")
+    if not session.get("provider_thread_id") and reset_reason:
+        provider_lifecycle.append(f"thread_reset_{reset_reason}")
     provider_steps: List[AssistantKernelProviderTrace] = []
     tool_traces = []
     artifacts: List[AssistantKernelArtifact] = []

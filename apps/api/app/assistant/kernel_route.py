@@ -10,7 +10,6 @@ from .cancellation import AssistantRequestCancelled, AssistantSessionBusy, track
 from .kernel import run_assistant_kernel_turn
 from .provider_support import (
     AssistantProviderChatError,
-    assistant_story_provider_refresh_due,
     sync_assistant_session_provider,
 )
 from .recipe_continuation import run_recipe_continuation
@@ -92,9 +91,7 @@ def _create_tracked_kernel_message(
         stalled_thread = any(item.get("role") == "user" for item in store_assistant.list_assistant_messages(session_id)[-1:])
         session = sync_assistant_session_provider(
             session,
-            force_new_thread=(
-                stalled_thread or assistant_story_provider_refresh_due(session)
-            ),
+            force_new_thread=stalled_thread,
         )
         session = _bind_selected_completed_assistant_run(session, payload)
         user_message = store_assistant.create_assistant_message(

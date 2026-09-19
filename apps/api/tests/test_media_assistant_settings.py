@@ -40,6 +40,7 @@ def test_provider_change_advances_session_generation_and_detaches_old_thread(
 
     assert closed_keys == [f"{session['assistant_session_id']}:2"]
     assert switched_away["provider_thread_id"] is None
+    assert switched_away["state_snapshot_json"]["provider_thread_reset_reason"] == "provider_configuration_changed"
     assert switched_away["state_snapshot_json"]["provider_generation"] == 3
     assert switched_away["state_snapshot_json"]["workflow"] == {"name": "Preserve me"}
 
@@ -85,35 +86,8 @@ def test_forced_provider_refresh_replaces_a_stalled_thread_without_changing_prov
 
     assert closed_keys == [f"{session['assistant_session_id']}:4"]
     assert refreshed["provider_thread_id"] is None
+    assert refreshed["state_snapshot_json"]["provider_thread_reset_reason"] == "stalled_turn"
     assert refreshed["state_snapshot_json"]["provider_generation"] == 5
-
-
-def test_story_provider_refresh_due_uses_measured_codex_prompt_token_boundary(
-    app_modules,
-) -> None:
-    del app_modules
-    provider_support = importlib.import_module("app.assistant.provider_support")
-    session = {
-        "provider_kind": "codex_local",
-        "provider_thread_id": "thread-live",
-        "summary_json": {
-            "kernel_story_state": {"version": 1},
-            "kernel_provider_usage": {
-                "prompt_tokens": 45_000,
-                "model_context_window": 258_400,
-            }
-        },
-    }
-
-    assert provider_support.assistant_story_provider_refresh_due(session) is True
-    session["summary_json"]["kernel_provider_usage"]["prompt_tokens"] = 44_999
-    assert provider_support.assistant_story_provider_refresh_due(session) is False
-    session["provider_kind"] = "openrouter"
-    session["summary_json"]["kernel_provider_usage"]["prompt_tokens"] = 45_000
-    assert provider_support.assistant_story_provider_refresh_due(session) is False
-    session["provider_kind"] = "codex_local"
-    session["summary_json"].pop("kernel_story_state")
-    assert provider_support.assistant_story_provider_refresh_due(session) is False
 
 
 def test_provider_change_interrupts_in_flight_turn_before_closing_process(
