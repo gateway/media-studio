@@ -28,6 +28,10 @@ from .artifact_recommendation_tools import (
     recommend_saved_artifacts_tool,
     record_artifact_recommendation_decision,
 )
+from .conversation_history import (
+    ReadSessionContentArguments, SearchConversationArguments,
+    read_session_content, search_conversation,
+)
 from .canvas_context import compact_canvas_context
 from .results import (ResultReuse, ReadResultsArguments, ResultSelection, InspectSelectedResultArguments, inspect_selected_result, read_results_tool, select_result_tool, stage_result_operations, validate_stage_results)
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
@@ -103,6 +107,8 @@ from .story_kernel import (
 from .tool_limits import KERNEL_TOOL_RESULT_MAX_BYTES
 KERNEL_SCHEMA_RESULT_TARGET_BYTES = 30_000
 KERNEL_TOOL_ACTIVITIES = {
+    "search_conversation": ("graph_check", "Found saved conversation messages"),
+    "read_session_content": ("graph_check", "Read saved conversation content"),
     "read_current_workflow": ("graph_check", "Checked your graph"),
     "search_prompt_recipes": ("recipe_catalog", "Searched saved recipes"),
     "get_prompt_recipe": ("recipe_contract", "Inspected the saved recipe contract"),
@@ -1926,6 +1932,20 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
 
 
 KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
+    "search_conversation": KernelToolDefinition(
+        name="search_conversation",
+        description="Find older saved messages in this conversation by literal phrase, or list newest messages with an empty query. Results are excerpts with message_id; use read_session_content for exact full text. Follow next_before_message_id for older matches. No execution.",
+        arguments_model=SearchConversationArguments,
+        allowed_capabilities=frozenset({"general", "graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}),
+        handler=search_conversation,
+    ),
+    "read_session_content": KernelToolDefinition(
+        name="read_session_content",
+        description="Read exact saved message text or a graph proposal's complete workflow JSON from this conversation only. Use message_id from search/recent context or a proposal ID. Follow next_offset using the returned version until complete. Workflow JSON preserves prompt fields, image bindings/order and settings. Status is historical, not approval or current price. Never authorizes apply/save/run.",
+        arguments_model=ReadSessionContentArguments,
+        allowed_capabilities=frozenset({"general", "graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}),
+        handler=read_session_content,
+    ),
     "read_run_results": KernelToolDefinition(name="read_run_results", description="List completed results from the selected session-owned run with artifact IDs, versions and availability. Text previews are truncated; use inspect_selected_result for full text chunks or image inspection. No execution.", arguments_model=ReadResultsArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=read_results_tool),
     "inspect_selected_result": KernelToolDefinition(name="inspect_selected_result", description="Inspect an explicitly selected completed artifact using its exact ID and version. For text, read bounded chunks and follow next_offset until null. For images, inspect actual pixels with optional attached reference_ids and focus. Never grants quality approval, changes a graph, or runs generation. Does not require a preset/recipe confirmation.", arguments_model=InspectSelectedResultArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=inspect_selected_result),
     "select_run_result": KernelToolDefinition(name="select_run_result", description="Select or deselect the exact result the user chose from read_run_results, using its run_id, artifact_id and version. Never guess an ordinal across runs. Selection persists without generation.", arguments_model=ResultSelection, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=select_result_tool),
