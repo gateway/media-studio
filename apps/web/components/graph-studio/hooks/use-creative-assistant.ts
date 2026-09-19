@@ -280,6 +280,10 @@ export function useCreativeAssistant({
   });
   const activeAbortControllerRef = useRef<AbortController | null>(null);
   const activeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeProgressRef = useRef<{
+    controller: AbortController;
+    update: (next: AssistantProgress) => void;
+  } | null>(null);
   const cancellationPendingRef = useRef(false);
   const workspaceKeyRef = useRef(workspaceKey);
   const initialAssistantSessionIdRef = useRef(initialAssistantSessionId);
@@ -386,24 +390,52 @@ export function useCreativeAssistant({
     }
   }, [onAssistantSessionChange, session?.assistant_session_id, workspaceKey]);
 
-  const runAbortableRequest = useCallback(async <T,>(request: (signal: AbortSignal) => Promise<T>) => {
+  const runAbortableRequest = useCallback(async <T,>(request: (signal: AbortSignal) => Promise<T>, progressSessionId?: string) => {
     activeAbortControllerRef.current?.abort();
     const controller = new AbortController();
     activeAbortControllerRef.current = controller;
-    if (activeTimeoutRef.current) {
-      clearTimeout(activeTimeoutRef.current);
-    }
-    activeTimeoutRef.current = setTimeout(() => {
-      controller.abort();
-    }, ASSISTANT_REQUEST_TIMEOUT_MS);
+    if (activeTimeoutRef.current) clearTimeout(activeTimeoutRef.current);
+    const startedAt = performance.now();
+    let compactionMs = 0;
+    let compactingSince: number | null = null;
+    const update = (next: AssistantProgress) => {
+      compactionMs = Math.max(compactionMs, (next.compaction_seconds ?? 0) * 1000);
+      compactingSince = next.active && next.stage === "compacting" ? performance.now() : null;
+    };
+    activeProgressRef.current = { controller, update };
+    const remaining = () => ASSISTANT_REQUEST_TIMEOUT_MS - (performance.now() - startedAt - compactionMs
+      - (compactingSince === null ? 0 : performance.now() - compactingSince));
+    const checkDeadline = async () => {
+      if (activeAbortControllerRef.current !== controller || controller.signal.aborted) return;
+      if (remaining() <= 0 && progressSessionId) {
+        // Recheck at the boundary so compaction starting between polls is respected.
+        try {
+          const next = await jsonFetch<AssistantProgress>(
+            `/api/control/media/assistant/sessions/${progressSessionId}/progress`,
+            { signal: AbortSignal.timeout(5_000) },
+          );
+          if (activeAbortControllerRef.current !== controller || controller.signal.aborted) return;
+          update(next);
+        } catch {
+          // A last confirmed compaction remains pending until a terminal update or Stop.
+        }
+      }
+      if (activeAbortControllerRef.current !== controller || controller.signal.aborted) return;
+      if (compactingSince === null && remaining() <= 0) {
+        controller.abort();
+      } else {
+        activeTimeoutRef.current = setTimeout(checkDeadline, compactingSince === null
+          ? Math.max(1, Math.min(1000, remaining())) : 1000);
+      }
+    };
+    activeTimeoutRef.current = setTimeout(checkDeadline, ASSISTANT_REQUEST_TIMEOUT_MS);
     try {
       return await request(controller.signal);
     } finally {
       if (activeAbortControllerRef.current === controller) {
         activeAbortControllerRef.current = null;
-      }
-      if (activeTimeoutRef.current) {
-        clearTimeout(activeTimeoutRef.current);
+        activeProgressRef.current = null;
+        if (activeTimeoutRef.current) clearTimeout(activeTimeoutRef.current);
         activeTimeoutRef.current = null;
       }
     }
@@ -419,13 +451,19 @@ export function useCreativeAssistant({
     let disposed = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const poll = async () => {
+      const requestProgress = activeProgressRef.current;
       try {
         const next = await jsonFetch<AssistantProgress>(
           `/api/control/media/assistant/sessions/${sessionId}/progress`,
+          { signal: AbortSignal.timeout(5_000) },
         );
-        if (!disposed) setProgress(next.active ? next : null);
+        if (!disposed) {
+          setProgress(next.active ? next : null);
+          if (requestProgress && activeProgressRef.current === requestProgress) requestProgress.update(next);
+        }
       } catch {
-        // The message request remains authoritative; progress is best-effort UI.
+        if (!disposed) setProgress((current) => current?.stage === "compacting"
+          ? { ...current, label: "Waiting for a compaction status update…" } : current);
       } finally {
         if (!disposed) timer = setTimeout(poll, 2_000);
       }
@@ -831,7 +869,7 @@ export function useCreativeAssistant({
           }
           return { kind: "clarification" as const, updatedSession: refreshedSession };
         }
-      });
+      }, currentSession.assistant_session_id);
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       if (planRequest.kind === "clarification") {
         setScopedSession(planRequest.updatedSession);
@@ -991,6 +1029,7 @@ export function useCreativeAssistant({
             metadata: options?.metadata ?? {},
           }),
         }),
+        currentSession.assistant_session_id,
       );
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       planWorkflowOverrideRef.current = null;

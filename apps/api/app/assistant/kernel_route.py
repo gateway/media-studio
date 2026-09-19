@@ -22,7 +22,7 @@ from .run_confirmation import (
     bind_completed_assistant_run,
 )
 from .schemas import AssistantMessageCreateRequest, AssistantNextAction
-from .turn_trace import build_assistant_turn_trace
+from .turn_trace import build_assistant_turn_trace, compaction_error_trace
 from .voice import lint_assistant_reply
 
 
@@ -87,6 +87,7 @@ def _create_tracked_kernel_message(
 ) -> Dict[str, Any]:
     session_id = str(session["assistant_session_id"])
     text = payload.content_text.strip()
+    user_message = None
     try:
         stalled_thread = any(item.get("role") == "user" for item in store_assistant.list_assistant_messages(session_id)[-1:])
         session = sync_assistant_session_provider(
@@ -120,6 +121,7 @@ def _create_tracked_kernel_message(
             planning_checkpoint=planning_checkpoint,
         )
     except AssistantRequestCancelled as exc:
+        failure_trace = compaction_error_trace(exc)
         store_assistant.create_assistant_message(
             {
                 "assistant_session_id": session_id,
@@ -128,8 +130,9 @@ def _create_tracked_kernel_message(
                 "content_json": {
                     "activity_kind": "assistant_turn_interrupted",
                     "assistant_turn_trace": {
+                        **failure_trace,
                         "cancellation_status": exc.outcome,
-                        "provider_lifecycle": [f"turn_{exc.outcome}"],
+                        "provider_lifecycle": [*failure_trace.get("provider_lifecycle", []), f"turn_{exc.outcome}"],
                     },
                 },
             }
@@ -152,6 +155,12 @@ def _create_tracked_kernel_message(
         )
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except AssistantProviderChatError as exc:
+        failure_trace = compaction_error_trace(exc)
+        if failure_trace and user_message:
+            store_assistant.create_assistant_message({
+                **user_message,
+                "content_json": {**user_message["content_json"], "assistant_turn_trace": failure_trace},
+            })
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     refreshed_session = store_assistant.get_assistant_session(session_id) or session
     summary = (

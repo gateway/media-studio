@@ -134,8 +134,11 @@ const ASSISTANT_SENDING_PROGRESS = [
 function assistantLiveProgressText(progress: ReturnType<typeof useCreativeAssistant>["progress"]) {
   if (!progress?.active) return null;
   const elapsed = `${progress.elapsed_seconds} seconds elapsed`;
+  if (progress.stage === "compacting") {
+    return `${progress.label} · ${elapsed}. Your request will continue after compaction. You can stop it at any time.`;
+  }
   if (progress.elapsed_seconds >= 120) {
-    return `${progress.label} · ${elapsed}. This is taking longer than usual, but it is still working. You can stop it at any time.`;
+    return `${progress.label} · ${elapsed}. Waiting for the next update. You can stop it at any time.`;
   }
   if (progress.stage === "thinking") {
     return `${progress.label} ${elapsed}. No graph changes or runs have happened yet.`;

@@ -353,9 +353,10 @@ class AssistantSessionListResponse(BaseModel):
 
 class AssistantProgress(BaseModel):
     active: bool = False
-    stage: Literal["idle", "thinking", "tool"] = "idle"
+    stage: Literal["idle", "thinking", "tool", "compacting"] = "idle"
     label: str = ""
     elapsed_seconds: int = Field(default=0, ge=0)
+    compaction_seconds: float = Field(default=0, ge=0)
 
 
 class AssistantGraphOperation(BaseModel):

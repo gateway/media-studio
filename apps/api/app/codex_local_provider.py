@@ -13,7 +13,9 @@ import time
 import zlib
 from pathlib import Path
 from threading import Event, Lock, Thread
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+from .codex_turn_budget import CodexTurnBudget
 
 
 CODEX_APP_SERVER_TIMEOUT_SECONDS = 300
@@ -55,7 +57,7 @@ _CODEX_LOCAL_SKILL_SESSION_REAPER: Thread | None = None
 
 
 class CodexLocalProviderError(Exception):
-    pass
+    compaction_trace: Dict[str, Any] | None = None
 
 
 class CodexLocalProviderCancelled(CodexLocalProviderError):
@@ -605,6 +607,7 @@ def _close_expired_codex_local_skill_sessions(now: float | None = None) -> None:
             key
             for key, managed in list(_CODEX_LOCAL_SKILL_SESSIONS.items())
             if current - managed.last_used_at > CODEX_LOCAL_SKILL_SESSION_TTL_SECONDS
+            and not managed.lock.locked()
         ]
         expired = [_CODEX_LOCAL_SKILL_SESSIONS.pop(key) for key in expired_keys if key in _CODEX_LOCAL_SKILL_SESSIONS]
     for managed in expired:
@@ -875,13 +878,9 @@ class _CodexAppServerSession:
         *,
         thread_id: str,
         cancel_event: Event | None = None,
+        budget: CodexTurnBudget | None = None,
     ) -> Dict[str, Any]:
-        notifications: List[Dict[str, Any]] = []
-        self._request(
-            "thread/compact/start",
-            {"threadId": thread_id},
-            notifications=notifications,
-        )
+        budget = budget or CodexTurnBudget(self.timeout_seconds)
         compaction_turn_id = ""
         usage_snapshot: Dict[str, Any] = {}
         model_context_window: int | None = None
@@ -891,7 +890,7 @@ class _CodexAppServerSession:
         completed = False
         failure_message = ""
 
-        def handle_message(message: Dict[str, Any]) -> None:
+        def process_message(message: Dict[str, Any]) -> None:
             nonlocal compaction_turn_id, usage_snapshot, model_context_window
             nonlocal item_completed, turn_completed, thread_idle, completed, failure_message
             method = str(message.get("method") or "").strip()
@@ -901,6 +900,8 @@ class _CodexAppServerSession:
             if method == "turn/started":
                 turn = params.get("turn") if isinstance(params.get("turn"), dict) else {}
                 compaction_turn_id = str(turn.get("id") or "").strip()
+                budget.turn_id = compaction_turn_id
+                budget.start_compaction()
                 item_completed = False
                 turn_completed = False
                 thread_idle = False
@@ -939,25 +940,30 @@ class _CodexAppServerSession:
                     error = turn.get("error") if isinstance(turn.get("error"), dict) else {}
                     failure_message = _clean_codex_error_message(error.get("message"))
 
-        for notification in notifications:
-            handle_message(notification)
-        deadline = time.monotonic() + self.timeout_seconds
+        def handle_message(message: Dict[str, Any]) -> None:
+            process_message(message)
+            if completed or turn_completed or failure_message:
+                budget.finish_compaction("failed" if failure_message else "completed")
+            if failure_message:
+                raise CodexLocalProviderError(failure_message)
+
+        self._request(
+            "thread/compact/start", {"threadId": thread_id},
+            notification_handler=handle_message, budget=budget, cancel_event=cancel_event,
+        )
+        if not completed and not turn_completed and not failure_message:
+            budget.start_compaction()  # The provider acknowledged the requested compaction.
         while not completed and not failure_message:
+            if not budget.compacting and budget.remaining_seconds <= 0:
+                raise CodexLocalProviderError("Codex Local timed out waiting for compaction completion metadata.")
             if cancel_event and cancel_event.is_set():
                 if compaction_turn_id:
                     self.interrupt_turn(thread_id=thread_id, turn_id=compaction_turn_id)
                 raise CodexLocalProviderCancelled("Codex Local compaction was interrupted.")
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise CodexLocalProviderError(
-                    "Codex Local timed out while compacting the thread."
-                )
-            message = self._read_message(
-                min(remaining, 0.25) if cancel_event else remaining,
-                allow_timeout=bool(cancel_event),
-            )
+            message = self._read_message(0.25, allow_timeout=True)
             if message is not None:
                 handle_message(message)
+        budget.finish_compaction()
         if failure_message:
             raise CodexLocalProviderError(failure_message)
         usage = _normalize_usage_snapshot(usage_snapshot)
@@ -978,7 +984,10 @@ class _CodexAppServerSession:
         cancel_event: Event | None = None,
         effort: Optional[str] = None,
         client_user_message_id: Optional[str] = None,
+        budget: CodexTurnBudget | None = None,
     ) -> Dict[str, Any]:
+        budget = budget or CodexTurnBudget(self.timeout_seconds)
+        budget.turn_id = None
         notifications: List[Dict[str, Any]] = []
         params: Dict[str, Any] = {
             "threadId": thread_id,
@@ -990,12 +999,17 @@ class _CodexAppServerSession:
             params["effort"] = effort
         if client_user_message_id is not None:
             params["clientUserMessageId"] = client_user_message_id
-        result = self._request("turn/start", params, notifications=notifications)
+        result = self._request(
+            "turn/start", params, notifications=notifications,
+            notification_handler=lambda message: budget.observe(message, thread_id),
+            budget=budget, cancel_event=cancel_event,
+        )
         turn = result.get("turn") if isinstance(result, dict) else None
         turn_id = str((turn or {}).get("id") or "").strip()
         if not turn_id:
             raise CodexLocalProviderError("Codex Local did not return a turn id.")
-        return self._collect_turn(thread_id=thread_id, turn_id=turn_id, initial_notifications=notifications, cancel_event=cancel_event)
+        budget.turn_id = turn_id
+        return self._collect_turn(thread_id=thread_id, turn_id=turn_id, initial_notifications=notifications, cancel_event=cancel_event, budget=budget)
 
     def _initialize(self) -> None:
         self._request(
@@ -1018,7 +1032,10 @@ class _CodexAppServerSession:
         turn_id: str,
         initial_notifications: List[Dict[str, Any]],
         cancel_event: Event | None = None,
+        budget: CodexTurnBudget | None = None,
     ) -> Dict[str, Any]:
+        budget = budget or CodexTurnBudget(self.timeout_seconds)
+        budget.turn_id = turn_id
         agent_text_chunks: List[str] = []
         final_text = ""
         usage_snapshot: Dict[str, Any] = {}
@@ -1088,19 +1105,20 @@ class _CodexAppServerSession:
             if handle_message(notification):
                 break
 
-        deadline = time.monotonic() + self.timeout_seconds
         while not turn_completed:
             if cancel_event and cancel_event.is_set():
                 self.interrupt_turn(thread_id=thread_id, turn_id=turn_id)
                 raise CodexLocalProviderCancelled("Codex Local turn was interrupted.")
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
+            remaining = budget.remaining_seconds
+            if not budget.compacting and remaining <= 0:
                 raise CodexLocalProviderError("Codex Local timed out while waiting for a response.")
-            message = self._read_message(min(remaining, 0.25) if cancel_event else remaining, allow_timeout=bool(cancel_event))
+            message = self._read_message(0.25, allow_timeout=True)
             if message is None:
                 continue
+            budget.observe(message, thread_id)
             handle_message(message)
 
+        budget.finish_compaction("failed" if turn_failed_message else "completed")
         resolved_text = final_text or "".join(agent_text_chunks).strip()
         if turn_failed_message:
             raise CodexLocalProviderError(turn_failed_message)
@@ -1132,6 +1150,9 @@ class _CodexAppServerSession:
         *,
         timeout_seconds: Optional[float] = None,
         notifications: Optional[List[Dict[str, Any]]] = None,
+        notification_handler: Callable[[Dict[str, Any]], None] | None = None,
+        budget: CodexTurnBudget | None = None,
+        cancel_event: Event | None = None,
     ) -> Dict[str, Any]:
         request_id = self._next_request_id
         self._next_request_id += 1
@@ -1140,11 +1161,18 @@ class _CodexAppServerSession:
             payload["params"] = params
         self._send(payload)
         deadline = time.monotonic() + (timeout_seconds or self.timeout_seconds)
+        excluded_at_start = budget.excluded_seconds if budget else 0.0
         while True:
+            if cancel_event and cancel_event.is_set():
+                raise CodexLocalProviderCancelled("Codex Local request was interrupted.")
             remaining = deadline - time.monotonic()
-            if remaining <= 0:
+            if budget:
+                remaining = min(remaining + budget.excluded_seconds - excluded_at_start, budget.remaining_seconds)
+            if not (budget and budget.compacting) and remaining <= 0:
                 raise CodexLocalProviderError(f"Codex Local timed out while waiting for {method}.")
-            message = self._read_message(remaining)
+            message = self._read_message(0.25, allow_timeout=True) if budget or cancel_event else self._read_message(remaining)
+            if message is None:
+                continue
             if message.get("id") == request_id:
                 if isinstance(message.get("error"), dict):
                     raise CodexLocalProviderError(_clean_codex_error_message(message["error"].get("message")))
@@ -1152,6 +1180,8 @@ class _CodexAppServerSession:
                 if not isinstance(result, dict):
                     raise CodexLocalProviderError(f"Codex Local returned an invalid response for {method}.")
                 return result
+            if notification_handler:
+                notification_handler(message)
             if notifications is not None:
                 notifications.append(message)
 
@@ -1312,7 +1342,9 @@ def run_codex_local_chat(
     client_user_message_id: Optional[str] = None,
     compact_before_turn: bool = False,
     resume_usage: Optional[Dict[str, Any]] = None,
+    on_compaction: Callable[[bool], None] | None = None,
 ) -> Dict[str, Any]:
+    budget = CodexTurnBudget(timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS, on_compaction)
     started_at = time.perf_counter()
     del error_context
     output_schema = _response_format_to_output_schema(response_format)
@@ -1340,6 +1372,7 @@ def run_codex_local_chat(
         thread_lifecycle.extend(managed_lifecycle)
         try:
             with managed.lock:
+                managed.session.timeout_seconds = max(0.001, budget.remaining_seconds)
                 resumed_without_usage = "thread_resumed" in managed_lifecycle and managed.model_context_window <= 0
                 if resumed_without_usage and resume_usage:
                     managed.record_usage(resume_usage)
@@ -1353,6 +1386,7 @@ def run_codex_local_chat(
                         compacted = managed.session.compact_thread(
                             thread_id=managed.thread_id,
                             cancel_event=cancel_event,
+                            budget=budget,
                         )
                         completion_usage = dict(compacted.get("usage") or {})
                         compaction = {
@@ -1368,13 +1402,13 @@ def run_codex_local_chat(
                         raise
                     except CodexLocalProviderError as exc:
                         compaction = {
-                            "outcome": "failed_resumable",
+                            "outcome": "failed",
                             "thread_id": managed.thread_id,
                             "triggering_usage": triggering_usage,
-                            "error": str(exc),
                             "next_eligible_threshold": next_threshold,
                         }
                         thread_lifecycle.append("thread_compaction_failed")
+                        raise CodexLocalProviderError(f"Compaction failed; this request was stopped: {exc}") from exc
                 input_items = _message_to_turn_input(_messages_for_response_format(messages, response_format), managed.temp_root)
                 prompt_bytes = len(json.dumps(input_items, separators=(",", ":")).encode("utf-8"))
                 actual_reasoning_effort = _clamp_reasoning_effort(
@@ -1387,6 +1421,7 @@ def run_codex_local_chat(
                     "input_items": input_items,
                     "output_schema": output_schema,
                     "cancel_event": cancel_event,
+                    "budget": budget,
                 }
                 if actual_reasoning_effort is not None:
                     turn_kwargs["effort"] = actual_reasoning_effort
@@ -1397,12 +1432,32 @@ def run_codex_local_chat(
                 )
                 managed.record_usage(dict(result.get("usage") or {}))
                 managed.last_used_at = time.monotonic()
-        except Exception:
+        except Exception as exc:
+            if isinstance(exc, CodexLocalProviderError) and (budget.compaction_count or compaction):
+                turn_outcome = "cancelled" if isinstance(exc, CodexLocalProviderCancelled) else "failed"
+                outcome = turn_outcome if budget.compacting else (
+                    budget.compaction_outcome or (compaction or {}).get("outcome") or turn_outcome
+                )
+                exc.compaction_trace = {
+                    "provider_lifecycle": [*thread_lifecycle, f"thread_compaction_{outcome}"],
+                    "provider_steps": [{
+                        "provider_thread_id": managed.thread_id,
+                        "provider_turn_id": budget.compaction_turn_id,
+                        "client_user_message_id": client_user_message_id,
+                        "compaction": {**(compaction or {}), "outcome": outcome,
+                            "thread_id": managed.thread_id,
+                            "provider_turn_id": budget.compaction_turn_id,
+                            "duration_ms": int(budget.excluded_seconds * 1000),
+                            "count": budget.compaction_count},
+                    }],
+                }
             with _CODEX_LOCAL_SKILL_SESSIONS_LOCK:
                 if _CODEX_LOCAL_SKILL_SESSIONS.get(session_key) is managed:
                     _CODEX_LOCAL_SKILL_SESSIONS.pop(session_key, None)
             managed.close()
             raise
+        finally:
+            budget.finish_compaction()
     else:
         temp_root = Path(tempfile.mkdtemp(prefix="media-studio-codex-local-chat-"))
         try:
@@ -1457,6 +1512,7 @@ def run_codex_local_chat(
                     "input_items": input_items,
                     "output_schema": output_schema,
                     "cancel_event": cancel_event,
+                    "budget": budget,
                 }
                 if actual_reasoning_effort is not None:
                     turn_kwargs["effort"] = actual_reasoning_effort
@@ -1464,7 +1520,12 @@ def run_codex_local_chat(
                     turn_kwargs["client_user_message_id"] = client_user_message_id
                 result = session.run_turn(**turn_kwargs)
         finally:
+            budget.finish_compaction()
             shutil.rmtree(temp_root, ignore_errors=True)
+    if budget.compaction_count:
+        compaction = {**(compaction or {"outcome": "completed"}),
+                      "duration_ms": int(budget.compaction_seconds * 1000),
+                      "count": budget.compaction_count}
     usage = dict(result.get("usage") or {})
     result_thread_id = str(result.get("provider_thread_id") or result.get("provider_session_id") or provider_thread_id or "").strip()
     result_turn_id = str(result.get("provider_turn_id") or "").strip()

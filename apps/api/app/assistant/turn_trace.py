@@ -3,6 +3,16 @@ from __future__ import annotations
 from typing import Any, Dict
 
 
+def compaction_error_trace(error: BaseException) -> Dict[str, Any]:
+    current: BaseException | None = error
+    while current is not None:
+        trace = getattr(current, "compaction_trace", None)
+        if isinstance(trace, dict):
+            return trace
+        current = current.__cause__
+    return {}
+
+
 def build_assistant_turn_trace(content_json: Dict[str, Any] | None, content_text: str = "") -> Dict[str, Any]:
     payload = content_json if isinstance(content_json, dict) else {}
     kernel_turn = payload.get("kernel_turn") if isinstance(payload.get("kernel_turn"), dict) else {}

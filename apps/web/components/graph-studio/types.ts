@@ -262,9 +262,10 @@ export type AssistantSession = {
 
 export type AssistantProgress = {
   active: boolean;
-  stage: "idle" | "thinking" | "tool";
+  stage: "idle" | "thinking" | "tool" | "compacting";
   label: string;
   elapsed_seconds: number;
+  compaction_seconds?: number;
 };
 
 export type AssistantMessage = {

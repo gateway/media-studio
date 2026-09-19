@@ -744,6 +744,7 @@ def run_kernel_provider_step(
     reasoning_effort: Optional[str] = None,
     client_user_message_id: Optional[str] = None,
     compact_before_turn: bool = False,
+    on_compaction=None,
 ) -> Dict[str, Any]:
     runtime = resolve_assistant_provider_runtime(session)
     if runtime.provider_kind != "codex_local":
@@ -766,6 +767,7 @@ def run_kernel_provider_step(
             reasoning_effort=reasoning_effort,
             client_user_message_id=client_user_message_id,
             compact_before_turn=compact_before_turn,
+            on_compaction=on_compaction,
             resume_usage=(session.get("summary_json") or {}).get("kernel_provider_usage"),
         )
     except enhancement_provider.EnhancementProviderError as exc:
@@ -899,6 +901,25 @@ def run_assistant_kernel_turn(
     client_user_message_id: Optional[str] = None,
 ) -> AssistantKernelTurnResult:
     started = time.perf_counter()
+    compaction_seconds = 0.0
+    compaction_started: float | None = None
+
+    def on_compaction(active: bool) -> None:
+        nonlocal compaction_seconds, compaction_started
+        if active and compaction_started is None:
+            compaction_started = time.perf_counter()
+        elif not active and compaction_started is not None:
+            compaction_seconds += time.perf_counter() - compaction_started
+            compaction_started = None
+        publish_session_progress(
+            str(session.get("assistant_session_id") or ""),
+            stage="compacting" if active else "thinking",
+            label="Compacting saved conversation…" if active else "Continuing your request…",
+        )
+
+    def planning_elapsed() -> float:
+        return time.perf_counter() - started - compaction_seconds
+
     runtime = resolve_assistant_provider_runtime(session)
     if runtime.provider_kind != "codex_local":
         return run_read_only_provider_turn(
@@ -971,7 +992,7 @@ def run_assistant_kernel_turn(
                 "Assistant kernel turn was cancelled.",
                 outcome="cancelled_before_provider",
             )
-        elapsed = time.perf_counter() - started
+        elapsed = planning_elapsed()
         if elapsed >= max_wall_seconds:
             return budget_result("wall_clock_budget_exhausted")
         provider_call_index += 1
@@ -995,9 +1016,10 @@ def run_assistant_kernel_turn(
                     else None
                 ),
                 compact_before_turn=provider_call_index == 1,
+                on_compaction=on_compaction,
             )
         except AssistantProviderChatError:
-            if time.perf_counter() - started >= max_wall_seconds:
+            if planning_elapsed() >= max_wall_seconds:
                 return budget_result("wall_clock_budget_exhausted")
             raise
         step = AssistantKernelProviderStep.model_validate(raw_step)
@@ -1128,7 +1150,7 @@ def run_assistant_kernel_turn(
                         if isinstance(trace.evidence, dict)
                     ]],
                     cancel_event=cancel_event,
-                    timeout_seconds=max_wall_seconds - (time.perf_counter() - started),
+                    timeout_seconds=max_wall_seconds - planning_elapsed(),
                 ),
             )
             tool_steps += 1

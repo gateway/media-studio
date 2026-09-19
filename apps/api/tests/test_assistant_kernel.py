@@ -1079,6 +1079,7 @@ def test_progress_endpoint_reports_only_safe_active_turn_milestones(
         "stage": "idle",
         "label": "",
         "elapsed_seconds": 0,
+        "compaction_seconds": 0.0,
     }
 
     with cancellation.track_session(session_id):

@@ -665,6 +665,6 @@ it("shows elapsed time and completed typed milestones during a live turn", async
 
   await act(async () => vi.advanceTimersByTimeAsync(2_000));
   expect(container.querySelector(".graph-assistant-message-thinking")?.textContent).toContain(
-    "Checked your graph · 130 seconds elapsed. This is taking longer than usual, but it is still working. You can stop it at any time.",
+    "Checked your graph · 130 seconds elapsed. Waiting for the next update. You can stop it at any time.",
   );
 });

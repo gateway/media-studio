@@ -73,9 +73,11 @@ GUARDRAILS = (
 # MALIVE-014: exact saved-recipe ports reuse the graph visibility owner.
 # MALIVE-022: reviewed session-owned message/proposal retrieval and lossless paging
 # reuse existing storage and tool limits; measured source cap with no reserve.
+# MALIVE-023: reviewed compaction accounting/progress and failure trace persistence
+# reuse the existing kernel and cancellation owners; exact cap with no reserve.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_361,
+    12_415,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 
