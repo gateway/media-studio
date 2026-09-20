@@ -20,6 +20,11 @@ def _node_title(node: GraphWorkflowNode) -> str:
     return str(ui.get("customTitle") or node.type or node.id)
 
 
+def _execution_mode(node: GraphWorkflowNode | None) -> str:
+    execution = node.metadata.get("execution") if node else None
+    return str(execution.get("mode") or "enabled") if isinstance(execution, dict) else "enabled"
+
+
 def _groups(workflow: GraphWorkflow) -> List[Dict[str, Any]]:
     groups = workflow.metadata.get("groups") if isinstance(workflow.metadata, dict) else []
     if not isinstance(groups, list):
@@ -181,6 +186,12 @@ def graph_plan_diff_summary(
             if node_id not in base_nodes
         ],
         "nodes_changed": changed_nodes,
+        "execution_mode_changes": [
+            {"id": node.id, "title": _node_title(node),
+             "from": _execution_mode(base_nodes.get(node.id)), "to": _execution_mode(node)}
+            for node in next_workflow.nodes
+            if _execution_mode(base_nodes.get(node.id)) != _execution_mode(node)
+        ],
         "nodes_moved": [
             {"id": node.id, "title": _node_title(node)}
             for node_id, node in next_nodes.items()

@@ -14,7 +14,7 @@ from ..graph.validator import validate_workflow
 from .cancellation import AssistantSessionBusy, session_progress
 from .confirmation_routes import create_confirmation_router
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
-from .graph_plan import apply_graph_plan
+from .graph_plan import apply_graph_plan, is_freeze_only_plan
 from .kernel_route import create_kernel_message
 from .results import router as results_router, validate_stage_results
 from .limits import ASSISTANT_IMAGE_ATTACHMENT_LIMIT, is_image_attachment
@@ -324,7 +324,7 @@ def apply_plan(
         validation=validation,
         layout_errors=layout_errors,
     )
-    if not validation.valid and not _allows_pending_media(validation):
+    if not validation.valid and not _allows_pending_media(validation) and not is_freeze_only_plan(graph_plan):
         raise _bad_request("Assistant plan no longer validates.")
     pricing = estimate_graph_workflow(workflow)
     updated = store_assistant.create_or_update_assistant_plan(

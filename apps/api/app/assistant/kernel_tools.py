@@ -35,7 +35,7 @@ from .conversation_history import (
 from .canvas_context import compact_canvas_context
 from .results import (ResultReuse, ReadResultsArguments, ResultSelection, InspectSelectedResultArguments, inspect_selected_result, read_results_tool, select_result_tool, stage_result_operations, validate_stage_results)
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
-from .graph_plan import apply_graph_plan
+from .graph_plan import apply_graph_plan, is_freeze_only_plan
 from .reference_analysis import (
     AnalyzeGeneratedOutputArguments,
     AnalyzeReferenceImagesArguments,
@@ -1845,6 +1845,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     ]
     confirmable = not layout_errors and (
         validation.valid
+        or is_freeze_only_plan(graph_plan)
         or (bool(pending_user_inputs) and len(pending_user_inputs) == len(validation.errors))
     )
     if not confirmable:
@@ -2014,7 +2015,10 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
             "arrange_workflow operation; the server deterministically moves existing nodes and recomputes "
             "existing group bounds while preserving graph content, connections, identities, and membership. "
             "Use remove_nodes_from_group with an exact existing group id and node ids to repair an incorrect "
-            "membership; it may be combined with arrange_workflow in the same atomic repair proposal."
+            "membership; it may be combined with arrange_workflow in the same atomic repair proposal. "
+            "Use set_execution_mode with an exact node_id or node_ref and execution_mode frozen or enabled. "
+            "Freeze-only edits may be applied while run validation remains blocked; enabling requires normal validation. "
+            "Changing mode never runs a node or grants spend approval."
         ),
         arguments_model=ProposeGraphOperationsArguments,
         allowed_capabilities=frozenset({"graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}),

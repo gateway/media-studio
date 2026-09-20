@@ -418,7 +418,7 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                 errors.append(
                     GraphError(
                         code="frozen_dependency_missing",
-                        message="Required input depends on a muted node with no cached output.",
+                        message="Required input depends on a frozen node with no cached output.",
                         node_id=target.id,
                         edge_id=edge.id,
                         port_id=edge.target_port,
@@ -428,7 +428,7 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                 warnings.append(
                     GraphError(
                         code="frozen_optional_dependency_missing",
-                        message="Optional input depends on a muted node with no cached output and will receive no data.",
+                        message="Optional input depends on a frozen node with no cached output and will receive no data.",
                         node_id=target.id,
                         edge_id=edge.id,
                         port_id=edge.target_port,

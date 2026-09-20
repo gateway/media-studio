@@ -364,6 +364,7 @@ class AssistantGraphOperation(BaseModel):
         "add_node",
         "set_node_field",
         "set_node_title",
+        "set_execution_mode",
         "add_note",
         "connect_nodes",
         "group_nodes",
@@ -376,6 +377,7 @@ class AssistantGraphOperation(BaseModel):
     title: Optional[str] = None
     position: Dict[str, float] = Field(default_factory=dict)
     fields: Dict[str, Any] = Field(default_factory=dict)
+    execution_mode: Optional[Literal["enabled", "frozen"]] = None
     source_ref: Optional[str] = None
     source_port: Optional[str] = None
     target_ref: Optional[str] = None

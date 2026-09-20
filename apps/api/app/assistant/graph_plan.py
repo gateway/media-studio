@@ -232,6 +232,15 @@ def _connected_added_node_ids(
     return [node_id for node_id in added_node_ids if node_id in connected_ids]
 
 
+def is_freeze_only_plan(plan: AssistantGraphPlan) -> bool:
+    # Holding existing nodes is allowed even when the graph cannot run.
+    # Never extend this exception to enabling nodes or other graph edits.
+    return bool(plan.operations) and all(
+        operation.op == "set_execution_mode" and operation.execution_mode == "frozen"
+        for operation in plan.operations
+    )
+
+
 def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> GraphWorkflow:
     arrange_operations = [operation for operation in plan.operations if operation.op == "arrange_workflow"]
     arrange_requested = bool(arrange_operations)
@@ -293,6 +302,20 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
             if not node_id or node_id not in nodes_by_id:
                 raise ValueError("Cannot set a field on an unknown node.")
             nodes_by_id[node_id].fields.update(operation.fields)
+            continue
+
+        if operation.op == "set_execution_mode":
+            node_id = resolve_node_id(operation.node_ref, operation.node_id)
+            if not node_id or node_id not in nodes_by_id:
+                raise ValueError("Cannot set execution mode on an unknown node.")
+            if operation.execution_mode not in {"enabled", "frozen"}:
+                raise ValueError("Execution mode must be enabled or frozen.")
+            node = nodes_by_id[node_id]
+            execution = node.metadata.get("execution")
+            node.metadata["execution"] = {
+                **(execution if isinstance(execution, dict) else {}),
+                "mode": operation.execution_mode,
+            }
             continue
 
         if operation.op == "set_node_title":
@@ -401,7 +424,7 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
         if operation.op == "arrange_workflow":
             continue
 
-        if operation.op in {"layout_nodes", "save_workflow", "set_provider_model", "set_execution_mode"}:
+        if operation.op in {"layout_nodes", "save_workflow", "set_provider_model"}:
             continue
 
         raise ValueError(f"Unsupported assistant graph operation: {operation.op}")

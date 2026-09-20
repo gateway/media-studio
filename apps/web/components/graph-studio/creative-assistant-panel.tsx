@@ -864,6 +864,14 @@ export function CreativeAssistantPanel({
   const layoutDiff = typeof planMetadata["diff_summary"] === "object" && planMetadata["diff_summary"] !== null
     ? planMetadata["diff_summary"] as Record<string, unknown>
     : {};
+  const executionModeOperations = planOperations.filter((operation) => operation["op"] === "set_execution_mode");
+  const onlyExecutionModeOperations = executionModeOperations.length > 0 && executionModeOperations.length === planOperations.length;
+  const executionModeChanges = Array.isArray(layoutDiff["execution_mode_changes"])
+    ? layoutDiff["execution_mode_changes"] as Array<{ id: string; title: string; from: string; to: string }>
+    : [];
+  const freezeOnlyPlan = planOperations.length > 0 && planOperations.every(
+    (operation) => operation["op"] === "set_execution_mode" && operation["execution_mode"] === "frozen",
+  );
   const movedNodeCount = Array.isArray(layoutDiff["nodes_moved"]) ? layoutDiff["nodes_moved"].length : null;
   const movedGroupCount = Array.isArray(layoutDiff["groups_repositioned"]) ? layoutDiff["groups_repositioned"].length : null;
   const arrangedNodeCount = movedNodeCount ?? plan?.workflow.nodes.length ?? 0;
@@ -873,7 +881,7 @@ export function CreativeAssistantPanel({
   const planMissingMedia = planHasMissingMedia(plan);
   const planOptionalEmptyMedia = planHasOptionalEmptyMedia(plan);
   const planStatusLabel = planApplied
-    ? onlyArrangeOperations ? "Layout applied" : "Added to canvas"
+    ? onlyExecutionModeOperations ? "Execution mode updated" : onlyArrangeOperations ? "Layout applied" : "Added to canvas"
     : plan && planOperationCount === 0
       ? "No changes required"
       : onlyArrangeOperations
@@ -1387,16 +1395,18 @@ export function CreativeAssistantPanel({
               className={`graph-assistant-message graph-assistant-message-assistant graph-assistant-message-plan ${
                 planApplied ? "graph-assistant-plan-applied" : plan.validation.valid ? "graph-assistant-plan-valid" : "graph-assistant-plan-invalid"
               }`}
-              aria-label={planApplied ? "Added graph status" : "Graph review"}
+              aria-label={planApplied ? onlyExecutionModeOperations ? "Execution mode update status" : "Added graph status" : "Graph review"}
             >
             <div className="graph-assistant-plan-heading">
               {planApplied ? <CheckCircle2 size={15} /> : <Sparkles size={15} />}
-              <strong>{planApplied && planMetadata.independent_stage ? "New workflow opened" : planReviewTitle({ appliedPresetWorkflow: presetTestReady, planApplied, noCanvasChanges, valid: plan.validation.valid, missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}</strong>
+              <strong>{planApplied && onlyExecutionModeOperations ? "Execution mode updated" : planApplied && planMetadata.independent_stage ? "New workflow opened" : planReviewTitle({ appliedPresetWorkflow: presetTestReady, planApplied, noCanvasChanges, valid: plan.validation.valid, missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}</strong>
               {!planApplied ? <small>{pricing}</small> : null}
             </div>
             <p>
-              {appliedPresetWorkflow
-                ? appliedPresetNextStep
+              {planApplied && onlyExecutionModeOperations
+                ? "Updated execution mode only. Nothing was run and no spending was approved."
+                : appliedPresetWorkflow
+                  ? appliedPresetNextStep
                 : planApplied && onlyArrangeOperations
                   ? plan.graph_plan.summary.trim() || "The workflow layout is updated without changing graph content."
                 : planApplied && onlyFieldUpdateOperations
@@ -1407,6 +1417,12 @@ export function CreativeAssistantPanel({
                     ? noCanvasChangeSummary(plan)
                     : graphPlanPrimaryCopy(plan, { missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}
             </p>
+            {planApplied && onlyExecutionModeOperations ? (
+              <div className="graph-assistant-edit-summary">
+                {executionModeChanges.map((change) => <p key={change.id}>{change.title}: {change.from} → {change.to}</p>)}
+                {!plan.validation.valid ? <p>Run remains blocked: {plan.validation.errors.map((issue) => graphReviewIssueCopy(plan, issue)).join(" ")}</p> : null}
+              </div>
+            ) : null}
             {planApplied && onlyFieldUpdateOperations && appliedFieldUpdateLabels.length ? (
               <p className="graph-assistant-edit-summary">Changed: {formatAssistantList(appliedFieldUpdateLabels)}</p>
             ) : null}
@@ -1450,7 +1466,7 @@ export function CreativeAssistantPanel({
                       <PencilLine size={13} aria-hidden="true" />
                       <span className="graph-assistant-plan-stat-label">Updates</span>
                     </dt>
-                    <dd>{fieldUpdateOperations.length + arrangeOperations.length}</dd>
+                    <dd>{fieldUpdateOperations.length + executionModeOperations.length + arrangeOperations.length}</dd>
                   </div>
                 </dl>
                 <div className="graph-assistant-plan-operation-list">
@@ -1475,10 +1491,20 @@ export function CreativeAssistantPanel({
                         </li>
                       ))}
                     </ul>
+                  ) : executionModeOperations.length ? (
+                    <span>{onlyExecutionModeOperations ? "Update execution mode only." : "Review execution mode and workflow changes."}</span>
                   ) : (
                     <span>No canvas changes are required.</span>
                   )}
                 </div>
+                {executionModeChanges.length ? (
+                  <div className="graph-assistant-plan-operation-list">
+                    <ul>{executionModeChanges.map((change) => (
+                      <li key={change.id}>{change.title}: {change.from} → {change.to}</li>
+                    ))}</ul>
+                    <p>{freezeOnlyPlan ? "Apply this hold without running. Run validation issues may remain." : "Changing execution mode does not start a run."}</p>
+                  </div>
+                ) : null}
                 {plan.graph_plan.questions.length || plan.graph_plan.warnings.length || plan.validation.warnings.length ? (
                   <div className="graph-assistant-plan-operation-list">
                     <ul>

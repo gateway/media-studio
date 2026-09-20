@@ -25,6 +25,7 @@ def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -
         "add_node",
         "set_node_field",
         "set_node_title",
+        "set_execution_mode",
         "add_note",
         "connect_nodes",
         "group_nodes",
