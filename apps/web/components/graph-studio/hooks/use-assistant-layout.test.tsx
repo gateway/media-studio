@@ -74,6 +74,16 @@ describe("Assistant rendered layout", () => {
     expect(spaceAssistantNodes(nodes, new Set(["left", "right"]))[1].position.x).toBe(516);
   });
 
+  it("keeps downstream nodes horizontal when wide references shift earlier columns", () => {
+    const nodes = [node("reference", 0, 0), node("middle", 450, 0), node("downstream", 900, 0)];
+    nodes[0].measured = { width: 720, height: 620 };
+    const ids = new Set(nodes.map((item) => item.id));
+    const next = spaceAssistantNodes(nodes, ids);
+    expect(next.map((item) => item.position.y)).toEqual([0, 0, 0]);
+    expect(next[2].position.x).toBeGreaterThanOrEqual(next[1].position.x + 420 + 96);
+    expect(spaceAssistantNodes(next, ids)).toBe(next);
+  });
+
   it("corrects later content growth but stops after a manual move or tab change", () => {
     const initial = [node("preset", 0, 0), node("preview", 0, 716)];
     const { result, rerender } = renderHook(({ tabId }) => {

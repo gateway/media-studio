@@ -19,7 +19,7 @@ from ..graph.layout import (
 from ..graph.registry import registry
 from ..graph.schemas import GraphWorkflow, GraphWorkflowEdge, GraphWorkflowNode
 from .schemas import AssistantGraphOperation, AssistantGraphPlan
-from .workflow_layout import arrange_workflow
+from .workflow_layout import arrange_nodes, arrange_workflow
 
 
 def _slug(value: str) -> str:
@@ -450,6 +450,10 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
         metadata["groups"] = groups
         next_workflow.metadata = metadata
 
+    # Fresh graphs default to left-to-right flow; preserve existing canvas layouts.
+    # Leave notes to the existing placement above the new production section.
+    if not workflow.nodes:
+        arrange_nodes([node_id for node_id in added_node_ids if nodes_by_id[node_id].type != "utility.note"], next_workflow, nodes_by_id)
     _layout_added_nodes(nodes_by_id, added_node_ids)
     _shift_added_section_from_existing(workflow, nodes_by_id, added_node_ids)
     resized_group_ids = added_group_ids | expanded_group_ids | contracted_group_ids

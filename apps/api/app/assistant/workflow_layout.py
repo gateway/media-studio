@@ -57,7 +57,7 @@ def _node_levels(node_ids: List[str], workflow: GraphWorkflow) -> Dict[str, int]
     return levels
 
 
-def _arrange_nodes(node_ids: List[str], workflow: GraphWorkflow, nodes_by_id: Dict[str, GraphWorkflowNode]) -> None:
+def arrange_nodes(node_ids: List[str], workflow: GraphWorkflow, nodes_by_id: Dict[str, GraphWorkflowNode]) -> None:
     if len(node_ids) < 2:
         return
     levels = _node_levels(node_ids, workflow)
@@ -66,6 +66,10 @@ def _arrange_nodes(node_ids: List[str], workflow: GraphWorkflow, nodes_by_id: Di
         columns.setdefault(levels[node_id], []).append(nodes_by_id[node_id])
     for column in columns.values():
         column.sort(key=lambda node: (_node_title(node).casefold(), node.id))
+    # Keep large reference banks wide instead of making one tall input column.
+    # Finish each dependency level before placing any downstream consumer.
+    lanes = [columns[level][start:start + 2] for level in sorted(columns) for start in range(0, len(columns[level]), 2)]
+    columns = dict(enumerate(lanes))
     column_widths = {
         level: max(node_layout_size(node.type, node.fields)[0] for node in column)
         for level, column in columns.items()
@@ -242,7 +246,7 @@ def arrange_workflow(workflow: GraphWorkflow) -> GraphWorkflow:
 
     block_by_node_id = {node_id: block.id for block in blocks for node_id in block.node_ids}
     for block in blocks:
-        _arrange_nodes(block.node_ids, arranged, nodes_by_id)
+        arrange_nodes(block.node_ids, arranged, nodes_by_id)
         if block.group_id:
             block.bounds = compute_group_bounds(
                 (nodes_by_id[node_id] for node_id in block.node_ids),

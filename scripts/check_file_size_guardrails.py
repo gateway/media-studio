@@ -77,9 +77,10 @@ GUARDRAILS = (
 # exception and mode diff add 40 Python lines; no general metadata edit authority.
 # MALIVE-023: reviewed compaction accounting/progress and failure trace persistence
 # reuse the existing kernel and cancellation owners; exact cap with no reserve.
+# Horizontal defaults reuse the existing layout owner; ten source lines, no new state.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_455,
+    12_465,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

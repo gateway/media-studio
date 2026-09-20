@@ -2011,7 +2011,9 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         name="propose_graph_operations",
         description=(
             "Build a standard preset test graph by template id, or apply typed graph operations; validate, "
-            "layout-check, price, and persist the confirmable proposal. For a layout-only request, use one "
+            "layout-check, price, and persist the confirmable proposal. New workflows automatically use a "
+            "left-to-right dependency layout with reference banks spread across columns in pairs. "
+            "For a layout-only request, use one "
             "arrange_workflow operation; the server deterministically moves existing nodes and recomputes "
             "existing group bounds while preserving graph content, connections, identities, and membership. "
             "Use remove_nodes_from_group with an exact existing group id and node ids to repair an incorrect "
