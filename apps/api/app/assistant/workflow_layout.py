@@ -66,10 +66,7 @@ def arrange_nodes(node_ids: List[str], workflow: GraphWorkflow, nodes_by_id: Dic
         columns.setdefault(levels[node_id], []).append(nodes_by_id[node_id])
     for column in columns.values():
         column.sort(key=lambda node: (_node_title(node).casefold(), node.id))
-    # Keep large reference banks wide instead of making one tall input column.
-    # Finish each dependency level before placing any downstream consumer.
-    lanes = [columns[level][start:start + 2] for level in sorted(columns) for start in range(0, len(columns[level]), 2)]
-    columns = dict(enumerate(lanes))
+    # Stack each dependency stage vertically; advance left to right between stages.
     column_widths = {
         level: max(node_layout_size(node.type, node.fields)[0] for node in column)
         for level, column in columns.items()

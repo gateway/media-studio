@@ -2012,7 +2012,7 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         description=(
             "Build a standard preset test graph by template id, or apply typed graph operations; validate, "
             "layout-check, price, and persist the confirmable proposal. New workflows automatically use a "
-            "left-to-right dependency layout with reference banks spread across columns in pairs. "
+            "left-to-right stage layout: inputs stack vertically in one column, then processing and outputs to the right. "
             "For a layout-only request, use one "
             "arrange_workflow operation; the server deterministically moves existing nodes and recomputes "
             "existing group bounds while preserving graph content, connections, identities, and membership. "
