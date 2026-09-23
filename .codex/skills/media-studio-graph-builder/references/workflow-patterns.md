@@ -7,7 +7,7 @@ Use these as graph construction shortcuts before inspecting source.
 Template: `content/graph-workflows/image-models-starter.media-studio-graph.json`
 
 - One group per model lane.
-- Keep only one paid lane enabled by default; set other groups to frozen.
+- For newly authored templates, keep paid lanes frozen unless the requested default behavior specifies otherwise. Preserve execution modes when exporting existing work.
 - Text-to-image lane: model node -> preview image -> save image.
 - Image-to-image lane: load image -> model image input; model image output -> preview image and save image.
 - Add a note node outside the groups with short instructions and links.

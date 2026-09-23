@@ -14,7 +14,7 @@ FORBIDDEN_PATTERNS = {
     "local_path": re.compile(r"/Users/|/home/|C:\\\\", re.IGNORECASE),
     "file_url": re.compile(r"file://", re.IGNORECASE),
     "data_url": re.compile(r"data:", re.IGNORECASE),
-    "api_key": re.compile(r"(?i)(api[_-]?key|secret|token|bearer)\\s*[:=]"),
+    "api_key": re.compile(r"(?i)(api[_-]?key|secret|token|bearer)[\"']?\s*[:=]"),
     "asset_id": re.compile(r"asset_[a-f0-9]{8,}", re.IGNORECASE),
     "job_id": re.compile(r"job_[a-f0-9]{8,}", re.IGNORECASE),
     "run_id": re.compile(r"run_[a-f0-9]{8,}", re.IGNORECASE),

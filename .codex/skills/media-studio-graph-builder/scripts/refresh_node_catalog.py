@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import sys
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -25,9 +26,9 @@ def compact_field(field: dict[str, Any]) -> dict[str, Any]:
         "label": field.get("label"),
         "type": field.get("type"),
     }
-    for key in ("required", "default", "connectable", "port_type", "advanced", "hidden", "visible_if"):
+    for key in ("required", "default", "min", "max", "connectable", "port_type", "advanced", "hidden", "visible_if"):
         value = field.get(key)
-        if value not in (None, False, "", [], {}):
+        if key in field and value is not None:
             item[key] = value
     options = field.get("options") or []
     if options:
@@ -43,9 +44,9 @@ def compact_port(port: dict[str, Any]) -> dict[str, Any]:
         "label": port.get("label"),
         "type": port.get("type"),
     }
-    for key in ("array", "required", "min", "max", "visible_if", "advanced"):
+    for key in ("array", "required", "min", "max", "accepts", "visible_if", "advanced"):
         value = port.get(key)
-        if value not in (None, False, "", [], {}):
+        if key in port and value is not None:
             item[key] = value
     return item
 
@@ -75,6 +76,7 @@ def main() -> int:
     if not isinstance(definitions, list):
         raise SystemExit("Node definition response did not contain a list.")
     compact = {
+        "captured_at": datetime.now(timezone.utc).isoformat(),
         "source_url": url,
         "count": len(definitions),
         "nodes": [compact_definition(definition) for definition in definitions],

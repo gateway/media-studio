@@ -1,6 +1,42 @@
 {
-  "count": 44,
+  "count": 51,
   "nodes": [
+    {
+      "category": "Prompt",
+      "fields": [],
+      "inputs": [
+        {
+          "id": "result",
+          "label": "Recipe Result",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "prompt",
+          "label": "Art Prompt",
+          "type": "text"
+        },
+        {
+          "id": "spec",
+          "label": "Sheet Spec",
+          "type": "json"
+        },
+        {
+          "id": "panel_prompts",
+          "label": "Panel Prompts",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Compile Storyboard",
+      "type": "storyboard.compile"
+    },
     {
       "category": "Prompt",
       "fields": [
@@ -84,7 +120,7 @@
           "label": "Provider",
           "options": [
             {
-              "label": "Studio Default",
+              "label": "Prompt Enhance Default Model",
               "value": "studio_default"
             },
             {
@@ -226,6 +262,150 @@
       "category": "Prompt",
       "fields": [
         {
+          "default": "full_analysis",
+          "id": "mode",
+          "label": "Mode",
+          "options": [
+            {
+              "label": "Full Visual Analysis",
+              "value": "full_analysis"
+            },
+            {
+              "label": "Image To Prompt",
+              "value": "image_to_prompt"
+            }
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "id": "analysis_goal",
+          "label": "Analysis Goal",
+          "type": "textarea"
+        },
+        {
+          "default": "You analyze Media Studio reference images for downstream image and video generation. Be concrete, visual, and specific. Do not invent details that are not visible.",
+          "id": "system_prompt",
+          "label": "System Prompt",
+          "required": true,
+          "type": "textarea"
+        },
+        {
+          "advanced": true,
+          "default": "studio_default",
+          "id": "provider",
+          "label": "Provider",
+          "options": [
+            {
+              "label": "Prompt Enhance Default Model",
+              "value": "studio_default"
+            },
+            {
+              "label": "OpenRouter",
+              "value": "openrouter"
+            },
+            {
+              "label": "Codex Local",
+              "value": "codex_local"
+            },
+            {
+              "label": "Local OpenAI",
+              "value": "local_openai"
+            }
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "advanced": true,
+          "id": "model_id",
+          "label": "Model",
+          "type": "provider_model_picker",
+          "visible_if": {
+            "field": "provider",
+            "not_equals": "studio_default"
+          }
+        },
+        {
+          "advanced": true,
+          "hidden": true,
+          "id": "provider_model_label",
+          "label": "Provider Model Label",
+          "type": "text"
+        },
+        {
+          "advanced": true,
+          "hidden": true,
+          "id": "provider_supports_images",
+          "label": "Provider Supports Images",
+          "type": "boolean"
+        },
+        {
+          "advanced": true,
+          "hidden": true,
+          "id": "provider_capabilities_json",
+          "label": "Provider Capabilities JSON",
+          "type": "textarea"
+        },
+        {
+          "advanced": true,
+          "id": "temperature",
+          "label": "Temperature Override",
+          "type": "float",
+          "visible_if": {
+            "field": "provider",
+            "not_equals": "codex_local"
+          }
+        },
+        {
+          "advanced": true,
+          "id": "max_tokens",
+          "label": "Max Tokens Override",
+          "type": "integer",
+          "visible_if": {
+            "field": "provider",
+            "not_equals": "codex_local"
+          }
+        }
+      ],
+      "inputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "max": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "text",
+          "label": "Text",
+          "type": "text"
+        },
+        {
+          "id": "result",
+          "label": "Result",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "external_llm",
+        "providers": [
+          "studio_default",
+          "openrouter",
+          "codex_local",
+          "local_openai"
+        ],
+        "supports_images": "required"
+      },
+      "title": "Image Analyzer",
+      "type": "prompt.image_analyzer"
+    },
+    {
+      "category": "Prompt",
+      "fields": [
+        {
           "id": "inline_text",
           "label": "Inline Text",
           "type": "textarea"
@@ -300,44 +480,143 @@
           "label": "Prompt Recipe",
           "options": [
             {
+              "label": "Bright Cut-Paper Travel Collage",
+              "value": "recipe_fa4db50f10ce"
+            },
+            {
               "label": "Character Sheet Builder",
               "value": "recipe_e5781e6d6e71"
+            },
+            {
+              "label": "Character Sheet Prompt Writer",
+              "value": "recipe_a9508180eef3"
+            },
+            {
+              "label": "Character Sheet v1",
+              "value": "recipe_245bdf02a10c"
+            },
+            {
+              "label": "Character Sheet v3",
+              "value": "recipe_792c82b7acf3"
             },
             {
               "label": "Cleanest Storyboard Director",
               "value": "recipe_858fe4bb1ce2"
             },
             {
+              "label": "Debug Typed Role Recipe",
+              "value": "recipe_baca22fc025d"
+            },
+            {
+              "label": "Environment Coverage 2\u00d72 \u2014 Four Camera Angles",
+              "value": "recipe_06978904d1db"
+            },
+            {
+              "label": "Environment Plate v1.2",
+              "value": "prompt-recipe-environment-plate-v1"
+            },
+            {
+              "label": "Environment Sheet v1",
+              "value": "prompt-recipe-environment-sheet-v1"
+            },
+            {
+              "label": "Food Storyboard Host v1",
+              "value": "prompt-recipe-food-storyboard-host-v1"
+            },
+            {
+              "label": "Good catch on the reserved key. Keep the recipe gene",
+              "value": "recipe_abc5f5e51689"
+            },
+            {
               "label": "Image Prompt Director",
               "value": "prompt-recipe-image-prompt-director"
             },
             {
-              "label": "Storyboard Director - 3x3 Grid",
-              "value": "prompt-recipe-storyboard-director-3x3"
+              "label": "Luma Beacon Atmosphere Writer",
+              "value": "recipe_a134e1526908"
             },
             {
-              "label": "Storyboard Shot Sequence - 3x3",
-              "value": "prompt-recipe-storyboard-shot-sequence-3x3"
+              "label": "Luminous Product Prompt Builder",
+              "value": "recipe_1bd982c36019"
             },
             {
-              "label": "Seedance Storyboard Director",
-              "value": "recipe_1d40e1b358f9"
+              "label": "Photographic Environment Plate \u2014 Genre Ready",
+              "value": "recipe_6d5acf4d6142"
             },
             {
-              "label": "Video Director - Multi Shot JSON",
-              "value": "prompt-recipe-video-director-multi-shot-json"
+              "label": "Product Hero Prompt Director",
+              "value": "recipe_b6a96fddaaad"
             },
             {
-              "label": "Image Analysis - Character Reference",
-              "value": "prompt-recipe-image-analysis-character-reference"
+              "label": "Prompt Recipe",
+              "value": "recipe_ee95aa113a0a"
             },
             {
-              "label": "Prompt Shortener",
-              "value": "prompt-recipe-prompt-shortener"
+              "label": "Reusable Storyboard Sheet 1925b642",
+              "value": "prompt-recipe-reusable-storyboard-sheet-1925b642"
+            },
+            {
+              "label": "Reusable Storyboard Sheet 1bc78474",
+              "value": "prompt-recipe-reusable-storyboard-sheet-1bc78474"
+            },
+            {
+              "label": "Reusable Storyboard Sheet 25a7a4f9",
+              "value": "prompt-recipe-reusable-storyboard-sheet-25a7a4f9"
+            },
+            {
+              "label": "Reusable Storyboard Sheet 2b1d56a2",
+              "value": "prompt-recipe-reusable-storyboard-sheet-2b1d56a2"
+            },
+            {
+              "label": "Reusable Storyboard Sheet a04700d6",
+              "value": "prompt-recipe-reusable-storyboard-sheet-a04700d6"
+            },
+            {
+              "label": "Reusable Storyboard Sheet a862e06f",
+              "value": "prompt-recipe-reusable-storyboard-sheet-a862e06f"
+            },
+            {
+              "label": "Reusable Storyboard Sheet b76027bc",
+              "value": "prompt-recipe-reusable-storyboard-sheet-b76027bc"
+            },
+            {
+              "label": "Reusable Storyboard Sheet bcca1ecf",
+              "value": "prompt-recipe-reusable-storyboard-sheet-bcca1ecf"
+            },
+            {
+              "label": "Reusable Storyboard Sheet c00461d6",
+              "value": "prompt-recipe-reusable-storyboard-sheet-c00461d6"
+            },
+            {
+              "label": "Reusable Storyboard Sheet d630376f",
+              "value": "prompt-recipe-reusable-storyboard-sheet-d630376f"
+            },
+            {
+              "label": "Reusable Storyboard Sheet e0479b34",
+              "value": "prompt-recipe-reusable-storyboard-sheet-e0479b34"
+            },
+            {
+              "label": "Reusable Storyboard Sheet ebf0155f",
+              "value": "prompt-recipe-reusable-storyboard-sheet-ebf0155f"
+            },
+            {
+              "label": "Reusable Storyboard Sheet v1",
+              "value": "recipe_52a8e47ebbfb"
+            },
+            {
+              "label": "Storyboard Continuation v1",
+              "value": "prompt-recipe-storyboard-continuation-v1"
             }
           ],
+          "options_truncated": 49,
           "required": true,
           "type": "prompt_recipe_picker"
+        },
+        {
+          "advanced": true,
+          "id": "refinement",
+          "label": "Run Refinement",
+          "type": "textarea"
         },
         {
           "connectable": true,
@@ -348,14 +627,129 @@
           "visible_if": {
             "field": "recipe_id",
             "in": [
+              "prompt-recipe-environment-plate-v1",
+              "prompt-recipe-environment-sheet-v1",
+              "prompt-recipe-food-storyboard-host-v1",
               "prompt-recipe-image-analysis-character-reference",
               "prompt-recipe-image-prompt-director",
+              "prompt-recipe-reusable-storyboard-sheet-00976e8e",
+              "prompt-recipe-reusable-storyboard-sheet-03232c18",
+              "prompt-recipe-reusable-storyboard-sheet-088082c9",
+              "prompt-recipe-reusable-storyboard-sheet-09a3789d",
+              "prompt-recipe-reusable-storyboard-sheet-0e11d89d",
+              "prompt-recipe-reusable-storyboard-sheet-1401107b",
+              "prompt-recipe-reusable-storyboard-sheet-1422df3a",
+              "prompt-recipe-reusable-storyboard-sheet-190e4520",
+              "prompt-recipe-reusable-storyboard-sheet-1925b642",
+              "prompt-recipe-reusable-storyboard-sheet-1bc78474",
+              "prompt-recipe-reusable-storyboard-sheet-20b9e846",
+              "prompt-recipe-reusable-storyboard-sheet-25a7a4f9",
+              "prompt-recipe-reusable-storyboard-sheet-29b58abe",
+              "prompt-recipe-reusable-storyboard-sheet-2b1d56a2",
+              "prompt-recipe-reusable-storyboard-sheet-321ae9d0",
+              "prompt-recipe-reusable-storyboard-sheet-37e94ceb",
+              "prompt-recipe-reusable-storyboard-sheet-380f075d",
+              "prompt-recipe-reusable-storyboard-sheet-38c46cba",
+              "prompt-recipe-reusable-storyboard-sheet-3b0eb496",
+              "prompt-recipe-reusable-storyboard-sheet-450f388a",
+              "prompt-recipe-reusable-storyboard-sheet-46ae1c06",
+              "prompt-recipe-reusable-storyboard-sheet-482a0fbb",
+              "prompt-recipe-reusable-storyboard-sheet-4a6015cf",
+              "prompt-recipe-reusable-storyboard-sheet-4a877b71",
+              "prompt-recipe-reusable-storyboard-sheet-52904bd2",
+              "prompt-recipe-reusable-storyboard-sheet-5925fc55",
+              "prompt-recipe-reusable-storyboard-sheet-644b0571",
+              "prompt-recipe-reusable-storyboard-sheet-64c07e9a",
+              "prompt-recipe-reusable-storyboard-sheet-6761c611",
+              "prompt-recipe-reusable-storyboard-sheet-68cb9472",
+              "prompt-recipe-reusable-storyboard-sheet-6f3624b2",
+              "prompt-recipe-reusable-storyboard-sheet-70b3ec15",
+              "prompt-recipe-reusable-storyboard-sheet-70f2684a",
+              "prompt-recipe-reusable-storyboard-sheet-7351530e",
+              "prompt-recipe-reusable-storyboard-sheet-7878d2c5",
+              "prompt-recipe-reusable-storyboard-sheet-8126f11d",
+              "prompt-recipe-reusable-storyboard-sheet-82468fc3",
+              "prompt-recipe-reusable-storyboard-sheet-83ed866f",
+              "prompt-recipe-reusable-storyboard-sheet-841baa45",
+              "prompt-recipe-reusable-storyboard-sheet-87607841",
+              "prompt-recipe-reusable-storyboard-sheet-8965f993",
+              "prompt-recipe-reusable-storyboard-sheet-8979c17c",
+              "prompt-recipe-reusable-storyboard-sheet-8c43ff27",
+              "prompt-recipe-reusable-storyboard-sheet-8d1bc709",
+              "prompt-recipe-reusable-storyboard-sheet-8f30d83c",
+              "prompt-recipe-reusable-storyboard-sheet-91676281",
+              "prompt-recipe-reusable-storyboard-sheet-97132b2e",
+              "prompt-recipe-reusable-storyboard-sheet-980dc23c",
+              "prompt-recipe-reusable-storyboard-sheet-99fa249d",
+              "prompt-recipe-reusable-storyboard-sheet-9ba9ffc7",
+              "prompt-recipe-reusable-storyboard-sheet-a04700d6",
+              "prompt-recipe-reusable-storyboard-sheet-a0e197c5",
+              "prompt-recipe-reusable-storyboard-sheet-a5a3af7e",
+              "prompt-recipe-reusable-storyboard-sheet-a85648dd",
+              "prompt-recipe-reusable-storyboard-sheet-a862e06f",
+              "prompt-recipe-reusable-storyboard-sheet-aa2e16c5",
+              "prompt-recipe-reusable-storyboard-sheet-b0779423",
+              "prompt-recipe-reusable-storyboard-sheet-b40337",
+              "prompt-recipe-reusable-storyboard-sheet-b636f970",
+              "prompt-recipe-reusable-storyboard-sheet-b72726ca",
+              "prompt-recipe-reusable-storyboard-sheet-b76027bc",
+              "prompt-recipe-reusable-storyboard-sheet-bcca1ecf",
+              "prompt-recipe-reusable-storyboard-sheet-c00461d6",
+              "prompt-recipe-reusable-storyboard-sheet-c243794a",
+              "prompt-recipe-reusable-storyboard-sheet-cae8e33a",
+              "prompt-recipe-reusable-storyboard-sheet-cf4ec78e",
+              "prompt-recipe-reusable-storyboard-sheet-d4af1860",
+              "prompt-recipe-reusable-storyboard-sheet-d630376f",
+              "prompt-recipe-reusable-storyboard-sheet-d7080d1e",
+              "prompt-recipe-reusable-storyboard-sheet-d834b4d3",
+              "prompt-recipe-reusable-storyboard-sheet-d9d6c8ca",
+              "prompt-recipe-reusable-storyboard-sheet-e0479b34",
+              "prompt-recipe-reusable-storyboard-sheet-e1d15a84",
+              "prompt-recipe-reusable-storyboard-sheet-e4889ddf",
+              "prompt-recipe-reusable-storyboard-sheet-e557c145",
+              "prompt-recipe-reusable-storyboard-sheet-ebf0155f",
+              "prompt-recipe-reusable-storyboard-sheet-ec6f7421",
+              "prompt-recipe-reusable-storyboard-sheet-ed34d36a",
+              "prompt-recipe-reusable-storyboard-sheet-ef2469f8",
+              "prompt-recipe-reusable-storyboard-sheet-efc9cdca",
+              "prompt-recipe-reusable-storyboard-sheet-f2746c5f",
+              "prompt-recipe-reusable-storyboard-sheet-f340fd86",
+              "prompt-recipe-reusable-storyboard-sheet-f6c09fa2",
+              "prompt-recipe-reusable-storyboard-sheet-fb76c856",
+              "prompt-recipe-reusable-storyboard-sheet-fc508e1e",
+              "prompt-recipe-seedance-storyboard-video-director-v1",
               "prompt-recipe-storyboard-director-3x3",
               "prompt-recipe-storyboard-shot-sequence-3x3",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
               "prompt-recipe-video-director-multi-shot-json",
+              "recipe_06978904d1db",
+              "recipe_196d0a791874",
+              "recipe_1bd982c36019",
               "recipe_1d40e1b358f9",
+              "recipe_21fd5f0ca11c",
+              "recipe_2261cbb8c0b6",
+              "recipe_245bdf02a10c",
+              "recipe_462252e5ad4e",
+              "recipe_52a8e47ebbfb",
+              "recipe_5746f1b11753",
+              "recipe_5a0fed4bdcae",
+              "recipe_6d5acf4d6142",
+              "recipe_792c82b7acf3",
               "recipe_858fe4bb1ce2",
-              "recipe_e5781e6d6e71"
+              "recipe_8cd171292b6d",
+              "recipe_8f5e225bb7a8",
+              "recipe_91c45c12f52c",
+              "recipe_977619170aa2",
+              "recipe_abc5f5e51689",
+              "recipe_ac3d54d1e564",
+              "recipe_af5efdccb8c2",
+              "recipe_b6a96fddaaad",
+              "recipe_baca22fc025d",
+              "recipe_c82a4598e1a2",
+              "recipe_d493f5ceacac",
+              "recipe_e5781e6d6e71",
+              "recipe_ee95aa113a0a",
+              "recipe_ef6a24b6e98f"
             ]
           }
         },
@@ -370,9 +764,53 @@
             "in": [
               "prompt-recipe-image-prompt-director",
               "prompt-recipe-prompt-shortener",
+              "prompt-recipe-seedance-storyboard-video-director-v1",
               "prompt-recipe-storyboard-director-3x3",
               "prompt-recipe-storyboard-shot-sequence-3x3",
               "prompt-recipe-video-director-multi-shot-json"
+            ]
+          }
+        },
+        {
+          "advanced": true,
+          "connectable": true,
+          "id": "previous_output",
+          "label": "Previous Board Handoff",
+          "port_type": "text",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-v2-gpt-image-2",
+              "recipe_5746f1b11753",
+              "recipe_8cd171292b6d",
+              "recipe_ac3d54d1e564"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "previous_storyboard_prompt",
+          "label": "Previous Storyboard Prompt",
+          "port_type": "text",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "continuation_brief",
+          "label": "Continuation Brief",
+          "port_type": "text",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1"
             ]
           }
         },
@@ -384,37 +822,127 @@
             "field": "recipe_id",
             "in": [
               "prompt-recipe-image-prompt-director",
+              "prompt-recipe-seedance-storyboard-video-director-v1",
+              "prompt-recipe-storyboard-continuation-v1",
               "prompt-recipe-storyboard-director-3x3",
               "prompt-recipe-storyboard-shot-sequence-3x3",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
               "prompt-recipe-video-director-multi-shot-json",
-              "recipe_1d40e1b358f9"
+              "recipe_1d40e1b358f9",
+              "recipe_5746f1b11753",
+              "recipe_8cd171292b6d",
+              "recipe_ac3d54d1e564"
             ]
           }
         },
         {
+          "connectable": true,
           "id": "aspect_ratio",
           "label": "Aspect Ratio",
+          "port_type": "text",
           "type": "text",
           "visible_if": {
             "field": "recipe_id",
             "in": [
               "prompt-recipe-image-prompt-director",
+              "prompt-recipe-seedance-storyboard-video-director-v1",
               "prompt-recipe-storyboard-director-3x3",
               "prompt-recipe-storyboard-shot-sequence-3x3",
-              "recipe_1d40e1b358f9"
+              "prompt-recipe-storyboard-v2-gpt-image-2",
+              "recipe_1d40e1b358f9",
+              "recipe_5746f1b11753",
+              "recipe_8cd171292b6d",
+              "recipe_ac3d54d1e564",
+              "recipe_b6a96fddaaad",
+              "recipe_c82a4598e1a2"
             ]
           }
         },
         {
           "id": "shot_count",
-          "label": "Shot Count",
+          "label": "Number of shots",
           "type": "text",
           "visible_if": {
             "field": "recipe_id",
             "in": [
               "prompt-recipe-storyboard-shot-sequence-3x3",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
               "prompt-recipe-video-director-multi-shot-json",
-              "recipe_1d40e1b358f9"
+              "recipe_1d40e1b358f9",
+              "recipe_5746f1b11753",
+              "recipe_8cd171292b6d",
+              "recipe_ac1169126e6e",
+              "recipe_ac3d54d1e564",
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "panel_count",
+          "label": "Panel Count",
+          "options": [
+            "4",
+            "6",
+            "9",
+            "12"
+          ],
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1",
+              "recipe_21fd5f0ca11c",
+              "recipe_2261cbb8c0b6",
+              "recipe_91c45c12f52c"
+            ]
+          }
+        },
+        {
+          "id": "segment_number",
+          "label": "Segment Number",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1"
+            ]
+          }
+        },
+        {
+          "id": "total_segments",
+          "label": "Total Segments",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1"
+            ]
+          }
+        },
+        {
+          "id": "target_duration_seconds",
+          "label": "Target Duration Seconds",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-food-storyboard-host-v1",
+              "prompt-recipe-storyboard-continuation-v1"
+            ]
+          }
+        },
+        {
+          "id": "dialogue_mode",
+          "label": "Dialogue Mode",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-food-storyboard-host-v1",
+              "prompt-recipe-seedance-storyboard-video-director-v1",
+              "prompt-recipe-storyboard-continuation-v1",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
+              "recipe_8cd171292b6d"
             ]
           }
         },
@@ -425,6 +953,7 @@
           "visible_if": {
             "field": "recipe_id",
             "in": [
+              "prompt-recipe-seedance-storyboard-video-director-v1",
               "prompt-recipe-video-director-multi-shot-json",
               "recipe_1d40e1b358f9"
             ]
@@ -442,13 +971,1365 @@
           }
         },
         {
+          "id": "action_lanes",
+          "label": "Action Lanes / Anchors",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-environment-plate-v1"
+            ]
+          }
+        },
+        {
+          "id": "action_requirements",
+          "label": "Action Requirements",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-environment-sheet-v1"
+            ]
+          }
+        },
+        {
+          "id": "detail_notes",
+          "label": "Additional Details",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-reusable-storyboard-sheet-00976e8e",
+              "prompt-recipe-reusable-storyboard-sheet-03232c18",
+              "prompt-recipe-reusable-storyboard-sheet-088082c9",
+              "prompt-recipe-reusable-storyboard-sheet-09a3789d",
+              "prompt-recipe-reusable-storyboard-sheet-0e11d89d",
+              "prompt-recipe-reusable-storyboard-sheet-1422df3a",
+              "prompt-recipe-reusable-storyboard-sheet-190e4520",
+              "prompt-recipe-reusable-storyboard-sheet-1925b642",
+              "prompt-recipe-reusable-storyboard-sheet-1bc78474",
+              "prompt-recipe-reusable-storyboard-sheet-20b9e846",
+              "prompt-recipe-reusable-storyboard-sheet-25a7a4f9",
+              "prompt-recipe-reusable-storyboard-sheet-29b58abe",
+              "prompt-recipe-reusable-storyboard-sheet-2b1d56a2",
+              "prompt-recipe-reusable-storyboard-sheet-321ae9d0",
+              "prompt-recipe-reusable-storyboard-sheet-37e94ceb",
+              "prompt-recipe-reusable-storyboard-sheet-380f075d",
+              "prompt-recipe-reusable-storyboard-sheet-38c46cba",
+              "prompt-recipe-reusable-storyboard-sheet-3b0eb496",
+              "prompt-recipe-reusable-storyboard-sheet-450f388a",
+              "prompt-recipe-reusable-storyboard-sheet-46ae1c06",
+              "prompt-recipe-reusable-storyboard-sheet-482a0fbb",
+              "prompt-recipe-reusable-storyboard-sheet-4a6015cf",
+              "prompt-recipe-reusable-storyboard-sheet-4a877b71",
+              "prompt-recipe-reusable-storyboard-sheet-52904bd2",
+              "prompt-recipe-reusable-storyboard-sheet-5925fc55",
+              "prompt-recipe-reusable-storyboard-sheet-644b0571",
+              "prompt-recipe-reusable-storyboard-sheet-64c07e9a",
+              "prompt-recipe-reusable-storyboard-sheet-6761c611",
+              "prompt-recipe-reusable-storyboard-sheet-68cb9472",
+              "prompt-recipe-reusable-storyboard-sheet-70b3ec15",
+              "prompt-recipe-reusable-storyboard-sheet-70f2684a",
+              "prompt-recipe-reusable-storyboard-sheet-7351530e",
+              "prompt-recipe-reusable-storyboard-sheet-7878d2c5",
+              "prompt-recipe-reusable-storyboard-sheet-8126f11d",
+              "prompt-recipe-reusable-storyboard-sheet-82468fc3",
+              "prompt-recipe-reusable-storyboard-sheet-83ed866f",
+              "prompt-recipe-reusable-storyboard-sheet-841baa45",
+              "prompt-recipe-reusable-storyboard-sheet-87607841",
+              "prompt-recipe-reusable-storyboard-sheet-8965f993",
+              "prompt-recipe-reusable-storyboard-sheet-8979c17c",
+              "prompt-recipe-reusable-storyboard-sheet-8c43ff27",
+              "prompt-recipe-reusable-storyboard-sheet-8d1bc709",
+              "prompt-recipe-reusable-storyboard-sheet-8f30d83c",
+              "prompt-recipe-reusable-storyboard-sheet-91676281",
+              "prompt-recipe-reusable-storyboard-sheet-97132b2e",
+              "prompt-recipe-reusable-storyboard-sheet-980dc23c",
+              "prompt-recipe-reusable-storyboard-sheet-99fa249d",
+              "prompt-recipe-reusable-storyboard-sheet-9ba9ffc7",
+              "prompt-recipe-reusable-storyboard-sheet-a04700d6",
+              "prompt-recipe-reusable-storyboard-sheet-a0e197c5",
+              "prompt-recipe-reusable-storyboard-sheet-a5a3af7e",
+              "prompt-recipe-reusable-storyboard-sheet-a85648dd",
+              "prompt-recipe-reusable-storyboard-sheet-a862e06f",
+              "prompt-recipe-reusable-storyboard-sheet-aa2e16c5",
+              "prompt-recipe-reusable-storyboard-sheet-b0779423",
+              "prompt-recipe-reusable-storyboard-sheet-b636f970",
+              "prompt-recipe-reusable-storyboard-sheet-b72726ca",
+              "prompt-recipe-reusable-storyboard-sheet-b76027bc",
+              "prompt-recipe-reusable-storyboard-sheet-bcca1ecf",
+              "prompt-recipe-reusable-storyboard-sheet-c00461d6",
+              "prompt-recipe-reusable-storyboard-sheet-c243794a",
+              "prompt-recipe-reusable-storyboard-sheet-cae8e33a",
+              "prompt-recipe-reusable-storyboard-sheet-cf4ec78e",
+              "prompt-recipe-reusable-storyboard-sheet-d4af1860",
+              "prompt-recipe-reusable-storyboard-sheet-d630376f",
+              "prompt-recipe-reusable-storyboard-sheet-d7080d1e",
+              "prompt-recipe-reusable-storyboard-sheet-d834b4d3",
+              "prompt-recipe-reusable-storyboard-sheet-d9d6c8ca",
+              "prompt-recipe-reusable-storyboard-sheet-e0479b34",
+              "prompt-recipe-reusable-storyboard-sheet-e1d15a84",
+              "prompt-recipe-reusable-storyboard-sheet-e557c145",
+              "prompt-recipe-reusable-storyboard-sheet-ebf0155f",
+              "prompt-recipe-reusable-storyboard-sheet-ec6f7421",
+              "prompt-recipe-reusable-storyboard-sheet-ed34d36a",
+              "prompt-recipe-reusable-storyboard-sheet-ef2469f8",
+              "prompt-recipe-reusable-storyboard-sheet-efc9cdca",
+              "prompt-recipe-reusable-storyboard-sheet-f2746c5f",
+              "prompt-recipe-reusable-storyboard-sheet-f340fd86",
+              "prompt-recipe-reusable-storyboard-sheet-f6c09fa2",
+              "prompt-recipe-reusable-storyboard-sheet-fb76c856",
+              "prompt-recipe-reusable-storyboard-sheet-fc508e1e",
+              "recipe_462252e5ad4e",
+              "recipe_52a8e47ebbfb",
+              "recipe_abc5f5e51689",
+              "recipe_ef6a24b6e98f"
+            ]
+          }
+        },
+        {
+          "id": "additional_direction",
+          "label": "Additional direction",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_a9508180eef3"
+            ]
+          }
+        },
+        {
+          "id": "age",
+          "label": "Age",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_245bdf02a10c",
+              "recipe_792c82b7acf3"
+            ]
+          }
+        },
+        {
+          "id": "avoid",
+          "label": "Avoid",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_a9508180eef3"
+            ]
+          }
+        },
+        {
+          "id": "background_mode",
+          "label": "Background Mode",
+          "options": [
+            "cinematic_dark_ui",
+            "clean_white_reference"
+          ],
+          "type": "select",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_245bdf02a10c"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "beacon_message",
+          "label": "Beacon Message",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_a134e1526908"
+            ]
+          }
+        },
+        {
+          "id": "board_title",
+          "label": "Board Title",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
+              "recipe_8cd171292b6d"
+            ]
+          }
+        },
+        {
+          "id": "camera_1",
+          "label": "Camera 1 \u2014 Hero Entrance",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_06978904d1db"
+            ]
+          }
+        },
+        {
+          "id": "camera_2",
+          "label": "Camera 2 \u2014 Reverse Geography",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_06978904d1db"
+            ]
+          }
+        },
+        {
+          "id": "camera_3",
+          "label": "Camera 3 \u2014 Lateral Detail",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_06978904d1db"
+            ]
+          }
+        },
+        {
+          "id": "camera_4",
+          "label": "Camera 4 \u2014 High Wide",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_06978904d1db"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "camera_preferences",
+          "label": "Camera preferences",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "camera_view",
+          "label": "Camera View",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-environment-plate-v1",
+              "recipe_6d5acf4d6142"
+            ]
+          }
+        },
+        {
+          "id": "character_description",
+          "label": "Character description",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_a9508180eef3"
+            ]
+          }
+        },
+        {
+          "id": "character_name",
+          "label": "Character Name",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_245bdf02a10c",
+              "recipe_792c82b7acf3"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "characters",
+          "label": "Characters",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_ac1169126e6e",
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "city_or_region",
+          "label": "City or Region",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_e97a092299da"
+            ]
+          }
+        },
+        {
+          "id": "continuity_anchors",
+          "label": "Continuity Anchors",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_06978904d1db",
+              "recipe_6d5acf4d6142"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "continuity_details",
+          "label": "Continuity details",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "country",
+          "label": "Country",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_e97a092299da"
+            ]
+          }
+        },
+        {
+          "id": "creative_brief",
+          "label": "Creative Brief",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-reusable-storyboard-sheet-00976e8e",
+              "prompt-recipe-reusable-storyboard-sheet-03232c18",
+              "prompt-recipe-reusable-storyboard-sheet-088082c9",
+              "prompt-recipe-reusable-storyboard-sheet-09a3789d",
+              "prompt-recipe-reusable-storyboard-sheet-0e11d89d",
+              "prompt-recipe-reusable-storyboard-sheet-1401107b",
+              "prompt-recipe-reusable-storyboard-sheet-1422df3a",
+              "prompt-recipe-reusable-storyboard-sheet-190e4520",
+              "prompt-recipe-reusable-storyboard-sheet-1925b642",
+              "prompt-recipe-reusable-storyboard-sheet-1bc78474",
+              "prompt-recipe-reusable-storyboard-sheet-20b9e846",
+              "prompt-recipe-reusable-storyboard-sheet-25a7a4f9",
+              "prompt-recipe-reusable-storyboard-sheet-29b58abe",
+              "prompt-recipe-reusable-storyboard-sheet-2b1d56a2",
+              "prompt-recipe-reusable-storyboard-sheet-321ae9d0",
+              "prompt-recipe-reusable-storyboard-sheet-37e94ceb",
+              "prompt-recipe-reusable-storyboard-sheet-380f075d",
+              "prompt-recipe-reusable-storyboard-sheet-38c46cba",
+              "prompt-recipe-reusable-storyboard-sheet-3b0eb496",
+              "prompt-recipe-reusable-storyboard-sheet-450f388a",
+              "prompt-recipe-reusable-storyboard-sheet-46ae1c06",
+              "prompt-recipe-reusable-storyboard-sheet-482a0fbb",
+              "prompt-recipe-reusable-storyboard-sheet-4a6015cf",
+              "prompt-recipe-reusable-storyboard-sheet-4a877b71",
+              "prompt-recipe-reusable-storyboard-sheet-52904bd2",
+              "prompt-recipe-reusable-storyboard-sheet-5925fc55",
+              "prompt-recipe-reusable-storyboard-sheet-644b0571",
+              "prompt-recipe-reusable-storyboard-sheet-64c07e9a",
+              "prompt-recipe-reusable-storyboard-sheet-6761c611",
+              "prompt-recipe-reusable-storyboard-sheet-68cb9472",
+              "prompt-recipe-reusable-storyboard-sheet-6f3624b2",
+              "prompt-recipe-reusable-storyboard-sheet-70b3ec15",
+              "prompt-recipe-reusable-storyboard-sheet-70f2684a",
+              "prompt-recipe-reusable-storyboard-sheet-7351530e",
+              "prompt-recipe-reusable-storyboard-sheet-7878d2c5",
+              "prompt-recipe-reusable-storyboard-sheet-8126f11d",
+              "prompt-recipe-reusable-storyboard-sheet-82468fc3",
+              "prompt-recipe-reusable-storyboard-sheet-83ed866f",
+              "prompt-recipe-reusable-storyboard-sheet-841baa45",
+              "prompt-recipe-reusable-storyboard-sheet-87607841",
+              "prompt-recipe-reusable-storyboard-sheet-8965f993",
+              "prompt-recipe-reusable-storyboard-sheet-8979c17c",
+              "prompt-recipe-reusable-storyboard-sheet-8c43ff27",
+              "prompt-recipe-reusable-storyboard-sheet-8d1bc709",
+              "prompt-recipe-reusable-storyboard-sheet-8f30d83c",
+              "prompt-recipe-reusable-storyboard-sheet-91676281",
+              "prompt-recipe-reusable-storyboard-sheet-97132b2e",
+              "prompt-recipe-reusable-storyboard-sheet-980dc23c",
+              "prompt-recipe-reusable-storyboard-sheet-99fa249d",
+              "prompt-recipe-reusable-storyboard-sheet-9ba9ffc7",
+              "prompt-recipe-reusable-storyboard-sheet-a04700d6",
+              "prompt-recipe-reusable-storyboard-sheet-a0e197c5",
+              "prompt-recipe-reusable-storyboard-sheet-a5a3af7e",
+              "prompt-recipe-reusable-storyboard-sheet-a85648dd",
+              "prompt-recipe-reusable-storyboard-sheet-a862e06f",
+              "prompt-recipe-reusable-storyboard-sheet-aa2e16c5",
+              "prompt-recipe-reusable-storyboard-sheet-b0779423",
+              "prompt-recipe-reusable-storyboard-sheet-b636f970",
+              "prompt-recipe-reusable-storyboard-sheet-b72726ca",
+              "prompt-recipe-reusable-storyboard-sheet-b76027bc",
+              "prompt-recipe-reusable-storyboard-sheet-bcca1ecf",
+              "prompt-recipe-reusable-storyboard-sheet-c00461d6",
+              "prompt-recipe-reusable-storyboard-sheet-c243794a",
+              "prompt-recipe-reusable-storyboard-sheet-cae8e33a",
+              "prompt-recipe-reusable-storyboard-sheet-cf4ec78e",
+              "prompt-recipe-reusable-storyboard-sheet-d4af1860",
+              "prompt-recipe-reusable-storyboard-sheet-d630376f",
+              "prompt-recipe-reusable-storyboard-sheet-d7080d1e",
+              "prompt-recipe-reusable-storyboard-sheet-d834b4d3",
+              "prompt-recipe-reusable-storyboard-sheet-d9d6c8ca",
+              "prompt-recipe-reusable-storyboard-sheet-e0479b34",
+              "prompt-recipe-reusable-storyboard-sheet-e1d15a84",
+              "prompt-recipe-reusable-storyboard-sheet-e4889ddf",
+              "prompt-recipe-reusable-storyboard-sheet-e557c145",
+              "prompt-recipe-reusable-storyboard-sheet-ebf0155f",
+              "prompt-recipe-reusable-storyboard-sheet-ec6f7421",
+              "prompt-recipe-reusable-storyboard-sheet-ed34d36a",
+              "prompt-recipe-reusable-storyboard-sheet-ef2469f8",
+              "prompt-recipe-reusable-storyboard-sheet-efc9cdca",
+              "prompt-recipe-reusable-storyboard-sheet-f2746c5f",
+              "prompt-recipe-reusable-storyboard-sheet-f340fd86",
+              "prompt-recipe-reusable-storyboard-sheet-f6c09fa2",
+              "prompt-recipe-reusable-storyboard-sheet-fb76c856",
+              "prompt-recipe-reusable-storyboard-sheet-fc508e1e"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "destination",
+          "label": "Destination",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_fa4db50f10ce"
+            ]
+          }
+        },
+        {
+          "id": "destination_name",
+          "label": "Destination Name",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_8f5e225bb7a8"
+            ]
+          }
+        },
+        {
+          "id": "dialogue_cues",
+          "label": "Dialogue Cues",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
+              "recipe_8cd171292b6d"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "emotional_tone",
+          "label": "Emotional Tone",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_a134e1526908"
+            ]
+          }
+        },
+        {
+          "id": "environment_name",
+          "label": "Environment Name",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-environment-plate-v1",
+              "prompt-recipe-environment-sheet-v1",
+              "recipe_06978904d1db"
+            ]
+          }
+        },
+        {
+          "id": "environment_type",
+          "label": "Environment Type",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-environment-plate-v1",
+              "prompt-recipe-environment-sheet-v1"
+            ]
+          }
+        },
+        {
+          "id": "food_item",
+          "label": "Food Item",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-food-storyboard-host-v1"
+            ]
+          }
+        },
+        {
+          "id": "frame_count",
+          "label": "Frame Count",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-food-storyboard-host-v1",
+              "prompt-recipe-reusable-storyboard-sheet-00976e8e",
+              "prompt-recipe-reusable-storyboard-sheet-03232c18",
+              "prompt-recipe-reusable-storyboard-sheet-088082c9",
+              "prompt-recipe-reusable-storyboard-sheet-09a3789d",
+              "prompt-recipe-reusable-storyboard-sheet-0e11d89d",
+              "prompt-recipe-reusable-storyboard-sheet-1401107b",
+              "prompt-recipe-reusable-storyboard-sheet-1422df3a",
+              "prompt-recipe-reusable-storyboard-sheet-190e4520",
+              "prompt-recipe-reusable-storyboard-sheet-1925b642",
+              "prompt-recipe-reusable-storyboard-sheet-1bc78474",
+              "prompt-recipe-reusable-storyboard-sheet-20b9e846",
+              "prompt-recipe-reusable-storyboard-sheet-25a7a4f9",
+              "prompt-recipe-reusable-storyboard-sheet-29b58abe",
+              "prompt-recipe-reusable-storyboard-sheet-2b1d56a2",
+              "prompt-recipe-reusable-storyboard-sheet-321ae9d0",
+              "prompt-recipe-reusable-storyboard-sheet-37e94ceb",
+              "prompt-recipe-reusable-storyboard-sheet-380f075d",
+              "prompt-recipe-reusable-storyboard-sheet-38c46cba",
+              "prompt-recipe-reusable-storyboard-sheet-3b0eb496",
+              "prompt-recipe-reusable-storyboard-sheet-450f388a",
+              "prompt-recipe-reusable-storyboard-sheet-46ae1c06",
+              "prompt-recipe-reusable-storyboard-sheet-482a0fbb",
+              "prompt-recipe-reusable-storyboard-sheet-4a6015cf",
+              "prompt-recipe-reusable-storyboard-sheet-4a877b71",
+              "prompt-recipe-reusable-storyboard-sheet-52904bd2",
+              "prompt-recipe-reusable-storyboard-sheet-5925fc55",
+              "prompt-recipe-reusable-storyboard-sheet-644b0571",
+              "prompt-recipe-reusable-storyboard-sheet-64c07e9a",
+              "prompt-recipe-reusable-storyboard-sheet-6761c611",
+              "prompt-recipe-reusable-storyboard-sheet-68cb9472",
+              "prompt-recipe-reusable-storyboard-sheet-6f3624b2",
+              "prompt-recipe-reusable-storyboard-sheet-70b3ec15",
+              "prompt-recipe-reusable-storyboard-sheet-70f2684a",
+              "prompt-recipe-reusable-storyboard-sheet-7351530e",
+              "prompt-recipe-reusable-storyboard-sheet-7878d2c5",
+              "prompt-recipe-reusable-storyboard-sheet-8126f11d",
+              "prompt-recipe-reusable-storyboard-sheet-82468fc3",
+              "prompt-recipe-reusable-storyboard-sheet-83ed866f",
+              "prompt-recipe-reusable-storyboard-sheet-841baa45",
+              "prompt-recipe-reusable-storyboard-sheet-87607841",
+              "prompt-recipe-reusable-storyboard-sheet-8965f993",
+              "prompt-recipe-reusable-storyboard-sheet-8979c17c",
+              "prompt-recipe-reusable-storyboard-sheet-8c43ff27",
+              "prompt-recipe-reusable-storyboard-sheet-8d1bc709",
+              "prompt-recipe-reusable-storyboard-sheet-8f30d83c",
+              "prompt-recipe-reusable-storyboard-sheet-91676281",
+              "prompt-recipe-reusable-storyboard-sheet-97132b2e",
+              "prompt-recipe-reusable-storyboard-sheet-980dc23c",
+              "prompt-recipe-reusable-storyboard-sheet-99fa249d",
+              "prompt-recipe-reusable-storyboard-sheet-9ba9ffc7",
+              "prompt-recipe-reusable-storyboard-sheet-a04700d6",
+              "prompt-recipe-reusable-storyboard-sheet-a0e197c5",
+              "prompt-recipe-reusable-storyboard-sheet-a5a3af7e",
+              "prompt-recipe-reusable-storyboard-sheet-a85648dd",
+              "prompt-recipe-reusable-storyboard-sheet-a862e06f",
+              "prompt-recipe-reusable-storyboard-sheet-aa2e16c5",
+              "prompt-recipe-reusable-storyboard-sheet-b0779423",
+              "prompt-recipe-reusable-storyboard-sheet-b636f970",
+              "prompt-recipe-reusable-storyboard-sheet-b72726ca",
+              "prompt-recipe-reusable-storyboard-sheet-b76027bc",
+              "prompt-recipe-reusable-storyboard-sheet-bcca1ecf",
+              "prompt-recipe-reusable-storyboard-sheet-c00461d6",
+              "prompt-recipe-reusable-storyboard-sheet-c243794a",
+              "prompt-recipe-reusable-storyboard-sheet-cae8e33a",
+              "prompt-recipe-reusable-storyboard-sheet-cf4ec78e",
+              "prompt-recipe-reusable-storyboard-sheet-d4af1860",
+              "prompt-recipe-reusable-storyboard-sheet-d630376f",
+              "prompt-recipe-reusable-storyboard-sheet-d7080d1e",
+              "prompt-recipe-reusable-storyboard-sheet-d834b4d3",
+              "prompt-recipe-reusable-storyboard-sheet-d9d6c8ca",
+              "prompt-recipe-reusable-storyboard-sheet-e0479b34",
+              "prompt-recipe-reusable-storyboard-sheet-e1d15a84",
+              "prompt-recipe-reusable-storyboard-sheet-e4889ddf",
+              "prompt-recipe-reusable-storyboard-sheet-e557c145",
+              "prompt-recipe-reusable-storyboard-sheet-ebf0155f",
+              "prompt-recipe-reusable-storyboard-sheet-ec6f7421",
+              "prompt-recipe-reusable-storyboard-sheet-ed34d36a",
+              "prompt-recipe-reusable-storyboard-sheet-ef2469f8",
+              "prompt-recipe-reusable-storyboard-sheet-efc9cdca",
+              "prompt-recipe-reusable-storyboard-sheet-f2746c5f",
+              "prompt-recipe-reusable-storyboard-sheet-f340fd86",
+              "prompt-recipe-reusable-storyboard-sheet-f6c09fa2",
+              "prompt-recipe-reusable-storyboard-sheet-fb76c856",
+              "prompt-recipe-reusable-storyboard-sheet-fc508e1e"
+            ]
+          }
+        },
+        {
+          "id": "genre_world",
+          "label": "Genre / World",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_6d5acf4d6142"
+            ]
+          }
+        },
+        {
+          "id": "handoff_advance",
+          "label": "Handoff Advance",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1"
+            ]
+          }
+        },
+        {
+          "id": "header_metadata",
+          "label": "Header Metadata",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_21fd5f0ca11c"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "key_action_dialogue",
+          "label": "Key action or dialogue",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "key_materials",
+          "label": "Key Materials",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_6d5acf4d6142"
+            ]
+          }
+        },
+        {
+          "id": "key_zones",
+          "label": "Key Zones",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-environment-sheet-v1"
+            ]
+          }
+        },
+        {
+          "id": "layout_mode",
+          "label": "Layout Mode",
+          "options": [
+            "reference_matched",
+            "production_sheet",
+            "simple_storyboard"
+          ],
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-environment-sheet-v1",
+              "recipe_21fd5f0ca11c"
+            ]
+          }
+        },
+        {
+          "id": "layout_notes",
+          "label": "Layout Notes",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_462252e5ad4e",
+              "recipe_52a8e47ebbfb",
+              "recipe_abc5f5e51689",
+              "recipe_ef6a24b6e98f"
+            ]
+          }
+        },
+        {
+          "id": "lighting_atmosphere",
+          "label": "Lighting + Atmosphere Lock",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_06978904d1db"
+            ]
+          }
+        },
+        {
+          "id": "lighting_weather",
+          "label": "Lighting / Weather",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_6d5acf4d6142"
+            ]
+          }
+        },
+        {
+          "id": "lighting_style",
+          "label": "Lighting Style",
+          "options": [
+            "Studio Softbox",
+            "Golden Hour",
+            "Dramatic Rim"
+          ],
+          "type": "select",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_b6a96fddaaad"
+            ]
+          }
+        },
+        {
+          "id": "location_name",
+          "label": "Location Name",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_6d5acf4d6142"
+            ]
+          }
+        },
+        {
+          "id": "location_type",
+          "label": "Location Type",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_6d5acf4d6142"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "mood",
+          "label": "Mood",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_ac1169126e6e",
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "mood_lighting",
+          "label": "Mood / Lighting",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-environment-plate-v1",
+              "prompt-recipe-environment-sheet-v1"
+            ]
+          }
+        },
+        {
+          "id": "palette_mood",
+          "label": "Palette Mood",
+          "options": [
+            "Muted Heritage",
+            "Bright Postcard",
+            "Sepia Archive"
+          ],
+          "type": "select",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_8f5e225bb7a8"
+            ]
+          }
+        },
+        {
+          "id": "panel_notes_cues",
+          "label": "Panel Notes Cues",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
+              "recipe_8cd171292b6d"
+            ]
+          }
+        },
+        {
+          "id": "population",
+          "label": "Population",
+          "options": [
+            "empty environment; no people or creatures",
+            "one distant scale figure only",
+            "light background population"
+          ],
+          "type": "select",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_06978904d1db",
+              "recipe_6d5acf4d6142"
+            ]
+          }
+        },
+        {
+          "id": "product_name",
+          "label": "Product Name",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_1bd982c36019",
+              "recipe_977619170aa2",
+              "recipe_af5efdccb8c2"
+            ]
+          }
+        },
+        {
+          "id": "production_metadata",
+          "label": "Production Metadata",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
+              "recipe_8cd171292b6d"
+            ]
+          }
+        },
+        {
+          "id": "props_and_frozen_elements",
+          "label": "Props / Frozen Elements",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_21fd5f0ca11c",
+              "recipe_91c45c12f52c"
+            ]
+          }
+        },
+        {
+          "id": "reference_layout",
+          "label": "Reference Layout",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-seedance-storyboard-video-director-v1"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "scene_description",
+          "label": "Scene Description",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_a134e1526908"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "setting",
+          "label": "Setting",
+          "port_type": "image",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_196d0a791874",
+              "recipe_21fd5f0ca11c",
+              "recipe_5a0fed4bdcae",
+              "recipe_7e5438fef094",
+              "recipe_91c45c12f52c",
+              "recipe_ac1169126e6e",
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "signpost_places",
+          "label": "Signpost Places",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_fa4db50f10ce"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "story_beat",
+          "label": "Story Beat",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_ac1169126e6e"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "story_brief",
+          "label": "Story Brief",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_7e5438fef094"
+            ]
+          }
+        },
+        {
+          "id": "storyboard_title",
+          "label": "Storyboard Title",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-food-storyboard-host-v1"
+            ]
+          }
+        },
+        {
+          "id": "subject_design_cues",
+          "label": "Subject Design Cues",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
+              "recipe_8cd171292b6d"
+            ]
+          }
+        },
+        {
+          "id": "subject_or_food_item",
+          "label": "Subject or Food Item",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-reusable-storyboard-sheet-00976e8e",
+              "prompt-recipe-reusable-storyboard-sheet-03232c18",
+              "prompt-recipe-reusable-storyboard-sheet-088082c9",
+              "prompt-recipe-reusable-storyboard-sheet-09a3789d",
+              "prompt-recipe-reusable-storyboard-sheet-0e11d89d",
+              "prompt-recipe-reusable-storyboard-sheet-1401107b",
+              "prompt-recipe-reusable-storyboard-sheet-1422df3a",
+              "prompt-recipe-reusable-storyboard-sheet-190e4520",
+              "prompt-recipe-reusable-storyboard-sheet-1925b642",
+              "prompt-recipe-reusable-storyboard-sheet-1bc78474",
+              "prompt-recipe-reusable-storyboard-sheet-20b9e846",
+              "prompt-recipe-reusable-storyboard-sheet-25a7a4f9",
+              "prompt-recipe-reusable-storyboard-sheet-29b58abe",
+              "prompt-recipe-reusable-storyboard-sheet-2b1d56a2",
+              "prompt-recipe-reusable-storyboard-sheet-321ae9d0",
+              "prompt-recipe-reusable-storyboard-sheet-37e94ceb",
+              "prompt-recipe-reusable-storyboard-sheet-380f075d",
+              "prompt-recipe-reusable-storyboard-sheet-38c46cba",
+              "prompt-recipe-reusable-storyboard-sheet-3b0eb496",
+              "prompt-recipe-reusable-storyboard-sheet-450f388a",
+              "prompt-recipe-reusable-storyboard-sheet-46ae1c06",
+              "prompt-recipe-reusable-storyboard-sheet-482a0fbb",
+              "prompt-recipe-reusable-storyboard-sheet-4a6015cf",
+              "prompt-recipe-reusable-storyboard-sheet-4a877b71",
+              "prompt-recipe-reusable-storyboard-sheet-52904bd2",
+              "prompt-recipe-reusable-storyboard-sheet-5925fc55",
+              "prompt-recipe-reusable-storyboard-sheet-644b0571",
+              "prompt-recipe-reusable-storyboard-sheet-64c07e9a",
+              "prompt-recipe-reusable-storyboard-sheet-6761c611",
+              "prompt-recipe-reusable-storyboard-sheet-68cb9472",
+              "prompt-recipe-reusable-storyboard-sheet-6f3624b2",
+              "prompt-recipe-reusable-storyboard-sheet-70b3ec15",
+              "prompt-recipe-reusable-storyboard-sheet-70f2684a",
+              "prompt-recipe-reusable-storyboard-sheet-7351530e",
+              "prompt-recipe-reusable-storyboard-sheet-7878d2c5",
+              "prompt-recipe-reusable-storyboard-sheet-8126f11d",
+              "prompt-recipe-reusable-storyboard-sheet-82468fc3",
+              "prompt-recipe-reusable-storyboard-sheet-83ed866f",
+              "prompt-recipe-reusable-storyboard-sheet-841baa45",
+              "prompt-recipe-reusable-storyboard-sheet-87607841",
+              "prompt-recipe-reusable-storyboard-sheet-8965f993",
+              "prompt-recipe-reusable-storyboard-sheet-8979c17c",
+              "prompt-recipe-reusable-storyboard-sheet-8c43ff27",
+              "prompt-recipe-reusable-storyboard-sheet-8d1bc709",
+              "prompt-recipe-reusable-storyboard-sheet-8f30d83c",
+              "prompt-recipe-reusable-storyboard-sheet-91676281",
+              "prompt-recipe-reusable-storyboard-sheet-97132b2e",
+              "prompt-recipe-reusable-storyboard-sheet-980dc23c",
+              "prompt-recipe-reusable-storyboard-sheet-99fa249d",
+              "prompt-recipe-reusable-storyboard-sheet-9ba9ffc7",
+              "prompt-recipe-reusable-storyboard-sheet-a04700d6",
+              "prompt-recipe-reusable-storyboard-sheet-a0e197c5",
+              "prompt-recipe-reusable-storyboard-sheet-a5a3af7e",
+              "prompt-recipe-reusable-storyboard-sheet-a85648dd",
+              "prompt-recipe-reusable-storyboard-sheet-a862e06f",
+              "prompt-recipe-reusable-storyboard-sheet-aa2e16c5",
+              "prompt-recipe-reusable-storyboard-sheet-b0779423",
+              "prompt-recipe-reusable-storyboard-sheet-b40337",
+              "prompt-recipe-reusable-storyboard-sheet-b636f970",
+              "prompt-recipe-reusable-storyboard-sheet-b72726ca",
+              "prompt-recipe-reusable-storyboard-sheet-b76027bc",
+              "prompt-recipe-reusable-storyboard-sheet-bcca1ecf",
+              "prompt-recipe-reusable-storyboard-sheet-c00461d6",
+              "prompt-recipe-reusable-storyboard-sheet-c243794a",
+              "prompt-recipe-reusable-storyboard-sheet-cae8e33a",
+              "prompt-recipe-reusable-storyboard-sheet-cf4ec78e",
+              "prompt-recipe-reusable-storyboard-sheet-d4af1860",
+              "prompt-recipe-reusable-storyboard-sheet-d630376f",
+              "prompt-recipe-reusable-storyboard-sheet-d7080d1e",
+              "prompt-recipe-reusable-storyboard-sheet-d834b4d3",
+              "prompt-recipe-reusable-storyboard-sheet-d9d6c8ca",
+              "prompt-recipe-reusable-storyboard-sheet-e0479b34",
+              "prompt-recipe-reusable-storyboard-sheet-e1d15a84",
+              "prompt-recipe-reusable-storyboard-sheet-e4889ddf",
+              "prompt-recipe-reusable-storyboard-sheet-e557c145",
+              "prompt-recipe-reusable-storyboard-sheet-ebf0155f",
+              "prompt-recipe-reusable-storyboard-sheet-ec6f7421",
+              "prompt-recipe-reusable-storyboard-sheet-ed34d36a",
+              "prompt-recipe-reusable-storyboard-sheet-ef2469f8",
+              "prompt-recipe-reusable-storyboard-sheet-efc9cdca",
+              "prompt-recipe-reusable-storyboard-sheet-f2746c5f",
+              "prompt-recipe-reusable-storyboard-sheet-f340fd86",
+              "prompt-recipe-reusable-storyboard-sheet-f6c09fa2",
+              "prompt-recipe-reusable-storyboard-sheet-fb76c856",
+              "prompt-recipe-reusable-storyboard-sheet-fc508e1e"
+            ]
+          }
+        },
+        {
+          "id": "supporting_reference_sections",
+          "label": "Supporting Reference Sections",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_21fd5f0ca11c"
+            ]
+          }
+        },
+        {
+          "id": "surface_condition",
+          "label": "Surface Condition",
+          "options": [
+            "dry matte surfaces",
+            "natural untreated surfaces",
+            "weathered but dry surfaces",
+            "wet surfaces explicitly requested",
+            "use the location brief"
+          ],
+          "type": "select",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_6d5acf4d6142"
+            ]
+          }
+        },
+        {
+          "id": "surface_state",
+          "label": "Surface State",
+          "options": [
+            "dry, matte, naturally worn surfaces",
+            "clean, dry, maintained surfaces",
+            "lightly damp surfaces",
+            "weathered exterior surfaces"
+          ],
+          "type": "select",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_06978904d1db"
+            ]
+          }
+        },
+        {
+          "id": "time_freeze_event",
+          "label": "Time Freeze Event",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_21fd5f0ca11c",
+              "recipe_91c45c12f52c"
+            ]
+          }
+        },
+        {
+          "id": "tone_style",
+          "label": "Tone / Style",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_21fd5f0ca11c",
+              "recipe_91c45c12f52c"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "travel_tagline",
+          "label": "Travel Tagline",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_fa4db50f10ce"
+            ]
+          }
+        },
+        {
+          "id": "variant_label",
+          "label": "Variant Label",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_245bdf02a10c"
+            ]
+          }
+        },
+        {
+          "id": "vfx_or_state_variants",
+          "label": "VFX / State Variants",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-environment-sheet-v1"
+            ]
+          }
+        },
+        {
+          "id": "video_length_seconds",
+          "label": "Video Length Seconds",
+          "type": "number",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-reusable-storyboard-sheet-00976e8e",
+              "prompt-recipe-reusable-storyboard-sheet-03232c18",
+              "prompt-recipe-reusable-storyboard-sheet-088082c9",
+              "prompt-recipe-reusable-storyboard-sheet-09a3789d",
+              "prompt-recipe-reusable-storyboard-sheet-0e11d89d",
+              "prompt-recipe-reusable-storyboard-sheet-1401107b",
+              "prompt-recipe-reusable-storyboard-sheet-1422df3a",
+              "prompt-recipe-reusable-storyboard-sheet-190e4520",
+              "prompt-recipe-reusable-storyboard-sheet-1925b642",
+              "prompt-recipe-reusable-storyboard-sheet-1bc78474",
+              "prompt-recipe-reusable-storyboard-sheet-20b9e846",
+              "prompt-recipe-reusable-storyboard-sheet-25a7a4f9",
+              "prompt-recipe-reusable-storyboard-sheet-29b58abe",
+              "prompt-recipe-reusable-storyboard-sheet-2b1d56a2",
+              "prompt-recipe-reusable-storyboard-sheet-321ae9d0",
+              "prompt-recipe-reusable-storyboard-sheet-37e94ceb",
+              "prompt-recipe-reusable-storyboard-sheet-380f075d",
+              "prompt-recipe-reusable-storyboard-sheet-38c46cba",
+              "prompt-recipe-reusable-storyboard-sheet-3b0eb496",
+              "prompt-recipe-reusable-storyboard-sheet-450f388a",
+              "prompt-recipe-reusable-storyboard-sheet-46ae1c06",
+              "prompt-recipe-reusable-storyboard-sheet-482a0fbb",
+              "prompt-recipe-reusable-storyboard-sheet-4a6015cf",
+              "prompt-recipe-reusable-storyboard-sheet-4a877b71",
+              "prompt-recipe-reusable-storyboard-sheet-52904bd2",
+              "prompt-recipe-reusable-storyboard-sheet-5925fc55",
+              "prompt-recipe-reusable-storyboard-sheet-644b0571",
+              "prompt-recipe-reusable-storyboard-sheet-64c07e9a",
+              "prompt-recipe-reusable-storyboard-sheet-6761c611",
+              "prompt-recipe-reusable-storyboard-sheet-68cb9472",
+              "prompt-recipe-reusable-storyboard-sheet-6f3624b2",
+              "prompt-recipe-reusable-storyboard-sheet-70b3ec15",
+              "prompt-recipe-reusable-storyboard-sheet-70f2684a",
+              "prompt-recipe-reusable-storyboard-sheet-7351530e",
+              "prompt-recipe-reusable-storyboard-sheet-7878d2c5",
+              "prompt-recipe-reusable-storyboard-sheet-8126f11d",
+              "prompt-recipe-reusable-storyboard-sheet-82468fc3",
+              "prompt-recipe-reusable-storyboard-sheet-83ed866f",
+              "prompt-recipe-reusable-storyboard-sheet-841baa45",
+              "prompt-recipe-reusable-storyboard-sheet-87607841",
+              "prompt-recipe-reusable-storyboard-sheet-8965f993",
+              "prompt-recipe-reusable-storyboard-sheet-8979c17c",
+              "prompt-recipe-reusable-storyboard-sheet-8c43ff27",
+              "prompt-recipe-reusable-storyboard-sheet-8d1bc709",
+              "prompt-recipe-reusable-storyboard-sheet-8f30d83c",
+              "prompt-recipe-reusable-storyboard-sheet-91676281",
+              "prompt-recipe-reusable-storyboard-sheet-97132b2e",
+              "prompt-recipe-reusable-storyboard-sheet-980dc23c",
+              "prompt-recipe-reusable-storyboard-sheet-99fa249d",
+              "prompt-recipe-reusable-storyboard-sheet-9ba9ffc7",
+              "prompt-recipe-reusable-storyboard-sheet-a04700d6",
+              "prompt-recipe-reusable-storyboard-sheet-a0e197c5",
+              "prompt-recipe-reusable-storyboard-sheet-a5a3af7e",
+              "prompt-recipe-reusable-storyboard-sheet-a85648dd",
+              "prompt-recipe-reusable-storyboard-sheet-a862e06f",
+              "prompt-recipe-reusable-storyboard-sheet-aa2e16c5",
+              "prompt-recipe-reusable-storyboard-sheet-b0779423",
+              "prompt-recipe-reusable-storyboard-sheet-b636f970",
+              "prompt-recipe-reusable-storyboard-sheet-b72726ca",
+              "prompt-recipe-reusable-storyboard-sheet-b76027bc",
+              "prompt-recipe-reusable-storyboard-sheet-bcca1ecf",
+              "prompt-recipe-reusable-storyboard-sheet-c00461d6",
+              "prompt-recipe-reusable-storyboard-sheet-c243794a",
+              "prompt-recipe-reusable-storyboard-sheet-cae8e33a",
+              "prompt-recipe-reusable-storyboard-sheet-cf4ec78e",
+              "prompt-recipe-reusable-storyboard-sheet-d4af1860",
+              "prompt-recipe-reusable-storyboard-sheet-d630376f",
+              "prompt-recipe-reusable-storyboard-sheet-d7080d1e",
+              "prompt-recipe-reusable-storyboard-sheet-d834b4d3",
+              "prompt-recipe-reusable-storyboard-sheet-d9d6c8ca",
+              "prompt-recipe-reusable-storyboard-sheet-e0479b34",
+              "prompt-recipe-reusable-storyboard-sheet-e1d15a84",
+              "prompt-recipe-reusable-storyboard-sheet-e4889ddf",
+              "prompt-recipe-reusable-storyboard-sheet-e557c145",
+              "prompt-recipe-reusable-storyboard-sheet-ebf0155f",
+              "prompt-recipe-reusable-storyboard-sheet-ec6f7421",
+              "prompt-recipe-reusable-storyboard-sheet-ed34d36a",
+              "prompt-recipe-reusable-storyboard-sheet-ef2469f8",
+              "prompt-recipe-reusable-storyboard-sheet-efc9cdca",
+              "prompt-recipe-reusable-storyboard-sheet-f2746c5f",
+              "prompt-recipe-reusable-storyboard-sheet-f340fd86",
+              "prompt-recipe-reusable-storyboard-sheet-f6c09fa2",
+              "prompt-recipe-reusable-storyboard-sheet-fb76c856",
+              "prompt-recipe-reusable-storyboard-sheet-fc508e1e"
+            ]
+          }
+        },
+        {
+          "id": "views_expressions",
+          "label": "Views and expressions",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_a9508180eef3"
+            ]
+          }
+        },
+        {
+          "id": "visible_writing",
+          "label": "Visible Writing",
+          "options": [
+            "no visible writing",
+            "only writing explicitly requested in the location brief",
+            "visible writing allowed"
+          ],
+          "type": "select",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_6d5acf4d6142"
+            ]
+          }
+        },
+        {
+          "connectable": true,
+          "id": "visual_style",
+          "label": "Visual style",
+          "port_type": "text",
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-food-storyboard-host-v1",
+              "recipe_1bd982c36019",
+              "recipe_977619170aa2",
+              "recipe_a9508180eef3",
+              "recipe_ac1169126e6e",
+              "recipe_af5efdccb8c2",
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "wardrobe_cues",
+          "label": "Wardrobe Cues",
+          "type": "textarea",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
+              "recipe_8cd171292b6d"
+            ]
+          }
+        },
+        {
           "advanced": true,
           "default": "studio_default",
           "id": "provider",
           "label": "Provider",
           "options": [
             {
-              "label": "Studio Default",
+              "label": "Prompt Enhance Default Model",
               "value": "studio_default"
             },
             {
@@ -535,14 +2416,123 @@
           "visible_if": {
             "field": "recipe_id",
             "in": [
-              "recipe_e5781e6d6e71",
-              "recipe_858fe4bb1ce2",
+              "prompt-recipe-environment-plate-v1",
+              "prompt-recipe-environment-sheet-v1",
+              "prompt-recipe-food-storyboard-host-v1",
+              "prompt-recipe-image-analysis-character-reference",
               "prompt-recipe-image-prompt-director",
+              "prompt-recipe-reusable-storyboard-sheet-00976e8e",
+              "prompt-recipe-reusable-storyboard-sheet-03232c18",
+              "prompt-recipe-reusable-storyboard-sheet-088082c9",
+              "prompt-recipe-reusable-storyboard-sheet-09a3789d",
+              "prompt-recipe-reusable-storyboard-sheet-0e11d89d",
+              "prompt-recipe-reusable-storyboard-sheet-1401107b",
+              "prompt-recipe-reusable-storyboard-sheet-1422df3a",
+              "prompt-recipe-reusable-storyboard-sheet-190e4520",
+              "prompt-recipe-reusable-storyboard-sheet-1925b642",
+              "prompt-recipe-reusable-storyboard-sheet-1bc78474",
+              "prompt-recipe-reusable-storyboard-sheet-20b9e846",
+              "prompt-recipe-reusable-storyboard-sheet-25a7a4f9",
+              "prompt-recipe-reusable-storyboard-sheet-29b58abe",
+              "prompt-recipe-reusable-storyboard-sheet-2b1d56a2",
+              "prompt-recipe-reusable-storyboard-sheet-321ae9d0",
+              "prompt-recipe-reusable-storyboard-sheet-37e94ceb",
+              "prompt-recipe-reusable-storyboard-sheet-380f075d",
+              "prompt-recipe-reusable-storyboard-sheet-38c46cba",
+              "prompt-recipe-reusable-storyboard-sheet-3b0eb496",
+              "prompt-recipe-reusable-storyboard-sheet-450f388a",
+              "prompt-recipe-reusable-storyboard-sheet-46ae1c06",
+              "prompt-recipe-reusable-storyboard-sheet-482a0fbb",
+              "prompt-recipe-reusable-storyboard-sheet-4a6015cf",
+              "prompt-recipe-reusable-storyboard-sheet-4a877b71",
+              "prompt-recipe-reusable-storyboard-sheet-52904bd2",
+              "prompt-recipe-reusable-storyboard-sheet-5925fc55",
+              "prompt-recipe-reusable-storyboard-sheet-644b0571",
+              "prompt-recipe-reusable-storyboard-sheet-64c07e9a",
+              "prompt-recipe-reusable-storyboard-sheet-6761c611",
+              "prompt-recipe-reusable-storyboard-sheet-68cb9472",
+              "prompt-recipe-reusable-storyboard-sheet-6f3624b2",
+              "prompt-recipe-reusable-storyboard-sheet-70b3ec15",
+              "prompt-recipe-reusable-storyboard-sheet-70f2684a",
+              "prompt-recipe-reusable-storyboard-sheet-7351530e",
+              "prompt-recipe-reusable-storyboard-sheet-7878d2c5",
+              "prompt-recipe-reusable-storyboard-sheet-8126f11d",
+              "prompt-recipe-reusable-storyboard-sheet-82468fc3",
+              "prompt-recipe-reusable-storyboard-sheet-83ed866f",
+              "prompt-recipe-reusable-storyboard-sheet-841baa45",
+              "prompt-recipe-reusable-storyboard-sheet-87607841",
+              "prompt-recipe-reusable-storyboard-sheet-8965f993",
+              "prompt-recipe-reusable-storyboard-sheet-8979c17c",
+              "prompt-recipe-reusable-storyboard-sheet-8c43ff27",
+              "prompt-recipe-reusable-storyboard-sheet-8d1bc709",
+              "prompt-recipe-reusable-storyboard-sheet-8f30d83c",
+              "prompt-recipe-reusable-storyboard-sheet-91676281",
+              "prompt-recipe-reusable-storyboard-sheet-97132b2e",
+              "prompt-recipe-reusable-storyboard-sheet-980dc23c",
+              "prompt-recipe-reusable-storyboard-sheet-99fa249d",
+              "prompt-recipe-reusable-storyboard-sheet-9ba9ffc7",
+              "prompt-recipe-reusable-storyboard-sheet-a04700d6",
+              "prompt-recipe-reusable-storyboard-sheet-a0e197c5",
+              "prompt-recipe-reusable-storyboard-sheet-a5a3af7e",
+              "prompt-recipe-reusable-storyboard-sheet-a85648dd",
+              "prompt-recipe-reusable-storyboard-sheet-a862e06f",
+              "prompt-recipe-reusable-storyboard-sheet-aa2e16c5",
+              "prompt-recipe-reusable-storyboard-sheet-b0779423",
+              "prompt-recipe-reusable-storyboard-sheet-b40337",
+              "prompt-recipe-reusable-storyboard-sheet-b636f970",
+              "prompt-recipe-reusable-storyboard-sheet-b72726ca",
+              "prompt-recipe-reusable-storyboard-sheet-b76027bc",
+              "prompt-recipe-reusable-storyboard-sheet-bcca1ecf",
+              "prompt-recipe-reusable-storyboard-sheet-c00461d6",
+              "prompt-recipe-reusable-storyboard-sheet-c243794a",
+              "prompt-recipe-reusable-storyboard-sheet-cae8e33a",
+              "prompt-recipe-reusable-storyboard-sheet-cf4ec78e",
+              "prompt-recipe-reusable-storyboard-sheet-d4af1860",
+              "prompt-recipe-reusable-storyboard-sheet-d630376f",
+              "prompt-recipe-reusable-storyboard-sheet-d7080d1e",
+              "prompt-recipe-reusable-storyboard-sheet-d834b4d3",
+              "prompt-recipe-reusable-storyboard-sheet-d9d6c8ca",
+              "prompt-recipe-reusable-storyboard-sheet-e0479b34",
+              "prompt-recipe-reusable-storyboard-sheet-e1d15a84",
+              "prompt-recipe-reusable-storyboard-sheet-e4889ddf",
+              "prompt-recipe-reusable-storyboard-sheet-e557c145",
+              "prompt-recipe-reusable-storyboard-sheet-ebf0155f",
+              "prompt-recipe-reusable-storyboard-sheet-ec6f7421",
+              "prompt-recipe-reusable-storyboard-sheet-ed34d36a",
+              "prompt-recipe-reusable-storyboard-sheet-ef2469f8",
+              "prompt-recipe-reusable-storyboard-sheet-efc9cdca",
+              "prompt-recipe-reusable-storyboard-sheet-f2746c5f",
+              "prompt-recipe-reusable-storyboard-sheet-f340fd86",
+              "prompt-recipe-reusable-storyboard-sheet-f6c09fa2",
+              "prompt-recipe-reusable-storyboard-sheet-fb76c856",
+              "prompt-recipe-reusable-storyboard-sheet-fc508e1e",
+              "prompt-recipe-seedance-storyboard-video-director-v1",
               "prompt-recipe-storyboard-director-3x3",
               "prompt-recipe-storyboard-shot-sequence-3x3",
-              "recipe_1d40e1b358f9",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
               "prompt-recipe-video-director-multi-shot-json",
-              "prompt-recipe-image-analysis-character-reference"
+              "recipe_196d0a791874",
+              "recipe_1bd982c36019",
+              "recipe_1d40e1b358f9",
+              "recipe_21fd5f0ca11c",
+              "recipe_2261cbb8c0b6",
+              "recipe_245bdf02a10c",
+              "recipe_462252e5ad4e",
+              "recipe_52a8e47ebbfb",
+              "recipe_5746f1b11753",
+              "recipe_5a0fed4bdcae",
+              "recipe_792c82b7acf3",
+              "recipe_858fe4bb1ce2",
+              "recipe_91c45c12f52c",
+              "recipe_977619170aa2",
+              "recipe_abc5f5e51689",
+              "recipe_ac3d54d1e564",
+              "recipe_af5efdccb8c2",
+              "recipe_c82a4598e1a2",
+              "recipe_d493f5ceacac",
+              "recipe_e5781e6d6e71",
+              "recipe_ee95aa113a0a",
+              "recipe_ef6a24b6e98f"
             ]
           }
         },
@@ -555,10 +2545,345 @@
             "field": "recipe_id",
             "in": [
               "prompt-recipe-image-prompt-director",
+              "prompt-recipe-prompt-shortener",
+              "prompt-recipe-seedance-storyboard-video-director-v1",
               "prompt-recipe-storyboard-director-3x3",
               "prompt-recipe-storyboard-shot-sequence-3x3",
-              "prompt-recipe-video-director-multi-shot-json",
-              "prompt-recipe-prompt-shortener"
+              "prompt-recipe-video-director-multi-shot-json"
+            ]
+          }
+        },
+        {
+          "id": "previous_output",
+          "label": "Previous Board Handoff",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-v2-gpt-image-2",
+              "recipe_5746f1b11753",
+              "recipe_ac3d54d1e564"
+            ]
+          }
+        },
+        {
+          "id": "previous_storyboard_prompt",
+          "label": "Previous Storyboard Prompt",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1"
+            ]
+          }
+        },
+        {
+          "id": "continuation_brief",
+          "label": "Continuation Brief",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1"
+            ]
+          }
+        },
+        {
+          "id": "aspect_ratio",
+          "label": "Aspect ratio",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "beacon_message",
+          "label": "Beacon Message",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_a134e1526908"
+            ]
+          }
+        },
+        {
+          "id": "camera_preferences",
+          "label": "Camera preferences",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "characters",
+          "label": "Characters",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_ac1169126e6e",
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "city_or_region",
+          "label": "City or Region",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_e97a092299da"
+            ]
+          }
+        },
+        {
+          "id": "continuity_details",
+          "label": "Continuity details",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "country",
+          "label": "Country",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_e97a092299da"
+            ]
+          }
+        },
+        {
+          "id": "destination",
+          "label": "Destination",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_fa4db50f10ce"
+            ]
+          }
+        },
+        {
+          "id": "emotional_tone",
+          "label": "Emotional Tone",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_a134e1526908"
+            ]
+          }
+        },
+        {
+          "id": "key_action_dialogue",
+          "label": "Key action or dialogue",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "mood",
+          "label": "Mood",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_ac1169126e6e",
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "scene_description",
+          "label": "Scene Description",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_a134e1526908"
+            ]
+          }
+        },
+        {
+          "id": "setting",
+          "label": "Setting",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_196d0a791874",
+              "recipe_21fd5f0ca11c",
+              "recipe_5a0fed4bdcae",
+              "recipe_7e5438fef094",
+              "recipe_ac1169126e6e",
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "signpost_places",
+          "label": "Signpost Places",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_fa4db50f10ce"
+            ]
+          }
+        },
+        {
+          "id": "story_beat",
+          "label": "Story Beat",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_ac1169126e6e"
+            ]
+          }
+        },
+        {
+          "id": "story_brief",
+          "label": "Story Brief",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_7e5438fef094"
+            ]
+          }
+        },
+        {
+          "id": "travel_tagline",
+          "label": "Travel Tagline",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_fa4db50f10ce"
+            ]
+          }
+        },
+        {
+          "id": "visual_style",
+          "label": "Visual style",
+          "max": 1,
+          "type": "text",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_ac1169126e6e",
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "character_ref",
+          "label": "Character Ref",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
+              "recipe_8cd171292b6d",
+              "recipe_baca22fc025d",
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "environment_ref",
+          "label": "Environment Ref",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-environment-plate-v1",
+              "prompt-recipe-environment-sheet-v1",
+              "prompt-recipe-storyboard-continuation-v1",
+              "prompt-recipe-storyboard-v2-gpt-image-2",
+              "recipe_06978904d1db",
+              "recipe_6d5acf4d6142",
+              "recipe_8cd171292b6d",
+              "recipe_baca22fc025d",
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "style_ref",
+          "label": "Style Ref",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "recipe_c82a4598e1a2"
+            ]
+          }
+        },
+        {
+          "id": "storyboard_ref",
+          "label": "Storyboard Ref",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1"
+            ]
+          }
+        },
+        {
+          "array": true,
+          "id": "additional_refs",
+          "label": "Additional Refs",
+          "type": "image",
+          "visible_if": {
+            "field": "recipe_id",
+            "in": [
+              "prompt-recipe-storyboard-continuation-v1"
             ]
           }
         },
@@ -566,19 +2891,128 @@
           "array": true,
           "id": "image_refs",
           "label": "Image Refs",
-          "max": 4,
+          "max": 6,
           "type": "image",
           "visible_if": {
             "field": "recipe_id",
             "in": [
-              "recipe_e5781e6d6e71",
-              "recipe_858fe4bb1ce2",
+              "prompt-recipe-environment-plate-v1",
+              "prompt-recipe-environment-sheet-v1",
+              "prompt-recipe-food-storyboard-host-v1",
+              "prompt-recipe-image-analysis-character-reference",
               "prompt-recipe-image-prompt-director",
+              "prompt-recipe-reusable-storyboard-sheet-00976e8e",
+              "prompt-recipe-reusable-storyboard-sheet-03232c18",
+              "prompt-recipe-reusable-storyboard-sheet-088082c9",
+              "prompt-recipe-reusable-storyboard-sheet-09a3789d",
+              "prompt-recipe-reusable-storyboard-sheet-0e11d89d",
+              "prompt-recipe-reusable-storyboard-sheet-1401107b",
+              "prompt-recipe-reusable-storyboard-sheet-1422df3a",
+              "prompt-recipe-reusable-storyboard-sheet-190e4520",
+              "prompt-recipe-reusable-storyboard-sheet-1925b642",
+              "prompt-recipe-reusable-storyboard-sheet-1bc78474",
+              "prompt-recipe-reusable-storyboard-sheet-20b9e846",
+              "prompt-recipe-reusable-storyboard-sheet-25a7a4f9",
+              "prompt-recipe-reusable-storyboard-sheet-29b58abe",
+              "prompt-recipe-reusable-storyboard-sheet-2b1d56a2",
+              "prompt-recipe-reusable-storyboard-sheet-321ae9d0",
+              "prompt-recipe-reusable-storyboard-sheet-37e94ceb",
+              "prompt-recipe-reusable-storyboard-sheet-380f075d",
+              "prompt-recipe-reusable-storyboard-sheet-38c46cba",
+              "prompt-recipe-reusable-storyboard-sheet-3b0eb496",
+              "prompt-recipe-reusable-storyboard-sheet-450f388a",
+              "prompt-recipe-reusable-storyboard-sheet-46ae1c06",
+              "prompt-recipe-reusable-storyboard-sheet-482a0fbb",
+              "prompt-recipe-reusable-storyboard-sheet-4a6015cf",
+              "prompt-recipe-reusable-storyboard-sheet-4a877b71",
+              "prompt-recipe-reusable-storyboard-sheet-52904bd2",
+              "prompt-recipe-reusable-storyboard-sheet-5925fc55",
+              "prompt-recipe-reusable-storyboard-sheet-644b0571",
+              "prompt-recipe-reusable-storyboard-sheet-64c07e9a",
+              "prompt-recipe-reusable-storyboard-sheet-6761c611",
+              "prompt-recipe-reusable-storyboard-sheet-68cb9472",
+              "prompt-recipe-reusable-storyboard-sheet-6f3624b2",
+              "prompt-recipe-reusable-storyboard-sheet-70b3ec15",
+              "prompt-recipe-reusable-storyboard-sheet-70f2684a",
+              "prompt-recipe-reusable-storyboard-sheet-7351530e",
+              "prompt-recipe-reusable-storyboard-sheet-7878d2c5",
+              "prompt-recipe-reusable-storyboard-sheet-8126f11d",
+              "prompt-recipe-reusable-storyboard-sheet-82468fc3",
+              "prompt-recipe-reusable-storyboard-sheet-83ed866f",
+              "prompt-recipe-reusable-storyboard-sheet-841baa45",
+              "prompt-recipe-reusable-storyboard-sheet-87607841",
+              "prompt-recipe-reusable-storyboard-sheet-8965f993",
+              "prompt-recipe-reusable-storyboard-sheet-8979c17c",
+              "prompt-recipe-reusable-storyboard-sheet-8c43ff27",
+              "prompt-recipe-reusable-storyboard-sheet-8d1bc709",
+              "prompt-recipe-reusable-storyboard-sheet-8f30d83c",
+              "prompt-recipe-reusable-storyboard-sheet-91676281",
+              "prompt-recipe-reusable-storyboard-sheet-97132b2e",
+              "prompt-recipe-reusable-storyboard-sheet-980dc23c",
+              "prompt-recipe-reusable-storyboard-sheet-99fa249d",
+              "prompt-recipe-reusable-storyboard-sheet-9ba9ffc7",
+              "prompt-recipe-reusable-storyboard-sheet-a04700d6",
+              "prompt-recipe-reusable-storyboard-sheet-a0e197c5",
+              "prompt-recipe-reusable-storyboard-sheet-a5a3af7e",
+              "prompt-recipe-reusable-storyboard-sheet-a85648dd",
+              "prompt-recipe-reusable-storyboard-sheet-a862e06f",
+              "prompt-recipe-reusable-storyboard-sheet-aa2e16c5",
+              "prompt-recipe-reusable-storyboard-sheet-b0779423",
+              "prompt-recipe-reusable-storyboard-sheet-b40337",
+              "prompt-recipe-reusable-storyboard-sheet-b636f970",
+              "prompt-recipe-reusable-storyboard-sheet-b72726ca",
+              "prompt-recipe-reusable-storyboard-sheet-b76027bc",
+              "prompt-recipe-reusable-storyboard-sheet-bcca1ecf",
+              "prompt-recipe-reusable-storyboard-sheet-c00461d6",
+              "prompt-recipe-reusable-storyboard-sheet-c243794a",
+              "prompt-recipe-reusable-storyboard-sheet-cae8e33a",
+              "prompt-recipe-reusable-storyboard-sheet-cf4ec78e",
+              "prompt-recipe-reusable-storyboard-sheet-d4af1860",
+              "prompt-recipe-reusable-storyboard-sheet-d630376f",
+              "prompt-recipe-reusable-storyboard-sheet-d7080d1e",
+              "prompt-recipe-reusable-storyboard-sheet-d834b4d3",
+              "prompt-recipe-reusable-storyboard-sheet-d9d6c8ca",
+              "prompt-recipe-reusable-storyboard-sheet-e0479b34",
+              "prompt-recipe-reusable-storyboard-sheet-e1d15a84",
+              "prompt-recipe-reusable-storyboard-sheet-e4889ddf",
+              "prompt-recipe-reusable-storyboard-sheet-e557c145",
+              "prompt-recipe-reusable-storyboard-sheet-ebf0155f",
+              "prompt-recipe-reusable-storyboard-sheet-ec6f7421",
+              "prompt-recipe-reusable-storyboard-sheet-ed34d36a",
+              "prompt-recipe-reusable-storyboard-sheet-ef2469f8",
+              "prompt-recipe-reusable-storyboard-sheet-efc9cdca",
+              "prompt-recipe-reusable-storyboard-sheet-f2746c5f",
+              "prompt-recipe-reusable-storyboard-sheet-f340fd86",
+              "prompt-recipe-reusable-storyboard-sheet-f6c09fa2",
+              "prompt-recipe-reusable-storyboard-sheet-fb76c856",
+              "prompt-recipe-reusable-storyboard-sheet-fc508e1e",
               "prompt-recipe-storyboard-director-3x3",
               "prompt-recipe-storyboard-shot-sequence-3x3",
-              "recipe_1d40e1b358f9",
               "prompt-recipe-video-director-multi-shot-json",
-              "prompt-recipe-image-analysis-character-reference"
+              "recipe_196d0a791874",
+              "recipe_1bd982c36019",
+              "recipe_1d40e1b358f9",
+              "recipe_21fd5f0ca11c",
+              "recipe_2261cbb8c0b6",
+              "recipe_245bdf02a10c",
+              "recipe_462252e5ad4e",
+              "recipe_52a8e47ebbfb",
+              "recipe_5746f1b11753",
+              "recipe_5a0fed4bdcae",
+              "recipe_6d5acf4d6142",
+              "recipe_792c82b7acf3",
+              "recipe_7e5438fef094",
+              "recipe_858fe4bb1ce2",
+              "recipe_8f5e225bb7a8",
+              "recipe_91c45c12f52c",
+              "recipe_977619170aa2",
+              "recipe_abc5f5e51689",
+              "recipe_ac1169126e6e",
+              "recipe_ac3d54d1e564",
+              "recipe_af5efdccb8c2",
+              "recipe_d493f5ceacac",
+              "recipe_e5781e6d6e71",
+              "recipe_ef6a24b6e98f"
             ]
           }
         }
@@ -706,6 +3140,12 @@
           "id": "reference_id",
           "label": "Reference ID",
           "type": "reference_media_picker"
+        },
+        {
+          "hidden": true,
+          "id": "required_media",
+          "label": "Required Media",
+          "type": "boolean"
         }
       ],
       "inputs": [],
@@ -781,20 +3221,20 @@
           "label": "Group",
           "options": [
             {
+              "label": "Lets Glow 2026",
+              "value": "project_f2730fa037da"
+            },
+            {
+              "label": "Immortal Prism",
+              "value": "project_a4e8d2ade7f1"
+            },
+            {
+              "label": "Bass Temple",
+              "value": "project_7b7ab93e08a8"
+            },
+            {
               "label": "Sadi",
               "value": "project_ab78ce28660d"
-            },
-            {
-              "label": "Hidden Project Smoke",
-              "value": "project_a6f9f8d497e0"
-            },
-            {
-              "label": "Project Cover Smoke",
-              "value": "project_397443436540"
-            },
-            {
-              "label": "Project Smoke",
-              "value": "project_58420ab47f22"
             }
           ],
           "type": "select"
@@ -820,9 +3260,9 @@
       "outputs": [
         {
           "array": true,
-          "id": "asset",
-          "label": "Asset",
-          "type": "asset"
+          "id": "image",
+          "label": "Image",
+          "type": "image"
         }
       ],
       "source": {
@@ -839,20 +3279,20 @@
           "label": "Group",
           "options": [
             {
+              "label": "Lets Glow 2026",
+              "value": "project_f2730fa037da"
+            },
+            {
+              "label": "Immortal Prism",
+              "value": "project_a4e8d2ade7f1"
+            },
+            {
+              "label": "Bass Temple",
+              "value": "project_7b7ab93e08a8"
+            },
+            {
               "label": "Sadi",
               "value": "project_ab78ce28660d"
-            },
-            {
-              "label": "Hidden Project Smoke",
-              "value": "project_a6f9f8d497e0"
-            },
-            {
-              "label": "Project Cover Smoke",
-              "value": "project_397443436540"
-            },
-            {
-              "label": "Project Smoke",
-              "value": "project_58420ab47f22"
             }
           ],
           "type": "select"
@@ -884,9 +3324,9 @@
       "outputs": [
         {
           "array": true,
-          "id": "assets",
-          "label": "Assets",
-          "type": "asset"
+          "id": "images",
+          "label": "Images",
+          "type": "image"
         }
       ],
       "source": {
@@ -903,20 +3343,20 @@
           "label": "Group",
           "options": [
             {
+              "label": "Lets Glow 2026",
+              "value": "project_f2730fa037da"
+            },
+            {
+              "label": "Immortal Prism",
+              "value": "project_a4e8d2ade7f1"
+            },
+            {
+              "label": "Bass Temple",
+              "value": "project_7b7ab93e08a8"
+            },
+            {
               "label": "Sadi",
               "value": "project_ab78ce28660d"
-            },
-            {
-              "label": "Hidden Project Smoke",
-              "value": "project_a6f9f8d497e0"
-            },
-            {
-              "label": "Project Cover Smoke",
-              "value": "project_397443436540"
-            },
-            {
-              "label": "Project Smoke",
-              "value": "project_58420ab47f22"
             }
           ],
           "type": "select"
@@ -1105,11 +3545,6 @@
       ],
       "outputs": [
         {
-          "id": "asset",
-          "label": "Asset",
-          "type": "asset"
-        },
-        {
           "id": "video",
           "label": "Video",
           "type": "video"
@@ -1129,20 +3564,20 @@
           "label": "Group",
           "options": [
             {
+              "label": "Lets Glow 2026",
+              "value": "project_f2730fa037da"
+            },
+            {
+              "label": "Immortal Prism",
+              "value": "project_a4e8d2ade7f1"
+            },
+            {
+              "label": "Bass Temple",
+              "value": "project_7b7ab93e08a8"
+            },
+            {
               "label": "Sadi",
               "value": "project_ab78ce28660d"
-            },
-            {
-              "label": "Hidden Project Smoke",
-              "value": "project_a6f9f8d497e0"
-            },
-            {
-              "label": "Project Cover Smoke",
-              "value": "project_397443436540"
-            },
-            {
-              "label": "Project Smoke",
-              "value": "project_58420ab47f22"
             }
           ],
           "type": "select"
@@ -1206,9 +3641,10 @@
       ],
       "outputs": [
         {
-          "id": "asset",
-          "label": "Asset",
-          "type": "asset"
+          "array": true,
+          "id": "audio",
+          "label": "Audio",
+          "type": "audio"
         }
       ],
       "source": {
@@ -1225,20 +3661,20 @@
           "label": "Group",
           "options": [
             {
+              "label": "Lets Glow 2026",
+              "value": "project_f2730fa037da"
+            },
+            {
+              "label": "Immortal Prism",
+              "value": "project_a4e8d2ade7f1"
+            },
+            {
+              "label": "Bass Temple",
+              "value": "project_7b7ab93e08a8"
+            },
+            {
               "label": "Sadi",
               "value": "project_ab78ce28660d"
-            },
-            {
-              "label": "Hidden Project Smoke",
-              "value": "project_a6f9f8d497e0"
-            },
-            {
-              "label": "Project Cover Smoke",
-              "value": "project_397443436540"
-            },
-            {
-              "label": "Project Smoke",
-              "value": "project_58420ab47f22"
             }
           ],
           "type": "select"
@@ -1276,11 +3712,6 @@
         }
       ],
       "outputs": [
-        {
-          "id": "asset",
-          "label": "Asset",
-          "type": "asset"
-        },
         {
           "id": "audio",
           "label": "Audio",
@@ -1598,6 +4029,46 @@
       },
       "title": "Grid Slice Image",
       "type": "image.grid_slice"
+    },
+    {
+      "category": "Image",
+      "fields": [],
+      "inputs": [
+        {
+          "array": true,
+          "id": "images",
+          "label": "Panel Art",
+          "max": 9,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        },
+        {
+          "id": "spec",
+          "label": "Sheet Spec",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "json"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Sheet",
+          "type": "image"
+        },
+        {
+          "id": "metadata",
+          "label": "Metadata",
+          "type": "json"
+        }
+      ],
+      "source": {
+        "kind": "system"
+      },
+      "title": "Storyboard Sheet",
+      "type": "image.storyboard_sheet"
     },
     {
       "category": "Image",
@@ -2411,76 +4882,653 @@
       "fields": [
         {
           "id": "preset_id",
-          "label": "Preset",
-          "options": [
-            {
-              "label": "3D Caricature Style",
-              "value": "media-preset-3d-caricature-style-nano-banana-shared"
-            },
-            {
-              "label": "Selfie with Movie Character",
-              "value": "media-preset-selfie-with-movie-character-nano-banana-shared"
-            },
-            {
-              "label": "Cleanest Storyboard Sheet",
-              "value": "preset_af4001299959"
-            },
-            {
-              "label": "Codex Smoke Image GPT I2I",
-              "value": "preset_f69236e8ce98"
-            },
-            {
-              "label": "Codex Smoke Prompt GPT T2I",
-              "value": "preset_de979f9911e4"
-            }
-          ],
+          "label": "Media Preset",
           "required": true,
           "type": "preset_picker"
         },
         {
-          "default": "{}",
-          "id": "text_values_json",
-          "label": "Text Values JSON",
-          "type": "textarea"
-        },
-        {
-          "default": "{}",
-          "id": "image_slots_json",
-          "label": "Image Slots JSON",
-          "type": "textarea"
+          "id": "preset_model_key",
+          "label": "Model",
+          "options": [
+            {
+              "label": "Nano Banana 2",
+              "value": "nano-banana-2"
+            },
+            {
+              "label": "Nano Banana Pro",
+              "value": "nano-banana-pro"
+            },
+            {
+              "label": "GPT Image 2 Image to Image",
+              "value": "gpt-image-2-image-to-image"
+            },
+            {
+              "label": "GPT Image 2 Text to Image",
+              "value": "gpt-image-2-text-to-image"
+            }
+          ],
+          "type": "select"
         }
       ],
       "inputs": [
         {
           "array": true,
-          "id": "image_refs",
-          "label": "Image Refs",
-          "max": 8,
-          "type": "image"
+          "id": "slot__body_reference",
+          "label": "Body Reference",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "preset_id",
+            "in": [
+              "preset_7e319aa44518"
+            ]
+          }
+        },
+        {
+          "array": true,
+          "id": "slot__character_reference",
+          "label": "Character Reference",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "preset_id",
+            "in": [
+              "preset_b329c56a3960"
+            ]
+          }
+        },
+        {
+          "array": true,
+          "id": "slot__face_reference",
+          "label": "Face Reference",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "preset_id",
+            "in": [
+              "preset_03e88f3f8847",
+              "preset_06baa10da4dc",
+              "preset_06f0acc5e1de",
+              "preset_0824f4bafd4b",
+              "preset_0a075645ffd1",
+              "preset_0a2dcfe4e3a6",
+              "preset_0b683d1510ff",
+              "preset_0ef6b184109c",
+              "preset_13948926f3a0",
+              "preset_1498a2799306",
+              "preset_1936c1562a73",
+              "preset_19d7bb48294f",
+              "preset_19dfca6ba762",
+              "preset_1b7d952adb85",
+              "preset_1d7e80498edd",
+              "preset_1fac0d8420e4",
+              "preset_22cfc8f4aa3b",
+              "preset_22f98a3f9599",
+              "preset_239ad87b1ba9",
+              "preset_24d33ea06c1f",
+              "preset_26c95ceb9903",
+              "preset_28c0cb1743e8",
+              "preset_2c530d058b7c",
+              "preset_2f9425126fb3",
+              "preset_31da14d4ad73",
+              "preset_331a49168b00",
+              "preset_38cc872bb332",
+              "preset_3d066ddaa077",
+              "preset_3e4f0f54a4bc",
+              "preset_3e97d0f5d517",
+              "preset_43f4a4be273c",
+              "preset_47c594731105",
+              "preset_4891548b11dd",
+              "preset_48b64c5bb432",
+              "preset_4da2e6883dac",
+              "preset_4dee4915e298",
+              "preset_4df8c1f78b66",
+              "preset_4f361a609a42",
+              "preset_52066e67595a",
+              "preset_542fb7d46e94",
+              "preset_54997e8f4dd7",
+              "preset_552afdcc2f72",
+              "preset_564c25c48c20",
+              "preset_587524f336d0",
+              "preset_593b3762a3eb",
+              "preset_594fa31a3c9a",
+              "preset_5bfce3e41afe",
+              "preset_5d7ed5a75963",
+              "preset_616989c0e47f",
+              "preset_620fec14b66a",
+              "preset_703c2ac0d955",
+              "preset_723a9fac13ff",
+              "preset_73595ad48354",
+              "preset_74caa46df94c",
+              "preset_77f9ee63c4a6",
+              "preset_7834c7133497",
+              "preset_79117f87a94c",
+              "preset_7aadee112dc4",
+              "preset_7bf2c6707ae3",
+              "preset_7bf9a31f470f",
+              "preset_7e319aa44518",
+              "preset_7eac066af264",
+              "preset_7ed674fa06d5",
+              "preset_82b289b18ecc",
+              "preset_8340e8db189a",
+              "preset_839c8c145d3a",
+              "preset_86443b2ff905",
+              "preset_86c305add3ca",
+              "preset_8d034558c637",
+              "preset_91ebccfacad2",
+              "preset_93653531cc8b",
+              "preset_939560e5e139",
+              "preset_99a6eeb0f64f",
+              "preset_9a99ed9fa1b4",
+              "preset_9b712dc98931",
+              "preset_9ce5814e9c1e",
+              "preset_9f280366ce18",
+              "preset_9f6ef503943d",
+              "preset_9fb0217ff65e",
+              "preset_a9de9c064743",
+              "preset_adce3cf94f6a",
+              "preset_aec4c8161391",
+              "preset_af25e9b975cc",
+              "preset_b7afbc32ea78",
+              "preset_b915c88fb382",
+              "preset_ba1b89190dc9",
+              "preset_ba6d9fbe8d02",
+              "preset_bb8132dab5ed",
+              "preset_bf9dca018b2b",
+              "preset_c1a2e775b6fd",
+              "preset_c2767122b30e",
+              "preset_c50aa120b420",
+              "preset_c73d497e22a6",
+              "preset_c8bfad568fc3",
+              "preset_c93e095473c1",
+              "preset_cad273cda999",
+              "preset_cce72bd3815e",
+              "preset_cde91e815b45",
+              "preset_cf07d7e98edb",
+              "preset_d218a96edb25",
+              "preset_d22b1e14a6e4",
+              "preset_d51fe52322df",
+              "preset_d61823270167",
+              "preset_d8365dc41a63",
+              "preset_d88e7742b4ba",
+              "preset_dbb23af0f491",
+              "preset_dd6addc54d4a",
+              "preset_e3a9baeb8526",
+              "preset_e3ab5f24ce45",
+              "preset_e43c17cf288b",
+              "preset_e453d88103e4",
+              "preset_e49d237ea09f",
+              "preset_e4f901751d93",
+              "preset_e57f666c097b",
+              "preset_e624dd2b05b8",
+              "preset_e78659637694",
+              "preset_f0b8e426ab21",
+              "preset_f1e9f8dd7a66",
+              "preset_f59013fb99bf",
+              "preset_f785dadba428",
+              "preset_f9220b2a29cc",
+              "preset_fd19ff7d3c0d",
+              "preset_fe960f3a6ede",
+              "preset_feb15635cfcf"
+            ]
+          }
+        },
+        {
+          "array": true,
+          "id": "slot__full_body_reference",
+          "label": "Full-Body Reference",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "preset_id",
+            "in": [
+              "preset_03e88f3f8847",
+              "preset_06baa10da4dc",
+              "preset_06f0acc5e1de",
+              "preset_0824f4bafd4b",
+              "preset_0a075645ffd1",
+              "preset_0a2dcfe4e3a6",
+              "preset_0b683d1510ff",
+              "preset_0ef6b184109c",
+              "preset_13948926f3a0",
+              "preset_1498a2799306",
+              "preset_1936c1562a73",
+              "preset_19d7bb48294f",
+              "preset_19dfca6ba762",
+              "preset_1b7d952adb85",
+              "preset_1d7e80498edd",
+              "preset_1fac0d8420e4",
+              "preset_22cfc8f4aa3b",
+              "preset_22f98a3f9599",
+              "preset_239ad87b1ba9",
+              "preset_24d33ea06c1f",
+              "preset_26c95ceb9903",
+              "preset_28c0cb1743e8",
+              "preset_2c530d058b7c",
+              "preset_2f9425126fb3",
+              "preset_31da14d4ad73",
+              "preset_331a49168b00",
+              "preset_38cc872bb332",
+              "preset_3d066ddaa077",
+              "preset_3e4f0f54a4bc",
+              "preset_3e97d0f5d517",
+              "preset_43f4a4be273c",
+              "preset_47c594731105",
+              "preset_4891548b11dd",
+              "preset_48b64c5bb432",
+              "preset_4da2e6883dac",
+              "preset_4dee4915e298",
+              "preset_4df8c1f78b66",
+              "preset_4f361a609a42",
+              "preset_52066e67595a",
+              "preset_542fb7d46e94",
+              "preset_54997e8f4dd7",
+              "preset_552afdcc2f72",
+              "preset_564c25c48c20",
+              "preset_587524f336d0",
+              "preset_593b3762a3eb",
+              "preset_594fa31a3c9a",
+              "preset_5bfce3e41afe",
+              "preset_5d7ed5a75963",
+              "preset_616989c0e47f",
+              "preset_620fec14b66a",
+              "preset_703c2ac0d955",
+              "preset_723a9fac13ff",
+              "preset_73595ad48354",
+              "preset_74caa46df94c",
+              "preset_77f9ee63c4a6",
+              "preset_7834c7133497",
+              "preset_79117f87a94c",
+              "preset_7aadee112dc4",
+              "preset_7bf2c6707ae3",
+              "preset_7bf9a31f470f",
+              "preset_7eac066af264",
+              "preset_7ed674fa06d5",
+              "preset_82b289b18ecc",
+              "preset_8340e8db189a",
+              "preset_839c8c145d3a",
+              "preset_86443b2ff905",
+              "preset_86c305add3ca",
+              "preset_91ebccfacad2",
+              "preset_93653531cc8b",
+              "preset_939560e5e139",
+              "preset_99a6eeb0f64f",
+              "preset_9a99ed9fa1b4",
+              "preset_9b712dc98931",
+              "preset_9ce5814e9c1e",
+              "preset_9f280366ce18",
+              "preset_9f6ef503943d",
+              "preset_9fb0217ff65e",
+              "preset_a9de9c064743",
+              "preset_adce3cf94f6a",
+              "preset_aec4c8161391",
+              "preset_af25e9b975cc",
+              "preset_b7afbc32ea78",
+              "preset_b915c88fb382",
+              "preset_ba1b89190dc9",
+              "preset_ba6d9fbe8d02",
+              "preset_bb8132dab5ed",
+              "preset_bf9dca018b2b",
+              "preset_c1a2e775b6fd",
+              "preset_c2767122b30e",
+              "preset_c50aa120b420",
+              "preset_c73d497e22a6",
+              "preset_c8bfad568fc3",
+              "preset_c93e095473c1",
+              "preset_cad273cda999",
+              "preset_cce72bd3815e",
+              "preset_cde91e815b45",
+              "preset_cf07d7e98edb",
+              "preset_d218a96edb25",
+              "preset_d22b1e14a6e4",
+              "preset_d51fe52322df",
+              "preset_d61823270167",
+              "preset_d8365dc41a63",
+              "preset_d88e7742b4ba",
+              "preset_dbb23af0f491",
+              "preset_dd6addc54d4a",
+              "preset_e3a9baeb8526",
+              "preset_e3ab5f24ce45",
+              "preset_e43c17cf288b",
+              "preset_e453d88103e4",
+              "preset_e49d237ea09f",
+              "preset_e4f901751d93",
+              "preset_e57f666c097b",
+              "preset_e624dd2b05b8",
+              "preset_e78659637694",
+              "preset_f0b8e426ab21",
+              "preset_f1e9f8dd7a66",
+              "preset_f59013fb99bf",
+              "preset_f785dadba428",
+              "preset_f9220b2a29cc",
+              "preset_fd19ff7d3c0d",
+              "preset_fe960f3a6ede",
+              "preset_feb15635cfcf"
+            ]
+          }
+        },
+        {
+          "array": true,
+          "id": "slot__main_subject",
+          "label": "Main Subject",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "preset_id",
+            "in": [
+              "preset_00a5a2615abd",
+              "preset_01ad17fdb8bd",
+              "preset_01f49862bf65",
+              "preset_06326e7fb4fb",
+              "preset_07b5bfa86edb",
+              "preset_0a6b51581fc1",
+              "preset_10e235819937",
+              "preset_14718f4111e4",
+              "preset_1992fb02b7a4",
+              "preset_1b1a6d639b0f",
+              "preset_2975a6c8c811",
+              "preset_2ed8c3c05eee",
+              "preset_31da07bf09e8",
+              "preset_3200458a466f",
+              "preset_337c4c26deb7",
+              "preset_36fbcbe36b48",
+              "preset_41272a0ef97c",
+              "preset_47c6ebee126f",
+              "preset_480abe94bf45",
+              "preset_490ef3eb7077",
+              "preset_49a73d721a4f",
+              "preset_4b499977eed9",
+              "preset_4b8a1fdf432a",
+              "preset_57096b33db7f",
+              "preset_5cf3860cd985",
+              "preset_5d6337bfe8b2",
+              "preset_6bb2a87071bd",
+              "preset_6ff2ff3be55c",
+              "preset_71fc5e6ebda1",
+              "preset_726de71bf397",
+              "preset_73dea5bd1260",
+              "preset_81c55270a131",
+              "preset_82789e44263a",
+              "preset_82b27fb1016b",
+              "preset_8308c49b68b2",
+              "preset_8903321fe268",
+              "preset_895970a7ecd9",
+              "preset_97f2880910e6",
+              "preset_9c365676bbc2",
+              "preset_a093d0b2ad42",
+              "preset_a798137e3ee6",
+              "preset_b41d171e8099",
+              "preset_bbc73c1ae246",
+              "preset_c8d29c2a91c8",
+              "preset_cd94570866fc",
+              "preset_d0326408faab",
+              "preset_d164940cbfa2",
+              "preset_d48b5f127b43",
+              "preset_d5692f65bbec",
+              "preset_dfdaee639677",
+              "preset_e04d63304208",
+              "preset_e651a9bb98a4",
+              "preset_e6da1147f8c7",
+              "preset_e71830b2122c",
+              "preset_ef979e80b135",
+              "preset_f394eba520ee",
+              "preset_f59c99d4b152",
+              "preset_f68ee21e82bb",
+              "preset_f7bda6f9912d",
+              "preset_f9b6f5874641",
+              "preset_ff714a34b07f"
+            ]
+          }
+        },
+        {
+          "array": true,
+          "id": "slot__person_reference",
+          "label": "Person Reference",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "preset_id",
+            "in": [
+              "preset_e9f9bcf66ced"
+            ]
+          }
+        },
+        {
+          "array": true,
+          "id": "slot__personal_reference",
+          "label": "Personal Reference",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "preset_id",
+            "in": [
+              "preset_00aaadfbc8ff",
+              "preset_034038959ab2",
+              "preset_05f79c6c51c8",
+              "preset_069fb238cb87",
+              "preset_08f6822a0046",
+              "preset_0f34eae3933b",
+              "preset_17877053d17d",
+              "preset_23a02734832e",
+              "preset_360fa69d7879",
+              "preset_382138f17767",
+              "preset_4f5f03b213ab",
+              "preset_50cdb6b0fbe1",
+              "preset_5b9b1419902c",
+              "preset_653f20e2621b",
+              "preset_719d977451ed",
+              "preset_a79769539cea",
+              "preset_b8aeeb5e52d9",
+              "preset_bfcae98a414b",
+              "preset_d5d9dfe632b9",
+              "preset_dd67cb023bdd",
+              "preset_dea698824e6e",
+              "preset_ea3d2c4b8cca",
+              "preset_ea9f1958c50e",
+              "preset_f471be8866ee",
+              "preset_f5f3060ba59c",
+              "preset_fe89bf6acf0d",
+              "preset_ff208cf49b61"
+            ]
+          }
+        },
+        {
+          "array": true,
+          "id": "slot__person",
+          "label": "Portrait",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "preset_id",
+            "in": [
+              "media-preset-3d-caricature-style-nano-banana-shared",
+              "preset_af4001299959"
+            ]
+          }
+        },
+        {
+          "array": true,
+          "id": "slot__portrait",
+          "label": "Portrait",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "preset_id",
+            "in": [
+              "preset_69cf653dd80b",
+              "preset_7e746155ca40",
+              "preset_9685d441a48c"
+            ]
+          }
+        },
+        {
+          "array": true,
+          "id": "slot__subject_image",
+          "label": "Subject Image",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "preset_id",
+            "in": [
+              "preset_00676546306f",
+              "preset_034de934091a",
+              "preset_0416c1d52586",
+              "preset_0591a2b56287",
+              "preset_0cba43ebf3ee",
+              "preset_0d3a20834edc",
+              "preset_0f7d54d304fa",
+              "preset_13783a6c8db7",
+              "preset_1600c087800b",
+              "preset_1aa394617242",
+              "preset_24de90fe149d",
+              "preset_25fcb63a9202",
+              "preset_267b3ee263f0",
+              "preset_293a3f29ff17",
+              "preset_3166fc6c8c61",
+              "preset_3356257ac0ec",
+              "preset_337ea37d3546",
+              "preset_35d170704994",
+              "preset_36055e03444b",
+              "preset_364fde83e218",
+              "preset_386563aaba5a",
+              "preset_386a5011a808",
+              "preset_3a025935405c",
+              "preset_3bd83e436faa",
+              "preset_3df1343314fc",
+              "preset_3e4044c4ec6a",
+              "preset_40ef861ec4cb",
+              "preset_41330f7ab697",
+              "preset_43ca7fee0999",
+              "preset_446d7ca1b339",
+              "preset_46891d2336be",
+              "preset_4c0c45b5b72e",
+              "preset_4c1291dd2035",
+              "preset_4d8504ac9a43",
+              "preset_4df7d8482bcf",
+              "preset_506f39eb1569",
+              "preset_50d375a7f49f",
+              "preset_538009e7d458",
+              "preset_543c6079bf69",
+              "preset_58013c833230",
+              "preset_580d834654d0",
+              "preset_58125f98b534",
+              "preset_5add1d51f272",
+              "preset_5b9f403466c4",
+              "preset_5ceec522dcc7",
+              "preset_5e453d3fdd02",
+              "preset_60f73a54957d",
+              "preset_627be4fca467",
+              "preset_62fccb7d75d5",
+              "preset_646327755c8c",
+              "preset_648c815f076e",
+              "preset_6558517747dc",
+              "preset_6680b3bdf49e",
+              "preset_6b48f27bcc49",
+              "preset_71f501dfb502",
+              "preset_728b88ff1b96",
+              "preset_735b6e77b662",
+              "preset_747f9873dc3c",
+              "preset_768851b3b19c",
+              "preset_7732ed1d96e6",
+              "preset_78d5592dc1b8",
+              "preset_7b54556282b0",
+              "preset_7b8f854a053f",
+              "preset_80ce6ccdb7d0",
+              "preset_815f0f92eeda",
+              "preset_8351e271fa90",
+              "preset_83848576e2e2",
+              "preset_87fae74dc82f",
+              "preset_8a7a34777751",
+              "preset_8bf63548e73b",
+              "preset_8ecb49686f0e",
+              "preset_918bf713d6c0",
+              "preset_919c96a74de1",
+              "preset_91e8d66f6407",
+              "preset_95bfb898a0cd",
+              "preset_96a81b51a699",
+              "preset_9916e14853a5",
+              "preset_9b3aa0cf8de1",
+              "preset_9c3741992d56",
+              "preset_9eef1834d69e",
+              "preset_9f5a4124e22b",
+              "preset_a0351f10df98",
+              "preset_a2da25910ba8",
+              "preset_a3058bf02f38",
+              "preset_a9026c9dd63a",
+              "preset_ac65e677ee6a",
+              "preset_ad83595848fc",
+              "preset_aff1d869eb02",
+              "preset_b2048a35b356",
+              "preset_b36198ceffba",
+              "preset_b5c179cdb512",
+              "preset_b6aec0c2eee7",
+              "preset_bbf39e00fe87",
+              "preset_bc278b5a13fe",
+              "preset_bd03db9f3726",
+              "preset_c136133b260a",
+              "preset_c39a5cd627b3",
+              "preset_c6d2ac67b16d",
+              "preset_c8ec5496a01b",
+              "preset_ca28c6e7530f",
+              "preset_ca5cfff7e4b7",
+              "preset_cb4e1c408a5a",
+              "preset_cd1d4b6b1e9a",
+              "preset_cd51a20a86ca",
+              "preset_cf7088600bc0",
+              "preset_cf8e0a274d01",
+              "preset_cfef65da0a4c",
+              "preset_d53c94e1b261",
+              "preset_d870d0f0f42b",
+              "preset_db9af420a49a",
+              "preset_df00648f26bf",
+              "preset_dfcbe49b4a31",
+              "preset_e232060f8e46",
+              "preset_e2422adeb4a5",
+              "preset_e411104f89de",
+              "preset_e53c65e49f08",
+              "preset_ec4b7381f2f0",
+              "preset_ed7a21950a67",
+              "preset_efee9e320014",
+              "preset_f05732c7880b",
+              "preset_f28581be6db3",
+              "preset_f376e95f46be",
+              "preset_f9e57882df72",
+              "preset_fc228bae4b9d",
+              "preset_fc85c5dd6375"
+            ]
+          }
+        },
+        {
+          "array": true,
+          "id": "slot__subject_reference",
+          "label": "Subject Reference",
+          "max": 1,
+          "type": "image",
+          "visible_if": {
+            "field": "preset_id",
+            "in": [
+              "preset_c85ac70bed9a"
+            ]
+          }
         }
       ],
       "outputs": [
         {
-          "id": "prompt",
-          "label": "Prompt",
-          "type": "text"
-        },
-        {
-          "array": true,
-          "id": "image_refs",
-          "label": "Image Refs",
+          "id": "image",
+          "label": "Image",
           "type": "image"
         },
         {
-          "id": "preset",
-          "label": "Preset",
-          "type": "json"
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
         }
       ],
       "source": {
-        "kind": "system"
+        "kind": "media_preset"
       },
-      "title": "Render Preset",
+      "title": "Media Preset",
       "type": "preset.render"
     },
     {
@@ -2617,6 +5665,304 @@
       "type": "model.kie.gpt_image_2_text_to_image"
     },
     {
+      "category": "Models/Image",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "default": "auto",
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "auto",
+            "1:1",
+            "3:2",
+            "2:3",
+            "4:3",
+            "3:4",
+            "16:9",
+            "9:16",
+            "21:9",
+            "27:16",
+            "16:27",
+            "9:8",
+            "8:9"
+          ],
+          "type": "select"
+        },
+        {
+          "default": "1K",
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Reference Images",
+          "max": 16,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "GPT Image 2.5 Flare Image To Image",
+      "type": "model.kie.gpt_image_2_5_flare_image_to_image"
+    },
+    {
+      "category": "Models/Image",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "default": "auto",
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "auto",
+            "1:1",
+            "3:2",
+            "2:3",
+            "4:3",
+            "3:4",
+            "16:9",
+            "9:16",
+            "21:9",
+            "27:16",
+            "16:27",
+            "9:8",
+            "8:9"
+          ],
+          "type": "select"
+        },
+        {
+          "default": "1K",
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "GPT Image 2.5 Flare Text To Image",
+      "type": "model.kie.gpt_image_2_5_flare_text_to_image"
+    },
+    {
+      "category": "Models/Image",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "default": "auto",
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "auto",
+            "1:1",
+            "3:2",
+            "2:3",
+            "4:3",
+            "3:4",
+            "16:9",
+            "9:16",
+            "21:9",
+            "27:16",
+            "16:27",
+            "9:8",
+            "8:9"
+          ],
+          "type": "select"
+        },
+        {
+          "default": "1K",
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Reference Images",
+          "max": 16,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "GPT Image 2.5 Sunburst Image To Image",
+      "type": "model.kie.gpt_image_2_5_sunburst_image_to_image"
+    },
+    {
+      "category": "Models/Image",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "default": "auto",
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "auto",
+            "1:1",
+            "3:2",
+            "2:3",
+            "4:3",
+            "3:4",
+            "16:9",
+            "9:16",
+            "21:9",
+            "27:16",
+            "16:27",
+            "9:8",
+            "8:9"
+          ],
+          "type": "select"
+        },
+        {
+          "default": "1K",
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "label": "Image",
+          "type": "image"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "GPT Image 2.5 Sunburst Text To Image",
+      "type": "model.kie.gpt_image_2_5_sunburst_text_to_image"
+    },
+    {
       "category": "Models/Video",
       "fields": [
         {
@@ -2633,6 +5979,7 @@
           "type": "boolean"
         },
         {
+          "default": 5,
           "id": "duration",
           "label": "Duration",
           "options": [
@@ -2690,12 +6037,91 @@
           "type": "textarea"
         },
         {
+          "default": "image",
+          "id": "character_orientation",
+          "label": "Character Orientation",
+          "options": [
+            "image",
+            "video"
+          ],
+          "required": true,
+          "type": "select"
+        },
+        {
+          "default": "720p",
+          "id": "mode",
+          "label": "Mode",
+          "options": [
+            "720p",
+            "1080p"
+          ],
+          "required": true,
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Reference Image",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        },
+        {
+          "array": true,
+          "id": "video_refs",
+          "label": "Video Refs",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "video"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Kling 2.6 Motion Control",
+      "type": "model.kie.kling_2_6_motion"
+    },
+    {
+      "category": "Models/Video",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
           "id": "sound",
           "label": "Sound",
           "required": true,
           "type": "boolean"
         },
         {
+          "default": "1:1",
           "id": "aspect_ratio",
           "label": "Aspect Ratio",
           "options": [
@@ -2707,6 +6133,7 @@
           "type": "select"
         },
         {
+          "default": 5,
           "id": "duration",
           "label": "Duration",
           "options": [
@@ -2773,6 +6200,7 @@
           "type": "boolean"
         },
         {
+          "default": 5,
           "id": "duration",
           "label": "Duration",
           "required": true,
@@ -2938,6 +6366,7 @@
           "type": "boolean"
         },
         {
+          "default": 5,
           "id": "duration",
           "label": "Duration",
           "required": true,
@@ -2985,6 +6414,71 @@
       },
       "title": "Kling 3.0 Text to Video",
       "type": "model.kie.kling_3_0_t2v"
+    },
+    {
+      "category": "Models/Video",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "default": 5,
+          "id": "duration",
+          "label": "Duration",
+          "required": true,
+          "type": "integer"
+        },
+        {
+          "default": "720p",
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "720p",
+            "1080p"
+          ],
+          "required": true,
+          "type": "select"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "array": true,
+          "id": "image_refs",
+          "label": "Reference Image",
+          "max": 1,
+          "min": 1,
+          "required": true,
+          "type": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Kling 3.0 Turbo Image to Video",
+      "type": "model.kie.kling_3_0_turbo_i2v"
     },
     {
       "category": "Models/Image",
@@ -3166,7 +6660,7 @@
         },
         {
           "id": "return_last_frame",
-          "label": "Return Last Frame",
+          "label": "Output Last Frame",
           "type": "boolean"
         },
         {
@@ -3180,8 +6674,7 @@
           "label": "Resolution",
           "options": [
             "480p",
-            "720p",
-            "1080p"
+            "720p"
           ],
           "type": "select"
         },
@@ -3195,11 +6688,13 @@
             "1:1",
             "3:4",
             "9:16",
-            "21:9"
+            "21:9",
+            "adaptive"
           ],
           "type": "select"
         },
         {
+          "default": 5,
           "id": "duration",
           "label": "Duration",
           "required": true,
@@ -3259,6 +6754,271 @@
           "type": "video"
         },
         {
+          "id": "image",
+          "label": "Last Frame",
+          "type": "image",
+          "visible_if": {
+            "equals": true,
+            "field": "return_last_frame"
+          }
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Seedance 2.0 Fast",
+      "type": "model.kie.seedance_2_0_fast"
+    },
+    {
+      "category": "Models/Video",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "id": "return_last_frame",
+          "label": "Output Last Frame",
+          "type": "boolean"
+        },
+        {
+          "id": "generate_audio",
+          "label": "Generate Audio",
+          "type": "boolean"
+        },
+        {
+          "default": "720p",
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "480p",
+            "720p"
+          ],
+          "type": "select"
+        },
+        {
+          "default": "16:9",
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9",
+            "adaptive"
+          ],
+          "type": "select"
+        },
+        {
+          "default": 5,
+          "id": "duration",
+          "label": "Duration",
+          "required": true,
+          "type": "integer"
+        },
+        {
+          "id": "web_search",
+          "label": "Web Search",
+          "type": "boolean"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "id": "start_frame",
+          "label": "Start Frame",
+          "max": 1,
+          "type": "image"
+        },
+        {
+          "id": "end_frame",
+          "label": "End Frame",
+          "max": 1,
+          "type": "image"
+        },
+        {
+          "array": true,
+          "id": "reference_images",
+          "label": "Reference Images",
+          "max": 9,
+          "type": "image"
+        },
+        {
+          "array": true,
+          "id": "reference_videos",
+          "label": "Reference Videos",
+          "max": 3,
+          "type": "video"
+        },
+        {
+          "array": true,
+          "id": "reference_audios",
+          "label": "Reference Audio",
+          "max": 3,
+          "type": "audio"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "id": "image",
+          "label": "Last Frame",
+          "type": "image",
+          "visible_if": {
+            "equals": true,
+            "field": "return_last_frame"
+          }
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Seedance 2.0 Mini",
+      "type": "model.kie.seedance_2_0_mini"
+    },
+    {
+      "category": "Models/Video",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "id": "return_last_frame",
+          "label": "Output Last Frame",
+          "type": "boolean"
+        },
+        {
+          "id": "generate_audio",
+          "label": "Generate Audio",
+          "type": "boolean"
+        },
+        {
+          "default": "720p",
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "480p",
+            "720p",
+            "1080p",
+            "4k"
+          ],
+          "type": "select"
+        },
+        {
+          "default": "16:9",
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9",
+            "adaptive"
+          ],
+          "type": "select"
+        },
+        {
+          "default": 5,
+          "id": "duration",
+          "label": "Duration",
+          "required": true,
+          "type": "integer"
+        },
+        {
+          "id": "web_search",
+          "label": "Web Search",
+          "type": "boolean"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "id": "start_frame",
+          "label": "Start Frame",
+          "max": 1,
+          "type": "image"
+        },
+        {
+          "id": "end_frame",
+          "label": "End Frame",
+          "max": 1,
+          "type": "image"
+        },
+        {
+          "array": true,
+          "id": "reference_images",
+          "label": "Reference Images",
+          "max": 9,
+          "type": "image"
+        },
+        {
+          "array": true,
+          "id": "reference_videos",
+          "label": "Reference Videos",
+          "max": 3,
+          "type": "video"
+        },
+        {
+          "array": true,
+          "id": "reference_audios",
+          "label": "Reference Audio",
+          "max": 3,
+          "type": "audio"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "id": "image",
+          "label": "Last Frame",
+          "type": "image",
+          "visible_if": {
+            "equals": true,
+            "field": "return_last_frame"
+          }
+        },
+        {
           "advanced": true,
           "id": "job",
           "label": "Job",
@@ -3270,6 +7030,153 @@
       },
       "title": "Seedance 2.0 Standard",
       "type": "model.kie.seedance_2_0"
+    },
+    {
+      "category": "Models/Video",
+      "fields": [
+        {
+          "connectable": true,
+          "id": "prompt",
+          "label": "Prompt",
+          "port_type": "text",
+          "type": "textarea"
+        },
+        {
+          "id": "return_last_frame",
+          "label": "Output Last Frame",
+          "type": "boolean"
+        },
+        {
+          "id": "generate_audio",
+          "label": "Generate Audio",
+          "type": "boolean"
+        },
+        {
+          "default": "720p",
+          "id": "resolution",
+          "label": "Resolution",
+          "options": [
+            "480p",
+            "720p",
+            "1080p"
+          ],
+          "type": "select"
+        },
+        {
+          "default": "adaptive",
+          "id": "aspect_ratio",
+          "label": "Aspect Ratio",
+          "options": [
+            "1:1",
+            "4:3",
+            "3:4",
+            "16:9",
+            "9:16",
+            "21:9",
+            "adaptive"
+          ],
+          "type": "select"
+        },
+        {
+          "default": 5,
+          "id": "duration",
+          "label": "Duration",
+          "options": [
+            -1
+          ],
+          "required": true,
+          "type": "integer"
+        },
+        {
+          "default": "mp4",
+          "id": "output_format",
+          "label": "Output Format",
+          "options": [
+            "mp4",
+            "mov"
+          ],
+          "type": "select"
+        },
+        {
+          "id": "web_search",
+          "label": "Web Search",
+          "type": "boolean"
+        },
+        {
+          "advanced": true,
+          "id": "nsfw_checker",
+          "label": "NSFW checker",
+          "type": "boolean"
+        }
+      ],
+      "inputs": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "max": 1,
+          "type": "text"
+        },
+        {
+          "id": "start_frame",
+          "label": "Start Frame",
+          "max": 1,
+          "type": "image"
+        },
+        {
+          "id": "end_frame",
+          "label": "End Frame",
+          "max": 1,
+          "type": "image"
+        },
+        {
+          "array": true,
+          "id": "reference_images",
+          "label": "Reference Images",
+          "max": 30,
+          "type": "image"
+        },
+        {
+          "array": true,
+          "id": "reference_videos",
+          "label": "Reference Videos",
+          "max": 10,
+          "type": "video"
+        },
+        {
+          "array": true,
+          "id": "reference_audios",
+          "label": "Reference Audio",
+          "max": 10,
+          "type": "audio"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "label": "Video",
+          "type": "video"
+        },
+        {
+          "id": "image",
+          "label": "Last Frame",
+          "type": "image",
+          "visible_if": {
+            "equals": true,
+            "field": "return_last_frame"
+          }
+        },
+        {
+          "advanced": true,
+          "id": "job",
+          "label": "Job",
+          "type": "job"
+        }
+      ],
+      "source": {
+        "kind": "kie_model"
+      },
+      "title": "Seedance 2.5",
+      "type": "model.kie.seedance_2_5"
     },
     {
       "category": "Models/Audio",
@@ -3412,293 +7319,6 @@
       },
       "title": "Suno Music Generation",
       "type": "model.kie.suno_generate_music"
-    },
-    {
-      "category": "Preset",
-      "fields": [
-        {
-          "default": "media-preset-3d-caricature-style-nano-banana-shared",
-          "hidden": true,
-          "id": "preset_id",
-          "label": "Preset",
-          "type": "text"
-        },
-        {
-          "default": "Pixar-inspired studio lighting with premium skin detail",
-          "id": "text__subject_style",
-          "label": "Style Direction",
-          "required": true,
-          "type": "text"
-        }
-      ],
-      "inputs": [
-        {
-          "array": true,
-          "id": "slot__person",
-          "label": "Portrait",
-          "max": 1,
-          "min": 1,
-          "required": true,
-          "type": "image"
-        }
-      ],
-      "outputs": [
-        {
-          "id": "prompt",
-          "label": "Prompt",
-          "type": "text"
-        },
-        {
-          "array": true,
-          "id": "image_refs",
-          "label": "Image Refs",
-          "type": "image"
-        },
-        {
-          "id": "preset",
-          "label": "Preset",
-          "type": "json"
-        },
-        {
-          "advanced": true,
-          "id": "recommended_models",
-          "label": "Recommended Models",
-          "type": "json"
-        }
-      ],
-      "source": {
-        "kind": "preset"
-      },
-      "title": "3D Caricature Style",
-      "type": "preset.render.3d_caricature_style_nano_banana"
-    },
-    {
-      "category": "Preset",
-      "fields": [
-        {
-          "default": "media-preset-selfie-with-movie-character-nano-banana-shared",
-          "hidden": true,
-          "id": "preset_id",
-          "label": "Preset",
-          "type": "text"
-        },
-        {
-          "id": "text__character_name",
-          "label": "Character",
-          "required": true,
-          "type": "text"
-        },
-        {
-          "id": "text__movie_name",
-          "label": "Movie",
-          "required": true,
-          "type": "text"
-        }
-      ],
-      "inputs": [
-        {
-          "array": true,
-          "id": "slot__person",
-          "label": "Portrait",
-          "max": 1,
-          "min": 1,
-          "required": true,
-          "type": "image"
-        }
-      ],
-      "outputs": [
-        {
-          "id": "prompt",
-          "label": "Prompt",
-          "type": "text"
-        },
-        {
-          "array": true,
-          "id": "image_refs",
-          "label": "Image Refs",
-          "type": "image"
-        },
-        {
-          "id": "preset",
-          "label": "Preset",
-          "type": "json"
-        },
-        {
-          "advanced": true,
-          "id": "recommended_models",
-          "label": "Recommended Models",
-          "type": "json"
-        }
-      ],
-      "source": {
-        "kind": "preset"
-      },
-      "title": "Selfie with Movie Character",
-      "type": "preset.render.selfie_with_movie_character_nano_banana"
-    },
-    {
-      "category": "Preset",
-      "fields": [
-        {
-          "default": "preset_af4001299959",
-          "hidden": true,
-          "id": "preset_id",
-          "label": "Preset",
-          "type": "text"
-        },
-        {
-          "id": "text__creative_brief",
-          "label": "Creative Brief",
-          "required": true,
-          "type": "text"
-        }
-      ],
-      "inputs": [
-        {
-          "array": true,
-          "id": "slot__person",
-          "label": "Person",
-          "max": 1,
-          "min": 1,
-          "required": true,
-          "type": "image"
-        }
-      ],
-      "outputs": [
-        {
-          "id": "prompt",
-          "label": "Prompt",
-          "type": "text"
-        },
-        {
-          "array": true,
-          "id": "image_refs",
-          "label": "Image Refs",
-          "type": "image"
-        },
-        {
-          "id": "preset",
-          "label": "Preset",
-          "type": "json"
-        },
-        {
-          "advanced": true,
-          "id": "recommended_models",
-          "label": "Recommended Models",
-          "type": "json"
-        }
-      ],
-      "source": {
-        "kind": "preset"
-      },
-      "title": "Cleanest Storyboard Sheet",
-      "type": "preset.render.cleanest_storyboard_sheet"
-    },
-    {
-      "category": "Preset",
-      "fields": [
-        {
-          "default": "preset_f69236e8ce98",
-          "hidden": true,
-          "id": "preset_id",
-          "label": "Preset",
-          "type": "text"
-        },
-        {
-          "id": "text__scene",
-          "label": "Scene",
-          "required": true,
-          "type": "text"
-        }
-      ],
-      "inputs": [
-        {
-          "array": true,
-          "id": "slot__ref",
-          "label": "Ref",
-          "max": 1,
-          "min": 1,
-          "required": true,
-          "type": "image"
-        }
-      ],
-      "outputs": [
-        {
-          "id": "prompt",
-          "label": "Prompt",
-          "type": "text"
-        },
-        {
-          "array": true,
-          "id": "image_refs",
-          "label": "Image Refs",
-          "type": "image"
-        },
-        {
-          "id": "preset",
-          "label": "Preset",
-          "type": "json"
-        },
-        {
-          "advanced": true,
-          "id": "recommended_models",
-          "label": "Recommended Models",
-          "type": "json"
-        }
-      ],
-      "source": {
-        "kind": "preset"
-      },
-      "title": "Codex Smoke Image GPT I2I",
-      "type": "preset.render.codex_smoke_image_gpt_i2i"
-    },
-    {
-      "category": "Preset",
-      "fields": [
-        {
-          "default": "preset_de979f9911e4",
-          "hidden": true,
-          "id": "preset_id",
-          "label": "Preset",
-          "type": "text"
-        },
-        {
-          "id": "text__subject",
-          "label": "Subject",
-          "required": true,
-          "type": "text"
-        }
-      ],
-      "inputs": [],
-      "outputs": [
-        {
-          "id": "prompt",
-          "label": "Prompt",
-          "type": "text"
-        },
-        {
-          "array": true,
-          "id": "image_refs",
-          "label": "Image Refs",
-          "type": "image"
-        },
-        {
-          "id": "preset",
-          "label": "Preset",
-          "type": "json"
-        },
-        {
-          "advanced": true,
-          "id": "recommended_models",
-          "label": "Recommended Models",
-          "type": "json"
-        }
-      ],
-      "source": {
-        "kind": "preset"
-      },
-      "title": "Codex Smoke Prompt GPT T2I",
-      "type": "preset.render.codex_smoke_prompt_gpt_t2i"
     }
   ],
   "source_url": "http://127.0.0.1:3000/api/control/media/graph/node-definitions"
