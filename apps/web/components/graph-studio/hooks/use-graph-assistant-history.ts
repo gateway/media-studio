@@ -15,6 +15,7 @@ type HydrateWorkflowPayload = (
     run?: null;
     highlightNodeIds?: string[];
     assistantGenerated?: boolean;
+    layoutOnly?: boolean;
     definitionsByType?: Map<string, GraphNodeDefinition>;
   },
 ) => void;
@@ -119,7 +120,8 @@ export function useGraphAssistantHistory({
       assistantBaseSnapshotRef.current = null;
       assistantAppliedSnapshotRef.current = null;
       setAssistantUndoSnapshot(null);
-      setAssistantRedoSnapshot(assistantAppliedSnapshot);
+      // Measured layout can settle after the proposal snapshot was recorded.
+      setAssistantRedoSnapshot(assistantAppliedSnapshot?.layoutOnly ? { ...currentSnapshot, layoutOnly: true } : assistantAppliedSnapshot);
       return true;
     }
     const generatedOnBlankTab = nodesRef.current.some(
@@ -160,7 +162,8 @@ export function useGraphAssistantHistory({
     markWorkspaceChanged();
     const redoSnapshot = assistantRedoSnapshot ?? assistantRedoSnapshotRef.current;
     if (redoSnapshot) {
-      const baseSnapshot = currentHistorySnapshotRef.current;
+      const currentBase = currentHistorySnapshotRef.current;
+      const baseSnapshot = currentBase && redoSnapshot.layoutOnly ? { ...currentBase, layoutOnly: true } : currentBase;
       const latestActiveTabId = activeTabIdRef.current;
       assistantBaseSnapshotRef.current = baseSnapshot;
       assistantAppliedSnapshotRef.current = redoSnapshot;
@@ -168,6 +171,7 @@ export function useGraphAssistantHistory({
       setAssistantRedoSnapshot(null);
       commitSnapshot(redoSnapshot, { baseSnapshot, tabId: latestActiveTabId });
       hydrateWorkflowPayload(redoSnapshot.workflow, {
+        layoutOnly: redoSnapshot.layoutOnly,
         workflowId: redoSnapshot.workflowId,
         workflowName: redoSnapshot.workflowName,
         workflowUpdatedAt: redoSnapshot.workflowUpdatedAt ?? null,
@@ -178,7 +182,7 @@ export function useGraphAssistantHistory({
   }, [assistantRedoSnapshot, commitSnapshot, currentHistorySnapshotRef, hydrateWorkflowPayload, markWorkspaceChanged, redo, setAssistantRedoSnapshot]);
 
   const applyAssistantWorkflow = useCallback(
-    (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; baseWorkflow?: GraphWorkflowPayload; definitionsByType?: Map<string, GraphNodeDefinition> }) => {
+    (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; baseWorkflow?: GraphWorkflowPayload; definitionsByType?: Map<string, GraphNodeDefinition>; layoutOnly?: boolean }) => {
       markWorkspaceChanged();
       const fallbackSnapshot = currentHistorySnapshotRef.current ?? currentHistorySnapshot;
       const latestActiveTab = activeTabRef.current;
@@ -199,6 +203,7 @@ export function useGraphAssistantHistory({
           : fallbackSnapshot?.workflow ?? activeTabWorkflow ?? currentWorkflowPayload ?? blankBaseWorkflow);
       const baseWorkflowIsBlank = explicitBaseIsBlank || canvasIsBlank || activeTabIsBlank || !baseWorkflow.nodes.length;
       const baseSnapshot: GraphHistorySnapshot = {
+        layoutOnly: options?.layoutOnly,
         workflowId: baseWorkflowIsBlank ? null : fallbackSnapshot?.workflowId ?? latestActiveTab?.workflow_id ?? latestWorkflowId,
         workflowName: baseWorkflowIsBlank ? baseWorkflow.name || "New workflow" : fallbackSnapshot?.workflowName ?? latestActiveTab?.workflow_name ?? latestWorkflowName,
         workflowUpdatedAt: baseWorkflowIsBlank ? null : fallbackSnapshot?.workflowUpdatedAt ?? latestActiveTab?.workflow_updated_at ?? latestWorkflowUpdatedAt ?? null,
@@ -208,6 +213,7 @@ export function useGraphAssistantHistory({
       const nextWorkflowName = workflow.name || baseSnapshot.workflowName || latestWorkflowName;
       const nextWorkflow = baseWorkflowIsBlank ? { ...workflow, workflow_id: null, name: nextWorkflowName } : workflow;
       const appliedSnapshot: GraphHistorySnapshot = {
+        layoutOnly: options?.layoutOnly,
         workflowId: nextWorkflowId,
         workflowName: nextWorkflowName,
         workflowUpdatedAt: baseSnapshot.workflowUpdatedAt ?? latestWorkflowUpdatedAt ?? null,
@@ -224,12 +230,13 @@ export function useGraphAssistantHistory({
         workflow: nextWorkflow,
         savedWorkflowSignature: null,
         workflowUpdatedAt: baseSnapshot.workflowUpdatedAt ?? latestWorkflowUpdatedAt ?? null,
-        runId: null,
-        runStatus: null,
+        runId: options?.layoutOnly ? latestActiveTab?.run_id ?? null : null,
+        runStatus: options?.layoutOnly ? latestActiveTab?.run_status ?? null : null,
         consoleLines,
         dirty: true,
       });
       hydrateWorkflowPayload(nextWorkflow, {
+        layoutOnly: options?.layoutOnly,
         workflowId: nextWorkflowId,
         workflowName: nextWorkflowName,
         highlightNodeIds: options?.highlightNodeIds,

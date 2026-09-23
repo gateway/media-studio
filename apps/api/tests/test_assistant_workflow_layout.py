@@ -446,7 +446,7 @@ def test_arrange_aligns_the_same_shot_keyframe_that_feeds_video(app_modules) -> 
     assert groups["initial-group"]["bounds"]["y"] > groups["anchored-group"]["bounds"]["y"]
 
 
-def test_fresh_assistant_workflow_stacks_references_in_one_vertical_stage_column(app_modules) -> None:
+def test_fresh_assistant_workflow_wraps_references_into_height_bounded_columns(app_modules) -> None:
     del app_modules
     graph_plan = importlib.import_module("app.assistant.graph_plan")
     graph_schemas = importlib.import_module("app.graph.schemas")
@@ -467,8 +467,10 @@ def test_fresh_assistant_workflow_stacks_references_in_one_vertical_stage_column
     fresh = graph_plan.apply_graph_plan(empty, plan)
     nodes = {node.id: node for node in fresh.nodes}
     reference_columns = [nodes[node_id].position["x"] for node_id in source_ids]
-    assert len(set(reference_columns)) == 1
-    assert len({nodes[node_id].position["y"] for node_id in source_ids}) == 5
+    assert len(set(reference_columns)) > 1
+    graph_layout = importlib.import_module("app.graph.layout")
+    bounds = [graph_layout.node_bounds(node) for node in fresh.nodes]
+    assert max(b["y"] + b["height"] for b in bounds) - min(b["y"] for b in bounds) <= max(b["height"] for b in bounds)
     assert nodes["video"].position["x"] > max(reference_columns)
     assert nodes["video"].metadata["execution"]["mode"] == "frozen"
     assert [edge.source for edge in fresh.edges] == source_ids

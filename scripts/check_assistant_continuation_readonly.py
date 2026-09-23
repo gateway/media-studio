@@ -58,7 +58,7 @@ kernel.run_kernel_provider_step = provider
 result = kernel.run_assistant_kernel_turn(
     session=session, user_text=request, workflow=workflow,
     canvas_context={"workspace_key": "current-review-origin"}, assistant_mode="graph",
-    client_user_message_id="current-request-projection", max_tool_steps=3,
+    client_user_message_id="current-request-projection",
 )
 assert all(not trace.error for trace in result.trace.tool_calls), result.trace.model_dump()
 continuation = session["summary_json"].get("kernel_recipe_continuation")

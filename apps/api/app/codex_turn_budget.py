@@ -6,7 +6,7 @@ from typing import Callable
 
 
 class CodexTurnBudget:
-    def __init__(self, seconds: float, on_compaction: Callable[[bool], None] | None = None) -> None:
+    def __init__(self, seconds: float | None, on_compaction: Callable[[bool], None] | None = None) -> None:
         self.started_at = time.monotonic()
         self.seconds = seconds
         self.on_compaction = on_compaction
@@ -29,6 +29,8 @@ class CodexTurnBudget:
 
     @property
     def remaining_seconds(self) -> float:
+        if self.seconds is None:
+            return float("inf")
         return self.seconds - (time.monotonic() - self.started_at - self.excluded_seconds)
 
     def start_compaction(self, item_id: str | None = None) -> None:

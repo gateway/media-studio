@@ -49,8 +49,6 @@ from .schemas import (
 from .story_kernel import format_story_shot_list_reply
 
 
-KERNEL_MAX_TOOL_STEPS = 6
-KERNEL_MAX_WALL_SECONDS = 180.0
 KERNEL_USER_TURN_MAX_BYTES = 96 * 1024
 KERNEL_TOOL_INPUT_MAX_BYTES = KERNEL_TOOL_RESULT_MAX_BYTES + 4096
 KERNEL_CAPABILITY_PROMPTS: Dict[AssistantKernelCapability, str] = {
@@ -160,7 +158,8 @@ def _sync_kernel_prompt_thread(
 
 
 def _kernel_instruction() -> str:
-    catalog = kernel_tool_catalog()
+    from .tool_limits import compact_tool_catalog
+    catalog = compact_tool_catalog(kernel_tool_catalog())
     return (
         "Select exactly one Media Assistant capability and one artifact_intent from the semantic request. Use "
         "quality_decision when the user approves, continues refining, or stops after an active output comparison. "
@@ -178,6 +177,8 @@ def _kernel_instruction() -> str:
         "genuinely unresolved. Use the compact operation schemas returned by list_graph_node_types and do not repeat "
         "that discovery with inspect_graph_node_schemas. Inspect full schemas only for reported omissions or when "
         "exact option values or limits remain unresolved. "
+        "For edits to known nodes use read_current_workflow node_ids for exact affected fields and incident edges; "
+        "reuse unchanged catalog/recipe evidence already supplied in this thread. "
         "Recent conversation entries may be excerpts, not complete messages. For exact earlier wording, use "
         "read_session_content with the message_id; if older than recent context, search_conversation by a short "
         "distinctive phrase, then read the matching message. Do not ask for a repaste before trying these readers. "
@@ -215,6 +216,10 @@ def _kernel_instruction() -> str:
         "For formal quality approval of a confirmed recipe image run, call read_run_evidence before analyze_recipe_output, compare the generated "
         "pixels with attached source references, and persist the user's explicit approve, continue, or stop choice with "
         "record_recipe_quality_decision. Keep any prompt refinement or another paid run confirmation-gated. "
+        "Continue authorized planning/refinement to a reviewable result without asking permission again. "
+        "Continue in the current workflow unless the user explicitly requests a separate one. "
+        "Exact user-supplied asset/reference IDs may be bound to ordinary media loaders and validated; "
+        "they do not require selecting a result in a different session. Never claim visual inspection from an ID alone. "
         "For story work, keep the premise, characters, world rules, continuity facts, and shots in update_story_state. "
         "In user-facing replies and production plans, call a graph/tab a workflow and a creative phase a step; say Open new workflow, not Open new stage. "
         "At a meaningful transition where the user is choosing or constructing a reusable character-sheet, environment-sheet, "
@@ -305,6 +310,11 @@ def _kernel_user_turn_message(
     if workflow is not None:
         from .run_confirmation import applied_preset_test_plan_id
 
+        session_context["workflow"] = {
+            "workflow_id": workflow.workflow_id, "name": workflow.name,
+            "node_count": len(workflow.nodes), "edge_count": len(workflow.edges),
+            "fingerprint": workflow_fingerprint(workflow),
+        }
         session_context["current_applied_test_plan_id"] = applied_preset_test_plan_id(
             str(session.get("assistant_session_id") or ""),
             workflow,
@@ -736,7 +746,7 @@ def run_kernel_provider_step(
     session: Dict[str, Any],
     messages: List[Dict[str, Any]],
     cancel_event: Event | None,
-    timeout_seconds: float,
+    timeout_seconds: float | None,
     provider_lifecycle: Optional[List[str]] = None,
     provider_steps: Optional[List[AssistantKernelProviderTrace]] = None,
     thread_base_instructions: Optional[str] = None,
@@ -759,6 +769,7 @@ def run_kernel_provider_step(
             response_format=_provider_step_schema(),
             error_context="media assistant kernel",
             timeout_seconds=timeout_seconds,
+            unbounded_turn=True,
             cancel_event=cancel_event,
             codex_session_key=assistant_codex_session_key(session),
             provider_thread_id=session.get("provider_thread_id"),
@@ -771,6 +782,8 @@ def run_kernel_provider_step(
             resume_usage=(session.get("summary_json") or {}).get("kernel_provider_usage"),
         )
     except enhancement_provider.EnhancementProviderError as exc:
+        if provider_steps is not None:
+            provider_steps.append(AssistantKernelProviderTrace(model_id=runtime.provider_model_id))
         if is_cancelled(cancel_event):
             interrupted = isinstance(
                 exc.__cause__,
@@ -794,13 +807,14 @@ def run_kernel_provider_step(
     if provider_steps is not None:
         provider_steps.append(
             AssistantKernelProviderTrace(
+                model_id=runtime.provider_model_id,
                 provider_thread_id=thread_id or None,
                 provider_turn_id=str(result.get("provider_turn_id") or "").strip() or None,
                 process_lifecycle=result.get("process_lifecycle"),
                 reuse_mode=result.get("reuse_mode"),
                 usage=dict(result.get("usage") or {}),
-                latency_ms=int(result.get("latency_ms") or 0),
-                prompt_bytes=int(result.get("prompt_bytes") or 0),
+                latency_ms=result.get("latency_ms"),
+                prompt_bytes=result.get("prompt_bytes"),
                 reasoning_effort=str(result.get("reasoning_effort") or "").strip() or None,
                 client_user_message_id=(
                     str(result.get("client_user_message_id") or "").strip() or None
@@ -896,29 +910,15 @@ def run_assistant_kernel_turn(
     attachments: Optional[List[Dict[str, Any]]] = None,
     cancel_event: Event | None = None,
     planning_checkpoint: Optional[Dict[str, Any]] = None,
-    max_tool_steps: int = KERNEL_MAX_TOOL_STEPS,
-    max_wall_seconds: float = KERNEL_MAX_WALL_SECONDS,
     client_user_message_id: Optional[str] = None,
 ) -> AssistantKernelTurnResult:
     started = time.perf_counter()
-    compaction_seconds = 0.0
-    compaction_started: float | None = None
-
     def on_compaction(active: bool) -> None:
-        nonlocal compaction_seconds, compaction_started
-        if active and compaction_started is None:
-            compaction_started = time.perf_counter()
-        elif not active and compaction_started is not None:
-            compaction_seconds += time.perf_counter() - compaction_started
-            compaction_started = None
         publish_session_progress(
             str(session.get("assistant_session_id") or ""),
             stage="compacting" if active else "thinking",
             label="Compacting saved conversation…" if active else "Continuing your request…",
         )
-
-    def planning_elapsed() -> float:
-        return time.perf_counter() - started - compaction_seconds
 
     runtime = resolve_assistant_provider_runtime(session)
     if runtime.provider_kind != "codex_local":
@@ -964,18 +964,22 @@ def run_assistant_kernel_turn(
     tool_steps = 0
     provider_call_index = 0
     artifact_retry_requested = False
-    def budget_result(reason: str, remaining: str | None = None) -> AssistantKernelTurnResult:
+    repeated_steps: Dict[str, int] = {}
+
+    def no_progress_result() -> AssistantKernelTurnResult:
+        reason = "repeated_no_progress"
         capability = selected_capability or "general"
         recovery = None
         if capability == "graph_builder" or assistant_mode == "graph":
             recovery = record_planning_recovery(
                 session=session, workflow=workflow, canvas_context=canvas_context,
                 request=(planning_checkpoint or {}).get("request", user_text), attachments=list(attachments or []),
-                traces=tool_traces, messages=checkpoint_messages, reason=reason, prior=planning_checkpoint, remaining=remaining,
+                traces=tool_traces, messages=checkpoint_messages, reason=reason, prior=planning_checkpoint, remaining="The same operation or policy error repeated without progress.",
             )
         return AssistantKernelTurnResult(
-            reply=("Planning paused at this turn's limit. Your completed checks are saved. Choose Continue planning to finish the proposal; nothing will run automatically."
-                   if recovery else "I could not finish that safely within this turn's limit."),
+            reply="Planning stopped because the same operation repeated without progress. "
+                  + (tool_traces[-1].error.message if tool_traces and tool_traces[-1].error else "No new evidence was obtained.")
+                  + (" Completed checks are saved; Continue planning retries from them. Nothing has run." if recovery else " Nothing has run."),
             capability=capability,
             trace=AssistantKernelTrace(
                 capability=capability, loaded_prompt_assets=loaded_prompt_assets,
@@ -986,43 +990,61 @@ def run_assistant_kernel_turn(
             artifacts=artifacts, next_action=AssistantNextAction(),
         )
 
+    def preserve_failure(error):
+        from .turn_trace import build_assistant_turn_trace, compaction_error_trace
+        failure = compaction_error_trace(error)
+        failed_steps = failure.get("provider_steps") or []
+        if failed_steps and provider_steps:
+            # Provider failures already have one unknown-usage entry. Enrich it;
+            # do not count the same failed call as another provider invocation.
+            detail = failed_steps[-1]
+            provider_steps[-1] = provider_steps[-1].model_copy(update={
+                key: value for key, value in detail.items()
+                if key in AssistantKernelProviderTrace.model_fields
+            })
+        lifecycle = [*provider_lifecycle, *failure.get("provider_lifecycle", [])]
+        error.assistant_turn_trace = {
+            **build_assistant_turn_trace({"kernel_turn": {"trace": {
+                "provider_steps": [step.model_dump(mode="json") for step in provider_steps],
+                "tool_calls": [call.model_dump(mode="json") for call in tool_traces],
+                "provider_lifecycle": lifecycle,
+            }}}),
+            "termination": "cancelled" if isinstance(error, AssistantRequestCancelled) else "provider_error",
+            "duration_ms": int((time.perf_counter() - started) * 1000),
+        }
+
     while True:
         if is_cancelled(cancel_event):
-            raise AssistantRequestCancelled(
-                "Assistant kernel turn was cancelled.",
-                outcome="cancelled_before_provider",
-            )
-        elapsed = planning_elapsed()
-        if elapsed >= max_wall_seconds:
-            return budget_result("wall_clock_budget_exhausted")
+            error = AssistantRequestCancelled("Assistant kernel turn was cancelled.", outcome="cancelled_before_provider")
+            preserve_failure(error)
+            raise error
         provider_call_index += 1
         try:
             raw_step = run_kernel_provider_step(
-                session=session,
-                messages=[*messages, {"role": "system", "content": json.dumps(
-                    {"remaining_tool_calls": max(0, max_tool_steps - tool_steps)},
-                )}],
-                cancel_event=cancel_event,
-                # The kernel wall clock owns provider-step timeouts for assistant turns.
-                timeout_seconds=max_wall_seconds - elapsed,
-                provider_lifecycle=provider_lifecycle,
+                session=session, messages=messages, cancel_event=cancel_event,
+                timeout_seconds=None, provider_lifecycle=provider_lifecycle,
                 provider_steps=provider_steps,
                 thread_base_instructions=thread_assembly.base_instructions,
                 thread_developer_instructions=thread_assembly.developer_instructions,
                 reasoning_effort=_kernel_reasoning_effort(selected_capability, tool_traces),
-                client_user_message_id=(
-                    f"{client_user_message_id}:{provider_call_index}"
-                    if client_user_message_id
-                    else None
-                ),
-                compact_before_turn=provider_call_index == 1,
-                on_compaction=on_compaction,
+                client_user_message_id=f"{client_user_message_id}:{provider_call_index}" if client_user_message_id else None,
+                compact_before_turn=provider_call_index == 1, on_compaction=on_compaction,
             )
-        except AssistantProviderChatError:
-            if planning_elapsed() >= max_wall_seconds:
-                return budget_result("wall_clock_budget_exhausted")
+            if is_cancelled(cancel_event):
+                raise AssistantRequestCancelled("Assistant kernel turn was cancelled.", outcome="cancelled_after_provider")
+        except (AssistantProviderChatError, AssistantRequestCancelled) as exc:
+            preserve_failure(exc)
             raise
         step = AssistantKernelProviderStep.model_validate(raw_step)
+        # Repeated identical work/policy errors, not productive tool count, stops a turn.
+        signature = hashlib.sha256(json.dumps({
+            "capability": step.capability, "intent": step.artifact_intent,
+            "tool": step.tool_call.model_dump() if step.tool_call else None,
+            "reply": step.reply if not step.tool_call else None, "input": messages,
+        }, sort_keys=True).encode()).hexdigest()
+        repeated_steps[signature] = repeated_steps.get(signature, 0) + 1
+        if repeated_steps[signature] >= 3:
+            return no_progress_result()
         quality_decision = step.guidance.quality_decision
         quality_tool = {
             "preset_builder": "record_preset_quality_decision",
@@ -1128,31 +1150,34 @@ def run_assistant_kernel_turn(
                     )
                 ]
                 continue
-            if tool_steps >= max_tool_steps:
-                return budget_result("step_budget_exhausted")
-            execution = execute_kernel_tool(
-                tool_name=step.tool_call.name,
-                arguments=step.tool_call.arguments,
-                capability=selected_capability,
-                context=KernelToolContext(
-                    workflow=workflow,
-                    canvas_context=canvas_context,
-                    user_text=user_text,
-                    user_message_id=client_user_message_id,
-                    artifact_intent=selected_artifact_intent or "none",
-                    run_id=run_id,
-                    session_id=str(session.get("assistant_session_id") or "") or None,
-                    session=session,
-                    attachments=list(attachments or []),
-                    tool_evidence=[*(planning_checkpoint or {}).get("tool_evidence", []), *[
-                        trace.evidence
-                        for trace in tool_traces
-                        if isinstance(trace.evidence, dict)
-                    ]],
-                    cancel_event=cancel_event,
-                    timeout_seconds=max_wall_seconds - planning_elapsed(),
-                ),
-            )
+            try:
+                execution = execute_kernel_tool(
+                    tool_name=step.tool_call.name,
+                    arguments=step.tool_call.arguments,
+                    capability=selected_capability,
+                    context=KernelToolContext(
+                        workflow=workflow,
+                        canvas_context=canvas_context,
+                        user_text=user_text,
+                        user_message_id=client_user_message_id,
+                        artifact_intent=selected_artifact_intent or "none",
+                        run_id=run_id,
+                        session_id=str(session.get("assistant_session_id") or "") or None,
+                        session=session,
+                        attachments=list(attachments or []),
+                        tool_evidence=[*(planning_checkpoint or {}).get("tool_evidence", []), *[
+                            trace.evidence
+                            for trace in tool_traces
+                            if isinstance(trace.evidence, dict)
+                        ]],
+                        cancel_event=cancel_event,
+                        timeout_seconds=None,
+                        provider_steps=provider_steps,
+                    ),
+                )
+            except AssistantRequestCancelled as exc:
+                preserve_failure(exc)
+                raise
             tool_steps += 1
             tool_traces.append(execution.trace)
             session_id = str(session.get("assistant_session_id") or "")
@@ -1307,11 +1332,6 @@ def run_assistant_kernel_turn(
             if step.tool_call.name in {"list_graph_node_types", "inspect_graph_node_schemas"} and execution.trace.evidence is not None:
                 execution.trace.evidence["wire_bytes"] = len(messages[0]["content"].encode("utf-8"))
             continue
-        if (selected_capability == "graph_builder" and tool_steps >= max_tool_steps
-                and step.planning_remaining and step.planning_remaining.strip()
-                and not any(artifact.kind == "graph_proposal" for artifact in artifacts)
-                and requested_run_action is None):
-            return budget_result("step_budget_exhausted", step.planning_remaining.strip())
         reply = str(step.reply or "")
         if (tool_traces and tool_traces[-1].error
                 and tool_traces[-1].error.code == "recipe_inspection_required"

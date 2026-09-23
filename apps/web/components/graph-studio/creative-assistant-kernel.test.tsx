@@ -225,7 +225,8 @@ it("requests a text-to-image model when wiring a saved Prompt Recipe", async () 
   expect(request.message).toContain("Storyboard Prompt Writer");
   expect(request.message).toContain("recipe-1");
   expect(request.message).toContain("clean replacement workflow");
-  expect(request.message).toContain("text-to-image model");
+  expect(request.message).toContain("preserve its image-input intent");
+  expect(request.message).toContain("Use image-to-image when references condition generation");
   expect(request.workflow.nodes).toHaveLength(0);
   fireEvent.click(await screen.findByRole("button", { name: "Add to canvas" }));
   await waitFor(() => expect(onApplyWorkflow).toHaveBeenCalled());

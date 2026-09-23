@@ -683,7 +683,7 @@ export function CreativeAssistantPanel({
   importImageFile: (file: File) => Promise<MediaReference>;
   onBeforeReviewNavigate?: () => void;
   onAssistantSessionChange?: (assistantSessionId: string | null) => void;
-  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; openInNewTab?: boolean; assistantSessionId?: string }) => Promise<void> | void;
+  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; openInNewTab?: boolean; assistantSessionId?: string; layoutOnly?: boolean }) => Promise<void> | void;
   onUndoLastAssistantChange?: () => void;
   onRunWorkflow?: (assistantConfirmation?: { sessionId: string; token: string }) => Promise<unknown> | void;
   onOpenPreview?: (preview: GraphMediaPreview, collection?: GraphMediaPreview[]) => void;
@@ -869,9 +869,11 @@ export function CreativeAssistantPanel({
   const executionModeChanges = Array.isArray(layoutDiff["execution_mode_changes"])
     ? layoutDiff["execution_mode_changes"] as Array<{ id: string; title: string; from: string; to: string }>
     : [];
-  const freezeOnlyPlan = planOperations.length > 0 && planOperations.every(
-    (operation) => operation["op"] === "set_execution_mode" && operation["execution_mode"] === "frozen",
+  const holdOnlyPlan = planOperations.length > 0 && planOperations.every(
+    (operation) => operation["op"] === "set_execution_mode" && ["frozen", "muted"].includes(String(operation["execution_mode"])),
   );
+  const editChanges = Array.isArray(layoutDiff["edit_changes"])
+    ? layoutDiff["edit_changes"].filter((value): value is string => typeof value === "string") : [];
   const movedNodeCount = Array.isArray(layoutDiff["nodes_moved"]) ? layoutDiff["nodes_moved"].length : null;
   const movedGroupCount = Array.isArray(layoutDiff["groups_repositioned"]) ? layoutDiff["groups_repositioned"].length : null;
   const arrangedNodeCount = movedNodeCount ?? plan?.workflow.nodes.length ?? 0;
@@ -996,6 +998,7 @@ export function CreativeAssistantPanel({
   const addNodeOperations = planOperations.filter((operation) => operation["op"] === "add_node" || operation["op"] === "add_note");
   const connectionOperations = planOperations.filter((operation) => operation["op"] === "connect_nodes");
   const groupOperations = planOperations.filter((operation) => operation["op"] === "group_nodes");
+  const inPlaceEditOperations = planOperations.filter((operation) => ["replace_model", "update_edge", "remove_edge", "rename_workflow"].includes(String(operation["op"])));
   const fieldUpdateOperations = planOperations.filter((operation) => operation["op"] === "set_node_field" || operation["op"] === "set_node_title");
   const onlyFieldUpdateOperations = fieldUpdateOperations.length > 0 && fieldUpdateOperations.length === planOperations.length;
   const selectedContext = selectedNodeContext(workflow, selectedNodeIds);
@@ -1328,7 +1331,7 @@ export function CreativeAssistantPanel({
             </section>
           ) : null}
 
-          <AssistantResults results={results} disabled={assistant.busy} onOpenPreview={onOpenPreview}
+          <AssistantResults results={results} workflow={workflow} disabled={assistant.busy} onOpenPreview={onOpenPreview}
             onAsk={() => messageInputRef.current?.focus()} />
           {kernelPresetSaveAction ? (
             <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Media Preset save confirmation">
@@ -1466,7 +1469,7 @@ export function CreativeAssistantPanel({
                       <PencilLine size={13} aria-hidden="true" />
                       <span className="graph-assistant-plan-stat-label">Updates</span>
                     </dt>
-                    <dd>{fieldUpdateOperations.length + executionModeOperations.length + arrangeOperations.length}</dd>
+                    <dd>{fieldUpdateOperations.length + executionModeOperations.length + arrangeOperations.length + inPlaceEditOperations.length}</dd>
                   </div>
                 </dl>
                 <div className="graph-assistant-plan-operation-list">
@@ -1493,16 +1496,23 @@ export function CreativeAssistantPanel({
                     </ul>
                   ) : executionModeOperations.length ? (
                     <span>{onlyExecutionModeOperations ? "Update execution mode only." : "Review execution mode and workflow changes."}</span>
+                  ) : inPlaceEditOperations.length ? (
+                    <span>Review changes to the current workflow below.</span>
                   ) : (
                     <span>No canvas changes are required.</span>
                   )}
                 </div>
+                {editChanges.length ? (
+                  <div className="graph-assistant-plan-operation-list">
+                    <ul>{editChanges.map((change, index) => <li key={index}>{change}</li>)}</ul>
+                  </div>
+                ) : null}
                 {executionModeChanges.length ? (
                   <div className="graph-assistant-plan-operation-list">
                     <ul>{executionModeChanges.map((change) => (
                       <li key={change.id}>{change.title}: {change.from} → {change.to}</li>
                     ))}</ul>
-                    <p>{freezeOnlyPlan ? "Apply this hold without running. Run validation issues may remain." : "Changing execution mode does not start a run."}</p>
+                    <p>{holdOnlyPlan ? "Apply this hold without running. Run validation issues may remain." : "Changing execution mode does not start a run."}</p>
                   </div>
                 ) : null}
                 {plan.graph_plan.questions.length || plan.graph_plan.warnings.length || plan.validation.warnings.length ? (

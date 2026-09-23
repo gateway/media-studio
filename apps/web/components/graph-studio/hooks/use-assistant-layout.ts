@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef } from "react";
 
 import type { GraphWorkflowPayload, StudioNode } from "../types";
 import { spaceAssistantNodes } from "../utils/graph-assistant-layout";
+import { reflowAssistantRegions } from "../utils/graph-assistant-reflow";
 
-type LayoutScope = { tabId: string | null; positions: Map<string, { x: number; y: number }>; proposed?: Map<string, { x: number; y: number }> };
+type LayoutScope = { tabId: string | null; workflow: GraphWorkflowPayload; positions: Map<string, { x: number; y: number }>; proposed?: Map<string, { x: number; y: number }> };
 
 export function useAssistantLayout({ nodes, setNodes, activeTabId }: {
   nodes: StudioNode[];
@@ -12,13 +13,21 @@ export function useAssistantLayout({ nodes, setNodes, activeTabId }: {
 }) {
   const scope = useRef<LayoutScope | null>(null);
   const stopAssistantLayout = useCallback(() => { scope.current = null; }, []);
-  const beginAssistantLayout = useCallback((workflow: GraphWorkflowPayload, base?: GraphWorkflowPayload, tabId = activeTabId) => {
+  const beginAssistantLayout = useCallback((workflow: GraphWorkflowPayload, base?: GraphWorkflowPayload, tabId = activeTabId, layoutOnly = false) => {
     const previous = new Map(base?.nodes.map((node) => [node.id, node.position]) ?? []);
+    const baseById = new Map(base?.nodes.map((node) => [node.id, node]) ?? []);
+    const geometryOnly = base?.nodes.length === workflow.nodes.length && workflow.nodes.every((node) => {
+      const before = baseById.get(node.id);
+      return before && before.type === node.type && JSON.stringify(before.fields) === JSON.stringify(node.fields)
+        && JSON.stringify(before.metadata) === JSON.stringify(node.metadata);
+    }) && JSON.stringify(base?.edges) === JSON.stringify(workflow.edges)
+      && workflow.nodes.some((node) => previous.get(node.id)?.x !== node.position.x || previous.get(node.id)?.y !== node.position.y);
     scope.current = {
       tabId,
+      workflow,
       positions: new Map(workflow.nodes.filter((node) => {
         const position = previous.get(node.id);
-        return !position || position.x !== node.position.x || position.y !== node.position.y;
+        return layoutOnly || geometryOnly || !position || position.x !== node.position.x || position.y !== node.position.y;
       }).map((node) => [node.id, { ...node.position }])),
     };
   }, [activeTabId]);
@@ -41,9 +50,13 @@ export function useAssistantLayout({ nodes, setNodes, activeTabId }: {
       return;
     }
     pending.positions = new Map(managed.map((node) => [node.id, { ...node.position }]));
-    const next = spaceAssistantNodes(nodes, new Set(pending.positions.keys()));
+    const ids = new Set(pending.positions.keys());
+    // Legacy/incremental edits keep their obstacle correction. Full proposals
+    // can be packed again after the real recipe/preview dimensions arrive.
+    const packed = pending.workflow.edges ? reflowAssistantRegions(nodes, ids, pending.workflow) : nodes;
+    const next = spaceAssistantNodes(packed, ids);
     pending.proposed = undefined;
-    if (next === nodes) return;
+    if (next === nodes || next.every((node, index) => node.position.x === nodes[index].position.x && node.position.y === nodes[index].position.y)) return;
     pending.proposed = new Map(next.filter((node) => pending.positions.has(node.id)).map((node) => [node.id, { ...node.position }]));
     setNodes((current) => current === nodes ? next : current);
   }, [activeTabId, nodes, setNodes]);

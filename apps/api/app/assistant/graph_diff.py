@@ -170,6 +170,8 @@ def graph_plan_diff_summary(
         if not base_node:
             continue
         changed: List[str] = []
+        if base_node.type != next_node.type:
+            changed.append("model")
         if _node_title(base_node) != _node_title(next_node):
             changed.append("title")
         field_keys = sorted(key for key in set(base_node.fields.keys()) | set(next_node.fields.keys()) if base_node.fields.get(key) != next_node.fields.get(key))
@@ -186,6 +188,21 @@ def graph_plan_diff_summary(
             if node_id not in base_nodes
         ],
         "nodes_changed": changed_nodes,
+        "edit_changes": [
+            *([f"Workflow name: {base_workflow.name} → {next_workflow.name}"] if base_workflow.name != next_workflow.name else []),
+            *[f"{_node_title(node)}: {base_nodes[node.id].type} → {node.type}" for node in next_workflow.nodes
+              if node.id in base_nodes and base_nodes[node.id].type != node.type],
+            *[f"{_node_title(node)} — {key}: {base_nodes[node.id].fields.get(key)!r} → {node.fields.get(key)!r}"
+              for node in next_workflow.nodes if node.id in base_nodes
+              for key in sorted(set(base_nodes[node.id].fields) | set(node.fields))
+              if base_nodes[node.id].fields.get(key) != node.fields.get(key)],
+            *[f"Remove connection: {edge.source}.{edge.source_port} → {edge.target}.{edge.target_port}"
+              for edge in base_workflow.edges if edge.id not in next_edges],
+            *[f"Update connection: {base_edges[edge.id].source}.{base_edges[edge.id].source_port} → "
+              f"{base_edges[edge.id].target}.{base_edges[edge.id].target_port} to "
+              f"{edge.source}.{edge.source_port} → {edge.target}.{edge.target_port}"
+              for edge in next_workflow.edges if edge.id in base_edges and edge != base_edges[edge.id]],
+        ],
         "execution_mode_changes": [
             {"id": node.id, "title": _node_title(node),
              "from": _execution_mode(base_nodes.get(node.id)), "to": _execution_mode(node)}

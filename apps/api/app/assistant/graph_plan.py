@@ -232,11 +232,11 @@ def _connected_added_node_ids(
     return [node_id for node_id in added_node_ids if node_id in connected_ids]
 
 
-def is_freeze_only_plan(plan: AssistantGraphPlan) -> bool:
+def is_hold_only_plan(plan: AssistantGraphPlan) -> bool:
     # Holding existing nodes is allowed even when the graph cannot run.
     # Never extend this exception to enabling nodes or other graph edits.
     return bool(plan.operations) and all(
-        operation.op == "set_execution_mode" and operation.execution_mode == "frozen"
+        operation.op == "set_execution_mode" and operation.execution_mode in {"frozen", "muted"}
         for operation in plan.operations
     )
 
@@ -270,6 +270,10 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
         ) or explicit_id
 
     for operation in plan.operations:
+        if operation.op in {"replace_model", "update_edge", "remove_edge", "rename_workflow"}:
+            from .graph_edits import apply_in_place_edit
+            apply_in_place_edit(next_workflow, operation, resolve_node_id)
+            continue
         if operation.op == "add_node":
             if not operation.node_type or operation.node_type not in definitions:
                 raise ValueError(f"Unknown node type: {operation.node_type or 'missing'}")
@@ -308,8 +312,8 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
             node_id = resolve_node_id(operation.node_ref, operation.node_id)
             if not node_id or node_id not in nodes_by_id:
                 raise ValueError("Cannot set execution mode on an unknown node.")
-            if operation.execution_mode not in {"enabled", "frozen"}:
-                raise ValueError("Execution mode must be enabled or frozen.")
+            if operation.execution_mode not in {"enabled", "frozen", "muted", "bypassed"}:
+                raise ValueError("Execution mode must be enabled, frozen, muted or bypassed.")
             node = nodes_by_id[node_id]
             execution = node.metadata.get("execution")
             node.metadata["execution"] = {
@@ -450,11 +454,15 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
         metadata["groups"] = groups
         next_workflow.metadata = metadata
 
-    # Fresh graphs default to left-to-right flow; preserve existing canvas layouts.
-    # Leave notes to the existing placement above the new production section.
+    if any(op.op in {"replace_model", "update_edge", "remove_edge"} for op in plan.operations):
+        from .graph_edits import validate_edit_connections
+        validate_edit_connections(next_workflow)
+    # Fresh graphs use height-bounded columns, including notes beside the flow.
+    # Ordinary edits preserve the existing canvas layout.
     if not workflow.nodes:
-        arrange_nodes([node_id for node_id in added_node_ids if nodes_by_id[node_id].type != "utility.note"], next_workflow, nodes_by_id)
-    _layout_added_nodes(nodes_by_id, added_node_ids)
+        arrange_nodes(added_node_ids, next_workflow, nodes_by_id)
+    else:
+        _layout_added_nodes(nodes_by_id, added_node_ids)
     _shift_added_section_from_existing(workflow, nodes_by_id, added_node_ids)
     resized_group_ids = added_group_ids | expanded_group_ids | contracted_group_ids
     if resized_group_ids:

@@ -324,9 +324,7 @@ def propose_prompt_recipe_draft(arguments: BaseModel, context: Any) -> Dict[str,
                 code="prompt_recipe_draft_unchanged",
                 message="The user requested a revision, but the typed Prompt Recipe draft did not change.",
             )
-    save_ready = bool(
-        options.request_save_confirmation and context.artifact_intent == "save_recipe"
-    )
+    save_ready = context.artifact_intent == "save_recipe"
     proposal_id = new_id("asrecipe")
     confirmation_token = new_id("confirm") if save_ready else None
     proposal = {

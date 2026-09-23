@@ -18,6 +18,31 @@ function workflow(nodes: StudioNode[]) {
 
 describe("Assistant rendered layout", () => {
 
+  it("settles a complete width-first proposal and stops after undo or manual movement", () => {
+    const initial = [node("ref", 0, 0, 620), node("recipe", 0, 716, 1900), node("output", 516, 0, 620)];
+    const proposal = { ...workflow(initial), edges: [
+      { id: "ref-out", source: "ref", target: "output", source_port: "image", target_port: "image" },
+      { id: "recipe-out", source: "recipe", target: "output", source_port: "text", target_port: "prompt" },
+    ] } as GraphWorkflowPayload;
+    const { result } = renderHook(() => {
+      const [nodes, setNodes] = useState(initial);
+      return { nodes, setNodes, ...useAssistantLayout({ nodes, setNodes, activeTabId: "one" }) };
+    }, { wrapper: StrictMode });
+    act(() => {
+      result.current.beginAssistantLayout(proposal, proposal, "one", true);
+      result.current.setNodes([...initial]);
+    });
+    expect(Math.max(...result.current.nodes.map((node) => node.position.y + node.measured!.height!))).toBe(1900);
+    expect(result.current.nodes[2].position.x).toBeGreaterThan(result.current.nodes[1].position.x);
+    act(() => result.current.setNodes((nodes) => nodes.map((node) => node.id === "recipe" ? { ...node, measured: { width: 420, height: 2400 } } : node)));
+    expect(Math.max(...result.current.nodes.map((node) => node.position.y + node.measured!.height!))).toBe(2400);
+    // An undo restores the user's snapshot and must not be re-packed by an effect.
+    act(() => result.current.setNodes(initial));
+    expect(result.current.nodes).toBe(initial);
+    act(() => result.current.setNodes((nodes) => nodes.map((node) => node.id === "recipe" ? { ...node, measured: { width: 420, height: 2600 } } : node)));
+    expect(result.current.nodes.map((node) => node.position)).toEqual(initial.map((node) => node.position));
+  });
+
   it("retains all group members through reflow and growth, but supports explicit drag-out", () => {
     const initial = [node("preset", 0, 0), node("preview", 0, 716)];
     const { result } = renderHook(() => {

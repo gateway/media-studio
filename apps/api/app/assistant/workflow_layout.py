@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import heapq
 from dataclasses import dataclass
 from typing import Any, Dict, List, Set
 
@@ -12,7 +13,7 @@ from ..graph.layout import (
     bounds_union,
     compute_group_bounds,
     node_bounds,
-    node_layout_size,
+    pack_stage_columns,
 )
 from ..graph.registry import registry
 from ..graph.schemas import GraphWorkflow, GraphWorkflowNode
@@ -44,14 +45,13 @@ def _node_levels(node_ids: List[str], workflow: GraphWorkflow) -> Dict[str, int]
     pending = sorted(node_id for node_id, degree in indegree.items() if degree == 0)
     visited: Set[str] = set()
     while pending:
-        node_id = pending.pop(0)
+        node_id = heapq.heappop(pending)
         visited.add(node_id)
         for target_id in sorted(outgoing[node_id]):
             levels[target_id] = max(levels[target_id], levels[node_id] + 1)
             indegree[target_id] -= 1
             if indegree[target_id] == 0:
-                pending.append(target_id)
-                pending.sort()
+                heapq.heappush(pending, target_id)
     for node_id in set(node_ids) - visited:
         levels[node_id] = 0
     return levels
@@ -61,29 +61,16 @@ def arrange_nodes(node_ids: List[str], workflow: GraphWorkflow, nodes_by_id: Dic
     if len(node_ids) < 2:
         return
     levels = _node_levels(node_ids, workflow)
+    # Resolve geometry once per node, not once per comparison or placement.
+    sizes = {node_id: node_bounds(nodes_by_id[node_id]) for node_id in node_ids}
     columns: Dict[int, List[GraphWorkflowNode]] = {}
     for node_id in node_ids:
         columns.setdefault(levels[node_id], []).append(nodes_by_id[node_id])
     for column in columns.values():
         column.sort(key=lambda node: (_node_title(node).casefold(), node.id))
-    # Stack each dependency stage vertically; advance left to right between stages.
-    column_widths = {
-        level: max(node_layout_size(node.type, node.fields)[0] for node in column)
-        for level, column in columns.items()
-    }
-    column_heights = {level: sum(node_layout_size(node.type, node.fields)[1] for node in column) + WORKFLOW_NODE_GAP * (len(column) - 1) for level, column in columns.items()}
-    max_height = max(column_heights.values())
-    x = 0.0
-    for level in sorted(columns):
-        y = (max_height - column_heights[level]) / 2
-        for node in columns[level]:
-            width, height = node_layout_size(node.type, node.fields)
-            node.position = {
-                "x": x + (column_widths[level] - width) / 2,
-                "y": y,
-            }
-            y += height + WORKFLOW_NODE_GAP
-        x += column_widths[level] + WORKFLOW_NODE_GAP
+    positions = pack_stage_columns(([node.id for node in columns[level]] for level in sorted(columns)), sizes)
+    for node_id, position in positions.items():
+        nodes_by_id[node_id].position = position
 
 
 @dataclass
@@ -235,7 +222,7 @@ def arrange_workflow(workflow: GraphWorkflow) -> GraphWorkflow:
                 group_blocks,
                 key=lambda block: (
                     -len(title_tokens & (set(re.findall(r"[a-z0-9]+", block.title.casefold())) - {"group", "production", "section", "shot"})),
-                    ((block.bounds or {})["x"] + (block.bounds or {})["width"] / 2 - x) ** 2 + ((block.bounds or {})["y"] + (block.bounds or {})["height"] / 2 - y) ** 2,
+                    ((block.bounds or {}).get("x", 0) + (block.bounds or {}).get("width", 0) / 2 - x) ** 2 + ((block.bounds or {}).get("y", 0) + (block.bounds or {}).get("height", 0) / 2 - y) ** 2,
                 ),
             )
             order, level = anchor.order + 0.5, anchor.level
@@ -341,4 +328,17 @@ def arrange_workflow(workflow: GraphWorkflow) -> GraphWorkflow:
                     title=block.title,
                 )
         x += column_widths[level] + WORKFLOW_COLUMN_GAP
+    # Detached notes beside a single production section must not extend its
+    # height. Keep membership intact; notes remain outside the group frame.
+    production = [block for block in blocks if any(nodes_by_id[n].type != "utility.note" for n in block.node_ids)]
+    if len(production) == 1:
+        content = bounds_union(node_bounds(nodes_by_id[n]) for n in production[0].node_ids)
+        assert content is not None
+        note_x = content["x"] + content["width"] + WORKFLOW_COLUMN_GAP
+        for block in blocks:
+            if block is production[0] or block.group_id:
+                continue
+            for node_id in block.node_ids:
+                nodes_by_id[node_id].position = {"x": note_x, "y": content["y"]}
+                note_x += node_bounds(nodes_by_id[node_id])["width"] + WORKFLOW_NODE_GAP
     return arranged

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any, Dict, Iterable
 
 from .registry import registry
@@ -12,6 +13,36 @@ WORKFLOW_COLUMN_GAP = 320.0
 WORKFLOW_ROW_GAP = 160.0
 WORKFLOW_NODE_GAP = 96.0
 WORKFLOW_GROUP_PADDING = 96.0
+
+
+def pack_stage_columns(columns: Iterable[list[str]], sizes: Dict[str, Dict[str, float]]) -> Dict[str, Dict[str, float]]:
+    """Pack ordered dependency stages within the tallest node's height."""
+    if not sizes:
+        return {}
+    height_budget = max(size["height"] for size in sizes.values())
+    positions: Dict[str, Dict[str, float]] = {}
+    x = 0.0
+    for stage in columns:
+        packed: list[list[str]] = [[]]
+        used_height = 0.0
+        for node_id in stage:
+            height = sizes[node_id]["height"]
+            if packed[-1] and used_height + WORKFLOW_NODE_GAP + height > height_budget:
+                packed.append([])
+                used_height = 0.0
+            used_height += (WORKFLOW_NODE_GAP if packed[-1] else 0.0) + height
+            packed[-1].append(node_id)
+        for column in packed:
+            if not column:
+                continue
+            width = max(sizes[node_id]["width"] for node_id in column)
+            column_height = sum(sizes[node_id]["height"] for node_id in column) + WORKFLOW_NODE_GAP * (len(column) - 1)
+            y = (height_budget - column_height) / 2
+            for node_id in column:
+                positions[node_id] = {"x": x + (width - sizes[node_id]["width"]) / 2, "y": y}
+                y += sizes[node_id]["height"] + WORKFLOW_NODE_GAP
+            x += width + WORKFLOW_NODE_GAP
+    return positions
 
 
 def _selected_preset_layout_metrics(definition: Any, fields: Dict[str, Any]) -> tuple[int, int]:
@@ -99,6 +130,16 @@ def node_layout_size(node_type: str, fields: Dict[str, Any] | None = None) -> tu
 
 def node_bounds(node: GraphWorkflowNode) -> Dict[str, float]:
     width, height = node_layout_size(node.type, node.fields)
+    style = node.metadata.get("style")
+    if isinstance(style, dict):
+        # Respect existing canvas sizing without trusting invalid/negative JSON.
+        for key in ("width", "height"):
+            value = style.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value > 0:
+                if key == "width":
+                    width = max(width, value)
+                else:
+                    height = max(height, value)
     return {
         "x": float(node.position.get("x", 0)),
         "y": float(node.position.get("y", 0)),

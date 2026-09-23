@@ -536,7 +536,7 @@ it("keeps a complex assistant turn connected beyond the former browser cutoff", 
   await act(async () => Promise.resolve());
   await act(async () => Promise.resolve());
 
-  await act(async () => vi.advanceTimersByTimeAsync(219_999));
+  await act(async () => vi.advanceTimersByTimeAsync(300_000));
   expect(messageSignal?.aborted).toBe(false);
   expect(container.querySelector(".graph-assistant-message-thinking")).toBeTruthy();
 
@@ -558,7 +558,7 @@ it("keeps a complex assistant turn connected beyond the former browser cutoff", 
   expect(container.querySelector(".graph-assistant-message-thinking")).toBeNull();
 });
 
-it("ends a lost assistant request at the documented browser ceiling", async () => {
+it("keeps a long request cancellable without an ordinary browser ceiling", async () => {
   vi.useFakeTimers();
   let messageSignal: AbortSignal | undefined;
   vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
@@ -595,9 +595,11 @@ it("ends a lost assistant request at the documented browser ceiling", async () =
   await act(async () => Promise.resolve());
   await act(async () => Promise.resolve());
 
-  await act(async () => vi.advanceTimersByTimeAsync(219_999));
+  await act(async () => vi.advanceTimersByTimeAsync(300_000));
   expect(messageSignal?.aborted).toBe(false);
   await act(async () => vi.advanceTimersByTimeAsync(1));
+  expect(messageSignal?.aborted).toBe(false);
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Stop assistant request" })));
   expect(messageSignal?.aborted).toBe(true);
 });
 

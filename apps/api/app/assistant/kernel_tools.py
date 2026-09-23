@@ -36,7 +36,7 @@ from .canvas_context import compact_canvas_context
 from .results import (ResultReuse, ReadResultsArguments, ResultSelection, InspectSelectedResultArguments, inspect_selected_result, read_results_tool, select_result_tool, stage_result_operations, validate_stage_results)
 from .generation_inspection import InspectGenerationArguments, inspect_generation
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
-from .graph_plan import apply_graph_plan, is_freeze_only_plan
+from .graph_plan import apply_graph_plan, is_hold_only_plan
 from .reference_analysis import (
     AnalyzeGeneratedOutputArguments,
     AnalyzeReferenceImagesArguments,
@@ -136,6 +136,7 @@ KERNEL_TOOL_ACTIVITIES = {
 
 
 class ReadCurrentWorkflowArguments(BaseModel):
+    node_ids: List[str] = Field(default_factory=list, description="Read exact nodes and their incident edges; omit for the full workflow.")
     include_fields: bool = True
     include_selection: bool = True
 
@@ -170,7 +171,7 @@ class DerivedRecipeDefaultsOverride(BaseModel):
 class ProposeGraphOperationsArguments(BaseModel):
     summary: str = Field(min_length=1, max_length=800)
     operations: List[AssistantGraphOperation] = Field(default_factory=list, max_length=64)
-    new_stage_name: Optional[str] = Field(default=None, min_length=1, max_length=160, description="Create a separate workflow and preserve the current graph. Use for independent stages or variants, never repurpose prior generators.")
+    new_stage_name: Optional[str] = Field(default=None, min_length=1, max_length=160, description="Create a separate workflow and preserve the current graph. Use only when the user explicitly requests a separate workflow; continue in the current workflow by default.")
     reused_results: List[ResultReuse] = Field(default_factory=list, max_length=8, description="Exact selected outputs to materialize as loaders/text. Connect from their node_ref; do not reconstruct their content.")
     template_id: Optional[
         Literal[
@@ -219,6 +220,7 @@ class KernelToolContext:
     session: Dict[str, Any] = field(default_factory=dict)
     attachments: List[Dict[str, Any]] = field(default_factory=list)
     tool_evidence: List[Dict[str, Any]] = field(default_factory=list)
+    provider_steps: List[Any] = field(default_factory=list)
     cancel_event: Event | None = None
     timeout_seconds: Optional[float] = None
 
@@ -267,9 +269,10 @@ def _read_current_workflow(
                 "execution": dict(node.metadata.get("execution") or {"mode": "enabled"}),
                 "fields": dict(node.fields) if options.include_fields else {},
             }
-            for node in workflow.nodes
+            for node in workflow.nodes if not options.node_ids or node.id in options.node_ids
         ]
-        edges = [edge.model_dump(mode="json") for edge in workflow.edges]
+        edges = [edge.model_dump(mode="json") for edge in workflow.edges
+                 if not options.node_ids or edge.source in options.node_ids or edge.target in options.node_ids]
         workflow_id = workflow.workflow_id
         workflow_name = workflow.name
         metadata = workflow.metadata if isinstance(workflow.metadata, dict) else {}
@@ -1680,6 +1683,8 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     base_workflow = context.workflow or GraphWorkflow(
         name=str(context.canvas_context.get("workflow_name") or "New workflow"),
     )
+    from .graph_edits import graph_edit_fingerprint
+    metadata["base_edit_fingerprint"] = graph_edit_fingerprint(base_workflow)
     graph_plan = AssistantGraphPlan(
         summary=options.summary,
         operations=operations,
@@ -1847,7 +1852,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     ]
     confirmable = not layout_errors and (
         validation.valid
-        or is_freeze_only_plan(graph_plan)
+        or is_hold_only_plan(graph_plan)
         or (bool(pending_user_inputs) and len(pending_user_inputs) == len(validation.errors))
     )
     if not confirmable:
@@ -2015,14 +2020,19 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         description=(
             "Build a standard preset test graph by template id, or apply typed graph operations; validate, "
             "layout-check, price, and persist the confirmable proposal. New workflows automatically use a "
-            "left-to-right stage layout: inputs stack vertically in one column, then processing and outputs to the right. "
+            "left-to-right stage layout: each stage wraps into extra columns within the tallest node's height, "
+            "then processing and outputs continue to the right. "
             "For a layout-only request, use one "
             "arrange_workflow operation; the server deterministically moves existing nodes and recomputes "
             "existing group bounds while preserving graph content, connections, identities, and membership. "
             "Use remove_nodes_from_group with an exact existing group id and node ids to repair an incorrect "
             "membership; it may be combined with arrange_workflow in the same atomic repair proposal. "
-            "Use set_execution_mode with an exact node_id or node_ref and execution_mode frozen or enabled. "
-            "Freeze-only edits may be applied while run validation remains blocked; enabling requires normal validation. "
+            "Use set_execution_mode with an exact node_id or node_ref and execution_mode enabled, frozen, muted or bypassed. "
+            "Use rename_workflow with title. For replace_model supply exact node_id, node_type, field overrides, "
+            "remove_field_ids for incompatible fields, and explicit input_port_map/output_port_map entries for every "
+            "connected old port (same name to retain, new name to map, null to remove its edges). "
+            "Use update_edge/remove_edge with exact edge_id; updates preserve unspecified endpoints and order. "
+            "Frozen-or-Muted-only edits may be applied while run validation remains blocked; enabling requires normal validation. "
             "Changing mode never runs a node or grants spend approval."
         ),
         arguments_model=ProposeGraphOperationsArguments,
@@ -2236,6 +2246,9 @@ def execute_kernel_tool(
     capability: AssistantKernelCapability,
     context: KernelToolContext,
 ) -> KernelToolExecution:
+    from .cancellation import is_cancelled, AssistantRequestCancelled
+    if is_cancelled(context.cancel_event):
+        raise AssistantRequestCancelled("Assistant tool was cancelled.", outcome="cancelled_before_tool")
     started = time.perf_counter()
     definition = KERNEL_TOOLS.get(str(tool_name or "").strip())
     error: AssistantKernelToolError | None = None

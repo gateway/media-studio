@@ -31,7 +31,6 @@ export type AssistantMode = "preset" | "recipe" | "graph";
 
 type AssistantStatus = "idle" | "sending" | "running" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling";
 
-const ASSISTANT_REQUEST_TIMEOUT_MS = 220_000;
 const ASSISTANT_TRACKED_TURN_STATUSES = new Set<AssistantStatus>([
   "sending",
   "planning",
@@ -66,7 +65,7 @@ function savedArtifactGraphPrompt(message: AssistantMessage) {
   if (artifact.kind === "media_preset") {
     return `Create a clean replacement workflow that uses the saved Media Preset named ${artifact.label} with exact id ${artifact.id}${exactKey}. Fill every required text field with useful alternate sample values so the graph validates and the user can change them through visible form controls. Leave required image inputs empty so the user can attach the correct images before running.`;
   }
-  return `Create a clean replacement workflow that uses the saved Prompt Recipe named ${artifact.label} with exact id ${artifact.id}${exactKey}, then sends the rendered prompt into a compatible text-to-image model with preview and save image nodes.`;
+  return `Create a clean replacement workflow that uses the saved Prompt Recipe named ${artifact.label} with exact id ${artifact.id}${exactKey}, then sends the rendered prompt into a compatible model with preview and save image nodes. Read the saved recipe contract and preserve its image-input intent, intended model and attached reference roles. Use image-to-image when references condition generation, and text-to-image only when the contract calls for it. Populate every required text field from our brief; ask only for genuinely missing inputs.`;
 }
 
 function savedArtifactEditorUrl(message: AssistantMessage, returnTo?: string) {
@@ -259,7 +258,7 @@ export function useCreativeAssistant({
   importImageFile: (file: File) => Promise<MediaReference>;
   onBeforeReviewNavigate?: () => void;
   onAssistantSessionChange?: (assistantSessionId: string | null) => void;
-  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; baseWorkflow?: GraphWorkflowPayload; openInNewTab?: boolean; assistantSessionId?: string }) => Promise<void> | void;
+  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; baseWorkflow?: GraphWorkflowPayload; openInNewTab?: boolean; assistantSessionId?: string; layoutOnly?: boolean }) => Promise<void> | void;
   onRunWorkflow?: (assistantConfirmation?: { sessionId: string; token: string }) => Promise<unknown> | void;
   onEvent?: (message: string, tone?: "success" | "warning" | "error" | "muted") => void;
 }) {
@@ -279,11 +278,6 @@ export function useCreativeAssistant({
     loginConfigured: false,
   });
   const activeAbortControllerRef = useRef<AbortController | null>(null);
-  const activeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeProgressRef = useRef<{
-    controller: AbortController;
-    update: (next: AssistantProgress) => void;
-  } | null>(null);
   const cancellationPendingRef = useRef(false);
   const workspaceKeyRef = useRef(workspaceKey);
   const initialAssistantSessionIdRef = useRef(initialAssistantSessionId);
@@ -354,10 +348,6 @@ export function useCreativeAssistant({
   const resetAssistantState = useCallback(() => {
     activeAbortControllerRef.current?.abort();
     cancellationPendingRef.current = false;
-    if (activeTimeoutRef.current) {
-      clearTimeout(activeTimeoutRef.current);
-      activeTimeoutRef.current = null;
-    }
     sessionWorkspaceKeyRef.current = null;
     activeRunOperationRef.current = null;
     planWorkflowOverrideRef.current = null;
@@ -390,54 +380,16 @@ export function useCreativeAssistant({
     }
   }, [onAssistantSessionChange, session?.assistant_session_id, workspaceKey]);
 
-  const runAbortableRequest = useCallback(async <T,>(request: (signal: AbortSignal) => Promise<T>, progressSessionId?: string) => {
+  const runAbortableRequest = useCallback(async <T,>(request: (signal: AbortSignal) => Promise<T>) => {
     activeAbortControllerRef.current?.abort();
     const controller = new AbortController();
     activeAbortControllerRef.current = controller;
-    if (activeTimeoutRef.current) clearTimeout(activeTimeoutRef.current);
-    const startedAt = performance.now();
-    let compactionMs = 0;
-    let compactingSince: number | null = null;
-    const update = (next: AssistantProgress) => {
-      compactionMs = Math.max(compactionMs, (next.compaction_seconds ?? 0) * 1000);
-      compactingSince = next.active && next.stage === "compacting" ? performance.now() : null;
-    };
-    activeProgressRef.current = { controller, update };
-    const remaining = () => ASSISTANT_REQUEST_TIMEOUT_MS - (performance.now() - startedAt - compactionMs
-      - (compactingSince === null ? 0 : performance.now() - compactingSince));
-    const checkDeadline = async () => {
-      if (activeAbortControllerRef.current !== controller || controller.signal.aborted) return;
-      if (remaining() <= 0 && progressSessionId) {
-        // Recheck at the boundary so compaction starting between polls is respected.
-        try {
-          const next = await jsonFetch<AssistantProgress>(
-            `/api/control/media/assistant/sessions/${progressSessionId}/progress`,
-            { signal: AbortSignal.timeout(5_000) },
-          );
-          if (activeAbortControllerRef.current !== controller || controller.signal.aborted) return;
-          update(next);
-        } catch {
-          // A last confirmed compaction remains pending until a terminal update or Stop.
-        }
-      }
-      if (activeAbortControllerRef.current !== controller || controller.signal.aborted) return;
-      if (compactingSince === null && remaining() <= 0) {
-        controller.abort();
-      } else {
-        activeTimeoutRef.current = setTimeout(checkDeadline, compactingSince === null
-          ? Math.max(1, Math.min(1000, remaining())) : 1000);
-      }
-    };
-    activeTimeoutRef.current = setTimeout(checkDeadline, ASSISTANT_REQUEST_TIMEOUT_MS);
+    // Productive planning and real compaction finish without a wall-clock cap.
+    // Explicit Stop/workspace changes abort; transport failures still reject.
     try {
       return await request(controller.signal);
     } finally {
-      if (activeAbortControllerRef.current === controller) {
-        activeAbortControllerRef.current = null;
-        activeProgressRef.current = null;
-        if (activeTimeoutRef.current) clearTimeout(activeTimeoutRef.current);
-        activeTimeoutRef.current = null;
-      }
+      if (activeAbortControllerRef.current === controller) activeAbortControllerRef.current = null;
     }
   }, []);
 
@@ -451,7 +403,6 @@ export function useCreativeAssistant({
     let disposed = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const poll = async () => {
-      const requestProgress = activeProgressRef.current;
       try {
         const next = await jsonFetch<AssistantProgress>(
           `/api/control/media/assistant/sessions/${sessionId}/progress`,
@@ -459,7 +410,6 @@ export function useCreativeAssistant({
         );
         if (!disposed) {
           setProgress(next.active ? next : null);
-          if (requestProgress && activeProgressRef.current === requestProgress) requestProgress.update(next);
         }
       } catch {
         if (!disposed) setProgress((current) => current?.stage === "compacting"
@@ -869,7 +819,7 @@ export function useCreativeAssistant({
           }
           return { kind: "clarification" as const, updatedSession: refreshedSession };
         }
-      }, currentSession.assistant_session_id);
+      });
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       if (planRequest.kind === "clarification") {
         setScopedSession(planRequest.updatedSession);
@@ -957,6 +907,7 @@ export function useCreativeAssistant({
       ]));
       await onApplyWorkflow(result.workflow, {
         highlightNodeIds, baseWorkflow: workflow,
+        layoutOnly: planResponse.graph_plan.operations.length === 1 && planResponse.graph_plan.operations[0]["op"] === "arrange_workflow",
         openInNewTab: planResponse.graph_plan.metadata?.independent_stage === true,
         assistantSessionId: planResponse.plan.assistant_session_id,
       });
@@ -1029,7 +980,6 @@ export function useCreativeAssistant({
             metadata: options?.metadata ?? {},
           }),
         }),
-        currentSession.assistant_session_id,
       );
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       planWorkflowOverrideRef.current = null;

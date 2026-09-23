@@ -14,7 +14,7 @@ from ..graph.validator import validate_workflow
 from .cancellation import AssistantSessionBusy, session_progress
 from .confirmation_routes import create_confirmation_router
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
-from .graph_plan import apply_graph_plan, is_freeze_only_plan
+from .graph_plan import apply_graph_plan, is_hold_only_plan
 from .kernel_route import create_kernel_message
 from .results import router as results_router, validate_stage_results
 from .limits import ASSISTANT_IMAGE_ATTACHMENT_LIMIT, is_image_attachment
@@ -290,6 +290,10 @@ def apply_plan(
         raise _bad_request(
             "The canvas changed after this graph proposal was created. Ask for a fresh proposal."
         )
+    from .graph_edits import graph_edit_fingerprint
+    edit_fingerprint = graph_plan.metadata.get("base_edit_fingerprint")
+    if edit_fingerprint and not hmac.compare_digest(edit_fingerprint, graph_edit_fingerprint(base_workflow)):
+        raise _bad_request("The workflow name, content, connections or layout changed. Ask for a fresh proposal.")
     try:
         if graph_plan.metadata.get("independent_stage") or graph_plan.metadata.get("replace_existing_test_lane"):
             workflow = GraphWorkflow.model_validate(plan.get("workflow_json") or {})
@@ -324,7 +328,7 @@ def apply_plan(
         validation=validation,
         layout_errors=layout_errors,
     )
-    if not validation.valid and not _allows_pending_media(validation) and not is_freeze_only_plan(graph_plan):
+    if not validation.valid and not _allows_pending_media(validation) and not is_hold_only_plan(graph_plan):
         raise _bad_request("Assistant plan no longer validates.")
     pricing = estimate_graph_workflow(workflow)
     updated = store_assistant.create_or_update_assistant_plan(

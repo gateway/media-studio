@@ -91,7 +91,7 @@ import type {
   StudioNode,
 } from "./types";
 import { jsonFetch } from "./utils/graph-api";
-import { graphGroupsForCanvas, pruneGraphGroupMembership } from "./utils/graph-groups";
+import { graphGroupsForCanvas, pruneGraphGroupMembership, readGraphGroupsFromWorkflow } from "./utils/graph-groups";
 import { filterGraphNodeNoopChanges } from "./utils/graph-node-changes";
 import {
   assetIdsFromGraphRun,
@@ -966,9 +966,16 @@ function GraphStudioClient() {
         run?: GraphRun | null;
         highlightNodeIds?: string[];
         assistantGenerated?: boolean;
+        layoutOnly?: boolean;
         definitionsByType?: Map<string, GraphNodeDefinition>;
       },
     ) => {
+      if (options?.layoutOnly) {
+        const positions = new Map(workflow.nodes.map((node) => [node.id, node.position]));
+        setNodes((current) => current.map((node) => ({ ...node, position: positions.get(node.id) ?? node.position })));
+        setGroups(readGraphGroupsFromWorkflow(workflow));
+        return;
+      }
       if (!workflow.nodes.length) {
         setWorkflowId(options?.workflowId ?? workflow.workflow_id ?? null);
         setWorkflowName(
@@ -1055,6 +1062,7 @@ function GraphStudioClient() {
         return;
       }
       hydrateWorkflowPayload(historySnapshot.workflow, {
+        layoutOnly: historySnapshot.layoutOnly,
         workflowId: historySnapshot.workflowId,
         workflowName: historySnapshot.workflowName,
         workflowUpdatedAt: historySnapshot.workflowUpdatedAt ?? null,
@@ -1067,8 +1075,8 @@ function GraphStudioClient() {
           ? graphWorkflowSnapshotSignature(historySnapshot.workflow)
           : null,
         workflowUpdatedAt: historySnapshot.workflowUpdatedAt ?? null,
-        runId: null,
-        runStatus: null,
+        runId: historySnapshot.layoutOnly ? run?.run_id ?? null : null,
+        runStatus: historySnapshot.layoutOnly ? run?.status ?? null : null,
         consoleLines,
         dirty: Boolean(historySnapshot.workflowId),
       });
@@ -1082,6 +1090,7 @@ function GraphStudioClient() {
       closeWorkflowMenu,
       consoleLines,
       hydrateWorkflowPayload,
+      run,
       setConsoleLines,
       updateTab,
     ],
@@ -1130,12 +1139,13 @@ function GraphStudioClient() {
       options?: {
         highlightNodeIds?: string[];
         baseWorkflow?: GraphWorkflowPayload;
+        layoutOnly?: boolean;
       },
     ) => {
       let refreshedDefinitionsByType:
         | Map<string, GraphNodeDefinition>
         | undefined;
-      if (graphWorkflowNeedsFreshDefinitions(workflow)) {
+      if (!options?.layoutOnly && graphWorkflowNeedsFreshDefinitions(workflow)) {
         try {
           const refreshedDefinitions = await reloadNodeDefinitions(true);
           refreshedDefinitionsByType = new Map(
@@ -1150,7 +1160,7 @@ function GraphStudioClient() {
           );
         }
       }
-      beginAssistantLayout(workflow, options?.baseWorkflow);
+      beginAssistantLayout(workflow, options?.baseWorkflow, undefined, options?.layoutOnly);
       applyAssistantWorkflowRef.current(workflow, {
         ...options,
         definitionsByType: refreshedDefinitionsByType,

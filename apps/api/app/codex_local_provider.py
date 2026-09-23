@@ -1341,10 +1341,11 @@ def run_codex_local_chat(
     reasoning_effort: Optional[str] = None,
     client_user_message_id: Optional[str] = None,
     compact_before_turn: bool = False,
+    unbounded_turn: bool = False,
     resume_usage: Optional[Dict[str, Any]] = None,
     on_compaction: Callable[[bool], None] | None = None,
 ) -> Dict[str, Any]:
-    budget = CodexTurnBudget(timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS, on_compaction)
+    budget = CodexTurnBudget(None if unbounded_turn else timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS, on_compaction)
     started_at = time.perf_counter()
     del error_context
     output_schema = _response_format_to_output_schema(response_format)
@@ -1372,7 +1373,7 @@ def run_codex_local_chat(
         thread_lifecycle.extend(managed_lifecycle)
         try:
             with managed.lock:
-                managed.session.timeout_seconds = max(0.001, budget.remaining_seconds)
+                managed.session.timeout_seconds = CODEX_APP_SERVER_TIMEOUT_SECONDS if unbounded_turn else max(0.001, budget.remaining_seconds)
                 resumed_without_usage = "thread_resumed" in managed_lifecycle and managed.model_context_window <= 0
                 if resumed_without_usage and resume_usage:
                     managed.record_usage(resume_usage)

@@ -169,7 +169,7 @@ class AssistantKernelProviderStep(BaseModel):
     )
     planning_remaining: Optional[str] = Field(
         default=None, max_length=1200,
-        description="For an unfinished graph proposal at zero remaining_tool_calls, list the exact checks still needed. Use null for completed work, advice-only requests, or a user decision that is needed before proceeding.",
+        description="For an unfinished graph proposal blocked by missing input or a repeated failure, describe the exact blocker. Use null for completed work, advice-only requests, or a user decision that is needed before proceeding.",
     )
     tool_call: Optional[AssistantKernelToolCallRequest] = None
     requested_action: AssistantNextAction = Field(default_factory=AssistantNextAction)
@@ -207,13 +207,15 @@ class AssistantVoiceViolation(BaseModel):
 
 
 class AssistantKernelProviderTrace(BaseModel):
+    purpose: str = "planning"
+    model_id: Optional[str] = None
     provider_thread_id: Optional[str] = None
     provider_turn_id: Optional[str] = None
     process_lifecycle: Optional[Literal["process_spawned", "process_reused"]] = None
     reuse_mode: Optional[Literal["new_thread", "live_process", "disk_resume", "replacement_thread"]] = None
     usage: Dict[str, Any] = Field(default_factory=dict)
-    latency_ms: int = 0
-    prompt_bytes: int = 0
+    latency_ms: Optional[int] = None
+    prompt_bytes: Optional[int] = None
     reasoning_effort: Optional[str] = None
     client_user_message_id: Optional[str] = None
     compaction: Optional[Dict[str, Any]] = None
@@ -365,6 +367,10 @@ class AssistantGraphOperation(BaseModel):
         "set_node_field",
         "set_node_title",
         "set_execution_mode",
+        "replace_model",
+        "update_edge",
+        "remove_edge",
+        "rename_workflow",
         "add_note",
         "connect_nodes",
         "group_nodes",
@@ -377,7 +383,11 @@ class AssistantGraphOperation(BaseModel):
     title: Optional[str] = None
     position: Dict[str, float] = Field(default_factory=dict)
     fields: Dict[str, Any] = Field(default_factory=dict)
-    execution_mode: Optional[Literal["enabled", "frozen"]] = None
+    execution_mode: Optional[Literal["enabled", "frozen", "muted", "bypassed"]] = None
+    input_port_map: Dict[str, Optional[str]] = Field(default_factory=dict)
+    output_port_map: Dict[str, Optional[str]] = Field(default_factory=dict)
+    remove_field_ids: List[str] = Field(default_factory=list)
+    edge_id: Optional[str] = None
     source_ref: Optional[str] = None
     source_port: Optional[str] = None
     target_ref: Optional[str] = None
