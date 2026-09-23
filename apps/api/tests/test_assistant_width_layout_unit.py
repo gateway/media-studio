@@ -77,6 +77,23 @@ class WidthLayoutTests(unittest.TestCase):
             self.assertEqual(measure.call_count, len(nodes))
         print(f"Width-first layout: {len(nodes)} nodes / {len(workflow.edges)} edges in {(time.perf_counter() - started) * 1000:.2f}ms")
 
+    def test_fresh_grouped_plan_keeps_detached_note_beside_group(self):
+        from app.assistant import graph_plan
+        from app.assistant.schemas import AssistantGraphPlan
+        from app.graph.layout import node_bounds
+        workflow = self.workflow()
+        operations = [{"op": "add_node", "node_id": n.id, "node_ref": n.id, "node_type": n.type} for n in workflow.nodes]
+        operations += [{"op": "connect_nodes", "source_ref": e.source, "target_ref": e.target, "source_port": e.source_port, "target_port": e.target_port} for e in workflow.edges]
+        operations += [{"op": "add_note", "node_ref": "note", "title": "Instructions", "body": "Review first."}, {"op": "group_nodes", "group_ref": "production", "title": "Production", "node_refs": [n.id for n in workflow.nodes]}]
+        with patch.object(graph_plan, "materialize_workflow_defaults", side_effect=lambda w: w), patch.object(graph_plan.registry, "definitions_by_type", return_value=self.definitions):
+            fresh = graph_plan.apply_graph_plan(self.GraphWorkflow(name="New"), AssistantGraphPlan(summary="Create", operations=operations))
+        group = fresh.metadata["groups"][0]
+        note = next(n for n in fresh.nodes if n.type == "utility.note")
+        bounds = node_bounds(note)
+        self.assertNotIn(note.id, group["node_ids"])
+        self.assertTrue(bounds["x"] + bounds["width"] + 96 <= group["bounds"]["x"] or group["bounds"]["x"] + group["bounds"]["width"] + 96 <= bounds["x"])
+        self.assert_geometry(fresh)
+
     def test_cycle_and_disconnected_nodes_are_deterministic(self):
         from app.graph.schemas import GraphWorkflowEdge
         workflow = self.workflow()

@@ -87,6 +87,18 @@ class ContinuityEditsTests(unittest.TestCase):
             other=self.workflow.model_copy(deep=True);other.edges.reverse();variants.append(other)
             for other in variants:self.assertNotEqual(original,graph_edit_fingerprint(other))
 
+    def test_edit_fingerprint_ignores_viewport_and_empty_canvas_bookkeeping(self):
+        from app.assistant.graph_edits import graph_edit_fingerprint
+        with patch('app.graph.normalization.materialize_workflow_defaults', side_effect=lambda w: w):
+            base = self.workflow.model_copy(deep=True)
+            base.metadata = {}
+            canvas = base.model_copy(deep=True)
+            canvas.viewport = {"x": 80, "y": 120, "zoom": 0.9}
+            canvas.metadata = {"created_by": "graph-studio", "groups": []}
+            self.assertEqual(graph_edit_fingerprint(base), graph_edit_fingerprint(canvas))
+            canvas.metadata["groups"] = self.workflow.metadata["groups"]
+            self.assertNotEqual(graph_edit_fingerprint(base), graph_edit_fingerprint(canvas))
+
     def test_unknown_usage_stays_unknown(self):
         from app.assistant.turn_trace import build_assistant_turn_trace
         empty=build_assistant_turn_trace({})

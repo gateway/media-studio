@@ -11,12 +11,13 @@ Draft PR #16 consolidates the September Assistant work plus the latest local con
 - Prominent generation status while a workflow runs; completed output cards omit reference loaders and duplicate previews.
 - Width-first dependency columns sized against the tallest node; measured browser reflow and layout-only apply/undo/redo preserve completed previews and run association.
 - Portable graph authoring/export guidance and catalog helpers. Catalog freshness remains explicitly unknown.
+- Follow-up regressions: canvas pan/zoom and empty group bookkeeping no longer invalidate an unchanged proposal; fresh grouped graphs arrange detached notes beside the complete group frame. Both cases failed before the fix and pass in database/network-denied regressions.
 - Consolidation repairs: CI selects the renamed no-progress regression, file-size boundary tests use the configured cap, and read-only diagnostic scripts no longer pass removed tool-budget parameters.
 
 ## Verification for the consolidated working tree
 
 - 49 focused web tests across generation results, delayed turns, kernel actions, layout, measured reflow and history passed.
-- 28 standalone backend tests passed with database/network access denied: continuity edits (14), planning recovery (9), width-first layout (5).
+- 30 standalone backend tests passed with database/network access denied: continuity edits (15), planning recovery (9), width-first layout (6).
 - Both file-size regression tests passed directly, outside pytest collection. All eight named CI test selectors resolve in the source.
 - Web typecheck, lint (527 files), theme-drift and file-size checks passed.
 - Prior populated-installation browser acceptance verified layout apply/undo/redo with preserved media and fields, and planning beyond the former turn limit. This consolidation pass did not generate media or rerun those browser flows.

@@ -90,5 +90,9 @@ def graph_edit_fingerprint(workflow: GraphWorkflow) -> str:
     import json
     from ..graph.normalization import materialize_workflow_defaults
 
-    payload = materialize_workflow_defaults(workflow).model_dump(mode="json")
+    # Canvas navigation/bookkeeping does not change the reviewed graph.
+    payload = materialize_workflow_defaults(workflow).model_dump(mode="json", exclude={"viewport"})
+    payload["metadata"].pop("created_by", None)
+    if not payload["metadata"].get("groups"):
+        payload["metadata"].pop("groups", None)
     return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()

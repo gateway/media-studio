@@ -508,7 +508,7 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
         )
         metadata["groups"] = normalized_groups
         next_workflow.metadata = metadata
-    if arrange_requested:
+    if arrange_requested or (not workflow.nodes and resized_group_ids):
         next_workflow = arrange_workflow(next_workflow)
     if plan.metadata:
         metadata = dict(next_workflow.metadata)

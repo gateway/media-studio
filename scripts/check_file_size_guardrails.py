@@ -81,9 +81,10 @@ GUARDRAILS = (
 # MALIVE-025: +154 lines for focused read-only prompt/diagnostic inspection; no new storage or execution authority.
 # MALIVE-026: reviewed in-place edits, evidence invalidation and failure/cancellation traces; 12833 measured lines, no reserve.
 # Width-first layout: packing lives in graph/layout.py; net +2 assistant lines for bounded stages and adjacent notes.
+# Consolidation: +4 lines exclude canvas navigation/bookkeeping from edit staleness; content/layout remain protected.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_835,
+    12_839,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 
