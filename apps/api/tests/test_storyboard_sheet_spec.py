@@ -144,7 +144,7 @@ def _portable_recipe_result(case: dict[str, object]) -> dict[str, str]:
             f"PANEL {number:02d}:\n"
             f"SHOT: {number:02d} — PORTABLE BEAT {number}\n"
             f"CAMERA: Eye-level medium-wide frame, {35 + number}mm lens feel, controlled parallax move\n"
-            f"ACTION: {subject} advances through portable story beat {number} with the scenario-specific focal detail visible\n"
+            f"ACTION: The scene advances through beat {number}, retaining the declared subject and setting.\n"
             f"MOTION: Foreground and background elements shift in layered depth while beat {number} changes screen direction\n"
             f"DIALOG: {dialog_row}\n"
             f"NOTES: Preserve the unique setting landmarks and continuity markers for portable scenario {number}\n"
@@ -200,7 +200,8 @@ def test_art_prompt_keeps_user_subject_traits_but_excludes_sheet_chrome() -> Non
     assert "Source grid: 2x3" in prompt
     assert "4:3 source plate" in prompt
     assert "2-column by 3-row source grid" in prompt
-    assert "no titles, words, letters, numbers, captions, metadata, borders" in prompt
+    assert "without editorial text overlays" in prompt
+    assert "Preserve text, lettering and logos physically present" in prompt
     assert "SHOT:" not in prompt
     assert "PROJECT:" not in prompt
     assert "ORBITAL RELAY" not in prompt
@@ -240,7 +241,7 @@ def test_storyboard_spec_strips_image_reference_tokens_from_visible_metadata() -
     assert spec.panels[2].action == "The operator completes relay alignment beat 3"
 
 
-def test_art_prompt_expresses_visual_context_as_positive_provider_directions() -> None:
+def test_art_prompt_preserves_authored_visual_constraints() -> None:
     result = _recipe_result(
         recipe_key="storyboard-continuation-v1",
         subject=(
@@ -261,8 +262,8 @@ def test_art_prompt_expresses_visual_context_as_positive_provider_directions() -
 
     assert "four distinct paws and a low horizontal torso" in prompt
     assert "continuous opaque garment" in prompt
-    for forbidden in ("never", "underwear", "expose", "humanoid", "bipedal"):
-        assert forbidden not in prompt.lower()
+    for authored_term in ("never", "underwear", "expose", "humanoid", "bipedal"):
+        assert authored_term in prompt.lower()
 
 
 def test_art_source_contract_accepts_current_art_only_prompt_and_rejects_historical_complete_sheet() -> None:
@@ -301,10 +302,10 @@ def test_art_prompt_prioritizes_action_and_declares_wide_safe_frame() -> None:
     assert "approximately 1.9:1" in prompt
     assert "central 58% vertical safe band" in prompt
     assert "complete action" in prompt
-    assert first_cell.index(spec.panels[0].action) < first_cell.index("eye-level three-quarter angle")
+    assert first_cell.index(spec.panels[0].action) < first_cell.index(spec.panels[0].camera)
 
 
-def test_art_prompt_separates_compacted_motion_and_notes_at_complete_clause_boundaries() -> None:
+def test_art_prompt_separates_complete_motion_and_notes_without_clipping() -> None:
     result = _recipe_result(
         recipe_key="storyboard-continuation-v1",
         subject="A neutral recurring subject.",
@@ -323,12 +324,14 @@ def test_art_prompt_separates_compacted_motion_and_notes_at_complete_clause_boun
     )
     result["final_text"] = result["raw_text"]
 
-    prompt = storyboard_art_prompt(storyboard_sheet_spec_from_recipe_result(result))
+    spec = storyboard_sheet_spec_from_recipe_result(result)
+    prompt = storyboard_art_prompt(spec)
     first_cell = prompt.split("Cell 01:", 1)[1].split("Cell 02:", 1)[0]
 
     assert "soft-focus Preserve" not in first_cell
-    assert ". Preserve the closed amber handoff" in first_cell
-    assert len(prompt) <= 4200
+    assert "soft-focus background\nPreserve the closed amber handoff" in first_cell
+    assert spec.panels[0].motion in first_cell
+    assert spec.panels[0].notes in first_cell
 
 
 def test_unrelated_story_results_do_not_cross_contaminate() -> None:
@@ -362,7 +365,7 @@ def test_compiler_rejects_incomplete_metadata_before_art_generation() -> None:
     )
     result["raw_text"] = result["raw_text"].replace(
         "The indicator lights settle while the camera advances",
-        "The cracked relay floor.",
+        "The relay movement is.",
         1,
     )
 
@@ -531,7 +534,7 @@ def test_compiler_rejects_exact_metadata_that_cannot_fit_the_readable_display_co
         ("MOTION", "The indicator lights settle from left to right as the camera advances and fine dust crosses the established route behind the operator"),
     ],
 )
-def test_compiler_compacts_generated_metadata_into_the_readable_display_contract(
+def test_compiler_requires_reviewed_rewrite_for_overlong_display_metadata(
     label: str,
     value: str,
 ) -> None:
@@ -548,11 +551,12 @@ def test_compiler_compacts_generated_metadata_into_the_readable_display_contract
     result["raw_text"] = result["raw_text"].replace(f"{label}: {original}", f"{label}: {value}", 1)
     result["final_text"] = result["raw_text"]
 
-    spec = storyboard_sheet_spec_from_recipe_result(result)
-    compacted = getattr(spec.panels[0], label.lower())
-
-    assert compacted
-    assert len(compacted) <= STORYBOARD_METADATA_DISPLAY_LIMITS[label]
+    if len(value) > STORYBOARD_METADATA_DISPLAY_LIMITS[label]:
+        with pytest.raises(ValueError, match=rf"Panel 01 {label} exceeds the readable display limit"):
+            storyboard_sheet_spec_from_recipe_result(result)
+    else:
+        spec = storyboard_sheet_spec_from_recipe_result(result)
+        assert getattr(spec.panels[0], label.lower()) == value
 
 
 def test_compiler_applies_user_owned_inline_panel_note_overrides_by_number() -> None:
@@ -814,7 +818,7 @@ def test_storyboard_compiler_renderer_and_art_prompt_are_portable_across_story_t
     assert rendered.metadata["input_mode"] == expected_input_mode
     assert str(case["anchor"]) in prompt
     assert expected_style in prompt
-    assert "fixed character, environment, or storyboard slot" not in prompt
+    assert "do not assume a fixed character, environment, or storyboard slot" in prompt
     assert "Sadi" not in prompt
     assert "Bolts" not in prompt
     assert "ORBITAL RELAY" not in prompt
@@ -823,7 +827,8 @@ def test_storyboard_compiler_renderer_and_art_prompt_are_portable_across_story_t
     assert "frozen time" not in prompt.lower()
     assert all(expected_style in item for item in panel_prompts)
     assert all(item.count(expected_style) == 1 for item in panel_prompts)
-    assert all(". No visible text" in item for item in panel_prompts)
+    assert all("No added captions, metadata, borders or watermarks" in item for item in panel_prompts)
+    assert all("Preserve reference-authoritative text and logos" in item for item in panel_prompts)
     if case["id"] == "non_photoreal_animation":
         assert "flat 2D hand-drawn animation" in prompt
         assert "photoreal live-action" not in prompt

@@ -227,7 +227,7 @@ def _create_tracked_kernel_message(
                 "consumed": False,
             }
     if result.next_action.kind == "run_workflow" and run_confirmation:
-        result.reply = (result.reply.strip() + "\n\n" if result.reply.strip() else "") + (
+        result.reply = (
             "Run confirmation is ready. Review the current graph and estimate; "
             "choosing Review and run submits this graph. Nothing has started."
         )

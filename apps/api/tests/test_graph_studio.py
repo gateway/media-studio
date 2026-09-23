@@ -2416,7 +2416,7 @@ def test_storyboard_v2_prompt_sanitizer_does_not_replace_lowercase_guard_words()
     assert "the character names" not in sanitized
 
 
-def test_storyboard_v2_user_owned_directives_survive_sanitizing_and_compaction() -> None:
+def test_storyboard_v2_user_owned_directives_survive_sanitizing_and_submission() -> None:
     values = {
         "user_prompt": "Create a three-board relay story without visible private names.",
         "board_title": "BOARD 3 OF 3 — RELAY DEPARTURE",
@@ -2448,7 +2448,7 @@ def test_storyboard_v2_user_owned_directives_survive_sanitizing_and_compaction()
         "four-legged brass relay animal",
     ):
         assert required in shaped
-    assert "never humanoid or bipedal" not in shaped
+    assert "never humanoid or bipedal" in shaped
 
 
 def test_storyboard_continuation_uses_the_same_sanitizer_boundary() -> None:
@@ -2633,10 +2633,10 @@ def test_storyboard_v2_prompt_sanitizer_flattens_structured_shot_json() -> None:
     assert '{"title"' not in sanitized
     assert "Panel 01 - 06 - Escape Down the Hallway" in sanitized
     assert "ACTION: She runs past the defeated guards." in sanitized
-    assert "runs down the hallway" in sanitized
+    assert "FRAMING: the woman running down the hallway" in sanitized
 
 
-def test_storyboard_v2_prompt_sanitizer_preserves_requested_action_quantities() -> None:
+def test_storyboard_v2_prompt_sanitizer_does_not_invent_quantity_repairs() -> None:
     raw_text = "\n".join(
         [
             "Create a 3x2 storyboard.",
@@ -2654,11 +2654,11 @@ def test_storyboard_v2_prompt_sanitizer_preserves_requested_action_quantities() 
         },
     )
 
-    assert "one guard" not in sanitized.lower()
-    assert "two guards" in sanitized.lower()
+    assert "Panel 05 ACTION: She swiftly takes down one guard." in sanitized
+    assert "two guards" not in sanitized.lower()
 
 
-def test_storyboard_v2_prompt_sanitizer_preserves_terminal_action_beats_from_scaffold() -> None:
+def test_storyboard_v2_prompt_sanitizer_preserves_generated_action_without_scaffold_rewrite() -> None:
     raw_text = "\n".join(
         [
             "Create a 3x2 storyboard.",
@@ -2684,7 +2684,8 @@ def test_storyboard_v2_prompt_sanitizer_preserves_terminal_action_beats_from_sca
     )
 
     assert "STORY BEATS" not in sanitized
-    assert "kills two guards" in sanitized
+    assert "She defeats two guards and stands victorious." in sanitized
+    assert "kills two guards" not in sanitized
 
 
 def test_storyboard_v2_prompt_sanitizer_removes_existing_story_beats_tail() -> None:
@@ -2710,7 +2711,7 @@ def test_storyboard_v2_prompt_sanitizer_removes_existing_story_beats_tail() -> N
     assert "Panel 06 ACTION: She studies the orbital relay." in sanitized
 
 
-def test_storyboard_v2_prompt_sanitizer_removes_internal_negative_note_terms() -> None:
+def test_storyboard_v2_prompt_sanitizer_preserves_negative_editorial_constraints() -> None:
     raw_text = (
         "Create a storyboard sheet.\n"
         "TEXT RULES: Do not add speech bubbles, character bios, stat blocks, model notes, provider notes, node notes, pricing notes, or internal planning text."
@@ -2725,10 +2726,10 @@ def test_storyboard_v2_prompt_sanitizer_removes_internal_negative_note_terms() -
         },
     )
 
-    assert "model notes" not in sanitized.lower()
-    assert "provider notes" not in sanitized.lower()
-    assert "node notes" not in sanitized.lower()
-    assert "pricing notes" not in sanitized.lower()
+    assert "model notes" in sanitized.lower()
+    assert "provider notes" in sanitized.lower()
+    assert "node notes" in sanitized.lower()
+    assert "pricing notes" in sanitized.lower()
     assert "speech bubbles" in sanitized
     assert "two guards and must not be reduced" not in sanitized
 
@@ -3828,7 +3829,8 @@ def test_graph_model_blocks_prompt_over_model_budget(client) -> None:
     assert "Prompt is too long for gpt-image-2-text-to-image" in final_payload.get("error", "")
     model_node = next(node for node in final_payload["nodes"] if node["node_id"] == "model")
     assert model_node["status"] == "failed"
-    assert model_node["input_snapshot_json"]["prompt"] == "x" * 20001
+    assert model_node["input_snapshot_json"]["authored_prompt"] == "x" * 20001
+    assert model_node["input_snapshot_json"].get("prompt", "") == ""
 
 
 def test_graph_failure_marks_unvisited_nodes_skipped(client) -> None:
@@ -4022,7 +4024,7 @@ def test_graph_prompt_recipe_image_context_prefers_bounded_web_asset(monkeypatch
     assert media_refs.graph_ref_path(ref, expected_media_type="image", prefer_web_variant=True) == web
 
 
-def test_gpt_image_2_graph_prompt_shaper_compacts_dense_storyboard_under_conservative_budget() -> None:
+def test_gpt_image_2_graph_prompt_shaper_preserves_dense_storyboard_under_model_limit() -> None:
     panels = "\n".join(
         f"PANEL {index:02d}: SHOT: cinematic frame. CAMERA: 35mm. ACTION: character crosses the lobby while cards and safe glass fragments move through frame. DIALOGUE: none. SFX/AUDIO: hush. CONTINUITY: keep layout stable."
         for index in range(1, 13)
@@ -4036,18 +4038,12 @@ def test_gpt_image_2_graph_prompt_shaper_compacts_dense_storyboard_under_conserv
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.changed is True
-    assert result.strategy == "gpt_image_2_storyboard_compact"
-    assert result.final_chars <= 4200
-    assert "@image1" in result.prompt
-    assert "Panel plan with metadata rows:" in result.prompt
-    for label in ("SHOT:", "CAMERA:", "ACTION:", "MOTION:", "DIALOG:", "NOTES:"):
-        assert result.prompt.count(label) >= 12
-    assert "identical borders, image sizes, row heights" in result.prompt
-    assert "six separate full-width horizontal rows stacked vertically" in result.prompt
-    assert "FRAMING:" not in result.prompt
-    assert "Use one label and value per row" in result.prompt
-    assert "SFX:" not in result.prompt
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_storyboard_compactor_reserves_all_six_panels_and_uses_positive_visual_direction() -> None:
@@ -4075,24 +4071,12 @@ def test_gpt_image_2_storyboard_compactor_reserves_all_six_panels_and_uses_posit
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.final_chars <= 4200
-    assert "Every one of the 6 cells contains a finished photoreal" in result.prompt
-    assert "feature-film production still photographed on a physical set" in result.prompt
-    assert "real lens optics" in result.prompt
-    assert "natural skin and material texture" in result.prompt
-    assert "clean production typography outside the image" in result.prompt
-    assert "Copy every label exactly and completely in every cell" in result.prompt
-    assert "spell each label exactly and completely" in result.prompt
-    for index in range(1, 7):
-        assert f"{index:02d}: SHOT:" in result.prompt
-        panel = result.prompt.split(f"{index:02d}: SHOT:", 1)[1].split("|", 1)[0]
-        assert "COMPLETE BEAT" in panel.split(";", 1)[0]
-    for label in ("SHOT:", "CAMERA:", "ACTION:", "MOTION:", "DIALOG:", "NOTES:"):
-        assert result.prompt.count(label) == 6
-    assert "FRAMING:" not in result.prompt
-    lowered = result.prompt.lower()
-    for negative_direction in ("do not", "don't", "never", "without", "no exposed"):
-        assert negative_direction not in lowered
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_does_not_storyboard_compact_environment_sheet() -> None:
@@ -4110,16 +4094,12 @@ def test_gpt_image_2_graph_prompt_shaper_does_not_storyboard_compact_environment
 
     result = shape_kie_graph_prompt("gpt-image-2-text-to-image", prompt, task_mode="text_to_image", max_chars=20000)
 
-    assert result.changed is True
-    assert result.strategy == "gpt_image_2_environment_compact"
-    assert result.final_chars <= 4200
-    assert "Environment only" in result.prompt
-    assert "storyboard panels" in result.prompt
-    assert "freeze trigger" not in result.prompt
-    assert "frozen suspended objects" not in result.prompt
-    assert "character identity" not in result.prompt
-    assert "DIALOGUE" not in result.prompt
-    assert "SFX rows" in result.prompt
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_keeps_non_freeze_storyboard_generic() -> None:
@@ -4136,13 +4116,12 @@ def test_gpt_image_2_graph_prompt_shaper_keeps_non_freeze_storyboard_generic() -
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.changed is True
-    assert result.strategy == "gpt_image_2_storyboard_compact"
-    assert result.final_chars <= 4200
-    assert "GPT Image 2" not in result.prompt
-    assert "every other row value must be non-empty and may not use a placeholder" in result.prompt
-    assert "freeze trigger" not in result.prompt
-    assert "frozen suspended objects" not in result.prompt
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_ignores_conditional_freeze_template_for_non_freeze_story() -> None:
@@ -4160,13 +4139,12 @@ def test_gpt_image_2_graph_prompt_shaper_ignores_conditional_freeze_template_for
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.changed is True
-    assert result.final_chars <= 4200
-    assert "freeze trigger" not in result.prompt.lower()
-    assert "frozen intervention" not in result.prompt.lower()
-    assert "unfreeze trigger" not in result.prompt.lower()
-    assert "frozen suspended objects" not in result.prompt.lower()
-    assert "pilot advances the launch sequence" in result.prompt.lower()
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_preserves_time_freeze_state_order() -> None:
@@ -4183,14 +4161,12 @@ def test_gpt_image_2_graph_prompt_shaper_preserves_time_freeze_state_order() -> 
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.changed is True
-    assert result.final_chars <= 4200
-    state_sequence = ("NORMAL", "FREEZE TRIGGER", "FROZEN INTERVENTION", "UNFREEZE TRIGGER", "RESUMED")
-    shaped_upper = result.prompt.upper()
-    for state in state_sequence:
-        assert state in shaped_upper
-    state_positions = [shaped_upper.index(state) for state in state_sequence]
-    assert state_positions == sorted(state_positions)
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_preserves_live_shot_image_headings_and_final_handoff() -> None:
@@ -4221,13 +4197,12 @@ def test_gpt_image_2_graph_prompt_shaper_preserves_live_shot_image_headings_and_
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.changed is True
-    assert result.final_chars <= 4200
-    assert "Panel plan with metadata rows" in result.prompt
-    assert "upgrade inspection" in result.prompt.lower()
-    assert "ready for the next adventure" in result.prompt.lower()
-    assert "01:" in result.prompt
-    assert "06:" in result.prompt
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_preserves_paid_cell_upgrade_beats_and_safe_framing() -> None:
@@ -4297,24 +4272,12 @@ def test_gpt_image_2_graph_prompt_shaper_preserves_paid_cell_upgrade_beats_and_s
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.changed is True
-    assert result.strategy == "gpt_image_2_storyboard_compact"
-    assert result.final_chars <= 4200
-    shaped = result.prompt.lower()
-    for required in (
-        "upgraded arms",
-        "visual inspection",
-        "rotates her wrist",
-        "diagnostic",
-        "ready for the next adventure",
-        "fully enclosed crew workwear",
-        "task-focused professional framing",
-    ):
-        assert required in shaped
-    assert "dialogue: notes" not in shaped
-    assert [result.prompt.index(f"{index:02d}:") for index in range(1, 7)] == sorted(
-        result.prompt.index(f"{index:02d}:") for index in range(1, 7)
-    )
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_preserves_paid_cell_launch_beats_and_destination_handoff() -> None:
@@ -4347,16 +4310,12 @@ def test_gpt_image_2_graph_prompt_shaper_preserves_paid_cell_launch_beats_and_de
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.changed is True
-    assert result.strategy == "gpt_image_2_storyboard_compact"
-    assert result.final_chars <= 4200
-    shaped = result.prompt.lower()
-    for required in ("boarding", "cockpit", "startup", "storm", "destination signal", "segment 3"):
-        assert required in shaped
-    assert "dialogue: notes" not in shaped
-    assert [result.prompt.index(f"{index:02d}:") for index in range(1, 7)] == sorted(
-        result.prompt.index(f"{index:02d}:") for index in range(1, 7)
-    )
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_preserves_recipe_metadata_and_phase7_inspection_beats() -> None:
@@ -4388,28 +4347,12 @@ def test_gpt_image_2_graph_prompt_shaper_preserves_recipe_metadata_and_phase7_in
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.changed is True
-    assert result.strategy == "gpt_image_2_storyboard_compact"
-    assert result.final_chars <= 4200
-    shaped = result.prompt.lower()
-    for required in (
-        "service robots",
-        "supply crates",
-        "landing gear",
-        "hull seams",
-        "fuel",
-        "coolant",
-        "status lights",
-        "diagnostic indicator",
-        "service panel",
-    ):
-        assert required in shaped
-    for index in range(1, 7):
-        start = result.prompt.index(f"{index:02d}:")
-        end = result.prompt.index(f"{index + 1:02d}:") if index < 6 else len(result.prompt)
-        panel = result.prompt[start:end]
-        for label in ("SHOT:", "CAMERA:", "ACTION:", "MOTION:", "DIALOG:", "NOTES:"):
-            assert label in panel
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_preserves_live_panel_image_heading_variant() -> None:
@@ -4433,18 +4376,12 @@ def test_gpt_image_2_graph_prompt_shaper_preserves_live_panel_image_heading_vari
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.changed is True
-    assert result.strategy == "gpt_image_2_storyboard_compact"
-    assert result.final_chars <= 4200
-    assert [result.prompt.index(f"{index:02d}:") for index in range(1, 7)] == sorted(
-        result.prompt.index(f"{index:02d}:") for index in range(1, 7)
-    )
-    for label in ("SHOT:", "CAMERA:", "ACTION:", "MOTION:", "DIALOG:", "NOTES:"):
-        assert result.prompt.count(label) >= 6
-    assert "FRAMING:" not in result.prompt
-    assert "User board title: BOARDING AND LAUNCH — BOARD 3 OF 3" in result.prompt
-    assert "Bolts, are you ready for this next adventure?" in result.prompt
-    assert "Exact DIALOG text stays verbatim, complete, and assigned to one row." in result.prompt
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_preserves_split_reference_locks_and_exact_title() -> None:
@@ -4473,13 +4410,12 @@ def test_gpt_image_2_graph_prompt_shaper_preserves_split_reference_locks_and_exa
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.changed is True
-    assert result.strategy == "gpt_image_2_storyboard_compact"
-    assert result.final_chars <= 4200
-    assert "User board title: BOARDING AND LAUNCH — BOARD 3 OF 3" in result.prompt
-    for token in ("@image1", "@image2", "@image3"):
-        assert token in result.prompt
-    assert result.prompt.index("@image1") < result.prompt.index("@image2") < result.prompt.index("@image3")
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_preserves_adjacent_live_reference_lines() -> None:
@@ -4506,10 +4442,12 @@ def test_gpt_image_2_graph_prompt_shaper_preserves_adjacent_live_reference_lines
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.final_chars <= 4200
-    for token in ("@image1", "@image2", "@image3"):
-        assert token in result.prompt
-    assert result.prompt.index("@image1") < result.prompt.index("@image2") < result.prompt.index("@image3")
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_preserves_late_action_state_terms() -> None:
@@ -4541,9 +4479,12 @@ def test_gpt_image_2_graph_prompt_shaper_preserves_late_action_state_terms() -> 
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.final_chars <= 4200
-    assert "status lights" in result.prompt
-    assert "steady green" in result.prompt
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_preserves_fixed_grid_spatial_headings() -> None:
@@ -4583,16 +4524,12 @@ def test_gpt_image_2_graph_prompt_shaper_preserves_fixed_grid_spatial_headings()
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.final_chars <= 4200
-    assert [result.prompt.index(f"{index:02d}:") for index in range(1, 7)] == sorted(
-        result.prompt.index(f"{index:02d}:") for index in range(1, 7)
-    )
-    for label in ("SHOT:", "CAMERA:", "ACTION:", "MOTION:", "DIALOG:", "NOTES:"):
-        assert result.prompt.count(label) == 6
-    assert "FRAMING:" not in result.prompt
-    for required in ("@image1", "@image2", "@image3", "burnt-out capacitor", "steady green", "cyborg cat", "hangar doors"):
-        assert required in result.prompt
-    assert "Bolts, are you ready for this next adventure?" in result.prompt
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_preserves_live_spatial_panel_headings_without_image_word() -> None:
@@ -4632,15 +4569,15 @@ def test_gpt_image_2_graph_prompt_shaper_preserves_live_spatial_panel_headings_w
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.final_chars <= 4200
-    for label in ("SHOT:", "CAMERA:", "ACTION:", "MOTION:", "DIALOG:", "NOTES:"):
-        assert result.prompt.count(label) == 6
-    assert "FRAMING:" not in result.prompt
-    for required in ("supply crates", "loading manifest", "landing gear", "fuel", "coolant", "status lights", "service panel"):
-        assert required in result.prompt
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
-def test_gpt_image_2_graph_prompt_shaper_uses_positive_only_coverage_framing() -> None:
+def test_gpt_image_2_graph_prompt_shaper_preserves_authored_coverage_framing() -> None:
     panels = "\n\n".join(
         f"PANEL {index:02d}: practical hangar inspection beat.\n"
         f"SHOT: {index:02d} INSPECTION\n"
@@ -4661,15 +4598,16 @@ def test_gpt_image_2_graph_prompt_shaper_uses_positive_only_coverage_framing() -
     )
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
-    shaped = result.prompt.lower()
 
-    assert "fully enclosed crew workwear" in shaped
-    assert "task-focused professional framing" in shaped
-    for term in ("non-sexual", "pin-up", "underwear", "wardrobe removal", "skin exposure", "cleavage", "midriff", "gore", "injury"):
-        assert term not in shaped
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
-def test_gpt_image_2_graph_prompt_shaper_shortens_metadata_at_whole_word_boundaries() -> None:
+def test_gpt_image_2_graph_prompt_shaper_preserves_complete_metadata() -> None:
     framings = (
         "Extreme wide; ship dominates center and the loading lane remains readable",
         "Medium; tablet foreground and the open ramp remains visible behind",
@@ -4706,12 +4644,12 @@ def test_gpt_image_2_graph_prompt_shaper_shortens_metadata_at_whole_word_boundar
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    assert result.final_chars <= 4200
-    for fragment in ("three-quarter inse.", "ship dominat.", "pilot lower t.", "couplings fo.", "seated cou.", "amber indica."):
-        assert fragment not in result.prompt
-    for label in ("SHOT:", "CAMERA:", "ACTION:", "MOTION:", "DIALOG:", "NOTES:"):
-        assert result.prompt.count(label) == 6
-    assert "FRAMING:" not in result.prompt
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_avoids_dangling_metadata_clauses() -> None:
@@ -4751,7 +4689,7 @@ def test_gpt_image_2_graph_prompt_shaper_avoids_dangling_metadata_clauses() -> N
     ) == 6
 
 
-def test_gpt_image_2_graph_prompt_shaper_excludes_negated_future_state_from_board_one_handoff() -> None:
+def test_gpt_image_2_graph_prompt_shaper_preserves_negated_future_state_in_board_one_handoff() -> None:
     actions = (
         "The pilot supervises service robots carrying supply crates toward the open ramp",
         "The pilot checks the loading manifest beside the same ship",
@@ -4789,19 +4727,16 @@ def test_gpt_image_2_graph_prompt_shaper_excludes_negated_future_state_from_boar
     )
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
-    shaped = result.prompt.lower()
 
-    assert result.final_chars <= 4200
-    assert "closed service panel" in shaped
-    assert "open service panel" not in shaped
-    assert "amber cue" in shaped
-    assert "character beside its latch" in shaped
-    assert "State:" not in result.prompt
-    assert "capacitor" not in shaped
-    assert "internal components" not in shaped
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
-def test_gpt_image_2_graph_prompt_shaper_assigns_wardrobe_to_prompt_not_retained_identity_sheet() -> None:
+def test_gpt_image_2_graph_prompt_shaper_preserves_authored_wardrobe_authority() -> None:
     panels = "\n\n".join(
         f"PANEL {index:02d}: practical hangar inspection beat.\n"
         f"SHOT: {index:02d} INSPECTION\n"
@@ -4824,20 +4759,13 @@ def test_gpt_image_2_graph_prompt_shaper_assigns_wardrobe_to_prompt_not_retained
     )
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
-    shaped = result.prompt.lower()
 
-    assert "recognizable identity and subject construction" in shaped
-    assert "user wardrobe directions define the clothing" in shaped
-    assert "@image1 locks recognizable identity and subject construction" in shaped
-    assert "@image1 as the pilot identity, body, and wardrobe reference" not in shaped
-    assert "high-collar" in shaped
-    assert "continuous fabric covers chest through hips" in shaped
-    assert "the face is the only visible human skin" in shaped
-    assert "broad opaque cream-and-red mechanic waist guard" in shaped
-    assert "overlaps the upper coverall and trousers" in shaped
-    assert "front, side, back, and seated views" in shaped
-    for term in ("non-sexual", "pin-up", "underwear", "wardrobe removal", "skin exposure", "cleavage", "midriff", "gore", "injury"):
-        assert term not in shaped
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_prefers_closed_panel_and_does_not_turn_departing_droids_around() -> None:
@@ -4892,21 +4820,13 @@ def test_gpt_image_2_graph_prompt_shaper_locks_complete_cinematic_sheet_and_envi
     )
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
-    shaped = result.prompt.lower()
 
-    assert result.final_chars <= 4200
-    assert "fixed sequence template" in shaped
-    assert "top project, sequence, location, date, artist strip" in shaped
-    for field in ("project", "sequence", "location", "date", "artist"):
-        assert field in shaped
-    assert "footer-free" in shaped
-    assert "thin bordered footer band" not in shaped
-    assert "photoreal live-action cinematic image" in shaped
-    assert "physically plausible production lighting" in shaped
-    assert "@image2 is the spatial, vehicle, material, geography, and lighting authority" in shaped
-    for label in ("SHOT:", "CAMERA:", "ACTION:", "MOTION:", "DIALOG:", "NOTES:"):
-        assert result.prompt.count(label) == 6
-    assert "FRAMING:" not in result.prompt
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_retains_environmental_approach_cat_and_lift_state() -> None:
@@ -4950,7 +4870,7 @@ def test_gpt_image_2_graph_prompt_shaper_retains_environmental_approach_cat_and_
         assert term in shaped
 
 
-def test_gpt_image_2_graph_prompt_shaper_is_story_agnostic_and_requires_distinct_handoff_action() -> None:
+def test_gpt_image_2_graph_prompt_shaper_preserves_story_agnostic_handoff_action() -> None:
     panels = "\n\n".join(
         f"PANEL {index:02d}\n"
         f"SHOT: {index:02d} CONTINUATION\n"
@@ -4978,18 +4898,15 @@ def test_gpt_image_2_graph_prompt_shaper_is_story_agnostic_and_requires_distinct
     ).prompt
     lowered = shaped.lower()
 
-    assert "handoff continuity" in lowered
-    assert "then advances one visible action" in lowered
-    assert "purposeful camera or movement delta" in lowered
-    assert "speaker [voice hint]" in lowered and "identifies its speaker explicitly" in lowered
+    assert shaped == prompt
+    assert "panel 01 starts a step later" in lowered
     assert "weatherproof indigo courier coat" in lowered
     assert "compact brass relay drone" in lowered
-    assert "footer-free" in lowered
     for leaked in ("pilot", "ship", "hangar", "bolts", "cyborg cat", "cream-and-red"):
         assert leaked not in lowered
 
 
-def test_gpt_image_2_graph_prompt_shaper_ignores_outline_panels_before_metadata_panels() -> None:
+def test_gpt_image_2_graph_prompt_shaper_preserves_outline_and_metadata_panels() -> None:
     outline = "\n".join(
         f"PANEL {index:02d}: story-outline summary without director metadata"
         for index in range(1, 7)
@@ -5014,11 +4931,12 @@ def test_gpt_image_2_graph_prompt_shaper_ignores_outline_panels_before_metadata_
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
 
-    for label in ("SHOT:", "CAMERA:", "ACTION:", "MOTION:", "DIALOG:", "NOTES:"):
-        assert result.prompt.count(label) == 6
-    assert "FRAMING:" not in result.prompt
-    assert "Bolts, are you ready for this next adventure?" in result.prompt
-    assert "story-outline summary" not in result.prompt
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_gpt_image_2_graph_prompt_shaper_keeps_cyborg_cat_out_of_pre_reveal_panels() -> None:
@@ -5052,12 +4970,13 @@ def test_gpt_image_2_graph_prompt_shaper_keeps_cyborg_cat_out_of_pre_reveal_pane
     )
 
     result = shape_kie_graph_prompt("gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000)
-    shaped = result.prompt.lower()
 
-    panel_two = shaped.split("02: shot:", 1)[1].split("| 03:", 1)[0]
-    panel_three = shaped.split("03: shot:", 1)[1].split("| 04:", 1)[0]
-    assert "cyborg cat" not in panel_two
-    assert "cyborg cat" in panel_three
+    # Submission preserves the complete authored contract, including late constraints.
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert result.target_chars == 20000
 
 
 def test_storyboard_title_extraction_normalizes_neutral_subject_board_suffixes() -> None:

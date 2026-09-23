@@ -499,9 +499,9 @@ def storyboard_art_prompt(spec: StoryboardSheetSpec) -> str:
             else ""
         )
         parts.append(
-            f"Cell {panel.number:02d} {panel.time_range}: {panel.action} "
-            f"{panel.camera} "
-            f"{panel.motion} "
+            f"Cell {panel.number:02d}{(' ' + panel.time_range) if panel.time_range else ''}: {panel.action}\n"
+            f"{panel.camera}\n"
+            f"{panel.motion}\n"
             f"{panel.notes}{spoken}"
         )
     prompt = "\n\n".join(parts)

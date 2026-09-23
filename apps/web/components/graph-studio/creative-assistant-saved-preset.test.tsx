@@ -209,11 +209,13 @@ it("passes exact preset identity and usable field values into saved-preset graph
 });
 
 it("shows the persisted clarification when saved-artifact graph planning needs input", async () => {
-  const fetchMock = vi.fn((url: string) => {
+  let requestedMessage = "";
+  const fetchMock = vi.fn((url: string, init?: RequestInit) => {
     if (url.includes("/media/assistant/sessions?")) {
       return jsonResponse({ items: [{ ...session, messages: [savedRecipeMessage] }] });
     }
     if (url.endsWith("/media/assistant/sessions/session-1/plans")) {
+      requestedMessage = JSON.parse(String(init?.body)).message;
       return Promise.resolve(new Response(JSON.stringify({
         detail: "The assistant did not produce a confirmable graph proposal.",
       }), {
@@ -222,7 +224,7 @@ it("shows the persisted clarification when saved-artifact graph planning needs i
       }));
     }
     if (url.endsWith("/media/assistant/sessions/session-1")) {
-      return jsonResponse({ ...session, messages: [savedRecipeMessage, savedRecipeGraphRequestMessage, clarificationMessage] });
+      return jsonResponse({ ...session, messages: [savedRecipeMessage, { ...savedRecipeGraphRequestMessage, content_text: requestedMessage }, clarificationMessage] });
     }
     return jsonResponse({});
   });

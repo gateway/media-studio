@@ -4,7 +4,7 @@ import json
 import os
 import stat
 from pathlib import Path
-from threading import Event
+from threading import Event, Lock
 
 import pytest
 
@@ -1206,6 +1206,7 @@ def test_codex_session_reaper_has_lifecycle_and_shared_timeout_source(
 
     class _ExpiredSession:
         last_used_at = 0.0
+        lock = Lock()
 
         def close(self) -> None:
             closed.set()

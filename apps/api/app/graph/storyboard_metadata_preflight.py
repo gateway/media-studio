@@ -261,11 +261,15 @@ def storyboard_metadata_value_is_semantic_fragment(label: str, value: str) -> bo
     if str(label or "").upper() not in {"ACTION", "MOTION", "NOTES"}:
         return False
     text = str(value or "").strip()
-    if not text or re.search(r"[—-]\s*$", text):
+    if not text:
         return True
-    stem = text.rstrip(" .,:;!?\"'()[]")
+    stem = text.rstrip(" .,:;!?\"()[]")
+    if (stem.endswith("'") and stem.count("'") % 2 == 0) or (stem.endswith("’") and "‘" in stem):
+        stem = stem[:-1].rstrip(" .,:;!?")
+    if re.search(r"(?:[—-]|['’]s|['’])$", stem, flags=re.IGNORECASE):
+        return True
     return bool(re.search(
-        r"\b(?:a|an|the|and|or|with|of|to|because|until|is|are|was|were|becomes|remains)\s*$",
+        r"\b(?:a|an|the|and|or|with|of|to|from|into|around|along|because|until|is|are|was|were|becomes|remains)\s*$",
         stem, flags=re.IGNORECASE,
     ))
 

@@ -1,6 +1,6 @@
 # Media Assistant September integration handoff
 
-Draft PR #16 consolidates the September Assistant work plus the latest local continuity, generation-status and width-first layout changes. This is a review checkpoint, not release signoff or an automatic merge. Application data and the established installation remain unchanged by consolidation.
+PR #16 consolidates the September Assistant work plus the latest continuity, generation-status and width-first layout changes. Merge is authorized once the integration checks pass. Application data and the established installation remain unchanged by consolidation.
 
 ## Included changes
 
@@ -25,7 +25,9 @@ Draft PR #16 consolidates the September Assistant work plus the latest local con
 
 ## CI and open acceptance gates
 
-At the preceding pushed head (1714397), the mechanical-contract job had two stale file-size assertion failures (31 passed). The broad quality job had 97 failures / 819 passes, concentrated in storyboard prompt shaping, metadata and compiler expectations, with lifecycle and the same file-size assertions also failing. These counts do not establish 97 independent defects; each remaining failure needs comparison against the intended contract and baseline. Latest PR checks are authoritative for the new revision. Do not weaken checks solely to obtain a green merge.
+The CI reconciliation preserves authored prompts under the model hard limit and requires bounded LLM repair for overlong display metadata. Regression scenarios now assert those contracts instead of obsolete soft compaction, inferred story edits or speculative grammar checks. Missing fields, malformed metadata and hard-limit rejection remain covered. Actual fixes separate storyboard fields, reject visibly unfinished metadata and make run-confirmation replies consistent with server state. Provider lifecycle/cache and saved-preset mocks now match the current contracts.
+
+Local validation for that reconciliation: 804 web tests, 199 pure storyboard/graph cases, 14 generation contract/inspection cases, seven run-handoff cases and the session-reaper regression passed. Web types/lint, file-size and diff checks passed. Two additional quoted-text metadata cases protect literal text. Remote CI remains authoritative for database-backed integration, production build and smoke coverage; its latest exact revision must pass before merge.
 
 - [ ] Reconcile remaining CI failures and verify the exact integration revision before merge.
 - [ ] MALIVE-025 creative fidelity, remaining reference/quote/balance and negative-path acceptance. Successful prompt submission is not visual-quality signoff.

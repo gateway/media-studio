@@ -320,6 +320,8 @@ def test_kernel_provider_step_persists_thread_id_and_records_lifecycle(
             "reasoning_effort": None,
             "client_user_message_id": None,
             "compaction": None,
+            "purpose": "planning",
+            "model_id": "gpt-5.6-sol",
         }
     ]
 
