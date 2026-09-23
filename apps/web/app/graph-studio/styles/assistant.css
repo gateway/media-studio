@@ -2,10 +2,6 @@
   --graph-assistant-width-max: 1180px;
   --graph-assistant-width-gutter: 96px;
   --graph-assistant-height-max: 718px;
-  --graph-assistant-height-offset: 74px;
-  --graph-assistant-composer-height-min: 345px;
-  --graph-assistant-composer-height-max: 562px;
-  --graph-assistant-composer-height-offset: 205px;
   --graph-assistant-reference-size: 82px;
   --graph-assistant-control-size: 28px;
   --graph-assistant-action-size: 34px;
@@ -17,12 +13,14 @@
   --graph-assistant-shadow-shell: 0 32px 80px var(--graph-shadow-surface);
   position: absolute;
   left: 50%;
-  bottom: var(--graph-assistant-bottom, 18px);
+  --graph-assistant-visible-bottom: clamp(18px, var(--graph-assistant-bottom, 18px), max(18px, calc(100dvh - 480px)));
+  bottom: var(--graph-assistant-visible-bottom);
   z-index: 82;
   display: grid;
   gap: 0.7rem;
+  grid-template-rows: auto minmax(0, 1fr);
   width: min(var(--graph-assistant-width-max), calc(100vw - var(--graph-assistant-width-gutter)));
-  max-height: min(var(--graph-assistant-height-max), calc(100vh - var(--graph-assistant-bottom, 18px) - var(--graph-assistant-height-offset)));
+  max-height: calc(100dvh - 96px);
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -207,10 +205,10 @@
 }
 
 .graph-assistant-composer-shell {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  min-height: var(--graph-assistant-composer-height-min);
-  max-height: min(var(--graph-assistant-composer-height-max), calc(100vh - var(--graph-assistant-bottom, 18px) - var(--graph-assistant-composer-height-offset)));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
   overflow: hidden;
   border: 1px solid var(--graph-border-modal);
   border-radius: var(--graph-assistant-radius-shell);
@@ -301,6 +299,7 @@
 }
 
 .graph-assistant-body {
+  flex: 1 1 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
@@ -969,6 +968,8 @@
 }
 
 .graph-assistant-result-attachments {
+  min-height: 0;
+  overflow-y: auto;
   display: grid;
   gap: 0.45rem;
 }
@@ -1045,13 +1046,19 @@
 }
 
 .graph-assistant-footer {
-  display: grid;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 50%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   gap: 0.55rem;
   border-top: 1px solid var(--graph-border-hairline);
   background: color-mix(in srgb, var(--graph-panel-ink) 94%, transparent);
 }
 
 .graph-assistant-compose-row {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
@@ -1120,5 +1127,86 @@
 
   .graph-assistant-actions {
     max-width: none;
+  }
+}
+
+/* One panel changes placement; its conversation and composer stay mounted. */
+.graph-assistant-panel[data-placement="floating"]:not(.graph-assistant-panel-minimized) {
+  height: min(var(--graph-assistant-height-max), calc(100dvh - var(--graph-assistant-visible-bottom) - 96px));
+}
+
+.graph-assistant-panel[data-placement] .graph-assistant-body {
+  flex: 1 1 0;
+}
+
+.graph-assistant-panel[hidden],
+.graph-assistant-panel-minimized > :not(.graph-assistant-minimized-pill) {
+  display: none;
+}
+
+.graph-assistant-panel[data-placement="right"] {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1 / -1;
+  left: auto;
+  bottom: auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  grid-template-rows: auto minmax(0, 1fr);
+  transform: none;
+  --graph-assistant-reference-size: 48px;
+  --graph-assistant-radius-shell: 0;
+  --graph-assistant-radius-strip: 0;
+}
+
+.graph-assistant-panel[data-placement="right"] .graph-assistant-composer-shell {
+  min-height: 0;
+  max-height: none;
+}
+
+.graph-assistant-panel[data-placement="right"] .graph-assistant-footer textarea {
+  min-height: 60px;
+  max-height: 120px;
+}
+
+.graph-assistant-panel[data-placement="right"] .graph-assistant-header,
+.graph-assistant-card-actions {
+  flex-wrap: wrap;
+}
+
+.graph-assistant-header select {
+  max-width: 100%;
+  min-height: var(--graph-assistant-action-size);
+  border: 1px solid var(--graph-border-medium);
+  border-radius: var(--graph-control-radius);
+  color: var(--graph-text);
+  background: var(--graph-panel);
+}
+
+.graph-assistant-divider {
+  position: absolute;
+  inset: 0 auto 0 -3px;
+  width: 6px;
+  z-index: 1;
+  cursor: col-resize;
+  touch-action: none;
+  pointer-events: auto;
+  background: var(--graph-border);
+}
+
+.graph-assistant-divider:hover,
+.graph-assistant-divider:focus-visible {
+  background: var(--graph-accent);
+  outline: none;
+}
+
+@media (max-height: 600px) {
+  .graph-assistant-panel {
+    --graph-assistant-reference-size: 36px;
+  }
+  .graph-assistant-footer textarea {
+    min-height: 60px;
   }
 }

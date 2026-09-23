@@ -70,7 +70,7 @@
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);
   height: 100vh;
-  min-height: 760px;
+  min-height: 0;
   background: var(--graph-bg);
   color: var(--graph-text);
 }

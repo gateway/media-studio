@@ -1,5 +1,6 @@
 "use client";
 
+import type { useAssistantDock } from "./hooks/use-assistant-dock";
 import { RecipeContinuationCard } from "./recipe-continuation-card";
 import { PlanningRecoveryCard } from "./planning-recovery-card";
 import {
@@ -645,6 +646,7 @@ function graphPlanPrimaryCopy(plan: AssistantPlanResponse, options: { missingMed
 
 export function CreativeAssistantPanel({
   open,
+  dock,
   workspaceKey,
   workflowId,
   workflowName,
@@ -668,6 +670,7 @@ export function CreativeAssistantPanel({
   onEvent,
 }: {
   open: boolean;
+  dock?: ReturnType<typeof useAssistantDock>;
   workspaceKey: string;
   workflowId: string | null;
   workflowName: string;
@@ -742,10 +745,14 @@ export function CreativeAssistantPanel({
     }
   }, [assistant.session, assistantMode]);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const followConversationRef = useRef(true);
+  useEffect(() => { followConversationRef.current = true; }, [workspaceKey]);
   const initialAssistantSessionIdRef = useRef(initialAssistantSessionId);
   const [referenceSelectionId, setReferenceSelectionId] = useState<string | null>(null);
   const [localReferences, setLocalReferences] = useState<MediaReference[]>([]);
   const [minimized, setMinimized] = useState(false);
+  const onMinimizedChange = dock?.setMinimized;
+  useEffect(() => { onMinimizedChange?.(minimized); }, [minimized, onMinimizedChange]);
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -806,7 +813,7 @@ export function CreativeAssistantPanel({
   );
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer) return;
+    if (!scrollContainer || !open || minimized || !followConversationRef.current) return;
     scrollContainer.scrollTop = scrollContainer.scrollHeight;
   }, [
     assistant.draft,
@@ -818,6 +825,7 @@ export function CreativeAssistantPanel({
     assistant.session?.messages.length,
     assistant.status,
     open,
+    minimized,
   ]);
   useEffect(() => {
     const previousAssistantSessionId = initialAssistantSessionIdRef.current;
@@ -827,7 +835,7 @@ export function CreativeAssistantPanel({
     setReferenceSelectionId(null);
     setLocalReferences([]);
   }, [initialAssistantSessionId, referencePicker.closePicker]);
-  if (!open) return null;
+
 
   const attachFiles = async (files: FileList | null) => {
     if (atImageLimit) {
@@ -1021,13 +1029,19 @@ export function CreativeAssistantPanel({
     }
   };
 
-  if (minimized) {
-    return (
+  return (
+    <>
       <aside
-        className="graph-assistant-panel graph-assistant-panel-minimized"
+        className={`graph-assistant-panel ${minimized ? "graph-assistant-panel-minimized" : ""}`}
+        hidden={!open}
+        data-placement={dock?.docked ? "right" : "floating"}
         aria-label="Media assistant"
         style={{ "--graph-assistant-bottom": `${bottomOffset}px` } as CSSProperties}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={onDrop}
       >
+        {dock?.docked ? <div className="graph-assistant-divider" {...dock.splitterProps} /> : null}
+        {minimized ? (
         <button
           type="button"
           className="graph-assistant-minimized-pill"
@@ -1040,19 +1054,7 @@ export function CreativeAssistantPanel({
           <span>Media Assistant</span>
           {imageAttachmentCount ? <small>{imageAttachmentCount}</small> : null}
         </button>
-      </aside>
-    );
-  }
-
-  return (
-    <>
-      <aside
-        className="graph-assistant-panel"
-        aria-label="Media assistant"
-        style={{ "--graph-assistant-bottom": `${bottomOffset}px` } as CSSProperties}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={onDrop}
-      >
+        ) : null}
         <div className="graph-assistant-top-row">
           <section className="graph-assistant-reference-strip studio-composer-input-panel">
             <div className="graph-assistant-strip-heading">
@@ -1131,6 +1133,10 @@ export function CreativeAssistantPanel({
             <span>Media Assistant</span>
           </div>
           <div className="graph-assistant-header-actions">
+            {dock ? <select aria-label="Assistant placement" value={dock.placement} onChange={(event) => dock.setPlacement(event.target.value as "right" | "floating")}>
+              <option value="right">Right</option>
+              <option value="floating">Floating</option>
+            </select> : null}
             {assistant.cancellable ? (
               <button type="button" aria-label="Stop assistant request" title="Stop assistant request" onClick={() => void assistant.cancelAssistant()}>
                 <StopCircle size={15} />
@@ -1149,7 +1155,11 @@ export function CreativeAssistantPanel({
           </section>
         ) : null}
 
-        <div ref={scrollContainerRef} className="graph-assistant-body">
+        <div ref={scrollContainerRef} className="graph-assistant-body" onScroll={(event) => {
+          if (!open || minimized) return;
+          const element = event.currentTarget;
+          followConversationRef.current = element.scrollHeight - element.clientHeight - element.scrollTop < 24;
+        }}>
           {assistant.session?.production_plan ? (
             <ProductionPlanChecklist plan={assistant.session.production_plan} />
           ) : null}
@@ -1629,7 +1639,7 @@ export function CreativeAssistantPanel({
         </section>
       </aside>
       <MediaImagePickerDialog
-        open={referencePicker.open}
+        open={open && !minimized && referencePicker.open}
         eyebrow="Reference Images"
         title="Choose a reference image"
         dialogLabel="Reference image picker"

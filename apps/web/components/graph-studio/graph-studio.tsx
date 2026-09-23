@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
@@ -28,6 +29,7 @@ import {
 } from "@/lib/graph-node-definitions-sync";
 import { GraphCanvas } from "./graph-canvas";
 import { GraphConsole } from "./graph-console";
+import { useAssistantDock } from "./hooks/use-assistant-dock";
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
 import { GraphLeftRail } from "./graph-left-rail";
 import { GraphAssistantSetup } from "./graph-assistant-setup";
@@ -2026,6 +2028,7 @@ function GraphStudioClient() {
     closeWorkflowMenu,
   });
 
+  const assistantDock = useAssistantDock(assistantOpen && assistantAvailability.status === "ready");
   return (
     <GraphProviderModelCatalogProvider value={providerModelCatalog}>
       <div
@@ -2047,14 +2050,13 @@ function GraphStudioClient() {
           onToggleAssistant={() => setAssistantOpen((current) => !current)}
         />
         <main
+          ref={assistantDock.containerRef}
+          data-assistant-docked={assistantDock.docked}
           className={`graph-main ${consoleOpen ? "" : "graph-main-console-collapsed"}`}
-          style={
-            consoleOpen
-              ? {
-                  gridTemplateRows: `auto minmax(0, 1fr) 6px ${consoleHeight}px`,
-                }
-              : undefined
-          }
+          style={{
+            "--graph-assistant-dock-width": `${assistantDock.width}px`,
+            ...(consoleOpen ? { gridTemplateRows: `auto minmax(0, 1fr) 6px min(${consoleHeight}px, 40dvh)` } : {}),
+          } as CSSProperties}
         >
           <GraphToolbar
             workflowName={workflowName}
@@ -2101,6 +2103,7 @@ function GraphStudioClient() {
           {assistantAvailability.status === "ready" ? (
             <CreativeAssistantPanel
               open={assistantOpen}
+              dock={assistantDock}
               bottomOffset={consoleOpen ? consoleHeight + 22 : 18}
               workspaceKey={`${activeTabId}:${assistantWorkspaceResetVersion}`}
               workflowId={workflowId}
