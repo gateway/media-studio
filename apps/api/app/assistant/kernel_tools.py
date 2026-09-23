@@ -34,6 +34,7 @@ from .conversation_history import (
 )
 from .canvas_context import compact_canvas_context
 from .results import (ResultReuse, ReadResultsArguments, ResultSelection, InspectSelectedResultArguments, inspect_selected_result, read_results_tool, select_result_tool, stage_result_operations, validate_stage_results)
+from .generation_inspection import InspectGenerationArguments, inspect_generation
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
 from .graph_plan import apply_graph_plan, is_freeze_only_plan
 from .reference_analysis import (
@@ -129,6 +130,7 @@ KERNEL_TOOL_ACTIVITIES = {
     "propose_production_plan": ("production_plan", "Prepared a production plan"),
     "update_production_plan_step": ("production_plan", "Updated the production plan"),
     "update_story_state": ("story_update", "Updated the story"),
+    "inspect_generation": ("run_check", "Inspected generation prompt and readiness"),
     "read_run_evidence": ("run_check", "Checked the latest run"),
 }
 
@@ -1947,6 +1949,7 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         allowed_capabilities=frozenset({"general", "graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}),
         handler=read_session_content,
     ),
+    "inspect_generation": KernelToolDefinition(name="inspect_generation", description="Inspect the exact current provider-bound prompt without generation, or session-owned authored/prepared/submitted/rejected run evidence in chunks. Use for truncation, failed recipe diagnosis and configured model readiness. Dynamic recipe outputs report pending, never certified. Optional read-only fresh balance is not proof of model funding. Never runs, uploads, retries, or grants approval.", arguments_model=InspectGenerationArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder", "run_debugger"}), handler=inspect_generation),
     "read_run_results": KernelToolDefinition(name="read_run_results", description="List completed results from the selected session-owned run with artifact IDs, versions and availability. Text previews are truncated; use inspect_selected_result for full text chunks or image inspection. No execution.", arguments_model=ReadResultsArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=read_results_tool),
     "inspect_selected_result": KernelToolDefinition(name="inspect_selected_result", description="Inspect an explicitly selected completed artifact using its exact ID and version. For text, read bounded chunks and follow next_offset until null. For images, inspect actual pixels with optional attached reference_ids and focus. Never grants quality approval, changes a graph, or runs generation. Does not require a preset/recipe confirmation.", arguments_model=InspectSelectedResultArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=inspect_selected_result),
     "select_run_result": KernelToolDefinition(name="select_run_result", description="Select or deselect the exact result the user chose from read_run_results, using its run_id, artifact_id and version. Never guess an ordinal across runs. Selection persists without generation.", arguments_model=ResultSelection, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=select_result_tool),

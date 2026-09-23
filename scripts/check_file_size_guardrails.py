@@ -78,9 +78,10 @@ GUARDRAILS = (
 # MALIVE-023: reviewed compaction accounting/progress and failure trace persistence
 # reuse the existing kernel and cancellation owners; exact cap with no reserve.
 # Vertical stage columns reuse the existing layout owner; seven source lines, no new state.
+# MALIVE-025: +154 lines for focused read-only prompt/diagnostic inspection; no new storage or execution authority.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_462,
+    12_616,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

@@ -100,7 +100,7 @@ KERNEL_ARTIFACT_ERRORS = {
     ),
     "run_evidence": (
         "run_evidence_required",
-        "Before diagnosing or proposing a fix, call read_run_evidence.",
+        "Before diagnosing or proposing a fix, call read_run_evidence. Use inspect_generation for actual prepared/submitted prompts and retained rejected recipe attempts; saved recipe text is not submission evidence.",
     ),
     "quality_decision": (
         "typed_quality_decision_required",

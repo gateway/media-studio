@@ -1129,59 +1129,15 @@ def _compact_storyboard_prompt(prompt: str, *, target_chars: int) -> str:
 
 
 def shape_kie_graph_prompt(model_key: str, prompt: str, *, task_mode: str = "", max_chars: int | None = None, prompt_semantics: str = "") -> PromptShapeResult:
-    text = str(prompt or "").strip()
-    original_chars = len(text)
-    normalized_model = _normalized_model_key(model_key)
+    """Preserve generation intent; only the actual model limit may reject it.
+
+    Rewrites belong in a separately reviewed authoring step, never at submission.
+    """
+    text = str(prompt or "")
     hard_limit = max_chars if isinstance(max_chars, int) and max_chars > 0 else None
-    target_chars = GPT_IMAGE_2_COMPACT_PROMPT_CHARS
-    if hard_limit is not None:
-        target_chars = min(target_chars, max(1200, hard_limit - 500))
-    # The model's hard budget is enforced by the caller. A soft compaction
-    # target must not discard narrative beats or invent production metadata.
-    if not normalized_model.startswith("gpt-image-2") or (prompt_semantics != STORYBOARD_METADATA_PROMPT_SEMANTICS and is_captioned_storyboard_prompt(text)):
-        return PromptShapeResult(
-            prompt=text,
-            changed=False,
-            strategy="none",
-            original_chars=original_chars,
-            final_chars=original_chars,
-            target_chars=target_chars,
+    if hard_limit is not None and len(text) > hard_limit:
+        raise ValueError(
+            f"Prompt exceeds the model limit for {model_key}: {len(text)} characters, "
+            f"{hard_limit} allowed. Review a complete shorter rewrite before running; nothing was clipped."
         )
-    looks_like_storyboard = _looks_like_storyboard_prompt(text)
-    if original_chars <= target_chars:
-        if looks_like_storyboard and _storyboard_prompt_has_semantic_fragments(text):
-            shaped = _normalize_compact_storyboard_metadata(text)
-            return PromptShapeResult(
-                prompt=shaped,
-                changed=shaped != text,
-                strategy="gpt_image_2_storyboard_metadata_normalized",
-                original_chars=original_chars,
-                final_chars=len(shaped),
-                target_chars=target_chars,
-            )
-        return PromptShapeResult(
-            prompt=text,
-            changed=False,
-            strategy="none",
-            original_chars=original_chars,
-            final_chars=original_chars,
-            target_chars=target_chars,
-        )
-    looks_like_environment = not looks_like_storyboard and _looks_like_environment_prompt(text)
-    if looks_like_environment:
-        shaped = _compact_environment_prompt(text, target_chars=target_chars)
-        strategy = "gpt_image_2_environment_compact"
-    elif looks_like_storyboard:
-        shaped = _compact_storyboard_prompt(text, target_chars=target_chars)
-        strategy = "gpt_image_2_storyboard_compact"
-    else:
-        shaped = _sentence_limit(text, target_chars)
-        strategy = "gpt_image_2_compact"
-    return PromptShapeResult(
-        prompt=shaped,
-        changed=shaped != text,
-        strategy=strategy,
-        original_chars=original_chars,
-        final_chars=len(shaped),
-        target_chars=target_chars,
-    )
+    return PromptShapeResult(text, False, "none", len(text), len(text), hard_limit or 0)

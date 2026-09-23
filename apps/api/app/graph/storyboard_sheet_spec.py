@@ -8,6 +8,7 @@ from .storyboard_metadata_preflight import (
     STORYBOARD_METADATA_LABELS,
     compact_storyboard_camera_contract,
     parse_storyboard_metadata_panels,
+    normalize_storyboard_markup,
     storyboard_camera_contract_missing,
     storyboard_metadata_duplicate_pairs,
     storyboard_metadata_value_is_semantic_fragment,
@@ -95,6 +96,7 @@ class StoryboardPanelSpec:
     motion: str
     dialog: str
     notes: str
+    time_range: str = ""
 
 
 @dataclass(frozen=True)
@@ -186,6 +188,11 @@ def _validate_requested_dialogue(panels: Sequence[StoryboardPanelSpec], raw_cues
     requested = _quoted_dialogue_values(raw_cues)
     if not requested:
         return
+    by_number = {panel.number: panel for panel in panels}
+    for number, cue in _panel_cue_values(raw_cues).items():
+        for line in _quoted_dialogue_values(cue):
+            if number not in by_number or line not in by_number[number].dialog:
+                raise ValueError(f"Storyboard sheet spec Panel {number:02d} is missing exact requested dialogue: {line!r}.")
     rendered_dialogue = "\n".join(panel.dialog for panel in panels)
     for exact_line in requested:
         if exact_line not in rendered_dialogue:
@@ -297,17 +304,6 @@ def _panel_spec(number: int, raw_fields: Mapping[str, str]) -> StoryboardPanelSp
         fields["CAMERA"] = _clean(
             f"{fields['CAMERA']}; {compact_storyboard_camera_contract(fields['CAMERA'])}"
         )
-    for label in ("SHOT", "CAMERA", "ACTION", "MOTION"):
-        limit = STORYBOARD_METADATA_DISPLAY_LIMITS[label]
-        if label != "SHOT" and len(fields[label]) <= limit:
-            continue
-        compacted = _clean(compact_storyboard_display_value(label, fields[label], limit))
-        if not compacted or len(compacted) > limit:
-            raise ValueError(
-                f"Storyboard sheet spec Panel {number:02d} {label} cannot be compacted "
-                f"into the readable display limit of {limit} characters."
-            )
-        fields[label] = compacted
     if not storyboard_shot_has_meaningful_description(fields["SHOT"]):
         raise ValueError(f"Storyboard sheet spec Panel {number:02d} SHOT has no meaningful description.")
     for label in ("ACTION", "MOTION"):
@@ -332,16 +328,21 @@ def _panel_spec(number: int, raw_fields: Mapping[str, str]) -> StoryboardPanelSp
         motion=fields["MOTION"],
         dialog=fields["DIALOG"],
         notes=fields["NOTES"],
+        time_range=_clean(raw_fields.get("TIME_RANGE")),
     )
 
 
 def storyboard_sheet_spec_from_recipe_result(value: Mapping[str, Any]) -> StoryboardSheetSpec:
-    raw_text = str(value.get("raw_text") or value.get("final_text") or "").strip()
+    raw_text = normalize_storyboard_markup(str(value.get("raw_text") or value.get("final_text") or "").strip())
     if not raw_text:
         raise ValueError("Storyboard compiler requires a Prompt Recipe result containing raw_text or final_text.")
     raw_panels = parse_storyboard_metadata_panels(raw_text)
     numbers = [number for number, _ in raw_panels]
     _ordered_panel_numbers(numbers)
+    declared = re.search(r"\b(?:PANEL|SHOT) COUNT\s*:\s*(\d+)", raw_text, flags=re.IGNORECASE)
+    for expected in (value.get("panel_count"), declared.group(1) if declared else None):
+        if expected not in (None, "") and int(expected) != len(numbers):
+            raise ValueError(f"Storyboard sheet spec expected {expected} panels; received {numbers}.")
     note_overrides = _panel_cue_values(value.get("panel_notes_cues"))
     panels = tuple(
         _panel_spec(
@@ -395,7 +396,7 @@ def storyboard_sheet_spec_from_mapping(value: Mapping[str, Any]) -> StoryboardSh
     if not isinstance(raw_panels, Sequence) or isinstance(raw_panels, (str, bytes)):
         raise ValueError("Storyboard sheet spec panels must be an ordered array.")
     panels = tuple(
-        _panel_spec(int(panel.get("number") or 0), {label: panel.get(label.lower(), "") for label in STORYBOARD_METADATA_LABELS})
+        _panel_spec(int(panel.get("number") or 0), {**{label: panel.get(label.lower(), "") for label in STORYBOARD_METADATA_LABELS}, "TIME_RANGE": panel.get("time_range", "")})
         for panel in raw_panels
         if isinstance(panel, Mapping)
     )
@@ -462,9 +463,9 @@ def storyboard_art_prompt(spec: StoryboardSheetSpec) -> str:
     source_grid_id = storyboard_source_grid_id_for_panel_count(panel_count)
     source_aspect = _source_plate_aspect_for_panel_count(panel_count)
     panel_count_label = _panel_count_label(panel_count)
-    style_authority = positive_visual_directive(spec.visual_context.get("style", ""))
+    style_authority = spec.visual_context.get("style", "")
     cell_style_contract = (
-        f"Every cell follows this visual style authority: {_bounded_art_clause(style_authority, 280)} "
+        f"Every cell follows this visual style authority: {style_authority} "
         "Preserve cinematic composition, plausible lighting, atmospheric depth, restrained color discipline, and continuity."
         if style_authority
         else "Every cell is a photoreal live-action feature-film still with physical materials, real lens behavior, plausible lighting, atmospheric depth, restrained film color, and continuity."
@@ -472,37 +473,38 @@ def storyboard_art_prompt(spec: StoryboardSheetSpec) -> str:
     parts = [
         f"Storyboard art source contract: {STORYBOARD_ART_SOURCE_CONTRACT}. "
         f"Source grid: {source_grid_id}. "
-        f"Create one text-free {source_aspect} source plate with exactly {panel_count_label} equal cinematic frames "
+        f"Create one {source_aspect} source plate without editorial text overlays with exactly {panel_count_label} equal cinematic frames "
         f"in a clean {source_columns}-column by {source_rows}-row source grid, ordered left-to-right then top-to-bottom. "
         f"{cell_style_contract}",
-        "Compose every cell for an approximately 1.9:1 final extraction. Keep the complete action, principal subjects, essential props, and environment landmarks inside the central 58% vertical safe band; only expendable background may extend beyond it. Favor action-readable wide or medium blocking; avoid repetitive close-ups unless required by the user beat. Show art only: no titles, words, letters, numbers, captions, metadata, borders, dashboards, speech bubbles, logos, watermarks, or production-sheet chrome.",
+        "Compose every cell for an approximately 1.9:1 final extraction. Keep the complete action, principal subjects, essential props, and environment landmarks inside the central 58% vertical safe band; only expendable background may extend beyond it. Favor action-readable wide or medium blocking; avoid repetitive close-ups unless required by the user beat. Show scene art only: no added titles, captions, metadata, borders, dashboards, speech bubbles, watermarks, or production-sheet chrome. Preserve text, lettering and logos physically present on reference-authoritative products, clothing or scenery; do not invent or replace them.",
     ]
     context_labels = (
         ("style", "Visual style authority", 280),
         ("reference", "Reference authority", 220),
         ("wardrobe", "Wardrobe authority", 480),
         ("subject_design", "Subject design authority", 680),
+        ("visual_continuity", "Visual continuity", 0),
+        ("character_continuity", "Character continuity", 0),
+        ("state_continuity", "Prop and state continuity", 0),
     )
     for key, label, limit in context_labels:
         if spec.visual_context.get(key):
-            provider_direction = positive_visual_directive(spec.visual_context[key])
+            provider_direction = spec.visual_context[key]
             if provider_direction:
-                parts.append(f"{label}: {_bounded_art_clause(provider_direction, limit)}")
+                parts.append(f"{label}: {provider_direction}")
     for panel in spec.panels:
         spoken = (
-            f" Spoken beat for performance only: {_bounded_art_clause(panel.dialog, 140)}"
+            f" Spoken beat for performance only: {panel.dialog}"
             if panel.dialog
             else ""
         )
         parts.append(
-            f"Cell {panel.number:02d}: {_bounded_art_clause(panel.action, 170)} "
-            f"{compact_storyboard_camera_contract(panel.camera)} "
-            f"{_bounded_art_clause(panel.motion, 100)} "
-            f"{_bounded_art_clause(panel.notes, 80)}{spoken}"
+            f"Cell {panel.number:02d} {panel.time_range}: {panel.action} "
+            f"{panel.camera} "
+            f"{panel.motion} "
+            f"{panel.notes}{spoken}"
         )
     prompt = "\n\n".join(parts)
-    if len(prompt) > 4200:
-        raise ValueError("Storyboard art prompt exceeds the deterministic compiler limit.")
     return prompt
 
 
@@ -520,7 +522,7 @@ def storyboard_art_source_prompt_is_compatible(value: object, *, panel_count: in
             marker in prompt
             for marker in (
                 f"source grid: {source_grid_id}",
-                f"text-free {source_aspect} source plate",
+                f"{source_aspect} source plate",
                 f"{source_columns}-column by {source_rows}-row source grid",
             )
         )
@@ -541,7 +543,7 @@ def storyboard_art_source_prompt_is_compatible(value: object, *, panel_count: in
 
 def storyboard_panel_prompts(spec: StoryboardSheetSpec) -> list[str]:
     shared = " ".join(value for key, value in spec.visual_context.items() if key != "style")
-    style_authority = positive_visual_directive(spec.visual_context.get("style", "")).rstrip(" .")
+    style_authority = spec.visual_context.get("style", "").rstrip(" .")
     prefix = (
         f"Production storyboard still following this visual style authority: {style_authority}."
         if style_authority
@@ -552,7 +554,7 @@ def storyboard_panel_prompts(spec: StoryboardSheetSpec) -> list[str]:
             f"{prefix} "
             f"{shared.rstrip(' .')}. {panel.camera.rstrip(' .')}. {panel.action.rstrip(' .')}. "
             f"{panel.motion.rstrip(' .')}. {panel.notes.rstrip(' .')}. "
-            "No visible text, captions, metadata, borders, logos, or watermarks."
+            "No added captions, metadata, borders or watermarks. Preserve reference-authoritative text and logos physically present in the scene; do not invent or replace them."
         )
         for panel in spec.panels
     ]
