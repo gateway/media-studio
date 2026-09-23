@@ -137,18 +137,55 @@ def list_assistant_messages(session_id: str) -> List[Dict[str, Any]]:
 
 
 
-def recent_assistant_conversation(session_id: str, exclude_message_id: Optional[str] = None) -> List[Dict[str, str]]:
-    """Six eligible messages, chronological with message-ID ordering for timestamp ties."""
+def recent_assistant_conversation(session_id: str, exclude_message_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Six explicit excerpts with identities for complete, session-owned retrieval."""
     with get_connection() as connection:
         rows = connection.execute(
-            """SELECT role, substr(COALESCE(content_text, ''), 1, 800) AS text
+            """SELECT assistant_message_id AS message_id, role, created_at,
+                      substr(COALESCE(content_text, ''), 1, 800) AS text,
+                      length(COALESCE(content_text, '')) AS text_length
                FROM assistant_messages
                WHERE assistant_session_id = ? AND role IN ('user', 'assistant')
                  AND assistant_message_id != COALESCE(?, '')
                ORDER BY created_at DESC, assistant_message_id DESC LIMIT 6""",
             (session_id, exclude_message_id),
         ).fetchall()
-    return [dict(row) for row in reversed(rows)]
+    return [{**dict(row), "text_is_excerpt": row["text_length"] > len(row["text"])} for row in reversed(rows)]
+
+
+def search_assistant_conversation(
+    session_id: str, *, query: str = "", before_message_id: Optional[str] = None, limit: int = 8,
+) -> Dict[str, Any]:
+    """Search full message text, returning a bounded index in stable newest-first order."""
+    clauses = ["assistant_session_id = ?", "role IN ('user', 'assistant')"]
+    params: list[Any] = [session_id]
+    with get_connection() as connection:
+        if before_message_id:
+            cursor = connection.execute(
+                "SELECT created_at, assistant_message_id FROM assistant_messages WHERE assistant_session_id = ? AND assistant_message_id = ?",
+                (session_id, before_message_id),
+            ).fetchone()
+            if not cursor:
+                raise KeyError("conversation cursor unavailable")
+            clauses.append("(created_at < ? OR (created_at = ? AND assistant_message_id < ?))")
+            params.extend([cursor["created_at"], cursor["created_at"], cursor["assistant_message_id"]])
+        if query:
+            clauses.append("instr(lower(COALESCE(content_text, '')), lower(?)) > 0")
+            params.append(query)
+        rows = connection.execute(
+            f"""SELECT assistant_message_id AS message_id, role, created_at,
+                       substr(COALESCE(content_text, ''), 1, 200) AS text,
+                       length(COALESCE(content_text, '')) AS text_length
+                FROM assistant_messages WHERE {' AND '.join(clauses)}
+                ORDER BY created_at DESC, assistant_message_id DESC LIMIT ?""",
+            (*params, limit + 1),
+        ).fetchall()
+    items = [{**dict(row), "text_is_excerpt": row["text_length"] > len(row["text"])} for row in rows[:limit]]
+    return {
+        "items": items,
+        "next_before_message_id": items[-1]["message_id"] if len(rows) > limit else None,
+        "read_tool": "read_session_content",
+    }
 
 
 def latest_saved_assistant_artifact(session_id: str, exclude_message_id: Optional[str] = None) -> Optional[Dict[str, Any]]:

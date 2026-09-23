@@ -199,8 +199,14 @@ def wait_for_existing_kie_job(
     current = store.get_job(job_id) or current
     if current["status"] == "cancelled" and context.is_cancel_requested():
         raise GraphRunCancelled(GRAPH_RUN_CANCELLED_MESSAGE)
+    submitted = True if current.get("provider_task_id") else None
+    context.record_node_metric(node, "provider_submitted", submitted)
+    context.record_node_metric(node, "submission_stage", "provider_result" if submitted else "provider_submission_unknown")
     if current["status"] != "completed":
-        raise ValueError(current.get("error") or f"KIE job did not complete: {current['status']}")
+        error = str(current.get("error") or f"KIE job did not complete: {current['status']}")
+        if "balance" in error.lower() or "credit" in error.lower():
+            error += " Account readiness is unverified; displayed Studio credits do not prove this model's funding. The account/provider mismatch cause is unknown."
+        raise ValueError(error)
     assets = store.get_assets_by_job_id(current["job_id"])
     if not assets:
         raise ValueError("KIE job completed without creating an asset.")
@@ -220,12 +226,15 @@ def submit_and_wait_for_kie_request(
 ) -> Dict[str, List[GraphOutputRef]]:
     emit(context.run_id, "kie.validating", {"model_key": model_key}, node_id=node.id)
     validation_started = time.perf_counter()
+    context.record_node_metric(node, "submission_stage", "validation")
     service.build_validation_bundle(request)
     context.record_node_metric(node, "kie_validation_duration_seconds", round(time.perf_counter() - validation_started, 4))
     submit_started = time.perf_counter()
+    context.record_node_metric(node, "submission_stage", "queueing")
     batch, jobs = service.submit_jobs(request)
     context.record_node_metric(node, "kie_submit_duration_seconds", round(time.perf_counter() - submit_started, 4))
     job = jobs[0]
+    context.record_node_metric(node, "submission_stage", "queued")
     context.record_node_metric(node, "batch_id", batch["batch_id"])
     context.record_node_metric(node, "job_id", job["job_id"])
     emit(context.run_id, "kie.submitted", {"model_key": model_key, "job_id": job["job_id"], "batch_id": batch["batch_id"]}, node_id=node.id)
@@ -261,8 +270,14 @@ def submit_and_wait_for_kie_request(
     current = store.get_job(job["job_id"]) or current
     if current["status"] == "cancelled" and context.is_cancel_requested():
         raise GraphRunCancelled(GRAPH_RUN_CANCELLED_MESSAGE)
+    submitted = True if current.get("provider_task_id") else None
+    context.record_node_metric(node, "provider_submitted", submitted)
+    context.record_node_metric(node, "submission_stage", "provider_result" if submitted else "provider_submission_unknown")
     if current["status"] != "completed":
-        raise ValueError(current.get("error") or f"KIE job did not complete: {current['status']}")
+        error = str(current.get("error") or f"KIE job did not complete: {current['status']}")
+        if "balance" in error.lower() or "credit" in error.lower():
+            error += " Account readiness is unverified; displayed Studio credits do not prove this model's funding. The account/provider mismatch cause is unknown."
+        raise ValueError(error)
     assets = store.get_assets_by_job_id(current["job_id"])
     if not assets:
         raise ValueError("KIE job completed without creating an asset.")
@@ -273,6 +288,11 @@ class KieModelExecutor(GraphExecutor):
     node_type = "model.kie"
 
     def execute(self, node: GraphWorkflowNode, context: GraphExecutionContext) -> Dict[str, List[GraphOutputRef]]:
+        request = self.prepare_request(node, context)
+        return submit_and_wait_for_kie_request(node=node, context=context, request=request, model_key=request.model_key)
+
+    def prepare_request(self, node: GraphWorkflowNode, context: GraphExecutionContext) -> ValidateRequest:
+        """Prepare the exact graph request without submitting or uploading media."""
         definition = registry.get_definition(node.type)
         model_key = str(definition.source.get("model_key") or "nano-banana-pro")
         seedance_model = is_seedance_model(model_key)
@@ -337,6 +357,10 @@ class KieModelExecutor(GraphExecutor):
             has_audios=has_audios,
             model_key=model_key,
         )
+        context.record_node_metric(node, "submission_stage", "prompt_preflight")
+        context.record_node_metric(node, "provider_submitted", False)
+        context.record_node_metric(node, "original_prompt_chars", len(prompt))
+        context.record_node_input_snapshot(node, {**node.fields, "authored_prompt": prompt})
         budget = enforce_prompt_budget(model_key, prompt)
         prompt_metadata = prompt_inputs[0].metadata if prompt_inputs else {}
         prompt_semantics = str(prompt_metadata.get("prompt_semantics") or "")
@@ -357,17 +381,18 @@ class KieModelExecutor(GraphExecutor):
         if storyboard_preflight is not None:
             context.record_node_metric(node, "storyboard_metadata_preflight", "passed")
             context.record_node_metric(node, "storyboard_metadata_panel_count", storyboard_preflight.panel_count)
-        if shaped_prompt.changed:
-            context.record_node_metric(node, "prompt_shape_strategy", shaped_prompt.strategy)
-            context.record_node_metric(node, "original_prompt_chars", shaped_prompt.original_chars)
-            context.record_node_metric(node, "submitted_prompt_chars", shaped_prompt.final_chars)
-            context.record_node_metric(node, "prompt_shape_target_chars", shaped_prompt.target_chars)
+        context.record_node_metric(node, "prompt_shape_strategy", shaped_prompt.strategy)
+        context.record_node_metric(node, "original_prompt_chars", shaped_prompt.original_chars)
+        context.record_node_metric(node, "prepared_prompt_chars", shaped_prompt.final_chars)
+        context.record_node_metric(node, "prompt_preserved", shaped_prompt.prompt == prompt)
         context.record_node_metric(node, "model_prompt_max_chars", budget.get("max_chars"))
         context.record_node_input_snapshot(
             node,
             {
                 **node.fields,
                 "prompt": shaped_prompt.prompt,
+                "authored_prompt": prompt,
+                "prepared_prompt": shaped_prompt.prompt,
                 "task_mode": task_mode,
                 "model_key": model_key,
                 "prompt_original_chars": shaped_prompt.original_chars,
@@ -375,7 +400,7 @@ class KieModelExecutor(GraphExecutor):
                 "prompt_shape_strategy": shaped_prompt.strategy,
             },
         )
-        request = ValidateRequest(
+        return ValidateRequest(
             model_key=model_key,
             task_mode=task_mode,
             prompt=shaped_prompt.prompt,
@@ -385,7 +410,6 @@ class KieModelExecutor(GraphExecutor):
             options=options,
             output_count=1,
         )
-        return submit_and_wait_for_kie_request(node=node, context=context, request=request, model_key=model_key)
 
 
 def _select_task_mode(

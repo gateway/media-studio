@@ -236,7 +236,7 @@ def test_manifest_records_hashes_checks_visual_gates_and_accounting() -> None:
     assert set(manifest["visual_scorecard"]) == set(VISUAL_GATE_IDS)
 
 
-def test_prompt_shaper_preserves_user_supplied_board_one_distance_and_removes_short_negated_cat_note() -> None:
+def test_prompt_shaper_preserves_distance_and_negative_visibility_constraints() -> None:
     def panels(board: int) -> str:
         return "\n\n".join(
             f"PANEL {panel:02d}\n"
@@ -270,11 +270,12 @@ def test_prompt_shaper_preserves_user_supplied_board_one_distance_and_removes_sh
 
     for term in ("one full ship-length away", "droids carrying supply crates", "open ramp", "hangar doors"):
         assert term in board_one
-    panel_two = board_three.split("02: SHOT:", 1)[1].split("| 03:", 1)[0]
-    assert "Bolts" not in panel_two
+    assert board_one == board_one_raw
+    assert board_three == board_three_raw
+    assert "Bolts not visible" in board_three
 
 
-def test_prompt_shaper_locks_continuation_panel_one_to_prior_panel_six() -> None:
+def test_prompt_shaper_preserves_authored_continuation_without_invented_handoff() -> None:
     def raw(board: int) -> str:
         panels = "\n\n".join(
             f"PANEL {panel:02d}\n"
@@ -299,7 +300,5 @@ def test_prompt_shaper_locks_continuation_panel_one_to_prior_panel_six() -> None
         shaped = shape_kie_graph_prompt(
             "gpt-image-2-image-to-image", raw(board), task_mode="image_edit", max_chars=20000
         ).prompt
-        assert len(shaped) <= 4200
-        assert "Handoff continuity: @image3 locks prior Panel 06" in shaped
-        assert "Panel 01 preserves that state, then advances one visible action" in shaped
-        assert "purposeful camera or movement delta" in shaped
+        assert shaped == raw(board)
+        assert "Handoff continuity: @image3 locks prior Panel 06" not in shaped

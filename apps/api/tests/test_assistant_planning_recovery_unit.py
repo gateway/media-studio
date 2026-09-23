@@ -40,10 +40,11 @@ class PlanningRecoveryTests(unittest.TestCase):
         self.session.update(value)
         return dict(self.session)
 
-    def test_budget_leaves_durable_planning_action_without_running(self):
-        with patch.object(self.kernel, "run_kernel_provider_step", side_effect=AssertionError("Provider must not run")):
-            result = self.kernel.run_assistant_kernel_turn(session=self.session, user_text="Build nine-panel board", workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, assistant_mode="graph", max_wall_seconds=0)
-        self.assertEqual(result.trace.termination, "wall_clock_budget_exhausted")
+    def test_repeated_policy_error_leaves_durable_recovery_without_running(self):
+        step = {"capability": "general", "artifact_intent": "draft_recipe"}
+        with patch.object(self.kernel, "run_kernel_provider_step", return_value=step):
+            result = self.kernel.run_assistant_kernel_turn(session=self.session, user_text="Build nine-panel board", workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, assistant_mode="graph")
+        self.assertEqual(result.trace.termination, "repeated_no_progress")
         recovery = self.session["summary_json"]["kernel_planning_recovery"]
         self.assertEqual(recovery["state"], "offered")
         self.assertEqual(recovery["request"], "Build nine-panel board")
@@ -82,29 +83,25 @@ class PlanningRecoveryTests(unittest.TestCase):
             continue_planning(self.session, payload, [], invoke, None)
         invoke.assert_not_called()
 
-    def test_step_budget_retains_completed_discovery(self):
-        steps = [{"capability": "graph_builder", "tool_call": {"name": "search_prompt_recipes", "arguments": {"query": "storyboard"}}}] * 2
-        with patch.object(self.kernel, "run_kernel_provider_step", side_effect=steps):
-            result = self.kernel.run_assistant_kernel_turn(session=self.session, user_text="Build board", workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, assistant_mode="graph", max_tool_steps=1)
-        self.assertEqual(result.trace.termination, "step_budget_exhausted")
+    def test_repeated_discovery_retains_completed_checks(self):
+        step = {"capability": "graph_builder", "tool_call": {"name": "search_prompt_recipes", "arguments": {"query": "storyboard"}}}
+        with patch.object(self.kernel, "run_kernel_provider_step", return_value=step):
+            result = self.kernel.run_assistant_kernel_turn(session=self.session, user_text="Build board", workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, assistant_mode="graph")
+        self.assertEqual(result.trace.termination, "repeated_no_progress")
+        self.assertEqual(result.trace.step_count, 3)
         recovery = self.session["summary_json"]["kernel_planning_recovery"]
         self.assertEqual(recovery["completed"], ["Searched saved recipes"])
         self.assertIn("search_prompt_recipes", recovery["messages"][0]["content"])
 
-    def test_final_step_at_limit_preserves_unfinished_graph_planning(self):
-        for remaining in ["Inspect loader and preview contracts, then validate the proposal.", None]:
-            with self.subTest(remaining=remaining):
-                steps = [
-                    {"capability": "graph_builder", "tool_call": {"name": "search_prompt_recipes", "arguments": {"query": "storyboard"}}},
-                    {"capability": "graph_builder", "reply": "The inspected recipe supports nine panels.", "planning_remaining": remaining},
-                ]
-                with patch.object(self.kernel, "run_kernel_provider_step", side_effect=steps):
-                    result = self.kernel.run_assistant_kernel_turn(session=self.session, user_text="Prepare the board graph", workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, assistant_mode="graph", max_tool_steps=1)
-                self.assertEqual(result.trace.termination, "step_budget_exhausted" if remaining else "completed")
-                if remaining:
-                    recovery = self.session["summary_json"]["kernel_planning_recovery"]
-                    self.assertEqual(recovery["remaining"], remaining)
-                    self.assertEqual(recovery["completed"], ["Searched saved recipes"])
+    def test_distinct_discovery_exceeds_old_limit_without_pause(self):
+        steps = [{"capability": "graph_builder", "tool_call": {"name": "search_prompt_recipes", "arguments": {"query": f"recipe-{i}"}}} for i in range(9)]
+        steps.append({"capability": "graph_builder", "reply": "No matching saved recipes; direct preparation is available."})
+        with patch.object(self.kernel, "run_kernel_provider_step", side_effect=steps), patch.object(self.kernel.time, "perf_counter", side_effect=range(0, 100000, 200)):
+            result = self.kernel.run_assistant_kernel_turn(session=self.session, user_text="Find the requested recipes", workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, assistant_mode="graph")
+        self.assertEqual(result.trace.termination, "completed")
+        self.assertEqual(result.trace.step_count, 9)
+        self.assertNotIn("Continue", result.reply)
+        self.assertGreater(result.trace.duration_ms, 180000)
 
     def test_clarification_does_not_complete_recovery(self):
         from app.assistant.planning_recovery import continue_planning, record_planning_recovery
@@ -127,6 +124,44 @@ class PlanningRecoveryTests(unittest.TestCase):
             result = self.kernel.run_assistant_kernel_turn(session=self.session, user_text="Prepare board", workflow=self.workflow, canvas_context={"workspace_key": "tab-proof"}, assistant_mode="graph")
         self.assertEqual([trace.tool_name for trace in result.trace.tool_calls], ["propose_graph_operations", "get_prompt_recipe"])
         self.assertNotIn("Shall I", result.reply)
+
+
+    def test_stop_after_provider_prevents_tool_mutation(self):
+        from threading import Event
+        from app.assistant.cancellation import AssistantRequestCancelled
+        event=Event()
+        def stop(**kwargs):
+            event.set()
+            return {"capability":"graph_builder","tool_call":{"name":"search_prompt_recipes","arguments":{"query":"board"}}}
+        with patch.object(self.kernel,"run_kernel_provider_step",side_effect=stop),patch.object(self.kernel,"execute_kernel_tool") as tool:
+            with self.assertRaises(AssistantRequestCancelled) as caught:
+                self.kernel.run_assistant_kernel_turn(session=self.session,user_text="Prepare board",workflow=self.workflow,canvas_context={},assistant_mode="graph",cancel_event=event)
+            tool.assert_not_called()
+            self.assertEqual(caught.exception.assistant_turn_trace["termination"],"cancelled")
+
+    def test_failed_turn_preserves_prior_observed_usage(self):
+        AssistantProviderChatError = self.kernel.AssistantProviderChatError
+        from app.assistant.schemas import AssistantKernelProviderTrace
+        calls=0
+        def provider(**kwargs):
+            nonlocal calls
+            calls+=1
+            kwargs["provider_steps"].append(AssistantKernelProviderTrace(usage={"prompt_tokens":30} if calls==1 else {}))
+            if calls==2:
+                error=AssistantProviderChatError("Disconnected")
+                error.compaction_trace={"provider_steps":[{"compaction":{"count":1,"duration_ms":123,"outcome":"failed"}}],"provider_lifecycle":["thread_compaction_failed"]}
+                raise error
+            return {"capability":"graph_builder","tool_call":{"name":"search_prompt_recipes","arguments":{"query":"board"}}}
+        with patch.object(self.kernel,"run_kernel_provider_step",side_effect=provider):
+            with self.assertRaises(AssistantProviderChatError) as caught:
+                self.kernel.run_assistant_kernel_turn(session=self.session,user_text="Find board",workflow=self.workflow,canvas_context={},assistant_mode="graph")
+        trace=caught.exception.assistant_turn_trace
+        self.assertEqual(trace["provider_steps"][0]["usage"]["prompt_tokens"],30)
+        self.assertEqual(len(trace["tool_calls"]),1)
+        self.assertIsNone(trace["provider_input_tokens"])
+        self.assertIsNone(trace["provider_latency_ms"])
+        self.assertEqual(trace["provider_steps"][-1]["compaction"]["duration_ms"],123)
+        self.assertIn("thread_compaction_failed",trace["provider_lifecycle"])
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,6 +3,16 @@ from __future__ import annotations
 from typing import Any, Dict
 
 
+def compaction_error_trace(error: BaseException) -> Dict[str, Any]:
+    current: BaseException | None = error
+    while current is not None:
+        trace = getattr(current, "assistant_turn_trace", None) or getattr(current, "compaction_trace", None)
+        if isinstance(trace, dict):
+            return trace
+        current = current.__cause__
+    return {}
+
+
 def build_assistant_turn_trace(content_json: Dict[str, Any] | None, content_text: str = "") -> Dict[str, Any]:
     payload = content_json if isinstance(content_json, dict) else {}
     kernel_turn = payload.get("kernel_turn") if isinstance(payload.get("kernel_turn"), dict) else {}
@@ -21,7 +31,26 @@ def build_assistant_turn_trace(content_json: Dict[str, Any] | None, content_text
         operation_count = len(graph_plan["operations"])
     questions = payload.get("questions") if isinstance(payload.get("questions"), list) else []
     warnings = payload.get("warnings") if isinstance(payload.get("warnings"), list) else []
+    def total_usage(key, detail=None):
+        values = [(step.get("usage") if isinstance(step.get("usage"), dict) else {}).get(key) for step in provider_steps if isinstance(step, dict)]
+        if detail:
+            values = [value.get(detail) if isinstance(value, dict) else None for value in values]
+        return sum(values) if values and all(isinstance(value, (int, float)) for value in values) else None
+
+    def total_step_value(key):
+        values = [step.get(key) if isinstance(step, dict) else None for step in provider_steps]
+        return sum(values) if values and all(isinstance(value, (int, float)) for value in values) else None
+
+    tool_calls = [call for call in kernel_trace.get("tool_calls", []) if isinstance(call, dict)] if isinstance(kernel_trace.get("tool_calls"), list) else []
+    identities = [(call.get("tool_name"), call.get("arguments_hash")) for call in tool_calls]
     return {
+        "provider_input_tokens": total_usage("prompt_tokens"),
+        "provider_output_tokens": total_usage("completion_tokens"),
+        "provider_reasoning_output_tokens": total_usage("completion_tokens_details", "reasoning_tokens"),
+        "provider_cached_input_tokens": total_usage("prompt_tokens_details", "cached_tokens"),
+        "provider_uncached_input_tokens": total_usage("uncached_input_tokens"),
+        "repeated_tool_calls": len(identities) - len(set(identities)),
+        "tool_errors": sum(bool(call.get("error")) for call in tool_calls),
         "response_kind": str(payload.get("assistant_response_kind") or ""),
         "mode": str(payload.get("mode") or ""),
         "assistant_prompt_route": str(payload.get("assistant_prompt_route") or ""),
@@ -49,21 +78,9 @@ def build_assistant_turn_trace(content_json: Dict[str, Any] | None, content_text
             for step in provider_steps
             if isinstance(step, dict) and step.get("reuse_mode")
         ],
-        "provider_prompt_bytes": sum(
-            int(step.get("prompt_bytes") or 0)
-            for step in provider_steps
-            if isinstance(step, dict)
-        ),
-        "provider_latency_ms": sum(
-            int(step.get("latency_ms") or 0)
-            for step in provider_steps
-            if isinstance(step, dict)
-        ),
-        "provider_total_tokens": sum(
-            int((step.get("usage") or {}).get("total_tokens") or 0)
-            for step in provider_steps
-            if isinstance(step, dict) and isinstance(step.get("usage"), dict)
-        ),
+        "provider_prompt_bytes": total_step_value("prompt_bytes"),
+        "provider_latency_ms": total_step_value("latency_ms"),
+        "provider_total_tokens": total_usage("total_tokens"),
         "tool_calls": kernel_trace.get("tool_calls") if isinstance(kernel_trace.get("tool_calls"), list) else [],
         "visible_text_char_count": len(str(content_text or "")),
     }

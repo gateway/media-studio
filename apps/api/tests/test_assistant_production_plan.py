@@ -639,3 +639,41 @@ def test_production_plan_rejects_regressing_dependency_behind_active_step(client
         "step_id": "graph",
         "blocking_step_ids": ["storyboard"],
     }
+
+
+def test_completion_accepts_confirmed_unsaved_workflow_runs(client, monkeypatch) -> None:
+    production = importlib.import_module("app.assistant.production_plan")
+    results = importlib.import_module("app.assistant.results")
+    session = _session(client)
+    run = {"run_id": "confirmed_run", "workflow_id": "unsaved_workflow", "status": "completed"}
+    asset = {"asset_id": "sheet", "run_id": "confirmed_run", "status": "completed"}
+    monkeypatch.setattr(production.store, "get_graph_run", lambda run_id: run if run_id == run["run_id"] else None)
+    monkeypatch.setattr(production.store, "get_asset", lambda asset_id: asset if asset_id == "sheet" else None)
+    monkeypatch.setattr(production, "_confirmed_workflow_ids", lambda *_: set())
+
+    for summary in (
+        {"kernel_run_confirmation": {"assistant_run_id": run["run_id"], "consumed": True}},
+        # A later confirmation must not make the earlier completed step foreign.
+        {"kernel_run_confirmation": {"assistant_run_id": "later_run"}, "result_runs": {run["run_id"]: True}},
+    ):
+        session["summary_json"] = summary
+        assert results.session_owns_run(session, run)
+        assert production._artifact_state("run:confirmed_run", session) == "complete"
+        assert production._artifact_state("asset:sheet", session) == "complete"
+        run["status"] = "running"
+        assert production._artifact_state("run:confirmed_run", session) == "missing"
+        run["status"] = "completed"
+        asset["status"] = "failed"
+        assert production._artifact_state("asset:sheet", session) == "missing"
+        asset["status"] = "completed"
+        assert production._artifact_state("run:missing_run", session) == "missing"
+
+    session["summary_json"] = {"kernel_run_confirmation": {"assistant_run_id": "foreign_run"}, "result_runs": {"foreign_run": True}}
+    assert not results.session_owns_run(session, run)
+    assert production._artifact_state("run:confirmed_run", session) == "missing"
+    assert production._artifact_state("asset:sheet", session) == "missing"
+
+    # Previously accepted applied-workflow provenance is preserved.
+    monkeypatch.setattr(production, "_confirmed_workflow_ids", lambda *_: {run["workflow_id"]})
+    assert production._artifact_state("run:confirmed_run", session) == "complete"
+    assert production._artifact_state("asset:sheet", session) == "complete"

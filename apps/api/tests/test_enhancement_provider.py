@@ -4,7 +4,7 @@ import json
 import os
 import stat
 from pathlib import Path
-from threading import Event
+from threading import Event, Lock
 
 import pytest
 
@@ -102,6 +102,7 @@ def test_codex_thread_resume_is_noninteractive_and_read_only() -> None:
 def test_codex_turn_start_carries_effort_and_message_correlation() -> None:
     provider = enhancement_provider.codex_local_provider
     session = provider._CodexAppServerSession.__new__(provider._CodexAppServerSession)
+    session.timeout_seconds = 30
     captured: dict[str, object] = {}
 
     def fake_request(method: str, params: dict, **kwargs) -> dict:
@@ -138,47 +139,46 @@ def test_codex_compaction_waits_for_context_compaction_completion() -> None:
     captured: dict[str, object] = {}
     read_calls: list[bool] = []
 
-    def fake_request(method: str, params: dict, *, notifications: list, **_kwargs) -> dict:
+    def fake_request(method: str, params: dict, *, notification_handler, **_kwargs) -> dict:
         captured.update(method=method, params=params)
-        notifications.extend(
-            [
-                {
-                    "method": "turn/completed",
-                    "params": {"threadId": "thread-compact", "turn": {"id": "turn-old", "status": "completed"}},
+        for notification in [
+            {
+                "method": "turn/completed",
+                "params": {"threadId": "thread-compact", "turn": {"id": "turn-old", "status": "completed"}},
+            },
+            {
+                "method": "thread/status/changed",
+                "params": {
+                    "threadId": "thread-compact",
+                    "status": {"type": "idle"},
                 },
-                {
-                    "method": "thread/status/changed",
-                    "params": {
-                        "threadId": "thread-compact",
-                        "status": {"type": "idle"},
+            },
+            {
+                "method": "turn/started",
+                "params": {"threadId": "thread-compact", "turn": {"id": "turn-compact", "status": "inProgress"}},
+            },
+            {
+                "method": "thread/tokenUsage/updated",
+                "params": {
+                    "threadId": "thread-compact",
+                    "turnId": "turn-compact",
+                    "tokenUsage": {
+                        "last": {"inputTokens": 0, "outputTokens": 0, "totalTokens": 120},
+                        "total": {"inputTokens": 180000, "outputTokens": 500, "totalTokens": 180500},
+                        "modelContextWindow": 258400,
                     },
                 },
-                {
-                    "method": "turn/started",
-                    "params": {"threadId": "thread-compact", "turn": {"id": "turn-compact", "status": "inProgress"}},
+            },
+            {
+                "method": "item/completed",
+                "params": {
+                    "threadId": "thread-compact",
+                    "turnId": "turn-compact",
+                    "item": {"type": "contextCompaction"},
                 },
-                {
-                    "method": "thread/tokenUsage/updated",
-                    "params": {
-                        "threadId": "thread-compact",
-                        "turnId": "turn-compact",
-                        "tokenUsage": {
-                            "last": {"inputTokens": 0, "outputTokens": 0, "totalTokens": 120},
-                            "total": {"inputTokens": 180000, "outputTokens": 500, "totalTokens": 180500},
-                            "modelContextWindow": 258400,
-                        },
-                    },
-                },
-                {
-                    "method": "item/completed",
-                    "params": {
-                        "threadId": "thread-compact",
-                        "turnId": "turn-compact",
-                        "item": {"type": "contextCompaction"},
-                    },
-                },
-            ]
-        )
+            },
+        ]:
+            notification_handler(notification)
         return {}
 
     session._request = fake_request
@@ -450,7 +450,7 @@ def test_run_codex_local_chat_uses_app_server_turn_result(monkeypatch: pytest.Mo
             captured["model"] = model
             return {"thread": {"id": "thread-codex-1"}}
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None, budget=None) -> dict[str, object]:
             captured["thread_id"] = thread_id
             captured["input_items"] = input_items
             captured["output_schema"] = output_schema
@@ -685,9 +685,9 @@ def test_managed_chat_compacts_only_before_an_eligible_user_turn(
         for index in range(1, 4)
     ]
 
-    assert captured["compactions"] == [
-        {"thread_id": "thread-compaction", "cancel_event": None}
-    ]
+    assert len(captured["compactions"]) == 1
+    assert captured["compactions"][0]["thread_id"] == "thread-compaction"
+    assert captured["compactions"][0]["cancel_event"] is None
     assert results[0]["compaction"] is None
     assert results[1]["compaction"] is None
     assert results[2]["compaction"]["outcome"] == "completed"
@@ -697,7 +697,7 @@ def test_managed_chat_compacts_only_before_an_eligible_user_turn(
     provider.close_codex_local_skill_sessions()
 
 
-def test_managed_chat_continues_when_compaction_fails(
+def test_managed_chat_stops_when_compaction_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     provider = enhancement_provider.codex_local_provider
@@ -737,15 +737,14 @@ def test_managed_chat_continues_when_compaction_fails(
         messages=[{"role": "user", "content": "Prime usage."}],
         codex_session_key="asst_compaction_failure",
     )
-    result = enhancement_provider.run_codex_local_chat(
-        model_id="gpt-compaction-failure",
-        messages=[{"role": "user", "content": "Continue after failure."}],
-        codex_session_key="asst_compaction_failure",
-        compact_before_turn=True,
-    )
-
-    assert result["provider_thread_id"] == "thread-compaction-failure"
-    assert result["compaction"]["outcome"] == "failed_resumable"
+    with pytest.raises(enhancement_provider.EnhancementProviderError, match="Compaction failed"):
+        enhancement_provider.run_codex_local_chat(
+            model_id="gpt-compaction-failure",
+            messages=[{"role": "user", "content": "Continue after failure."}],
+            codex_session_key="asst_compaction_failure",
+            compact_before_turn=True,
+        )
+    assert "asst_compaction_failure" not in provider._CODEX_LOCAL_SKILL_SESSIONS
 
     provider.close_codex_local_skill_sessions()
 
@@ -767,7 +766,7 @@ def test_run_codex_local_chat_resumes_durable_thread_in_fresh_process(monkeypatc
             captured.update(thread_id=thread_id, cwd=cwd, model=model)
             return {"thread": {"id": thread_id}}
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None, budget=None) -> dict[str, object]:
             return {
                 "generated_text": '{"capability":"general","reply":"ok"}',
                 "provider_thread_id": thread_id,
@@ -884,7 +883,7 @@ def test_run_codex_local_chat_hydrates_replacement_after_resume_failure(monkeypa
         def start_thread(self, *, cwd: str, model: str) -> dict[str, object]:
             return {"thread": {"id": "thread-replacement"}}
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None, budget=None) -> dict[str, object]:
             captured["input_items"] = input_items
             return {
                 "generated_text": '{"capability":"general","reply":"ok"}',
@@ -983,7 +982,7 @@ def test_run_codex_local_chat_converts_data_url_images_to_local_inputs(monkeypat
         def start_thread(self, *, cwd: str, model: str) -> dict[str, object]:
             return {"thread": {"id": "thread-codex-image"}}
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None, budget=None) -> dict[str, object]:
             captured["input_items"] = input_items
             return {
                 "generated_text": "A tiny white square.",
@@ -1040,7 +1039,7 @@ def test_run_codex_local_chat_reuses_managed_skill_thread(monkeypatch: pytest.Mo
             captured["start_count"] = int(captured["start_count"]) + 1
             return {"thread": {"id": self.thread_id}}
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None, budget=None) -> dict[str, object]:
             captured["turn_count"] = int(captured["turn_count"]) + 1
             turn_id = f"turn-managed-{captured['turn_count']}"
             return {
@@ -1123,7 +1122,7 @@ def test_managed_pool_resumes_durable_thread_after_idle_reaping(monkeypatch: pyt
             captured["resume_count"] = int(captured["resume_count"]) + 1
             return {"thread": {"id": thread_id}}
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None, budget=None) -> dict[str, object]:
             captured["turn_count"] = int(captured["turn_count"]) + 1
             return {
                 "generated_text": "ok",
@@ -1207,6 +1206,7 @@ def test_codex_session_reaper_has_lifecycle_and_shared_timeout_source(
 
     class _ExpiredSession:
         last_used_at = 0.0
+        lock = Lock()
 
         def close(self) -> None:
             closed.set()
@@ -1248,7 +1248,7 @@ def test_run_codex_local_chat_records_fallback_when_requested_thread_is_unavaila
                 "thread unavailable"
             )
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None, budget=None) -> dict[str, object]:
             return {
                 "generated_text": "ok",
                 "provider_thread_id": thread_id,
@@ -1312,7 +1312,7 @@ def test_run_codex_local_chat_cleans_managed_session_after_cancelled_turn(monkey
             captured["resume_count"] = int(captured["resume_count"]) + 1
             return {"thread": {"id": thread_id}}
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None, budget=None) -> dict[str, object]:
             if captured["cancel_next"]:
                 captured["cancel_next"] = False
                 raise enhancement_provider.codex_local_provider.CodexLocalProviderCancelled("cancelled")
@@ -1379,7 +1379,7 @@ def test_run_codex_local_chat_cleans_managed_session_after_failed_turn(monkeypat
             captured["resume_count"] = int(captured["resume_count"]) + 1
             return {"thread": {"id": thread_id}}
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None, budget=None) -> dict[str, object]:
             if captured["fail_next"]:
                 captured["fail_next"] = False
                 raise enhancement_provider.codex_local_provider.CodexLocalProviderError("Codex Local timed out while waiting for a response.")
@@ -1455,7 +1455,7 @@ def test_run_codex_local_chat_normalizes_json_schema_for_app_server(monkeypatch:
         def start_thread(self, *, cwd: str, model: str) -> dict[str, object]:
             return {"thread": {"id": "thread-codex-schema"}}
 
-        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None) -> dict[str, object]:
+        def run_turn(self, *, thread_id: str, input_items: list[dict[str, object]], output_schema=None, cancel_event=None, budget=None) -> dict[str, object]:
             captured["output_schema"] = output_schema
             return {
                 "generated_text": '{"answer":"ok","details":{"summary":"done"}}',

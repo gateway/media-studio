@@ -24,7 +24,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ChangeEvent, DragEvent, ReactElement } from "react";
 
 import type { AssistantPlanResponse, GraphError, GraphEstimateResponse, GraphMediaPreview, GraphWorkflowPayload } from "./types";
-import { AssistantResults, AssistantRunScope } from "./assistant-results";
+import { AssistantResults, AssistantResultAttachments, AssistantRunScope, useAssistantResults } from "./assistant-results";
 import { type AssistantMode, useCreativeAssistant } from "./hooks/use-creative-assistant";
 import { isTextEntryTarget, previewFromReference } from "./utils/graph-media-preview";
 import { assistantPlanPricingLabel, graphEstimateToolbarLabel } from "./utils/graph-pricing";
@@ -134,8 +134,11 @@ const ASSISTANT_SENDING_PROGRESS = [
 function assistantLiveProgressText(progress: ReturnType<typeof useCreativeAssistant>["progress"]) {
   if (!progress?.active) return null;
   const elapsed = `${progress.elapsed_seconds} seconds elapsed`;
+  if (progress.stage === "compacting") {
+    return `${progress.label} · ${elapsed}. Your request will continue after compaction. You can stop it at any time.`;
+  }
   if (progress.elapsed_seconds >= 120) {
-    return `${progress.label} · ${elapsed}. This is taking longer than usual, but it is still working. You can stop it at any time.`;
+    return `${progress.label} · ${elapsed}. Waiting for the next update. You can stop it at any time.`;
   }
   if (progress.stage === "thinking") {
     return `${progress.label} ${elapsed}. No graph changes or runs have happened yet.`;
@@ -680,7 +683,7 @@ export function CreativeAssistantPanel({
   importImageFile: (file: File) => Promise<MediaReference>;
   onBeforeReviewNavigate?: () => void;
   onAssistantSessionChange?: (assistantSessionId: string | null) => void;
-  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; openInNewTab?: boolean }) => Promise<void> | void;
+  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; openInNewTab?: boolean; assistantSessionId?: string; layoutOnly?: boolean }) => Promise<void> | void;
   onUndoLastAssistantChange?: () => void;
   onRunWorkflow?: (assistantConfirmation?: { sessionId: string; token: string }) => Promise<unknown> | void;
   onOpenPreview?: (preview: GraphMediaPreview, collection?: GraphMediaPreview[]) => void;
@@ -712,6 +715,12 @@ export function CreativeAssistantPanel({
     onEvent,
   });
   const [sendingProgressStage, setSendingProgressStage] = useState(0);
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const results = useAssistantResults({
+    sessionId: assistant.session?.assistant_session_id ?? null,
+    runId: latestRunId ?? null, runStatus: latestRunStatus, workspaceKey, enabled: open,
+    selectionVersion: JSON.stringify(assistant.session?.summary_json?.selected_results ?? {}),
+  });
   useEffect(() => {
     if (assistant.status !== "sending") {
       setSendingProgressStage(0);
@@ -855,6 +864,16 @@ export function CreativeAssistantPanel({
   const layoutDiff = typeof planMetadata["diff_summary"] === "object" && planMetadata["diff_summary"] !== null
     ? planMetadata["diff_summary"] as Record<string, unknown>
     : {};
+  const executionModeOperations = planOperations.filter((operation) => operation["op"] === "set_execution_mode");
+  const onlyExecutionModeOperations = executionModeOperations.length > 0 && executionModeOperations.length === planOperations.length;
+  const executionModeChanges = Array.isArray(layoutDiff["execution_mode_changes"])
+    ? layoutDiff["execution_mode_changes"] as Array<{ id: string; title: string; from: string; to: string }>
+    : [];
+  const holdOnlyPlan = planOperations.length > 0 && planOperations.every(
+    (operation) => operation["op"] === "set_execution_mode" && ["frozen", "muted"].includes(String(operation["execution_mode"])),
+  );
+  const editChanges = Array.isArray(layoutDiff["edit_changes"])
+    ? layoutDiff["edit_changes"].filter((value): value is string => typeof value === "string") : [];
   const movedNodeCount = Array.isArray(layoutDiff["nodes_moved"]) ? layoutDiff["nodes_moved"].length : null;
   const movedGroupCount = Array.isArray(layoutDiff["groups_repositioned"]) ? layoutDiff["groups_repositioned"].length : null;
   const arrangedNodeCount = movedNodeCount ?? plan?.workflow.nodes.length ?? 0;
@@ -864,7 +883,7 @@ export function CreativeAssistantPanel({
   const planMissingMedia = planHasMissingMedia(plan);
   const planOptionalEmptyMedia = planHasOptionalEmptyMedia(plan);
   const planStatusLabel = planApplied
-    ? onlyArrangeOperations ? "Layout applied" : "Added to canvas"
+    ? onlyExecutionModeOperations ? "Execution mode updated" : onlyArrangeOperations ? "Layout applied" : "Added to canvas"
     : plan && planOperationCount === 0
       ? "No changes required"
       : onlyArrangeOperations
@@ -906,9 +925,9 @@ export function CreativeAssistantPanel({
     assistant.nextAction?.kind === "run_workflow" && assistant.nextAction.requires_confirmation
       ? assistant.nextAction
       : null;
-  const planActionLabel = kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add graph");
-  const planActionAriaLabel = kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add reviewed graph");
-  const planActionTitle = kernelGraphAction?.label || (planMissingMedia ? "Add the graph so you can choose the missing media on the canvas" : "Add the reviewed graph");
+  const planActionLabel = planMetadata.independent_stage ? "Open new workflow" : kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add graph");
+  const planActionAriaLabel = planMetadata.independent_stage ? planActionLabel : kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add reviewed graph");
+  const planActionTitle = planMetadata.independent_stage ? planActionLabel : kernelGraphAction?.label || (planMissingMedia ? "Add the graph so you can choose the missing media on the canvas" : "Add the reviewed graph");
   const pricing = assistantPlanPricingLabel(plan?.pricing.pricing_summary.total);
   const liveProgressText = assistantLiveProgressText(assistant.progress);
   const busyText = assistant.status === "idle"
@@ -979,6 +998,7 @@ export function CreativeAssistantPanel({
   const addNodeOperations = planOperations.filter((operation) => operation["op"] === "add_node" || operation["op"] === "add_note");
   const connectionOperations = planOperations.filter((operation) => operation["op"] === "connect_nodes");
   const groupOperations = planOperations.filter((operation) => operation["op"] === "group_nodes");
+  const inPlaceEditOperations = planOperations.filter((operation) => ["replace_model", "update_edge", "remove_edge", "rename_workflow"].includes(String(operation["op"])));
   const fieldUpdateOperations = planOperations.filter((operation) => operation["op"] === "set_node_field" || operation["op"] === "set_node_title");
   const onlyFieldUpdateOperations = fieldUpdateOperations.length > 0 && fieldUpdateOperations.length === planOperations.length;
   const selectedContext = selectedNodeContext(workflow, selectedNodeIds);
@@ -1311,8 +1331,8 @@ export function CreativeAssistantPanel({
             </section>
           ) : null}
 
-          <AssistantResults selectionVersion={JSON.stringify(assistant.session?.summary_json?.selected_results ?? {})} sessionId={assistant.session?.assistant_session_id ?? null}
-            runId={latestRunId ?? null} runStatus={latestRunStatus} workspaceKey={workspaceKey} />
+          <AssistantResults results={results} workflow={workflow} disabled={assistant.busy} onOpenPreview={onOpenPreview}
+            onAsk={() => messageInputRef.current?.focus()} />
           {kernelPresetSaveAction ? (
             <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Media Preset save confirmation">
               <p>
@@ -1378,26 +1398,34 @@ export function CreativeAssistantPanel({
               className={`graph-assistant-message graph-assistant-message-assistant graph-assistant-message-plan ${
                 planApplied ? "graph-assistant-plan-applied" : plan.validation.valid ? "graph-assistant-plan-valid" : "graph-assistant-plan-invalid"
               }`}
-              aria-label={planApplied ? "Added graph status" : "Graph review"}
+              aria-label={planApplied ? onlyExecutionModeOperations ? "Execution mode update status" : "Added graph status" : "Graph review"}
             >
             <div className="graph-assistant-plan-heading">
               {planApplied ? <CheckCircle2 size={15} /> : <Sparkles size={15} />}
-              <strong>{planApplied && planMetadata.independent_stage ? "New stage opened" : planReviewTitle({ appliedPresetWorkflow: presetTestReady, planApplied, noCanvasChanges, valid: plan.validation.valid, missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}</strong>
+              <strong>{planApplied && onlyExecutionModeOperations ? "Execution mode updated" : planApplied && planMetadata.independent_stage ? "New workflow opened" : planReviewTitle({ appliedPresetWorkflow: presetTestReady, planApplied, noCanvasChanges, valid: plan.validation.valid, missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}</strong>
               {!planApplied ? <small>{pricing}</small> : null}
             </div>
             <p>
-              {appliedPresetWorkflow
-                ? appliedPresetNextStep
+              {planApplied && onlyExecutionModeOperations
+                ? "Updated execution mode only. Nothing was run and no spending was approved."
+                : appliedPresetWorkflow
+                  ? appliedPresetNextStep
                 : planApplied && onlyArrangeOperations
                   ? plan.graph_plan.summary.trim() || "The workflow layout is updated without changing graph content."
                 : planApplied && onlyFieldUpdateOperations
                   ? plan.graph_plan.summary.trim() || "I updated the selected node on the canvas. Want another adjustment?"
                 : planApplied
-                  ? planMetadata.independent_stage ? "The independent stage is open in its own tab. This source workflow and its run are preserved." : "Here's your graph. I added the nodes to the canvas. Want adjustments, or should we review the prompts?"
+                  ? planMetadata.independent_stage ? "The new workflow is open in its own tab with this conversation. The previous workflow and its run are preserved." : "Here's your graph. I added the nodes to the canvas. Want adjustments, or should we review the prompts?"
                   : noCanvasChanges
                     ? noCanvasChangeSummary(plan)
                     : graphPlanPrimaryCopy(plan, { missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}
             </p>
+            {planApplied && onlyExecutionModeOperations ? (
+              <div className="graph-assistant-edit-summary">
+                {executionModeChanges.map((change) => <p key={change.id}>{change.title}: {change.from} → {change.to}</p>)}
+                {!plan.validation.valid ? <p>Run remains blocked: {plan.validation.errors.map((issue) => graphReviewIssueCopy(plan, issue)).join(" ")}</p> : null}
+              </div>
+            ) : null}
             {planApplied && onlyFieldUpdateOperations && appliedFieldUpdateLabels.length ? (
               <p className="graph-assistant-edit-summary">Changed: {formatAssistantList(appliedFieldUpdateLabels)}</p>
             ) : null}
@@ -1441,7 +1469,7 @@ export function CreativeAssistantPanel({
                       <PencilLine size={13} aria-hidden="true" />
                       <span className="graph-assistant-plan-stat-label">Updates</span>
                     </dt>
-                    <dd>{fieldUpdateOperations.length + arrangeOperations.length}</dd>
+                    <dd>{fieldUpdateOperations.length + executionModeOperations.length + arrangeOperations.length + inPlaceEditOperations.length}</dd>
                   </div>
                 </dl>
                 <div className="graph-assistant-plan-operation-list">
@@ -1466,10 +1494,27 @@ export function CreativeAssistantPanel({
                         </li>
                       ))}
                     </ul>
+                  ) : executionModeOperations.length ? (
+                    <span>{onlyExecutionModeOperations ? "Update execution mode only." : "Review execution mode and workflow changes."}</span>
+                  ) : inPlaceEditOperations.length ? (
+                    <span>Review changes to the current workflow below.</span>
                   ) : (
                     <span>No canvas changes are required.</span>
                   )}
                 </div>
+                {editChanges.length ? (
+                  <div className="graph-assistant-plan-operation-list">
+                    <ul>{editChanges.map((change, index) => <li key={index}>{change}</li>)}</ul>
+                  </div>
+                ) : null}
+                {executionModeChanges.length ? (
+                  <div className="graph-assistant-plan-operation-list">
+                    <ul>{executionModeChanges.map((change) => (
+                      <li key={change.id}>{change.title}: {change.from} → {change.to}</li>
+                    ))}</ul>
+                    <p>{holdOnlyPlan ? "Apply this hold without running. Run validation issues may remain." : "Changing execution mode does not start a run."}</p>
+                  </div>
+                ) : null}
                 {plan.graph_plan.questions.length || plan.graph_plan.warnings.length || plan.validation.warnings.length ? (
                   <div className="graph-assistant-plan-operation-list">
                     <ul>
@@ -1558,10 +1603,12 @@ export function CreativeAssistantPanel({
               Recheck graph and pricing
             </button>
           ) : null}
+          <AssistantResultAttachments results={results} disabled={assistant.busy} onOpenPreview={onOpenPreview} />
           <div className="graph-assistant-compose-row">
             <textarea
+              ref={messageInputRef}
               value={assistant.draft}
-              placeholder={ASSISTANT_PLACEHOLDER}
+              placeholder={results.selectedItems.length ? "What would you like to know or change about these results?" : ASSISTANT_PLACEHOLDER}
               onChange={(event) => assistant.setDraft(event.target.value)}
               aria-label="Assistant message"
             />
@@ -1569,7 +1616,7 @@ export function CreativeAssistantPanel({
               <button
                 type="button"
                 className="graph-assistant-action-button"
-                disabled={!assistant.draft.trim() || assistant.busy}
+                disabled={!assistant.draft.trim() || assistant.busy || results.busy}
                 onClick={() => void assistant.sendMessage()}
                 aria-label="Send chat message"
                 title="Send chat message"

@@ -714,7 +714,9 @@ def run_codex_local_chat(
     reasoning_effort: Optional[str] = None,
     client_user_message_id: Optional[str] = None,
     compact_before_turn: bool = False,
+    unbounded_turn: bool = False,
     resume_usage: Optional[Dict[str, Any]] = None,
+    on_compaction=None,
 ) -> Dict[str, Any]:
     try:
         return codex_local_provider.run_codex_local_chat(
@@ -732,7 +734,9 @@ def run_codex_local_chat(
             reasoning_effort=reasoning_effort,
             client_user_message_id=client_user_message_id,
             compact_before_turn=compact_before_turn,
+            unbounded_turn=unbounded_turn,
             resume_usage=resume_usage,
+            on_compaction=on_compaction,
         )
     except codex_local_provider.CodexLocalProviderError as exc:
         raise EnhancementProviderError(str(exc)) from exc

@@ -916,7 +916,6 @@ def test_valid_preset_artifact_without_same_step_reply_completes_before_wall_clo
         workflow=None,
         canvas_context={},
         assistant_mode="preset",
-        max_wall_seconds=0.5,
     )
 
     assert provider_calls == 1

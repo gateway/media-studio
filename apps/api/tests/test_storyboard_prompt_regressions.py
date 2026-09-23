@@ -183,27 +183,18 @@ def test_gpt_image_2_graph_prompt_shaper_recognizes_uppercase_panel_image_headin
     result = shape_kie_graph_prompt(
         "gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000
     )
-    assert result.strategy == "gpt_image_2_storyboard_compact"
-    assert result.final_chars <= 4200
-    assert "Signal received." in result.prompt
-    assert "four-legged brass relay animal" in result.prompt
-    for label in ("SHOT:", "CAMERA:", "ACTION:", "MOTION:", "DIALOG:", "NOTES:"):
-        assert result.prompt.count(label) == 6
-    assert "FRAMING:" not in result.prompt
-    camera_values = [
-        panel.split("CAMERA:", 1)[1].split("; ACTION:", 1)[0]
-        for panel in result.prompt.split("Panel plan with metadata rows: ", 1)[1].split("\n\nContinuity:", 1)[0].split(" | ")
-    ]
-    assert all("shoulder-height three-quarter production angle" in value.lower() for value in camera_values)
-    assert all("courier and relay platform remain readable" in value.lower() for value in camera_values)
-    assert all(";" in value for value in camera_values)
+
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
 
 
 @pytest.mark.parametrize(
     ("panel_count", "grid_layout"),
     ((4, "2x2"), (6, "3x2"), (9, "3x3")),
 )
-def test_gpt_image_2_storyboard_compactor_uses_requested_panel_layout(
+def test_gpt_image_2_storyboard_submission_uses_requested_panel_layout(
     panel_count: int,
     grid_layout: str,
 ) -> None:
@@ -231,15 +222,14 @@ def test_gpt_image_2_storyboard_compactor_uses_requested_panel_layout(
         max_chars=20000,
     )
 
-    assert result.strategy == "gpt_image_2_storyboard_compact"
-    assert f"Every one of the {panel_count} cells" in result.prompt
-    assert f"exact {grid_layout} grid" in result.prompt
-    assert result.prompt.count("SHOT:") == panel_count
-    assert result.prompt.count("CAMERA:") == panel_count
-    validate_storyboard_metadata_rows(result.prompt, expected_count=panel_count)
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert f"SHOT COUNT: {panel_count}" in result.prompt
 
 
-def test_gpt_image_2_storyboard_compactor_infers_layout_from_generated_panel_blocks() -> None:
+def test_gpt_image_2_storyboard_submission_preserves_generated_panel_blocks_without_inventing_layout() -> None:
     panels = "\n\n".join(
         f"PANEL {index:02d}\n\n"
         f"SHOT {index:02d} — BEACH BEAT\n\n"
@@ -268,15 +258,13 @@ def test_gpt_image_2_storyboard_compactor_infers_layout_from_generated_panel_blo
         max_chars=20000,
     )
 
-    assert result.strategy == "gpt_image_2_storyboard_compact"
-    assert "Every one of the 4 cells" in result.prompt
-    assert "exact 2x2 grid" in result.prompt
-    assert result.prompt.count("SHOT:") == 4
-    assert result.prompt.count("CAMERA:") == 4
-    validate_storyboard_metadata_rows(result.prompt, expected_count=4)
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
 
 
-def test_gpt_image_2_storyboard_compactor_preserves_missing_notes_for_fail_closed_preflight() -> None:
+def test_gpt_image_2_storyboard_submission_preserves_missing_notes_for_fail_closed_preflight() -> None:
     panels = "\n\n".join(
         f"PANEL {index:02d} IMAGE:\n"
         f"SHOT: {index:02d} RELAY INSPECTION\n"
@@ -304,17 +292,15 @@ def test_gpt_image_2_storyboard_compactor_preserves_missing_notes_for_fail_close
         "gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000
     )
 
-    assert result.strategy == "gpt_image_2_storyboard_compact"
-    assert result.final_chars <= 4200
-    assert result.prompt.count("CAMERA:") == 6
-    assert "FRAMING:" not in result.prompt
-    assert result.prompt.count('COURIER [calm voice] — "The relay is ready for the crossing."') == 1
-    assert '"The relay is ready for the crossing.".' not in result.prompt
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
     with pytest.raises(ValueError, match=r"Panel 01 NOTES is empty"):
         validate_storyboard_metadata_rows(result.prompt, expected_count=6)
 
 
-def test_gpt_image_2_storyboard_compactor_does_not_copy_adjacent_required_rows() -> None:
+def test_gpt_image_2_storyboard_submission_does_not_copy_adjacent_required_rows() -> None:
     panels = "\n\n".join(
         f"PANEL {index:02d} IMAGE:\n"
         f"SHOT: {index:02d} RELAY BEAT\n"
@@ -336,18 +322,15 @@ def test_gpt_image_2_storyboard_compactor_does_not_copy_adjacent_required_rows()
         "gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000
     )
 
-    panel_plan = result.prompt.split("Panel plan with metadata rows: ", 1)[1].split("\n\nContinuity:", 1)[0]
-    for panel in panel_plan.split(" | "):
-        action = panel.split("ACTION:", 1)[1].split("; MOTION:", 1)[0].strip()
-        notes = panel.split("NOTES:", 1)[1].strip()
-        assert action == ""
-        assert notes == ""
-    assert "They." not in result.prompt
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
     with pytest.raises(ValueError, match=r"Panel 01 ACTION is empty"):
         validate_storyboard_metadata_rows(result.prompt, expected_count=6)
 
 
-def test_gpt_image_2_storyboard_compactor_reserves_notes_for_dialogue_heavy_panel() -> None:
+def test_gpt_image_2_storyboard_submission_reserves_notes_for_dialogue_heavy_panel() -> None:
     panels = "\n\n".join(
         f"PANEL {index:02d} IMAGE:\n"
         f"SHOT: {index:02d} RELAY SERVICE\n"
@@ -377,13 +360,11 @@ def test_gpt_image_2_storyboard_compactor_reserves_notes_for_dialogue_heavy_pane
         "gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000
     )
 
-    assert result.strategy == "gpt_image_2_storyboard_compact"
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
     validate_storyboard_metadata_rows(result.prompt, expected_count=6)
-    assert "ACTION: BURNT-OUT CAPACITOR." not in result.prompt
-    assert "ACTION: BOTH SECURED." not in result.prompt
-    panel_four = result.prompt.split(" | ")[3]
-    assert 'OPERATOR [wry amused voice] — "That explains the diagnostic warning."' in panel_four
-    assert panel_four.split("NOTES:", 1)[1].strip()
 
 
 def test_storyboard_panel_budget_never_starves_required_notes_after_exact_dialogue() -> None:
@@ -431,13 +412,15 @@ def test_short_storyboard_prompt_keeps_fragments_visible_for_fail_closed_preflig
         "gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000
     )
 
-    assert result.strategy == "gpt_image_2_storyboard_metadata_normalized"
-    with pytest.raises(ValueError, match=r"Panel 01 (?:ACTION|MOTION|NOTES) is not a complete semantic value"):
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    with pytest.raises(ValueError, match=r"Panel 01 ACTION is not a complete semantic value"):
         validate_storyboard_metadata_rows(result.prompt, expected_count=6)
-    assert result.prompt.count('OPERATOR [calm voice] — "Relay secure."') == 1
 
 
-def test_storyboard_compactor_leaves_provider_bound_grammar_tails_for_preflight_rejection() -> None:
+def test_storyboard_submission_leaves_provider_bound_grammar_tails_for_preflight_rejection() -> None:
     fragments = {
         1: ("The service panel fully open.", "The latch rotates.", "The service panel fully."),
         2: ("The pilot closes.", "The panel settles flush.", "The latch locks."),
@@ -465,7 +448,11 @@ def test_storyboard_compactor_leaves_provider_bound_grammar_tails_for_preflight_
         "gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000
     )
 
-    with pytest.raises(ValueError, match=r"Panel 01 ACTION (?:is empty|is not a complete semantic value)"):
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    with pytest.raises(ValueError, match=r"Panel 04 MOTION is not a complete semantic value"):
         validate_storyboard_metadata_rows(result.prompt, expected_count=6)
 
 
@@ -487,7 +474,7 @@ def test_action_compaction_preserves_object_after_spatial_before() -> None:
     assert "stands before the amber-lit service panel" in fitted
 
 
-def test_raw_storyboard_compaction_keeps_complete_clause_ending_in_it() -> None:
+def test_raw_storyboard_submission_keeps_complete_clause_ending_in_it() -> None:
     panels = []
     for index in range(1, 7):
         action = (
@@ -516,13 +503,15 @@ def test_raw_storyboard_compaction_keeps_complete_clause_ending_in_it() -> None:
         "gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000
     )
 
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
     validate_storyboard_metadata_rows(result.prompt, expected_count=6)
-    panel_six = result.prompt.split(" | 06:", 1)[1]
-    assert "before the closed amber relay panel" in panel_six
-    assert "poised to inspect it" in panel_six
+    assert "poised to inspect it without touching or opening it" in result.prompt
 
 
-def test_storyboard_compactor_repairs_possessive_and_unresolved_predicate_tails() -> None:
+def test_storyboard_submission_preserves_complete_possessive_and_predicate_clauses() -> None:
     panels = []
     for index in range(1, 7):
         dialogue = (
@@ -552,13 +541,11 @@ def test_storyboard_compactor_repairs_possessive_and_unresolved_predicate_tails(
         "gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000
     )
 
-    assert result.strategy == "gpt_image_2_storyboard_compact"
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
     validate_storyboard_metadata_rows(result.prompt, expected_count=6)
-    assert "within the engineer's." not in result.prompt
-    assert "The replacement becomes." not in result.prompt
-    assert result.prompt.count(
-        'SERVICE UNIT [dry synthetic voice] — "Calibration ready. Judgment withheld."'
-    ) == 1
 
 
 def test_storyboard_capsule_preserves_camera_contract_but_does_not_cross_fill_tail_shapes() -> None:
@@ -572,11 +559,7 @@ def test_storyboard_capsule_preserves_camera_contract_but_does_not_cross_fill_ta
 
     fitted = _fit_panel_capsule(capsule, max_chars=300)
 
-    with pytest.raises(ValueError, match=r"Panel 01 ACTION is not a complete semantic value"):
-        validate_storyboard_metadata_rows(
-            "Panel plan with metadata rows: " + fitted,
-            expected_count=1,
-        )
+    validate_storyboard_metadata_rows("Panel plan with metadata rows: " + fitted, expected_count=1)
     camera = fitted.split("CAMERA:", 1)[1].split("; ACTION:", 1)[0]
     assert "angle" in camera.lower()
     assert "push" in camera.lower()
@@ -708,7 +691,7 @@ def test_storyboard_display_compaction_bounds_compact_panel_plan_camera_rows() -
     assert all(not storyboard_camera_contract_missing(fields["CAMERA"]) for _, fields in panels)
 
 
-def test_storyboard_compactor_preserves_distinctive_user_traits_and_one_title_region() -> None:
+def test_storyboard_submission_preserves_subject_traits_and_rejects_missing_shot_description() -> None:
     panels = []
     for number in range(1, 7):
         shot = "02 —." if number == 2 else f"{number:02d} — SURVEY BEAT"
@@ -740,12 +723,10 @@ def test_storyboard_compactor_preserves_distinctive_user_traits_and_one_title_re
         "gpt-image-2-image-to-image", prompt, task_mode="image_edit", max_chars=20000
     )
 
-    validate_storyboard_metadata_rows(result.prompt, expected_count=6)
-    assert (
-        "User production metadata: PROJECT: ORBITAL RELAY; "
-        "SEQUENCE: BOARD 3 OF 3; LOCATION: UPLINK CHAMBER"
-    ) in result.prompt
-    assert "articulated brass forelimbs" in result.prompt
-    assert "violet status lights" in result.prompt
-    assert "only per-panel title region" in result.prompt
-    assert "SHOT: 02 —." not in result.prompt
+    assert result.prompt == prompt
+    assert result.changed is False
+    assert result.strategy == "none"
+    assert result.original_chars == result.final_chars == len(prompt)
+    assert subject in result.prompt
+    with pytest.raises(ValueError, match=r"Panel 02 SHOT must include a meaningful description"):
+        validate_storyboard_metadata_rows(result.prompt, expected_count=6)

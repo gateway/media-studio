@@ -28,10 +28,15 @@ from .artifact_recommendation_tools import (
     recommend_saved_artifacts_tool,
     record_artifact_recommendation_decision,
 )
+from .conversation_history import (
+    ReadSessionContentArguments, SearchConversationArguments,
+    read_session_content, search_conversation,
+)
 from .canvas_context import compact_canvas_context
-from .results import (ResultReuse, ReadResultsArguments, ResultSelection, read_results_tool, select_result_tool, stage_result_operations, validate_stage_results)
+from .results import (ResultReuse, ReadResultsArguments, ResultSelection, InspectSelectedResultArguments, inspect_selected_result, read_results_tool, select_result_tool, stage_result_operations, validate_stage_results)
+from .generation_inspection import InspectGenerationArguments, inspect_generation
 from .graph_diff import graph_plan_diff_summary, graph_plan_layout_errors
-from .graph_plan import apply_graph_plan
+from .graph_plan import apply_graph_plan, is_hold_only_plan
 from .reference_analysis import (
     AnalyzeGeneratedOutputArguments,
     AnalyzeReferenceImagesArguments,
@@ -103,6 +108,8 @@ from .story_kernel import (
 from .tool_limits import KERNEL_TOOL_RESULT_MAX_BYTES
 KERNEL_SCHEMA_RESULT_TARGET_BYTES = 30_000
 KERNEL_TOOL_ACTIVITIES = {
+    "search_conversation": ("graph_check", "Found saved conversation messages"),
+    "read_session_content": ("graph_check", "Read saved conversation content"),
     "read_current_workflow": ("graph_check", "Checked your graph"),
     "search_prompt_recipes": ("recipe_catalog", "Searched saved recipes"),
     "get_prompt_recipe": ("recipe_contract", "Inspected the saved recipe contract"),
@@ -111,6 +118,7 @@ KERNEL_TOOL_ACTIVITIES = {
     "validate_current_workflow": ("graph_validation", "Checked your graph"),
     "propose_graph_operations": ("graph_proposal", "Prepared a graph proposal"),
     "analyze_reference_images": ("reference_analysis", "Analyzed your reference"),
+    "inspect_selected_result": ("result_inspection", "Inspected your completed result"),
     "analyze_preset_output": ("output_comparison", "Compared the generated result"),
     "analyze_recipe_output": ("output_comparison", "Compared the generated result"),
     "record_preset_quality_decision": ("output_comparison", "Recorded your quality decision"),
@@ -122,11 +130,13 @@ KERNEL_TOOL_ACTIVITIES = {
     "propose_production_plan": ("production_plan", "Prepared a production plan"),
     "update_production_plan_step": ("production_plan", "Updated the production plan"),
     "update_story_state": ("story_update", "Updated the story"),
+    "inspect_generation": ("run_check", "Inspected generation prompt and readiness"),
     "read_run_evidence": ("run_check", "Checked the latest run"),
 }
 
 
 class ReadCurrentWorkflowArguments(BaseModel):
+    node_ids: List[str] = Field(default_factory=list, description="Read exact nodes and their incident edges; omit for the full workflow.")
     include_fields: bool = True
     include_selection: bool = True
 
@@ -161,7 +171,7 @@ class DerivedRecipeDefaultsOverride(BaseModel):
 class ProposeGraphOperationsArguments(BaseModel):
     summary: str = Field(min_length=1, max_length=800)
     operations: List[AssistantGraphOperation] = Field(default_factory=list, max_length=64)
-    new_stage_name: Optional[str] = Field(default=None, min_length=1, max_length=160, description="Create a separate workflow and preserve the current graph. Use for independent stages or variants, never repurpose prior generators.")
+    new_stage_name: Optional[str] = Field(default=None, min_length=1, max_length=160, description="Create a separate workflow and preserve the current graph. Use only when the user explicitly requests a separate workflow; continue in the current workflow by default.")
     reused_results: List[ResultReuse] = Field(default_factory=list, max_length=8, description="Exact selected outputs to materialize as loaders/text. Connect from their node_ref; do not reconstruct their content.")
     template_id: Optional[
         Literal[
@@ -210,6 +220,7 @@ class KernelToolContext:
     session: Dict[str, Any] = field(default_factory=dict)
     attachments: List[Dict[str, Any]] = field(default_factory=list)
     tool_evidence: List[Dict[str, Any]] = field(default_factory=list)
+    provider_steps: List[Any] = field(default_factory=list)
     cancel_event: Event | None = None
     timeout_seconds: Optional[float] = None
 
@@ -258,9 +269,10 @@ def _read_current_workflow(
                 "execution": dict(node.metadata.get("execution") or {"mode": "enabled"}),
                 "fields": dict(node.fields) if options.include_fields else {},
             }
-            for node in workflow.nodes
+            for node in workflow.nodes if not options.node_ids or node.id in options.node_ids
         ]
-        edges = [edge.model_dump(mode="json") for edge in workflow.edges]
+        edges = [edge.model_dump(mode="json") for edge in workflow.edges
+                 if not options.node_ids or edge.source in options.node_ids or edge.target in options.node_ids]
         workflow_id = workflow.workflow_id
         workflow_name = workflow.name
         metadata = workflow.metadata if isinstance(workflow.metadata, dict) else {}
@@ -645,7 +657,9 @@ def _inspect_graph_node_schemas(arguments: BaseModel, _context: KernelToolContex
         "instruction": (
             "Inspect omitted node types in a separate call."
             if omitted
-            else "Use these exact field ids, node types, and port ids in graph operations."
+            else "Use these exact field ids, node types, and port ids in graph operations. "
+            "For prompt.recipe, this is a union across recipes: use get_prompt_recipe graph_node "
+            "for the selected recipe_id and its exact available ports, not the union ports."
         ),
     }
 
@@ -1574,7 +1588,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     operations = options.operations
     metadata: Dict[str, Any] = {"kernel_proposal": True}
     if options.reused_results and not options.new_stage_name:
-        raise KernelToolFailure(code="independent_stage_required", message="Reuse completed results in a named independent stage.")
+        raise KernelToolFailure(code="independent_stage_required", message="Reuse completed results in a named separate workflow.")
     if options.new_stage_name:
         if options.template_id:
             raise KernelToolFailure(code="invalid_stage", message="Use explicit stage operations, not a replacement test template.")
@@ -1669,6 +1683,8 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     base_workflow = context.workflow or GraphWorkflow(
         name=str(context.canvas_context.get("workflow_name") or "New workflow"),
     )
+    from .graph_edits import graph_edit_fingerprint
+    metadata["base_edit_fingerprint"] = graph_edit_fingerprint(base_workflow)
     graph_plan = AssistantGraphPlan(
         summary=options.summary,
         operations=operations,
@@ -1836,6 +1852,7 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
     ]
     confirmable = not layout_errors and (
         validation.valid
+        or is_hold_only_plan(graph_plan)
         or (bool(pending_user_inputs) and len(pending_user_inputs) == len(validation.errors))
     )
     if not confirmable:
@@ -1923,7 +1940,23 @@ def _propose_graph_operations(arguments: BaseModel, context: KernelToolContext) 
 
 
 KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
-    "read_run_results": KernelToolDefinition(name="read_run_results", description="Read exact completed image, text, video or audio results from the selected session-owned run, with selectable artifact IDs, versions and availability. No execution; full text is materialized by reused_results.", arguments_model=ReadResultsArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=read_results_tool),
+    "search_conversation": KernelToolDefinition(
+        name="search_conversation",
+        description="Find older saved messages in this conversation by literal phrase, or list newest messages with an empty query. Results are excerpts with message_id; use read_session_content for exact full text. Follow next_before_message_id for older matches. No execution.",
+        arguments_model=SearchConversationArguments,
+        allowed_capabilities=frozenset({"general", "graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}),
+        handler=search_conversation,
+    ),
+    "read_session_content": KernelToolDefinition(
+        name="read_session_content",
+        description="Read exact saved message text or a graph proposal's complete workflow JSON from this conversation only. Use message_id from search/recent context or a proposal ID. Follow next_offset using the returned version until complete. Workflow JSON preserves prompt fields, image bindings/order and settings. Status is historical, not approval or current price. Never authorizes apply/save/run.",
+        arguments_model=ReadSessionContentArguments,
+        allowed_capabilities=frozenset({"general", "graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}),
+        handler=read_session_content,
+    ),
+    "inspect_generation": KernelToolDefinition(name="inspect_generation", description="Inspect the exact current provider-bound prompt without generation, or session-owned authored/prepared/submitted/rejected run evidence in chunks. Use for truncation, failed recipe diagnosis and configured model readiness. Dynamic recipe outputs report pending, never certified. Optional read-only fresh balance is not proof of model funding. Never runs, uploads, retries, or grants approval.", arguments_model=InspectGenerationArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder", "run_debugger"}), handler=inspect_generation),
+    "read_run_results": KernelToolDefinition(name="read_run_results", description="List completed results from the selected session-owned run with artifact IDs, versions and availability. Text previews are truncated; use inspect_selected_result for full text chunks or image inspection. No execution.", arguments_model=ReadResultsArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=read_results_tool),
+    "inspect_selected_result": KernelToolDefinition(name="inspect_selected_result", description="Inspect an explicitly selected completed artifact using its exact ID and version. For text, read bounded chunks and follow next_offset until null. For images, inspect actual pixels with optional attached reference_ids and focus. Never grants quality approval, changes a graph, or runs generation. Does not require a preset/recipe confirmation.", arguments_model=InspectSelectedResultArguments, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=inspect_selected_result),
     "select_run_result": KernelToolDefinition(name="select_run_result", description="Select or deselect the exact result the user chose from read_run_results, using its run_id, artifact_id and version. Never guess an ordinal across runs. Selection persists without generation.", arguments_model=ResultSelection, allowed_capabilities=frozenset({"general", "graph_builder", "recipe_builder", "preset_builder"}), handler=select_result_tool),
     "read_current_workflow": KernelToolDefinition(
         name="read_current_workflow",
@@ -1986,11 +2019,21 @@ KERNEL_TOOLS: Dict[str, KernelToolDefinition] = {
         name="propose_graph_operations",
         description=(
             "Build a standard preset test graph by template id, or apply typed graph operations; validate, "
-            "layout-check, price, and persist the confirmable proposal. For a layout-only request, use one "
+            "layout-check, price, and persist the confirmable proposal. New workflows automatically use a "
+            "left-to-right stage layout: each stage wraps into extra columns within the tallest node's height, "
+            "then processing and outputs continue to the right. "
+            "For a layout-only request, use one "
             "arrange_workflow operation; the server deterministically moves existing nodes and recomputes "
             "existing group bounds while preserving graph content, connections, identities, and membership. "
             "Use remove_nodes_from_group with an exact existing group id and node ids to repair an incorrect "
-            "membership; it may be combined with arrange_workflow in the same atomic repair proposal."
+            "membership; it may be combined with arrange_workflow in the same atomic repair proposal. "
+            "Use set_execution_mode with an exact node_id or node_ref and execution_mode enabled, frozen, muted or bypassed. "
+            "Use rename_workflow with title. For replace_model supply exact node_id, node_type, field overrides, "
+            "remove_field_ids for incompatible fields, and explicit input_port_map/output_port_map entries for every "
+            "connected old port (same name to retain, new name to map, null to remove its edges). "
+            "Use update_edge/remove_edge with exact edge_id; updates preserve unspecified endpoints and order. "
+            "Frozen-or-Muted-only edits may be applied while run validation remains blocked; enabling requires normal validation. "
+            "Changing mode never runs a node or grants spend approval."
         ),
         arguments_model=ProposeGraphOperationsArguments,
         allowed_capabilities=frozenset({"graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"}),
@@ -2203,6 +2246,9 @@ def execute_kernel_tool(
     capability: AssistantKernelCapability,
     context: KernelToolContext,
 ) -> KernelToolExecution:
+    from .cancellation import is_cancelled, AssistantRequestCancelled
+    if is_cancelled(context.cancel_event):
+        raise AssistantRequestCancelled("Assistant tool was cancelled.", outcome="cancelled_before_tool")
     started = time.perf_counter()
     definition = KERNEL_TOOLS.get(str(tool_name or "").strip())
     error: AssistantKernelToolError | None = None

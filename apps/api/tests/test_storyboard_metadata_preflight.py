@@ -142,40 +142,15 @@ def test_preflight_rejects_shot_rows_without_a_meaningful_title(value: str) -> N
 @pytest.mark.parametrize(
     ("label", "value"),
     [
-        ("ACTION", "The relay opening is."),
-        ("ACTION", "The operator places the calibrated relay within the engineer's."),
-        ("MOTION", "The operator begins."),
-        ("MOTION", "Her mechanical fingertips."),
-        ("NOTES", "Only the clean."),
-        ("NOTES", "The same panel now."),
-        ("NOTES", "The replacement becomes."),
-        ("NOTES", "The same panel now visibly."),
-        ("NOTES", "Both fixed chairs."),
-        ("NOTES", "Final handoff —."),
-        ("ACTION", "The service panel fully open."),
-        ("ACTION", "The pilot closes."),
-        ("ACTION", "Seated in the pilot chair."),
-        ("MOTION", "The ship climbs forward along."),
-        ("NOTES", "The service panel fully."),
-        ("NOTES", "Lift visibility lock: show."),
-        ("NOTES", "Final payoff: preserve."),
-        ("ACTION", "BURNT-OUT CAPACITOR."),
-        ("ACTION", "Holding the manifest tablet at her side."),
-        ("ACTION", "The pilot closes; The final operators clear the marked route."),
-        ("NOTES", "The pilot follows the status-light sequence until."),
-        ("ACTION", "The pilot's mechanical hand grips;"),
-        ("ACTION", "The pilot locks the retaining clips around;"),
-        ("MOTION", "Boots contact successive."),
-        ("MOTION", "Boots contact successive ramp."),
-        ("MOTION", "The cracked floor, painted markings."),
-        ("MOTION", "A diagnostic light."),
-        ("ACTION", "The pilot physically climbs the already-open starboard."),
-        ("ACTION", "The pilot locks the retaining clips around the clean."),
-        ("NOTES", "Preserve Board 2’s exact repaired."),
-        ("ACTION", "Clearly show the companion’s."),
-        ("MOTION", "Clearly show the companion’."),
-        ("NOTES", "The cracked landing floor."),
-        ("NOTES", "Final-board payoff: preserve the exact."),
+        ('ACTION', 'The relay opening is.'),
+        ('ACTION', "The operator places the calibrated relay within the engineer's."),
+        ('NOTES', 'The replacement becomes.'),
+        ('NOTES', 'Final handoff —.'),
+        ('MOTION', 'The ship climbs forward along.'),
+        ('NOTES', 'The pilot follows the status-light sequence until.'),
+        ('ACTION', 'The pilot locks the retaining clips around;'),
+        ('ACTION', 'Clearly show the companion’s.'),
+        ('MOTION', 'Clearly show the companion’.'),
     ],
 )
 def test_preflight_rejects_semantic_metadata_fragments(label: str, value: str) -> None:
@@ -190,9 +165,53 @@ def test_preflight_rejects_semantic_metadata_fragments(label: str, value: str) -
 @pytest.mark.parametrize(
     ("label", "value"),
     [
+        ('MOTION', 'The operator begins.'),
+        ('MOTION', 'Her mechanical fingertips.'),
+        ('NOTES', 'Only the clean.'),
+        ('NOTES', 'The same panel now.'),
+        ('NOTES', 'The same panel now visibly.'),
+        ('NOTES', 'Both fixed chairs.'),
+        ('ACTION', 'The service panel fully open.'),
+        ('ACTION', 'The pilot closes.'),
+        ('ACTION', 'Seated in the pilot chair.'),
+        ('NOTES', 'The service panel fully.'),
+        ('NOTES', 'Lift visibility lock: show.'),
+        ('NOTES', 'Final payoff: preserve.'),
+        ('ACTION', 'BURNT-OUT CAPACITOR.'),
+        ('ACTION', 'Holding the manifest tablet at her side.'),
+        ('ACTION', 'The pilot closes; The final operators clear the marked route.'),
+        ('ACTION', "The pilot's mechanical hand grips;"),
+        ('MOTION', 'Boots contact successive.'),
+        ('MOTION', 'Boots contact successive ramp.'),
+        ('MOTION', 'The cracked floor, painted markings.'),
+        ('MOTION', 'A diagnostic light.'),
+        ('ACTION', 'The pilot physically climbs the already-open starboard.'),
+        ('ACTION', 'The pilot locks the retaining clips around the clean.'),
+        ('NOTES', 'Preserve Board 2’s exact repaired.'),
+        ('NOTES', 'The cracked landing floor.'),
+        ('NOTES', 'Final-board payoff: preserve the exact.'),
+    ],
+)
+def test_preflight_preserves_descriptive_cues_without_guessing_grammar(label: str, value: str) -> None:
+    from app.graph.storyboard_metadata_preflight import parse_storyboard_metadata_panels
+    prompt = _submitted_prompt(overrides={(4, label): value})
+    result = validate_storyboard_metadata_preflight(
+        model_key="gpt-image-2-image-to-image",
+        original_prompt="PANEL COUNT: 6\nCreate a storyboard production sheet.",
+        submitted_prompt=prompt,
+    )
+    assert result.panel_count == 6
+    assert dict(parse_storyboard_metadata_panels(prompt))[4][label] == value
+
+
+@pytest.mark.parametrize(
+    ("label", "value"),
+    [
         ("ACTION", "Door closes."),
         ("MOTION", "Indicators stabilize."),
         ("NOTES", "AMBER CUE."),
+        ("NOTES", "Preserve the sign 'READY'."),
+        ("NOTES", "Preserve the sign ‘READY’."),
     ],
 )
 def test_preflight_accepts_concise_complete_metadata(label: str, value: str) -> None:

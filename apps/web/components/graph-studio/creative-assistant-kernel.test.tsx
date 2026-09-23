@@ -42,7 +42,7 @@ const plan: AssistantPlanResponse = {
 };
 
 it.each([false, true])("applies a session-owned graph confirmation, independent stage: %s", async (independent) => {
-  const label = independent ? "Open new stage" : "Add to canvas";
+  const label = independent ? "Open new workflow" : "Add to canvas";
   const activePlan = independent ? { ...plan, workflow: { ...plan.workflow, workflow_id: null }, graph_plan: { ...plan.graph_plan, metadata: { independent_stage: true, source_workflow_id: "workflow-1" } } } : plan;
   const onApplyWorkflow = vi.fn();
   const fetchMock = vi.fn((url: string) => {
@@ -225,7 +225,8 @@ it("requests a text-to-image model when wiring a saved Prompt Recipe", async () 
   expect(request.message).toContain("Storyboard Prompt Writer");
   expect(request.message).toContain("recipe-1");
   expect(request.message).toContain("clean replacement workflow");
-  expect(request.message).toContain("text-to-image model");
+  expect(request.message).toContain("preserve its image-input intent");
+  expect(request.message).toContain("Use image-to-image when references condition generation");
   expect(request.workflow.nodes).toHaveLength(0);
   fireEvent.click(await screen.findByRole("button", { name: "Add to canvas" }));
   await waitFor(() => expect(onApplyWorkflow).toHaveBeenCalled());

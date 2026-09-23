@@ -10,6 +10,17 @@ from ..graph.result_binding import artifact_version, validate_result_binding
 from ..settings import settings
 
 from .. import store, store_assistant
+from .limits import ASSISTANT_IMAGE_ATTACHMENT_LIMIT
+
+
+def session_owns_run(session: dict, run: dict) -> bool:
+    """Recognize workflow ownership and server-recorded confirmed run associations."""
+    summary = session.get('summary_json') or {}
+    confirmation = summary.get('kernel_run_confirmation') or {}
+    return (
+        session.get('owner_kind') == 'graph_workflow'
+        and session.get('owner_id') == run.get('workflow_id')
+    ) or run.get('run_id') == confirmation.get('assistant_run_id') or run.get('run_id') in (summary.get('result_runs') or {})
 
 
 def owned_run(session_id: str, run_id: str) -> tuple[dict, dict]:
@@ -17,12 +28,7 @@ def owned_run(session_id: str, run_id: str) -> tuple[dict, dict]:
     run = store.get_graph_run(run_id)
     if not session or not run:
         raise HTTPException(status_code=404, detail='The assistant session or run is unavailable.')
-    summary = session.get('summary_json') or {}
-    confirmation = summary.get('kernel_run_confirmation') or {}
-    owned = (
-        session.get('owner_kind') == 'graph_workflow'
-        and session.get('owner_id') == run.get('workflow_id')
-    ) or run_id == confirmation.get('assistant_run_id') or run_id in (summary.get('result_runs') or {})
+    owned = session_owns_run(session, run)
     if not owned:
         raise HTTPException(status_code=409, detail='This run does not belong to this assistant conversation. Open its workflow to select a result.')
     return session, run
@@ -60,6 +66,7 @@ def read_run_results(session_id: str, run_id: str) -> dict[str, Any]:
         'run_id': run_id, 'workflow_id': run.get('workflow_id'), 'workflow_name': workflow.get('name'),
         'status': run.get('status'), 'error': run.get('error'), 'items': items,
         'selected_artifact_ids': list(((session.get('summary_json') or {}).get('selected_results') or {}).keys()),
+        'selected_result_bindings': (session.get('summary_json') or {}).get('selected_results') or {},
     }
 
 
@@ -78,6 +85,7 @@ def select_run_result(session_id: str, payload: ResultSelection) -> dict:
     try:
         response['selected_artifact_ids'] = store_assistant.set_assistant_result_selection(
             session_id, payload.artifact_id, {'run_id': payload.run_id, 'version': payload.version} if payload.selected else None)
+        response['selected_result_bindings'] = (store_assistant.get_assistant_session(session_id).get('summary_json') or {}).get('selected_results') or {}
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     return response
@@ -156,6 +164,44 @@ def validate_stage_results(session_id: str, workflow: Any, bindings: list[dict])
 
 class ReadResultsArguments(BaseModel):
     run_id: Optional[str] = Field(default=None, max_length=120)
+
+
+class InspectSelectedResultArguments(BaseModel):
+    artifact_id: str = Field(min_length=1, max_length=120)
+    version: str = Field(min_length=1, max_length=64)
+    text_offset: int = Field(default=0, ge=0)
+    text_limit: int = Field(default=4000, ge=1, le=4000)
+    focus: str = Field(default="", max_length=1000)
+    reference_ids: list[str] = Field(default_factory=list, max_length=ASSISTANT_IMAGE_ATTACHMENT_LIMIT)
+
+
+def _selected_result(session_id: str, artifact_id: str, version: str) -> dict:
+    items = selected_results(session_id, {artifact_id})
+    if len(items) != 1 or items[0]['version'] != version:
+        raise HTTPException(status_code=409, detail='Select this exact completed result before inspecting it. Missing or changed results cannot be inspected.')
+    return items[0]
+
+
+def inspect_selected_result(arguments: InspectSelectedResultArguments, context: Any) -> dict:
+    session_id = str(context.session_id or '')
+    item = _selected_result(session_id, arguments.artifact_id, arguments.version)
+    identity = {key: item[key] for key in ('artifact_id', 'run_id', 'version', 'media_type')}
+    if item.get('text') is not None:
+        text = item['text']
+        start = arguments.text_offset
+        if start > len(text):
+            raise HTTPException(status_code=400, detail='Text offset is beyond the completed result.')
+        end = min(len(text), start + arguments.text_limit)
+        return {**identity, 'text': text[start:end], 'text_offset': start,
+                'total_characters': len(text), 'next_offset': end if end < len(text) else None}
+    if item['media_type'] != 'image':
+        raise HTTPException(status_code=400, detail='Inspection currently supports completed text and images only.')
+    from .reference_analysis import analyze_result_image
+
+    analysis = analyze_result_image(item, arguments, context)
+    # Selection and file versions may change while the vision request is running.
+    _selected_result(session_id, arguments.artifact_id, arguments.version)
+    return {**identity, 'analysis': analysis, 'quality_approval': False}
 
 
 def read_results_tool(arguments: ReadResultsArguments, context: Any) -> dict:

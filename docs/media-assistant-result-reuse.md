@@ -6,14 +6,14 @@ The Graph Media Assistant can read completed text and media outputs, select exac
 
 1. Ask the assistant to prepare a graph. Apply the reviewed proposal.
 2. Ask to review the run. Expand the run card to inspect models, input identifiers, relevant settings and which nodes execute or reuse outputs. Choosing **Review and run** submits the graph; merely choosing a model does not.
-3. When the run finishes, result cards appear in the conversation without another assistant reasoning turn. Text can be expanded; images have previews; audio/video have playback controls. Failed or missing outputs cannot be selected.
-4. Choose **Use this result**, or ask the assistant to select an unambiguous result from the displayed set. Selection is bound to the session, run, node, output index and exact artifact version. Up to eight results can be selected.
+3. While queued or running, the assistant shows **Generating your storyboard…** for an active storyboard recipe, or **Running your workflow…** otherwise. Intermediate result cards and discussion attachments stay hidden; individual steps remain visible in the graph. Failed or cancelled runs show their terminal status instead of an invitation to review.
+4. Once completed, the assistant shows output cards without another reasoning turn. Reference loaders are omitted, repeated media previews are deduplicated, and intermediate text is omitted when media output exists. Text-only workflows still show text. Choose **Ask about this image** (or text/audio/video) for an optional follow-up. This selects the exact artifact; it does not start or resume generation. Selection is bound to the session, run, node, output index and exact artifact version. Up to eight results can be selected. Missing outputs cannot be selected.
 5. Describe the next stage or revision. A reviewed independent-stage proposal opens a new Graph tab with ordinary media loaders or exact text nodes. Previous generators, workflow and history remain intact. The new stage has fresh node IDs and no executable ancestors from the previous graph.
 6. Review the new graph before running. Completed media or text is loaded, not regenerated. The stage's new generators still require the normal run approval.
 
 **Remove** and **Clear selected results** recover from stale or unavailable selections. Nothing silently regenerates. Freezing a downstream node does not freeze its ancestors; the run review lists the entire workflow's execution modes.
 
-Result numbering follows the displayed output records, including outputs forwarded by preview nodes. Selection is exact, never an implicit “latest asset” lookup. Video previews expose playback/metadata, not automatic content analysis.
+Result numbering follows the filtered output cards. The graph retains the full set of input and intermediate outputs. Previously selected discussion attachments reappear after the active run ends; hiding them during execution does not clear their selection. Selection is exact, never an implicit “latest asset” lookup. Video previews expose playback/metadata, not automatic content analysis.
 
 ## Persistence and compatibility
 

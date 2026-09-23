@@ -956,6 +956,72 @@
   opacity: 0.48;
 }
 
+.graph-assistant-results article {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--graph-border-hairline);
+}
+
+.graph-assistant-results .graph-assistant-card-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.graph-assistant-result-attachments {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.graph-assistant-result-attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-height: 130px;
+  overflow-y: auto;
+}
+
+.graph-assistant-result-attachment {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--graph-border-medium);
+  border-radius: var(--graph-assistant-radius-pill);
+  background: var(--graph-surface-soft);
+  color: var(--graph-text);
+}
+
+.graph-assistant-result-attachment > div {
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+}
+
+.graph-assistant-result-attachment > svg {
+  flex-shrink: 0;
+}
+
+.graph-assistant-footer .graph-assistant-result-thumbnail {
+  flex: 0 0 42px;
+  height: 42px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  cursor: zoom-in;
+}
+
+.graph-assistant-result-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.graph-assistant-result-remove {
+  flex: 0 0 var(--graph-assistant-action-size);
+}
+
 .graph-assistant-card-action-primary {
   border-color: var(--graph-accent-border) !important;
   color: var(--graph-panel) !important;

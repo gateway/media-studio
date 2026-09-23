@@ -881,6 +881,7 @@ def _storyboard_prompt_contract_error(
                 "recipe_key": str(recipe.get("key") or ""),
                 "raw_text": raw_text,
                 "final_text": raw_text,
+                "panel_count": values.get("panel_count") or values.get("shot_count"),
                 "panel_notes_cues": str(values.get("panel_notes_cues") or ""),
                 "dialogue_cues": str(values.get("dialogue_cues") or ""),
             }
@@ -1005,6 +1006,9 @@ def _storyboard_user_requested_visible_name(values: Dict[str, str]) -> bool:
 
 
 def _storyboard_user_disabled_dialogue(values: Dict[str, str]) -> bool:
+    # Exact user-authored speech is authoritative over incidental negative phrasing.
+    if _storyboard_requested_dialogue_values(values.get("dialogue_cues")):
+        return False
     text = "\n".join(str(values.get(key) or "") for key in ("user_prompt", "previous_output", "previous_storyboard_prompt", "continuation_brief", "style_direction"))
     normalized = " ".join(text.lower().split())
     return bool(
@@ -1019,7 +1023,7 @@ def _storyboard_user_disabled_dialogue(values: Dict[str, str]) -> bool:
 def _storyboard_blank_non_spoken_dialog_rows(text: str, *, force_no_dialogue: bool = False) -> str:
     if force_no_dialogue:
         return re.sub(
-            r"(?m)^(?P<prefix>\s*(?:[-*]\s*)?DIALOG\s*:\s*).*$",
+            r"(?m)^(?P<prefix>[ \t]*(?:[-*][ \t]*)?DIALOG[ \t]*:[ \t]*).*$",
             lambda match: match.group("prefix").rstrip() + " ",
             text,
         )
@@ -1038,7 +1042,7 @@ def _storyboard_blank_non_spoken_dialog_rows(text: str, *, force_no_dialogue: bo
         return match.group(0)
 
     return re.sub(
-        rf"(?m)^(?P<prefix>\s*(?:[-*]\s*)?DIALOG\s*:\s*)(?P<value>{non_spoken_values})\s*$",
+        rf"(?m)^(?P<prefix>[ \t]*(?:[-*][ \t]*)?DIALOG[ \t]*:[ \t]*)(?P<value>{non_spoken_values})[ \t]*$",
         replace_row,
         text,
         flags=re.IGNORECASE,
@@ -1320,7 +1324,10 @@ def _storyboard_append_to_last_metadata_row(text: str, *, labels: tuple[str, ...
         match = matches[-1]
         value = match.group("value").strip()
         separator = "; " if value else ""
-        replacement = f"{match.group('prefix')}{value.rstrip(' .;')}{separator}{addition.rstrip(' .;')}."
+        combined = f"{value.rstrip(' .;')}{separator}{addition.rstrip(' .;')}."
+        if len(combined) > STORYBOARD_METADATA_DISPLAY_LIMITS[label]:
+            continue
+        replacement = f"{match.group('prefix')}{combined}"
         return f"{text[:match.start()]}{replacement}{text[match.end():]}"
     return text
 
@@ -1337,7 +1344,12 @@ def _storyboard_preserve_requested_action_beats(text: str, values: Dict[str, str
     updated = _storyboard_append_to_last_metadata_row(text, labels=("NOTES", "ACTION"), addition=addition)
     if updated != text:
         return updated
-    return f"{text.rstrip()}\nNOTES: {addition}."
+    # Preserve reminders in the existing compiled continuity contract when
+    # neither display row has room; never create an over-budget metadata row.
+    heading = re.search(r"(?im)^[ \t]*PROP AND STATE CONTINUITY[ \t]*:[ \t]*", text)
+    if heading:
+        return f"{text[:heading.end()]}{addition}. {text[heading.end():]}"
+    return f"{text.rstrip()}\n\nPROP AND STATE CONTINUITY:\n{addition}."
 
 
 def _storyboard_text_from_structured_json(parsed_json: Any) -> str:
@@ -1479,10 +1491,7 @@ def _sanitize_storyboard_v2_prompt_text(raw_text: str, values: Dict[str, str], *
         force_no_dialogue=_storyboard_user_disabled_dialogue(values),
     )
     sanitized = _storyboard_apply_user_owned_panel_notes(sanitized, values)
-    sanitized = _storyboard_preserve_requested_quantities(sanitized, values)
-    sanitized = _storyboard_preserve_requested_action_beats(sanitized, values)
     sanitized = _storyboard_remove_final_meta_sections(sanitized)
-    sanitized = _storyboard_remove_internal_negative_terms(sanitized)
     if fill_missing_generated_rows:
         sanitized = _storyboard_fill_missing_generated_metadata_rows(sanitized)
     if not re.search(r"\bdark\s+near[- ]?black\b", sanitized, flags=re.IGNORECASE):
@@ -1821,9 +1830,13 @@ class PromptRecipeExecutor(GraphExecutor):
         if not raw_text:
             raise ValueError("Prompt Recipe returned empty text.")
         if _is_storyboard_v2_recipe(recipe):
+            attempts = []
+            context.record_node_input_snapshot(node, {**context.node_input_snapshots.get(node.id, {}), "storyboard_contract_attempts": attempts})
+            attempts.append({"stage": "generated", "text": raw_text})
             raw_text = _sanitize_storyboard_v2_prompt_text(raw_text, values, fill_missing_generated_rows=False)
             if str(provider["provider_kind"]) == "codex_local":
                 contract_error = _storyboard_prompt_contract_error(recipe, raw_text, values)
+                attempts.append({"stage": "validated", "text": raw_text, "error": contract_error})
                 for retry_number in range(1, STORYBOARD_CONTRACT_REPAIR_ATTEMPTS + 1):
                     if not contract_error:
                         break
@@ -1855,15 +1868,7 @@ class PromptRecipeExecutor(GraphExecutor):
                         raise ValueError("Prompt Recipe storyboard contract repair returned empty text.")
                     raw_text = _sanitize_storyboard_v2_prompt_text(raw_text, values, fill_missing_generated_rows=False)
                     contract_error = _storyboard_prompt_contract_error(recipe, raw_text, values)
-                if contract_error:
-                    raw_text = _compact_storyboard_generated_display_rows(raw_text)
-                    contract_error = _storyboard_prompt_contract_error(recipe, raw_text, values)
-                if contract_error:
-                    raw_text = _storyboard_fill_missing_generated_metadata_rows(raw_text)
-                    contract_error = _storyboard_prompt_contract_error(recipe, raw_text, values)
-                if contract_error and "missing exact requested dialogue" in contract_error:
-                    raw_text = _storyboard_apply_missing_requested_dialogue(raw_text, values)
-                    contract_error = _storyboard_prompt_contract_error(recipe, raw_text, values)
+                    attempts.append({"stage": "repair", "attempt": retry_number, "text": raw_text, "error": contract_error})
                 if contract_error:
                     raise ValueError(
                         "Prompt Recipe storyboard contract repair failed: "
@@ -1871,6 +1876,7 @@ class PromptRecipeExecutor(GraphExecutor):
                     )
         canonical = _normalize_prompt_recipe_result(recipe, raw_text)
         if _is_storyboard_v2_recipe(recipe):
+            canonical["panel_count"] = values.get("panel_count") or values.get("shot_count")
             canonical["panel_notes_cues"] = str(values.get("panel_notes_cues") or "")
             canonical["dialogue_cues"] = str(values.get("dialogue_cues") or "")
         canonical.update(

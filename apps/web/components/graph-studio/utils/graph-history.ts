@@ -4,6 +4,7 @@ import { graphWorkflowSnapshotSignature } from "./graph-tabs";
 export const GRAPH_HISTORY_LIMIT = 60;
 
 export type GraphHistorySnapshot = {
+  layoutOnly?: boolean;
   workflowId: string | null;
   workflowName: string;
   workflowUpdatedAt?: string | null;

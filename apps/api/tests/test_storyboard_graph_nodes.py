@@ -29,7 +29,8 @@ def _run_graph_workflow(client, workflow: dict) -> dict:
     return final_payload
 
 
-def test_graph_storyboard_codex_local_uses_bounded_repair_and_typed_display_compaction(client, app_modules, monkeypatch) -> None:
+@pytest.mark.parametrize("repair_succeeds", [True, False])
+def test_graph_storyboard_codex_local_requires_bounded_complete_repair(client, app_modules, monkeypatch, repair_succeeds) -> None:
     image = Image.new("RGB", (2, 2), (80, 120, 180))
     buffer = BytesIO()
     image.save(buffer, "PNG")
@@ -76,7 +77,7 @@ def test_graph_storyboard_codex_local_uses_bounded_repair_and_typed_display_comp
     responses = [
         storyboard_prompt(missing_panel_one_notes=True),
         storyboard_prompt(missing_panel_one_notes=False, overlong_panel_six_camera=True),
-        storyboard_prompt(missing_panel_one_notes=False, overlong_panel_six_camera=True),
+        storyboard_prompt(missing_panel_one_notes=False, overlong_panel_six_camera=not repair_succeeds),
     ]
 
     def fake_codex_chat(**kwargs):
@@ -140,8 +141,19 @@ def test_graph_storyboard_codex_local_uses_bounded_repair_and_typed_display_comp
 
     payload = _run_graph_workflow(client, workflow)
 
+    assert len(calls) == 3
+    storyboard_node = next(node for node in payload["nodes"] if node["node_id"] == "storyboard")
+    attempts = storyboard_node["input_snapshot_json"]["storyboard_contract_attempts"]
+    assert len(attempts) == 4
+    assert "Panel 06 CAMERA exceeds" in attempts[-2]["error"]
+    assert "Panel 06 CAMERA exceeds" in calls[2]["messages"][-1]["content"]
+    if not repair_succeeds:
+        assert payload["status"] == "failed"
+        assert "contract repair failed" in payload["error"]
+        assert "Panel 06 CAMERA exceeds" in attempts[-1]["error"]
+        return
     assert payload["status"] == "completed", payload.get("error")
-    assert len(calls) == 2
+    assert not attempts[-1]["error"]
     assert calls[0]["error_context"] == "prompt recipe execution"
     assert calls[1]["error_context"] == "prompt recipe storyboard contract repair"
     repair_instruction = calls[1]["messages"][-1]["content"]
@@ -160,10 +172,11 @@ def test_graph_storyboard_codex_local_uses_bounded_repair_and_typed_display_comp
         {"recipe_key": "storyboard-v2-gpt-image-2", "raw_text": final_text, "final_text": final_text}
     )
     assert len(compiled.panels[5].camera) <= 136
-    assert "50mm lens" in compiled.panels[5].camera
-    assert len(storyboard_node["metrics_json"]["llm_calls"]) == 2
+    assert "35mm feel" in compiled.panels[5].camera
+    assert len(storyboard_node["metrics_json"]["llm_calls"]) == 3
     assert [call["source_kind"] for call in storyboard_node["metrics_json"]["llm_calls"]] == [
         "graph_prompt_recipe_final",
+        "graph_prompt_recipe_contract_retry",
         "graph_prompt_recipe_contract_retry",
     ]
 

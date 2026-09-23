@@ -444,3 +444,46 @@ def test_arrange_aligns_the_same_shot_keyframe_that_feeds_video(app_modules) -> 
 
     assert groups["anchored-group"]["bounds"]["y"] == groups["video-group"]["bounds"]["y"]
     assert groups["initial-group"]["bounds"]["y"] > groups["anchored-group"]["bounds"]["y"]
+
+
+def test_fresh_assistant_workflow_wraps_references_into_height_bounded_columns(app_modules) -> None:
+    del app_modules
+    graph_plan = importlib.import_module("app.assistant.graph_plan")
+    graph_schemas = importlib.import_module("app.graph.schemas")
+    assistant_schemas = importlib.import_module("app.assistant.schemas")
+    source_ids = [f"reference-{index}" for index in range(5)]
+    operations = [
+        {"op": "add_node", "node_id": node_id, "node_ref": node_id, "node_type": "media.load_image"}
+        for node_id in source_ids
+    ] + [
+        {"op": "add_node", "node_id": "video", "node_ref": "video", "node_type": "model.kie.seedance_2_0"},
+        {"op": "set_execution_mode", "node_ref": "video", "execution_mode": "frozen"},
+    ] + [
+        {"op": "connect_nodes", "source_ref": node_id, "source_port": "image", "target_ref": "video", "target_port": "reference_images"}
+        for node_id in source_ids
+    ]
+    empty = graph_schemas.GraphWorkflow(name="Fresh horizontal handoff")
+    plan = assistant_schemas.AssistantGraphPlan(summary="Prepare held references", operations=operations)
+    fresh = graph_plan.apply_graph_plan(empty, plan)
+    nodes = {node.id: node for node in fresh.nodes}
+    reference_columns = [nodes[node_id].position["x"] for node_id in source_ids]
+    assert len(set(reference_columns)) > 1
+    graph_layout = importlib.import_module("app.graph.layout")
+    bounds = [graph_layout.node_bounds(node) for node in fresh.nodes]
+    assert max(b["y"] + b["height"] for b in bounds) - min(b["y"] for b in bounds) <= max(b["height"] for b in bounds)
+    assert nodes["video"].position["x"] > max(reference_columns)
+    assert nodes["video"].metadata["execution"]["mode"] == "frozen"
+    assert [edge.source for edge in fresh.edges] == source_ids
+    assert empty.nodes == []
+    arranged = graph_plan.apply_graph_plan(fresh, _layout_plan(assistant_schemas))
+    for before, after in zip(fresh.nodes, arranged.nodes):
+        assert before.model_dump(exclude={"position"}) == after.model_dump(exclude={"position"})
+    assert fresh.edges == arranged.edges
+    assert graph_plan.apply_graph_plan(arranged, _layout_plan(assistant_schemas)) == arranged
+    # An ordinary edit on an existing canvas must not trigger the fresh default.
+    nodes["video"].position = {"x": 42, "y": 9000}
+    edit = assistant_schemas.AssistantGraphPlan(summary="Rename only", operations=[
+        {"op": "set_node_title", "node_id": "video", "title": "Still held"},
+    ])
+    edited = graph_plan.apply_graph_plan(fresh, edit)
+    assert [node.position for node in edited.nodes] == [node.position for node in fresh.nodes]

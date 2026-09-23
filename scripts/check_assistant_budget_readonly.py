@@ -1,5 +1,5 @@
-"""Check remaining-budget evidence at the provider boundary using current read-only records."""
-import argparse, copy, json, sqlite3
+"""Check productive planning and no-progress recovery using current read-only records."""
+import argparse, copy, sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from app import db
@@ -26,29 +26,26 @@ def forbidden(**kwargs):raise AssertionError('External provider execution forbid
 kernel.run_read_only_provider_turn=forbidden
 observed=[]
 def provider(**kwargs):
-    budget=next((json.loads(m['content'])['remaining_tool_calls'] for m in kwargs['messages'] if m['role']=='system' and 'remaining_tool_calls' in m['content']),None)
-    assert budget is not None, 'Provider lacks remaining tool allowance and cannot reliably finish a bounded batch.'
-    observed.append(budget)
-    if budget:
-        return {'capability':'preset_builder','artifact_intent':'none','tool_call':{'name':'search_presets','arguments':{'query':'portrait caricature','limit':2}},'reply':''}
-    return {'capability':'preset_builder','artifact_intent':'none','reply':'The completed searches are ready; more requested searches remain.'}
+    assert kwargs['timeout_seconds'] is None
+    assert not any('remaining_tool_calls' in m.get('content', '') for m in kwargs['messages'])
+    observed.append(kwargs)
+    if len(observed) <= 8:
+        return {'capability':'preset_builder','artifact_intent':'none','tool_call':{'name':'search_presets','arguments':{'query':f'portrait variant {len(observed)}','limit':2}},'reply':''}
+    return {'capability':'preset_builder','artifact_intent':'none','reply':'The requested searches are complete.'}
 kernel.run_kernel_provider_step=provider
-result=kernel.run_assistant_kernel_turn(session=session,user_text='Search my saved presets without changing anything.',workflow=None,canvas_context={},assistant_mode='preset',max_tool_steps=2)
-assert observed==[2,1,0],observed
-assert result.trace.step_count==2 and result.trace.termination=='completed'
-assert len(result.trace.tool_calls)==2 and all(not t.error for t in result.trace.tool_calls)
+result=kernel.run_assistant_kernel_turn(session=session,user_text='Search my saved presets without changing anything.',workflow=None,canvas_context={},assistant_mode='preset')
+assert len(observed)==9
+assert result.trace.step_count==8 and result.trace.termination=='completed'
+assert len(result.trace.tool_calls)==8 and all(not t.error for t in result.trace.tool_calls)
 assert result.next_action.kind=='none'
-print('PASS configured remaining allowance 2→1→0 reaches provider; final reply needs no extra tool or mutation')
+print('PASS eight distinct searches finish without a tool-count or wall-clock pause')
 
-# The allowance is information, never permission to exceed the configured guard.
-observed.clear()
-def ignore_budget(**kwargs):
+# Repeated unchanged work still stops instead of looping indefinitely.
+def repeat_unchanged(**kwargs):
     return {'capability':'preset_builder','artifact_intent':'none','tool_call':{'name':'search_presets','arguments':{'query':'portrait caricature','limit':2}},'reply':''}
-kernel.run_kernel_provider_step=ignore_budget
-result=kernel.run_assistant_kernel_turn(session=session,user_text='Search only.',workflow=None,canvas_context={},assistant_mode='preset',max_tool_steps=2)
-assert result.trace.step_count==2 and len(result.trace.tool_calls)==2
-assert result.trace.termination=='step_budget_exhausted'
-result=kernel.run_assistant_kernel_turn(session=session,user_text='Search only.',workflow=None,canvas_context={},assistant_mode='preset',max_tool_steps=0)
-assert result.trace.step_count==0 and not result.trace.tool_calls
-assert result.trace.termination=='step_budget_exhausted'
-print('PASS ignored allowance cannot exceed configured limits, including zero')
+kernel.run_kernel_provider_step=repeat_unchanged
+result=kernel.run_assistant_kernel_turn(session=session,user_text='Search only.',workflow=None,canvas_context={},assistant_mode='preset')
+assert result.trace.step_count==3 and len(result.trace.tool_calls)==3
+assert result.trace.termination=='repeated_no_progress'
+assert result.next_action.kind=='none'
+print('PASS repeated unchanged work stops without mutation or provider execution')

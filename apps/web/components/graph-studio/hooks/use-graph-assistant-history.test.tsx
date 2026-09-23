@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useRef, useState } from "react";
 
@@ -37,6 +37,36 @@ function snapshot(name: string, nodeCount: number): GraphHistorySnapshot {
 function nodesForWorkflow(payload: GraphWorkflowPayload): StudioNode[] {
   return payload.nodes.map((node) => ({ ...node, data: {} }) as StudioNode);
 }
+
+it("preserves run association and measured positions across layout apply, undo and redo", () => {
+  const base = snapshot("Existing", 2);
+  const arranged = { ...base, workflow: { ...base.workflow, nodes: base.workflow.nodes.map((node, index) => ({ ...node, position: { x: index * 800, y: 0 } })) } };
+  const current = { current: base as GraphHistorySnapshot | null };
+  const hydrate = vi.fn();
+  const restore = vi.fn();
+  const updateTab = vi.fn();
+  const activeTab = { tab_id: "existing", workflow_id: base.workflowId, workflow_name: base.workflowName, workflow_json: base.workflow, run_id: "completed-run", run_status: "completed" } as GraphWorkspaceTab;
+  const { result } = renderHook(() => useGraphAssistantHistory({
+    activeTab, activeTabId: "existing", consoleLines: [], currentHistorySnapshot: base, currentWorkflowPayload: base.workflow,
+    currentHistorySnapshotRef: current, nodesRef: { current: nodesForWorkflow(base.workflow) }, edgesRef: { current: [] },
+    workflowId: base.workflowId, workflowName: base.workflowName, workflowUpdatedAt: null,
+    applyUndoHistorySnapshot: restore, commitSnapshot: vi.fn(), hydrateWorkflowPayload: hydrate,
+    markWorkspaceChanged: vi.fn(), redo: vi.fn(() => false), undo: vi.fn(() => false), updateTab,
+  }));
+  act(() => result.current.applyAssistantWorkflow(arranged.workflow, { baseWorkflow: base.workflow, layoutOnly: true }));
+  expect(updateTab).toHaveBeenLastCalledWith("existing", expect.objectContaining({ runId: "completed-run", runStatus: "completed" }));
+  expect(hydrate).toHaveBeenLastCalledWith(arranged.workflow, expect.objectContaining({ layoutOnly: true }));
+  const measured = { ...arranged, workflow: { ...arranged.workflow, nodes: arranged.workflow.nodes.map((node, index) => ({ ...node, position: { x: index * 1200, y: 0 } })) } };
+  current.current = measured;
+  act(() => { result.current.undoGraphChange(); });
+  expect(restore).toHaveBeenLastCalledWith(expect.objectContaining({ workflow: base.workflow, layoutOnly: true }));
+  current.current = base;
+  act(() => { result.current.redoGraphChange(); });
+  expect(hydrate).toHaveBeenLastCalledWith(measured.workflow, expect.objectContaining({ layoutOnly: true }));
+  current.current = measured;
+  act(() => { result.current.undoGraphChange(); });
+  expect(restore).toHaveBeenLastCalledWith(expect.objectContaining({ workflow: base.workflow, layoutOnly: true }));
+});
 
 function AssistantHistoryStalePayloadHarness() {
   const base = snapshot("Existing workflow", 2);

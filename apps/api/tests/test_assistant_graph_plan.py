@@ -166,7 +166,7 @@ def test_assistant_graph_plan_spaces_nodes_notes_and_group_bounds(app_modules) -
         assert group_bounds["y"] + group_bounds["height"] >= member["y"] + member["height"] + 96
 
     note = _rect(nodes["assistant-instructions"])
-    assert note["y"] + note["height"] + 96 <= group_bounds["y"]
+    assert note["x"] + note["width"] + 96 <= group_bounds["x"] or group_bounds["x"] + group_bounds["width"] + 96 <= note["x"]
 
 
 def test_assistant_graph_plan_preserves_existing_nodes_and_avoids_them(app_modules) -> None:

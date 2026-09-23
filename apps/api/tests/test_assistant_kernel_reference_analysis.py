@@ -112,7 +112,7 @@ def test_reference_analysis_is_typed_cached_and_shared_across_capabilities(clien
                     "arguments": {
                         "reference_ids": ["reference-analysis-1"],
                         "goal": "style_reference",
-                        "focus": "story continuity",
+                        "focus": "reusable visual language",
                     },
                 },
             },

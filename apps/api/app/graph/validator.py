@@ -68,6 +68,50 @@ def _port_accepts(source_type: str, target_port: object) -> bool:
     return source_type in accepted or "any" in accepted
 
 
+def connection_errors(edge, source, target, source_def, target_def, incoming_count):
+    """Pure connection contract, also used before applying disabled-node edits."""
+    if source is None or target is None:
+        return [GraphError(code="missing_edge_node", message="Edge references a missing node.", edge_id=edge.id)]
+    if source_def is None or target_def is None:
+        return [GraphError(code="unknown_node_type", message="Connection has an unknown node type.", edge_id=edge.id)]
+    output = _port_map(source_def, "outputs", source.fields).get(edge.source_port)
+    input_port = _port_map(target_def, "inputs", target.fields).get(edge.target_port)
+    if not output:
+        return [GraphError(code="missing_source_port", message=f"Unknown source port: {edge.source_port}", edge_id=edge.id, port_id=edge.source_port)]
+    if not input_port:
+        return [GraphError(code="missing_target_port", message=f"Unknown target port: {edge.target_port}", edge_id=edge.id, port_id=edge.target_port)]
+    errors = []
+    if not _port_accepts(output.type, input_port):
+        errors.append(GraphError(code="incompatible_edge", message=f"Cannot connect {output.type} to {input_port.type}.", edge_id=edge.id))
+    maximum = input_port.max if input_port.array else 1
+    if maximum is not None and incoming_count > maximum:
+        errors.append(GraphError(code="input_cardinality_exceeded", message="Too many edges connected to input.", edge_id=edge.id, port_id=edge.target_port))
+    return errors
+
+
+def validate_model_field_values(definition, fields):
+    """Reject incompatible retained/explicit values during model replacement."""
+    for field in definition.fields:
+        value = fields.get(field.id)
+        if value is None or value == "":
+            continue  # Required connected inputs are validated with the complete graph.
+        options = [option.get("value") if isinstance(option, dict) else option for option in field.options]
+        if options and not any(_values_equal(value, option) for option in options):
+            raise ValueError(f"Choose a supported value for {field.label}: {options}.")
+        if field.type == "boolean" and not isinstance(value, bool):
+            raise ValueError(f"{field.label} requires a boolean value.")
+        if field.type in {"text", "textarea", "select"} and not isinstance(value, (str, int, float)):
+            raise ValueError(f"{field.label} requires a scalar value.")
+        if field.type in {"number", "integer", "float"}:
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                raise ValueError(f"{field.label} requires a number.") from None
+            import math
+            if isinstance(value, bool) or not math.isfinite(numeric) or (field.type == "integer" and not numeric.is_integer()) or (field.min is not None and numeric < field.min) or (field.max is not None and numeric > field.max):
+                raise ValueError(f"{field.label} is outside the supported range.")
+
+
 def _empty_field(value: Any) -> bool:
     return value is None or value == "" or value == [] or value == {}
 
@@ -368,28 +412,20 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
         edge_ids.add(edge.id)
         source = nodes_by_id.get(edge.source)
         target = nodes_by_id.get(edge.target)
-        if not source or not target:
-            errors.append(GraphError(code="missing_edge_node", message="Edge references a missing node.", edge_id=edge.id))
-            continue
-        source_def = definitions.get(source.type)
-        target_def = definitions.get(target.type)
-        if not source_def or not target_def:
+        source_def = definitions.get(source.type) if source else None
+        target_def = definitions.get(target.type) if target else None
+        errors.extend(connection_errors(edge, source, target, source_def, target_def,
+                                        incoming_by_target_port[(edge.target, edge.target_port)] + 1))
+        if not source or not target or not source_def or not target_def:
             continue
         source_port = _port_map(source_def, "outputs", source.fields).get(edge.source_port)
         target_port = _port_map(target_def, "inputs", target.fields).get(edge.target_port)
-        if not source_port:
-            errors.append(GraphError(code="missing_source_port", message=f"Unknown source port: {edge.source_port}", edge_id=edge.id, port_id=edge.source_port))
+        if not source_port or not target_port:
             continue
-        if not target_port:
-            errors.append(GraphError(code="missing_target_port", message=f"Unknown target port: {edge.target_port}", edge_id=edge.id, port_id=edge.target_port))
-            continue
-        source_type = getattr(source_port, "type", "")
-        if not _port_accepts(source_type, target_port):
-            errors.append(GraphError(code="incompatible_edge", message=f"Cannot connect {source_type} to {getattr(target_port, 'type', '')}.", edge_id=edge.id))
         source_mode = _node_execution_mode(source)
         target_mode = _node_execution_mode(target)
         source_has_muted_cache = source_mode == "muted" and bool(muted_cache_by_node_id.get(source.id))
-        if source_mode == "muted" and not source_has_muted_cache:
+        if source_mode == "muted" and not source_has_muted_cache and target_mode in {"enabled", "bypassed"}:
             if getattr(target_port, "required", False):
                 errors.append(
                     GraphError(
@@ -418,7 +454,7 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                 errors.append(
                     GraphError(
                         code="frozen_dependency_missing",
-                        message="Required input depends on a muted node with no cached output.",
+                        message="Required input depends on a frozen node with no cached output.",
                         node_id=target.id,
                         edge_id=edge.id,
                         port_id=edge.target_port,
@@ -428,7 +464,7 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
                 warnings.append(
                     GraphError(
                         code="frozen_optional_dependency_missing",
-                        message="Optional input depends on a muted node with no cached output and will receive no data.",
+                        message="Optional input depends on a frozen node with no cached output and will receive no data.",
                         node_id=target.id,
                         edge_id=edge.id,
                         port_id=edge.target_port,
@@ -460,11 +496,6 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
         incoming_by_target_port[key] += 1
         if source_has_available_output:
             available_incoming_by_target_port[key] += 1
-        max_count = getattr(target_port, "max", None)
-        if not getattr(target_port, "array", False) and incoming_by_target_port[key] > 1:
-            errors.append(GraphError(code="input_cardinality_exceeded", message="Only one edge can connect to this input.", edge_id=edge.id, port_id=edge.target_port))
-        elif max_count is not None and incoming_by_target_port[key] > max_count:
-            errors.append(GraphError(code="input_cardinality_exceeded", message="Too many edges connected to input.", edge_id=edge.id, port_id=edge.target_port))
         outgoing[edge.source].append(edge.target)
         outgoing_by_source_port[(edge.source, edge.source_port)] += 1
         indegree[edge.target] = indegree.get(edge.target, 0) + 1

@@ -108,6 +108,8 @@ def _fit_text(
         lines = _wrap(draw, text, font, width)
         bbox = draw.textbbox((0, 0), "Ag", font=font)
         line_height = max(1, bbox[3] - bbox[1] + 1)
+        if not lines:
+            return font, [], line_height
         line_boxes = [draw.textbbox((0, 0), line, font=font) for line in lines]
         block_top = min(box[1] + line_index * line_height for line_index, box in enumerate(line_boxes))
         block_bottom = max(box[3] + line_index * line_height for line_index, box in enumerate(line_boxes))
@@ -252,7 +254,7 @@ def render_storyboard_sheet(images: Sequence[Image.Image], spec: StoryboardSheet
         draw.rectangle(heading_rect, fill=row_fill, outline=amber, width=1)
         heading_font, heading_lines, heading_line_height = _fit_text(
             draw,
-            panel_spec.shot,
+            f"{panel_spec.time_range} {panel_spec.shot}".strip(),
             width=panel_width - 16,
             height=heading_height - 6,
             max_size=20,
@@ -344,7 +346,7 @@ def render_storyboard_sheet(images: Sequence[Image.Image], spec: StoryboardSheet
                 "width": panel_width,
                 "height": panel_height,
                 "heading_height": heading_height,
-                "heading_text": panel_spec.shot,
+                "heading_text": f"{panel_spec.time_range} {panel_spec.shot}".strip(),
                 "heading_font_size": int(getattr(heading_font, "size", 18)),
                 "image_height": image_height,
                 "metadata_height": metadata_height,

@@ -23,75 +23,6 @@ _PLACEHOLDER_VALUES = {
     "silence",
     "silent",
 }
-_CONCISE_PREDICATE_WORDS = {
-    "advances",
-    "arrives",
-    "close",
-    "closes",
-    "departs",
-    "eases",
-    "fall",
-    "falls",
-    "glow",
-    "glides",
-    "glows",
-    "hold",
-    "holds",
-    "lock",
-    "locks",
-    "move",
-    "moves",
-    "open",
-    "opens",
-    "recedes",
-    "resolves",
-    "rise",
-    "rises",
-    "settle",
-    "settles",
-    "slide",
-    "slides",
-    "snap",
-    "snaps",
-    "stabilize",
-    "stabilizes",
-    "stop",
-    "stops",
-    "swing",
-    "swings",
-    "tighten",
-    "tightens",
-    "turn",
-    "turns",
-    "wait",
-    "waits",
-    "walk",
-    "walks",
-}
-_LIKELY_TRANSITIVE_PREDICATES = {
-    "checks",
-    "closes",
-    "completes",
-    "finishes",
-    "holds",
-    "opens",
-    "places",
-    "preserves",
-    "releases",
-    "removes",
-    "repairs",
-    "secures",
-    "starts",
-}
-_STRICT_TRANSITIVE_PREDICATES = {
-    "grips",
-    "places",
-    "preserves",
-    "releases",
-    "removes",
-    "repairs",
-    "secures",
-}
 _CAMERA_CONTRACT_PATTERNS = {
     "angle": re.compile(
         r"\b(?:angle|aerial|bird'?s[- ]eye|eye[- ]level|front|high|low|over(?:[- ]the)?[- ]shoulder|"
@@ -138,7 +69,7 @@ def _looks_like_text_free_storyboard_art_source(value: str) -> bool:
     text = re.sub(r"\s+", " ", str(value or "")).strip()
     return bool(
         re.search(r"\bstoryboard\s+art\s+source\s+contract\s*:", text, flags=re.IGNORECASE)
-        and re.search(r"\b(?:text[- ]free|show\s+art\s+only)\b", text, flags=re.IGNORECASE)
+        and re.search(r"\b(?:text[- ]free|show\s+(?:scene\s+)?art\s+only)\b", text, flags=re.IGNORECASE)
         and re.search(
             r"\bno\b[^.]{0,160}\b(?:metadata|production[- ]sheet\s+chrome)\b",
             text,
@@ -214,15 +145,25 @@ def _compact_panel_bodies(prompt: str) -> list[tuple[int, str]]:
     return [(int(match.group("number")), match.group("body").strip()) for match in pattern.finditer(panel_text)]
 
 
-def _raw_panel_bodies(prompt: str) -> list[tuple[int, str]]:
+def normalize_storyboard_markup(prompt: str) -> str:
+    text = re.sub(r"(?m)^[ \t]*(?:#{1,6}[ \t]+|[-*][ \t]+)", "", prompt)
+    return re.sub(r"(?im)^(\*\*)?((?:PANEL|CELL)\s+\d+[^\n]*?|(?:SHOT|CAMERA|ACTION|MOTION|DIALOG|NOTES)\s*:)(?:\*\*)", r"\2", text)
+
+
+def _raw_panel_matches(prompt: str):
+    prompt = normalize_storyboard_markup(prompt)
     time_range = r"\d+(?:\.\d+)?[ \t]*s?[ \t]*[–—-][ \t]*\d+(?:\.\d+)?[ \t]*s"
     heading = re.compile(
         r"(?im)^[ \t]*(?:\d+\.\s*)?(?:PANEL|CELL)\s+0?(?P<number>\d{1,2})"
         r"(?:\s+IMAGE(?:\s+AND\s+METADATA)?)?"
-        rf"(?:[ \t]*,[ \t]*{time_range}|[ \t]*\({time_range}\))?"
+        rf"(?:[ \t]*(?:,|\()[ \t]*(?P<time_range>{time_range})\)?)?"
         r"[ \t]*(?:[:\-—][ \t]*|$)",
     )
-    matches = list(heading.finditer(prompt))
+    return prompt, list(heading.finditer(prompt))
+
+
+def _raw_panel_bodies(prompt: str) -> list[tuple[int, str]]:
+    prompt, matches = _raw_panel_matches(prompt)
     return [
         (
             int(match.group("number")),
@@ -255,6 +196,7 @@ def _validate_captioned_storyboard(prompt: str, expected_count: int) -> Storyboa
 
 
 def _panel_fields(body: str) -> dict[str, list[str]]:
+    body = normalize_storyboard_markup(body)
     label_group = "|".join(STORYBOARD_METADATA_LABELS)
     pattern = re.compile(
         rf"(?:^|;[ \t]*)(?P<label>{label_group})[ \t]*:[ \t]*(?P<value>.*?)"
@@ -315,212 +257,21 @@ def storyboard_shot_has_meaningful_description(value: str) -> bool:
 
 
 def storyboard_metadata_value_is_semantic_fragment(label: str, value: str) -> bool:
-    """Detect generic whole-word fragments that still lack a complete meaning."""
-
-    normalized_label = str(label or "").strip().upper()
-    if normalized_label not in {"ACTION", "MOTION", "NOTES"}:
+    """Reject visibly unfinished rows, without guessing a clause's grammar."""
+    if str(label or "").upper() not in {"ACTION", "MOTION", "NOTES"}:
         return False
-    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    text = str(value or "").strip()
     if not text:
         return True
-    stem = text.strip(" .,:;\"'()[]")
-    if not stem or re.search(r"[—-]\s*$", stem):
+    stem = text.rstrip(" .,:;!?\"()[]")
+    if (stem.endswith("'") and stem.count("'") % 2 == 0) or (stem.endswith("’") and "‘" in stem):
+        stem = stem[:-1].rstrip(" .,:;!?")
+    if re.search(r"(?:[—-]|['’]s|['’])$", stem, flags=re.IGNORECASE):
         return True
-    clauses = [
-        clause.strip()
-        for clause in re.split(r";|(?<=[.!?])\s+", text)
-        if clause.strip()
-    ]
-    if len(clauses) > 1 and any(
-        storyboard_metadata_value_is_semantic_fragment(normalized_label, clause)
-        for clause in clauses
-    ):
-        return True
-    words = re.findall(r"[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*", stem)
-    if not words:
-        return True
-    lowered = [word.lower() for word in words]
-    if re.search(r"['’](?:s)?\s*$", stem):
-        return True
-    if lowered[-1] in {
-        "a",
-        "an",
-        "after",
-        "along",
-        "around",
-        "before",
-        "fully",
-        "partly",
-        "successive",
-        "the",
-        "until",
-        "visibly",
-    }:
-        return True
-    if len(words) <= 4 and lowered[-1] in {"its", "their"}:
-        return True
-    if re.match(
-        r"^(?:seated|positioned|located|shown|held|secured|placed)\s+"
-        r"(?:at|beside|in|inside|on|outside|within)\b",
-        stem,
-        flags=re.IGNORECASE,
-    ):
-        return True
-    if normalized_label in {"ACTION", "MOTION"} and re.match(
-        r"^[A-Za-z-]+ing\s+(?:a|an|the|his|her|its|their)\b",
-        stem,
-        flags=re.IGNORECASE,
-    ):
-        return True
-    if re.search(
-        r"\b(?:fully|partly|clearly|visibly)\s+"
-        r"(?:open|closed|ready|secure|stable|visible|reachable)\s*$",
-        stem,
-        flags=re.IGNORECASE,
-    ) and not re.search(r"\b(?:is|are|was|were|becomes?|remains?)\b", stem, flags=re.IGNORECASE):
-        return True
-    if re.search(r":\s*(?:keep|preserve|show)\s*$", stem, flags=re.IGNORECASE):
-        return True
-    if lowered[-1] in {
-        "is",
-        "are",
-        "was",
-        "were",
-        "be",
-        "been",
-        "being",
-        "become",
-        "becomes",
-        "seem",
-        "seems",
-        "remain",
-        "remains",
-        "begins",
-    }:
-        return True
-    if normalized_label in {"ACTION", "MOTION"} and lowered[0] in {
-        "from",
-        "continuing",
-        "into",
-        "through",
-        "toward",
-        "towards",
-        "with",
-    }:
-        return True
-    if lowered[0] in {"show", "make", "preserve", "only", "end"} and len(words) <= 5 and lowered[-1] in {
-        "a",
-        "an",
-        "exact",
-        "same",
-        "the",
-        "this",
-        "that",
-        "these",
-        "those",
-    }:
-        return True
-    if len(words) <= 6 and lowered[0] in {"the", "this", "that", "these", "those"} and lowered[-1] in {
-        "now",
-        "then",
-        "here",
-        "there",
-        "nearby",
-        "inside",
-        "outside",
-    }:
-        return True
-    if len(words) <= 6 and lowered[:2] in (["the", "same"], ["the", "current"]) and lowered[-1].endswith("ly"):
-        return True
-    if lowered[0] in {"my", "your", "his", "her", "its", "our", "their"} and len(words) <= 4:
-        if lowered[-1] not in _CONCISE_PREDICATE_WORDS and not lowered[-1].endswith(("ed", "ing")):
-            return True
-    if lowered[0] in {"both", "each", "every", "either", "neither"} and len(words) <= 4:
-        if lowered[-1] not in _CONCISE_PREDICATE_WORDS and not lowered[-1].endswith(("ed", "ing")):
-            return True
-    if re.search(r"\b(?:a|an|the)\s+[A-Za-z0-9-]+(?:ed|en)\s*$", stem, flags=re.IGNORECASE):
-        return True
-    if len(words) == 1:
-        return True
-    if normalized_label in {"ACTION", "MOTION"} and lowered[-1] in _STRICT_TRANSITIVE_PREDICATES:
-        return True
-    if normalized_label in {"ACTION", "MOTION"} and re.search(
-        r"\bsuccessive\s+[A-Za-z0-9-]+\s*$",
-        stem,
-        flags=re.IGNORECASE,
-    ) and not lowered[-1].endswith("s"):
-        return True
-    if normalized_label in {"ACTION", "MOTION"} and re.search(
-        r"\b(?:a|an|the)\s+(?:[A-Za-z0-9-]+\s+){0,3}(?:aft|forward|port|rear|starboard)\s*$",
-        stem,
-        flags=re.IGNORECASE,
-    ) and not any(
-        word
-        in (
-            _CONCISE_PREDICATE_WORDS
-            | _LIKELY_TRANSITIVE_PREDICATES
-            | _STRICT_TRANSITIVE_PREDICATES
-            | {"is", "are", "was", "were", "become", "becomes", "remain", "remains"}
-        )
-        for word in lowered
-    ):
-        return True
-    if re.search(
-        r"\b(?:a|an|the)\s+(?:clean|closed|current|exact|failed|final|first|matching|new|next|old|open|"
-        r"previous|sealed|worn)\s*$",
-        stem,
-        flags=re.IGNORECASE,
-    ):
-        return True
-    if normalized_label in {"ACTION", "MOTION"} and len(words) <= 10 and re.match(
-        r"^(?:a|an|the|this|that|these|those)\s+[^,.;]+,\s+[^,.;]+$",
-        stem,
-        flags=re.IGNORECASE,
-    ) and not any(
-        word
-        in (
-            _CONCISE_PREDICATE_WORDS
-            | _LIKELY_TRANSITIVE_PREDICATES
-            | _STRICT_TRANSITIVE_PREDICATES
-            | {"is", "are", "was", "were", "become", "becomes", "remain", "remains"}
-        )
-        for word in lowered
-    ):
-        return True
-    if len(words) == 2:
-        # Keep concise complete clauses such as ``Door closes`` and compact
-        # user-owned title/state notes such as ``AMBER CUE``. Reject noun-only
-        # truncations such as ``Cyan neutral`` without requiring a story- or
-        # language-specific dictionary.
-        uppercase_note = normalized_label == "NOTES" and stem.upper() == stem
-        return not (uppercase_note or lowered[-1] in _CONCISE_PREDICATE_WORDS)
-    if (
-        len(words) <= 4
-        and lowered[0] in {"a", "an", "the", "this", "that"}
-        and lowered[-1] in _LIKELY_TRANSITIVE_PREDICATES
-    ):
-        return True
-    if lowered[0] in {"a", "an", "the", "this", "that", "these", "those"} and len(words) <= 4:
-        final_word = lowered[-1]
-        has_predicate = any(
-            word
-            in (
-                _CONCISE_PREDICATE_WORDS
-                | _LIKELY_TRANSITIVE_PREDICATES
-                | _STRICT_TRANSITIVE_PREDICATES
-                | {"is", "are", "was", "were", "become", "becomes", "remain", "remains"}
-            )
-            for word in lowered
-        )
-        if not has_predicate and final_word not in _CONCISE_PREDICATE_WORDS and not final_word.endswith(("s", "ed", "ing")):
-            return True
-    if re.search(
-        r"\b(?:exact|same)\s+[A-Za-z0-9-]+(?:ed|ing)\s*$",
-        stem,
-        flags=re.IGNORECASE,
-    ):
-        return True
-    return False
+    return bool(re.search(
+        r"\b(?:a|an|the|and|or|with|of|to|from|into|around|along|because|until|is|are|was|were|becomes|remains)\s*$",
+        stem, flags=re.IGNORECASE,
+    ))
 
 
 def storyboard_metadata_values_duplicate(left: str, right: str) -> bool:
@@ -575,6 +326,8 @@ def parse_storyboard_metadata_panels(prompt: str) -> list[tuple[int, dict[str, s
     """Return ordered panel metadata through the canonical row parser."""
 
     panels = _compact_panel_bodies(prompt) or _raw_panel_bodies(prompt)
+    _, headings = _raw_panel_matches(prompt)
+    timings = {int(m.group("number")): m.group("time_range") or "" for m in headings}
     parsed: list[tuple[int, dict[str, str]]] = []
     for panel_number, body in panels:
         values = _panel_fields(body)
@@ -587,7 +340,7 @@ def parse_storyboard_metadata_panels(prompt: str) -> list[tuple[int, dict[str, s
                 },
             )
         )
-    return parsed
+    return [(number, {**fields, "TIME_RANGE": timings.get(number, "")}) for number, fields in parsed]
 
 
 def validate_storyboard_metadata_preflight(

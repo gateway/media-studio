@@ -19,7 +19,7 @@ from ..graph.layout import (
 from ..graph.registry import registry
 from ..graph.schemas import GraphWorkflow, GraphWorkflowEdge, GraphWorkflowNode
 from .schemas import AssistantGraphOperation, AssistantGraphPlan
-from .workflow_layout import arrange_workflow
+from .workflow_layout import arrange_nodes, arrange_workflow
 
 
 def _slug(value: str) -> str:
@@ -232,6 +232,15 @@ def _connected_added_node_ids(
     return [node_id for node_id in added_node_ids if node_id in connected_ids]
 
 
+def is_hold_only_plan(plan: AssistantGraphPlan) -> bool:
+    # Holding existing nodes is allowed even when the graph cannot run.
+    # Never extend this exception to enabling nodes or other graph edits.
+    return bool(plan.operations) and all(
+        operation.op == "set_execution_mode" and operation.execution_mode in {"frozen", "muted"}
+        for operation in plan.operations
+    )
+
+
 def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> GraphWorkflow:
     arrange_operations = [operation for operation in plan.operations if operation.op == "arrange_workflow"]
     arrange_requested = bool(arrange_operations)
@@ -261,6 +270,10 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
         ) or explicit_id
 
     for operation in plan.operations:
+        if operation.op in {"replace_model", "update_edge", "remove_edge", "rename_workflow"}:
+            from .graph_edits import apply_in_place_edit
+            apply_in_place_edit(next_workflow, operation, resolve_node_id)
+            continue
         if operation.op == "add_node":
             if not operation.node_type or operation.node_type not in definitions:
                 raise ValueError(f"Unknown node type: {operation.node_type or 'missing'}")
@@ -293,6 +306,20 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
             if not node_id or node_id not in nodes_by_id:
                 raise ValueError("Cannot set a field on an unknown node.")
             nodes_by_id[node_id].fields.update(operation.fields)
+            continue
+
+        if operation.op == "set_execution_mode":
+            node_id = resolve_node_id(operation.node_ref, operation.node_id)
+            if not node_id or node_id not in nodes_by_id:
+                raise ValueError("Cannot set execution mode on an unknown node.")
+            if operation.execution_mode not in {"enabled", "frozen", "muted", "bypassed"}:
+                raise ValueError("Execution mode must be enabled, frozen, muted or bypassed.")
+            node = nodes_by_id[node_id]
+            execution = node.metadata.get("execution")
+            node.metadata["execution"] = {
+                **(execution if isinstance(execution, dict) else {}),
+                "mode": operation.execution_mode,
+            }
             continue
 
         if operation.op == "set_node_title":
@@ -401,7 +428,7 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
         if operation.op == "arrange_workflow":
             continue
 
-        if operation.op in {"layout_nodes", "save_workflow", "set_provider_model", "set_execution_mode"}:
+        if operation.op in {"layout_nodes", "save_workflow", "set_provider_model"}:
             continue
 
         raise ValueError(f"Unsupported assistant graph operation: {operation.op}")
@@ -427,7 +454,15 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
         metadata["groups"] = groups
         next_workflow.metadata = metadata
 
-    _layout_added_nodes(nodes_by_id, added_node_ids)
+    if any(op.op in {"replace_model", "update_edge", "remove_edge"} for op in plan.operations):
+        from .graph_edits import validate_edit_connections
+        validate_edit_connections(next_workflow)
+    # Fresh graphs use height-bounded columns, including notes beside the flow.
+    # Ordinary edits preserve the existing canvas layout.
+    if not workflow.nodes:
+        arrange_nodes(added_node_ids, next_workflow, nodes_by_id)
+    else:
+        _layout_added_nodes(nodes_by_id, added_node_ids)
     _shift_added_section_from_existing(workflow, nodes_by_id, added_node_ids)
     resized_group_ids = added_group_ids | expanded_group_ids | contracted_group_ids
     if resized_group_ids:
@@ -473,7 +508,7 @@ def apply_graph_plan(workflow: GraphWorkflow, plan: AssistantGraphPlan) -> Graph
         )
         metadata["groups"] = normalized_groups
         next_workflow.metadata = metadata
-    if arrange_requested:
+    if arrange_requested or (not workflow.nodes and resized_group_ids):
         next_workflow = arrange_workflow(next_workflow)
     if plan.metadata:
         metadata = dict(next_workflow.metadata)

@@ -66,9 +66,25 @@ GUARDRAILS = (
 # handoff reuse graph artifacts/validation. Reviewed measured growth, no reserve.
 # LOCAL-MALIVE-005/002/003: reviewed recipe inspection and session-owned planning
 # recovery, reusing existing store/lock/confirmation boundaries. Exact source cap.
+# MALIVE-009: selected-result inspection and bounded text paging reuse artifact
+# ownership/version checks and the vision provider; no approval or run bypass.
+# Result attachment UI: authoritative selection bindings (+2); workflow terminology (+1).
+# MALIVE-012: shared confirmed-run ownership for production completion; exact source cap.
+# MALIVE-014: exact saved-recipe ports reuse the graph visibility owner.
+# MALIVE-022: reviewed session-owned message/proposal retrieval and lossless paging
+# reuse existing storage and tool limits; measured source cap with no reserve.
+# MALIVE-024: reviewed typed execution-mode edits, narrow freeze-only validation
+# exception and mode diff add 40 Python lines; no general metadata edit authority.
+# MALIVE-023: reviewed compaction accounting/progress and failure trace persistence
+# reuse the existing kernel and cancellation owners; exact cap with no reserve.
+# Vertical stage columns reuse the existing layout owner; seven source lines, no new state.
+# MALIVE-025: +154 lines for focused read-only prompt/diagnostic inspection; no new storage or execution authority.
+# MALIVE-026: reviewed in-place edits, evidence invalidation and failure/cancellation traces; 12833 measured lines, no reserve.
+# Width-first layout: packing lives in graph/layout.py; net +2 assistant lines for bounded stages and adjacent notes.
+# Consolidation: +4 lines exclude canvas navigation/bookkeeping from edit staleness; content/layout remain protected.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_133,
+    12_839,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

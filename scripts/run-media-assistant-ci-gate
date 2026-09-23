@@ -15,7 +15,7 @@ node scripts/assistant_conversation_probe.mjs --validate-only
   apps/api/tests/test_assistant_kernel.py::test_kernel_provider_schema_preserves_nonempty_tool_arguments \
   apps/api/tests/test_assistant_kernel.py::test_six_step_kernel_turn_uses_one_session_key_and_one_process_spawn \
   apps/api/tests/test_assistant_kernel.py::test_kernel_canvas_inventory_returns_grounded_typed_turn \
-  apps/api/tests/test_assistant_kernel.py::test_kernel_stops_at_tool_step_budget \
+  apps/api/tests/test_assistant_kernel.py::test_kernel_stops_repeated_unchanged_work \
   apps/api/tests/test_assistant_kernel.py::test_kernel_graph_proposal_is_validated_priced_and_confirmable \
   apps/api/tests/test_assistant_kernel.py::test_kernel_run_request_returns_typed_confirmation_without_submitting_a_job \
   apps/api/tests/test_assistant_kernel.py::test_kernel_traces_voice_violations_without_rewriting_provider_reply \

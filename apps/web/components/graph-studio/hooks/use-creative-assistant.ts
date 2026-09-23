@@ -31,7 +31,6 @@ export type AssistantMode = "preset" | "recipe" | "graph";
 
 type AssistantStatus = "idle" | "sending" | "running" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling";
 
-const ASSISTANT_REQUEST_TIMEOUT_MS = 220_000;
 const ASSISTANT_TRACKED_TURN_STATUSES = new Set<AssistantStatus>([
   "sending",
   "planning",
@@ -66,7 +65,7 @@ function savedArtifactGraphPrompt(message: AssistantMessage) {
   if (artifact.kind === "media_preset") {
     return `Create a clean replacement workflow that uses the saved Media Preset named ${artifact.label} with exact id ${artifact.id}${exactKey}. Fill every required text field with useful alternate sample values so the graph validates and the user can change them through visible form controls. Leave required image inputs empty so the user can attach the correct images before running.`;
   }
-  return `Create a clean replacement workflow that uses the saved Prompt Recipe named ${artifact.label} with exact id ${artifact.id}${exactKey}, then sends the rendered prompt into a compatible text-to-image model with preview and save image nodes.`;
+  return `Create a clean replacement workflow that uses the saved Prompt Recipe named ${artifact.label} with exact id ${artifact.id}${exactKey}, then sends the rendered prompt into a compatible model with preview and save image nodes. Read the saved recipe contract and preserve its image-input intent, intended model and attached reference roles. Use image-to-image when references condition generation, and text-to-image only when the contract calls for it. Populate every required text field from our brief; ask only for genuinely missing inputs.`;
 }
 
 function savedArtifactEditorUrl(message: AssistantMessage, returnTo?: string) {
@@ -259,7 +258,7 @@ export function useCreativeAssistant({
   importImageFile: (file: File) => Promise<MediaReference>;
   onBeforeReviewNavigate?: () => void;
   onAssistantSessionChange?: (assistantSessionId: string | null) => void;
-  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; baseWorkflow?: GraphWorkflowPayload; openInNewTab?: boolean }) => Promise<void> | void;
+  onApplyWorkflow: (workflow: GraphWorkflowPayload, options?: { highlightNodeIds?: string[]; baseWorkflow?: GraphWorkflowPayload; openInNewTab?: boolean; assistantSessionId?: string; layoutOnly?: boolean }) => Promise<void> | void;
   onRunWorkflow?: (assistantConfirmation?: { sessionId: string; token: string }) => Promise<unknown> | void;
   onEvent?: (message: string, tone?: "success" | "warning" | "error" | "muted") => void;
 }) {
@@ -279,7 +278,6 @@ export function useCreativeAssistant({
     loginConfigured: false,
   });
   const activeAbortControllerRef = useRef<AbortController | null>(null);
-  const activeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancellationPendingRef = useRef(false);
   const workspaceKeyRef = useRef(workspaceKey);
   const initialAssistantSessionIdRef = useRef(initialAssistantSessionId);
@@ -350,10 +348,6 @@ export function useCreativeAssistant({
   const resetAssistantState = useCallback(() => {
     activeAbortControllerRef.current?.abort();
     cancellationPendingRef.current = false;
-    if (activeTimeoutRef.current) {
-      clearTimeout(activeTimeoutRef.current);
-      activeTimeoutRef.current = null;
-    }
     sessionWorkspaceKeyRef.current = null;
     activeRunOperationRef.current = null;
     planWorkflowOverrideRef.current = null;
@@ -390,22 +384,12 @@ export function useCreativeAssistant({
     activeAbortControllerRef.current?.abort();
     const controller = new AbortController();
     activeAbortControllerRef.current = controller;
-    if (activeTimeoutRef.current) {
-      clearTimeout(activeTimeoutRef.current);
-    }
-    activeTimeoutRef.current = setTimeout(() => {
-      controller.abort();
-    }, ASSISTANT_REQUEST_TIMEOUT_MS);
+    // Productive planning and real compaction finish without a wall-clock cap.
+    // Explicit Stop/workspace changes abort; transport failures still reject.
     try {
       return await request(controller.signal);
     } finally {
-      if (activeAbortControllerRef.current === controller) {
-        activeAbortControllerRef.current = null;
-      }
-      if (activeTimeoutRef.current) {
-        clearTimeout(activeTimeoutRef.current);
-        activeTimeoutRef.current = null;
-      }
+      if (activeAbortControllerRef.current === controller) activeAbortControllerRef.current = null;
     }
   }, []);
 
@@ -422,10 +406,14 @@ export function useCreativeAssistant({
       try {
         const next = await jsonFetch<AssistantProgress>(
           `/api/control/media/assistant/sessions/${sessionId}/progress`,
+          { signal: AbortSignal.timeout(5_000) },
         );
-        if (!disposed) setProgress(next.active ? next : null);
+        if (!disposed) {
+          setProgress(next.active ? next : null);
+        }
       } catch {
-        // The message request remains authoritative; progress is best-effort UI.
+        if (!disposed) setProgress((current) => current?.stage === "compacting"
+          ? { ...current, label: "Waiting for a compaction status update…" } : current);
       } finally {
         if (!disposed) timer = setTimeout(poll, 2_000);
       }
@@ -917,7 +905,12 @@ export function useCreativeAssistant({
         ...result.workflow.nodes.map((node) => node.id).filter((nodeId) => !previousNodeIds.has(nodeId)),
         ...result.workflow.nodes.map((node) => node.id).filter((nodeId) => updatedNodeIds.has(nodeId)),
       ]));
-      await onApplyWorkflow(result.workflow, { highlightNodeIds, baseWorkflow: workflow, openInNewTab: planResponse.graph_plan.metadata?.independent_stage === true });
+      await onApplyWorkflow(result.workflow, {
+        highlightNodeIds, baseWorkflow: workflow,
+        layoutOnly: planResponse.graph_plan.operations.length === 1 && planResponse.graph_plan.operations[0]["op"] === "arrange_workflow",
+        openInNewTab: planResponse.graph_plan.metadata?.independent_stage === true,
+        assistantSessionId: planResponse.plan.assistant_session_id,
+      });
       onEvent?.("Assistant plan applied to the canvas.", "success");
       return result;
     } catch (requestError) {
@@ -1109,7 +1102,7 @@ export function useCreativeAssistant({
         current
           ? {
               ...current,
-              attachments: [attachment, ...current.attachments.filter((item) => item.assistant_attachment_id !== attachment.assistant_attachment_id)],
+              attachments: [...current.attachments.filter((item) => item.assistant_attachment_id !== attachment.assistant_attachment_id), attachment],
             }
           : {
               ...currentSession,

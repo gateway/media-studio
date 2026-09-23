@@ -12,9 +12,12 @@ function size(node: StudioNode) {
 // Only nodes in the just-applied Assistant proposal may move. Existing canvas
 // nodes are obstacles, and a user move ends automatic correction in the hook.
 export function spaceAssistantNodes(nodes: StudioNode[], managedIds: Set<string>): StudioNode[] {
+  const originalPositions = new Map(nodes.map((node) => [node.id, node.position]));
   const placed = nodes.filter((node) => !managedIds.has(node.id));
+  // Settle each input column before downstream nodes so a taller reference
+  // cannot be pushed past its consumer by row-first collision correction.
   const managed = nodes.filter((node) => managedIds.has(node.id))
-    .sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x);
+    .sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y);
   const replacements = new Map<string, StudioNode>();
   for (const original of managed) {
     let node = original;
@@ -30,7 +33,7 @@ export function spaceAssistantNodes(nodes: StudioNode[], managedIds: Set<string>
       });
       if (!conflict) break;
       const otherSize = size(conflict);
-      const sameColumn = Math.abs(original.position.x - conflict.position.x) < Math.min(dimensions.width, otherSize.width) / 2;
+      const sameColumn = Math.abs(original.position.x - originalPositions.get(conflict.id)!.x) < Math.min(dimensions.width, otherSize.width) / 2;
       node = {
         ...node,
         position: sameColumn

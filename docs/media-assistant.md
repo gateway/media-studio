@@ -44,6 +44,8 @@ Each user turn follows one backend-owned path:
 
 The client renders typed results. It does not infer the primary action from phrases or silently perform a second workflow.
 
+As of September 23, productive Codex Local planning has no fixed tool-count or wall-clock cutoff. Explicit Stop, workspace ownership, transport errors and repeated unchanged work remain termination boundaries. Active compaction continues in the retained thread. Nested reference-analysis calls contribute to usage/failure traces; unavailable metrics remain unknown. Historical verification sections below describe earlier bounded-turn behavior and do not define the current limits.
+
 Current capabilities are:
 
 - `general`
@@ -245,3 +247,14 @@ The long-turn follow-up changes the product boundary from a 90-second kernel / 1
 The reviewed candidate passed the exact browser contract mechanically: its request remains connected at 219.999 seconds and aborts at 220 seconds, while backend coverage preserves the 180-second kernel ceiling. After a production restart, an in-app-browser human test displayed the neutral two-second elapsed heartbeat and a Stop request returned only after the interrupted message had unwound; the UI removed its busy state, the progress response returned `active: false`, and the browser console remained clean. A separate live read-only turn had already advanced from the neutral heartbeat to the typed `Checked your graph` milestone and returned grounded next-step guidance in 21.8 seconds. No graph mutation, job, or paid generation was used for these proofs.
 
 Historical engineering campaigns and paid-proof logs are preserved by the archive tag `archive/media-assistant-development-2026-08-18`. The changelog records shipped outcomes; this document owns the current architecture and safety boundary.
+
+
+## Width-first graph arrangement (September 23, 2026)
+
+New Assistant graphs and reviewed `arrange_workflow` proposals pack each dependency stage into as many columns as needed to stay within the tallest node's height. Tall recipes therefore occupy their own column; smaller inputs share columns only while they fit. Downstream stages remain to the right. Existing multi-section/shot grouping rules remain; the height budget applies inside each section rather than forcing an entire multi-shot production into one row. Detached notes beside a single production section stay alongside it without changing group membership. Ordinary field/model/name edits do not request global rearrangement.
+
+Graph-owned `pack_stage_columns` caches geometry per arrangement; existing saved node sizes are respected. The browser reflows complete managed groups using measured recipe and preview dimensions, reserves group frames, and leaves unrelated nodes and partial groups as obstacles. A manual move, undo or tab switch ends automatic correction. Explicit layout proposals include stationary members in the reflow scope.
+
+A layout-only apply updates positions and group bounds on the existing nodes, preserving completed previews, runtime state and run association. It skips definition reload and canvas reconstruction. Layout undo/redo preserves those outputs and restores the final measured positions, not the earlier estimated proposal.
+
+Verification on the populated installation: the open 10-node / 12-edge workflow changed from 2,407.99 × 6,037 to 4,158 × 2,175 canvas units (64% less height). No node overlap; all 12 connections remained forward. Visible field values and every existing image URL matched before/after; live undo/redo preserved the images and restored the settled layout. Two layout-only review proposals were added to the existing assistant conversation; no media generation. Five standalone database/network-denied Python regressions and 17 focused web tests passed, plus TypeScript, lint and file-size checks. A 505-node / 1,004-edge packing sample took about 8–12 ms in Python and 1.3–1.4 ms in the JS helper on this machine; these are local layout timings, not end-to-end assistant latency or token savings. The legacy pytest module was updated but not executed because its collection fixtures create extra databases.

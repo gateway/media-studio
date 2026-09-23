@@ -219,9 +219,9 @@ Current important limits:
 Execution modes:
 
 - `enabled`: run normally.
-- user-facing `Muted`: internal `metadata.execution.mode = "frozen"`; reuse cached output and do not resubmit model jobs.
+- `Frozen`: internal `metadata.execution.mode = "frozen"`; reuse pinned cached output and do not resubmit model jobs. Some existing canvas controls label this cached-output hold as Muted; inspect the persisted mode when verifying it.
 - `bypassed`: advanced utility-only pass-through when declared by the node.
-- legacy `muted`: disabled/no-output behavior for old workflows/debugging only.
+- Assistant `Muted`: internal `metadata.execution.mode = "muted"`; skip execution, with existing runtime cache/dependency behavior. Assistant review exposes this separately from Frozen; a label alone is not proof of the persisted state.
 
 If a node can be frozen, validation must fail before execution when pinned artifacts, asset ids, or reference media ids are missing.
 
@@ -304,7 +304,7 @@ Minimum targeted API tests for new nodes:
 - validation rejects missing required inputs and incompatible media
 - executor produces typed outputs and artifacts
 - saved assets/reference media have lineage where applicable
-- frozen/muted nodes reuse cached output and do not resubmit jobs
+- frozen/muted nodes do not resubmit jobs; verify each mode’s distinct cache and missing-output behavior
 - missing pinned artifacts fail before execution
 - graph estimate handles known, unknown, stale, and frozen pricing paths when models are involved
 

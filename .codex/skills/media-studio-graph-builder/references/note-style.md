@@ -5,7 +5,7 @@
 - Put the workflow purpose first, then the lanes or steps.
 - Use standard Markdown bullets without blank lines between every bullet.
 - Add blank lines between paragraphs or sections when the note needs breathing room.
-- Link to user-facing docs, GitHub, issues, and affiliate model pages when useful.
+- Include relevant user-facing documentation links; add promotional or affiliate links only when requested.
 - Do not include local paths, asset ids, job ids, API keys, database ids, or private notes.
 
 Recommended note shape:
@@ -20,8 +20,4 @@ One short paragraph about what this template does.
 
 Run only the lane you want to test so you do not spend credits on every example at once.
 
-Helpful links:
-
-- [Star Media Studio on GitHub](https://github.com/gateway/media-studio)
-- [GitHub issues](https://github.com/gateway/media-studio/issues)
 ```
