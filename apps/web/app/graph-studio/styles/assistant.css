@@ -1066,9 +1066,11 @@
 }
 
 .graph-assistant-footer textarea {
-  min-height: 99px;
-  max-height: 191px;
-  resize: vertical;
+  min-width: min(160px, 100%);
+  max-width: 100%;
+  min-height: 60px;
+  max-height: clamp(60px, calc(50dvh - 200px), 360px);
+  resize: both;
   border: 1px solid var(--graph-border-medium);
   border-radius: 22px;
   outline: none;
@@ -1166,11 +1168,6 @@
   max-height: none;
 }
 
-.graph-assistant-panel[data-placement="right"] .graph-assistant-footer textarea {
-  min-height: 60px;
-  max-height: 120px;
-}
-
 .graph-assistant-panel[data-placement="right"] .graph-assistant-header,
 .graph-assistant-card-actions {
   flex-wrap: wrap;
@@ -1197,7 +1194,25 @@
   .graph-assistant-panel {
     --graph-assistant-reference-size: 36px;
   }
-  .graph-assistant-footer textarea {
-    min-height: 60px;
-  }
+}
+
+.graph-assistant-prompt-field {
+  position: relative;
+  min-width: 0;
+}
+
+.graph-assistant-prompt-field textarea {
+  display: block;
+  width: 100%;
+}
+
+.graph-assistant-footer .graph-assistant-prompt-resizer {
+  position: absolute;
+  right: 12px;
+  top: -9px;
+  min-height: 18px;
+  width: 28px;
+  padding: 0;
+  cursor: ns-resize;
+  touch-action: none;
 }

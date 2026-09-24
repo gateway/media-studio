@@ -1,6 +1,7 @@
 "use client";
 
 import type { useAssistantDock } from "./hooks/use-assistant-dock";
+import { AssistantPromptInput } from "./assistant-prompt-input";
 import { RecipeContinuationCard } from "./recipe-continuation-card";
 import { PlanningRecoveryCard } from "./planning-recovery-card";
 import {
@@ -1623,12 +1624,11 @@ export function CreativeAssistantPanel({
           ) : null}
           <AssistantResultAttachments results={results} disabled={assistant.busy} onOpenPreview={onOpenPreview} />
           <div className="graph-assistant-compose-row">
-            <textarea
-              ref={messageInputRef}
+            <AssistantPromptInput
+              inputRef={messageInputRef}
               value={assistant.draft}
               placeholder={results.selectedItems.length ? "What would you like to know or change about these results?" : ASSISTANT_PLACEHOLDER}
-              onChange={(event) => assistant.setDraft(event.target.value)}
-              aria-label="Assistant message"
+              onChange={assistant.setDraft}
             />
             <div className="graph-assistant-actions">
               <button
