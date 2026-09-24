@@ -28,8 +28,9 @@ function Harness() {
   </main>;
 }
 function changeLayout() {
-  fireEvent.change(screen.getByLabelText("Assistant placement"), { target: { value: "floating" } });
-  fireEvent.change(screen.getByLabelText("Assistant placement"), { target: { value: "right" } });
+  expect(screen.queryByRole("combobox", { name: "Assistant placement" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Float Media Assistant" }));
+  fireEvent.click(screen.getByRole("button", { name: "Dock Media Assistant on right" }));
   fireEvent.keyDown(screen.getByRole("separator"), { key: "ArrowLeft" });
   act(() => measure(700)); act(() => measure(1200));
   fireEvent.click(screen.getByRole("button", { name: "Collapse Media Assistant" }));

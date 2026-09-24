@@ -4,6 +4,8 @@ import type { useAssistantDock } from "./hooks/use-assistant-dock";
 import { RecipeContinuationCard } from "./recipe-continuation-card";
 import { PlanningRecoveryCard } from "./planning-recovery-card";
 import {
+  AppWindow,
+  PanelRight,
   CheckCircle2,
   FileText,
   GitBranch,
@@ -1133,10 +1135,16 @@ export function CreativeAssistantPanel({
             <span>Media Assistant</span>
           </div>
           <div className="graph-assistant-header-actions">
-            {dock ? <select aria-label="Assistant placement" value={dock.placement} onChange={(event) => dock.setPlacement(event.target.value as "right" | "floating")}>
-              <option value="right">Right</option>
-              <option value="floating">Floating</option>
-            </select> : null}
+            {dock ? (
+              <button
+                type="button"
+                aria-label={dock.placement === "right" ? "Float Media Assistant" : "Dock Media Assistant on right"}
+                title={dock.placement === "right" ? "Float Media Assistant" : "Dock Media Assistant on right"}
+                onClick={() => dock.setPlacement(dock.placement === "right" ? "floating" : "right")}
+              >
+                {dock.placement === "right" ? <AppWindow size={16} /> : <PanelRight size={16} />}
+              </button>
+            ) : null}
             {assistant.cancellable ? (
               <button type="button" aria-label="Stop assistant request" title="Stop assistant request" onClick={() => void assistant.cancelAssistant()}>
                 <StopCircle size={15} />

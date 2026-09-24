@@ -315,3 +315,7 @@
 .graph-main[data-assistant-docked="true"] > :not(.graph-assistant-panel) {
   grid-column: 1;
 }
+
+.graph-main[data-assistant-docked="true"] > .graph-toolbar {
+  grid-column: 1 / -1;
+}

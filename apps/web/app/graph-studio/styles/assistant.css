@@ -1147,7 +1147,7 @@
 .graph-assistant-panel[data-placement="right"] {
   position: relative;
   grid-column: 2;
-  grid-row: 1 / -1;
+  grid-row: 2 / -1;
   left: auto;
   bottom: auto;
   width: 100%;
@@ -1174,15 +1174,6 @@
 .graph-assistant-panel[data-placement="right"] .graph-assistant-header,
 .graph-assistant-card-actions {
   flex-wrap: wrap;
-}
-
-.graph-assistant-header select {
-  max-width: 100%;
-  min-height: var(--graph-assistant-action-size);
-  border: 1px solid var(--graph-border-medium);
-  border-radius: var(--graph-control-radius);
-  color: var(--graph-text);
-  background: var(--graph-panel);
 }
 
 .graph-assistant-divider {
