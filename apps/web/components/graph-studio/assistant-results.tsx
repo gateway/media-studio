@@ -121,6 +121,7 @@ export function AssistantResults({ results, workflow, disabled, onOpenPreview, o
       : ['cancelled', 'canceled'].includes(results.status ?? '') ? 'Generation stopped'
       : 'Loading results…'}</strong>
     {data?.error ? <p role="alert">{data.error}</p> : null}
+    {completed && outputs.length > 0 ? <p>Choose Use in chat, then ask a question or describe a change.</p> : null}
     {completed && outputs.length === 0 ? <p>No new output to show. See the graph for details.</p> : null}
     {error ? <div className="graph-assistant-card-actions"><p role="alert">{error}</p><button type="button" disabled={results.busy || disabled} onClick={results.retry}>Try loading results again</button></div> : null}
     {completed ? outputs.map((item, index) => {
@@ -138,9 +139,9 @@ export function AssistantResults({ results, workflow, disabled, onOpenPreview, o
       {!item.available ? <p>{item.blocker}</p> : null}
       <div className="graph-assistant-card-actions">
         <button type="button" disabled={!item.available || selected || results.busy || disabled}
-          aria-label={`${selected ? 'Added to message' : `Ask about this ${item.media_type || 'text'}`} — ${item.node_title}`}
+          aria-label={`${selected ? 'In this conversation' : 'Use in chat'} — ${item.node_title}`}
           onClick={async () => { if (await results.select(item, true)) onAsk(); }}>
-          {selected ? 'Added to message' : `Ask about this ${item.media_type || 'text'}`}
+          {selected ? 'In this conversation' : 'Use in chat'}
         </button>
       </div>
     </article>; }) : null}
@@ -151,18 +152,18 @@ export function AssistantResultAttachments({ results, disabled, onOpenPreview }:
   results: ResultController; disabled: boolean; onOpenPreview?: (preview: GraphMediaPreview) => void;
 }) {
   if (results.active || !results.selectedItems.length) return null;
-  return <section className="graph-assistant-result-attachments" aria-label="Results to discuss">
-    <p>Ask a question about:</p>
+  return <section className="graph-assistant-result-attachments" aria-label="Media in this conversation">
+    <p>In this conversation · {results.selectedItems.length}</p>
     <div className="graph-assistant-result-attachment-list">
       {results.selectedItems.map((item) => <div className="graph-assistant-result-attachment" key={item.artifact_id}>
         {item.available && item.url && item.media_type === 'image' ? <button type="button" className="graph-assistant-result-thumbnail"
-          aria-label={`Preview attached result: ${item.node_title}`} disabled={!onOpenPreview}
+          aria-label={`Preview selected media: ${item.node_title}`} disabled={!onOpenPreview}
           onClick={() => onOpenPreview?.({ mediaType: 'image', url: item.url!, label: item.node_title })}>
           <img src={item.url} alt="" />
         </button> : <FileText size={18} aria-hidden="true" />}
         <div>{item.node_title}{!item.available ? ' (unavailable)' : ''}</div>
         <button type="button" className="graph-assistant-result-remove" disabled={results.busy || disabled}
-          aria-label={`Remove from message: ${item.node_title}`} title="Remove from message"
+          aria-label={`Remove from conversation: ${item.node_title}`} title="Remove from conversation"
           onClick={() => void results.select(item, false)}><X size={14} aria-hidden="true" /></button>
       </div>)}
     </div>

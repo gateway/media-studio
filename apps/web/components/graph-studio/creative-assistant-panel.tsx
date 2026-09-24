@@ -1627,7 +1627,7 @@ export function CreativeAssistantPanel({
             <AssistantPromptInput
               inputRef={messageInputRef}
               value={assistant.draft}
-              placeholder={results.selectedItems.length ? "What would you like to know or change about these results?" : ASSISTANT_PLACEHOLDER}
+              placeholder={results.selectedItems.length ? (results.selectedItems.length === 1 && results.selectedItems[0].media_type === "image" ? "What would you like to do with this image?" : "What would you like to do with these selections?") : ASSISTANT_PLACEHOLDER}
               onChange={assistant.setDraft}
             />
             <div className="graph-assistant-actions">
