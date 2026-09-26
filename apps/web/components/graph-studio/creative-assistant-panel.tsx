@@ -816,6 +816,16 @@ export function CreativeAssistantPanel({
   );
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer || !open || minimized) return;
+    // Resizing the composer changes the viewport without adding a message.
+    const observer = new ResizeObserver(() => {
+      if (followConversationRef.current) scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    });
+    observer.observe(scrollContainer);
+    return () => observer.disconnect();
+  }, [open, minimized]);
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
     if (!scrollContainer || !open || minimized || !followConversationRef.current) return;
     scrollContainer.scrollTop = scrollContainer.scrollHeight;
   }, [

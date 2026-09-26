@@ -7,14 +7,56 @@ import { useAssistantDock } from "./hooks/use-assistant-dock";
 import { assistantJsonResponse as jsonResponse, assistantTestSession as session, assistantTestWorkflow as workflow } from "./creative-assistant-test-fixtures";
 
 let measure: (width: number) => void;
+const resizeCallbacks = new Map<Element, () => void>();
 const onApply = vi.fn();
 const onRun = vi.fn();
 beforeEach(() => {
+  resizeCallbacks.clear();
   vi.stubGlobal("ResizeObserver", class {
-    constructor(callback: (entries: unknown[]) => void) { measure = (width) => callback([{ contentRect: { width } }]); }
-    observe() { measure(1200); }
-    disconnect() {}
+    target?: Element;
+    constructor(private callback: (entries: unknown[]) => void) {}
+    observe(target: Element) {
+      this.target = target;
+      resizeCallbacks.set(target, () => this.callback([]));
+      if (target.tagName === "MAIN") {
+        measure = (width) => this.callback([{ contentRect: { width } }]);
+        measure(1200);
+      }
+    }
+    disconnect() { if (this.target) resizeCallbacks.delete(this.target); }
   });
+});
+it("keeps the conversation bottom visible as the composer grows, without moving a reader who scrolled up", async () => {
+  vi.stubGlobal("fetch", vi.fn((request: RequestInfo | URL) => jsonResponse(
+    String(request).includes("/media/assistant/sessions?") ? { items: [session] } : session,
+  )));
+  const { container, unmount } = render(<Harness />);
+  const body = container.querySelector('.graph-assistant-body')!;
+  let viewportHeight = 400;
+  let top = 600;
+  Object.defineProperties(body, {
+    scrollHeight: { get: () => 1000 },
+    clientHeight: { get: () => viewportHeight },
+    scrollTop: { get: () => top, set: (value) => { top = Math.max(0, Math.min(value, 1000 - viewportHeight)); } },
+  });
+  fireEvent.scroll(body);
+  viewportHeight = 240;
+  act(() => resizeCallbacks.get(body)!());
+  expect(body.scrollTop).toBe(760);
+  viewportHeight = 420;
+  act(() => resizeCallbacks.get(body)!());
+  expect(body.scrollTop).toBe(580);
+  body.scrollTop = 37;
+  fireEvent.scroll(body);
+  viewportHeight = 240;
+  act(() => resizeCallbacks.get(body)!());
+  expect(body.scrollTop).toBe(37);
+  fireEvent.click(screen.getByRole("button", { name: "Close Media Assistant" }));
+  expect(resizeCallbacks.has(body)).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Reopen" }));
+  expect(resizeCallbacks.has(body)).toBe(true);
+  unmount();
+  expect(resizeCallbacks.size).toBe(0);
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
 function Harness() {
