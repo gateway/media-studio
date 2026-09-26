@@ -190,6 +190,8 @@ def _kernel_instruction() -> str:
         "Use validate_current_workflow for "
         "review-only requests and correct typed tool errors within the turn. "
         "When attached reference images matter, call analyze_reference_images and ground the reply in its typed evidence. "
+        "For a requested edit or reuse of selected media, use graph_builder and follow its selected-media instructions: recover "
+        "the exact source with inspect_generation evidence source before proposing supported changes. Selection alone is not an edit request. "
         "For read-only review of existing graph outputs, use graph_builder with artifact_intent none: read_run_results, "
         "then inspect_selected_result with the exact artifact ID and version. UI selections are in session_context.selected_results; "
         "select_run_result may select other artifacts the user explicitly asked to inspect. Read all relevant text chunks using "

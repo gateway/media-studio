@@ -1,12 +1,14 @@
 .graph-main {
   position: relative;
   min-width: 0;
+  min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) 180px;
 }
 
 .graph-toolbar {
   --graph-toolbar-control-height: 28px;
+  flex-wrap: wrap;
   position: relative;
   min-height: 40px;
   padding: 5px 10px;
@@ -304,4 +306,16 @@
     max-width: 104px;
     flex-basis: 104px;
   }
+}
+
+.graph-main[data-assistant-docked="true"] {
+  grid-template-columns: minmax(0, 1fr) var(--graph-assistant-dock-width);
+}
+
+.graph-main[data-assistant-docked="true"] > :not(.graph-assistant-panel) {
+  grid-column: 1;
+}
+
+.graph-main[data-assistant-docked="true"] > .graph-toolbar {
+  grid-column: 1 / -1;
 }

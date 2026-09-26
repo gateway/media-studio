@@ -82,9 +82,11 @@ GUARDRAILS = (
 # MALIVE-026: reviewed in-place edits, evidence invalidation and failure/cancellation traces; 12833 measured lines, no reserve.
 # Width-first layout: packing lives in graph/layout.py; net +2 assistant lines for bounded stages and adjacent notes.
 # Consolidation: +4 lines exclude canvas navigation/bookkeeping from edit staleness; content/layout remain protected.
+# Selected-media edits: +31 lines recover paginated saved upstream inputs/cache provenance
+# through existing session-owned inspection; no new storage or execution authority.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_839,
+    12_870,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

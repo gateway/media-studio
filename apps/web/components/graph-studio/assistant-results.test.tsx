@@ -20,16 +20,16 @@ it.each(['queued', 'pending', 'running'])('shows only progress during %s despite
   vi.stubGlobal('fetch', fetcher); render(<Harness status={status} />);
   expect(screen.getByRole('status').textContent).toContain('Generating your storyboard…');
   await waitFor(() => expect(fetcher).toHaveBeenCalled());
-  expect(screen.queryByRole('button', { name: /Ask about/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /Use in chat/ })).toBeNull();
   expect(screen.queryByText('Complete recipe prompt')).toBeNull();
   expect(screen.queryByRole('img')).toBeNull();
-  expect(screen.queryByText('Ask a question about:')).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Media in this conversation' })).toBeNull();
 });
 it('shows one new image on completion and hides it immediately when running again', async () => {
   let status = 'running'; vi.stubGlobal('fetch', vi.fn(async () => reply({ ...response, status })));
   const view = render(<Harness status="running" />);
   status = 'completed'; view.rerender(<Harness status="completed" />);
-  expect(await screen.findByRole('button', { name: 'Ask about this image — Finished storyboard' })).toBeTruthy();
+  expect(await screen.findByRole('button', { name: 'Use in chat — Finished storyboard' })).toBeTruthy();
   expect(screen.getByText('Your storyboard is ready')).toBeTruthy();
   expect(screen.queryByRole('status')).toBeNull(); expect(screen.getAllByRole('img')).toHaveLength(1);
   expect(screen.queryByText(/Original host/)).toBeNull(); expect(screen.queryByText('Complete recipe prompt')).toBeNull();
@@ -41,7 +41,7 @@ it.each(['failed', 'cancelled'])('shows terminal %s without review controls', as
   render(<Harness status={status} />);
   expect(screen.getByText(status === 'failed' ? 'Generation failed' : 'Generation stopped')).toBeTruthy();
   if (status === 'failed') expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Provider rejected the request.');
-  expect(screen.queryByRole('status')).toBeNull(); expect(screen.queryByRole('button', { name: /Ask about/ })).toBeNull();
+  expect(screen.queryByRole('status')).toBeNull(); expect(screen.queryByRole('button', { name: /Use in chat/ })).toBeNull();
 });
 it('keeps polling failure separate from generation failure', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('Offline'); })); render(<Harness status="running" />);
@@ -54,8 +54,8 @@ it('selects the exact completed image version without starting a run', async () 
     if (init?.method === 'POST') { requests.push(JSON.parse(String(init.body))); return reply({ ...response, selected_artifact_ids: ['image'] }); }
     return reply(response);
   })); render(<Harness status="completed" />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Ask about this image — Finished storyboard' }));
-  expect(await screen.findByRole('button', { name: 'Added to message — Finished storyboard' })).toBeTruthy();
+  fireEvent.click(await screen.findByRole('button', { name: 'Use in chat — Finished storyboard' }));
+  expect(await screen.findByRole('button', { name: 'In this conversation — Finished storyboard' })).toBeTruthy();
   expect(requests).toEqual([{ run_id: 'run-a', artifact_id: 'image', version: 'v1', selected: true }]); expect(onAsk).toHaveBeenCalledOnce();
 });
 it('preserves text-only outputs and generic workflow progress', async () => {
@@ -69,11 +69,31 @@ it('ignores stale responses from a different workspace', async () => {
   vi.stubGlobal('fetch', vi.fn((url: string) => url.includes('/s-a/') ? new Promise<Response>((resolve) => { finish = resolve; }) : Promise.resolve(reply({ ...response, items: [{ ...text, text: 'Other output' }] }))));
   const view = render(<Harness status="completed" />); view.rerender(<Harness status="completed" workspace="b" />);
   expect(await screen.findByText('Other output')).toBeTruthy(); finish(reply(response));
-  await waitFor(() => expect(screen.queryByRole('button', { name: /Ask about this image/ })).toBeNull());
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Use in chat — Finished storyboard' })).toBeNull());
 });
 it('keeps missing media unselectable and video non-autoplaying', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => reply({ ...response, items: [{ ...image, available: false, url: null, blocker: 'Media file is missing.' }, { ...image, artifact_id: 'video', asset_id: 'video', node_title: 'Final video', media_type: 'video', url: '/video.mp4' }] })));
   render(<Harness status="completed" />); expect(await screen.findByText('Media file is missing.')).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'Ask about this image — Finished storyboard' })).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', { name: 'Use in chat — Finished storyboard' })).toHaveProperty('disabled', true);
   expect(document.querySelector('video')?.getAttribute('preload')).toBe('metadata'); expect(document.querySelector('video')?.getAttribute('autoplay')).toBeNull();
+});
+
+it('explains selection, shows its count, and removes context without deleting media or sending a message', async () => {
+  let selected: string[] = [];
+  const fetcher = vi.fn(async (_url: string, init?: RequestInit) => {
+    if (init?.method === 'POST') selected = JSON.parse(String(init.body)).selected ? ['image'] : [];
+    return reply({ ...response, selected_artifact_ids: selected });
+  });
+  vi.stubGlobal('fetch', fetcher);
+  render(<Harness status="completed" />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Use in chat — Finished storyboard' }));
+  expect(await screen.findByText('In this conversation · 1')).toBeTruthy();
+  expect(screen.getByText('Choose Use in chat, then ask a question or describe a change.')).toBeTruthy();
+  expect(onAsk).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole('button', { name: 'Remove from conversation: Finished storyboard' }));
+  await waitFor(() => expect(screen.queryByRole('region', { name: 'Media in this conversation' })).toBeNull());
+  const writes = fetcher.mock.calls.filter(([, init]) => init?.method === 'POST');
+  expect(writes.map(([url]) => url)).toEqual(['/api/control/media/assistant/sessions/s-a/results/selection', '/api/control/media/assistant/sessions/s-a/results/selection']);
+  expect(JSON.parse(String(writes[1][1]?.body))).toEqual({ run_id: 'run-a', artifact_id: 'image', version: 'v1', selected: false });
+  expect(screen.getByRole('button', { name: 'Use in chat — Finished storyboard' })).toHaveProperty('disabled', false);
 });

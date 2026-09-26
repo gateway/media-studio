@@ -1,4 +1,5 @@
 """No pytest fixture imports: DB, network and submission are denied throughout."""
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -94,6 +95,54 @@ class InspectionTests(unittest.TestCase):
             self.assertFalse(_run_evidence(self.Args(node_id="recipe",run_id="r"),self.context)["provider_submitted"])
             run["workflow_id"]="foreign"
             with self.assertRaises(HTTPException): _run_evidence(self.Args(node_id="recipe",run_id="r"),self.context)
+
+    def test_source_recovers_exact_upstream_inputs_in_chunks(self):
+        from app.assistant.generation_inspection import _run_evidence
+        from app import store, store_assistant
+        from fastapi import HTTPException
+        saved = self.workflow.model_dump(mode="json")
+        saved["nodes"] += [
+            {"id": "reference", "type": "media.load_image", "fields": {"asset_id": "original-character"}},
+            {"id": "preview", "type": "preview.image", "fields": {}},
+            {"id": "unrelated", "type": "prompt.text", "fields": {"text": "Do not include"}},
+        ]
+        saved["edges"] += [
+            {"id": "ref", "source": "reference", "source_port": "image", "target": "image", "target_port": "images"},
+            {"id": "preview", "source": "image", "source_port": "image", "target": "preview", "target_port": "image"},
+        ]
+        records = [{"node_id": n["id"], "status": "completed", "input_snapshot_json": {"prompt": "Original day scene"} if n["id"] == "image" else None} for n in saved["nodes"]]
+        records[1]["metrics_json"] = {"cached_run_id": "earlier-owned-run"}
+        records[1]["status"] = "cached"
+        run = {"run_id": "r", "workflow_id": "test-owned", "workflow_json": saved}
+        session = {"owner_kind": "graph_workflow", "owner_id": "test-owned"}
+        self.workflow.nodes[0].fields["text"] = "Today's unrelated revision"
+        with patch.object(store_assistant, "get_assistant_session", return_value=session), patch.object(store, "get_graph_run", return_value=run), patch.object(store, "list_graph_run_nodes", return_value=records), patch.object(store, "get_graph_workflow", side_effect=AssertionError("No current-workflow fallback")):
+            chunks, offset = [], 0
+            while offset is not None:
+                result = _run_evidence(self.Args(node_id="preview", run_id="r", evidence="source", offset=offset, limit=80), self.context)
+                chunk = result["source_context"]
+                self.assertLessEqual(len(chunk["text"]), 80)
+                chunks.append(chunk["text"])
+                offset = chunk["next_offset"]
+            source = json.loads("".join(chunks))
+            self.assertEqual({n["id"] for n in source["nodes"]}, {"prompt", "reference", "image", "preview"})
+            self.assertEqual(source["nodes"][0]["fields"]["text"], "Keep the entire prompt. " * 230)
+            self.assertEqual(next(n for n in source["nodes"] if n["id"] == "reference")["fields"]["asset_id"], "original-character")
+            self.assertEqual(next(n for n in source["recorded_inputs"] if n["node_id"] == "image")["inputs"]["prompt"], "Original day scene")
+            self.assertEqual(len(source["edges"]), 3)
+            self.assertEqual(next(n for n in source["recorded_inputs"] if n["node_id"] == "image")["cached_run_id"], "earlier-owned-run")
+            run["workflow_id"] = "foreign"
+            with self.assertRaises(HTTPException):
+                _run_evidence(self.Args(node_id="preview", run_id="r", evidence="source"), self.context)
+            run["workflow_id"] = "test-owned"
+            run["workflow_json"] = None
+            with self.assertRaisesRegex(ValueError, "snapshot is unavailable"):
+                _run_evidence(self.Args(node_id="preview", run_id="r", evidence="source"), self.context)
+
+    def test_source_requires_historical_run(self):
+        from app.assistant.generation_inspection import _prepare_current
+        with self.assertRaisesRegex(ValueError, "requires the selected result run_id"):
+            _prepare_current(self.Args(node_id="image", evidence="source"), self.context)
 
 if __name__ == "__main__":
     with patch("sqlite3.connect", side_effect=AssertionError("Database forbidden")),patch("socket.socket.connect", side_effect=AssertionError("Network forbidden")):
