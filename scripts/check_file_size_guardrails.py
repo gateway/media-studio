@@ -84,9 +84,11 @@ GUARDRAILS = (
 # Consolidation: +4 lines exclude canvas navigation/bookkeeping from edit staleness; content/layout remain protected.
 # Selected-media edits: +31 lines recover paginated saved upstream inputs/cache provenance
 # through existing session-owned inspection; no new storage or execution authority.
+# Storyboard edit preflight: +52 reviewed lines reuse generation inspection for
+# confirmation readiness; no new storage/execution authority. Exact measured cap.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_870,
+    12_922,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

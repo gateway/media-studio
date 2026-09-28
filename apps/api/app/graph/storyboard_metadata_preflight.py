@@ -52,13 +52,55 @@ STORYBOARD_ART_PROMPT_SEMANTICS = "storyboard_art_only"
 CHARACTER_REFERENCE_PROMPT_SEMANTICS = "character_reference"
 ORDINARY_IMAGE_PROMPT_SEMANTICS = "ordinary_image_prompt"
 USER_AUTHORED_PROMPT_SEMANTICS = "user_authored_prompt"
+EXISTING_IMAGE_EDIT_PROMPT_SEMANTICS = "existing_image_edit"
 PROMPT_SEMANTICS_WITHOUT_STORYBOARD_METADATA = {
+    EXISTING_IMAGE_EDIT_PROMPT_SEMANTICS,
     ENVIRONMENT_SHEET_PROMPT_SEMANTICS,
     STORYBOARD_ART_PROMPT_SEMANTICS,
     CHARACTER_REFERENCE_PROMPT_SEMANTICS,
     ORDINARY_IMAGE_PROMPT_SEMANTICS,
     USER_AUTHORED_PROMPT_SEMANTICS,
 }
+
+
+def resolve_image_prompt_semantics(prompt: str, *, prompt_semantics: str, has_images: bool) -> str:
+    """Resolve authored image purpose; explicit recipe contracts take precedence."""
+    if prompt_semantics not in {"", USER_AUTHORED_PROMPT_SEMANTICS}:
+        return prompt_semantics
+    # References alone also accompany new boards. Editing requires an existing
+    # image target and preservation intent, not a new panel/metadata contract.
+    existing_image_edit = re.match(
+        r"\s*(?:please\s+)?(?:edit|relight|retouch|make|change|turn)\s+(?:the\s+)?"
+        r"(?:this|supplied|selected|attached|existing|provided|original)\s+"
+        r"(?:(?:existing|finished|original|selected|storyboard)\s+){0,3}(?:image|board|storyboard)\b",
+        prompt, flags=re.IGNORECASE,
+    )
+    preserve_content = re.search(
+        r"\b(?:preserve|keep|retain)\b[^.]{0,160}\b(?:everything|panels?|layout|composition)\b",
+        prompt, flags=re.IGNORECASE,
+    )
+    creation_instructions = re.sub(
+        r"\b(?:do not|don't|never)\s+(?:create|generate|compose|design)\b[^.;!\n]*",
+        "", prompt, flags=re.IGNORECASE,
+    )
+    new_board_contract = (
+        storyboard_prompt_has_metadata_rows(prompt)
+        or re.search(r"\b(?:PANEL|SHOT)\s+COUNT\s*:", prompt, flags=re.IGNORECASE)
+        or re.search(r"\b(?:create|generate|compose|design)\b[^.;!\n]{0,100}\bstoryboard\b", creation_instructions, flags=re.IGNORECASE)
+    )
+    if has_images and existing_image_edit and preserve_content and not new_board_contract:
+        return EXISTING_IMAGE_EDIT_PROMPT_SEMANTICS
+    if prompt_semantics == USER_AUTHORED_PROMPT_SEMANTICS and _looks_like_storyboard(prompt):
+        # Preserve explicit art-only authoring, while unstructured new production
+        # boards get the same strict checks whether inline or connected.
+        text_free_art = re.search(
+            r"\b(?:text[- ]free|art[- ]only)\b|\b(?:do not|never)\s+(?:render|add|include)\s+text\b",
+            prompt, flags=re.IGNORECASE,
+        )
+        if text_free_art and not storyboard_prompt_has_metadata_rows(prompt):
+            return STORYBOARD_ART_PROMPT_SEMANTICS
+        return ""
+    return prompt_semantics
 
 
 def _normalized_model_key(value: str) -> str:

@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from .. import store, store_assistant
 from .cancellation import AssistantRequestCancelled, AssistantSessionBusy, track_session
 from .kernel import run_assistant_kernel_turn
+from .generation_inspection import review_workflow_generation
 from .provider_support import (
     AssistantProviderChatError,
     sync_assistant_session_provider,
@@ -181,6 +182,20 @@ def _create_tracked_kernel_message(
     ):
         result.next_action = AssistantNextAction()
         result.reply = "Run confirmation is blocked because pricing is unavailable. Recheck graph pricing. Nothing has started."
+    generation_readiness = None
+    if result.next_action.kind == "run_workflow":
+        generation_readiness = review_workflow_generation(payload.workflow)
+        if generation_readiness["status"] == "blocked":
+            blockers = "; ".join(
+                f"{node['node_id']}: {node['reason']}"
+                for node in generation_readiness["nodes"] if node["status"] == "blocked"
+            )
+            result.next_action = AssistantNextAction()
+            result.reply = f"Run confirmation is blocked: {blockers} Nothing has started."
+        else:
+            result.next_action.payload = {
+                **(result.next_action.payload or {}), "generation_readiness": generation_readiness,
+            }
     if result.next_action.kind == "run_workflow" and result.next_action.confirmation_token:
         fingerprint = str((result.next_action.payload or {}).get("workflow_fingerprint") or "")
         test_plan_id = (
@@ -227,8 +242,13 @@ def _create_tracked_kernel_message(
                 "consumed": False,
             }
     if result.next_action.kind == "run_workflow" and run_confirmation:
+        readiness_note = (
+            "Prompt checks are pending for dynamic or unknown inputs; this graph is not yet confirmed ready. "
+            if generation_readiness and generation_readiness["status"] == "pending"
+            else "Known generation inputs passed preflight. Account readiness remains unknown. "
+        )
         result.reply = (
-            "Run confirmation is ready. Review the current graph and estimate; "
+            readiness_note + "Review the current graph and estimate; "
             "choosing Review and run submits this graph. Nothing has started."
         )
     result.trace.voice_violations = lint_assistant_reply(result.reply, capability=result.capability)
