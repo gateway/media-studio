@@ -1,4 +1,12 @@
 import type { AssistantSession, GraphWorkflowPayload } from "./types";
+import { beforeEach, vi } from "vitest";
+
+beforeEach(() => {
+  vi.stubGlobal("ResizeObserver", class {
+    observe() {}
+    disconnect() {}
+  });
+});
 
 export const assistantTestWorkflow: GraphWorkflowPayload = {
   schema_version: 1,

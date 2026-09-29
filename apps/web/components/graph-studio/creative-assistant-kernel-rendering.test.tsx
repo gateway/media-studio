@@ -133,3 +133,28 @@ it.each([
   expect(screen.queryByRole("button", { name: "Run it" })).toBeNull();
   expect(onRunWorkflow).not.toHaveBeenCalled();
 });
+
+it("renders a persisted requested image in its reply and focuses selection without editing or running", async () => {
+  const binding = { run_id: "original-run", artifact_id: "original", version: "v1" };
+  const image = { ...binding, node_title: "Original board", output_port: "image", output_index: 0, media_type: "image", available: true, url: "/original.png" };
+  let selected = false;
+  const onApplyWorkflow = vi.fn(); const onRunWorkflow = vi.fn();
+  vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
+    if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [{ ...session, messages: [{
+      assistant_message_id: "shown-original", assistant_session_id: "session-1", role: "assistant",
+      content_text: "Here is the original.", content_json: { mode: "assistant_kernel", kernel_turn: { artifacts: [{ kind: "result_display", data: binding }] } },
+    }] }] });
+    if (url.includes("/results")) {
+      if (init?.method === "POST") { expect(JSON.parse(String(init.body))).toEqual({ ...binding, selected: true }); selected = true; }
+      return jsonResponse({ run_id: "original-run", status: "completed", items: [image], selected_artifact_ids: selected ? ["original"] : [], selected_result_bindings: selected ? { original: binding } : {} });
+    }
+    return jsonResponse({});
+  }));
+  render(<CreativeAssistantPanel open workspaceKey="requested-image" workflowId="workflow-1" workflowName="Current board" workflow={workflow}
+    references={[]} importImageFile={vi.fn()} onApplyWorkflow={onApplyWorkflow} onRunWorkflow={onRunWorkflow} onClose={vi.fn()} />);
+  expect(await screen.findByRole("region", { name: "Requested image" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Use in chat — Original board" }));
+  await screen.findByRole("button", { name: "In this conversation — Original board" });
+  expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Assistant message" }));
+  expect(onApplyWorkflow).not.toHaveBeenCalled(); expect(onRunWorkflow).not.toHaveBeenCalled();
+});

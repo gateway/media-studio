@@ -2,6 +2,9 @@
 import json
 from datetime import datetime, timezone
 from typing import Literal, Optional
+from types import SimpleNamespace
+
+from ..service_errors import ServiceError
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
@@ -171,10 +174,39 @@ def _prepare_current(options, context):
     return result
 
 
+def review_workflow_generation(workflow):
+    """Check known KIE inputs through execution preparation without starting a run."""
+    if workflow is None:
+        return {"status": "pending", "nodes": [], "provider_submitted": False}
+    nodes = []
+    for node in workflow.nodes:
+        if not node.type.startswith("model.kie."):
+            continue
+        try:
+            prepared = _prepare_current(InspectGenerationArguments(node_id=node.id), SimpleNamespace(workflow=workflow))
+            if prepared["status"] == "disabled":
+                continue
+            preflight = prepared.get("preflight") or {}
+            can_submit = preflight.get("can_submit")
+            status = "pending"
+            reason = prepared.get("note")
+            if can_submit is False:
+                status, reason = "blocked", preflight.get("reason") or "Generation preflight rejected this request."
+            elif prepared["status"] == "prepared" and can_submit is True:
+                status, reason = "ready", "Known inputs passed generation preflight; account readiness remains unknown."
+            nodes.append({"node_id": node.id, "status": status, "reason": reason})
+        except (ValueError, HTTPException, ServiceError) as error:
+            nodes.append({"node_id": node.id, "status": "blocked", "reason": str(getattr(error, "detail", error))})
+    status = "blocked" if any(n["status"] == "blocked" for n in nodes) else (
+        "pending" if any(n["status"] == "pending" for n in nodes) else "ready"
+    )
+    return {"status": status, "nodes": nodes, "provider_submitted": False}
+
+
 def inspect_generation(arguments, context):
     options = InspectGenerationArguments.model_validate(arguments)
     try:
         return _run_evidence(options, context) if options.run_id else _prepare_current(options, context)
-    except (ValueError, HTTPException) as error:
+    except (ValueError, HTTPException, ServiceError) as error:
         from .kernel_tools import KernelToolFailure
         raise KernelToolFailure(code="generation_inspection_failed", message=str(getattr(error, "detail", error)), retryable=False) from error

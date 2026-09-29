@@ -49,6 +49,7 @@ def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -
     assert json.loads(step.tool_call.arguments) == {"query": "oil painting", "limit": 12}
     assert schemas.AssistantKernelProviderStep.model_json_schema()["properties"]["artifact_intent"]["enum"] == [
         "none",
+        "display_image",
         "draft_preset",
         "revise_preset",
         "save_preset",
@@ -2129,7 +2130,11 @@ def test_kernel_run_request_returns_typed_confirmation_without_submitting_a_job(
     payload = response.json()
     assistant_message = payload["messages"][-1]
     turn = assistant_message["content_json"]["kernel_turn"]
-    assert "Run confirmation is ready" in assistant_message["content_text"]
+    readiness = turn["next_action"]["payload"]["generation_readiness"]
+    assert readiness["status"] == "ready"
+    assert readiness["provider_submitted"] is False
+    assert "Known generation inputs passed preflight" in assistant_message["content_text"]
+    assert "Account readiness remains unknown" in assistant_message["content_text"]
     assert "choosing Review and run submits this graph" in assistant_message["content_text"]
     assert "Nothing has started" in assistant_message["content_text"]
     assert turn["next_action"]["kind"] == "run_workflow"

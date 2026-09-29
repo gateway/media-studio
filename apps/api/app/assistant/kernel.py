@@ -60,14 +60,15 @@ KERNEL_CAPABILITY_PROMPTS: Dict[AssistantKernelCapability, str] = {
     "run_debugger": "apps/api/app/assistant/prompts/skills/run_debugger.md",
 }
 KERNEL_ARTIFACT_INTENTS: Dict[AssistantKernelCapability, frozenset[AssistantArtifactIntent]] = {
-    "general": frozenset({"none"}),
-    "graph_builder": frozenset({"none"}),
-    "preset_builder": frozenset({"none", "draft_preset", "revise_preset", "save_preset", "quality_decision"}),
-    "recipe_builder": frozenset({"none", "draft_recipe", "revise_recipe", "save_recipe", "quality_decision"}),
+    "general": frozenset({"none", "display_image"}),
+    "graph_builder": frozenset({"none", "display_image"}),
+    "preset_builder": frozenset({"none", "display_image", "draft_preset", "revise_preset", "save_preset", "quality_decision"}),
+    "recipe_builder": frozenset({"none", "display_image", "draft_recipe", "revise_recipe", "save_recipe", "quality_decision"}),
     "story_builder": frozenset({"none", "update_story", "propose_production_plan"}),
     "run_debugger": frozenset({"none", "diagnose_run"}),
 }
 KERNEL_REQUIRED_ARTIFACTS: Dict[AssistantArtifactIntent, str] = {
+    "display_image": "result_display",
     "draft_preset": "preset_draft",
     "revise_preset": "preset_draft",
     "save_preset": "preset_draft",
@@ -80,6 +81,10 @@ KERNEL_REQUIRED_ARTIFACTS: Dict[AssistantArtifactIntent, str] = {
     "diagnose_run": "run_evidence",
 }
 KERNEL_ARTIFACT_ERRORS = {
+    "result_display": (
+        "result_display_required",
+        "Display the requested exact image with show_run_result, or explain why it is unavailable.",
+    ),
     "preset_draft": (
         "typed_preset_draft_required",
         "Before replying, call propose_media_preset_draft with the complete current typed draft.",
@@ -192,6 +197,12 @@ def _kernel_instruction() -> str:
         "When attached reference images matter, call analyze_reference_images and ground the reply in its typed evidence. "
         "For a requested edit or reuse of selected media, use graph_builder and follow its selected-media instructions: recover "
         "the exact source with inspect_generation evidence source before proposing supported changes. Selection alone is not an edit request. "
+        "When the entire request is to display one existing image, use artifact_intent display_image and include a "
+        "short reply with show_run_result; successful display completes that turn. For multiple images, comparison, "
+        "explanation or edits, use the appropriate other intent and finish all requested work before replying. "
+        "For requests to show an existing image, use show_run_result with its exact run/artifact/version from selected_results "
+        "or read_run_results. It displays a usable preview card; do not return image Markdown or file paths. Showing an image "
+        "does not require selection or visual analysis. If its identity is ambiguous, ask one focused question. "
         "For read-only review of existing graph outputs, use graph_builder with artifact_intent none: read_run_results, "
         "then inspect_selected_result with the exact artifact ID and version. UI selections are in session_context.selected_results; "
         "select_run_result may select other artifacts the user explicitly asked to inspect. Read all relevant text chunks using "
@@ -1216,6 +1227,7 @@ def run_assistant_kernel_turn(
                 "propose_production_plan": "production_plan",
                 "update_production_plan_step": "production_plan_update",
                 "read_run_evidence": "run_evidence",
+                "show_run_result": "result_display",
             }.get(step.tool_call.name)
             if execution.result is not None and artifact_kind:
                 artifacts.append(

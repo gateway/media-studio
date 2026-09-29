@@ -16,6 +16,7 @@ from ..storyboard_sheet_spec import STORYBOARD_ART_SOURCE_CONTRACT
 from ..storyboard_metadata_preflight import (
     STORYBOARD_ART_PROMPT_SEMANTICS,
     validate_storyboard_metadata_preflight,
+    resolve_image_prompt_semantics,
 )
 from .base import GraphExecutionContext, GraphExecutor, GraphRunCancelled
 
@@ -369,6 +370,11 @@ class KieModelExecutor(GraphExecutor):
             and prompt_metadata.get("storyboard_art_source_contract") == STORYBOARD_ART_SOURCE_CONTRACT
         ):
             prompt_semantics = STORYBOARD_ART_PROMPT_SEMANTICS
+        if output_media_type == "image":
+            prompt_semantics = resolve_image_prompt_semantics(
+                prompt, prompt_semantics=prompt_semantics, has_images=has_images,
+            )
+        context.record_node_metric(node, "prompt_semantics", prompt_semantics)
         shaped_prompt = shape_kie_graph_prompt(
             model_key, prompt, task_mode=task_mode, max_chars=budget.get("max_chars"), prompt_semantics=prompt_semantics,
         )
@@ -398,6 +404,7 @@ class KieModelExecutor(GraphExecutor):
                 "prompt_original_chars": shaped_prompt.original_chars,
                 "prompt_submitted_chars": shaped_prompt.final_chars,
                 "prompt_shape_strategy": shaped_prompt.strategy,
+                "prompt_semantics": prompt_semantics,
             },
         )
         return ValidateRequest(

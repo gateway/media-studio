@@ -28,7 +28,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ChangeEvent, DragEvent, ReactElement } from "react";
 
 import type { AssistantPlanResponse, GraphError, GraphEstimateResponse, GraphMediaPreview, GraphWorkflowPayload } from "./types";
-import { AssistantResults, AssistantResultAttachments, AssistantRunScope, useAssistantResults } from "./assistant-results";
+import { AssistantRunEvidence } from "./assistant-run-evidence";
+import { AssistantRequestedResult, requestedResultBindings, AssistantResults, AssistantResultAttachments, AssistantRunScope, useAssistantResults } from "./assistant-results";
 import { type AssistantMode, useCreativeAssistant } from "./hooks/use-creative-assistant";
 import { isTextEntryTarget, previewFromReference } from "./utils/graph-media-preview";
 import { assistantPlanPricingLabel, graphEstimateToolbarLabel } from "./utils/graph-pricing";
@@ -726,6 +727,8 @@ export function CreativeAssistantPanel({
     sessionId: assistant.session?.assistant_session_id ?? null,
     runId: latestRunId ?? null, runStatus: latestRunStatus, workspaceKey, enabled: open,
     selectionVersion: JSON.stringify(assistant.session?.summary_json?.selected_results ?? {}),
+    requestedResults: (assistant.session?.messages ?? []).filter((message) => message.role === "assistant")
+      .flatMap((message) => requestedResultBindings(message.content_json)),
   });
   useEffect(() => {
     if (assistant.status !== "sending") {
@@ -814,6 +817,16 @@ export function CreativeAssistantPanel({
         }),
     [assistant.session?.attachments, referenceLookup],
   );
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer || !open || minimized) return;
+    // Resizing the composer changes the viewport without adding a message.
+    const observer = new ResizeObserver(() => {
+      if (followConversationRef.current) scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    });
+    observer.observe(scrollContainer);
+    return () => observer.disconnect();
+  }, [open, minimized]);
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
     if (!scrollContainer || !open || minimized || !followConversationRef.current) return;
@@ -1210,6 +1223,12 @@ export function CreativeAssistantPanel({
                   text={displayMessageText(message)}
                   normalizeLayout={message.content_json?.mode !== "assistant_kernel"}
                 />
+                {message.role === "assistant" ? <AssistantRunEvidence content={message.content_json} /> : null}
+                {message.role === "assistant" ? requestedResultBindings(message.content_json).map((binding) => (
+                  <AssistantRequestedResult key={`${binding.run_id}:${binding.artifact_id}:${binding.version}`} binding={binding}
+                    results={results} disabled={assistant.busy} onOpenPreview={onOpenPreview}
+                    onAsk={() => { messageInputRef.current?.focus(); }} />
+                )) : null}
                 {message.role === "assistant" && kernelToolActivity(message) ? (
                   <div className="graph-assistant-activity-item" role="status" aria-label="Assistant tool activity">
                     <span>{kernelToolActivity(message)}</span>
@@ -1350,7 +1369,7 @@ export function CreativeAssistantPanel({
             </section>
           ) : null}
 
-          <AssistantResults results={results} workflow={workflow} disabled={assistant.busy} onOpenPreview={onOpenPreview}
+          <AssistantResults results={results} workflow={workflow} reviewingRun={Boolean(kernelRunAction)} disabled={assistant.busy} onOpenPreview={onOpenPreview}
             onAsk={() => messageInputRef.current?.focus()} />
           {kernelPresetSaveAction ? (
             <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Media Preset save confirmation">
@@ -1394,6 +1413,8 @@ export function CreativeAssistantPanel({
 
           {kernelRunAction ? (
             <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Graph run confirmation">
+              <strong>Current run review</strong>
+              <p>This is a new run request. It has not started.</p>
               <p>{workflowName} · {graphEstimateToolbarLabel(kernelRunAction.price_estimate as GraphEstimateResponse)}</p>
               <AssistantRunScope workflow={workflow} />
               <p>Choosing Review and run submits this graph.</p>

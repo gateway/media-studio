@@ -78,7 +78,7 @@ class RunHandoffTests(unittest.TestCase):
                 workflow=GraphWorkflow(name="Confirmation proof", workflow_id="workflow-proof"), canvas_context={}, assistant_mode="graph",
             )
 
-    def message_turn(self, reply, capability="graph_builder"):
+    def message_turn(self, reply, capability="graph_builder", workflow=None):
         messages = []
         self.stack.enter_context(patch.object(kernel.store_assistant, "list_assistant_messages", return_value=messages))
         self.stack.enter_context(patch.object(kernel.store_assistant, "get_assistant_session", side_effect=lambda _: dict(self.session)))
@@ -100,10 +100,26 @@ class RunHandoffTests(unittest.TestCase):
             kernel_route.create_kernel_message(
                 session=self.session, attachments=[], payload=AssistantMessageCreateRequest(
                     content_text="Prepare a new confirmation, do not run.",
-                    workflow=GraphWorkflow(name="Confirmation proof", workflow_id="workflow-proof"), assistant_mode="graph",
+                    workflow=workflow or GraphWorkflow(name="Confirmation proof", workflow_id="workflow-proof"), assistant_mode="graph",
                 ),
             )
         return messages[-1]
+
+    def test_requested_image_survives_the_kernel_turn_without_run_or_selection(self):
+        from app.assistant import results
+        binding = {"run_id": "original-run", "artifact_id": "original", "version": "v1"}
+        steps = [
+            {"capability": "graph_builder", "tool_call": {"name": "show_run_result", "arguments": binding}},
+            {"capability": "graph_builder", "reply": "Here is the original image."},
+        ]
+        with patch.object(results, "read_run_results", return_value={"items": [{**binding, "available": True, "media_type": "image"}]}), patch.object(kernel, "run_kernel_provider_step", side_effect=steps), patch.object(results.store_assistant, "set_assistant_result_selection", side_effect=AssertionError("No selection")):
+            turn = kernel.run_assistant_kernel_turn(session=self.session, user_text="Show me the original image.", workflow=GraphWorkflow(name="Current canvas"), canvas_context={}, assistant_mode="graph")
+        self.assertEqual(turn.next_action.kind, "none")
+        self.assertEqual(turn.model_dump()["artifacts"], [{"kind": "result_display", "data": binding}])
+        with patch.object(kernel_route, "run_assistant_kernel_turn", return_value=turn):
+            saved = self.message_turn({"reply": "Ignored by patched kernel"})
+        self.assertEqual(saved["content_json"]["kernel_turn"]["artifacts"], [{"kind": "result_display", "data": binding}])
+        self.assertEqual(saved["content_json"]["next_action"]["kind"], "none")
 
     def test_new_graph_proposal_retires_only_an_unused_recipe_offer(self):
         from app.assistant.schemas import AssistantKernelTurnResult, AssistantKernelTrace, AssistantNextAction
@@ -166,6 +182,35 @@ class RunHandoffTests(unittest.TestCase):
         self.assertEqual(message["content_json"]["next_action"]["kind"], "none")
         self.assertIn("pricing", message["content_text"].lower())
         self.assertNotIn("Ready for review", message["content_text"])
+
+    def test_prompt_preflight_blocks_a_ready_reply_and_confirmation_token(self):
+        from types import SimpleNamespace
+        from app.graph.executors import kie_model
+        workflow = GraphWorkflow.model_validate({"name": "Invalid new storyboard", "nodes": [
+            {"id": "image", "type": "model.kie.test", "fields": {"prompt": "Create a storyboard. PANEL COUNT: 6"}},
+        ]})
+        definition = SimpleNamespace(source={"model_key": "gpt-image-2", "task_modes": ["text_to_image"],
+            "output_media_type": "image"}, fields=[SimpleNamespace(id="prompt")])
+        with patch.object(kie_model.registry, "get_definition", return_value=definition), patch(
+            "app.graph.normalization.materialize_workflow_defaults", side_effect=lambda w: w
+        ), patch("app.service_prompt_budget.model_prompt_max_chars", return_value=20000), patch(
+            "app.service.submit_jobs", side_effect=AssertionError("Submission forbidden")
+        ), patch.object(kernel, "estimate_graph_workflow", return_value=SimpleNamespace(model_dump=lambda **_: {
+            "pricing_summary": {"has_unknown_pricing": False}})):
+            message = self.message_turn({"reply": "Ready to generate.", "requested_action": {
+                "kind": "run_workflow", "requires_confirmation": True}}, workflow=workflow)
+        self.assertEqual(message["content_json"]["next_action"]["kind"], "none")
+        self.assertIn("panel sequence is empty", message["content_text"])
+        self.assertIsNone(self.session["summary_json"]["kernel_run_confirmation"])
+
+    def test_pending_preflight_is_not_presented_as_confirmed_ready(self):
+        with patch.object(kernel_route, "review_workflow_generation", return_value={
+            "status": "pending", "nodes": [{"node_id": "image", "status": "pending"}], "provider_submitted": False,
+        }):
+            message = self.message_turn({"reply": "All ready."})
+        self.assertEqual(message["content_json"]["next_action"]["payload"]["generation_readiness"]["status"], "pending")
+        self.assertIn("not yet confirmed ready", message["content_text"])
+        self.assertNotIn("All ready", message["content_text"])
 
     def test_saved_recipe_and_preset_confirmations_keep_their_kind(self):
         workflow = GraphWorkflow(name="Confirmation proof", workflow_id="workflow-proof")
