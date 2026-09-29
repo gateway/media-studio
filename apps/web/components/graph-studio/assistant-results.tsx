@@ -17,31 +17,55 @@ type Results = {
   selected_result_bindings: Record<string, { run_id: string; version: string }>;
 };
 
-export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey, selectionVersion = '{}', enabled }: {
+type RequestedResult = Pick<Result, 'run_id' | 'artifact_id' | 'version'>;
+
+export function requestedResultBindings(content: Record<string, unknown> | undefined): RequestedResult[] {
+  const turn = content?.kernel_turn as { artifacts?: { kind?: string; data?: Partial<RequestedResult> }[] } | undefined;
+  if (!Array.isArray(turn?.artifacts)) return [];
+  return turn.artifacts.flatMap((artifact) => {
+    const data = artifact?.data;
+    return artifact?.kind === 'result_display' && data && typeof data.run_id === 'string'
+      && typeof data.artifact_id === 'string' && typeof data.version === 'string'
+      ? [{ run_id: data.run_id, artifact_id: data.artifact_id, version: data.version }] : [];
+  });
+}
+
+export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey, selectionVersion = '{}', requestedResults = [], enabled }: {
   sessionId: string | null; runId: string | null; runStatus?: string | null; workspaceKey: string; selectionVersion?: string;
-  enabled: boolean;
+  enabled: boolean; requestedResults?: RequestedResult[];
 }) {
-  const key = `${workspaceKey}:${sessionId}:${runId}`;
+  const requestedKey = JSON.stringify(requestedResults);
+  const key = `${workspaceKey}:${sessionId}:${runId}:${requestedKey}`;
   const activeKey = useRef(key);
   activeKey.current = key;
-  const [state, setState] = useState<{ key: string; data?: Results; items?: Result[]; error?: string }>({ key });
+  const [state, setState] = useState<{ key: string; data?: Results; items?: Result[]; resultErrors?: Record<string, string>; error?: string }>({ key });
   const [selecting, setSelecting] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const requestVersion = useRef(0);
   useEffect(() => {
-    if (!enabled || !sessionId || !runId || selecting) return;
+    const primaryRunId = runId || requestedResults[0]?.run_id;
+    if (!enabled || !sessionId || !primaryRunId || selecting) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const version = ++requestVersion.current;
     async function refresh() {
       try {
         const readRun = (id: string) => jsonFetch<Results>(`/api/control/media/assistant/sessions/${encodeURIComponent(sessionId!)}/runs/${encodeURIComponent(id)}/results`);
-        const currentRun = await readRun(runId!);
+        const currentRun = await readRun(primaryRunId);
         // Read authoritative bindings: the parent session can lag behind local attachment changes.
-        const otherRunIds = [...new Set(Object.values(currentRun.selected_result_bindings).map((binding) => binding.run_id))].filter((id) => id !== runId);
-        const runs = [currentRun, ...await Promise.all(otherRunIds.map(readRun))];
+        const otherRunIds = [...new Set([
+          ...Object.values(currentRun.selected_result_bindings).map((binding) => binding.run_id),
+          ...requestedResults.map((binding) => binding.run_id),
+        ])].filter((id) => id !== primaryRunId);
+        const reads = await Promise.allSettled(otherRunIds.map(readRun));
+        const runs = [currentRun];
+        const resultErrors: Record<string, string> = {};
+        reads.forEach((read, index) => {
+          if (read.status === 'fulfilled') runs.push(read.value);
+          else resultErrors[otherRunIds[index]] = 'This image could not be loaded. Ask to show it again or choose another result.';
+        });
         if (!cancelled && requestVersion.current === version) {
-          setState({ key, data: runs[0], items: runs.flatMap((run) => run.items) });
+          setState({ key, data: runs[0], items: runs.flatMap((run) => run.items), resultErrors });
           if (['queued', 'pending', 'running'].includes(runs[0].status)) timer = setTimeout(() => void refresh(), 3000);
         }
       } catch (error) {
@@ -50,7 +74,7 @@ export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey,
     }
     void refresh();
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [key, sessionId, runId, runStatus, revision, selectionVersion, selecting, enabled]);
+  }, [key, sessionId, runId, runStatus, revision, selectionVersion, selecting, enabled, requestedKey]);
   const data = state.key === key ? state.data : undefined;
   const error = state.key === key ? state.error : undefined;
   async function select(item: Result, selected: boolean) {
@@ -62,7 +86,7 @@ export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey,
         method: 'POST', body: JSON.stringify({ run_id: item.run_id, artifact_id: item.artifact_id, version: item.version, selected }),
       });
       if (activeKey.current !== key) return false;
-      setState((current) => ({ ...current, error: undefined, data: current.data ? { ...current.data, selected_artifact_ids: next.selected_artifact_ids } : undefined }));
+      setState((current) => ({ ...current, error: undefined, data: current.data ? { ...current.data, selected_artifact_ids: next.selected_artifact_ids, selected_result_bindings: next.selected_result_bindings } : undefined }));
       return true;
     } catch (failure) {
       if (activeKey.current === key) setState((current) => ({ ...current, error: (failure as Error).message }));
@@ -70,7 +94,8 @@ export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey,
     } finally { setSelecting(null); }
   }
   return {
-    data, error, select, busy: Boolean(selecting), visible: Boolean(sessionId && runId),
+    data, error, select, items: state.key === key ? state.items ?? [] : [],
+    resultErrors: state.key === key ? state.resultErrors ?? {} : {}, busy: Boolean(selecting), visible: Boolean(sessionId && runId),
     status: runStatus ?? data?.status,
     active: ['queued', 'pending', 'running'].includes(runStatus ?? data?.status ?? ''),
     selectedItems: (state.key === key ? state.items ?? [] : []).filter((item) => data?.selected_artifact_ids.includes(item.artifact_id)),
@@ -126,7 +151,18 @@ export function AssistantResults({ results, workflow, disabled, onOpenPreview, o
     {error ? <div className="graph-assistant-card-actions"><p role="alert">{error}</p><button type="button" disabled={results.busy || disabled} onClick={results.retry}>Try loading results again</button></div> : null}
     {completed ? outputs.map((item, index) => {
       const selected = data.selected_artifact_ids.includes(item.artifact_id);
-      return <article key={item.artifact_id} aria-label={`Result ${index + 1}: ${item.node_title}`}>
+      return <AssistantResultCard key={item.artifact_id} item={item} index={index} selected={selected}
+        disabled={results.busy || disabled} onSelect={(value) => results.select(value, true)} onAsk={onAsk} onOpenPreview={onOpenPreview} />; }) : null}
+  </section>;
+}
+
+
+function AssistantResultCard({ item, index = 0, selected, disabled, onSelect, onAsk, onOpenPreview }: {
+  item: Result; index?: number; selected: boolean; disabled: boolean;
+  onSelect: (item: Result) => Promise<boolean>; onAsk: () => void;
+  onOpenPreview?: (preview: GraphMediaPreview) => void;
+}) {
+  return <article aria-label={`Result ${index + 1}: ${item.node_title}`}>
       <p><strong>{index + 1}. {item.node_title}</strong> · {item.output_port} {item.output_index + 1}</p>
       {item.text != null ? <details><summary>Read completed text</summary><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.text}</pre></details> : null}
       {item.available && item.url && item.media_type === 'image' ? <button
@@ -138,13 +174,28 @@ export function AssistantResults({ results, workflow, disabled, onOpenPreview, o
       {item.available && item.url && item.media_type === 'audio' ? <audio src={item.url} controls preload="metadata" /> : null}
       {!item.available ? <p>{item.blocker}</p> : null}
       <div className="graph-assistant-card-actions">
-        <button type="button" disabled={!item.available || selected || results.busy || disabled}
+        <button type="button" disabled={!item.available || selected || disabled}
           aria-label={`${selected ? 'In this conversation' : 'Use in chat'} — ${item.node_title}`}
-          onClick={async () => { if (await results.select(item, true)) onAsk(); }}>
+          onClick={async () => { if (await onSelect(item)) onAsk(); }}>
           {selected ? 'In this conversation' : 'Use in chat'}
         </button>
       </div>
-    </article>; }) : null}
+    </article>;
+}
+
+export function AssistantRequestedResult({ binding, results, disabled, onAsk, onOpenPreview }: {
+  binding: RequestedResult; results: ResultController; disabled: boolean; onAsk: () => void;
+  onOpenPreview?: (preview: GraphMediaPreview) => void;
+}) {
+  const item = results.items.find((value) => value.run_id === binding.run_id && value.artifact_id === binding.artifact_id);
+  const error = results.resultErrors[binding.run_id] || results.error;
+  if (!results.data && !error) return <p role="status">Loading requested image…</p>;
+  if (error || !item || !item.available || item.version !== binding.version || item.media_type !== 'image') {
+    return <p role="alert">This exact image is unavailable or changed. Ask to show it again or choose another result; nothing will regenerate.</p>;
+  }
+  return <section aria-label="Requested image">
+    <AssistantResultCard item={item} selected={Boolean(results.data?.selected_artifact_ids.includes(item.artifact_id))}
+      disabled={disabled || results.busy} onSelect={(value) => results.select(value, true)} onAsk={onAsk} onOpenPreview={onOpenPreview} />
   </section>;
 }
 

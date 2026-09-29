@@ -139,5 +139,39 @@ class ResultTests(unittest.TestCase):
         self.assertEqual(failure.exception.status_code, 409)
 
 
+
+    def image_display(self, **overrides):
+        from app.assistant import kernel_tools
+        self.artifacts = [{**self.artifacts[0], 'artifact_id': 'original-image', 'kind': 'asset',
+                           'media_type': 'image', 'asset_id': 'original-asset', 'value_json': {}}]
+        self.stack.enter_context(patch.object(results, 'artifact_version', return_value=(
+            'original-version', results.settings.data_root.resolve() / 'original.png')))
+        return kernel_tools.execute_kernel_tool(
+            tool_name='show_run_result', capability='graph_builder',
+            arguments={'run_id': 'run-a', 'artifact_id': 'original-image', 'version': 'original-version', **overrides},
+            context=kernel_tools.KernelToolContext(workflow=None, canvas_context={}, session_id='session-a', session=self.session),
+        )
+
+    def test_display_returns_exact_binding_without_selecting_or_analyzing(self):
+        with patch.object(results.store_assistant, 'set_assistant_result_selection', side_effect=AssertionError('Selection forbidden')):
+            execution = self.image_display()
+        self.assertIsNone(execution.trace.error, execution.trace.error)
+        self.assertEqual(execution.result, {'run_id': 'run-a', 'artifact_id': 'original-image', 'version': 'original-version'})
+        self.assertEqual(self.session['summary_json'], {})
+
+    def test_display_rejects_stale_missing_or_foreign_results(self):
+        for overrides in [{'version': 'changed'}, {'artifact_id': 'missing'}]:
+            with self.subTest(overrides=overrides):
+                execution = self.image_display(**overrides)
+                self.assertIsNotNone(execution.trace.error)
+                self.assertIsNone(execution.result)
+        self.run['workflow_id'] = 'other-graph'
+        self.assertIsNotNone(self.image_display().trace.error)
+
+    def test_display_rejects_unavailable_media(self):
+        with patch.object(results.store, 'list_graph_run_nodes', return_value=[{'node_id': 'direction', 'status': 'failed'}]):
+            self.assertIsNotNone(self.image_display().trace.error)
+
+
 if __name__ == '__main__':
     unittest.main()

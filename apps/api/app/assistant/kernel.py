@@ -192,6 +192,9 @@ def _kernel_instruction() -> str:
         "When attached reference images matter, call analyze_reference_images and ground the reply in its typed evidence. "
         "For a requested edit or reuse of selected media, use graph_builder and follow its selected-media instructions: recover "
         "the exact source with inspect_generation evidence source before proposing supported changes. Selection alone is not an edit request. "
+        "For requests to show an existing image, use show_run_result with its exact run/artifact/version from selected_results "
+        "or read_run_results. It displays a usable preview card; do not return image Markdown or file paths. Showing an image "
+        "does not require selection or visual analysis. If its identity is ambiguous, ask one focused question. "
         "For read-only review of existing graph outputs, use graph_builder with artifact_intent none: read_run_results, "
         "then inspect_selected_result with the exact artifact ID and version. UI selections are in session_context.selected_results; "
         "select_run_result may select other artifacts the user explicitly asked to inspect. Read all relevant text chunks using "
@@ -1216,6 +1219,7 @@ def run_assistant_kernel_turn(
                 "propose_production_plan": "production_plan",
                 "update_production_plan_step": "production_plan_update",
                 "read_run_evidence": "run_evidence",
+                "show_run_result": "result_display",
             }.get(step.tool_call.name)
             if execution.result is not None and artifact_kind:
                 artifacts.append(

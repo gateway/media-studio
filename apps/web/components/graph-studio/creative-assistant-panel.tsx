@@ -28,7 +28,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ChangeEvent, DragEvent, ReactElement } from "react";
 
 import type { AssistantPlanResponse, GraphError, GraphEstimateResponse, GraphMediaPreview, GraphWorkflowPayload } from "./types";
-import { AssistantResults, AssistantResultAttachments, AssistantRunScope, useAssistantResults } from "./assistant-results";
+import { AssistantRequestedResult, requestedResultBindings, AssistantResults, AssistantResultAttachments, AssistantRunScope, useAssistantResults } from "./assistant-results";
 import { type AssistantMode, useCreativeAssistant } from "./hooks/use-creative-assistant";
 import { isTextEntryTarget, previewFromReference } from "./utils/graph-media-preview";
 import { assistantPlanPricingLabel, graphEstimateToolbarLabel } from "./utils/graph-pricing";
@@ -726,6 +726,8 @@ export function CreativeAssistantPanel({
     sessionId: assistant.session?.assistant_session_id ?? null,
     runId: latestRunId ?? null, runStatus: latestRunStatus, workspaceKey, enabled: open,
     selectionVersion: JSON.stringify(assistant.session?.summary_json?.selected_results ?? {}),
+    requestedResults: (assistant.session?.messages ?? []).filter((message) => message.role === "assistant")
+      .flatMap((message) => requestedResultBindings(message.content_json)),
   });
   useEffect(() => {
     if (assistant.status !== "sending") {
@@ -1220,6 +1222,11 @@ export function CreativeAssistantPanel({
                   text={displayMessageText(message)}
                   normalizeLayout={message.content_json?.mode !== "assistant_kernel"}
                 />
+                {message.role === "assistant" ? requestedResultBindings(message.content_json).map((binding) => (
+                  <AssistantRequestedResult key={`${binding.run_id}:${binding.artifact_id}:${binding.version}`} binding={binding}
+                    results={results} disabled={assistant.busy} onOpenPreview={onOpenPreview}
+                    onAsk={() => { messageInputRef.current?.focus(); }} />
+                )) : null}
                 {message.role === "assistant" && kernelToolActivity(message) ? (
                   <div className="graph-assistant-activity-item" role="status" aria-label="Assistant tool activity">
                     <span>{kernelToolActivity(message)}</span>

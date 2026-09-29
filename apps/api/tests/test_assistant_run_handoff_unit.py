@@ -105,6 +105,22 @@ class RunHandoffTests(unittest.TestCase):
             )
         return messages[-1]
 
+    def test_requested_image_survives_the_kernel_turn_without_run_or_selection(self):
+        from app.assistant import results
+        binding = {"run_id": "original-run", "artifact_id": "original", "version": "v1"}
+        steps = [
+            {"capability": "graph_builder", "tool_call": {"name": "show_run_result", "arguments": binding}},
+            {"capability": "graph_builder", "reply": "Here is the original image."},
+        ]
+        with patch.object(results, "read_run_results", return_value={"items": [{**binding, "available": True, "media_type": "image"}]}), patch.object(kernel, "run_kernel_provider_step", side_effect=steps), patch.object(results.store_assistant, "set_assistant_result_selection", side_effect=AssertionError("No selection")):
+            turn = kernel.run_assistant_kernel_turn(session=self.session, user_text="Show me the original image.", workflow=GraphWorkflow(name="Current canvas"), canvas_context={}, assistant_mode="graph")
+        self.assertEqual(turn.next_action.kind, "none")
+        self.assertEqual(turn.model_dump()["artifacts"], [{"kind": "result_display", "data": binding}])
+        with patch.object(kernel_route, "run_assistant_kernel_turn", return_value=turn):
+            saved = self.message_turn({"reply": "Ignored by patched kernel"})
+        self.assertEqual(saved["content_json"]["kernel_turn"]["artifacts"], [{"kind": "result_display", "data": binding}])
+        self.assertEqual(saved["content_json"]["next_action"]["kind"], "none")
+
     def test_new_graph_proposal_retires_only_an_unused_recipe_offer(self):
         from app.assistant.schemas import AssistantKernelTurnResult, AssistantKernelTrace, AssistantNextAction
         for state in ["offered", "awaiting_save", "returning"]:

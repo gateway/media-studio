@@ -220,3 +220,20 @@ def read_results_tool(arguments: ReadResultsArguments, context: Any) -> dict:
 def select_result_tool(arguments: ResultSelection, context: Any) -> dict:
     response = select_run_result(str(context.session_id or ''), arguments)
     return {'selected_artifact_ids': response['selected_artifact_ids'], 'run_id': response['run_id']}
+
+
+class ShowResultArguments(BaseModel):
+    run_id: str = Field(min_length=1, max_length=120)
+    artifact_id: str = Field(min_length=1, max_length=120)
+    version: str = Field(min_length=1, max_length=64)
+
+
+def show_result_tool(arguments: ShowResultArguments, context: Any) -> dict:
+    """Bind a reply card to an owned image without selecting or analyzing it."""
+    response = read_run_results(str(context.session_id or ''), arguments.run_id)
+    item = next((item for item in response['items'] if item['artifact_id'] == arguments.artifact_id), None)
+    if not item or not item['available'] or item['version'] != arguments.version:
+        raise HTTPException(status_code=409, detail='That exact image is unavailable or changed. Read results again or choose another image; nothing will regenerate.')
+    if item['media_type'] != 'image':
+        raise HTTPException(status_code=400, detail='Choose an image result to display.')
+    return arguments.model_dump()

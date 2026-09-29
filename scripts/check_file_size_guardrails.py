@@ -86,9 +86,11 @@ GUARDRAILS = (
 # through existing session-owned inspection; no new storage or execution authority.
 # Storyboard edit preflight: +52 reviewed lines reuse generation inspection for
 # confirmation readiness; no new storage/execution authority. Exact measured cap.
+# Requested image cards: +23 lines bind existing owned image results to reply
+# artifacts; reuse card/selection owners, no new storage or execution authority.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_922,
+    12_945,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 
