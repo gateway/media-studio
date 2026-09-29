@@ -24,6 +24,7 @@ AssistantKernelCapability = Literal[
 ]
 AssistantArtifactIntent = Literal[
     "none",
+    "display_image",
     "draft_preset",
     "revise_preset",
     "save_preset",

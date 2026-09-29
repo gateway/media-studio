@@ -49,6 +49,7 @@ def test_kernel_provider_schema_preserves_nonempty_tool_arguments(app_modules) -
     assert json.loads(step.tool_call.arguments) == {"query": "oil painting", "limit": 12}
     assert schemas.AssistantKernelProviderStep.model_json_schema()["properties"]["artifact_intent"]["enum"] == [
         "none",
+        "display_image",
         "draft_preset",
         "revise_preset",
         "save_preset",
