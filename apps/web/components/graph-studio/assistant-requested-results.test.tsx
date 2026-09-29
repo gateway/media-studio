@@ -8,8 +8,8 @@ const original = { ...binding, node_title: 'Original storyboard', output_port: '
 const response = { run_id: 'current-run', status: 'completed', items: [{ ...original, run_id: 'current-run', artifact_id: 'nighttime', url: '/nighttime.png' }], selected_artifact_ids: [], selected_result_bindings: {} };
 const reply = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 const onAsk = vi.fn(); const onPreview = vi.fn();
-function Harness({ session = 'session', runId = 'current-run' as string | null }) {
-  const results = useAssistantResults({ sessionId: session, runId, workspaceKey: session, enabled: true, requestedResults: [binding] });
+function Harness({ session = 'session', runId = 'current-run' as string | null, requested = [binding] }) {
+  const results = useAssistantResults({ sessionId: session, runId, workspaceKey: session, enabled: true, requestedResults: requested });
   return <AssistantRequestedResult binding={binding} results={results} disabled={false} onAsk={onAsk} onOpenPreview={onPreview} />;
 }
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
@@ -18,7 +18,7 @@ it('displays the exact historical image and selects it only on explicit action',
   let selected = false;
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === 'POST') { expect(JSON.parse(String(init.body))).toEqual({ ...binding, selected: true }); selected = true; }
-    return reply({ ...response, items: url.includes('original-run') ? [original] : response.items,
+    return reply({ ...response, run_id: url.includes('original-run') ? 'original-run' : response.run_id, items: url.includes('original-run') ? [original] : response.items,
       selected_artifact_ids: selected ? ['original'] : [], selected_result_bindings: selected ? { original: binding } : {} });
   });
   vi.stubGlobal('fetch', fetcher); render(<Harness />);
@@ -56,4 +56,27 @@ it('accepts only typed display artifacts, not raw image Markdown or arbitrary UR
   expect(requestedResultBindings({ kernel_turn: { artifacts: [{ kind: 'result_display', data: binding }] } })).toEqual([binding]);
   expect(requestedResultBindings({ kernel_turn: { artifacts: [{ kind: 'result_display', data: { url: 'https://example.test/a.png' } }] } })).toEqual([]);
   expect(requestedResultBindings({ reply: '![image](/image.png)' })).toEqual([]);
+});
+
+it('allows selecting the displayed version when an older version is attached', async () => {
+  let selected = false;
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    if (init?.method === 'POST') { expect(JSON.parse(String(init.body))).toEqual({ ...binding, selected: true }); selected = true; }
+    return reply({ ...response, run_id: url.includes('original-run') ? 'original-run' : response.run_id, items: url.includes('original-run') ? [original] : response.items,
+      selected_artifact_ids: ['original'], selected_result_bindings: { original: { run_id: binding.run_id, version: selected ? binding.version : 'older' } } });
+  }));
+  render(<Harness />);
+  const use = await screen.findByRole('button', { name: 'Use in chat — Original storyboard' });
+  expect(use).toHaveProperty('disabled', false); fireEvent.click(use);
+  expect(await screen.findByRole('button', { name: 'In this conversation — Original storyboard' })).toHaveProperty('disabled', true);
+  expect(onAsk).toHaveBeenCalledOnce();
+});
+
+it.each(['current-run', null])('isolates an unavailable primary run (%s) from a valid requested image', async (runId) => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => url.includes('original-run')
+    ? reply({ ...response, run_id: binding.run_id, items: [original] })
+    : new Response(JSON.stringify({ detail: 'Run unavailable' }), { status: 404 })));
+  render(<Harness runId={runId} requested={[{ ...binding, run_id: 'missing-run' }, binding]} />);
+  expect(await screen.findByRole('img')).toHaveProperty('src', 'http://localhost:3000/original.png');
+  expect(screen.getByRole('button', { name: 'Use in chat — Original storyboard' })).toHaveProperty('disabled', false);
 });

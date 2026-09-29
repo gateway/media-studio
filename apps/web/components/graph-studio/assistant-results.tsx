@@ -38,7 +38,7 @@ export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey,
   const key = `${workspaceKey}:${sessionId}:${runId}:${requestedKey}`;
   const activeKey = useRef(key);
   activeKey.current = key;
-  const [state, setState] = useState<{ key: string; data?: Results; items?: Result[]; resultErrors?: Record<string, string>; error?: string }>({ key });
+  const [state, setState] = useState<{ key: string; data?: Results; loaded?: boolean; selectionBindings?: Results['selected_result_bindings']; items?: Result[]; resultErrors?: Record<string, string>; error?: string }>({ key });
   const [selecting, setSelecting] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const requestVersion = useRef(0);
@@ -51,22 +51,30 @@ export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey,
     async function refresh() {
       try {
         const readRun = (id: string) => jsonFetch<Results>(`/api/control/media/assistant/sessions/${encodeURIComponent(sessionId!)}/runs/${encodeURIComponent(id)}/results`);
-        const currentRun = await readRun(primaryRunId);
-        // Read authoritative bindings: the parent session can lag behind local attachment changes.
-        const otherRunIds = [...new Set([
-          ...Object.values(currentRun.selected_result_bindings).map((binding) => binding.run_id),
-          ...requestedResults.map((binding) => binding.run_id),
-        ])].filter((id) => id !== primaryRunId);
-        const reads = await Promise.allSettled(otherRunIds.map(readRun));
-        const runs = [currentRun];
+        const runIds = [...new Set([primaryRunId, ...requestedResults.map((binding) => binding.run_id)])];
+        const runs: Results[] = [];
+        let currentRun: Results | undefined;
         const resultErrors: Record<string, string> = {};
-        reads.forEach((read, index) => {
-          if (read.status === 'fulfilled') runs.push(read.value);
-          else resultErrors[otherRunIds[index]] = 'This image could not be loaded. Ask to show it again or choose another result.';
-        });
+        async function readRuns(ids: string[]) {
+          const reads = await Promise.allSettled(ids.map(readRun));
+          reads.forEach((read, index) => {
+            if (read.status === 'fulfilled') {
+              runs.push(read.value);
+              if (ids[index] === primaryRunId) currentRun = read.value;
+            }
+            else resultErrors[ids[index]] = (read.reason as Error).message;
+          });
+        }
+        await readRuns(runIds);
+        // Any successful response carries authoritative session selection bindings.
+        const selectionBindings = runs[0]?.selected_result_bindings ?? {};
+        const selectedRunIds = [...new Set(Object.values(selectionBindings).map((binding) => binding.run_id))]
+          .filter((id) => !runIds.includes(id));
+        await readRuns(selectedRunIds);
         if (!cancelled && requestVersion.current === version) {
-          setState({ key, data: runs[0], items: runs.flatMap((run) => run.items), resultErrors });
-          if (['queued', 'pending', 'running'].includes(runs[0].status)) timer = setTimeout(() => void refresh(), 3000);
+          setState({ key, data: currentRun, loaded: true, selectionBindings,
+            items: runs.flatMap((run) => run.items), resultErrors, error: resultErrors[primaryRunId] });
+          if (['queued', 'pending', 'running'].includes(runStatus ?? currentRun?.status ?? '')) timer = setTimeout(() => void refresh(), 3000);
         }
       } catch (error) {
         if (!cancelled && requestVersion.current === version) setState((current) => ({ ...(current.key === key ? current : { key }), error: (error as Error).message }));
@@ -86,7 +94,7 @@ export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey,
         method: 'POST', body: JSON.stringify({ run_id: item.run_id, artifact_id: item.artifact_id, version: item.version, selected }),
       });
       if (activeKey.current !== key) return false;
-      setState((current) => ({ ...current, error: undefined, data: current.data ? { ...current.data, selected_artifact_ids: next.selected_artifact_ids, selected_result_bindings: next.selected_result_bindings } : undefined }));
+      setState((current) => ({ ...current, error: undefined, selectionBindings: next.selected_result_bindings, data: current.data ? { ...current.data, selected_artifact_ids: next.selected_artifact_ids, selected_result_bindings: next.selected_result_bindings } : undefined }));
       return true;
     } catch (failure) {
       if (activeKey.current === key) setState((current) => ({ ...current, error: (failure as Error).message }));
@@ -94,7 +102,8 @@ export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey,
     } finally { setSelecting(null); }
   }
   return {
-    data, error, select, items: state.key === key ? state.items ?? [] : [],
+    data, error, select, loaded: state.key === key && state.loaded,
+    selectionBindings: state.key === key ? state.selectionBindings ?? {} : {}, items: state.key === key ? state.items ?? [] : [],
     resultErrors: state.key === key ? state.resultErrors ?? {} : {}, busy: Boolean(selecting), visible: Boolean(sessionId && runId),
     status: runStatus ?? data?.status,
     active: ['queued', 'pending', 'running'].includes(runStatus ?? data?.status ?? ''),
@@ -188,13 +197,14 @@ export function AssistantRequestedResult({ binding, results, disabled, onAsk, on
   onOpenPreview?: (preview: GraphMediaPreview) => void;
 }) {
   const item = results.items.find((value) => value.run_id === binding.run_id && value.artifact_id === binding.artifact_id);
-  const error = results.resultErrors[binding.run_id] || results.error;
-  if (!results.data && !error) return <p role="status">Loading requested image…</p>;
+  const error = results.resultErrors[binding.run_id];
+  if (!results.loaded && !error) return <p role="status">Loading requested image…</p>;
   if (error || !item || !item.available || item.version !== binding.version || item.media_type !== 'image') {
     return <p role="alert">This exact image is unavailable or changed. Ask to show it again or choose another result; nothing will regenerate.</p>;
   }
+  const selectedBinding = results.selectionBindings[item.artifact_id];
   return <section aria-label="Requested image">
-    <AssistantResultCard item={item} selected={Boolean(results.data?.selected_artifact_ids.includes(item.artifact_id))}
+    <AssistantResultCard item={item} selected={selectedBinding?.run_id === item.run_id && selectedBinding.version === item.version}
       disabled={disabled || results.busy} onSelect={(value) => results.select(value, true)} onAsk={onAsk} onOpenPreview={onOpenPreview} />
   </section>;
 }
