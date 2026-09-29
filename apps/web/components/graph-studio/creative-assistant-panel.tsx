@@ -28,6 +28,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ChangeEvent, DragEvent, ReactElement } from "react";
 
 import type { AssistantPlanResponse, GraphError, GraphEstimateResponse, GraphMediaPreview, GraphWorkflowPayload } from "./types";
+import { AssistantRunEvidence } from "./assistant-run-evidence";
 import { AssistantRequestedResult, requestedResultBindings, AssistantResults, AssistantResultAttachments, AssistantRunScope, useAssistantResults } from "./assistant-results";
 import { type AssistantMode, useCreativeAssistant } from "./hooks/use-creative-assistant";
 import { isTextEntryTarget, previewFromReference } from "./utils/graph-media-preview";
@@ -1222,6 +1223,7 @@ export function CreativeAssistantPanel({
                   text={displayMessageText(message)}
                   normalizeLayout={message.content_json?.mode !== "assistant_kernel"}
                 />
+                {message.role === "assistant" ? <AssistantRunEvidence content={message.content_json} /> : null}
                 {message.role === "assistant" ? requestedResultBindings(message.content_json).map((binding) => (
                   <AssistantRequestedResult key={`${binding.run_id}:${binding.artifact_id}:${binding.version}`} binding={binding}
                     results={results} disabled={assistant.busy} onOpenPreview={onOpenPreview}
@@ -1367,7 +1369,7 @@ export function CreativeAssistantPanel({
             </section>
           ) : null}
 
-          <AssistantResults results={results} workflow={workflow} disabled={assistant.busy} onOpenPreview={onOpenPreview}
+          <AssistantResults results={results} workflow={workflow} reviewingRun={Boolean(kernelRunAction)} disabled={assistant.busy} onOpenPreview={onOpenPreview}
             onAsk={() => messageInputRef.current?.focus()} />
           {kernelPresetSaveAction ? (
             <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Media Preset save confirmation">
@@ -1411,6 +1413,8 @@ export function CreativeAssistantPanel({
 
           {kernelRunAction ? (
             <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Graph run confirmation">
+              <strong>Current run review</strong>
+              <p>This is a new run request. It has not started.</p>
               <p>{workflowName} · {graphEstimateToolbarLabel(kernelRunAction.price_estimate as GraphEstimateResponse)}</p>
               <AssistantRunScope workflow={workflow} />
               <p>Choosing Review and run submits this graph.</p>

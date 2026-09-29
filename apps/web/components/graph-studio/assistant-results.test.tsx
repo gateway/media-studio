@@ -9,9 +9,9 @@ const reference = { ...image, artifact_id: 'reference', node_type: 'media.load_i
 const text = { artifact_id: 'text', run_id: 'run-a', node_type: 'prompt.recipe', node_title: 'Recipe', output_port: 'text', output_index: 0, text: 'Complete recipe prompt', available: true, version: 'v2' };
 const response = { run_id: 'run-a', workflow_name: 'Commercial', status: 'completed', items: [reference, text, image, { ...image, artifact_id: 'preview', node_type: 'preview.image' }], selected_artifact_ids: [] as string[], selected_result_bindings: {} };
 const onAsk = vi.fn();
-function Harness({ status, workspace = 'a', graph = workflow }: { status?: string; workspace?: string; graph?: GraphWorkflowPayload }) {
+function Harness({ status, workspace = 'a', graph = workflow, reviewingRun = false }: { status?: string; workspace?: string; graph?: GraphWorkflowPayload; reviewingRun?: boolean }) {
   const results = useAssistantResults({ sessionId: 's-' + workspace, runId: 'run-' + workspace, runStatus: status, workspaceKey: workspace, enabled: true });
-  return <><AssistantResults results={results} workflow={graph} disabled={false} onAsk={onAsk} onOpenPreview={vi.fn()} /><AssistantResultAttachments results={results} disabled={false} /></>;
+  return <><AssistantResults results={results} workflow={graph} reviewingRun={reviewingRun} disabled={false} onAsk={onAsk} onOpenPreview={vi.fn()} /><AssistantResultAttachments results={results} disabled={false} /></>;
 }
 const reply = (value: unknown) => new Response(JSON.stringify(value), { status: 200 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
@@ -96,4 +96,16 @@ it('explains selection, shows its count, and removes context without deleting me
   expect(writes.map(([url]) => url)).toEqual(['/api/control/media/assistant/sessions/s-a/results/selection', '/api/control/media/assistant/sessions/s-a/results/selection']);
   expect(JSON.parse(String(writes[1][1]?.body))).toEqual({ run_id: 'run-a', artifact_id: 'image', version: 'v1', selected: false });
   expect(screen.getByRole('button', { name: 'Use in chat — Finished storyboard' })).toHaveProperty('disabled', false);
+});
+
+it('identifies a failed run separately from a new run review without hiding its error', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => reply({ ...response, status: 'failed', error: 'Earlier prompt rejected.' })));
+  const view = render(<Harness status="failed" reviewingRun />);
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Earlier prompt rejected.');
+  expect(screen.getByText('Previous run failed')).toBeTruthy();
+  expect(screen.getByText('run-a')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /Review and run/ })).toBeNull();
+  view.rerender(<Harness status="failed" />);
+  expect(screen.getByText('Generation failed')).toBeTruthy();
+  expect(screen.queryByText(/current run review below/)).toBeNull();
 });

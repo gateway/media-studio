@@ -102,7 +102,7 @@ export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey,
     } finally { setSelecting(null); }
   }
   return {
-    data, error, select, loaded: state.key === key && state.loaded,
+    data, error, select, runId, loaded: state.key === key && state.loaded,
     selectionBindings: state.key === key ? state.selectionBindings ?? {} : {}, items: state.key === key ? state.items ?? [] : [],
     resultErrors: state.key === key ? state.resultErrors ?? {} : {}, busy: Boolean(selecting), visible: Boolean(sessionId && runId),
     status: runStatus ?? data?.status,
@@ -114,9 +114,9 @@ export function useAssistantResults({ sessionId, runId, runStatus, workspaceKey,
 
 type ResultController = ReturnType<typeof useAssistantResults>;
 
-export function AssistantResults({ results, workflow, disabled, onOpenPreview, onAsk }: {
+export function AssistantResults({ results, workflow, reviewingRun = false, disabled, onOpenPreview, onAsk }: {
   workflow: GraphWorkflowPayload;
-  results: ResultController; disabled: boolean;
+  results: ResultController; disabled: boolean; reviewingRun?: boolean;
   onOpenPreview?: (preview: GraphMediaPreview) => void;
   onAsk: () => void;
 }) {
@@ -151,9 +151,11 @@ export function AssistantResults({ results, workflow, disabled, onOpenPreview, o
   });
   return <section className="graph-assistant-message graph-assistant-message-assistant graph-assistant-results" aria-label="Run results">
     <strong>{completed ? (storyboard ? 'Your storyboard is ready' : 'Your results are ready')
-      : results.status === 'failed' ? 'Generation failed'
+      : results.status === 'failed' ? (reviewingRun ? 'Previous run failed' : 'Generation failed')
       : ['cancelled', 'canceled'].includes(results.status ?? '') ? 'Generation stopped'
       : 'Loading results…'}</strong>
+    {results.runId ? <details><summary>Run details</summary><p>Run: <code>{results.runId}</code></p></details> : null}
+    {reviewingRun && ['completed', 'failed', 'cancelled', 'canceled'].includes(results.status ?? '') ? <p>This outcome belongs to a previous run. The current run review below is a separate request.</p> : null}
     {data?.error ? <p role="alert">{data.error}</p> : null}
     {completed && outputs.length > 0 ? <p>Choose Use in chat, then ask a question or describe a change.</p> : null}
     {completed && outputs.length === 0 ? <p>No new output to show. See the graph for details.</p> : null}
