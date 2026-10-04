@@ -1,5 +1,6 @@
 "use client";
 
+import { AssistantMessageContent } from "./assistant-message-content";
 import { AssistantTurnOutcome } from "./assistant-turn-outcome";
 import type { useAssistantDock } from "./hooks/use-assistant-dock";
 import { AssistantPromptInput } from "./assistant-prompt-input";
@@ -26,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, ChangeEvent, DragEvent, ReactElement } from "react";
+import type { CSSProperties, ChangeEvent, DragEvent } from "react";
 
 import type { AssistantPlanResponse, GraphError, GraphEstimateResponse, GraphMediaPreview, GraphWorkflowPayload } from "./types";
 import { AssistantRunEvidence } from "./assistant-run-evidence";
@@ -389,90 +390,6 @@ function isSavedArtifactActivityMessage(message: AssistantSessionMessage) {
 
 function displayMessageText(message: AssistantSessionMessage) {
   return message.content_text || "";
-}
-
-function normalizeAssistantMarkdownLayout(text: string) {
-  const trimmed = text.trim();
-  if (!trimmed) return "";
-  return trimmed
-    .replace(/\s+(?=(?:[-*]\s+)(?:\*\*|`)?[A-Za-z0-9])/g, "\n")
-    .replace(/\s+(?=(?:Storyboard groups|Storyboard nodes|Visible nodes|Image slot|Useful fields):)/gi, "\n\n")
-    .replace(/\s+(?=(?:Shot|Scene)\s+\d{1,2}\s*[:.-])/gi, "\n")
-    .replace(/\s+(?=\d{1,2}[.)]\s+(?:\*\*|`)?[A-Za-z0-9])/g, "\n");
-}
-
-function renderInlineAssistantMarkdown(text: string, keyPrefix: string) {
-  return text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((part, index) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={`${keyPrefix}-strong-${index}`}>{part.slice(2, -2)}</strong>;
-    }
-    if (part.startsWith("*") && part.endsWith("*")) {
-      return <em key={`${keyPrefix}-em-${index}`}>{part.slice(1, -1)}</em>;
-    }
-    return part;
-  });
-}
-
-function AssistantMessageContent({ text, normalizeLayout = true }: { text: string; normalizeLayout?: boolean }) {
-  const normalized = normalizeLayout ? normalizeAssistantMarkdownLayout(text) : text;
-  const lines = normalized.split("\n");
-  const blocks: ReactElement[] = [];
-  let paragraphLines: string[] = [];
-  let listItems: string[] = [];
-  let listKind: "ul" | "ol" | null = null;
-
-  const flushParagraph = () => {
-    if (!paragraphLines.length) return;
-    const value = paragraphLines.join(" ").trim();
-    if (value) {
-      blocks.push(<p key={`p-${blocks.length}`}>{renderInlineAssistantMarkdown(value, `p-${blocks.length}`)}</p>);
-    }
-    paragraphLines = [];
-  };
-  const flushList = () => {
-    if (!listItems.length || !listKind) return;
-    const ListTag = listKind;
-    blocks.push(
-      <ListTag key={`list-${blocks.length}`}>
-        {listItems.map((item, index) => (
-          <li key={`${listKind}-${index}`}>{renderInlineAssistantMarkdown(item, `${listKind}-${index}`)}</li>
-        ))}
-      </ListTag>,
-    );
-    listItems = [];
-    listKind = null;
-  };
-
-  lines.forEach((rawLine) => {
-    const line = rawLine.trim();
-    if (!line) {
-      flushParagraph();
-      flushList();
-      return;
-    }
-    const unordered = line.match(/^[-*]\s+(.+)$/);
-    const ordered = line.match(/^(?:(\d{1,2})[.)]\s+|(?:Shot|Scene)\s+\d{1,2}\s*[:.-]\s*)(.+)$/i);
-    if (unordered) {
-      flushParagraph();
-      if (listKind !== "ul") flushList();
-      listKind = "ul";
-      listItems.push(unordered[1]);
-      return;
-    }
-    if (ordered) {
-      flushParagraph();
-      if (listKind !== "ol") flushList();
-      listKind = "ol";
-      listItems.push(ordered[1] ? ordered[2] : line);
-      return;
-    }
-    flushList();
-    paragraphLines.push(line);
-  });
-  flushParagraph();
-  flushList();
-
-  return <div className="graph-assistant-message-content">{blocks.length ? blocks : <p>{text}</p>}</div>;
 }
 
 function presetBuilderQuickReplies(proposal: PresetBuilderProposal | null): AssistantQuickReply[] {
@@ -1211,7 +1128,6 @@ export function CreativeAssistantPanel({
                 <span>{message.role === "user" ? "You" : "Media Assistant"}</span>
                 <AssistantMessageContent
                   text={displayMessageText(message)}
-                  normalizeLayout={message.content_json?.mode !== "assistant_kernel"}
                 />
                 {message.role === "user" ? <AssistantTurnOutcome message={message}
                   onEdit={!assistant.busy && !assistant.failedRequest && conversationalMessages.at(-1)?.assistant_message_id === message.assistant_message_id
@@ -1220,7 +1136,7 @@ export function CreativeAssistantPanel({
                   <details aria-label="Assistant run assessment">
                     <summary>Assistant assessment</summary>
                     <p>Use the current run review for readiness and pricing.</p>
-                    <AssistantMessageContent text={message.content_json.run_review_assessment} normalizeLayout={false} />
+                    <AssistantMessageContent text={message.content_json.run_review_assessment} />
                   </details>
                 ) : null}
                 {message.role === "assistant" ? <AssistantRunEvidence content={message.content_json} /> : null}
