@@ -261,6 +261,7 @@ export type AssistantSession = {
 };
 
 export type AssistantProgress = {
+  last_milestone?: string | null;
   active: boolean;
   stage: "idle" | "thinking" | "tool" | "compacting";
   label: string;

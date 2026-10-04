@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
 import type { AssistantPlanResponse } from "./types";
 import {
-  assistantJsonResponse as jsonResponse,
+  assistantIdleProgress, assistantJsonResponse as jsonResponse,
   assistantTestSession as session,
   assistantTestWorkflow as workflow,
 } from "./creative-assistant-test-fixtures";
@@ -81,6 +81,7 @@ it("presents and applies a layout-only Assistant proposal as a workflow tidy", a
   };
   const onApplyWorkflow = vi.fn();
   const fetchMock = vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) {
@@ -109,6 +110,7 @@ it("presents and applies a layout-only Assistant proposal as a workflow tidy", a
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Tidy this workflow without changing its meaning." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
 
   expect(await screen.findByText("Workflow layout ready")).toBeTruthy();
@@ -116,6 +118,7 @@ it("presents and applies a layout-only Assistant proposal as a workflow tidy", a
   expect(screen.getByRole("button", { name: "Tidy workflow" })).toBeTruthy();
   expect(screen.queryByText("No canvas changes are required.")).toBeNull();
 
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: "Tidy workflow" }));
   await waitFor(() => expect(onApplyWorkflow).toHaveBeenCalled());
   expect(onApplyWorkflow).toHaveBeenCalledWith(arrangedWorkflow, expect.objectContaining({ layoutOnly: true }));

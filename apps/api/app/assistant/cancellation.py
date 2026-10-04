@@ -40,6 +40,7 @@ def track_session(session_id: str) -> Iterator[Event]:
             "label": "Thinking through your request…",
             "started_at": time.monotonic(),
             "compaction_seconds": 0.0,
+            "last_milestone": None,
             "compaction_started_at": None,
         }
     try:
@@ -83,6 +84,9 @@ def publish_session_progress(session_id: str, *, stage: str, label: str) -> None
             elif stage != "compacting" and progress["compaction_started_at"] is not None:
                 progress["compaction_seconds"] += now - progress["compaction_started_at"]
                 progress["compaction_started_at"] = None
+            # Tool labels are published only after successful execution.
+            if stage == "tool":
+                progress["last_milestone"] = label
             progress.update(stage=stage, label=label)
 
 
@@ -95,6 +99,7 @@ def session_progress(session_id: str) -> dict[str, object]:
         "active": True,
         "stage": progress["stage"],
         "label": progress["label"],
+        "last_milestone": progress["last_milestone"],
         "elapsed_seconds": max(0, int(time.monotonic() - float(progress["started_at"]))),
         "compaction_seconds": float(progress["compaction_seconds"]) + (
             time.monotonic() - float(progress["compaction_started_at"])

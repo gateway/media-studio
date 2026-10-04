@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
 import { JsonFetchError } from "./utils/graph-api";
 import {
-  assistantJsonResponse as jsonResponse,
+  assistantIdleProgress, assistantSessionResponse, assistantJsonResponse as jsonResponse,
   assistantTestSession as session,
   assistantTestWorkflow as workflow,
 } from "./creative-assistant-test-fixtures";
@@ -46,7 +46,8 @@ it("offers a safe recheck after the graph changes without starting a run", async
     }],
   };
   const fetchMock = vi.fn((url: string) => {
-    if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [runSession] });
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
+    if ((url.includes("/media/assistant/sessions?") || url.endsWith("/media/assistant/sessions/session-1"))) return assistantSessionResponse(url, runSession);
     if (url.endsWith("/messages")) {
       return jsonResponse({
         ...runSession,
@@ -78,10 +79,12 @@ it("offers a safe recheck after the graph changes without starting a run", async
     />,
   );
 
+  await act(async () => Promise.resolve());
   fireEvent.click(await screen.findByRole("button", { name: "Review and run" }));
   const recheck = await screen.findByRole("button", { name: "Recheck graph and pricing" });
   expect(onRunWorkflow).toHaveBeenCalledTimes(1);
 
+  await act(async () => Promise.resolve());
   fireEvent.click(recheck);
   await waitFor(() => expect(screen.queryByRole("button", { name: "Recheck graph and pricing" })).toBeNull());
   expect(onRunWorkflow).toHaveBeenCalledTimes(1);
@@ -115,7 +118,8 @@ it("keeps slow run progress distinct from assistant reasoning progress", async (
     }],
   };
   vi.stubGlobal("fetch", vi.fn((url: string) => {
-    if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [runSession] });
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
+    if ((url.includes("/media/assistant/sessions?") || url.endsWith("/media/assistant/sessions/session-1"))) return assistantSessionResponse(url, runSession);
     return jsonResponse({});
   }));
 
@@ -134,6 +138,7 @@ it("keeps slow run progress distinct from assistant reasoning progress", async (
     />,
   );
   const runButton = await screen.findByRole("button", { name: "Review and run" });
+  await waitFor(() => expect(runButton.hasAttribute("disabled")).toBe(false));
   vi.useFakeTimers();
   act(() => {
     runButton.click();
@@ -182,7 +187,8 @@ it("does not let a run from the previous workflow clear the current assistant tu
     }],
   };
   vi.stubGlobal("fetch", vi.fn((url: string) => {
-    if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [runSession] });
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
+    if ((url.includes("/media/assistant/sessions?") || url.endsWith("/media/assistant/sessions/session-1"))) return assistantSessionResponse(url, runSession);
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) return delayedMessage;
     return jsonResponse({});
   }));
@@ -201,6 +207,7 @@ it("does not let a run from the previous workflow clear the current assistant tu
     />
   );
   const { rerender } = render(panel("tab-run-navigation-a"));
+  await act(async () => Promise.resolve());
   fireEvent.click(await screen.findByRole("button", { name: "Review and run" }));
   expect(screen.getByRole("status", { name: "Assistant run progress" })).toBeTruthy();
 
@@ -209,6 +216,7 @@ it("does not let a run from the previous workflow clear the current assistant tu
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Help with this workflow instead." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
   await waitFor(() => expect(screen.getByRole("status", { name: "Assistant progress" })).toBeTruthy());
 
@@ -253,8 +261,8 @@ it.each([
       },
     }],
   };
-  vi.stubGlobal("fetch", vi.fn((url: string) => url.includes("/media/assistant/sessions?")
-    ? jsonResponse({ items: [invalidSession] }) : jsonResponse({})));
+  vi.stubGlobal("fetch", vi.fn((url: string) => url.endsWith("/progress") ? jsonResponse(assistantIdleProgress) : (url.includes("/media/assistant/sessions?") || url.endsWith("/media/assistant/sessions/session-1"))
+    ? assistantSessionResponse(url, invalidSession) : jsonResponse({})));
   render(<CreativeAssistantPanel open workspaceKey="invalid-confirmation" workflowId="workflow-1"
     workflowName="Confirmation test" workflow={workflow} references={[]} importImageFile={vi.fn()}
     onApplyWorkflow={vi.fn()} onRunWorkflow={onRunWorkflow} onClose={vi.fn()} />);
@@ -283,12 +291,13 @@ it.each([
       } },
     }],
   };
-  vi.stubGlobal("fetch", vi.fn((url: string) => url.includes("/media/assistant/sessions?")
-    ? jsonResponse({ items: [runSession] }) : jsonResponse({})));
+  vi.stubGlobal("fetch", vi.fn((url: string) => url.endsWith("/progress") ? jsonResponse(assistantIdleProgress) : (url.includes("/media/assistant/sessions?") || url.endsWith("/media/assistant/sessions/session-1"))
+    ? assistantSessionResponse(url, runSession) : jsonResponse({})));
   render(<CreativeAssistantPanel open workspaceKey="missing-launch" workflowId="workflow-1"
     workflowName="Confirmation test" workflow={workflow} references={[]} importImageFile={vi.fn()}
     onApplyWorkflow={vi.fn()} onRunWorkflow={onRunWorkflow} onClose={vi.fn()} />);
 
+  await act(async () => Promise.resolve());
   fireEvent.click(await screen.findByRole("button", { name: "Review and run" }));
   expect(await screen.findByText(expected)).toBeTruthy();
   expect(Boolean(screen.queryByRole("button", { name: "Recheck graph and pricing" }))).toBe(false);

@@ -1086,6 +1086,7 @@ def test_progress_endpoint_reports_only_safe_active_turn_milestones(
         "label": "",
         "elapsed_seconds": 0,
         "compaction_seconds": 0.0,
+        "last_milestone": None,
     }
 
     with cancellation.track_session(session_id):
@@ -2057,7 +2058,12 @@ def test_kernel_reissues_confirmation_for_current_validated_proposal(client, mon
             },
         ]
     )
-    monkeypatch.setattr(kernel, "run_kernel_provider_step", lambda **_kwargs: next(steps))
+    def provider_step(**kwargs):
+        step = next(steps)
+        if not step.get("tool_call"):
+            step["requested_action"] = {"kind": "confirm_graph", "proposal_id": kwargs["session"]["summary_json"]["kernel_proposal_id"]}
+        return step
+    monkeypatch.setattr(kernel, "run_kernel_provider_step", provider_step)
 
     first = client.post(
         f"/media/assistant/sessions/{session['assistant_session_id']}/messages",

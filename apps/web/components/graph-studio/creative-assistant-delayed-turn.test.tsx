@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
 import { useCreativeAssistant } from "./hooks/use-creative-assistant";
 import {
-  assistantJsonResponse as jsonResponse,
+  assistantIdleProgress, assistantJsonResponse as jsonResponse,
   assistantTestSession as session,
   assistantTestWorkflow as workflow,
 } from "./creative-assistant-test-fixtures";
@@ -21,6 +21,7 @@ afterEach(() => {
 
 it("uses one natural-language composer without legacy mode controls", async () => {
   vi.stubGlobal("fetch", vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     return Promise.resolve(new Response("not found", { status: 404 }));
@@ -78,6 +79,7 @@ it("shows Stop only after a first-use session has a real cancellation target", a
     resolveSession = resolve;
   });
   vi.stubGlobal("fetch", vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return delayedSession;
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) return new Promise<Response>(() => {});
@@ -100,6 +102,7 @@ it("shows Stop only after a first-use session has a real cancellation target", a
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Help me build the next graph section." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
 
   expect(screen.queryByRole("button", { name: /stop assistant request/i })).toBeNull();
@@ -121,7 +124,10 @@ it("shows changing progress during a long assistant turn and resets it for a ret
     resolveRetry = resolve;
   });
   let messageRequestCount = 0;
+  let readsRecovered = false;
   vi.stubGlobal("fetch", vi.fn((url: string) => {
+    if (readsRecovered && url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
+    if (readsRecovered && url.endsWith("/session-1")) return jsonResponse({ ...session, messages: [] });
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) {
@@ -147,6 +153,7 @@ it("shows changing progress during a long assistant turn and resets it for a ret
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Help me make this idea clearer." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
 
   const startingText = container.querySelector(".graph-assistant-message-thinking")?.textContent;
@@ -158,7 +165,8 @@ it("shows changing progress during a long assistant turn and resets it for a ret
   await act(async () => vi.advanceTimersByTime(20_000));
   const continuingText = container.querySelector(".graph-assistant-message-thinking")?.textContent;
   expect(continuingText).toBeTruthy();
-  expect(continuingText).not.toBe(reviewingText);
+  expect(continuingText).toMatch(/status unavailable/i);
+  expect(continuingText).not.toMatch(/reviewing|completed|finished/i);
 
   await act(async () => {
     resolveMessage?.(new Response(JSON.stringify({ detail: "Assistant request failed." }), {
@@ -169,9 +177,12 @@ it("shows changing progress during a long assistant turn and resets it for a ret
   });
   expect(container.querySelector(".graph-assistant-message-thinking")).toBeNull();
 
+  readsRecovered = true;
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Reload saved conversation" })));
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Please try that again." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
   expect(container.querySelector(".graph-assistant-message-thinking")?.textContent).toBe(startingText);
 
@@ -198,6 +209,7 @@ it("clears its busy state when a delayed assistant turn completes without a refr
     resolveMessage = resolve;
   });
   const fetchMock = vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) return delayedMessage;
@@ -221,6 +233,7 @@ it("clears its busy state when a delayed assistant turn completes without a refr
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Help me make this idea clearer." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
 
   await waitFor(() => expect(container.querySelector(".graph-assistant-message-thinking")).toBeTruthy());
@@ -245,6 +258,7 @@ it("keeps the scrollable Assistant body pinned while opening, typing, and receiv
     resolveMessage = resolve;
   });
   vi.stubGlobal("fetch", vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) return delayedMessage;
@@ -286,6 +300,7 @@ it("keeps the scrollable Assistant body pinned while opening, typing, and receiv
   fireEvent.change(composer, { target: { value: "Keep the newest reply visible." } });
   await waitFor(() => expect(scrollContainer.scrollTop).toBe(900));
 
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
   scrollContainer.scrollTop = 0;
   resolveMessage?.(jsonResponse({
@@ -335,6 +350,7 @@ it("clears long-turn progress when the user changes workflows", async () => {
   vi.useFakeTimers();
   const delayedMessage = new Promise<Response>(() => {});
   const fetchMock = vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) return delayedMessage;
@@ -361,6 +377,7 @@ it("clears long-turn progress when the user changes workflows", async () => {
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Help me make this idea clearer." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
   await act(async () => vi.advanceTimersByTime(10_000));
   expect(container.querySelector(".graph-assistant-message-thinking")).toBeTruthy();
@@ -374,6 +391,7 @@ it("clears long-turn progress when the user changes workflows", async () => {
 it("clears progress when the user stops an assistant turn", async () => {
   const delayedMessage = new Promise<Response>(() => {});
   vi.stubGlobal("fetch", vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) return delayedMessage;
@@ -397,10 +415,12 @@ it("clears progress when the user stops an assistant turn", async () => {
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Help me make this idea clearer." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
   await waitFor(() => expect(screen.getByRole("button", { name: /stop assistant request/i })).toBeTruthy());
   expect(container.querySelector(".graph-assistant-message-thinking")).toBeTruthy();
 
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /stop assistant request/i }));
 
   await waitFor(() => expect(container.querySelector(".graph-assistant-message-thinking")).toBeNull());
@@ -409,6 +429,7 @@ it("clears progress when the user stops an assistant turn", async () => {
 it("keeps Stop retryable while the server is still unwinding the turn", async () => {
   const delayedMessage = new Promise<Response>(() => {});
   vi.stubGlobal("fetch", vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) return delayedMessage;
@@ -437,9 +458,11 @@ it("keeps Stop retryable while the server is still unwinding the turn", async ()
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Help me make this idea clearer." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
   await waitFor(() => expect(screen.getByRole("button", { name: /stop assistant request/i })).toBeTruthy());
 
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /stop assistant request/i }));
 
   await waitFor(() => expect(screen.getByText(/still stopping/i)).toBeTruthy());
@@ -480,9 +503,11 @@ it("keeps a non-chat plan cancellation retryable while the server unwinds", asyn
   }));
 
   render(<PlanCancellationHarness />);
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: "Start plan" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "Stop plan" })).toBeTruthy());
   await waitFor(() => expect(screen.getByText("Thinking through your request…")).toBeTruthy());
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: "Stop plan" }));
 
   await waitFor(() => expect(screen.getByText(/still stopping/i)).toBeTruthy());
@@ -507,6 +532,7 @@ it("keeps a complex assistant turn connected beyond the former browser cutoff", 
     };
   });
   vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) {
@@ -532,6 +558,7 @@ it("keeps a complex assistant turn connected beyond the former browser cutoff", 
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Develop this complex story into a production plan." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
   await act(async () => Promise.resolve());
   await act(async () => Promise.resolve());
@@ -562,6 +589,7 @@ it("keeps a long request cancellable without an ordinary browser ceiling", async
   vi.useFakeTimers();
   let messageSignal: AbortSignal | undefined;
   vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) {
@@ -591,6 +619,7 @@ it("keeps a long request cancellable without an ordinary browser ceiling", async
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Develop this complex story into a production plan." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
   await act(async () => Promise.resolve());
   await act(async () => Promise.resolve());
@@ -599,6 +628,7 @@ it("keeps a long request cancellable without an ordinary browser ceiling", async
   expect(messageSignal?.aborted).toBe(false);
   await act(async () => vi.advanceTimersByTimeAsync(1));
   expect(messageSignal?.aborted).toBe(false);
+  await act(async () => Promise.resolve());
   await act(async () => fireEvent.click(screen.getByRole("button", { name: "Stop assistant request" })));
   expect(messageSignal?.aborted).toBe(true);
 });
@@ -652,21 +682,18 @@ it("shows elapsed time and completed typed milestones during a live turn", async
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Review the current graph before proposing the next step." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
   await act(async () => Promise.resolve());
   await act(async () => vi.advanceTimersByTimeAsync(1));
 
-  expect(container.querySelector(".graph-assistant-message-thinking")?.textContent).toContain(
-    "Thinking through your request… 4 seconds elapsed. No graph changes or runs have happened yet.",
-  );
+  expect(container.querySelector(".graph-assistant-message-thinking")?.textContent).toMatch(/thinking.*4 seconds elapsed/i);
+  expect(container.querySelector(".graph-assistant-message-thinking")?.textContent).not.toMatch(/no graph changes|completed/i);
 
   await act(async () => vi.advanceTimersByTimeAsync(2_000));
-  expect(container.querySelector(".graph-assistant-message-thinking")?.textContent).toContain(
-    "Checked your graph · 12 seconds elapsed. Continuing…",
-  );
+  expect(container.querySelector(".graph-assistant-message-thinking")?.textContent).toMatch(/continuing.*12 seconds elapsed.*last confirmed: checked your graph/i);
 
   await act(async () => vi.advanceTimersByTimeAsync(2_000));
-  expect(container.querySelector(".graph-assistant-message-thinking")?.textContent).toContain(
-    "Checked your graph · 130 seconds elapsed. Waiting for the next update. You can stop it at any time.",
-  );
+  expect(container.querySelector(".graph-assistant-message-thinking")?.textContent).toMatch(/continuing.*130 seconds elapsed.*last confirmed: checked your graph/i);
+  expect(screen.getByRole("button", { name: /stop assistant request/i })).toBeTruthy();
 });

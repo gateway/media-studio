@@ -35,7 +35,7 @@ Media Presets, Prompt Recipes, Graph workflows, and story state remain separate 
 
 Each user turn follows one backend-owned path:
 
-1. Assemble stable base/developer instructions plus the one selected capability prompt.
+1. Assemble stable base/developer instructions plus all six capability prompts; the resolved capability selects the available tools.
 2. Provide bounded user, attachment, session, workflow, and selected-run context.
 3. Select one capability and one typed artifact intent.
 4. Use only the registered Media Studio tools needed for that turn.
@@ -55,7 +55,12 @@ Current capabilities are:
 - `story_builder`
 - `run_debugger`
 
-The assistant should understand natural, incomplete language and ask one focused question when a required decision is genuinely missing. Scenario-specific keyword routing and production test phrases are not part of the contract.
+The assistant answers the immediate question first, summarizes specific prepared or completed changes, preserves agreed constraints and full requested creative details, and asks one focused question only when a required decision is missing. Existing confirmation buttons provide the next action without a duplicate approval question in chat. When the user is satisfied, the assistant stops offering refinement. Scenario-specific keyword routing and production test phrases are not part of the contract.
+
+
+Ordinary failed or interrupted requests retain a structured `turn_outcome` on their original persisted user message, alongside the existing turn trace. Successful partial tools and typed session state survive; no assistant reply is fabricated. Concise known-code copy is primary, while request/connection diagnostics are available in details. A failed send reconciles that exact session through progress and transcript reads without replay. A recovered reply appears once; active work restores monitoring and Stop. If reconciliation is unavailable, a new send stays blocked until an explicit saved-conversation check succeeds. Editing and sending starts a new attempt; Continue planning retains its existing checkpoint contract. Older trailing-user histories still trigger stalled-thread recovery, including histories with interruption summaries; completed histories resume normally.
+
+Successful terminal tools without prose use conservative typed graph, Media Preset or Prompt Recipe summaries in the same provider step. Failed tools cannot supply success artifacts. Completed tool activity is secondary to the reply and action card. An old graph proposal is reissued only by an explicit typed `confirm_graph` request for its exact identity; advice and other artifact turns do not revive it. New pending requests invalidate old action cards. Run readiness remains server-owned primary copy; the requested assistant assessment is retained separately in its expandable assessment, alongside unchanged pricing and explicit submission confirmation.
 
 ## Typed state and provenance
 
@@ -124,7 +129,7 @@ The current deterministic storyboard path uses `storyboard.compile` to produce `
 
 Codex Local sessions reuse persisted provider threads when the prompt contract is compatible. A prompt-contract change advances the provider generation so stale instructions are not reused. Assistant state remains server-owned and should survive ordinary page reloads and supported API restarts.
 
-Long turns have bounded tool steps and wall time, remain cancellable, and expose conservative progress states. Successful typed artifacts terminate without an unnecessary extra provider step.
+Productive planning has no fixed tool-count or wall-clock cutoff. Turns remain cancellable, with transport failures and repeated unchanged work guarded. Progress separates current activity from the last confirmed successful milestone; failed polling shows status unavailable and its last receipt age until polling recovers. A milestone is evidence of completed work, not a percentage or estimate of remaining time. Reloading or returning to a saved conversation checks progress for that exact session before enabling sends or old actions. Active work restores Stop; inactive tracking triggers a fresh saved-transcript read without replaying the user message. Inactive tracking alone does not prove success. Failed progress or terminal-refresh reads retain unavailable status until read recovery; changed workspace or explicit session identity disposes previous monitoring. Successful typed artifacts terminate without an unnecessary extra provider step.
 
 ## Verification
 
@@ -139,7 +144,7 @@ Changes to Media Assistant require proportionate proof:
 - unchanged pricing, auth, persistence, and saved-workflow behavior unless separately approved;
 - `git diff --check` and the relevant release gates.
 
-Assistant-relevant pushes and pull requests also run `npm run quality:assistant-ci` through the path-scoped `media-assistant-ci` workflow. This credential-free gate runs deterministic fixtures for typed tool traces, required evidence, next-action shape, workflow validity, banned vocabulary, process reuse, step limits, and unconfirmed mutation. A focused fake-provider backend suite exercises the same runtime boundaries without Codex credentials, network inference, generation, or paid work.
+Assistant-relevant pushes and pull requests also run `npm run quality:assistant-ci` through the path-scoped `media-assistant-ci` workflow. This credential-free gate runs deterministic fixtures for typed tool traces, required evidence, next-action shape, workflow validity, banned vocabulary, process reuse, repeated unchanged work, and unconfirmed mutation. A focused fake-provider backend suite exercises the same runtime boundaries without Codex credentials, network inference, generation, or paid work.
 
 This mechanical gate does not judge whether a live reply feels human, is contextually useful, or makes the best creative choice. Exact live conversations and the Human / Grounded / Correct / Useful / Safe browser rubric remain mandatory at the release boundary.
 
@@ -157,13 +162,13 @@ The Assistant remains an explicit per-install pilot until all of these criteria 
 
 - **Correctness and safety:** the exact continuous browser walks for presets, graphs, recipes, production planning, restart continuity, and voice/safety score Human, Grounded, Correct, Useful, and Safe on every accepted reply. There are no HTTP 5xx responses or timeouts, unconfirmed graph mutations, saves, or provider jobs. Recipe proof includes populated graph construction and stale-canvas rejection; run proof stops at a typed confirmation unless a paid run was separately approved.
 - **Verification currency:** the mechanical probe, full browser pass, release gate, and Studio smoke run on the candidate commit. A later change to Assistant runtime, provider lifecycle, panel/actions, or run-evidence behavior invalidates the affected proof and requires that portion to be rerun.
-- **Latency and provider steps:** report model/provider thinking time separately from application and Studio-tool time. Slow model reasoning is monitored rather than failed against a hard 30-second release cutoff when the two-second truthful progress heartbeat remains visible, the user can stop the turn, and the request completes inside the 180-second kernel / 220-second browser safety ceilings. Release blockers are reproducible application/tool stalls, missing or false progress, step-budget loops, cancellation failures, HTTP 5xx responses, or wall-clock exhaustion. Provider steps, p50/p95 latency, and tokens remain recorded so regressions can be investigated without mislabeling legitimate model thinking as an application bottleneck.
+- **Latency and provider steps:** report model/provider thinking time separately from application and Studio-tool time. Slow model reasoning is monitored rather than failed against a hard 30-second release cutoff when truthful polled status or explicit status unavailability remains visible and the user can stop the turn. Current productive planning has no fixed kernel/browser wall-clock ceiling. Release blockers are reproducible application/tool stalls, missing or false progress, repeated unchanged work, cancellation failures, or HTTP 5xx responses. Provider steps, p50/p95 latency, and tokens remain recorded so regressions can be investigated without mislabeling legitimate model thinking as an application bottleneck.
 - **Cost:** across those three runs, summed provider tokens average no more than 50,000 per accepted reply and p95 is no more than 100,000. Maximum tokens in one provider step are reported separately. Media-generation credits remain governed by the normal priced confirmation and are never implied by conversation alone.
 - **Continuity:** the existing lowered-threshold compaction proof remains valid unless provider lifecycle code changed, and the release browser pass proves thread recovery plus correct recall across an API restart.
 - **Staged rollout:** `NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=1` remains the per-install opt-in. Before considering any default exposure change, record at least 100 attempted pilot Assistant requests across ordinary preset, recipe, and graph work, reporting accepted replies and failures separately.
 - **Release hygiene:** Tickets 07–08 and the standing release gates pass; the Assistant route adapter retains file-size headroom; Assistant package growth has a reviewed package-total cap; and no migration or saved-artifact compatibility change is introduced without separate approval.
 
-Immediately disable the per-install flag and stop the pilot after any unconfirmed mutation, save, spend, cross-session evidence use, wrong-run/output association, stale quality approval, data loss, saved-artifact incompatibility, or auth boundary failure. Also stop after a reproducible rubric zero, two or more HTTP 5xx/timeouts in a rolling 100 attempted requests, a reproducible application/tool stall without truthful progress, cancellation failure, or repeated step/wall-clock budget exhaustion. Re-enable only after a focused regression test, the affected browser walk, and exact-candidate verification pass again.
+Immediately disable the per-install flag and stop the pilot after any unconfirmed mutation, save, spend, cross-session evidence use, wrong-run/output association, stale quality approval, data loss, saved-artifact incompatibility, or auth boundary failure. Also stop after a reproducible rubric zero, two or more HTTP 5xx/timeouts in a rolling 100 attempted requests, a reproducible application/tool stall without truthful progress, cancellation failure, or repeated unchanged work. Re-enable only after a focused regression test, the affected browser walk, and exact-candidate verification pass again.
 
 Meeting this checklist does not change the default feature gate. Default exposure is a separate human release decision.
 

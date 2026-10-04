@@ -1,5 +1,6 @@
 "use client";
 
+import { AssistantTurnOutcome } from "./assistant-turn-outcome";
 import type { useAssistantDock } from "./hooks/use-assistant-dock";
 import { AssistantPromptInput } from "./assistant-prompt-input";
 import { RecipeContinuationCard } from "./recipe-continuation-card";
@@ -118,37 +119,36 @@ function inferAssistantModeFromSession(session: ReturnType<typeof useCreativeAss
   return null;
 }
 
-const ASSISTANT_STATUS_COPY: Record<"sending" | "running" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling", string> = {
+const ASSISTANT_STATUS_COPY: Record<"monitoring" | "sending" | "running" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling", string> = {
+  monitoring: "Checking your saved request…",
   sending: "Thinking through your request…",
   running: "Starting the confirmed graph run…",
-  planning: "Building the graph…",
+  planning: "Preparing graph changes for review…",
   draftingRecipe: "Drafting a Prompt Recipe for review…",
   draftingPreset: "Drafting a Media Preset for review…",
   savingRecipe: "Saving the approved Prompt Recipe…",
   savingPreset: "Saving the approved Media Preset…",
-  applying: "Adding the graph…",
+  applying: "Applying the confirmed graph changes…",
   uploading: "Attaching reference image…",
   cancelling: "Stopping the current assistant action…",
 };
-const ASSISTANT_SENDING_PROGRESS = [
-  ASSISTANT_STATUS_COPY.sending,
-  "Reviewing your request and the available Media Studio context…",
-  "Still working through the details and next useful step…",
-] as const;
-
-function assistantLiveProgressText(progress: ReturnType<typeof useCreativeAssistant>["progress"]) {
-  if (!progress?.active) return null;
-  const elapsed = `${progress.elapsed_seconds} seconds elapsed`;
-  if (progress.stage === "compacting") {
-    return `${progress.label} · ${elapsed}. Your request will continue after compaction. You can stop it at any time.`;
+function assistantLiveProgressText(assistant: ReturnType<typeof useCreativeAssistant>, elapsedSeconds: number) {
+  const { progress, progressUnavailable, progressUpdatedAt } = assistant;
+  const milestone = progress?.last_milestone || (progress?.stage === "tool" ? progress.label : null);
+  const confirmed = milestone ? ` Last confirmed: ${milestone}.` : "";
+  if (progressUnavailable) {
+    const age = progressUpdatedAt === null ? "" : ` Last status received ${Math.max(0, Math.floor((Date.now() - progressUpdatedAt) / 1000))} seconds ago.`;
+    return `Status unavailable. Waiting for an update; your request may still be working.${age}${confirmed}`;
   }
-  if (progress.elapsed_seconds >= 120) {
-    return `${progress.label} · ${elapsed}. Waiting for the next update. You can stop it at any time.`;
+  if (progress && !progress.active) return assistant.status === "monitoring"
+    ? "Loading the latest saved conversation…" : "Waiting for the assistant’s reply…";
+  if (!progress) {
+    if (assistant.status === "monitoring") return ASSISTANT_STATUS_COPY.monitoring;
+    return elapsedSeconds >= 24 ? "Waiting for the assistant’s reply… You can stop the request."
+      : elapsedSeconds >= 8 ? "Waiting for the assistant’s reply…" : ASSISTANT_STATUS_COPY.sending;
   }
-  if (progress.stage === "thinking") {
-    return `${progress.label} ${elapsed}. No graph changes or runs have happened yet.`;
-  }
-  return `${progress.label} · ${elapsed}. Continuing…`;
+  const activity = progress.stage === "tool" ? "Continuing your request…" : progress.label;
+  return `${activity} · ${progress.elapsed_seconds} seconds elapsed.${confirmed}`;
 }
 
 const ASSISTANT_PLACEHOLDER = "Describe what you want to create, change, or understand.";
@@ -637,13 +637,13 @@ function graphPlanPrimaryCopy(plan: AssistantPlanResponse, options: { missingMed
     return plan.graph_plan.summary.trim() || "I prepared a geometry-only workflow layout for review.";
   }
   if (onlyFieldUpdates) {
-    return plan.graph_plan.summary.trim() || "I updated the selected node on the canvas.";
+    return plan.graph_plan.summary.trim() || "The requested settings are prepared for review.";
   }
   if (missingMedia) {
     return "I can build this graph, but one required media input needs a file before it can run.";
   }
   if (plan.validation.valid) {
-    return "I built the graph plan. Review it, then add it when it looks right.";
+    return plan.graph_plan.summary.trim() || "A graph proposal is prepared for review. Applying it remains a separate action.";
   }
   return plan.graph_plan.summary.trim() || "I found something to review before this graph is added.";
 }
@@ -721,7 +721,7 @@ export function CreativeAssistantPanel({
     onRunWorkflow,
     onEvent,
   });
-  const [sendingProgressStage, setSendingProgressStage] = useState(0);
+  const [turnElapsedSeconds, setTurnElapsedSeconds] = useState(0);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const results = useAssistantResults({
     sessionId: assistant.session?.assistant_session_id ?? null,
@@ -731,18 +731,12 @@ export function CreativeAssistantPanel({
       .flatMap((message) => requestedResultBindings(message.content_json)),
   });
   useEffect(() => {
-    if (assistant.status !== "sending") {
-      setSendingProgressStage(0);
-      return;
-    }
-    setSendingProgressStage(0);
-    const reviewingTimer = window.setTimeout(() => setSendingProgressStage(1), 8_000);
-    const continuingTimer = window.setTimeout(() => setSendingProgressStage(2), 24_000);
-    return () => {
-      window.clearTimeout(reviewingTimer);
-      window.clearTimeout(continuingTimer);
-    };
-  }, [assistant.status, workspaceKey]);
+    setTurnElapsedSeconds(0);
+    if (!assistant.cancellable || assistant.status === "cancelling" || (assistant.progress?.active && !assistant.progressUnavailable)) return;
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => setTurnElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000)), 1_000);
+    return () => window.clearInterval(timer);
+  }, [assistant.cancellable, assistant.status, assistant.progress?.active, assistant.progressUnavailable, workspaceKey]);
   useEffect(() => {
     const inferredMode = inferAssistantModeFromSession(assistant.session);
     if (!inferredMode) return;
@@ -953,14 +947,10 @@ export function CreativeAssistantPanel({
   const planActionAriaLabel = planMetadata.independent_stage ? planActionLabel : kernelGraphAction?.label || (planMissingMedia ? "Add graph to choose media" : "Add reviewed graph");
   const planActionTitle = planMetadata.independent_stage ? planActionLabel : kernelGraphAction?.label || (planMissingMedia ? "Add the graph so you can choose the missing media on the canvas" : "Add the reviewed graph");
   const pricing = assistantPlanPricingLabel(plan?.pricing.pricing_summary.total);
-  const liveProgressText = assistantLiveProgressText(assistant.progress);
-  const busyText = assistant.status === "idle"
-    ? null
-    : liveProgressText ?? (
-        assistant.status === "sending"
-          ? ASSISTANT_SENDING_PROGRESS[sendingProgressStage]
-          : ASSISTANT_STATUS_COPY[assistant.status]
-      );
+  const busyText = assistant.status === "idle" ? null
+    : assistant.cancellable && assistant.status !== "cancelling"
+      ? assistantLiveProgressText(assistant, turnElapsedSeconds)
+      : ASSISTANT_STATUS_COPY[assistant.status];
   const readOnlyProvider = Boolean(
     assistant.session?.provider_kind && assistant.session.provider_kind !== "codex_local",
   );
@@ -1223,6 +1213,16 @@ export function CreativeAssistantPanel({
                   text={displayMessageText(message)}
                   normalizeLayout={message.content_json?.mode !== "assistant_kernel"}
                 />
+                {message.role === "user" ? <AssistantTurnOutcome message={message}
+                  onEdit={!assistant.busy && !assistant.failedRequest && conversationalMessages.at(-1)?.assistant_message_id === message.assistant_message_id
+                    ? () => { assistant.setDraft(message.content_text); messageInputRef.current?.focus(); } : undefined} /> : null}
+                {message.role === "assistant" && typeof message.content_json?.run_review_assessment === "string" ? (
+                  <details aria-label="Assistant run assessment">
+                    <summary>Assistant assessment</summary>
+                    <p>Use the current run review for readiness and pricing.</p>
+                    <AssistantMessageContent text={message.content_json.run_review_assessment} normalizeLayout={false} />
+                  </details>
+                ) : null}
                 {message.role === "assistant" ? <AssistantRunEvidence content={message.content_json} /> : null}
                 {message.role === "assistant" ? requestedResultBindings(message.content_json).map((binding) => (
                   <AssistantRequestedResult key={`${binding.run_id}:${binding.artifact_id}:${binding.version}`} binding={binding}
@@ -1230,9 +1230,10 @@ export function CreativeAssistantPanel({
                     onAsk={() => { messageInputRef.current?.focus(); }} />
                 )) : null}
                 {message.role === "assistant" && kernelToolActivity(message) ? (
-                  <div className="graph-assistant-activity-item" role="status" aria-label="Assistant tool activity">
+                  <details className="graph-assistant-activity-item" aria-label="Completed assistant work">
+                    <summary>Completed work</summary>
                     <span>{kernelToolActivity(message)}</span>
-                  </div>
+                  </details>
                 ) : null}
                 {message.role === "assistant" && presetBuilderProposal(message) && !referenceStyleBrief(message) ? (
                   <details className="graph-assistant-preset-proposal" aria-label="Suggested preset setup">
@@ -1395,7 +1396,7 @@ export function CreativeAssistantPanel({
 
           {kernelRecipeSaveAction ? (
             <section className="graph-assistant-message graph-assistant-message-assistant" aria-label="Prompt Recipe save confirmation">
-              <p>The validated Prompt Recipe draft is ready to save.</p>
+              <p>The validated Prompt Recipe draft is ready. Confirm below to save it.</p>
               <div className="graph-assistant-card-actions">
                 <button
                   type="button"
@@ -1417,7 +1418,7 @@ export function CreativeAssistantPanel({
               <p>This is a new run request. It has not started.</p>
               <p>{workflowName} · {graphEstimateToolbarLabel(kernelRunAction.price_estimate as GraphEstimateResponse)}</p>
               <AssistantRunScope workflow={workflow} />
-              <p>Choosing Review and run submits this graph.</p>
+              <p>{!assistant.busy ? "Waiting for your confirmation. " : ""}Choosing {kernelRunAction.label} submits this graph.</p>
               <div className="graph-assistant-card-actions">
                 <button
                   type="button"
@@ -1453,13 +1454,16 @@ export function CreativeAssistantPanel({
                 : planApplied && onlyArrangeOperations
                   ? plan.graph_plan.summary.trim() || "The workflow layout is updated without changing graph content."
                 : planApplied && onlyFieldUpdateOperations
-                  ? plan.graph_plan.summary.trim() || "I updated the selected node on the canvas. Want another adjustment?"
+                  ? plan.graph_plan.summary.trim() || "The requested settings are updated on the canvas."
                 : planApplied
-                  ? planMetadata.independent_stage ? "The new workflow is open in its own tab with this conversation. The previous workflow and its run are preserved." : "Here's your graph. I added the nodes to the canvas. Want adjustments, or should we review the prompts?"
+                  ? planMetadata.independent_stage ? "The new workflow is open in its own tab with this conversation. The previous workflow and its run are preserved." : "The confirmed graph changes are on the canvas. Applying them did not start a run."
                   : noCanvasChanges
                     ? noCanvasChangeSummary(plan)
                     : graphPlanPrimaryCopy(plan, { missingMedia: planMissingMedia, onlyFieldUpdates: onlyFieldUpdateOperations, onlyLayoutUpdates: onlyArrangeOperations })}
             </p>
+            {!planApplied && !noCanvasChanges && assistant.canApply ? (
+              <p>Waiting for your confirmation. Choose {planActionLabel} to apply these changes. This does not start a run.</p>
+            ) : null}
             {planApplied && onlyExecutionModeOperations ? (
               <div className="graph-assistant-edit-summary">
                 {executionModeChanges.map((change) => <p key={change.id}>{change.title}: {change.from} → {change.to}</p>)}
@@ -1630,6 +1634,14 @@ export function CreativeAssistantPanel({
 
         <footer className="graph-assistant-footer">
           {assistant.error ? <p className="graph-assistant-error">{assistant.error}</p> : null}
+          {assistant.failedRequest ? <section aria-label="Request recovery">
+            <p>{assistant.failedRequest.checked ? "Sending again makes a new attempt. Continue planning, when available, uses the saved checkpoint." : "The outcome is not confirmed. Check the saved conversation before sending again."}</p>
+            <details><summary>Connection details</summary><p>Code: {assistant.failedRequest.code}. HTTP status: {assistant.failedRequest.status ?? "unavailable"}.</p></details>
+            <div className="graph-assistant-card-actions">
+              <button type="button" disabled={assistant.busy} onClick={() => void assistant.reloadConversation()}>Reload saved conversation</button>
+              {assistant.failedRequest.checked && assistant.failedRequest.editable ? <button type="button" disabled={assistant.busy} onClick={() => { assistant.setDraft(assistant.failedRequest!.content); messageInputRef.current?.focus(); }}>Edit request</button> : null}
+            </div>
+          </section> : null}
           {assistant.runConfirmationBlocker ? <p className="graph-assistant-error">{assistant.runConfirmationBlocker}</p> : null}
           {assistant.runConfirmationNeedsRecheck || (assistant.runConfirmationBlocker && onRunWorkflow && !assistant.runSubmissionUncertain) ? (
             <button
@@ -1655,7 +1667,7 @@ export function CreativeAssistantPanel({
               <button
                 type="button"
                 className="graph-assistant-action-button"
-                disabled={!assistant.draft.trim() || assistant.busy || results.busy}
+                disabled={!assistant.draft.trim() || assistant.busy || results.busy || Boolean(assistant.failedRequest && !assistant.failedRequest.checked)}
                 onClick={() => void assistant.sendMessage()}
                 aria-label="Send chat message"
                 title="Send chat message"

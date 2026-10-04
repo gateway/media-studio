@@ -137,6 +137,13 @@ class RunHandoffTests(unittest.TestCase):
         self.assertNotIn("blocked", message["content_text"])
         self.assertIn("Nothing has started", message["content_text"])
 
+    def test_run_review_preserves_requested_assessment_separately_from_server_readiness(self):
+        assessment = "The prompt keeps six panels, but Panel 3 has no requested audio detail."
+        message = self.message_turn({"reply": assessment})
+        self.assertEqual(message["content_json"]["run_review_assessment"], assessment)
+        self.assertEqual(message["content_json"]["next_action"]["kind"], "run_workflow")
+        self.assertIn("Account readiness remains unknown", message["content_text"])
+
     def test_new_confirmation_replaces_consumed_action_and_rejects_stale_or_foreign_inputs(self):
         self.session["summary_json"] = {"kernel_run_confirmation": {
             "consumed": True, "confirmation_token_hash": hashlib.sha256(b"old-token").hexdigest(),

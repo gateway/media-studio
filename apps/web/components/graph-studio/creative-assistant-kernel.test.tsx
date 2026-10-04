@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
 import type { AssistantPlanResponse } from "./types";
 import {
-  assistantJsonResponse as jsonResponse,
+  assistantIdleProgress, assistantSessionResponse, assistantJsonResponse as jsonResponse,
   assistantTestSession as session,
   assistantTestWorkflow as workflow,
 } from "./creative-assistant-test-fixtures";
@@ -46,6 +46,7 @@ it.each([false, true])("applies a session-owned graph confirmation, independent 
   const activePlan = independent ? { ...plan, workflow: { ...plan.workflow, workflow_id: null }, graph_plan: { ...plan.graph_plan, metadata: { independent_stage: true, source_workflow_id: "workflow-1" } } } : plan;
   const onApplyWorkflow = vi.fn();
   const fetchMock = vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) {
@@ -97,6 +98,7 @@ it.each([false, true])("applies a session-owned graph confirmation, independent 
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Build a small image graph." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
 
   await waitFor(() => expect(screen.getByRole("button", { name: label })).toBeTruthy());
@@ -119,6 +121,7 @@ it.each([false, true])("applies a session-owned graph confirmation, independent 
       onClose={vi.fn()}
     />,
   );
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: label }));
 
   await waitFor(() => expect(onApplyWorkflow).toHaveBeenCalled());
@@ -190,6 +193,7 @@ it("requests a text-to-image model when wiring a saved Prompt Recipe", async () 
   };
   const onApplyWorkflow = vi.fn();
   const fetchMock = vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) {
       return jsonResponse({ items: [{ ...session, messages: [savedRecipeMessage] }] });
     }
@@ -218,6 +222,7 @@ it("requests a text-to-image model when wiring a saved Prompt Recipe", async () 
     />,
   );
 
+  await act(async () => Promise.resolve());
   fireEvent.click(await screen.findByRole("button", { name: "Replace current graph with Storyboard Prompt Writer" }));
   await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/plans"))).toBe(true));
   const planCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/plans"));
@@ -228,6 +233,7 @@ it("requests a text-to-image model when wiring a saved Prompt Recipe", async () 
   expect(request.message).toContain("preserve its image-input intent");
   expect(request.message).toContain("Use image-to-image when references condition generation");
   expect(request.workflow.nodes).toHaveLength(0);
+  await act(async () => Promise.resolve());
   fireEvent.click(await screen.findByRole("button", { name: "Add to canvas" }));
   await waitFor(() => expect(onApplyWorkflow).toHaveBeenCalled());
   const appliedWorkflow = onApplyWorkflow.mock.calls[0]?.[0];
@@ -255,7 +261,8 @@ it("offers to create rather than replace a saved-recipe graph on an empty canvas
     },
   };
   vi.stubGlobal("fetch", vi.fn((url: string) => {
-    if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [{ ...session, messages: [savedRecipeMessage] }] });
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
+    if ((url.includes("/media/assistant/sessions?") || url.endsWith("/media/assistant/sessions/session-1"))) return assistantSessionResponse(url, { ...session, messages: [savedRecipeMessage] });
     return jsonResponse({});
   }));
 
@@ -299,6 +306,7 @@ it.each([undefined, "Media Preset saved, but its thumbnail could not be saved. O
     },
   };
   const fetchMock = vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) {
@@ -343,10 +351,12 @@ it.each([undefined, "Media Preset saved, but its thumbnail could not be saved. O
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Save this preset." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
 
   await waitFor(() => expect(screen.getByRole("button", { name: "Save confirmed Media Preset" })).toBeTruthy());
   expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/preset-saves"))).toBe(false);
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: "Save confirmed Media Preset" }));
 
   await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/preset-saves"))).toBe(true));
@@ -363,8 +373,9 @@ it.each([undefined, "Media Preset saved, but its thumbnail could not be saved. O
 it("does not offer primary preset save for an applied graph without quality proof", async () => {
   const appliedPlan: AssistantPlanResponse = { ...plan, plan: { ...plan.plan, status: "applied", applied_workflow_id: "workflow-1" } };
   const fetchMock = vi.fn((url: string) => {
-    if (url.includes("/media/assistant/sessions?")) {
-      return jsonResponse({ items: [{ ...session, messages: [], latest_plan: appliedPlan }] });
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
+    if ((url.includes("/media/assistant/sessions?") || url.endsWith("/media/assistant/sessions/session-1"))) {
+      return assistantSessionResponse(url, { ...session, messages: [], latest_plan: appliedPlan });
     }
     return jsonResponse({});
   });
@@ -409,6 +420,7 @@ it("saves a kernel recipe only after the user clicks its server-owned confirmati
     },
   };
   const fetchMock = vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) {
@@ -452,10 +464,12 @@ it("saves a kernel recipe only after the user clicks its server-owned confirmati
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Save this recipe." },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
 
   await waitFor(() => expect(screen.getByRole("button", { name: "Save confirmed Prompt Recipe" })).toBeTruthy());
   expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/recipe-saves"))).toBe(false);
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: "Save confirmed Prompt Recipe" }));
 
   await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/recipe-saves"))).toBe(true));
@@ -470,6 +484,7 @@ it("saves a kernel recipe only after the user clicks its server-owned confirmati
 it("runs only after the user clicks the typed kernel action", async () => {
   const onRunWorkflow = vi.fn().mockResolvedValue({ run_id: "graph-run-1" });
   const fetchMock = vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) return jsonResponse({ ...session, messages: [] });
     if (url.endsWith("/media/assistant/sessions/session-1/messages")) {
@@ -518,10 +533,12 @@ it("runs only after the user clicks the typed kernel action", async () => {
   fireEvent.change(screen.getByRole("textbox", { name: /assistant message/i }), {
     target: { value: "Run it" },
   });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: /send chat message/i }));
 
   await waitFor(() => expect(screen.getByRole("button", { name: "Review and run" })).toBeTruthy());
   expect(onRunWorkflow).not.toHaveBeenCalled();
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: "Review and run" }));
   await waitFor(() => expect(onRunWorkflow).toHaveBeenCalledWith({
     sessionId: "session-1",

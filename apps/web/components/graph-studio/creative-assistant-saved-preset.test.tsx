@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
 import type { AssistantPlanResponse } from "./types";
 import {
-  assistantJsonResponse as jsonResponse,
+  assistantIdleProgress, assistantJsonResponse as jsonResponse,
   assistantTestSession as session,
   assistantTestWorkflow as workflow,
 } from "./creative-assistant-test-fixtures";
@@ -134,12 +134,16 @@ it("passes exact preset identity and usable field values into saved-preset graph
     },
   };
   const onApplyWorkflow = vi.fn();
+  let planning = false;
   const fetchMock = vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) {
       return jsonResponse({ items: [{ ...session, messages: [savedPresetMessage, priorKernelMessage] }] });
     }
-    if (url.endsWith("/media/assistant/sessions/session-1/plans")) return jsonResponse(plan);
+    if (url.endsWith("/media/assistant/sessions/session-1/plans")) {
+      planning = true; return jsonResponse(plan); }
     if (url.endsWith("/media/assistant/sessions/session-1")) {
+      if (!planning) return jsonResponse({ ...session, messages: [savedPresetMessage, priorKernelMessage] });
       return jsonResponse({
         ...session,
         messages: [savedPresetMessage, priorKernelMessage, confirmedPlanMessage],
@@ -167,6 +171,7 @@ it("passes exact preset identity and usable field values into saved-preset graph
     />,
   );
 
+  await act(async () => Promise.resolve());
   fireEvent.click(await screen.findByRole("button", { name: "Test Navy Field Guide in a clean graph" }));
   await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/plans"))).toBe(true));
   const planCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/plans"));
@@ -175,11 +180,13 @@ it("passes exact preset identity and usable field values into saved-preset graph
   expect(request.message).toContain("navy_field_guide");
   expect(request.message).toContain("sample values");
   expect(request.workflow.nodes).toHaveLength(0);
+  await act(async () => Promise.resolve());
   fireEvent.click(await screen.findByRole("button", { name: "Add to canvas" }));
   await waitFor(() => expect(onApplyWorkflow).toHaveBeenCalled());
   const applyCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/media/assistant/plans/plan-1/apply"));
   expect(JSON.parse(String(applyCall?.[1]?.body)).workflow.nodes).toHaveLength(0);
 
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: "Test Navy Field Guide in a clean graph" }));
   await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/plans"))).toHaveLength(2));
   const changedWorkflow = {
@@ -202,6 +209,7 @@ it("passes exact preset identity and usable field values into saved-preset graph
       onClose={vi.fn()}
     />,
   );
+  await act(async () => Promise.resolve());
   fireEvent.click(await screen.findByRole("button", { name: "Add to canvas" }));
   await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/apply"))).toHaveLength(2));
   const secondApplyCall = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/apply"))[1];
@@ -210,11 +218,14 @@ it("passes exact preset identity and usable field values into saved-preset graph
 
 it("shows the persisted clarification when saved-artifact graph planning needs input", async () => {
   let requestedMessage = "";
+  let planning = false;
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) {
       return jsonResponse({ items: [{ ...session, messages: [savedRecipeMessage] }] });
     }
     if (url.endsWith("/media/assistant/sessions/session-1/plans")) {
+      planning = true;
       requestedMessage = JSON.parse(String(init?.body)).message;
       return Promise.resolve(new Response(JSON.stringify({
         detail: "The assistant did not produce a confirmable graph proposal.",
@@ -224,6 +235,7 @@ it("shows the persisted clarification when saved-artifact graph planning needs i
       }));
     }
     if (url.endsWith("/media/assistant/sessions/session-1")) {
+      if (!planning) return jsonResponse({ ...session, messages: [savedRecipeMessage] });
       return jsonResponse({ ...session, messages: [savedRecipeMessage, { ...savedRecipeGraphRequestMessage, content_text: requestedMessage }, clarificationMessage] });
     }
     return jsonResponse({});
@@ -244,6 +256,7 @@ it("shows the persisted clarification when saved-artifact graph planning needs i
     />,
   );
 
+  await act(async () => Promise.resolve());
   fireEvent.click(await screen.findByRole("button", { name: "Create a clean graph with Storyboard Writer" }));
 
   await waitFor(() => expect(container.querySelectorAll(".graph-assistant-message-assistant")).toHaveLength(1));
@@ -257,17 +270,21 @@ it("preserves an upstream planning error instead of masking it with an unrelated
     assistant_message_id: "message-unrelated",
     content_text: "A separate assistant reply arrived.",
   };
+  let planning = false;
   const fetchMock = vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) {
       return jsonResponse({ items: [{ ...session, messages: [savedRecipeMessage] }] });
     }
     if (url.endsWith("/media/assistant/sessions/session-1/plans")) {
+      planning = true;
       return Promise.resolve(new Response(JSON.stringify({ detail: "Upstream assistant unavailable." }), {
         status: 502,
         headers: { "content-type": "application/json" },
       }));
     }
     if (url.endsWith("/media/assistant/sessions/session-1")) {
+      if (!planning) return jsonResponse({ ...session, messages: [savedRecipeMessage] });
       return jsonResponse({ ...session, messages: [savedRecipeMessage, unrelatedMessage] });
     }
     return jsonResponse({});
@@ -288,6 +305,7 @@ it("preserves an upstream planning error instead of masking it with an unrelated
     />,
   );
 
+  await act(async () => Promise.resolve());
   fireEvent.click(await screen.findByRole("button", { name: "Create a clean graph with Storyboard Writer" }));
 
   expect(await screen.findByText("Upstream assistant unavailable.")).toBeTruthy();
@@ -300,11 +318,14 @@ it("stops a delayed clarification refresh without replacing the cancelled sessio
   const delayedRefresh = new Promise<Response>((resolve) => {
     resolveRefresh = resolve;
   });
+  let planning = false;
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) {
       return jsonResponse({ items: [{ ...session, messages: [savedRecipeMessage] }] });
     }
     if (url.endsWith("/media/assistant/sessions/session-1/plans")) {
+      planning = true;
       return Promise.resolve(new Response(JSON.stringify({
         detail: "The assistant did not produce a confirmable graph proposal.",
       }), {
@@ -316,6 +337,7 @@ it("stops a delayed clarification refresh without replacing the cancelled sessio
       return jsonResponse({ ...session, messages: [savedRecipeMessage] });
     }
     if (url.endsWith("/media/assistant/sessions/session-1")) {
+      if (!planning) return jsonResponse({ ...session, messages: [savedRecipeMessage] });
       refreshSignal = init?.signal ?? undefined;
       return delayedRefresh;
     }
@@ -337,8 +359,10 @@ it("stops a delayed clarification refresh without replacing the cancelled sessio
     />,
   );
 
+  await act(async () => Promise.resolve());
   fireEvent.click(await screen.findByRole("button", { name: "Create a clean graph with Storyboard Writer" }));
-  await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/session-1"))).toBe(true));
+  await waitFor(() => expect(refreshSignal).toBeDefined());
+  await act(async () => Promise.resolve());
   fireEvent.click(await screen.findByRole("button", { name: /stop assistant request/i }));
   await waitFor(() => expect(refreshSignal?.aborted).toBe(true));
 

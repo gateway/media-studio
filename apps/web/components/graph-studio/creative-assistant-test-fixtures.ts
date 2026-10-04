@@ -32,3 +32,10 @@ export function assistantJsonResponse(payload: unknown) {
     headers: { "content-type": "application/json" },
   }));
 }
+
+export const assistantIdleProgress = { active: false, stage: "idle", label: "", elapsed_seconds: 0 };
+
+// A saved fixture has the same body in list hydration and subsequent detail reads.
+export function assistantSessionResponse(url: string, session: unknown) {
+  return assistantJsonResponse(url.includes("/sessions?") ? { items: [session] } : session);
+}

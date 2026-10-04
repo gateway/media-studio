@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
 import type { AssistantPlanResponse } from "./types";
 import {
-  assistantJsonResponse as jsonResponse,
+  assistantIdleProgress, assistantSessionResponse, assistantJsonResponse as jsonResponse,
   assistantTestSession as session,
   assistantTestWorkflow as workflow,
 } from "./creative-assistant-test-fixtures";
@@ -34,7 +34,8 @@ function renderPresetSession(
     }, ...messages],
   };
   const fetchMock = vi.fn((url: string) => {
-    if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [presetSession] });
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
+    if ((url.includes("/media/assistant/sessions?") || url.endsWith("/media/assistant/sessions/session-1"))) return assistantSessionResponse(url, presetSession);
     if (url.endsWith(`/runs/${run?.id}/results`)) return jsonResponse({
       run_id: run?.id, workflow_name: "Preset test", status: run?.status,
       items: [], selected_artifact_ids: [],
@@ -150,6 +151,7 @@ it("restores a pending plan when a standalone session's graph later gains a work
     },
   };
   vi.stubGlobal("fetch", vi.fn((url: string) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.endsWith("/media/assistant/sessions/session-1")) {
       return jsonResponse({
         ...session,

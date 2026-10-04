@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
 import { useAssistantDock } from "./hooks/use-assistant-dock";
-import { assistantJsonResponse as jsonResponse, assistantTestSession as session, assistantTestWorkflow as workflow } from "./creative-assistant-test-fixtures";
+import { assistantIdleProgress, assistantSessionResponse, assistantJsonResponse as jsonResponse, assistantTestSession as session, assistantTestWorkflow as workflow } from "./creative-assistant-test-fixtures";
 
 let measure: (width: number) => void;
 const resizeCallbacks = new Map<Element, () => void>();
@@ -28,7 +28,8 @@ beforeEach(() => {
 });
 it("keeps the conversation bottom visible as the composer grows, without moving a reader who scrolled up", async () => {
   vi.stubGlobal("fetch", vi.fn((request: RequestInfo | URL) => jsonResponse(
-    String(request).includes("/media/assistant/sessions?") ? { items: [session] } : session,
+    String(request).endsWith("/progress") ? assistantIdleProgress :
+      String(request).includes("/media/assistant/sessions?") ? { items: [{ ...session, messages: [] }] } : { ...session, messages: [] },
   )));
   const { container, unmount } = render(<Harness />);
   const body = container.querySelector('.graph-assistant-body')!;
@@ -51,8 +52,10 @@ it("keeps the conversation bottom visible as the composer grows, without moving 
   viewportHeight = 240;
   act(() => resizeCallbacks.get(body)!());
   expect(body.scrollTop).toBe(37);
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: "Close Media Assistant" }));
   expect(resizeCallbacks.has(body)).toBe(false);
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: "Reopen" }));
   expect(resizeCallbacks.has(body)).toBe(true);
   unmount();
@@ -84,6 +87,7 @@ it("keeps one in-flight turn, the composer node and draft across placement/size/
   let creates = 0; let turns = 0; let cancels = 0;
   const fetchMock = vi.fn((request: RequestInfo | URL) => {
     const url = String(request);
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [] });
     if (url.endsWith("/media/assistant/sessions")) { creates++; return jsonResponse({ ...session, messages: [] }); }
     if (url.endsWith("/messages")) { turns++; return new Promise<Response>(() => {}); }
@@ -94,6 +98,7 @@ it("keeps one in-flight turn, the composer node and draft across placement/size/
   const { container } = render(<Harness />);
   const composer = screen.getByRole("textbox", { name: "Assistant message" });
   fireEvent.change(composer, { target: { value: "Mock request" } });
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: "Send chat message" }));
   await waitFor(() => expect(turns).toBe(1));
   fireEvent.change(composer, { target: { value: "Keep this unsent draft" } });
@@ -108,6 +113,7 @@ it("keeps one in-flight turn, the composer node and draft across placement/size/
   expect(body.scrollTop).toBe(37);
   expect(creates).toBe(1); expect(turns).toBe(1);
   expect(screen.getByRole("button", { name: "Stop assistant request" })).toBeTruthy();
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: "Stop assistant request" }));
   await waitFor(() => expect(cancels).toBe(1));
   expect(onApply).not.toHaveBeenCalled(); expect(onRun).not.toHaveBeenCalled();
@@ -121,7 +127,8 @@ it("retains attachments, messages and pending explicit confirmation without appl
   };
   const fetchMock = vi.fn((request: RequestInfo | URL) => {
     const url = String(request);
-    if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [saved] });
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
+    if ((url.includes("/media/assistant/sessions?") || url.endsWith("/media/assistant/sessions/session-1"))) return assistantSessionResponse(url, saved);
     return jsonResponse(saved);
   });
   vi.stubGlobal("fetch", fetchMock);
