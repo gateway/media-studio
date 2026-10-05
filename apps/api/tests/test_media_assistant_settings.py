@@ -354,6 +354,9 @@ def test_unavailable_assistant_provider_returns_configuration_path(
     )
 
     assert response.status_code == 502
-    detail = response.json()["detail"].lower()
-    assert "credential" in detail
-    assert "ai settings" in detail
+    detail = response.json()["detail"]
+    assert detail["code"] == "assistant_unavailable"
+    assert detail["state"] == "failed"
+    assert "ai settings" in detail["message"].lower()
+    refreshed = client.get(f"/media/assistant/sessions/{session['assistant_session_id']}").json()
+    assert refreshed["messages"] == []
