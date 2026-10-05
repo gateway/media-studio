@@ -106,9 +106,9 @@ Starter presets include **Photo Restoration**, **3D Caricature Style**, **2x2 Po
 
 ## Supported models
 
-Media Studio reads its model catalog from the companion [`kie-api`](https://github.com/gateway/kie-api) project. These are the currently integrated image and video models exposed in Studio; the available catalog can expand as that integration is updated.
+Media Studio reads its model catalog from the companion [`kie-api`](https://github.com/gateway/kie-api) project. The categories below cover the integrated image and video models in Studio, audio generation in Graph Studio, and optional text and vision providers. The available KIE catalog can expand as that integration is updated.
 
-### Image generation and editing
+### Image models
 
 | Model | What you can do |
 | --- | --- |
@@ -118,7 +118,7 @@ Media Studio reads its model catalog from the companion [`kie-api`](https://gith
 | **Nano Banana 2** | Text-to-image and image editing |
 | **Nano Banana Pro** | Text-to-image and image editing |
 
-### Video generation and motion
+### Video models
 
 | Model | What you can do |
 | --- | --- |
@@ -130,9 +130,25 @@ Media Studio reads its model catalog from the companion [`kie-api`](https://gith
 | **Kling 3.0** | Text-to-video, image-to-video with optional end frame, and motion control |
 | **Kling 3.0 Turbo** | Image-to-video with start and optional end frames |
 
-### Music in Graph Studio
+### Audio models
 
-**Suno Music Generation** is available as a Graph Studio model node. Build music workflows with audio previews, saved tracks, and local audio processing. Suno is a Graph capability rather than a model in the main Studio image/video composer.
+| Model | What you can do |
+| --- | --- |
+| **Suno Music Generation** | Generate music in Graph Studio, preview and save tracks, then process audio locally |
+
+Suno is available as a Graph Studio model node rather than in the main Studio image/video composer.
+
+### Other — text and vision models
+
+Use optional AI providers for prompt enhancement, drafting, and supported text or vision workflows. Model names depend on your provider configuration; these are separate from KIE media generation.
+
+| Provider | Model selection |
+| --- | --- |
+| **Codex Local** | Your configured Codex model through the local Codex login |
+| **OpenRouter** | The text or vision model selected in AI Settings |
+| **Local OpenAI-compatible endpoint** | A model served by your configured endpoint |
+
+See [AI prompt tools](#ai-prompt-tools) for setup and supported uses. Media Assistant currently requires Codex Local.
 
 Use **Models** for the current catalog and supported options, and **Pricing** for cost estimates. Kie can change availability, rules, and credit costs; displayed prices are estimates and the final charge is determined by Kie.
 
@@ -199,7 +215,7 @@ These providers support prompt work; image, video, and music generation use thei
 - [Media Assistant setup](docs/media-assistant-setup.md) · [Media Assistant details](docs/media-assistant.md)
 - [Graph node library](docs/graph-studio-node-library.md)
 - [Advanced runtime](docs/advanced-runtime.md) · [Pricing integration](docs/pricing-integration.md)
-- [Release notes](docs/releases/v1.0.4.md)
+- [Release notes](docs/releases/v1.0.5.md)
 
 ## License
 
