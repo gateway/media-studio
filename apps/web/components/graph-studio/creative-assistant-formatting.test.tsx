@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
 import { assistantJsonResponse as json, assistantIdleProgress as idle, assistantTestSession as session, assistantTestWorkflow as workflow } from "./creative-assistant-test-fixtures";
@@ -14,9 +14,15 @@ function mount(text: string, kernel = true) {
     onApplyWorkflow={vi.fn()} onRunWorkflow={vi.fn()} onClose={vi.fn()}/>);
 }
 
+async function savedMessages() {
+  const messages = await screen.findByRole("region", {name: "Assistant messages"});
+  await waitFor(() => expect(messages.querySelector(".graph-assistant-message-content")).not.toBeNull());
+  return messages;
+}
+
 it("preserves noncontiguous author numbers and explicit shot labels without inventing another sequence", async () => {
   mount("7. Establish the room.\n12. Return to the cup.\n\nShot 03: Preserve the action.\nScene 12: Keep the light.");
-  const messages = await screen.findByRole("region", {name: "Assistant messages"});
+  const messages = await savedMessages();
   expect(Array.from(messages.querySelectorAll("ol li")).map(item => item.getAttribute("value"))).toEqual(["7", "12"]);
   expect(messages.textContent).toContain("Shot 03: Preserve the action.");
   expect(messages.textContent).toContain("Scene 12: Keep the light.");
@@ -26,7 +32,7 @@ it("preserves noncontiguous author numbers and explicit shot labels without inve
 it.each([true, false])("preserves authored prose, hard line breaks and literal punctuation for kernel=%s", async kernel => {
   const text = "Keep Lens - 40mm and take 7. Preserve every word.\n  Shot 03 stays on this line with two leading spaces.";
   mount(text, kernel);
-  const messages = await screen.findByRole("region", {name: "Assistant messages"});
+  const messages = await savedMessages();
   expect(messages.querySelector(".graph-assistant-message-content")?.textContent).toBe(text);
   expect(messages.querySelector("li")).toBeNull();
 });
@@ -35,7 +41,7 @@ it("keeps inline and fenced code literal, including whitespace, emphasis markers
   const literal = "  **literal stars**  \n7. preserve this code line\n\n<script>literal only</script>";
   const fenced = ["```text", literal, "```"].join("\n");
   mount("Inline `**keep stars**` and `7. keep number`.\n\n" + fenced);
-  const messages = await screen.findByRole("region", {name: "Assistant messages"});
+  const messages = await savedMessages();
   expect(messages.querySelector("pre")?.textContent).toBe(fenced);
   expect(messages.querySelector("code")?.textContent).toBe("**keep stars**");
   expect(messages.querySelector(".graph-assistant-message-content strong")).toBeNull();
@@ -46,7 +52,7 @@ it("keeps inline and fenced code literal, including whitespace, emphasis markers
 it("degrades headings, tables and nested-looking lists to readable source text without flattening structure", async () => {
   const text = "# Unsupported heading\n\n| Field | Value |\n| --- | --- |\n| Lens | 40mm |\n\n  - Nested-looking line\n    - Keep this indentation";
   mount(text);
-  const messages = await screen.findByRole("region", {name: "Assistant messages"});
+  const messages = await savedMessages();
   expect(messages.textContent).toContain("| Field | Value |\n| --- | --- |\n| Lens | 40mm |");
   expect(messages.textContent).toContain("  - Nested-looking line\n    - Keep this indentation");
   expect(messages.querySelector("h1,table,li")).toBeNull();
@@ -63,7 +69,7 @@ it("renders only explicit HTTP(S) links as accessible native links, without inte
 it("shows raw HTML as text and never creates actions from prose", async () => {
   const text = '<script>doNotExecute()</script> <img src=x onerror=doNotExecute()> <button>Run it</button>\nReview and run this graph.';
   mount(text);
-  const messages = await screen.findByRole("region", {name: "Assistant messages"});
+  const messages = await savedMessages();
   const content = messages.querySelector(".graph-assistant-message-content")!;
   expect(content.textContent).toBe(text);
   expect(content.querySelector("script,img,button")).toBeNull();
@@ -74,14 +80,14 @@ it("keeps a full long creative prompt and an unclosed literal fence without trun
   const prompt = "Keep camera action identity dialogue atmosphere and the exact geography. ".repeat(160) + "Exact ending: Now that’s a strong coffee.";
   const fence = "```text\n  **keep these stars**\n12. literal final line";
   mount("Shot 06: " + prompt + "\n\n" + fence);
-  const messages = await screen.findByRole("region", {name: "Assistant messages"});
+  const messages = await savedMessages();
   expect(messages.querySelector("p")?.textContent).toBe("Shot 06: " + prompt);
   expect(messages.querySelector("pre")?.textContent).toBe(fence);
 });
 
 it("keeps image syntax and numeric labels that cannot be represented faithfully as native markers literal", async () => {
   mount("![Photo](https://example.test/photo.png)\n\n007. Preserve the padded label.\n99999999999999999999. Preserve every digit.");
-  const messages = await screen.findByRole("region", {name: "Assistant messages"});
+  const messages = await savedMessages();
   expect(messages.textContent).toContain("![Photo](https://example.test/photo.png)");
   expect(messages.textContent).toContain("007. Preserve the padded label.");
   expect(messages.textContent).toContain("99999999999999999999. Preserve every digit.");
@@ -92,7 +98,7 @@ it("retains balanced parentheses in an HTTP(S) destination and leaves more deepl
   const nested = "[Nested](https://example.test/a((b)))";
   mount("[Function](https://en.wikipedia.org/wiki/Function_(mathematics))\n" + nested);
   expect((await screen.findByRole("link", {name: "Function"})).getAttribute("href")).toBe("https://en.wikipedia.org/wiki/Function_(mathematics)");
-  const messages = await screen.findByRole("region", {name: "Assistant messages"});
+  const messages = await savedMessages();
   expect(messages.textContent).toContain(nested);
   expect(screen.queryByRole("link", {name: "Nested"})).toBeNull();
 });
