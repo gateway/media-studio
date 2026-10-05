@@ -1368,7 +1368,7 @@ def test_kernel_graph_proposal_is_validated_priced_and_confirmable(client, monke
     ]
     assert turn["trace"]["tool_calls"][-1]["activity"] == {
         "kind": "graph_proposal",
-        "label": "Prepared a graph proposal",
+        "label": "Prepared graph changes for review",
         "tone": "success",
     }
     assert provider_calls == 4
