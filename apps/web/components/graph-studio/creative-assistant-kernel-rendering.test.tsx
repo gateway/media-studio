@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
 import {
-  assistantJsonResponse as jsonResponse,
+  assistantIdleProgress, assistantSessionResponse, assistantJsonResponse as jsonResponse,
   assistantTestSession as session,
   assistantTestWorkflow as workflow,
 } from "./creative-assistant-test-fixtures";
@@ -19,9 +19,9 @@ afterEach(() => {
 it("preserves kernel reply markdown and renders only safe typed tool activity", async () => {
   const reply = "Opening **note**.\n\n- First item\n- *Second item*\n\nThe sandbox term stays visible.";
   const fetchMock = vi.fn((url: string) => {
-    if (url.includes("/media/assistant/sessions?")) {
-      return jsonResponse({
-        items: [{
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
+    if (url.includes("/media/assistant/sessions?") || url.endsWith("/media/assistant/sessions/session-1")) {
+      return assistantSessionResponse(url, {
           ...session,
           messages: [{
             assistant_message_id: "message-markdown-kernel",
@@ -55,7 +55,6 @@ it("preserves kernel reply markdown and renders only safe typed tool activity", 
               },
             },
           }],
-        }],
       });
     }
     return jsonResponse({});
@@ -91,9 +90,9 @@ it.each([
 ])("does not infer a run control from kernel reply wording", async (reply) => {
   const onRunWorkflow = vi.fn();
   const fetchMock = vi.fn((url: string) => {
-    if (url.includes("/media/assistant/sessions?")) {
-      return jsonResponse({
-        items: [{
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
+    if (url.includes("/media/assistant/sessions?") || url.endsWith("/media/assistant/sessions/session-1")) {
+      return assistantSessionResponse(url, {
           ...session,
           messages: [{
             assistant_message_id: "message-no-action-kernel",
@@ -105,7 +104,6 @@ it.each([
               next_action: { kind: "none", requires_confirmation: false },
             },
           }],
-        }],
       });
     }
     return jsonResponse({});
@@ -140,10 +138,11 @@ it("renders a persisted requested image in its reply and focuses selection witho
   let selected = false;
   const onApplyWorkflow = vi.fn(); const onRunWorkflow = vi.fn();
   vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
-    if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [{ ...session, messages: [{
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
+    if ((url.includes("/media/assistant/sessions?") || url.endsWith("/media/assistant/sessions/session-1"))) return assistantSessionResponse(url, { ...session, messages: [{
       assistant_message_id: "shown-original", assistant_session_id: "session-1", role: "assistant",
       content_text: "Here is the original.", content_json: { mode: "assistant_kernel", kernel_turn: { artifacts: [{ kind: "result_display", data: binding }] } },
-    }] }] });
+    }] });
     if (url.includes("/results")) {
       if (init?.method === "POST") { expect(JSON.parse(String(init.body))).toEqual({ ...binding, selected: true }); selected = true; }
       return jsonResponse({ run_id: "original-run", status: "completed", items: [image], selected_artifact_ids: selected ? ["original"] : [], selected_result_bindings: selected ? { original: binding } : {} });
@@ -153,6 +152,7 @@ it("renders a persisted requested image in its reply and focuses selection witho
   render(<CreativeAssistantPanel open workspaceKey="requested-image" workflowId="workflow-1" workflowName="Current board" workflow={workflow}
     references={[]} importImageFile={vi.fn()} onApplyWorkflow={onApplyWorkflow} onRunWorkflow={onRunWorkflow} onClose={vi.fn()} />);
   expect(await screen.findByRole("region", { name: "Requested image" })).toBeTruthy();
+  await act(async () => Promise.resolve());
   fireEvent.click(screen.getByRole("button", { name: "Use in chat — Original board" }));
   await screen.findByRole("button", { name: "In this conversation — Original board" });
   expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Assistant message" }));

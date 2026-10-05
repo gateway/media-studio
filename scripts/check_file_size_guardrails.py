@@ -90,9 +90,13 @@ GUARDRAILS = (
 # artifacts; reuse card/selection owners, no new storage or execution authority.
 # Single-image display completion: +9 lines reuse typed intent/artifact termination;
 # no cache, provider bypass, storage or execution authority. Exact measured cap.
+# Communication: +6 lines retain the last successful milestone across thinking/compaction
+# in the existing ephemeral progress owner; no persisted state or new execution authority.
+# Failure/completion: +36 reviewed lines persist outcomes in existing request JSON,
+# supply typed terminal summaries and retain separate run assessment; exact cap, no reserve.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_954,
+    13_002,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

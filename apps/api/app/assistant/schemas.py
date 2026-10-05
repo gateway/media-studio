@@ -355,6 +355,7 @@ class AssistantSessionListResponse(BaseModel):
 
 
 class AssistantProgress(BaseModel):
+    last_milestone: Optional[str] = None
     active: bool = False
     stage: Literal["idle", "thinking", "tool", "compacting"] = "idle"
     label: str = ""

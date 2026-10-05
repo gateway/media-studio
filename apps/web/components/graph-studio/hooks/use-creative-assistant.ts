@@ -29,9 +29,10 @@ import { buildCreativeAssistantCanvasContext } from "../utils/creative-assistant
 
 export type AssistantMode = "preset" | "recipe" | "graph";
 
-type AssistantStatus = "idle" | "sending" | "running" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling";
+type AssistantStatus = "idle" | "monitoring" | "sending" | "running" | "planning" | "draftingRecipe" | "draftingPreset" | "savingRecipe" | "savingPreset" | "applying" | "uploading" | "cancelling";
 
 const ASSISTANT_TRACKED_TURN_STATUSES = new Set<AssistantStatus>([
+  "monitoring",
   "sending",
   "planning",
   "draftingRecipe",
@@ -174,10 +175,24 @@ function persistedPlanForWorkflow(
   return persistedPlan;
 }
 
+type FailedAssistantRequest = {
+  content: string; checked: boolean; code: string; status: number | null; previousMessageIds: string[]; editable: boolean;
+};
+
+function failedRequestOutcome(session: AssistantSession, failure: FailedAssistantRequest) {
+  const requestIndex = session.messages.findIndex(message => message.role === "user" && message.content_text.trim() === failure.content && !failure.previousMessageIds.includes(message.assistant_message_id));
+  return {
+    requestPersisted: requestIndex >= 0,
+    replyFound: requestIndex >= 0 && session.messages.slice(requestIndex + 1).some(message => message.role === "assistant"),
+    outcome: requestIndex >= 0 ? session.messages[requestIndex].content_json?.turn_outcome : null,
+  };
+}
+
 function latestAssistantPayload(session: AssistantSession | null) {
   if (!session) return null;
   for (let index = session.messages.length - 1; index >= 0; index -= 1) {
     const message = session.messages[index];
+    if (message.role === "user") return null;
     if (message.role !== "assistant") continue;
     return message.content_json ?? {};
   }
@@ -267,7 +282,10 @@ export function useCreativeAssistant({
   const [plan, setPlan] = useState<AssistantPlanResponse | null>(null);
   const [status, setStatus] = useState<AssistantStatus>("idle");
   const [progress, setProgress] = useState<AssistantProgress | null>(null);
+  const [progressUnavailable, setProgressUnavailable] = useState(false);
+  const [progressUpdatedAt, setProgressUpdatedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [failedRequest, setFailedRequest] = useState<FailedAssistantRequest | null>(null);
   const [runSubmissionUncertain, setRunSubmissionUncertain] = useState(false);
   const [runConfirmationNeedsRecheck, setRunConfirmationNeedsRecheck] = useState(false);
   const [providerReadiness, setProviderReadiness] = useState<AssistantProviderReadiness>({
@@ -283,16 +301,21 @@ export function useCreativeAssistant({
   const initialAssistantSessionIdRef = useRef(initialAssistantSessionId);
   const sessionWorkspaceKeyRef = useRef<string | null>(null);
   const activeRunOperationRef = useRef<symbol | null>(null);
+  const activeApplyOperationRef = useRef<symbol | null>(null);
   const planWorkflowOverrideRef = useRef<{
     planId: string;
     baseWorkflow: GraphWorkflowPayload;
     sourceWorkflowSignature: string | null;
   } | null>(null);
 
-  const scopedStatus = workspaceKeyRef.current === workspaceKey ? status : "idle";
+  const requestedSessionChanged = Boolean(
+    initialAssistantSessionId && session?.assistant_session_id !== initialAssistantSessionId,
+  );
+  const scopedStatus = workspaceKeyRef.current === workspaceKey
+    ? requestedSessionChanged && !error ? "monitoring" : status : "idle";
   const busy = scopedStatus !== "idle";
   const cancellable = (
-    ASSISTANT_TRACKED_TURN_STATUSES.has(scopedStatus) && Boolean(session?.assistant_session_id)
+    ASSISTANT_TRACKED_TURN_STATUSES.has(scopedStatus) && !requestedSessionChanged && Boolean(session?.assistant_session_id)
   ) || scopedStatus === "cancelling";
   const canPlan = draft.trim().length > 0 && !busy;
   const nextAction = useMemo(() => latestKernelNextAction(session), [session]);
@@ -310,10 +333,11 @@ export function useCreativeAssistant({
         ? "Run controls are unavailable here. Open this workflow in Graph Studio to run it."
         : null;
   const latestPayload = useMemo(() => latestAssistantPayload(session), [session]);
-  const kernelActionRequired = latestPayload?.mode === "assistant_kernel";
+  const kernelActionRequired = latestPayload?.mode === "assistant_kernel" || plan?.graph_plan.metadata?.kernel_proposal === true;
+  const unansweredRequest = session?.messages.filter(message => message.role === "user" || message.role === "assistant").at(-1)?.role === "user";
   const canApply = Boolean(
     plan?.plan.status === "validated" &&
-    !busy &&
+    !busy && !unansweredRequest &&
     (
       !kernelActionRequired ||
       (
@@ -350,14 +374,19 @@ export function useCreativeAssistant({
     cancellationPendingRef.current = false;
     sessionWorkspaceKeyRef.current = null;
     activeRunOperationRef.current = null;
+    activeApplyOperationRef.current = null;
     planWorkflowOverrideRef.current = null;
     setScopedSession(null);
     setPlan(null);
     setDraft("");
     setError(null);
     setRunConfirmationNeedsRecheck(false);
+    setFailedRequest(null);
     setRunSubmissionUncertain(false);
     setStatus("idle");
+    setProgress(null);
+    setProgressUnavailable(false);
+    setProgressUpdatedAt(null);
   }, [setScopedSession]);
 
   useEffect(() => {
@@ -370,15 +399,15 @@ export function useCreativeAssistant({
   useEffect(() => {
     const previousAssistantSessionId = initialAssistantSessionIdRef.current;
     initialAssistantSessionIdRef.current = initialAssistantSessionId;
-    if (!previousAssistantSessionId || initialAssistantSessionId) return;
+    if (!previousAssistantSessionId || previousAssistantSessionId === initialAssistantSessionId) return;
     resetAssistantState();
   }, [initialAssistantSessionId, resetAssistantState]);
 
   useEffect(() => {
-    if (session?.assistant_session_id && sessionWorkspaceKeyRef.current === workspaceKey) {
+    if (!requestedSessionChanged && session?.assistant_session_id && sessionWorkspaceKeyRef.current === workspaceKey) {
       onAssistantSessionChange?.(session.assistant_session_id);
     }
-  }, [onAssistantSessionChange, session?.assistant_session_id, workspaceKey]);
+  }, [onAssistantSessionChange, requestedSessionChanged, session?.assistant_session_id, workspaceKey]);
 
   const runAbortableRequest = useCallback(async <T,>(request: (signal: AbortSignal) => Promise<T>) => {
     activeAbortControllerRef.current?.abort();
@@ -387,43 +416,13 @@ export function useCreativeAssistant({
     // Productive planning and real compaction finish without a wall-clock cap.
     // Explicit Stop/workspace changes abort; transport failures still reject.
     try {
-      return await request(controller.signal);
+      const result = await request(controller.signal);
+      if (controller.signal.aborted) throw new DOMException("Assistant request stopped.", "AbortError");
+      return result;
     } finally {
       if (activeAbortControllerRef.current === controller) activeAbortControllerRef.current = null;
     }
   }, []);
-
-  useEffect(() => {
-    const sessionId = session?.assistant_session_id;
-    const tracksKernelProgress = ASSISTANT_TRACKED_TURN_STATUSES.has(scopedStatus);
-    if (!tracksKernelProgress || !sessionId) {
-      setProgress(null);
-      return;
-    }
-    let disposed = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const poll = async () => {
-      try {
-        const next = await jsonFetch<AssistantProgress>(
-          `/api/control/media/assistant/sessions/${sessionId}/progress`,
-          { signal: AbortSignal.timeout(5_000) },
-        );
-        if (!disposed) {
-          setProgress(next.active ? next : null);
-        }
-      } catch {
-        if (!disposed) setProgress((current) => current?.stage === "compacting"
-          ? { ...current, label: "Waiting for a compaction status update…" } : current);
-      } finally {
-        if (!disposed) timer = setTimeout(poll, 2_000);
-      }
-    };
-    void poll();
-    return () => {
-      disposed = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [scopedStatus, session?.assistant_session_id]);
 
   const hydrateExistingSession = useCallback((existing: AssistantSession, expectedWorkspaceKey: string) => {
     if (workspaceKeyRef.current !== expectedWorkspaceKey) return false;
@@ -433,30 +432,79 @@ export function useCreativeAssistant({
     return true;
   }, [setScopedSession, workflowId]);
 
-  const loadExistingSession = useCallback(async () => {
+  useEffect(() => {
+    const sessionId = session?.assistant_session_id;
+    const tracksKernelProgress = ASSISTANT_TRACKED_TURN_STATUSES.has(scopedStatus);
+    setProgress(null);
+    setProgressUnavailable(false);
+    setProgressUpdatedAt(null);
+    if (!tracksKernelProgress || !sessionId || requestedSessionChanged) return;
+    const expectedWorkspaceKey = workspaceKeyRef.current;
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const poll = async () => {
+      try {
+        const next = await jsonFetch<AssistantProgress>(
+          `/api/control/media/assistant/sessions/${sessionId}/progress`,
+          { signal: AbortSignal.timeout(5_000) },
+        );
+        if (!disposed) {
+          setProgress(next);
+          setProgressUpdatedAt(Date.now());
+          setProgressUnavailable(false);
+          // Reattached turns have no pending message response to deliver the outcome.
+          if (scopedStatus === "monitoring" && !next.active) {
+            const refreshed = await jsonFetch<AssistantSession>(
+              `/api/control/media/assistant/sessions/${sessionId}`,
+              { signal: AbortSignal.timeout(5_000) },
+            );
+            if (!disposed && hydrateExistingSession(refreshed, expectedWorkspaceKey)) {
+              setStatus("idle");
+              setFailedRequest(failure => !failure || failedRequestOutcome(refreshed, failure).replyFound ? null : { ...failure, checked: true });
+              setError(null);
+            }
+          }
+        }
+      } catch {
+        if (!disposed) setProgressUnavailable(true);
+      } finally {
+        if (!disposed) timer = setTimeout(poll, 2_000);
+      }
+    };
+    void poll();
+    return () => {
+      disposed = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [hydrateExistingSession, requestedSessionChanged, scopedStatus, session?.assistant_session_id]);
+
+  const loadExistingSession = useCallback(async (signal?: AbortSignal) => {
     const expectedWorkspaceKey = workspaceKeyRef.current;
     if (initialAssistantSessionId) {
       if (session?.assistant_session_id === initialAssistantSessionId) return session;
-      const existing = await jsonFetch<AssistantSession>(`/api/control/media/assistant/sessions/${encodeURIComponent(initialAssistantSessionId)}`);
-      return hydrateExistingSession(existing, expectedWorkspaceKey) ? existing : null;
+      const existing = await jsonFetch<AssistantSession>(`/api/control/media/assistant/sessions/${encodeURIComponent(initialAssistantSessionId)}`, { signal });
+      return !signal?.aborted && hydrateExistingSession(existing, expectedWorkspaceKey) ? existing : null;
     }
     if (session) return session;
     if (!workflowId) return null;
     const existing = await jsonFetch<{ items?: AssistantSession[] }>(
       `/api/control/media/assistant/sessions?owner_kind=graph_workflow&owner_id=${encodeURIComponent(workflowId)}&limit=1`,
+      { signal },
     );
+    if (signal?.aborted) return null;
     const latest = existing.items?.[0] ?? null;
     if (latest && !hydrateExistingSession(latest, expectedWorkspaceKey)) return null;
     return latest;
   }, [hydrateExistingSession, initialAssistantSessionId, session, workflowId]);
 
-  const ensureSession = useCallback(async () => {
+  const ensureSession = useCallback(async (signal?: AbortSignal) => {
     const expectedWorkspaceKey = workspaceKeyRef.current;
     if (session) return session;
-    const latest = await loadExistingSession();
+    const latest = await loadExistingSession(signal);
+    signal?.throwIfAborted();
     if (latest) return latest;
     const created = await jsonFetch<AssistantSession>("/api/control/media/assistant/sessions", {
-      method: "POST",
+      method: "POST", signal,
       body: JSON.stringify({
         owner_kind: workflowId ? "graph_workflow" : "standalone",
         owner_id: workflowId,
@@ -466,6 +514,7 @@ export function useCreativeAssistant({
         title: `${workflowName || "Graph"} assistant`,
       }),
     });
+    signal?.throwIfAborted();
     if (workspaceKeyRef.current !== expectedWorkspaceKey) return created;
     setScopedSession(created);
     return created;
@@ -473,20 +522,19 @@ export function useCreativeAssistant({
 
   useEffect(() => {
     if (!enabled) return;
-    const requestedSessionChanged = Boolean(
-      initialAssistantSessionId && session?.assistant_session_id !== initialAssistantSessionId,
-    );
     if (!requestedSessionChanged && (session || (!workflowId && !initialAssistantSessionId))) return;
-    let cancelled = false;
-    loadExistingSession().catch((requestError) => {
-      if (cancelled) return;
-      const message = assistantErrorMessage(requestError, "Unable to load assistant session.");
-      setError(message);
+    const controller = new AbortController();
+    // Check saved ownership before enabling a replacement send or old action.
+    setStatus("monitoring");
+    loadExistingSession(controller.signal).then((existing) => {
+      if (!controller.signal.aborted && !existing) setStatus("idle");
+    }).catch((requestError) => {
+      if (controller.signal.aborted) return;
+      setError(assistantErrorMessage(requestError, "Unable to load assistant session."));
+      setStatus("idle");
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled, initialAssistantSessionId, loadExistingSession, session, workflowId]);
+    return () => controller.abort();
+  }, [enabled, initialAssistantSessionId, loadExistingSession, requestedSessionChanged, session, workflowId]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -781,14 +829,19 @@ export function useCreativeAssistant({
       : canvasContext;
     setStatus("planning");
     setError(null);
+    let requestSignal: AbortSignal | undefined;
     try {
-      const currentSession = options?.assistantSession ?? session ?? (await ensureSession());
+      const currentSession = await runAbortableRequest(async (signal) => {
+        requestSignal = signal;
+        return options?.assistantSession ?? session ?? await ensureSession(signal);
+      });
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       if (options?.appendUserMessage ?? true) {
         setScopedSession((current) => appendOptimisticUserMessage(current, currentSession, normalizedMessage, { source: "plan_graph", assistant_mode: assistantMode }));
       }
       setDraft("");
       const planRequest = await runAbortableRequest(async (signal) => {
+        requestSignal = signal;
         try {
           const result = await jsonFetch<AssistantPlanResponse>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/plans`, {
             method: "POST",
@@ -847,6 +900,7 @@ export function useCreativeAssistant({
       }
       return result;
     } catch (requestError) {
+      if (requestSignal?.aborted || workspaceKeyRef.current !== requestWorkspaceKey) return null;
       if (isAbortError(requestError)) {
         reportAbortableStop("Assistant planning stopped.");
         return null;
@@ -856,7 +910,7 @@ export function useCreativeAssistant({
       onEvent?.(errorMessage, "error");
       return null;
     } finally {
-      finishAbortableOperation();
+      if (!requestSignal?.aborted && workspaceKeyRef.current === requestWorkspaceKey) finishAbortableOperation();
     }
   }, [assistantMode, busy, canvasContext, ensureSession, finishAbortableOperation, latestRunId, onEvent, reportAbortableStop, runAbortableRequest, selectedGroupIds, selectedNodeIds, session, setScopedSession, workflow]);
 
@@ -866,6 +920,9 @@ export function useCreativeAssistant({
     confirmation?: AssistantNextAction | null,
   ) => {
     const applyWorkspaceKey = workspaceKeyRef.current;
+    const operation = Symbol("apply-plan");
+    activeApplyOperationRef.current = operation;
+    const ownsOperation = () => activeApplyOperationRef.current === operation && workspaceKeyRef.current === applyWorkspaceKey;
     setStatus("applying");
     setError(null);
     try {
@@ -886,7 +943,7 @@ export function useCreativeAssistant({
             : {}),
         }),
       });
-      if (workspaceKeyRef.current !== applyWorkspaceKey) return null;
+      if (!ownsOperation()) return null;
       setPlan({
         ...planResponse,
         plan: result.plan,
@@ -911,15 +968,20 @@ export function useCreativeAssistant({
         openInNewTab: planResponse.graph_plan.metadata?.independent_stage === true,
         assistantSessionId: planResponse.plan.assistant_session_id,
       });
+      if (!ownsOperation()) return null;
       onEvent?.("Assistant plan applied to the canvas.", "success");
       return result;
     } catch (requestError) {
+      if (!ownsOperation()) return null;
       const message = assistantErrorMessage(requestError, "Unable to apply assistant plan.");
       setError(message);
       onEvent?.(message, "error");
       return null;
     } finally {
-      setStatus("idle");
+      if (ownsOperation()) {
+        activeApplyOperationRef.current = null;
+        setStatus("idle");
+      }
     }
   }, [onApplyWorkflow, onEvent, workflow]);
 
@@ -945,18 +1007,58 @@ export function useCreativeAssistant({
     openAssistantReviewUrl(url);
   }, [onBeforeReviewNavigate, onEvent, reviewReturnTo]);
 
+  const reconcileFailedRequest = useCallback(async (sessionId: string, failure: NonNullable<typeof failedRequest>, signal: AbortSignal) => {
+    const expectedWorkspaceKey = workspaceKeyRef.current;
+    const boundedSignal = AbortSignal.any([signal, AbortSignal.timeout(5_000)]);
+    const progress = await jsonFetch<AssistantProgress>(`/api/control/media/assistant/sessions/${sessionId}/progress`, { signal: boundedSignal });
+    const refreshed = await jsonFetch<AssistantSession>(`/api/control/media/assistant/sessions/${sessionId}`, { signal: boundedSignal });
+    if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+    if (workspaceKeyRef.current !== expectedWorkspaceKey) return false;
+    hydrateExistingSession(refreshed, expectedWorkspaceKey);
+    const { requestPersisted, replyFound, outcome } = failedRequestOutcome(refreshed, failure);
+    setFailedRequest(replyFound ? null : { ...failure, checked: !progress.active });
+    setError(replyFound || outcome || progress.active ? null : failure.editable
+      ? "No completed reply was found in the saved conversation. Your original request is available to edit, or you can check again."
+      : "No completed reply was found in the saved conversation. Review saved work and the available recovery choices before continuing.");
+    if (!replyFound && failure.editable && (!requestPersisted || !progress.active)) setDraft(current => current || failure.content);
+    if (progress.active) setStatus("monitoring");
+    return progress.active;
+  }, [hydrateExistingSession]);
+
+  const reloadConversation = useCallback(async () => {
+    if (busy || !session || !failedRequest) return;
+    const expectedWorkspaceKey = workspaceKeyRef.current;
+    setStatus("sending");
+    try {
+      const active = await runAbortableRequest(signal => reconcileFailedRequest(session.assistant_session_id, failedRequest, signal));
+      if (!active && workspaceKeyRef.current === expectedWorkspaceKey) setStatus("idle");
+    } catch (requestError) {
+      if (isAbortError(requestError) || workspaceKeyRef.current !== expectedWorkspaceKey) return;
+      setError("Unable to check the saved conversation. Check your connection and reload before sending again.");
+      setStatus("idle");
+    }
+  }, [busy, failedRequest, reconcileFailedRequest, runAbortableRequest, session]);
+
   const sendContentMessage = useCallback(async (rawContent: string, options?: { clearDraft?: boolean; metadata?: Record<string, unknown>; skipAutoActions?: boolean; continuation?: AssistantRecipeContinuationAction }) => {
     const content = rawContent.trim();
-    if (!content || busy) return null;
+    if (!content || busy || (failedRequest && !failedRequest.checked)) return null;
     const requestWorkspaceKey = workspaceKeyRef.current;
     if (session && sessionWorkspaceKeyRef.current !== requestWorkspaceKey) return null;
     setStatus("sending");
+    setFailedRequest(null);
     setError(null);
     setRunConfirmationNeedsRecheck(false);
     let requestSessionId: string | undefined;
+    let requestSignal: AbortSignal | undefined;
+    let monitoring = false;
+    let previousMessageIds: string[] = [];
     try {
-      const currentSession = await ensureSession();
+      const currentSession = await runAbortableRequest(signal => {
+        requestSignal = signal;
+        return ensureSession(signal);
+      });
       requestSessionId = currentSession.assistant_session_id;
+      previousMessageIds = currentSession.messages.map(message => message.assistant_message_id);
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       setScopedSession((current) =>
         appendOptimisticUserMessage(current, currentSession, content, {
@@ -966,8 +1068,9 @@ export function useCreativeAssistant({
         }),
       );
       if (options?.clearDraft !== false) setDraft("");
-      const updated = await runAbortableRequest((signal) =>
-        jsonFetch<AssistantSession>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/messages`, {
+      const updated = await runAbortableRequest((signal) => {
+        requestSignal = signal;
+        return jsonFetch<AssistantSession>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/messages`, {
           method: "POST",
           signal,
           body: JSON.stringify({
@@ -979,8 +1082,8 @@ export function useCreativeAssistant({
             assistant_mode: assistantMode,
             metadata: options?.metadata ?? {},
           }),
-        }),
-      );
+        });
+      });
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       planWorkflowOverrideRef.current = null;
       setScopedSession(updated);
@@ -1002,31 +1105,39 @@ export function useCreativeAssistant({
       }
       return updated;
     } catch (requestError) {
+      if (requestSignal?.aborted || workspaceKeyRef.current !== requestWorkspaceKey) return null;
       if (isAbortError(requestError)) {
         reportAbortableStop("Assistant request stopped.");
         return null;
       }
-      // A failed resume rotates its action ID. Refresh before re-enabling the
-      // button so the next explicit attempt uses the server's current checkpoint.
-      if (options?.metadata?.planning_recovery_id && requestSessionId) {
-        try {
-          const refreshed = await jsonFetch<AssistantSession>(`/api/control/media/assistant/sessions/${requestSessionId}`);
-          if (workspaceKeyRef.current === requestWorkspaceKey) setScopedSession(refreshed);
-        } catch {
-          if (workspaceKeyRef.current === requestWorkspaceKey) {
-            setError("Unable to refresh planning recovery. Reload this workspace before continuing.");
-          }
-          return null;
+      const failure = {
+        content, checked: false,
+        code: requestError instanceof JsonFetchError && ["assistant_provider_failed", "assistant_unavailable", "assistant_session_busy", "assistant_turn_interrupted"].includes(requestError.code ?? "") ? requestError.code! : "assistant_response_lost",
+        status: requestError instanceof JsonFetchError ? requestError.status : null,
+        previousMessageIds,
+        editable: !options?.continuation && !options?.metadata?.planning_recovery_id,
+      };
+      setFailedRequest(failure);
+      try {
+        if (requestSessionId) monitoring = await runAbortableRequest(signal => {
+          requestSignal = signal;
+          return reconcileFailedRequest(requestSessionId!, failure, signal);
+        });
+        else {
+          setFailedRequest({ ...failure, checked: true });
+          setError("Media Assistant couldn't start this request. Check your connection and AI Settings, then try again.");
+          setDraft(current => current || content);
         }
+      } catch (recoveryError) {
+        if (isAbortError(recoveryError) || requestSignal?.aborted || workspaceKeyRef.current !== requestWorkspaceKey) return null;
+        setError("Unable to confirm the request's outcome. Check the saved conversation before sending again.");
+        setDraft(current => current || content);
       }
-      const message = assistantErrorMessage(requestError, "Unable to send assistant message.");
-      setError(message);
-      onEvent?.(message, "error");
       return null;
     } finally {
-      finishAbortableOperation();
+      if (!monitoring && !requestSignal?.aborted && workspaceKeyRef.current === requestWorkspaceKey) finishAbortableOperation();
     }
-  }, [assistantMode, busy, canvasContext, ensureSession, finishAbortableOperation, latestRunId, onEvent, reportAbortableStop, runAbortableRequest, setScopedSession, workflow, workflowId]);
+  }, [assistantMode, busy, canvasContext, ensureSession, failedRequest, finishAbortableOperation, latestRunId, onEvent, reconcileFailedRequest, reportAbortableStop, runAbortableRequest, setScopedSession, workflow, workflowId]);
 
   const sendMessage = useCallback(async () => sendContentMessage(draft), [draft, sendContentMessage]);
 
@@ -1178,28 +1289,30 @@ export function useCreativeAssistant({
   }, [applyPlanResponse, canApply, nextAction, plan, workflow]);
 
   const cancelAssistant = useCallback(async () => {
+    const requestWorkspaceKey = workspaceKeyRef.current;
     cancellationPendingRef.current = true;
-    activeAbortControllerRef.current?.abort();
     setStatus("cancelling");
     try {
-      const currentSession = session ?? (await loadExistingSession());
-      if (currentSession) {
-        const updated = await jsonFetch<AssistantSession>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/cancel`, {
-          method: "POST",
-        });
-        setScopedSession(updated);
-      }
+      const updated = await runAbortableRequest(async (signal) => {
+        const currentSession = session ?? (await loadExistingSession(signal));
+        return currentSession ? jsonFetch<AssistantSession>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/cancel`, {
+          method: "POST", signal,
+        }) : null;
+      });
+      if (workspaceKeyRef.current !== requestWorkspaceKey) return;
+      if (updated) setScopedSession(updated);
       setError(null);
       onEvent?.("Assistant stopped.", "muted");
       cancellationPendingRef.current = false;
       setStatus("idle");
     } catch (requestError) {
+      if (isAbortError(requestError) || workspaceKeyRef.current !== requestWorkspaceKey) return;
       const message = assistantErrorMessage(requestError, "Unable to stop assistant.");
       setError(message);
       onEvent?.(message, "error");
       setStatus("cancelling");
     }
-  }, [loadExistingSession, onEvent, session, setScopedSession]);
+  }, [loadExistingSession, onEvent, runAbortableRequest, session, setScopedSession]);
 
   return useMemo(
     () => ({
@@ -1208,10 +1321,14 @@ export function useCreativeAssistant({
       setDraft,
       plan,
       progress,
+      progressUnavailable,
+      progressUpdatedAt,
       status: scopedStatus,
       busy,
       cancellable,
       error,
+      failedRequest,
+      reloadConversation,
       runConfirmationNeedsRecheck,
       runConfirmationBlocker,
       runSubmissionUncertain,
@@ -1257,11 +1374,15 @@ export function useCreativeAssistant({
       createPromptRecipeDraft,
       draft,
       error,
+      failedRequest,
+      reloadConversation,
       runConfirmationNeedsRecheck,
       runConfirmationBlocker,
       runSubmissionUncertain,
       plan,
       progress,
+      progressUnavailable,
+      progressUpdatedAt,
       providerReadiness,
       removeAttachment,
       openSavedArtifactEditor,

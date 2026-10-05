@@ -11,6 +11,7 @@ from .kernel import run_assistant_kernel_turn
 from .generation_inspection import review_workflow_generation
 from .provider_support import (
     AssistantProviderChatError,
+    AssistantProviderConfigurationError,
     sync_assistant_session_provider,
 )
 from .recipe_continuation import run_recipe_continuation
@@ -75,7 +76,7 @@ def create_kernel_message(
                 cancel_event=cancel_event,
             )
     except AssistantSessionBusy as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(status_code=409, detail={"code": "assistant_session_busy", "message": "This conversation is still working. Wait for it or use Stop before sending again."}) from exc
 
 
 def _create_tracked_kernel_message(
@@ -90,7 +91,7 @@ def _create_tracked_kernel_message(
     text = payload.content_text.strip()
     user_message = None
     try:
-        stalled_thread = any(item.get("role") == "user" for item in store_assistant.list_assistant_messages(session_id)[-1:])
+        stalled_thread = next((item.get("role") == "user" for item in reversed(store_assistant.list_assistant_messages(session_id)) if item.get("role") in {"user", "assistant"}), False)
         session = sync_assistant_session_provider(
             session,
             force_new_thread=stalled_thread,
@@ -123,6 +124,11 @@ def _create_tracked_kernel_message(
         )
     except AssistantRequestCancelled as exc:
         failure_trace = compaction_error_trace(exc)
+        failure_trace = {**failure_trace, "cancellation_status": exc.outcome,
+                         "provider_lifecycle": [*failure_trace.get("provider_lifecycle", []), f"turn_{exc.outcome}"]}
+        outcome = {"code": "assistant_turn_interrupted", "state": "interrupted", "message": "This request was interrupted. Review any saved work before making a new attempt."}
+        if user_message:
+            store_assistant.create_assistant_message({**user_message, "content_json": {**user_message["content_json"], "turn_outcome": outcome, "assistant_turn_trace": failure_trace}})
         store_assistant.create_assistant_message(
             {
                 "assistant_session_id": session_id,
@@ -130,11 +136,7 @@ def _create_tracked_kernel_message(
                 "content_text": "Assistant turn interrupted.",
                 "content_json": {
                     "activity_kind": "assistant_turn_interrupted",
-                    "assistant_turn_trace": {
-                        **failure_trace,
-                        "cancellation_status": exc.outcome,
-                        "provider_lifecycle": [*failure_trace.get("provider_lifecycle", []), f"turn_{exc.outcome}"],
-                    },
+                    "assistant_turn_trace": failure_trace,
                 },
             }
         )
@@ -154,15 +156,23 @@ def _create_tracked_kernel_message(
                 },
             }
         )
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(status_code=409, detail=outcome) from exc
     except AssistantProviderChatError as exc:
         failure_trace = compaction_error_trace(exc)
-        if failure_trace and user_message:
+        unavailable = not user_message or isinstance(exc, AssistantProviderConfigurationError)
+        outcome = {
+            "code": "assistant_unavailable" if unavailable else "assistant_provider_failed",
+            "state": "failed",
+            "message": "Media Assistant couldn't start this request. Check AI Settings and try again." if unavailable else "The assistant couldn't finish this request. Review any saved work before trying again.",
+        }
+        if user_message:
+            # Keep the request as the last conversational message so the existing
+            # stalled-thread reset also works after partial persisted tool work.
             store_assistant.create_assistant_message({
                 **user_message,
-                "content_json": {**user_message["content_json"], "assistant_turn_trace": failure_trace},
+                "content_json": {**user_message["content_json"], "turn_outcome": outcome, "assistant_turn_trace": failure_trace},
             })
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail=outcome) from exc
     refreshed_session = store_assistant.get_assistant_session(session_id) or session
     summary = (
         refreshed_session.get("summary_json")
@@ -241,7 +251,9 @@ def _create_tracked_kernel_message(
                 "confirmation_kind": confirmation_kind,
                 "consumed": False,
             }
+    run_review_assessment = None
     if result.next_action.kind == "run_workflow" and run_confirmation:
+        run_review_assessment = result.reply.strip()
         readiness_note = (
             "Prompt checks are pending for dynamic or unknown inputs; this graph is not yet confirmed ready. "
             if generation_readiness and generation_readiness["status"] == "pending"
@@ -261,6 +273,8 @@ def _create_tracked_kernel_message(
         "loaded_prompt_assets": result.trace.loaded_prompt_assets,
         "kernel_turn": turn_payload,
     }
+    if run_review_assessment:
+        content_json["run_review_assessment"] = run_review_assessment
     content_json["assistant_turn_trace"] = build_assistant_turn_trace(content_json, result.reply)
     store_assistant.create_assistant_message(
         {

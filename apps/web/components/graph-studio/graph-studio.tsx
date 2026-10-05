@@ -10,7 +10,6 @@ import {
   type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { flushSync } from "react-dom";
 import {
   addEdge,
   applyNodeChanges,
@@ -65,6 +64,7 @@ import {
 import { useGraphRunHistory } from "./hooks/use-graph-run-history";
 import { useGraphStudioSupport } from "./hooks/use-graph-studio-support";
 import { useAssistantLayout } from "./hooks/use-assistant-layout";
+import { useGraphAssistantApplication } from "./hooks/use-graph-assistant-application";
 import { useGraphAssistantHistory } from "./hooks/use-graph-assistant-history";
 import { useAssistantGroupSelection } from "./hooks/use-assistant-group-selection";
 import { useGraphTabWorkspace } from "./hooks/use-graph-tab-workspace";
@@ -111,7 +111,6 @@ import { suppressGraphEdgeSelectionChanges } from "./utils/graph-edge-selection"
 import { filterGraphCanvasEdgesForCurrentContract } from "./utils/graph-edge-contract";
 import {
   graphDefinitionsForWorkflowHydration,
-  graphWorkflowNeedsFreshDefinitions,
 } from "./utils/graph-dynamic-definitions";
 import {
   clearGraphNodeRunState,
@@ -1131,82 +1130,10 @@ function GraphStudioClient() {
     undo,
     updateTab,
   });
-  const applyAssistantWorkflowRef = useRef(applyAssistantWorkflow);
-  useEffect(() => {
-    applyAssistantWorkflowRef.current = applyAssistantWorkflow;
-  }, [applyAssistantWorkflow]);
-  const applyAssistantWorkflowWithFreshDefinitions = useCallback(
-    async (
-      workflow: GraphWorkflowPayload,
-      options?: {
-        highlightNodeIds?: string[];
-        baseWorkflow?: GraphWorkflowPayload;
-        layoutOnly?: boolean;
-      },
-    ) => {
-      let refreshedDefinitionsByType:
-        | Map<string, GraphNodeDefinition>
-        | undefined;
-      if (!options?.layoutOnly && graphWorkflowNeedsFreshDefinitions(workflow)) {
-        try {
-          const refreshedDefinitions = await reloadNodeDefinitions(true);
-          refreshedDefinitionsByType = new Map(
-            refreshedDefinitions.map((definition) => [
-              definition.type,
-              definition,
-            ]),
-          );
-        } catch (error) {
-          appendConsole(
-            `Could not refresh graph node definitions before applying assistant plan: ${(error as Error).message}`,
-          );
-        }
-      }
-      beginAssistantLayout(workflow, options?.baseWorkflow, undefined, options?.layoutOnly);
-      applyAssistantWorkflowRef.current(workflow, {
-        ...options,
-        definitionsByType: refreshedDefinitionsByType,
-      });
-      if (refreshedDefinitionsByType) {
-        const applyRefreshedCanvas = () => {
-          beginAssistantLayout(workflow, options?.baseWorkflow);
-          const restored = hydrateGraphWorkflowForCanvas({
-            workflow,
-            definitionsByType: refreshedDefinitionsByType,
-            handlers: nodeHandlers,
-          });
-          const highlightedNodeIds = new Set(options?.highlightNodeIds ?? []);
-          setNodes(
-            highlightedNodeIds.size
-              ? restored.nodes.map((node) =>
-                  highlightedNodeIds.has(node.id)
-                    ? {
-                        ...node,
-                        selected: true,
-                        data: {
-                          ...(node.data as StudioNode["data"]),
-                          activityLabel: "added",
-                          activityDetail: "Created by Media Assistant",
-                          activityTone: "success",
-                        },
-                      }
-                    : { ...node, selected: false },
-                )
-              : restored.nodes,
-          );
-          setEdges(restored.edges);
-          setGroups(restored.groups);
-        };
-        flushSync(applyRefreshedCanvas);
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => {
-            applyRefreshedCanvas();
-          });
-        });
-      }
-    },
-    [appendConsole, beginAssistantLayout, nodeHandlers, reloadNodeDefinitions, setEdges, setNodes],
-  );
+  const applyAssistantWorkflowWithFreshDefinitions = useGraphAssistantApplication({
+    applyAssistantWorkflow, reloadNodeDefinitions, appendConsole, beginAssistantLayout,
+    nodeHandlers, setNodes, setEdges, setGroups, activeTabIdRef, workspaceRestoreVersionRef, currentHistorySnapshotRef,
+  });
 
   const hydrateLastRun = useCallback(
     async (runId: string, preloadedRun?: GraphRun) => {
@@ -2141,7 +2068,7 @@ function GraphStudioClient() {
                 }
                 return applyAssistantWorkflowWithFreshDefinitions(workflow, options);
               }}
-              onUndoLastAssistantChange={undoGraphChange}
+              onUndoLastAssistantChange={assistantUndoAvailable ? undoGraphChange : undefined}
               onRunWorkflow={runWorkflow}
               onOpenPreview={(preview, collection) => {
                 const previews = collection?.length ? collection : [preview];

@@ -46,6 +46,7 @@ from .schemas import (
     AssistantKernelTurnResult,
     AssistantNextAction,
 )
+from .completion import terminal_artifact_reply
 from .story_kernel import format_story_shot_list_reply
 
 
@@ -212,8 +213,8 @@ def _kernel_instruction() -> str:
         "mode none, keep them attached for post-run comparison and state truthfully that the graph does not consume them. "
         "For Media Presets, keep editable state in propose_media_preset_draft, use real model scope, and never emit a "
         "backend JSON block in the reply. A preset draft or revision and its test graph are separate user turns: after "
-        "propose_media_preset_draft succeeds, reply and stop. End that reply with one literal question naming the next "
-        "user decision, such as whether to prepare a test graph, unless the user already requested that next action. "
+        "propose_media_preset_draft succeeds, summarize the prepared draft and stop. Ask only for a necessary missing "
+        "decision; when an available confirmation supplies the next step, point to it without a duplicate question. "
         "Build a priced test graph only when the current request "
         "asks for one, using artifact_intent none. Pass normal user-supplied preset samples through field_values rather "
         "than asking the user to edit placeholder syntax. For a completed preset test, bind read_run_evidence before "
@@ -280,7 +281,7 @@ def _kernel_instruction() -> str:
         "request_run_confirmation=true, then return a concise reply; the server creates the confirmation action. "
         "Never claim the run started. Do not request save actions because the "
         "server derives those from validated drafts. If the user asks to just talk or not build anything, do not "
-        "propose graph operations and leave requested_action as none. "
+        "propose graph operations and leave requested_action as none. To renew review of an existing proposal at the user’s explicit request, use requested_action confirm_graph with its exact proposal_id. "
         "Keep the reply compact and free of internal tool, route, provider, or capability vocabulary.\n\n"
         f"Capabilities: {', '.join(KERNEL_CAPABILITY_PROMPTS)}\n"
         f"Allowed artifact intents: {json.dumps({key: sorted(value) for key, value in KERNEL_ARTIFACT_INTENTS.items()}, separators=(',', ':'))}\n"
@@ -696,6 +697,8 @@ def _next_action_for_artifacts(
                 )
             summary = session.get("summary_json") if isinstance(session.get("summary_json"), dict) else {}
             proposal_id = str(summary.get("kernel_proposal_id") or "")
+            if not requested_action or requested_action.kind != "confirm_graph" or requested_action.proposal_id != proposal_id:
+                return AssistantNextAction()
             plan = store_assistant.get_assistant_plan(proposal_id) if proposal_id else None
             belongs_to_session = plan and str(plan.get("assistant_session_id") or "") == str(
                 session.get("assistant_session_id") or ""
@@ -930,7 +933,7 @@ def run_assistant_kernel_turn(
         publish_session_progress(
             str(session.get("assistant_session_id") or ""),
             stage="compacting" if active else "thinking",
-            label="Compacting saved conversation…" if active else "Continuing your request…",
+            label="Making room to continue your conversation…" if active else "Continuing your request…",
         )
 
     runtime = resolve_assistant_provider_runtime(session)
@@ -1229,7 +1232,7 @@ def run_assistant_kernel_turn(
                 "read_run_evidence": "run_evidence",
                 "show_run_result": "result_display",
             }.get(step.tool_call.name)
-            if execution.result is not None and artifact_kind:
+            if execution.result is not None and artifact_kind and execution.trace.error is None:
                 artifacts.append(
                     AssistantKernelArtifact(
                         kind=artifact_kind,
@@ -1275,7 +1278,7 @@ def run_assistant_kernel_turn(
                     for artifact in artifacts
                 )
             )
-            fallback_reply = execution.trace.activity.label if execution.trace.activity else ""
+            fallback_reply = terminal_artifact_reply(artifact_kind, execution.result or {}) or (execution.trace.activity.label if execution.trace.activity else "")
             if artifact_kind == "run_evidence":
                 fallback_reply = ""
             success_reply = str(step.reply or "").strip() or pending_success_reply or fallback_reply

@@ -25,6 +25,10 @@ class AssistantProviderChatError(Exception):
     pass
 
 
+class AssistantProviderConfigurationError(AssistantProviderChatError):
+    pass
+
+
 @dataclass(frozen=True)
 class AssistantProviderRuntime:
     provider_kind: str
@@ -57,7 +61,7 @@ def resolve_assistant_provider_runtime(session: Dict[str, Any]) -> AssistantProv
     if requested_provider == "codex_local" and not provider_model_id:
         provider_model_id = enhancement_provider.codex_local_provider.CODEX_LOCAL_DEFAULT_MODEL
     if not provider_model_id:
-        raise AssistantProviderChatError(f"Choose a {requested_provider} model in AI Settings before using assistant chat.")
+        raise AssistantProviderConfigurationError(f"Choose a {requested_provider} model in AI Settings before using assistant chat.")
 
     try:
         runtime = shared_provider_runtime(
@@ -66,9 +70,9 @@ def resolve_assistant_provider_runtime(session: Dict[str, Any]) -> AssistantProv
             allow_feature_config=False,
         )
     except ServiceError as exc:
-        raise AssistantProviderChatError(str(exc)) from exc
+        raise AssistantProviderConfigurationError(str(exc)) from exc
     if requested_provider != "codex_local" and not string_value(runtime.get("api_key")):
-        raise AssistantProviderChatError(
+        raise AssistantProviderConfigurationError(
             f"{requested_provider} is missing a credential. Configure it in AI Settings or the server environment."
         )
 

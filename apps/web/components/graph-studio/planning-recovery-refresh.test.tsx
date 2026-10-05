@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
-import { assistantJsonResponse as jsonResponse, assistantTestSession as session, assistantTestWorkflow as workflow } from "./creative-assistant-test-fixtures";
+import { assistantIdleProgress, assistantJsonResponse as jsonResponse, assistantTestSession as session, assistantTestWorkflow as workflow } from "./creative-assistant-test-fixtures";
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.localStorage?.clear?.(); });
 
 it("refreshes the rotated checkpoint after a failed continuation", async () => {
@@ -11,6 +11,7 @@ it("refreshes the rotated checkpoint after a failed continuation", async () => {
   const refreshed = { ...initial, summary_json: { kernel_planning_recovery: { ...checkpoint, id: "retry-id" } } };
   const sent: string[] = [];
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+    if (url.endsWith("/progress")) return jsonResponse(assistantIdleProgress);
     if (url.includes("/media/assistant/sessions?")) return jsonResponse({ items: [initial] });
     if (url.endsWith("/messages")) {
       sent.push(String(init?.body));
@@ -21,8 +22,11 @@ it("refreshes the rotated checkpoint after a failed continuation", async () => {
   });
   vi.stubGlobal("fetch", fetchMock);
   render(<CreativeAssistantPanel open workspaceKey="tab-recovery" workflowId="workflow-1" workflowName="Board" workflow={workflow} references={[]} importImageFile={vi.fn()} onApplyWorkflow={vi.fn()} onRunWorkflow={vi.fn()} onClose={vi.fn()} />);
-  fireEvent.click(await screen.findByRole("button", { name: "Continue planning" }));
-  await screen.findByText("Provider interrupted");
+  const firstContinue = await screen.findByRole("button", { name: "Continue planning" });
+  await waitFor(() => expect(firstContinue.hasAttribute("disabled")).toBe(false));
+  fireEvent.click(firstContinue);
+  await screen.findByRole("region", { name: "Request recovery" });
+  expect(screen.queryByText("Provider interrupted")).toBeNull();
   await waitFor(() => expect((screen.getByRole("button", { name: "Continue planning" }) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole("button", { name: "Continue planning" }));
   await waitFor(() => expect(sent.length).toBe(2));
