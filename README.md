@@ -1,74 +1,24 @@
 # Media Studio
 
-Media Studio is a local AI image and video workspace for the Kie AI model marketplace.
+**Create images, direct video, and build soundtracks in one local workspace.**
 
-Media Studio gives you one place to generate images, generate videos, revise old work, build reusable presets, manage references, track jobs, and keep a local gallery of everything you make. Your prompts, presets, projects, references, database, uploads, and outputs stay on your machine.
+Media Studio brings AI generation, a searchable media library, reusable presets, and visual workflows together. Make a product shot, develop a character, plan a storyboard, animate a scene, or turn a creative process into something you can run again.
 
-Media Studio uses [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42), a model marketplace that puts many image and video providers behind one credit-based API. Instead of keeping separate subscriptions for every model provider, you fund one account and spend credits only when you generate.
-
-You can start with as little as $5 funded into your Kie AI account.
-Media Studio is not affiliated with Kie AI; however, we do have an affiliate code that buys us a coffee if you use it: [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)
-
-> **Pricing disclaimer:** Prices shown in Media Studio are estimates based on the latest pricing data available from Kie AI and the options selected in Studio. Kie can change model pricing, rules, and credit costs at any time. The final charge is determined by Kie, so confirm current Kie pricing before large runs.
+Choose from GPT Image, Nano Banana, Seedance, Kling, and Suno through [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42). Your projects, saved prompts, presets, references, and generated files live on your machine, with generation requests sent to the selected providers.
 
 ![Media Studio gallery and prompt workspace](docs/images/media-studio.jpg)
 
-## What It Is
+[Install](#install-and-start) · [Features](#make-more-with-your-media) · [Models](#supported-models) · [Graph Studio](#graph-studio-experimental) · [Media Assistant](#media-assistant-experimental)
 
-- A local Studio UI for AI image and video generation.
-- A FastAPI control API that stores jobs, batches, presets, projects, pricing, and local media metadata.
-- A Next.js dashboard with Studio, Settings, Models, Presets, Jobs, Pricing, and Setup pages.
-- A local-first workflow: generated files and runtime data live in your local `data/` folder.
-- A Kie-powered model layer, with pricing and model support pulled through the local control API.
+## Install and start
 
-## Experimental Surfaces
+Have **Git, Python 3, and Node.js LTS** installed. For live generation, you'll also need a [Kie AI account](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42), an API key, and credits. You can complete setup without a key and add it later.
 
-Graph Studio and Prompt Recipe graph execution are available for local workflow building, with a narrower release boundary than the main Studio surface.
-
-- Graph Studio lets you build node-based workflows with media loaders, prompt nodes, model nodes, preview nodes, save nodes, groups, notes, run diagnostics, and reusable workflow templates.
-- Current graph model lanes include image, video, audio/music, Prompt Recipe, and utility nodes where the backend owns validation, pricing, execution, and saved run history.
-- Graph workflows can be saved locally, exported as portable templates, and loaded back into another Media Studio install.
-- A repo-local Codex skill for building/exporting graph templates lives at `.codex/skills/media-studio-graph-builder/`.
-- Saved workflows are database-backed; browser tab state is only a session convenience layer.
-- Prompt Recipes are a supported data-backed graph surface.
-- The **Media Assistant** is an experimental, opt-in Graph Studio collaborator that can discuss a creative goal; inspect the visible workflow; propose or extend connected graphs; help draft Presets and Prompt Recipes; organize production sections such as characters, environments, storyboards, and video shots; and request confirmation before consequential actions.
-- End-user custom executable nodes are **not** part of the current release boundary.
-
-Media Studio also now tracks **actual OpenRouter spend** for successful OpenRouter-backed Studio runs. That accounting is shown separately from the KIE credit and USD estimates used for KIE-powered image/video jobs.
-
-## Supported Models
-
-Current model surfaces include:
-
-- `gpt-image-2-text-to-image` - GPT Image 2 text-to-image.
-- `gpt-image-2-image-to-image` - GPT Image 2 image editing with ordered image references.
-- `nano-banana-2` - fast text-to-image and image editing.
-- `nano-banana-pro` - higher-end text-to-image and image editing.
-- `seedance-2.0` - text-to-video, first/last frame video, and multimodal reference video.
-- `seedance-2.5` - text-to-video, first/last frame video, and expanded multimodal reference video with up to 30 images, 10 videos, and 10 audio references.
-- `kling-2.6-t2v` - Kling 2.6 text-to-video.
-- `kling-2.6-i2v` - Kling 2.6 image-to-video.
-- `kling-3.0-t2v` - Kling 3.0 text-to-video.
-- `kling-3.0-i2v` - Kling 3.0 image-to-video with start frame and optional end frame support.
-- `kling-3.0-motion` - Kling 3.0 motion control with a source image and driving video.
-
-Model availability, request rules, and pricing can change as Kie updates its platform. Media Studio exposes pricing in the dashboard at `/pricing`, and the Generate button uses server-side pricing estimates from the control API.
-
-## Install And Run
-
-You need:
-
-- `git`
-- `python3`
-- Node.js LTS
-- a funded [Kie AI](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42) account
-- a `KIE_API_KEY`
-
-Video thumbnails, posters, and browser-friendly playback derivatives are handled through the shared `kie-api` Python environment. A system FFmpeg install can be used when present, but it is not required for normal setup.
+The onboarding helper handles dependencies, configuration, the local database, and starter presets. It prompts for your KIE API key and checks whether Codex Local is available for optional AI prompt tools.
 
 ### macOS
 
-Install:
+Install from Terminal:
 
 ```bash
 git clone https://github.com/gateway/media-studio.git
@@ -76,27 +26,16 @@ cd media-studio
 ./scripts/onboard_mac.sh
 ```
 
-Run:
+Start whenever you're ready:
 
 ```bash
 ./scripts/run_studio_mac.sh
 ```
 
-Stop:
-
-```bash
-./scripts/stop_studio_mac.sh
-```
-
-Restart:
-
-```bash
-./scripts/stop_studio_mac.sh
-./scripts/run_studio_mac.sh
-```
+You can also double-click **Start Media Studio.command** in the project folder. Use **Stop Media Studio.command** or `./scripts/stop_studio_mac.sh` to stop it.
 
 <details>
-<summary><strong>Windows</strong></summary>
+<summary><strong>Windows — native PowerShell setup</strong></summary>
 
 Install:
 
@@ -106,7 +45,7 @@ cd media-studio
 powershell -ExecutionPolicy Bypass -File .\scripts\onboard_windows.ps1
 ```
 
-Run:
+Start:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1
@@ -118,17 +57,12 @@ Stop:
 powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1
 ```
 
-Restart:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\stop_studio.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\run_studio.ps1
-```
+[Full Windows guide](docs/getting-started-windows.md)
 
 </details>
 
 <details>
-<summary><strong>Linux</strong></summary>
+<summary><strong>Linux — desktop or workstation setup</strong></summary>
 
 Install:
 
@@ -138,7 +72,7 @@ cd media-studio
 ./scripts/onboard_linux.sh
 ```
 
-Run:
+Start:
 
 ```bash
 ./scripts/run_studio_linux.sh
@@ -150,101 +84,99 @@ Stop:
 ./scripts/stop_studio_linux.sh
 ```
 
-Restart:
-
-```bash
-./scripts/stop_studio_linux.sh
-./scripts/run_studio_linux.sh
-```
+[Full Linux guide](docs/getting-started-linux.md)
 
 </details>
 
-### What The Runner Does
+The launcher starts the app and opens Studio in your browser. If the default ports are busy, it selects available ports and prints the actual URL. Video thumbnails and playback derivatives use the shared KIE API Python environment; a separate system FFmpeg installation is optional.
 
-The macOS, Windows, and Linux onboarding scripts handle the normal setup path for you: dependencies, local environment, database, Kie API key prompt, and a Codex Local readiness check. When Codex Local is ready, onboarding can make it the default provider for prompt enhancement and Prompt Recipe drafting. OpenRouter and local OpenAI-compatible endpoints remain optional advanced setup paths in Settings -> AI after launch.
+Need help? Start with the [macOS guide](docs/getting-started-mac.md), [prerequisites](docs/prerequisites.md), or [advanced runtime guide](docs/advanced-runtime.md).
 
-The run scripts start the API and web app together in production mode, check the sibling `kie-api` checkout for new releases, offer a fast-forward update when safe, check the local database before migrations, create a migration backup when needed, refresh shared Python dependencies and the production web build if needed, write runtime logs under `data/runtime/`, wait for readiness, and open Studio.
+## Make more with your media
 
-If the default ports are busy, Studio automatically chooses the next open API and web ports for that launch. To force a specific pair, pass explicit ports:
+- **Generate and revise.** Create images from text, edit images with references, animate stills, direct video with first and last frames, or guide motion with a driving clip. Model-specific controls expose the inputs and options each model supports.
+- **Pick up where you left off.** Create Revision restores an earlier asset's prompt, model, settings, and reference media. Retry failed jobs or bring previous outputs back into the composer.
+- **Keep a creative library.** Browse your local gallery, organize work into Projects, and reuse images from the Reference Library without losing the global view of your work.
+- **Make a look repeatable.** Media Presets combine prompt templates, editable fields, image slots, model defaults, and thumbnails. Import and export bundles to share them between installs.
+- **Give prompts a reusable structure.** Prompt Recipes capture LLM instructions and inputs for repeatable drafting and Graph workflows. Use Codex Local, OpenRouter, or a local OpenAI-compatible endpoint for supported prompt tasks.
+- **Know what is happening.** Follow queued, running, completed, and failed jobs. Review KIE credit and USD estimates before generation; recorded spending for successful OpenRouter-backed Studio runs appears separately.
+- **Own your working library.** Your database, projects, uploads, presets, and outputs stay in your local data folder. Generation and hosted AI services use their configured providers.
 
-```bash
-npm run start:studio -- --api-port 8010 --web-port 3010
+Starter presets include **Photo Restoration**, **3D Caricature Style**, **2x2 Pose Grid**, **Exploding Food**, **Food Recipe Infographic**, **Giant Animal Anywhere**, and **Selfie with Movie Character**. Build your own from the Presets page and choose compatible image models.
+
+## Supported models
+
+Media Studio reads its model catalog from the companion [`kie-api`](https://github.com/gateway/kie-api) project. These are the currently integrated image and video models exposed in Studio; the available catalog can expand as that integration is updated.
+
+### Image generation and editing
+
+| Model | What you can do |
+| --- | --- |
+| **GPT Image 2** | Text-to-image and image editing with ordered references |
+| **GPT Image 2.5 Flare** | Text-to-image and image editing |
+| **GPT Image 2.5 Sunburst** | Text-to-image and image editing |
+| **Nano Banana 2** | Text-to-image and image editing |
+| **Nano Banana Pro** | Text-to-image and image editing |
+
+### Video generation and motion
+
+| Model | What you can do |
+| --- | --- |
+| **Seedance 2.0 Standard** | Text-to-video, image-to-video, first/last frames, and multimodal references |
+| **Seedance 2.0 Fast** | Text-to-video, image-to-video, first/last frames, and multimodal references |
+| **Seedance 2.0 Mini** | Text-to-video, image-to-video, first/last frames, and multimodal references |
+| **Seedance 2.5** | Text-to-video, image-to-video, first/last frames, and multimodal references |
+| **Kling 2.6** | Text-to-video, image-to-video, and motion control using an image and driving video |
+| **Kling 3.0** | Text-to-video, image-to-video with optional end frame, and motion control |
+| **Kling 3.0 Turbo** | Image-to-video with start and optional end frames |
+
+### Music in Graph Studio
+
+**Suno Music Generation** is available as a Graph Studio model node. Build music workflows with audio previews, saved tracks, and local audio processing. Suno is a Graph capability rather than a model in the main Studio image/video composer.
+
+Use **Models** for the current catalog and supported options, and **Pricing** for cost estimates. Kie can change availability, rules, and credit costs; displayed prices are estimates and the final charge is determined by Kie.
+
+Media Studio is not affiliated with Kie AI. The Kie links above are affiliate links that help support the project.
+
+## Graph Studio (experimental)
+
+Build the pipeline behind the result. Graph Studio connects prompts, references, AI models, previews, and saved outputs on a visual canvas.
+
+- Chain image generation into video, reuse existing images, and connect Prompt Recipes or Media Presets to model runs.
+- Compile storyboards, create storyboard sheets, slice image grids, and organize scenes with groups and notes.
+- Trim, resize, and convert video; combine ordered clips with optional transitions; extract frames, audio, or metadata.
+- Trim, convert, normalize, and inspect audio, including music created through Suno.
+- Review estimates and run diagnostics, then save workflows locally or export portable templates for another install.
+
+Graph Studio and Prompt Recipe graph execution remain experimental. See the [node library](docs/graph-studio-node-library.md) for the current building blocks.
+
+## Media Assistant (experimental)
+
+Turn a creative brief into something you can review and build. Media Assistant can inspect your workflow, help develop characters and environments, organize storyboards and shots, propose graph changes, and help draft Media Presets and Prompt Recipes.
+
+It keeps requests with their original workflow when you switch tabs. Returning or reloading restores saved replies or active progress and Stop controls. Failed requests retain their text and recovery options, and replies preserve creative details, numbering, line breaks, and literal snippets.
+
+Graph proposals are reviewed before you apply them. Applying graph changes and starting a generation run are separate actions, so you can inspect the canvas and cost before proceeding.
+
+Media Assistant is an opt-in pilot and currently requires a ready local Codex CLI/App Server login. To enable it, add this to `.env` and restart Media Studio:
+
+```env
+NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=1
 ```
 
-At the end of onboarding, any displayed `127.0.0.1:3000` URL is only the configured/default URL. If that port is busy, the launcher prints and opens the actual temporary Studio URL it selected.
+The Assistant entry in Graph Studio shows setup guidance until its requirements are met. Follow [Media Assistant setup](docs/media-assistant-setup.md) for the full path. Normal Studio generation and manual Graph workflows work without Codex.
 
-For normal use, prefer the platform launcher or `npm run start:studio`. The standalone developer commands are contributor tools: `npm run dev:api`, `npm run start:api`, `npm run dev:web`, and `npm run start:web` auto-select a temporary open port unless you pass an explicit `--port`.
+## AI prompt tools
 
-### Release Flags
+Configure optional text and vision providers in **Settings → AI** (`/settings/llms`):
 
-Graph Studio and the API disable the experimental Media Assistant by default. To enable it for internal debugging, set `NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=1` in `.env` and restart Media Studio so both processes pick up the shared flag.
+- **Codex Local** uses your local Codex login for prompt enhancement, Prompt Recipe drafting, and Graph prompt nodes.
+- **OpenRouter** provides hosted prompt enhancement and drafting, with recorded usage spending for supported Studio calls.
+- **Local OpenAI-compatible endpoints** let you connect a configured endpoint for supported prompt workflows.
 
-See [Media Assistant setup](docs/media-assistant-setup.md) for the Codex requirement and [Media Assistant](docs/media-assistant.md) for architecture, confirmation boundaries, and experimental release status.
+These providers support prompt work; image, video, and music generation use their KIE model nodes or Studio generation models. See [Media Assistant setup](docs/media-assistant-setup.md) for the Assistant's distinct runtime requirements.
 
-## Cool Features
-
-- **Create Revision** restores an old asset back into Studio with the original prompt, model, settings, and reference media.
-- **Projects** keep work organized without losing the global gallery.
-- **Reference Library** stores reusable image inputs and supports project-scoped references.
-- **Structured Presets** let you build reusable prompt workflows with text fields and image slots.
-- **Prompt Recipes** let you build reusable LLM director templates for Graph Studio and future orchestration flows.
-- **Graph Studio** is an experimental node graph for chaining prompts, recipes, model runs, previews, saves, notes, and reusable workflow templates.
-- **Import And Export Presets** makes preset sharing portable between installs.
-- **Model-Aware Inputs** show the slots each model actually needs, including first frame, last frame, reference images, motion-control video, and Seedance multimodal references.
-- **Prompt Enhancement** can improve prompts through OpenRouter, the local Codex App Server session, or a local OpenAI-compatible endpoint.
-- **Pricing Estimates** show expected cost before generation and save pricing summaries with jobs.
-- **Actual OpenRouter Spend Tracking** records successful OpenRouter-backed Studio usage separately from KIE estimates.
-- **Queue And Job Tracking** keeps pending, running, completed, and failed work visible.
-- **Retry And Restore** brings failed jobs or old assets back into the composer instead of making you rebuild requests by hand.
-- **Local Data Ownership** keeps your database, uploads, downloads, outputs, presets, and project metadata on disk.
-
-## Codex Local Provider
-
-Media Studio can now use a local Codex App Server session, authenticated through the operator's local Codex login, as a subscription-backed text + vision provider for:
-
-- Studio prompt enhancement
-- Prompt Recipe drafting
-- Graph `prompt.llm`
-- Graph `prompt.recipe`
-
-The experimental Graph Studio Media Assistant currently requires Codex CLI/App Server readiness. Without Codex, the rest of Media Studio continues to work, but the Assistant panel remains unavailable. Claude Code is not a drop-in replacement: Media Studio does not currently include a Claude Code runtime connector, session bridge, or tool/approval adapter. See [Media Assistant setup](docs/media-assistant-setup.md) for installation, feature-gate, provider, and troubleshooting details.
-
-Current rollout assumptions:
-
-- prompt enhancement and Graph prompt calls use request-scoped Codex work; Media Assistant sessions deliberately reuse compatible persisted Codex threads for continuity
-- it is treated as **included in your Codex / ChatGPT plan**
-- Media Studio does **not** assign a USD estimate or spend ledger entry to `codex_local`
-- image generation is **not** part of the current Codex Local rollout boundary
-- provider setup and shared LLM defaults now live under `/settings/llms`
-- **Version Display** shows the current Media Studio build in the admin navigation.
-
-## Presets
-
-Presets are reusable creative workflows. A preset can hold a prompt template, editable text fields, required image slots, model defaults, and a thumbnail, so you can run a repeatable style or workflow without rebuilding the prompt every time.
-
-You can:
-
-- Create your own presets from the Presets page.
-- Use structured fields and image slots for guided workflows.
-- Choose which compatible image models a preset can run on.
-- Import presets shared by someone else.
-- Export your own presets as portable bundles.
-
-Current built-in presets include:
-
-- **2x2 Pose Grid** - generate four fresh pose and camera variations from one person reference.
-- **3D Caricature Style** - turn a portrait into a polished 3D caricature while keeping the likeness.
-- **Exploding Food** - create high-end commercial food photography with suspended pieces and particles.
-- **Food Recipe Infographic** - build clean recipe infographic layouts from a food name.
-- **Giant Animal Anywhere** - place a huge cute animal into a real-world location.
-- **Photo Restoration** - colorize and clean old photos from one uploaded source image.
-- **Selfie with Movie Character** - place your portrait into a cinematic selfie with a named character.
-
-If you build presets you want to share with other users, let us know. We would love to collect good community presets and add them to the project.
-
-## Controls
-
-Common shortcuts:
+## Shortcuts
 
 | Input | Action |
 | --- | --- |
@@ -253,26 +185,21 @@ Common shortcuts:
 | `P` | Open Presets |
 | `S` | Open Settings |
 | `C` | Toggle the bottom console |
-| `M` | Minimize or restore the Media Assistant in Graph Studio |
+| `M` | Minimize or restore Media Assistant in Graph Studio |
 | `Cmd/Ctrl+Z` | Undo |
 | Right-click empty Graph canvas | Open node search at the pointer |
-| Drag from an output port to an input port | Create a wire |
+| Drag between ports | Connect nodes |
 
-See [keyboard and mouse controls](docs/keyboard-mouse-controls.md) for the full Studio and Graph Studio control reference.
+[Full keyboard and mouse controls](docs/keyboard-mouse-controls.md)
 
-## Useful Docs
+## Guides
 
-- [START_HERE.md](START_HERE.md)
-- [docs/prerequisites.md](docs/prerequisites.md)
-- [docs/getting-started-mac.md](docs/getting-started-mac.md)
-- [docs/getting-started-linux.md](docs/getting-started-linux.md)
-- [docs/getting-started-windows.md](docs/getting-started-windows.md)
-- [docs/keyboard-mouse-controls.md](docs/keyboard-mouse-controls.md)
-- [docs/media-assistant-setup.md](docs/media-assistant-setup.md)
-- [docs/media-assistant.md](docs/media-assistant.md)
-- [docs/advanced-runtime.md](docs/advanced-runtime.md)
-- [docs/pricing-integration.md](docs/pricing-integration.md)
-- [docs/release-packaging.md](docs/release-packaging.md)
+- [Start here](START_HERE.md)
+- [macOS setup](docs/getting-started-mac.md) · [Windows setup](docs/getting-started-windows.md) · [Linux setup](docs/getting-started-linux.md)
+- [Media Assistant setup](docs/media-assistant-setup.md) · [Media Assistant details](docs/media-assistant.md)
+- [Graph node library](docs/graph-studio-node-library.md)
+- [Advanced runtime](docs/advanced-runtime.md) · [Pricing integration](docs/pricing-integration.md)
+- [Release notes](docs/releases/v1.0.4.md)
 
 ## License
 
@@ -281,9 +208,3 @@ Media Studio is source-available for non-commercial use under the terms in [LICE
 You may install it, run it, study it, modify it, and use it to make creative work for non-commercial purposes. Commercial use requires prior written approval. For commercial licensing, contact [@gateway on X](https://x.com/gateway).
 
 AI coding assistants may be used to understand, debug, modify, or contribute to this project within the allowed license scope. They may not be used to copy substantial parts of this codebase into another project, train a model on it, or recreate it for redistribution without prior written permission.
-
-## Versioning
-
-The first public release line starts at `v1.0.0`. The current build is `v1.0.4`. See [release notes](docs/releases/v1.0.4.md).
-
-When you ship a new build, update the root `package.json` version. The app reads that package version and displays it as `vX.Y.Z` in the admin nav, so testers can confirm exactly which build they are running.
