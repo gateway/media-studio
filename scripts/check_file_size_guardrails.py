@@ -96,7 +96,7 @@ GUARDRAILS = (
 # supply typed terminal summaries and retain separate run assessment; exact cap, no reserve.
 ASSISTANT_PACKAGE_GUARDRAIL = PackageGuardrail(
     "apps/api/app/assistant",
-    12_996,
+    13_002,
     "Media Assistant Python source package; reviewed candidate cap",
 )
 

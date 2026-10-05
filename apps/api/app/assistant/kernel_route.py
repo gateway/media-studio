@@ -11,6 +11,7 @@ from .kernel import run_assistant_kernel_turn
 from .generation_inspection import review_workflow_generation
 from .provider_support import (
     AssistantProviderChatError,
+    AssistantProviderConfigurationError,
     sync_assistant_session_provider,
 )
 from .recipe_continuation import run_recipe_continuation
@@ -158,10 +159,11 @@ def _create_tracked_kernel_message(
         raise HTTPException(status_code=409, detail=outcome) from exc
     except AssistantProviderChatError as exc:
         failure_trace = compaction_error_trace(exc)
+        unavailable = not user_message or isinstance(exc, AssistantProviderConfigurationError)
         outcome = {
-            "code": "assistant_provider_failed" if user_message else "assistant_unavailable",
+            "code": "assistant_unavailable" if unavailable else "assistant_provider_failed",
             "state": "failed",
-            "message": "The assistant couldn't finish this request. Review any saved work before trying again." if user_message else "Media Assistant couldn't start this request. Check AI Settings and try again.",
+            "message": "Media Assistant couldn't start this request. Check AI Settings and try again." if unavailable else "The assistant couldn't finish this request. Review any saved work before trying again.",
         }
         if user_message:
             # Keep the request as the last conversational message so the existing
