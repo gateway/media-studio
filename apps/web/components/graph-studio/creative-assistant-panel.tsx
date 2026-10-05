@@ -1,5 +1,6 @@
 "use client";
 
+import { assistantGraphContentIsOnCanvas } from "./utils/graph-assistant-canvas-state";
 import { AssistantMessageContent } from "./assistant-message-content";
 import { AssistantTurnOutcome } from "./assistant-turn-outcome";
 import type { useAssistantDock } from "./hooks/use-assistant-dock";
@@ -791,11 +792,13 @@ export function CreativeAssistantPanel({
   };
 
   const plan = assistant.plan;
-  const planApplied = plan?.plan.status === "applied";
   const planOperations = plan?.graph_plan.operations ?? [];
   const planMetadata = plan?.graph_plan.metadata ?? {};
   const arrangeOperations = planOperations.filter((operation) => operation["op"] === "arrange_workflow");
   const onlyArrangeOperations = arrangeOperations.length === 1 && planOperations.length === 1;
+  const planConfirmationOnly = Boolean(plan?.plan.status === "applied" &&
+    (onlyArrangeOperations || !assistantGraphContentIsOnCanvas(plan.workflow, workflow)));
+  const planApplied = plan?.plan.status === "applied" && !planConfirmationOnly;
   const layoutDiff = typeof planMetadata["diff_summary"] === "object" && planMetadata["diff_summary"] !== null
     ? planMetadata["diff_summary"] as Record<string, unknown>
     : {};
@@ -887,7 +890,7 @@ export function CreativeAssistantPanel({
       (message, index) => isSystemActivityMessage(message) && (isSavedArtifactActivityMessage(message) || index > latestConversationalMessageIndex),
     ),
   );
-  const visibleActivityMessages = planApplied ? activityMessages.filter((message) => isSavedArtifactActivityMessage(message)) : activityMessages.slice(-1);
+  const visibleActivityMessages = planApplied || planConfirmationOnly ? activityMessages.filter((message) => isSavedArtifactActivityMessage(message)) : activityMessages.slice(-1);
   const showPresetReferenceStarter = imageAttachmentCount > 0 && !conversationalMessages.length && !assistant.busy;
   const templateId = typeof planMetadata["template_id"] === "string" ? planMetadata["template_id"] : "";
   const templateMode = typeof planMetadata["template_mode"] === "string" ? planMetadata["template_mode"] : "";
@@ -1248,6 +1251,9 @@ export function CreativeAssistantPanel({
                 <i aria-hidden="true" />
                 <i aria-hidden="true" />
               </div>
+              {assistant.cancellable && assistant.progress?.active && assistant.status !== "cancelling" ? (
+                <p>Switching workflows keeps this request running here. Return to see its result, or use Stop to cancel.</p>
+              ) : null}
             </div>
           ) : null}
           {visibleActivityMessages.length ? (
@@ -1350,7 +1356,23 @@ export function CreativeAssistantPanel({
             </section>
           ) : null}
 
-          {plan ? (
+          {planConfirmationOnly ? (
+            <section className="graph-assistant-plan" role="region" aria-label="Graph confirmation status">
+              <div className="graph-assistant-plan-heading"><CheckCircle2 size={15} /><strong>{onlyArrangeOperations ? "Layout confirmation saved" : "Graph confirmation saved"}</strong></div>
+              <p>{onlyArrangeOperations
+                ? "The layout proposal was confirmed. Check the current layout before continuing; confirmation did not start a run."
+                : "The current canvas differs from the confirmed graph. Ask for a fresh review before applying again; confirmation did not start a run."}</p>
+              {!onlyArrangeOperations ? (
+                <button type="button" className="graph-assistant-card-action-primary" disabled={assistant.busy}
+                  onClick={() => void assistant.sendContentMessage("The current canvas differs from the confirmed graph. Please inspect this workflow and prepare a fresh review of the requested changes. Do not apply or run anything.")}
+                  aria-label="Review graph again">Review graph again</button>
+              ) : null}
+              {onlyArrangeOperations && onUndoLastAssistantChange ? (
+                <button type="button" disabled={assistant.busy} onClick={() => onUndoLastAssistantChange()} aria-label="Undo last assistant change">Undo last assistant change</button>
+              ) : null}
+            </section>
+          ) : null}
+          {plan && !planConfirmationOnly ? (
             <section
               className={`graph-assistant-message graph-assistant-message-assistant graph-assistant-message-plan ${
                 planApplied ? "graph-assistant-plan-applied" : plan.validation.valid ? "graph-assistant-plan-valid" : "graph-assistant-plan-invalid"

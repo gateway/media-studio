@@ -122,6 +122,6 @@ it("presents and applies a layout-only Assistant proposal as a workflow tidy", a
   fireEvent.click(screen.getByRole("button", { name: "Tidy workflow" }));
   await waitFor(() => expect(onApplyWorkflow).toHaveBeenCalled());
   expect(onApplyWorkflow).toHaveBeenCalledWith(arrangedWorkflow, expect.objectContaining({ layoutOnly: true }));
-  expect(await screen.findByText("Workflow layout updated")).toBeTruthy();
-  expect(screen.getByText("The workflow is arranged left to right with consistent padded groups.")).toBeTruthy();
+  expect(await screen.findByText("Layout confirmation saved")).toBeTruthy();
+  expect(screen.getByRole("region", { name: "Graph confirmation status" }).textContent).toContain("confirmation did not start a run");
 });

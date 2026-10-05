@@ -74,7 +74,7 @@ function renderPresetSession(
       workspaceKey={workspaceKey}
       workflowId="workflow-1"
       workflowName="Preset test"
-      workflow={workflow}
+      workflow={(assistantSession.latest_plan as AssistantPlanResponse | undefined)?.plan.status === "applied" ? (assistantSession.latest_plan as AssistantPlanResponse).workflow : workflow}
       latestRunId={run?.id}
       latestRunStatus={run?.status}
       references={[]}

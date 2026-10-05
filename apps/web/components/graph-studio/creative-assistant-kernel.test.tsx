@@ -387,7 +387,7 @@ it("does not offer primary preset save for an applied graph without quality proo
       workspaceKey="tab-unverified-preset"
       workflowId="workflow-1"
       workflowName="Assistant Graph"
-      workflow={workflow}
+      workflow={appliedPlan.workflow}
       references={[]}
       importImageFile={vi.fn()}
       onApplyWorkflow={vi.fn()}

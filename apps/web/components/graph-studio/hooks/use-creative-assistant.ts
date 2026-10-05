@@ -301,6 +301,7 @@ export function useCreativeAssistant({
   const initialAssistantSessionIdRef = useRef(initialAssistantSessionId);
   const sessionWorkspaceKeyRef = useRef<string | null>(null);
   const activeRunOperationRef = useRef<symbol | null>(null);
+  const activeApplyOperationRef = useRef<symbol | null>(null);
   const planWorkflowOverrideRef = useRef<{
     planId: string;
     baseWorkflow: GraphWorkflowPayload;
@@ -373,6 +374,7 @@ export function useCreativeAssistant({
     cancellationPendingRef.current = false;
     sessionWorkspaceKeyRef.current = null;
     activeRunOperationRef.current = null;
+    activeApplyOperationRef.current = null;
     planWorkflowOverrideRef.current = null;
     setScopedSession(null);
     setPlan(null);
@@ -495,13 +497,14 @@ export function useCreativeAssistant({
     return latest;
   }, [hydrateExistingSession, initialAssistantSessionId, session, workflowId]);
 
-  const ensureSession = useCallback(async () => {
+  const ensureSession = useCallback(async (signal?: AbortSignal) => {
     const expectedWorkspaceKey = workspaceKeyRef.current;
     if (session) return session;
-    const latest = await loadExistingSession();
+    const latest = await loadExistingSession(signal);
+    signal?.throwIfAborted();
     if (latest) return latest;
     const created = await jsonFetch<AssistantSession>("/api/control/media/assistant/sessions", {
-      method: "POST",
+      method: "POST", signal,
       body: JSON.stringify({
         owner_kind: workflowId ? "graph_workflow" : "standalone",
         owner_id: workflowId,
@@ -511,6 +514,7 @@ export function useCreativeAssistant({
         title: `${workflowName || "Graph"} assistant`,
       }),
     });
+    signal?.throwIfAborted();
     if (workspaceKeyRef.current !== expectedWorkspaceKey) return created;
     setScopedSession(created);
     return created;
@@ -825,14 +829,19 @@ export function useCreativeAssistant({
       : canvasContext;
     setStatus("planning");
     setError(null);
+    let requestSignal: AbortSignal | undefined;
     try {
-      const currentSession = options?.assistantSession ?? session ?? (await ensureSession());
+      const currentSession = await runAbortableRequest(async (signal) => {
+        requestSignal = signal;
+        return options?.assistantSession ?? session ?? await ensureSession(signal);
+      });
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
       if (options?.appendUserMessage ?? true) {
         setScopedSession((current) => appendOptimisticUserMessage(current, currentSession, normalizedMessage, { source: "plan_graph", assistant_mode: assistantMode }));
       }
       setDraft("");
       const planRequest = await runAbortableRequest(async (signal) => {
+        requestSignal = signal;
         try {
           const result = await jsonFetch<AssistantPlanResponse>(`/api/control/media/assistant/sessions/${currentSession.assistant_session_id}/plans`, {
             method: "POST",
@@ -891,6 +900,7 @@ export function useCreativeAssistant({
       }
       return result;
     } catch (requestError) {
+      if (requestSignal?.aborted || workspaceKeyRef.current !== requestWorkspaceKey) return null;
       if (isAbortError(requestError)) {
         reportAbortableStop("Assistant planning stopped.");
         return null;
@@ -900,7 +910,7 @@ export function useCreativeAssistant({
       onEvent?.(errorMessage, "error");
       return null;
     } finally {
-      finishAbortableOperation();
+      if (!requestSignal?.aborted && workspaceKeyRef.current === requestWorkspaceKey) finishAbortableOperation();
     }
   }, [assistantMode, busy, canvasContext, ensureSession, finishAbortableOperation, latestRunId, onEvent, reportAbortableStop, runAbortableRequest, selectedGroupIds, selectedNodeIds, session, setScopedSession, workflow]);
 
@@ -910,6 +920,9 @@ export function useCreativeAssistant({
     confirmation?: AssistantNextAction | null,
   ) => {
     const applyWorkspaceKey = workspaceKeyRef.current;
+    const operation = Symbol("apply-plan");
+    activeApplyOperationRef.current = operation;
+    const ownsOperation = () => activeApplyOperationRef.current === operation && workspaceKeyRef.current === applyWorkspaceKey;
     setStatus("applying");
     setError(null);
     try {
@@ -930,7 +943,7 @@ export function useCreativeAssistant({
             : {}),
         }),
       });
-      if (workspaceKeyRef.current !== applyWorkspaceKey) return null;
+      if (!ownsOperation()) return null;
       setPlan({
         ...planResponse,
         plan: result.plan,
@@ -955,15 +968,20 @@ export function useCreativeAssistant({
         openInNewTab: planResponse.graph_plan.metadata?.independent_stage === true,
         assistantSessionId: planResponse.plan.assistant_session_id,
       });
+      if (!ownsOperation()) return null;
       onEvent?.("Assistant plan applied to the canvas.", "success");
       return result;
     } catch (requestError) {
+      if (!ownsOperation()) return null;
       const message = assistantErrorMessage(requestError, "Unable to apply assistant plan.");
       setError(message);
       onEvent?.(message, "error");
       return null;
     } finally {
-      setStatus("idle");
+      if (ownsOperation()) {
+        activeApplyOperationRef.current = null;
+        setStatus("idle");
+      }
     }
   }, [onApplyWorkflow, onEvent, workflow]);
 
@@ -1035,7 +1053,10 @@ export function useCreativeAssistant({
     let monitoring = false;
     let previousMessageIds: string[] = [];
     try {
-      const currentSession = await ensureSession();
+      const currentSession = await runAbortableRequest(signal => {
+        requestSignal = signal;
+        return ensureSession(signal);
+      });
       requestSessionId = currentSession.assistant_session_id;
       previousMessageIds = currentSession.messages.map(message => message.assistant_message_id);
       if (workspaceKeyRef.current !== requestWorkspaceKey) return null;
