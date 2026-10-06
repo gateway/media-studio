@@ -316,9 +316,14 @@ describe("PromptRecipeEditorScreen", () => {
   });
 
   it("opens the generated image picker and applies an asset as the thumbnail", async () => {
+    let releaseImages!: () => void;
+    const imagesReady = new Promise<void>((resolve) => {
+      releaseImages = resolve;
+    });
     const fetchMock = buildEditorFetchMock({
       handle: async (url) => {
         if (url.includes("/api/control/media-assets?")) {
+          await imagesReady;
           return {
             ok: true,
             json: async () => ({
@@ -384,7 +389,9 @@ describe("PromptRecipeEditorScreen", () => {
     expect(await screen.findByRole("dialog", { name: /generated image thumbnails/i })).toBeTruthy();
     expect(screen.queryByText(/storyboard heroine in a control room/i)).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /use generated image asset-1 as thumbnail/i }));
+    expect(screen.queryByRole("button", { name: /use generated image asset-1 as thumbnail/i })).toBeNull();
+    releaseImages();
+    fireEvent.click(await screen.findByRole("button", { name: /use generated image asset-1 as thumbnail/i }));
 
     expect(await screen.findByText("Thumbnail selected from generated images.")).toBeTruthy();
     await waitFor(() => {

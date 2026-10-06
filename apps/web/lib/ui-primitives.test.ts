@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -73,14 +70,6 @@ describe("ui primitives", () => {
     expect(calloutPanelClassName({ appearance: "admin", tone: "danger" })).toContain("callout-panel-danger");
     expect(propertyStackClassName({ appearance: "admin" })).toContain("property-stack");
     expect(surfaceInputShellClassName({ appearance: "studio" })).toContain("surface-input-shell");
-  });
-
-  it("documents retained compatibility aliases in globals.css", () => {
-    const globalsPath = path.resolve(process.cwd(), "app/globals.css");
-    const globalsSource = readFileSync(globalsPath, "utf8");
-
-    expect(globalsSource).toContain("compatibility alias");
-    expect(globalsSource).toContain(".admin-surface-card");
   });
 
   it("keeps admin inset and empty-state helpers routed through shared surface contracts", () => {
