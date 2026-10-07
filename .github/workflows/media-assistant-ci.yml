@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - "codex/**"
     paths:
       - ".github/workflows/media-assistant-ci.yml"
       - "apps/api/app/assistant/**"

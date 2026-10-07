@@ -46,8 +46,23 @@ def app_modules(tmp_path: Path):
     os.environ["MEDIA_STUDIO_CONTROL_API_TOKEN"] = CONTROL_HEADERS["x-media-studio-control-token"]
     os.environ["NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG"] = "1"
 
+    # Reuse only environment-independent schema definitions. All application
+    # modules (settings, stores, routers, runners and provider state) stay fresh.
+    schema_modules = {
+        name: sys.modules[name]
+        for name in ("app.queue_limits", "app.schemas", "app.graph.schemas")
+        if name in sys.modules
+    }
     for name in sorted([key for key in sys.modules.keys() if key == "app" or key.startswith("app.")], reverse=True):
         sys.modules.pop(name, None)
+
+    # Reattach preserved children to newly imported package objects as well as
+    # sys.modules, so both import styles resolve the same model classes.
+    for name, module in schema_modules.items():
+        parent_name, _, child_name = name.rpartition(".")
+        parent = importlib.import_module(parent_name)
+        sys.modules[name] = module
+        setattr(parent, child_name, module)
 
     main = importlib.import_module("app.main")
     store = importlib.import_module("app.store")
