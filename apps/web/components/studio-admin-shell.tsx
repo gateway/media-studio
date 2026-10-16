@@ -2,14 +2,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import {
-  adminSectionStackClassName,
   studioAdminNavClassName,
   studioAdminPageIntroClassName,
   studioAdminShellClassName,
 } from "@/components/admin-theme";
 import { buildStudioScopedHref } from "@/lib/studio-navigation";
 import { MEDIA_STUDIO_VERSION } from "@/lib/app-version";
-import { cn } from "@/lib/utils";
 
 type StudioAdminShellProps = {
   section: "setup" | "studio" | "graph" | "settings" | "models" | "presets" | "jobs" | "pricing";
@@ -32,17 +30,6 @@ const navItems = [
   { key: "setup", label: "Setup", href: "/setup" },
 ] as const;
 
-const adminNavLinkBaseClassName = "text-sm font-semibold tracking-[-0.01em] transition";
-const adminNavLinkActiveClassName = "text-[var(--ms-accent)]";
-const adminNavLinkInactiveClassName = "text-[var(--muted-strong)] hover:text-[var(--foreground)]";
-
-function adminNavLinkClassName(active: boolean) {
-  return cn(
-    adminNavLinkBaseClassName,
-    active ? adminNavLinkActiveClassName : adminNavLinkInactiveClassName,
-  );
-}
-
 export function StudioAdminShell({
   section,
   title,
@@ -53,21 +40,26 @@ export function StudioAdminShell({
   currentProjectId = null,
 }: StudioAdminShellProps) {
   return (
+    <div className="admin-theme-root admin-page-background">
     <div className={studioAdminShellClassName}>
-      <div className={adminSectionStackClassName}>
-        <div className={studioAdminNavClassName}>
+      <header>
+        <nav className={studioAdminNavClassName} aria-label="Main navigation">
+          <span className="admin-brand">Media Studio</span>
+          <div className="admin-nav-links">
           {navItems.map((item) => {
             const active = item.key === section;
             return (
               <Link
                 key={item.key}
                 href={buildStudioScopedHref(item.href, currentProjectId)}
-                className={adminNavLinkClassName(active)}
+                className="admin-nav-link"
+                aria-current={active ? "page" : undefined}
               >
                 {item.label}
               </Link>
             );
           })}
+          </div>
           <div className="ml-auto flex items-center gap-3">
             {aside ? aside : null}
             <span
@@ -77,16 +69,17 @@ export function StudioAdminShell({
               {MEDIA_STUDIO_VERSION}
             </span>
           </div>
-        </div>
+        </nav>
         <div className={studioAdminPageIntroClassName}>
           <div className="admin-page-eyebrow">{eyebrow}</div>
-          <h1 className="admin-page-title sm:text-[2.4rem]">
+          <h1 className="admin-page-title">
             {title}
           </h1>
-          <p className="admin-page-description sm:text-[0.98rem]">{description}</p>
+          <p className="admin-page-description">{description}</p>
         </div>
-      </div>
-      <div className="min-w-0">{children}</div>
+      </header>
+      <main className="admin-section-stack">{children}</main>
+    </div>
     </div>
   );
 }

@@ -208,7 +208,7 @@ export function LlmSettingsConsole({
             ),
           })}
         </div>
-        <div className="mt-5 border-t border-[var(--border-subtle)] pt-5">
+        <div className="mt-5 border-t border-[var(--border-soft)] pt-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="admin-label-muted">Connected AI services</div>
@@ -276,7 +276,7 @@ export function LlmSettingsConsole({
           statusSlot={<StatusPill label={draftingStatus.label} tone={draftingStatus.tone} />}
           defaultOpen={false}
         >
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4 sm:px-6">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-soft)] px-5 py-4 sm:px-6">
             <div className="max-w-2xl text-sm leading-6 text-[var(--muted-strong)]">
               Create and edit Prompt Recipes from the Prompt Recipes admin page. Recipe fields can expose graph inputs as
               text handles or image handles; image handles use the recipe image settings below for analysis or direct

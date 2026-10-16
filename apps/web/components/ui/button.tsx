@@ -7,14 +7,10 @@ export type ButtonVariant = "primary" | "subtle" | "danger" | "ghost";
 export type ButtonSize = "compact" | "default";
 
 const adminVariantClassNames: Record<ButtonVariant, string> = {
-  primary:
-    "admin-button inline-flex items-center justify-center whitespace-nowrap bg-[var(--action-primary-fill)] px-[1.125rem] py-[0.61rem] text-[0.75rem] leading-none font-semibold text-[var(--action-primary-text)] no-underline transition hover:bg-[var(--action-primary-fill-strong)] hover:text-[var(--action-primary-text)] visited:text-[var(--action-primary-text)] disabled:cursor-not-allowed disabled:opacity-60",
-  subtle:
-    "admin-button inline-flex items-center justify-center whitespace-nowrap border border-[var(--action-subtle-border)] bg-[var(--action-subtle-surface)] px-[0.675rem] py-[0.41rem] text-[0.64rem] leading-none font-semibold uppercase tracking-[0.12em] text-[var(--action-subtle-text)] no-underline transition hover:bg-[var(--action-subtle-surface-hover)] hover:text-[var(--action-subtle-text-hover)] visited:text-[var(--action-subtle-text)] disabled:cursor-not-allowed disabled:opacity-60",
-  danger:
-    "admin-button inline-flex items-center justify-center whitespace-nowrap border border-[var(--action-danger-border)] bg-[var(--action-danger-surface)] px-[0.9rem] py-[0.41rem] text-[0.64rem] leading-none font-semibold uppercase tracking-[0.12em] text-[var(--action-danger-text)] no-underline transition hover:bg-[var(--action-danger-surface-hover)] hover:text-[var(--action-danger-text)] visited:text-[var(--action-danger-text)] disabled:cursor-not-allowed disabled:opacity-60",
-  ghost:
-    "admin-button inline-flex items-center justify-center whitespace-nowrap border border-transparent bg-transparent px-[0.9rem] py-[0.41rem] text-[0.64rem] leading-none font-semibold uppercase tracking-[0.12em] text-[var(--action-subtle-text)] transition hover:bg-[var(--action-subtle-surface-hover)] hover:text-[var(--action-subtle-text-hover)] disabled:cursor-not-allowed disabled:opacity-60",
+  primary: "admin-button admin-button-primary",
+  subtle: "admin-button admin-button-subtle",
+  danger: "admin-button admin-button-danger",
+  ghost: "admin-button admin-button-ghost",
 };
 
 const studioVariantClassNames: Record<ButtonVariant, string> = {
@@ -45,9 +41,7 @@ export function buttonClassName({
   const compactClassName =
     size === "compact"
       ? appearance === "admin"
-        ? variant === "primary"
-          ? "w-auto px-[0.9rem] py-[0.41rem] text-[0.64rem] leading-none uppercase tracking-[0.12em]"
-          : "w-auto px-[0.9rem] py-[0.41rem]"
+        ? "admin-button-compact"
         : "h-9 px-3 text-[0.72rem] uppercase tracking-[0.12em]"
       : "";
 

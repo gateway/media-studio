@@ -1,7 +1,6 @@
 "use client";
 
 import { AdminField, AdminInput, AdminTextarea } from "@/components/admin-controls";
-import { ThumbnailField } from "@/components/media/thumbnail-field";
 import { Panel, PanelHeader } from "@/components/panel";
 import { PROMPT_RECIPE_CATEGORIES, slugifyPromptRecipeKey, type PromptRecipeEditorDraft } from "@/lib/prompt-recipes";
 
@@ -9,21 +8,11 @@ export function PromptRecipeBasicsPanel({
   draft,
   generatedKey,
   onDraftChange,
-  thumbnailInputRef,
-  isUploadingThumbnail,
-  thumbnailAssetsLoading,
-  onOpenGeneratedImages,
-  onThumbnailUpload,
   headerAction,
 }: {
   draft: PromptRecipeEditorDraft;
   generatedKey: string;
   onDraftChange: (updater: (current: PromptRecipeEditorDraft) => PromptRecipeEditorDraft) => void;
-  thumbnailInputRef: React.RefObject<HTMLInputElement | null>;
-  isUploadingThumbnail: boolean;
-  thumbnailAssetsLoading: boolean;
-  onOpenGeneratedImages: () => void;
-  onThumbnailUpload: (file: File) => void;
   headerAction?: React.ReactNode;
 }) {
   return (
@@ -35,8 +24,8 @@ export function PromptRecipeBasicsPanel({
         action={headerAction}
       />
 
-      <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <div className="admin-surface-accent p-4 sm:p-5">
+      <div className="mt-6">
+        <div className="admin-stack">
           <div className="admin-label-accent mb-4">Recipe Basics</div>
           <div className="grid gap-3">
             <AdminField label="Recipe Name">
@@ -125,22 +114,7 @@ export function PromptRecipeBasicsPanel({
           </div>
         </div>
 
-        <ThumbnailField
-          imageUrl={draft.thumbnailUrl}
-          emptyLabel="No thumbnail"
-          inputRef={thumbnailInputRef}
-          isUploading={isUploadingThumbnail}
-          isBrowsing={thumbnailAssetsLoading}
-          onChoose={onOpenGeneratedImages}
-          onUploadFile={onThumbnailUpload}
-          onRemove={() =>
-            onDraftChange((current) => ({
-              ...current,
-              thumbnailPath: "",
-              thumbnailUrl: "",
-            }))
-          }
-        />
+
       </div>
     </Panel>
   );

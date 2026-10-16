@@ -29,6 +29,7 @@ export default async function StudioSettingsPage({
         models={snapshot.models.data?.models ?? []}
         queueSettings={snapshot.queueSettings.data?.settings ?? null}
         queuePolicies={snapshot.queuePolicies.data?.policies ?? []}
+        settingsAside={<StudioDebugSettings />}
         sections={{
           queue: true,
           enhancementProvider: false,
@@ -38,7 +39,6 @@ export default async function StudioSettingsPage({
           presets: false,
         }}
       />
-      <StudioDebugSettings />
     </StudioAdminShell>
   );
 }

@@ -19,7 +19,7 @@ export function PromptRecipeImageInputPanel({
         description="Configure whether this recipe expects an image analysis pass before the final prompt is assembled."
       />
       <div className="mt-5 grid gap-4">
-        <div className="admin-row-surface justify-between p-4">
+        <div className="surface-info-row justify-between p-4">
           <div>
             <div className="font-semibold text-[var(--foreground)]">Enable image input</div>
             <div className="text-sm text-[var(--muted-strong)]">

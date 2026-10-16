@@ -27,7 +27,7 @@ function StatusRow({
   detail: string;
 }) {
   return (
-    <div className="admin-row-surface items-start">
+    <div className="surface-info-row items-start">
       <div>
         <div className="text-sm font-semibold text-[var(--foreground)]">{label}</div>
         <div className="mt-1 text-sm leading-6 text-[var(--muted-strong)]">{detail}</div>
@@ -160,92 +160,8 @@ export default async function SetupPage({
       description="Media Studio is already running on this machine. Use this page to connect KIE, Codex, OpenRouter, and Local OpenAI, confirm what is ready, and see which part of the app each service powers."
     >
       <div className={adminThemeLayoutClassName}>
-        <section className={adminSurfaceCardClassName}>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <div className="admin-label-accent">Current machine status</div>
-              <h2 className="mt-2 text-[1.15rem] font-semibold tracking-[-0.03em] text-[var(--foreground)]">This machine</h2>
-            </div>
-            <StatusPill label={machineStatus.label} tone={machineStatus.tone} />
-          </div>
-          <div className="mt-5 grid gap-3 lg:grid-cols-2">
-            <StatusRow
-              label="Media generation backend"
-              value={binaryReadinessStatus(kieRepoConnected).label}
-              tone={binaryReadinessStatus(kieRepoConnected).tone}
-              detail="Required. Media Studio uses the shared gateway/kie-api checkout and Python runtime."
-            />
-            <StatusRow
-              label="KIE API key"
-              value={binaryReadinessStatus(kieKeyConfigured).label}
-              tone={binaryReadinessStatus(kieKeyConfigured).tone}
-              detail={kieKeyConfigured ? "Required key is present." : creditsReason}
-            />
-            <StatusRow
-              label="Live generation"
-              value={binaryReadinessStatus(liveSubmitEnabled).label}
-              tone={binaryReadinessStatus(liveSubmitEnabled).tone}
-              detail="Required for real image and video submits from Studio and graph media nodes."
-            />
-            <StatusRow
-              label="Codex Local"
-              value={readinessStatus(codexLocalReady, codexLocalCommandAvailable).label}
-              tone={readinessStatus(codexLocalReady, codexLocalCommandAvailable).tone}
-              detail="Optional. Uses your local Codex sign-in and the Codex or ChatGPT plan on this machine."
-            />
-            <StatusRow
-              label="OpenRouter"
-              value={readinessStatus(openRouterConfigured, openRouterConfigured).label}
-              tone={readinessStatus(openRouterConfigured, openRouterConfigured).tone}
-              detail="Optional. Hosted text and vision models billed through OpenRouter."
-            />
-            <StatusRow
-              label="Local OpenAI-compatible"
-              value={readinessStatus(localOpenAiReady, localOpenAiConfigured).label}
-              tone={readinessStatus(localOpenAiReady, localOpenAiConfigured).tone}
-              detail="Optional. Your own OpenAI-style endpoint for local or self-hosted prompt work."
-            />
-          </div>
-        </section>
-
-        <section className={adminSurfaceCardClassName}>
-          <div className="space-y-3">
-            <h2 className="text-[1.5rem] font-semibold tracking-[-0.04em] text-[var(--foreground)]">What each connection powers</h2>
-            <p className="max-w-3xl text-sm leading-7 text-[var(--muted-strong)]">
-              Confirm which services are ready on this machine, then use AI Settings or each graph workflow to choose the right model for the job.
-            </p>
-          </div>
-          <div className="mt-5 grid gap-3 lg:grid-cols-3">
-            <SetupCapabilityCard
-              icon={<ImageIcon className="size-3.5" />}
-              title="Studio renders"
-              description="KIE powers image and video generation in Studio and in graph media model nodes. If KIE is not ready, real generation stays offline."
-            />
-            <SetupCapabilityCard
-              icon={<BrainCircuit className="size-3.5" />}
-              title="Prompt Enhance and recipe drafts"
-              description="AI Settings chooses the default model for Prompt Enhance and for recipe draft generation. These are defaults, not global locks."
-            />
-            <SetupCapabilityCard
-              icon={<Workflow className="size-3.5" />}
-              title="Graph prompt nodes"
-              description="Graph prompt nodes choose their own provider and model inside each workflow. They do not inherit the recipe draft default."
-            />
-          </div>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link href={aiSettingsHref} className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
-              Open Settings
-            </Link>
-            <Link href={studioHref} className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
-              Open Studio
-            </Link>
-            <Link href={graphHref} className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
-              Open Graph Studio
-            </Link>
-          </div>
-        </section>
-
-        <section className="grid gap-6 xl:grid-cols-2">
+        <div className="admin-form-grid">
+        <section className="admin-form-main">
           <SetupConnectionCard
             eyebrow="Required service"
             title="Connect KIE"
@@ -335,6 +251,94 @@ export default async function SetupPage({
             actionHref={aiSettingsHref}
             actionLabel="Test endpoint in AI Settings"
           />
+        </section>
+
+          <aside className="admin-form-aside" aria-label="Connection status">
+        <section className={adminSurfaceCardClassName}>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="admin-label-accent">Current machine status</div>
+              <h2 className="mt-2 text-[1.15rem] font-semibold tracking-[-0.03em] text-[var(--foreground)]">This machine</h2>
+            </div>
+            <StatusPill label={machineStatus.label} tone={machineStatus.tone} />
+          </div>
+          <div className="mt-5 grid gap-3">
+            <StatusRow
+              label="Media generation backend"
+              value={binaryReadinessStatus(kieRepoConnected).label}
+              tone={binaryReadinessStatus(kieRepoConnected).tone}
+              detail="Required. Media Studio uses the shared gateway/kie-api checkout and Python runtime."
+            />
+            <StatusRow
+              label="KIE API key"
+              value={binaryReadinessStatus(kieKeyConfigured).label}
+              tone={binaryReadinessStatus(kieKeyConfigured).tone}
+              detail={kieKeyConfigured ? "Required key is present." : creditsReason}
+            />
+            <StatusRow
+              label="Live generation"
+              value={binaryReadinessStatus(liveSubmitEnabled).label}
+              tone={binaryReadinessStatus(liveSubmitEnabled).tone}
+              detail="Required for real image and video submits from Studio and graph media nodes."
+            />
+            <StatusRow
+              label="Codex Local"
+              value={readinessStatus(codexLocalReady, codexLocalCommandAvailable).label}
+              tone={readinessStatus(codexLocalReady, codexLocalCommandAvailable).tone}
+              detail="Optional. Uses your local Codex sign-in and the Codex or ChatGPT plan on this machine."
+            />
+            <StatusRow
+              label="OpenRouter"
+              value={readinessStatus(openRouterConfigured, openRouterConfigured).label}
+              tone={readinessStatus(openRouterConfigured, openRouterConfigured).tone}
+              detail="Optional. Hosted text and vision models billed through OpenRouter."
+            />
+            <StatusRow
+              label="Local OpenAI-compatible"
+              value={readinessStatus(localOpenAiReady, localOpenAiConfigured).label}
+              tone={readinessStatus(localOpenAiReady, localOpenAiConfigured).tone}
+              detail="Optional. Your own OpenAI-style endpoint for local or self-hosted prompt work."
+            />
+          </div>
+        </section>
+
+          </aside>
+        </div>
+        <section className={adminSurfaceCardClassName}>
+          <div className="space-y-3">
+            <h2 className="text-[1.5rem] font-semibold tracking-[-0.04em] text-[var(--foreground)]">What each connection powers</h2>
+            <p className="max-w-3xl text-sm leading-7 text-[var(--muted-strong)]">
+              Confirm which services are ready on this machine, then use AI Settings or each graph workflow to choose the right model for the job.
+            </p>
+          </div>
+          <div className="mt-5 grid gap-3 lg:grid-cols-3">
+            <SetupCapabilityCard
+              icon={<ImageIcon className="size-3.5" />}
+              title="Studio renders"
+              description="KIE powers image and video generation in Studio and in graph media model nodes. If KIE is not ready, real generation stays offline."
+            />
+            <SetupCapabilityCard
+              icon={<BrainCircuit className="size-3.5" />}
+              title="Prompt Enhance and recipe drafts"
+              description="AI Settings chooses the default model for Prompt Enhance and for recipe draft generation. These are defaults, not global locks."
+            />
+            <SetupCapabilityCard
+              icon={<Workflow className="size-3.5" />}
+              title="Graph prompt nodes"
+              description="Graph prompt nodes choose their own provider and model inside each workflow. They do not inherit the recipe draft default."
+            />
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link href={aiSettingsHref} className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
+              Open Settings
+            </Link>
+            <Link href={studioHref} className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
+              Open Studio
+            </Link>
+            <Link href={graphHref} className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
+              Open Graph Studio
+            </Link>
+          </div>
         </section>
 
         <section className={adminSurfaceCardClassName}>

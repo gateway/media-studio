@@ -93,7 +93,7 @@ function DraftingSettingsAccentCard({
   children: ReactNode;
 }) {
   return (
-    <div className="admin-surface-accent grid gap-4 p-4 sm:p-5">
+    <div className="surface-card-accent grid gap-4 p-4 sm:p-5">
       <div className="admin-label-accent">{label}</div>
       {children}
     </div>
@@ -324,12 +324,12 @@ export function PromptRecipeDraftingSettingsPanel({
         }
         trailingContent={
           isAssistant && form.providerKind !== "codex_local" ? (
-            <div className="admin-surface-inset p-3 text-sm leading-6 text-[var(--muted-strong)]">
+            <div className="surface-inset p-3 text-sm leading-6 text-[var(--muted-strong)]">
               This provider is chat only. Graph building needs Codex Local, which is the only option with Media Studio
               tool access.
             </div>
           ) : !form.enabled ? (
-            <div className="admin-surface-inset p-3 text-sm leading-6 text-[var(--muted-strong)]">
+            <div className="surface-inset p-3 text-sm leading-6 text-[var(--muted-strong)]">
               Recipe drafts will stay hidden in the Prompt Recipe editor until you turn this on.
               {!embedded ? null : (
                 <>

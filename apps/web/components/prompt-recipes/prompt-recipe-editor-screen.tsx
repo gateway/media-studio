@@ -1,5 +1,7 @@
 "use client";
 
+import { ThumbnailField } from "@/components/media/thumbnail-field";
+
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
@@ -520,26 +522,6 @@ export function PromptRecipeEditorScreen({
         />
       ) : null}
 
-      <PromptRecipeBasicsPanel
-        draft={draft}
-        generatedKey={generatedKey}
-        onDraftChange={setDraft}
-        thumbnailInputRef={thumbnailInputRef}
-        isUploadingThumbnail={isUploadingThumbnail}
-        thumbnailAssetsLoading={thumbnailPicker.loading}
-        onOpenGeneratedImages={thumbnailPicker.openPicker}
-        onThumbnailUpload={(file) => {
-          void uploadThumbnail(file);
-        }}
-        headerAction={
-          <AdminButton variant="subtle" onClick={() => router.push(returnTo)}>
-            <span className={adminButtonIconLabelClassName}>
-              <ArrowLeft className="size-4" />
-              Back to Prompt Recipes
-            </span>
-          </AdminButton>
-        }
-      />
 
       <PromptRecipeThumbnailPickerDialog
         open={thumbnailPicker.open}
@@ -558,40 +540,77 @@ export function PromptRecipeEditorScreen({
         }}
       />
 
-      <PromptRecipeTemplatePanel
-        draft={draft}
-        detectedVariables={detectedVariables}
-        draftWarnings={draftWarnings}
-        validationError={draftValidationError}
-        lastDraftWarnings={lastDraftWarnings}
-        onDraftChange={(updater) =>
-          setDraft((current) => {
-            const next = updater(current);
-            return {
-              ...next,
-              variables: normalizePromptRecipeVariables(next.variables, next.template),
-            };
-          })
-        }
-      />
+      <div className="admin-form-grid">
+        <div className="admin-form-main">
+          <PromptRecipeBasicsPanel
+            draft={draft}
+            generatedKey={generatedKey}
+            onDraftChange={setDraft}
 
-      <PromptRecipeImageInputPanel draft={draft} onDraftChange={setDraft} />
+            headerAction={
+              <AdminButton variant="subtle" onClick={() => router.push(returnTo)}>
+                <span className={adminButtonIconLabelClassName}>
+                  <ArrowLeft className="size-4" />
+                  Back to Prompt Recipes
+                </span>
+              </AdminButton>
+            }
+          />
+          <PromptRecipeTemplatePanel
+            draft={draft}
+            detectedVariables={detectedVariables}
+            draftWarnings={draftWarnings}
+            validationError={draftValidationError}
+            lastDraftWarnings={lastDraftWarnings}
+            onDraftChange={(updater) =>
+              setDraft((current) => {
+                const next = updater(current);
+                return {
+                  ...next,
+                  variables: normalizePromptRecipeVariables(next.variables, next.template),
+                };
+              })
+            }
+          />
 
-      <PromptRecipeVariablesPanel
-        draft={draft}
-        onUpdateVariable={updateVariable}
-        onUpdateCustomField={updateCustomField}
-        onDraftChange={setDraft}
-      />
 
-      <PromptRecipeContractPanel
-        draft={draft}
-        parsedDefaultOptions={parsedDefaultOptions}
-        parsedRules={parsedRules}
-        onPatchDefaultOptions={patchDefaultOptions}
-        onPatchRules={patchRules}
-        onDraftChange={setDraft}
-      />
+
+          <PromptRecipeVariablesPanel
+            draft={draft}
+            onUpdateVariable={updateVariable}
+            onUpdateCustomField={updateCustomField}
+            onDraftChange={setDraft}
+          />
+
+          <PromptRecipeContractPanel
+            draft={draft}
+            parsedDefaultOptions={parsedDefaultOptions}
+            parsedRules={parsedRules}
+            onPatchDefaultOptions={patchDefaultOptions}
+            onPatchRules={patchRules}
+            onDraftChange={setDraft}
+          />
+        </div>
+        <aside className="admin-form-aside" aria-label="Recipe preview and image settings">
+          <ThumbnailField
+            imageUrl={draft.thumbnailUrl}
+            emptyLabel="No thumbnail"
+            inputRef={thumbnailInputRef}
+            isUploading={isUploadingThumbnail}
+            isBrowsing={thumbnailPicker.loading}
+            onChoose={thumbnailPicker.openPicker}
+            onUploadFile={(file) => void uploadThumbnail(file)}
+            onRemove={() =>
+              setDraft((current) => ({
+                ...current,
+                thumbnailPath: "",
+                thumbnailUrl: "",
+              }))
+            }
+          />
+          <PromptRecipeImageInputPanel draft={draft} onDraftChange={setDraft} />
+        </aside>
+      </div>
 
       <AdminEditorActionBar>
         {draft.recipeId ? (

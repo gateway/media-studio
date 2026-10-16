@@ -28,7 +28,7 @@ export function StudioDebugSettings() {
         title="Studio Debug Console"
         description="Mirror Studio operational messages to the browser console while keeping the normal composer status UI."
       />
-      <div className="admin-surface-inset mt-5 p-5">
+      <div className="surface-inset mt-5 p-5">
         <AdminToggleRow
           title="Browser Debug Logging"
           description={

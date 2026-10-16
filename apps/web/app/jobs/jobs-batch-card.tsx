@@ -105,7 +105,7 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
 
   return (
     <>
-      <div className={cn(adminInsetPanelClassName, "admin-jobs-batch-card")}>
+      <div className={cn(adminInsetPanelClassName, "surface-card")}>
         <div className="grid gap-4">
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -190,7 +190,7 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
                       }}
                       disabled={!canOpenLightbox}
                       className={cn(
-                        "admin-preview-frame overflow-hidden transition",
+                        "surface-preview-frame overflow-hidden transition",
                         canOpenLightbox ? "hover:border-[var(--surface-border)] hover:bg-[color:var(--surface-muted)]" : "cursor-default opacity-80",
                       )}
                       title={canOpenLightbox ? `Open output ${job.batch_index ?? 1}` : `Output ${job.batch_index ?? 1}`}

@@ -401,14 +401,14 @@ export function GraphImageSelectorDialog({
             </div>
 
             {sourceState.error ? (
-              <div className="admin-surface-inset flex min-h-60 items-center justify-center p-6 text-center text-sm text-[var(--muted-strong)]">
+              <div className="surface-inset flex min-h-60 items-center justify-center p-6 text-center text-sm text-[var(--muted-strong)]">
                 <div role="alert">
                   <p>{sourceState.error}</p>
                   {onRefresh ? <AdminButton onClick={() => onRefresh(activeSource)}>Retry loading images</AdminButton> : null}
                 </div>
               </div>
             ) : sourceState.loading && !sourceState.items.length ? (
-              <div className="admin-surface-inset flex min-h-60 items-center justify-center p-6 text-sm text-[var(--muted-strong)]">
+              <div className="surface-inset flex min-h-60 items-center justify-center p-6 text-sm text-[var(--muted-strong)]">
                 {copy.loading}
               </div>
             ) : sourceState.items.length ? (
@@ -426,7 +426,7 @@ export function GraphImageSelectorDialog({
                 }
               />
             ) : (
-              <div className="admin-surface-inset flex min-h-60 items-center justify-center p-6 text-sm text-[var(--muted-strong)]">
+              <div className="surface-inset flex min-h-60 items-center justify-center p-6 text-sm text-[var(--muted-strong)]">
                 {copy.empty}
               </div>
             )}

@@ -429,7 +429,7 @@ export default async function PricingPage({
               return (
                 <div
                   key={`${String(record.model_key ?? "rule")}-${index}`}
-                  className="admin-pricing-model-card grid gap-4 p-5"
+                  className="surface-card grid gap-4 p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>

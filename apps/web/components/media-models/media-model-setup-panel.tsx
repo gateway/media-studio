@@ -266,10 +266,10 @@ export function MediaModelSetupPanel({
           ) : null}
         </div>
       ) : null}
-      <div className="mt-5 grid gap-4">
-        <div className="grid gap-4">
+      <div className="admin-form-grid mt-5">
+        <div className="admin-form-main">
           <div className="admin-icon-label-row admin-label-muted">
-            <Sparkles className="size-3.5 text-[rgba(208,255,72,0.94)]" />
+            <Sparkles className="size-3.5 text-[var(--accent-strong)]" />
             Parameters
           </div>
           <div className="mt-3 overflow-hidden">
@@ -288,7 +288,7 @@ export function MediaModelSetupPanel({
                       className="admin-property-grid-row grid-cols-[minmax(0,0.9fr)_80px_minmax(0,1.6fr)] last:border-b-0"
                     >
                       <div className="flex items-center gap-2 text-[var(--foreground)]">
-                        <Icon className="size-3.5 shrink-0 text-[rgba(208,255,72,0.94)]" />
+                        <Icon className="size-3.5 shrink-0 text-[var(--accent-strong)]" />
                         <span className="truncate font-medium">{row.name}</span>
                       </div>
                       <div className="text-[var(--foreground)]">{row.required}</div>
@@ -301,12 +301,14 @@ export function MediaModelSetupPanel({
               <div className="px-3 py-3 text-sm leading-7 text-[var(--muted-strong)]">No published capability details.</div>
             )}
           </div>
+        </div>
+        <div className="admin-form-aside">
           <div className={surfaceCardClassName({ appearance: "admin", className: "px-5 py-5" })}>
             <div className="admin-icon-label-row admin-label-muted">
               <Clapperboard className="size-3.5" />
               Queue Controls
             </div>
-            <SurfaceInset appearance="admin" density="compact" className="admin-row-surface mt-4">
+            <SurfaceInset appearance="admin" density="compact" className="surface-info-row mt-4">
               <div className="grid gap-1">
                 <div className="flex items-center gap-2">
                   <span className="admin-label-muted">Availability</span>

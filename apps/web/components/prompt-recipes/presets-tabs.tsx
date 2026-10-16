@@ -1,6 +1,5 @@
-import { AdminButton } from "@/components/admin-controls";
-import { AdminNavButton } from "@/components/admin-nav-button";
-import { adminCompactTabButtonClassName, adminSectionStackClassName, adminTabsRowClassName } from "@/components/admin-theme";
+import { AdminSectionTabs } from "@/components/admin-section-tabs";
+import { adminSectionStackClassName } from "@/components/admin-theme";
 import { MediaModelsConsole } from "@/components/media-models-console";
 import { PromptRecipesList } from "@/components/prompt-recipes/prompt-recipes-list";
 import type {
@@ -44,32 +43,7 @@ export function PresetsTabs({
 }: PresetsTabsProps) {
   return (
     <div className={adminSectionStackClassName}>
-      <div className={adminTabsRowClassName}>
-        {tabItems.map((item) =>
-          activeTab === item.key ? (
-            <AdminButton
-              key={item.key}
-              variant="primary"
-              size="compact"
-              className={adminCompactTabButtonClassName}
-              aria-current="page"
-              disabled
-            >
-              {item.label}
-            </AdminButton>
-          ) : (
-            <AdminNavButton
-              key={item.key}
-              href={item.href}
-              variant="subtle"
-              size="compact"
-              className={adminCompactTabButtonClassName}
-            >
-              {item.label}
-            </AdminNavButton>
-          ),
-        )}
-      </div>
+      <AdminSectionTabs items={tabItems} activeKey={activeTab} />
 
       {activeTab === "prompt-recipes" ? (
         <PromptRecipesList recipes={promptRecipes} />

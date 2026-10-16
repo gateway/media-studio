@@ -19,7 +19,7 @@ export function SharedLlmProviderIntroCard({
   trailingContent,
 }: SharedLlmProviderIntroCardProps) {
   return (
-    <div className="admin-surface-accent grid gap-4 p-4 sm:p-5">
+    <div className="surface-card-accent grid gap-4 p-4 sm:p-5">
       {leadingContent}
       <div className="admin-label-accent">{accentLabel}</div>
       <div className="max-w-[760px] text-sm leading-7 text-[var(--muted-strong)]">

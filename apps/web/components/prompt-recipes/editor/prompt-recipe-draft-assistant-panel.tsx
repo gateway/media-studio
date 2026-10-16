@@ -68,12 +68,12 @@ export function PromptRecipeDraftAssistantPanel({
         }
         detail="Uses the current editor hints for category, output format, and image-input mode."
         defaultOpen={false}
-        className="rounded-[var(--admin-radius)]"
+        className="rounded-[var(--radius-panel)]"
       >
         <div className="admin-label-accent mb-4">Draft Assistant</div>
         {!draftingEnabled ? (
           <div className="grid gap-4">
-            <div className="admin-surface-inset p-4 text-sm leading-6 text-[var(--muted-strong)]">
+            <div className="surface-inset p-4 text-sm leading-6 text-[var(--muted-strong)]">
               Recipe drafts are turned off in AI Settings. Turn them on there before using this assistant.
             </div>
             <div className="flex flex-wrap justify-end gap-3">
@@ -150,14 +150,14 @@ export function PromptRecipeDraftAssistantPanel({
               </AdminButton>
             </div>
           </div>
-          <div className="admin-surface-inset p-3 text-sm text-[var(--muted-strong)]">
+          <div className="surface-inset p-3 text-sm text-[var(--muted-strong)]">
             {catalogEntry ? providerCatalogStatusDetail(providerKind, catalogEntry) : providerCatalogLoadHint(providerKind)}
           </div>
-          <div className="admin-surface-inset p-3 text-sm text-[var(--muted-strong)]">
+          <div className="surface-inset p-3 text-sm text-[var(--muted-strong)]">
             Draft generation uses the current editor hints for category, output format, and image-input mode. Codex Local runs are subscription-backed and do not show a Media Studio dollar estimate.
           </div>
           {draftingModelSummary ? (
-            <div className="admin-surface-inset p-3 text-sm text-[var(--muted-strong)]">
+            <div className="surface-inset p-3 text-sm text-[var(--muted-strong)]">
               <span className="font-semibold text-[var(--foreground)]">Last draft model: </span>
               {draftingModelSummary}
             </div>

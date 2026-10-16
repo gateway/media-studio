@@ -53,7 +53,7 @@ export function MediaModelAvailabilityPanel({
                 key={`availability-${model.key}`}
                 appearance="admin"
                 density="compact"
-                className="admin-row-surface"
+                className="surface-info-row"
               >
                 <div className="min-w-0 grid gap-1">
                   <div className="flex flex-wrap items-center gap-2">

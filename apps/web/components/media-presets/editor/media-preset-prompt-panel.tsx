@@ -29,7 +29,7 @@ export function MediaPresetPromptPanel({
           className="min-h-[180px] sm:min-h-[220px]"
         />
       </div>
-      <div className="admin-summary-card mt-4 p-3.5 sm:p-4">
+      <div className="surface-inset mt-4 p-3.5 sm:p-4">
         <div className="admin-label-muted">
           Token rules
         </div>

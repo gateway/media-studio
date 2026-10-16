@@ -108,11 +108,16 @@ export default async function JobsPage({
     >
       <div className={adminThemeLayoutClassName}>
       <Panel>
-        <PanelHeader
-          eyebrow="Queue Health"
-          title={healthData?.runner_name ?? "Media Studio Runner"}
-          description="This is the background Media Studio runner attached to the API. It owns queue pickup, provider polling, and final asset publishing."
-        />
+        <div className="admin-runtime-summary">
+          <h2 className="admin-panel-title">{healthData?.runner_name ?? "Media Studio Runner"}</h2>
+          <span className={`admin-status-badge ${runnerHealthy ? "admin-status-healthy" : "admin-status-warning"}`}>
+            {runnerHealth === "healthy" ? "Healthy" : runnerHealth === "paused" ? "Paused" : "Needs attention"}
+          </span>
+          <span>{healthData?.running_jobs ?? recentRunningCount} running</span>
+          <span>{healthData?.queued_jobs ?? recentQueuedCount} queued</span>
+        </div>
+        <details className="mt-4">
+          <summary className="admin-label-muted cursor-pointer">Runner details and controls</summary>
         <div className="mt-5">
           <SurfaceInset appearance="admin" className={mutedCardClassName}>
             <div className="admin-icon-label-row admin-label-muted mb-3">
@@ -200,6 +205,7 @@ export default async function JobsPage({
             </div>
           </SurfaceInset>
         </div>
+        </details>
       </Panel>
 
       <section id="recent-runs">

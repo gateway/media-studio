@@ -175,7 +175,7 @@ export function MediaImagePickerDialog({
               {errorDetails ? <details><summary>Technical details</summary><p>{errorDetails}</p></details> : null}
             </section> : null}
             {errorMessage && !items.length ? null : loading && !items.length ? (
-              <div className="admin-surface-inset flex min-h-60 items-center justify-center p-6 text-sm text-[var(--muted-strong)]">
+              <div className="surface-inset flex min-h-60 items-center justify-center p-6 text-sm text-[var(--muted-strong)]">
                 {loadingMessage}
               </div>
             ) : items.length ? (
@@ -204,7 +204,7 @@ export function MediaImagePickerDialog({
                 </div>
               </>
             ) : (
-              <div className="admin-surface-inset flex min-h-60 items-center justify-center p-6 text-sm text-[var(--muted-strong)]">
+              <div className="surface-inset flex min-h-60 items-center justify-center p-6 text-sm text-[var(--muted-strong)]">
                 {emptyMessage}
               </div>
             )}

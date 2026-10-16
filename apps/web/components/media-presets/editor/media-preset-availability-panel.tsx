@@ -23,7 +23,7 @@ export function MediaPresetAvailabilityPanel({
         Availability
       </div>
       <div className="mt-4 grid gap-4">
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-3">
           <label className="admin-toggle-row text-sm">
             <span>Enable this preset</span>
             <AdminToggle
@@ -38,7 +38,7 @@ export function MediaPresetAvailabilityPanel({
             />
           </label>
 
-          <div className="admin-summary-card text-sm">
+          <div className="surface-inset p-3 text-sm break-words">
             <div className="admin-label-muted">
               Snapshot
             </div>
@@ -52,7 +52,7 @@ export function MediaPresetAvailabilityPanel({
           <div className="admin-label-muted">
             Available in
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3">
             {models.map((model) => (
               <label
                 key={model.key}
