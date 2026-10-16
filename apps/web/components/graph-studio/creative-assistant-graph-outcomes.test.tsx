@@ -23,8 +23,8 @@ function missingMediaPlan(): AssistantPlanResponse {
   };
 }
 
-async function review(plan: AssistantPlanResponse, canvas = workflow, apply = vi.fn()) {
-  vi.stubGlobal("fetch", vi.fn((url: string) => url.endsWith("/progress") ? json(assistantIdleProgress) :
+async function review(plan: AssistantPlanResponse, canvas = workflow, apply = vi.fn(), progress?: Promise<Response>) {
+  vi.stubGlobal("fetch", vi.fn((url: string) => url.endsWith("/progress") ? (progress ?? json(assistantIdleProgress)) :
     (url.includes("/sessions?") || url.endsWith("/session-1")) ? assistantSessionResponse(url, { ...session, messages: [], latest_plan: plan }) : json({ ready: true })));
   render(<CreativeAssistantPanel open workspaceKey="missing-media" workflowId="workflow-1" workflowName="Graph" workflow={canvas}
     references={[]} importImageFile={vi.fn()} onApplyWorkflow={apply} onClose={vi.fn()} />);
@@ -121,8 +121,15 @@ it("does not claim completion when confirmed changes fail to reach the canvas", 
   const plan = missingMediaPlan(); plan.validation = { valid: true, errors: [], warnings: [] };
   plan.graph_plan.operations = [{ op: "set_node_field", node_id: "person", fields: { resolution: "2K" } }];
   const apply = vi.fn(async () => { throw new Error("The source workflow changed while preparing the graph."); });
-  const view = await review(plan, plan.workflow, apply);
-  vi.stubGlobal("fetch", vi.fn(() => json({ ...plan, plan: { ...plan.plan, status: "applied" } })));
+  let releaseProgress!: (response: Response) => void;
+  const progress = new Promise<Response>(resolve => { releaseProgress = resolve; });
+  const view = await review(plan, plan.workflow, apply, progress);
+  const sessionFetch = globalThis.fetch;
+  vi.stubGlobal("fetch", vi.fn((url: string) => url.endsWith("/apply")
+    ? json({ ...plan, plan: { ...plan.plan, status: "applied" } })
+    : sessionFetch(url)));
+  // Complete the background session refresh after installing the approval response.
+  await act(async () => { releaseProgress(await json(assistantIdleProgress)); });
   fireEvent.click(await view.findByRole("button", { name: "Apply node changes" }));
   expect(await view.findByText("Approved graph needs placement")).toBeTruthy();
   expect(view.getByRole("button", { name: "Place approved graph on canvas" })).toBeTruthy();

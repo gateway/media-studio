@@ -246,3 +246,26 @@ Generate a clean schema-only database:
 ```
 
 The repo should not commit local runtime databases, uploads, downloads, or outputs. Those stay local and ignored.
+
+## Retiring legacy login services
+
+Older installations may have login agents named `com.media-studio.api` and
+`com.media-studio.web`. If their logs report `Operation not permitted` while
+opening a checkout under Documents, macOS is denying the background service
+access before Studio starts. Use the Desktop icon for normal startup.
+
+To retire those two legacy agents, disable them persistently, then unload any
+that are still running:
+
+```bash
+launchctl disable "gui/$(id -u)/com.media-studio.api"
+launchctl disable "gui/$(id -u)/com.media-studio.web"
+launchctl bootout "gui/$(id -u)/com.media-studio.api"
+launchctl bootout "gui/$(id -u)/com.media-studio.web"
+```
+
+A bootout message saying the service was not found means it was already unloaded.
+The disable setting persists across login; the plist files, checkout, Python
+environment, database, and media are retained. Verify with
+`launchctl print-disabled "gui/$(id -u)"`. Start Studio with the Desktop icon
+afterward. This does not enable automatic startup at login.

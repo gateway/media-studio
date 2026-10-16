@@ -145,7 +145,9 @@ async function detectService(service: RuntimeService): Promise<ServiceStatus> {
   const label = LABELS[service];
   const launchdLines = await listLaunchdLines();
   const launchdEntry = parseLaunchdLine(launchdLines, label);
-  const manualProcessActive = await hasManualProcess(service);
+  // This route is executing inside the live web server. Next.js can rename its
+  // process to next-server, so command-line discovery is not evidence of web liveness.
+  const manualProcessActive = service === "web" || await hasManualProcess(service);
   if (launchdEntry) {
     if (launchdEntry.pid !== "-") {
       return {
