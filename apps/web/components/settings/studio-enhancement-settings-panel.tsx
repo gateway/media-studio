@@ -14,6 +14,7 @@ import {
 import { Panel, PanelHeader } from "@/components/panel";
 import {
   SharedLlmProviderIntroCard,
+  SharedLlmProviderPicker,
   SharedLlmProviderSection,
 } from "@/components/shared-llm-provider-sections";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
@@ -386,7 +387,7 @@ export function StudioEnhancementSettingsPanel({
         selectedModelId: form.providerModelId || null,
         preferredModelId: providerKind === "openrouter" ? DEFAULT_OPENROUTER_ENHANCEMENT_MODEL : null,
       });
-      setForm((current) => ({
+      setForm((current) => current.providerKind !== providerKind ? current : ({
         ...current,
         providerKind,
         providerLabel: selected?.label ?? current.providerLabel,
@@ -427,7 +428,8 @@ export function StudioEnhancementSettingsPanel({
       <SharedLlmProviderIntroCard
         accentLabel="Prompt Enhance behavior"
         summaryLines={[
-          "Prompt Enhance rewrites Studio prompts before generation. The model below controls that rewrite only. Graph prompt nodes still choose their own model.",
+          "Choose an AI provider, then choose its default model below. Save applies this selection to Prompt Enhance; Graph nodes keep their own models.",
+          "Changing providers replaces this saved connection when you save. Recipe drafts and Assistant can reuse its credentials only while they use the same provider. Use machine-wide connections in Setup to keep multiple providers available.",
           (
             <>
               AI service:{" "}
@@ -437,6 +439,26 @@ export function StudioEnhancementSettingsPanel({
             </>
           ),
         ]}
+        leadingContent={
+          <SharedLlmProviderPicker
+            value={form.providerKind}
+            includeHelper
+            disabled={isSaving || Boolean(manualProbeKind)}
+            onChange={(providerKind) => {
+              clearNotice();
+              setOpenPicker(null);
+              setForm((current) => ({
+                ...current,
+                providerKind,
+                providerLabel: "", providerModelId: "", providerStatus: "",
+                providerLastTestedAt: "", providerCapabilities: {}, providerSupportsImages: false,
+                providerApiKey: "", providerApiKeyConfigured: false, providerApiKeyTouched: true,
+                providerBaseUrl: "", providerBaseUrlConfigured: false, providerBaseUrlTouched: true,
+                providerCredentialSource: "",
+              }));
+            }}
+          />
+        }
         picker={
           <div className="grid gap-3 md:grid-cols-2">
           <EnhancementToggleCard
@@ -472,14 +494,14 @@ export function StudioEnhancementSettingsPanel({
       {form.providerKind === "openrouter" ? (
           <SharedLlmProviderSection
             icon={KeyRound}
-            title="OpenRouter setup"
+            title="OpenRouter connection and model"
             description={
               <>
                 {form.providerCredentialSource === "env"
                   ? "Using OPENROUTER_API_KEY from .env."
                   : form.providerCredentialSource === "stored"
                     ? "Using the saved OpenRouter key on the server."
-                    : "Add an OpenRouter API key here or in .env."}
+                    : "Enter a key here for this saved provider, or use the machine-wide key from Setup."}
                 {form.providerModelId ? ` Current model: ${form.providerModelId}.` : ""}
               </>
             }
@@ -507,6 +529,7 @@ export function StudioEnhancementSettingsPanel({
                       ? "Saved on the server. Enter a new key to replace it."
                       : "OpenRouter API key"
                 }
+                aria-label="OpenRouter API key"
                 autoComplete="current-password"
                 type="password"
               />

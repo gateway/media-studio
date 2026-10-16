@@ -19,7 +19,7 @@ export default async function StudioLlmSettingsPage({
       currentProjectId={currentProjectId}
       eyebrow="Studio Admin"
       title="AI Settings"
-      description="Choose defaults for Prompt Enhance, recipe drafts, and the Media Assistant. Saved Graph workflows keep the models selected in their nodes."
+      description="Choose a provider and model for each AI task below. Setup covers machine-wide connections; General covers the queue and output folder."
     >
       <div className={adminSectionStackClassName}>
         <SettingsSectionTabs activeTab="llms" currentProjectId={currentProjectId} />

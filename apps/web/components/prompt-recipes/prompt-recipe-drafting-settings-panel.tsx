@@ -5,7 +5,7 @@ import { KeyRound, Server, Sparkles } from "lucide-react";
 import { AdminActionNotice } from "@/components/admin-action-notice";
 import { AdminButton, AdminField, AdminInput, AdminSelect, AdminToggle } from "@/components/admin-controls";
 import { Panel, PanelHeader } from "@/components/panel";
-import { SharedLlmProviderIntroCard, SharedLlmProviderSection } from "@/components/shared-llm-provider-sections";
+import { SharedLlmProviderIntroCard, SharedLlmProviderPicker, SharedLlmProviderSection } from "@/components/shared-llm-provider-sections";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import { useSharedProviderModelCatalog } from "@/hooks/use-shared-provider-model-catalog";
 import {
@@ -151,7 +151,7 @@ export function PromptRecipeDraftingSettingsPanel({
         selectedModel: result.selectedModel,
         selectedModelId: form.providerModelId || null,
       });
-      setForm((current) => ({
+      setForm((current) => current.providerKind !== form.providerKind ? current : ({
         ...current,
         providerLabel: selected?.label ?? current.providerLabel,
         providerModelId: selected?.id ?? current.providerModelId,
@@ -282,28 +282,22 @@ export function PromptRecipeDraftingSettingsPanel({
         ]}
         leadingContent={
           <div className="grid gap-3 md:grid-cols-2">
-            {isAssistant ? (
-              <AdminField label="Assistant provider">
-                <select
-                  value={form.providerKind}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      providerKind: event.target.value as SharedLlmProviderKind,
-                      providerLabel: "",
-                      providerModelId: "",
-                      providerStatus: "",
-                      providerCapabilities: {},
-                    }))
-                  }
-                  className="admin-input text-sm"
-                >
-                  <option value="codex_local">Codex Local</option>
-                  <option value="openrouter">OpenRouter</option>
-                  <option value="local_openai">Local OpenAI-Compatible</option>
-                </select>
-              </AdminField>
-            ) : (
+            <SharedLlmProviderPicker
+              value={form.providerKind}
+              disabled={isSaving || Boolean(manualProbeKind)}
+              onChange={(providerKind) => {
+                clearNotice();
+                setOpenPicker(null);
+                setForm((current) => ({
+                  ...current, providerKind,
+                  providerLabel: "", providerModelId: "", providerStatus: "",
+                  providerCapabilities: {}, providerSupportsImages: false, providerLastTestedAt: "",
+                  providerBaseUrl: "", providerBaseUrlConfigured: false, providerBaseUrlTouched: true,
+                  providerCredentialSource: "",
+                }));
+              }}
+            />
+            {!isAssistant ? (
               <AdminField label="Turn on recipe drafts">
               <label className="admin-toggle-row min-h-11">
                 <span>Let Media Studio draft recipes from an idea</span>
@@ -319,7 +313,7 @@ export function PromptRecipeDraftingSettingsPanel({
                 />
               </label>
               </AdminField>
-            )}
+            ) : null}
           </div>
         }
         trailingContent={
@@ -352,7 +346,7 @@ export function PromptRecipeDraftingSettingsPanel({
                   ? "Using OPENROUTER_API_KEY from .env."
                   : form.providerCredentialSource === "stored"
                     ? "Using the saved OpenRouter key on the server."
-                    : "Add an OpenRouter API key in setup or in .env."}
+                    : "Add OPENROUTER_API_KEY to the machine’s .env file and restart Studio (see Setup). A key saved under Prompt Enhance is also reused while that task uses OpenRouter."}
                 {form.providerModelId ? ` Current model: ${form.providerModelId}.` : ""}
               </>
             }

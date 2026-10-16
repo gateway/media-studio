@@ -2,6 +2,8 @@
 
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { AdminField } from "@/components/admin-controls";
+import { llmProviderLabel, type EnhancementProviderKind } from "@/lib/llm-provider-metadata";
 
 type SharedLlmProviderIntroCardProps = {
   accentLabel: string;
@@ -59,5 +61,24 @@ export function SharedLlmProviderSection({
       ) : null}
       {children}
     </div>
+  );
+}
+
+export function SharedLlmProviderPicker<T extends EnhancementProviderKind>({
+  value, onChange, includeHelper = false, disabled = false,
+}: {
+  value: T;
+  onChange: (provider: T) => void;
+  includeHelper?: boolean;
+  disabled?: boolean;
+}) {
+  const providers: EnhancementProviderKind[] = ["codex_local", "openrouter", "local_openai"];
+  if (includeHelper) providers.push("builtin");
+  return (
+    <AdminField label="AI provider">
+      <select className="admin-input" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value as T)}>
+        {providers.map((provider) => <option key={provider} value={provider}>{llmProviderLabel(provider)}</option>)}
+      </select>
+    </AdminField>
   );
 }

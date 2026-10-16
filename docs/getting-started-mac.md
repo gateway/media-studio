@@ -269,3 +269,10 @@ The disable setting persists across login; the plist files, checkout, Python
 environment, database, and media are retained. Verify with
 `launchctl print-disabled "gui/$(id -u)"`. Start Studio with the Desktop icon
 afterward. This does not enable automatic startup at login.
+
+
+### Connections versus AI models
+
+`Setup` is the machine-wide connection guide and readiness check: configure KIE/OpenRouter/local endpoint environment variables and Codex login there as instructed. `Settings → General` controls queue behavior and output paths. `Settings → AI` selects an AI provider and default model separately for Prompt Enhance, Recipe Drafts and Media Assistant: expand a task, choose **AI provider**, choose its model, then save that task.
+
+For OpenRouter across multiple tasks, configure `OPENROUTER_API_KEY` in the existing installation’s `.env` and restart Studio. Prompt Enhance also supports a saved provider key; other AI tasks reuse it only while Prompt Enhance uses the same provider. Switching and saving that connection replaces its previous provider settings. Machine-wide configuration keeps multiple providers available independently. Graph prompt nodes choose their own provider/model inside each workflow.

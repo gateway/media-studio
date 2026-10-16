@@ -156,8 +156,8 @@ export default async function SetupPage({
       section="setup"
       currentProjectId={currentProjectId}
       eyebrow="Connections"
-      title="Connect Services"
-      description="Media Studio is already running on this machine. Use this page to connect KIE, Codex, OpenRouter, and Local OpenAI, confirm what is ready, and see which part of the app each service powers."
+      title="Connection Setup"
+      description="Use this guide to configure machine-wide credentials and check service readiness. To select AI providers and models for individual tasks, open Settings → AI."
     >
       <div className={adminThemeLayoutClassName}>
         <div className="admin-form-grid">
@@ -200,12 +200,12 @@ export default async function SetupPage({
               <ul className="space-y-2">
                 <li className="flex items-start gap-3"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" /><span>Make sure Codex is installed on this machine.</span></li>
                 <li className="flex items-start gap-3"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" /><span>Run <code>codex login</code> and sign in.</span></li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" /><span>Open AI Settings and choose Codex Local for Prompt Enhance, recipe drafts, or graph prompt nodes.</span></li>
+                <li className="flex items-start gap-3"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" /><span>Open Settings → AI, expand a task, then select Codex Local and a model. Graph nodes choose their models inside the workflow.</span></li>
               </ul>
             }
             note="Codex Local unlocks the Studio Prompt Enhance button, Prompt Recipe drafting, graph prompt.llm, and graph prompt.recipe without using metered OpenAI API calls."
             actionHref={aiSettingsHref}
-            actionLabel="Choose Codex in AI Settings"
+            actionLabel="Choose task models in AI Settings"
           />
 
           <SetupConnectionCard
@@ -220,12 +220,12 @@ export default async function SetupPage({
               <ul className="space-y-2">
                 <li className="flex items-start gap-3"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" /><span>Add <code>OPENROUTER_API_KEY</code> to the <code>.env</code> file on this machine.</span></li>
                 <li className="flex items-start gap-3"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" /><span>Restart Media Studio.</span></li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" /><span>Open AI Settings and choose OpenRouter when you want hosted models.</span></li>
+                <li className="flex items-start gap-3"><CheckCircle2 className="mt-1 size-4 shrink-0 text-[var(--accent-strong)]" /><span>Open Settings → AI, expand a task, select OpenRouter, then select a model and save.</span></li>
               </ul>
             }
             note="Use OpenRouter when you want hosted provider coverage beyond Codex Local. Media Studio tracks actual OpenRouter spend separately from KIE estimates."
             actionHref={aiSettingsHref}
-            actionLabel="Choose OpenRouter in AI Settings"
+            actionLabel="Choose task models in AI Settings"
           />
 
           <SetupConnectionCard

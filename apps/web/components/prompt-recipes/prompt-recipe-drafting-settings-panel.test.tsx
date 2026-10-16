@@ -102,7 +102,7 @@ describe("PromptRecipeDraftingSettingsPanel", () => {
     expect(await screen.findByText("Recipe drafting defaults saved.")).toBeTruthy();
   });
 
-  it("keeps the configured provider visible without exposing a provider-family switcher", () => {
+  it("shows the configured provider alongside the shared provider selector", () => {
     render(<PromptRecipeDraftingSettingsPanel initialConfig={makeConfig()} />);
 
     expect(screen.queryByTestId("studio-picker-drafting-provider-kind")).toBeNull();
@@ -292,7 +292,7 @@ describe("PromptRecipeDraftingSettingsPanel", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Assistant provider")).toBeTruthy();
+    expect(screen.getByLabelText("AI provider")).toBeTruthy();
     expect(screen.getByText(/graph building needs Codex Local/i)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /save assistant defaults/i }));
 
@@ -305,4 +305,16 @@ describe("PromptRecipeDraftingSettingsPanel", () => {
       );
     });
   });
+  it("lets recipe drafts switch providers without retaining the previous model or endpoint", async () => {
+    probePromptRecipeDraftingProviderRequest.mockResolvedValue({ ok: false, error: "Not configured" });
+    savePromptRecipeDraftingConfigRequest.mockResolvedValue({ ok: true, config: makeConfig({ provider_kind: "local_openai", provider_model_id: null }) });
+    render(<PromptRecipeDraftingSettingsPanel initialConfig={makeConfig()} embedded />);
+    fireEvent.change(screen.getByLabelText("AI provider"), { target: { value: "local_openai" } });
+    expect(screen.getByRole("button", { name: "Test endpoint" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /save recipe defaults/i }));
+    await waitFor(() => expect(savePromptRecipeDraftingConfigRequest).toHaveBeenCalledWith(expect.objectContaining({
+      provider_kind: "local_openai", provider_model_id: null, provider_base_url: null,
+    })));
+  });
+
 });

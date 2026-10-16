@@ -149,15 +149,15 @@ export function LlmSettingsConsole({
 
   return (
     <div className={adminSectionStackClassName}>
-      <section aria-label="Connected AI services">
+      <section aria-label="Available AI providers">
         <div>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="admin-label-muted">Connected AI services</div>
+              <div className="admin-label-muted">Available AI providers</div>
 
             </div>
             <Link href="/setup" className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
-              Open setup
+              Connection setup guide
             </Link>
           </div>
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
@@ -194,7 +194,7 @@ export function LlmSettingsConsole({
       </section>
 
       <Panel className="admin-disclosure-list overflow-hidden p-0">
-        <div className="p-5"><PanelHeader eyebrow="AI defaults" title="Default models" description="Choose a default for each AI task. Expand a row to configure and save it." /></div>
+        <div className="p-5"><PanelHeader eyebrow="AI defaults" title="Default models" description="Open the task you want to change, select its AI provider, then select a model and save. Each task has its own default." /></div>
         <SectionDisclosure
           className="admin-disclosure-compact"
           title="Prompt Enhance default model"
