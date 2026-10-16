@@ -293,6 +293,12 @@ echo " - Configured settings URL if the web port is free: http://127.0.0.1:$(web
 echo " - Configured AI settings URL if the web port is free: http://127.0.0.1:$(web_port)/settings/llms"
 echo " - Actual launch URL: printed by the launcher after it checks for free API and web ports"
 echo
+if prompt_yes_no "Add a Media Studio app icon to your Desktop?" "Y"; then
+  if ! node "$SCRIPT_DIR/install_desktop_mac.mjs"; then
+    echo "Desktop icon was not installed. Setup is complete; you can retry with npm run desktop:install:mac."
+  fi
+fi
+echo
 echo "For normal use, double-click Start Media Studio.command."
 echo "It starts the API and web app together in one Terminal window in production mode."
 echo "If ports 8000 or 3000 are busy, startup automatically selects temporary open ports for that launch."

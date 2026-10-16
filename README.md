@@ -32,7 +32,7 @@ Start whenever you're ready:
 ./scripts/run_studio_mac.sh
 ```
 
-You can also double-click **Start Media Studio.command** in the project folder. Use **Stop Media Studio.command** or `./scripts/stop_studio_mac.sh` to stop it.
+Onboarding offers a **Media Studio.app** Desktop icon. Double-click it to open the launcher and browser automatically. Existing users can add it with `npm run desktop:install:mac`. You can also double-click **Start Media Studio.command** in the project folder. Use **Stop Media Studio.command** or Ctrl+C in the launcher Terminal to stop it. See the [macOS desktop instructions](docs/getting-started-mac.md#5-start-the-app).
 
 <details>
 <summary><strong>Windows — native PowerShell setup</strong></summary>
@@ -215,7 +215,7 @@ These providers support prompt work; image, video, and music generation use thei
 - [Media Assistant setup](docs/media-assistant-setup.md) · [Media Assistant details](docs/media-assistant.md)
 - [Graph node library](docs/graph-studio-node-library.md)
 - [Advanced runtime](docs/advanced-runtime.md) · [Pricing integration](docs/pricing-integration.md)
-- [Release notes](docs/releases/v1.0.6.md)
+- [Release notes](docs/releases/v1.0.7.md)
 
 ## License
 

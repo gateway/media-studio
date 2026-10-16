@@ -104,6 +104,35 @@ Before launching, the script checks whether the configured API and web ports are
 
 ## 5. Start the app
 
+Onboarding offers to add **Media Studio.app** to your Desktop. Double-click the icon
+to start the API and web app, then open Studio in your default browser. It opens
+Terminal automatically to show startup progress and errors; you do not need to
+open Terminal or type a command yourself. Press **Ctrl+C** in that window to stop
+Studio, or use `Stop Media Studio.command` in the checkout.
+
+For an existing installation, create the icon once from the repo folder:
+
+```bash
+npm run desktop:install:mac
+```
+
+You can drag the app to the Dock for quick access. To install in a different folder:
+
+```bash
+npm run desktop:install:mac -- "$HOME/Applications"
+```
+
+The icon points to this checkout and remembers the Node/tool paths available when
+it was installed. Reinstall it if you move the checkout or replace Node. Reinstalling
+updates an icon belonging to the same checkout; it refuses to overwrite an app
+belonging to another installation. Moving the icon itself is fine. To remove it,
+move `Media Studio.app` to Trash; this does not remove Studio or your data.
+
+If macOS asks whether Media Studio may control Terminal, allow it to launch the
+startup command. Clicking the icon again after Studio is ready reopens the running
+instance, including when startup selected temporary ports. Wait for startup to
+finish before launching it again.
+
 Friend-friendly launchers from the repo root:
 
 - `Start Media Studio.command`

@@ -24,6 +24,9 @@ jobs:
           node-version: "22"
       - name: Test runtime isolation and preservation
         run: node --test scripts/setup_python.test.mjs
+      - name: Test macOS desktop launcher
+        if: runner.os == 'macOS'
+        run: node --test scripts/install_desktop_mac.test.mjs scripts/desktop_reopen.test.mjs
       - name: Install and verify shared Python without setup-python
         run: node scripts/setup_python.mjs . kie-api
       - name: Verify repeat setup
