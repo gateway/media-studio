@@ -10,7 +10,7 @@ const pythonVersion = "3.11";
 // Activated environments and user installer settings must not redirect writes.
 export function isolatedEnvironment(runtimeRoot, inherited = process.env) {
   const env = Object.fromEntries(Object.entries(inherited).filter(([key]) =>
-    !/^(UV_|PIP_|PYTHON|VIRTUAL_ENV$|CONDA_PREFIX$)/i.test(key)));
+    !/^(UV_|PIP_|PYTHON|VIRTUAL_ENV$|CONDA_PREFIX$|PSModulePath$)/i.test(key)));
   return {
     ...env,
     UV_UNMANAGED_INSTALL: path.join(runtimeRoot, "bin"),
@@ -78,6 +78,8 @@ export async function setupPython(mediaRoot, kieRoot) {
     const installer = path.join(runtimeRoot, `install-uv.${extension}`);
     writeFileSync(installer, await response.text());
     if (process.platform === "win32") {
+      // Let Windows PowerShell rebuild its module path instead of inheriting
+      // PowerShell 7's incompatible module locations through Node.
       run("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", installer], env);
     } else {
       run("sh", [installer], env);

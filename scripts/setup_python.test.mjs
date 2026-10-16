@@ -12,9 +12,10 @@ test("installer cannot inherit destinations from an activated/user Python", () =
     PIP_TARGET: "/user/packages", PIP_PREFIX: "/user", PIP_USER: "1",
     PIP_CONFIG_FILE: "/user/pip.ini", UV_PYTHON: "3.14", UV_SYSTEM_PYTHON: "1",
     UV_PYTHON_INSTALL_DIR: "/user/python", UV_INSTALL_DIR: "/user/bin",
+    PSModulePath: "/powershell-7/modules",
   };
   const env = isolatedEnvironment(path.resolve("private-runtime"), inherited);
-  for (const name of ["VIRTUAL_ENV", "CONDA_PREFIX", "PYTHONHOME", "PYTHONPATH", "PIP_TARGET", "PIP_PREFIX", "PIP_USER", "UV_PYTHON", "UV_SYSTEM_PYTHON", "UV_INSTALL_DIR"]) {
+  for (const name of ["VIRTUAL_ENV", "CONDA_PREFIX", "PYTHONHOME", "PYTHONPATH", "PIP_TARGET", "PIP_PREFIX", "PIP_USER", "UV_PYTHON", "UV_SYSTEM_PYTHON", "UV_INSTALL_DIR", "PSModulePath"]) {
     assert.equal(env[name], undefined, name);
   }
   assert.equal(env.PATH, inherited.PATH);
