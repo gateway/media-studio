@@ -18,7 +18,6 @@ export function AdminSectionTabs({ items, activeKey, currentProjectId = null }: 
           type="button"
           className="admin-tab"
           aria-current={item.key === activeKey ? "page" : undefined}
-          disabled={item.key === activeKey}
           onClick={() => router.push(buildStudioScopedHref(item.href, currentProjectId))}
         >
           {item.label}

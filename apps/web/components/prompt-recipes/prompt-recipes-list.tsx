@@ -288,7 +288,7 @@ export function PromptRecipesList({ recipes }: PromptRecipesListProps) {
                   title={`Edit ${recipe.label}`}
                 >
                   <Edit3 className="size-3.5" />
-                  <span className="sr-only">Edit</span>
+                  <span>Edit</span>
                 </AdminNavButton>
                 <AdminButton
                   variant="subtle"

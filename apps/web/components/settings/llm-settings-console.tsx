@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { BrainCircuit, Cable, Coins, Image as ImageIcon, MessageCircle, Sparkles } from "lucide-react";
+import { Cable, Coins, Image as ImageIcon } from "lucide-react";
 
 import { adminButtonClassName, adminInsetPanelClassName } from "@/components/admin-controls";
 import { SectionDisclosure } from "@/components/collapsible-sections";
@@ -52,11 +52,10 @@ function providerSummaryCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="admin-label-muted">{descriptor.label}</div>
-          <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">{descriptor.summary}</div>
         </div>
         <StatusPill label={readinessStatus(ready, configured).label} tone={readinessStatus(ready, configured).tone} />
       </div>
-      <div className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-strong)]">
+      <div className="mt-3 text-xs text-[var(--muted-strong)]">
         {descriptor.billingLabel}
       </div>
       <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">{detail}</div>
@@ -150,72 +149,12 @@ export function LlmSettingsConsole({
 
   return (
     <div className={adminSectionStackClassName}>
-      <Panel>
-        <PanelHeader
-          eyebrow="AI Settings"
-          title="Set up default models"
-          description="Choose defaults for Prompt Enhance, recipe drafts, and the Media Assistant. Graph workflow nodes still own their generation models."
-        />
-        <div className="mt-5 grid gap-3 lg:grid-cols-4">
-          {settingsIconCard({
-            icon: <Sparkles className="size-3.5" />,
-            label: "Prompt Enhance button",
-            children: (
-              <div className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">
-                Default model: <span className="font-medium text-[var(--foreground)]">{enhancementProviderLabel}</span>
-              </div>
-            ),
-          })}
-          {settingsIconCard({
-            icon: <BrainCircuit className="size-3.5" />,
-            label: "Recipe drafts",
-            children: (
-              <>
-                <div className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">
-                  Default model:{" "}
-                  <span className="font-medium text-[var(--foreground)]">{draftingEnabled ? draftingProviderLabel : "Off"}</span>
-                </div>
-                <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">
-                  Only used when Media Studio writes the first draft of a Prompt Recipe.
-                </div>
-              </>
-            ),
-          })}
-          {settingsIconCard({
-            icon: <MessageCircle className="size-3.5" />,
-            label: "Media Assistant",
-            children: (
-              <>
-                <div className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">
-                  Default model: <span className="font-medium text-[var(--foreground)]">{assistantProviderLabel}</span>
-                </div>
-                <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">
-                  {mediaAssistantConfig?.supports_media_studio_tools === false
-                    ? "Read-only chat. Graph building needs Codex Local."
-                    : "Codex Local can use the approved Media Studio tools."}
-                </div>
-              </>
-            ),
-          })}
-          {settingsIconCard({
-            icon: <Cable className="size-3.5" />,
-            label: "Graph workflows",
-            children: (
-              <div className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">
-                Graph prompt nodes choose their own provider and model inside each workflow. They do not use the recipe
-                draft default from this page.
-              </div>
-            ),
-          })}
-        </div>
-        <div className="mt-5 border-t border-[var(--border-soft)] pt-5">
+      <section aria-label="Connected AI services">
+        <div>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="admin-label-muted">Connected AI services</div>
-              <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">
-                Start with Codex Local if this machine already uses Codex or ChatGPT. Use OpenRouter for hosted,
-                usage-based models. Use Local OpenAI-compatible only if you already run your own endpoint.
-              </div>
+
             </div>
             <Link href="/setup" className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
               Open setup
@@ -252,26 +191,26 @@ export function LlmSettingsConsole({
             })}
           </div>
         </div>
-      </Panel>
+      </section>
 
-      <Panel className="overflow-hidden p-0">
+      <Panel className="admin-disclosure-list overflow-hidden p-0">
+        <div className="p-5"><PanelHeader eyebrow="AI defaults" title="Default models" description="Choose a default for each AI task. Expand a row to configure and save it." /></div>
         <SectionDisclosure
+          className="admin-disclosure-compact"
           title="Prompt Enhance default model"
           description="Choose the model Studio uses when Prompt Enhance rewrites a prompt."
-          summary={`Using: ${enhancementProviderLabel}`}
+          summary={`${enhancementProviderLabel} · ${enhancementProvider?.provider_label || enhancementProvider?.provider_model_id || "Default"}`}
           detail="Image access is separate. Graph prompt nodes still choose their own model."
           statusSlot={<StatusPill label={enhancementStatus.label} tone={enhancementStatus.tone} />}
           defaultOpen={false}
         >
           <StudioEnhancementSettingsPanel initialConfigs={enhancementConfigs} embedded />
         </SectionDisclosure>
-      </Panel>
-
-      <Panel className="overflow-hidden p-0">
         <SectionDisclosure
+          className="admin-disclosure-compact"
           title="Recipe draft model"
           description="Choose the default model used when Media Studio writes the first draft of a Prompt Recipe."
-          summary={draftingEnabled ? `Using: ${draftingProviderLabel}` : "Recipe drafts are off."}
+          summary={draftingEnabled ? `${draftingProviderLabel} · ${promptRecipeDraftingConfig?.provider_label || promptRecipeDraftingConfig?.provider_model_id || "Not configured"}` : "Recipe drafts are off."}
           detail="This is only for first drafts. It does not control graph runs or save a recipe by itself."
           statusSlot={<StatusPill label={draftingStatus.label} tone={draftingStatus.tone} />}
           defaultOpen={false}
@@ -288,13 +227,11 @@ export function LlmSettingsConsole({
           </div>
           <PromptRecipeDraftingSettingsPanel initialConfig={promptRecipeDraftingConfig} embedded />
         </SectionDisclosure>
-      </Panel>
-
-      <Panel className="overflow-hidden p-0">
         <SectionDisclosure
+          className="admin-disclosure-compact"
           title="Media Assistant model"
           description="Choose the conversation provider and image generation defaults for new Assistant work."
-          summary={`Using: ${assistantProviderLabel}`}
+          summary={`${assistantProviderLabel} · ${mediaAssistantConfig?.provider_label || mediaAssistantConfig?.provider_model_id || "Not configured"}`}
           detail={
             mediaAssistantConfig?.supports_media_studio_tools === false
               ? "This provider is chat only. Switch to Codex Local for graph building and Studio actions."
@@ -313,6 +250,7 @@ export function LlmSettingsConsole({
 
       <Panel className="overflow-hidden p-0">
         <SectionDisclosure
+          className="admin-disclosure-compact"
           title="Cost and usage"
           description="This shows what Media Studio tracks and what it leaves up to your own setup."
           summary="OpenRouter is usage-based. Codex Local uses your plan. Local OpenAI-compatible uses your own machine or server."
@@ -320,6 +258,7 @@ export function LlmSettingsConsole({
           statusSlot={<StatusPill label={billingStatus.label} tone={billingStatus.tone} />}
           defaultOpen={false}
         >
+          <p className="mb-4 text-sm text-[var(--muted-strong)]">Start with Codex Local if this machine already uses Codex or ChatGPT. Use OpenRouter for hosted, usage-based models. Use Local OpenAI-compatible only if you already run your own endpoint.</p>
           <div className={adminMetricGridFourClassName}>
             {settingsMetricCard({
               label: "Today",

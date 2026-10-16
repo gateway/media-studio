@@ -86,14 +86,14 @@ describe("LlmSettingsConsole", () => {
       />,
     );
 
-    expect(screen.getByText("Set up default models")).toBeTruthy();
+    expect(screen.getByText("Default models")).toBeTruthy();
     expect(screen.getByText("Connected AI services")).toBeTruthy();
     expect(screen.getByText("Prompt Enhance default model")).toBeTruthy();
     expect(screen.getByText("Recipe draft model")).toBeTruthy();
     expect(screen.getByText("Cost and usage")).toBeTruthy();
     expect(screen.getByText(/Start with Codex Local if this machine already uses Codex or ChatGPT/i)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Open setup" }).getAttribute("href")).toBe("/setup");
-    expect(screen.getByText(/Graph prompt nodes choose their own provider and model/i)).toBeTruthy();
+    expect(screen.getByText(/Graph prompt nodes still choose their own model/i)).toBeTruthy();
     expect(screen.getByText("enhancement-panel")).toBeTruthy();
     expect(screen.getByText("drafting-panel")).toBeTruthy();
     expect(screen.getByText("assistant-panel")).toBeTruthy();

@@ -575,21 +575,6 @@ export function PromptRecipeEditorScreen({
 
 
 
-          <PromptRecipeVariablesPanel
-            draft={draft}
-            onUpdateVariable={updateVariable}
-            onUpdateCustomField={updateCustomField}
-            onDraftChange={setDraft}
-          />
-
-          <PromptRecipeContractPanel
-            draft={draft}
-            parsedDefaultOptions={parsedDefaultOptions}
-            parsedRules={parsedRules}
-            onPatchDefaultOptions={patchDefaultOptions}
-            onPatchRules={patchRules}
-            onDraftChange={setDraft}
-          />
         </div>
         <aside className="admin-form-aside" aria-label="Recipe preview and image settings">
           <ThumbnailField
@@ -611,6 +596,22 @@ export function PromptRecipeEditorScreen({
           <PromptRecipeImageInputPanel draft={draft} onDraftChange={setDraft} />
         </aside>
       </div>
+
+      <PromptRecipeVariablesPanel
+        draft={draft}
+        onUpdateVariable={updateVariable}
+        onUpdateCustomField={updateCustomField}
+        onDraftChange={setDraft}
+      />
+
+      <PromptRecipeContractPanel
+        draft={draft}
+        parsedDefaultOptions={parsedDefaultOptions}
+        parsedRules={parsedRules}
+        onPatchDefaultOptions={patchDefaultOptions}
+        onPatchRules={patchRules}
+        onDraftChange={setDraft}
+      />
 
       <AdminEditorActionBar>
         {draft.recipeId ? (

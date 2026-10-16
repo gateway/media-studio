@@ -171,7 +171,7 @@ export function MediaPresetsPanel({
                     title={`Edit ${preset.label}`}
                   >
                     <Edit3 className="size-3.5" />
-                    <span className="sr-only">Edit</span>
+                    <span>Edit</span>
                   </AdminNavButton>
                 </div>
               </article>

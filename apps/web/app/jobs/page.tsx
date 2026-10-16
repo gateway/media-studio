@@ -104,7 +104,7 @@ export default async function JobsPage({
       currentProjectId={currentProjectId}
       eyebrow="Studio Admin"
       title="Jobs"
-      description="Follow queued runs, retries, completed outputs, and the saved estimate snapshot captured when each batch was submitted."
+      description="Track runs, inspect outputs, and review saved cost estimates."
     >
       <div className={adminThemeLayoutClassName}>
       <Panel>
@@ -212,7 +212,7 @@ export default async function JobsPage({
         <Panel>
           <PanelHeader
             eyebrow="Queue"
-            title="Recent Jobs"
+            title="Recent jobs"
             description="Open a batch to inspect outputs, progress, prompt summary, and any failures tied to that run."
             action={
               <AdminNavButton href="/models" variant="subtle" size="compact">
@@ -221,7 +221,7 @@ export default async function JobsPage({
             }
           />
 
-          <div className="mt-5 grid gap-5">
+          <div className="mt-5 grid gap-3">
             <SurfaceInset appearance="admin" density="compact" className={`${adminInsetClassName} text-sm leading-6 text-[var(--muted-strong)]`}>
               <div>
                 Showing{" "}
@@ -232,6 +232,8 @@ export default async function JobsPage({
                 of <span className="font-medium text-[var(--foreground)]">{totalBatches}</span> jobs.
               </div>
             </SurfaceInset>
+
+            <div className="admin-data-heading admin-jobs-columns"><span>Job</span><span>Model</span><span>Status</span><span>Outputs</span><span>Est. cost</span><span>Details</span></div>
 
             {visibleBatches.length ? (
               visibleBatches.map((batch) => {
