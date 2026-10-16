@@ -7,8 +7,7 @@ Use this path if you want a native Windows setup without WSL2.
 Make sure these are available in PowerShell:
 
 - `git`
-- `python`
-- `npm`
+- Node.js LTS with `node` and `npm`
 
 Video thumbnails, posters, and browser-friendly playback derivatives are handled by the shared `kie-api` Python environment. If you already have a system FFmpeg install, KIE API can use it, but Windows setup does not require a separate FFmpeg install.
 
@@ -29,13 +28,18 @@ The script will:
 
 - reuse an existing sibling `../kie-api` or `../kie-ai/kie_codex_bootstrap` checkout when present
 - clone `gateway/kie-api` beside this repo if no supported sibling checkout exists
-- create or reuse the shared Python virtualenv
+- download private Python 3.11 and create or reuse its shared virtualenv
 - install Python and web dependencies
 - create `.env` if it does not exist
 - create a clean local SQLite database with schema and default presets
 - prompt for your KIE API key and optional prompt-enhancement providers
 
 If cloning, dependency installation, schema setup, or AI-provider configuration fails, onboarding stops with the failed step and its exit code. Correct that error and rerun the same command. The script reuses existing configuration; it does not report readiness or launch the app after a failed step.
+
+Python does not need to be installed beforehand. Both Python packages use
+`kie-api\.venv`, backed by `kie-api\.media-studio-runtime`, without changing
+system Python or PATH. Setup verifies imports and the model list.
+See [Python setup and existing environments](prerequisites.md#python-is-managed-by-onboarding).
 
 Before a public release, validate this flow on a real Windows machine with a clean clone, a fresh `.env`, and a new local database.
 

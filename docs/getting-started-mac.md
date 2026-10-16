@@ -7,7 +7,6 @@ Use this path if you want a clean first-run setup with the required KIE API depe
 Before you start, make sure this Mac has:
 
 - Git
-- Python 3
 - Node.js **LTS**
 
 If you want a short prerequisites page first:
@@ -41,7 +40,7 @@ The script will:
 
 - reuse an existing sibling `../kie-api` or `../kie-ai/kie_codex_bootstrap` checkout when present
 - clone `gateway/kie-api` beside this repo if no supported sibling checkout exists
-- create or reuse the shared Python virtualenv
+- download private Python 3.11 and create or reuse its shared virtualenv
 - install Python dependencies plus the web app workspace dependencies
 - create `.env` if it does not exist
 - create a clean local SQLite database with schema and default presets
@@ -54,6 +53,11 @@ The shared Python virtualenv includes editable installs of:
 
 - `kie-api`
 - `media-studio-api`
+
+System Python and shell profiles are unchanged. Both packages run from
+`kie-api/.venv`; its private interpreter lives in `kie-api/.media-studio-runtime`.
+Onboarding checks imports and the Studio model list before reporting success.
+For existing environment migration, see [Python setup](prerequisites.md#python-is-managed-by-onboarding).
 
 Test-only packages are installed later only when you run the quality or release verification scripts.
 

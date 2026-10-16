@@ -5,7 +5,6 @@ This is the normal local install path for Linux desktops and workstations.
 ## Requirements
 
 - `git`
-- `python3`
 - Node.js LTS with `npm`
 - a funded Kie AI account for live generation
 - a `KIE_API_KEY`
@@ -21,7 +20,7 @@ cd media-studio
 The onboarding script will:
 
 - reuse or clone the sibling KIE API repo
-- create or reuse the shared Python virtualenv
+- download private Python 3.11 and create or reuse its shared virtualenv
 - install the API and web dependencies
 - create `.env`
 - create the local database
@@ -29,6 +28,11 @@ The onboarding script will:
 - report Codex Local availability on this machine
 - optionally set Codex Local as the default local AI provider for prompt enhancement and Prompt Recipe drafting
 - leave OpenRouter and local OpenAI-compatible endpoints for later setup in `Settings -> AI`
+
+Python does not need to be installed beforehand. Both Python packages use
+`kie-api/.venv`, backed by `kie-api/.media-studio-runtime`, without changing
+system Python or shell profiles. Setup verifies imports and the model list.
+See [Python setup and existing environments](prerequisites.md#python-is-managed-by-onboarding).
 
 ## Start And Stop
 

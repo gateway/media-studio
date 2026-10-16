@@ -8,15 +8,7 @@ MEDIA_ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
 load_media_env "$MEDIA_ROOT"
 KIE_ROOT="$(resolve_kie_root "$MEDIA_ROOT")"
 VENV_PY="$KIE_ROOT/.venv/bin/python"
-VENV_PIP="$KIE_ROOT/.venv/bin/pip"
-
-if [[ ! -x "$VENV_PY" ]]; then
-  echo "Shared kie-api venv not found at $VENV_PY"
-  exit 1
-fi
-
-"$VENV_PIP" install -e "$KIE_ROOT"
-"$VENV_PIP" install -e "$MEDIA_ROOT/apps/api"
+node "$SCRIPT_DIR/setup_python.mjs" "$MEDIA_ROOT" "$KIE_ROOT"
 
 MEDIA_STUDIO_DB_PATH="${MEDIA_STUDIO_DB_PATH:-$MEDIA_ROOT/data/media-studio.db}" \
 MEDIA_STUDIO_DATA_ROOT="${MEDIA_STUDIO_DATA_ROOT:-$MEDIA_ROOT/data}" \

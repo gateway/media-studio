@@ -20,6 +20,14 @@ function Get-KieRoot {
   if ($env:MEDIA_STUDIO_KIE_API_REPO_PATH) {
     return $env:MEDIA_STUDIO_KIE_API_REPO_PATH
   }
+  $envFile = Join-Path $MediaRoot ".env"
+  if (Test-Path $envFile) {
+    foreach ($line in Get-Content $envFile) {
+      if ($line -match '^\s*MEDIA_STUDIO_KIE_API_REPO_PATH\s*=\s*(.+?)\s*$') {
+        return $Matches[1].Trim('"', "'")
+      }
+    }
+  }
   if (Test-Path $defaultKieRoot) {
     return $defaultKieRoot
   }

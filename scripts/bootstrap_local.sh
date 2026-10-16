@@ -5,10 +5,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/shared_env.sh
 . "$SCRIPT_DIR/shared_env.sh"
 MEDIA_ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
+load_media_env "$MEDIA_ROOT"
 KIE_REPO_URL="${KIE_REPO_URL:-https://github.com/gateway/kie-api.git}"
 KIE_ROOT="$(resolve_kie_root "$MEDIA_ROOT")"
 VENV_PY="$KIE_ROOT/.venv/bin/python"
-VENV_PIP="$KIE_ROOT/.venv/bin/pip"
 UPDATE_EXISTING_KIE_API="${MEDIA_STUDIO_UPDATE_KIE_API:-ask}"
 
 echo "Media Studio root: $MEDIA_ROOT"
@@ -90,15 +90,8 @@ if kie_repo_is_git_checkout "$KIE_ROOT"; then
   fi
 fi
 
-if [[ ! -x "$VENV_PY" ]]; then
-  echo "Creating shared KIE virtualenv ..."
-  python3 -m venv "$KIE_ROOT/.venv"
-fi
-
-echo "Installing shared Python dependencies ..."
-"$VENV_PIP" install --upgrade pip setuptools wheel
-"$VENV_PIP" install -e "$KIE_ROOT"
-"$VENV_PIP" install -e "$MEDIA_ROOT/apps/api"
+echo "Preparing isolated Python 3.11 and shared package environment ..."
+node "$SCRIPT_DIR/setup_python.mjs" "$MEDIA_ROOT" "$KIE_ROOT"
 
 echo "Installing web dependencies ..."
 (cd "$MEDIA_ROOT" && npm install --include=dev --no-fund --no-audit)

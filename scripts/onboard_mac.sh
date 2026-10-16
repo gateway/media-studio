@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/shared_env.sh"
 MEDIA_ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
 ENV_FILE="$MEDIA_ROOT/.env"
+load_media_env "$MEDIA_ROOT"
 KIE_ROOT="$(resolve_kie_root "$MEDIA_ROOT")"
 VENV_PY="$KIE_ROOT/.venv/bin/python"
 
@@ -26,23 +27,18 @@ require_command() {
       echo "See prerequisites: $MEDIA_PREREQS_URL" >&2
       exit 1
     fi
-    if [[ "$cmd" == "python3" ]]; then
-      echo "Install Python 3, then reopen Terminal and rerun this script." >&2
-      echo "See prerequisites: $MEDIA_PREREQS_URL" >&2
-      exit 1
-    fi
     echo "See prerequisites: $MEDIA_PREREQS_URL" >&2
     exit 1
   fi
 }
 
 normalize_secret_value() {
-  python3 -c 'import sys; value = sys.stdin.read(); print(value.replace("\r", "").replace("\n", "").strip(), end="")'
+  "$VENV_PY" -c 'import sys; value = sys.stdin.read(); print(value.replace("\r", "").replace("\n", "").strip(), end="")'
 }
 
 env_value() {
   local key="$1"
-  python3 - "$ENV_FILE" "$key" <<'PY'
+  "$VENV_PY" - "$ENV_FILE" "$key" <<'PY'
 from pathlib import Path
 import sys
 
@@ -61,7 +57,7 @@ PY
 upsert_env() {
   local key="$1"
   local value="$2"
-  python3 - "$ENV_FILE" "$key" "$value" <<'PY'
+  "$VENV_PY" - "$ENV_FILE" "$key" "$value" <<'PY'
 from pathlib import Path
 import sys
 
@@ -187,7 +183,7 @@ api_port() {
 port_available() {
   local host="$1"
   local port="$2"
-  python3 - "$host" "$port" <<'PY'
+  "$VENV_PY" - "$host" "$port" <<'PY'
 import socket
 import sys
 
@@ -211,7 +207,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 require_command git
-require_command python3
+require_command node
 require_command npm
 
 echo
@@ -220,7 +216,7 @@ echo "Workspace: $MEDIA_ROOT"
 echo
 echo "Prerequisites:"
 echo " - Git"
-echo " - Python 3"
+echo " - Python 3.11 is downloaded privately by onboarding"
 echo " - Node.js LTS (includes npm)"
 echo
 echo "If you need help installing those first, see:"

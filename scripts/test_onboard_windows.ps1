@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $PSNativeCommandUseErrorActionPreference = $false
 $OnboardScript = Join-Path $PSScriptRoot "onboard_windows.ps1"
 $NativeHost = (Get-Process -Id $PID).Path
-$ExpectedSteps = @("clone", "venv", "pip-tools", "pip-provider", "pip-api", "npm", "schema", "defaults")
+$ExpectedSteps = @("clone", "runtime", "npm", "schema", "defaults")
 
 function Assert-True {
   param([bool]$Condition, [string]$Message)
@@ -40,14 +40,13 @@ function Invoke-OnboardingScenario {
     $global:LASTEXITCODE = $LASTEXITCODE
     if ($LASTEXITCODE -eq 0) {
       if ($Step -eq "clone") { $state.CheckoutReady = $true }
-      if ($Step -eq "venv") { $state.VenvReady = $true }
+      if ($Step -eq "runtime") { $state.VenvReady = $true }
     }
   }
 
   function Join-Path {
     param([string]$Path, [string]$ChildPath)
     if ($ChildPath -eq ".venv\Scripts\python.exe") { return "onboarding-test-python" }
-    if ($ChildPath -eq ".venv\Scripts\pip.exe") { return "onboarding-test-pip" }
     Microsoft.PowerShell.Management\Join-Path $Path $ChildPath
   }
   function Test-Path {
@@ -78,13 +77,9 @@ function Invoke-OnboardingScenario {
     return "y"
   }
   function git { Invoke-TestNative "clone" }
-  function python { Invoke-TestNative "venv" }
+  function python { throw "Onboarding must not invoke the user's Python" }
+  function node { Invoke-TestNative "runtime" }
   function npm { Invoke-TestNative "npm" }
-  function onboarding-test-pip {
-    if ($args -contains "--upgrade") { Invoke-TestNative "pip-tools" }
-    elseif ([string]$args[-1] -match 'apps[\\/]api$') { Invoke-TestNative "pip-api" }
-    else { Invoke-TestNative "pip-provider" }
-  }
   function onboarding-test-python {
     $null = @($input)
     if ($args[0] -eq "-") { Invoke-TestNative "schema" }
@@ -138,4 +133,4 @@ try {
   $global:LASTEXITCODE = $savedExitCode
 }
 if ($failures.Count) { throw "$($failures.Count) Windows onboarding scenarios failed." }
-Write-Host "All 9 onboarding scenarios passed; native failures, successful retries and existing configuration verified."
+Write-Host "All 6 onboarding scenarios passed; native failures, successful retries and existing configuration verified."

@@ -10,7 +10,6 @@ $EnvFile = Join-Path $MediaRoot ".env"
 $KieRoot = Get-KieRoot $MediaRoot
 
 $VenvPy = Join-Path $KieRoot ".venv\Scripts\python.exe"
-$VenvPip = Join-Path $KieRoot ".venv\Scripts\pip.exe"
 
 function Require-Command {
   param([string]$Name)
@@ -177,7 +176,6 @@ function Start-DevWindow {
 }
 
 Require-Command git
-Require-Command python
 Require-Command node
 Require-Command npm
 Require-Command powershell
@@ -200,19 +198,9 @@ if ((-not (Test-Path (Join-Path $KieRoot ".git"))) -and (-not (Test-Path (Join-P
   Assert-NativeCommandSucceeded "Cloning KIE API" $LASTEXITCODE
 }
 
-if (-not (Test-Path $VenvPy)) {
-  Write-Host "Creating shared KIE virtualenv ..."
-  python -m venv (Join-Path $KieRoot ".venv")
-  Assert-NativeCommandSucceeded "Creating the Python environment" $LASTEXITCODE
-}
-
-Write-Host "Installing shared Python dependencies ..."
-& $VenvPip install --upgrade pip setuptools wheel
-Assert-NativeCommandSucceeded "Installing Python packaging tools" $LASTEXITCODE
-& $VenvPip install -e $KieRoot
-Assert-NativeCommandSucceeded "Installing KIE API dependencies" $LASTEXITCODE
-& $VenvPip install -e (Join-Path $MediaRoot "apps\api")
-Assert-NativeCommandSucceeded "Installing Media Studio API dependencies" $LASTEXITCODE
+Write-Host "Preparing isolated Python 3.11 and shared package environment ..."
+& node (Join-Path $ScriptDir "setup_python.mjs") $MediaRoot $KieRoot
+Assert-NativeCommandSucceeded "Preparing the shared Python runtime" $LASTEXITCODE
 
 Write-Host "Installing web dependencies ..."
 Push-Location $MediaRoot

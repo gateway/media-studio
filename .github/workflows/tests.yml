@@ -7,6 +7,27 @@ on:
   pull_request:
 
 jobs:
+  shared-python-onboarding:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: gateway/kie-api
+          path: kie-api
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Test runtime isolation and preservation
+        run: node --test scripts/setup_python.test.mjs
+      - name: Install and verify shared Python without setup-python
+        run: node scripts/setup_python.mjs . kie-api
+      - name: Verify repeat setup
+        run: node scripts/setup_python.mjs . kie-api
+
   publication-safeguards:
     runs-on: ubuntu-latest
     steps:
