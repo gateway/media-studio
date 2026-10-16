@@ -215,7 +215,7 @@ These providers support prompt work; image, video, and music generation use thei
 - [Media Assistant setup](docs/media-assistant-setup.md) · [Media Assistant details](docs/media-assistant.md)
 - [Graph node library](docs/graph-studio-node-library.md)
 - [Advanced runtime](docs/advanced-runtime.md) · [Pricing integration](docs/pricing-integration.md)
-- [Release notes](docs/releases/v1.0.7.md)
+- [Release notes](docs/releases/v1.0.8.md)
 
 ## License
 
