@@ -4,6 +4,7 @@ import {
   createWriteStream,
   existsSync,
   mkdirSync,
+  readFileSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -626,7 +627,7 @@ function openBrowser(url) {
   }
 }
 
-async function failIfPortsUnavailable(runtime) {
+async function failIfPortsUnavailable(runtime, options) {
   const apiAvailable = await isPortAvailable(runtime.apiHost, runtime.apiPort);
   const webAvailable = await isPortAvailable(runtime.webHost, runtime.webPort);
   if (apiAvailable && webAvailable) {
@@ -641,6 +642,7 @@ async function failIfPortsUnavailable(runtime) {
   if (apiReady && webReady && runningInstallId === runtime.env.MEDIA_STUDIO_INSTALL_ID) {
     console.log("Media Studio already appears to be running.");
     console.log(`Studio: http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/studio`);
+    if (options.openBrowser) openBrowser(`http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/studio`);
     process.exit(0);
   }
 
@@ -681,11 +683,12 @@ async function resolveAvailablePorts(runtime, options) {
   if (apiReady && webReady && runningInstallId === runtime.env.MEDIA_STUDIO_INSTALL_ID) {
     console.log("Media Studio already appears to be running.");
     console.log(`Studio: http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/studio`);
+    if (options.openBrowser) openBrowser(`http://${runtimeAccessHost(runtime.webHost)}:${runtime.webPort}/studio`);
     process.exit(0);
   }
 
   if ((!apiAvailable && options.explicitApiPort) || (!webAvailable && options.explicitWebPort)) {
-    await failIfPortsUnavailable(runtime);
+    await failIfPortsUnavailable(runtime, options);
     return;
   }
 
@@ -719,6 +722,28 @@ async function main() {
   const runtime = withResolvedRuntimeEnv({ ...options, reload: !options.production });
   activeRuntime = runtime;
   const paths = runtimePaths(mediaRoot, runtime.env);
+  // Reopen the actual ports from the previous launch, including automatic port selection.
+  // Stale state is ignored unless the owner is alive and its API identifies this install.
+  const sessionFile = path.join(paths.runtimeDir, "media-studio-session.json");
+  try {
+    const session = JSON.parse(readFileSync(sessionFile, "utf8"));
+    process.kill(session.pid, 0);
+    if (
+      session.installId === runtime.env.MEDIA_STUDIO_INSTALL_ID &&
+      session.apiHost === runtime.apiHost && session.webHost === runtime.webHost &&
+      (!options.explicitApiPort || String(session.apiPort) === runtime.apiPort) &&
+      (!options.explicitWebPort || String(session.webPort) === runtime.webPort) &&
+      await fetchHealthInstallId(`${controlApiBaseUrl(session.apiHost, session.apiPort)}/health`) === session.installId &&
+      await waitForUrl(`http://${runtimeAccessHost(session.webHost)}:${session.webPort}/icon.svg`, 1500)
+    ) {
+      const url = `http://${runtimeAccessHost(session.webHost)}:${session.webPort}/studio`;
+      console.log(`Media Studio is already running: ${url}`);
+      if (options.openBrowser) openBrowser(url);
+      return;
+    }
+  } catch {
+    // No live session recorded; continue normal startup.
+  }
   activePaths = paths;
   for (const signal of ["SIGINT", "SIGTERM"]) {
     process.on(signal, () => shutdown(paths, 0));
@@ -796,6 +821,11 @@ async function main() {
     shutdown(paths, 1);
   }
   console.log(`Media Studio is ready: ${studioUrl}`);
+  writeFileSync(sessionFile, JSON.stringify({
+    pid: process.pid, installId: runtime.env.MEDIA_STUDIO_INSTALL_ID,
+    apiHost: runtime.apiHost, apiPort: runtime.apiPort,
+    webHost: runtime.webHost, webPort: runtime.webPort,
+  }));
   if (options.openBrowser) {
     console.log(`Opening browser to ${studioUrl}`);
     openBrowser(studioUrl);

@@ -63,6 +63,7 @@ import {
 } from "./hooks/use-graph-provider-model-catalog";
 import { useGraphRunHistory } from "./hooks/use-graph-run-history";
 import { useGraphStudioSupport } from "./hooks/use-graph-studio-support";
+import { useGraphNodeSpacing } from "./hooks/use-graph-node-spacing";
 import { useAssistantLayout } from "./hooks/use-assistant-layout";
 import { useGraphAssistantApplication } from "./hooks/use-graph-assistant-application";
 import { useGraphAssistantHistory } from "./hooks/use-graph-assistant-history";
@@ -301,6 +302,7 @@ function GraphStudioClient() {
   const nodesRef = useRef<StudioNode[]>([]);
   const manualNodeMoveRef = useRef(false);
   const { beginAssistantLayout, stopAssistantLayout } = useAssistantLayout({ nodes, setNodes, activeTabId });
+  useGraphNodeSpacing(nodes, setNodes);
   const onNodesChange = useCallback(
     (changes: Parameters<typeof applyNodesChange>[0]) => {
       const filteredChanges = filterGraphNodeNoopChanges(

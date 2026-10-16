@@ -2,16 +2,17 @@ import type { StudioNode } from "../types";
 
 export const ASSISTANT_NODE_GAP = 96;
 
-function size(node: StudioNode) {
+function size(node: StudioNode, rendered = false) {
+  if (rendered) return { width: node.measured?.width ?? 0, height: node.measured?.height ?? 0 };
   return {
     width: Math.max(node.measured?.width ?? 0, Number(node.style?.width) || node.width || 0),
     height: Math.max(node.measured?.height ?? 0, Number(node.style?.height) || node.height || 0),
   };
 }
 
-// Only nodes in the just-applied Assistant proposal may move. Existing canvas
-// nodes are obstacles, and a user move ends automatic correction in the hook.
-export function spaceAssistantNodes(nodes: StudioNode[], managedIds: Set<string>): StudioNode[] {
+// Move only managed nodes and treat all others as obstacles. Assistant proposals
+// use planned bounds; canvas-wide protection uses measured rendered bounds.
+export function spaceAssistantNodes(nodes: StudioNode[], managedIds: Set<string>, rendered = false): StudioNode[] {
   const originalPositions = new Map(nodes.map((node) => [node.id, node.position]));
   const placed = nodes.filter((node) => !managedIds.has(node.id));
   // Settle each input column before downstream nodes so a taller reference
@@ -21,18 +22,18 @@ export function spaceAssistantNodes(nodes: StudioNode[], managedIds: Set<string>
   const replacements = new Map<string, StudioNode>();
   for (const original of managed) {
     let node = original;
-    const dimensions = size(node);
+    const dimensions = size(node, rendered);
     if (!dimensions.width || !dimensions.height) return nodes;
     for (;;) {
       const conflict = placed.find((other) => {
-        const otherSize = size(other);
+        const otherSize = size(other, rendered);
         return node.position.x < other.position.x + otherSize.width + ASSISTANT_NODE_GAP
           && node.position.x + dimensions.width + ASSISTANT_NODE_GAP > other.position.x
           && node.position.y < other.position.y + otherSize.height + ASSISTANT_NODE_GAP
           && node.position.y + dimensions.height + ASSISTANT_NODE_GAP > other.position.y;
       });
       if (!conflict) break;
-      const otherSize = size(conflict);
+      const otherSize = size(conflict, rendered);
       const sameColumn = Math.abs(original.position.x - originalPositions.get(conflict.id)!.x) < Math.min(dimensions.width, otherSize.width) / 2;
       node = {
         ...node,

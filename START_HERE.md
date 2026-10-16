@@ -94,7 +94,8 @@ Without that key, the app can install and open, but it will stay in offline-safe
 
 For a normal Mac user, the easiest way to reopen the app later is:
 
-- double-click `Start Media Studio.command`
+- double-click the `Media Studio.app` Desktop icon offered during onboarding (existing users: `npm run desktop:install:mac`)
+- or double-click `Start Media Studio.command` in the checkout
 - double-click `Stop Media Studio.command` when you want to stop it
 
 That Mac launcher starts the API and web app together in one Terminal window in production mode, waits for Studio to be ready, and opens your browser directly to `/studio`.
