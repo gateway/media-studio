@@ -32,32 +32,29 @@ resolve_kie_root() {
   printf '%s\n' "$default_kie_root"
 }
 
+# Use the API interpreter for environment utilities, never PATH's Python.
+media_shared_python() {
+  local root="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
+  local python="$(resolve_kie_root "$root")/.venv/bin/python"
+  if [[ ! -x "$python" ]]; then
+    echo "Shared Python environment is missing. Run onboarding first." >&2
+    return 1
+  fi
+  "$python" "$@"
+}
+
 load_media_env() {
   local media_root="${1:?media_root required}"
   local env_file="$media_root/.env"
   if [[ -f "$env_file" ]]; then
     local env_entries=""
-    env_entries="$(python3 - "$env_file" <<'PY'
-from pathlib import Path
-import re
-import sys
-
-env_path = Path(sys.argv[1])
-line_pattern = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$")
-
-for raw_line in env_path.read_text().splitlines():
-    stripped = raw_line.strip()
-    if not stripped or stripped.startswith("#"):
-        continue
-    match = line_pattern.match(raw_line)
-    if not match:
-        continue
-    name, raw_value = match.groups()
-    value = raw_value.strip()
-    if value and value[0] in {'"', "'"} and value[-1:] == value[0]:
-        value = value[1:-1]
-    print(f"{name}={value}")
-PY
+    env_entries="$(node --input-type=module - "$media_root" "$(dirname "${BASH_SOURCE[0]}")/media_runtime.mjs" <<'JS'
+import { pathToFileURL } from "node:url";
+const { loadMediaEnv } = await import(pathToFileURL(process.argv[3]));
+for (const [name, value] of Object.entries(loadMediaEnv(process.argv[2], {}))) {
+  console.log(`${name}=${value}`);
+}
+JS
 )"
     while IFS='=' read -r name value; do
       [[ -n "$name" ]] || continue
@@ -70,14 +67,14 @@ PY
 }
 
 generate_media_studio_local_control_token() {
-  python3 - <<'PY'
+  media_shared_python - <<'PY'
 import secrets
 print(f"media-studio-{secrets.token_hex(24)}")
 PY
 }
 
 generate_media_studio_install_id() {
-  python3 - <<'PY'
+  media_shared_python - <<'PY'
 import secrets
 print(f"install-{secrets.token_hex(16)}")
 PY
@@ -89,7 +86,7 @@ ensure_media_env_control_token() {
   if [[ ! -f "$env_file" ]]; then
     return 1
   fi
-  python3 - "$env_file" <<'PY'
+  media_shared_python - "$env_file" <<'PY'
 from pathlib import Path
 import secrets
 import sys
@@ -131,7 +128,7 @@ ensure_media_env_install_id() {
   if [[ ! -f "$env_file" ]]; then
     return 1
   fi
-  python3 - "$env_file" <<'PY'
+  media_shared_python - "$env_file" <<'PY'
 from pathlib import Path
 import secrets
 import sys
@@ -197,7 +194,7 @@ media_find_available_port() {
   local host="$1"
   local start_port="$2"
   shift 2
-  python3 - "$host" "$start_port" "$@" <<'PY'
+  media_shared_python - "$host" "$start_port" "$@" <<'PY'
 import socket
 import sys
 

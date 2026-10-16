@@ -21,13 +21,15 @@ See the [product overview](README.md) and [documentation map](docs/README.md) fo
 ## What you need
 
 - `git`
-- `python`
-- `npm`
+- Node.js LTS with `node` and `npm`
 - a `KIE_API_KEY` for live generation through Kie AI
 
 Video thumbnail and playback derivative support is installed through the shared `kie-api` Python environment. You do not need a separate FFmpeg install for normal setup.
 
-If this machine still needs Git, Python 3, or Node.js:
+Onboarding downloads an isolated Python 3.11 runtime and creates one shared
+environment for both Python packages. Your system Python is unchanged.
+
+If this machine still needs Git or Node.js:
 
 - [docs/prerequisites.md](docs/prerequisites.md)
 

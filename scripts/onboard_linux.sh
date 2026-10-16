@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/shared_env.sh"
 MEDIA_ROOT="${MEDIA_ROOT:-$(media_root_from_script "${BASH_SOURCE[0]}")}"
 ENV_FILE="$MEDIA_ROOT/.env"
+load_media_env "$MEDIA_ROOT"
 KIE_AFFILIATE_URL="https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42"
 KIE_ROOT="$(resolve_kie_root "$MEDIA_ROOT")"
 VENV_PY="$KIE_ROOT/.venv/bin/python"
@@ -27,7 +28,7 @@ env_value() {
 set_env_value() {
   local key="$1"
   local value="$2"
-  python3 - "$ENV_FILE" "$key" "$value" <<'PY'
+  "$VENV_PY" - "$ENV_FILE" "$key" "$value" <<'PY'
 from pathlib import Path
 import sys
 
@@ -94,7 +95,7 @@ configure_codex_local_defaults() {
 }
 
 require_command git
-require_command python3
+require_command node
 require_command npm
 
 echo
