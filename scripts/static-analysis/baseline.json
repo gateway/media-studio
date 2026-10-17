@@ -27,7 +27,7 @@
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Ticket07: remove 80 TS unused diagnostics and 81 ESLint unused bindings; review three unchanged context identities; all 306 complexity metrics unchanged",
+  "reason": "Integrate tickets07/08: retain all reviewed unused-binding removals/context mappings and remove both resolved graphChangeCopy complexity exemptions",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -1068,17 +1068,6 @@
       "file": "apps/web/components/studio/studio-composer-restore.ts",
       "owner": "FunctionDeclaration:[\"restorePrimaryInput\"]",
       "id": "1fa1fb72917e801b6e5e7177ffebdc4b6b76a68dee680609e9540b8c37550ee6"
-    },
-    {
-      "rule": "complexity",
-      "message": "Function 'graphChangeCopy' has a complexity of 56. Maximum allowed is 15.",
-      "severity": 1,
-      "line": 4,
-      "column": 8,
-      "metric": 56,
-      "file": "apps/web/components/graph-studio/utils/graph-change-copy.ts",
-      "owner": "FunctionDeclaration:[\"graphChangeCopy\"]",
-      "id": "20abb675e72cc85bea24628d6dfbabe1df8a09bc4112c2ab0fffa79da4db797b"
     },
     {
       "rule": "complexity",
@@ -2133,17 +2122,6 @@
       "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
       "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:c5139bc1de3103d15c76c5d702d0c68b4ce7c7fc801ff21b26f9f1aa779a5384",
       "id": "4265105ae5f0219e2d0668fa0e9ec39d51f113945ebf873cd086419dcd842168"
-    },
-    {
-      "rule": "sonarjs/cognitive-complexity",
-      "message": "Refactor this function to reduce its Cognitive Complexity from 89 to the 20 allowed.",
-      "severity": 1,
-      "line": 4,
-      "column": 17,
-      "metric": 89,
-      "file": "apps/web/components/graph-studio/utils/graph-change-copy.ts",
-      "owner": "FunctionDeclaration:[\"graphChangeCopy\"]",
-      "id": "428a643b7c15256f1d50031fede59243c630afeabcab925ab1f535082e001516"
     },
     {
       "rule": "complexity",
