@@ -15,15 +15,17 @@ An existing dedicated environment can be selected with `STATIC_ANALYSIS_PYTHON`
 (absolute path to its Python executable). Missing environments fail; lint never
 installs dependencies. Python 3.11 is the verified local/CI analyzer runtime.
 
-`npm run lint` runs web, Python, then CSS/theme gates. `npm run lint:web` and the web workspace's
+`npm run lint` runs web, Python, CSS/theme, then full dependency/duplication gates.
+`npm run lint:full` is the full-scope alias used in CI. `npm run lint:web` and the web workspace's
 `npm run lint` run only the web gate; `npm run lint:python` runs only Python.
 Use Node **22.22.0** to reproduce the dedicated CI job. The installed ESLint release
 requires Node ^20.19.0, ^22.13.0 or >=24.0.0; older Node 20 installations must upgrade.
 The static-only CI install uses `npm ci --ignore-scripts` and needs no provider checkout,
 app server, database, credentials or paid generation.
 
-These slices check JS/TS, Python and CSS/theme rules. Import architecture, duplication
-and the build prerequisite remain separate rollout tickets. Existing release/quality checks continue to exist.
+These gates check JS/TS, Python, CSS/theme, import architecture and duplication.
+Normal web builds run web lint/types before Next. Quality/release workflows run
+full static lint before their existing application tests.
 
 ## What runs
 
@@ -118,7 +120,7 @@ Ruff/Radon, covering correctness, independent complexity metrics, nested methods
 line shifts, renames/new files, replacement findings, tool/config failures and
 malformed/incomplete reports. It does not load the application test harness.
 
-`.github/workflows/static-analysis.yml` runs all three fixture suites and the combined gate
+`.github/workflows/static-analysis.yml` runs all four fixture suites and the combined gate
 on every PR and main push, retaining reports even on failure. Configure the
 `javascript-typescript-python` job as a required branch-protection/ruleset check after its
 first remote run. Committing a workflow alone does not enforce merges; remote CI
@@ -132,3 +134,29 @@ Run `npm run test:static-analysis:css` for the real-tool positive/negative fixtu
 Review [CSS_BASELINE_REVIEW.md](CSS_BASELINE_REVIEW.md) for the 1,127 historical findings, Tailwind policy, theme thresholds and dependency limitations. New occurrences fail, including warnings. A deliberate reviewed refresh uses `npm run lint:css:baseline -- "review reason"`; config, lockfile or runner changes require this explicit review. Never refresh merely to make lint green.
 
 Every run writes raw Stylelint stdout/stderr, JSON findings, effective rules, exact versions/config hashes, coverage, theme output and exit statuses to a unique directory under `STATIC_ANALYSIS_OUTPUT` or the OS temporary directory. Missing or malformed JSON and analyzer failures block the check. CI preserves the directory as an artifact.
+
+## Full graph and duplication gate
+
+`npm run lint:architecture` runs Dependency Cruiser and jscpd across the complete
+source inventory, with production and test clone reports separated. New production
+clone pairs fail; test clones are informational. Dependency violations always fail,
+including type-only cycles. See [FULL_GATE_REVIEW.md](FULL_GATE_REVIEW.md) for the
+50-token/5-line mild policy, exclusions, identity and coverage limitations.
+
+`npm run lint:architecture:baseline -- "review reason"` explicitly refreshes the
+production clone baseline. Review pair endpoints and raw evidence before accepting
+debt. `npm run test:static-analysis:full` proves cross-file clones, type-only cycles,
+unresolved edges, source-to-test imports, line shifts, renames, invalid reports,
+missing tools and invalid merge-base failure.
+
+`npm run lint:changed -- --base origin/main` verifies the merge base and then runs
+the FULL gate. A fast partial scan is not implemented; graph and clone findings
+depend on unchanged files too. Missing/shallow history fails with a clear message;
+fetch the base or run `npm run lint:full`. CI never uses partial scope.
+
+Quality/release commands require the same dedicated analyzer environment as lint;
+they do not install it implicitly. Existing application-test and data safeguards
+remain in force. Static lint imports no application code, creates no application
+database and starts no services. Shell/PowerShell and runtime semantics remain
+outside these analyzers. Main currently has no required-check protection or
+enforcing ruleset; merge enforcement is pending.

@@ -28,7 +28,8 @@ jobs:
       - run: npm run test:static-analysis
       - run: npm run test:static-analysis:python
       - run: npm run test:static-analysis:css
-      - run: npm run lint
+      - run: npm run test:static-analysis:full
+      - run: npm run lint:full
       - uses: actions/upload-artifact@v4
         if: always()
         with:
