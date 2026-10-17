@@ -36,6 +36,7 @@ class TimingProfileTests(unittest.TestCase):
         self.assertEqual(report["fixture_setups"], [{
             "nodeid": "test_a.py::test_a", "fixture": "app_modules", "scope": "function", "seconds": 3,
         }])
+        self.assertEqual(len(report["sampled_setup_profiles"]), 1)
 
     def test_collection_hooks_preserve_results_and_errors(self):
         profile = TimingProfile()
@@ -52,6 +53,21 @@ class TimingProfileTests(unittest.TestCase):
         self.assertEqual(profile.initial_conftests_seconds, 2)
         self.assertEqual(profile.collection_seconds, 5)
 
+    def test_expensive_setup_profile_is_capped_and_stops_on_failure(self):
+        profile = TimingProfile()
+        fixture = SimpleNamespace(argname="app_modules", scope="function")
+        request = SimpleNamespace(node=SimpleNamespace(nodeid="test_a.py::test_a"))
+        with patch("ci_pytest_profile.cProfile.Profile") as create:
+            for _ in range(5):
+                hook = profile.pytest_fixture_setup(fixture, request)
+                next(hook)
+                with self.assertRaisesRegex(ValueError, "setup failed"):
+                    hook.throw(ValueError("setup failed"))
+            self.assertEqual(create.call_count, 3)
+            self.assertEqual(create.return_value.enable.call_count, 3)
+            self.assertEqual(create.return_value.disable.call_count, 3)
+        self.assertEqual(len(profile.fixtures), 5)
+
     def test_main_preserves_nonzero_exit_and_writes_on_unexpected_failure(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "profile.json"
@@ -60,9 +76,11 @@ class TimingProfileTests(unittest.TestCase):
                     self.assertEqual(main(), 1)
                     self.assertEqual(run.call_args.args, (["-q", "tests"],))
                 self.assertEqual(json.loads(output.read_text())["exit_code"], 1)
-                with patch("ci_pytest_profile.pytest.main", side_effect=RuntimeError("failed")):
-                    with self.assertRaisesRegex(RuntimeError, "failed"):
-                        main()
+                with (
+                    patch("ci_pytest_profile.pytest.main", side_effect=RuntimeError("failed")),
+                    self.assertRaisesRegex(RuntimeError, "failed"),
+                ):
+                    main()
                 self.assertEqual(json.loads(output.read_text())["exit_code"], 3)
 
 

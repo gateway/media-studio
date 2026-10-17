@@ -13,15 +13,15 @@ class TimingProfileIntegrationTests(unittest.TestCase):
     def test_real_pytest_pass_failure_and_collection_error(self):
         recorder = Path(__file__).with_name("ci_pytest_profile.py").resolve()
         cases = (
-            ("def test_ok(value): assert value == 42\n", 0, ["setup", "call", "teardown"]),
-            ("def test_bad(value): assert value == 0\n", 1, ["setup", "call", "teardown"]),
+            ("def test_ok(app_modules): assert app_modules == 42\n", 0, ["setup", "call", "teardown"]),
+            ("def test_bad(app_modules): assert app_modules == 0\n", 1, ["setup", "call", "teardown"]),
             ("raise ValueError('collection error')\n", 2, []),
         )
         for source, expected_exit, phases in cases:
             with self.subTest(expected_exit=expected_exit), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 (root / "conftest.py").write_text(
-                    "import pytest\n@pytest.fixture\ndef value():\n    yield 42\n"
+                    "import pytest\n@pytest.fixture\ndef app_modules():\n    yield 42\n"
                 )
                 (root / "test_sample.py").write_text(source)
                 output = root / "profile.json"
@@ -38,7 +38,10 @@ class TimingProfileIntegrationTests(unittest.TestCase):
                 self.assertEqual([phase["phase"] for phase in report["phases"]], phases)
                 if phases:
                     self.assertEqual(len(report["collected"]), 1)
-                    self.assertEqual([fixture["fixture"] for fixture in report["fixture_setups"]], ["value"])
+                    self.assertEqual([fixture["fixture"] for fixture in report["fixture_setups"]], ["app_modules"])
+                    samples = report["sampled_setup_profiles"]
+                    self.assertEqual(len(samples), 1)
+                    self.assertTrue((root / samples[0]["artifact"]).is_file())
 
 
 if __name__ == "__main__":

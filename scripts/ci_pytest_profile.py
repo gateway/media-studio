@@ -1,8 +1,10 @@
 """Optional CI timing recorder. Does not change fixture lifetimes or test selection."""
 
+import cProfile
 import json
 import os
 import platform
+import pstats
 import sys
 from collections import Counter
 from pathlib import Path
@@ -19,6 +21,7 @@ class TimingProfile:
         self.collected = []
         self.phases = []
         self.fixtures = []
+        self.setup_profiles = []
 
     @pytest.hookimpl(wrapper=True)
     def pytest_load_initial_conftests(self):
@@ -42,9 +45,17 @@ class TimingProfile:
     @pytest.hookimpl(wrapper=True)
     def pytest_fixture_setup(self, fixturedef, request):
         started = perf_counter()
+        # Sample only three fresh application setups; leave the rest unprofiled.
+        profiler = None
+        if fixturedef.argname == "app_modules" and len(self.setup_profiles) < 3:
+            profiler = cProfile.Profile()
+            self.setup_profiles.append((request.node.nodeid, profiler))
+            profiler.enable()
         try:
             return (yield)
         finally:
+            if profiler is not None:
+                profiler.disable()
             self.fixtures.append({
                 "nodeid": request.node.nodeid,
                 "fixture": fixturedef.argname,
@@ -74,6 +85,7 @@ class TimingProfile:
             "collected": self.collected,
             "phases": self.phases,
             "fixture_setups": self.fixtures,
+            "sampled_setup_profiles": self.write_setup_profiles(output),
             "runtime": {
                 "python": platform.python_version(),
                 "pytest": pytest.__version__,
@@ -88,6 +100,19 @@ class TimingProfile:
             },
         }
         Path(output).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+
+    def write_setup_profiles(self, output):
+        samples = []
+        for index, (nodeid, profiler) in enumerate(self.setup_profiles):
+            path = Path(output).with_name(f"app-modules-{index + 1}.pstats")
+            profiler.dump_stats(str(path))
+            stats = pstats.Stats(profiler)
+            samples.append({
+                "nodeid": nodeid,
+                "artifact": path.name,
+                "total_seconds": stats.total_tt,
+            })
+        return samples
 
 
 def main():

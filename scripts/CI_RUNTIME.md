@@ -16,6 +16,14 @@ shutdown. Collection failure can produce no test phases; `exit_code` remains non
 Runner image, architecture, Python/pytest versions and commit/run metadata accompany
 the report. Bash `time` reports real/user/sys for the larger quality gates in logs.
 
+The first three `app_modules` setups also have standard-library cProfile samples
+(`app-modules-*.pstats`, with exact test IDs in JSON). These isolate import versus
+schema bootstrap/seed costs without changing the fixture. Only those three setups
+include cProfile overhead; do not extrapolate their timings to the entire suite.
+Inspect with `python -m pstats <file>` or the standard-library pstats API. Function
+cumulative times overlap; compare self time or specific call paths rather than
+adding nested cumulative times. These files are diagnostic CI artifacts only.
+
 Compare exact test identities/outcomes and runner image/runtime metadata before
 comparing timings. Retain multiple equivalent samples: previous unchanged backend
 runs ranged from 489.63 to 846.25 seconds. One fast run is not proof of a speedup.
@@ -45,7 +53,7 @@ pytest for recorder integration checks before quality, and the standalone qualit
 entrypoint must continue preparing its existing API environment. Avoid introducing
 a setup-bypass flag solely to save an unmeasured dependency resolution step.
 
-Further backend investigation should split fresh-schema migration/seed time from
+Use the capped profiles to split fresh-schema migration/seed time from
 application import time within `app_modules`, then inspect the second bootstrap
 in TestClient startup. Initial conftest collection also bootstraps its own schema.
 No fixture lifetime or schema behavior is changed here: those paths protect
