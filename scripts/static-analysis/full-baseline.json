@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Ticket07: exact review of four context-only clone identity replacements; all 286 matched fragments and endpoint token/line metrics unchanged",
+  "reason": "Integrate tickets07/09: preserve four frontend context-only mappings and four launcher context-only mappings plus the reviewed process clone reduction 53 to19 lines; no new clone debt",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -1200,26 +1200,6 @@
       "format": "python"
     },
     {
-      "id": "3368bc8870b63f8e42a728e1ddb59630c5759048bdbcf7276620dcd74ff233c1",
-      "endpoints": [
-        {
-          "file": "scripts/run_studio.mjs",
-          "start": 292,
-          "end": 304,
-          "context": "5239f3a16d037dc915818f2563f49312ff94104e0e8dacc257b5b15c1112f403"
-        },
-        {
-          "file": "scripts/web_app.mjs",
-          "start": 105,
-          "end": 117,
-          "context": "373731288453df744978826f6e1fd7ccefd56941ac7248a31bafc15a8251d7d0"
-        }
-      ],
-      "tokens": 69,
-      "lines": 13,
-      "format": "javascript"
-    },
-    {
       "id": "342f7917a6c2e19932226853b22f118ab901696f3e23f7787c74d36cd9fe0ea5",
       "endpoints": [
         {
@@ -2240,6 +2220,26 @@
       "format": "python"
     },
     {
+      "id": "5fc05f6df9246ab32a7a9649c88983048071d8e86c017d529d2dfd5992df343d",
+      "endpoints": [
+        {
+          "file": "scripts/run_studio.mjs",
+          "start": 591,
+          "end": 610,
+          "context": "16a66b7c738f5d7fedb66ec3f89f963ae1995215a45d4df86ec8e29f9b8bba44"
+        },
+        {
+          "file": "scripts/run_studio.mjs",
+          "start": 632,
+          "end": 651,
+          "context": "52bdf8d35396bbc7448ccd3ce8ed886ff36f90273ae813198f735bdca4c00e98"
+        }
+      ],
+      "tokens": 195,
+      "lines": 20,
+      "format": "javascript"
+    },
+    {
       "id": "5fecb3543058233f5ab6dc54af08d45891c03822de9eb142833c3938da190c04",
       "endpoints": [
         {
@@ -2860,26 +2860,6 @@
       "format": "javascript"
     },
     {
-      "id": "782266b2bf88373d0ba557bb649a4bfe16985fd90541d87025b493086ee7b10d",
-      "endpoints": [
-        {
-          "file": "scripts/run_studio.mjs",
-          "start": 500,
-          "end": 509,
-          "context": "b4b37576777215b6f1790d76cddbd17a0845412b077503c582ebdfe966ea8faf"
-        },
-        {
-          "file": "scripts/run_studio.mjs",
-          "start": 488,
-          "end": 497,
-          "context": "d73edec03ff8cc8a977fd5d7a09f7b19e4fde6e11085ccc6709e4d485f2e06db"
-        }
-      ],
-      "tokens": 75,
-      "lines": 10,
-      "format": "javascript"
-    },
-    {
       "id": "78a676c9f5103c7191ed0bfaf80e96cbf4036d06f4add07fb8aa5fd02763bd68",
       "endpoints": [
         {
@@ -2898,26 +2878,6 @@
       "tokens": 58,
       "lines": 7,
       "format": "python"
-    },
-    {
-      "id": "7a01a8836107c1b14f5142078109d1c35cbba9541d4ae526d9f8a62c57981e56",
-      "endpoints": [
-        {
-          "file": "scripts/run_studio.mjs",
-          "start": 57,
-          "end": 71,
-          "context": "1e01560f26f9d61767ef1fae61f9cd097246000e75a115b2018196e99a670971"
-        },
-        {
-          "file": "scripts/web_app.mjs",
-          "start": 52,
-          "end": 66,
-          "context": "a13fc783148862b2cabc5de1fcd47c5bf5eacdc378a9eee50970b64ccdef0043"
-        }
-      ],
-      "tokens": 91,
-      "lines": 15,
-      "format": "javascript"
     },
     {
       "id": "7a31797b8c38debccfad9ba196d3e92448948b288999f809a80ffaac20cf4eb1",
@@ -3440,23 +3400,23 @@
       "format": "typescript"
     },
     {
-      "id": "9934bea2dcbfb919c3142da118daeeb1d679fcda1929bd82a8178de3b10792d1",
+      "id": "98135b2bf90761f25b6bfa27b6feb4295732da6e55b2f2eed6f509bcae8d1d43",
       "endpoints": [
         {
           "file": "scripts/run_studio.mjs",
-          "start": 138,
-          "end": 190,
-          "context": "d2f587242ed961bb230d9d25b2cbf5639e7dfe34f71781ecc7a899bcdc1cba83"
+          "start": 461,
+          "end": 470,
+          "context": "6c4dc85957c2b73b8d7719f471840ac8b600627268434307f7fd7cfe235b7a39"
         },
         {
-          "file": "scripts/stop_studio.mjs",
-          "start": 95,
-          "end": 147,
-          "context": "a6a711a4a2cd187381f28bdf72418a419d8989845683140c9d0655dd4e2c458c"
+          "file": "scripts/run_studio.mjs",
+          "start": 449,
+          "end": 458,
+          "context": "8dc25b9d3cb491ce080e48b8e62528a90bca5bfb6969ce0c04e28137b7b6e7c8"
         }
       ],
-      "tokens": 236,
-      "lines": 53,
+      "tokens": 75,
+      "lines": 10,
       "format": "javascript"
     },
     {
@@ -4220,6 +4180,26 @@
       "format": "typescript"
     },
     {
+      "id": "b7ccd17a3d255eb210d29f69b3559524646b3975a2ebdadcefce280236b0751e",
+      "endpoints": [
+        {
+          "file": "scripts/run_studio.mjs",
+          "start": 253,
+          "end": 265,
+          "context": "736501b89c6358bdd9c416e37ab57eec225bbbbc29b8e7874279bfdee4e1be91"
+        },
+        {
+          "file": "scripts/web_app.mjs",
+          "start": 105,
+          "end": 117,
+          "context": "373731288453df744978826f6e1fd7ccefd56941ac7248a31bafc15a8251d7d0"
+        }
+      ],
+      "tokens": 69,
+      "lines": 13,
+      "format": "javascript"
+    },
+    {
       "id": "b8a2da0fccbdbf83cbd30369eabf77bfc296c6d693f0d88ac848427e72de952f",
       "endpoints": [
         {
@@ -4700,6 +4680,26 @@
       "format": "tsx"
     },
     {
+      "id": "cfaaf83e7c2e39da784cd4a894eb2a9342405eb4cea39d5add2af831326eb47c",
+      "endpoints": [
+        {
+          "file": "scripts/run_studio.mjs",
+          "start": 64,
+          "end": 78,
+          "context": "c7797aa25fc0804a949b65a4d7adeb01db0affb72ce52d8f190a4b2d4b53d8e9"
+        },
+        {
+          "file": "scripts/web_app.mjs",
+          "start": 52,
+          "end": 66,
+          "context": "a13fc783148862b2cabc5de1fcd47c5bf5eacdc378a9eee50970b64ccdef0043"
+        }
+      ],
+      "tokens": 91,
+      "lines": 15,
+      "format": "javascript"
+    },
+    {
       "id": "cfffa779557f53bb32cc94e025bdf8fde000f3659125ef9f2d80f6946d416ed1",
       "endpoints": [
         {
@@ -4758,26 +4758,6 @@
       "tokens": 64,
       "lines": 11,
       "format": "python"
-    },
-    {
-      "id": "d4d92d6367009064aca478d96966c21207f08cb9d48e04563262c3a65e623b37",
-      "endpoints": [
-        {
-          "file": "scripts/run_studio.mjs",
-          "start": 630,
-          "end": 649,
-          "context": "62426a251c45ae35ee36ac7fe2716217e31b8f500882bc78c0712391d423bf04"
-        },
-        {
-          "file": "scripts/run_studio.mjs",
-          "start": 671,
-          "end": 690,
-          "context": "a0d7a6b4beb1676ff4145889abbc03886209605cde378114f10e3547cf4c3320"
-        }
-      ],
-      "tokens": 195,
-      "lines": 20,
-      "format": "javascript"
     },
     {
       "id": "d5be71e87c5068e7708d1a91930a4164033f1837faf58045a53d424db360bbf0",
@@ -5458,6 +5438,26 @@
       "tokens": 81,
       "lines": 19,
       "format": "tsx"
+    },
+    {
+      "id": "f40329e42fc65704b1421376cb3f2c61fb6ab70795ad9263b127229bcf3f19da",
+      "endpoints": [
+        {
+          "file": "scripts/run_studio.mjs",
+          "start": 141,
+          "end": 159,
+          "context": "53b0666e34a6910a5a5c2a0df0e452d9921ab1da51df51020d392f8dc34da39b"
+        },
+        {
+          "file": "scripts/stop_studio.mjs",
+          "start": 94,
+          "end": 112,
+          "context": "116ebf9279677306b6bd408596fe225af773cd29fa19cf98138a59b4c75b146e"
+        }
+      ],
+      "tokens": 95,
+      "lines": 19,
+      "format": "javascript"
     },
     {
       "id": "f44e3140082bf55f0cf383741f2abee3006a7b8174b03614715e0594d11b2600",

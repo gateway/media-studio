@@ -33,7 +33,11 @@ The inspected smoke test imports only Vitest and the pure `studio-shortcuts`
 decision function. Neither reads files, starts services or calls providers. For
 graph-change-copy characterization, its only current import is type-only; review
 new test imports before running. For process-identification characterization,
-use `node --test <explicit pure test file>` after inspection. Never import
+use `node --test scripts/studio_process_identification.test.mjs` after inspection.
+That test imports only Node assertions/test and the dependency-free
+`studio_process_identification.mjs`: it covers command/root normalization, exact
+PowerShell query text, existing port parsing, and JSON result handling without
+querying or acting on processes. Never import
 `run_studio.mjs` or `stop_studio.mjs` executable entrypoints into tests.
 
 ## Python fixture boundary — local execution still blocked
