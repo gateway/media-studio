@@ -47,3 +47,15 @@ All remaining existing Python findings are recorded debt, not inferred waivers.
 Ruff C901 and Radon CC are distinct metrics with independent limits of 15. Radon MI
 is informational. Baseline refresh is explicit and requires review of added/removed
 identities and metric deltas; ordinary lint never modifies either baseline.
+
+## Main integration, 2026-10-17
+
+Main commit `d143441` added the admin-theme checker before this static-analysis
+branch landed. Its two existing ESLint complexity findings are explicitly recorded:
+`scripts/check_admin_theme.mjs` `inspectSource.visit` (line 59), CC17, and
+`inspectRepo.collect` (line 172), CC19, against the threshold 15. The redundant
+regex escape reported by ESLint was corrected and its existing guard tests pass.
+The original 889 finding objects are unchanged; the reviewed total is 891. No
+focused-harness findings were added and no rules or thresholds were relaxed.
+The custom-lint contract changed because it now invokes the admin guard too;
+its integration fixture executes the real guard and verifies violation failure.

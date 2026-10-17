@@ -18,6 +18,8 @@ hygiene = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(hygiene)
 
 PRIVATE_PATHS = (
+    "docs/design-admin.md", ".agents/skills/media-studio-admin-ui/SKILL.md",
+    ".agents/skills/media-studio-admin-ui/agents/openai.yaml", "design/admin-theme/screenshot.png",
     "AGENTS.md", "docs/agents/operator.md", "docs/engineering/review.md",
     ".scratch/evidence.json", "docs/development/plan.md", "docs/reviews/report.md",
     ".env", ".env.local", "data/reference-media/private.txt", "outputs/result.txt",
@@ -26,6 +28,7 @@ PRIVATE_PATHS = (
 PUBLIC_PATHS = (
     ".env.example", "apps/web/.env.example", "README.md", "docs/getting-started-windows.md",
     "scripts/onboard_windows.ps1", "content/graph-workflows/example.json",
+    "scripts/check_admin_theme.mjs", "scripts/admin-theme-exceptions.json",
 )
 
 

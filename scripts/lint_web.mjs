@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execFileSync } from "node:child_process";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -86,4 +87,5 @@ if (failures.length) {
   process.exit(1);
 }
 
+execFileSync(process.execPath, [path.join(root, "scripts/check_admin_theme.mjs")], { cwd: root, stdio: "inherit" });
 console.log(`Web lint passed for ${files.length} files.`);

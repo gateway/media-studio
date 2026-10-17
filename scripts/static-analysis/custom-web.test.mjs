@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, rm, writeFile, symlink } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
+const require = createRequire(import.meta.url);
 const helpers = ['toControlApiProxyPath', 'toControlApiDataProxyPath', 'toControlApiDataPreviewPath'];
 const helperSource = helpers.map(name => `export function ${name}() {}`).join('\n');
 
@@ -13,6 +15,10 @@ async function fixture(t, files = {}) {
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, 'scripts'));
   await copyFile(new URL('../lint_web.mjs', import.meta.url), path.join(root, 'scripts/lint_web.mjs'));
+  await copyFile(new URL('../check_admin_theme.mjs', import.meta.url), path.join(root, 'scripts/check_admin_theme.mjs'));
+  await writeFile(path.join(root, 'scripts/admin-theme-exceptions.json'), '[]');
+  await mkdir(path.join(root, 'node_modules'));
+  await symlink(path.dirname(require.resolve('typescript/package.json')), path.join(root, 'node_modules/typescript'), 'junction');
   for (const [file, source] of Object.entries({ 'lib/media-paths.ts': helperSource, ...files })) {
     const target = path.join(root, 'apps/web', file);
     await mkdir(path.dirname(target), { recursive: true });
@@ -53,7 +59,8 @@ test('clean sources pass and excluded extensions and directories stay excluded',
   const result = run();
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), 'Web lint passed for 2 files.');
+  assert.match(result.stdout, /Admin theme contracts passed/);
+  assert.match(result.stdout, /Web lint passed for 2 files\./);
 });
 
 test('missing and duplicate singleton helpers still fail', async t => {
@@ -68,4 +75,11 @@ test('missing and duplicate singleton helpers still fail', async t => {
       assert.ok(failures.some(line => line.startsWith(`- ${name}: expected a single definition`)));
     }
   }
+});
+
+test('admin theme violations also fail the integrated web checker', async t => {
+  const run = await fixture(t, { 'components/admin-fixture.tsx': 'export const view = <div className="bg-red-500" />;' });
+  const result = run();
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /literal-color/);
 });

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "contract": "772962ce23f14a768643216f2af507e78d2c87111e3c1c81af53153601c4eac5",
+  "contract": "b47a39cba73f3ba88caf8cd6b7d40a336c47456dac494662d190a41aeae39a4a",
   "metadata": {
     "versions": {
       "eslint": "10.13.0",
@@ -24,10 +24,10 @@
       "scripts/static-analysis/policy.mjs": "571a38fd87c9676a2e9f669ae561189e19b1081bf8e49c3a343dd7be9e37d9d4",
       "scripts/static-analysis/scan.mjs": "c9e5004a103c9668f437c6155f2b8dc831c1758112f634387807dc730ed07c38",
       "scripts/static-analysis/gate.mjs": "f5a67e490afe3d863838b4f3652323df973a2db5de332f16a6610e18b7f08c63",
-      "scripts/lint_web.mjs": "f7e526b63c6fe23e114d61f384dda8a61446a11c9bd7b225b60ae58da2cd2fe9"
+      "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Reviewed ticket 04 analyzer lockfile and full-scope adoption; preserve existing application debt",
+  "reason": "Integrate main d143441 admin-theme guard: existing visit CC17 and collect CC19; no ticket05 findings; custom lint runs both guards",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -7330,6 +7330,17 @@
     },
     {
       "rule": "complexity",
+      "message": "Function 'visit' has a complexity of 17. Maximum allowed is 15.",
+      "severity": 1,
+      "line": 59,
+      "column": 3,
+      "metric": 17,
+      "file": "scripts/check_admin_theme.mjs",
+      "owner": "FunctionDeclaration:[\"inspectSource\"]/FunctionDeclaration:[\"visit\"]",
+      "id": "cbebec74dc9310ac893288bee09fae06e59366ce3b8b587e71f69c971752f6fd"
+    },
+    {
+      "rule": "complexity",
       "message": "Async function 'ConnectionsPage' has a complexity of 30. Maximum allowed is 15.",
       "severity": 1,
       "line": 98,
@@ -7608,6 +7619,17 @@
       "file": "apps/web/hooks/studio/use-studio-selection.ts",
       "owner": "ImportSpecifier:[\"structuredPresetSlotPreviewUrl\"]",
       "id": "d4a576bdb9cb2aeff59f53a9c7e79a18c704b6294b91b1e021d6fa0b4efac1f6"
+    },
+    {
+      "rule": "complexity",
+      "message": "Function 'collect' has a complexity of 19. Maximum allowed is 15.",
+      "severity": 1,
+      "line": 172,
+      "column": 5,
+      "metric": 19,
+      "file": "scripts/check_admin_theme.mjs",
+      "owner": "FunctionDeclaration:[\"inspectRepo\"]/FunctionDeclaration:[\"collect\"]",
+      "id": "d4ad39004fe6eda7acd38f60935ed4ad3d145d1e0e2ada5b3473fb49ae8d137e"
     },
     {
       "rule": "@typescript-eslint/no-misused-promises",

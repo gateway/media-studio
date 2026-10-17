@@ -32,3 +32,8 @@ playwright-report/ export-ignore
 *.crt export-ignore
 *.cer export-ignore
 *.p12 export-ignore
+
+# Private agent guidance and local design/review artifacts.
+docs/design-admin.md export-ignore
+.agents/skills/media-studio-admin-ui/ export-ignore
+design/ export-ignore

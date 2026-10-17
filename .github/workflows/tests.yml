@@ -42,6 +42,20 @@ jobs:
       - name: Verify repository publication safeguards
         run: python scripts/test_repo_hygiene.py
 
+  admin-theme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Verify admin design contracts
+        run: |
+          npm run test:admin-theme
+          npm run quality:admin-theme
+
   windows-onboarding:
     runs-on: windows-latest
     steps:
