@@ -1,9 +1,7 @@
-import Link from "next/link";
-import { Clapperboard, Coins, LoaderCircle, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Coins, LoaderCircle } from "lucide-react";
 
 import { JobsBatchCard } from "@/app/jobs/jobs-batch-card";
 import { toJobsBatchCardView } from "@/app/jobs/jobs-batch-card-view";
-import { MediaBatchActions } from "@/app/jobs/media-batch-actions";
 import { RuntimeControls } from "@/app/jobs/runtime-controls";
 import {
   adminInsetCompactClassName,
@@ -15,12 +13,11 @@ import {
   adminInsetPanelClassName,
 } from "@/components/admin-controls";
 import { AdminNavButton } from "@/components/admin-nav-button";
-import { Panel, PanelHeader } from "@/components/panel";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
 import { CalloutPanel, EmptyState, SurfaceInset } from "@/components/ui/surface-primitives";
-import { getMediaDashboardSnapshot, toControlApiProxyPath } from "@/lib/control-api";
-import type { ControlApiHealthData, MediaAsset, MediaBatch, MediaJob } from "@/lib/types";
-import { formatCreditsAmount, formatDateTime, formatUsdAmount, isRecord, toFiniteNumber, truncate } from "@/lib/utils";
+import { getMediaDashboardSnapshot } from "@/lib/control-api";
+import type { ControlApiHealthData } from "@/lib/types";
+import { formatDateTime } from "@/lib/utils";
 
 const JOBS_PER_PAGE_OPTIONS = [20, 50, 100] as const;
 
@@ -47,6 +44,7 @@ export default async function JobsPage({
   });
   const batches = (snapshot.batches.data?.batches ?? []).filter((batch) => batch.status !== "cancelled");
   const assets = (snapshot.assets.data?.assets ?? []).filter((asset) => !asset.hidden_from_dashboard && !asset.dismissed_at);
+  const modelLabels = new Map((snapshot.models.data?.models ?? []).map((model) => [model.key, model.label]));
   const queueSettings = snapshot.queueSettings.data?.settings ?? null;
   const credits = snapshot.credits.data?.balance;
   const availableCredits =
@@ -106,19 +104,20 @@ export default async function JobsPage({
       title="Jobs"
       description="Track runs, inspect outputs, and review saved cost estimates."
     >
-      <div className={adminThemeLayoutClassName}>
-      <Panel>
+      <div className={`${adminThemeLayoutClassName} admin-jobs-page`}>
+      <details className="admin-jobs-runner">
+        <summary>
         <div className="admin-runtime-summary">
-          <h2 className="admin-panel-title">{healthData?.runner_name ?? "Media Studio Runner"}</h2>
+          <h2 className="admin-jobs-runner-title">{healthData?.runner_name ?? "Media Studio Runner"}</h2>
           <span className={`admin-status-badge ${runnerHealthy ? "admin-status-healthy" : "admin-status-warning"}`}>
             {runnerHealth === "healthy" ? "Healthy" : runnerHealth === "paused" ? "Paused" : "Needs attention"}
           </span>
           <span>{healthData?.running_jobs ?? recentRunningCount} running</span>
           <span>{healthData?.queued_jobs ?? recentQueuedCount} queued</span>
         </div>
-        <details className="mt-4">
-          <summary className="admin-label-muted cursor-pointer">Runner details and controls</summary>
-        <div className="mt-5">
+        <span className="admin-jobs-runner-action">Runner details and controls<ChevronDown className="size-3.5" aria-hidden="true" /></span>
+        </summary>
+        <div className="py-4">
           <SurfaceInset appearance="admin" className={mutedCardClassName}>
             <div className="admin-icon-label-row admin-label-muted mb-3">
               <LoaderCircle className={`size-3.5 ${runnerHealthy ? "" : "text-[var(--danger)]"}`} />
@@ -205,34 +204,21 @@ export default async function JobsPage({
             </div>
           </SurfaceInset>
         </div>
-        </details>
-      </Panel>
+      </details>
 
-      <section id="recent-runs">
-        <Panel>
-          <PanelHeader
-            eyebrow="Queue"
-            title="Recent jobs"
-            description="Open a batch to inspect outputs, progress, prompt summary, and any failures tied to that run."
-            action={
-              <AdminNavButton href="/models" variant="subtle" size="compact">
-                Open Models
-              </AdminNavButton>
-            }
-          />
-
-          <div className="mt-5 grid gap-3">
-            <SurfaceInset appearance="admin" density="compact" className={`${adminInsetClassName} text-sm leading-6 text-[var(--muted-strong)]`}>
-              <div>
+      <section id="recent-runs" aria-labelledby="recent-jobs-title">
+          <div className="admin-jobs-list-heading">
+            <h2 className="admin-section-title" id="recent-jobs-title">Recent jobs</h2>
+              <p className="text-sm text-[var(--muted-strong)]">
                 Showing{" "}
                 <span className="font-medium text-[var(--foreground)]">
                   {totalBatches === 0 ? 0 : pageStart + 1}
                   {perPage === "all" ? "" : `-${Math.min(totalBatches, normalizedPageStart + perPage)}`}
                 </span>{" "}
                 of <span className="font-medium text-[var(--foreground)]">{totalBatches}</span> jobs.
-              </div>
-            </SurfaceInset>
-
+              </p>
+          </div>
+          <div className="admin-data-list admin-jobs-list">
             <div className="admin-data-heading admin-jobs-columns"><span>Job</span><span>Model</span><span>Status</span><span>Outputs</span><span>Est. cost</span><span>Details</span></div>
 
             {visibleBatches.length ? (
@@ -240,7 +226,7 @@ export default async function JobsPage({
                 const relatedAssets = assets.filter((asset) =>
                   (batch.jobs ?? []).some((job) => job.job_id === asset.job_id),
                 );
-                return <JobsBatchCard key={batch.batch_id} batch={toJobsBatchCardView(batch)} assets={relatedAssets} />;
+                return <JobsBatchCard key={batch.batch_id} batch={toJobsBatchCardView(batch)} assets={relatedAssets} modelLabel={batch.model_key ? modelLabels.get(batch.model_key) : undefined} />;
               })
             ) : (
               <EmptyState
@@ -253,7 +239,7 @@ export default async function JobsPage({
             )}
 
             {totalBatches > 0 ? (
-              <SurfaceInset appearance="admin" density="compact" className={`${adminInsetClassName} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
+              <div className="admin-jobs-footer">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="admin-label-muted">Show</span>
                   {JOBS_PER_PAGE_OPTIONS.map((option) => (
@@ -311,10 +297,9 @@ export default async function JobsPage({
                     Showing all <span className="font-medium text-[var(--foreground)]">{totalBatches}</span> jobs.
                   </div>
                 )}
-              </SurfaceInset>
+              </div>
             ) : null}
           </div>
-        </Panel>
       </section>
       </div>
     </StudioAdminShell>

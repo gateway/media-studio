@@ -1,22 +1,22 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Clapperboard } from "lucide-react";
+import { ChevronDown, Clapperboard, Music2, Play } from "lucide-react";
 
 import type { JobsBatchCardView, JobsCardJob } from "@/app/jobs/jobs-batch-card-view";
 import { MediaBatchActions } from "@/app/jobs/media-batch-actions";
-import { adminInsetCompactClassName } from "@/components/admin-theme";
-import { adminInsetCardClassName } from "@/components/admin-controls";
+import { AdminButton } from "@/components/admin-controls";
 import { StatusPill } from "@/components/status-pill";
 import { StudioLightbox } from "@/components/studio/studio-lightbox";
-import { CalloutPanel, SurfaceInset } from "@/components/ui/surface-primitives";
+import { CalloutPanel } from "@/components/ui/surface-primitives";
 import { mediaDisplayUrl, mediaPlaybackUrl, mediaVariantUrl, toneForStatus } from "@/lib/media-studio-helpers";
 import type { MediaAsset } from "@/lib/types";
-import { cn, formatCreditsAmount, formatDateTime, formatUsdAmount, truncate } from "@/lib/utils";
+import { formatCreditsAmount, formatDateTime, formatUsdAmount } from "@/lib/utils";
 
 type JobsBatchCardProps = {
   batch: JobsBatchCardView;
   assets: MediaAsset[];
+  modelLabel?: string;
 };
 
 function batchAssetForJob(job: JobsCardJob, assets: MediaAsset[]) {
@@ -43,15 +43,13 @@ function lightboxVisual(asset: MediaAsset | null) {
   if (!asset) {
     return null;
   }
-  if (asset.generation_kind === "video") {
+  if (asset.generation_kind === "video" || asset.generation_kind === "audio") {
     return mediaPlaybackUrl(asset) ?? previewThumbUrl(asset);
   }
   return mediaVariantUrl(asset, "original") ?? mediaVariantUrl(asset, "web") ?? previewThumbUrl(asset);
 }
 
-export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
-  const mutedCardClassName = adminInsetCardClassName;
-  const adminInsetClassName = adminInsetCompactClassName;
+export function JobsBatchCard({ batch, assets, modelLabel }: JobsBatchCardProps) {
   const jobs = useMemo(
     () => [...(batch.jobs ?? [])].sort((left, right) => (left.batch_index ?? 1) - (right.batch_index ?? 1)),
     [batch.jobs],
@@ -61,9 +59,10 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
   const lightboxVideoRef = useRef<HTMLVideoElement | null>(null);
   const lightboxAssetIds = useMemo(
     () =>
-      jobs
-        .map((job) => batchAssetForJob(job, assets)?.asset_id ?? null)
-        .filter((assetId): assetId is string | number => assetId != null),
+      jobs.flatMap((job) => {
+        const asset = batchAssetForJob(job, assets);
+        return asset && lightboxVisual(asset) ? [asset.asset_id] : [];
+      }),
     [assets, jobs],
   );
   const selectedLightboxAsset = useMemo(
@@ -89,11 +88,12 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
     },
     [lightboxAssetId, lightboxAssetIds],
   );
+  const firstOutputId = lightboxAssetIds[0];
   const batchStatusTone = batch.status === "partial_failure" ? "warning" : toneForStatus(batch.status);
 
   return (
     <>
-      <details className="admin-data-row">
+      <details className="admin-data-row admin-job-row">
         <summary className="admin-data-summary admin-jobs-columns">
           <div className="admin-job-identity">
             <span className="admin-job-thumbnail">
@@ -103,111 +103,79 @@ export function JobsBatchCard({ batch, assets }: JobsBatchCardProps) {
             </span>
             <div className="min-w-0">
               <h3 className="truncate font-semibold">{batch.prompt_summary || "Generation batch"}</h3>
-              <div className="admin-data-meta">{truncate(batch.batch_id, 20)} · {formatDateTime(batch.created_at)}</div>
+              <div className="admin-data-meta">{formatDateTime(batch.created_at)}</div>
             </div>
+            <ChevronDown className="admin-job-mobile-chevron size-3.5" aria-hidden="true" />
           </div>
-          <span className="admin-data-model">{batch.model_key ?? "Unknown model"}</span>
+          <span className="admin-data-model">{modelLabel || batch.model_key || "Unknown model"}</span>
           <StatusPill label={batchStatusLabel(batch.status)} tone={batchStatusTone} />
-          <span>{jobs.filter((job) => batchAssetForJob(job, assets)).length} / {batch.requested_outputs} outputs</span>
-          <span>{formatUsdAmount(pricingSummary?.totalUsd) ?? "n/a"}<span className="admin-data-meta">Estimated total</span></span>
-          <span className="admin-row-action">View outputs</span>
+          <span className="admin-job-output-count">{jobs.filter((job) => batchAssetForJob(job, assets)).length} / {batch.requested_outputs}<span className="admin-job-mobile-label"> outputs</span></span>
+          <span className="admin-job-estimate">{formatUsdAmount(pricingSummary?.totalUsd) ?? "n/a"}<span className="admin-job-mobile-label"> estimated</span></span>
+          <span className="admin-job-disclosure-action"><span>View outputs</span><ChevronDown aria-hidden="true" className="size-3.5" /></span>
         </summary>
         <div className="admin-data-body">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="admin-label-muted">Prompt summary</div>
-              <p className="mt-2 text-sm text-[var(--muted-strong)]">{batch.prompt_summary}</p>
+          <div className="admin-job-expanded">
+            <div className="admin-job-output-grid" aria-label="Batch outputs">
+              {jobs.map((job, index) => {
+                const asset = batchAssetForJob(job, assets);
+                const childPreview = previewThumbUrl(asset);
+                const canOpenLightbox = Boolean(asset && lightboxVisual(asset));
+                // Stored batch indices start at zero; output labels start at one.
+                const outputNumber = (job.batch_index ?? index) + 1;
+                const kind = asset?.generation_kind === "video" ? "Video" : asset?.generation_kind === "audio" ? "Audio" : "Image";
+                return <figure key={job.job_id} className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => { if (asset) setLightboxAssetId(asset.asset_id); }}
+                    disabled={!canOpenLightbox}
+                    className="surface-preview-frame admin-job-output-preview"
+                    title={canOpenLightbox ? `Open output ${outputNumber}` : `Output ${outputNumber}`}
+                    aria-label={canOpenLightbox ? `Open output ${outputNumber}` : `Output ${outputNumber}: ${job.error ? "Failed" : "No preview available"}`}
+                  >
+                    {childPreview ? <img src={childPreview} alt={`Output ${outputNumber}`} loading="lazy" decoding="async" /> : <span className="admin-job-output-placeholder">
+                      {asset?.generation_kind === "audio" ? <Music2 className="size-7" /> : <Clapperboard className="size-7" />}
+                      {job.error ? "Output failed" : canOpenLightbox ? `Open ${kind.toLowerCase()}` : "No preview available"}
+                    </span>}
+                    {canOpenLightbox && asset?.generation_kind === "video" ? <span className="admin-job-video-mark"><Play className="size-5" aria-hidden="true" /></span> : null}
+                  </button>
+                  <figcaption className="admin-job-output-caption"><span>Output {outputNumber}{asset ? ` · ${kind}` : ""}</span>{canOpenLightbox ? <span>{kind === "Image" ? "Click to enlarge ↗" : `Open ${kind.toLowerCase()} ↗`}</span> : null}</figcaption>
+                </figure>;
+              })}
+              {!jobs.length ? <p className="admin-job-output-placeholder">No outputs recorded for this batch.</p> : null}
             </div>
-            <MediaBatchActions
-              batchId={batch.batch_id}
-              canCancelQueued={batch.queued_count > 0 && (batch.status === "queued" || batch.status === "processing")}
-            />
-          </div>
-          <div className="my-4 flex flex-wrap gap-3 text-xs text-[var(--muted-strong)]">
-            <span>{batch.queued_count} queued</span>
-            <span>{batch.running_count} processing</span>
-            <span>{batch.failed_count} failed</span>
-          </div>
-          {pricingSummary ? (
-            <SurfaceInset appearance="admin" density="compact" className={`${adminInsetClassName} grid gap-3 lg:grid-cols-3`}>
-              <div className="grid gap-1">
-                <span className="admin-label-muted">Estimated total</span>
-                <span className="text-[var(--foreground)]">
-                  {formatUsdAmount(pricingSummary.totalUsd)}{" "}
-                  <span className="text-[var(--muted-strong)]">/ {formatCreditsAmount(pricingSummary.totalCredits)} credits</span>
-                </span>
+            <div className="admin-job-context">
+              <div>
+                <h4 className="admin-job-detail-label">Prompt summary</h4>
+                <p className="admin-job-prompt">{batch.prompt_summary}</p>
               </div>
-              <div className="grid gap-1">
-                <span className="admin-label-muted">Per output</span>
-                <span className="text-[var(--foreground)]">
-                  {formatUsdAmount(pricingSummary.perOutputUsd)}{" "}
-                  <span className="text-[var(--muted-strong)]">/ {formatCreditsAmount(pricingSummary.perOutputCredits)} credits</span>
-                </span>
+              {pricingSummary ? <dl className="admin-job-costs">
+                <div><dt className="admin-job-detail-label">Estimated total</dt><dd>{formatUsdAmount(pricingSummary.totalUsd) ?? "n/a"}<span>{formatCreditsAmount(pricingSummary.totalCredits)} credits</span></dd></div>
+                <div><dt className="admin-job-detail-label">Per output</dt><dd>{formatUsdAmount(pricingSummary.perOutputUsd) ?? "n/a"}<span>{formatCreditsAmount(pricingSummary.perOutputCredits)} credits</span></dd></div>
+              </dl> : null}
+              <div className="flex flex-wrap items-center gap-3">
+                {firstOutputId != null ? <AdminButton size="compact" onClick={() => setLightboxAssetId(firstOutputId)}>{lightboxAssetIds.length > 1 ? "Open first output" : "Open output"}</AdminButton> : null}
+                <MediaBatchActions batchId={batch.batch_id} canCancelQueued={batch.queued_count > 0 && (batch.status === "queued" || batch.status === "processing")} />
               </div>
-              <div className="grid gap-1">
-                <span className="admin-label-muted">Outputs</span>
-                <span className="text-[var(--foreground)]">{pricingSummary.outputCount ?? batch.requested_outputs}</span>
-              </div>
-            </SurfaceInset>
-          ) : null}
-          <div className="flex flex-wrap gap-3 pt-2">
-            {jobs.map((job) => {
-              const asset = batchAssetForJob(job, assets);
-              const childPreview = previewThumbUrl(asset);
-              const canOpenLightbox = Boolean(asset && lightboxVisual(asset));
-              return (
-                <button
-                  key={`${job.job_id}-inline-preview`}
-                  type="button"
-                  onClick={() => {
-                    if (asset?.asset_id != null) {
-                      setLightboxAssetId(asset.asset_id);
-                    }
-                  }}
-                  disabled={!canOpenLightbox}
-                  className={cn(
-                    "surface-preview-frame overflow-hidden transition",
-                    canOpenLightbox ? "hover:border-[var(--surface-border)] hover:bg-[color:var(--surface-muted)]" : "cursor-default opacity-80",
-                  )}
-                  title={canOpenLightbox ? `Open output ${job.batch_index ?? 1}` : `Output ${job.batch_index ?? 1}`}
-                >
-                  {childPreview ? (
-                    <img
-                      src={childPreview}
-                      alt={`Output ${job.batch_index ?? 1}`}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-[84px] w-[84px] object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-[84px] w-[84px] items-center justify-center px-2 text-center text-[0.62rem] font-medium uppercase tracking-[0.12em] text-[var(--muted-strong)]">
-                      Output {job.batch_index ?? 1}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {jobs.some((job) => Boolean(job.error)) ? (
-            <div className="mt-4 grid gap-3">
-              {jobs
-                .filter((job) => Boolean(job.error))
-                .map((job) => (
-                  <SurfaceInset key={`${job.job_id}-error`} appearance="admin" className={mutedCardClassName}>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="text-sm text-[var(--foreground)]">Output {job.batch_index ?? 1}</div>
-                      <div className="text-xs uppercase tracking-[0.12em] text-[var(--muted-strong)]">
-                        {formatDateTime(job.updated_at)}
-                      </div>
-                    </div>
-                    <CalloutPanel appearance="admin" tone="danger" className="mt-3 px-3 py-2 text-sm text-[var(--danger)]">
-                      {job.error}
-                    </CalloutPanel>
-                  </SurfaceInset>
-                ))}
             </div>
-          ) : null}
+          </div>
+          {jobs.some((job) => Boolean(job.error)) ? <div className="admin-job-errors">
+            {jobs.filter((job) => Boolean(job.error)).map((job) => <CalloutPanel key={job.job_id} appearance="admin" tone="danger" className="px-3 py-3 text-sm">
+              <h4 className="font-medium">Output {(job.batch_index ?? jobs.indexOf(job)) + 1} failed</h4>
+              <p className="mt-1 whitespace-pre-wrap break-words">{job.error}</p>
+              {job.updated_at ? <p className="mt-2 text-xs text-[var(--muted-strong)]">{formatDateTime(job.updated_at)}</p> : null}
+            </CalloutPanel>)}
+          </div> : null}
+          <details className="admin-job-run-details">
+            <summary>Run details<ChevronDown className="size-3.5" aria-hidden="true" /></summary>
+            <dl className="admin-job-run-properties">
+              <div><dt>Batch</dt><dd>{batch.batch_id}</dd></div>
+              <div><dt>Model</dt><dd>{batch.model_key || "Unknown model"}</dd></div>
+              <div><dt>Created</dt><dd>{formatDateTime(batch.created_at)}</dd></div>
+              <div><dt>Progress</dt><dd>{batch.queued_count} queued · {batch.running_count} processing · {batch.failed_count} failed</dd></div>
+              <div><dt>Requested outputs</dt><dd>{batch.requested_outputs}</dd></div>
+            </dl>
+            {pricingSummary ? <p className="admin-data-meta">Saved estimates may differ from the final provider charge.</p> : null}
+          </details>
         </div>
       </details>
 

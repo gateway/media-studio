@@ -44,7 +44,7 @@ export function MediaBatchActions({
   return (
     <>
       {notice ? <AdminActionNotice tone={notice.tone} text={notice.text} /> : null}
-      <AdminButton onClick={() => void cancelQueued()} disabled={submitting} variant="danger">
+      <AdminButton onClick={() => void cancelQueued()} disabled={submitting} variant="danger" size="compact">
         {submitting ? "Cancelling…" : "Cancel Queued"}
       </AdminButton>
     </>

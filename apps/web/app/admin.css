@@ -219,3 +219,82 @@
   .admin-theme-root .admin-disclosure-compact > summary p { margin: 6px 0; }
   .admin-theme-root .admin-data-body { padding: 16px; }
 }
+
+/* Jobs: quiet records with output-led expansion, using shared admin tokens. */
+.admin-theme-root .admin-jobs-runner { border-block: 1px solid var(--border-soft); }
+.admin-theme-root .admin-jobs-runner > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; list-style: none; cursor: pointer; font-size: 12px; color: var(--muted-strong); }
+.admin-theme-root .admin-jobs-runner > summary::-webkit-details-marker, .admin-theme-root .admin-job-run-details > summary::-webkit-details-marker { display: none; }
+.admin-theme-root .admin-jobs-runner > summary:focus-visible, .admin-theme-root .admin-job-run-details > summary:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 4px; }
+.admin-theme-root .admin-jobs-runner .admin-runtime-summary { gap: 16px; }
+.admin-theme-root .admin-jobs-runner-title { color: var(--foreground); font-weight: 600; font-size: 14px; }
+.admin-theme-root .admin-jobs-runner-action { display: inline-flex; align-items: center; gap: 8px; }
+.admin-theme-root .admin-jobs-runner[open] > summary .admin-jobs-runner-action { color: var(--accent-strong); }
+.admin-theme-root .admin-jobs-runner[open] > summary svg, .admin-theme-root .admin-job-row[open] > summary .admin-job-disclosure-action svg, .admin-theme-root .admin-job-run-details[open] > summary svg { transform: rotate(180deg); }
+.admin-theme-root .admin-jobs-list-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 16px; }
+.admin-theme-root .admin-jobs-list .admin-jobs-columns { grid-template-columns: minmax(0,2fr) minmax(0,1fr) 110px 65px 75px 108px; gap: 14px; padding: 16px 12px; }
+.admin-theme-root .admin-jobs-list .admin-data-heading { padding-block: 0 12px; }
+.admin-theme-root .admin-jobs-list .admin-job-row { border-width: 1px 0 0; }
+.admin-theme-root .admin-jobs-list .admin-job-row[open] { border-color: transparent; border-radius: var(--radius-control); background: var(--admin-panel); margin-bottom: 10px; }
+.admin-theme-root .admin-jobs-list .admin-job-thumbnail { width: 44px; height: 44px; border-radius: 6px; }
+.admin-theme-root .admin-jobs-list .admin-job-identity h3 { font-size: 13px; }
+.admin-theme-root .admin-job-disclosure-action { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: 12px; white-space: nowrap; }
+.admin-theme-root .admin-job-row[open] > summary .admin-job-disclosure-action { color: var(--accent-strong); }
+.admin-theme-root .admin-job-output-count, .admin-theme-root .admin-job-estimate { font-variant-numeric: tabular-nums; font-size: 12px; }
+.admin-theme-root .admin-job-mobile-label { display: none; }
+.admin-theme-root .admin-job-expanded { display: grid; grid-template-columns: minmax(0,1.6fr) minmax(0,1fr); gap: 24px; align-items: start; }
+.admin-theme-root .admin-job-output-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px 16px; min-width: 0; }
+.admin-theme-root .admin-job-output-grid > :only-child { grid-column: 1 / -1; }
+.admin-theme-root .admin-job-output-preview { display: block; position: relative; width: 100%; aspect-ratio: 16 / 9; padding: 0; cursor: pointer; transition: border-color 150ms ease; }
+.admin-theme-root .admin-job-output-preview:not(:disabled):hover { border-color: var(--accent-border); }
+.admin-theme-root .admin-job-output-preview:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 3px; }
+.admin-theme-root .admin-job-output-preview:disabled { cursor: default; }
+.admin-theme-root .admin-job-output-preview img { width: 100%; height: 100%; object-fit: contain; }
+.admin-theme-root .admin-job-output-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 140px; height: 100%; font-size: 12px; color: var(--muted-strong); }
+.admin-theme-root .admin-job-video-mark { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); display: grid; place-items: center; padding: 10px; border-radius: var(--radius-chip); color: var(--foreground); background: var(--admin-canvas); }
+.admin-theme-root .admin-job-output-caption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-top: 8px; color: var(--muted-strong); font-size: 11px; }
+.admin-theme-root .admin-job-output-caption > :first-child { color: var(--foreground); }
+.admin-theme-root .admin-job-context { display: grid; gap: 20px; min-width: 0; }
+.admin-theme-root .admin-job-detail-label { color: var(--muted-strong); font-size: 12px; font-weight: 400; margin-bottom: 6px; }
+.admin-theme-root .admin-job-prompt { font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.admin-theme-root .admin-job-costs { display: flex; flex-wrap: wrap; gap: 16px 32px; font-size: 13px; }
+.admin-theme-root .admin-job-costs dd > span { display: block; margin-top: 4px; color: var(--muted-strong); font-size: 12px; }
+.admin-theme-root .admin-job-errors { display: grid; gap: 12px; margin-top: 20px; }
+.admin-theme-root .admin-job-run-details { border-top: 1px solid var(--border-soft); margin-top: 20px; padding-top: 14px; }
+.admin-theme-root .admin-job-run-details > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; list-style: none; color: var(--muted-strong); font-size: 12px; }
+.admin-theme-root .admin-job-run-properties { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px 24px; margin-top: 16px; font-size: 12px; }
+.admin-theme-root .admin-job-run-properties dt { margin-bottom: 4px; color: var(--muted-strong); }
+.admin-theme-root .admin-job-run-properties dd { overflow-wrap: anywhere; }
+.admin-theme-root .admin-jobs-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid var(--border-soft); padding-top: 16px; margin-top: 12px; }
+@media (max-width: 1100px) {
+  .admin-theme-root .admin-jobs-list .admin-jobs-columns { grid-template-columns: minmax(0,2fr) minmax(0,1fr) 110px 60px 70px; }
+  .admin-theme-root .admin-jobs-list .admin-data-heading > :last-child, .admin-theme-root .admin-job-disclosure-action { display: none; }
+}
+@media (max-width: 900px) {
+  .admin-theme-root .admin-job-expanded { grid-template-columns: minmax(0,1fr); }
+  .admin-theme-root .admin-jobs-runner > summary { flex-wrap: wrap; gap: 12px; }
+}
+@media (max-width: 700px) {
+  .admin-theme-root .admin-jobs-list .admin-jobs-columns { grid-template-columns: minmax(0,1fr) auto; gap: 8px 12px; padding: 14px 8px; }
+  .admin-theme-root .admin-jobs-list .admin-job-identity { grid-column: 1 / -1; }
+  .admin-theme-root .admin-jobs-list .admin-status-badge { grid-column: 2; grid-row: 2; }
+  .admin-theme-root .admin-jobs-list .admin-data-model { grid-column: 1; grid-row: 2; font-size: 12px; }
+  .admin-theme-root .admin-job-mobile-label { display: inline; color: var(--muted-strong); }
+  .admin-theme-root .admin-job-output-count { grid-column: 1; }
+  .admin-theme-root .admin-job-estimate { text-align: right; }
+  .admin-theme-root .admin-job-output-grid, .admin-theme-root .admin-job-run-properties { grid-template-columns: minmax(0,1fr); }
+  .admin-theme-root .admin-jobs-runner .admin-runtime-summary { gap: 8px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-theme-root .admin-job-output-preview { transition: none; }
+}
+
+@media (pointer: coarse) {
+  .admin-theme-root .admin-job-run-details > summary { min-height: 44px; }
+}
+
+.admin-theme-root .admin-job-mobile-chevron { display: none; flex-shrink: 0; margin-left: auto; }
+.admin-theme-root .admin-job-row[open] > summary .admin-job-mobile-chevron { transform: rotate(180deg); color: var(--accent-strong); }
+.admin-theme-root .admin-job-row[open] > summary { border-radius: var(--radius-control) var(--radius-control) 0 0; }
+@media (max-width: 1100px) {
+  .admin-theme-root .admin-job-mobile-chevron { display: block; }
+}
