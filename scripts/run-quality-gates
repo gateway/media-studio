@@ -18,6 +18,7 @@ if [[ ! -x "$ROOT/node_modules/.bin/vitest" ]]; then
   )
 fi
 
+(cd "$ROOT" && npm run lint:full)
 node --test "$ROOT/scripts/check_admin_theme.test.mjs"
 node "$ROOT/scripts/check_admin_theme.mjs"
 

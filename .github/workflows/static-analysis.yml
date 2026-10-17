@@ -1,0 +1,40 @@
+name: Static analysis
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  javascript-typescript-python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Set analysis evidence directory
+        run: echo "STATIC_ANALYSIS_OUTPUT=$RUNNER_TEMP/static-analysis" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: scripts/static-analysis/requirements.txt
+      - run: npm ci --ignore-scripts
+      - run: python -m venv .venv/static-analysis
+      - run: .venv/static-analysis/bin/python -m pip install -r scripts/static-analysis/requirements.txt
+      - run: npm run test:static-analysis
+      - run: npm run test:static-analysis:python
+      - run: npm run test:static-analysis:css
+      - run: npm run test:static-analysis:full
+      - run: npm run test:focused-harness
+      - run: node --test scripts/studio_process_identification.test.mjs
+      - run: npm run lint:full
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: javascript-typescript-python-analysis
+          path: ${{ runner.temp }}/static-analysis
+          if-no-files-found: error

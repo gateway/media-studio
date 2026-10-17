@@ -108,7 +108,7 @@ export function inspectCss(file, source, adminOwned = false) {
   for (const [, selector, declarations] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const isAdmin = /\.admin-[\w-]+/.test(selector);
     if (!isAdmin && file !== TOKENS && !adminOwned) continue;
-    if (file !== TOKENS && /\.admin-(?:button|input|textarea|form-control|toggle|select|tab)(?:[\w-]*)(?=[\s.:#\[>,+~]|$)/.test(selector)) {
+    if (file !== TOKENS && /\.admin-(?:button|input|textarea|form-control|toggle|select|tab)(?:[\w-]*)(?=[\s.:#[>,+~]|$)/.test(selector)) {
       findings.push({ file, rule: "control-owner", detail: selector.trim().replace(/\s+/g, " ") });
     }
     const body = file === TOKENS && selector.trim() === ".admin-theme-root"

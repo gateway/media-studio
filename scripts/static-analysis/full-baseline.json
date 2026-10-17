@@ -1,0 +1,5763 @@
+{
+  "schema": 1,
+  "contract": "16fc75152456b07076888139d6c63652d6cf58b17187aa70ba23033170128f7f",
+  "metadata": {
+    "files": {
+      "package-lock.json": "356718b90355279839153079de492b98ed4016df319e5e826e4454acc620b266",
+      "dependency-cruiser.config.cjs": "c35e33872173427b44dd540685de6e01ba5f545e40e28d208fa749144e765adf",
+      "jscpd.config.json": "0bafba536df0d94f6de1ccf822d7354832b90293545ef622f9a2833c93136c49",
+      "apps/web/tsconfig.json": "9d4f94ee8caca352f8d2bd015b926ed965becb47567ab794675ae2cbcbc947a7",
+      "scripts/static-analysis/full.mjs": "b60af5e85e4b4aa241af57b16571628203157c9046651451aeecd5e32291a215",
+      "scripts/static-analysis/full-scan.mjs": "8173d1cb5f12ddb61cae1a0611db7a75342c863fddd89fd9cb098f3e563837c8",
+      "scripts/static-analysis/full-policy.mjs": "f56e4cd4e8c8d45d12cc32f27090c2693f4c789896919675fcfbffb6343fc107"
+    },
+    "versions": {
+      "dependency-cruiser": "17.4.3",
+      "jscpd": "5.4.1"
+    },
+    "scope": [
+      "apps",
+      "scripts",
+      "ops",
+      "tests",
+      "root source files"
+    ],
+    "exclusions": [
+      "node_modules",
+      ".next",
+      ".git",
+      ".venv",
+      "__pycache__",
+      "data",
+      "build",
+      "dist",
+      "test-results"
+    ],
+    "minTokens": 50,
+    "minLines": 5,
+    "mode": "mild"
+  },
+  "reason": "Integrate tickets07/09: preserve four frontend context-only mappings and four launcher context-only mappings plus the reviewed process clone reduction 53 to19 lines; no new clone debt",
+  "findings": [
+    {
+      "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/pricing.py",
+          "start": 531,
+          "end": 551,
+          "context": "a759fd1d5f6038b6a545e7452534c451fdedef4cc75301f3a89dc843d0c484ca"
+        },
+        {
+          "file": "apps/api/app/graph/pricing.py",
+          "start": 631,
+          "end": 651,
+          "context": "eb88fe8241db8d5cf9991426a544337142f11894693d882d7e9f841b3a1fd174"
+        }
+      ],
+      "tokens": 178,
+      "lines": 21,
+      "format": "python"
+    },
+    {
+      "id": "035fb32ddc250d630b82ee4d8e8153277e7831648ae77bb277a248f5d128299a",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/studio-motion-validation.ts",
+          "start": 14,
+          "end": 23,
+          "context": "e3bd3d5eab23652833f81d58837b992efe3eb49ff7c51c3e558f332065287f18"
+        },
+        {
+          "file": "apps/web/lib/video-metadata.ts",
+          "start": 50,
+          "end": 59,
+          "context": "709e68dd693ec052e7ecfd843c4a42538ef6e3a4b2f708003ded195459d2efd2"
+        }
+      ],
+      "tokens": 69,
+      "lines": 10,
+      "format": "typescript"
+    },
+    {
+      "id": "03caaebf02f4502522d453f69bfe87c6e7a8388b9e13874b25d4d5f87f9b47fc",
+      "endpoints": [
+        {
+          "file": "scripts/run_media_assistant_preset_loop_proof.mjs",
+          "start": 424,
+          "end": 432,
+          "context": "81a9ad26000830696db96af66ea2528775c86b6608e908eac8c755d6ac49cb6b"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 415,
+          "end": 423,
+          "context": "5057e09932f28b770fbeed2b989dd1f056f72e09bd1a8e260f339c3faca7dc47"
+        }
+      ],
+      "tokens": 54,
+      "lines": 9,
+      "format": "javascript"
+    },
+    {
+      "id": "053ee7b242f08537df4d61064572df0e484097d853becc3e1b775f56865b3057",
+      "endpoints": [
+        {
+          "file": "scripts/run_media_assistant_preset_loop_proof.mjs",
+          "start": 186,
+          "end": 199,
+          "context": "19daa0bc55a3881be4c4083bbdc75c5179d16084f06fdcf5f8d13d48180e1170"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 269,
+          "end": 282,
+          "context": "2197e88e9508747512a29dd6bc4241315631aedf7a678463783f7320c71aa7e3"
+        }
+      ],
+      "tokens": 77,
+      "lines": 14,
+      "format": "javascript"
+    },
+    {
+      "id": "0547bdfbdeca8577c2b999b3947ab68d28f01dadff182b7118e744a93b24d75a",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/preset_kernel.py",
+          "start": 28,
+          "end": 36,
+          "context": "5a28ab99be26648e868aaa022a4c19c3f6cf17af5a315edb7f9f8e9bd030f193"
+        },
+        {
+          "file": "apps/api/app/assistant/story_kernel.py",
+          "start": 11,
+          "end": 19,
+          "context": "48c0122cb9ce46190460355d658fe7efbd77cc7525dbc251e00835320c9f8da7"
+        }
+      ],
+      "tokens": 50,
+      "lines": 9,
+      "format": "python"
+    },
+    {
+      "id": "06dcf7db5656c95a1f1c8f403d631f1434cd083bdbfe9130f191bc58a2862cef",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/preset-thumbnail-storage.ts",
+          "start": 72,
+          "end": 77,
+          "context": "56325f799a93f4a9b4c87f6f1fc2681e5f4ac4da2468803387c4def8d192bcb6"
+        },
+        {
+          "file": "apps/web/lib/prompt-recipe-thumbnail-storage.ts",
+          "start": 49,
+          "end": 54,
+          "context": "43d403cbfa7b49a64d8c2d6ebe567f09c524e21328e6d4fc310948e22f279cf1"
+        }
+      ],
+      "tokens": 61,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "09452df40e839b9840bae90a3932f679ecc76a7a5a44ebe7ad9744f73de56fe2",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 192,
+          "end": 207,
+          "context": "82273752e1840bbdb34d14dd0c7c59af384bc421ca54a857d49645e1fd2afcfa"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 239,
+          "end": 254,
+          "context": "bfebf180c74003a2d7d99f92c8bdce018af182c007fbbf31866c9163418b0a3c"
+        }
+      ],
+      "tokens": 139,
+      "lines": 16,
+      "format": "python"
+    },
+    {
+      "id": "0960a14ec524a66e491c0356023b59ce9df69dd16e59412c962dbeb2f95b1675",
+      "endpoints": [
+        {
+          "file": "scripts/backup_db.py",
+          "start": 5,
+          "end": 14,
+          "context": "7ed1611de0e2b204c699cfa7077ca3afbf6159c499ac7f0a6124535106dbc77f"
+        },
+        {
+          "file": "scripts/generate_api_specs.py",
+          "start": 6,
+          "end": 15,
+          "context": "0e8357163b55ceee45c9861c2f87b72d39dbbe390b5031f750e0f3290fa4c902"
+        }
+      ],
+      "tokens": 57,
+      "lines": 10,
+      "format": "python"
+    },
+    {
+      "id": "0af846a72578de3c66e8a321b9e104c157f1c39ede5a23af6e5688841a5ffa2c",
+      "endpoints": [
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 1150,
+          "end": 1176,
+          "context": "844092d55ac5b75a819a9a433e51cf5e18567e2f87d5ea9820bb66b68e1bc32a"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 643,
+          "end": 669,
+          "context": "95db424e77b01efbad136a698c3f8759d6b962efb9f9a96d04764d0e56a9ae19"
+        }
+      ],
+      "tokens": 157,
+      "lines": 27,
+      "format": "python"
+    },
+    {
+      "id": "0bace750410f2b3299e324e0ece0237dc6d2ca29894bb10aa789e129e81f7305",
+      "endpoints": [
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 470,
+          "end": 478,
+          "context": "8bfa83c5511ea89992c224b5105d5bff57b876b679d246222dce0fd97a8d0ee8"
+        },
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 819,
+          "end": 827,
+          "context": "9b9d98ccfa34d9303f23fa5bfd38cb62dbc0af563969dc273192079b20a72cdb"
+        }
+      ],
+      "tokens": 51,
+      "lines": 9,
+      "format": "python"
+    },
+    {
+      "id": "0c9b1596dd7f97e4ee515d15bb6a4c519686fa028d2346ab5491ceb2204985e8",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-gallery-page-effects.ts",
+          "start": 176,
+          "end": 184,
+          "context": "05e2109e3aedae1de2ac0f7e06fe4ad3f80d386c311b6327ab675259521fcd7d"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-gallery-page-effects.ts",
+          "start": 233,
+          "end": 241,
+          "context": "722ac77eb289ec394e173e09c95a4d2342d52a756505e47f61c1d8fbda3e2865"
+        }
+      ],
+      "tokens": 73,
+      "lines": 9,
+      "format": "typescript"
+    },
+    {
+      "id": "0f1a882d6297060cb2a9b9d4c3d9be7845e2b7e27f369f75636972bac2b82303",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 155,
+          "end": 162,
+          "context": "78c5c0ec4979318a22e7e267d4aa8415c04035534d8d68603e6d26e7acdfcbf7"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 378,
+          "end": 385,
+          "context": "734bb9af564d781690e41a12bf1cd498905fcc3f105aa66c04a86fed809034ce"
+        }
+      ],
+      "tokens": 64,
+      "lines": 8,
+      "format": "tsx"
+    },
+    {
+      "id": "1156c87e68e84178b896726b27a2caec97d3adb4e9e7e02a9eecb1e7ffc08e26",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-presets/editor/media-preset-image-slots-panel.tsx",
+          "start": 135,
+          "end": 145,
+          "context": "9cc876998691f11be719f6839c7552a863c76e7597a722d48bdabd467e458d6b"
+        },
+        {
+          "file": "apps/web/components/media-presets/editor/media-preset-text-fields-panel.tsx",
+          "start": 133,
+          "end": 143,
+          "context": "502f67a7e63aea0368bf15d9f6ce0c52a97ef2d873df7631c80472924708a650"
+        }
+      ],
+      "tokens": 52,
+      "lines": 11,
+      "format": "tsx"
+    },
+    {
+      "id": "118607d109813f9329209d219d7577084672a58918be142c52dd5fc26e0d106b",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/preset_ops.py",
+          "start": 14,
+          "end": 24,
+          "context": "fe92f6cdf5bc3a3043e5e236421d349b92c71460e155ea8fc02a55722e11e730"
+        },
+        {
+          "file": "apps/api/app/graph/executors/prompt_ops.py",
+          "start": 125,
+          "end": 135,
+          "context": "3ca902c1b12d4f1cbc5f5a2c004effd44b09ed6c99dc38ccbdc535e89fa8b5c2"
+        }
+      ],
+      "tokens": 60,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "11c1b2a0b64d40aaa991484edc8aabfcc4d49c11baa280336bf716ceb65d39b0",
+      "endpoints": [
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 468,
+          "end": 473,
+          "context": "c13b4cb703cc0a11cb612e22f3cc0153a760eb4f0462640d3851947092fed5f7"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 368,
+          "end": 373,
+          "context": "e41ea5e3df6dda59ea705028f84ab4d05c9acc758222b5a8b32142545edc6130"
+        }
+      ],
+      "tokens": 60,
+      "lines": 6,
+      "format": "python"
+    },
+    {
+      "id": "12487251664c3220c9f2ef15ff68dc7cf2186f770d7a64cc1f1063781ebe27fa",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 380,
+          "end": 388,
+          "context": "5a20ffbe0307ba059fba13df1adfdbe86217314960e85e28618ae0da373b35c8"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 251,
+          "end": 259,
+          "context": "35fdd1f910c1511b4751d3f952a9937b2335c2aee0f565f6999a2cd906baf3be"
+        }
+      ],
+      "tokens": 55,
+      "lines": 9,
+      "format": "tsx"
+    },
+    {
+      "id": "140b9e7847065fcb502a89b77081fcc0a6c14d6e0c6bcc013a6f958ea1a3196a",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-node-media-preview.tsx",
+          "start": 151,
+          "end": 157,
+          "context": "38d1e969db57edca4a53bbc9309323a809e7659c4592222c6ecd4846f9db2317"
+        },
+        {
+          "file": "apps/web/components/graph-studio/graph-node-media-preview.tsx",
+          "start": 179,
+          "end": 185,
+          "context": "fd5c99eadd65becb01caf39b44590a6595dd7bee1f4003f26adb0a7d8b75a099"
+        }
+      ],
+      "tokens": 50,
+      "lines": 7,
+      "format": "tsx"
+    },
+    {
+      "id": "14b84e32a83cb3bc9d959c78004e0043eb5116eff8403306b95f9251bad43e4d",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 491,
+          "end": 499,
+          "context": "68fcc30f0fa9b0dd9d071236f6ac74476af802ce30202ec02caafe82e5d76122"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 167,
+          "end": 175,
+          "context": "89d92cbbe30ed01e585b901e84d94a52813dcbc70f1ea7247ce4c7845ebe22ba"
+        }
+      ],
+      "tokens": 55,
+      "lines": 9,
+      "format": "tsx"
+    },
+    {
+      "id": "14dab5c7fbebcec7b494be2b71e3ef6e99be55f49881d2e83ba3f1d95f023896",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/media-assistant-config/probe/route.ts",
+          "start": 1,
+          "end": 7,
+          "context": "a7d4bd7eaebecc5adb9600fc0bfffe4a3ff9bfc55158804c97fbe4dfb3e1985c"
+        },
+        {
+          "file": "apps/web/app/api/control/prompt-recipe-drafting-config/probe/route.ts",
+          "start": 1,
+          "end": 7,
+          "context": "8ca667144bad7ce98fb9611036d74a317bd145723e6dff2febec0d4d0cc0b6bf"
+        }
+      ],
+      "tokens": 57,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
+      "id": "150b34f7739734299e8b8532b2861aeeab74f2a416835b0486e6ff7abbf20d9f",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/media_save.py",
+          "start": 573,
+          "end": 584,
+          "context": "5a423bbf945b61aaef6ab387d3e958985f15eddc31fa311732ef3281f228a6ff"
+        },
+        {
+          "file": "apps/api/app/graph/executors/media_save.py",
+          "start": 844,
+          "end": 855,
+          "context": "613e442f0181cb56c2309c5c0da1166d2b5e7778f5e520f5729f7bfa00fc1e57"
+        }
+      ],
+      "tokens": 69,
+      "lines": 12,
+      "format": "python"
+    },
+    {
+      "id": "192e16db2cb1d5fecae6cc6fdfb09181b5d2a1b8fc2d18317ac66b2442b38f40",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/utils/graph-edge-contract.ts",
+          "start": 78,
+          "end": 85,
+          "context": "12fa16172bb6b5e07d92629a23cae8521f27389d58c8fda26b92146854176d68"
+        },
+        {
+          "file": "apps/web/components/graph-studio/utils/graph-edge-contract.ts",
+          "start": 41,
+          "end": 48,
+          "context": "de742170b69e1de7c3ab697e2289d1cb4ec4e702e2d2bcf12e34e97a07630afb"
+        }
+      ],
+      "tokens": 73,
+      "lines": 8,
+      "format": "typescript"
+    },
+    {
+      "id": "1958d033fe242fc10c968e7aa9721270da49dedcee20dfdc2bad33c5a57b4b5b",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 223,
+          "end": 236,
+          "context": "34c7dd80921150ab8eab4eb4d5c6924e1afccdb55f0e937e55683a3b471b7cb0"
+        },
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 500,
+          "end": 513,
+          "context": "c19d61f688026b16f75ef6532874c54c86a709ac23621253fd39859c5c29a821"
+        }
+      ],
+      "tokens": 89,
+      "lines": 14,
+      "format": "tsx"
+    },
+    {
+      "id": "19b80caef44954e0c36e1131e965c72d48315310a6ceccf12fa99ca93ab7af86",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-preset-editor-screen.tsx",
+          "start": 242,
+          "end": 252,
+          "context": "d2b5e14b93c4f8ddde8e0a20e49d08211055e5c922be2b96f38e8fe7cdd87402"
+        },
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipes-list.tsx",
+          "start": 123,
+          "end": 132,
+          "context": "ef781bfdf58549cbe4b58168b2207f9baa9a827d8e712f75f10ff90f7221e96e"
+        }
+      ],
+      "tokens": 76,
+      "lines": 11,
+      "format": "tsx"
+    },
+    {
+      "id": "19f596263ad6c6c7e7e39ddaa313957218947260822f709f575ada87aa10adca",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/preset-sharing.ts",
+          "start": 178,
+          "end": 185,
+          "context": "bddbcfd205849686d3ccaf303a0ab477cf0106fcdf17dc676b37ad7d82e39358"
+        },
+        {
+          "file": "apps/web/lib/prompt-recipe-sharing.ts",
+          "start": 165,
+          "end": 171,
+          "context": "4853e7d453f9f0a2b70880b63155d6a0e5f8c1f3d3e4758d8edde6db61bdaa82"
+        }
+      ],
+      "tokens": 54,
+      "lines": 8,
+      "format": "typescript"
+    },
+    {
+      "id": "1a97a68b5c9c620e339c6e13c79e286ad6ec8f7860d71f9cbf5c76ce8170966e",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 407,
+          "end": 418,
+          "context": "527fb0faf43861ce797096ed206806404340fa752bd5bc4ab458d2624673dc58"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 590,
+          "end": 601,
+          "context": "39613a6e0edf2a74e8cd1fda25fc2024852cfcffd04f70eb687e7af5feb97848"
+        }
+      ],
+      "tokens": 85,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
+      "id": "1b177d061f6d6455353c14a1c8db9fdeb20e821a1e3a8b3d16f815241778097e",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/reference_analysis.py",
+          "start": 452,
+          "end": 467,
+          "context": "0621dc832efb86c794590c2a03e622ae44c98f7d6e8d28fb4244be07005a7439"
+        },
+        {
+          "file": "apps/api/app/assistant/reference_analysis.py",
+          "start": 257,
+          "end": 272,
+          "context": "4e6fc4a667a6219f3db4e5c929d8b8736aa0d7a981c175f6ab206d10a4047b7c"
+        }
+      ],
+      "tokens": 93,
+      "lines": 16,
+      "format": "python"
+    },
+    {
+      "id": "1c4ceb0c181fd5fa287573d974063f14d961ea5923912e6ead70c7553e6c8f39",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+          "start": 63,
+          "end": 68,
+          "context": "33605aa6ca2d1531c4e6cca2c78df7e7a4b90e11d56e606a4148c359724032f1"
+        },
+        {
+          "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+          "start": 77,
+          "end": 82,
+          "context": "9b394808b0f8f9163a7378868e0bc9b6225c6417fda216a64b0dd3ec130e080a"
+        }
+      ],
+      "tokens": 53,
+      "lines": 6,
+      "format": "tsx"
+    },
+    {
+      "id": "1c5580a108cb94d461f9893ce562233921999676a4549175ae09db7399372f99",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-editor-screen.tsx",
+          "start": 408,
+          "end": 416,
+          "context": "38cab854873bb935d88f3cbe215dac1a2fa92628df8b6a97839a338aa62185e9"
+        },
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-editor-screen.tsx",
+          "start": 439,
+          "end": 447,
+          "context": "e74987909a105f5ef4c70dba5ccd4590110b1857da98c3f4829a65a2d507f019"
+        }
+      ],
+      "tokens": 75,
+      "lines": 9,
+      "format": "tsx"
+    },
+    {
+      "id": "1e98252e1bdfab924b18fcb78f3e8787b66e7f652a8e414b341f37c87d278323",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
+          "start": 1050,
+          "end": 1060,
+          "context": "468680839e24a7cb3654ece849375154eb0a3ec43dbc8dfe8cf4df82dc10f51f"
+        },
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
+          "start": 1204,
+          "end": 1214,
+          "context": "bdfd1f2bfb09fec4f2b0cf2e834aef87044ea6358120514793cdb152fc46a877"
+        }
+      ],
+      "tokens": 56,
+      "lines": 11,
+      "format": "typescript"
+    },
+    {
+      "id": "1f386c75d75c32d2f955a6f0405b2ad92477ba5e6000ffe15173392824545a76",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/kie_model.py",
+          "start": 200,
+          "end": 214,
+          "context": "60d6dd0cdc37d7fb4e2315a30cc34333b92130c89155204be3936c9aa38de3f9"
+        },
+        {
+          "file": "apps/api/app/graph/executors/kie_model.py",
+          "start": 271,
+          "end": 285,
+          "context": "8c6dd28987ec556361dd8758aa44af68cceedd992db204715c6f9588e6ac7612"
+        }
+      ],
+      "tokens": 145,
+      "lines": 15,
+      "format": "python"
+    },
+    {
+      "id": "1fdddb5ba560311402d4cd64d707e6d16a9538ec0c3fe6aebcbaccdac1756184",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/prompt_ops.py",
+          "start": 462,
+          "end": 468,
+          "context": "4267d580bea39c5c905a0b2aac85989ad25cb044abe5421c8059d6274fb30055"
+        },
+        {
+          "file": "apps/api/app/graph/executors/prompt_ops.py",
+          "start": 477,
+          "end": 483,
+          "context": "b5312d1c670f18fa94e0f7c43d265a26de5533d08aa7d48089d2f8f570166e02"
+        }
+      ],
+      "tokens": 60,
+      "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "21fed5fe5d2eadc9ac7659535881cb905b4db0d098b3caef8dab4f54ad8e1e49",
+      "endpoints": [
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 807,
+          "end": 812,
+          "context": "4a4e83b5c8a6ac615c2a7c412f422f587f854303e900606eccfd24015fc42f1d"
+        },
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 772,
+          "end": 777,
+          "context": "ad10acb819bebcca514b4cb5790f802d2c05c8059ab5497d14e3c78d5b0f90d3"
+        }
+      ],
+      "tokens": 51,
+      "lines": 6,
+      "format": "python"
+    },
+    {
+      "id": "2305d9b56a1ba2a17e0fecd2e996c4cba515d85bf8f55442aaf51a883715fc4a",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-project-workspace.ts",
+          "start": 126,
+          "end": 132,
+          "context": "4de010c5f3b8d39bf3bd4b99601be6fdc468138c601947e6ba58f86d68bfde50"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-project-workspace.ts",
+          "start": 145,
+          "end": 151,
+          "context": "7f5f374f970da2d4d645efa59dc022f4921e4e7b0d756c589e2b2ac7f2c636aa"
+        }
+      ],
+      "tokens": 56,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
+      "id": "230fcff75c685dd3705a74289ae6bc540d3d6d86a1bc01e95f54f57fcb6d59da",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/system_nodes_video.py",
+          "start": 148,
+          "end": 153,
+          "context": "4e48699e0100d4b889bb1fc69fc7cca6c8035e0604162e4a42864bc9c07f95fc"
+        },
+        {
+          "file": "apps/api/app/graph/system_nodes_video.py",
+          "start": 27,
+          "end": 32,
+          "context": "50716888bb32f96716146266cfbda3378fdd44f56f5612c6b0c520b768f6965d"
+        }
+      ],
+      "tokens": 77,
+      "lines": 6,
+      "format": "python"
+    },
+    {
+      "id": "256e0edec94927afbf50a7dc6ebb1ab587c7676fa1e5fafcfd0cbcf4cfdea4dc",
+      "endpoints": [
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 217,
+          "end": 223,
+          "context": "03415349e336d8c578c499eac70992a3399ae55c03c4f0b92ecd15291809e01e"
+        },
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 760,
+          "end": 766,
+          "context": "ecd460d77a2c4bf97eebb515cdc55475e3a496acda9e004de20c4466a70d009f"
+        }
+      ],
+      "tokens": 55,
+      "lines": 7,
+      "format": "css"
+    },
+    {
+      "id": "26babb3b2f4c5f82e5b703e477e6dd6463dbf12f64b7986b2d16a07f3f867e09",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-library-dialogs.tsx",
+          "start": 58,
+          "end": 65,
+          "context": "7c78250331fdf5753cac9a305b43998b8605126e1e8d57c4e07357e42a3968c8"
+        },
+        {
+          "file": "apps/web/components/graph-studio/graph-studio-dialogs.tsx",
+          "start": 92,
+          "end": 99,
+          "context": "3c0e234a211310dab3512ca6ad15bf367a1e0ff71b761d92342363eb43bae389"
+        }
+      ],
+      "tokens": 64,
+      "lines": 8,
+      "format": "tsx"
+    },
+    {
+      "id": "2718ddd84cbc880fe7c693ebe5256a509bb995678b66f104adb6115556dbe5e9",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/video_ops.py",
+          "start": 430,
+          "end": 450,
+          "context": "72d99af6da55271702785bb3d11e7cd9b4ab2ad0540e18e553fc6ebbd9e49023"
+        },
+        {
+          "file": "apps/api/app/graph/executors/video_ops.py",
+          "start": 360,
+          "end": 380,
+          "context": "c3f47b4a9fb19a4159f7bc10998376a1a43c032241780174cafae8d8bc20b195"
+        }
+      ],
+      "tokens": 54,
+      "lines": 21,
+      "format": "python"
+    },
+    {
+      "id": "27cb07c88a9269f4c58aa9730a184677feb5961e3204725b87986989d9ac1729",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-gallery-tile.tsx",
+          "start": 14,
+          "end": 19,
+          "context": "f6c9ad3190b657a338ec73e381b596afc546519409d8a2842e89c6189989e2e6"
+        },
+        {
+          "file": "apps/web/components/studio/studio-gallery.tsx",
+          "start": 20,
+          "end": 25,
+          "context": "00b8e6c2482af5863f355c211d22acd0b33d797ec9039dd385109ce338cab993"
+        }
+      ],
+      "tokens": 58,
+      "lines": 6,
+      "format": "tsx"
+    },
+    {
+      "id": "27d4805ebc26038ccf5de50898bd6c3ece911f9591deabc05f2a05a9fb5f6424",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-node-field.tsx",
+          "start": 461,
+          "end": 469,
+          "context": "4d2194e7b60c5d32ac70b56c3c54267d1f17dfb63b3f9ae8d98a953d28e9bdf7"
+        },
+        {
+          "file": "apps/web/components/graph-studio/graph-node-field.tsx",
+          "start": 169,
+          "end": 177,
+          "context": "bd414e044a6adf892c345406dffd1fc105802ff6645fbc1954b65d49feb40e55"
+        }
+      ],
+      "tokens": 52,
+      "lines": 9,
+      "format": "tsx"
+    },
+    {
+      "id": "282747856c3a18ac75e42736bd05bd72524932bf0e0d3e6fa6d7d6c1a1d896c0",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/prompt-recipe-thumbnail/from-asset/route.ts",
+          "start": 39,
+          "end": 50,
+          "context": "e2b76b71f2ad3a52c531b614d522d5d0be73a15e3d549a94c1f81516cd4abbe8"
+        },
+        {
+          "file": "apps/web/lib/preset-thumbnail-from-asset.ts",
+          "start": 17,
+          "end": 25,
+          "context": "0375eee842eae5546f66624fac4da50c27ab31b8ab18dad552d8ef56af977e8d"
+        }
+      ],
+      "tokens": 50,
+      "lines": 12,
+      "format": "typescript"
+    },
+    {
+      "id": "2927cab0165508d5ad2bdc0c31ffee80f377636772895a07ac139f1f5b8b82e3",
+      "endpoints": [
+        {
+          "file": "scripts/dev_api.mjs",
+          "start": 37,
+          "end": 46,
+          "context": "b7001f9e707a62f6f543f9bc372550cf4d8626eb675b85100fa8e0084e981d9a"
+        },
+        {
+          "file": "scripts/web_app.mjs",
+          "start": 71,
+          "end": 80,
+          "context": "ad3164ad4d690a1ed4c435b7ed11b699fe7fd2381173d1d813c04b68f0bd27ce"
+        }
+      ],
+      "tokens": 54,
+      "lines": 10,
+      "format": "javascript"
+    },
+    {
+      "id": "298d7a7766bc9ccf4fc67e67ddc28cbef7d7a556c7fd9cefb20a31d43b538984",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-composer-submit.ts",
+          "start": 448,
+          "end": 455,
+          "context": "7d31ec84789d873b0cc19d0165bf64ac47c82a13ac4b097807a59f480d156c17"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-polling.ts",
+          "start": 194,
+          "end": 201,
+          "context": "d99de75c49b419197b8771a6da27f55a28e9e1bf440f746613bf5244406f485b"
+        }
+      ],
+      "tokens": 99,
+      "lines": 8,
+      "format": "typescript"
+    },
+    {
+      "id": "29a3b3f96180767c6a9b681ef5103ca6fef22a1329e415cda7487d5ab4c353a1",
+      "endpoints": [
+        {
+          "file": "apps/api/app/store_seed_prompt_recipes.py",
+          "start": 701,
+          "end": 713,
+          "context": "004f79e81113ade10becf3ecf7e19faafc56780004b0ca3a0ab1aea415d895d0"
+        },
+        {
+          "file": "apps/api/app/store_seed_prompt_recipes.py",
+          "start": 825,
+          "end": 837,
+          "context": "efb427dbba53b06cae735d087b40b6b05a9178e64d718cd310417d61d597cb61"
+        }
+      ],
+      "tokens": 56,
+      "lines": 13,
+      "format": "python"
+    },
+    {
+      "id": "29e90821f96dbf6a2b9e11b2efc22ab38ac4baac7f5e2eb510e26141e0d8bbcd",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 458,
+          "end": 465,
+          "context": "e47ef9334ff49f543697bc5d6ea12fcf5ac65bd8a43d46cbd4a474f4c70bcfc6"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 601,
+          "end": 608,
+          "context": "2c7f16c200d1c2a81ea2004fe3268d863485a561df6f4d74c378b13cbf2364f0"
+        }
+      ],
+      "tokens": 59,
+      "lines": 8,
+      "format": "tsx"
+    },
+    {
+      "id": "2aa3a0f7e8fa52ea66d7db5e9a2d683d86d09cbd1ba1467b2efce9469cbcb7f6",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/registry.py",
+          "start": 433,
+          "end": 443,
+          "context": "1b36898c6454c3059600d4943a391c10ba37ba84fa071274480fb580c5054d6a"
+        },
+        {
+          "file": "apps/api/app/graph/registry.py",
+          "start": 421,
+          "end": 431,
+          "context": "f7ac66f7a4d8905bb7b5b12fdbe2d128f780c538a3dd607d9d43f8d776c810d7"
+        }
+      ],
+      "tokens": 50,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "2b2c469dc9c6530c11fd8441c79efb46e4784f5061ecc732d475339a191ecdfe",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/preset_ops.py",
+          "start": 116,
+          "end": 127,
+          "context": "482fdc4702d7c9a693e2568fcab68a05eb06d2bf20cbd1433247613596db30fb"
+        },
+        {
+          "file": "apps/api/app/graph/pricing.py",
+          "start": 659,
+          "end": 670,
+          "context": "7a6127e0ba4bd0c1e762e254d375da64800e69e73ee844e78440d47d5477a28b"
+        }
+      ],
+      "tokens": 128,
+      "lines": 12,
+      "format": "python"
+    },
+    {
+      "id": "2b75334ff1408913fe85b50a49d3c001083d6b46c4b8f80c5c6dab5937c0c086",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1993,
+          "end": 1998,
+          "context": "f3c6630fecacbe6fec4dbcabe89d0b5f09c22e5e6ad24d1276b7f0561d2486ee"
+        },
+        {
+          "file": "apps/web/components/studio/studio-composer.tsx",
+          "start": 137,
+          "end": 141,
+          "context": "13ae1fcca54a66ff330b4dd05bbb06937167b0f78db428897758782d52c8bacd"
+        }
+      ],
+      "tokens": 54,
+      "lines": 6,
+      "format": "tsx"
+    },
+    {
+      "id": "2b9ab0f79c2c9e4504a0c163038391f1031fcd47eb38438804075ce911699633",
+      "endpoints": [
+        {
+          "file": "apps/web/app/graph-studio/styles/assistant.css",
+          "start": 255,
+          "end": 262,
+          "context": "6d00ea055770bfd34462797ddf8ea5a8b710856488fa9a7c5a0b601bb6bc7e1f"
+        },
+        {
+          "file": "apps/web/app/graph-studio/styles/assistant.css",
+          "start": 961,
+          "end": 968,
+          "context": "af1d91ef4527385f7176ffbfc70c223a7ebb36c50c0ce7b7b67bc3774b0cb12f"
+        }
+      ],
+      "tokens": 75,
+      "lines": 8,
+      "format": "css"
+    },
+    {
+      "id": "2c075f3f360f934952e162c3218232519ccd4a3039afaf3f10f4e64a6f7f32f2",
+      "endpoints": [
+        {
+          "file": "scripts/assistant_conversation_probe.mjs",
+          "start": 289,
+          "end": 299,
+          "context": "2622e3ece4eeac3e2c0c323a84cd5124817612a5c6d89eaceb8f3619139803c1"
+        },
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 53,
+          "end": 63,
+          "context": "9c694e1746f98f659d6ac34c97f28c2ecdc336f120b7c1193a8b561e91736935"
+        }
+      ],
+      "tokens": 51,
+      "lines": 11,
+      "format": "javascript"
+    },
+    {
+      "id": "2c1b80e36dc7079e285a2cf14965dde8d86ffc5e7350289b1aff62987835134d",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-asset-inspector.tsx",
+          "start": 275,
+          "end": 286,
+          "context": "318a71d47db4d803ba203cb15011c55e3d38a773132dea6e6cbc75ddef392b13"
+        },
+        {
+          "file": "apps/web/components/studio/studio-asset-inspector.tsx",
+          "start": 317,
+          "end": 328,
+          "context": "379a1a4375faa62437dd82a19778c50c25a20fb50936879a58304e9c47bd61d5"
+        }
+      ],
+      "tokens": 54,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
+      "id": "2c868e0de5ca3babef48ad380108257d9221673db342202ed04fd623f9579df7",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-studio.tsx",
+          "start": 1383,
+          "end": 1390,
+          "context": "3fd75af5d61c05a967a84f46e197ddf791e863e96ef1bac648f344863c8d7e7b"
+        },
+        {
+          "file": "apps/web/components/graph-studio/graph-studio.tsx",
+          "start": 1328,
+          "end": 1335,
+          "context": "84486462fd065c3b6370db73f4cd9ed4c1e2effe2411be54ff1a7941579dff53"
+        }
+      ],
+      "tokens": 51,
+      "lines": 8,
+      "format": "tsx"
+    },
+    {
+      "id": "2ca17d56a76df67af2ddd3a8a205c0819f8f399fa988a1db219fc26cc2e91a6d",
+      "endpoints": [
+        {
+          "file": "apps/api/app/main.py",
+          "start": 893,
+          "end": 915,
+          "context": "04d37af6e6e359fb55104e6745b85bd4cbf60b9ee34e0a012c579215019feafe"
+        },
+        {
+          "file": "apps/api/app/main.py",
+          "start": 854,
+          "end": 876,
+          "context": "70cd9dce573fdf1c9e8cdff9d72e43b3685816d65fe9b2fbb3f9014b4c59ee1a"
+        }
+      ],
+      "tokens": 142,
+      "lines": 23,
+      "format": "python"
+    },
+    {
+      "id": "2cc8327a7607c6814c13997e8917cda1b1c22d89dc5d42f53ca59b553e2a25b4",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/preset-thumbnails/[...path]/route.ts",
+          "start": 15,
+          "end": 31,
+          "context": "00c69c57a20012b0bf03bc9b50b09f5c0ce6cfc0cda9a2c07432ab542bd78692"
+        },
+        {
+          "file": "apps/web/app/api/prompt-recipe-thumbnails/[...path]/route.ts",
+          "start": 15,
+          "end": 31,
+          "context": "c0913d690dd20083e1f1a70532858fcc306c38ee5d3d06e505fc4cd97c7215ae"
+        }
+      ],
+      "tokens": 64,
+      "lines": 17,
+      "format": "typescript"
+    },
+    {
+      "id": "2d7dd02fc0599ffbf791735efa7787f51e504cf5329b85b7930f71937e299559",
+      "endpoints": [
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 474,
+          "end": 479,
+          "context": "4834c5a4e2673908a3aa2f3295d4c7db6167df84b7c53010b52fdc3582f3257e"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 419,
+          "end": 424,
+          "context": "932a8bf7411cd1c6184f632f2e32a62c2a4cc823c87c5afa3ce3f9ff24a67bda"
+        }
+      ],
+      "tokens": 93,
+      "lines": 6,
+      "format": "python"
+    },
+    {
+      "id": "2dec8c798085a6d52ad7dc80c32210870db14978cec1ff60b27acbafa4507a49",
+      "endpoints": [
+        {
+          "file": "apps/api/app/service_reference_media.py",
+          "start": 343,
+          "end": 352,
+          "context": "8b4f88c0a80a6367c2d645f28aec9c58ffa1fd5018f441cbbc8064ba56a6ebf4"
+        },
+        {
+          "file": "apps/api/app/service_reference_media.py",
+          "start": 271,
+          "end": 280,
+          "context": "e4bb64a4ba559b3dea70886c8b674411b945851223f8de348336f8a0d9259e94"
+        }
+      ],
+      "tokens": 84,
+      "lines": 10,
+      "format": "python"
+    },
+    {
+      "id": "2e07d7091ff8476eba070615a9946653a17bfd231976dfd4ed9737174610cf78",
+      "endpoints": [
+        {
+          "file": "scripts/audit_storyboard_trilogy.py",
+          "start": 62,
+          "end": 67,
+          "context": "85960ebb361dad59bfe1cd9ec243764969a9df1fe11f6a06b540c8747a22d0bc"
+        },
+        {
+          "file": "scripts/audit_storyboard_trilogy.py",
+          "start": 55,
+          "end": 60,
+          "context": "917794182160ae9bd815f1fa8a9222359a819ad52297932fef999b91588fe7c9"
+        }
+      ],
+      "tokens": 80,
+      "lines": 6,
+      "format": "python"
+    },
+    {
+      "id": "2fbfc15ad482814c441cd5bb64efc377bd0cf6e2527a8dfbe6fdb19162f19642",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/types.ts",
+          "start": 328,
+          "end": 336,
+          "context": "87a73b147a6f7de79f145fde0a597d22799bbac81bc2eeb6b653da091d0c5361"
+        },
+        {
+          "file": "apps/web/lib/assistant-review-drafts.ts",
+          "start": 16,
+          "end": 24,
+          "context": "26f31965627cf9dc29f25de72a370bc8631d4260c8cdade0004664a6d7918abf"
+        }
+      ],
+      "tokens": 59,
+      "lines": 9,
+      "format": "typescript"
+    },
+    {
+      "id": "30456ab5b28c3b5adb0163b97ee381c27184170d6d109ff09cd3d5257401cc7a",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 441,
+          "end": 451,
+          "context": "b68af08bf1e8ef763a1cb2cdc123b3d98a452c5ca96531c13c14b42d3d887baa"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 386,
+          "end": 396,
+          "context": "ce07c2c4456c228d92e5f4bf4442a473f07cf8b008fac911177e7ca7a92dc77a"
+        }
+      ],
+      "tokens": 117,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "342f7917a6c2e19932226853b22f118ab901696f3e23f7787c74d36cd9fe0ea5",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-markdown-note.tsx",
+          "start": 154,
+          "end": 163,
+          "context": "0f4e33bd440815338e83b920b8f0f56b12df41a0457c224f8e31d3978eda440a"
+        },
+        {
+          "file": "apps/web/components/graph-studio/graph-node-field.tsx",
+          "start": 409,
+          "end": 418,
+          "context": "6c1af916d173dc4417d429ebec46ba6154281609a22c030da2b06c19b49aee19"
+        }
+      ],
+      "tokens": 85,
+      "lines": 10,
+      "format": "tsx"
+    },
+    {
+      "id": "34c17f8dfc7794b4e02370a227ee60327af7d03ef8caf75ee95783974aa08885",
+      "endpoints": [
+        {
+          "file": "apps/web/app/graph-studio/styles/assistant.css",
+          "start": 102,
+          "end": 109,
+          "context": "4244bccaaad09d4bb12da7d3ee3aabaa787a36e5227658dfe7379d2f2848e470"
+        },
+        {
+          "file": "apps/web/app/graph-studio/styles/assistant.css",
+          "start": 260,
+          "end": 267,
+          "context": "c9f9e6d9aca7f84dac17b14898e62b28a00f04d56a4d2a576d3da6a43cd20112"
+        }
+      ],
+      "tokens": 67,
+      "lines": 8,
+      "format": "css"
+    },
+    {
+      "id": "35ae73c0a41b667ee0253855bfbe050b93291ccdb2e247b6fe9aaaf8e24095bc",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/studio-gallery.ts",
+          "start": 122,
+          "end": 129,
+          "context": "dc399e130b8763f97c035690b3cbb604051e33ef228a5e2db734eca871e7cb32"
+        },
+        {
+          "file": "apps/web/lib/studio-gallery.ts",
+          "start": 109,
+          "end": 116,
+          "context": "f554844707efc7af51bdf73a186f2ad0f7b22cc0940c469faf2bef2c5901c35a"
+        }
+      ],
+      "tokens": 61,
+      "lines": 8,
+      "format": "typescript"
+    },
+    {
+      "id": "361cd22c9e07aee9a390c71793d6513c0f4d76d4c5f1591793e75687be5d7041",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/system_nodes_audio.py",
+          "start": 24,
+          "end": 33,
+          "context": "8f865bb334b68d56aa048296d38f028ee2c8aff5b0d947712b3eef47938e1bf5"
+        },
+        {
+          "file": "apps/api/app/graph/system_nodes_video.py",
+          "start": 155,
+          "end": 164,
+          "context": "e7302c8b679a3707ed7281c59d02563289f346fe2f2dcd7936b2cab4a9b7dbf9"
+        }
+      ],
+      "tokens": 53,
+      "lines": 10,
+      "format": "python"
+    },
+    {
+      "id": "36bd84ad49d6d7898f8a54a68162546d1a87d24aac3d221575d160e1c8427f35",
+      "endpoints": [
+        {
+          "file": "apps/api/app/service_provider_config.py",
+          "start": 236,
+          "end": 242,
+          "context": "52dc2c7fd5c16e82b82d9d65a859f0d88b19c8bf6293dbc4e3c2fb961fbd2fcc"
+        },
+        {
+          "file": "apps/api/app/service_provider_config.py",
+          "start": 199,
+          "end": 205,
+          "context": "637c90e8b46dbc353cf80fa2b6fc98b81f8f0ed38c844add54ea78e130e7b689"
+        }
+      ],
+      "tokens": 81,
+      "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "370bc04e7b21f2fc0c35b89911159e5910035a1956e088a2ccde53aeb9f1d0ea",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/kernel.py",
+          "start": 1301,
+          "end": 1315,
+          "context": "0cc981169840803fc411c6ba67fb18e8cfb5c343b49c8f3d5dab1159f8d27d00"
+        },
+        {
+          "file": "apps/api/app/assistant/kernel.py",
+          "start": 1431,
+          "end": 1445,
+          "context": "7a813a3edc655c37e6840ef17b0823e5e8add3a9cff946ff17bff6d2e49704b0"
+        }
+      ],
+      "tokens": 58,
+      "lines": 15,
+      "format": "python"
+    },
+    {
+      "id": "372a473acc0f34dcf3949b5ec101146ed10f0cfdb3766289465d9a08d63fb72b",
+      "endpoints": [
+        {
+          "file": "apps/api/app/codex_local_provider.py",
+          "start": 1335,
+          "end": 1346,
+          "context": "d60ea381918de0b43dd43c8edbfb1411987a6627b0ba79caf0950b01818c4d78"
+        },
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 708,
+          "end": 719,
+          "context": "67720798277abf9b0351d5eefdd2b8790be93d8fee82d4fd1a6e6c8aa20d23a9"
+        }
+      ],
+      "tokens": 90,
+      "lines": 12,
+      "format": "python"
+    },
+    {
+      "id": "3739c2cc6dbcc071d0c0b67a12b3bba14b6e157b4724f6cc3269436496c12f90",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 314,
+          "end": 327,
+          "context": "8a47b12b61a528a670dd8d5b6379f1c2f8c50301f5b02841fbf3a553428714cd"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 357,
+          "end": 370,
+          "context": "dbd764600a81443a80b3798657d4d0bf717a3d7d6b13629067e5741c7504ce66"
+        }
+      ],
+      "tokens": 107,
+      "lines": 14,
+      "format": "typescript"
+    },
+    {
+      "id": "376b6fe19279a706739aac250292de0d858dfc9bae7120b4fe9526ea02226f43",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-preset-editor-screen.tsx",
+          "start": 204,
+          "end": 209,
+          "context": "10fb61d23fb24d66f1e1977fa0aa052d493ba6d342c374ce07a1d9e0c38943c6"
+        },
+        {
+          "file": "apps/web/components/media-prompts-console.tsx",
+          "start": 137,
+          "end": 142,
+          "context": "ec3b9bad820ffea1ab0eaafe9c59a6585a3f54a6b32844214884eef72b6830d7"
+        }
+      ],
+      "tokens": 53,
+      "lines": 6,
+      "format": "tsx"
+    },
+    {
+      "id": "37edebd3347284dc20a60a1c35b5f59eea76a7ba744409b196fdeefe3ff1bc26",
+      "endpoints": [
+        {
+          "file": "scripts/run_media_assistant_preset_loop_proof.mjs",
+          "start": 55,
+          "end": 61,
+          "context": "f85d782748e2defd73219dc19a890b86c48fb5991bfbc97c8acbd948aecabe0a"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 61,
+          "end": 70,
+          "context": "ff4039675db38efa33935fddae923db4249c1d88967060ef6fa4865ad8458834"
+        }
+      ],
+      "tokens": 98,
+      "lines": 7,
+      "format": "javascript"
+    },
+    {
+      "id": "37fae257d112c1cae32644a676954d3c7b448b323dfd6a7f46b66bbdec36b4ed",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-attachments.ts",
+          "start": 239,
+          "end": 251,
+          "context": "59b9d7ca736b9d79fffe2dfdbba23b70306c2e46cd14fa769db3ebea09e5cdde"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-attachments.ts",
+          "start": 197,
+          "end": 209,
+          "context": "c13353f859e0d9f8ea4927ad08857ecd53eec1107cd6d049dca4245f0632279a"
+        }
+      ],
+      "tokens": 79,
+      "lines": 13,
+      "format": "typescript"
+    },
+    {
+      "id": "38851ae307ee317f04698a8050a7146b162a862e09a5703f9fa9b72fcdc07def",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 301,
+          "end": 312,
+          "context": "a34741e9f427bc28cd8cef2031eef3117127909eb619136b85efaaa1fc39b653"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 66,
+          "end": 77,
+          "context": "ea2bd196c4e3ff203e5c913d5ead37d664a007e36f5e516e16f981e4bc46d61d"
+        }
+      ],
+      "tokens": 83,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
+      "id": "389ed264f8f4edf6e6d64d8668d124a1110b005a47804e37952b4b369656bdb7",
+      "endpoints": [
+        {
+          "file": "scripts/check_preset_loop_ready.mjs",
+          "start": 27,
+          "end": 35,
+          "context": "545ea256aa6f01786eb1d46969d0b42406f39ef5b1f1b16cd3b4acbe593686a5"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_proof.mjs",
+          "start": 65,
+          "end": 73,
+          "context": "e13a1f391bf829ef584d5d31f34232a3ed4acf1ff57acbbe1d59692a67fffd89"
+        }
+      ],
+      "tokens": 92,
+      "lines": 9,
+      "format": "javascript"
+    },
+    {
+      "id": "398d5d45ef5529552d6131a84e996135abd99b048b8edd0b63557c6b05518eef",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/utils/graph-groups.ts",
+          "start": 70,
+          "end": 75,
+          "context": "69eb883baa5b0c4f11aefd421a4a0fc899739cc23937adb4bdc892ae0ae48b76"
+        },
+        {
+          "file": "apps/web/components/graph-studio/utils/graph-selection.ts",
+          "start": 18,
+          "end": 23,
+          "context": "43db534a701133ccc626d6185e35825e4ef789dca3f47e9c2de4543b2e9b5890"
+        }
+      ],
+      "tokens": 67,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "3a40259670cef553de2ab0bb5b5ed6bdd93cbd190afae9fdf09991ca89e0100d",
+      "endpoints": [
+        {
+          "file": "apps/api/app/main.py",
+          "start": 405,
+          "end": 412,
+          "context": "24c1fd48ccbbc3c52c005e5f8985f2b1510d2c2d4ea5a4b082a90f23ba9f0b12"
+        },
+        {
+          "file": "apps/api/app/main.py",
+          "start": 382,
+          "end": 389,
+          "context": "a694384f6a45e239357ad2be9ee4f2f4016a93308308087a9776d53871d57017"
+        }
+      ],
+      "tokens": 101,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "3a9ae2ffde1eb68c26848eb5da616526be5286f94512ccf2881a23d9fc3e5dec",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 473,
+          "end": 487,
+          "context": "4901908cd0062aeffde728bed043d3450c3eef4fc845a419820085e9c31142d6"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 429,
+          "end": 443,
+          "context": "add1819405af637a782a8c42cb358c68a423418c0d8640be951960469fc535fd"
+        }
+      ],
+      "tokens": 97,
+      "lines": 15,
+      "format": "tsx"
+    },
+    {
+      "id": "3b0816c9a77bba36f4f35b2505573fdc733015f84adfb506c784d02be004c92d",
+      "endpoints": [
+        {
+          "file": "scripts/run_media_assistant_preset_loop_proof.mjs",
+          "start": 76,
+          "end": 88,
+          "context": "ea58f877988036e20336b44f6cdb4994da31d71fc7b02f9855623deab10b93d8"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 69,
+          "end": 81,
+          "context": "234644753207e53814470b94da252ccd7fcdebe9ba3d3bd4f5d6b43879bd4526"
+        }
+      ],
+      "tokens": 86,
+      "lines": 13,
+      "format": "javascript"
+    },
+    {
+      "id": "3b1e39a6edd600546ed61fffe21e92de14a6de1cc8a6a459fc404bfd31454f5d",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/editor/prompt-recipe-variables-panel.tsx",
+          "start": 189,
+          "end": 195,
+          "context": "03a149a4b844fb0d116c9ac03dcf0a669e6f397fc4bf93f4b469a17f46328356"
+        },
+        {
+          "file": "apps/web/components/prompt-recipes/editor/prompt-recipe-variables-panel.tsx",
+          "start": 147,
+          "end": 155,
+          "context": "4914dea504339a604994b47fb011e3d6f6dfd99f8fee9880030b1f8ca3a0736d"
+        }
+      ],
+      "tokens": 58,
+      "lines": 9,
+      "format": "tsx"
+    },
+    {
+      "id": "3c8f1f4c74ee0e2aa7df0a5ecffa8bb2ff97a735b49fb9eeb8a51074e66eb5f4",
+      "endpoints": [
+        {
+          "file": "apps/api/app/service.py",
+          "start": 935,
+          "end": 944,
+          "context": "75d12f4c57eb637af484b74f3faef102753f08cdbfe0ac2962f7a08bccbcba7c"
+        },
+        {
+          "file": "apps/api/app/service.py",
+          "start": 922,
+          "end": 931,
+          "context": "d55b95053459e61080645ff5b5b24cdf41cf4a3eef1ad1417ca76598149091e6"
+        }
+      ],
+      "tokens": 60,
+      "lines": 10,
+      "format": "python"
+    },
+    {
+      "id": "3dbab01130fab1164dcf4d796b0ff358428525a811bba4817e5415c9da7b45ea",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/studio-model-support.ts",
+          "start": 99,
+          "end": 104,
+          "context": "09eb12788ff1be11f974f0e9e2a3191088def77e572a441f70e85ef5f6fc90b5"
+        },
+        {
+          "file": "apps/web/lib/studio-options.ts",
+          "start": 64,
+          "end": 69,
+          "context": "a30bb2ba34288c7971eee6892df9223b8aebdcf8c68f037771e5ae730a11b3b1"
+        }
+      ],
+      "tokens": 82,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "3ee89f8af1227d09d65a6d0bb95a6f28015dc67fa95316e96b12214dc875bd08",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 7,
+          "end": 26,
+          "context": "959730f45a95378e5e1b17013f527d63a29a4505377d2ab061dc4af7a3beea3f"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 6,
+          "end": 25,
+          "context": "04b662502c1c984a75beda1822b79a1d4847bdd628596baac1e5279acebef920"
+        }
+      ],
+      "tokens": 74,
+      "lines": 20,
+      "format": "tsx"
+    },
+    {
+      "id": "41a9defcd89e0b6a5272b07d0eba1790eea54230051d70d80fdc7496f5066bef",
+      "endpoints": [
+        {
+          "file": "apps/api/app/service.py",
+          "start": 288,
+          "end": 293,
+          "context": "2d5a649def353f878b67e1778958b707a769242c85c785f69cbb984bf80a39e3"
+        },
+        {
+          "file": "apps/api/app/service.py",
+          "start": 277,
+          "end": 282,
+          "context": "7ac82adab1c4cfe351c2ca068713f36923c92a6831337f3ac1a90c5d23448cfd"
+        }
+      ],
+      "tokens": 59,
+      "lines": 6,
+      "format": "python"
+    },
+    {
+      "id": "428f91b5bf89dfeba053b6e26f75291cdbe17c2dd3c5636702b97255e09ae2a4",
+      "endpoints": [
+        {
+          "file": "scripts/assistant_conversation_probe.mjs",
+          "start": 628,
+          "end": 640,
+          "context": "9f4782b50732405719e2a86f29eeddbcda2133c5f7813797507cb85b815be382"
+        },
+        {
+          "file": "scripts/smoke_studio_playwright.mjs",
+          "start": 221,
+          "end": 233,
+          "context": "7eb466ff038b9b9b44ff2851c24c49e2c3b31b9f24848281d1b54a8d3ae6fa73"
+        }
+      ],
+      "tokens": 78,
+      "lines": 13,
+      "format": "javascript"
+    },
+    {
+      "id": "43915daa9b9d6f7518a440844c500eb9e00340179b15d706e23628adfc5dfe64",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-editor-screen.tsx",
+          "start": 310,
+          "end": 320,
+          "context": "7a0b97c69885d34565f0b811a7f27d4abeb6e77200448041980cc61b836a5a9a"
+        },
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-editor-screen.tsx",
+          "start": 177,
+          "end": 187,
+          "context": "85b0f784b523a2ac57a9cbad5ce9f5829acd97f9c1e350b75bb6d55a8091cab4"
+        }
+      ],
+      "tokens": 56,
+      "lines": 11,
+      "format": "tsx"
+    },
+    {
+      "id": "43b315bb965de3af74588ba48834cb69d499392ca7015d12913ae7be0f21c87b",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 627,
+          "end": 633,
+          "context": "a1a3a780260e77df46314e81a8db67efb967a703dfe4f2ec4f2da248f59a236f"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 479,
+          "end": 485,
+          "context": "b00fa3c8284b00674cd9262a2181748be1070b06d45ae62639d405ab35d7e796"
+        }
+      ],
+      "tokens": 52,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
+      "id": "44ed9b4174fb1216e92595be6c0595ba52c6f4e4998e6bae9941580e0511ef4c",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/studio-polling.ts",
+          "start": 108,
+          "end": 113,
+          "context": "805bc00c861278700d910e18339966554f32e3994a8866f39e772c183e096f44"
+        },
+        {
+          "file": "apps/web/lib/studio-status.ts",
+          "start": 31,
+          "end": 36,
+          "context": "49932162aaadc0a37f65131161f4469e216c95a53566bb891fc1909f7ad4892c"
+        }
+      ],
+      "tokens": 78,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "4792dacec140205605e34d5d8ce0ed83f99f05f97670f7fba253d02ade24e36d",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/registry.py",
+          "start": 445,
+          "end": 455,
+          "context": "d607c64e50e5c6a8820fd6bd521b668853e659eba2d747a1da7350ab61c8ec18"
+        },
+        {
+          "file": "apps/api/app/graph/registry.py",
+          "start": 421,
+          "end": 431,
+          "context": "f7ac66f7a4d8905bb7b5b12fdbe2d128f780c538a3dd607d9d43f8d776c810d7"
+        }
+      ],
+      "tokens": 50,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "47be4736b62679fa0891e2b67f3b4668e6f1f343d24997454ab3fac55e6a5c94",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/runtime.py",
+          "start": 534,
+          "end": 541,
+          "context": "72b9e07b230276a376ebcfb45a511f9be165130ae3babf472fd287b690ef2e72"
+        },
+        {
+          "file": "apps/api/app/graph/runtime.py",
+          "start": 586,
+          "end": 593,
+          "context": "a4d0e5b4197f98bf7256a58e71e666af7e0709f83b6e074892ce0e10c6ac3207"
+        }
+      ],
+      "tokens": 57,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "4bbf1d9d0b85c44e15abfe216239df7f34c3ac22412cd74957e619808fee3a51",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 418,
+          "end": 425,
+          "context": "0ba6f3f0e22943d4af88930894f35558e4ccbe93402c9a290b212f6b54234ac9"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 601,
+          "end": 608,
+          "context": "2c7f16c200d1c2a81ea2004fe3268d863485a561df6f4d74c378b13cbf2364f0"
+        }
+      ],
+      "tokens": 52,
+      "lines": 8,
+      "format": "tsx"
+    },
+    {
+      "id": "4bf14d32d8aef0958a062cfd4ea26ea72058c2e208e046d1241461ae6e0840a2",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/runtime/route.ts",
+          "start": 219,
+          "end": 224,
+          "context": "835a35a2f930c9be2b6c8bd599e1cebd55272a750de46b900f7c173acc10ac9f"
+        },
+        {
+          "file": "apps/web/app/api/control/runtime/route.ts",
+          "start": 210,
+          "end": 215,
+          "context": "9c53c59c64e108b45e02394c4a61f58d253ea65ca3444f393bf38bd59e7d6056"
+        }
+      ],
+      "tokens": 53,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "4d64cfef04c88a688861def9d99e4be16478574b3b530e4bda8bb67416662c04",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 418,
+          "end": 426,
+          "context": "425f90297ca20864d060cd56a6aa7f2c8b470ad966553ef3818b7da0915cb491"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 561,
+          "end": 569,
+          "context": "a2f23fbd33d71caf400de1c0b90de7bb75119f3dda7ca273b16a202df6b0de32"
+        }
+      ],
+      "tokens": 63,
+      "lines": 9,
+      "format": "tsx"
+    },
+    {
+      "id": "4e226c8e611679f70e9ca89567a1e89d7405aff4c637f9e362d6f46abc1a5282",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/preset_ops.py",
+          "start": 39,
+          "end": 51,
+          "context": "a1a8c8711ee991470c414377032f1c8b0ef4e4f3d8494f4ed70dcb8a0bf4b773"
+        },
+        {
+          "file": "apps/api/app/graph/pricing.py",
+          "start": 670,
+          "end": 682,
+          "context": "1731bb89d81db1e3a457877fae1e0aae43fc8bd450211a0d4b25e840289faa56"
+        }
+      ],
+      "tokens": 129,
+      "lines": 13,
+      "format": "python"
+    },
+    {
+      "id": "4e630b4bb26414c91206987bf4b7a4e30655b779d298bc9b90d917dd2128a8e4",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-graph-connections.ts",
+          "start": 425,
+          "end": 441,
+          "context": "153265be1b967848bafaa551546a82eeed7a769419453241391546daac840476"
+        },
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-graph-connections.ts",
+          "start": 374,
+          "end": 390,
+          "context": "56c8d4056f9aeed350e73ca0b0bc1b1b444d1f9fee0e70b17463b830a81145c3"
+        }
+      ],
+      "tokens": 94,
+      "lines": 17,
+      "format": "typescript"
+    },
+    {
+      "id": "4f4ca691c93afaa28fe61d9d3a65413ea312b19d3f50ee4bb0659824c17bb1e9",
+      "endpoints": [
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 856,
+          "end": 861,
+          "context": "85527fdcaaa318fc807e01e2325ff8d50d6d972d65efeadf687434d75c96d8a1"
+        },
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 772,
+          "end": 777,
+          "context": "ad10acb819bebcca514b4cb5790f802d2c05c8059ab5497d14e3c78d5b0f90d3"
+        }
+      ],
+      "tokens": 51,
+      "lines": 6,
+      "format": "python"
+    },
+    {
+      "id": "4f5c140f023196f584dd8b12d9917cfd14655199e6cb9753d3e5632c92c9445a",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 255,
+          "end": 266,
+          "context": "18daa76e5baf65858dfe966c90ea80b5d9e190ac7c9d9ff2440983efe298f44d"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 208,
+          "end": 219,
+          "context": "54a79809cf8bec2404657e5e0243e1c7f2b8e7de98085f783d03ca0ea7efa4e8"
+        }
+      ],
+      "tokens": 119,
+      "lines": 12,
+      "format": "python"
+    },
+    {
+      "id": "50b3d2c2c9d324c418d55fe5f0b2ddf0700d1d1e6282cc7c79a15342ee5b49e1",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-graph-node-operations.ts",
+          "start": 98,
+          "end": 105,
+          "context": "05abfd30cfb4a0c16e3d86d9526a3dc31923b9d960e7ccee8e62419a1cc66304"
+        },
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-graph-node-operations.ts",
+          "start": 53,
+          "end": 60,
+          "context": "a7ac41235a60300a4b8e3faaf2650eea85dac1f6c834492040417ae407cce8db"
+        }
+      ],
+      "tokens": 56,
+      "lines": 8,
+      "format": "typescript"
+    },
+    {
+      "id": "5179eb4d44f28978833260a51f22f277bee96af4e766d28f4ba31446d988b215",
+      "endpoints": [
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 514,
+          "end": 524,
+          "context": "449df207426e06f13f506f4a94ab3558dca983db1e49f4d5107012bbf5f4974a"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 328,
+          "end": 338,
+          "context": "c0bef922c217bf8a71f8a4a428ed128f5a4f48d2738c051120fc64ecfdac9d4e"
+        }
+      ],
+      "tokens": 97,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "51cb835517d8ab58c0d4e6d01fd61196ac3ab97c80b98e605a0e010f634c032b",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 617,
+          "end": 623,
+          "context": "3b2d40389adc2f5bd49859d1436221502ccfb01c229775248019ec86e2274df6"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 601,
+          "end": 607,
+          "context": "48442c1a57c722f77664c470c33c2726db27103eeb854c0bf5c7584850b50b34"
+        }
+      ],
+      "tokens": 53,
+      "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "52bffdb4cdf2f5a405a0eb57d31d1273c70690d0bc717cfea7f1b1755e1f219d",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/system_nodes_media.py",
+          "start": 82,
+          "end": 88,
+          "context": "113e437ac8ea77ae383f487209410980d70b0a2f37c1503b1c7bd88febd69bfa"
+        },
+        {
+          "file": "apps/api/app/graph/system_nodes_media.py",
+          "start": 72,
+          "end": 78,
+          "context": "192612b4bd317873eb63eaeff670030bb3980f2ce89aa2d9e6e8a1acb44ddcb1"
+        }
+      ],
+      "tokens": 58,
+      "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "53c0afe272396aaaa0e9f5a2f14a29d840d17943d47b053e41ee25a844f5dc8f",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/system_nodes_image.py",
+          "start": 30,
+          "end": 43,
+          "context": "ddbc05df24ccc51aad824388a2c7f81a791263c05c5612efe15c3e741ae3f507"
+        },
+        {
+          "file": "apps/api/app/graph/system_nodes_video.py",
+          "start": 32,
+          "end": 45,
+          "context": "a6ace7c223a60532170de10324afe67ca459d785e3a4dae0e9003da5d379fd35"
+        }
+      ],
+      "tokens": 62,
+      "lines": 14,
+      "format": "python"
+    },
+    {
+      "id": "53e629c64f137d08e8759eeec3eb829855a1c10417b381c2cc3ecfecaac2ae80",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-project-workspace.ts",
+          "start": 111,
+          "end": 117,
+          "context": "362f5c57909c33f36e08f1e677872e371796e6778eb8c05881e4ff48bdc4ec2d"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-project-workspace.ts",
+          "start": 92,
+          "end": 98,
+          "context": "d0d7fb715b0f84aa1fc3f77fbd322b9c117acd92ffa4ca310309fe58b954e2ea"
+        }
+      ],
+      "tokens": 67,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
+      "id": "54df03068a8badf6307f24cd7874eb412b5286e4dcd09a07b96827fe269cb5ed",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/validator_prompt_recipe.py",
+          "start": 48,
+          "end": 58,
+          "context": "d51058fa7fc360d055775a7ce38036b6202abc6c0a14e0c264740a56fe673088"
+        },
+        {
+          "file": "apps/api/app/graph/validator.py",
+          "start": 230,
+          "end": 240,
+          "context": "cb0b21af64fc953f452bf1f1876607427f175bcb94561365e32ef5a7fea4ee49"
+        }
+      ],
+      "tokens": 50,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "5525efd71714facc350c890be44fc7b199bfd9ab6761546b3308110ee8edc2de",
+      "endpoints": [
+        {
+          "file": "apps/web/components/collapsible-sections.tsx",
+          "start": 113,
+          "end": 121,
+          "context": "4c989519908899b8886d1fca28f0ee8aec684487687fb2acaa3b60b779488433"
+        },
+        {
+          "file": "apps/web/components/collapsible-sections.tsx",
+          "start": 54,
+          "end": 62,
+          "context": "7890863fbed1f03929ff2fe70e72220114ccc1f3a85d93b5d808a2ba7af6c438"
+        }
+      ],
+      "tokens": 57,
+      "lines": 9,
+      "format": "tsx"
+    },
+    {
+      "id": "55fb5575dfe47deb09a8ba6e61b67cf9afa483f0a8add4895c204218df255b63",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/media/graph/estimate/route.ts",
+          "start": 20,
+          "end": 27,
+          "context": "03e16b2ba5ebe217051ff131bda58b1cdc3d838b681e29a7f3c392e2591709b3"
+        },
+        {
+          "file": "apps/web/app/api/control/shared-provider-catalog/probe/route.ts",
+          "start": 25,
+          "end": 32,
+          "context": "82a216f661a3b82f1cd6a147114db763cf12ae46ec71dd5b83a090bfb6dee3f0"
+        }
+      ],
+      "tokens": 59,
+      "lines": 8,
+      "format": "typescript"
+    },
+    {
+      "id": "584484fdb812856cf44ef4a9a5a502745e4ba4770926a7a7300a652333dbf604",
+      "endpoints": [
+        {
+          "file": "scripts/run_media_assistant_preset_loop_proof.mjs",
+          "start": 20,
+          "end": 42,
+          "context": "0781541adfc67dcc02758cb51b8ebe3969f2e3f5b5eb74f466a50c690f01e8ed"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 20,
+          "end": 42,
+          "context": "56c46030ad7ae495cbbc9accd2bb9d1b8d3731c460240e87d13bad8f7b9d6362"
+        }
+      ],
+      "tokens": 159,
+      "lines": 23,
+      "format": "javascript"
+    },
+    {
+      "id": "58f2aedfe93b42334f6024576ee949c0f747ce8a16223244dfa35102236d751e",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/media-preset-thumbnail/route.ts",
+          "start": 8,
+          "end": 19,
+          "context": "5fa894673b6d68e5b802836f6647b4f85371e26fbaec87a25e14f42ae69aeadf"
+        },
+        {
+          "file": "apps/web/app/api/control/prompt-recipe-thumbnail/route.ts",
+          "start": 9,
+          "end": 20,
+          "context": "f1c28dd7e334662443bb76d086513268b6a0e543ca148fae58ce5b2e3f6e86be"
+        }
+      ],
+      "tokens": 97,
+      "lines": 12,
+      "format": "typescript"
+    },
+    {
+      "id": "5bb44ea0988c6cc76adec40b435862995a724a432ca92062f0ba0f61bcd5c125",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-attachments.ts",
+          "start": 112,
+          "end": 122,
+          "context": "3c9fe27e89f19a925d4d849b5efae9637e0cbe1dc3e9984a58e1abf9ccf46c16"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-attachments.ts",
+          "start": 218,
+          "end": 228,
+          "context": "87d8efe138e19ef89d8ac4944699e725778527a2d1e5e9b203cc1e3c7237266d"
+        }
+      ],
+      "tokens": 105,
+      "lines": 11,
+      "format": "typescript"
+    },
+    {
+      "id": "5cb250a1878f741a6b8699d7e3ed869bf98f65d046645588c1b6dd8354d2419e",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/pricing.py",
+          "start": 502,
+          "end": 511,
+          "context": "50da4dc288c9ff4a6763afa05ac3818ef7c9987570812a052a0148ba5819dc97"
+        },
+        {
+          "file": "apps/api/app/graph/pricing.py",
+          "start": 568,
+          "end": 577,
+          "context": "982da09534dcb38a80953616ce69d911beab4b50702b0730c151e133a3109783"
+        }
+      ],
+      "tokens": 62,
+      "lines": 10,
+      "format": "python"
+    },
+    {
+      "id": "5cb4f4d69ef8efb1a8ccf549d9f4589250ae6358205d500034b3ff915572215c",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-presets/editor/use-media-preset-thumbnail-picker.ts",
+          "start": 88,
+          "end": 96,
+          "context": "4e0bd6009440fab6248f1b98d6426fad1608c9d4e0bd22408b63f9fce95d86de"
+        },
+        {
+          "file": "apps/web/components/media-presets/editor/use-media-preset-thumbnail-picker.ts",
+          "start": 53,
+          "end": 62,
+          "context": "a59055913b5ec723c0a2bbe15e92ef3089d6eec01a619814e3c334aba8a46d0e"
+        }
+      ],
+      "tokens": 55,
+      "lines": 10,
+      "format": "typescript"
+    },
+    {
+      "id": "5f0ada5913b885db3a9008e2c3ce722754722fa73feaeb11142ddf115b7120f7",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/media-studio-helpers-core.ts",
+          "start": 460,
+          "end": 465,
+          "context": "15c29a7857a14c28cf1bd602ab89c0ca6213ef6710860d75c1ffdf10c7501fb3"
+        },
+        {
+          "file": "apps/web/lib/media-studio-helpers-core.ts",
+          "start": 635,
+          "end": 640,
+          "context": "9d0985ff46d2659ca022431a83d7ea8f214109978684526cf81fdff285233fdd"
+        }
+      ],
+      "tokens": 64,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "5f8f8c56cbe43d88016b53354b1388e6a972d05a174dafdf1ad42de73572a984",
+      "endpoints": [
+        {
+          "file": "apps/api/app/main.py",
+          "start": 821,
+          "end": 835,
+          "context": "b4f8b991ddb136e49c73ec82c71b647cbe75f76c27066409b554b73a0e4cb4de"
+        },
+        {
+          "file": "apps/api/app/main.py",
+          "start": 796,
+          "end": 810,
+          "context": "df52735a208c5e22455634be64bba3b211275f8cf7808b40011e943cb0c8f3f1"
+        }
+      ],
+      "tokens": 109,
+      "lines": 15,
+      "format": "python"
+    },
+    {
+      "id": "5fc05f6df9246ab32a7a9649c88983048071d8e86c017d529d2dfd5992df343d",
+      "endpoints": [
+        {
+          "file": "scripts/run_studio.mjs",
+          "start": 591,
+          "end": 610,
+          "context": "16a66b7c738f5d7fedb66ec3f89f963ae1995215a45d4df86ec8e29f9b8bba44"
+        },
+        {
+          "file": "scripts/run_studio.mjs",
+          "start": 632,
+          "end": 651,
+          "context": "52bdf8d35396bbc7448ccd3ce8ed886ff36f90273ae813198f735bdca4c00e98"
+        }
+      ],
+      "tokens": 195,
+      "lines": 20,
+      "format": "javascript"
+    },
+    {
+      "id": "5fecb3543058233f5ab6dc54af08d45891c03822de9eb142833c3938da190c04",
+      "endpoints": [
+        {
+          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
+          "start": 123,
+          "end": 133,
+          "context": "514739b42042e9a824e670055e9f3b05e5c314c41010ac47583cb36b05ad3070"
+        },
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 54,
+          "end": 64,
+          "context": "c899d9ce16b00aaaef7f2f3a25212fad4ea83ad49424ebe375598323a50509e2"
+        }
+      ],
+      "tokens": 54,
+      "lines": 11,
+      "format": "javascript"
+    },
+    {
+      "id": "614540f1d79fc4d8e5e8a4202438a32c69a4c40d890d6bef68731883f7b0ed4e",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/preset_ops.py",
+          "start": 29,
+          "end": 39,
+          "context": "de831b8449a75d9bee984096080d7d4b17b29361a7dadbe056610b59c78b8cec"
+        },
+        {
+          "file": "apps/api/app/graph/pricing.py",
+          "start": 690,
+          "end": 700,
+          "context": "63fbee8dbac4e1ba4e01bbd011a250db366d499fd1fdf031c6860bb4b446f785"
+        }
+      ],
+      "tokens": 112,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "621de8c60aea257e243009cfcec3bddb8795bca862fccc961fcec325554838c2",
+      "endpoints": [
+        {
+          "file": "scripts/backup_db.py",
+          "start": 5,
+          "end": 16,
+          "context": "ee62c1d65139bdf309a53374de1e0af8facd381943b0f71dfa2be131c2fecb17"
+        },
+        {
+          "file": "scripts/migration_status.py",
+          "start": 6,
+          "end": 17,
+          "context": "2cf75d82b0ccfad46a406d93d4eaf16002cedf4082ce173c8e492ea293655099"
+        }
+      ],
+      "tokens": 59,
+      "lines": 12,
+      "format": "python"
+    },
+    {
+      "id": "62dd0421a6dcc5688f43a778e28d039466c9c7d7939daa1f3dbde8cc9a01cc47",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/media-presets/import/route.ts",
+          "start": 18,
+          "end": 25,
+          "context": "aa47cd16ff5af17e2008df4579b01bbb6f640fe3d7496f9674e7e55058118992"
+        },
+        {
+          "file": "apps/web/app/api/control/prompt-recipes/import/route.ts",
+          "start": 18,
+          "end": 25,
+          "context": "8558f28976107547a44e45401171d59fb0eecca57b644ea3a3027d9bd4fe99b3"
+        }
+      ],
+      "tokens": 52,
+      "lines": 8,
+      "format": "typescript"
+    },
+    {
+      "id": "6343a24abde0549a362d3740b81362e25777901c98f2642cf8adea842e3a91e1",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-test-fixtures.tsx",
+          "start": 509,
+          "end": 529,
+          "context": "4f7a6087c67624a8392ee8969ef4f606aa2caa1df2b788e9a3c367ce6aeacf16"
+        },
+        {
+          "file": "apps/web/components/graph-studio/graph-test-fixtures.tsx",
+          "start": 541,
+          "end": 561,
+          "context": "ff7ffd9722d5d365738ad29f5919f46af32f2c50e56c6935a0d0485618a1d5bd"
+        }
+      ],
+      "tokens": 102,
+      "lines": 21,
+      "format": "tsx"
+    },
+    {
+      "id": "63e8f7d87888d048c5871ce4905717f6c6630d1df5eb23dd2058395f55f04e6b",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 441,
+          "end": 458,
+          "context": "ca1c3b914a5072dd39024a935e78ebb23867af763497ffd987274c78186526d8"
+        },
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 401,
+          "end": 418,
+          "context": "e0d710ca05b270a91d48e9afa0f996546a3cb36fe1035a9fb30223e7f65eee7f"
+        }
+      ],
+      "tokens": 122,
+      "lines": 18,
+      "format": "tsx"
+    },
+    {
+      "id": "648c870b569afad436753e0cecc405eb6a375a582f385a149bc02a34c40d674a",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/preset_kernel.py",
+          "start": 36,
+          "end": 42,
+          "context": "f391c00f4ad91fc55d5e792484788e5b8fa627f726bf1a14ccbeaab99e6472cb"
+        },
+        {
+          "file": "apps/api/app/assistant/recipe_kernel.py",
+          "start": 33,
+          "end": 39,
+          "context": "f491a1288728b656e2090b0bf2b1ff261775c0ce8bda1540100dc70a9c50cf65"
+        }
+      ],
+      "tokens": 54,
+      "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "64a307f6833f6d64b3223f8f3821801e7e3b671c8c3da19dc2e600037260bcf7",
+      "endpoints": [
+        {
+          "file": "apps/api/app/main.py",
+          "start": 928,
+          "end": 941,
+          "context": "2ba3dc8d732672199210e50505ddfc3c51abbef389acfe63b111491144829520"
+        },
+        {
+          "file": "apps/api/app/main.py",
+          "start": 314,
+          "end": 327,
+          "context": "b64d9e1ca102dcef9258afbd2f6c1b87279af34c842690933d6073b46ec69f49"
+        }
+      ],
+      "tokens": 77,
+      "lines": 14,
+      "format": "python"
+    },
+    {
+      "id": "6558207b0da120cd29f186f9f460a4d45ca6fdbe9a1406745851ce5785105dee",
+      "endpoints": [
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 800,
+          "end": 812,
+          "context": "343c42d489d3b2040a32e8efba7e2806daaf87c3bb6a7c55592ad3144e8bf8d3"
+        },
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 399,
+          "end": 411,
+          "context": "c255994ea3747b82818b8766c97f8f2e1a49994e5daeb2beb5e39537b57b7afe"
+        }
+      ],
+      "tokens": 79,
+      "lines": 13,
+      "format": "python"
+    },
+    {
+      "id": "6a6c103ad365e3d395de9926949c1fd451cb859b792f80cb63406f58f24ed981",
+      "endpoints": [
+        {
+          "file": "scripts/check_assistant_budget_readonly.py",
+          "start": 2,
+          "end": 9,
+          "context": "c622144068f1c49501a9c2bc019b30ba61a50253145531a9452f53f2d6ec4a45"
+        },
+        {
+          "file": "scripts/check_preset_approvals_readonly.py",
+          "start": 6,
+          "end": 14,
+          "context": "36462e15b85f484d9886f59bef695b2cc2bc0452461a822d8ddc5bad904e620a"
+        }
+      ],
+      "tokens": 53,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "6ada4f429a3b4748bd885ade59b431db20cbac1d9e8006dcce0bc3b3318611bb",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/kernel_tools.py",
+          "start": 825,
+          "end": 832,
+          "context": "ccb39f98bbe40ef44880b8799291fb1b8a465d78df9b2d576f1cacc472c6c077"
+        },
+        {
+          "file": "apps/api/app/assistant/provenance.py",
+          "start": 141,
+          "end": 148,
+          "context": "1ab3584505fb499bba50fc2b07f9299bc55c8126602cda7132d398b7d691c150"
+        }
+      ],
+      "tokens": 51,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "6af8c13522f469d1e863cfb7f4ce9981294384421181d0a0abf979219634b69f",
+      "endpoints": [
+        {
+          "file": "apps/api/app/codex_local_provider.py",
+          "start": 508,
+          "end": 516,
+          "context": "6354a308ab8b06f3d7b2243ed87ae87236f52f70cf1e50c051f7a22c3ffe71a3"
+        },
+        {
+          "file": "apps/api/app/codex_local_provider.py",
+          "start": 1238,
+          "end": 1246,
+          "context": "e995d1ba4635a32145e186bdd285a2952ee3a2a1b2e8dc09dcba2b8df131bde3"
+        }
+      ],
+      "tokens": 88,
+      "lines": 9,
+      "format": "python"
+    },
+    {
+      "id": "6b5ead3f6d3e64dbfcd137e7af6e1dd0f55f2c6b9b8016adf1356b241ac19c34",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 366,
+          "end": 371,
+          "context": "3b2151d2d5cf5eaee0669b32b145d79f56dd175d0d1ef459c51ac13540f9dc84"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 502,
+          "end": 507,
+          "context": "73702bfdb34a832776f4c740ef11d7f1b487ae271ece4f7530dee9d6b597eb52"
+        }
+      ],
+      "tokens": 50,
+      "lines": 6,
+      "format": "tsx"
+    },
+    {
+      "id": "6cf3a0b2dfab466bc26b192a0b3e515f837cc73ba1ee482ed866c542d5445b64",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 398,
+          "end": 407,
+          "context": "3dc7d2a58300b019ee25527ab16af59fe3fde73bf7a1b304b9608f4d865735a6"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 541,
+          "end": 550,
+          "context": "b97d13e4bf379b71fa723f0e996afb2de6bc87688af98eb2d08467c22418ef37"
+        }
+      ],
+      "tokens": 75,
+      "lines": 10,
+      "format": "tsx"
+    },
+    {
+      "id": "6d2886fb7bc1ae9916fc146e7280c2d24ca0d840cca4b1fc7ac3ee0762032872",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/media-studio-helpers-core.ts",
+          "start": 924,
+          "end": 936,
+          "context": "2fb4672f829afceaa8b2620fdefe4b172f6ad5979aa2187f7dfe9b0c43a7ee0b"
+        },
+        {
+          "file": "apps/web/lib/media-studio-helpers-core.ts",
+          "start": 964,
+          "end": 976,
+          "context": "fc902921536131008a5c05d512ea67ef5fd1211a43a3e17fc0b5dc24a97a0993"
+        }
+      ],
+      "tokens": 116,
+      "lines": 13,
+      "format": "typescript"
+    },
+    {
+      "id": "6dd00defe9ba7815d3d4f43a72c39065d82f8d51e57aaa42fe09271661228125",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-image-selector-dialog.tsx",
+          "start": 229,
+          "end": 248,
+          "context": "14f20bea4e8d44adc15c40d4b16f62367c193f4e493501a37e9362725d553657"
+        },
+        {
+          "file": "apps/web/components/media/media-image-picker-dialog.tsx",
+          "start": 76,
+          "end": 95,
+          "context": "015d357db09f4e18b111fc501c053699c3af1efbf50d9ba0b0bd334e9d8e9c6a"
+        }
+      ],
+      "tokens": 107,
+      "lines": 20,
+      "format": "tsx"
+    },
+    {
+      "id": "6f2c5cf8b5bf707aed7b92f2c11f8d2eebe50ad48a151f4baf72b2d1fc8b4b92",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/artifact_recommendation_tools.py",
+          "start": 324,
+          "end": 331,
+          "context": "35ab39cc376435f7f20348a75abc794ec867a50e4b7d8bff9521dab59f6f8219"
+        },
+        {
+          "file": "apps/api/app/assistant/artifact_recommendation_tools.py",
+          "start": 340,
+          "end": 347,
+          "context": "413dcc2adbb8acd784612e173c8991a28164fa91bf48e09b4a7648225e14af57"
+        }
+      ],
+      "tokens": 54,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "6f312e64f25aad71b8e7c49280a06f2d9bce254655a3ad08f98cf87bc43a138c",
+      "endpoints": [
+        {
+          "file": "scripts/backup_db.py",
+          "start": 1,
+          "end": 16,
+          "context": "75d8b56e5660108fa5720feee162c76fa8105e6b390864c826ba97abd1e0b2bd"
+        },
+        {
+          "file": "scripts/create_clean_db.py",
+          "start": 1,
+          "end": 16,
+          "context": "3f6f3757cef3f6dbbba1988d23e74ca66bd1205d3ae7b64dddd1c6c1b2b9aece"
+        }
+      ],
+      "tokens": 69,
+      "lines": 16,
+      "format": "python"
+    },
+    {
+      "id": "6ff2ad6c65fe2fba60c3355ebb1efc874563514b349ea49d4d11b6e82ba3f574",
+      "endpoints": [
+        {
+          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
+          "start": 193,
+          "end": 205,
+          "context": "de99ddcb5ade49a07e55a99c3f5b6a3226e014ce78084daf086de28e5b3fcf86"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 306,
+          "end": 319,
+          "context": "3d9c169ce05b2e3d9f3a9f41b7ebbe21c434a65e58cfdf303bfdc3c3072408de"
+        }
+      ],
+      "tokens": 56,
+      "lines": 13,
+      "format": "javascript"
+    },
+    {
+      "id": "7007f2f58a062a4651f31081b7267e0e98870d1685a719ffd66ada7eaa2e5845",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 498,
+          "end": 505,
+          "context": "9135dc91ab517c2c74ed3e52b9cf2f756cdacf01634b15cfe3a7cb038dad6cbe"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 510,
+          "end": 517,
+          "context": "d5690d666e9333147c9de0c7869bd5b81434da526b33445b58932140012715c3"
+        }
+      ],
+      "tokens": 61,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "702991981aefb910b2ec87b34de00026f4675823ab3874197927ef488b8d4f9c",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/media_save.py",
+          "start": 855,
+          "end": 865,
+          "context": "4d8391449cec51c8eed4afe35b1192d5038ce89bec52309992e8d61d6de46c81"
+        },
+        {
+          "file": "apps/api/app/graph/executors/media_save.py",
+          "start": 584,
+          "end": 594,
+          "context": "fdab66b10d1940fc1ee1c8fb6110dc8bc74b2ae7dc4a006f38c074c494af6842"
+        }
+      ],
+      "tokens": 89,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "70d68caafd27dd4751140b8c4abe58a8f8ac2c3abc25a0fa1fc6601f66a9ab88",
+      "endpoints": [
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 331,
+          "end": 340,
+          "context": "5c7622ef5607939196e205ea9448e8111421b45eb79e6b87af21b96d07bc6db8"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 373,
+          "end": 382,
+          "context": "c35a3b3df3f0165b9a47e03898cdd3b5d63e0554ede4f39c900590ff5eb5068d"
+        }
+      ],
+      "tokens": 75,
+      "lines": 10,
+      "format": "python"
+    },
+    {
+      "id": "71af39ae178b74a857d11d692e079fee325c9568fa167aa220ff6a4814dd9b84",
+      "endpoints": [
+        {
+          "file": "apps/api/app/service_reference_media.py",
+          "start": 373,
+          "end": 398,
+          "context": "372ad37bf81e5932cb1a889b05016cee6a61c225db0cb9c56a93a28958b3337f"
+        },
+        {
+          "file": "apps/api/app/service_reference_media.py",
+          "start": 301,
+          "end": 326,
+          "context": "7d62e6c62125b2ba7ee20746dc11be02e75cdd5ecfe2a5e5cb1102dfc01ff428"
+        }
+      ],
+      "tokens": 101,
+      "lines": 26,
+      "format": "python"
+    },
+    {
+      "id": "71f56e58d6a24eb2dc38eea540cacdc4b95c80362c3fe7ed00941aed1bdab1a9",
+      "endpoints": [
+        {
+          "file": "apps/web/app/graph-studio/styles/assistant.css",
+          "start": 190,
+          "end": 196,
+          "context": "51c7e39141e4bdd3ae7828fb5620ced45a1ea53367c095a4256b0624ead4d4fb"
+        },
+        {
+          "file": "apps/web/app/graph-studio/styles/assistant.css",
+          "start": 759,
+          "end": 765,
+          "context": "d810e08e7563f985084fcfe4a16501111b90170b6367fb201630c6d1500e178b"
+        }
+      ],
+      "tokens": 53,
+      "lines": 7,
+      "format": "css"
+    },
+    {
+      "id": "722c05ae88b9181883a80822db52ed112168da5d19280d911729fb0acc1fb6f4",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 276,
+          "end": 284,
+          "context": "288baaf0d2b381171986515b732d17e080f232602160780354ce3a8cb41a9c84"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 167,
+          "end": 175,
+          "context": "89d92cbbe30ed01e585b901e84d94a52813dcbc70f1ea7247ce4c7845ebe22ba"
+        }
+      ],
+      "tokens": 56,
+      "lines": 9,
+      "format": "tsx"
+    },
+    {
+      "id": "74a1c684149a9cd86353700bd23484110938a2fa8ba92190c98de67985158489",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
+          "start": 524,
+          "end": 550,
+          "context": "12d88dd6782f690c53f2cbc0507f5c2aff8b578b889d7d590577e0c112e16efe"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
+          "start": 63,
+          "end": 89,
+          "context": "039c4b1e99a8a4eba2458d44ecc61908358a5ad2f3ca5dbaf69f2e9d1563bc7a"
+        }
+      ],
+      "tokens": 52,
+      "lines": 27,
+      "format": "typescript"
+    },
+    {
+      "id": "74c3c948f076a7191e4517ce3f353ada21a01d6201714927c603e9cf72d7f927",
+      "endpoints": [
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 222,
+          "end": 230,
+          "context": "09df28154599ba4a210d5702722b644bd4c9883cefe3ba9390b206e62e694b68"
+        },
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 210,
+          "end": 218,
+          "context": "ee6e48a51384e55f24cc958b27e995fc55c0849c483c4c6f8a4ae7f060e89b2e"
+        }
+      ],
+      "tokens": 64,
+      "lines": 9,
+      "format": "javascript"
+    },
+    {
+      "id": "7515ce26db75233de5322b2da2e98fe21949e578ce302d0d74ff9a7d5313cf30",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 140,
+          "end": 150,
+          "context": "cecc780819d7cc9c83462eda65ce1aaaa7159f4c6fefc93e9755f070e56ec7bf"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 361,
+          "end": 371,
+          "context": "ec427d982114ad4e6ff9034ab79b009b0073b319c60ec51869a9f6a8eccc1ce8"
+        }
+      ],
+      "tokens": 53,
+      "lines": 11,
+      "format": "tsx"
+    },
+    {
+      "id": "758067f952301176f8a8676723a7eb3230e8776369d4175dd1d105cd9cf8f1d6",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/media-model-admin.ts",
+          "start": 170,
+          "end": 191,
+          "context": "45e8d6e4648acf75d59d1831695d79ecb66bc0c87b597418f77d4298d50bd724"
+        },
+        {
+          "file": "apps/web/lib/media-model-admin.ts",
+          "start": 143,
+          "end": 164,
+          "context": "acb22317bb89e9c9494d2581e46048391ac6614c016582aa2d4609de800b77a1"
+        }
+      ],
+      "tokens": 123,
+      "lines": 22,
+      "format": "typescript"
+    },
+    {
+      "id": "76f5ac0631cdf3a771dcc31d67e8444c04430152a94a07283380fb5f776f5466",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/studio-composer-draft.ts",
+          "start": 72,
+          "end": 83,
+          "context": "2ca6c980bd7527223358a54753dccbd1f810d074796ccbdeeffebd17f6729eb2"
+        },
+        {
+          "file": "apps/web/lib/studio-composer-draft.ts",
+          "start": 52,
+          "end": 63,
+          "context": "49a97eef95ca25bcffc90ba1335c8021157f4ee1d5d1ae39bd4a4bf90aa43d47"
+        }
+      ],
+      "tokens": 66,
+      "lines": 12,
+      "format": "typescript"
+    },
+    {
+      "id": "776b7823d438f15b3c9f0c27b56a99f953a45286e99c245dee59e18b2b56cf75",
+      "endpoints": [
+        {
+          "file": "scripts/run_media_assistant_preset_loop_proof.mjs",
+          "start": 451,
+          "end": 457,
+          "context": "b33362e80ecb1a5721d20611b58426ae475c6537fe662a900fece5f1216c0e69"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 451,
+          "end": 457,
+          "context": "e64875819b652111c9e068a8fff49d10f34c2687720e808c00795bd866b24228"
+        }
+      ],
+      "tokens": 70,
+      "lines": 7,
+      "format": "javascript"
+    },
+    {
+      "id": "78a676c9f5103c7191ed0bfaf80e96cbf4036d06f4add07fb8aa5fd02763bd68",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/system_nodes_media.py",
+          "start": 91,
+          "end": 97,
+          "context": "073f97265096d5fdfcb54a223eddff92f6e6322a4d5c9f5db3a0f22e4fa94191"
+        },
+        {
+          "file": "apps/api/app/graph/system_nodes_media.py",
+          "start": 72,
+          "end": 78,
+          "context": "192612b4bd317873eb63eaeff670030bb3980f2ce89aa2d9e6e8a1acb44ddcb1"
+        }
+      ],
+      "tokens": 58,
+      "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "7a31797b8c38debccfad9ba196d3e92448948b288999f809a80ffaac20cf4eb1",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 220,
+          "end": 240,
+          "context": "994c9faeabfb614b198a1d6be166da69e1c250aa27efb5a9769f9fe0c34b7d1e"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 293,
+          "end": 313,
+          "context": "cce8bcfa3be15f7216af51d40b5a25a324467d3633aba6013e44ba9e8b917e54"
+        }
+      ],
+      "tokens": 109,
+      "lines": 21,
+      "format": "tsx"
+    },
+    {
+      "id": "7bb3b1596139877f0b996de6aafa33a0596bc670dfd5406fb993a20bd3cc6080",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
+          "start": 637,
+          "end": 644,
+          "context": "2130fd3f96cb1dec120982b666299eb5b8d7eb6e3c8a644c14b97aa212c6053d"
+        },
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
+          "start": 664,
+          "end": 671,
+          "context": "44390f6df86cf47d7f40b51b69f1734640cb906506de55293d7719d5a2f5dd0b"
+        }
+      ],
+      "tokens": 60,
+      "lines": 8,
+      "format": "typescript"
+    },
+    {
+      "id": "7c57ac77e5bd071005a631e152766ab85c40913234da57490636d4a34900ff7c",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 1110,
+          "end": 1115,
+          "context": "67ebc31bba08d980cb306e38f6c9d8a7aeaba582c156e216aa076a104b3f2430"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 1186,
+          "end": 1191,
+          "context": "aeaa927224acf8713aadf62f1f4542d3d7f501f8214b578010b929c6caf991c6"
+        }
+      ],
+      "tokens": 50,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "7ded13b00ccdb66220ab9d157dfc2373d793003fbe7ad6a3985f75ef866aa554",
+      "endpoints": [
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 401,
+          "end": 411,
+          "context": "0a10a474dbd4a56e94fa14285c21ee7bcdb17eb78c018e1a9f2cf7cce0b7972a"
+        },
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 767,
+          "end": 777,
+          "context": "64531821f5ba966caf4dd62cd8e31a56a703025de43c5a61c9305668a0e6106b"
+        }
+      ],
+      "tokens": 74,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "7e0bf6fea0f017557d9ce5707141d951d42834276c043c721294526e3c79d367",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 458,
+          "end": 471,
+          "context": "2631db19a6ca4be61ca5c57c83a4174028ed1a3d32a580642cf2d95f3d0fed3d"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 401,
+          "end": 414,
+          "context": "d077f44d2a631a43b12c7d6168489887e4206a71dd2ad6262d135fa9260c41d5"
+        }
+      ],
+      "tokens": 81,
+      "lines": 14,
+      "format": "python"
+    },
+    {
+      "id": "7e87ec6a13fc056b8c318816fc4a88437911c377ef9d6866210bbba5e58d5c84",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/media-assistant-config/probe/route.ts",
+          "start": 8,
+          "end": 19,
+          "context": "0ddcee3029ec9fbe83514fc2c38e538380bffa28d7efdb7640c114139a2de736"
+        },
+        {
+          "file": "apps/web/app/api/control/shared-provider-catalog/probe/route.ts",
+          "start": 33,
+          "end": 44,
+          "context": "a97e5dec49b7c6d3ae0a3dc2e56af4d08f69dfa707ace9c91354e696b2662d53"
+        }
+      ],
+      "tokens": 55,
+      "lines": 12,
+      "format": "typescript"
+    },
+    {
+      "id": "806cc2a7043a31ab344b434ac40134baafb914875f03dd3a9d7f3f9f77bc1551",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 315,
+          "end": 323,
+          "context": "31292bff7db69a1ed06abe18c7b5098d8be74310c4df3b1b938f2850c89774fc"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 82,
+          "end": 90,
+          "context": "0ddbb9b103c3abf697f8e8f58083982cefb68a70f827b8b62dfdd42940436e27"
+        }
+      ],
+      "tokens": 51,
+      "lines": 9,
+      "format": "tsx"
+    },
+    {
+      "id": "8193263ec902a12c09fdc60f2a2d65416781a97f52eb118a997fc14455cecd1e",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 677,
+          "end": 683,
+          "context": "bf65a1be0c72dbc69dda454d7eb8c0b02d384bb89a5736433514e43513c8f260"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 727,
+          "end": 733,
+          "context": "cb0287e9cebe939cafadd755e9fff2e233eb51aaaee7f771cd8245052b3366db"
+        }
+      ],
+      "tokens": 65,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
+      "id": "843f02620de59b79afe92ef744eb8f4df7974e6804e99055a148e4178191eb9c",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/runtime.py",
+          "start": 125,
+          "end": 131,
+          "context": "1b0cb2806986f50ea635ed70261a8344689d755d2197906ac7a5e1ee33b9280c"
+        },
+        {
+          "file": "apps/api/app/graph/validator.py",
+          "start": 213,
+          "end": 219,
+          "context": "c925d87d9ba2a167e421b7ceedc44189910b625428e94045686a3459f8253312"
+        }
+      ],
+      "tokens": 58,
+      "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "84b7fa14d45865fef9836bf82f404389c0a55089fdd2533110e692b8b682f35d",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 540,
+          "end": 551,
+          "context": "c66ea716a4d67eead1145b2ad946b5a7b8822f9b5ecd78c1d146398974b7c390"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 494,
+          "end": 505,
+          "context": "25fa2138e09b9b067b4cd8b558be25e6091b3f05d42fc6978104c85549af48cf"
+        }
+      ],
+      "tokens": 72,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
+      "id": "862b4c504c0d7e27ee3dd4d469a81d13168b51979062c055c5996a15ef81fe5a",
+      "endpoints": [
+        {
+          "file": "scripts/check_preset_loop_ready.mjs",
+          "start": 23,
+          "end": 35,
+          "context": "8c381332c02eaca26d87369301ac3ceac05718542e65fbbb1520bcbc5ed513e3"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 47,
+          "end": 59,
+          "context": "76dcaf318415351afeaebde608a092edd23a8fac3a1f84ced0b1d2b2f2c711ab"
+        }
+      ],
+      "tokens": 121,
+      "lines": 13,
+      "format": "javascript"
+    },
+    {
+      "id": "863585c345ed1a48bf78c2b41e2cc63839b2ed6c8ca5891c7e04fc3be5ba341b",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/validator_prompt_recipe.py",
+          "start": 36,
+          "end": 46,
+          "context": "d6425a1ac89c80c807a382bed046eedafc0ef9c8533af02d74e187fa3daf78cf"
+        },
+        {
+          "file": "apps/api/app/graph/validator.py",
+          "start": 219,
+          "end": 229,
+          "context": "3f15dc35d5339cbc8a8cc264ca9704dfcc1a0fc84ac96bbd00c46f958d9bb2dc"
+        }
+      ],
+      "tokens": 90,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "8690a7c21dbb171bfee2c0975f4e294cd15b78ce54a9def45bb1554bcaae9260",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 407,
+          "end": 418,
+          "context": "527fb0faf43861ce797096ed206806404340fa752bd5bc4ab458d2624673dc58"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 550,
+          "end": 561,
+          "context": "72d68b5b42da3ec07a9dda2cb96c42ab70b5475962b822ff9b85b754d3ad1eea"
+        }
+      ],
+      "tokens": 87,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
+      "id": "86dcf253446013f7d47943d6afc586889ca3ee4f5607e19842de41c55d12ef36",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 369,
+          "end": 380,
+          "context": "72a7ac2cd3df4490a557abdc582ef9049416a42c96842f34c2e537a9a5bab933"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 424,
+          "end": 435,
+          "context": "76360f2b17b1eb64f5aa998e5f8d0653b47cd18d6a753302fc0285bed8a46ffd"
+        }
+      ],
+      "tokens": 77,
+      "lines": 12,
+      "format": "python"
+    },
+    {
+      "id": "8887c5ce8a9df3f106ab63b30b21033002fca703af2be15a1e6a64ced362c99b",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 255,
+          "end": 264,
+          "context": "d6fad85970fd77d88bf784726cd6f251132684104467055f44cfe66e736bde02"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 363,
+          "end": 372,
+          "context": "5d5cee7992c3febc9e2a8c78ddd2a952df2869871d170f6df3e1d218208548d5"
+        }
+      ],
+      "tokens": 51,
+      "lines": 10,
+      "format": "tsx"
+    },
+    {
+      "id": "8a7abebaab1609883403b9405a0f9090d558645e26f721cdcd9cd3bcce68b864",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
+          "start": 835,
+          "end": 841,
+          "context": "063d7eeb6d6f3e9f56c95732cc55e4a21089a4b5d6ca3b4fe560af80d8d39e4b"
+        },
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
+          "start": 769,
+          "end": 775,
+          "context": "f8880f62fb17b560546f0d84a98f411d53b0b705af0dbe385a7cbb4972cd5c2b"
+        }
+      ],
+      "tokens": 54,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
+      "id": "8ade64b9cb12bc7f119802f926b0ac6cbed64079e3b2bc2c7fa0cfef0b882a90",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
+          "start": 644,
+          "end": 653,
+          "context": "08e4a141e53e0cdede0159cd7f3991f61f5411ba6e270ef390109d75d7e495d7"
+        },
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
+          "start": 671,
+          "end": 680,
+          "context": "08fe587cff57eb0024320296e2ea6a88bb29dd9eeee1117086599af80744778f"
+        }
+      ],
+      "tokens": 64,
+      "lines": 10,
+      "format": "typescript"
+    },
+    {
+      "id": "8b752ac63f4f726a74bc44714b5e6e6e8bbf2829fd19a66479ec8d6a5771b5e4",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/media-presets/import/route.ts",
+          "start": 11,
+          "end": 18,
+          "context": "58db20e6c73aec86c65c8f0e7d9de4e4039a179cd884305624a28ca8dfa139cc"
+        },
+        {
+          "file": "apps/web/app/api/control/prompt-recipes/import/route.ts",
+          "start": 11,
+          "end": 18,
+          "context": "acda2948cae24339a7612b6db361114ded2a62d6404423df86d409a3177b474b"
+        }
+      ],
+      "tokens": 53,
+      "lines": 8,
+      "format": "typescript"
+    },
+    {
+      "id": "8f5ef14d66b3c70af845e1c832ef2db34c6551320c64c60efaea871019339e25",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-presets/editor/media-preset-image-slots-panel.tsx",
+          "start": 12,
+          "end": 25,
+          "context": "c6503f16934c955ffd5adc8c2a1662827e1e0d209c05f6293575aef42be386d8"
+        },
+        {
+          "file": "apps/web/components/media-presets/editor/media-preset-text-fields-panel.tsx",
+          "start": 12,
+          "end": 25,
+          "context": "de4c79db5a05e1aacb9fb826eaa68c4036596a279ec1a3ba0ad145e124cdfea2"
+        }
+      ],
+      "tokens": 66,
+      "lines": 14,
+      "format": "tsx"
+    },
+    {
+      "id": "90620ee4fcdef39d35b253e6aa4e0702614f06157c5a25745e1cc3cd6f9212f5",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 459,
+          "end": 470,
+          "context": "99a403981e97658f248c4d3e9e8d535e819c5aa989e22dec39ed98004cf25447"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 396,
+          "end": 407,
+          "context": "68e8517f536042815fb67ac83c8aedede821f1051e8938ff5bee845b0b0d5b1f"
+        }
+      ],
+      "tokens": 91,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
+      "id": "91a08677038a8c8eddb652548ec68de62ccd30d08bcdd4cf31fa03a747ce8a05",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/types.ts",
+          "start": 892,
+          "end": 911,
+          "context": "701b9a98089580507e8a9ebaa506338684ef4407a6dac0c3c1fcf5c799cf0b26"
+        },
+        {
+          "file": "apps/web/lib/types.ts",
+          "start": 926,
+          "end": 945,
+          "context": "ac7b711855f63969685862440b92568b7c0dd36600cb87512381b07d6ab731c7"
+        }
+      ],
+      "tokens": 143,
+      "lines": 20,
+      "format": "typescript"
+    },
+    {
+      "id": "92a96402694143d77950fa660307ba0131b978f498d3cb10b13851dc16d9990c",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-node-field.tsx",
+          "start": 244,
+          "end": 260,
+          "context": "9b767516d1ea176a6a91c058ee021c615fc8176ceec9bb8818c038b7ef864f20"
+        },
+        {
+          "file": "apps/web/components/graph-studio/graph-node-field.tsx",
+          "start": 82,
+          "end": 98,
+          "context": "bfd68d6b4680ca198d9cac6e550e6e8051a9112cb75121bf2e883deaac2da795"
+        }
+      ],
+      "tokens": 74,
+      "lines": 17,
+      "format": "tsx"
+    },
+    {
+      "id": "940079e069a8b6892767008339f8ab1f5d9ef23d117f41c2d1c666f7a424b3a9",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 431,
+          "end": 450,
+          "context": "9c68020948abef322e31cf7bade7ede8580d607f5971d07e74478da88921626e"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 279,
+          "end": 298,
+          "context": "8266902e0ddd64a750dbafcd7734b5d0679fb15b50abecad2fd1c239c6ff38ca"
+        }
+      ],
+      "tokens": 112,
+      "lines": 20,
+      "format": "tsx"
+    },
+    {
+      "id": "94662463cfedddafeb58063f60c33f6b7ef851db8b0fb75bbbe2a0d1a5328dc2",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 287,
+          "end": 293,
+          "context": "7b8ecb35668ef4a3a94eef2e323195123d34b1b888bb7f782c9141cf8537e2e1"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 432,
+          "end": 439,
+          "context": "3d887a6f7a30fc85d513027f24159650f01a736e01ff8dec521e5ca2a256f226"
+        }
+      ],
+      "tokens": 52,
+      "lines": 7,
+      "format": "tsx"
+    },
+    {
+      "id": "97ef8cc72f30402f30f492ca88d9dbe1b69e3b7a68b7bca6924484c793c3a59f",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/media_save.py",
+          "start": 78,
+          "end": 86,
+          "context": "a77c28e27f4ed5dc10ffcb5382bad46daec61adaefff68f7f8dd879570eac4ab"
+        },
+        {
+          "file": "apps/api/app/graph/executors/video_ops.py",
+          "start": 74,
+          "end": 82,
+          "context": "9c4975ed57c20d7f8cb172322f02ebc4fff3e6dea20e3199acce551eb55b7ee0"
+        }
+      ],
+      "tokens": 54,
+      "lines": 9,
+      "format": "python"
+    },
+    {
+      "id": "98062ef107bd4bc060a0f48e0d71ab205c802a9d2ccf881e4f6b0939d91eafe9",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/media-assistant-config/route.ts",
+          "start": 16,
+          "end": 21,
+          "context": "77e3b6c22af8346db1a08465d643d552d198c83fddc9dbfbbb1bf0fa65ebfbb2"
+        },
+        {
+          "file": "apps/web/app/api/control/prompt-recipe-drafting-config/route.ts",
+          "start": 16,
+          "end": 21,
+          "context": "f1b8824a3b8bf67d99fd3b2c81f8d6c68d29af8f587485101000dfc20783a37a"
+        }
+      ],
+      "tokens": 52,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "98135b2bf90761f25b6bfa27b6feb4295732da6e55b2f2eed6f509bcae8d1d43",
+      "endpoints": [
+        {
+          "file": "scripts/run_studio.mjs",
+          "start": 461,
+          "end": 470,
+          "context": "6c4dc85957c2b73b8d7719f471840ac8b600627268434307f7fd7cfe235b7a39"
+        },
+        {
+          "file": "scripts/run_studio.mjs",
+          "start": 449,
+          "end": 458,
+          "context": "8dc25b9d3cb491ce080e48b8e62528a90bca5bfb6969ce0c04e28137b7b6e7c8"
+        }
+      ],
+      "tokens": 75,
+      "lines": 10,
+      "format": "javascript"
+    },
+    {
+      "id": "99b51a6006ca61fe7e815443b6dd966be48a63e042674acbfc132e1f33fb6ac7",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/preset-thumbnails/[...path]/route.ts",
+          "start": 3,
+          "end": 15,
+          "context": "fd8123d355db4481768e8d13ea075bdd271ca9edadbd2ff8ccd4759faeb1bfd8"
+        },
+        {
+          "file": "apps/web/app/api/prompt-recipe-thumbnails/[...path]/route.ts",
+          "start": 3,
+          "end": 15,
+          "context": "fd8123d355db4481768e8d13ea075bdd271ca9edadbd2ff8ccd4759faeb1bfd8"
+        }
+      ],
+      "tokens": 60,
+      "lines": 13,
+      "format": "typescript"
+    },
+    {
+      "id": "9b946754f1abc4aeb2ab92deb16a5bd8efd226f9bbc1569201ec4c19523c7f7f",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/media-model-admin.ts",
+          "start": 122,
+          "end": 128,
+          "context": "574dcef395a00bcf8d5e13f2085b52ce619ef87e3ecf6682447d8a13039a6b86"
+        },
+        {
+          "file": "apps/web/lib/media-model-admin.ts",
+          "start": 106,
+          "end": 112,
+          "context": "b233977fe203ac32871406a0c771129e15582a1730bb715c18187d17f3bed86b"
+        }
+      ],
+      "tokens": 53,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
+      "id": "9c05975cfa6eefd2f512b64f57406c2c0cfec979c664d7a5b0cbfb451b97e1ce",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1305,
+          "end": 1312,
+          "context": "718e37ecab0496c61c77050cf718669e6a9412be82868504dd108294e685b80d"
+        },
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1242,
+          "end": 1249,
+          "context": "e8f7a9204c3b18b7b83b2fa6b3fa032eae6633148e63c915a4f14b37599949eb"
+        }
+      ],
+      "tokens": 65,
+      "lines": 8,
+      "format": "tsx"
+    },
+    {
+      "id": "9c0ee640e147bfa23e38a9ab6a4639f2affb88ed24a9a6d3da51217d2f9e6c49",
+      "endpoints": [
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 332,
+          "end": 340,
+          "context": "f38229632a7cdb59853a7eafddde3ef2dd3e396fde6a4ff69b7a06e8684f9bc3"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 294,
+          "end": 302,
+          "context": "f9f526e757bc52c04801e85233026bccd9cb8b7ae744978713914d5bee09038f"
+        }
+      ],
+      "tokens": 61,
+      "lines": 9,
+      "format": "python"
+    },
+    {
+      "id": "9c36dfcec7eb94be066ac476669db1e3a68440f063190ecf67ae38cedd124b86",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-presets/editor/media-preset-image-slots-panel.tsx",
+          "start": 12,
+          "end": 23,
+          "context": "398dea851812a329966d37b0c53c8e9e3533d57268340787e10fc72b7f403fef"
+        },
+        {
+          "file": "apps/web/components/media-presets/editor/media-preset-prompt-panel.tsx",
+          "start": 6,
+          "end": 17,
+          "context": "538945911c4d3af3dd3c7f19036ef5da79701fed540d4e7eb375c66a2e99aefb"
+        }
+      ],
+      "tokens": 53,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
+      "id": "9c4199489224f3926b29ee1e2d9bc054188d742cc554f38b1a54e2a8d91a8db8",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-poll-scheduler.ts",
+          "start": 136,
+          "end": 144,
+          "context": "82e127f258b7e810359f26f8c6e0de413788a31fe1e9c782997482c2f5b126eb"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-poll-scheduler.ts",
+          "start": 116,
+          "end": 124,
+          "context": "b895170f4f53d6d73abc81431aa18cad5fda120999081c2cafe9e3714367dbe5"
+        }
+      ],
+      "tokens": 61,
+      "lines": 9,
+      "format": "typescript"
+    },
+    {
+      "id": "9ca0fb555785a383a9c6998c7c841dcaad8cf51345a3d46cb6f253b27138fa1b",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/studio-gallery.ts",
+          "start": 219,
+          "end": 224,
+          "context": "0df487bb019da41eb320111d7924f1798dcb6ef504e934bb02a7f1317768d915"
+        },
+        {
+          "file": "apps/web/lib/studio-options.ts",
+          "start": 138,
+          "end": 143,
+          "context": "2c079f00447db4331f9dee04c1d8e68de2853a6227a2a91284afaba291d5c874"
+        }
+      ],
+      "tokens": 52,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "9cea0092689bac859a0265a57a5c1f3aa250069f4716bdb39e312cd6af221baf",
+      "endpoints": [
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 401,
+          "end": 411,
+          "context": "0a10a474dbd4a56e94fa14285c21ee7bcdb17eb78c018e1a9f2cf7cce0b7972a"
+        },
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 851,
+          "end": 861,
+          "context": "ae55b5346d5239de7c452ecb430f0794cded47b467ae67e6b9d31b8f749cf256"
+        }
+      ],
+      "tokens": 74,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "9e1a9f4f33def635dd3c643c7ed5b9b6bc43f0b293cf6ed2b68cdef0d6d1e24c",
+      "endpoints": [
+        {
+          "file": "scripts/assistant_conversation_probe.mjs",
+          "start": 609,
+          "end": 614,
+          "context": "7e7105f471c7d3fd6b448734342ddcdfcc44035039a4ec0c0612d599ff7e159d"
+        },
+        {
+          "file": "scripts/smoke_studio_playwright.mjs",
+          "start": 200,
+          "end": 205,
+          "context": "dc51889ac0283cff26c3a50322bd9e7d9329e0e04655c834e8d31f109af3d35d"
+        }
+      ],
+      "tokens": 51,
+      "lines": 6,
+      "format": "javascript"
+    },
+    {
+      "id": "9eba231ba76de2e2fe16e86a7ba6d89544ca18d64139b82107944959bd2cab37",
+      "endpoints": [
+        {
+          "file": "scripts/dev_api.mjs",
+          "start": 114,
+          "end": 130,
+          "context": "9d14e63efd03551bbde9992b5ee9a3a8336a1c88192c13347e319cdbb46fd04b"
+        },
+        {
+          "file": "scripts/web_app.mjs",
+          "start": 195,
+          "end": 211,
+          "context": "3f155551ccf987add32a890bdc610ea74db4732ca59517865f26867c6f626cec"
+        }
+      ],
+      "tokens": 92,
+      "lines": 17,
+      "format": "javascript"
+    },
+    {
+      "id": "9f548479a19936c391093dbb60b97c1cee7bcb1382617eab5a844894b652c684",
+      "endpoints": [
+        {
+          "file": "apps/web/app/graph-studio/styles/assistant.css",
+          "start": 230,
+          "end": 235,
+          "context": "c089b2757c2371431c40ced9fe6dc4efe412508be1093417b08e69ef497dfb55"
+        },
+        {
+          "file": "apps/web/app/graph-studio/styles/assistant.css",
+          "start": 278,
+          "end": 283,
+          "context": "e5c5350b39697b7706eeaadb9131067beddc192754cf6f737e84c785acc038ec"
+        }
+      ],
+      "tokens": 50,
+      "lines": 6,
+      "format": "css"
+    },
+    {
+      "id": "a010230bdc79e3ebf2582dec1d1ec3810d05afbbae357f4b5bc765f5d0d114d3",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/media_save.py",
+          "start": 217,
+          "end": 224,
+          "context": "a46f1a23fb207fffc4eeb2e5a25ea0e431f1ea4f752f3b6f4c05def9993ca26d"
+        },
+        {
+          "file": "apps/api/app/graph/executors/media_save.py",
+          "start": 173,
+          "end": 180,
+          "context": "a5a9a19f0170da9a8618c390b1581af9ed4cff5408c3a9289025fef332c952cd"
+        }
+      ],
+      "tokens": 67,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "a020542c261ddb5ed93501aee13c5cd9609df21493de61221e42104a2074f459",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/provenance.py",
+          "start": 115,
+          "end": 122,
+          "context": "20012ff05a76865f37fe02af4621301155fc03f2e576b326d8ce2298b8bf1d41"
+        },
+        {
+          "file": "apps/api/app/assistant/provenance.py",
+          "start": 138,
+          "end": 145,
+          "context": "70262d40e50b1ceb59df82e8a558f53c666b496982cae0c4dbfee0fe0cf1cd1f"
+        }
+      ],
+      "tokens": 58,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "a30cc86f23e59d9820ccb7150b270e20e5a1e2cde20f6b5837ab0a95c01a6137",
+      "endpoints": [
+        {
+          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
+          "start": 276,
+          "end": 281,
+          "context": "0eb394380f2d4905deabb4dfe65ea9e8d3c4ab90e6e83ce4dbcf906044f66e32"
+        },
+        {
+          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
+          "start": 296,
+          "end": 302,
+          "context": "311946ae10a59859386e94900555e884b7bd6aed5f4bf39c4d9580fbbfa4166f"
+        }
+      ],
+      "tokens": 51,
+      "lines": 6,
+      "format": "javascript"
+    },
+    {
+      "id": "a3129f5e1e2cfa50875fa52a3b711659aea4c15bb429d33e51b0c30c8ec33510",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 696,
+          "end": 703,
+          "context": "0ce938a23a0809998c9f1f7a78bdf06765d0f0c675e332630992c6f9c7e44efb"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 712,
+          "end": 719,
+          "context": "c51869eabb5ea780023b037ccbcf332dc53a8c7187ff6aa98900176ba6af07ef"
+        }
+      ],
+      "tokens": 77,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "a438dd5693ef1449ac86e4429503951664f977934501426fadcbe4f59599f984",
+      "endpoints": [
+        {
+          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
+          "start": 20,
+          "end": 27,
+          "context": "6cb602d140cf8222c063dd4d358d652c42e0ac6bfc9d8d5573d037b83d7eceeb"
+        },
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 37,
+          "end": 44,
+          "context": "7160ca3a28a380827c67a4c53becbe37760aca4a23bff9e1dfa09688321b97b9"
+        }
+      ],
+      "tokens": 108,
+      "lines": 8,
+      "format": "javascript"
+    },
+    {
+      "id": "a5cc2965d3cf0bb659d00479d061b9edb1867e1b8645480851a2f53ed04e6bcd",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-attachments.ts",
+          "start": 436,
+          "end": 445,
+          "context": "09b65e6272a274c398dcd5037db57a048b5131414d2ecd44718fbb0451096748"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-attachments.ts",
+          "start": 455,
+          "end": 462,
+          "context": "514f98fcef392bf7081e883d2ab702c6f9a80bcfdc0f0907c4d386610520d4df"
+        }
+      ],
+      "tokens": 52,
+      "lines": 10,
+      "format": "typescript"
+    },
+    {
+      "id": "a5e51c5783c9e032bfabf82acbb6b60227bb10ea20305a829ea9a604e90a37a0",
+      "endpoints": [
+        {
+          "file": "apps/api/app/codex_local_provider.py",
+          "start": 427,
+          "end": 441,
+          "context": "aee37d3835e18c3d178b494c94d752ea55b69e33e5cc7fb9b25bd3fba2b03a2a"
+        },
+        {
+          "file": "apps/api/app/codex_local_provider.py",
+          "start": 459,
+          "end": 473,
+          "context": "cfec4affb348b5ba8f948a99ca58f7505fabc0715a3e59a8d0e9b5e9a3ed82ff"
+        }
+      ],
+      "tokens": 55,
+      "lines": 15,
+      "format": "python"
+    },
+    {
+      "id": "a8bbaf3b66bd453055987c18d8b4afdeced3861cefbbda0634bf43bd932c2850",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-graph-node-operations.ts",
+          "start": 28,
+          "end": 33,
+          "context": "2e495f7e2babd757d1c1a51ff6cc64a1ec6156431573dd05f4dcf5023ef9d70d"
+        },
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-graph-node-operations.ts",
+          "start": 52,
+          "end": 57,
+          "context": "90c7c466994c405941b2b0331abe5866988571d7d2d1ca8f43c0d76a29f74dce"
+        }
+      ],
+      "tokens": 54,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "a8e1ff0013d155fa018ec991f9f43cac9d0832f60803b52b97ed0ccd12c6cbda",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/studio-gallery.ts",
+          "start": 175,
+          "end": 182,
+          "context": "1959b2ad93ca39bb312127f5a1a56b9679f4f12a3dc234ba949d1b15bf2f0a81"
+        },
+        {
+          "file": "apps/web/lib/studio-gallery.ts",
+          "start": 121,
+          "end": 129,
+          "context": "cbcdf0d5f3df25a54b6fe44c48a9e4ea152cfd5c2c3135595a93d66d4b76f562"
+        }
+      ],
+      "tokens": 73,
+      "lines": 9,
+      "format": "typescript"
+    },
+    {
+      "id": "a8ec391077b3232cfd20451ef3d0691db65e119c80d88ef19a0ff7f51ce65f1a",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-attachments.ts",
+          "start": 433,
+          "end": 444,
+          "context": "35db88397f0c4dcdd0929f1d80696349fbdfb8d46d6c746dc26dd7ac1a922655"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-attachments.ts",
+          "start": 407,
+          "end": 418,
+          "context": "7d06e90119522fd7658ae74623867c7e6e882eecf8a95b6fd82188ca06aa9e83"
+        }
+      ],
+      "tokens": 54,
+      "lines": 12,
+      "format": "typescript"
+    },
+    {
+      "id": "a973421d3d68b4397e04855c303008d6bcb172ab20e4aa3507193d0f04e6b1d0",
+      "endpoints": [
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 504,
+          "end": 515,
+          "context": "18b75f516a8536a7cb45c7dbecdab0b877a80e013e678f255f56a04a63d953e1"
+        },
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 842,
+          "end": 853,
+          "context": "7028c06995fea887ed1f0c7323734ad738dbfe67d105409404be93b7b0b16a13"
+        }
+      ],
+      "tokens": 62,
+      "lines": 12,
+      "format": "python"
+    },
+    {
+      "id": "aa69289072f67eb4f5eaa3b6df663462b0e41be3752561f63373b57a9b4e823b",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 418,
+          "end": 425,
+          "context": "0ba6f3f0e22943d4af88930894f35558e4ccbe93402c9a290b212f6b54234ac9"
+        },
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 458,
+          "end": 465,
+          "context": "e47ef9334ff49f543697bc5d6ea12fcf5ac65bd8a43d46cbd4a474f4c70bcfc6"
+        }
+      ],
+      "tokens": 54,
+      "lines": 8,
+      "format": "tsx"
+    },
+    {
+      "id": "aad057b4b4b778975eb5a6b2f2318c81c01ee24cc9fa35313956f1a96b96b275",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/preset-sharing.ts",
+          "start": 101,
+          "end": 113,
+          "context": "013bd3d4c5f2485edbe8fe9814f91a8b182c1ce6822f8ec1a202b7e4b0ae57dc"
+        },
+        {
+          "file": "apps/web/lib/preset-sharing.ts",
+          "start": 120,
+          "end": 132,
+          "context": "642cb4b2176792d85e32650a0456c3db9dad247b2729ea21b8e07a4adc012a6e"
+        }
+      ],
+      "tokens": 60,
+      "lines": 13,
+      "format": "typescript"
+    },
+    {
+      "id": "ac3e964b49de5cf1b627f231a09b0d9734239b47e34f949e2ddebe88697df6ce",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/utils/graph-prompt-provider.ts",
+          "start": 205,
+          "end": 221,
+          "context": "c113dcdbdc55486b8cda60ece4a21da58423d0b65a1b96bbfeac60e3cfd84417"
+        },
+        {
+          "file": "apps/web/components/graph-studio/utils/graph-prompt-provider.ts",
+          "start": 188,
+          "end": 204,
+          "context": "cd15fa2d5cbf1e6ea0b6c71c52e9e96ff509dca360c43d56f1af30e3a0c77f82"
+        }
+      ],
+      "tokens": 59,
+      "lines": 17,
+      "format": "typescript"
+    },
+    {
+      "id": "ad016607d04a0cbceb95000dd0c39b1e83847a602d583cbd349b570a9d5925f8",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/utils/graph-assistant-layout.ts",
+          "start": 7,
+          "end": 15,
+          "context": "e0ad5f6ad80fcf45893cbfb1fb444a0c4947a677bb52a16399fedd3e379940b7"
+        },
+        {
+          "file": "apps/web/components/graph-studio/utils/graph-assistant-reflow.ts",
+          "start": 9,
+          "end": 15,
+          "context": "b78a0d272517cd708a3e9492320408772ac8804ab1fed6478619bb54c21b6776"
+        }
+      ],
+      "tokens": 65,
+      "lines": 9,
+      "format": "typescript"
+    },
+    {
+      "id": "adb411d0d4eecbb2e3b26b3b355bc0ed6a0b4a07a590d7c73a2db2b9a4afd095",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/utils/graph-history.ts",
+          "start": 70,
+          "end": 75,
+          "context": "5d1eacb344b75559f4c6b3fe6442331950812c9a429b70ee301f4fbc83e0ce07"
+        },
+        {
+          "file": "apps/web/components/graph-studio/utils/graph-history.ts",
+          "start": 103,
+          "end": 108,
+          "context": "a8a592ee0c832a36321234663a8e35f70c773bd6ce97fceadad536eb46ba860d"
+        }
+      ],
+      "tokens": 54,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "aee179e32f0aa0decae220c3eea613a2b06e21f5a1d193b15fcb8edc06ebdbc8",
+      "endpoints": [
+        {
+          "file": "scripts/audit_storyboard_trilogy.py",
+          "start": 54,
+          "end": 60,
+          "context": "4a1b8ac62d147ad4d55a9b63adf3903415c7f202118d264f62728006bcad8aeb"
+        },
+        {
+          "file": "scripts/audit_storyboard_trilogy.py",
+          "start": 129,
+          "end": 135,
+          "context": "4f878be0d63da69fcfcba7aa5ca7e813d7d8dc602ae12bba91bdef0821d76610"
+        }
+      ],
+      "tokens": 89,
+      "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "aefe40e1bb1226dc9efccc61e53fb364d57d6b85aa73a6dda9cc7dbdeb758d3d",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 376,
+          "end": 385,
+          "context": "f10e070bb184c7cce098d138442d6a73d4f76ccceeaaf85cb61814f010393f80"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 519,
+          "end": 528,
+          "context": "084f64be4ac3c1137a51bab325100c850e764e5ed014eb99d1798953ace49fb0"
+        }
+      ],
+      "tokens": 73,
+      "lines": 10,
+      "format": "tsx"
+    },
+    {
+      "id": "af2ee4fce185aa7261f5223e9e54f449038775f8c2397abfa91bbb33babe3db3",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/media-preset-thumbnail/route.ts",
+          "start": 21,
+          "end": 31,
+          "context": "504d624e8e0794e3ef2ffa43b7879d799725ecfc97e819d727a13df17bca31da"
+        },
+        {
+          "file": "apps/web/app/api/control/prompt-recipe-thumbnail/route.ts",
+          "start": 22,
+          "end": 32,
+          "context": "b3da5134deb0fd9c3ce89b77d1520144ada4323cd1a1fd8bd19fa3f0bab3103a"
+        }
+      ],
+      "tokens": 61,
+      "lines": 11,
+      "format": "typescript"
+    },
+    {
+      "id": "b1108dc0fabeb5bd7d483e958129e81d71add4449235af92c5545ba29adb011d",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/types.ts",
+          "start": 1605,
+          "end": 1611,
+          "context": "960ed32e165ac4889a3f7d1a0ae8de746eb51055061c099ae783a846d22540bb"
+        },
+        {
+          "file": "apps/web/lib/types.ts",
+          "start": 1582,
+          "end": 1588,
+          "context": "df3780196b89d45af0adb3b9a29c11476270c5e302761e6363c27b991622b804"
+        }
+      ],
+      "tokens": 61,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
+      "id": "b2c4ea32177a1ae7784635fb44305e1c60ef98afd42c828bdd7934548b723544",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/media-studio-helpers-core.ts",
+          "start": 1187,
+          "end": 1200,
+          "context": "1b65b199b78fdf3846612abb4fc9c499a257041b79d61ab7a8d3944948462c5b"
+        },
+        {
+          "file": "apps/web/lib/media-studio-helpers-core.ts",
+          "start": 1119,
+          "end": 1132,
+          "context": "e64cd99824e0d76001e3dbe5b50700b4d37037fb1e344f4899f5d0eb56d1d8cd"
+        }
+      ],
+      "tokens": 89,
+      "lines": 14,
+      "format": "typescript"
+    },
+    {
+      "id": "b3d3271b192c77067c23a535fe476b6bd204f837bc65e90cb8f98966d0d3c737",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/preset_kernel.py",
+          "start": 28,
+          "end": 36,
+          "context": "5a28ab99be26648e868aaa022a4c19c3f6cf17af5a315edb7f9f8e9bd030f193"
+        },
+        {
+          "file": "apps/api/app/assistant/recipe_kernel.py",
+          "start": 25,
+          "end": 33,
+          "context": "4ba871a5a39485d0bdb6b91ebf870a8ebc7b971cf7ae1fd8c61480771fa0d99b"
+        }
+      ],
+      "tokens": 50,
+      "lines": 9,
+      "format": "python"
+    },
+    {
+      "id": "b3e43d559014244f1fa9db6c7b2e25634dc79ca5e45b08eab2dfddf1fab79aaa",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-structured-preset-composer.tsx",
+          "start": 122,
+          "end": 131,
+          "context": "11722db3abbf3ff9df24872b23afeae50cb14816f42eea98a6fa1e96e3f2270b"
+        },
+        {
+          "file": "apps/web/components/studio/studio-structured-preset-composer.tsx",
+          "start": 145,
+          "end": 154,
+          "context": "fbe90dfc64583dd5f8d7be570c1df2479bd37a1782f4a0906f3b7f071b57f31e"
+        }
+      ],
+      "tokens": 58,
+      "lines": 10,
+      "format": "tsx"
+    },
+    {
+      "id": "b431b3eeb76a27bba66ae493f47cfcb3472f2383d211e2a0d9ffc5347850c179",
+      "endpoints": [
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1339,
+          "end": 1350,
+          "context": "1cbd250aff73a3ba8c5834fa0e91f3b697723e77626f07962a418b65e6ff1352"
+        },
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1362,
+          "end": 1373,
+          "context": "4a40d1f0274c49c03d8ac15ff063b7799507a931e59f93c1c0aab3344bf4c971"
+        }
+      ],
+      "tokens": 58,
+      "lines": 12,
+      "format": "css"
+    },
+    {
+      "id": "b4a2850e16cdd04e9f2ce2c2c5a9c1af3e9b4a6dbd61e9cc364776dc72699f67",
+      "endpoints": [
+        {
+          "file": "scripts/run_media_assistant_preset_loop_proof.mjs",
+          "start": 301,
+          "end": 312,
+          "context": "d1cec149828c2e441d451adaf4f02f47faf07d29c1b73fe59b419f86633319b2"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 366,
+          "end": 377,
+          "context": "1a18063c5c3dc3a1b43100d0a6b5944ad7873efe607b61670901bc2e7ca7f12d"
+        }
+      ],
+      "tokens": 63,
+      "lines": 12,
+      "format": "javascript"
+    },
+    {
+      "id": "b681abbf77a7291e8850c49cb9e6feb12463b157e11de768d9d56d3d1a4138fb",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-preset-browser.tsx",
+          "start": 151,
+          "end": 158,
+          "context": "4a8ba38b5727235dc31f7b33e3d3a5086c7dcd29b4e3935b04b2b2fb9849a84f"
+        },
+        {
+          "file": "apps/web/components/studio/studio-reference-library.tsx",
+          "start": 168,
+          "end": 175,
+          "context": "9fb5738e04e80f93a15d87d1171af3cb3cd4deac21e607ed05857e9c8eed1ba6"
+        }
+      ],
+      "tokens": 65,
+      "lines": 8,
+      "format": "tsx"
+    },
+    {
+      "id": "b7ae21868640133e1f9b3bc5138c7a6d17e6398db94b712e7d65e2207fde9bfe",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/preset-sharing.ts",
+          "start": 65,
+          "end": 76,
+          "context": "f7e4d3001c782d61e3ee074df6724142150d8ecdca51abcb0d948c7fa02d8d64"
+        },
+        {
+          "file": "apps/web/lib/prompt-recipe-sharing.ts",
+          "start": 51,
+          "end": 62,
+          "context": "32900ebd62865efd8954bcb8afca677158006c6777401bc599476e5bfcd364dd"
+        }
+      ],
+      "tokens": 76,
+      "lines": 12,
+      "format": "typescript"
+    },
+    {
+      "id": "b7ccd17a3d255eb210d29f69b3559524646b3975a2ebdadcefce280236b0751e",
+      "endpoints": [
+        {
+          "file": "scripts/run_studio.mjs",
+          "start": 253,
+          "end": 265,
+          "context": "736501b89c6358bdd9c416e37ab57eec225bbbbc29b8e7874279bfdee4e1be91"
+        },
+        {
+          "file": "scripts/web_app.mjs",
+          "start": 105,
+          "end": 117,
+          "context": "373731288453df744978826f6e1fd7ccefd56941ac7248a31bafc15a8251d7d0"
+        }
+      ],
+      "tokens": 69,
+      "lines": 13,
+      "format": "javascript"
+    },
+    {
+      "id": "b8a2da0fccbdbf83cbd30369eabf77bfc296c6d693f0d88ac848427e72de952f",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/media-studio-helpers-core.ts",
+          "start": 1508,
+          "end": 1513,
+          "context": "8b72b553005bc1008eb6a5877f125cc76cd19571c74fb31324e014a51a7f8b37"
+        },
+        {
+          "file": "apps/web/lib/studio-composer-file-utils.ts",
+          "start": 24,
+          "end": 29,
+          "context": "f9b85e04f798b34636b696cf6e9d4bf5d270600ea8b81904bbd8fa4667699fd7"
+        }
+      ],
+      "tokens": 53,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "b8e19d1099d4a9ae9aea9511a2ef78930d7114ceef8fae99b160f5e1014995d4",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 465,
+          "end": 470,
+          "context": "ff8dc351157a4edac44039b3f37a7de01cdf94404399b2300c1091318717e9f5"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 608,
+          "end": 613,
+          "context": "8f0f3bc52eb4ba3bca9f0f4dd3882641759320f1a55004c33ae2a8e3745a9ba1"
+        }
+      ],
+      "tokens": 53,
+      "lines": 6,
+      "format": "tsx"
+    },
+    {
+      "id": "baa8f1c4b4ecaea31f66cb9279625b8d83234109a951b97b42dfcfc0e1a63874",
+      "endpoints": [
+        {
+          "file": "apps/api/app/store_reference_media.py",
+          "start": 12,
+          "end": 26,
+          "context": "099486689d0c065a1a387eea355c656eee279adf77c76cb451e9e28bd519a5aa"
+        },
+        {
+          "file": "apps/api/app/store.py",
+          "start": 276,
+          "end": 290,
+          "context": "b8b04444d1a281062d80e915bfa74194e9d3d5764234974036488ec383c82720"
+        }
+      ],
+      "tokens": 79,
+      "lines": 15,
+      "format": "python"
+    },
+    {
+      "id": "bb3d929cc133124478ba18da2c83986f004317a8e99a843d8624a1cb3d973b1b",
+      "endpoints": [
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 1606,
+          "end": 1631,
+          "context": "58f0b1b8dcdcc87a01847a97263a5d3551a527fe82fea1a09795bce5c7fc4e8f"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 1661,
+          "end": 1686,
+          "context": "c6559b31cf3d28ec5d49415af9d4466bc1112e2eb7ffacf8deb562340a7b0591"
+        }
+      ],
+      "tokens": 94,
+      "lines": 26,
+      "format": "python"
+    },
+    {
+      "id": "bd84be7a3c0f75839192731fffd30547fa277df5aa281111e8dbd58ee77dde9d",
+      "endpoints": [
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1262,
+          "end": 1268,
+          "context": "204ed596e7e071acf86a45d396be9c848f8d482949f26658ed197dbf75bffc1e"
+        },
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1969,
+          "end": 1975,
+          "context": "34c01f41a076438d0bc6481f854be2c2f21bb737c1a0a6b9001f13de11faab3f"
+        }
+      ],
+      "tokens": 52,
+      "lines": 7,
+      "format": "css"
+    },
+    {
+      "id": "be7f63f257b82c12b93ff9653cf2318acb70d2dd3ff3c6274644ca6f99b4a14b",
+      "endpoints": [
+        {
+          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
+          "start": 135,
+          "end": 153,
+          "context": "0587e34ffe5deb5a67904434828c2241adcdfd06f86d18cd77440ff24685fe62"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 101,
+          "end": 119,
+          "context": "b266ed8cd5a9b4d93eb4d189cc625e267b9cf028a4604f15cc86701bca20c26e"
+        }
+      ],
+      "tokens": 104,
+      "lines": 19,
+      "format": "javascript"
+    },
+    {
+      "id": "bf84957e598442f0424c4e4e591ed706131e151600123c19f0ee5bede5f3f60e",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/media-assistant-config/probe/route.ts",
+          "start": 8,
+          "end": 19,
+          "context": "0ddcee3029ec9fbe83514fc2c38e538380bffa28d7efdb7640c114139a2de736"
+        },
+        {
+          "file": "apps/web/app/api/control/prompt-recipe-drafting-config/probe/route.ts",
+          "start": 8,
+          "end": 19,
+          "context": "0ddcee3029ec9fbe83514fc2c38e538380bffa28d7efdb7640c114139a2de736"
+        }
+      ],
+      "tokens": 70,
+      "lines": 12,
+      "format": "typescript"
+    },
+    {
+      "id": "c06dd7de2728f4ac5bd64213869e7c9c80285a2503e704bd5081a86bf98ac4e9",
+      "endpoints": [
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 996,
+          "end": 1002,
+          "context": "9dc09a893aa6d9282ce05d58ff17d01ea9e92c37f334ff9586b57381096cb4c2"
+        },
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1003,
+          "end": 1009,
+          "context": "cf9084f07956b0ce1f549f99b6a20afc5ad58ed2176fe0e6f71ea3c7502a60d8"
+        }
+      ],
+      "tokens": 52,
+      "lines": 7,
+      "format": "css"
+    },
+    {
+      "id": "c15c9a076a47eb4cf9a14301367af8b18af00a4133f1bf307d7972aa6fb59797",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-node-field.tsx",
+          "start": 166,
+          "end": 175,
+          "context": "0277bcd5a155b486270e7e932f2a893a2451290a48776a10ee8dcffc2aa63cae"
+        },
+        {
+          "file": "apps/web/components/graph-studio/graph-node-field.tsx",
+          "start": 312,
+          "end": 321,
+          "context": "c37ca170aa289f657b0474bfbd09d603a8ec6dd30188d380108ea07a9e15a0b7"
+        }
+      ],
+      "tokens": 61,
+      "lines": 10,
+      "format": "tsx"
+    },
+    {
+      "id": "c17feeaa2719c49ee7b017abff4ec4cecab3cd2f449bd319aa2410bcb425eec2",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/preset_kernel.py",
+          "start": 505,
+          "end": 512,
+          "context": "fddffffcc57defc13a6d50da7c0287300b3d3fd3ee0ac76b1172933f382214e8"
+        },
+        {
+          "file": "apps/api/app/assistant/recipe_kernel.py",
+          "start": 328,
+          "end": 335,
+          "context": "2c8e60d81fa2d9d29be2dcc461677d34e26d0a873b8f5d4f96818e83e56938cc"
+        }
+      ],
+      "tokens": 57,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "c29916a4a077eb2893aac46fd54bdaea2e5a65d476dc93cdec5ac5478e5d2a1b",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/utils/graph-groups.ts",
+          "start": 26,
+          "end": 33,
+          "context": "f9f8896329c6eece55316b4373149dcd418ddce7e44f26d310efed0231cbfc60"
+        },
+        {
+          "file": "apps/web/lib/preset-sharing.ts",
+          "start": 65,
+          "end": 72,
+          "context": "c5e6bc76fc3380fc1a3d71cf100a372b3fccf55632de3ab39227a90b5a41d1c5"
+        }
+      ],
+      "tokens": 51,
+      "lines": 8,
+      "format": "typescript"
+    },
+    {
+      "id": "c361cf6246f5e14785e86597d8f0b8d30536361eb6265cbd74514cebb80d0ab7",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/recipe_kernel.py",
+          "start": 128,
+          "end": 134,
+          "context": "b9c857775dd9514d27b9d80656fa8167159009eddb248f5e48d03f586b8a4d5e"
+        },
+        {
+          "file": "apps/api/app/assistant/recipe_kernel.py",
+          "start": 140,
+          "end": 146,
+          "context": "e6273b3cd0ff771411b80325f2cca64d3e6f61d599a47017a1dcd9637e7469b8"
+        }
+      ],
+      "tokens": 61,
+      "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "c4b5a10799c47641208dd6d7e5a465bc66584ae937ab57cbd87ed0d90634a23f",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/media-model-admin.ts",
+          "start": 197,
+          "end": 218,
+          "context": "2f5a6a1025b8884719b1beda2cefd8a3e9e6c8d93ceb2624625cd1783e1e9ac8"
+        },
+        {
+          "file": "apps/web/lib/media-model-admin.ts",
+          "start": 143,
+          "end": 164,
+          "context": "acb22317bb89e9c9494d2581e46048391ac6614c016582aa2d4609de800b77a1"
+        }
+      ],
+      "tokens": 123,
+      "lines": 22,
+      "format": "typescript"
+    },
+    {
+      "id": "c4bba2fc6e4802f10a54cf4109a76f07f1732abacc454a4647199f23229071b9",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/media-enhancement-configs/[modelKey]/route.ts",
+          "start": 4,
+          "end": 12,
+          "context": "f48701653d4b930e5755caba77e2a6248a8cd54d63e5f49e836c613090fb8a66"
+        },
+        {
+          "file": "apps/web/app/api/control/media-queue-policies/[modelKey]/route.ts",
+          "start": 3,
+          "end": 11,
+          "context": "4a8a5887417351e6d71685cad0c17859f393de090fa4a4e41221803a27d3d87d"
+        }
+      ],
+      "tokens": 60,
+      "lines": 9,
+      "format": "typescript"
+    },
+    {
+      "id": "c56c1402c848adbd0f67761a68949687d1336a962dafd0e5d5af1176d176e184",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 223,
+          "end": 240,
+          "context": "ed562ec24d1f7b83cd090a4bb263b56f8b729b13e2b4f2f8fe7b07cb8d780992"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 331,
+          "end": 348,
+          "context": "deaab2fba4a094fe178c5dcc6b179b5e1040ff149f68d50eecd94023d5635355"
+        }
+      ],
+      "tokens": 130,
+      "lines": 18,
+      "format": "tsx"
+    },
+    {
+      "id": "c84949a8e32e0dccbe785d27366712b9d292097fdf3614663da55498eb13227f",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 216,
+          "end": 222,
+          "context": "f2ae142808f21e9d4e6013dcf6ef907d3a6dbb33e2cb38939238d53e7ce9821b"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 324,
+          "end": 330,
+          "context": "56fa8e2f13e7a00329308d6d061807e4302f387975923f1c92da19f081091696"
+        }
+      ],
+      "tokens": 51,
+      "lines": 7,
+      "format": "tsx"
+    },
+    {
+      "id": "c8bc0d5d001dad068e80ad5f815230a3a195daeaf1846c70b845cfdbe314e966",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/pricing.py",
+          "start": 437,
+          "end": 442,
+          "context": "b63a8adfc4ddb0ba84018144c09859620637642ed915b6ad540a44dd92350bef"
+        },
+        {
+          "file": "apps/api/app/graph/pricing.py",
+          "start": 359,
+          "end": 364,
+          "context": "d4ab70a26cb1058967f74265a52da9f62439b81f847392df31505f5e64c24160"
+        }
+      ],
+      "tokens": 53,
+      "lines": 6,
+      "format": "python"
+    },
+    {
+      "id": "c97c2d053ee4e543a3aa73eb69a8f8a6616ae9288029218231bd752d1abd53af",
+      "endpoints": [
+        {
+          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
+          "start": 18,
+          "end": 27,
+          "context": "e7a230d79c263823292e28560a467431463547e7ed55a4fec86a31aa36f8af58"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_proof.mjs",
+          "start": 25,
+          "end": 34,
+          "context": "d40f9c6b940f8d1ccab447fb325a31fac8426ad470f467865ac13d9a7408def6"
+        }
+      ],
+      "tokens": 123,
+      "lines": 10,
+      "format": "javascript"
+    },
+    {
+      "id": "c9bd2bbb5f9f53480e2d7d03428a0477c924b8e5d7d254b120d815d9778b989d",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-library-dialogs.tsx",
+          "start": 48,
+          "end": 57,
+          "context": "32d77c3c51c704ea7c7d50f4786a2da0456dd6407e1865073179cb56cda3406a"
+        },
+        {
+          "file": "apps/web/components/graph-studio/graph-studio-dialogs.tsx",
+          "start": 74,
+          "end": 83,
+          "context": "387308a40a67d1bcbe6db33b64b65aec2f521788f698344f1a173952977ae2b9"
+        }
+      ],
+      "tokens": 56,
+      "lines": 10,
+      "format": "tsx"
+    },
+    {
+      "id": "cab0d67b7fdbfe0e636d2c0e197e21760903d5614a0b9cdccf254f2089f3ccf0",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-group-context-menu-host.tsx",
+          "start": 26,
+          "end": 31,
+          "context": "6f9b3d9e47b5315cbef6c0f6cfddac8fdd4198e14fea6a6d10b5b07996722a34"
+        },
+        {
+          "file": "apps/web/components/graph-studio/graph-studio-dialogs.tsx",
+          "start": 113,
+          "end": 118,
+          "context": "b6adb469a4a0902339c449b1229f48c382a7fb6dc532a4112000720c6d50bbf8"
+        }
+      ],
+      "tokens": 61,
+      "lines": 6,
+      "format": "tsx"
+    },
+    {
+      "id": "ccc4e1b80469da84472c1d45eb5f0ca9f940a5662499247107efd039d8bbdcb4",
+      "endpoints": [
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 403,
+          "end": 409,
+          "context": "371a830ea1cea58e69a997f6e251256138d08e3b49b97cf8fe4e7761473832a4"
+        },
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 476,
+          "end": 482,
+          "context": "4bdb4078d0471c98a5a353217a6d7b14066f6a000e648f0f13c7871d314446ea"
+        }
+      ],
+      "tokens": 55,
+      "lines": 7,
+      "format": "javascript"
+    },
+    {
+      "id": "cd48caa5247ab340f8af04be2a074022afdcea428f086d1d11e1ec73d5a94c87",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
+          "start": 121,
+          "end": 132,
+          "context": "4a3e423367ccf62551de68d140e6e185f980d0c47a7f2ca1289d44294cc28181"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
+          "start": 94,
+          "end": 105,
+          "context": "d9f9cc5efe5c10a6a177b2ff55c3f88d330346a4ffe862781058dcaa382b0238"
+        }
+      ],
+      "tokens": 83,
+      "lines": 12,
+      "format": "typescript"
+    },
+    {
+      "id": "cdda528517f6ef51550fd2c1f9af32ac660f6a5e9b0abc9ce74e84fb81f93cdb",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-restore-actions.ts",
+          "start": 34,
+          "end": 44,
+          "context": "8545d04cb03e2e3614df95e08ca7d26507408b79a67affc4abd42c180e958b89"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-restore-coordination.ts",
+          "start": 27,
+          "end": 37,
+          "context": "3bc4e96fafac33268087861d669dcefeec95a81a7e52ff839f7d0393aee12a12"
+        }
+      ],
+      "tokens": 100,
+      "lines": 11,
+      "format": "typescript"
+    },
+    {
+      "id": "ce8b9d58b9e92b1e2b51092421d2d7feb67fb828467c2969c40e129b206b918b",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1706,
+          "end": 1717,
+          "context": "0fd200a25641d034d57e43a319ad626f3a409c306ba1ac6281fc85c52b7840fb"
+        },
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1635,
+          "end": 1646,
+          "context": "17aafb19548a9657a0d4a63d152445c6aa678a852d1555b9ca8a1148ead831ea"
+        }
+      ],
+      "tokens": 52,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
+      "id": "cfaaf83e7c2e39da784cd4a894eb2a9342405eb4cea39d5add2af831326eb47c",
+      "endpoints": [
+        {
+          "file": "scripts/run_studio.mjs",
+          "start": 64,
+          "end": 78,
+          "context": "c7797aa25fc0804a949b65a4d7adeb01db0affb72ce52d8f190a4b2d4b53d8e9"
+        },
+        {
+          "file": "scripts/web_app.mjs",
+          "start": 52,
+          "end": 66,
+          "context": "a13fc783148862b2cabc5de1fcd47c5bf5eacdc378a9eee50970b64ccdef0043"
+        }
+      ],
+      "tokens": 91,
+      "lines": 15,
+      "format": "javascript"
+    },
+    {
+      "id": "cfffa779557f53bb32cc94e025bdf8fde000f3659125ef9f2d80f6946d416ed1",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/media-presets/export/[presetId]/route.ts",
+          "start": 44,
+          "end": 56,
+          "context": "5b889810b890deea7f57dfd1be7efe295d56661c57b219ed88455ff16017898e"
+        },
+        {
+          "file": "apps/web/app/api/control/prompt-recipes/export/[recipeId]/route.ts",
+          "start": 44,
+          "end": 56,
+          "context": "f24e252f58ab18bc87a725f9489a38d8022d36a2793b6d2fd9df02e235f58689"
+        }
+      ],
+      "tokens": 67,
+      "lines": 13,
+      "format": "typescript"
+    },
+    {
+      "id": "d1f2cee2c80049fc6241b81e06fb4f335d98f8e476aaf8ef43fd8d0ea1d40a44",
+      "endpoints": [
+        {
+          "file": "scripts/run_media_assistant_preset_loop_proof.mjs",
+          "start": 32,
+          "end": 43,
+          "context": "1c5dabe6123d58fe02f7dcd954414c8b62fd2ef5b57a7524a1c093eee349221d"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 32,
+          "end": 43,
+          "context": "be3ce8f8755193f6b40c3cfd03ffbc19343b8863d23eea8d7d64d0d918abaed7"
+        }
+      ],
+      "tokens": 63,
+      "lines": 12,
+      "format": "javascript"
+    },
+    {
+      "id": "d397b1315118fbf9fcae15f4e16d5887dd6f0321d7d858e7c86bf14e8e884ed4",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 299,
+          "end": 309,
+          "context": "99e052fdd21e18eaa19e5bcabbf4595fdfce94ea456d0cc8419b30bfb4f2e81f"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 237,
+          "end": 247,
+          "context": "a0c28d651683c81adfc1fee28c7b3b39cb6a77f081363999e327965950fa8668"
+        }
+      ],
+      "tokens": 64,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "d5be71e87c5068e7708d1a91930a4164033f1837faf58045a53d424db360bbf0",
+      "endpoints": [
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 862,
+          "end": 867,
+          "context": "38462180292a4acb397c9bbce654f3dd3b3f3a10139e2b25f31f36c7016e7c3a"
+        },
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 840,
+          "end": 845,
+          "context": "5e38958c8cbcb6b8072057af43bc4eac988f6962933fc52f181fcbd4e3ab4625"
+        }
+      ],
+      "tokens": 50,
+      "lines": 6,
+      "format": "css"
+    },
+    {
+      "id": "d83d4a0faffb5ba3f01fb541d5c60d47e0b3d2b8cff9e326a36f55d010df7ab0",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-composer-draft-effects.ts",
+          "start": 12,
+          "end": 22,
+          "context": "bf2cbf2ce57d4a5dfaf969db5d75f21de6c3b45daad0008c2fcc96c6801c9dbb"
+        },
+        {
+          "file": "apps/web/lib/studio-composer-draft.ts",
+          "start": 6,
+          "end": 16,
+          "context": "9d258588c9b4cf662ab1626b5234092a254bf81fc322e9de3e8c9a0282371fa1"
+        }
+      ],
+      "tokens": 69,
+      "lines": 11,
+      "format": "typescript"
+    },
+    {
+      "id": "d89eb9311ddd4ed20a64d77c4075ed89bfc84423542211ccca8c956b51d5c038",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/preset_ops.py",
+          "start": 116,
+          "end": 121,
+          "context": "bb748ce0f1319a1cf0f8b267fa209ef80b87e9227d3878309cc4f56983e19f89"
+        },
+        {
+          "file": "apps/api/app/graph/validator.py",
+          "start": 188,
+          "end": 193,
+          "context": "546c46dcdf4bce4c5126abee396cff472b70e2fa102f70d5d25f6bee93926d6c"
+        }
+      ],
+      "tokens": 88,
+      "lines": 6,
+      "format": "python"
+    },
+    {
+      "id": "d8bd17b20a8d8d3d392447c6ea633301330baa180822a5c0ea479f16c3ad73a8",
+      "endpoints": [
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 414,
+          "end": 419,
+          "context": "5a18c30d48af54eb2099c150eb795e532b6f6cd5a2b6a3dd22cb26fda2dd9ca6"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 368,
+          "end": 373,
+          "context": "e41ea5e3df6dda59ea705028f84ab4d05c9acc758222b5a8b32142545edc6130"
+        }
+      ],
+      "tokens": 65,
+      "lines": 6,
+      "format": "python"
+    },
+    {
+      "id": "da4081f699691c3e40e97736e93b54dbd1e57f5f255dd1df4f14ffe0aa752456",
+      "endpoints": [
+        {
+          "file": "apps/api/app/service.py",
+          "start": 946,
+          "end": 953,
+          "context": "1fdf936427a78c06cc476c6489d23058d9683678bd7572d85ada26d98133dc6a"
+        },
+        {
+          "file": "apps/api/app/service.py",
+          "start": 923,
+          "end": 930,
+          "context": "57a7d42261a48bc32ddf34e6a396086906c51feb9a8fcf9bb298016d03cbae56"
+        }
+      ],
+      "tokens": 52,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "daac3ddc9793e94f965588a15381ef6906cde28a9cc76942e9e4a83d6bf9f476",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api-media.ts",
+          "start": 9,
+          "end": 24,
+          "context": "09f8b26b1ff5a21efd144400a5623983ef0afc93df8e07789095bc0f841c4f1b"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 80,
+          "end": 97,
+          "context": "26a5c0bc5ef8671fc62e5a950e9d31d5b1036b31952f2d490378e7a4d46066e8"
+        }
+      ],
+      "tokens": 101,
+      "lines": 16,
+      "format": "typescript"
+    },
+    {
+      "id": "daf8a9187636561664dc7b4e34ad12d1ca72c7a89738954bc9da77fd0496879f",
+      "endpoints": [
+        {
+          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
+          "start": 122,
+          "end": 133,
+          "context": "5b3a6db4295e0fcbd87088e11eca151092ef4a17441f82c0805ac52e3c16f4bb"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_proof.mjs",
+          "start": 183,
+          "end": 194,
+          "context": "5d772b915b3e24f7866fc448c5f45e0f62303b6a2543b5d4459955150e007ab3"
+        }
+      ],
+      "tokens": 63,
+      "lines": 12,
+      "format": "javascript"
+    },
+    {
+      "id": "db70361a304e9f995bac9bf5cf22f79c799a66e4011ad3a3348e73ca9386e157",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/preset-sharing.ts",
+          "start": 136,
+          "end": 154,
+          "context": "328b30a70456ca1f8f1f4c64ccfbde6b86509ff72719c6fa0a52142dd7a57ec9"
+        },
+        {
+          "file": "apps/web/lib/prompt-recipe-sharing.ts",
+          "start": 74,
+          "end": 92,
+          "context": "8bf35c5b0ed9be789a69ef130962a28f2c25288659fc623860b247a4d874883f"
+        }
+      ],
+      "tokens": 107,
+      "lines": 19,
+      "format": "typescript"
+    },
+    {
+      "id": "dca828c4c51a6eb7795ae1f1c53af0f962d9a57ed73831650ee5d60c9407652d",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/kie_model.py",
+          "start": 184,
+          "end": 194,
+          "context": "56925f3535d8ad5889ec5e932fbef2fbf2ce6c0b098139bcce905c43bec3b332"
+        },
+        {
+          "file": "apps/api/app/graph/executors/kie_model.py",
+          "start": 255,
+          "end": 265,
+          "context": "83c699276d665ab17dfaefc3a79cd78b76c35c8aa0de2c827f4d23361283840b"
+        }
+      ],
+      "tokens": 69,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "dcba2d622591b220f8825f747b7a94a1320acdd8fa9363f9525e1b47fee89a9c",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 386,
+          "end": 395,
+          "context": "794e4d689dc24ac0a681b3c4a2efea24397d72050bd6d9898786299fe602947e"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 431,
+          "end": 440,
+          "context": "f5d7d61b5577c252eb49c02cc64aede60f36d464f7ea7e5ca44117363fd312d9"
+        }
+      ],
+      "tokens": 120,
+      "lines": 10,
+      "format": "typescript"
+    },
+    {
+      "id": "e027ce566de19024fad4d879740197547c5c158cf8a6cdc5a23c3cc7e6fe3fd2",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
+          "start": 792,
+          "end": 802,
+          "context": "c196dc31ca6bb9b881f8201062c7a06a2004c4e838bdf530a35c9b7b78c79ef1"
+        },
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
+          "start": 725,
+          "end": 735,
+          "context": "f4e793e2b661d9b796aa3d0ecc4df4b7b8c6156bd66db4ebde7a82aa47656087"
+        }
+      ],
+      "tokens": 88,
+      "lines": 11,
+      "format": "typescript"
+    },
+    {
+      "id": "e0f95058a14a67a93e20086a889c71c4e9f84717af1b21e335d3a3c0aea578ef",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/types.ts",
+          "start": 1182,
+          "end": 1192,
+          "context": "8f7bbc6234ecc994144bca9c39cf5e608526dbd043e2bea51da09be9e0c4e39f"
+        },
+        {
+          "file": "apps/web/lib/types.ts",
+          "start": 1156,
+          "end": 1166,
+          "context": "ea07270c71e7d0bb97264cc87c26617656294a398ef27f3c96c3a15362370d1a"
+        }
+      ],
+      "tokens": 76,
+      "lines": 11,
+      "format": "typescript"
+    },
+    {
+      "id": "e0fd1df962ef7d7b77d3e0c07048a9dec94e94fdf70e66fd0febdd903c4683f7",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/utils/graph-media-preview.ts",
+          "start": 23,
+          "end": 34,
+          "context": "a73ee5ce94d030cc53471048cb6c5599edc41bc1ffabd16c639dc5c3b5cde96c"
+        },
+        {
+          "file": "apps/web/lib/video-metadata.ts",
+          "start": 37,
+          "end": 48,
+          "context": "6f469656fc3c6299e944cdbfbb3782d4e4af692e0d12e92f59ca4cd749d7365c"
+        }
+      ],
+      "tokens": 84,
+      "lines": 12,
+      "format": "typescript"
+    },
+    {
+      "id": "e13e718efd143303b9572056fa88beae46b34ea004c60bb34018d69794bccb0d",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 445,
+          "end": 467,
+          "context": "0d634dd1f2e2d929ce1be88640166b095f810ac81cea21d655ae81e88f0749ea"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 401,
+          "end": 423,
+          "context": "66be1b74615ce0dae48de481b4fa767937b7a06f38ab00496794cf6f07b60b0d"
+        }
+      ],
+      "tokens": 123,
+      "lines": 23,
+      "format": "typescript"
+    },
+    {
+      "id": "e18b641a0f2fea3e2edfc3065c7d53f02af5de2506af60f22badb7283246903d",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 530,
+          "end": 538,
+          "context": "1195ee8f3c4f2d579083c14904aa37be6728877f702be1b5b9cfa3f0c53081b6"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 551,
+          "end": 559,
+          "context": "43bc28444dcc007dd170d0df679ba93a6e62355d2401b8874c571948b30e2b57"
+        }
+      ],
+      "tokens": 69,
+      "lines": 9,
+      "format": "python"
+    },
+    {
+      "id": "e1ce9e6bfed781820166f89fee520ec2301199f30f1039a001caa8548fdcf45e",
+      "endpoints": [
+        {
+          "file": "apps/api/app/codex_local_provider.py",
+          "start": 1328,
+          "end": 1335,
+          "context": "911bf5cc811eddf20c1e0c8c154d9f2ca1d539c08cefaffd64e3dc29ff7d4bb4"
+        },
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 701,
+          "end": 708,
+          "context": "4e2912b4714a037aba439322db4e2971a106b5a1632876859c5515a2069bcb58"
+        }
+      ],
+      "tokens": 51,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "e21d7a836597470c59e93a42818f9bea9bc451df9c44dbf60eb2386d9ed1e53d",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-media-dashboard-actions.ts",
+          "start": 95,
+          "end": 101,
+          "context": "53ee98b27afb9244dcb600b36ac419d9254e33e7336ed3268971883a1ed4c760"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-polling.ts",
+          "start": 114,
+          "end": 121,
+          "context": "fac6769e52c0956a494c38b9440d36881b996f3e9996654cc4cc6e18ff48c15e"
+        }
+      ],
+      "tokens": 64,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
+      "id": "e2e036feece23d6c3d043944cbbd7fc350fb47b28bc776193b9163be0a266030",
+      "endpoints": [
+        {
+          "file": "scripts/assistant_conversation_probe.mjs",
+          "start": 112,
+          "end": 133,
+          "context": "5363c51a39434f89923c91c0a7cbca4c02d60b5803bd8973ad67b96f4b0ce531"
+        },
+        {
+          "file": "scripts/smoke_studio_playwright.mjs",
+          "start": 28,
+          "end": 49,
+          "context": "7b319065532241d343c7dfaecc456500737ab7521dafc3aca9cf5278e23a3bfb"
+        }
+      ],
+      "tokens": 135,
+      "lines": 22,
+      "format": "javascript"
+    },
+    {
+      "id": "e36d5dc81e9f35539529afc3ada5b9b894f4fd709c5d5eb2c205027af07b4c7d",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/media-model-admin.ts",
+          "start": 91,
+          "end": 105,
+          "context": "46ac1761750208f5a0cb66f99aa60e88b05220cedc6d8db0c9bc926c2d0d0974"
+        },
+        {
+          "file": "apps/web/lib/media-model-admin.ts",
+          "start": 150,
+          "end": 164,
+          "context": "ec6d168736404b84bf61f31451090a586acb55e7bb5f0231de65d45c830480b4"
+        }
+      ],
+      "tokens": 78,
+      "lines": 15,
+      "format": "typescript"
+    },
+    {
+      "id": "e42f7dcb99d6f15195634b3a28bd3e066ddcbe054c6516f989669c3603f60ba1",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/image_ops.py",
+          "start": 85,
+          "end": 90,
+          "context": "1958709c62bec9a30c7ff8cd248e2cba3cf9f84daf8de1d393fe2a0d561e14e8"
+        },
+        {
+          "file": "apps/api/app/service_reference_media.py",
+          "start": 101,
+          "end": 106,
+          "context": "199bf84a55c970ff6d4be690886647f71d4bd1fd812a19adbde323efbaa01d10"
+        }
+      ],
+      "tokens": 57,
+      "lines": 6,
+      "format": "python"
+    },
+    {
+      "id": "e48dc9859f4b9e55d717947893247f9344e2252f93a957eace87371577702962",
+      "endpoints": [
+        {
+          "file": "scripts/run_media_assistant_preset_loop_proof.mjs",
+          "start": 176,
+          "end": 197,
+          "context": "0bcb453b391c0c120f615df69ec7525a8bea7c048ab894a988b310aa4cda1324"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 259,
+          "end": 280,
+          "context": "edc80dd8a2bb8fd33d914bc93e426fa7c32581b50e7c57ffa24d42fb22db5eef"
+        }
+      ],
+      "tokens": 139,
+      "lines": 22,
+      "format": "javascript"
+    },
+    {
+      "id": "e61724922846fdab4a8d3c211d65faed89f9c9bc1d85e1a429781c64198daf85",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 493,
+          "end": 517,
+          "context": "a5d5488cee6cbf2db36e552c1260264460e6e271f65174f80bab644608a64241"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 449,
+          "end": 473,
+          "context": "bb3ac31241ecb9620ca2fd4d3aaaa6e78b273901b5408313c70423a3c3257713"
+        }
+      ],
+      "tokens": 181,
+      "lines": 25,
+      "format": "tsx"
+    },
+    {
+      "id": "e70f870f0ce27ee04021406190c62ab2748742ebbf82b57396ba8b1f03875bf8",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/video_ops.py",
+          "start": 70,
+          "end": 82,
+          "context": "c7c34f44a0d4c4be2cdb4bf47fc9cc518ba48f1e946e85fa82ebb82e1cdabfa1"
+        },
+        {
+          "file": "apps/api/app/graph/media_probe.py",
+          "start": 37,
+          "end": 49,
+          "context": "ff0902c7db7f75d1696aab5b96826551ecf0931f6e9b5ef8e5a66de36fcea6c4"
+        }
+      ],
+      "tokens": 64,
+      "lines": 13,
+      "format": "python"
+    },
+    {
+      "id": "e7866dcb888567945a15228c3d166a14bc25a5639d20c8ef18708bad48bdb9c3",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 436,
+          "end": 447,
+          "context": "f0015e9e3fba2ab18a75547f01f1628ed7a910a41d37ab3cd8bb65ab135a35a1"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 579,
+          "end": 590,
+          "context": "8dafd35de1d8eb0f6e0b8a78057c7d1556cf806e5161f70f3be19b80745c418e"
+        }
+      ],
+      "tokens": 56,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
+      "id": "e8d76fec103393d95010abbe0bfb4f885971b79f933ef48a7aff3ee0faa7a43a",
+      "endpoints": [
+        {
+          "file": "apps/web/app/api/control/media-assets/route.ts",
+          "start": 100,
+          "end": 110,
+          "context": "8633f799b7d1121b0805b553e4b66a6af536d17fdbabcec40c61a1b9cd481a8a"
+        },
+        {
+          "file": "apps/web/app/api/control/media-assets/route.ts",
+          "start": 151,
+          "end": 166,
+          "context": "b329cb25488b36cb332c5c56526d73bec44f30b2271b1a207a75a93f18f90702"
+        }
+      ],
+      "tokens": 83,
+      "lines": 11,
+      "format": "typescript"
+    },
+    {
+      "id": "ebc9461a3f1b73b615ce88e4f60b175dcb0fa03ee6ed3aaa7a9b5fd7d6e9bc4e",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/prompt_ops.py",
+          "start": 1670,
+          "end": 1680,
+          "context": "0de969a07ac90e69e6f6ef35873564b9212dbb240ad01b63f0f9a0484fb55260"
+        },
+        {
+          "file": "apps/api/app/graph/executors/prompt_ops.py",
+          "start": 1801,
+          "end": 1811,
+          "context": "8bee97941899f5aa9f82f3c277ec655e58c00f9fa479939eab60c1e94f78ced5"
+        }
+      ],
+      "tokens": 64,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "ec18a02272f788db0be27454e30b8a70e268e04b3de2d36b14a83ffd2f6c8e05",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/audio_ops.py",
+          "start": 87,
+          "end": 95,
+          "context": "ead56ae1fef8831de31c9a3bc832a27fb554acff9772a3aa536270b4ec0eb2db"
+        },
+        {
+          "file": "apps/api/app/graph/executors/media_save.py",
+          "start": 177,
+          "end": 185,
+          "context": "053631e46756c8e66c1fe873e18cdcafbda9437b35e9e9f1e5a7f0068d78ebc1"
+        }
+      ],
+      "tokens": 88,
+      "lines": 9,
+      "format": "python"
+    },
+    {
+      "id": "eccd9463b30990c71efe4c42587c7468ed05995c00287d1aa23baf7f92e29de7",
+      "endpoints": [
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+          "start": 450,
+          "end": 458,
+          "context": "8ec47bec2bd301ecb1e065d574d7caa7f10d4e47345cbc08b915bd5143688af7"
+        },
+        {
+          "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+          "start": 593,
+          "end": 601,
+          "context": "549a0ea28d930d12684b8b52b9701ef9d56bee5dbbf3cebb1fd98471ddb47a0b"
+        }
+      ],
+      "tokens": 51,
+      "lines": 9,
+      "format": "tsx"
+    },
+    {
+      "id": "edf44538f929a9434aaba7e0d4de98d9452cf5e89ed36523ae0995f0c5bc3e78",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-presets/editor/media-preset-image-slots-panel.tsx",
+          "start": 14,
+          "end": 27,
+          "context": "d3403325e23c948afd8ffc014225a82d54b7d5ccebe3933d776cef9e1054ddbc"
+        },
+        {
+          "file": "apps/web/components/media-presets/editor/media-preset-text-fields-panel.tsx",
+          "start": 14,
+          "end": 27,
+          "context": "7ebf267ac4a6cbe7ec29f99f98b568ea3b14c2492d9effb5540f0f377017e693"
+        }
+      ],
+      "tokens": 62,
+      "lines": 14,
+      "format": "tsx"
+    },
+    {
+      "id": "ee11d1683d0ce4af39a1240c54dbf2c72ca9d7e5c5b3a302441b97ceb249d946",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/preset-thumbnail-storage.ts",
+          "start": 48,
+          "end": 61,
+          "context": "f0966f0b79580a2c6505a51d27443e1bda11f07df47060d5e493ab52671865ec"
+        },
+        {
+          "file": "apps/web/lib/prompt-recipe-thumbnail-storage.ts",
+          "start": 31,
+          "end": 44,
+          "context": "7e32874c80dac540a2403ebf56490afec5798f27f43eb0bb0c7c68cf9bff252f"
+        }
+      ],
+      "tokens": 67,
+      "lines": 14,
+      "format": "typescript"
+    },
+    {
+      "id": "efe26e3550b15eed592c60e071ecc47e1525795d6f4eac010cef5f06f93b025a",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/graph_diff.py",
+          "start": 17,
+          "end": 23,
+          "context": "7329354c3af848e238a7f137b96fa4a8e5ad0aa0ad45f6e08eb1d49c4b13bd1e"
+        },
+        {
+          "file": "apps/api/app/assistant/workflow_layout.py",
+          "start": 22,
+          "end": 28,
+          "context": "41526c3d897a7859e8189fb3577b47533f05ef58ebf141d195a30e3a17e85e92"
+        }
+      ],
+      "tokens": 70,
+      "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "f0b28e13d61bb3ae0998f2ef431f7023956f851d98ba96642e7ec984265ec0ce",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/prompt_ops.py",
+          "start": 430,
+          "end": 436,
+          "context": "0a890947d958533e093534a90c0f89f1f3ec674cc53d98f8a9c6903f2385dfec"
+        },
+        {
+          "file": "apps/api/app/graph/validator_prompt_recipe.py",
+          "start": 255,
+          "end": 260,
+          "context": "90684c8da80177015ffaabcb646faa295bf8c401518980d94e33ce4916287d0c"
+        }
+      ],
+      "tokens": 50,
+      "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "f0c4994809ade1dc9ec952c7b747372670952c02233452d7ec22c50c5a850339",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/prompt_ops.py",
+          "start": 1622,
+          "end": 1628,
+          "context": "01933be36a50ab8c65281895a39b1b2693d2c3aace5431dbdd5b133f47edc0a9"
+        },
+        {
+          "file": "apps/api/app/graph/executors/prompt_ops.py",
+          "start": 1702,
+          "end": 1708,
+          "context": "91fbcea7fc42c3f4fc9aad2b2eaa4aa0a51795e94ba316139ac47a6f926db48b"
+        }
+      ],
+      "tokens": 56,
+      "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "f18046bc7658af664716c4e290e4e13906c875518428846422cf79f1df399b20",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-node-field.tsx",
+          "start": 450,
+          "end": 468,
+          "context": "5e11a4362055c324c2324b61abb13fdb68728d50d0c7488e484841bce48a46b6"
+        },
+        {
+          "file": "apps/web/components/graph-studio/graph-node-field.tsx",
+          "start": 158,
+          "end": 176,
+          "context": "89746a133672190257d69ccd2b851c88d31a822d0cd99660890a04c21457ba0f"
+        }
+      ],
+      "tokens": 81,
+      "lines": 19,
+      "format": "tsx"
+    },
+    {
+      "id": "f40329e42fc65704b1421376cb3f2c61fb6ab70795ad9263b127229bcf3f19da",
+      "endpoints": [
+        {
+          "file": "scripts/run_studio.mjs",
+          "start": 141,
+          "end": 159,
+          "context": "53b0666e34a6910a5a5c2a0df0e452d9921ab1da51df51020d392f8dc34da39b"
+        },
+        {
+          "file": "scripts/stop_studio.mjs",
+          "start": 94,
+          "end": 112,
+          "context": "116ebf9279677306b6bd408596fe225af773cd29fa19cf98138a59b4c75b146e"
+        }
+      ],
+      "tokens": 95,
+      "lines": 19,
+      "format": "javascript"
+    },
+    {
+      "id": "f44e3140082bf55f0cf383741f2abee3006a7b8174b03614715e0594d11b2600",
+      "endpoints": [
+        {
+          "file": "scripts/check_preset_loop_ready.mjs",
+          "start": 165,
+          "end": 173,
+          "context": "f2637eb1fb8b2a297da0633f05093589da02f28f2839ba340512d4d370508f22"
+        },
+        {
+          "file": "scripts/run_media_assistant_preset_loop_qa.mjs",
+          "start": 454,
+          "end": 462,
+          "context": "a4e408490cf93530911fbc8a55ee3413cdd77f40d3bd8c8aeebe92926bfc5566"
+        }
+      ],
+      "tokens": 72,
+      "lines": 9,
+      "format": "javascript"
+    },
+    {
+      "id": "f470bd18963bf2634b6353bb4a83a8e6674d0b986a679b8f6461962cf3ef73d6",
+      "endpoints": [
+        {
+          "file": "apps/api/app/main.py",
+          "start": 858,
+          "end": 876,
+          "context": "49c689dfc5be9439e3e5749f85f508ebf4de7ddeee37b59ac1caeec2aed25fce"
+        },
+        {
+          "file": "apps/api/app/main.py",
+          "start": 817,
+          "end": 835,
+          "context": "e01797fa9844b058fb9017d2cc0d76bb764ee1ef690aef55b02f6394301e9e37"
+        }
+      ],
+      "tokens": 129,
+      "lines": 19,
+      "format": "python"
+    },
+    {
+      "id": "f49e70793bfb7dd219493bbd556f07ee5493b0c5644f9ff29de3c168b1fc7e79",
+      "endpoints": [
+        {
+          "file": "apps/api/app/main.py",
+          "start": 683,
+          "end": 692,
+          "context": "39e1804c6e957c9c9bdbe506c03a1a4bd28cfc585d634712dad93ba270360824"
+        },
+        {
+          "file": "apps/api/app/main.py",
+          "start": 695,
+          "end": 704,
+          "context": "f136a41c860d072e6bf41c86656b95ea4d27b9e027ca3e5d7b181fc5da90dff8"
+        }
+      ],
+      "tokens": 58,
+      "lines": 10,
+      "format": "python"
+    },
+    {
+      "id": "f4a2c3e9f9929cd0fecae5cf5dce4322a0241cb0843680d318dc7cc90bb62618",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-preset-editor-screen.tsx",
+          "start": 107,
+          "end": 120,
+          "context": "ec2b9cec5f79ce05a5cd787c17448a3d4072c7e0ba1e70a83d150095b9b3b356"
+        },
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-editor-screen.tsx",
+          "start": 191,
+          "end": 204,
+          "context": "b0d1a937417984137bb9c5ff04177e23e4dcd60512cade50608133edd63dfe2c"
+        }
+      ],
+      "tokens": 64,
+      "lines": 14,
+      "format": "tsx"
+    },
+    {
+      "id": "f7ee60fea9616e856867cc84e40b858cb3a3a31e73276379b211bd7c3c946427",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-gallery-feed.ts",
+          "start": 220,
+          "end": 248,
+          "context": "86c3fedfed97bdd1e3ed2af01017bf00875a5dddfb30df2215d3e900fa119162"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-gallery-page-actions.ts",
+          "start": 101,
+          "end": 129,
+          "context": "f9f8319cc39be352b7a0d89587401f1a7536032f52e6257121b72bded50ab778"
+        }
+      ],
+      "tokens": 56,
+      "lines": 29,
+      "format": "typescript"
+    },
+    {
+      "id": "f7f5c1b3cd25e15242118cd2dbb64b848851416f5b2edaf5e6ab35b701525d41",
+      "endpoints": [
+        {
+          "file": "scripts/assistant_conversation_probe.mjs",
+          "start": 289,
+          "end": 299,
+          "context": "2622e3ece4eeac3e2c0c323a84cd5124817612a5c6d89eaceb8f3619139803c1"
+        },
+        {
+          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
+          "start": 122,
+          "end": 132,
+          "context": "d8d76d5a909bf2f106c7f0d112449a7a7c01b5d9b4dd4fe7e82f851fef93c225"
+        }
+      ],
+      "tokens": 54,
+      "lines": 11,
+      "format": "javascript"
+    },
+    {
+      "id": "f838a1610197eaf743dba5ec3c2ed44f4a4bdaf0d55a05878fa9dfa7dad676d7",
+      "endpoints": [
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1379,
+          "end": 1388,
+          "context": "aeb431c662a18a65a6e227449f32defc1f180af3122b8ab4c5e54cedc7cbf8bd"
+        },
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1364,
+          "end": 1373,
+          "context": "d50f560d4086be4ff36ee8afdc344f702adf6a23317b611f64f44fafcc5eda65"
+        }
+      ],
+      "tokens": 51,
+      "lines": 10,
+      "format": "css"
+    },
+    {
+      "id": "f8474fda37c90a5d9087df86325fa12b57747d44f5db9d35abdbc45636a53a76",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/preset_catalog.py",
+          "start": 213,
+          "end": 225,
+          "context": "bd63deef06def659c52d126658e7b4baa7168a3b5302d70b0cacb130bd3a4597"
+        },
+        {
+          "file": "apps/api/app/graph/prompt_recipe_catalog.py",
+          "start": 280,
+          "end": 292,
+          "context": "b9962447b78b7f2d611946f6dd52296526b7ad31bf0ea60605187bdbdc38d1aa"
+        }
+      ],
+      "tokens": 61,
+      "lines": 13,
+      "format": "python"
+    },
+    {
+      "id": "f92948da34277314f8acc9c75aee96361eee84d9f3fd83b52cfda55fa4186987",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-graph-node-field-layout.ts",
+          "start": 154,
+          "end": 160,
+          "context": "0d211afa55d779b3d6a04be0751b50199a1b54db71b51f02d8f985703b4ba29d"
+        },
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-graph-node-field-layout.ts",
+          "start": 170,
+          "end": 176,
+          "context": "1c0e0fc98c93c570260e8507caefde77d035bcdabb49b872592a814638827268"
+        }
+      ],
+      "tokens": 52,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
+      "id": "f93ff5b3f599ba031ed2f783ef7bf3116bffa950692012a314570bf353300041",
+      "endpoints": [
+        {
+          "file": "apps/api/app/service_reference_media.py",
+          "start": 363,
+          "end": 372,
+          "context": "129d2a12801d09b06c832185407d0e7b09160b8dd2259608e4578db75fc47901"
+        },
+        {
+          "file": "apps/api/app/service_reference_media.py",
+          "start": 291,
+          "end": 300,
+          "context": "7f71d81f201ae10adea4627c3489551357570bc7e340c79aa7fc728ea09a666d"
+        }
+      ],
+      "tokens": 50,
+      "lines": 10,
+      "format": "python"
+    },
+    {
+      "id": "fa617e4b6895e3120f058b4e6c693a79b34ab9c67620eb78cdb7cdc937e2acfc",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-graph-node-operations.ts",
+          "start": 28,
+          "end": 33,
+          "context": "2e495f7e2babd757d1c1a51ff6cc64a1ec6156431573dd05f4dcf5023ef9d70d"
+        },
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-graph-node-operations.ts",
+          "start": 97,
+          "end": 102,
+          "context": "ed099562973a6c32010b901442858d090c95c27cfd0d0859da8ab9a4e450f4d6"
+        }
+      ],
+      "tokens": 54,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
+      "id": "fb8a5d78c46dadea83bac2fe0d04fdb77277dcdbbe69eb209e0401574d7a2b65",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
+          "start": 1220,
+          "end": 1226,
+          "context": "7d0910282507ecc6b0cebdb4c99a8f16645167f32734237feac63240c3570f54"
+        },
+        {
+          "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
+          "start": 1066,
+          "end": 1072,
+          "context": "c488b1cdfe0fc7f8ddd8f3abe2f0c70a464ea85eda7e8e1ace9a95c4b39d58b2"
+        }
+      ],
+      "tokens": 55,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
+      "id": "fb8bc99fdb7fa1d8d5fd894379622dce513c01bb2d2fd803493d5d24ab5b0502",
+      "endpoints": [
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 450,
+          "end": 460,
+          "context": "4ea6d1e4d6b05a5cee6fd9d00e59312f89fbfc9f660a5822c46c6c24419ac577"
+        },
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 513,
+          "end": 523,
+          "context": "dff72a8439613308581343030b963346fa024dd2985554f2926411c76209e3d4"
+        }
+      ],
+      "tokens": 75,
+      "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "ff0aef707c4923a198cab9757cb6cf8ed83072f01947128e7c277ba91e82ee6a",
+      "endpoints": [
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 1638,
+          "end": 1660,
+          "context": "4da2e40e3bf5e4938a19f4bdaa2cee84044b166f5325fa0ef6b964cfc119cfbd"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 1561,
+          "end": 1583,
+          "context": "c2f9218e69a23d2564aabd8aae0e4f57e62f65e2bad33e903102d123217e8a21"
+        }
+      ],
+      "tokens": 113,
+      "lines": 23,
+      "format": "python"
+    },
+    {
+      "id": "fff733dee44555ec90e4ea68160d6ba928f40e2fcdcc2852d58a66e9c73892f9",
+      "endpoints": [
+        {
+          "file": "apps/api/app/main.py",
+          "start": 907,
+          "end": 915,
+          "context": "5b779e7dfa00cf94056684258546b32d7ad27bcdd5e26f38b378076b7ada2b3f"
+        },
+        {
+          "file": "apps/api/app/main.py",
+          "start": 802,
+          "end": 810,
+          "context": "ef0278356ef9d96d7a214cb13df53bc11911083c6a0432a6e220ce877df38a06"
+        }
+      ],
+      "tokens": 51,
+      "lines": 9,
+      "format": "python"
+    }
+  ]
+}

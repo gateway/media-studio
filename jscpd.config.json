@@ -1,0 +1,6 @@
+{
+  "minTokens": 50,
+  "minLines": 5,
+  "mode": "mild",
+  "gitignore": false
+}
