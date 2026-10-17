@@ -27,7 +27,7 @@
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Integrate main d143441 admin-theme guard: existing visit CC17 and collect CC19; no ticket05 findings; custom lint runs both guards",
+  "reason": "Ticket 08: remove only graphChangeCopy CC56/cognitive89 exemptions; three cohesive functions now CC15/12/12 and cognitive15/13/12, outputs preserved",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -1251,17 +1251,6 @@
     },
     {
       "rule": "complexity",
-      "message": "Function 'graphChangeCopy' has a complexity of 56. Maximum allowed is 15.",
-      "severity": 1,
-      "line": 4,
-      "column": 8,
-      "metric": 56,
-      "file": "apps/web/components/graph-studio/utils/graph-change-copy.ts",
-      "owner": "FunctionDeclaration:[\"graphChangeCopy\"]",
-      "id": "20abb675e72cc85bea24628d6dfbabe1df8a09bc4112c2ab0fffa79da4db797b"
-    },
-    {
-      "rule": "complexity",
       "message": "Function 'mergeRunStatus' has a complexity of 23. Maximum allowed is 15.",
       "severity": 1,
       "line": 90,
@@ -2433,17 +2422,6 @@
       "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
       "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:c5139bc1de3103d15c76c5d702d0c68b4ce7c7fc801ff21b26f9f1aa779a5384",
       "id": "4265105ae5f0219e2d0668fa0e9ec39d51f113945ebf873cd086419dcd842168"
-    },
-    {
-      "rule": "sonarjs/cognitive-complexity",
-      "message": "Refactor this function to reduce its Cognitive Complexity from 89 to the 20 allowed.",
-      "severity": 1,
-      "line": 4,
-      "column": 17,
-      "metric": 89,
-      "file": "apps/web/components/graph-studio/utils/graph-change-copy.ts",
-      "owner": "FunctionDeclaration:[\"graphChangeCopy\"]",
-      "id": "428a643b7c15256f1d50031fede59243c630afeabcab925ab1f535082e001516"
     },
     {
       "rule": "@typescript-eslint/no-unused-vars",
