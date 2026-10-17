@@ -42,7 +42,7 @@
     "test:static-analysis:python": "node scripts/static-analysis/python.mjs --test",
     "lint:web": "npm --workspace apps/web run lint",
     "lint:web:baseline": "node scripts/static-analysis/gate.mjs --update-baseline",
-    "test:static-analysis": "node --test scripts/static-analysis/gate.test.mjs",
+    "test:static-analysis": "node --test scripts/static-analysis/gate.test.mjs scripts/static-analysis/custom-web.test.mjs",
     "typecheck:web": "npm --workspace apps/web run typecheck",
     "smoke:studio": "node ./scripts/smoke_studio_playwright.mjs",
     "smoke:assistant-layout": "node ./scripts/check_assistant_layout.mjs",

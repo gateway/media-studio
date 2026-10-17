@@ -1,4 +1,4 @@
-# JavaScript, TypeScript and Python development gates
+# JavaScript, TypeScript, Python and CSS development gates
 
 From the repository root, set up the isolated analyzer environment once:
 
@@ -15,16 +15,15 @@ An existing dedicated environment can be selected with `STATIC_ANALYSIS_PYTHON`
 (absolute path to its Python executable). Missing environments fail; lint never
 installs dependencies. Python 3.11 is the verified local/CI analyzer runtime.
 
-`npm run lint` runs web then Python gates. `npm run lint:web` and the web workspace's
+`npm run lint` runs web, Python, then CSS/theme gates. `npm run lint:web` and the web workspace's
 `npm run lint` run only the web gate; `npm run lint:python` runs only Python.
 Use Node **22.22.0** to reproduce the dedicated CI job. The installed ESLint release
 requires Node ^20.19.0, ^22.13.0 or >=24.0.0; older Node 20 installations must upgrade.
 The static-only CI install uses `npm ci --ignore-scripts` and needs no provider checkout,
 app server, database, credentials or paid generation.
 
-These slices check JS/TS and Python. CSS, import architecture, duplication and
-the build prerequisite are separate rollout tickets; `npm run lint` does not yet
-claim coverage of them. Existing release/quality checks continue to exist.
+These slices check JS/TS, Python and CSS/theme rules. Import architecture, duplication
+and the build prerequisite remain separate rollout tickets. Existing release/quality checks continue to exist.
 
 ## What runs
 
@@ -39,7 +38,7 @@ claim coverage of them. Existing release/quality checks continue to exist.
 - TypeScript 5.9.3 compiler API, using the web tsconfig with noEmit and incremental
   disabled, plus noUnusedLocals/noUnusedParameters. Real type/configuration errors
   always fail. Only unused diagnostics TS6133/6192/6196/6198 can enter the baseline.
-- The unchanged `scripts/lint_web.mjs` custom web checks. Any nonzero exit fails.
+- The `scripts/lint_web.mjs` custom web checks, with stateless per-file predicates. Any nonzero exit fails.
 - Ruff 0.17.1 checks E4/E7/E9/F/B/C901; C901 limit 15. Radon 6.0.1 measures each
   function with its native AST visitor, including methods of nested classes missed
   by its ordinary CLI output. Independent Radon CC limit: 15. Radon CLI MI is
@@ -109,7 +108,7 @@ and files, custom guard stdout/stderr/status, tool/config metadata, normalized
 findings, and a pass/fail summary or failure record. Nonzero exit is authoritative.
 The gate does not install packages, autofix, emit JS or write tsbuildinfo caches.
 
-`npm run test:static-analysis` runs pure Node tests and disposable source fixtures
+`npm run test:static-analysis` includes the custom-web consecutive-file regression suite and runs pure Node tests and disposable source fixtures
 against the actual installed analyzers. It checks identity matching, line shifts,
 renames/new files, replacement findings, worsening metrics, compiler errors,
 missing dependencies and invalid configurations. Fixtures import no app code.
@@ -119,7 +118,7 @@ Ruff/Radon, covering correctness, independent complexity metrics, nested methods
 line shifts, renames/new files, replacement findings, tool/config failures and
 malformed/incomplete reports. It does not load the application test harness.
 
-`.github/workflows/static-analysis.yml` runs both fixture suites and the combined gate
+`.github/workflows/static-analysis.yml` runs all three fixture suites and the combined gate
 on every PR and main push, retaining reports even on failure. Configure the
 `javascript-typescript-python` job as a required branch-protection/ruleset check after its
 first remote run. Committing a workflow alone does not enforce merges; remote CI
