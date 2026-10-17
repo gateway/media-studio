@@ -10,7 +10,7 @@ Choose from GPT Image, Nano Banana, Seedance, Kling, and Suno through [Kie AI](h
 
 [Install](#install-and-start) · [Features](#make-more-with-your-media) · [Models](#supported-models) · [Graph Studio](#graph-studio-experimental) · [Media Assistant](#media-assistant-experimental)
 
-Developing the app? Run `npm run lint` before submitting JS/TS or Python changes. See the
+Developing the app? Run `npm run lint` before submitting JS/TS, Python or CSS changes. See the
 [static-analysis guide](scripts/static-analysis/README.md) for setup, existing-debt
 baselines, regression tests and CI coverage.
 

@@ -27,6 +27,7 @@ jobs:
       - run: .venv/static-analysis/bin/python -m pip install -r scripts/static-analysis/requirements.txt
       - run: npm run test:static-analysis
       - run: npm run test:static-analysis:python
+      - run: npm run test:static-analysis:css
       - run: npm run lint
       - uses: actions/upload-artifact@v4
         if: always()

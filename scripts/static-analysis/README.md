@@ -124,3 +124,12 @@ on every PR and main push, retaining reports even on failure. Configure the
 `javascript-typescript-python` job as a required branch-protection/ruleset check after its
 first remote run. Committing a workflow alone does not enforce merges; remote CI
 execution and branch protection must be verified separately. No hooks are installed.
+# CSS checks
+
+`npm run lint` also runs `npm run lint:css`: Stylelint over all CSS under `apps/web` (excluding dependencies, `.next`, and test results), followed by the existing theme-drift guard. It uses the same dedicated Python environment described below, or `STATIC_ANALYSIS_PYTHON`. There is no package installation during lint.
+
+Run `npm run test:static-analysis:css` for the real-tool positive/negative fixtures; CI runs this command before the same root lint command. Fixtures cover Tailwind/token syntax, historical specificity with line shifts, new unknown properties even inside disable comments, syntax failures, and theme drift. JSON stream parsing and baseline regression policy have focused tests too.
+
+Review [CSS_BASELINE_REVIEW.md](CSS_BASELINE_REVIEW.md) for the 1,127 historical findings, Tailwind policy, theme thresholds and dependency limitations. New occurrences fail, including warnings. A deliberate reviewed refresh uses `npm run lint:css:baseline -- "review reason"`; config, lockfile or runner changes require this explicit review. Never refresh merely to make lint green.
+
+Every run writes raw Stylelint stdout/stderr, JSON findings, effective rules, exact versions/config hashes, coverage, theme output and exit statuses to a unique directory under `STATIC_ANALYSIS_OUTPUT` or the OS temporary directory. Missing or malformed JSON and analyzer failures block the check. CI preserves the directory as an artifact.
