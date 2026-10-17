@@ -2,7 +2,7 @@ import type { AssistantMessage } from "./types";
 
 const OUTCOME_COPY: Record<string, string> = {
   assistant_provider_failed: "The assistant couldn't finish this request. Review any saved work before trying again.",
-  assistant_unavailable: "Media Assistant couldn't start this request. Check AI Settings and try again.",
+  assistant_unavailable: "Media Assistant couldn't start this request. Check Connections and AI Models, then try again.",
   assistant_turn_interrupted: "This request was interrupted. Review any saved work before making a new attempt.",
 };
 

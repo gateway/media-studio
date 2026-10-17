@@ -187,7 +187,7 @@ it.each(["Codex Local App Server returned invalid JSON.", "Codex Local returned 
   fireEvent.click(screen.getByRole("button", { name: /generate draft/i }));
   const raw = await screen.findByText(error);
   expect(raw.closest("details")).toBeTruthy();
-  expect(screen.getByText("Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Settings.")).toBeTruthy();
+  expect(screen.getByText("Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Models.")).toBeTruthy();
   expect(screen.getByDisplayValue("Preserve warm amber light.")).toBeTruthy();
 });
 

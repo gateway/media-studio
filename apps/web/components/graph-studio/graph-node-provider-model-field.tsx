@@ -95,10 +95,10 @@ export function GraphNodeProviderModelField({
   const statusDetail = providerReady
     ? providerCatalogStatusDetail(providerKind, catalogEntry)
     : providerKind === "codex_local"
-      ? "Set up Codex in AI Settings to choose a model."
+      ? "Set up Codex in Connections to choose a model."
       : providerKind === "openrouter"
-        ? "Add OpenRouter in AI Settings to choose a model."
-        : "Set up Local OpenAI in AI Settings to choose a model.";
+        ? "Add OpenRouter in Connections to choose a model."
+        : "Set up Local OpenAI in Connections to choose a model.";
 
   return (
     <div className="graph-provider-model-picker">

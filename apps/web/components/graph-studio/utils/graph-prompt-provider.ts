@@ -145,7 +145,7 @@ export function graphPromptNodeHeaderSummary(nodeType: string, fields: Record<st
   const pieces = [graphPromptProviderLabel(providerKind)];
   const modelId = stringField(fields.model_id);
   if (providerKind === "studio_default") {
-    pieces.push("AI Settings");
+    pieces.push("AI Models");
   } else if (modelId) {
     pieces.push(graphPromptSavedModelLabel(fields, providerKind, modelId));
     const supportsImages = graphPromptSupportsImages(fields);
@@ -170,7 +170,7 @@ export function graphPromptAdvancedSummary(nodeType: string, fields: Record<stri
     return "Provider, vision-capable model, and optional runtime overrides. Leave overrides blank to use provider defaults.";
   }
   if (providerKind === "studio_default") {
-    return "Provider, model, and optional runtime overrides. Leave overrides blank to use the Prompt Enhance default model from AI Settings.";
+    return "Provider, model, and optional runtime overrides. Leave overrides blank to use the Prompt Enhance default model from AI Models.";
   }
   return "Provider, model, and optional runtime overrides. Leave overrides blank to use provider defaults.";
 }

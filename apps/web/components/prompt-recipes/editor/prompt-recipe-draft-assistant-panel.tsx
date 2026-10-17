@@ -74,11 +74,11 @@ export function PromptRecipeDraftAssistantPanel({
         {!draftingEnabled ? (
           <div className="grid gap-4">
             <div className="surface-inset p-4 text-sm leading-6 text-[var(--muted-strong)]">
-              Recipe drafts are turned off in AI Settings. Turn them on there before using this assistant.
+              Recipe drafts are turned off in AI Models. Turn them on there before using this assistant.
             </div>
             <div className="flex flex-wrap justify-end gap-3">
               <Link href={SETTINGS_LLM_ROUTE} className={adminButtonClassName({ variant: "subtle" })}>
-                Open AI Settings
+                Open AI Models
               </Link>
             </div>
           </div>

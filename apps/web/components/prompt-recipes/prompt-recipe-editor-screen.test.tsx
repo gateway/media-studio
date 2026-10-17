@@ -272,14 +272,14 @@ describe("PromptRecipeEditorScreen", () => {
   });
 
   it.each([
-    ["Prompt recipe drafting provider returned invalid JSON.", "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Settings."],
-    ["Drafting model returned an invalid recipe draft: System prompt template is required.", "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Settings."],
-    ["Control API returned 503 for /prompt-recipes/draft.", "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Settings."],
+    ["Prompt recipe drafting provider returned invalid JSON.", "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Models."],
+    ["Drafting model returned an invalid recipe draft: System prompt template is required.", "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Models."],
+    ["Control API returned 503 for /prompt-recipes/draft.", "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Models."],
     ["The Control API is unavailable right now.", "Couldn’t prepare your Prompt Recipe draft. Check your connection and try again."],
-    ["openrouter recipe draft failed with 503.", "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Settings."],
-    ["local_openai_compatible recipe draft failed with 502.", "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Settings."],
-    ["codex_local recipe draft failed with 503.", "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Settings."],
-    ["Save a recipe draft model in AI Settings before drafting.", "Save a recipe draft model in AI Settings before drafting."],
+    ["openrouter recipe draft failed with 503.", "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Models."],
+    ["local_openai_compatible recipe draft failed with 502.", "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Models."],
+    ["codex_local recipe draft failed with 503.", "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Models."],
+    ["Save a recipe draft model in AI Models before drafting.", "Save a recipe draft model in AI Models before drafting."],
   ])("preserves draft failure guidance and optional diagnostics: %s", async (error, expected) => {
     vi.stubGlobal("fetch", buildEditorFetchMock({ draftResponse: { ok: false, error, draft: null } }));
     render(<PromptRecipeEditorScreen recipes={[]} initialDraftingConfig={makeDraftingConfig()} />);
@@ -551,8 +551,8 @@ describe("PromptRecipeEditorScreen", () => {
 
     fireEvent.click(screen.getByText("Generate from an idea"));
 
-    expect(screen.getByText(/Recipe drafts are turned off in AI Settings/i)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open AI Settings" }).getAttribute("href")).toBe("/settings/llms");
+    expect(screen.getByText(/Recipe drafts are turned off in AI Models/i)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open AI Models" }).getAttribute("href")).toBe("/settings/llms");
     expect(screen.queryByLabelText("Recipe idea")).toBeNull();
   });
 });

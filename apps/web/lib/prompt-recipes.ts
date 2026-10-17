@@ -407,7 +407,7 @@ export function promptRecipeDraftFailureMessage(message = "") {
   if (failure === "request" ||
       message.startsWith("Prompt recipe drafting provider ") ||
       message.startsWith("Drafting model returned an invalid recipe draft:")) {
-    return "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Settings.";
+    return "Couldn’t prepare a usable Prompt Recipe draft. Try again, or check the recipe draft model in AI Models.";
   }
   return message;
 }
