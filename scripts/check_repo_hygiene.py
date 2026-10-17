@@ -34,6 +34,8 @@ BLOCKED_SUFFIXES = (
     ".p12",
 )
 BLOCKED_PREFIXES = (
+    ".agents/skills/media-studio-admin-ui/",
+    "design/",
     "data/",
     ".scratch/",
     ".direnv/",
@@ -51,6 +53,7 @@ BLOCKED_PREFIXES = (
     "playwright-report/",
 )
 BLOCKED_EXACT = {
+    "docs/design-admin.md",
     "AGENTS.md",
     "docs/API_SECURITY_FULL_REPORT.md",
     "docs/review-remediation-plan.md",

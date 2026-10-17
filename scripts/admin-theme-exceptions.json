@@ -1,0 +1,240 @@
+[
+  {
+    "file": "apps/web/app/globals.css",
+    "rule": "control-owner",
+    "detail": ".surface-info-row, .admin-toggle-row",
+    "count": 1,
+    "reason": "Shared surface row foundation; admin-specific overrides belong in admin.css."
+  },
+  {
+    "file": "apps/web/components/admin-theme.ts",
+    "rule": "literal-color",
+    "detail": "text-white/34",
+    "count": 1,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/media-models/media-output-folder-panel.tsx",
+    "rule": "control-override",
+    "detail": "<AdminInput> text-[var(--muted-strong)]",
+    "count": 1,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/media-presets/editor/media-preset-actions-panel.tsx",
+    "rule": "control-override",
+    "detail": "<AdminButton> px-4",
+    "count": 1,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/media-presets/editor/media-preset-actions-panel.tsx",
+    "rule": "control-override",
+    "detail": "<AdminButton> py-3",
+    "count": 1,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/media-presets/editor/media-preset-actions-panel.tsx",
+    "rule": "control-override",
+    "detail": "<AdminButton> text-sm",
+    "count": 1,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/media-presets/editor/media-preset-actions-panel.tsx",
+    "rule": "control-override",
+    "detail": "<AdminButton> tracking-normal",
+    "count": 1,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/prompt-recipes/editor/prompt-recipe-basics-panel.tsx",
+    "rule": "control-override",
+    "detail": "<select> text-sm",
+    "count": 2,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/prompt-recipes/editor/prompt-recipe-contract-panel.tsx",
+    "rule": "control-override",
+    "detail": "<select> text-sm",
+    "count": 1,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/prompt-recipes/editor/prompt-recipe-draft-assistant-panel.tsx",
+    "rule": "control-override",
+    "detail": "<select> text-sm",
+    "count": 2,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/prompt-recipes/editor/prompt-recipe-image-input-panel.tsx",
+    "rule": "control-override",
+    "detail": "<select> text-sm",
+    "count": 2,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/prompt-recipes/editor/prompt-recipe-template-panel.tsx",
+    "rule": "control-override",
+    "detail": "<select> text-sm",
+    "count": 1,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/prompt-recipes/editor/prompt-recipe-variables-panel.tsx",
+    "rule": "control-override",
+    "detail": "<select> text-sm",
+    "count": 5,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
+    "rule": "control-override",
+    "detail": "<select> text-sm",
+    "count": 3,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/prompt-recipes/prompt-recipes-list.tsx",
+    "rule": "control-override",
+    "detail": "<AdminNavButton> !px-[0.9rem]",
+    "count": 1,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/prompt-recipes/prompt-recipes-list.tsx",
+    "rule": "control-override",
+    "detail": "<input> text-sm",
+    "count": 1,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/prompt-recipes/prompt-recipes-list.tsx",
+    "rule": "control-override",
+    "detail": "<select> text-sm",
+    "count": 2,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
+    "rule": "control-override",
+    "detail": "<select> text-sm",
+    "count": 2,
+    "reason": "Existing call-site styling; migrate to semantic tokens or shared control variants when updating this treatment."
+  },
+  {
+    "file": "apps/web/components/studio/studio-lightbox.tsx",
+    "rule": "literal-color",
+    "detail": "bg-[rgba(4,6,5,0.96)]",
+    "count": 1,
+    "reason": "Shared original-output viewer backdrop; migrate at the viewer owner."
+  },
+  {
+    "file": "apps/web/components/ui/button.tsx",
+    "rule": "literal-color",
+    "detail": "text-white",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/icon-button.tsx",
+    "rule": "literal-color",
+    "detail": "bg-[rgba(255,126,166,0.16)]",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/icon-button.tsx",
+    "rule": "literal-color",
+    "detail": "border-[rgba(255,126,166,0.38)]",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/icon-button.tsx",
+    "rule": "literal-color",
+    "detail": "text-[#ff8db3]",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/icon-button.tsx",
+    "rule": "literal-color",
+    "detail": "text-white",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/pill-select.tsx",
+    "rule": "literal-color",
+    "detail": "text-white/42",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/surface-primitives.tsx",
+    "rule": "literal-color",
+    "detail": "bg-white/[0.05]",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/surface-primitives.tsx",
+    "rule": "literal-color",
+    "detail": "border-white/8",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/surface-primitives.tsx",
+    "rule": "literal-color",
+    "detail": "ring-[rgba(208,255,72,0.32)]",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/surface-primitives.tsx",
+    "rule": "literal-color",
+    "detail": "text-white",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/surface-primitives.tsx",
+    "rule": "literal-color",
+    "detail": "text-white/56",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/surface-primitives.tsx",
+    "rule": "literal-color",
+    "detail": "text-white/68",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/surface-primitives.tsx",
+    "rule": "literal-color",
+    "detail": "text-white/92",
+    "count": 2,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/surfaces.ts",
+    "rule": "literal-color",
+    "detail": "bg-[rgba(10,12,11,0.56)]",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  },
+  {
+    "file": "apps/web/components/ui/toast-banner.tsx",
+    "rule": "literal-color",
+    "detail": "bg-black/10",
+    "count": 1,
+    "reason": "Shared Studio appearance; migrate at the shared owner while preserving both appearances."
+  }
+]
