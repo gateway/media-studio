@@ -30,6 +30,7 @@ jobs:
       - run: npm run test:static-analysis:css
       - run: npm run test:static-analysis:full
       - run: npm run test:focused-harness
+      - run: node --test scripts/studio_process_identification.test.mjs
       - run: npm run lint:full
       - uses: actions/upload-artifact@v4
         if: always()
