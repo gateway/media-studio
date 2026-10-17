@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "node ../../scripts/lint_web.mjs",
+    "lint": "node ../../scripts/static-analysis/gate.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

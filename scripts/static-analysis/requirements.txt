@@ -1,0 +1,5 @@
+colorama==0.4.6
+mando==0.7.1
+radon==6.0.1
+ruff==0.17.1
+six==1.17.0

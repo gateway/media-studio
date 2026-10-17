@@ -36,13 +36,25 @@
     "stop:studio:linux": "./scripts/stop_studio_linux.sh",
     "stop:studio:windows": "powershell -ExecutionPolicy Bypass -File .\\scripts\\stop_studio.ps1",
     "build:web": "npm --workspace apps/web run build",
+    "lint": "npm run lint:web && npm run lint:python",
+    "lint:python": "node scripts/static-analysis/python.mjs",
+    "lint:python:baseline": "node scripts/static-analysis/python.mjs --update-baseline",
+    "test:static-analysis:python": "node scripts/static-analysis/python.mjs --test",
     "lint:web": "npm --workspace apps/web run lint",
+    "lint:web:baseline": "node scripts/static-analysis/gate.mjs --update-baseline",
+    "test:static-analysis": "node --test scripts/static-analysis/gate.test.mjs",
     "typecheck:web": "npm --workspace apps/web run typecheck",
     "smoke:studio": "node ./scripts/smoke_studio_playwright.mjs",
     "smoke:assistant-layout": "node ./scripts/check_assistant_layout.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@playwright/test": "^1.57.0",
+    "eslint": "10.13.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-sonarjs": "4.2.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.2",
     "vitest": "^3.2.7"
   }
 }
