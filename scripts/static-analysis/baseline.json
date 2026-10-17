@@ -27,7 +27,7 @@
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Integrate main d143441 admin-theme guard: existing visit CC17 and collect CC19; no ticket05 findings; custom lint runs both guards",
+  "reason": "Ticket07: remove 80 TS unused diagnostics and 81 ESLint unused bindings; review three unchanged context identities; all 306 complexity metrics unchanged",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -65,7 +65,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2403,
+      "line": 2327,
       "column": 29,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onDownload\"]/anonymous:ec60ac64b854294fff41045d4ce05cd0d92008c24b97d8393dd38313c4d850ec",
@@ -75,7 +75,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1515,
+      "line": 1439,
       "column": 11,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/anonymous:37323a1b74787e167bbb1931646debf9fa98bb518e571f4c30e8b51c98a45856/VariableDeclaration:[\"handleKeyDown\"]/function",
@@ -220,7 +220,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1623,
+      "line": 1547,
       "column": 11,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"navigateSelectedGalleryAsset\"]/anonymous:e3642ad97fb06bbfc1aa23f1df8ac843e2f6b7ea9ce085dcf9ca1441e6f31c02",
@@ -235,26 +235,6 @@
       "file": "apps/web/hooks/studio/use-studio-gallery-feed.ts",
       "owner": "FunctionDeclaration:[\"useStudioGalleryFeed\"]/VariableDeclaration:[\"pageRequestOwner\"]",
       "id": "057513d86ff9b00f1300bff253a73fd702bc06664bae214bae2666ae45268110"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'FLOATING_COMPOSER_STATUS_FADE_MS' is declared but its value is never read.",
-      "severity": 2,
-      "line": 71,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"FLOATING_COMPOSER_STATUS_FADE_MS\"]",
-      "id": "05830133701c80c87ebe9c15ec5296c022c9473f534f382f3f969105a0b35628"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'StructuredPresetImageSlot' is declared but its value is never read.",
-      "severity": 2,
-      "line": 118,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"StructuredPresetImageSlot\"]",
-      "id": "06431bed3d978772c2b5510ee97730dbfb9fd627eda3ae9bb3db434f3015c501"
     },
     {
       "rule": "react-hooks/rules-of-hooks",
@@ -286,16 +266,6 @@
       "file": "apps/web/components/graph-studio/graph-node.tsx",
       "owner": "FunctionDeclaration:[\"GraphNode\"]",
       "id": "07f6369b0e7581bfbd94b9ae92ee338a05e4fa1ddc37ca227a5f467029e16404"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6196",
-      "message": "'MediaBatch' is declared but never used.",
-      "severity": 2,
-      "line": 140,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"MediaBatch\"]",
-      "id": "080610fff54a69c628d23c33f042fa03746d013e63195f0d6a9eb574e54ad6fb"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -349,16 +319,6 @@
       "file": "apps/web/components/graph-studio/graph-markdown-note.tsx",
       "owner": "FunctionDeclaration:[\"renderGraphNoteMarkdown\"]",
       "id": "087272e25423d84c201ec438400d20d36ba1498d40b52e2b9426ca47a44d9067"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'estimateFromPricingSnapshot' is defined but never used.",
-      "severity": 1,
-      "line": 146,
-      "column": 10,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"estimateFromPricingSnapshot\"]",
-      "id": "08ab569951a35c32d124b613ffc7ddfbce1d251c7b19c3e99ab07e252edfe03b"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -477,36 +437,6 @@
       "id": "0c5e66de455a38d81c6a29c1f4a09bcfa54ee8e57bec81fee60a11f2003ee574"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'cn' is declared but its value is never read.",
-      "severity": 2,
-      "line": 154,
-      "column": 1,
-      "owner": "",
-      "id": "0d33101c6bd1030ae6603631d2ace1766f72657ec68cf6bb79a160512bec4847"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'Check' is defined but never used.",
-      "severity": 1,
-      "line": 7,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"Check\"]",
-      "id": "0d4ccf6fa1fea5f4577e4107d3c9b37b1bafc881ca64e08e4407c18ffaffcb42"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'Trash2' is defined but never used.",
-      "severity": 1,
-      "line": 14,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"Trash2\"]",
-      "id": "0d7f1e59632390db2e589734d0fa4bdd4a846b5875c18fae6851d85fd5e2a5d2"
-    },
-    {
       "rule": "complexity",
       "message": "Async arrow function has a complexity of 31. Maximum allowed is 15.",
       "severity": 1,
@@ -528,20 +458,10 @@
       "id": "0e0a85e1c077a218ef4eb7e9be250ff049aaae0eed46730836897f4b368f0268"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'LoaderCircle' is declared but its value is never read.",
-      "severity": 2,
-      "line": 10,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"LoaderCircle\"]",
-      "id": "0e0aeb73a41bc21b5f7f8c3fac07a84dbc1e4371f26e289614a35bb0214e5b4f"
-    },
-    {
       "rule": "complexity",
       "message": "Arrow function has a complexity of 17. Maximum allowed is 15.",
       "severity": 1,
-      "line": 1501,
+      "line": 1425,
       "column": 50,
       "metric": 17,
       "file": "apps/web/components/media-studio.tsx",
@@ -581,16 +501,6 @@
       "id": "0e787982acafd5706b4668bb9b0766bd27594d3ba820e760fbf725a3a7858828"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'batchPhaseMessage' is defined but never used.",
-      "severity": 1,
-      "line": 87,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"batchPhaseMessage\"]",
-      "id": "0e9568e512c8f1cd134f03709f40be624abc42bda3f420fb42e121b99d6b4e45"
-    },
-    {
       "file": "apps/web/components/graph-studio/graph-node.tsx",
       "rule": "TS6133",
       "message": "'selected' is declared but its value is never read.",
@@ -624,7 +534,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2407,
+      "line": 2331,
       "column": 27,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onRevise\"]/anonymous:66dede93819c9ec6224ec2bda80df772ac709e0e6844e720fabc17e8ca3c5b9b",
@@ -667,7 +577,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1680,
+      "line": 1604,
       "column": 11,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -738,16 +648,6 @@
       "id": "12cf20c1069dffb0c625ffba1a88c6697ca0665b9bc50cde22945254798396a8"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'selectedPromptIds' is assigned a value but never used.",
-      "severity": 1,
-      "line": 464,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"modelKey\",\",\",\"selectedPresetId\",\",\",\"selectedPromptIds\",\",\",\"prompt\",\",\",\"presetInputValues\",\",\",\"presetSlotStates\",\",\",\"optionValues\",\",\",\"enhanceDialogOpen\",\",\",\"enhanceBusy\",\",\",\"enhancePreview\",\",\",\"enhanceError\",\",\",\"attachments\",\",\",\"isDragActive\",\",\",\"validation\",\",\",\"busyState\",\",\",\"floatingComposerStatus\",\",\",\"mobileComposerCollapsed\",\",\",\"outputCount\",\",\",\"openPicker\",\",\",\"}\"]/BindingElement:[\"selectedPromptIds\"]",
-      "id": "12f20e843ccd82d328a9f2482101fffce05e5481b47b781aa439ee07c3518e38"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'mapPresetRecord' has a complexity of 27. Maximum allowed is 15.",
       "severity": 1,
@@ -805,21 +705,11 @@
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
-      "line": 2094,
+      "line": 2018,
       "column": 24,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onLoadMore\"]",
       "id": "13fa6f33676cb7d58e268bc4e0e293e2f97490ba1f0c966240bb1f7bc9ab0d72"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'StudioReferencePreview' is defined but never used.",
-      "severity": 1,
-      "line": 122,
-      "column": 8,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"StudioReferencePreview\"]",
-      "id": "140557ebe474259794bcc37747def2b077034e47d498b5c16576e40dd46e1145"
     },
     {
       "rule": "complexity",
@@ -852,16 +742,6 @@
       "file": "apps/web/components/graph-studio/graph-image-selector-dialog.tsx",
       "owner": "FunctionDeclaration:[\"GraphImageSelectorDialog\"]",
       "id": "15f8317a950e7a1cd207266032d7c46971e8db3722ae2a8c0b1f25f8da900a5b"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'stagedImageCount' is assigned a value but never used.",
-      "severity": 1,
-      "line": 539,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"currentModel\",\",\",\"currentPreset\",\",\",\"currentSourceAsset\",\",\",\"seedanceComposer\",\",\",\"effectiveSeedanceMode\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"structuredPresetTextFields\",\",\",\"structuredPresetImageSlots\",\",\",\"structuredPresetActive\",\",\",\"canOpenReferenceLibrary\",\",\",\"standardComposerLayout\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"orderedImageInputs\",\",\",\"multiShotsEnabled\",\",\",\"multiShotScript\",\",\",\"multiShotScriptError\",\",\",\"selectedPromptList\",\",\",\"availableStudioPresets\",\",\",\"modelPresets\",\",\",\"structuredPresetPromptPreview\",\",\",\"presetRequirementError\",\",\",\"enhancementPreviewVisual\",\",\",\"compactOptionEntries\",\",\",\"estimatedCredits\",\",\",\"formattedRemainingCredits\",\",\",\"generateButtonLabel\",\",\",\"modelMaxOutputs\",\",\",\"validationReady\",\",\",\"inferredInputPattern\",\",\",\"canSubmit\",\",\",\"composerStatusMessage\",\",\",\"imageLimitLabel\",\",\",\"canAddMoreImages\",\",\",\"canAddMoreVideos\",\",\",\"canAddMoreAudios\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"seedanceReferenceImages\",\",\",\"seedanceReferenceVideos\",\",\",\"seedanceReferenceAudios\",\",\",\"seedanceReferenceGuideTokens\",\",\",\"seedanceReferenceGuideText\",\",\",\"canUseSourceAsset\",\",\",\"maxImageInputs\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"stagedImageCount\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"}\"]/BindingElement:[\"stagedImageCount\"]",
-      "id": "15f8d3d487b25f75bfbcf5a52d35ec6843994a3c692df615bb654579316bb894"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -905,16 +785,6 @@
       "id": "17dbf7c525ff4d4ba8d847edbbae6fc89f7414ecd1f704fef04a244571d18a04"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'MULTI_SHOT_MODEL_KEYS' is declared but its value is never read.",
-      "severity": 2,
-      "line": 102,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"MULTI_SHOT_MODEL_KEYS\"]",
-      "id": "17f6648450af7e2d3db76a6e465515ca564d829066cc11e717b9ee78407ab6bd"
-    },
-    {
       "rule": "complexity",
       "message": "Async arrow function has a complexity of 27. Maximum allowed is 15.",
       "severity": 1,
@@ -924,16 +794,6 @@
       "file": "apps/web/components/graph-studio/hooks/use-graph-run-lifecycle.ts",
       "owner": "FunctionDeclaration:[\"useGraphRunLifecycle\"]/VariableDeclaration:[\"refreshRunState\"]/anonymous:97e61addfcf1d843788ef00275744029436f9502bb9c5edac11ed336570a4039/PropertyAccessExpression:[\"finally\"]/anonymous:ac67f0e020191803dc68c7cd86be98f81689cded93f663294f90d662aba293f3",
       "id": "1823fe17089123e55da7a46854f3c7fa00aa9fdabbf8582b33f90bf3dc0e6894"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'presetRequirementError' is assigned a value but never used.",
-      "severity": 1,
-      "line": 513,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"currentModel\",\",\",\"currentPreset\",\",\",\"currentSourceAsset\",\",\",\"seedanceComposer\",\",\",\"effectiveSeedanceMode\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"structuredPresetTextFields\",\",\",\"structuredPresetImageSlots\",\",\",\"structuredPresetActive\",\",\",\"canOpenReferenceLibrary\",\",\",\"standardComposerLayout\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"orderedImageInputs\",\",\",\"multiShotsEnabled\",\",\",\"multiShotScript\",\",\",\"multiShotScriptError\",\",\",\"selectedPromptList\",\",\",\"availableStudioPresets\",\",\",\"modelPresets\",\",\",\"structuredPresetPromptPreview\",\",\",\"presetRequirementError\",\",\",\"enhancementPreviewVisual\",\",\",\"compactOptionEntries\",\",\",\"estimatedCredits\",\",\",\"formattedRemainingCredits\",\",\",\"generateButtonLabel\",\",\",\"modelMaxOutputs\",\",\",\"validationReady\",\",\",\"inferredInputPattern\",\",\",\"canSubmit\",\",\",\"composerStatusMessage\",\",\",\"imageLimitLabel\",\",\",\"canAddMoreImages\",\",\",\"canAddMoreVideos\",\",\",\"canAddMoreAudios\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"seedanceReferenceImages\",\",\",\"seedanceReferenceVideos\",\",\",\"seedanceReferenceAudios\",\",\",\"seedanceReferenceGuideTokens\",\",\",\"seedanceReferenceGuideText\",\",\",\"canUseSourceAsset\",\",\",\"maxImageInputs\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"stagedImageCount\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"}\"]/BindingElement:[\"presetRequirementError\"]",
-      "id": "186a78cbd34ec4c734569b6428174899bc7a71708b74384e7445e48583c24161"
     },
     {
       "rule": "complexity",
@@ -950,7 +810,7 @@
       "rule": "@typescript-eslint/no-unused-vars",
       "message": "'motionControlVideoPreview' is assigned a value but never used.",
       "severity": 1,
-      "line": 1218,
+      "line": 1142,
       "column": 9,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"motionControlVideoPreview\"]",
@@ -982,7 +842,7 @@
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 86 to the 20 allowed.",
       "severity": 1,
-      "line": 157,
+      "line": 99,
       "column": 17,
       "metric": 86,
       "file": "apps/web/components/media-studio.tsx",
@@ -998,16 +858,6 @@
       "file": "apps/web/hooks/studio/use-studio-gallery-feed.test.tsx",
       "owner": "anonymous:dcdaaaf8768630083e0d1484bbd85e1a03b555eb19bb33af063240783fe5b3f8/anonymous:54d9d3eb733ecde6587b5b873a1fd6e8b7981d4dfa7878858a558ce4768d7a2c/anonymous:24c16eea234012298d1982b28b873abace54968af9bc2ee39966e9dada8606ac",
       "id": "199991069a36f581dd874b798b5d46286f4c2dd355cc0ccaba5761eaa38461a7"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'classifyFile' is defined but never used.",
-      "severity": 1,
-      "line": 88,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"classifyFile\"]",
-      "id": "1a13b89d3ea2e9f803be7586757b699b8260054454244435b40bb68ee6e8c60f"
     },
     {
       "rule": "complexity",
@@ -1087,7 +937,7 @@
       "rule": "complexity",
       "message": "Function 'MediaStudio' has a complexity of 150. Maximum allowed is 15.",
       "severity": 1,
-      "line": 157,
+      "line": 99,
       "column": 8,
       "metric": 150,
       "file": "apps/web/components/media-studio.tsx",
@@ -1103,16 +953,6 @@
       "file": "apps/web/hooks/studio/use-studio-gallery-page-effects.ts",
       "owner": "FunctionDeclaration:[\"useStudioGalleryPageEffects\"]/anonymous:eae6b40dd293ee31dfe5472893b7366c3a84391563e55d8733f7343dc0e7f43f/VariableDeclaration:[\"timer\"]/anonymous:29dbf4659ee52fb4aebd1b8776dde090d632b5438ea321442997310872636a34",
       "id": "1b99dc86f53dd9fcf928c92f034a9a6af0fe0260b8bbf0e4c23ade691734327a"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'toWholeNumber' is defined but never used.",
-      "severity": 1,
-      "line": 126,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"toWholeNumber\"]",
-      "id": "1bcce824ac94efb1a1dedc57eaae01b2390a59a245534ceefa1cf01f2963e637"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -1133,16 +973,6 @@
       "file": "apps/web/components/graph-studio/graph-library-dialogs.tsx",
       "owner": "FunctionDeclaration:[\"GraphLibraryDialog\"]/JsxAttribute:[\"onClick\"]/anonymous:201633f948c6e1d2fcac56fdfb64a156aee8390f236f389e72d92a6a20b2404d",
       "id": "1c23b6d2ec8c68c818d5abcdc131458644286044874969776423f542a55c779c"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'toneForStatus' is declared but its value is never read.",
-      "severity": 2,
-      "line": 127,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"toneForStatus\"]",
-      "id": "1c3d50e0200bf1fe898561ce720e2b2db0e279f10b77669c00126e1248ac3f72"
     },
     {
       "rule": "complexity",
@@ -1195,16 +1025,6 @@
       "file": "apps/web/lib/control-api.ts",
       "owner": "FunctionDeclaration:[\"mapPresetSummaryRecord\"]",
       "id": "1cf525c77088589856d7d3ff13c09fd3b8f9155845b1ec0edb0de90c90b9bcd9"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'StructuredPresetTextField' is declared but its value is never read.",
-      "severity": 2,
-      "line": 119,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"StructuredPresetTextField\"]",
-      "id": "1e8aea4a2f21d10da24e2d30b2c3b2ee6603f69faff57f8f00e9f6bfcbee00f4"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -1398,7 +1218,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1289,
+      "line": 1213,
       "column": 7,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"addFilesToStandardComposerSlot\"]",
@@ -1450,7 +1270,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1695,
+      "line": 1619,
       "column": 9,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -1512,12 +1332,12 @@
     {
       "file": "apps/web/components/media-studio.tsx",
       "rule": "TS6133",
-      "message": "'validationReady' is declared but its value is never read.",
+      "message": "'initialAssetOffset' is declared but its value is never read.",
       "severity": 2,
-      "line": 520,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"currentModel\",\",\",\"currentPreset\",\",\",\"currentSourceAsset\",\",\",\"seedanceComposer\",\",\",\"effectiveSeedanceMode\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"structuredPresetTextFields\",\",\",\"structuredPresetImageSlots\",\",\",\"structuredPresetActive\",\",\",\"canOpenReferenceLibrary\",\",\",\"standardComposerLayout\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"orderedImageInputs\",\",\",\"multiShotsEnabled\",\",\",\"multiShotScript\",\",\",\"multiShotScriptError\",\",\",\"selectedPromptList\",\",\",\"availableStudioPresets\",\",\",\"modelPresets\",\",\",\"structuredPresetPromptPreview\",\",\",\"presetRequirementError\",\",\",\"enhancementPreviewVisual\",\",\",\"compactOptionEntries\",\",\",\"estimatedCredits\",\",\",\"formattedRemainingCredits\",\",\",\"generateButtonLabel\",\",\",\"modelMaxOutputs\",\",\",\"validationReady\",\",\",\"inferredInputPattern\",\",\",\"canSubmit\",\",\",\"composerStatusMessage\",\",\",\"imageLimitLabel\",\",\",\"canAddMoreImages\",\",\",\"canAddMoreVideos\",\",\",\"canAddMoreAudios\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"seedanceReferenceImages\",\",\",\"seedanceReferenceVideos\",\",\",\"seedanceReferenceAudios\",\",\",\"seedanceReferenceGuideTokens\",\",\",\"seedanceReferenceGuideText\",\",\",\"canUseSourceAsset\",\",\",\"maxImageInputs\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"stagedImageCount\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"}\"]/BindingElement:[\"validationReady\"]",
-      "id": "272a673b2d0a52675f704a0dca61029e16c4830be7a8612c6c960376eb71d966"
+      "line": 112,
+      "column": 3,
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"initialAssetOffset\"]",
+      "id": "26e59961595403cf43e6092661c49ae28dca009bb0216ac10661dac37bc68e78"
     },
     {
       "rule": "complexity",
@@ -1659,16 +1479,6 @@
       "id": "2b94301ccf519000440c1f5c9e75cdec8277e91ac3c29f7a5e034af808b11446"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'inferInputPattern' is defined but never used.",
-      "severity": 1,
-      "line": 91,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"inferInputPattern\"]",
-      "id": "2bc3c5a589c532439beb34fb9dc0f12e3b7d2d73b2ace671fc15e178241c43e5"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -1740,26 +1550,6 @@
       "id": "2e7c4baad452f64f57fb4f5cdc3fd15ee1a0ecf3cf3ac08599b95faa8e80f136"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'StudioReferencePreview' is declared but its value is never read.",
-      "severity": 2,
-      "line": 122,
-      "column": 8,
-      "owner": "ImportSpecifier:[\"StudioReferencePreview\"]",
-      "id": "2e99be33270c8cbb4173a365e49973dfbebeb8bfd35c265b8225afdf8ae5651b"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'normalizeStructuredPresetTextFields' is defined but never used.",
-      "severity": 1,
-      "line": 104,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"normalizeStructuredPresetTextFields\"]",
-      "id": "2edd3814a046806ce9929b4514facc8ca9a1d0cf9fea27f3c15f0acd139238b0"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 54 to the 20 allowed.",
       "severity": 1,
@@ -1780,16 +1570,6 @@
       "file": "apps/web/hooks/studio/use-studio-asset-actions.ts",
       "owner": "FunctionDeclaration:[\"useStudioAssetActions\"]/VariableDeclaration:[\"downloadAsset\"]/anonymous:8d773f26433da4386d9c8d131e3b68114ead95ab8ed7c7737398d2dad9b9a149",
       "id": "2f279982cc5f809cabd9fac575539bff522914fbb396f8bea982814f141f71d1"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'normalizeStructuredPresetTextFields' is declared but its value is never read.",
-      "severity": 2,
-      "line": 104,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"normalizeStructuredPresetTextFields\"]",
-      "id": "2f678beadab7a1c95614dd10bcf55b2c43c0c26b4ab490f184fc99afcf6829df"
     },
     {
       "rule": "@typescript-eslint/no-explicit-any",
@@ -1816,7 +1596,7 @@
       "rule": "complexity",
       "message": "Function 'useStudioComposer' has a complexity of 73. Maximum allowed is 15.",
       "severity": 1,
-      "line": 104,
+      "line": 98,
       "column": 8,
       "metric": 73,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
@@ -1849,7 +1629,7 @@
       "rule": "TS6133",
       "message": "'currentPresetSelectionKey' is declared but its value is never read.",
       "severity": 2,
-      "line": 245,
+      "line": 239,
       "column": 9,
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]/VariableDeclaration:[\"currentPresetSelectionKey\"]",
       "id": "30e124383c1e041179b8697f0fdf744f771aeee3cdae32ce0f277834d9dfbbe1"
@@ -1876,6 +1656,16 @@
       "id": "31427b83ac857b8d3f87975ee3085959658214f6be8f3e521991e78cb1f51d7c"
     },
     {
+      "rule": "react-hooks/exhaustive-deps",
+      "message": "React Hook useEffect has a missing dependency: 'setSelectedReferencePreview'. Either include it or remove the dependency array.",
+      "severity": 2,
+      "line": 368,
+      "column": 6,
+      "file": "apps/web/components/media-studio.tsx",
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]",
+      "id": "31d3a00bbae890a1f076e4a9c063ab734e651af5175cc0ee41276eeb68d06f46"
+    },
+    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 76 to the 20 allowed.",
       "severity": 1,
@@ -1885,16 +1675,6 @@
       "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
       "owner": "FunctionDeclaration:[\"PromptRecipeDraftingSettingsPanel\"]",
       "id": "3213f0263c428897daf68c79bff87db9c472afcc99968a80b85fba6acfc662bb"
-    },
-    {
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "rule": "TS6196",
-      "message": "'MediaReference' is declared but never used.",
-      "severity": 2,
-      "line": 69,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"MediaReference\"]",
-      "id": "326da39f12b683db8762260f829b2beda0b4bde1380456008bbd56d771671dec"
     },
     {
       "rule": "complexity",
@@ -1908,20 +1688,10 @@
       "id": "32941a7c8a3769ae7bc152c26e6879d83aa0da2be94213b726f0f046b7d48907"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'mediaPreviewUrl' is defined but never used.",
-      "severity": 1,
-      "line": 97,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"mediaPreviewUrl\"]",
-      "id": "3343f0865f8773c5f402068f999145ff49e7f37d9540198abfcd0672c81a1316"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 93 to the 20 allowed.",
       "severity": 1,
-      "line": 1647,
+      "line": 1571,
       "column": 12,
       "metric": 93,
       "file": "apps/web/components/media-studio.tsx",
@@ -2078,31 +1848,11 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2255,
+      "line": 2179,
       "column": 19,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onSubmit\"]/anonymous:cbe439c6f64edad286553c8510b47ddd70b3dd55d42f1fafed97a97726496d15",
       "id": "38431ba3119617c2fa9c1d9590fd86da1748a7497b58746992e0915ad9fe2c83"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'StudioChoice' is defined but never used.",
-      "severity": 1,
-      "line": 121,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"StudioChoice\"]",
-      "id": "38d2d27ee61124985f9bd8b51a606a171e6a1b91d709baa1964d03e07c9856a3"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'prettifyModelLabel' is declared but its value is never read.",
-      "severity": 2,
-      "line": 113,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"prettifyModelLabel\"]",
-      "id": "39561245adf7040169fdb7f5a0553c5e1705b3fa8b49020ddf4059357097b7ad"
     },
     {
       "rule": "complexity",
@@ -2190,7 +1940,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 820,
+      "line": 812,
       "column": 7,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]/anonymous:cce525d006c83f236870a8cbd6165206d45bb3d5a861291bac7bbf9736483e2c/anonymous:7879380ce6a1a848abae511c20121f59c9bc0c0beb9610491d66257f3d72e522",
@@ -2206,16 +1956,6 @@
       "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
       "owner": "FunctionDeclaration:[\"kernelToolActivity\"]",
       "id": "3ce822dbb88a0a3c419605aba227272042f024b544c5f56b7060d2f6d63e48b2"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'isRecord' is declared but its value is never read.",
-      "severity": 2,
-      "line": 94,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"isRecord\"]",
-      "id": "3cf4522c2cfad4eb9f70e1cdbff1af44eec56ebe10a67a869fae1dd92e88e8e8"
     },
     {
       "rule": "complexity",
@@ -2259,16 +1999,6 @@
       "id": "3d8dfdcfc81f9d5d77340e934d4a2940fb08f11372c37981c6e97b1fc1a6e448"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'mediaThumbnailUrl' is defined but never used.",
-      "severity": 1,
-      "line": 21,
-      "column": 3,
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "owner": "ImportSpecifier:[\"mediaThumbnailUrl\"]",
-      "id": "3d9d3f1d595573d9dfc5b57f0a042fc14363bf44b0ebfbbb5c782e87425e2550"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -2277,16 +2007,6 @@
       "file": "apps/web/components/prompt-recipes/prompt-recipe-editor-screen.tsx",
       "owner": "FunctionDeclaration:[\"PromptRecipeEditorScreen\"]/anonymous:39e3fa1b5abee73534ec48d8b7d1f3c60efc3d1a8eecabfea350b05048e5f1a7",
       "id": "3eb35a42b21b85d65a31207a16cbb5203905a039ec14abc94039f325106cd2cc"
-    },
-    {
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "rule": "TS6133",
-      "message": "'mediaDisplayUrl' is declared but its value is never read.",
-      "severity": 2,
-      "line": 20,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"mediaDisplayUrl\"]",
-      "id": "3efb39f83360f575660d6a6b5957d8f3654c23f8dd57b9ee72bbd39bbc82326f"
     },
     {
       "rule": "complexity",
@@ -2298,16 +2018,6 @@
       "file": "apps/web/app/pricing/page.tsx",
       "owner": "FunctionDeclaration:[\"PricingPage\"]",
       "id": "3f067ec5d30efad0e083d1fac8299f2d0b37dfd95669d94f06e442e7220d653c"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'validationReady' is assigned a value but never used.",
-      "severity": 1,
-      "line": 520,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"currentModel\",\",\",\"currentPreset\",\",\",\"currentSourceAsset\",\",\",\"seedanceComposer\",\",\",\"effectiveSeedanceMode\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"structuredPresetTextFields\",\",\",\"structuredPresetImageSlots\",\",\",\"structuredPresetActive\",\",\",\"canOpenReferenceLibrary\",\",\",\"standardComposerLayout\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"orderedImageInputs\",\",\",\"multiShotsEnabled\",\",\",\"multiShotScript\",\",\",\"multiShotScriptError\",\",\",\"selectedPromptList\",\",\",\"availableStudioPresets\",\",\",\"modelPresets\",\",\",\"structuredPresetPromptPreview\",\",\",\"presetRequirementError\",\",\",\"enhancementPreviewVisual\",\",\",\"compactOptionEntries\",\",\",\"estimatedCredits\",\",\",\"formattedRemainingCredits\",\",\",\"generateButtonLabel\",\",\",\"modelMaxOutputs\",\",\",\"validationReady\",\",\",\"inferredInputPattern\",\",\",\"canSubmit\",\",\",\"composerStatusMessage\",\",\",\"imageLimitLabel\",\",\",\"canAddMoreImages\",\",\",\"canAddMoreVideos\",\",\",\"canAddMoreAudios\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"seedanceReferenceImages\",\",\",\"seedanceReferenceVideos\",\",\",\"seedanceReferenceAudios\",\",\",\"seedanceReferenceGuideTokens\",\",\",\"seedanceReferenceGuideText\",\",\",\"canUseSourceAsset\",\",\",\"maxImageInputs\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"stagedImageCount\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"}\"]/BindingElement:[\"validationReady\"]",
-      "id": "3f0a5f1a017807f9ba27c87547b9655ab8ae7d1b49e4977b63a1a40a71d71e7c"
     },
     {
       "rule": "complexity",
@@ -2367,7 +2077,7 @@
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
-      "line": 1350,
+      "line": 1274,
       "column": 20,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"seedanceReferenceStrip\"]/JsxAttribute:[\"onAddFiles\"]",
@@ -2382,16 +2092,6 @@
       "file": "apps/web/components/graph-studio/graph-canvas.test.tsx",
       "owner": "anonymous:51f4ea6d79af1193491768841cdfe072b021379eb83d76c239b425dadaebb14e/anonymous:a0c9974a2da6eb3f94a45465c155b94bc9057f3f50f4316b484f7898d04b76f2/VariableDeclaration:[\"{\",\"getByTestId\",\"}\"]/JsxAttribute:[\"nodes\"]",
       "id": "416b0aa0cdab5f3f5a9151c0e4ec5bf33bd2763b17431faa1f4ca9b8a0e38e19"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'classifyFile' is declared but its value is never read.",
-      "severity": 2,
-      "line": 88,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"classifyFile\"]",
-      "id": "416fc20d590150859ded7b1a6c33ba146b4720f13d280b1d1d0a2aa9a774dad4"
     },
     {
       "rule": "@typescript-eslint/no-explicit-any",
@@ -2446,16 +2146,6 @@
       "id": "428a643b7c15256f1d50031fede59243c630afeabcab925ab1f535082e001516"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'StructuredPresetImageSlot' is defined but never used.",
-      "severity": 1,
-      "line": 118,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"StructuredPresetImageSlot\"]",
-      "id": "42d4b6c9690098cfd66d028819c10cc7d804c543d302d5f42360d66b14fbcf29"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'parseArgs' has a complexity of 16. Maximum allowed is 15.",
       "severity": 1,
@@ -2470,7 +2160,7 @@
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useEffect has missing dependencies: 'busyState', 'requestValidation', and 'setValidation'. Either include them or remove the dependency array.",
       "severity": 2,
-      "line": 827,
+      "line": 819,
       "column": 6,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]",
@@ -2488,20 +2178,10 @@
       "id": "4406a3361b7b4e02827d6b335cd6ca87d81b5f36967dc1bcb5e48dc98a30ae16"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'selectedFailedJobReferenceInputs' is declared but its value is never read.",
-      "severity": 2,
-      "line": 423,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"selectedFailedJob\",\",\",\"selectedFailedJobBatch\",\",\",\"selectedAssetBatch\",\",\",\"selectedAssetProject\",\",\",\"selectedFailedJobPrompt\",\",\",\"selectedFailedJobReferenceInputs\",\",\",\"selectedFailedJobPrimaryInput\",\",\",\"selectedFailedJobRetryPlan\",\",\",\"selectedFailedJobImageReferences\",\",\",\"selectedAssetReferencePreviews\",\",\",\"selectedAssetRevisionPlan\",\",\",\"closeAssetInspector\",\",\",\"}\"]/BindingElement:[\"selectedFailedJobReferenceInputs\"]",
-      "id": "445ca5b543f15f1bb9b49a6d216004a88f5cb400edaec006be54d3662c0d2ca3"
-    },
-    {
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useEffect has a missing dependency: 'setReferenceLibraryTarget'. Either include it or remove the dependency array.",
       "severity": 2,
-      "line": 1103,
+      "line": 1027,
       "column": 6,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]",
@@ -2511,7 +2191,7 @@
       "rule": "react-hooks/rules-of-hooks",
       "message": "React Hook \"useAssetAsSource\" is called in function \"handleSourceTileDrop\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
       "severity": 2,
-      "line": 1763,
+      "line": 1687,
       "column": 9,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -2551,16 +2231,6 @@
       "id": "460864d3edcaa5072a5b8da66c4ec5edcb70bbccad817181637034bda97511c9"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'optimisticBatches' is assigned a value but never used.",
-      "severity": 1,
-      "line": 338,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"localBatches\",\",\",\"optimisticBatches\",\",\",\"localJobs\",\",\",\"localAssets\",\",\",\"localLatestAsset\",\",\",\"galleryModelFilter\",\",\",\"galleryKindFilter\",\",\",\"favoritesOnly\",\",\",\"favoriteAssets\",\",\",\"}\"]/BindingElement:[\"optimisticBatches\"]",
-      "id": "4612573d6293cff3398016c5c18a6563288febecbaa89f5a058213f309adfa5d"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 28 to the 20 allowed.",
       "severity": 1,
@@ -2570,16 +2240,6 @@
       "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
       "owner": "FunctionDeclaration:[\"StudioMobileInputsContent\"]",
       "id": "4612f5dc129cb3fb8e7aed51f23c5d5bc0e1973e92c52712d134052e295966f0"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'selectedFailedJobReferenceInputs' is assigned a value but never used.",
-      "severity": 1,
-      "line": 423,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"selectedFailedJob\",\",\",\"selectedFailedJobBatch\",\",\",\"selectedAssetBatch\",\",\",\"selectedAssetProject\",\",\",\"selectedFailedJobPrompt\",\",\",\"selectedFailedJobReferenceInputs\",\",\",\"selectedFailedJobPrimaryInput\",\",\",\"selectedFailedJobRetryPlan\",\",\",\"selectedFailedJobImageReferences\",\",\",\"selectedAssetReferencePreviews\",\",\",\"selectedAssetRevisionPlan\",\",\",\"closeAssetInspector\",\",\",\"}\"]/BindingElement:[\"selectedFailedJobReferenceInputs\"]",
-      "id": "471048a7c83a0aac72068bbb65318d22336d5ab40a1f1619be05405be720c25a"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -2667,16 +2327,6 @@
       "id": "487594dd8f099cf7f575b5d3e3619bbd63b12de3003e3e1d0c6e01e700336df3"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'inferInputPattern' is declared but its value is never read.",
-      "severity": 2,
-      "line": 91,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"inferInputPattern\"]",
-      "id": "48af977c480c8e8830989e8dbfbc304faa7300e4c139dfba0cf83d5c3f339ad5"
-    },
-    {
       "file": "apps/web/lib/llm-provider-models.ts",
       "rule": "TS6133",
       "message": "'providerKind' is declared but its value is never read.",
@@ -2698,16 +2348,6 @@
       "id": "49e18cea52828551bdfdd8ba0343f902a87e1160b177ef6d278ca2225dd9f393"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'sanitizeStudioOptions' is declared but its value is never read.",
-      "severity": 2,
-      "line": 115,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"sanitizeStudioOptions\"]",
-      "id": "4a57c76b659beb9eeee55c116f1e48679536cc5ce16a6c69799dbf5aecc7ca37"
-    },
-    {
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useEffect has a missing dependency: 'setStagedSourceAssetSnapshot'. Either include it or remove the dependency array. If 'setStagedSourceAssetSnapshot' changes too often, find the parent component that defines it and wrap that definition in useCallback.",
       "severity": 2,
@@ -2716,16 +2356,6 @@
       "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposerGuardEffects\"]",
       "id": "4a8238bedc889f627cc0158ef8e56e6d0efa4d0352952b78d2f0a85ef4b32104"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'selectedFailedJobPrimaryInput' is assigned a value but never used.",
-      "severity": 1,
-      "line": 424,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"selectedFailedJob\",\",\",\"selectedFailedJobBatch\",\",\",\"selectedAssetBatch\",\",\",\"selectedAssetProject\",\",\",\"selectedFailedJobPrompt\",\",\",\"selectedFailedJobReferenceInputs\",\",\",\"selectedFailedJobPrimaryInput\",\",\",\"selectedFailedJobRetryPlan\",\",\",\"selectedFailedJobImageReferences\",\",\",\"selectedAssetReferencePreviews\",\",\",\"selectedAssetRevisionPlan\",\",\",\"closeAssetInspector\",\",\",\"}\"]/BindingElement:[\"selectedFailedJobPrimaryInput\"]",
-      "id": "4a9e56cfb17dcba21a3e094b9d1f7f4ed0a6f0f86224c11ef5a6609993b7b43a"
     },
     {
       "rule": "complexity",
@@ -2739,30 +2369,10 @@
       "id": "4af82fa094cdde9cf69408d7822f763acf6fb6be459a84a4483e1bcab4b78d31"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'parseMultiShotScript' is declared but its value is never read.",
-      "severity": 2,
-      "line": 109,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"parseMultiShotScript\"]",
-      "id": "4b21c2a9b9b978a19561d160e4935c35b58c03f738acb65669cd5f478158b3d8"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'MediaBatch' is defined but never used.",
-      "severity": 1,
-      "line": 140,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"MediaBatch\"]",
-      "id": "4b519f7de1ef8123a42e33b510a0459218718c62a0cd9923ea5aecff54e2bdb2"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2105,
+      "line": 2029,
       "column": 42,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onToggleFavorite\"]/anonymous:91da35924d336b3b3bf5a1fb84a79649c6187a067f78ab4b6283f3bb64f88c77",
@@ -2778,16 +2388,6 @@
       "file": "scripts/audit_media_assistant_prompt_quality.mjs",
       "owner": "FunctionDeclaration:[\"runCase\"]",
       "id": "4ba0fd951b1027e03704636f46686c3199dce1627d52c9738096c8b55708223a"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'Play' is defined but never used.",
-      "severity": 1,
-      "line": 12,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"Play\"]",
-      "id": "4bc3357b9372e33898d8fae7711c317ddf178dd106798bf9b50aa63924b078e4"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -2824,7 +2424,7 @@
       "rule": "complexity",
       "message": "Function 'handleSourceTileDrop' has a complexity of 52. Maximum allowed is 15.",
       "severity": 1,
-      "line": 1647,
+      "line": 1571,
       "column": 3,
       "metric": 52,
       "file": "apps/web/components/media-studio.tsx",
@@ -2915,26 +2515,6 @@
       "id": "4e70f90ef6799ea7489737a720e46f46474f5062298ed6b9675976d3a86a106f"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'AttachmentRecord' is defined but never used.",
-      "severity": 1,
-      "line": 6,
-      "column": 8,
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "owner": "ImportSpecifier:[\"AttachmentRecord\"]",
-      "id": "4eb585ca0c7383ed76c8bde4a4103e8f0feb1d9e6737fd3567008f264a915ca2"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'structuredPresetSlotPreviewUrl' is defined but never used.",
-      "severity": 1,
-      "line": 120,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"structuredPresetSlotPreviewUrl\"]",
-      "id": "4ee2cf704103bc1d4518416dca616852563a603000e7d0c49b75403e431f18a6"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'inferInputPattern' has a complexity of 24. Maximum allowed is 15.",
       "severity": 1,
@@ -2944,16 +2524,6 @@
       "file": "apps/web/lib/media-studio-helpers-core.ts",
       "owner": "FunctionDeclaration:[\"inferInputPattern\"]",
       "id": "4f0f9a18e543f3f226cbeb0af7aa921e5e7e54ba9bafd7e51c253de5ed2df294"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'HIDDEN_STUDIO_OPTION_KEYS' is defined but never used.",
-      "severity": 1,
-      "line": 90,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"HIDDEN_STUDIO_OPTION_KEYS\"]",
-      "id": "4f6dc82597a845c9cca24eda37c25b99da249d86d74a9fd5b8291749c7af877a"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -2984,16 +2554,6 @@
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"applyUndoHistorySnapshot\"]",
       "id": "50abcfaec4c934772eeb9d72ce1cac17461d4b9934701ac5ceb62c677a4ffc49"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'FloatingComposerStatus' is defined but never used.",
-      "severity": 1,
-      "line": 74,
-      "column": 8,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"FloatingComposerStatus\"]",
-      "id": "50e459fea7383ad091cc143e5956c021378fb456c7a807faa4150628722dfcc3"
     },
     {
       "rule": "complexity",
@@ -3031,7 +2591,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1759,
+      "line": 1683,
       "column": 9,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -3062,7 +2622,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1719,
+      "line": 1643,
       "column": 7,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -3088,16 +2648,6 @@
       "file": "apps/web/components/media-models/media-model-setup-panel.tsx",
       "owner": "FunctionDeclaration:[\"modelParameterRows\"]",
       "id": "524529534ab1fb8feec0846bf4dc11233fc46bcdb367d3c2126c2de9cd3fdcf6"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'seedanceReferenceGuideText' is declared but its value is never read.",
-      "severity": 2,
-      "line": 534,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"currentModel\",\",\",\"currentPreset\",\",\",\"currentSourceAsset\",\",\",\"seedanceComposer\",\",\",\"effectiveSeedanceMode\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"structuredPresetTextFields\",\",\",\"structuredPresetImageSlots\",\",\",\"structuredPresetActive\",\",\",\"canOpenReferenceLibrary\",\",\",\"standardComposerLayout\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"orderedImageInputs\",\",\",\"multiShotsEnabled\",\",\",\"multiShotScript\",\",\",\"multiShotScriptError\",\",\",\"selectedPromptList\",\",\",\"availableStudioPresets\",\",\",\"modelPresets\",\",\",\"structuredPresetPromptPreview\",\",\",\"presetRequirementError\",\",\",\"enhancementPreviewVisual\",\",\",\"compactOptionEntries\",\",\",\"estimatedCredits\",\",\",\"formattedRemainingCredits\",\",\",\"generateButtonLabel\",\",\",\"modelMaxOutputs\",\",\",\"validationReady\",\",\",\"inferredInputPattern\",\",\",\"canSubmit\",\",\",\"composerStatusMessage\",\",\",\"imageLimitLabel\",\",\",\"canAddMoreImages\",\",\",\"canAddMoreVideos\",\",\",\"canAddMoreAudios\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"seedanceReferenceImages\",\",\",\"seedanceReferenceVideos\",\",\",\"seedanceReferenceAudios\",\",\",\"seedanceReferenceGuideTokens\",\",\",\"seedanceReferenceGuideText\",\",\",\"canUseSourceAsset\",\",\",\"maxImageInputs\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"stagedImageCount\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"}\"]/BindingElement:[\"seedanceReferenceGuideText\"]",
-      "id": "529891c14fe378846ad52c18f2802716d65655a829e8d5b36fadf2d9627aa590"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -3130,26 +2680,6 @@
       "id": "53410db2794ee46e8e506dfa2edcb605366125345aa370050636e93b0d06e574"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'mediaPreviewUrl' is declared but its value is never read.",
-      "severity": 2,
-      "line": 97,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"mediaPreviewUrl\"]",
-      "id": "53603698a83054722cc374086dcaa60967648d7de504ca3ea0c7719616bb191d"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'presetThumbnailVisual' is defined but never used.",
-      "severity": 1,
-      "line": 112,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"presetThumbnailVisual\"]",
-      "id": "5373e6908846fc5024ffd051ac3462a4c4f686b7fe1f20828c85d77e7b95b11e"
-    },
-    {
       "rule": "@typescript-eslint/no-unused-vars",
       "message": "'mediaPreviewUrl' is defined but never used.",
       "severity": 1,
@@ -3158,16 +2688,6 @@
       "file": "apps/web/lib/media-studio-helpers-core.ts",
       "owner": "ImportSpecifier:[\"mediaPreviewUrl\"]",
       "id": "539dc8bbfd022672a6236947a791ac6c2091ddf74e785445164c497eec28bc53"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'stripUnsupportedStudioOptions' is defined but never used.",
-      "severity": 1,
-      "line": 44,
-      "column": 3,
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "owner": "ImportSpecifier:[\"stripUnsupportedStudioOptions\"]",
-      "id": "53ec5d30b78aa57604ba3808d4e8bfac1b1bd0d9804b7b45db25b75e614c4342"
     },
     {
       "rule": "complexity",
@@ -3181,16 +2701,6 @@
       "id": "5428c83e74be01014c6421ece2f0ccacff8da29b68bb6a7089d94ef1f2315896"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'FLOATING_COMPOSER_STATUS_MS' is defined but never used.",
-      "severity": 1,
-      "line": 72,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"FLOATING_COMPOSER_STATUS_MS\"]",
-      "id": "54aba67f0af8cd08db71122bfb82e67b2a7e9cb3f5e449a6a1551401c365fe0b"
-    },
-    {
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
@@ -3199,26 +2709,6 @@
       "file": "apps/web/components/prompt-recipes/prompt-recipes-list.tsx",
       "owner": "FunctionDeclaration:[\"PromptRecipesList\"]/anonymous:199bddaee2fbb3630326eb0ff5312748f40d256a00e920a411460661c5c1c681/JsxAttribute:[\"onClick\"]",
       "id": "54d3ba62afa8084f95adfb3643d59285bd3f0453fe534138b26a3f44e5a29760"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'seedanceReferenceGuideTokens' is assigned a value but never used.",
-      "severity": 1,
-      "line": 533,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"currentModel\",\",\",\"currentPreset\",\",\",\"currentSourceAsset\",\",\",\"seedanceComposer\",\",\",\"effectiveSeedanceMode\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"structuredPresetTextFields\",\",\",\"structuredPresetImageSlots\",\",\",\"structuredPresetActive\",\",\",\"canOpenReferenceLibrary\",\",\",\"standardComposerLayout\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"orderedImageInputs\",\",\",\"multiShotsEnabled\",\",\",\"multiShotScript\",\",\",\"multiShotScriptError\",\",\",\"selectedPromptList\",\",\",\"availableStudioPresets\",\",\",\"modelPresets\",\",\",\"structuredPresetPromptPreview\",\",\",\"presetRequirementError\",\",\",\"enhancementPreviewVisual\",\",\",\"compactOptionEntries\",\",\",\"estimatedCredits\",\",\",\"formattedRemainingCredits\",\",\",\"generateButtonLabel\",\",\",\"modelMaxOutputs\",\",\",\"validationReady\",\",\",\"inferredInputPattern\",\",\",\"canSubmit\",\",\",\"composerStatusMessage\",\",\",\"imageLimitLabel\",\",\",\"canAddMoreImages\",\",\",\"canAddMoreVideos\",\",\",\"canAddMoreAudios\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"seedanceReferenceImages\",\",\",\"seedanceReferenceVideos\",\",\",\"seedanceReferenceAudios\",\",\",\"seedanceReferenceGuideTokens\",\",\",\"seedanceReferenceGuideText\",\",\",\"canUseSourceAsset\",\",\",\"maxImageInputs\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"stagedImageCount\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"}\"]/BindingElement:[\"seedanceReferenceGuideTokens\"]",
-      "id": "55e53e4adfcc98defa1e5577c0b4e644a057adc477cdbb008fafeb8d14583f17"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'toneForStatus' is defined but never used.",
-      "severity": 1,
-      "line": 127,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"toneForStatus\"]",
-      "id": "56bf67ec57d7250f16d2ca926affda199986a729063af665577c9dd8be18a12d"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -3256,7 +2746,7 @@
       "rule": "TS6133",
       "message": "'motionControlVideoPreview' is declared but its value is never read.",
       "severity": 2,
-      "line": 1218,
+      "line": 1142,
       "column": 9,
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"motionControlVideoPreview\"]",
       "id": "583eb533554194a59576639090fd60c2cead06ccbc0a8463efcf7530fc711551"
@@ -3301,16 +2791,6 @@
       "file": "apps/web/components/graph-studio/graph-studio-dialogs.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioDialogs\"]/FunctionDeclaration:[\"handleProjectScopeChange\"]",
       "id": "5a353a449930cb1aedceb9de08f68794e88f77ae914fd610960a55bb17eb78fe"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'localLatestAsset' is assigned a value but never used.",
-      "severity": 1,
-      "line": 341,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"localBatches\",\",\",\"optimisticBatches\",\",\",\"localJobs\",\",\",\"localAssets\",\",\",\"localLatestAsset\",\",\",\"galleryModelFilter\",\",\",\"galleryKindFilter\",\",\",\"favoritesOnly\",\",\",\"favoriteAssets\",\",\",\"}\"]/BindingElement:[\"localLatestAsset\"]",
-      "id": "5a60220ec5f6818055581d5bf9ccf2d156fae82b99e9ea0083b06f1003f7676b"
     },
     {
       "rule": "@typescript-eslint/no-unused-vars",
@@ -3368,7 +2848,7 @@
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
-      "line": 1396,
+      "line": 1320,
       "column": 18,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"mobileInputsSection\"]/JsxAttribute:[\"onAddFiles\"]",
@@ -3399,7 +2879,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1790,
+      "line": 1714,
       "column": 7,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -3438,16 +2918,6 @@
       "id": "5eb20c9705449177ca63f82d457b1267021dac15fd7d155b1ffc919c06a11b87"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'setEnhancePreview' is assigned a value but never used.",
-      "severity": 1,
-      "line": 555,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"setModelKey\",\",\",\"setSelectedPresetId\",\",\",\"setSelectedPromptIds\",\",\",\"setPrompt\",\",\",\"setPresetInputValues\",\",\",\"setPresetSlotStates\",\",\",\"setOptionValues\",\",\",\"setEnhanceDialogOpen\",\",\",\"setEnhancePreview\",\",\",\"setEnhanceError\",\",\",\"setAttachments\",\",\",\"setIsDragActive\",\",\",\"setValidation\",\",\",\"setBusyState\",\",\",\"setMobileComposerCollapsed\",\",\",\"setOutputCount\",\",\",\"setOpenPicker\",\",\",\"stageSourceAsset\",\",\",\"clearSourceAsset\",\",\",\"updateOption\",\",\",\"addFiles\",\",\",\"addRestoredFiles\",\",\",\"addGalleryAssetAsAttachment\",\",\",\"addReferenceMediaAsAttachment\",\",\",\"assignPresetSlotFile\",\",\",\"assignPresetSlotAsset\",\",\",\"assignPresetSlotReference\",\",\",\"clearPresetSlot\",\",\",\"removeAttachment\",\",\",\"clearComposer\",\",\",\"applyPresetSelection\",\",\",\"togglePrompt\",\",\",\"requestEnhancementPreview\",\",\",\"openEnhanceDialog\",\",\",\"showFloatingComposerBanner\",\",\",\"submitMedia\",\",\",\"}\"]/BindingElement:[\"setEnhancePreview\"]",
-      "id": "5f06786ceb1354c4bdd2536d71376e78f38a9aa252bb271acaf24513e9ad86cd"
-    },
-    {
       "file": "apps/web/lib/studio-options.ts",
       "rule": "TS6133",
       "message": "'optionKey' is declared but its value is never read.",
@@ -3456,16 +2926,6 @@
       "column": 3,
       "owner": "FunctionDeclaration:[\"studioOptionChoices\"]/Parameter:[\"optionKey\"]",
       "id": "5f11a38e8de9b68ce4eb4298f30093eaf000482f1c9d0f667543ac25ece17713"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'prettifyModelLabel' is defined but never used.",
-      "severity": 1,
-      "line": 113,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"prettifyModelLabel\"]",
-      "id": "5f76bafaaf4c3b80f705920e7a269ae913c7550b8cddcd958fc8f36833508993"
     },
     {
       "rule": "complexity",
@@ -3500,16 +2960,6 @@
       "id": "6095db3823f4714e2df5943dc057fb4bbb385d173570463504a8d6d2d699a0eb"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'selectedPromptObjects' is defined but never used.",
-      "severity": 1,
-      "line": 83,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"selectedPromptObjects\"]",
-      "id": "60a142a08118539cd1cd732caa430cb43b6408cc51c858a0a53096b5cd76e074"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 29 to the 20 allowed.",
       "severity": 1,
@@ -3519,16 +2969,6 @@
       "file": "apps/web/hooks/studio/use-studio-composer-submit.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposerSubmit\"]/FunctionDeclaration:[\"requestValidation\"]",
       "id": "618310edbba9ffef777ae836d47efcfd7ef6c77cea6e1a7b3d9966c7e31c466d"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'stripUnsupportedStudioOptions' is declared but its value is never read.",
-      "severity": 2,
-      "line": 125,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"stripUnsupportedStudioOptions\"]",
-      "id": "619859024f8d03ccd4d537574115b6c3f964ecfa68f6a9a5b8713d341658aa97"
     },
     {
       "file": "apps/web/components/media-models/media-model-setup-panel.tsx",
@@ -3541,16 +2981,6 @@
       "id": "61bcda84bf012a083931ef0c1fd9b8708cb151104cdeb61e81099dc4ad932116"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'stripUnsupportedStudioOptions' is defined but never used.",
-      "severity": 1,
-      "line": 125,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"stripUnsupportedStudioOptions\"]",
-      "id": "61da388cec497e3bc924bc89420cd66e6d36797549b73bb7e7e56148a28b2508"
-    },
-    {
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useCallback has a missing dependency: 'canvasHydrated'. Either include it or remove the dependency array.",
       "severity": 2,
@@ -3559,16 +2989,6 @@
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreBlankWorkflow\"]",
       "id": "62099989718908193485b250549b92ded931d25e4a01c224e199cb38d7eb2b37"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'addRestoredFiles' is assigned a value but never used.",
-      "severity": 1,
-      "line": 568,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"setModelKey\",\",\",\"setSelectedPresetId\",\",\",\"setSelectedPromptIds\",\",\",\"setPrompt\",\",\",\"setPresetInputValues\",\",\",\"setPresetSlotStates\",\",\",\"setOptionValues\",\",\",\"setEnhanceDialogOpen\",\",\",\"setEnhancePreview\",\",\",\"setEnhanceError\",\",\",\"setAttachments\",\",\",\"setIsDragActive\",\",\",\"setValidation\",\",\",\"setBusyState\",\",\",\"setMobileComposerCollapsed\",\",\",\"setOutputCount\",\",\",\"setOpenPicker\",\",\",\"stageSourceAsset\",\",\",\"clearSourceAsset\",\",\",\"updateOption\",\",\",\"addFiles\",\",\",\"addRestoredFiles\",\",\",\"addGalleryAssetAsAttachment\",\",\",\"addReferenceMediaAsAttachment\",\",\",\"assignPresetSlotFile\",\",\",\"assignPresetSlotAsset\",\",\",\"assignPresetSlotReference\",\",\",\"clearPresetSlot\",\",\",\"removeAttachment\",\",\",\"clearComposer\",\",\",\"applyPresetSelection\",\",\",\"togglePrompt\",\",\",\"requestEnhancementPreview\",\",\",\"openEnhanceDialog\",\",\",\"showFloatingComposerBanner\",\",\",\"submitMedia\",\",\",\"}\"]/BindingElement:[\"addRestoredFiles\"]",
-      "id": "62115db9d26c6d8450528b151588c02ffd15609a344bd63b3f526a88eba9671a"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -3616,21 +3036,11 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1832,
+      "line": 1756,
       "column": 5,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSeedanceReferenceDrop\"]",
       "id": "633a7688b509ac99812b1f1212d76f65278163212da76f906744e11656492f27"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'mediaVariantUrl' is defined but never used.",
-      "severity": 1,
-      "line": 99,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"mediaVariantUrl\"]",
-      "id": "634326bd20c044de4cd74a3a31ee29ce9e4a52f98050f67305f52b8b37be58fa"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -3647,7 +3057,7 @@
       "rule": "react-hooks/rules-of-hooks",
       "message": "React Hook \"useAssetAsSource\" cannot be called inside a callback. React Hooks must be called in a React function component or a custom React Hook function.",
       "severity": 2,
-      "line": 2406,
+      "line": 2330,
       "column": 29,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onUseImage\"]/anonymous:cda279c45cc060f6532ef11ac695123dd210fa3636dbbfe1bc1edc7dd54d9256",
@@ -3719,7 +3129,7 @@
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 35 to the 20 allowed.",
       "severity": 1,
-      "line": 1882,
+      "line": 1806,
       "column": 12,
       "metric": 35,
       "file": "apps/web/components/media-studio.tsx",
@@ -3802,16 +3212,6 @@
       "id": "6869c26c6b16f9da33c2942504e57941ef810ddaf7a0bc7cf41fc159ef2a4882"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'closeHref' is declared but its value is never read.",
-      "severity": 2,
-      "line": 180,
-      "column": 3,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"closeHref\"]",
-      "id": "68732c862787b1dbfcac4b5773b53f8fec61fc653ff68ec344ca397b79abd200"
-    },
-    {
       "rule": "@typescript-eslint/no-explicit-any",
       "message": "Unexpected any. Specify a different type.",
       "severity": 1,
@@ -3852,16 +3252,6 @@
       "id": "68b9af7f343577981f98863d27f0e60818f74805ba67f551be2be98788285c9e"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'normalizeStructuredPresetImageSlots' is declared but its value is never read.",
-      "severity": 2,
-      "line": 103,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"normalizeStructuredPresetImageSlots\"]",
-      "id": "692f760858f92795fe63f478e7844bd8059c56b65b5cf50b99d82d1defd42889"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -3870,26 +3260,6 @@
       "file": "apps/web/components/graph-studio/graph-studio-dialogs.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioDialogs\"]/anonymous:4c7d88629f2907bd700b75eace2eaa5243d18c588a443f589fa39221a33f6533",
       "id": "699a8d2e9cf3abf5073532b629fa3cdbf96ccb7a4ed7ccc6efdb3c23d9c7bcc5"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'seedanceReferenceGuideTokens' is declared but its value is never read.",
-      "severity": 2,
-      "line": 533,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"currentModel\",\",\",\"currentPreset\",\",\",\"currentSourceAsset\",\",\",\"seedanceComposer\",\",\",\"effectiveSeedanceMode\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"structuredPresetTextFields\",\",\",\"structuredPresetImageSlots\",\",\",\"structuredPresetActive\",\",\",\"canOpenReferenceLibrary\",\",\",\"standardComposerLayout\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"orderedImageInputs\",\",\",\"multiShotsEnabled\",\",\",\"multiShotScript\",\",\",\"multiShotScriptError\",\",\",\"selectedPromptList\",\",\",\"availableStudioPresets\",\",\",\"modelPresets\",\",\",\"structuredPresetPromptPreview\",\",\",\"presetRequirementError\",\",\",\"enhancementPreviewVisual\",\",\",\"compactOptionEntries\",\",\",\"estimatedCredits\",\",\",\"formattedRemainingCredits\",\",\",\"generateButtonLabel\",\",\",\"modelMaxOutputs\",\",\",\"validationReady\",\",\",\"inferredInputPattern\",\",\",\"canSubmit\",\",\",\"composerStatusMessage\",\",\",\"imageLimitLabel\",\",\",\"canAddMoreImages\",\",\",\"canAddMoreVideos\",\",\",\"canAddMoreAudios\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"seedanceReferenceImages\",\",\",\"seedanceReferenceVideos\",\",\",\"seedanceReferenceAudios\",\",\",\"seedanceReferenceGuideTokens\",\",\",\"seedanceReferenceGuideText\",\",\",\"canUseSourceAsset\",\",\",\"maxImageInputs\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"stagedImageCount\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"}\"]/BindingElement:[\"seedanceReferenceGuideTokens\"]",
-      "id": "6a64aefd8907aee7b651de0756653209e5c4627dea5689ea7646ce45cd57e276"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6196",
-      "message": "'MediaEnhancePreviewResponse' is declared but never used.",
-      "severity": 2,
-      "line": 141,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"MediaEnhancePreviewResponse\"]",
-      "id": "6a88291b1feba736321a14d4866181c845347b2e07a99928aa2316e948bbdd94"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -3984,16 +3354,6 @@
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:447d2f284af3b33d51566a7c9d8f7bdaeb8a42eea124b7e51fa88bd5997c50fb",
       "id": "6cd28ed2853aabe862fcdaf2597bece246ba423fb230688966c0ac3a02e52145"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'selectedPromptIds' is declared but its value is never read.",
-      "severity": 2,
-      "line": 464,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"modelKey\",\",\",\"selectedPresetId\",\",\",\"selectedPromptIds\",\",\",\"prompt\",\",\",\"presetInputValues\",\",\",\"presetSlotStates\",\",\",\"optionValues\",\",\",\"enhanceDialogOpen\",\",\",\"enhanceBusy\",\",\",\"enhancePreview\",\",\",\"enhanceError\",\",\",\"attachments\",\",\",\"isDragActive\",\",\",\"validation\",\",\",\"busyState\",\",\",\"floatingComposerStatus\",\",\",\"mobileComposerCollapsed\",\",\",\"outputCount\",\",\",\"openPicker\",\",\",\"}\"]/BindingElement:[\"selectedPromptIds\"]",
-      "id": "6cd716b600bd430dcedd56c1ae6818e8a75f90acbd19b6be3e09027bbbd99c82"
     },
     {
       "rule": "complexity",
@@ -4121,16 +3481,6 @@
       "id": "70e556d18ac9ae00a42c3bdf4bd55ea62ecf3c3e9dd298c293169257c71aa015"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'optimisticBatches' is declared but its value is never read.",
-      "severity": 2,
-      "line": 338,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"localBatches\",\",\",\"optimisticBatches\",\",\",\"localJobs\",\",\",\"localAssets\",\",\",\"localLatestAsset\",\",\",\"galleryModelFilter\",\",\",\"galleryKindFilter\",\",\",\"favoritesOnly\",\",\",\"favoriteAssets\",\",\",\"}\"]/BindingElement:[\"optimisticBatches\"]",
-      "id": "7140706b167800eb199d4c6b3770fd19d2fe6132cf286c0aa15c8b461cf42843"
-    },
-    {
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to property where a void return was expected.",
       "severity": 2,
@@ -4159,16 +3509,6 @@
       "file": "apps/web/components/studio/studio-project-browser.tsx",
       "owner": "FunctionDeclaration:[\"StudioProjectBrowser\"]/anonymous:df88a66dab35b035795ef03f904f50f10ddcef67d3f4ba5f420ba45aa0c35c94/JsxAttribute:[\"onDelete\"]/anonymous:979ae5cf441e7874cafb61e0db736cd6a773285a3b719c2603df188ac0813620",
       "id": "71ca4e5b97a3e8ead125de620d96481ec2b7da7aaa3c19733541bdd96663f22d"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'StructuredPresetTextField' is defined but never used.",
-      "severity": 1,
-      "line": 119,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"StructuredPresetTextField\"]",
-      "id": "72b60d34fc2ad3c8be23bb33f7289693b6790ed0a536e9daa7e7885ffa63b91a"
     },
     {
       "rule": "complexity",
@@ -4206,7 +3546,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1782,
+      "line": 1706,
       "column": 9,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -4268,7 +3608,7 @@
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
-      "line": 1331,
+      "line": 1255,
       "column": 18,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"sourceAttachmentStrip\"]/JsxAttribute:[\"onAddFiles\"]",
@@ -4288,7 +3628,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2392,
+      "line": 2316,
       "column": 13,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onCopyPrompt\"]/anonymous:17b74d8518ec4c4f1183e48262626add44dff2e50c4195ea95b5f28f8a8d9c12",
@@ -4298,7 +3638,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2353,
+      "line": 2277,
       "column": 36,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onSelect\"]/anonymous:dbeb4ed16015b601bbbc9c5eb4c216fdae2ceeb90021687e24a2b51c6bec0c0c",
@@ -4336,20 +3676,10 @@
       "id": "76892ad064b977e59d7ee36f7c9c135b343e8e9c7a8a2c16310375a342e1264b"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'MULTI_SHOT_MODEL_KEYS' is defined but never used.",
-      "severity": 1,
-      "line": 102,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"MULTI_SHOT_MODEL_KEYS\"]",
-      "id": "77c470a80303bbea34879b8ad45808cc59deb7ac4bde43e30f8a23dc2ecfcad7"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1933,
+      "line": 1857,
       "column": 7,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"useAssetAsSource\"]",
@@ -4391,31 +3721,11 @@
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useEffect has a missing dependency: 'setOpenPicker'. Either include it or remove the dependency array.",
       "severity": 2,
-      "line": 570,
+      "line": 562,
       "column": 6,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]",
       "id": "79f189a8884d79f998a345b4453065279d527ca54669dfce54dd7e4ea1651674"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'stagedImageCount' is declared but its value is never read.",
-      "severity": 2,
-      "line": 539,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"currentModel\",\",\",\"currentPreset\",\",\",\"currentSourceAsset\",\",\",\"seedanceComposer\",\",\",\"effectiveSeedanceMode\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"structuredPresetTextFields\",\",\",\"structuredPresetImageSlots\",\",\",\"structuredPresetActive\",\",\",\"canOpenReferenceLibrary\",\",\",\"standardComposerLayout\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"orderedImageInputs\",\",\",\"multiShotsEnabled\",\",\",\"multiShotScript\",\",\",\"multiShotScriptError\",\",\",\"selectedPromptList\",\",\",\"availableStudioPresets\",\",\",\"modelPresets\",\",\",\"structuredPresetPromptPreview\",\",\",\"presetRequirementError\",\",\",\"enhancementPreviewVisual\",\",\",\"compactOptionEntries\",\",\",\"estimatedCredits\",\",\",\"formattedRemainingCredits\",\",\",\"generateButtonLabel\",\",\",\"modelMaxOutputs\",\",\",\"validationReady\",\",\",\"inferredInputPattern\",\",\",\"canSubmit\",\",\",\"composerStatusMessage\",\",\",\"imageLimitLabel\",\",\",\"canAddMoreImages\",\",\",\"canAddMoreVideos\",\",\",\"canAddMoreAudios\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"seedanceReferenceImages\",\",\",\"seedanceReferenceVideos\",\",\",\"seedanceReferenceAudios\",\",\",\"seedanceReferenceGuideTokens\",\",\",\"seedanceReferenceGuideText\",\",\",\"canUseSourceAsset\",\",\",\"maxImageInputs\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"stagedImageCount\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"}\"]/BindingElement:[\"stagedImageCount\"]",
-      "id": "7a147f19267c6d8225c18ed582b1c866315ef69a0851df9d3bc48789a6068611"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'Trash2' is declared but its value is never read.",
-      "severity": 2,
-      "line": 14,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"Trash2\"]",
-      "id": "7a26d55936451decb666c231ac2bff68ee9945a14f67f01b3fa6ef06492e8ca1"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -4441,7 +3751,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1707,
+      "line": 1631,
       "column": 9,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -4451,7 +3761,7 @@
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.",
       "severity": 2,
-      "line": 837,
+      "line": 829,
       "column": 5,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]/PropertyAccessExpression:[\"stringify\"]",
@@ -4533,16 +3843,6 @@
       "id": "7ce27a51a6ae52ee1aa8d48b82477aebec5157006a6e3822a02f15d6ab28b819"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'seedanceReferenceGuideText' is assigned a value but never used.",
-      "severity": 1,
-      "line": 534,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"currentModel\",\",\",\"currentPreset\",\",\",\"currentSourceAsset\",\",\",\"seedanceComposer\",\",\",\"effectiveSeedanceMode\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"structuredPresetTextFields\",\",\",\"structuredPresetImageSlots\",\",\",\"structuredPresetActive\",\",\",\"canOpenReferenceLibrary\",\",\",\"standardComposerLayout\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"orderedImageInputs\",\",\",\"multiShotsEnabled\",\",\",\"multiShotScript\",\",\",\"multiShotScriptError\",\",\",\"selectedPromptList\",\",\",\"availableStudioPresets\",\",\",\"modelPresets\",\",\",\"structuredPresetPromptPreview\",\",\",\"presetRequirementError\",\",\",\"enhancementPreviewVisual\",\",\",\"compactOptionEntries\",\",\",\"estimatedCredits\",\",\",\"formattedRemainingCredits\",\",\",\"generateButtonLabel\",\",\",\"modelMaxOutputs\",\",\",\"validationReady\",\",\",\"inferredInputPattern\",\",\",\"canSubmit\",\",\",\"composerStatusMessage\",\",\",\"imageLimitLabel\",\",\",\"canAddMoreImages\",\",\",\"canAddMoreVideos\",\",\",\"canAddMoreAudios\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"seedanceReferenceImages\",\",\",\"seedanceReferenceVideos\",\",\",\"seedanceReferenceAudios\",\",\",\"seedanceReferenceGuideTokens\",\",\",\"seedanceReferenceGuideText\",\",\",\"canUseSourceAsset\",\",\",\"maxImageInputs\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"stagedImageCount\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"}\"]/BindingElement:[\"seedanceReferenceGuideText\"]",
-      "id": "7cf80dfe460d160af44bebd7be2049142d7d89600cd37a172d88b1bd45f55cb5"
-    },
-    {
       "file": "apps/web/components/graph-studio/graph-node-provider-model-field.tsx",
       "rule": "TS6133",
       "message": "'MediaEnhancementProviderModel' is declared but its value is never read.",
@@ -4571,16 +3871,6 @@
       "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
       "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onSelectItem\"]/anonymous:bee2ab230d2690417e28295007a866101745a168d57e99f71b173bdd4b9ad4e0",
       "id": "7d8081dfc3f59292428033135e4c4788175b17b63ebbd866edacb853d4db2a8f"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'optionEntries' is declared but its value is never read.",
-      "severity": 2,
-      "line": 107,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"optionEntries\"]",
-      "id": "7dbf2c514c7600fa078a7c5a7e29f6a47a4edfdb1c28ccce225ddb427da53782"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -4625,16 +3915,6 @@
       "id": "7e30ee76d196317afd9c123e2e29ea6a8fc900b320b9c76ab68c9cf0a2692bd2"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'resolveStudioPricingDisplay' is defined but never used.",
-      "severity": 1,
-      "line": 146,
-      "column": 39,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"resolveStudioPricingDisplay\"]",
-      "id": "7e31e5fb2c35a5bc810bf56d88f84df88df9fcaf5d5716b9c024efe491425405"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -4643,26 +3923,6 @@
       "file": "apps/web/hooks/studio/use-studio-composer-submit.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposerSubmit\"]/FunctionDeclaration:[\"submitMedia\"]",
       "id": "7e6e388004bedff9e92b4169b01a40b9527f25144c509c2cbc70afa13332d86b"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'batchPhaseMessage' is declared but its value is never read.",
-      "severity": 2,
-      "line": 87,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"batchPhaseMessage\"]",
-      "id": "7eb0713750a32601c1cb5c8cf479fd10dfa96bacbe96347440c099fa053d09bd"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'MediaEnhancePreviewResponse' is defined but never used.",
-      "severity": 1,
-      "line": 141,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"MediaEnhancePreviewResponse\"]",
-      "id": "7ebe3707c6e245f14cbde1874cc4868c32e0e1499a82c6f83207c141a8114950"
     },
     {
       "rule": "@typescript-eslint/no-unused-vars",
@@ -4794,36 +4054,6 @@
       "id": "82b38307398cd25cd41d2b9c23deb38c0a4b0db2bb27129d11ecbcfcd30d4bfd"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'presetRequirementMessage' is declared but its value is never read.",
-      "severity": 2,
-      "line": 82,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"presetRequirementMessage\"]",
-      "id": "82bf1804a2aed4cf9895c0f3be4209e9c1ac3240370296b1040edaa27c8dafbf"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'optionChoices' is defined but never used.",
-      "severity": 1,
-      "line": 106,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"optionChoices\"]",
-      "id": "82e98be5626f253073b34c32b1a8613161f6f0ab3f5958d31b8765bf55263d8f"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'Link' is declared but its value is never read.",
-      "severity": 2,
-      "line": 3,
-      "column": 1,
-      "owner": "",
-      "id": "8317197a51557b21a83be11f2177dedcb239ceea8bcd14a5e324cc6209bfba9e"
-    },
-    {
       "rule": "complexity",
       "message": "Async arrow function has a complexity of 28. Maximum allowed is 15.",
       "severity": 1,
@@ -4880,7 +4110,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1808,
+      "line": 1732,
       "column": 5,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -4895,16 +4125,6 @@
       "column": 9,
       "owner": "FunctionDeclaration:[\"GraphNode\"]/VariableDeclaration:[\"isLoadImage\"]",
       "id": "84e8dfec1c5f8a45187c3affba8bc5504e0a01d5e33af015fa74136db4f444ad"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'optionEntries' is defined but never used.",
-      "severity": 1,
-      "line": 107,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"optionEntries\"]",
-      "id": "853b0b15786ce1a1c400e57b59e039d26422824880859ddf301a704c797d8348"
     },
     {
       "rule": "complexity",
@@ -4958,26 +4178,6 @@
       "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposerGuardEffects\"]",
       "id": "868772ac29716cfc59d7c07cb62e07b45c236243f3026f8331a46078240fc260"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'renderStructuredPresetPrompt' is declared but its value is never read.",
-      "severity": 2,
-      "line": 114,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"renderStructuredPresetPrompt\"]",
-      "id": "86a86a002f7be33036b57a49cbd714b369c66303943f37f64a7e6ef4dbc806dd"
-    },
-    {
-      "rule": "react-hooks/exhaustive-deps",
-      "message": "React Hook useEffect has a missing dependency: 'setSelectedReferencePreview'. Either include it or remove the dependency array.",
-      "severity": 2,
-      "line": 434,
-      "column": 6,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]",
-      "id": "86f36407e2c226fcd26cdda319b679e3239f663972a1f40c4330b7c678eb50f7"
     },
     {
       "rule": "@typescript-eslint/no-explicit-any",
@@ -5065,16 +4265,6 @@
       "id": "89b64b20721d983501997ab6b923ad3e795b69defe5c97c7baa677a81b22dec9"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'selectedPromptObjects' is declared but its value is never read.",
-      "severity": 2,
-      "line": 83,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"selectedPromptObjects\"]",
-      "id": "89ddc56cf9d9962c43395ca414583b0887988e944447bb8ad25acc00520f91da"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -5085,35 +4275,15 @@
       "id": "89ede564310e8deb017dc999955223d8cb0513d5291a7a08791aea4270f116b3"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'jobPhaseMessage' is defined but never used.",
-      "severity": 1,
-      "line": 129,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"jobPhaseMessage\"]",
-      "id": "89f0d05fc1a8dd9c6127837f5079b3fb1da587f4755031f0d0590c4c7fa6f6f8"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'applyPresetSelection' has a complexity of 26. Maximum allowed is 15.",
       "severity": 1,
-      "line": 690,
+      "line": 682,
       "column": 3,
       "metric": 26,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]/FunctionDeclaration:[\"applyPresetSelection\"]",
       "id": "8a1fd388d03de3851dae66d79d94f574a86b4e164acf053aa1f712239893f2f1"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'studioOptionChoices' is defined but never used.",
-      "severity": 1,
-      "line": 123,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"studioOptionChoices\"]",
-      "id": "8a242f7afe7351e9349043659494a8e459e4af851a7d833c9097c3300910ea18"
     },
     {
       "rule": "complexity",
@@ -5152,7 +4322,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2330,
+      "line": 2254,
       "column": 39,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onSelectPreset\"]/anonymous:7d9e275284b237c0c95bf7d408ba24eb249ffb8a069e57e50ee7d0db76cc88e5",
@@ -5178,16 +4348,6 @@
       "file": "apps/web/lib/control-api.ts",
       "owner": "FunctionDeclaration:[\"mapPricingResponseRecord\"]",
       "id": "8c680bccdeac876ee362f290b7a529b72c07e43a50894650ce1803374f35d5e2"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'AssetPagePayload' is defined but never used.",
-      "severity": 1,
-      "line": 70,
-      "column": 8,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"AssetPagePayload\"]",
-      "id": "8d675a683c0c6565a58f137fd62533083ccf18a9b0bb84367024dc1250f48579"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -5221,26 +4381,6 @@
       "id": "8e1754b30dd7591c009aa9d336556f5b6dc10f418a412eeb84f0910866f560e8"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'setEnhanceError' is declared but its value is never read.",
-      "severity": 2,
-      "line": 556,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"setModelKey\",\",\",\"setSelectedPresetId\",\",\",\"setSelectedPromptIds\",\",\",\"setPrompt\",\",\",\"setPresetInputValues\",\",\",\"setPresetSlotStates\",\",\",\"setOptionValues\",\",\",\"setEnhanceDialogOpen\",\",\",\"setEnhancePreview\",\",\",\"setEnhanceError\",\",\",\"setAttachments\",\",\",\"setIsDragActive\",\",\",\"setValidation\",\",\",\"setBusyState\",\",\",\"setMobileComposerCollapsed\",\",\",\"setOutputCount\",\",\",\"setOpenPicker\",\",\",\"stageSourceAsset\",\",\",\"clearSourceAsset\",\",\",\"updateOption\",\",\",\"addFiles\",\",\",\"addRestoredFiles\",\",\",\"addGalleryAssetAsAttachment\",\",\",\"addReferenceMediaAsAttachment\",\",\",\"assignPresetSlotFile\",\",\",\"assignPresetSlotAsset\",\",\",\"assignPresetSlotReference\",\",\",\"clearPresetSlot\",\",\",\"removeAttachment\",\",\",\"clearComposer\",\",\",\"applyPresetSelection\",\",\",\"togglePrompt\",\",\",\"requestEnhancementPreview\",\",\",\"openEnhanceDialog\",\",\",\"showFloatingComposerBanner\",\",\",\"submitMedia\",\",\",\"}\"]/BindingElement:[\"setEnhanceError\"]",
-      "id": "8e8c856566f29457bd9e91b2c5c76bb3d4d2ff9d95cdda22a0f9c4b206a1c570"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'cn' is defined but never used.",
-      "severity": 1,
-      "line": 154,
-      "column": 10,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"cn\"]",
-      "id": "8ea8bcb9a5a6177de3597ae3904244c0966454dcfc2a041b83170f7255400e8d"
-    },
-    {
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
@@ -5262,26 +4402,6 @@
       "id": "8f1ea7a91d4f45010a43334a65dcde822ee8fb91d9a7a3df946f0adb28bb9ece"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'parseMultiShotScript' is defined but never used.",
-      "severity": 1,
-      "line": 109,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"parseMultiShotScript\"]",
-      "id": "8f8ac21f17e29cdb8152ff31f767ef6a06e546801e5271cbf171cda100e8f88e"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'studioOptionChoices' is declared but its value is never read.",
-      "severity": 2,
-      "line": 123,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"studioOptionChoices\"]",
-      "id": "8f97d7e9cf13c69ad0d8acc2ed6ee56065f243bad334ae3a93a1f019c55ce271"
-    },
-    {
       "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
       "rule": "TS6196",
       "message": "'AssistantPlan' is declared but never used.",
@@ -5292,26 +4412,6 @@
       "id": "9040de24057b9f97b0ff3de9aed69508a4dcdc96c98140e3df623838b76e731b"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'localLatestAsset' is declared but its value is never read.",
-      "severity": 2,
-      "line": 341,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"localBatches\",\",\",\"optimisticBatches\",\",\",\"localJobs\",\",\",\"localAssets\",\",\",\"localLatestAsset\",\",\",\"galleryModelFilter\",\",\",\"galleryKindFilter\",\",\",\"favoritesOnly\",\",\",\"favoriteAssets\",\",\",\"}\"]/BindingElement:[\"localLatestAsset\"]",
-      "id": "9051b6e1c2cf57dd5f44b72e22fc87869972d348ecb61083eef8af80c4450d51"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'mediaVariantUrl' is declared but its value is never read.",
-      "severity": 2,
-      "line": 99,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"mediaVariantUrl\"]",
-      "id": "90605a10aeaaf727711e7f07f84828324468e2f9aed89ef56f8bb9e89ece0ebc"
-    },
-    {
       "rule": "@typescript-eslint/no-explicit-any",
       "message": "Unexpected any. Specify a different type.",
       "severity": 1,
@@ -5320,36 +4420,6 @@
       "file": "apps/web/components/graph-studio/graph-canvas.test.tsx",
       "owner": "anonymous:51f4ea6d79af1193491768841cdfe072b021379eb83d76c239b425dadaebb14e/anonymous:b6af997ecbaedc2a4ab1a42941af6e42dd236d0151d8fb823e61274f210c174f/VariableDeclaration:[\"{\",\"getByText\",\"}\"]/JsxAttribute:[\"groups\"]",
       "id": "90aed9068609ab66d25815b54c5b0357eea072634cd2967e3b429fb2a9edf435"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'MultiShotParseResult' is declared but its value is never read.",
-      "severity": 2,
-      "line": 130,
-      "column": 8,
-      "owner": "ImportSpecifier:[\"MultiShotParseResult\"]",
-      "id": "90ca972299c53c76b8240be49ba56b472edf06b21691e7922a9ac1f7d9e19422"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'Sparkles' is defined but never used.",
-      "severity": 1,
-      "line": 13,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"Sparkles\"]",
-      "id": "91127f8a174fce2f51501115665ff9447baaf665982f49d4b7625a6e4ae50de3"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'selectedFailedJobPrimaryInput' is declared but its value is never read.",
-      "severity": 2,
-      "line": 424,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"selectedFailedJob\",\",\",\"selectedFailedJobBatch\",\",\",\"selectedAssetBatch\",\",\",\"selectedAssetProject\",\",\",\"selectedFailedJobPrompt\",\",\",\"selectedFailedJobReferenceInputs\",\",\",\"selectedFailedJobPrimaryInput\",\",\",\"selectedFailedJobRetryPlan\",\",\",\"selectedFailedJobImageReferences\",\",\",\"selectedAssetReferencePreviews\",\",\",\"selectedAssetRevisionPlan\",\",\",\"closeAssetInspector\",\",\",\"}\"]/BindingElement:[\"selectedFailedJobPrimaryInput\"]",
-      "id": "913b3e96a799fe171f37ea0e5a2671f5e4f26227ad88930ee1ebcc4e5b1632b7"
     },
     {
       "rule": "react-hooks/exhaustive-deps",
@@ -5370,26 +4440,6 @@
       "column": 61,
       "owner": "FunctionDeclaration:[\"feedbackToneClassName\"]/Parameter:[\"appearance\"]",
       "id": "91cfc8cbdf8eeeee62f6eb3523486cd8af607045c69151f57bb41898c3261721"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'isCoarsePointerDevice' is defined but never used.",
-      "severity": 1,
-      "line": 16,
-      "column": 3,
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "owner": "ImportSpecifier:[\"isCoarsePointerDevice\"]",
-      "id": "92403b6338a3934cf91381c038ec23a1a0d43b7081925a9920923c49beee6212"
-    },
-    {
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "rule": "TS6133",
-      "message": "'isCoarsePointerDevice' is declared but its value is never read.",
-      "severity": 2,
-      "line": 16,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"isCoarsePointerDevice\"]",
-      "id": "9266161c02b91844c977ab3fef7a720350d9f107a4780812f7b59a6432532366"
     },
     {
       "rule": "complexity",
@@ -5468,16 +4518,6 @@
       "id": "942eba42cf67e519e399a5f6a2fde59e3e88c95b694de5dd9fcdc6109bfb60e7"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'mediaPlaybackUrl' is declared but its value is never read.",
-      "severity": 2,
-      "line": 96,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"mediaPlaybackUrl\"]",
-      "id": "94650a755262b7f03b822e268a12a4d4d51d754cc272fa9fd9053cf45595a6a8"
-    },
-    {
       "rule": "sonarjs/no-all-duplicated-branches",
       "message": "This conditional operation returns the same value whether the condition is \"true\" or \"false\".",
       "severity": 1,
@@ -5523,7 +4563,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2316,
+      "line": 2240,
       "column": 11,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onRequestPreview\"]/anonymous:5ffc15a3e5a3c5cc3e84db1843331bc806cd140cd43f9efb18b1c9277f76793a",
@@ -5538,16 +4578,6 @@
       "file": "apps/web/components/graph-studio/hooks/use-graph-workflow-browser.ts",
       "owner": "FunctionDeclaration:[\"useGraphWorkflowBrowser\"]/anonymous:a11d87b1fa2bf3ae753071731a7f9f6fdedd0b3a47bdf14b45261985704ad91f",
       "id": "974a2297895fc770949d6ae5c338bf85ca7e05890066a9605366079ecb6f751b"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'currentModelEnhancementConfig' is assigned a value but never used.",
-      "severity": 1,
-      "line": 254,
-      "column": 5,
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "owner": "FunctionDeclaration:[\"useStudioComposer\"]/VariableDeclaration:[\"{\",\"currentModelEnhancementConfig\",\",\",\"activeEnhancementEngineConfig\",\",\",\"enhanceSupportsText\",\",\",\"enhanceSupportsImage\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceHelperText\",\",\",\"}\"]/BindingElement:[\"currentModelEnhancementConfig\"]",
-      "id": "977c90ff6bc87cbc9493fe774477c2588a51d376d7664128a5274311775de817"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -5653,16 +4683,6 @@
       "id": "999982fc486340ffc5b1c1db300d9c88319198b562c24fda3bd744491dd48f88"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'optionChoices' is declared but its value is never read.",
-      "severity": 2,
-      "line": 106,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"optionChoices\"]",
-      "id": "9a33a23ebf593c9f0125f20bb28ca6ab1e270e5e265c687ea6a7b44b9d6b7c64"
-    },
-    {
       "rule": "complexity",
       "message": "Arrow function has a complexity of 67. Maximum allowed is 15.",
       "severity": 1,
@@ -5684,26 +4704,6 @@
       "id": "9a65139d3d71d851b061230570c50b39b016c0c149be774ff849fdbce09baaab"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'createOptimisticBatch' is defined but never used.",
-      "severity": 1,
-      "line": 80,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"createOptimisticBatch\"]",
-      "id": "9a9570139fb961a6f3f3c9ab7f153e9786bc5f608092a723c9d4583b6ccf30e4"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'presetRequirementMessage' is defined but never used.",
-      "severity": 1,
-      "line": 82,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"presetRequirementMessage\"]",
-      "id": "9a99a0744d0dc3a695fe411467a3646342ed071b5c0938ec1af07d719962de50"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'formFromConfig' has a complexity of 34. Maximum allowed is 15.",
       "severity": 1,
@@ -5713,16 +4713,6 @@
       "file": "apps/web/components/prompt-recipes/prompt-recipe-drafting-settings-panel.tsx",
       "owner": "FunctionDeclaration:[\"formFromConfig\"]",
       "id": "9b254385e5b5e4dd6319b5fdef70c840080c64f73588b7d8870acc718be96011"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'LoaderCircle' is defined but never used.",
-      "severity": 1,
-      "line": 10,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"LoaderCircle\"]",
-      "id": "9bc1c5ea4098df571bfc5b81128c3ac694846952d0d8cb775bc34af87f07cf69"
     },
     {
       "rule": "complexity",
@@ -5756,16 +4746,6 @@
       "id": "9c31b1fb7b627859099998097b4ce96c2895c285d055b5e4f7135b7cfd8246e9"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'jobPhaseMessage' is declared but its value is never read.",
-      "severity": 2,
-      "line": 129,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"jobPhaseMessage\"]",
-      "id": "9d72f3ebd7df186c2094164ebbbe382fc0a057b4d881ce5ee667f9bb759ccaa0"
-    },
-    {
       "rule": "sonarjs/no-all-duplicated-branches",
       "message": "This conditional operation returns the same value whether the condition is \"true\" or \"false\".",
       "severity": 1,
@@ -5774,26 +4754,6 @@
       "file": "apps/web/components/ui/icon-button.tsx",
       "owner": "FunctionDeclaration:[\"iconButtonClassName\"]/VariableDeclaration:[\"baseClassName\"]",
       "id": "9df82e75955a9513f4f047246cddb335dbc956598100277234e8bf731b7b3fa3"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'PresetSlotState' is defined but never used.",
-      "severity": 1,
-      "line": 111,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"PresetSlotState\"]",
-      "id": "9e34cd769925d158fddfa714a74364d4c9429279443235dcf8a649006bebffe3"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'toWholeNumber' is declared but its value is never read.",
-      "severity": 2,
-      "line": 126,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"toWholeNumber\"]",
-      "id": "9e35812f16f0ca09341166b4c9c0bf76412e5a32172c00753aa3f37bd2f30936"
     },
     {
       "rule": "complexity",
@@ -5805,16 +4765,6 @@
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreLatestRunSnapshot\"]/anonymous:fe535f83d65149f3524196a03e8c2a144411d844dbda72ba0d6e332abd395b36",
       "id": "9e87aea8afb76792d6857d700d383d0cbbb03e0880a51a028f9324f3066bae8c"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'PresetSlotState' is declared but its value is never read.",
-      "severity": 2,
-      "line": 111,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"PresetSlotState\"]",
-      "id": "9f1fe023025643c56e5ce70b4f50ecd504809a2c727501ab85299bd5e1883453"
     },
     {
       "rule": "complexity",
@@ -5836,26 +4786,6 @@
       "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
       "owner": "FunctionDeclaration:[\"StudioEnhancementSettingsPanel\"]/VariableDeclaration:[\"providerChrome\"]/JsxAttribute:[\"onSubmit\"]/anonymous:e310f1fc8606c4d2401f9a58281a3c84962b7762b2bab13ed7a112dd9c518174",
       "id": "9fb497d1deb909f70910b087f3f4a9d4d58b281d067695a7f32f3e99109e9aea"
-    },
-    {
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "rule": "TS6133",
-      "message": "'stripUnsupportedStudioOptions' is declared but its value is never read.",
-      "severity": 2,
-      "line": 44,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"stripUnsupportedStudioOptions\"]",
-      "id": "a04f020bf09b6111aec835be5ed307c21a0874d5b54a98ab37ebb91cc720f52c"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'prefetchAssetThumbs' is defined but never used.",
-      "severity": 1,
-      "line": 110,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"prefetchAssetThumbs\"]",
-      "id": "a0e0084b4f599a0bf097060e83d3b4d1a019edca935094fcefc6d717dd714d1f"
     },
     {
       "file": "apps/web/components/studio/studio-composer-controls.tsx",
@@ -5908,16 +4838,6 @@
       "id": "a2b1c534906acca260394f5a9cacdf970695e28f7bbafbf74964565aa5bd152b"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'FloatingComposerStatus' is declared but its value is never read.",
-      "severity": 2,
-      "line": 74,
-      "column": 8,
-      "owner": "ImportSpecifier:[\"FloatingComposerStatus\"]",
-      "id": "a302466589e190061503a2d605387cd738a015136858d6980a62e11c401a2023"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -5968,20 +4888,10 @@
       "id": "a3ef00ad2dfef5a656d252fa85f1504b24140b845efa3a8ad1e27ad0acc5434e"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'isRefreshing' is declared but its value is never read.",
-      "severity": 2,
-      "line": 185,
-      "column": 10,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"[\",\"isRefreshing\",\",\",\"startRefresh\",\"]\"]/BindingElement:[\"isRefreshing\"]",
-      "id": "a4e69840bd3dc6796aec34ed4011522c8d5b214d3b9e23e80139cf0e3b22d78c"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1802,
+      "line": 1726,
       "column": 7,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -6018,16 +4928,6 @@
       "file": "apps/web/components/graph-studio/creative-assistant-reattachment.test.tsx",
       "owner": "anonymous:e790a17ac0e70bb8c3d58c7eef47ff0554f3c847f58aee2872a6618030d138e6/anonymous:a15f6bbe2358e6696ecb8ad3cffe21f4622d461db147663ddd13783532242312",
       "id": "a66aacf30d52f3aa294bcd99cb104f417c0e3548eed08bf8e0354e7484a3c20d"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'setEnhancePreview' is declared but its value is never read.",
-      "severity": 2,
-      "line": 555,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"setModelKey\",\",\",\"setSelectedPresetId\",\",\",\"setSelectedPromptIds\",\",\",\"setPrompt\",\",\",\"setPresetInputValues\",\",\",\"setPresetSlotStates\",\",\",\"setOptionValues\",\",\",\"setEnhanceDialogOpen\",\",\",\"setEnhancePreview\",\",\",\"setEnhanceError\",\",\",\"setAttachments\",\",\",\"setIsDragActive\",\",\",\"setValidation\",\",\",\"setBusyState\",\",\",\"setMobileComposerCollapsed\",\",\",\"setOutputCount\",\",\",\"setOpenPicker\",\",\",\"stageSourceAsset\",\",\",\"clearSourceAsset\",\",\",\"updateOption\",\",\",\"addFiles\",\",\",\"addRestoredFiles\",\",\",\"addGalleryAssetAsAttachment\",\",\",\"addReferenceMediaAsAttachment\",\",\",\"assignPresetSlotFile\",\",\",\"assignPresetSlotAsset\",\",\",\"assignPresetSlotReference\",\",\",\"clearPresetSlot\",\",\",\"removeAttachment\",\",\",\"clearComposer\",\",\",\"applyPresetSelection\",\",\",\"togglePrompt\",\",\",\"requestEnhancementPreview\",\",\",\"openEnhanceDialog\",\",\",\"showFloatingComposerBanner\",\",\",\"submitMedia\",\",\",\"}\"]/BindingElement:[\"setEnhancePreview\"]",
-      "id": "a6fe4fe6523b9ce749e816e30f1710c9f63c4eaa86bcc3aee3d69650fd08b303"
     },
     {
       "rule": "complexity",
@@ -6080,16 +4980,6 @@
       "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
       "owner": "FunctionDeclaration:[\"StudioMobileInputsContent\"]",
       "id": "a8151a0375ee1ff5d38fe3bc0b168ef001eef8ebe2455580e6da2070e2f363ae"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'Play' is declared but its value is never read.",
-      "severity": 2,
-      "line": 12,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"Play\"]",
-      "id": "a85de2e281bcd4aea3a9d3c144ab4ae12039bc9cbec58132a43cdd792805b253"
     },
     {
       "rule": "react-hooks/rules-of-hooks",
@@ -6201,21 +5091,11 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1982,
+      "line": 1906,
       "column": 5,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"addImageFilesToOrderedSlot\"]",
       "id": "aa615e1f4e308f054278a79304d9fe28633312a1a739305c4eed0689a7ec14c6"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'FLOATING_COMPOSER_STATUS_MS' is declared but its value is never read.",
-      "severity": 2,
-      "line": 72,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"FLOATING_COMPOSER_STATUS_MS\"]",
-      "id": "aa8c4a6c198183c392ccda7def966e68351055423d25dac8dd3a0a8a8af86323"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -6226,16 +5106,6 @@
       "file": "apps/web/components/media/use-media-image-picker-pagination.ts",
       "owner": "FunctionDeclaration:[\"useMediaImagePickerPagination\"]/VariableDeclaration:[\"openPicker\"]/anonymous:2a6e503d5dd02ecc8becbf99d3b8ce0dd27f15494ea7bb0de4b031c04655f51b",
       "id": "aadeab20d7e14d9312ce8f1ab0236f5aeeb65f1cd798c378ced22a728c725b90"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'createOptimisticBatch' is declared but its value is never read.",
-      "severity": 2,
-      "line": 80,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"createOptimisticBatch\"]",
-      "id": "ab6f09705bf191a3e4bbe02ae8f5445e416faf42fab27d6ccef9de432af12a2a"
     },
     {
       "rule": "@typescript-eslint/no-unused-vars",
@@ -6341,20 +5211,10 @@
       "id": "af3a904ff6a1cb200b2e8f2ac392e6ba151b6f8c777060c70fee8b2f448ee2e6"
     },
     {
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "rule": "TS6133",
-      "message": "'activeEnhancementEngineConfig' is declared but its value is never read.",
-      "severity": 2,
-      "line": 255,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"useStudioComposer\"]/VariableDeclaration:[\"{\",\"currentModelEnhancementConfig\",\",\",\"activeEnhancementEngineConfig\",\",\",\"enhanceSupportsText\",\",\",\"enhanceSupportsImage\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceHelperText\",\",\",\"}\"]/BindingElement:[\"activeEnhancementEngineConfig\"]",
-      "id": "af891df3d8bc96fefbdd756d8bc8be2192392dc7f1a265aa2f28838a3875c569"
-    },
-    {
       "rule": "react-hooks/rules-of-hooks",
       "message": "React Hook \"useAssetAsSource\" is called in function \"handleSourceTileDrop\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
       "severity": 2,
-      "line": 1734,
+      "line": 1658,
       "column": 11,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -6384,7 +5244,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1746,
+      "line": 1670,
       "column": 9,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -6400,16 +5260,6 @@
       "file": "apps/web/app/api/control/[...path]/route.ts",
       "owner": "FunctionDeclaration:[\"proxy\"]",
       "id": "b1814bd36033e5a77172c3f14380c54ee466d019e31ac8494181b31b11737b69"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'FLOATING_COMPOSER_STATUS_FADE_MS' is defined but never used.",
-      "severity": 1,
-      "line": 71,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"FLOATING_COMPOSER_STATUS_FADE_MS\"]",
-      "id": "b1a616dc2ac1f4c20959d075e21036f00873f572847a1f3faaf5486a6d8f5c08"
     },
     {
       "rule": "sonarjs/no-all-duplicated-branches",
@@ -6453,16 +5303,6 @@
       "file": "apps/web/components/studio/studio-project-browser.tsx",
       "owner": "FunctionDeclaration:[\"StudioProjectBrowser\"]",
       "id": "b1fa0f16481e718f9569f7ee517d76751728235a5e12f8a2c966ce618d19b196"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'addRestoredFiles' is declared but its value is never read.",
-      "severity": 2,
-      "line": 568,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"setModelKey\",\",\",\"setSelectedPresetId\",\",\",\"setSelectedPromptIds\",\",\",\"setPrompt\",\",\",\"setPresetInputValues\",\",\",\"setPresetSlotStates\",\",\",\"setOptionValues\",\",\",\"setEnhanceDialogOpen\",\",\",\"setEnhancePreview\",\",\",\"setEnhanceError\",\",\",\"setAttachments\",\",\",\"setIsDragActive\",\",\",\"setValidation\",\",\",\"setBusyState\",\",\",\"setMobileComposerCollapsed\",\",\",\"setOutputCount\",\",\",\"setOpenPicker\",\",\",\"stageSourceAsset\",\",\",\"clearSourceAsset\",\",\",\"updateOption\",\",\",\"addFiles\",\",\",\"addRestoredFiles\",\",\",\"addGalleryAssetAsAttachment\",\",\",\"addReferenceMediaAsAttachment\",\",\",\"assignPresetSlotFile\",\",\",\"assignPresetSlotAsset\",\",\",\"assignPresetSlotReference\",\",\",\"clearPresetSlot\",\",\",\"removeAttachment\",\",\",\"clearComposer\",\",\",\"applyPresetSelection\",\",\",\"togglePrompt\",\",\",\"requestEnhancementPreview\",\",\",\"openEnhanceDialog\",\",\",\"showFloatingComposerBanner\",\",\",\"submitMedia\",\",\",\"}\"]/BindingElement:[\"addRestoredFiles\"]",
-      "id": "b2b3187add2d7665488ed2082bbbfd13d3dd5140ec52dd666c805931259c57a2"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -6518,26 +5358,6 @@
       "id": "b3617f530f99ef2c09333912550cff60c918737c991bf557eb5c0048ba926f9f"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'mediaPlaybackUrl' is defined but never used.",
-      "severity": 1,
-      "line": 96,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"mediaPlaybackUrl\"]",
-      "id": "b38e84b89665f31bb9f048e223ad2369a1086b045e3319a12c6aa394ace7ca69"
-    },
-    {
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "rule": "TS6133",
-      "message": "'AttachmentRecord' is declared but its value is never read.",
-      "severity": 2,
-      "line": 6,
-      "column": 8,
-      "owner": "ImportSpecifier:[\"AttachmentRecord\"]",
-      "id": "b3f249089559f306f561b2203334974b33113661b967278beb6c6d9c1c7dbd1c"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -6557,16 +5377,6 @@
       "file": "scripts/audit_media_assistant_prompt_quality.mjs",
       "owner": "FunctionDeclaration:[\"runCase\"]",
       "id": "b451221c31d24057d6fc149d30d9cc5c92068f1239f110b9d21d1b7236b8ab03"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'optionBooleanValue' is defined but never used.",
-      "severity": 1,
-      "line": 105,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"optionBooleanValue\"]",
-      "id": "b4d867586f714c848aa9b0f1a8b2e7d934c4e39f76481b28cfcbcd4b42e09908"
     },
     {
       "rule": "@typescript-eslint/no-unused-vars",
@@ -6609,16 +5419,6 @@
       "id": "b6da8405ebeed555493378d804a635d8f52328494eb5832f177df09531994fcb"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'setEnhanceError' is assigned a value but never used.",
-      "severity": 1,
-      "line": 556,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"setModelKey\",\",\",\"setSelectedPresetId\",\",\",\"setSelectedPromptIds\",\",\",\"setPrompt\",\",\",\"setPresetInputValues\",\",\",\"setPresetSlotStates\",\",\",\"setOptionValues\",\",\",\"setEnhanceDialogOpen\",\",\",\"setEnhancePreview\",\",\",\"setEnhanceError\",\",\",\"setAttachments\",\",\",\"setIsDragActive\",\",\",\"setValidation\",\",\",\"setBusyState\",\",\",\"setMobileComposerCollapsed\",\",\",\"setOutputCount\",\",\",\"setOpenPicker\",\",\",\"stageSourceAsset\",\",\",\"clearSourceAsset\",\",\",\"updateOption\",\",\",\"addFiles\",\",\",\"addRestoredFiles\",\",\",\"addGalleryAssetAsAttachment\",\",\",\"addReferenceMediaAsAttachment\",\",\",\"assignPresetSlotFile\",\",\",\"assignPresetSlotAsset\",\",\",\"assignPresetSlotReference\",\",\",\"clearPresetSlot\",\",\",\"removeAttachment\",\",\",\"clearComposer\",\",\",\"applyPresetSelection\",\",\",\"togglePrompt\",\",\",\"requestEnhancementPreview\",\",\",\"openEnhanceDialog\",\",\",\"showFloatingComposerBanner\",\",\",\"submitMedia\",\",\",\"}\"]/BindingElement:[\"setEnhanceError\"]",
-      "id": "b83e9c681de0c20aac9aef7af5859d423e3867ac032be1ecf23685f15c18a600"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -6632,21 +5432,11 @@
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useEffect has a missing dependency: 'setOutputCount'. Either include it or remove the dependency array.",
       "severity": 2,
-      "line": 1416,
+      "line": 1340,
       "column": 6,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]",
       "id": "b90b8dfd30c8bda3548d51aa0aed555d3911c03038a86445028405273ed8a4b0"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'AssetPagePayload' is declared but its value is never read.",
-      "severity": 2,
-      "line": 70,
-      "column": 8,
-      "owner": "ImportSpecifier:[\"AssetPagePayload\"]",
-      "id": "b9244a06d4ccbf29d912b33320c232a3479f37f25ccd72f398ef3590c56061df"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -6689,16 +5479,6 @@
       "id": "ba1bbc96f9e7b9626cfd3108cba456dff6557fedcad44c8aef35d02cdfc1bf05"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'sanitizeStudioOptions' is defined but never used.",
-      "severity": 1,
-      "line": 115,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"sanitizeStudioOptions\"]",
-      "id": "ba439f6253b5a3328fe675574a99d59448ae246ac1b406456da579717f1b3252"
-    },
-    {
       "rule": "preserve-caught-error",
       "message": "There is no `cause` attached to the symptom error being thrown.",
       "severity": 2,
@@ -6718,16 +5498,6 @@
       "file": "apps/web/components/graph-studio/hooks/use-graph-run-lifecycle.ts",
       "owner": "FunctionDeclaration:[\"useGraphRunLifecycle\"]/VariableDeclaration:[\"runWorkflow\"]/anonymous:4d55ed5479a811fd802097f4efe8ab34ef64143b0798bad26106abf12ca6cff5",
       "id": "bae210f6c75a8826fb5918a7a2ee6e3ec8b4aa04bd5cb56ed69c4bd6df003b2b"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'retryJob' is declared but its value is never read.",
-      "severity": 2,
-      "line": 634,
-      "column": 31,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"pollJob\",\",\",\"pollBatch\",\",\",\"retryJob\",\",\",\"dismissJob\",\",\",\"dismissAsset\",\",\",\"toggleAssetFavorite\",\"}\"]/BindingElement:[\"retryJob\"]",
-      "id": "baf9cf0ac17d1aa2a42f04aa57b984953da0d94aff5ce711557159a2478a8eb3"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -6771,34 +5541,14 @@
       "id": "bc2aac6e2d2f10a2f5f5f80cb8338df202cae3ea9db8cc7f9c36198ef5a82d75"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'selectedFailedJobBatch' is declared but its value is never read.",
-      "severity": 2,
-      "line": 419,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"selectedFailedJob\",\",\",\"selectedFailedJobBatch\",\",\",\"selectedAssetBatch\",\",\",\"selectedAssetProject\",\",\",\"selectedFailedJobPrompt\",\",\",\"selectedFailedJobReferenceInputs\",\",\",\"selectedFailedJobPrimaryInput\",\",\",\"selectedFailedJobRetryPlan\",\",\",\"selectedFailedJobImageReferences\",\",\",\"selectedAssetReferencePreviews\",\",\",\"selectedAssetRevisionPlan\",\",\",\"closeAssetInspector\",\",\",\"}\"]/BindingElement:[\"selectedFailedJobBatch\"]",
-      "id": "bc354ed71ae99296e20f74250f50e30be719aa241be481937afaa1a9294ae98c"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2404,
+      "line": 2328,
       "column": 28,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onDismiss\"]/anonymous:a4573c2b1434dcf85cab5796653217e7bb45bca8e9dcc38a6812c6646149c0d4",
       "id": "bc5506850d5a9c6bae9990b1ecb1bfb3766f796c9d6a67166fde567552a32426"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'StudioChoice' is declared but its value is never read.",
-      "severity": 2,
-      "line": 121,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"StudioChoice\"]",
-      "id": "bc6fc0af62568f74e6d15796d2933c5d3ef21061a2cdf7049ea3f35c20165332"
     },
     {
       "rule": "complexity",
@@ -6842,16 +5592,6 @@
       "id": "be4c49f6cc35d966226435fce564486b53ff4712c5f9cad3e3297ef8c5b5ac1c"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'Check' is declared but its value is never read.",
-      "severity": 2,
-      "line": 7,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"Check\"]",
-      "id": "be4dfe10d61899633469c3fc2d8700f8c427e1bbd02cc5590f1eaa6076761b7a"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'recordedFailures' has a complexity of 16. Maximum allowed is 15.",
       "severity": 1,
@@ -6872,16 +5612,6 @@
       "file": "apps/web/components/studio/studio-gallery-tile.tsx",
       "owner": "FunctionDeclaration:[\"StudioGalleryTile\"]",
       "id": "bf780b25be3771a76a68cca41254b39c1fc7a793de13c960434cad7728ff1759"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'prefetchAssetThumbs' is declared but its value is never read.",
-      "severity": 2,
-      "line": 110,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"prefetchAssetThumbs\"]",
-      "id": "bfcdc2b6babf43a407baf1315030bd136980c97408584991ae37a89c334f006c"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -6913,16 +5643,6 @@
       "file": "apps/web/components/graph-studio/hooks/use-graph-run-lifecycle.ts",
       "owner": "FunctionDeclaration:[\"useGraphRunLifecycle\"]/VariableDeclaration:[\"hydrateFullRun\"]/anonymous:165d357344cb298a8e9e24d2ef96ea156240e91185c78929205d14c4e61d7158",
       "id": "c11aced8f9a84a1b432037187fc24caed326af96fa1ef3fffef61d86f6276550"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'presetRequirementError' is declared but its value is never read.",
-      "severity": 2,
-      "line": 513,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"currentModel\",\",\",\"currentPreset\",\",\",\"currentSourceAsset\",\",\",\"seedanceComposer\",\",\",\"effectiveSeedanceMode\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"structuredPresetTextFields\",\",\",\"structuredPresetImageSlots\",\",\",\"structuredPresetActive\",\",\",\"canOpenReferenceLibrary\",\",\",\"standardComposerLayout\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"orderedImageInputs\",\",\",\"multiShotsEnabled\",\",\",\"multiShotScript\",\",\",\"multiShotScriptError\",\",\",\"selectedPromptList\",\",\",\"availableStudioPresets\",\",\",\"modelPresets\",\",\",\"structuredPresetPromptPreview\",\",\",\"presetRequirementError\",\",\",\"enhancementPreviewVisual\",\",\",\"compactOptionEntries\",\",\",\"estimatedCredits\",\",\",\"formattedRemainingCredits\",\",\",\"generateButtonLabel\",\",\",\"modelMaxOutputs\",\",\",\"validationReady\",\",\",\"inferredInputPattern\",\",\",\"canSubmit\",\",\",\"composerStatusMessage\",\",\",\"imageLimitLabel\",\",\",\"canAddMoreImages\",\",\",\"canAddMoreVideos\",\",\",\"canAddMoreAudios\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"seedanceReferenceImages\",\",\",\"seedanceReferenceVideos\",\",\",\"seedanceReferenceAudios\",\",\",\"seedanceReferenceGuideTokens\",\",\",\"seedanceReferenceGuideText\",\",\",\"canUseSourceAsset\",\",\",\"maxImageInputs\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"stagedImageCount\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"}\"]/BindingElement:[\"presetRequirementError\"]",
-      "id": "c11faa46577d9437e6d59a520acc75d10840859a5e569b9e670a38ef6f0fa0d3"
     },
     {
       "rule": "@typescript-eslint/no-unused-vars",
@@ -7018,16 +5738,6 @@
       "id": "c33b630da4a427ef2cba4dddd45fea0eacc17938bae2c53c303cf464e7744161"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6192",
-      "message": "All imports in import declaration are unused.",
-      "severity": 2,
-      "line": 146,
-      "column": 1,
-      "owner": "",
-      "id": "c33dc45b97e5f3f83afde15ed5ebcd3fe7edf30b3fd17fe4a8b6c0634b84000f"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 22 to the 20 allowed.",
       "severity": 1,
@@ -7084,7 +5794,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2418,
+      "line": 2342,
       "column": 26,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onRetry\"]/anonymous:e4b10279ca3c3a947597028dc0652df349062b385e13e6a36eddf1fd1df1ed04",
@@ -7145,7 +5855,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1913,
+      "line": 1837,
       "column": 9,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"useAssetAsSource\"]",
@@ -7204,16 +5914,6 @@
       "id": "c82b64a095d3866044dece9145be2146937e4a1d8d4425b0eab6f2aa2ac42385"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'renderStructuredPresetPrompt' is defined but never used.",
-      "severity": 1,
-      "line": 114,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"renderStructuredPresetPrompt\"]",
-      "id": "c8f8d96aa58e16e83af534f1cb82a5c47a9c0a6ae7e2c3d14d56c25d23695636"
-    },
-    {
       "rule": "complexity",
       "message": "Async arrow function has a complexity of 20. Maximum allowed is 15.",
       "severity": 1,
@@ -7223,26 +5923,6 @@
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"loadWorkflowRecord\"]/anonymous:9f5292ced19676193cbe3f337b28877454092b4c5b3e02b2f597bff1f198863f",
       "id": "c94d46344287ca1313544c4e581737ece07d8723d1a61964ba68765122b5695b"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'Link' is defined but never used.",
-      "severity": 1,
-      "line": 3,
-      "column": 8,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportClause:[\"Link\"]",
-      "id": "c9c7cf403ab646fac73269ebe408225ce59f8c48a7bb9eadf0494ba88bfaa019"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'selectedAssetBatch' is declared but its value is never read.",
-      "severity": 2,
-      "line": 420,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"selectedFailedJob\",\",\",\"selectedFailedJobBatch\",\",\",\"selectedAssetBatch\",\",\",\"selectedAssetProject\",\",\",\"selectedFailedJobPrompt\",\",\",\"selectedFailedJobReferenceInputs\",\",\",\"selectedFailedJobPrimaryInput\",\",\",\"selectedFailedJobRetryPlan\",\",\",\"selectedFailedJobImageReferences\",\",\",\"selectedAssetReferencePreviews\",\",\",\"selectedAssetRevisionPlan\",\",\",\"closeAssetInspector\",\",\",\"}\"]/BindingElement:[\"selectedAssetBatch\"]",
-      "id": "ca0b00c1cc92154f82d740bc51b68d638a9cecdbde09f39683b5e57bc344d4da"
     },
     {
       "rule": "complexity",
@@ -7269,7 +5949,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1774,
+      "line": 1698,
       "column": 7,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -7403,16 +6083,6 @@
       "id": "cd6f87077b176c72ba2625eef24db5db7d1d6f22cb611ac514cb33de312401a2"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'isMobileDownloadDevice' is declared but its value is never read.",
-      "severity": 2,
-      "line": 93,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"isMobileDownloadDevice\"]",
-      "id": "cd77e050fb323effe8d38af913266c4aa296942b071fb1b7f28161cd6ba6295c"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'validatePromptRecipeDraft' has a complexity of 49. Maximum allowed is 15.",
       "severity": 1,
@@ -7476,16 +6146,6 @@
       "id": "ceef89c9b58bcb1b135d46e2cca2a9d00c14ab9de08371c6622c0d3fa4e9b9ca"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'studioValidationReady' is defined but never used.",
-      "severity": 1,
-      "line": 117,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"studioValidationReady\"]",
-      "id": "cf0e50a03246bb6b230ed5a27c523fc4947ff862931210c1e6df3877f317e3d0"
-    },
-    {
       "file": "apps/web/lib/control-api.ts",
       "rule": "TS6133",
       "message": "'toControlApiProxyPath' is declared but its value is never read.",
@@ -7528,20 +6188,10 @@
       "id": "d0771820363f5db238d337ee65b3cf360ef381d28826307421a5699b3e38da01"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'optionBooleanValue' is declared but its value is never read.",
-      "severity": 2,
-      "line": 105,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"optionBooleanValue\"]",
-      "id": "d0ac19d92e187bad5babadffa7b786813315645fb72429b1f6afc16487d8b116"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2397,
+      "line": 2321,
       "column": 13,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onUsePreset\"]/anonymous:8fb5d71936de852a644ead402269f4eed253e929b0a60ebe14c0b0961696a7b8",
@@ -7577,16 +6227,6 @@
       "file": "apps/web/components/graph-studio/graph-canvas.tsx",
       "owner": "FunctionDeclaration:[\"GraphCanvas\"]/VariableDeclaration:[\"connectionLineStyle\"]",
       "id": "d1fb160ef3f232e7c45b244a44d6808581149d9d9cc33d1973b2733d355e5541"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'setLocalProjects' is declared but its value is never read.",
-      "severity": 2,
-      "line": 234,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"localProjects\",\",\",\"selectedProjectId\",\",\",\"selectedProject\",\",\",\"setLocalProjects\",\",\",\"setSelectedProjectId\",\",\",\"studioHrefForProject\",\",\",\"openProjectWorkspace\",\",\",\"createProjectInStudio\",\",\",\"updateProjectInStudio\",\",\",\"archiveProjectInStudio\",\",\",\"unarchiveProjectInStudio\",\",\",\"deleteProjectInStudio\",\",\",\"}\"]/BindingElement:[\"setLocalProjects\"]",
-      "id": "d30a7f362bbf6bc9f41fadcf81aa611ea6f3ccdcee01e0447a5015a3121d409c"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -7653,16 +6293,6 @@
       "id": "d4dedfc0712e1b43da29fcdb5a743ba9ab5d9d6aceecdbc974d832a2ec3c3154"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'isMobileDownloadDevice' is defined but never used.",
-      "severity": 1,
-      "line": 93,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"isMobileDownloadDevice\"]",
-      "id": "d58e78e6ae95187938d8d68d4403546bd957c8fc032c0c501edc571c110fb5ae"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 28 to the 20 allowed.",
       "severity": 1,
@@ -7706,16 +6336,6 @@
       "id": "d65a36425432297dfc44c4cff754cfaaace194c5c182714765c13c80c61f6554"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'Sparkles' is declared but its value is never read.",
-      "severity": 2,
-      "line": 13,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"Sparkles\"]",
-      "id": "d6cc6370142b811f537976d79ff8f1a892f4e55e3bb85cbb9583454f5d0911a1"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 23 to the 20 allowed.",
       "severity": 1,
@@ -7730,22 +6350,12 @@
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 49 to the 20 allowed.",
       "severity": 1,
-      "line": 104,
+      "line": 98,
       "column": 17,
       "metric": 49,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]",
       "id": "d70c8dd745527f433f95a22ce1961d68a113b6873daa23cfc03555c11daac357"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'structuredPresetSlotPreviewUrl' is declared but its value is never read.",
-      "severity": 2,
-      "line": 120,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"structuredPresetSlotPreviewUrl\"]",
-      "id": "d752b8eb407772146d028560df9da0a4051ff6d5129aeab5ce7a33f91285a347"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -7762,7 +6372,7 @@
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
-      "line": 2394,
+      "line": 2318,
       "column": 28,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onToggleFavorite\"]",
@@ -7779,26 +6389,6 @@
       "id": "d8124e120ae386f9890d5ff7636f859f204fd9569c3016bca1c47b000b68a28d"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'Monitor' is declared but its value is never read.",
-      "severity": 2,
-      "line": 11,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"Monitor\"]",
-      "id": "d91fe89d1f7b8da89511f224e141e7f5e6bdf3d9a4cacb47ae8224b0a79685c8"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'normalizeStructuredPresetImageSlots' is defined but never used.",
-      "severity": 1,
-      "line": 103,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"normalizeStructuredPresetImageSlots\"]",
-      "id": "d98991a12928577fce6512af1f21c78ada0a52b5410ad340f8fc90bafd095c15"
-    },
-    {
       "rule": "no-useless-assignment",
       "message": "The value assigned to 'restoredSavedWorkflowSignature' is not used in subsequent statements.",
       "severity": 2,
@@ -7807,16 +6397,6 @@
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:447d2f284af3b33d51566a7c9d8f7bdaeb8a42eea124b7e51fa88bd5997c50fb/VariableDeclaration:[\"restoredSavedWorkflowSignature\"]",
       "id": "d9e704d50766f26b003d544b3fc94d22143e2d6d60f519d5c3858373a92ffdf3"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'studioValidationReady' is declared but its value is never read.",
-      "severity": 2,
-      "line": 117,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"studioValidationReady\"]",
-      "id": "da50871f94bb4d7435e65edfb3015e05357043e78c87b86410e65ca8ab0af39a"
     },
     {
       "rule": "@typescript-eslint/no-explicit-any",
@@ -7862,7 +6442,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1766,
+      "line": 1690,
       "column": 7,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -7947,7 +6527,7 @@
       "rule": "react-hooks/rules-of-hooks",
       "message": "React Hook \"useAssetAsSource\" cannot be called inside a callback. React Hooks must be called in a React function component or a custom React Hook function.",
       "severity": 2,
-      "line": 2405,
+      "line": 2329,
       "column": 28,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onAnimate\"]/anonymous:6d72af96364e6d340e258fb7499baafb233c0e3df0ccd56782f7736dfe8c6fce",
@@ -8025,26 +6605,6 @@
       "id": "df6a7bb7a1938e008527eb9d4a7b1f30fc83b3ff2eaa7d94e4b55ee56b3bc5f7"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'MultiShotParseResult' is defined but never used.",
-      "severity": 1,
-      "line": 130,
-      "column": 8,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"MultiShotParseResult\"]",
-      "id": "df967a4ecdca0393ac7e29b97822a16bfacfc7854b6a85e55a332fe835f78dc4"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'isRecord' is defined but never used.",
-      "severity": 1,
-      "line": 94,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"isRecord\"]",
-      "id": "dfc30d3484b973655aa8a1e3e84a04d0599f54e1383cc728a5de72fa9b7a9a0e"
-    },
-    {
       "rule": "react-hooks/rules-of-hooks",
       "message": "React Hook \"useOrderedGenericImageInsert\" may be executed more than once. Possibly because it is called in a loop. React Hooks must be called in the exact same order in every component render.",
       "severity": 2,
@@ -8063,16 +6623,6 @@
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:447d2f284af3b33d51566a7c9d8f7bdaeb8a42eea124b7e51fa88bd5997c50fb",
       "id": "e0f4078fa3ffa91e2beb1146f5a2ac10bde29ad9410e0261ed68678e04bbb56d"
-    },
-    {
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "rule": "TS6133",
-      "message": "'mediaThumbnailUrl' is declared but its value is never read.",
-      "severity": 2,
-      "line": 21,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"mediaThumbnailUrl\"]",
-      "id": "e146c73943a002e484d4ae59ce4e1c9c27f78c450674688a9971e3641a935a7b"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -8184,7 +6734,7 @@
       "rule": "@typescript-eslint/no-unused-vars",
       "message": "'currentPresetSelectionKey' is assigned a value but never used.",
       "severity": 1,
-      "line": 245,
+      "line": 239,
       "column": 9,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]/VariableDeclaration:[\"currentPresetSelectionKey\"]",
@@ -8222,16 +6772,6 @@
       "id": "e6750e67340c61d2d863cdce44d01b76d928d35add20e8a7188cb671d8676738"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'setBusyState' is declared but its value is never read.",
-      "severity": 2,
-      "line": 560,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"setModelKey\",\",\",\"setSelectedPresetId\",\",\",\"setSelectedPromptIds\",\",\",\"setPrompt\",\",\",\"setPresetInputValues\",\",\",\"setPresetSlotStates\",\",\",\"setOptionValues\",\",\",\"setEnhanceDialogOpen\",\",\",\"setEnhancePreview\",\",\",\"setEnhanceError\",\",\",\"setAttachments\",\",\",\"setIsDragActive\",\",\",\"setValidation\",\",\",\"setBusyState\",\",\",\"setMobileComposerCollapsed\",\",\",\"setOutputCount\",\",\",\"setOpenPicker\",\",\",\"stageSourceAsset\",\",\",\"clearSourceAsset\",\",\",\"updateOption\",\",\",\"addFiles\",\",\",\"addRestoredFiles\",\",\",\"addGalleryAssetAsAttachment\",\",\",\"addReferenceMediaAsAttachment\",\",\",\"assignPresetSlotFile\",\",\",\"assignPresetSlotAsset\",\",\",\"assignPresetSlotReference\",\",\",\"clearPresetSlot\",\",\",\"removeAttachment\",\",\",\"clearComposer\",\",\",\"applyPresetSelection\",\",\",\"togglePrompt\",\",\",\"requestEnhancementPreview\",\",\",\"openEnhanceDialog\",\",\",\"showFloatingComposerBanner\",\",\",\"submitMedia\",\",\",\"}\"]/BindingElement:[\"setBusyState\"]",
-      "id": "e6e63eb74af25d3989509ab0cba1e0d5608bde44ae93c50d92f9b282175be3a9"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -8240,16 +6780,6 @@
       "file": "apps/web/components/graph-studio/hooks/use-graph-run-lifecycle.test.tsx",
       "owner": "FunctionDeclaration:[\"Harness\"]/JsxAttribute:[\"onClick\"]/anonymous:cf358ea1d3c283a2e262642ba81cb2fc75088d41340f7d672d68dd871adaf6ec",
       "id": "e7032c15cce3d21a2ccbdb95356d0f0f031b00536e34a6ed2b3f4b85466a23e4"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'selectedFailedJobRetryPlan' is declared but its value is never read.",
-      "severity": 2,
-      "line": 425,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"selectedFailedJob\",\",\",\"selectedFailedJobBatch\",\",\",\"selectedAssetBatch\",\",\",\"selectedAssetProject\",\",\",\"selectedFailedJobPrompt\",\",\",\"selectedFailedJobReferenceInputs\",\",\",\"selectedFailedJobPrimaryInput\",\",\",\"selectedFailedJobRetryPlan\",\",\",\"selectedFailedJobImageReferences\",\",\",\"selectedAssetReferencePreviews\",\",\",\"selectedAssetRevisionPlan\",\",\",\"closeAssetInspector\",\",\",\"}\"]/BindingElement:[\"selectedFailedJobRetryPlan\"]",
-      "id": "e722856d17bb57428ccb56bc2d97c2bbe75c19182d7ba820875c02c104e87969"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -8354,16 +6884,6 @@
       "id": "e932e5fc6d429c0ddd4a6bde423ae8aacf17a42fcccd26ce527ce2c9da4cce78"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'retryJob' is assigned a value but never used.",
-      "severity": 1,
-      "line": 634,
-      "column": 31,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"pollJob\",\",\",\"pollBatch\",\",\",\"retryJob\",\",\",\"dismissJob\",\",\",\"dismissAsset\",\",\",\"toggleAssetFavorite\",\"}\"]/BindingElement:[\"retryJob\"]",
-      "id": "e98806b13489705d9029a8b6d298a604cb9ace710a0ecee779e47c13f4672849"
-    },
-    {
       "file": "apps/web/lib/control-api.ts",
       "rule": "TS6196",
       "message": "'PromptRecipeDraftResponse' is declared but never used.",
@@ -8415,6 +6935,16 @@
       "id": "eacefa1d8d77e987cda6ea8e30c0f91d0f99948eb893f92512cc3e575ecfa8e2"
     },
     {
+      "file": "apps/web/components/media-studio.tsx",
+      "rule": "TS6133",
+      "message": "'closeHref' is declared but its value is never read.",
+      "severity": 2,
+      "line": 122,
+      "column": 3,
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"closeHref\"]",
+      "id": "eae7df3128eb290690c06b15878713693d8c4ce66d8fb9594edc7991bcf5768c"
+    },
+    {
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
@@ -8433,16 +6963,6 @@
       "column": 1,
       "owner": "",
       "id": "eaf279265a2842c14b01fdb855bf35b1c2fcc148259838fee28f5665f615a19b"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'HIDDEN_STUDIO_OPTION_KEYS' is declared but its value is never read.",
-      "severity": 2,
-      "line": 90,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"HIDDEN_STUDIO_OPTION_KEYS\"]",
-      "id": "eb243039038640fb5c79d766e44a5b5308b432c4c9eda8c7748fd257d83abaa8"
     },
     {
       "rule": "complexity",
@@ -8521,7 +7041,7 @@
       "rule": "complexity",
       "message": "Function 'useAssetAsSource' has a complexity of 30. Maximum allowed is 15.",
       "severity": 1,
-      "line": 1882,
+      "line": 1806,
       "column": 3,
       "metric": 30,
       "file": "apps/web/components/media-studio.tsx",
@@ -8563,7 +7083,7 @@
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.",
       "severity": 2,
-      "line": 838,
+      "line": 830,
       "column": 5,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]/PropertyAccessExpression:[\"stringify\"]",
@@ -8613,16 +7133,6 @@
       "id": "ef0d4687c56ea87747d057c7a9f0447642a1f110bb0f9df2fa238a1e3a9ca449"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'presetThumbnailVisual' is declared but its value is never read.",
-      "severity": 2,
-      "line": 112,
-      "column": 3,
-      "owner": "ImportSpecifier:[\"presetThumbnailVisual\"]",
-      "id": "ef260f06548eed3bd1ef315cc28d8c683e2669fc78927c4c3cfc8c3c071a0c5a"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -8666,7 +7176,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2417,
+      "line": 2341,
       "column": 28,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/JsxAttribute:[\"onDismiss\"]/anonymous:7a6db8c19e3121ca059442d2225d3c1ee960dc159728ec8be629fb5616480259",
@@ -8704,16 +7214,6 @@
       "id": "f07eadf69f3e727d00e210c17ca50006901084ee539518b4b7febb093d382544"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'setBusyState' is assigned a value but never used.",
-      "severity": 1,
-      "line": 560,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"setModelKey\",\",\",\"setSelectedPresetId\",\",\",\"setSelectedPromptIds\",\",\",\"setPrompt\",\",\",\"setPresetInputValues\",\",\",\"setPresetSlotStates\",\",\",\"setOptionValues\",\",\",\"setEnhanceDialogOpen\",\",\",\"setEnhancePreview\",\",\",\"setEnhanceError\",\",\",\"setAttachments\",\",\",\"setIsDragActive\",\",\",\"setValidation\",\",\",\"setBusyState\",\",\",\"setMobileComposerCollapsed\",\",\",\"setOutputCount\",\",\",\"setOpenPicker\",\",\",\"stageSourceAsset\",\",\",\"clearSourceAsset\",\",\",\"updateOption\",\",\",\"addFiles\",\",\",\"addRestoredFiles\",\",\",\"addGalleryAssetAsAttachment\",\",\",\"addReferenceMediaAsAttachment\",\",\",\"assignPresetSlotFile\",\",\",\"assignPresetSlotAsset\",\",\",\"assignPresetSlotReference\",\",\",\"clearPresetSlot\",\",\",\"removeAttachment\",\",\",\"clearComposer\",\",\",\"applyPresetSelection\",\",\",\"togglePrompt\",\",\",\"requestEnhancementPreview\",\",\",\"openEnhanceDialog\",\",\",\"showFloatingComposerBanner\",\",\",\"submitMedia\",\",\",\"}\"]/BindingElement:[\"setBusyState\"]",
-      "id": "f124b5e917b24ed2291d11d8ecb333ce72eeb8ab17939bad9b36d4bc77de1f5a"
-    },
-    {
       "file": "apps/web/components/prompt-recipes/prompt-recipe-editor-screen.tsx",
       "rule": "TS6133",
       "message": "'providerCatalogStatusDetail' is declared but its value is never read.",
@@ -8742,16 +7242,6 @@
       "file": "apps/web/components/prompt-recipes/prompt-recipes-list.tsx",
       "owner": "FunctionDeclaration:[\"PromptRecipesList\"]/FunctionDeclaration:[\"exportRecipe\"]/VariableDeclaration:[\"fileNameMatch\"]",
       "id": "f1567df5038ba92858bccc051d62d5a4b95efe85436960e87f35fbf35aed785f"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'mediaDisplayUrl' is defined but never used.",
-      "severity": 1,
-      "line": 20,
-      "column": 3,
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "owner": "ImportSpecifier:[\"mediaDisplayUrl\"]",
-      "id": "f16bb58c5f063263eb11e22ea3e2368a584a1d8d46024acad4bbdf107927ad80"
     },
     {
       "rule": "@typescript-eslint/no-misused-promises",
@@ -8784,26 +7274,6 @@
       "id": "f1c2a4c36abe955a40c3d41d67b6dd424ef5d1642a14187bf6e8b89f847bc06a"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'setLocalProjects' is assigned a value but never used.",
-      "severity": 1,
-      "line": 234,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"localProjects\",\",\",\"selectedProjectId\",\",\",\"selectedProject\",\",\",\"setLocalProjects\",\",\",\"setSelectedProjectId\",\",\",\"studioHrefForProject\",\",\",\"openProjectWorkspace\",\",\",\"createProjectInStudio\",\",\",\"updateProjectInStudio\",\",\",\"archiveProjectInStudio\",\",\",\"unarchiveProjectInStudio\",\",\",\"deleteProjectInStudio\",\",\",\"}\"]/BindingElement:[\"setLocalProjects\"]",
-      "id": "f1ca35acb9c6873a50aae2421b68d338047cd37c4e80791f95ef2aea74846101"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'MediaReference' is defined but never used.",
-      "severity": 1,
-      "line": 69,
-      "column": 3,
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "owner": "ImportSpecifier:[\"MediaReference\"]",
-      "id": "f220106047d1704cb9cd959e31e84c95c39cf428a32e635a22b13f254ba24a85"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'normalizeTab' has a complexity of 22. Maximum allowed is 15.",
       "severity": 1,
@@ -8813,16 +7283,6 @@
       "file": "apps/web/components/graph-studio/utils/graph-tabs.ts",
       "owner": "FunctionDeclaration:[\"normalizeTab\"]",
       "id": "f22a669347a180e78872dea422cc5625a228c655108895e9bb0592cc2d653e12"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'selectedFailedJobBatch' is assigned a value but never used.",
-      "severity": 1,
-      "line": 419,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"selectedFailedJob\",\",\",\"selectedFailedJobBatch\",\",\",\"selectedAssetBatch\",\",\",\"selectedAssetProject\",\",\",\"selectedFailedJobPrompt\",\",\",\"selectedFailedJobReferenceInputs\",\",\",\"selectedFailedJobPrimaryInput\",\",\",\"selectedFailedJobRetryPlan\",\",\",\"selectedFailedJobImageReferences\",\",\",\"selectedAssetReferencePreviews\",\",\",\"selectedAssetRevisionPlan\",\",\",\"closeAssetInspector\",\",\",\"}\"]/BindingElement:[\"selectedFailedJobBatch\"]",
-      "id": "f22d0cc7d4407cc75aaa07923fb687bfb0a4ae13c6e55909f128a5d1990daddc"
     },
     {
       "rule": "react-hooks/exhaustive-deps",
@@ -8869,7 +7329,7 @@
       "rule": "react-hooks/rules-of-hooks",
       "message": "React Hook \"useAssetAsSource\" is called in function \"handleSourceTileDrop\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
       "severity": 2,
-      "line": 1677,
+      "line": 1601,
       "column": 13,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
@@ -8972,16 +7432,6 @@
       "id": "f5a6bee1ecaa756bd56ce92640d5c70a8921768210a016c3242ff5271d45edc3"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'selectedFailedJobRetryPlan' is assigned a value but never used.",
-      "severity": 1,
-      "line": 425,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"selectedFailedJob\",\",\",\"selectedFailedJobBatch\",\",\",\"selectedAssetBatch\",\",\",\"selectedAssetProject\",\",\",\"selectedFailedJobPrompt\",\",\",\"selectedFailedJobReferenceInputs\",\",\",\"selectedFailedJobPrimaryInput\",\",\",\"selectedFailedJobRetryPlan\",\",\",\"selectedFailedJobImageReferences\",\",\",\"selectedAssetReferencePreviews\",\",\",\"selectedAssetRevisionPlan\",\",\",\"closeAssetInspector\",\",\",\"}\"]/BindingElement:[\"selectedFailedJobRetryPlan\"]",
-      "id": "f5fe2fb629d2c3707537dc2aaae4b229bf0cdb1c89f7b28c092f1e16cefa4570"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -9033,16 +7483,6 @@
       "id": "f80128b29e64d6c142cb978ae353ef2431908290454dc2f945e53c67b6869e58"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'Monitor' is defined but never used.",
-      "severity": 1,
-      "line": 11,
-      "column": 3,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "ImportSpecifier:[\"Monitor\"]",
-      "id": "f8e0987e7dbcb95ed679e1761942d6bc9032ee6638ad3ba1c0d0418b1f82fd11"
-    },
-    {
       "rule": "no-useless-assignment",
       "message": "The value assigned to 'payload' is not used in subsequent statements.",
       "severity": 2,
@@ -9066,7 +7506,7 @@
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useMemo has an unnecessary dependency: 'pathname'. Either exclude it or remove the dependency array.",
       "severity": 2,
-      "line": 208,
+      "line": 150,
       "column": 6,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"graphReturnHref\"]",
@@ -9114,16 +7554,6 @@
       "id": "fc6eb7f90e3f4f043b978f85da2f3abdde5867d15ca92f38cf8c97e26c1149a2"
     },
     {
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "rule": "TS6133",
-      "message": "'currentModelEnhancementConfig' is declared but its value is never read.",
-      "severity": 2,
-      "line": 254,
-      "column": 5,
-      "owner": "FunctionDeclaration:[\"useStudioComposer\"]/VariableDeclaration:[\"{\",\"currentModelEnhancementConfig\",\",\",\"activeEnhancementEngineConfig\",\",\",\"enhanceSupportsText\",\",\",\"enhanceSupportsImage\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceHelperText\",\",\",\"}\"]/BindingElement:[\"currentModelEnhancementConfig\"]",
-      "id": "fc90bb18eec47c171dad4e2cdd24a61591279fcb944d2c144b8c1986e28c6f62"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -9145,16 +7575,6 @@
       "id": "fdc002b283ea1e613d1504830f277ef24c554601ca5f34f5bf8e445f360bcfca"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'selectedAssetBatch' is assigned a value but never used.",
-      "severity": 1,
-      "line": 420,
-      "column": 5,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"{\",\"selectedFailedJob\",\",\",\"selectedFailedJobBatch\",\",\",\"selectedAssetBatch\",\",\",\"selectedAssetProject\",\",\",\"selectedFailedJobPrompt\",\",\",\"selectedFailedJobReferenceInputs\",\",\",\"selectedFailedJobPrimaryInput\",\",\",\"selectedFailedJobRetryPlan\",\",\",\"selectedFailedJobImageReferences\",\",\",\"selectedAssetReferencePreviews\",\",\",\"selectedAssetRevisionPlan\",\",\",\"closeAssetInspector\",\",\",\"}\"]/BindingElement:[\"selectedAssetBatch\"]",
-      "id": "fe7a336dc59e204036c07cb7b0e3664de86621a9f3e0b110063645b3f3b472a5"
-    },
-    {
       "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
       "rule": "TS6133",
       "message": "'genericSourceInputsAvailable' is declared but its value is never read.",
@@ -9163,16 +7583,6 @@
       "column": 3,
       "owner": "FunctionDeclaration:[\"StudioSourceAttachmentStrip\"]/Parameter:[\"{\",\"seedanceComposer\",\",\",\"standardComposerUsesExplicitSlots\",\",\",\"genericSourceInputsAvailable\",\",\",\"isDragActive\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"standardComposerSlots\",\",\",\"orderedImageInputs\",\",\",\"currentSourceAsset\",\",\",\"canUseSourceAsset\",\",\",\"attachments\",\",\",\"genericSourceAddTileVisible\",\",\",\"imageLimitLabel\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"mobileAddTileClassName\",\",\",\"mobileAddTilePlusIconClassName\",\",\",\"buildAttachmentPreview\",\",\",\"buildAssetReferencePreview\",\",\",\"standardComposerSlotPreview\",\",\",\"standardComposerSlotVisual\",\",\",\"onSetDragActive\",\",\",\"onSetFormWarning\",\",\",\"onDropIntoSourceSlot\",\",\",\"onOpenPreview\",\",\",\"onRemoveAttachment\",\",\",\"onClearSourceAsset\",\",\",\"onClearStandardComposerSlot\",\",\",\"onPickStandardComposerSlotFiles\",\",\",\"onAddFiles\",\",\",\"onResetFileInput\",\",\",\"}\"]/BindingElement:[\"genericSourceInputsAvailable\"]",
       "id": "fe9bdc1a9145ade2fa029bb0751cbb43a78799e00d33558abb65cd787f2af42a"
-    },
-    {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'isRefreshing' is assigned a value but never used.",
-      "severity": 1,
-      "line": 185,
-      "column": 10,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"[\",\"isRefreshing\",\",\",\"startRefresh\",\"]\"]/BindingElement:[\"isRefreshing\"]",
-      "id": "feb551cb6e7a2bfc8ed5a6b38ec40f832a9fdace097d744a7371a9984bf4beb8"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -9185,34 +7595,14 @@
       "id": "ff13d04349a156615e9a7295f52c94e4f5b405afd5191334a69a352df3890640"
     },
     {
-      "rule": "@typescript-eslint/no-unused-vars",
-      "message": "'activeEnhancementEngineConfig' is assigned a value but never used.",
-      "severity": 1,
-      "line": 255,
-      "column": 5,
-      "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-      "owner": "FunctionDeclaration:[\"useStudioComposer\"]/VariableDeclaration:[\"{\",\"currentModelEnhancementConfig\",\",\",\"activeEnhancementEngineConfig\",\",\",\"enhanceSupportsText\",\",\",\"enhanceSupportsImage\",\",\",\"enhanceEnabledForModel\",\",\",\"enhanceHasSavedSystemPrompt\",\",\",\"enhanceConfiguredForModel\",\",\",\"enhanceSetupHref\",\",\",\"enhanceProviderLabel\",\",\",\"enhanceProviderModelId\",\",\",\"enhanceImageAnalysisText\",\",\",\"enhanceImageAnalysisStatus\",\",\",\"enhanceModeLabel\",\",\",\"enhanceReadinessLabel\",\",\",\"enhanceHelperText\",\",\",\"}\"]/BindingElement:[\"activeEnhancementEngineConfig\"]",
-      "id": "ff2342675c4c217e3ee580db1201983a451ccdd3c0a1da3ac4bd38d82cb58663"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1829,
+      "line": 1753,
       "column": 7,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSeedanceReferenceDrop\"]",
       "id": "ff40a969cab9bfedb7ae113a303d287c933a8b8bf6bb304fd59ba5866ea3bcb6"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'initialAssetOffset' is declared but its value is never read.",
-      "severity": 2,
-      "line": 170,
-      "column": 3,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"initialAssetOffset\"]",
-      "id": "ff858d05d78a6e496290b430d744a15dcd4f2a3088100c575843f1efd8a4f1e0"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
