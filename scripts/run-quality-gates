@@ -18,7 +18,9 @@ if [[ ! -x "$ROOT/node_modules/.bin/vitest" ]]; then
   )
 fi
 
-(cd "$ROOT" && npm run lint:full)
+# Bash time reports real/user/sys for each gate without changing its exit status.
+TIMEFORMAT='quality timing: %R real, %U user, %S sys'
+(cd "$ROOT" && time npm run lint:full)
 node --test "$ROOT/scripts/check_admin_theme.test.mjs"
 node "$ROOT/scripts/check_admin_theme.mjs"
 
@@ -27,19 +29,27 @@ node "$ROOT/scripts/check_admin_theme.mjs"
 "$VENV_PY" "$ROOT/scripts/check_file_size_guardrails.py"
 "$VENV_PY" "$ROOT/scripts/check_style_drift.py"
 
-"$VENV_PIP" install -q -e "$ROOT/apps/api[dev]"
+time "$VENV_PIP" install -q -e "$ROOT/apps/api[dev]"
 
 (
   cd "$ROOT/apps/api"
-  MEDIA_STUDIO_DB_PATH="${MEDIA_STUDIO_DB_PATH:-$ROOT/data/media-studio.db}" \
+  pytest_command=("$VENV_PY" -m pytest -q --durations=20 tests)
+  if [[ -n "${MEDIA_STUDIO_CI_PROFILE_DIR:-}" ]]; then
+    mkdir -p "$MEDIA_STUDIO_CI_PROFILE_DIR"
+    pytest_command=("$VENV_PY" "$ROOT/scripts/ci_pytest_profile.py"
+      "$MEDIA_STUDIO_CI_PROFILE_DIR/backend.json"
+      -q --durations=0 --durations-min=0
+      "--junitxml=$MEDIA_STUDIO_CI_PROFILE_DIR/backend-junit.xml" tests)
+  fi
+  time MEDIA_STUDIO_DB_PATH="${MEDIA_STUDIO_DB_PATH:-$ROOT/data/media-studio.db}" \
   MEDIA_STUDIO_DATA_ROOT="${MEDIA_STUDIO_DATA_ROOT:-$ROOT/data}" \
   MEDIA_STUDIO_KIE_API_REPO_PATH="${MEDIA_STUDIO_KIE_API_REPO_PATH:-$KIE_ROOT}" \
-  "$VENV_PY" -m pytest -q --durations=20 tests
+  "${pytest_command[@]}"
 )
 
 cd "$ROOT"
-npm --workspace apps/web run test
-npm --workspace apps/web run lint
-npm --workspace apps/web run typecheck
-npm --workspace apps/web run build
-MEDIA_STUDIO_KIE_API_REPO_PATH="$KIE_ROOT" npm run smoke:studio
+time npm --workspace apps/web run test
+time npm --workspace apps/web run lint
+time npm --workspace apps/web run typecheck
+time npm --workspace apps/web run build
+time MEDIA_STUDIO_KIE_API_REPO_PATH="$KIE_ROOT" npm run smoke:studio
