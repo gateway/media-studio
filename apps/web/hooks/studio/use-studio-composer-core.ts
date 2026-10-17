@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FLOATING_COMPOSER_STATUS_FADE_MS,
   FLOATING_COMPOSER_STATUS_MS,
-  type AttachmentRecord,
   type ComposerStatusMessage,
 } from "@/lib/media-studio-contract";
 import {
@@ -13,12 +12,9 @@ import {
   displayChoiceLabel,
   filledStructuredPresetImageSlotCount,
   inferInputPattern,
-  isCoarsePointerDevice,
   isPresetSlotFilled,
   isSeedanceModel,
   isRecord,
-  mediaDisplayUrl,
-  mediaThumbnailUrl,
   modelSupportsFirstLastFrames,
   modelSupportsImageDrivenInputs,
   modelSupportsMotionControl,
@@ -41,7 +37,6 @@ import {
   serializeOptionChoice,
   isStudioPresetVisible,
   studioPresetSupportedModels,
-  stripUnsupportedStudioOptions,
   studioValidationReady,
 } from "@/lib/media-studio-helpers";
 import { deriveStudioPricingOptions, estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
@@ -66,7 +61,6 @@ import type {
   MediaModelSummary,
   MediaPreset,
   MediaQueueSettings,
-  MediaReference,
   MediaSystemPrompt,
 } from "@/lib/types";
 
@@ -251,8 +245,6 @@ export function useStudioComposer({
     favoriteAssets,
   );
   const {
-    currentModelEnhancementConfig,
-    activeEnhancementEngineConfig,
     enhanceSupportsText,
     enhanceSupportsImage,
     enhanceEnabledForModel,

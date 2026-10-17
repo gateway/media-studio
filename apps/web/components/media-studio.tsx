@@ -1,19 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Check,
-  Coins,
-  FolderPlus,
-  LoaderCircle,
-  Monitor,
-  Play,
-  Sparkles,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Coins, FolderPlus, X } from "lucide-react";
 
 import { useGlobalActivity } from "@/components/global-activity";
 import { StudioContextPanels } from "@/components/studio/studio-context-panels";
@@ -67,67 +56,24 @@ import {
   useStudioShellCatalog,
 } from "@/hooks/studio/use-studio-shell-catalog";
 import {
-  type AssetPagePayload,
-  FLOATING_COMPOSER_STATUS_FADE_MS,
-  FLOATING_COMPOSER_STATUS_MS,
   type ComposerStatusMessage,
-  type FloatingComposerStatus,
   type GalleryKindFilter,
   INITIAL_ASSET_PAGE_SIZE,
   type MediaStudioProps,
 } from "@/lib/media-studio-contract";
-import {
-  createOptimisticBatch,
-  findMediaAssetById,
-  presetRequirementMessage,
-  selectedPromptObjects,
-} from "@/lib/studio-gallery";
+import { findMediaAssetById } from "@/lib/studio-gallery";
 import {
   applyPromptReferenceMention,
-  batchPhaseMessage,
-  classifyFile,
   detectPromptReferenceMention,
-  HIDDEN_STUDIO_OPTION_KEYS,
-  inferInputPattern,
   isCoarsePointerDevice,
-  isMobileDownloadDevice,
-  isRecord,
   mediaDisplayUrl,
-  mediaPlaybackUrl,
-  mediaPreviewUrl,
   mediaThumbnailUrl,
-  mediaVariantUrl,
   modelInputLimit,
   resolveImageToVideoAnimationModel,
-  MULTI_SHOT_MODEL_KEYS,
-  normalizeStructuredPresetImageSlots,
-  normalizeStructuredPresetTextFields,
-  optionBooleanValue,
-  optionChoices,
-  optionEntries,
   orderedImageInputVisual,
-  parseMultiShotScript,
-  prefetchAssetThumbs,
-  PresetSlotState,
-  presetThumbnailVisual,
-  prettifyModelLabel,
-  renderStructuredPresetPrompt,
-  sanitizeStudioOptions,
   type StudioComposerSlot,
-  studioValidationReady,
-  StructuredPresetImageSlot,
-  StructuredPresetTextField,
-  structuredPresetSlotPreviewUrl,
-  StudioChoice,
-  type StudioReferencePreview,
-  studioOptionChoices,
   studioPresetSupportedModels,
-  stripUnsupportedStudioOptions,
-  toWholeNumber,
-  toneForStatus,
   jobStatusLabel,
-  jobPhaseMessage,
-  type MultiShotParseResult,
 } from "@/lib/media-studio-helpers";
 import { buildGraphStudioHref, buildStudioScopedHref } from "@/lib/studio-navigation";
 import {
@@ -137,13 +83,10 @@ import {
 } from "@/lib/studio-composer-reveal";
 import type {
   MediaAsset,
-  MediaBatch,
-  MediaEnhancePreviewResponse,
   MediaJob,
   MediaPreset,
   MediaValidationResponse,
 } from "@/lib/types";
-import { estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
 import { installStudioDebugConsole, studioDebug } from "@/lib/studio-debug";
 import {
   buildAssetReferencePreview,
@@ -151,7 +94,6 @@ import {
   orderedImageInputPreview,
 } from "@/lib/studio-reference-previews";
 import { resolveStudioShortcutAction } from "@/lib/studio-shortcuts";
-import { cn } from "@/lib/utils";
 
 const STUDIO_COMPOSER_COLLAPSED_STORAGE_KEY = "media-studio:desktop-composer-collapsed";
 export function MediaStudio({
@@ -182,7 +124,7 @@ export function MediaStudio({
   const router = useRouter();
   const pathname = usePathname();
   const { showActivity } = useGlobalActivity();
-  const [isRefreshing, startRefresh] = useTransition();
+  const [, startRefresh] = useTransition();
   const [hasMounted, setHasMounted] = useState(false);
   const [desktopComposerCollapsed, setDesktopComposerCollapsed] = useState(false);
   const [localRemainingCredits, setLocalRemainingCredits] = useState<number | null>(remainingCredits ?? null);
@@ -231,7 +173,6 @@ export function MediaStudio({
     localProjects,
     selectedProjectId,
     selectedProject,
-    setLocalProjects,
     setSelectedProjectId,
     studioHrefForProject,
     openProjectWorkspace,
@@ -335,10 +276,8 @@ export function MediaStudio({
 
   const {
     localBatches,
-    optimisticBatches,
     localJobs,
     localAssets,
-    localLatestAsset,
     galleryModelFilter,
     galleryKindFilter,
     favoritesOnly,
@@ -416,13 +355,8 @@ export function MediaStudio({
   });
   const {
     selectedFailedJob,
-    selectedFailedJobBatch,
-    selectedAssetBatch,
     selectedAssetProject,
     selectedFailedJobPrompt,
-    selectedFailedJobReferenceInputs,
-    selectedFailedJobPrimaryInput,
-    selectedFailedJobRetryPlan,
     selectedFailedJobImageReferences,
     selectedAssetReferencePreviews,
     selectedAssetRevisionPlan,
@@ -461,7 +395,6 @@ export function MediaStudio({
   const {
     modelKey,
     selectedPresetId,
-    selectedPromptIds,
     prompt,
     presetInputValues,
     presetSlotStates,
@@ -510,14 +443,12 @@ export function MediaStudio({
     availableStudioPresets,
     modelPresets,
     structuredPresetPromptPreview,
-    presetRequirementError,
     enhancementPreviewVisual,
     compactOptionEntries,
     estimatedCredits,
     formattedRemainingCredits,
     generateButtonLabel,
     modelMaxOutputs,
-    validationReady,
     inferredInputPattern,
     canSubmit,
     composerStatusMessage,
@@ -530,13 +461,10 @@ export function MediaStudio({
     seedanceReferenceImages,
     seedanceReferenceVideos,
     seedanceReferenceAudios,
-    seedanceReferenceGuideTokens,
-    seedanceReferenceGuideText,
     canUseSourceAsset,
     maxImageInputs,
     maxVideoInputs,
     maxAudioInputs,
-    stagedImageCount,
     stagedVideoCount,
     stagedAudioCount,
   } = composer.derived;
@@ -552,12 +480,9 @@ export function MediaStudio({
     setPresetSlotStates,
     setOptionValues,
     setEnhanceDialogOpen,
-    setEnhancePreview,
-    setEnhanceError,
     setAttachments,
     setIsDragActive,
     setValidation,
-    setBusyState,
     setMobileComposerCollapsed,
     setOutputCount,
     setOpenPicker,
@@ -565,7 +490,6 @@ export function MediaStudio({
     clearSourceAsset,
     updateOption,
     addFiles,
-    addRestoredFiles,
     addGalleryAssetAsAttachment,
     addReferenceMediaAsAttachment,
     assignPresetSlotFile,
@@ -631,7 +555,7 @@ export function MediaStudio({
     watchJobs: localJobs,
   });
   const { favoriteAssetIdBusy } = polling.state;
-  const { pollJob, pollBatch, retryJob, dismissJob, dismissAsset, toggleAssetFavorite } = polling.actions;
+  const { pollJob, pollBatch, dismissJob, dismissAsset, toggleAssetFavorite } = polling.actions;
   const { copyPromptStatus, downloadActionLabel, copyPromptFromAsset, downloadAsset } = useStudioAssetActions({
     hasMounted,
     onMessage: setFormMessage,
