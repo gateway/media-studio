@@ -23,6 +23,13 @@ import {
   withResolvedRuntimeEnv,
 } from "./media_runtime.mjs";
 
+import {
+  commandLooksLikeMediaStudio as matchesMediaStudioCommand,
+  parseWindowsProcessQueryResult,
+  windowsListeningProcessQuery,
+  windowsMediaStudioProcessQuery,
+} from "./studio_process_identification.mjs";
+
 const children = new Set();
 let shuttingDown = false;
 let activePaths = null;
@@ -129,24 +136,8 @@ function terminateChild(child) {
   terminatePid(child.pid);
 }
 
-function normalizeCommandText(value) {
-  return String(value || "").toLowerCase().replaceAll("\\", "/");
-}
-
 function commandLooksLikeMediaStudio(command, root = mediaRoot) {
-  const normalized = normalizeCommandText(command);
-  const normalizedRoot = normalizeCommandText(root);
-  if (!normalized.includes(normalizedRoot) && !normalized.includes("media-studio")) {
-    return false;
-  }
-  return (
-    normalized.includes("scripts/run_studio.mjs") ||
-    normalized.includes("scripts/dev_api.mjs") ||
-    normalized.includes("uvicorn app.main:app") ||
-    normalized.includes("next/dist/bin/next") ||
-    normalized.includes("next start") ||
-    normalized.includes("next dev")
-  );
+  return matchesMediaStudioCommand(command, root);
 }
 
 function runWindowsProcessQuery(script) {
@@ -157,46 +148,16 @@ function runWindowsProcessQuery(script) {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
   });
-  if (result.status !== 0 || !result.stdout.trim()) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(result.stdout);
-    return Array.isArray(parsed) ? parsed : [parsed];
-  } catch {
-    return [];
-  }
+  return parseWindowsProcessQueryResult(result);
 }
 
 function windowsListeningProcesses(port) {
-  const numericPort = Number.parseInt(String(port), 10);
-  if (!Number.isInteger(numericPort)) {
-    return [];
-  }
-  return runWindowsProcessQuery(`
-$ErrorActionPreference = 'SilentlyContinue'
-Get-NetTCPConnection -State Listen -LocalPort ${numericPort} |
-  Select-Object -ExpandProperty OwningProcess -Unique |
-  ForEach-Object {
-    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $_"
-    if ($process) {
-      [pscustomobject]@{ ProcessId = $process.ProcessId; CommandLine = $process.CommandLine }
-    }
-  } |
-  ConvertTo-Json -Compress
-`);
+  const query = windowsListeningProcessQuery(port);
+  return query === null ? [] : runWindowsProcessQuery(query);
 }
 
 function windowsMediaStudioProcesses(root = mediaRoot) {
-  const escapedRoot = root.replaceAll("'", "''");
-  return runWindowsProcessQuery(`
-$ErrorActionPreference = 'SilentlyContinue'
-$root = '${escapedRoot}'
-Get-CimInstance Win32_Process |
-  Where-Object { $_.CommandLine -and $_.CommandLine.Contains($root) } |
-  Select-Object ProcessId, CommandLine |
-  ConvertTo-Json -Compress
-`);
+  return runWindowsProcessQuery(windowsMediaStudioProcessQuery(root));
 }
 
 function refreshWindowsPidFileFromPort(pidFile, port) {
