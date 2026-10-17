@@ -1,6 +1,11 @@
 .DS_Store
 AGENTS.md
 
+# Private agent guidance and local design/review artifacts
+docs/design-admin.md
+.agents/skills/media-studio-admin-ui/
+design/
+
 # Local environment and developer overrides
 .env
 .env.*

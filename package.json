@@ -16,6 +16,8 @@
     "quality": "./scripts/run-quality-gates",
     "quality:assistant-ci": "bash ./scripts/run-media-assistant-ci-gate",
     "quality:file-size": "python3 ./scripts/check_file_size_guardrails.py",
+    "quality:admin-theme": "node ./scripts/check_admin_theme.mjs",
+    "test:admin-theme": "node --test ./scripts/check_admin_theme.test.mjs",
     "quality:theme-drift": "python3 ./scripts/check_style_drift.py",
     "release:verify": "./scripts/run-release-gates",
     "release:verify:full": "./scripts/run-full-release-gates",
