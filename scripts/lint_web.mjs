@@ -11,8 +11,8 @@ const webRoot = path.join(root, "apps", "web");
 const allowedExtensions = new Set([".ts", ".tsx", ".mjs"]);
 const ignoredDirectories = new Set(["node_modules", ".next"]);
 const bannedPatterns = [
-  { regex: /\bconsole\.(log|debug|info)\s*\(/g, label: "console log/debug/info" },
-  { regex: /\bdebugger\s*;/g, label: "debugger statement" },
+  { regex: /\bconsole\.(log|debug|info)\s*\(/, label: "console log/debug/info" },
+  { regex: /\bdebugger\s*;/, label: "debugger statement" },
 ];
 const singletonHelpers = new Map([
   ["toControlApiProxyPath", path.join("apps", "web", "lib", "media-paths.ts")],
