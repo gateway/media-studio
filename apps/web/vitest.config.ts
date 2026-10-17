@@ -1,10 +1,13 @@
 import { defineConfig } from "vitest/config";
-import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 export default defineConfig({
+  // Focused runs never load repository .env files or write dependency caches.
+  envDir: process.env.MEDIA_STUDIO_TEST_CACHE ? false : undefined,
+  cacheDir: process.env.MEDIA_STUDIO_TEST_CACHE,
   test: {
     environment: "node",
-    include: [
+    include: process.env.MEDIA_STUDIO_TEST_FILES ? JSON.parse(process.env.MEDIA_STUDIO_TEST_FILES) as string[] : [
       "lib/**/*.test.ts",
       "lib/**/*.test.tsx",
       "hooks/**/*.test.ts",
@@ -15,7 +18,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname),
+      "@": fileURLToPath(new URL(".", import.meta.url)),
     },
   },
 });

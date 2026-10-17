@@ -53,7 +53,9 @@
     "lint:architecture": "node scripts/static-analysis/full.mjs",
     "lint:architecture:baseline": "node scripts/static-analysis/full.mjs --update-baseline",
     "lint:changed": "node scripts/static-analysis/changed.mjs",
-    "test:static-analysis:full": "node --test scripts/static-analysis/full.test.mjs"
+    "test:static-analysis:full": "node --test scripts/static-analysis/full.test.mjs",
+    "test:web:focused": "node scripts/test-focused-web.mjs",
+    "test:focused-harness": "node --test scripts/test-focused-web.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

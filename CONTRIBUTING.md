@@ -43,3 +43,7 @@ separately; a workflow file alone does not enforce merging.
 Normal web builds run web lint/types before Next. Full quality/release commands
 run aggregate static lint before their existing tests. Confirm the repository's
 data and fixture restrictions before running database-backed tests.
+
+For local refactoring, use the [focused test harness](scripts/FOCUSED_TESTS.md)
+and inspect imports first. It isolates Vitest cache/output without granting
+permission for local database fixtures or paid provider requests.
