@@ -383,7 +383,7 @@ export function mapPresetSummaryRecord(preset: ControlApiRawRecord): MediaPreset
   } as MediaPresetSummaryItem;
 }
 
-export function mapPromptRecipeRecord(recipe: ControlApiRawRecord): PromptRecipe {
+function mapPromptRecipeStructuredFields(recipe: ControlApiRawRecord) {
   const outputContract = recipe.output_contract_json ?? recipe.output_contract ?? {};
   const inputVariables = recipe.input_variables_json ?? recipe.input_variables ?? [];
   const customFields = recipe.custom_fields_json ?? recipe.custom_fields ?? [];
@@ -393,16 +393,6 @@ export function mapPromptRecipeRecord(recipe: ControlApiRawRecord): PromptRecipe
   const defaultOptions = recipe.default_options_json ?? recipe.default_options ?? {};
   const rules = recipe.rules_json ?? recipe.rules ?? {};
   return {
-    recipe_id: String(recipe.recipe_id),
-    key: String(recipe.key),
-    label: String(recipe.label),
-    description: recipe.description ?? null,
-    category: String(recipe.category ?? "utility"),
-    status: String(recipe.status ?? "active"),
-    system_prompt_template: String(recipe.system_prompt_template ?? ""),
-    image_analysis_prompt: recipe.image_analysis_prompt ?? "",
-    user_prompt_placeholder: String(recipe.user_prompt_placeholder ?? "{{user_prompt}}"),
-    output_format: String(recipe.output_format ?? "single_prompt"),
     output_contract_json: outputContract,
     output_contract: outputContract,
     input_variables_json: inputVariables,
@@ -417,56 +407,47 @@ export function mapPromptRecipeRecord(recipe: ControlApiRawRecord): PromptRecipe
     default_options: defaultOptions,
     rules_json: rules,
     rules,
+  };
+}
+
+function mapPromptRecipeSharedFields(recipe: ControlApiRawRecord) {
+  return {
+    description: recipe.description ?? null,
+    category: String(recipe.category ?? "utility"),
+    system_prompt_template: String(recipe.system_prompt_template ?? ""),
+    image_analysis_prompt: recipe.image_analysis_prompt ?? "",
+    user_prompt_placeholder: String(recipe.user_prompt_placeholder ?? "{{user_prompt}}"),
+    output_format: String(recipe.output_format ?? "single_prompt"),
+    ...mapPromptRecipeStructuredFields(recipe),
     thumbnail_path: recipe.thumbnail_path ?? null,
     thumbnail_url: recipe.thumbnail_url ?? null,
     notes: recipe.notes ?? "",
+    priority: Number(recipe.priority ?? 0),
+  };
+}
+
+export function mapPromptRecipeRecord(recipe: ControlApiRawRecord): PromptRecipe {
+  return {
+    ...mapPromptRecipeSharedFields(recipe),
+    recipe_id: String(recipe.recipe_id),
+    key: String(recipe.key),
+    label: String(recipe.label),
+    status: String(recipe.status ?? "active"),
     source_kind: String(recipe.source_kind ?? "custom"),
     version: recipe.version ?? null,
-    priority: Number(recipe.priority ?? 0),
     created_at: recipe.created_at ?? null,
     updated_at: recipe.updated_at ?? null,
   } as PromptRecipe;
 }
 
 export function mapPromptRecipeDraftPayload(recipe: ControlApiRawRecord): PromptRecipeDraftPayload {
-  const outputContract = recipe.output_contract_json ?? recipe.output_contract ?? {};
-  const inputVariables = recipe.input_variables_json ?? recipe.input_variables ?? [];
-  const customFields = recipe.custom_fields_json ?? recipe.custom_fields ?? [];
-  const imageInput = recipe.image_input_json ??
-    recipe.image_input ?? { enabled: false, required: false, mode: "none", analysis_variable: "image_analysis", max_files: 0 };
-  const validationWarnings = recipe.validation_warnings_json ?? recipe.validation_warnings ?? [];
-  const defaultOptions = recipe.default_options_json ?? recipe.default_options ?? {};
-  const rules = recipe.rules_json ?? recipe.rules ?? {};
   return {
+    ...mapPromptRecipeSharedFields(recipe),
     key: String(recipe.key ?? ""),
     label: String(recipe.label ?? ""),
-    description: recipe.description ?? null,
-    category: String(recipe.category ?? "utility"),
     status: String(recipe.status ?? "inactive"),
-    system_prompt_template: String(recipe.system_prompt_template ?? ""),
-    image_analysis_prompt: recipe.image_analysis_prompt ?? "",
-    user_prompt_placeholder: String(recipe.user_prompt_placeholder ?? "{{user_prompt}}"),
-    output_format: String(recipe.output_format ?? "single_prompt"),
-    output_contract_json: outputContract,
-    output_contract: outputContract,
-    input_variables_json: inputVariables,
-    input_variables: inputVariables,
-    custom_fields_json: customFields,
-    custom_fields: customFields,
-    image_input_json: imageInput,
-    image_input: imageInput,
-    validation_warnings_json: validationWarnings,
-    validation_warnings: validationWarnings,
-    default_options_json: defaultOptions,
-    default_options: defaultOptions,
-    rules_json: rules,
-    rules,
-    thumbnail_path: recipe.thumbnail_path ?? null,
-    thumbnail_url: recipe.thumbnail_url ?? null,
-    notes: recipe.notes ?? "",
     source_kind: recipe.source_kind ?? "custom",
     version: recipe.version ?? "1",
-    priority: Number(recipe.priority ?? 0),
   } as PromptRecipeDraftPayload;
 }
 
