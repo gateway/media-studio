@@ -88,6 +88,14 @@ def upsert_provider_connection(provider_kind: str, payload) -> Dict[str, Any]:
     return next(item for item in list_provider_connections() if item["provider_kind"] == provider_kind)
 
 
+def check_provider_connection(provider_kind: str) -> Dict[str, Any]:
+    from .provider_connection_checks import check_provider_endpoint
+    if provider_kind not in {"openrouter", "local_openai"}:
+        raise ServiceError("Only OpenRouter and local OpenAI-compatible connections support this check.")
+    runtime = shared_provider_runtime(provider_kind, require_base_url=False)
+    return check_provider_endpoint(provider_kind, base_url=runtime["base_url"], api_key=runtime["api_key"])
+
+
 GLOBAL_ENHANCEMENT_CONFIG_KEY = "__studio_enhancement__"
 PROMPT_RECIPE_DRAFTING_CONFIG_KEY = "prompt_recipe_drafting"
 MEDIA_ASSISTANT_CONFIG_KEY = "media_assistant"

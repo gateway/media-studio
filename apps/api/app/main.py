@@ -750,6 +750,15 @@ def update_provider_connection(provider_kind: str, payload: ProviderConnectionUp
         raise _bad_request(str(exc))
 
 
+@app.post("/media/provider-connections/{provider_kind}/check")
+def check_provider_connection(provider_kind: str):
+    from .service_provider_config import check_provider_connection
+    try:
+        return check_provider_connection(provider_kind)
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
+
+
 @app.get("/media/enhancement-configs", response_model=List[EnhancementConfigRecord])  # type: ignore[name-defined]
 def list_enhancement_configs():
     return [EnhancementConfigRecord(**service.public_enhancement_config(item)) for item in store.list_enhancement_configs()]

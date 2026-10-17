@@ -118,3 +118,73 @@ def test_blank_first_connection_save_keeps_environment_source(client, app_module
     assert client.patch("/media/provider-connections/openrouter", json={"base_url": "https://shared.invalid/v1"}).status_code == 200
     assert persistence.get_provider_connection("openrouter")["api_key"] is None
     assert service.shared_provider_runtime("openrouter")["credential_source"] == "env"
+
+
+def test_connection_check_requires_admin_uses_saved_runtime_and_never_saves(client, monkeypatch):
+    service, persistence = modules()
+    checks = importlib.import_module("app.provider_connection_checks")
+    persistence.save_provider_connection("openrouter", {"api_key": "saved-private", "base_url": "https://router.invalid/v1"})
+    before = persistence.get_provider_connection("openrouter")
+    captured = []
+    monkeypatch.setattr(checks, "check_provider_endpoint", lambda kind, **kwargs: captured.append((kind, kwargs)) or {"ok": True, "message": "Accepted", "checked_at": "2026-10-17T00:00:00Z"})
+    endpoint = "/media/provider-connections/openrouter/check"
+    assert client.post(endpoint, headers={**CONTROL_HEADERS, "x-media-studio-access-mode": "read"}, json={}).status_code == 403
+    response = client.post(endpoint, json={"api_key": "ignored-private", "base_url": "https://ignored.invalid/v1"})
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert captured == [("openrouter", {"api_key": "saved-private", "base_url": "https://router.invalid/v1"})]
+    assert persistence.get_provider_connection("openrouter") == before
+    assert "private" not in response.text
+    assert client.post("/media/provider-connections/codex_local/check", json={}).status_code == 400
+
+
+def test_connection_endpoint_checks_auth_and_models_without_generation(app_modules, monkeypatch):
+    checks = importlib.import_module("app.provider_connection_checks")
+    import httpx
+    calls = []
+    reply = {"status": 200, "json": {"data": {"limit_remaining": 10}}}
+    class Client:
+        def __init__(self, **kwargs):
+            assert kwargs == {"timeout": 10.0, "follow_redirects": False}
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def get(self, url, headers):
+            calls.append((url, headers))
+            return httpx.Response(reply["status"], json=reply["json"])
+    monkeypatch.setattr(checks.httpx, "Client", Client)
+    key = "test-private-key"
+    result = checks.check_provider_endpoint("openrouter", base_url="https://router.invalid/v1/", api_key=key)
+    assert result["ok"] is True
+    assert calls[-1] == ("https://router.invalid/v1/key", {"Accept": "application/json", "Authorization": f"Bearer {key}"})
+    reply["json"] = {"data": [{"id": "local-model"}, {"id": ""}, {}]}
+    result = checks.check_provider_endpoint("local_openai", base_url="http://localhost:8080/v1", api_key="")
+    assert result["ok"] is True and result["model_count"] == 1
+    assert calls[-1] == ("http://localhost:8080/v1/models", {"Accept": "application/json"})
+    for status in (401, 403, 429, 302, 500):
+        reply["status"] = status
+        reply["json"] = {"error": key}
+        result = checks.check_provider_endpoint("openrouter", base_url="https://router.invalid/v1", api_key=key)
+        assert result["ok"] is False
+        assert key not in str(result)
+    reply["status"] = 200
+    for payload in ({"data": []}, {"data": [{}]}, {"unexpected": key}, [key]):
+        reply["json"] = payload
+        result = checks.check_provider_endpoint("local_openai", base_url="http://localhost:8080/v1", api_key=key)
+        assert result["ok"] is False
+        assert key not in str(result)
+
+
+def test_connection_check_sanitizes_transport_and_json_errors(app_modules, monkeypatch):
+    checks = importlib.import_module("app.provider_connection_checks")
+    import httpx
+    for exception in (httpx.ReadTimeout("private-secret"), httpx.ConnectError("private-secret"), httpx.InvalidURL("private-secret"), ValueError("private-secret")):
+        class Client:
+            def __init__(self, **kwargs): pass
+            def __enter__(self): raise exception
+            def __exit__(self, *args): pass
+        monkeypatch.setattr(checks.httpx, "Client", Client)
+        result = checks.check_provider_endpoint("local_openai", base_url="http://localhost:8080/v1", api_key="private-secret")
+        assert result["ok"] is False
+        assert "private-secret" not in str(result)
+    assert checks.check_provider_endpoint("openrouter", base_url="https://router.invalid/v1", api_key="")["ok"] is False
+    assert checks.check_provider_endpoint("local_openai", base_url="", api_key="")["ok"] is False

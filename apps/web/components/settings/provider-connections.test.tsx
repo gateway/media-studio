@@ -37,4 +37,31 @@ describe("ProviderConnections", () => {
     expect(refresh).toHaveBeenCalledOnce();
     expect(fetchMock).not.toHaveBeenCalled();
   });
+  it("checks saved credentials without sending or saving form values and clears stale results on edits", async () => {
+    let resolveCheck: (value: unknown) => void = () => {};
+    const fetchMock = vi.fn(() => new Promise((resolve) => { resolveCheck = resolve; }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ProviderConnections connections={[{ provider_kind: "openrouter", configured: true, api_key_configured: true, credential_source: "stored", base_url: "https://router.invalid/v1" }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Check connection" }));
+    expect(screen.getByRole("button", { name: "Checking…" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByLabelText("API base URL").hasAttribute("disabled")).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith("/api/control/media/provider-connections/openrouter/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    resolveCheck({ ok: true, json: async () => ({ ok: true, message: "Saved key accepted.", checked_at: "2026-10-17T00:00:00Z" }) });
+    await screen.findByText("Connection verified");
+    expect(screen.getByText("Saved key accepted.")).toBeTruthy();
+    expect(refresh).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("API base URL"), { target: { value: "https://new.invalid/v1" } });
+    expect(screen.queryByText("Connection verified")).toBeNull();
+    expect(screen.getByRole("button", { name: "Check connection" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText("Save changes before checking.")).toBeTruthy();
+  });
+  it("shows local endpoint failures without reporting the connection as verified", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ ok: false, message: "Could not reach the endpoint.", checked_at: "2026-10-17T00:00:00Z" }) })));
+    render(<ProviderConnections connections={[{ provider_kind: "local_openai", configured: false, api_key_configured: false, credential_source: null, base_url: "http://127.0.0.1:8080/v1" }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Check connection" }));
+    await screen.findByText("Check failed");
+    expect(screen.getByText("Could not reach the endpoint.")).toBeTruthy();
+    expect(screen.queryByText("Connection verified")).toBeNull();
+  });
+
 });
