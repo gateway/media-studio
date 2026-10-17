@@ -1,5 +1,41 @@
 # Baseline review, 2026-10-17
 
+## Ticket 11: Media FormData preset-slot parsing, 2026-10-17
+
+`parsePresetSlotValues` now owns decoding preset-slot JSON and retaining only
+record entries. Attachment registration, reference resolution, gallery asset
+handling, model/intent selection and payload fields stay with their existing
+owners. Empty keys are still skipped; nonempty keys retain empty arrays and their
+original spelling. No API, schema, provider or saved-state contract changes.
+
+The same 39 focused tests pass before and after extraction, including all six
+original tests with their assertions intact. Tests mock the storage import and
+use only in-memory FormData/File values. Unnecessary temporary-directory and
+DATA_ROOT setup was removed. Cases cover missing/empty/malformed fields,
+record-only JSON arrays, permissive legacy JSON, boolean/number coercions,
+preset selection, slot records, attachment order/references, both reference-error
+messages, and identical mocked attachment operations for validate versus submit.
+No application storage, service, real upload or provider call is exercised.
+Local pytest remains unrun under the existing fixture restriction.
+
+| Function | Cyclomatic before → after | Cognitive before → after |
+| --- | ---: | ---: |
+| buildMediaPayloadFromFormData | 64 → 61 | 75 → 70 |
+| parsePresetSlotValues (new) | — → 4 | — → 5 |
+
+Only the two existing parser metric entries are ratcheted in `baseline.json`:
+`5dc5d491d81ef5f11fbc7dda33f595f1c0e518c76363c504766acb1ce71cb8fc`
+(CC) and
+`5ead71c469d84a9892fb8fdc1f480f8afbff458e9a30fed2cc99cff0525e9ffd`
+(cognitive). Their identities are unchanged. No new exemption, baseline refresh,
+threshold/configuration/dependency change or unrelated identity update is included.
+Web findings remain 728; Python 543 and CSS 1,127. Production clone pairs remain
+286 with identical identities and metrics; dependency violations remain zero.
+Test clone pairs change from 555 to 553 after removing repeated directory setup;
+the assertion coverage is expanded. Raw reports and exact comparisons are retained
+outside source in the ticket's evidence directory. Full static lint and focused
+behavior checks pass; remote CI is the remaining integration gate.
+
 Baseline adoption records existing debt and specific known tool limitations. It does
 not assert that every finding is a confirmed bug. Application fixes are separate work.
 
