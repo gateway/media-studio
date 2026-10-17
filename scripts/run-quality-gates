@@ -49,7 +49,7 @@ time "$VENV_PIP" install -q -e "$ROOT/apps/api[dev]"
 
 cd "$ROOT"
 time npm --workspace apps/web run test
-time npm --workspace apps/web run lint
+# Full lint above and the normal build below both enforce web lint/types.
 time npm --workspace apps/web run typecheck
 time npm --workspace apps/web run build
 time MEDIA_STUDIO_KIE_API_REPO_PATH="$KIE_ROOT" npm run smoke:studio

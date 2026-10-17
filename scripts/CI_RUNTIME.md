@@ -28,3 +28,25 @@ unittest with synthetic reports and mocked pytest.main; they never collect tests
 `test_ci_pytest_profile_integration.py` runs real pytest on synthetic temporary files
 in CI only. Local pytest collection, including the application suite, remains subject
 to the explicit fixture authorization described in `FOCUSED_TESTS.md`.
+
+## Redundant gate removal
+
+Quality runs full static lint before application tests and uses the normal web
+build, whose prerequisite is the same workspace lint command. The standalone
+web lint formerly between web tests and typecheck repeated that command on the
+same source/configuration. Removing that invocation preserves both enforcement
+points, the separate typecheck, all tests and the normal build prerequisite.
+Web test source inspection found no file-writing operations; typecheck's generated
+cache is excluded from lint. CI results must still verify the complete sequence.
+
+The workflow and quality script both install the editable API dev dependency.
+This duplication is recorded, but retained in this slice: the workflow needs
+pytest for recorder integration checks before quality, and the standalone quality
+entrypoint must continue preparing its existing API environment. Avoid introducing
+a setup-bypass flag solely to save an unmeasured dependency resolution step.
+
+Further backend investigation should split fresh-schema migration/seed time from
+application import time within `app_modules`, then inspect the second bootstrap
+in TestClient startup. Initial conftest collection also bootstraps its own schema.
+No fixture lifetime or schema behavior is changed here: those paths protect
+migration and application startup contracts and require isolation evidence first.
