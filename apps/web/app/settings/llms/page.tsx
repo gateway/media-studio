@@ -30,7 +30,6 @@ export default async function StudioLlmSettingsPage({
         mediaAssistantConfig={snapshot.mediaAssistantConfig.data?.config ?? null}
         promptRecipeDraftingConfig={snapshot.promptRecipeDraftingConfig.data?.config ?? null}
         openRouterSpend={snapshot.externalLlmUsageSummary.data?.summary ?? null}
-        health={snapshot.status.data ?? {}}
       />
     </StudioAdminShell>
   );

@@ -189,13 +189,10 @@
 .admin-theme-root .admin-data-summary:hover { background: var(--admin-hover); }
 .admin-theme-root .admin-data-summary:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: -2px; }
 .admin-theme-root .admin-data-heading { color: var(--muted-strong); font-size: 12px; }
-.admin-theme-root .admin-pricing-columns { grid-template-columns: minmax(0,2fr) minmax(0,1.5fr) minmax(90px,.7fr) minmax(70px,.6fr) 112px; }
 .admin-theme-root .admin-jobs-columns { grid-template-columns: minmax(0,2fr) minmax(0,1fr) 110px 90px 100px 112px; }
 .admin-theme-root .admin-data-meta { display: block; margin-top: 5px; color: var(--muted-strong); font-size: 11px; overflow-wrap: anywhere; }
 .admin-theme-root .admin-data-model { color: var(--muted-strong); overflow-wrap: anywhere; }
 .admin-theme-root .admin-data-body { padding: 20px; border-top: 1px solid var(--border-soft); }
-.admin-theme-root .admin-row-action { white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 5px 12px; border: 1px solid var(--border-soft); border-radius: 8px; background: var(--admin-control); font-weight: 600; }
-.admin-theme-root .admin-data-row[open] > summary .admin-row-action { border-color: var(--accent-strong); color: var(--accent-strong); }
 .admin-theme-root .admin-job-identity { display: flex; align-items: center; min-width: 0; gap: 12px; }
 .admin-theme-root .admin-job-thumbnail { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: var(--admin-control); color: var(--muted-strong); }
 .admin-theme-root .admin-job-thumbnail img { width: 100%; height: 100%; object-fit: cover; }
@@ -212,7 +209,7 @@
 }
 @media (max-width: 700px) {
   .admin-theme-root .admin-data-heading { display: none; }
-  .admin-theme-root .admin-pricing-columns, .admin-theme-root .admin-jobs-columns { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
+  .admin-theme-root .admin-jobs-columns { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
   .admin-theme-root .admin-job-identity { grid-column: 1 / -1; }
   .admin-theme-root .admin-disclosure-compact > summary { align-items: flex-start; }
   .admin-theme-root .admin-disclosure-compact > summary > div:first-child { display: block; }
@@ -298,3 +295,60 @@
 @media (max-width: 1100px) {
   .admin-theme-root .admin-job-mobile-chevron { display: block; }
 }
+
+/* Pricing uses the same quiet expandable records as Jobs. */
+.admin-theme-root .admin-pricing-overview { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px 24px; border-block: 1px solid var(--border-soft); margin-top: 20px; padding-block: 16px; }
+.admin-theme-root .admin-pricing-overview dt { margin-bottom: 6px; color: var(--muted-strong); font-size: 12px; }
+.admin-theme-root .admin-pricing-overview dd { font-size: 14px; overflow-wrap: anywhere; }
+.admin-theme-root .admin-pricing-list .admin-pricing-columns { grid-template-columns: minmax(0,2fr) minmax(90px,.8fr) 100px 80px 128px; gap: 16px; padding: 16px 12px; }
+.admin-theme-root .admin-pricing-list .admin-data-heading { padding-block: 0 12px; }
+.admin-theme-root .admin-pricing-list .admin-pricing-row { border-width: 1px 0 0; }
+.admin-theme-root .admin-pricing-list .admin-pricing-row[open] { border-color: transparent; border-radius: var(--radius-control); background: var(--admin-panel); margin-bottom: 10px; }
+.admin-theme-root .admin-pricing-row[open] > summary { border-radius: var(--radius-control) var(--radius-control) 0 0; }
+.admin-theme-root .admin-pricing-identity { display: flex; align-items: center; min-width: 0; gap: 12px; }
+.admin-theme-root .admin-pricing-identity h3 { overflow-wrap: anywhere; }
+.admin-theme-root .admin-pricing-unit { text-transform: capitalize; }
+.admin-theme-root .admin-pricing-amount { font-size: 13px; font-variant-numeric: tabular-nums; }
+.admin-theme-root .admin-pricing-row-action { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: 12px; white-space: nowrap; }
+.admin-theme-root .admin-pricing-row[open] > summary .admin-pricing-row-action { color: var(--accent-strong); }
+.admin-theme-root .admin-pricing-row[open] > summary svg, .admin-theme-root .admin-pricing-source-details[open] > summary svg, .admin-theme-root .admin-pricing-catalog-details[open] > summary svg { transform: rotate(180deg); }
+.admin-theme-root .admin-pricing-mobile-chevron, .admin-theme-root .admin-pricing-mobile-label { display: none; }
+.admin-theme-root .admin-pricing-expanded { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(0,1fr); gap: 24px; align-items: start; }
+.admin-theme-root .admin-pricing-detail-title { margin-bottom: 12px; font-size: 13px; font-weight: 500; }
+.admin-theme-root .admin-pricing-scenarios { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-theme-root .admin-pricing-scenarios th, .admin-theme-root .admin-pricing-scenarios td { padding: 12px 0; border-bottom: 1px solid var(--border-soft); text-align: left; vertical-align: top; }
+.admin-theme-root .admin-pricing-scenarios th { font-weight: 400; }
+.admin-theme-root .admin-pricing-scenarios thead th { padding-top: 0; color: var(--muted-strong); font-size: 12px; }
+.admin-theme-root .admin-pricing-scenarios :is(th,td):not(:first-child) { text-align: right; padding-left: 12px; font-variant-numeric: tabular-nums; }
+.admin-theme-root .admin-pricing-scenarios td > span { display: block; }
+.admin-theme-root .admin-pricing-scenarios small { display: block; margin-top: 4px; color: var(--muted-strong); font-size: 12px; }
+.admin-theme-root .admin-pricing-explanation, .admin-theme-root .admin-pricing-adjustments { color: var(--muted-strong); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.admin-theme-root .admin-pricing-adjustments { list-style: disc; padding-left: 18px; margin-top: 12px; }
+.admin-theme-root .admin-pricing-adjustments li + li { margin-top: 8px; }
+.admin-theme-root .admin-pricing-footnote { margin-top: 12px; color: var(--muted-strong); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.admin-theme-root .admin-pricing-source-details { border-top: 1px solid var(--border-soft); margin-top: 18px; padding-top: 12px; font-size: 12px; }
+.admin-theme-root .admin-pricing-source-details > summary, .admin-theme-root .admin-pricing-catalog-details > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--muted-strong); cursor: pointer; }
+.admin-theme-root .admin-pricing-source-details > summary::-webkit-details-marker, .admin-theme-root .admin-pricing-catalog-details > summary::-webkit-details-marker { display: none; }
+.admin-theme-root .admin-pricing-source-details > summary:focus-visible, .admin-theme-root .admin-pricing-catalog-details > summary:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 4px; }
+.admin-theme-root .admin-pricing-source-details dl { display: grid; gap: 12px; margin-top: 14px; }
+.admin-theme-root .admin-pricing-source-details dt { color: var(--muted-strong); }
+.admin-theme-root .admin-pricing-source-details dd { margin-top: 4px; overflow-wrap: anywhere; }
+.admin-theme-root .admin-pricing-catalog-details { border-top: 1px solid var(--border-soft); padding-top: 16px; font-size: 13px; }
+@media (max-width: 900px) {
+  .admin-theme-root .admin-pricing-expanded { grid-template-columns: minmax(0,1fr); }
+  .admin-theme-root .admin-pricing-list .admin-pricing-columns { grid-template-columns: minmax(0,2fr) 80px 80px 70px; gap: 12px; }
+  .admin-theme-root .admin-pricing-row-action, .admin-theme-root .admin-pricing-list .admin-data-heading > :last-child { display: none; }
+  .admin-theme-root .admin-pricing-mobile-chevron { display: block; flex-shrink: 0; margin-left: auto; }
+}
+@media (max-width: 700px) {
+  .admin-theme-root .admin-pricing-overview { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .admin-theme-root .admin-pricing-list .admin-pricing-columns { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; }
+  .admin-theme-root .admin-pricing-identity { grid-column: 1 / -1; }
+  .admin-theme-root .admin-pricing-unit { display: none; }
+  .admin-theme-root .admin-pricing-mobile-label { display: inline; color: var(--muted-strong); font-size: 12px; }
+}
+@media (pointer: coarse) {
+  .admin-theme-root .admin-pricing-source-details > summary, .admin-theme-root .admin-pricing-catalog-details > summary { min-height: 44px; }
+}
+
+.admin-theme-root .admin-pricing-usage { border-top: 1px solid var(--border-soft); padding-top: 24px; }

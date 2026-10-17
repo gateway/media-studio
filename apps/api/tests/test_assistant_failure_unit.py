@@ -84,13 +84,14 @@ class FailureTests(unittest.TestCase):
      saved = {"assistant_message_id": "config-user", **payload}
      messages[:] = [saved]
      return saved
-    with patch.object(provider_support.store, "get_prompt_recipe_drafting_config", return_value=config), patch.object(provider_support.settings, "openrouter_api_key", ""), patch.object(provider_support.settings, "local_openai_base_url", ""), patch.object(r.store_assistant, "list_assistant_messages", return_value=messages), patch.object(r.store_assistant, "create_assistant_message", side_effect=write):
+    with patch("app.service_provider_config.get_provider_connection", return_value={}), patch.object(provider_support.store, "get_prompt_recipe_drafting_config", return_value=config), patch.object(provider_support.settings, "openrouter_api_key", ""), patch.object(provider_support.settings, "local_openai_base_url", ""), patch.object(r.store_assistant, "list_assistant_messages", return_value=messages), patch.object(r.store_assistant, "create_assistant_message", side_effect=write):
      with self.assertRaises(r.HTTPException) as caught:
       r.create_kernel_message(session=session, payload=self.schemas.AssistantMessageCreateRequest(content_text="Help me think through a graph."), attachments=[])
     self.assertEqual(caught.exception.status_code, 502)
     self.assertEqual(caught.exception.detail["code"], "assistant_unavailable")
     self.assertEqual(caught.exception.detail["state"], "failed")
-    self.assertIn("AI Settings", caught.exception.detail["message"])
+    self.assertIn("Connections", caught.exception.detail["message"])
+    self.assertIn("AI Models", caught.exception.detail["message"])
     self.assertEqual(len(messages), 1)
     self.assertEqual(messages[0]["content_text"], "Help me think through a graph.")
     self.assertEqual(messages[0]["content_json"]["turn_outcome"], caught.exception.detail)

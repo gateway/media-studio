@@ -16,12 +16,10 @@ import { PromptRecipeDraftingSettingsPanel } from "@/components/prompt-recipes/p
 import { StudioEnhancementSettingsPanel } from "@/components/settings/studio-enhancement-settings-panel";
 import { StatusPill } from "@/components/status-pill";
 import { SurfaceInset } from "@/components/ui/surface-primitives";
-import { type MediaStudioHealthSummary } from "@/lib/llm-provider-health";
 import {
   llmProviderLabel,
 } from "@/lib/llm-provider-metadata";
 import type {
-  ControlApiHealthData,
   ExternalLlmUsageSummary,
   MediaAssistantConfig,
   MediaEnhancementConfig,
@@ -82,7 +80,6 @@ export function LlmSettingsConsole({
   mediaAssistantConfig: MediaAssistantConfig | null;
   promptRecipeDraftingConfig: PromptRecipeDraftingConfig | null;
   openRouterSpend: ExternalLlmUsageSummary | null;
-  health: MediaStudioHealthSummary | ControlApiHealthData;
 }) {
   const enhancementProvider = enhancementConfigs.find((config) => config.model_key === "__studio_enhancement__") ?? null;
   const draftingProviderLabel = llmProviderLabel(promptRecipeDraftingConfig?.provider_kind);

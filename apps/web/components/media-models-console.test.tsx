@@ -123,7 +123,6 @@ describe("MediaModelsConsole", () => {
         queuePolicies={[]}
         sections={{
           queue: true,
-          enhancementProvider: false,
           modelHelper: false,
           studioSettings: true,
           modelPanel: false,
@@ -148,7 +147,6 @@ describe("MediaModelsConsole", () => {
         queuePolicies={[]}
         sections={{
           queue: false,
-          enhancementProvider: false,
           modelHelper: true,
           studioSettings: false,
           modelPanel: true,
@@ -181,7 +179,7 @@ describe("MediaModelsConsole", () => {
     render(<MediaModelsConsole
       models={[makeModel()]} queueSettings={queueSettings}
       queuePolicies={[{ model_key: "nano-banana-2", enabled: false, max_outputs_per_run: 4, created_at: null, updated_at: null }]}
-      sections={{ queue: true, enhancementProvider: false, modelHelper: false, studioSettings: true, modelPanel: false, presets: false }}
+      sections={{ queue: true, modelHelper: false, studioSettings: true, modelPanel: false, presets: false }}
     />);
     expect(screen.queryByText("Structured Presets")).toBeNull();
     fireEvent.click(screen.getByText("Job Runner").closest("summary")!);
@@ -205,7 +203,7 @@ describe("MediaModelsConsole", () => {
     vi.stubGlobal("fetch", fetchMock);
     const initial = [makePreset()];
     const props = { models: [makeModel()], presets: initial, presetsTotal: 1, presetsNextOffset: null, presetsSeedValid: true,
-      sections: { queue: false, enhancementProvider: false, modelHelper: false, studioSettings: false, modelPanel: false, presets: true } };
+      sections: { queue: false, modelHelper: false, studioSettings: false, modelPanel: false, presets: true } };
     const view = render(<MediaModelsConsole {...props} />);
     expect(screen.getByRole("heading", { name: "Portrait Grid" })).toBeTruthy();
     const refreshed = [makePreset(changed ? { label: "Refreshed preset" } : {})];
@@ -225,7 +223,7 @@ describe("MediaModelsConsole", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     const props = { models: [makeModel()], presets: [makePreset()], presetsTotal: 1, presetsNextOffset: null, presetsSeedValid: true,
-      sections: { queue: false, enhancementProvider: false, modelHelper: false, studioSettings: false, modelPanel: false, presets: true } };
+      sections: { queue: false, modelHelper: false, studioSettings: false, modelPanel: false, presets: true } };
     const view = render(<MediaModelsConsole {...props} />);
     fireEvent.change(screen.getByLabelText("Search media presets"), { target: { value: "imported" } });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));

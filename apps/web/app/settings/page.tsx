@@ -32,7 +32,6 @@ export default async function StudioSettingsPage({
         settingsAside={<StudioDebugSettings />}
         sections={{
           queue: true,
-          enhancementProvider: false,
           modelHelper: false,
           studioSettings: true,
           modelPanel: false,

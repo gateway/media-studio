@@ -150,7 +150,7 @@ Use optional AI providers for prompt enhancement, drafting, and supported text o
 
 See [AI prompt tools](#ai-prompt-tools) for setup and supported uses. Media Assistant currently requires Codex Local.
 
-Use **Models** for the current catalog and supported options, and **Pricing** for cost estimates. Kie can change availability, rules, and credit costs; displayed prices are estimates and the final charge is determined by Kie.
+Use **Models** for the current catalog and supported options, and **Pricing** for cost estimates. Pricing lists each model’s billing unit and base rate; expand a row for example totals in USD and credits, option adjustments, and source details. Recorded text-model usage appears below the catalog. Kie can change availability, rules, and credit costs; displayed prices are estimates and the final charge is determined by Kie.
 
 Media Studio is not affiliated with Kie AI. The Kie links above are affiliate links that help support the project.
 

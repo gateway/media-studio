@@ -12,7 +12,6 @@ import { MediaModelSystemPromptPanel } from "@/components/media-models/media-mod
 import { MediaOutputFolderPanel } from "@/components/media-models/media-output-folder-panel";
 import { MediaPresetsPanel } from "@/components/media-models/media-presets-panel";
 import type { EnhancementProfileFormState } from "@/components/media-models/media-models-console-types";
-import { StudioEnhancementSettingsPanel } from "@/components/settings/studio-enhancement-settings-panel";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import { invalidateGraphNodeDefinitions } from "@/lib/graph-node-definitions-sync";
 import {
@@ -47,7 +46,6 @@ type MediaModelsConsoleProps = {
   settingsAside?: ReactNode;
   sections?: {
     queue?: boolean;
-    enhancementProvider?: boolean;
     modelHelper?: boolean;
     studioSettings?: boolean;
     modelPanel?: boolean;
@@ -136,7 +134,6 @@ export function MediaModelsConsole({
   const isStudio = variant === "studio";
   const visibleSections = {
     queue: sections?.queue ?? true,
-    enhancementProvider: sections?.enhancementProvider ?? true,
     modelHelper: sections?.modelHelper ?? true,
     studioSettings: sections?.studioSettings ?? true,
     modelPanel: sections?.modelPanel ?? true,
@@ -363,8 +360,6 @@ export function MediaModelsConsole({
           }
         />
       ) : null}
-
-      {visibleSections.enhancementProvider ? <StudioEnhancementSettingsPanel initialConfigs={localEnhancementConfigs} /> : null}
 
       {visibleSections.queue && !visibleSections.modelPanel ? (
         <MediaModelAvailabilityPanel

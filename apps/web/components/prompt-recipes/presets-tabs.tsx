@@ -59,7 +59,6 @@ export function PresetsTabs({
           queuePolicies={queuePolicies}
           sections={{
             queue: false,
-            enhancementProvider: false,
             modelHelper: false,
             studioSettings: false,
             modelPanel: false,

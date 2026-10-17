@@ -77,12 +77,6 @@ describe("LlmSettingsConsole", () => {
         mediaAssistantConfig={{ ...makeDraftingConfig(), config_key: "media_assistant", supports_media_studio_tools: true }}
         promptRecipeDraftingConfig={makeDraftingConfig()}
         openRouterSpend={null}
-        health={{
-          codex_local_command_available: true,
-          codex_local_login_configured: true,
-          codex_local_ready: true,
-          openrouter_api_key_configured: true,
-        }}
       />,
     );
 

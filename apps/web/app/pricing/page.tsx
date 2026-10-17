@@ -1,161 +1,26 @@
-import { AlertTriangle, Coins, ExternalLink, RefreshCcw, Sparkles } from "lucide-react";
+import { AlertTriangle, ChevronDown, Coins, ExternalLink, RefreshCcw, Sparkles } from "lucide-react";
 
+import { PricingRuleRow } from "@/app/pricing/pricing-rule-row";
+import { formatPricingStatus } from "@/app/pricing/pricing-rule-view";
 import { PricingRefreshAction } from "@/app/pricing/pricing-refresh-action";
 import {
   adminFeatureGridThreeClassName,
   adminMetricGridFourClassName,
   adminThemeLayoutClassName,
 } from "@/components/admin-theme";
-import {
-  adminInsetCardClassName,
-  adminInsetPanelClassName,
-} from "@/components/admin-controls";
+import { adminInsetCardClassName } from "@/components/admin-controls";
 import { AdminNavButton } from "@/components/admin-nav-button";
-import { Panel, PanelHeader } from "@/components/panel";
+import { PanelHeader } from "@/components/panel";
 import { StudioAdminShell } from "@/components/studio-admin-shell";
-import { CalloutPanel, SurfaceInset } from "@/components/ui/surface-primitives";
+import { CalloutPanel } from "@/components/ui/surface-primitives";
 import { getMediaDashboardSnapshot } from "@/lib/control-api";
 import { getPricingCoverageWarnings } from "@/lib/pricing-coverage";
-import { estimateFromPricingSnapshot } from "@/lib/studio-pricing";
-import type { MediaModelSummary } from "@/lib/types";
-import { formatCreditsAmount, formatDateTime, formatUsdAmount, isRecord, toFiniteNumber } from "@/lib/utils";
+import { formatDateTime, formatUsdAmount, isRecord } from "@/lib/utils";
 
 function formatTokenPair(promptTokens: number | null | undefined, completionTokens: number | null | undefined) {
   const prompt = typeof promptTokens === "number" ? promptTokens : 0;
   const completion = typeof completionTokens === "number" ? completionTokens : 0;
   return `${prompt.toLocaleString()} in · ${completion.toLocaleString()} out`;
-}
-
-function formatAdjustmentMap(
-  label: string,
-  value: unknown,
-  formatter: (entry: unknown) => string,
-) {
-  const record = isRecord(value) ? value : null;
-  if (!record) {
-    return [];
-  }
-
-  return Object.entries(record)
-    .filter(([, optionMap]) => isRecord(optionMap))
-    .map(([optionKey, optionMap]) => {
-      const normalized = (isRecord(optionMap) ? optionMap : {}) as Record<string, unknown>;
-      const parts = Object.entries(normalized).map(([choice, entryValue]) => `${choice}: ${formatter(entryValue)}`);
-      return `${label} ${optionKey.replaceAll("_", " ")} -> ${parts.join(", ")}`;
-    })
-    .filter(Boolean);
-}
-
-function formatPricingStatus(authoritative: boolean, status: string | null | undefined) {
-  if (authoritative) {
-    return "Authoritative";
-  }
-  return String(status ?? "unknown").replaceAll("_", " ");
-}
-
-function pricingChoiceValue(value: unknown) {
-  if (value == null) {
-    return "__missing__";
-  }
-  if (typeof value === "boolean") {
-    return value ? "true" : "false";
-  }
-  return String(value).toLowerCase();
-}
-
-function uniquePricingChoices(rule: Record<string, unknown>, optionKey: string) {
-  const values = new Map<string, unknown>();
-  for (const sourceKey of ["multipliers", "adders_credits", "adders_cost_usd"] as const) {
-    const source = isRecord(rule[sourceKey]) ? (rule[sourceKey] as Record<string, unknown>) : null;
-    const optionMap = source && isRecord(source[optionKey]) ? (source[optionKey] as Record<string, unknown>) : null;
-    if (!optionMap) {
-      continue;
-    }
-    for (const choice of Object.keys(optionMap)) {
-      values.set(pricingChoiceValue(choice), choice);
-    }
-  }
-  return Array.from(values.values());
-}
-
-function sortScenarioChoices(optionKey: string, values: unknown[]) {
-  const numericDuration = optionKey === "duration";
-  return [...values].sort((left, right) => {
-    const leftText = String(left);
-    const rightText = String(right);
-    if (numericDuration) {
-      const leftNumber = Number(leftText);
-      const rightNumber = Number(rightText);
-      if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) {
-        return leftNumber - rightNumber;
-      }
-    }
-    if (optionKey === "sound") {
-      const leftRank = leftText === "true" ? 1 : 0;
-      const rightRank = rightText === "true" ? 1 : 0;
-      return leftRank - rightRank;
-    }
-    return leftText.localeCompare(rightText, undefined, { numeric: true, sensitivity: "base" });
-  });
-}
-
-function formatScenarioChoice(optionKey: string, value: unknown) {
-  if (optionKey === "sound") {
-    return value === "true" || value === true ? "Audio on" : "Audio off";
-  }
-  if (optionKey === "duration") {
-    return `${value}s`;
-  }
-  if (optionKey === "resolution") {
-    return String(value);
-  }
-  return `${optionKey.replaceAll("_", " ")} ${String(value)}`;
-}
-
-function cartesianProduct(values: Array<Array<unknown>>) {
-  return values.reduce<Array<Array<unknown>>>(
-    (accumulator, current) =>
-      accumulator.flatMap((entry) => current.map((value) => [...entry, value])),
-    [[]],
-  );
-}
-
-type PricingScenarioRow = {
-  key: string;
-  label: string;
-  perOutputUsd: string | null;
-  perOutputCredits: string | null;
-  twoOutputUsd: string | null;
-  twoOutputCredits: string | null;
-};
-
-function buildPricingScenarioRows(rule: Record<string, unknown>, model: MediaModelSummary | null): PricingScenarioRow[] {
-  const preferredKeys = ["duration", "sound", "resolution", "mode"];
-  const scenarioKeys = preferredKeys.filter((optionKey) => uniquePricingChoices(rule, optionKey).length > 0).slice(0, 3);
-  if (!scenarioKeys.length) {
-    return [];
-  }
-
-  const choiceSets = scenarioKeys.map((optionKey) => sortScenarioChoices(optionKey, uniquePricingChoices(rule, optionKey)).slice(0, 2));
-  const combos = cartesianProduct(choiceSets).slice(0, 6);
-  const rows: PricingScenarioRow[] = [];
-  const modelKey = String(rule.model_key ?? model?.key ?? "");
-
-  for (const combo of combos) {
-    const options = Object.fromEntries(combo.map((value, index) => [scenarioKeys[index], value]));
-    const perOutput = estimateFromPricingSnapshot({ rules: [rule] }, modelKey, options, 1);
-    const twoOutput = estimateFromPricingSnapshot({ rules: [rule] }, modelKey, options, 2);
-    rows.push({
-      key: JSON.stringify(options),
-      label: combo.map((value, index) => formatScenarioChoice(scenarioKeys[index], value)).join(" • "),
-      perOutputUsd: formatUsdAmount(perOutput.estimatedCostUsd),
-      perOutputCredits: formatCreditsAmount(perOutput.estimatedCredits, { suffix: " credits" }),
-      twoOutputUsd: formatUsdAmount(twoOutput.estimatedCostUsd),
-      twoOutputCredits: formatCreditsAmount(twoOutput.estimatedCredits, { suffix: " credits" }),
-    });
-  }
-
-  return rows;
 }
 
 export default async function PricingPage({
@@ -200,136 +65,36 @@ export default async function PricingPage({
               {sourceUrl ? <AdminNavButton href={sourceUrl} external size="compact" variant="subtle">Open source <ExternalLink className="size-3.5" /></AdminNavButton> : null}
             </div>
           </div>
-          <div className={adminMetricGridFourClassName}>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-              <div className="admin-label-muted">Catalog status</div>
-              <div className="mt-3 text-lg font-semibold text-[var(--foreground)]">
-                {formatPricingStatus(authoritative, pricingStatus)}
-              </div>
-            </SurfaceInset>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-              <div className="admin-label-muted">Credits left</div>
-              <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
-                {availableCredits != null ? availableCredits.toFixed(1) : "n/a"}
-              </div>
-            </SurfaceInset>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-              <div className="admin-label-muted">Refreshed</div>
-              <div className="mt-3 text-sm font-medium text-[var(--foreground)]">
-                {pricing?.refreshed_at ? formatDateTime(pricing.refreshed_at) : "Unknown"}
-              </div>
-            </SurfaceInset>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-              <div className="admin-label-muted">Models covered</div>
-              <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">{pricedModelCount}</div>
-            </SurfaceInset>
-          </div>
+          <dl className="admin-pricing-overview">
+            <div><dt>Catalog status</dt><dd>{formatPricingStatus(authoritative, pricingStatus)}</dd></div>
+            <div><dt>Credits left</dt><dd>{availableCredits != null ? availableCredits.toFixed(1) : "n/a"}</dd></div>
+            <div><dt>Refreshed</dt><dd>{pricing?.refreshed_at ? formatDateTime(pricing.refreshed_at) : "Unknown"}</dd></div>
+            <div><dt>Models covered</dt><dd>{pricedModelCount}</dd></div>
+          </dl>
 
         </section>
 
-        <Panel>
-          <PanelHeader
-            eyebrow="Model Pricing"
-            title="Model pricing"
-            description="Base request pricing comes from KIE, then the listed multipliers or adders are applied when those options are selected."
-          />
-          <div className="admin-data-list mt-5">
-            <div className="admin-data-heading admin-pricing-columns"><span>Model</span><span>Base configuration</span><span>Credits</span><span>USD</span><span>Details</span></div>
+        <section aria-labelledby="model-pricing-heading">
+          <h2 className="admin-section-title" id="model-pricing-heading">Model estimates</h2>
+          <p className="admin-pricing-explanation mt-2">Open a model for example totals and the rules behind them.</p>
+          <div className="admin-data-list admin-pricing-list mt-5">
+            <div className="admin-data-heading admin-pricing-columns"><span>Model</span><span>Billed per</span><span>Base credits</span><span>Base USD</span><span>Details</span></div>
             {rules.map((rule, index) => {
-              const record = (isRecord(rule) ? rule : {}) as Record<string, unknown>;
+              const record = isRecord(rule) ? rule : {};
               const model = models.find((entry) => entry.key === record.model_key) ?? null;
-              const multiplierRows = formatAdjustmentMap("Multiplier", record.multipliers, (value) => {
-                const amount = toFiniteNumber(value);
-                return amount == null ? "n/a" : `${amount}x`;
-              });
-              const creditAdders = formatAdjustmentMap(
-                "Credit add",
-                record.adders_credits,
-                (value) => formatCreditsAmount(value, { suffix: " credits" }) ?? "n/a",
-              );
-              const usdAdders = formatAdjustmentMap(
-                "USD add",
-                record.adders_cost_usd,
-                (value) => formatUsdAmount(value) ?? "n/a",
-              );
-              const notes = Array.isArray(record.notes) ? record.notes.filter((value) => typeof value === "string") : [];
-              const scenarioRows = buildPricingScenarioRows(record, model);
-
-              return (
-                <details key={`${String(record.model_key ?? "rule")}-${index}`} className="admin-data-row">
-                  <summary className="admin-data-summary admin-pricing-columns">
-                    <div>
-                      <span className="font-semibold">{model?.label ?? String(record.model_key ?? "Unknown model")}</span>
-                      <span className="admin-data-meta">{String(record.model_key ?? "")}</span>
-                    </div>
-                    <span className="admin-data-model">{[record.provider, record.interface_type, record.billing_unit].filter(Boolean).join(" · ") || "Request pricing"}</span>
-                    <span>{formatCreditsAmount(record.base_credits, { suffix: " credits" }) ?? "n/a"}</span>
-                    <span>{formatUsdAmount(record.base_cost_usd) ?? "n/a"}</span>
-                    <span className="admin-row-action">View details</span>
-                  </summary>
-                  <div className="admin-data-body">
-                    <div className="admin-label-muted">Pricing status: {formatPricingStatus(authoritative, String(record.pricing_status ?? "unknown"))}</div>
-                    <div className="mt-4 grid gap-2 text-sm leading-7 text-[var(--muted-strong)]">
-                      {[...multiplierRows, ...creditAdders, ...usdAdders].length ? (
-                        [...multiplierRows, ...creditAdders, ...usdAdders].map((line) => (
-                          <SurfaceInset key={line} appearance="admin" density="compact" className="px-3 py-2">
-                            {line}
-                          </SurfaceInset>
-                        ))
-                      ) : (
-                        <CalloutPanel appearance="admin" tone="muted" className="px-3 py-2">
-                          No option adjustments recorded for this rule.
-                        </CalloutPanel>
-                      )}
-                      {notes.length ? (
-                        <CalloutPanel appearance="admin" tone="muted" className="px-3 py-2">
-                          {notes[0]}
-                        </CalloutPanel>
-                      ) : null}
-                    </div>
-
-                    {scenarioRows.length ? (
-                      <div className="mt-4 grid gap-3">
-                        <div className="admin-label-muted">Common scenarios</div>
-                        <div className="grid gap-2">
-                          {scenarioRows.map((row) => (
-                            <SurfaceInset
-                              key={row.key}
-                              appearance="admin"
-                              density="compact"
-                              className="grid gap-2 px-3 py-3 text-sm text-[var(--muted-strong)] md:grid-cols-[minmax(0,1fr)_140px_140px]"
-                            >
-                              <div className="font-medium text-[var(--foreground)]">{row.label}</div>
-                              <div>
-                                <div className="text-[0.68rem] uppercase tracking-[0.12em] text-[var(--muted-strong)]">1 output</div>
-                                <div className="mt-1 text-[var(--foreground)]">{row.perOutputUsd ?? row.perOutputCredits ?? "n/a"}</div>
-                              </div>
-                              <div>
-                                <div className="text-[0.68rem] uppercase tracking-[0.12em] text-[var(--muted-strong)]">2 outputs</div>
-                                <div className="mt-1 text-[var(--foreground)]">{row.twoOutputUsd ?? row.twoOutputCredits ?? "n/a"}</div>
-                              </div>
-                            </SurfaceInset>
-                          ))}
-                        </div>
-                        <div className="text-xs leading-6 text-[var(--muted-strong)]">
-                          These examples are computed from the current catalog rules. Studio multiplies the per-output estimate by the selected Outputs count at submit time.
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                </details>
-              );
+              return <PricingRuleRow key={`${String(record.model_key ?? "rule")}-${index}`} rule={record} model={model} authoritative={authoritative} />;
             })}
+            {!rules.length ? <CalloutPanel appearance="admin" tone="muted" className="px-4 py-5 text-sm">No model pricing is available. Refresh pricing to try again.</CalloutPanel> : null}
           </div>
-        </Panel>
-        <Panel>
+        </section>
+        <section className="admin-pricing-usage">
           <PanelHeader
             eyebrow="AI Model Usage"
             title="Observed token usage"
             description={`This shows successful text-model calls from OpenRouter and Codex Local. OpenRouter rows include spend; Codex Local rows are tracked as $0 because they use the signed-in local Codex account. Showing the latest ${actualUsageItems.length || 20} calls.`}
           />
           <div className={adminMetricGridFourClassName}>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
+            <div>
               <div className="admin-label-muted">Today</div>
               <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
                 {formatUsdAmount(actualUsageSummary?.today.cost_usd ?? null) ?? "n/a"}
@@ -340,8 +105,8 @@ export default async function PricingPage({
               <div className="mt-1 text-xs text-[var(--muted-strong)]">
                 {(actualUsageSummary?.today.total_tokens ?? 0).toLocaleString()} total tokens
               </div>
-            </SurfaceInset>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
+            </div>
+            <div>
               <div className="admin-label-muted">Last 7d</div>
               <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
                 {formatUsdAmount(actualUsageSummary?.last_7d.cost_usd ?? null) ?? "n/a"}
@@ -352,8 +117,8 @@ export default async function PricingPage({
               <div className="mt-1 text-xs text-[var(--muted-strong)]">
                 {(actualUsageSummary?.last_7d.total_tokens ?? 0).toLocaleString()} total tokens
               </div>
-            </SurfaceInset>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
+            </div>
+            <div>
               <div className="admin-label-muted">Last 30d</div>
               <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
                 {formatUsdAmount(actualUsageSummary?.last_30d.cost_usd ?? null) ?? "n/a"}
@@ -364,8 +129,8 @@ export default async function PricingPage({
               <div className="mt-1 text-xs text-[var(--muted-strong)]">
                 {(actualUsageSummary?.last_30d.total_tokens ?? 0).toLocaleString()} total tokens
               </div>
-            </SurfaceInset>
-            <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
+            </div>
+            <div>
               <div className="admin-label-muted">Lifetime</div>
               <div className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
                 {formatUsdAmount(actualUsageSummary?.lifetime.cost_usd ?? null) ?? "n/a"}
@@ -376,15 +141,13 @@ export default async function PricingPage({
               <div className="mt-1 text-xs text-[var(--muted-strong)]">
                 {actualUsageSummary?.lifetime.event_count?.toLocaleString() ?? "0"} calls
               </div>
-            </SurfaceInset>
+            </div>
           </div>
           <details className="admin-data-row mt-5"><summary className="admin-data-summary">Recent usage (latest 20 calls)</summary><div className="admin-data-body grid gap-2">
             {actualUsageItems.length ? (
               actualUsageItems.map((item) => (
-                <SurfaceInset
+                <div
                   key={item.usage_event_id}
-                  appearance="admin"
-                  density="compact"
                   className="grid gap-2 px-3 py-3 text-sm text-[var(--muted-strong)] md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_170px_140px]"
                 >
                   <div>
@@ -410,7 +173,7 @@ export default async function PricingPage({
                       {item.created_at ? formatDateTime(item.created_at) : "Unknown time"}
                     </div>
                   </div>
-                </SurfaceInset>
+                </div>
               ))
             ) : (
               <CalloutPanel appearance="admin" tone="muted" className={adminInsetCardClassName}>
@@ -418,11 +181,10 @@ export default async function PricingPage({
               </CalloutPanel>
             )}
           </div></details>
-        </Panel>
+        </section>
 
-        <Panel>
-          <details className="admin-data-row">
-            <summary className="admin-data-summary">How estimates are saved · Source and coverage details</summary>
+        <details className="admin-pricing-catalog-details">
+            <summary>How estimates are saved · Source and coverage details<ChevronDown className="size-3.5" aria-hidden="true" /></summary>
             <div className="admin-data-body">
           <div className={adminFeatureGridThreeClassName}>
             <CalloutPanel appearance="admin" tone="accent" className={adminInsetCardClassName}>
@@ -480,8 +242,7 @@ export default async function PricingPage({
               ))}
             </div>
           ) : null}            </div>
-          </details>
-        </Panel>
+        </details>
       </div>
     </StudioAdminShell>
   );
