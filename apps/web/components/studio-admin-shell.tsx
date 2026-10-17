@@ -23,11 +23,10 @@ const navItems = [
   { key: "studio", label: "Studio", href: "/studio" },
   { key: "graph", label: "Graph", href: "/graph-studio" },
   { key: "settings", label: "Settings", href: "/settings" },
-  { key: "models", label: "Models", href: "/models" },
+  { key: "models", label: "Image / Video Models", href: "/models" },
   { key: "presets", label: "Presets", href: "/presets" },
   { key: "jobs", label: "Jobs", href: "/jobs" },
   { key: "pricing", label: "Pricing", href: "/pricing" },
-  { key: "setup", label: "Setup", href: "/setup" },
 ] as const;
 
 export function StudioAdminShell({

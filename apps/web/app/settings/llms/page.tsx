@@ -18,13 +18,14 @@ export default async function StudioLlmSettingsPage({
       section="settings"
       currentProjectId={currentProjectId}
       eyebrow="Studio Admin"
-      title="AI Settings"
-      description="Choose a provider and model for each AI task below. Setup covers machine-wide connections; General covers the queue and output folder."
+      title="AI Models"
+      description="Open a task, choose a connected provider, select and test a model, then save. Manage credentials in Connections."
     >
       <div className={adminSectionStackClassName}>
         <SettingsSectionTabs activeTab="llms" currentProjectId={currentProjectId} />
       </div>
       <LlmSettingsConsole
+        currentProjectId={currentProjectId}
         enhancementConfigs={snapshot.enhancementConfigs.data?.configs ?? []}
         mediaAssistantConfig={snapshot.mediaAssistantConfig.data?.config ?? null}
         promptRecipeDraftingConfig={snapshot.promptRecipeDraftingConfig.data?.config ?? null}

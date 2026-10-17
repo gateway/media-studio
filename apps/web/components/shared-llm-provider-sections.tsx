@@ -1,7 +1,7 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AdminField } from "@/components/admin-controls";
 import { llmProviderLabel, type EnhancementProviderKind } from "@/lib/llm-provider-metadata";
 
@@ -72,12 +72,22 @@ export function SharedLlmProviderPicker<T extends EnhancementProviderKind>({
   includeHelper?: boolean;
   disabled?: boolean;
 }) {
+  const [connected, setConnected] = useState<string[] | null>(null);
+  useEffect(() => {
+    let active = true;
+    const load = () => { void fetch("/api/control/media/provider-connections").then((response) => response.ok ? response.json() : null).then((items) => {
+      if (active && Array.isArray(items)) setConnected(items.filter((item) => item.configured).map((item) => item.provider_kind));
+    }).catch(() => {}); };
+    load();
+    window.addEventListener("provider-connections-changed", load);
+    return () => { active = false; window.removeEventListener("provider-connections-changed", load); };
+  }, []);
   const providers: EnhancementProviderKind[] = ["codex_local", "openrouter", "local_openai"];
   if (includeHelper) providers.push("builtin");
   return (
     <AdminField label="AI provider">
       <select className="admin-input" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value as T)}>
-        {providers.map((provider) => <option key={provider} value={provider}>{llmProviderLabel(provider)}</option>)}
+        {providers.map((provider) => <option key={provider} value={provider} disabled={connected !== null && provider !== "builtin" && provider !== value && !connected.includes(provider)}>{llmProviderLabel(provider)}{connected !== null && provider !== "builtin" && !connected.includes(provider) ? " · connect in Connections" : ""}</option>)}
       </select>
     </AdminField>
   );

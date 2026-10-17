@@ -87,59 +87,16 @@ describe("LlmSettingsConsole", () => {
     );
 
     expect(screen.getByText("Default models")).toBeTruthy();
-    expect(screen.getByText("Available AI providers")).toBeTruthy();
+    expect(screen.queryByText("Available AI providers")).toBeNull();
     expect(screen.getByText("Prompt Enhance default model")).toBeTruthy();
     expect(screen.getByText("Recipe draft model")).toBeTruthy();
     expect(screen.getByText("Cost and usage")).toBeTruthy();
     expect(screen.getByText(/Start with Codex Local if this machine already uses Codex or ChatGPT/i)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Connection setup guide" }).getAttribute("href")).toBe("/setup");
+    expect(screen.getByRole("link", { name: "Manage connections →" }).getAttribute("href")).toBe("/settings/connections");
     expect(screen.getByText(/Graph prompt nodes still choose their own model/i)).toBeTruthy();
     expect(screen.getByText("enhancement-panel")).toBeTruthy();
     expect(screen.getByText("drafting-panel")).toBeTruthy();
     expect(screen.getByText("assistant-panel")).toBeTruthy();
   });
 
-  it("links to setup when Codex Local is not ready", () => {
-    render(
-      <LlmSettingsConsole
-        enhancementConfigs={[makeEnhancementConfig()]}
-        mediaAssistantConfig={{ ...makeDraftingConfig(), config_key: "media_assistant", supports_media_studio_tools: true }}
-        promptRecipeDraftingConfig={makeDraftingConfig()}
-        openRouterSpend={null}
-        health={{
-          codex_local_command_available: true,
-          codex_local_login_configured: false,
-          codex_local_ready: false,
-          openrouter_api_key_configured: false,
-        }}
-      />,
-    );
-
-    const setupLink = screen.getByRole("link", { name: "Set up Codex" });
-    expect(setupLink.getAttribute("href")).toBe("/setup");
-  });
-
-  it("shows Local OpenAI as partial when only saved defaults exist", () => {
-    render(
-      <LlmSettingsConsole
-        enhancementConfigs={[makeEnhancementConfig({ provider_kind: "local_openai", provider_model_id: "local/director" })]}
-        mediaAssistantConfig={{
-          ...makeDraftingConfig({ provider_kind: "local_openai", provider_model_id: "local/director" }),
-          config_key: "media_assistant",
-          supports_media_studio_tools: false,
-        }}
-        promptRecipeDraftingConfig={makeDraftingConfig({ provider_kind: "local_openai", provider_model_id: "local/director" })}
-        openRouterSpend={null}
-        health={{
-          codex_local_command_available: false,
-          codex_local_login_configured: false,
-          codex_local_ready: false,
-          openrouter_api_key_configured: false,
-        }}
-      />,
-    );
-
-    expect(screen.getByText("A local endpoint is saved. Use Test endpoint below to make sure it responds.")).toBeTruthy();
-    expect(screen.getAllByText("Connecting").length).toBeGreaterThan(0);
-  });
 });

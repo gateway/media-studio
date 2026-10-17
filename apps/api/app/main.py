@@ -15,6 +15,7 @@ from . import codex_local_provider, kie_adapter, service, store
 from .assistant.provider_support import sync_active_assistant_session_providers
 from .assistant.routes import router as assistant_router
 from .control_auth import validate_control_request
+from .schemas import ProviderConnectionUpsertRequest
 from .graph.cancellation import cancel_batch_jobs
 from .graph.registry import registry
 from .graph.routes import router as graph_router
@@ -240,6 +241,9 @@ def health() -> HealthResponse:
         for item in local_openai_configs
     )
     local_openai_ready = any(str(item.get("provider_status") or "").strip() == "connected" for item in local_openai_configs)
+    from .service_provider_config import list_provider_connections
+    connections = {item["provider_kind"]: item for item in list_provider_connections()}
+    local_openai_configured = local_openai_configured or connections["local_openai"]["configured"]
     codex_status = codex_local_provider.codex_local_status()
     return HealthResponse(
         status="ok",
@@ -249,7 +253,7 @@ def health() -> HealthResponse:
         kie_api_repo_connected=bool(settings.kie_api_repo_path and settings.kie_api_repo_path.exists()),
         kie_api_key_configured=bool(settings.kie_api_key),
         live_submit_enabled=settings.media_enable_live_submit,
-        openrouter_api_key_configured=bool(settings.openrouter_api_key),
+        openrouter_api_key_configured=connections["openrouter"]["api_key_configured"],
         local_openai_configured=local_openai_configured,
         local_openai_ready=local_openai_ready,
         codex_local_command_available=bool(codex_status.get("command_available")),
@@ -731,6 +735,21 @@ def delete_system_prompt(prompt_id: str):
     return {"ok": True}
 
 
+@app.get("/media/provider-connections")
+def list_provider_connections():
+    from .service_provider_config import list_provider_connections
+    return list_provider_connections()
+
+
+@app.patch("/media/provider-connections/{provider_kind}")
+def update_provider_connection(provider_kind: str, payload: ProviderConnectionUpsertRequest):
+    from .service_provider_config import upsert_provider_connection
+    try:
+        return upsert_provider_connection(provider_kind, payload)
+    except service.ServiceError as exc:
+        raise _bad_request(str(exc))
+
+
 @app.get("/media/enhancement-configs", response_model=List[EnhancementConfigRecord])  # type: ignore[name-defined]
 def list_enhancement_configs():
     return [EnhancementConfigRecord(**service.public_enhancement_config(item)) for item in store.list_enhancement_configs()]
@@ -746,13 +765,13 @@ def get_enhancement_config(model_key: str):
 
 @app.post("/media/enhancement-configs", response_model=EnhancementConfigRecord)
 def create_enhancement_config(payload: EnhancementConfigUpsertRequest):
-    record = service.upsert_enhancement_config(payload.model_dump())
+    record = service.upsert_enhancement_config(payload.model_dump(exclude_unset=True))
     return EnhancementConfigRecord(**service.public_enhancement_config(record))
 
 
 @app.patch("/media/enhancement-configs/{model_key}", response_model=EnhancementConfigRecord)
 def update_enhancement_config(model_key: str, payload: EnhancementConfigUpsertRequest):
-    record = service.upsert_enhancement_config(payload.model_dump(), model_key)
+    record = service.upsert_enhancement_config(payload.model_dump(exclude_unset=True), model_key)
     return EnhancementConfigRecord(**service.public_enhancement_config(record))
 
 

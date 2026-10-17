@@ -27,7 +27,9 @@ describe("SettingsSectionTabs", () => {
     expect(screen.getByRole("button", { name: "General" }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("button", { name: "General" }).hasAttribute("disabled")).toBe(false);
 
-    fireEvent.click(screen.getByRole("button", { name: "AI" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connections" }));
+    expect(pushMock).toHaveBeenCalledWith("/settings/connections?project=proj_123");
+    fireEvent.click(screen.getByRole("button", { name: "AI Models" }));
     expect(pushMock).toHaveBeenCalledWith("/settings/llms?project=proj_123");
   });
 });

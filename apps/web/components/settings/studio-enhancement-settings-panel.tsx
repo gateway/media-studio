@@ -51,12 +51,9 @@ type EnhancementFormState = {
   providerKind: EnhancementProviderKind;
   providerLabel: string;
   providerModelId: string;
-  providerApiKey: string;
   providerApiKeyConfigured: boolean;
-  providerApiKeyTouched: boolean;
   providerBaseUrl: string;
   providerBaseUrlConfigured: boolean;
-  providerBaseUrlTouched: boolean;
   providerSupportsImages: boolean;
   providerStatus: string;
   providerLastTestedAt: string;
@@ -108,12 +105,9 @@ function emptyEnhancementForm(): EnhancementFormState {
     providerKind: "builtin",
     providerLabel: "",
     providerModelId: "",
-    providerApiKey: "",
     providerApiKeyConfigured: false,
-    providerApiKeyTouched: false,
     providerBaseUrl: "",
     providerBaseUrlConfigured: false,
-    providerBaseUrlTouched: false,
     providerSupportsImages: false,
     providerStatus: "",
     providerLastTestedAt: "",
@@ -138,12 +132,9 @@ function formFromConfig(config: MediaEnhancementConfig | null): EnhancementFormS
     providerKind: (config.provider_kind as EnhancementProviderKind) ?? "builtin",
     providerLabel: config.provider_label ?? "",
     providerModelId: config.provider_model_id ?? "",
-    providerApiKey: "",
     providerApiKeyConfigured: Boolean(config.provider_api_key_configured),
-    providerApiKeyTouched: false,
     providerBaseUrl: "",
     providerBaseUrlConfigured: Boolean(config.provider_base_url_configured),
-    providerBaseUrlTouched: false,
     providerSupportsImages: config.provider_supports_images ?? false,
     providerStatus: config.provider_status ?? "",
     providerLastTestedAt: config.provider_last_tested_at ?? "",
@@ -187,14 +178,15 @@ export function StudioEnhancementSettingsPanel({
       probeEnhancementProviderRequest({
         provider_kind: payload.provider_kind,
         model_key: GLOBAL_ENHANCEMENT_CONFIG_KEY,
-        api_key: payload.provider_kind === "codex_local" ? null : (form.providerApiKey || null),
+        api_key: payload.provider_kind === "codex_local" ? null : null,
         base_url: payload.provider_kind === "codex_local" ? null : payload.provider_base_url,
         selected_model_id: payload.provider_model_id,
         require_images: payload.require_images,
       }),
-    [form.providerApiKey],
+    [],
   );
   const { catalogs, loadProviderCatalog } = useSharedProviderModelCatalog({
+    cacheScope: "enhancement",
     probeRequest: probeSharedProviderCatalog,
   });
   const autoProbeSignatureRef = useRef<string | null>(null);
@@ -340,12 +332,6 @@ export function StudioEnhancementSettingsPanel({
       supports_image_analysis: form.supportsImageAnalysis,
       notes: form.notes || null,
     };
-    if (form.providerApiKeyTouched) {
-      payload.provider_api_key = form.providerApiKey || null;
-    }
-    if (form.providerBaseUrlTouched) {
-      payload.provider_base_url = form.providerBaseUrl || null;
-    }
     const endpoint = globalConfig
       ? `/api/control/media-enhancement-configs/${GLOBAL_ENHANCEMENT_CONFIG_KEY}`
       : "/api/control/media-enhancement-configs";
@@ -429,7 +415,7 @@ export function StudioEnhancementSettingsPanel({
         accentLabel="Prompt Enhance behavior"
         summaryLines={[
           "Choose an AI provider, then choose its default model below. Save applies this selection to Prompt Enhance; Graph nodes keep their own models.",
-          "Changing providers replaces this saved connection when you save. Recipe drafts and Assistant can reuse its credentials only while they use the same provider. Use machine-wide connections in Setup to keep multiple providers available.",
+          "Credentials are managed in Connections. Changing this task provider preserves every saved connection and legacy task endpoint override.",
           (
             <>
               AI service:{" "}
@@ -452,8 +438,8 @@ export function StudioEnhancementSettingsPanel({
                 providerKind,
                 providerLabel: "", providerModelId: "", providerStatus: "",
                 providerLastTestedAt: "", providerCapabilities: {}, providerSupportsImages: false,
-                providerApiKey: "", providerApiKeyConfigured: false, providerApiKeyTouched: true,
-                providerBaseUrl: "", providerBaseUrlConfigured: false, providerBaseUrlTouched: true,
+                providerApiKeyConfigured: false,
+                providerBaseUrl: "", providerBaseUrlConfigured: false,
                 providerCredentialSource: "",
               }));
             }}
@@ -494,14 +480,14 @@ export function StudioEnhancementSettingsPanel({
       {form.providerKind === "openrouter" ? (
           <SharedLlmProviderSection
             icon={KeyRound}
-            title="OpenRouter connection and model"
+            title="OpenRouter model"
             description={
               <>
                 {form.providerCredentialSource === "env"
                   ? "Using OPENROUTER_API_KEY from .env."
-                  : form.providerCredentialSource === "stored"
+                  : form.providerCredentialSource === "stored" || form.providerCredentialSource === "request"
                     ? "Using the saved OpenRouter key on the server."
-                    : "Enter a key here for this saved provider, or use the machine-wide key from Setup."}
+                    : "Connect OpenRouter in Connections to load models."}
                 {form.providerModelId ? ` Current model: ${form.providerModelId}.` : ""}
               </>
             }
@@ -513,36 +499,12 @@ export function StudioEnhancementSettingsPanel({
               void probeProvider("openrouter");
             }}
           >
-            {form.providerApiKeyConfigured ? (
-              <div className="max-w-[760px] text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-strong)]">
-                A key is already saved. Leave this blank to keep it, or paste a new one to replace it.
-              </div>
-            ) : null}
-            <div className="grid max-w-[760px] gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-              <AdminInput
-                value={form.providerApiKey}
-                onChange={(event) => setForm((current) => ({ ...current, providerApiKey: event.target.value, providerApiKeyTouched: true }))}
-                placeholder={
-                  form.providerCredentialSource === "env"
-                    ? "Using OPENROUTER_API_KEY from .env"
-                    : form.providerApiKeyConfigured
-                      ? "Saved on the server. Enter a new key to replace it."
-                      : "OpenRouter API key"
-                }
-                aria-label="OpenRouter API key"
-                autoComplete="current-password"
-                type="password"
-              />
+            <div className="grid max-w-[760px] gap-3">
               <AdminButton type="submit" disabled={Boolean(manualProbeKind)} variant="primary" size="compact" className="justify-self-start">
                 {manualProbeKind === "openrouter" ? "Refreshing..." : "Refresh models"}
               </AdminButton>
             </div>
-            <div className="grid max-w-[760px] gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-              <AdminInput
-                value={form.providerBaseUrl}
-                onChange={(event) => setForm((current) => ({ ...current, providerBaseUrl: event.target.value, providerBaseUrlTouched: true }))}
-                placeholder={form.providerBaseUrlConfigured ? "Saved on the server. Enter a new base URL to replace it." : "https://openrouter.ai/api/v1"}
-              />
+            <div className="grid max-w-[760px] gap-3">
               <AdminInput
                 value={openRouterModelQuery}
                 onChange={(event) => setOpenRouterModelQuery(event.target.value)}
@@ -576,17 +538,6 @@ export function StudioEnhancementSettingsPanel({
       {form.providerKind === "local_openai" ? (
           <SharedLlmProviderSection icon={Server} title="Local OpenAI-Compatible">
             <div className="grid max-w-[760px] gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-              <AdminInput
-                value={form.providerBaseUrl}
-                onChange={(event) => setForm((current) => ({ ...current, providerBaseUrl: event.target.value, providerBaseUrlTouched: true }))}
-                placeholder={form.providerBaseUrlConfigured ? "Saved on the server. Enter a new base URL to replace it." : "http://127.0.0.1:8080/v1"}
-              />
-              <AdminInput
-                value={form.providerApiKey}
-                onChange={(event) => setForm((current) => ({ ...current, providerApiKey: event.target.value, providerApiKeyTouched: true }))}
-                placeholder={form.providerApiKeyConfigured ? "Stored on the server. Enter a new key to replace it." : "Optional API key"}
-                type="password"
-              />
               <AdminButton onClick={() => void probeProvider("local_openai")} disabled={Boolean(manualProbeKind)} variant="primary" size="compact" className="justify-self-start">
                 {manualProbeKind === "local_openai" ? "Testing endpoint..." : "Test endpoint"}
               </AdminButton>

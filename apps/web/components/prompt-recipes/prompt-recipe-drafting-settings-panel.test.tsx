@@ -305,7 +305,7 @@ describe("PromptRecipeDraftingSettingsPanel", () => {
       );
     });
   });
-  it("lets recipe drafts switch providers without retaining the previous model or endpoint", async () => {
+  it("switches recipe providers without clearing saved connection fields", async () => {
     probePromptRecipeDraftingProviderRequest.mockResolvedValue({ ok: false, error: "Not configured" });
     savePromptRecipeDraftingConfigRequest.mockResolvedValue({ ok: true, config: makeConfig({ provider_kind: "local_openai", provider_model_id: null }) });
     render(<PromptRecipeDraftingSettingsPanel initialConfig={makeConfig()} embedded />);
@@ -313,7 +313,7 @@ describe("PromptRecipeDraftingSettingsPanel", () => {
     expect(screen.getByRole("button", { name: "Test endpoint" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /save recipe defaults/i }));
     await waitFor(() => expect(savePromptRecipeDraftingConfigRequest).toHaveBeenCalledWith(expect.objectContaining({
-      provider_kind: "local_openai", provider_model_id: null, provider_base_url: null,
+      provider_kind: "local_openai", provider_model_id: null, provider_base_url: undefined,
     })));
   });
 

@@ -113,7 +113,7 @@ export function PromptRecipeDraftingSettingsPanel({
   const [openRouterQuery, setOpenRouterQuery] = useState("");
   const { notice, showNotice, clearNotice } = useAdminActionNotice();
   const { catalogs, loadProviderCatalog } = useSharedProviderModelCatalog(
-    isAssistant ? { probeRequest: probeMediaAssistantProviderRequest } : {},
+    isAssistant ? { cacheScope: "assistant", probeRequest: probeMediaAssistantProviderRequest } : {},
   );
   const isAutoLoadingCatalog =
     catalogs[form.providerKind]?.status === "loading" && manualProbeKind == null;
@@ -292,7 +292,7 @@ export function PromptRecipeDraftingSettingsPanel({
                   ...current, providerKind,
                   providerLabel: "", providerModelId: "", providerStatus: "",
                   providerCapabilities: {}, providerSupportsImages: false, providerLastTestedAt: "",
-                  providerBaseUrl: "", providerBaseUrlConfigured: false, providerBaseUrlTouched: true,
+                  providerBaseUrl: "", providerBaseUrlConfigured: false, providerBaseUrlTouched: false,
                   providerCredentialSource: "",
                 }));
               }}
@@ -346,7 +346,7 @@ export function PromptRecipeDraftingSettingsPanel({
                   ? "Using OPENROUTER_API_KEY from .env."
                   : form.providerCredentialSource === "stored"
                     ? "Using the saved OpenRouter key on the server."
-                    : "Add OPENROUTER_API_KEY to the machine’s .env file and restart Studio (see Setup). A key saved under Prompt Enhance is also reused while that task uses OpenRouter."}
+                    : "Connect OpenRouter in Settings → Connections to load models. Existing legacy keys remain available when tasks change providers."}
                 {form.providerModelId ? ` Current model: ${form.providerModelId}.` : ""}
               </>
             }
@@ -395,17 +395,6 @@ export function PromptRecipeDraftingSettingsPanel({
       {form.enabled && form.providerKind === "local_openai" ? (
           <SharedLlmProviderSection icon={Server} title="Local OpenAI-Compatible">
             <div className="grid max-w-[760px] gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-              <AdminInput
-                value={form.providerBaseUrl}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    providerBaseUrl: event.target.value,
-                    providerBaseUrlTouched: true,
-                  }))
-                }
-                placeholder={form.providerBaseUrlConfigured ? "Saved on the server. Enter a new base URL to replace it." : "http://127.0.0.1:8080/v1"}
-              />
               <AdminButton onClick={() => void probeProvider(false)} disabled={Boolean(manualProbeKind)} variant="primary" size="compact" className="justify-self-start">
                 {manualProbeKind === "local_openai" ? "Testing endpoint..." : "Test endpoint"}
               </AdminButton>

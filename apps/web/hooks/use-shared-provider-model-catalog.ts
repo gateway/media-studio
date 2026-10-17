@@ -49,16 +49,28 @@ const DEFAULT_PROVIDER_CATALOG_TTL_MS = 5 * 60 * 1000;
 const sharedCatalogCache: Partial<Record<SharedLlmProviderKind, CatalogEntry>> = {};
 const sharedCatalogInFlight = new Map<string, Promise<LoadProviderCatalogResult>>();
 
-export function __resetSharedProviderModelCatalogCacheForTests() {
+let connectionRevision = 0;
+export function invalidateProviderModelCatalogs() {
+  connectionRevision += 1;
+  clearProviderModelCatalogCache();
+}
+
+function clearProviderModelCatalogCache() {
   for (const providerKind of Object.keys(sharedCatalogCache) as SharedLlmProviderKind[]) {
     delete sharedCatalogCache[providerKind];
   }
   sharedCatalogInFlight.clear();
 }
 
-function requestSignature(providerKind: SharedLlmProviderKind, options: LoadProviderCatalogOptions) {
+export function __resetSharedProviderModelCatalogCacheForTests() {
+  clearProviderModelCatalogCache();
+}
+
+function requestSignature(providerKind: SharedLlmProviderKind, options: LoadProviderCatalogOptions, cacheScope: string) {
   return JSON.stringify({
     providerKind,
+    connectionRevision,
+    cacheScope,
     providerBaseUrl: options.providerBaseUrl ?? null,
     requireImages: Boolean(options.requireImages),
   });
@@ -69,10 +81,12 @@ type CatalogEntry = SharedProviderCatalogState & {
 };
 
 export function useSharedProviderModelCatalog({
+  cacheScope = "recipe",
   ttlMs = DEFAULT_PROVIDER_CATALOG_TTL_MS,
   probeRequest = probePromptRecipeDraftingProviderRequest,
   appendConsole,
 }: {
+  cacheScope?: string;
   ttlMs?: number;
   probeRequest?: ProbeProviderCatalogRequest;
   appendConsole?: (line: string) => void;
@@ -98,7 +112,7 @@ export function useSharedProviderModelCatalog({
       options: LoadProviderCatalogOptions = {},
     ): Promise<LoadProviderCatalogResult> => {
       const current = sharedCatalogCache[providerKind] ?? catalogsRef.current[providerKind];
-      const nextRequestSignature = requestSignature(providerKind, options);
+      const nextRequestSignature = requestSignature(providerKind, options, cacheScope);
       const freshEnough =
         current?.status === "ready" &&
         current.fetchedAt != null &&
@@ -124,8 +138,9 @@ export function useSharedProviderModelCatalog({
         if (cached) {
           updateCatalogEntry(providerKind, cached);
         }
-        return result;
+        return result.ok && options.selectedModelId ? { ...result, selectedModel: result.availableModels.find((model) => model.id === options.selectedModelId) ?? null } : result;
       }
+      const revision = connectionRevision;
       const promise = (async () => {
         const previousEntry = sharedCatalogCache[providerKind] ?? catalogsRef.current[providerKind];
         updateCatalogEntry(providerKind, {
@@ -147,6 +162,7 @@ export function useSharedProviderModelCatalog({
           if (!result.ok) {
             throw new Error(result.error ?? "Unable to load provider models.");
           }
+          if (revision !== connectionRevision) return { ok: false as const, error: "Connection changed. Refresh models.", availableModels: [], selectedModel: null, credentialSource: null };
           updateCatalogEntry(providerKind, {
             status: "ready",
             availableModels: result.availableModels,
@@ -193,7 +209,7 @@ export function useSharedProviderModelCatalog({
       sharedCatalogInFlight.set(nextRequestSignature, promise);
       return promise;
     },
-    [appendConsole, probeRequest, ttlMs, updateCatalogEntry],
+    [appendConsole, cacheScope, probeRequest, ttlMs, updateCatalogEntry],
   );
 
   return {

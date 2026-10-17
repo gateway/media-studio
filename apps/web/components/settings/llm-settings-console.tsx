@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { buildStudioScopedHref } from "@/lib/studio-navigation";
 import type { ReactNode } from "react";
 import { Cable, Coins, Image as ImageIcon } from "lucide-react";
 
@@ -15,11 +16,9 @@ import { PromptRecipeDraftingSettingsPanel } from "@/components/prompt-recipes/p
 import { StudioEnhancementSettingsPanel } from "@/components/settings/studio-enhancement-settings-panel";
 import { StatusPill } from "@/components/status-pill";
 import { SurfaceInset } from "@/components/ui/surface-primitives";
-import { summarizeLlmProviderReadiness, type MediaStudioHealthSummary } from "@/lib/llm-provider-health";
+import { type MediaStudioHealthSummary } from "@/lib/llm-provider-health";
 import {
-  getLlmProviderDescriptor,
   llmProviderLabel,
-  type SharedLlmProviderKind,
 } from "@/lib/llm-provider-metadata";
 import type {
   ControlApiHealthData,
@@ -28,47 +27,8 @@ import type {
   MediaEnhancementConfig,
   PromptRecipeDraftingConfig,
 } from "@/lib/types";
-import { notSetUpStatus, readinessStatus, readyStatus } from "@/lib/status-language";
+import { notSetUpStatus, readyStatus } from "@/lib/status-language";
 import { formatUsdAmount } from "@/lib/utils";
-
-function providerSummaryCard({
-  providerKind,
-  ready,
-  configured,
-  detail,
-  actionHref,
-  actionLabel,
-}: {
-  providerKind: SharedLlmProviderKind;
-  ready: boolean;
-  configured: boolean;
-  detail: string;
-  actionHref?: string;
-  actionLabel?: string;
-}) {
-  const descriptor = getLlmProviderDescriptor(providerKind);
-  return (
-    <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="admin-label-muted">{descriptor.label}</div>
-        </div>
-        <StatusPill label={readinessStatus(ready, configured).label} tone={readinessStatus(ready, configured).tone} />
-      </div>
-      <div className="mt-3 text-xs text-[var(--muted-strong)]">
-        {descriptor.billingLabel}
-      </div>
-      <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">{detail}</div>
-      {actionHref && actionLabel ? (
-        <div className="mt-4">
-          <Link href={actionHref} className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
-            {actionLabel}
-          </Link>
-        </div>
-      ) : null}
-    </SurfaceInset>
-  );
-}
 
 function settingsMetricCard({
   label,
@@ -115,19 +75,15 @@ export function LlmSettingsConsole({
   mediaAssistantConfig,
   promptRecipeDraftingConfig,
   openRouterSpend,
-  health,
+  currentProjectId = null,
 }: {
+  currentProjectId?: string | null;
   enhancementConfigs: MediaEnhancementConfig[];
   mediaAssistantConfig: MediaAssistantConfig | null;
   promptRecipeDraftingConfig: PromptRecipeDraftingConfig | null;
   openRouterSpend: ExternalLlmUsageSummary | null;
   health: MediaStudioHealthSummary | ControlApiHealthData;
 }) {
-  const readiness = summarizeLlmProviderReadiness(
-    health,
-    enhancementConfigs,
-    promptRecipeDraftingConfig,
-  );
   const enhancementProvider = enhancementConfigs.find((config) => config.model_key === "__studio_enhancement__") ?? null;
   const draftingProviderLabel = llmProviderLabel(promptRecipeDraftingConfig?.provider_kind);
   const assistantProviderLabel = llmProviderLabel(mediaAssistantConfig?.provider_kind);
@@ -149,49 +105,12 @@ export function LlmSettingsConsole({
 
   return (
     <div className={adminSectionStackClassName}>
-      <section aria-label="Available AI providers">
-        <div>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="admin-label-muted">Available AI providers</div>
-
-            </div>
-            <Link href="/setup" className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
-              Connection setup guide
-            </Link>
-          </div>
-          <div className="mt-4 grid gap-3 lg:grid-cols-3">
-            {providerSummaryCard({
-              providerKind: "codex_local",
-              ready: readiness.codexLocal.ready,
-              configured: readiness.codexLocal.configured,
-              detail: readiness.codexLocal.ready
-                ? "Codex is installed and signed in on this machine."
-                : readiness.codexLocal.commandAvailable
-                  ? "Codex is installed, but this machine is not signed in yet."
-                  : "Codex is not installed on this machine yet.",
-              actionHref: readiness.codexLocal.ready ? undefined : "/setup",
-              actionLabel: readiness.codexLocal.ready ? undefined : "Set up Codex",
-            })}
-            {providerSummaryCard({
-              providerKind: "openrouter",
-              ready: readiness.openRouter.ready,
-              configured: readiness.openRouter.configured,
-              detail: readiness.openRouter.configured
-                ? "An OpenRouter API key is already saved for this Studio install."
-                : "No OpenRouter API key has been added yet.",
-            })}
-            {providerSummaryCard({
-              providerKind: "local_openai",
-              ready: readiness.localOpenAi.ready,
-              configured: readiness.localOpenAi.configured,
-              detail: readiness.localOpenAi.configured
-                ? "A local endpoint is saved. Use Test endpoint below to make sure it responds."
-                : "No local endpoint has been added yet.",
-            })}
-          </div>
-        </div>
-      </section>
+      <div className="flex flex-wrap gap-4 text-sm text-[var(--accent-strong)]">
+        <Link href={buildStudioScopedHref("/settings/connections", currentProjectId)}>Manage connections →</Link>
+        <a href="/help/ai#models" target="_blank" rel="noreferrer">Select and test models ↗</a>
+        <a href="/help/ai#enhancement" target="_blank" rel="noreferrer">Use Prompt Enhance ↗</a>
+        <a href="/help/ai#recipes" target="_blank" rel="noreferrer">Draft and use recipes ↗</a>
+      </div>
 
       <Panel className="admin-disclosure-list overflow-hidden p-0">
         <div className="p-5"><PanelHeader eyebrow="AI defaults" title="Default models" description="Open the task you want to change, select its AI provider, then select a model and save. Each task has its own default." /></div>

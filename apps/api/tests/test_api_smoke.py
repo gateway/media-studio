@@ -1456,8 +1456,8 @@ def test_enhancement_probe_ignores_stale_runtime_from_other_provider(client, app
         json={"provider_kind": "openrouter", "model_key": "__studio_enhancement__", "require_images": False},
     )
     assert response.status_code == 200, response.text
-    assert captured["base_url"] is None
-    assert captured["api_key"] is None
+    assert captured["base_url"] == app_modules["service"].settings.openrouter_base_url
+    assert captured["api_key"] == ""
 
 
 def test_prompt_recipe_drafting_probe_ignores_stale_model_from_other_provider(client, app_modules, monkeypatch) -> None:
@@ -1616,7 +1616,7 @@ def test_prompt_recipe_draft_respects_disabled_setting(client) -> None:
 
     response = client.post("/prompt-recipes/draft", json={"idea": "Create a cinematic video director recipe."})
     assert response.status_code == 400
-    assert "Recipe drafting is turned off in AI Settings." in response.text
+    assert "Recipe drafting is turned off in AI Models." in response.text
 
 
 def test_prompt_recipe_draft_uses_saved_default_and_validates_output(client, app_modules, monkeypatch) -> None:
