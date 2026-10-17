@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -21,12 +22,16 @@ import {
 import { feedbackToneClassName } from "@/components/ui/toast-banner";
 import { formatUsdAmount } from "@/lib/utils";
 
+const adminCss = readFileSync(new URL("../app/admin.css", import.meta.url), "utf8");
+
 describe("ui primitives", () => {
   it("keeps studio and admin button variants token-backed through shared action variables", () => {
     expect(buttonClassName({ appearance: "studio", variant: "primary" })).toContain("var(--action-primary-fill)");
-    expect(buttonClassName({ appearance: "admin", variant: "primary" })).toContain("var(--action-primary-fill)");
+    expect(buttonClassName({ appearance: "admin", variant: "primary" })).toContain("admin-button-primary");
+    expect(adminCss).toMatch(/\.admin-button-primary\s*\{[^}]*background:\s*var\(--action-primary-fill\)/);
     expect(buttonClassName({ appearance: "studio", variant: "subtle" })).toContain("var(--action-subtle-border)");
-    expect(buttonClassName({ appearance: "admin", variant: "danger" })).toContain("var(--action-danger-border)");
+    expect(buttonClassName({ appearance: "admin", variant: "danger" })).toContain("admin-button-danger");
+    expect(adminCss).toMatch(/\.admin-button-danger\s*\{[^}]*border-color:\s*var\(--action-danger-border\)/);
   });
 
   it("supports compact button sizing without redefining variants", () => {
@@ -34,7 +39,9 @@ describe("ui primitives", () => {
     const adminCompact = buttonClassName({ appearance: "admin", variant: "subtle", size: "compact" });
 
     expect(studioCompact).toContain("h-9");
-    expect(adminCompact).toContain("px-[0.9rem]");
+    expect(adminCompact).toContain("admin-button-subtle");
+    expect(adminCompact).toContain("admin-button-compact");
+    expect(adminCss).toMatch(/\.admin-button-compact\s*\{[^}]*min-height:\s*32px;[^}]*padding:\s*5px 12px/);
   });
 
   it("uses shared icon button tones for studio surfaces", () => {

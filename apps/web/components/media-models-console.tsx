@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { adminThemeLayoutClassName, adminThemeLayoutOverflowClassName } from "@/components/admin-theme";
 import { AdminActionNotice } from "@/components/admin-action-notice";
@@ -12,7 +12,6 @@ import { MediaModelSystemPromptPanel } from "@/components/media-models/media-mod
 import { MediaOutputFolderPanel } from "@/components/media-models/media-output-folder-panel";
 import { MediaPresetsPanel } from "@/components/media-models/media-presets-panel";
 import type { EnhancementProfileFormState } from "@/components/media-models/media-models-console-types";
-import { StudioEnhancementSettingsPanel } from "@/components/settings/studio-enhancement-settings-panel";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import { invalidateGraphNodeDefinitions } from "@/lib/graph-node-definitions-sync";
 import {
@@ -44,9 +43,9 @@ type MediaModelsConsoleProps = {
   queuePolicies?: MediaModelQueuePolicy[];
   initialSelectedModelKey?: string;
   variant?: "default" | "studio";
+  settingsAside?: ReactNode;
   sections?: {
     queue?: boolean;
-    enhancementProvider?: boolean;
     modelHelper?: boolean;
     studioSettings?: boolean;
     modelPanel?: boolean;
@@ -90,6 +89,7 @@ export function MediaModelsConsole({
   initialSelectedModelKey,
   variant = "default",
   sections,
+  settingsAside,
 }: MediaModelsConsoleProps) {
   const router = useRouter();
   const [selectedModelKey, setSelectedModelKey] = useState(initialSelectedModelKey ?? models[0]?.key ?? "nano-banana-2");
@@ -134,7 +134,6 @@ export function MediaModelsConsole({
   const isStudio = variant === "studio";
   const visibleSections = {
     queue: sections?.queue ?? true,
-    enhancementProvider: sections?.enhancementProvider ?? true,
     modelHelper: sections?.modelHelper ?? true,
     studioSettings: sections?.studioSettings ?? true,
     modelPanel: sections?.modelPanel ?? true,
@@ -342,6 +341,8 @@ export function MediaModelsConsole({
         </div>
       ) : null}
 
+      <div className={settingsAside ? "admin-form-grid" : "contents"}>
+        <div className={settingsAside ? "admin-form-main" : "contents"}>
       {visibleSections.queue ? (
         <MediaModelsQueueSettingsPanel
           queueSettings={localQueueSettings}
@@ -360,8 +361,15 @@ export function MediaModelsConsole({
         />
       ) : null}
 
-      {visibleSections.enhancementProvider ? <StudioEnhancementSettingsPanel initialConfigs={localEnhancementConfigs} /> : null}
+      {visibleSections.queue && !visibleSections.modelPanel ? (
+        <MediaModelAvailabilityPanel
+          rows={modelAvailabilityRows}
+          onToggleAvailability={(modelKey, enabled) => void saveModelAvailability(modelKey, enabled)}
+        />
+      ) : null}
 
+        </div>
+        <div className={settingsAside ? "admin-form-aside" : "contents"}>
       {visibleSections.studioSettings ? (
         <MediaOutputFolderPanel
           mediaOutputsPath={MEDIA_OUTPUTS_PATH}
@@ -370,12 +378,9 @@ export function MediaModelsConsole({
         />
       ) : null}
 
-      {visibleSections.queue && !visibleSections.modelPanel ? (
-        <MediaModelAvailabilityPanel
-          rows={modelAvailabilityRows}
-          onToggleAvailability={(modelKey, enabled) => void saveModelAvailability(modelKey, enabled)}
-        />
-      ) : null}
+          {settingsAside}
+        </div>
+      </div>
 
       {visibleSections.modelPanel ? (
         <MediaModelSetupPanel

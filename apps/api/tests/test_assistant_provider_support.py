@@ -110,4 +110,4 @@ def test_runtime_reports_missing_external_credentials_as_configuration_error(
 
     message = str(exc_info.value).lower()
     assert "credential" in message
-    assert "ai settings" in message
+    assert "connections" in message

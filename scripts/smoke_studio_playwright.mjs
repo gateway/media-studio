@@ -245,12 +245,13 @@ async function run() {
 
     const adminRoutes = [
       { path: "/settings", heading: "Settings", text: "Queue Settings" },
-      { path: "/settings/llms", heading: "AI Settings", text: "Prompt Enhance default model" },
-      { path: "/setup", heading: "Connect Services", text: "Connect KIE" },
+      { path: "/settings/llms", heading: "AI Models", text: "Prompt Enhance default model" },
+      { path: "/settings/connections", heading: "Connections", text: "Codex Local" },
+      { path: "/setup", heading: "Connections", text: "Codex Local" },
       { path: "/models", heading: "Models", text: "Model Setup" },
       { path: "/presets", heading: "Presets", text: "Media Presets" },
-      { path: "/jobs", heading: "Jobs", text: "Recent Jobs" },
-      { path: "/pricing", heading: "Pricing", text: "Live pricing context" },
+      { path: "/jobs", heading: "Jobs", text: "Recent jobs" },
+      { path: "/pricing", heading: "Pricing", text: "Model estimates" },
     ];
     for (const route of adminRoutes) {
       await smokeAdminRoute(page, webBaseUrl, route);

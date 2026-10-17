@@ -130,7 +130,7 @@ export function PromptRecipeVariablesPanel({
         {recipeFieldCount ? (
           <>
             {recipeVariables.map((variable) => (
-              <div key={variable.key} className="admin-surface-inset grid gap-3 p-4">
+              <div key={variable.key} className="surface-inset grid gap-3 p-4">
                 <div className="grid gap-3 md:grid-cols-5">
                   <AdminField label="Key">
                     <AdminInput value={variable.key} disabled />
@@ -168,7 +168,7 @@ export function PromptRecipeVariablesPanel({
               </div>
             ))}
             {customFields.map((field, index) => (
-              <div key={index} className="admin-surface-inset grid gap-3 p-4">
+              <div key={index} className="surface-inset grid gap-3 p-4">
                 <div className="grid gap-3 md:grid-cols-5">
                   <AdminField label="Key">
                     <AdminInput value={field.key} onChange={(event) => onUpdateCustomField(index, { key: slugifyPromptRecipeKey(event.target.value) })} />
@@ -227,7 +227,7 @@ export function PromptRecipeVariablesPanel({
             ))}
           </>
         ) : (
-          <div className="admin-surface-inset p-4 text-sm leading-6 text-[var(--muted-strong)]">
+          <div className="surface-inset p-4 text-sm leading-6 text-[var(--muted-strong)]">
             No recipe fields yet. Add fields when this recipe needs user-facing options beyond the standard prompt input.
           </div>
         )}
@@ -247,7 +247,7 @@ export function PromptRecipeVariablesPanel({
         </p>
         <div className="grid gap-3">
           {reservedVariables.map((variable) => (
-            <div key={variable.key} className="admin-surface-inset grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_minmax(150px,180px)_minmax(150px,180px)_minmax(112px,140px)_64px] md:items-center">
+            <div key={variable.key} className="surface-inset grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_minmax(150px,180px)_minmax(150px,180px)_minmax(112px,140px)_64px] md:items-center">
               <div>
                 <div className="font-semibold text-[var(--foreground)]">{variable.label}</div>
                 <div className="text-sm text-[var(--muted-strong)]">

@@ -27,7 +27,7 @@ export function MediaPresetActionsPanel({
 }) {
   return (
     <div className={className}>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+      <div className="grid gap-4">
         <div>
           <div className="admin-label-muted">
             Notes
@@ -39,9 +39,20 @@ export function MediaPresetActionsPanel({
             className="mt-3 min-h-[96px]"
           />
         </div>
-        <AdminEditorActionBar className="grid w-full gap-3 sm:flex sm:w-auto sm:flex-wrap xl:justify-end">
+        <AdminEditorActionBar>
           {form.presetId ? (
             <AdminButton
+              onClick={onArchive}
+              disabled={isSaving || archived}
+              variant="danger"
+              className="w-full px-4 py-3 text-sm normal-case tracking-normal sm:w-auto"
+            >
+              Archive
+            </AdminButton>
+          ) : null}
+          {form.presetId ? (
+            <AdminButton
+              variant="subtle"
               onClick={onExport}
               disabled={isExporting}
               className="w-full sm:w-auto"
@@ -56,16 +67,7 @@ export function MediaPresetActionsPanel({
           >
             {form.presetId ? "Save preset" : "Create preset"}
           </AdminButton>
-          {form.presetId ? (
-            <AdminButton
-              onClick={onArchive}
-              disabled={isSaving || archived}
-              variant="danger"
-              className="w-full px-4 py-3 text-sm normal-case tracking-normal sm:w-auto"
-            >
-              Archive
-            </AdminButton>
-          ) : null}
+
         </AdminEditorActionBar>
       </div>
     </div>

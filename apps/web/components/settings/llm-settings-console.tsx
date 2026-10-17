@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { buildStudioScopedHref } from "@/lib/studio-navigation";
 import type { ReactNode } from "react";
-import { BrainCircuit, Cable, Coins, Image as ImageIcon, MessageCircle, Sparkles } from "lucide-react";
+import { Cable, Coins, Image as ImageIcon } from "lucide-react";
 
 import { adminButtonClassName, adminInsetPanelClassName } from "@/components/admin-controls";
 import { SectionDisclosure } from "@/components/collapsible-sections";
@@ -15,61 +16,17 @@ import { PromptRecipeDraftingSettingsPanel } from "@/components/prompt-recipes/p
 import { StudioEnhancementSettingsPanel } from "@/components/settings/studio-enhancement-settings-panel";
 import { StatusPill } from "@/components/status-pill";
 import { SurfaceInset } from "@/components/ui/surface-primitives";
-import { summarizeLlmProviderReadiness, type MediaStudioHealthSummary } from "@/lib/llm-provider-health";
 import {
-  getLlmProviderDescriptor,
   llmProviderLabel,
-  type SharedLlmProviderKind,
 } from "@/lib/llm-provider-metadata";
 import type {
-  ControlApiHealthData,
   ExternalLlmUsageSummary,
   MediaAssistantConfig,
   MediaEnhancementConfig,
   PromptRecipeDraftingConfig,
 } from "@/lib/types";
-import { notSetUpStatus, readinessStatus, readyStatus } from "@/lib/status-language";
+import { notSetUpStatus, readyStatus } from "@/lib/status-language";
 import { formatUsdAmount } from "@/lib/utils";
-
-function providerSummaryCard({
-  providerKind,
-  ready,
-  configured,
-  detail,
-  actionHref,
-  actionLabel,
-}: {
-  providerKind: SharedLlmProviderKind;
-  ready: boolean;
-  configured: boolean;
-  detail: string;
-  actionHref?: string;
-  actionLabel?: string;
-}) {
-  const descriptor = getLlmProviderDescriptor(providerKind);
-  return (
-    <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="admin-label-muted">{descriptor.label}</div>
-          <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">{descriptor.summary}</div>
-        </div>
-        <StatusPill label={readinessStatus(ready, configured).label} tone={readinessStatus(ready, configured).tone} />
-      </div>
-      <div className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-strong)]">
-        {descriptor.billingLabel}
-      </div>
-      <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">{detail}</div>
-      {actionHref && actionLabel ? (
-        <div className="mt-4">
-          <Link href={actionHref} className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
-            {actionLabel}
-          </Link>
-        </div>
-      ) : null}
-    </SurfaceInset>
-  );
-}
 
 function settingsMetricCard({
   label,
@@ -116,19 +73,14 @@ export function LlmSettingsConsole({
   mediaAssistantConfig,
   promptRecipeDraftingConfig,
   openRouterSpend,
-  health,
+  currentProjectId = null,
 }: {
+  currentProjectId?: string | null;
   enhancementConfigs: MediaEnhancementConfig[];
   mediaAssistantConfig: MediaAssistantConfig | null;
   promptRecipeDraftingConfig: PromptRecipeDraftingConfig | null;
   openRouterSpend: ExternalLlmUsageSummary | null;
-  health: MediaStudioHealthSummary | ControlApiHealthData;
 }) {
-  const readiness = summarizeLlmProviderReadiness(
-    health,
-    enhancementConfigs,
-    promptRecipeDraftingConfig,
-  );
   const enhancementProvider = enhancementConfigs.find((config) => config.model_key === "__studio_enhancement__") ?? null;
   const draftingProviderLabel = llmProviderLabel(promptRecipeDraftingConfig?.provider_kind);
   const assistantProviderLabel = llmProviderLabel(mediaAssistantConfig?.provider_kind);
@@ -150,133 +102,36 @@ export function LlmSettingsConsole({
 
   return (
     <div className={adminSectionStackClassName}>
-      <Panel>
-        <PanelHeader
-          eyebrow="AI Settings"
-          title="Set up default models"
-          description="Choose defaults for Prompt Enhance, recipe drafts, and the Media Assistant. Graph workflow nodes still own their generation models."
-        />
-        <div className="mt-5 grid gap-3 lg:grid-cols-4">
-          {settingsIconCard({
-            icon: <Sparkles className="size-3.5" />,
-            label: "Prompt Enhance button",
-            children: (
-              <div className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">
-                Default model: <span className="font-medium text-[var(--foreground)]">{enhancementProviderLabel}</span>
-              </div>
-            ),
-          })}
-          {settingsIconCard({
-            icon: <BrainCircuit className="size-3.5" />,
-            label: "Recipe drafts",
-            children: (
-              <>
-                <div className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">
-                  Default model:{" "}
-                  <span className="font-medium text-[var(--foreground)]">{draftingEnabled ? draftingProviderLabel : "Off"}</span>
-                </div>
-                <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">
-                  Only used when Media Studio writes the first draft of a Prompt Recipe.
-                </div>
-              </>
-            ),
-          })}
-          {settingsIconCard({
-            icon: <MessageCircle className="size-3.5" />,
-            label: "Media Assistant",
-            children: (
-              <>
-                <div className="mt-3 text-sm leading-7 text-[var(--muted-strong)]">
-                  Default model: <span className="font-medium text-[var(--foreground)]">{assistantProviderLabel}</span>
-                </div>
-                <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">
-                  {mediaAssistantConfig?.supports_media_studio_tools === false
-                    ? "Read-only chat. Graph building needs Codex Local."
-                    : "Codex Local can use the approved Media Studio tools."}
-                </div>
-              </>
-            ),
-          })}
-          {settingsIconCard({
-            icon: <Cable className="size-3.5" />,
-            label: "Graph workflows",
-            children: (
-              <div className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">
-                Graph prompt nodes choose their own provider and model inside each workflow. They do not use the recipe
-                draft default from this page.
-              </div>
-            ),
-          })}
-        </div>
-        <div className="mt-5 border-t border-[var(--border-subtle)] pt-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="admin-label-muted">Connected AI services</div>
-              <div className="mt-2 text-sm leading-6 text-[var(--muted-strong)]">
-                Start with Codex Local if this machine already uses Codex or ChatGPT. Use OpenRouter for hosted,
-                usage-based models. Use Local OpenAI-compatible only if you already run your own endpoint.
-              </div>
-            </div>
-            <Link href="/setup" className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
-              Open setup
-            </Link>
-          </div>
-          <div className="mt-4 grid gap-3 lg:grid-cols-3">
-            {providerSummaryCard({
-              providerKind: "codex_local",
-              ready: readiness.codexLocal.ready,
-              configured: readiness.codexLocal.configured,
-              detail: readiness.codexLocal.ready
-                ? "Codex is installed and signed in on this machine."
-                : readiness.codexLocal.commandAvailable
-                  ? "Codex is installed, but this machine is not signed in yet."
-                  : "Codex is not installed on this machine yet.",
-              actionHref: readiness.codexLocal.ready ? undefined : "/setup",
-              actionLabel: readiness.codexLocal.ready ? undefined : "Set up Codex",
-            })}
-            {providerSummaryCard({
-              providerKind: "openrouter",
-              ready: readiness.openRouter.ready,
-              configured: readiness.openRouter.configured,
-              detail: readiness.openRouter.configured
-                ? "An OpenRouter API key is already saved for this Studio install."
-                : "No OpenRouter API key has been added yet.",
-            })}
-            {providerSummaryCard({
-              providerKind: "local_openai",
-              ready: readiness.localOpenAi.ready,
-              configured: readiness.localOpenAi.configured,
-              detail: readiness.localOpenAi.configured
-                ? "A local endpoint is saved. Use Test endpoint below to make sure it responds."
-                : "No local endpoint has been added yet.",
-            })}
-          </div>
-        </div>
-      </Panel>
+      <div className="flex flex-wrap gap-4 text-sm text-[var(--accent-strong)]">
+        <Link href={buildStudioScopedHref("/settings/connections", currentProjectId)}>Manage connections →</Link>
+        <a href="/help/ai#models" target="_blank" rel="noreferrer">Select and test models ↗</a>
+        <a href="/help/ai#enhancement" target="_blank" rel="noreferrer">Use Prompt Enhance ↗</a>
+        <a href="/help/ai#recipes" target="_blank" rel="noreferrer">Draft and use recipes ↗</a>
+      </div>
 
-      <Panel className="overflow-hidden p-0">
+      <Panel className="admin-disclosure-list overflow-hidden p-0">
+        <div className="p-5"><PanelHeader eyebrow="AI defaults" title="Default models" description="Open the task you want to change, select its AI provider, then select a model and save. Each task has its own default." /></div>
         <SectionDisclosure
+          className="admin-disclosure-compact"
           title="Prompt Enhance default model"
           description="Choose the model Studio uses when Prompt Enhance rewrites a prompt."
-          summary={`Using: ${enhancementProviderLabel}`}
+          summary={`${enhancementProviderLabel} · ${enhancementProvider?.provider_label || enhancementProvider?.provider_model_id || "Default"}`}
           detail="Image access is separate. Graph prompt nodes still choose their own model."
           statusSlot={<StatusPill label={enhancementStatus.label} tone={enhancementStatus.tone} />}
           defaultOpen={false}
         >
           <StudioEnhancementSettingsPanel initialConfigs={enhancementConfigs} embedded />
         </SectionDisclosure>
-      </Panel>
-
-      <Panel className="overflow-hidden p-0">
         <SectionDisclosure
+          className="admin-disclosure-compact"
           title="Recipe draft model"
           description="Choose the default model used when Media Studio writes the first draft of a Prompt Recipe."
-          summary={draftingEnabled ? `Using: ${draftingProviderLabel}` : "Recipe drafts are off."}
+          summary={draftingEnabled ? `${draftingProviderLabel} · ${promptRecipeDraftingConfig?.provider_label || promptRecipeDraftingConfig?.provider_model_id || "Not configured"}` : "Recipe drafts are off."}
           detail="This is only for first drafts. It does not control graph runs or save a recipe by itself."
           statusSlot={<StatusPill label={draftingStatus.label} tone={draftingStatus.tone} />}
           defaultOpen={false}
         >
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4 sm:px-6">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-soft)] px-5 py-4 sm:px-6">
             <div className="max-w-2xl text-sm leading-6 text-[var(--muted-strong)]">
               Create and edit Prompt Recipes from the Prompt Recipes admin page. Recipe fields can expose graph inputs as
               text handles or image handles; image handles use the recipe image settings below for analysis or direct
@@ -288,13 +143,11 @@ export function LlmSettingsConsole({
           </div>
           <PromptRecipeDraftingSettingsPanel initialConfig={promptRecipeDraftingConfig} embedded />
         </SectionDisclosure>
-      </Panel>
-
-      <Panel className="overflow-hidden p-0">
         <SectionDisclosure
+          className="admin-disclosure-compact"
           title="Media Assistant model"
           description="Choose the conversation provider and image generation defaults for new Assistant work."
-          summary={`Using: ${assistantProviderLabel}`}
+          summary={`${assistantProviderLabel} · ${mediaAssistantConfig?.provider_label || mediaAssistantConfig?.provider_model_id || "Not configured"}`}
           detail={
             mediaAssistantConfig?.supports_media_studio_tools === false
               ? "This provider is chat only. Switch to Codex Local for graph building and Studio actions."
@@ -313,6 +166,7 @@ export function LlmSettingsConsole({
 
       <Panel className="overflow-hidden p-0">
         <SectionDisclosure
+          className="admin-disclosure-compact"
           title="Cost and usage"
           description="This shows what Media Studio tracks and what it leaves up to your own setup."
           summary="OpenRouter is usage-based. Codex Local uses your plan. Local OpenAI-compatible uses your own machine or server."
@@ -320,6 +174,7 @@ export function LlmSettingsConsole({
           statusSlot={<StatusPill label={billingStatus.label} tone={billingStatus.tone} />}
           defaultOpen={false}
         >
+          <p className="mb-4 text-sm text-[var(--muted-strong)]">Start with Codex Local if this machine already uses Codex or ChatGPT. Use OpenRouter for hosted, usage-based models. Use Local OpenAI-compatible only if you already run your own endpoint.</p>
           <div className={adminMetricGridFourClassName}>
             {settingsMetricCard({
               label: "Today",

@@ -11,15 +11,6 @@ export type AdminChoice = {
   label: string;
 };
 
-export const adminSubtleButtonClassName =
-  buttonClassName({ appearance: "admin", variant: "subtle" });
-
-export const adminPrimaryButtonClassName =
-  buttonClassName({ appearance: "admin", variant: "primary" });
-
-export const adminDangerButtonClassName =
-  buttonClassName({ appearance: "admin", variant: "danger" });
-
 export const adminInsetSurfaceClassName =
   surfaceInsetClassName({ appearance: "admin", className: "p-4" });
 
@@ -46,21 +37,7 @@ export function adminButtonClassName({
   size?: AdminButtonSize;
   className?: string;
 }) {
-  const variantClassName =
-    variant === "danger"
-      ? adminDangerButtonClassName
-      : variant === "subtle"
-        ? adminSubtleButtonClassName
-        : adminPrimaryButtonClassName;
-
-  const sizeClassName =
-    size === "compact"
-      ? variant === "primary"
-        ? "w-auto px-[0.9rem] py-[0.41rem] text-[0.64rem] leading-none uppercase tracking-[0.12em]"
-        : "w-auto px-[0.9rem] py-[0.41rem]"
-      : "";
-
-  return cn(variantClassName, sizeClassName, className);
+  return buttonClassName({ appearance: "admin", variant, size, className });
 }
 
 export function AdminButton({
@@ -93,10 +70,10 @@ export function AdminIconButton({
       variant="subtle"
       size="compact"
       aria-label={label}
-      className={cn("group/icon relative h-10 w-10 px-0", className)}
+      className={cn("admin-icon-button group/icon relative", className)}
     >
       {children}
-      <span className="pointer-events-none absolute bottom-[calc(100%+0.45rem)] left-1/2 z-20 max-w-48 -translate-x-1/2 rounded-[var(--admin-radius-sm)] border border-[var(--surface-border-soft)] bg-[var(--surface-overlay-panel)] px-2.5 py-1.5 text-[0.66rem] leading-tight font-semibold tracking-normal text-[var(--foreground)] normal-case opacity-0 shadow-sm transition group-hover/icon:opacity-100 group-focus-visible/icon:opacity-100">
+      <span className="pointer-events-none absolute bottom-[calc(100%+0.45rem)] left-1/2 z-20 max-w-48 -translate-x-1/2 rounded-[var(--radius-control)] border border-[var(--surface-border-soft)] bg-[var(--surface-overlay-panel)] px-2.5 py-1.5 text-[0.66rem] leading-tight font-semibold tracking-normal text-[var(--foreground)] normal-case opacity-0 shadow-sm transition group-hover/icon:opacity-100 group-focus-visible/icon:opacity-100">
         {tooltip}
       </span>
     </AdminButton>
@@ -248,5 +225,3 @@ export function AdminSelect({
     />
   );
 }
-
-export const AdminPillSelect = AdminSelect;

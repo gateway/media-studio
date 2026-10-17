@@ -5,7 +5,7 @@ import re
 from typing import Any, Dict, List
 
 from ... import enhancement_provider, external_llm_usage, store
-from ...settings import settings
+from ...service_provider_config import shared_provider_runtime
 from ..media_refs import graph_ref_path
 from ..prompt_provider_defaults import studio_default_prompt_provider_config
 from ..prompt_shaping import compact_storyboard_display_value
@@ -218,17 +218,14 @@ def _provider_config(node: GraphWorkflowNode, *, has_image: bool) -> Dict[str, A
             bool(config.get("provider_supports_images")) if config.get("provider_supports_images") is not None else None
         )
         provider_base_url = str(config.get("provider_base_url") or "").strip()
-        provider_api_key = str(config.get("provider_api_key") or "").strip()
     else:
         provider_kind = requested_provider
         provider_model_id = str(node.fields.get("model_id") or "").strip()
         provider_supports_images = _node_provider_supports_images(node.fields)
         provider_base_url = ""
-        provider_api_key = ""
         config = _studio_default_config()
         if str(config.get("provider_kind") or "").strip() == provider_kind:
             provider_base_url = str(config.get("provider_base_url") or "").strip()
-            provider_api_key = str(config.get("provider_api_key") or "").strip()
 
     if provider_kind not in {"openrouter", "local_openai", "codex_local"}:
         raise ValueError("LLM Prompt supports OpenRouter, Codex Local, or local OpenAI-compatible providers.")
@@ -240,15 +237,12 @@ def _provider_config(node: GraphWorkflowNode, *, has_image: bool) -> Dict[str, A
         if not provider_supports_images:
             raise ValueError("The selected LLM Prompt model is not marked as image-capable.")
 
-    if provider_kind == "openrouter":
-        provider_base_url = provider_base_url or settings.openrouter_base_url
-        provider_api_key = provider_api_key or str(settings.openrouter_api_key or "")
-    elif provider_kind == "local_openai":
-        provider_base_url = provider_base_url or settings.local_openai_base_url
-        provider_api_key = provider_api_key or str(settings.local_openai_api_key or "")
-    else:
-        provider_base_url = enhancement_provider.codex_local_provider.CODEX_LOCAL_PROVIDER_BASE_URL
-        provider_api_key = ""
+    runtime = shared_provider_runtime(
+        provider_kind,
+        stored_base_url=provider_base_url or None,
+    )
+    provider_base_url = runtime["base_url"]
+    provider_api_key = runtime["api_key"]
     return {
         "provider_kind": provider_kind,
         "provider_model_id": provider_model_id,

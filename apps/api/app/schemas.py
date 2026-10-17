@@ -570,6 +570,11 @@ class EnhancementProviderModel(BaseModel):
     raw: Dict[str, Any] = Field(default_factory=dict)
 
 
+class ProviderConnectionUpsertRequest(BaseModel):
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+
+
 class EnhancementProviderProbeRequest(BaseModel):
     provider_kind: str
     model_key: Optional[str] = None

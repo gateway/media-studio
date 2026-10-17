@@ -10,19 +10,15 @@ import {
   adminFilterToolbarClassName,
   adminHeaderActionRowClassName,
   adminListContentClassName,
+  adminListMetaClassName,
   adminListActionGroupClassName,
   adminListRowClassName,
   adminListThumbnailClassName,
   adminListThumbnailFallbackClassName,
 } from "@/components/admin-theme";
 import { Panel, PanelHeader } from "@/components/panel";
+import { StatusPill } from "@/components/status-pill";
 import { CalloutPanel, EmptyState, SurfaceInset } from "@/components/ui/surface-primitives";
-import {
-  promptRecipeMediaFrameClassName,
-  promptRecipeSearchIconClassName,
-  promptRecipeSearchInputClassName,
-  promptRecipeSecondaryMetaClassName,
-} from "@/components/prompt-recipes/prompt-recipe-admin-theme";
 import {
   detectPromptRecipeVariables,
   PROMPT_RECIPE_CATEGORIES,
@@ -214,12 +210,12 @@ export function PromptRecipesList({ recipes }: PromptRecipesListProps) {
         <label className="grid gap-2">
           <span className="admin-field-label">Search</span>
           <div className={adminInputWithIconClassName}>
-            <Search className={promptRecipeSearchIconClassName} />
+            <Search className="size-4 text-[var(--muted-strong)]" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search recipes"
-              className={promptRecipeSearchInputClassName}
+              className="surface-input-control min-w-0 flex-1 text-sm"
             />
           </div>
         </label>
@@ -258,7 +254,7 @@ export function PromptRecipesList({ recipes }: PromptRecipesListProps) {
           const validationWarnings = recipe.validation_warnings_json ?? recipe.validation_warnings ?? [];
           return (
             <article key={recipe.recipe_id} className={adminListRowClassName}>
-              <div className={cn(adminListThumbnailClassName, promptRecipeMediaFrameClassName)}>
+              <div className={adminListThumbnailClassName}>
                 {recipe.thumbnail_url ? (
                   <Image src={recipe.thumbnail_url} alt="" fill sizes="80px" className="object-cover" />
                 ) : (
@@ -270,12 +266,12 @@ export function PromptRecipesList({ recipes }: PromptRecipesListProps) {
               <div className={adminListContentClassName}>
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-base font-semibold text-[var(--foreground)]">{recipe.label}</h3>
-                  <span className="admin-status-pill">{recipe.status}</span>
+                  <StatusPill label={recipe.status} tone={recipe.status === "active" ? "healthy" : "neutral"} />
                   <span className="admin-status-pill">{recipe.category}</span>
                   <span className="admin-status-pill">{outputFormat}</span>
                 </div>
                 <p className="text-sm text-[var(--muted-strong)]">{recipe.description || "No description yet."}</p>
-                <div className={promptRecipeSecondaryMetaClassName}>
+                <div className={adminListMetaClassName}>
                   <span>{recipe.key}</span>
                   <span>{recipeImageInputLabel(recipe)}</span>
                   <span>{(recipe.custom_fields_json ?? recipe.custom_fields ?? []).length} custom fields</span>
@@ -292,7 +288,7 @@ export function PromptRecipesList({ recipes }: PromptRecipesListProps) {
                   title={`Edit ${recipe.label}`}
                 >
                   <Edit3 className="size-3.5" />
-                  <span className="sr-only">Edit</span>
+                  <span>Edit</span>
                 </AdminNavButton>
                 <AdminButton
                   variant="subtle"

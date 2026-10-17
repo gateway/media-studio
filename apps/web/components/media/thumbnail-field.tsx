@@ -62,7 +62,7 @@ export function ThumbnailField({
         dragActive ? "border-[var(--accent-strong)] bg-[var(--accent-soft)]" : "",
       )
       : cn(
-        "group relative overflow-hidden rounded-[var(--admin-radius-sm)] border border-[var(--surface-border-soft)] bg-[var(--surface-preview-bg)] text-left transition hover:border-[var(--surface-border)]",
+        "group relative overflow-hidden rounded-[var(--radius-control)] border border-[var(--surface-border-soft)] bg-[var(--surface-preview-bg)] text-left transition hover:border-[var(--surface-border)]",
         previewSizeClassName,
         dragActive ? "border-[var(--accent-strong)] bg-[var(--accent-soft)]" : "",
       );
@@ -90,7 +90,7 @@ export function ThumbnailField({
   }
 
   return (
-    <div className={cn(surface ? "admin-surface-accent p-4 sm:p-5" : "grid gap-2", className)}>
+    <div className={cn(surface ? "surface-card-accent p-4 sm:p-5" : "grid gap-2", className)}>
       <div className={labelClassName}>{label}</div>
       <div className="grid gap-4">
         <button

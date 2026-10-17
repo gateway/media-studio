@@ -30,7 +30,7 @@ export function PromptRecipeContractPanel({
         className="px-5 py-5 sm:px-6 sm:py-6"
         bodyClassName="grid gap-4"
       >
-        <div className="admin-surface-accent grid gap-4 p-4 sm:p-5">
+        <div className="surface-card-accent grid gap-4 p-4 sm:p-5">
           <div className="admin-label-accent">Common Runtime Options</div>
           <div className="grid gap-3 md:grid-cols-3">
             <AdminField label="Temperature">
@@ -63,7 +63,7 @@ export function PromptRecipeContractPanel({
             </AdminField>
           </div>
         </div>
-        <div className="admin-surface-accent grid gap-4 p-4 sm:p-5">
+        <div className="surface-card-accent grid gap-4 p-4 sm:p-5">
           <div className="admin-label-accent">Common Rules</div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             {[
@@ -73,7 +73,7 @@ export function PromptRecipeContractPanel({
               { key: "validate_json_output", label: "Validate JSON later", defaultValue: false },
               { key: "allow_external_variables", label: "External variables", defaultValue: true },
             ].map(({ key, label, defaultValue }) => (
-              <div key={key} className="admin-row-surface justify-between gap-3 p-3">
+              <div key={key} className="surface-info-row justify-between gap-3 p-3">
                 <span className="text-sm font-semibold text-[var(--foreground)]">{label}</span>
                 <AdminToggle
                   checked={Boolean(parsedRules[key] ?? defaultValue)}

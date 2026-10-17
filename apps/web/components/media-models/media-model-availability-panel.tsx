@@ -45,22 +45,22 @@ export function MediaModelAvailabilityPanel({
           summaryClassName="flex-col items-start gap-3 sm:flex-row sm:items-start"
           titleClassName="admin-label-muted flex items-center gap-2"
           descriptionClassName="max-w-[760px]"
-          bodyClassName="grid gap-3 border-t border-[var(--surface-border-soft)] pt-5"
+          bodyClassName="grid min-w-0 grid-cols-1 gap-3 border-t border-[var(--surface-border-soft)] pt-5"
         >
-          <div className="grid gap-3">
+          <div className="grid min-w-0 grid-cols-1 gap-3">
             {rows.map(({ model, enabled }) => (
               <SurfaceInset
                 key={`availability-${model.key}`}
                 appearance="admin"
                 density="compact"
-                className="admin-row-surface"
+                className="surface-info-row"
               >
                 <div className="min-w-0 grid gap-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="truncate text-sm font-medium text-[var(--foreground)]">{model.label}</div>
                     <StatusPill label={enabled ? "Enabled" : "Disabled"} tone={enabled ? "healthy" : "warning"} />
                   </div>
-                  <div className="text-sm leading-6 text-[var(--muted-strong)]">
+                  <div className="text-sm leading-6 [overflow-wrap:anywhere] text-[var(--muted-strong)]">
                     {model.key} · {(model.task_modes ?? []).length ? model.task_modes.join(", ").replaceAll("_", " ") : "No published task modes"}
                   </div>
                 </div>

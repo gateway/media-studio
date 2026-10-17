@@ -34,9 +34,9 @@ function isGraphProviderKind(value: string): value is GraphProviderKind {
 }
 
 function providerReadinessLabel(providerKind: GraphProviderKind) {
-  if (providerKind === "codex_local") return "Set up Codex in AI Settings";
-  if (providerKind === "openrouter") return "Add OpenRouter in AI Settings";
-  return "Set up Local OpenAI in AI Settings";
+  if (providerKind === "codex_local") return "Set up Codex in Connections";
+  if (providerKind === "openrouter") return "Add OpenRouter in Connections";
+  return "Set up Local OpenAI in Connections";
 }
 
 function optionValue(option: unknown) {

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   __resetSharedProviderModelCatalogCacheForTests,
+  invalidateProviderModelCatalogs,
   useSharedProviderModelCatalog,
 } from "@/hooks/use-shared-provider-model-catalog";
 import type { SharedLlmProviderKind } from "@/lib/llm-provider-metadata";
@@ -55,5 +56,15 @@ describe("useSharedProviderModelCatalog", () => {
     await waitFor(() => expect(screen.getByTestId("first").textContent).toBe("ready"));
     await waitFor(() => expect(screen.getByTestId("second").textContent).toBe("ready"));
     expect(probeRequest).toHaveBeenCalledTimes(1);
+  });
+  it("reloads a catalog after a connection save invalidates the cache", async () => {
+    const probeRequest = vi.fn(async () => ({ ok: true, credentialSource: "stored", selectedModel: null, availableModels: [] }));
+    const first = render(<Harness testId="before" providerKind="openrouter" probeRequest={probeRequest} />);
+    await waitFor(() => expect(screen.getByTestId("before").textContent).toBe("ready"));
+    first.unmount();
+    invalidateProviderModelCatalogs();
+    render(<Harness testId="after" providerKind="openrouter" probeRequest={probeRequest} />);
+    await waitFor(() => expect(screen.getByTestId("after").textContent).toBe("ready"));
+    expect(probeRequest).toHaveBeenCalledTimes(2);
   });
 });

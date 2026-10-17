@@ -90,6 +90,16 @@ def test_graph_metrics_migration_updates_existing_graph_schema() -> None:
             description TEXT,
             category TEXT NOT NULL DEFAULT 'general'
         );
+        CREATE TABLE media_enhancement_configs (
+            config_id TEXT PRIMARY KEY,
+            model_key TEXT NOT NULL UNIQUE,
+            provider_kind TEXT NOT NULL DEFAULT 'builtin',
+            provider_api_key TEXT,
+            provider_base_url TEXT
+        );
+        INSERT INTO media_enhancement_configs
+            (config_id, model_key, provider_kind, provider_api_key, provider_base_url)
+            VALUES ('legacy', '__studio_enhancement__', 'openrouter', 'test-legacy-key', 'https://example.test/v1');
         CREATE TABLE media_assets (
             asset_id TEXT PRIMARY KEY,
             payload_json TEXT NOT NULL DEFAULT '{}',
@@ -115,3 +125,9 @@ def test_graph_metrics_migration_updates_existing_graph_schema() -> None:
     graph_run_node_columns = {row["name"] for row in connection.execute("PRAGMA table_info(graph_run_nodes)").fetchall()}
     assert "metrics_json" in graph_run_columns
     assert "metrics_json" in graph_run_node_columns
+
+    legacy = dict(connection.execute("SELECT * FROM media_enhancement_configs WHERE config_id = 'legacy'").fetchone())
+    assert legacy["provider_api_key"] == "test-legacy-key"
+    assert legacy["provider_base_url"] == "https://example.test/v1"
+    assert legacy["provider_overrides_json"] == "{}"
+    assert connection.execute("SELECT count(*) FROM media_provider_connections").fetchone()[0] == 0

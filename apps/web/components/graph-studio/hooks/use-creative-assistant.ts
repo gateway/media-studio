@@ -1057,7 +1057,7 @@ export function useCreativeAssistant({
         });
         else {
           setFailedRequest({ ...failure, checked: true });
-          setError("Couldn’t start graph preparation. Check your connection and AI Settings, then try again.");
+          setError("Couldn’t start graph preparation. Check your connection and AI Models, then try again.");
           if (failure.editable) setDraft(current => current || normalizedMessage);
         }
       } catch (recoveryError) {
@@ -1211,7 +1211,7 @@ export function useCreativeAssistant({
         });
         else {
           setFailedRequest({ ...failure, checked: true });
-          setError("Media Assistant couldn't start this request. Check your connection and AI Settings, then try again.");
+          setError("Media Assistant couldn't start this request. Check your connection and AI Models, then try again.");
           setDraft(current => current || content);
         }
       } catch (recoveryError) {

@@ -140,7 +140,7 @@ export function MediaPresetTextFieldsPanel({
           ))}
         </div>
       ) : (
-        <div className="admin-empty-state mt-4 text-sm">
+        <div className="surface-empty-state mt-4 text-sm">
           No text fields configured yet.
         </div>
       )}

@@ -168,4 +168,19 @@ describe("StudioEnhancementSettingsPanel", () => {
     const modelSelect = screen.getByRole("combobox", { name: "Default model" }) as HTMLSelectElement;
     expect(Array.from(modelSelect.options).map((option) => option.text)).toContain("Local Director");
   });
+  it("switches task providers without writing or clearing connection fields", async () => {
+    probeEnhancementProviderRequest.mockResolvedValue({ ok: false, error: "Not configured" });
+    saveEnhancementConfigRequest.mockResolvedValue({ ok: true, config: makeConfig({ provider_kind: "openrouter", provider_model_id: null }) });
+    render(<StudioEnhancementSettingsPanel initialConfigs={[makeConfig()]} embedded />);
+    fireEvent.change(screen.getByLabelText("AI provider"), { target: { value: "openrouter" } });
+    expect(screen.queryByLabelText("OpenRouter API key")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /save prompt enhance defaults/i }));
+    await waitFor(() => expect(saveEnhancementConfigRequest).toHaveBeenCalledWith(expect.objectContaining({
+      payload: expect.objectContaining({ provider_kind: "openrouter", provider_model_id: null }),
+    })));
+    const payload = saveEnhancementConfigRequest.mock.calls[0][0].payload;
+    expect(payload).not.toHaveProperty("provider_api_key");
+    expect(payload).not.toHaveProperty("provider_base_url");
+  });
+
 });

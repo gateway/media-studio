@@ -51,7 +51,6 @@ export function StudioSettingsModal({
               variant="studio"
               sections={{
                 queue: false,
-                enhancementProvider: false,
                 modelHelper: true,
                 studioSettings: false,
                 modelPanel: true,

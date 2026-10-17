@@ -27,7 +27,6 @@ export default async function MediaModelsPage({
         initialSelectedModelKey={resolvedSearchParams.model}
         sections={{
           queue: false,
-          enhancementProvider: false,
           modelHelper: true,
           studioSettings: false,
           modelPanel: true,

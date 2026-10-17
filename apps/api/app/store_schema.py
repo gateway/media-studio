@@ -1690,6 +1690,14 @@ def _apply_assistant_image_model_defaults(connection: sqlite3.Connection) -> Non
     ensure_column(connection, "media_prompt_recipe_drafting_configs", "image_model_defaults_json", "TEXT NOT NULL DEFAULT '{}'")
 
 
+def _apply_provider_connections(connection: sqlite3.Connection) -> None:
+    connection.execute("""CREATE TABLE IF NOT EXISTS media_provider_connections (
+        provider_kind TEXT PRIMARY KEY, api_key TEXT, base_url TEXT, updated_at TEXT NOT NULL
+    )""")
+    for table in ("media_enhancement_configs", "media_prompt_recipe_drafting_configs"):
+        ensure_column(connection, table, "provider_overrides_json", "TEXT NOT NULL DEFAULT '{}'")
+
+
 MIGRATIONS = [
     SchemaMigration(
         migration_id="20260419_001_tracked_baseline",
@@ -2033,6 +2041,12 @@ MIGRATIONS = [
         version=55,
         description="Add optional Assistant image-generation model defaults without changing saved artifacts.",
         apply=_apply_assistant_image_model_defaults,
+    ),
+    SchemaMigration(
+        migration_id="20261016_056_provider_connections",
+        version=56,
+        description="Add independent provider connections and preserve legacy task overrides.",
+        apply=_apply_provider_connections,
     ),
 ]
 

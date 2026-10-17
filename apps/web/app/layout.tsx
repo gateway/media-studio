@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { IBM_Plex_Mono, Sora } from "next/font/google";
 import "./globals.css";
+import "./admin.css";
 
 const sora = Sora({
   subsets: ["latin"],

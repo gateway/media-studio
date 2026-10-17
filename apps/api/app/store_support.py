@@ -11,6 +11,7 @@ from .db import get_connection
 
 
 JSON_FIELDS = {
+    "provider_overrides_json",
     "default_options_json",
     "rules_json",
     "output_contract_json",

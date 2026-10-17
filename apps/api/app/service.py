@@ -18,6 +18,7 @@ from PIL import Image, ImageDraw
 from . import enhancement_provider, external_llm_usage, kie_adapter, store
 from .pricing import attach_pricing_summary
 from .service_errors import ServiceError
+from .store_provider_connections import get_provider_connection
 from .service_provider_config import (
     GLOBAL_ENHANCEMENT_CONFIG_KEY,
     PROMPT_RECIPE_DRAFTING_CONFIG_KEY,
@@ -87,6 +88,9 @@ def upsert_enhancement_config(payload: Dict[str, Any], model_key: Optional[str] 
     record = payload.copy()
     if model_key:
         record["model_key"] = model_key
+    from .service_provider_config import preserve_task_provider_overrides
+    existing = store.get_enhancement_config(record["model_key"]) or {}
+    record = preserve_task_provider_overrides(existing, record)
     return store.create_or_update_enhancement_config(record)
 
 
@@ -221,6 +225,7 @@ def detach_reference_from_project(project_id: str, reference_id: str) -> Dict[st
 
 def public_enhancement_config(record: Dict[str, Any]) -> Dict[str, Any]:
     provider_kind = str(record.get("provider_kind") or "builtin").strip()
+    connection = get_provider_connection(provider_kind) if provider_kind != "builtin" else {}
     stored_api_key = str(record.get("provider_api_key") or "").strip()
     stored_base_url = str(record.get("provider_base_url") or "").strip()
 
@@ -234,11 +239,14 @@ def public_enhancement_config(record: Dict[str, Any]) -> Dict[str, Any]:
     elif provider_kind == "codex_local":
         credential_source = enhancement_provider.codex_local_provider.CODEX_LOCAL_PROVIDER_CREDENTIAL_SOURCE
 
+    if provider_kind != "builtin":
+        credential_source = _shared_provider_runtime(provider_kind, stored_api_key=connection.get("api_key") or stored_api_key, stored_base_url=stored_base_url, require_base_url=False).get("credential_source")
     payload = record.copy()
+    payload.pop("provider_overrides_json", None)
     payload.pop("provider_api_key", None)
     payload.pop("provider_base_url", None)
-    payload["provider_api_key_configured"] = bool(stored_api_key)
-    payload["provider_base_url_configured"] = bool(stored_base_url)
+    payload["provider_api_key_configured"] = bool(connection.get("api_key") or stored_api_key)
+    payload["provider_base_url_configured"] = bool(connection.get("base_url") or stored_base_url)
     payload["provider_credential_source"] = credential_source
     return EnhancementConfigRecord(**payload).model_dump()
 
@@ -249,7 +257,7 @@ def generate_prompt_recipe_draft(payload: PromptRecipeDraftRequest) -> Dict[str,
         raise ServiceError("Describe the recipe idea before generating a draft.")
     stored_config = store.get_prompt_recipe_drafting_config(PROMPT_RECIPE_DRAFTING_CONFIG_KEY) or {}
     if not bool(stored_config.get("enabled", True)):
-        raise ServiceError("Recipe drafting is turned off in AI Settings.")
+        raise ServiceError("Recipe drafting is turned off in AI Models.")
     provider_kind = str(payload.provider_kind or stored_config.get("provider_kind") or "codex_local").strip()
     matching_config = stored_config if str(stored_config.get("provider_kind") or "").strip() == provider_kind else {}
     provider_model_id = str(payload.provider_model_id or matching_config.get("provider_model_id") or "").strip()
@@ -342,17 +350,22 @@ def probe_enhancement_provider(payload: Dict[str, Any]) -> Dict[str, Any]:
         if current_config and str(current_config.get("provider_kind") or "").strip() == provider_kind
         else {}
     )
-    api_key = payload.get("api_key") or matching_config.get("provider_api_key")
-    base_url = payload.get("base_url") or matching_config.get("provider_base_url")
+    runtime = _shared_provider_runtime(
+        provider_kind,
+        stored_api_key=payload.get("api_key") or get_provider_connection(provider_kind).get("api_key") or matching_config.get("provider_api_key"),
+        stored_base_url=payload.get("base_url") or matching_config.get("provider_base_url"),
+    )
+    api_key = runtime["api_key"]
+    base_url = runtime["base_url"]
     selected_model_id = payload.get("selected_model_id")
     try:
         if provider_kind == "openrouter":
-            return enhancement_provider.test_openrouter_connection(
+            return dict(enhancement_provider.test_openrouter_connection(
                 api_key=api_key,
                 model_id=selected_model_id,
                 require_images=require_images,
                 base_url=base_url,
-            )
+            ), credential_source=runtime.get("credential_source"))
         if provider_kind == "codex_local":
             if probe_mode == "full":
                 return enhancement_provider.test_codex_local_connection(
@@ -368,12 +381,12 @@ def probe_enhancement_provider(payload: Dict[str, Any]) -> Dict[str, Any]:
             resolved_base = str(base_url or settings.local_openai_base_url).strip()
             if not resolved_base:
                 raise ServiceError("Local OpenAI-compatible base URL is required.")
-            return enhancement_provider.test_local_openai_connection(
+            return dict(enhancement_provider.test_local_openai_connection(
                 base_url=resolved_base,
                 api_key=api_key,
                 model_id=selected_model_id,
                 require_images=require_images,
-            )
+            ), credential_source=runtime.get("credential_source"))
         raise ServiceError("Unsupported enhancement provider.")
     except enhancement_provider.EnhancementProviderError as exc:
         raise ServiceError(str(exc)) from exc
@@ -403,19 +416,19 @@ def probe_shared_provider_catalog(payload: Dict[str, Any]) -> Dict[str, Any]:
             stored_base_url=str(base_url_override or "").strip() or None,
         )
         if provider_kind == "openrouter":
-            return enhancement_provider.test_openrouter_connection(
+            return dict(enhancement_provider.test_openrouter_connection(
                 api_key=runtime["api_key"],
                 model_id=selected_model_id,
                 require_images=require_images,
                 base_url=runtime["base_url"],
-            )
+            ), credential_source=runtime.get("credential_source"))
         if provider_kind == "local_openai":
-            return enhancement_provider.test_local_openai_connection(
+            return dict(enhancement_provider.test_local_openai_connection(
                 base_url=runtime["base_url"],
                 api_key=runtime["api_key"],
                 model_id=selected_model_id,
                 require_images=require_images,
-            )
+            ), credential_source=runtime.get("credential_source"))
         raise ServiceError("Unsupported shared provider catalog.")
     except enhancement_provider.EnhancementProviderError as exc:
         raise ServiceError(str(exc)) from exc
@@ -801,7 +814,7 @@ def _resolved_enhancement_config(model_key: str) -> Dict[str, Any]:
             provider_model_id=engine_config.get("provider_model_id"),
             provider_api_key_configured=bool(engine_config.get("provider_api_key")),
             provider_base_url_configured=bool(engine_config.get("provider_base_url")),
-            provider_credential_source="stored" if engine_config.get("provider_api_key") else None,
+            provider_credential_source=public_enhancement_config(engine_config).get("provider_credential_source"),
             provider_supports_images=bool(engine_config.get("provider_supports_images")),
             provider_status=engine_config.get("provider_status"),
             provider_last_tested_at=engine_config.get("provider_last_tested_at"),
@@ -894,8 +907,13 @@ def _run_external_enhancement(config: Dict[str, Any], request: EnhancePreviewReq
         raise ServiceError("The selected enhancement model requires an image input.")
     if using_image_analysis and not bool(config.get("provider_supports_images")):
         raise ServiceError("The selected enhancement model does not support image input.")
-    provider_api_key = config.get("provider_api_key") or None
-    provider_base_url = config.get("provider_base_url") or None
+    runtime = _shared_provider_runtime(
+        provider_kind,
+        stored_api_key=get_provider_connection(provider_kind).get("api_key") or config.get("provider_api_key") or None,
+        stored_base_url=config.get("provider_base_url") or None,
+    )
+    provider_api_key = runtime["api_key"]
+    provider_base_url = runtime["base_url"]
     def run_provider_call() -> Dict[str, Any]:
         if provider_kind == "openrouter":
             return enhancement_provider.run_openai_compatible_enhancement(

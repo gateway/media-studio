@@ -99,7 +99,7 @@ Need help? Start with the [macOS guide](docs/getting-started-mac.md), [prerequis
 - **Keep a creative library.** Browse your local gallery, organize work into Projects, and reuse images from the Reference Library without losing the global view of your work.
 - **Make a look repeatable.** Media Presets combine prompt templates, editable fields, image slots, model defaults, and thumbnails. Import and export bundles to share them between installs.
 - **Give prompts a reusable structure.** Prompt Recipes capture LLM instructions and inputs for repeatable drafting and Graph workflows. Use Codex Local, OpenRouter, or a local OpenAI-compatible endpoint for supported prompt tasks.
-- **Know what is happening.** Follow queued, running, completed, and failed jobs. Review KIE credit and USD estimates before generation; recorded spending for successful OpenRouter-backed Studio runs appears separately.
+- **Know what is happening.** Follow queued, running, completed, and failed jobs in compact rows. Expand a batch for large output previews, prompt context, saved estimates and visible failures; open an output in the full viewer or expand Run details for IDs and queue counts. Review KIE credit and USD estimates before generation; recorded spending for successful OpenRouter-backed Studio runs appears separately.
 - **Own your working library.** Your database, projects, uploads, presets, and outputs stay in your local data folder. Generation and hosted AI services use their configured providers.
 
 Starter presets include **Photo Restoration**, **3D Caricature Style**, **2x2 Pose Grid**, **Exploding Food**, **Food Recipe Infographic**, **Giant Animal Anywhere**, and **Selfie with Movie Character**. Build your own from the Presets page and choose compatible image models.
@@ -150,7 +150,7 @@ Use optional AI providers for prompt enhancement, drafting, and supported text o
 
 See [AI prompt tools](#ai-prompt-tools) for setup and supported uses. Media Assistant currently requires Codex Local.
 
-Use **Models** for the current catalog and supported options, and **Pricing** for cost estimates. Kie can change availability, rules, and credit costs; displayed prices are estimates and the final charge is determined by Kie.
+Use **Models** for the current catalog and supported options, and **Pricing** for cost estimates. Pricing lists each model’s billing unit and base rate; expand a row for example totals in USD and credits, option adjustments, and source details. Recorded text-model usage appears below the catalog. Kie can change availability, rules, and credit costs; displayed prices are estimates and the final charge is determined by Kie.
 
 Media Studio is not affiliated with Kie AI. The Kie links above are affiliate links that help support the project.
 

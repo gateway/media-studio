@@ -12,7 +12,7 @@ export function AdminEditorActionBar({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-wrap justify-end gap-3", className)}>
+    <div className={cn("admin-editor-actions", className)}>
       {children}
     </div>
   );

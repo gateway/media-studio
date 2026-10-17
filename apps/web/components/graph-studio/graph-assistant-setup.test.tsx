@@ -31,8 +31,8 @@ describe("Media Assistant setup entry", () => {
     render(<Harness />);
     expect(await screen.findByText("Media Assistant is not enabled")).toBeTruthy();
     expect(screen.getByText(/NEXT_PUBLIC_MEDIA_STUDIO_ASSISTANT_DEBUG=1/)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open Setup" }).getAttribute("href")).toBe("/setup");
-    expect(screen.getByRole("link", { name: "AI Settings" }).getAttribute("href")).toBe("/settings/llms");
+    expect(screen.getByRole("link", { name: "Connections" }).getAttribute("href")).toBe("/settings/connections");
+    expect(screen.getByRole("link", { name: "AI Models" }).getAttribute("href")).toBe("/settings/llms");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

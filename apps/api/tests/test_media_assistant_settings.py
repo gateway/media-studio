@@ -357,7 +357,8 @@ def test_unavailable_assistant_provider_returns_configuration_path(
     detail = response.json()["detail"]
     assert detail["code"] == "assistant_unavailable"
     assert detail["state"] == "failed"
-    assert "ai settings" in detail["message"].lower()
+    assert "connections" in detail["message"].lower()
+    assert "ai models" in detail["message"].lower()
     refreshed = client.get(f"/media/assistant/sessions/{session['assistant_session_id']}").json()
     assert len(refreshed["messages"]) == 1
     request = refreshed["messages"][0]

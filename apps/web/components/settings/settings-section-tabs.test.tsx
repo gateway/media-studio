@@ -21,12 +21,15 @@ describe("SettingsSectionTabs", () => {
     pushMock.mockReset();
   });
 
-  it("renders the active tab as disabled and navigates to the inactive tab", () => {
+  it("marks the active tab as current and navigates to the inactive tab", () => {
     render(<SettingsSectionTabs activeTab="general" currentProjectId="proj_123" />);
 
-    expect(screen.getByRole("button", { name: "General" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "General" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("button", { name: "General" }).hasAttribute("disabled")).toBe(false);
 
-    fireEvent.click(screen.getByRole("button", { name: "AI" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connections" }));
+    expect(pushMock).toHaveBeenCalledWith("/settings/connections?project=proj_123");
+    fireEvent.click(screen.getByRole("button", { name: "AI Models" }));
     expect(pushMock).toHaveBeenCalledWith("/settings/llms?project=proj_123");
   });
 });

@@ -24,6 +24,12 @@ Media Studio passes through additive KIE metadata:
 
 The `/pricing` admin page surfaces these as operator warnings. This is intentionally visible because a new model should not silently appear without pricing coverage.
 
+## Pricing Page
+
+The catalog overview shows status, available credits, refresh time, and model coverage. Each model row shows the billing unit and base credits/USD. Expand a row for one- and two-output examples alongside option adjustments, notes, and model/source details. Missing rates remain unavailable; a per-second base rate is never presented as a complete output price without a scenario.
+
+Examples use the existing `estimateFromPricingSnapshot(...)` preview helper and the same bounded scenario selection: up to three option dimensions, two choices per dimension, and six combinations. They do not replace canonical request estimates. Both USD and credit totals are calculated before display rounding. Refresh pricing remains an explicit action, and recorded token usage remains separate below the catalog.
+
 ## Estimate Rules
 
 Server estimates are canonical. The frontend helper `estimateFromPricingSnapshot(...)` exists only for instant local preview and testable UI fallbacks.

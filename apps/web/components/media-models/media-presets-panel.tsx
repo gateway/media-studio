@@ -4,7 +4,8 @@ import { Clapperboard, Edit3, Plus, Upload } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import { useMediaPresetPages } from "@/hooks/use-media-preset-pages";
-import { AdminButton, adminButtonIconLabelClassName } from "@/components/admin-controls";
+import { AdminButton, AdminInput, adminButtonIconLabelClassName } from "@/components/admin-controls";
+import { StatusPill } from "@/components/status-pill";
 import { AdminNavButton } from "@/components/admin-nav-button";
 import {
   adminHeaderActionRowClassName,
@@ -109,12 +110,12 @@ export function MediaPresetsPanel({
           <label className="sr-only" htmlFor="media-preset-admin-search">
             Search media presets
           </label>
-          <input
+          <AdminInput
             id="media-preset-admin-search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search presets by name, key, or description..."
-            className="min-h-11 w-full rounded-2xl border border-[var(--admin-border-subtle)] bg-[var(--admin-surface-inset)] px-4 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent-strong)] sm:max-w-xl"
+            className="sm:max-w-xl"
           />
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted-strong)]">
             Showing {visiblePresets.length} of {localTotal}
@@ -147,7 +148,7 @@ export function MediaPresetsPanel({
                 <div className={adminListContentClassName}>
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-base font-semibold text-[var(--foreground)]">{preset.label}</h3>
-                    <span className="admin-status-pill">{preset.status === "active" ? "enabled" : "disabled"}</span>
+                    <StatusPill label={preset.status === "active" ? "Enabled" : "Disabled"} tone={preset.status === "active" ? "healthy" : "neutral"} />
                   </div>
                   <p className="text-sm text-[var(--muted-strong)]">
                     {presetModelLabels(preset)}{preset.description ? ` · ${preset.description}` : ""}
@@ -170,7 +171,7 @@ export function MediaPresetsPanel({
                     title={`Edit ${preset.label}`}
                   >
                     <Edit3 className="size-3.5" />
-                    <span className="sr-only">Edit</span>
+                    <span>Edit</span>
                   </AdminNavButton>
                 </div>
               </article>

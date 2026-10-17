@@ -5,7 +5,7 @@ import { KeyRound, Server, Sparkles } from "lucide-react";
 import { AdminActionNotice } from "@/components/admin-action-notice";
 import { AdminButton, AdminField, AdminInput, AdminSelect, AdminToggle } from "@/components/admin-controls";
 import { Panel, PanelHeader } from "@/components/panel";
-import { SharedLlmProviderIntroCard, SharedLlmProviderSection } from "@/components/shared-llm-provider-sections";
+import { SharedLlmProviderIntroCard, SharedLlmProviderPicker, SharedLlmProviderSection } from "@/components/shared-llm-provider-sections";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import { useSharedProviderModelCatalog } from "@/hooks/use-shared-provider-model-catalog";
 import {
@@ -93,7 +93,7 @@ function DraftingSettingsAccentCard({
   children: ReactNode;
 }) {
   return (
-    <div className="admin-surface-accent grid gap-4 p-4 sm:p-5">
+    <div className="surface-card-accent grid gap-4 p-4 sm:p-5">
       <div className="admin-label-accent">{label}</div>
       {children}
     </div>
@@ -113,7 +113,7 @@ export function PromptRecipeDraftingSettingsPanel({
   const [openRouterQuery, setOpenRouterQuery] = useState("");
   const { notice, showNotice, clearNotice } = useAdminActionNotice();
   const { catalogs, loadProviderCatalog } = useSharedProviderModelCatalog(
-    isAssistant ? { probeRequest: probeMediaAssistantProviderRequest } : {},
+    isAssistant ? { cacheScope: "assistant", probeRequest: probeMediaAssistantProviderRequest } : {},
   );
   const isAutoLoadingCatalog =
     catalogs[form.providerKind]?.status === "loading" && manualProbeKind == null;
@@ -151,7 +151,7 @@ export function PromptRecipeDraftingSettingsPanel({
         selectedModel: result.selectedModel,
         selectedModelId: form.providerModelId || null,
       });
-      setForm((current) => ({
+      setForm((current) => current.providerKind !== form.providerKind ? current : ({
         ...current,
         providerLabel: selected?.label ?? current.providerLabel,
         providerModelId: selected?.id ?? current.providerModelId,
@@ -282,28 +282,22 @@ export function PromptRecipeDraftingSettingsPanel({
         ]}
         leadingContent={
           <div className="grid gap-3 md:grid-cols-2">
-            {isAssistant ? (
-              <AdminField label="Assistant provider">
-                <select
-                  value={form.providerKind}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      providerKind: event.target.value as SharedLlmProviderKind,
-                      providerLabel: "",
-                      providerModelId: "",
-                      providerStatus: "",
-                      providerCapabilities: {},
-                    }))
-                  }
-                  className="admin-input text-sm"
-                >
-                  <option value="codex_local">Codex Local</option>
-                  <option value="openrouter">OpenRouter</option>
-                  <option value="local_openai">Local OpenAI-Compatible</option>
-                </select>
-              </AdminField>
-            ) : (
+            <SharedLlmProviderPicker
+              value={form.providerKind}
+              disabled={isSaving || Boolean(manualProbeKind)}
+              onChange={(providerKind) => {
+                clearNotice();
+                setOpenPicker(null);
+                setForm((current) => ({
+                  ...current, providerKind,
+                  providerLabel: "", providerModelId: "", providerStatus: "",
+                  providerCapabilities: {}, providerSupportsImages: false, providerLastTestedAt: "",
+                  providerBaseUrl: "", providerBaseUrlConfigured: false, providerBaseUrlTouched: false,
+                  providerCredentialSource: "",
+                }));
+              }}
+            />
+            {!isAssistant ? (
               <AdminField label="Turn on recipe drafts">
               <label className="admin-toggle-row min-h-11">
                 <span>Let Media Studio draft recipes from an idea</span>
@@ -319,17 +313,17 @@ export function PromptRecipeDraftingSettingsPanel({
                 />
               </label>
               </AdminField>
-            )}
+            ) : null}
           </div>
         }
         trailingContent={
           isAssistant && form.providerKind !== "codex_local" ? (
-            <div className="admin-surface-inset p-3 text-sm leading-6 text-[var(--muted-strong)]">
+            <div className="surface-inset p-3 text-sm leading-6 text-[var(--muted-strong)]">
               This provider is chat only. Graph building needs Codex Local, which is the only option with Media Studio
               tool access.
             </div>
           ) : !form.enabled ? (
-            <div className="admin-surface-inset p-3 text-sm leading-6 text-[var(--muted-strong)]">
+            <div className="surface-inset p-3 text-sm leading-6 text-[var(--muted-strong)]">
               Recipe drafts will stay hidden in the Prompt Recipe editor until you turn this on.
               {!embedded ? null : (
                 <>
@@ -352,7 +346,7 @@ export function PromptRecipeDraftingSettingsPanel({
                   ? "Using OPENROUTER_API_KEY from .env."
                   : form.providerCredentialSource === "stored"
                     ? "Using the saved OpenRouter key on the server."
-                    : "Add an OpenRouter API key in setup or in .env."}
+                    : "Connect OpenRouter in Settings → Connections to load models. Existing legacy keys remain available when tasks change providers."}
                 {form.providerModelId ? ` Current model: ${form.providerModelId}.` : ""}
               </>
             }
@@ -401,17 +395,6 @@ export function PromptRecipeDraftingSettingsPanel({
       {form.enabled && form.providerKind === "local_openai" ? (
           <SharedLlmProviderSection icon={Server} title="Local OpenAI-Compatible">
             <div className="grid max-w-[760px] gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-              <AdminInput
-                value={form.providerBaseUrl}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    providerBaseUrl: event.target.value,
-                    providerBaseUrlTouched: true,
-                  }))
-                }
-                placeholder={form.providerBaseUrlConfigured ? "Saved on the server. Enter a new base URL to replace it." : "http://127.0.0.1:8080/v1"}
-              />
               <AdminButton onClick={() => void probeProvider(false)} disabled={Boolean(manualProbeKind)} variant="primary" size="compact" className="justify-self-start">
                 {manualProbeKind === "local_openai" ? "Testing endpoint..." : "Test endpoint"}
               </AdminButton>

@@ -39,7 +39,7 @@ export function PromptRecipeTemplatePanel({
             }
           />
         </AdminField>
-        <div className="admin-surface-inset p-3 text-sm text-[var(--muted-strong)]">
+        <div className="surface-inset p-3 text-sm text-[var(--muted-strong)]">
           <span className="font-semibold text-[var(--foreground)]">Detected variables: </span>
           {detectedVariables.length ? detectedVariables.join(", ") : "none"}
         </div>
@@ -60,7 +60,7 @@ export function PromptRecipeTemplatePanel({
           </div>
         ) : null}
         {lastDraftWarnings.length ? (
-          <div className="admin-surface-inset p-3 text-sm">
+          <div className="surface-inset p-3 text-sm">
             <div className="font-semibold text-[var(--foreground)]">Server draft review</div>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-[var(--muted-strong)]">
               {lastDraftWarnings.map((warning) => (

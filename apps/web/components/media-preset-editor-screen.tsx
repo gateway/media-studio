@@ -25,7 +25,8 @@ import {
 } from "@/components/media-presets/editor/media-preset-editor-utils";
 import type { PresetFormState } from "@/components/media-presets/editor/media-preset-editor-types";
 import { useMediaPresetThumbnailPicker } from "@/components/media-presets/editor/use-media-preset-thumbnail-picker";
-import { Panel, PanelHeader } from "@/components/panel";
+import { ThumbnailField } from "@/components/media/thumbnail-field";
+import { PanelHeader } from "@/components/panel";
 import { useAdminActionNotice } from "@/hooks/use-admin-action-notice";
 import {
   clearAssistantReviewDraft,
@@ -90,7 +91,7 @@ export function MediaPresetEditorScreen({
   const compatiblePresetModels = compatibleStructuredImagePresetModels(models, presetImagePolicy);
   const returnToPresetsHref = normalizeReturnToHref(initialReturnTo);
   const returnActionLabel = returnToPresetsHref === "/studio" ? "Back to Studio" : "Back to presets";
-  const accentCardClassName = "admin-surface-accent p-4 sm:p-5";
+  const accentCardClassName = "surface-card-accent p-4 sm:p-5";
   const thumbnailPickerState = useMediaPresetThumbnailPicker({
     presetLabel: presetForm.label,
     showNotice,
@@ -298,11 +299,10 @@ export function MediaPresetEditorScreen({
         <ul>{assistantWarnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>
       </section> : null}
 
-      <Panel>
+      <div className="admin-section-stack">
         <PanelHeader
           eyebrow="Preset Settings"
           title={presetForm.presetId ? presetForm.label || "Edit preset" : "Create preset"}
-          description="Define the preset basics, scope, prompt template, and structured inputs using the same admin system as the Studio admin pages."
           action={
             <AdminButton variant="subtle" onClick={() => router.push(returnToPresetsHref)}>
               <span className={adminButtonIconLabelClassName}>
@@ -313,63 +313,78 @@ export function MediaPresetEditorScreen({
           }
         />
 
-        <div className="mt-5 grid gap-5">
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+        <div className="admin-form-grid">
+          <div className="admin-form-main">
+
             <MediaPresetBasicsPanel
               form={presetForm}
               className={accentCardClassName}
               presetNameInputRef={presetNameInputRef}
-              thumbnailInputRef={thumbnailInputRef}
-              isUploadingThumbnail={thumbnailPickerState.isUploadingThumbnail}
-              thumbnailAssetsLoading={thumbnailPickerState.picker.loading}
               onFormChange={setPresetForm}
-              onOpenGeneratedImages={thumbnailPickerState.picker.openPicker}
-              onThumbnailUpload={(file) => void thumbnailPickerState.uploadThumbnail(file)}
-              onRemoveThumbnail={() => setPresetForm((current) => ({ ...current, thumbnailPath: "", thumbnailUrl: "" }))}
             />
 
-            <div className="grid gap-5">
-              <MediaPresetAvailabilityPanel
-                form={presetForm}
-                className={accentCardClassName}
-                generatedPresetKey={generatedPresetKey}
-                models={compatiblePresetModels}
-                onFormChange={setPresetForm}
-              />
-            </div>
+            <MediaPresetPromptPanel
+              form={presetForm}
+              className={accentCardClassName}
+              onFormChange={setPresetForm}
+            />
+
+            <MediaPresetTextFieldsPanel
+              form={presetForm}
+              className={accentCardClassName}
+              onFormChange={setPresetForm}
+            />
+
+            <MediaPresetImageSlotsPanel
+              form={presetForm}
+              className={accentCardClassName}
+              onFormChange={setPresetForm}
+            />
           </div>
+          <aside className="admin-form-aside" aria-label="Preset preview and availability">
 
-          <MediaPresetPromptPanel
-            form={presetForm}
-            className={accentCardClassName}
-            onFormChange={setPresetForm}
-          />
+            <ThumbnailField
+              label="Thumbnail"
+              imageUrl={presetForm.thumbnailUrl}
+              imageAlt={presetForm.label || "Preset thumbnail"}
+              emptyLabel="No thumbnail"
+              inputRef={thumbnailInputRef}
+              isUploading={thumbnailPickerState.isUploadingThumbnail}
+              isBrowsing={thumbnailPickerState.picker.loading}
+              chooseLabel="Choose from generated images"
+              browseLabel="Browse generated images"
+              uploadLabel="Upload thumbnail"
+              removeLabel="Remove thumbnail"
+              onChoose={thumbnailPickerState.picker.openPicker}
+              onUploadFile={(file) => void thumbnailPickerState.uploadThumbnail(file)}
+              onRemove={() => setPresetForm((current) => ({ ...current, thumbnailPath: "", thumbnailUrl: "" }))}
+              className={accentCardClassName}
+            />
 
-          <MediaPresetTextFieldsPanel
-            form={presetForm}
-            className={accentCardClassName}
-            onFormChange={setPresetForm}
-          />
+            <MediaPresetAvailabilityPanel
+              form={presetForm}
+              className={accentCardClassName}
+              generatedPresetKey={generatedPresetKey}
+              models={compatiblePresetModels}
+              onFormChange={setPresetForm}
+            />
+          </aside>
+          <div className="admin-span-full">
 
-          <MediaPresetImageSlotsPanel
-            form={presetForm}
-            className={accentCardClassName}
-            onFormChange={setPresetForm}
-          />
-
-          <MediaPresetActionsPanel
-            form={presetForm}
-            className={accentCardClassName}
-            isSaving={isSaving}
-            archived={archived}
-            isExporting={isExporting}
-            onFormChange={setPresetForm}
-            onExport={() => void exportPreset()}
-            onSave={() => void savePreset()}
-            onArchive={() => void archivePreset()}
-          />
+            <MediaPresetActionsPanel
+              form={presetForm}
+              className={accentCardClassName}
+              isSaving={isSaving}
+              archived={archived}
+              isExporting={isExporting}
+              onFormChange={setPresetForm}
+              onExport={() => void exportPreset()}
+              onSave={() => void savePreset()}
+              onArchive={() => void archivePreset()}
+            />
+          </div>
         </div>
-      </Panel>
+      </div>
 
       <GeneratedThumbnailPickerDialog
         open={thumbnailPickerState.picker.open}

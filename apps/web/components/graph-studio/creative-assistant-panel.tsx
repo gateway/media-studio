@@ -1077,14 +1077,14 @@ export function CreativeAssistantPanel({
                   ? "Codex is installed, but Media Studio could not confirm a signed-in ChatGPT-backed Codex session."
                   : "Install Codex and sign in with ChatGPT to use native assistant chat."}
               </span>
-              <a href="/setup">Open setup</a>
+              <a href="/settings/connections">Connections</a>
             </div>
           ) : null}
           {readOnlyProvider ? (
             <div className="graph-assistant-readiness" role="status">
               <strong>Read-only assistant chat.</strong>
               <span>Graph building and Media Studio actions need Codex Local.</span>
-              <a href="/settings/llms">Open AI Settings</a>
+              <a href="/settings/llms">Open AI Models</a>
             </div>
           ) : null}
           {conversationalMessages.length ? (
