@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ProviderConnections, type ProviderConnection } from "@/components/settings/provider-connections";
 import { SettingsSectionTabs } from "@/components/settings/settings-section-tabs";
-import { BrainCircuit, Cable, CheckCircle2, Image as ImageIcon, KeyRound, Sparkles, Workflow } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { adminButtonClassName, adminInsetPanelClassName } from "@/components/admin-controls";
+import { adminButtonClassName } from "@/components/admin-controls";
 import { SectionDisclosure } from "@/components/collapsible-sections";
 import { adminSurfaceCardClassName, adminThemeLayoutClassName } from "@/components/admin-theme";
 import { StatusPill } from "@/components/status-pill";
@@ -13,7 +13,7 @@ import { CalloutPanel, SurfaceInset } from "@/components/ui/surface-primitives";
 import { getControlApiJson, getMediaDashboardSnapshot } from "@/lib/control-api";
 import { summarizeLlmProviderReadiness } from "@/lib/llm-provider-health";
 import { DEFAULT_LOCAL_OPENAI_BASE_URL, KIE_AFFILIATE_URL } from "@/lib/onboarding";
-import { binaryReadinessStatus, connectingStatus, readinessStatus, readyStatus } from "@/lib/status-language";
+import { binaryReadinessStatus, readinessStatus, readyStatus } from "@/lib/status-language";
 import { buildStudioScopedHref } from "@/lib/studio-navigation";
 import type { ControlApiHealthData, MediaCreditsResponse } from "@/lib/types";
 
@@ -36,26 +36,6 @@ function StatusRow({
       </div>
       <StatusPill label={value} tone={tone} />
     </div>
-  );
-}
-
-function SetupCapabilityCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <SurfaceInset appearance="admin" className={adminInsetPanelClassName}>
-      <div className="admin-icon-label-row admin-label-muted">
-        {icon}
-        {title}
-      </div>
-      <div className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">{description}</div>
-    </SurfaceInset>
   );
 }
 
@@ -142,8 +122,6 @@ export default async function ConnectionsPage({
     typeof credits.data?.raw?.reason === "string" ? credits.data.raw.reason : "Credit balance becomes visible after you add a KIE API key.";
 
   const aiSettingsHref = buildStudioScopedHref("/settings/llms", currentProjectId);
-  const studioHref = buildStudioScopedHref("/studio", currentProjectId);
-  const graphHref = buildStudioScopedHref("/graph-studio", currentProjectId);
   const machineReady = kieRepoConnected && kieKeyConfigured && liveSubmitEnabled;
   const machineConfigured =
     kieRepoConnected ||
@@ -168,9 +146,15 @@ export default async function ConnectionsPage({
           <a href="/help/ai#connections" target="_blank" rel="noreferrer">How to connect providers ↗</a>
           <Link href={aiSettingsHref}>Choose task models →</Link>
         </div>
-        <ProviderConnections connections={connections.data ?? []} />
+        <ProviderConnections connections={connections.data ?? []} currentProjectId={currentProjectId} />
         {connections.error ? <p role="alert">Could not load provider connections. Reload to try again.</p> : null}
-        <h2 className="text-xl font-semibold">Installation help and machine status</h2>
+        <SectionDisclosure
+          className="admin-disclosure-compact"
+          title="Installation help and machine status"
+          description="Optional setup instructions and media-generation service details."
+          summary={`Media generation: ${machineStatus.label}`}
+          defaultOpen={false}
+        >
         <div className="admin-form-grid">
         <section className="admin-form-main">
           <SetupConnectionCard
@@ -315,63 +299,7 @@ export default async function ConnectionsPage({
 
           </aside>
         </div>
-        <section className={adminSurfaceCardClassName}>
-          <div className="space-y-3">
-            <h2 className="text-[1.5rem] font-semibold tracking-[-0.04em] text-[var(--foreground)]">What each connection powers</h2>
-            <p className="max-w-3xl text-sm leading-7 text-[var(--muted-strong)]">
-              Confirm which services are ready on this machine, then use AI Models or each graph workflow to choose the right model for the job.
-            </p>
-          </div>
-          <div className="mt-5 grid gap-3 lg:grid-cols-3">
-            <SetupCapabilityCard
-              icon={<ImageIcon className="size-3.5" />}
-              title="Studio renders"
-              description="KIE powers image and video generation in Studio and in graph media model nodes. If KIE is not ready, real generation stays offline."
-            />
-            <SetupCapabilityCard
-              icon={<BrainCircuit className="size-3.5" />}
-              title="Prompt Enhance and recipe drafts"
-              description="AI Models chooses the default model for Prompt Enhance and for recipe draft generation. These are defaults, not global locks."
-            />
-            <SetupCapabilityCard
-              icon={<Workflow className="size-3.5" />}
-              title="Graph prompt nodes"
-              description="Graph prompt nodes choose their own provider and model inside each workflow. They do not inherit the recipe draft default."
-            />
-          </div>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link href={aiSettingsHref} className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
-              Open Settings
-            </Link>
-            <Link href={studioHref} className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
-              Open Studio
-            </Link>
-            <Link href={graphHref} className={adminButtonClassName({ variant: "subtle", size: "compact" })}>
-              Open Graph Studio
-            </Link>
-          </div>
-        </section>
-
-        <section className={adminSurfaceCardClassName}>
-          <h2 className="text-[1.1rem] font-semibold tracking-[-0.03em] text-[var(--foreground)]">What each model setting controls</h2>
-          <div className="mt-4 grid gap-3 lg:grid-cols-3">
-            <SetupCapabilityCard
-              icon={<Sparkles className="size-3.5" />}
-              title="Prompt Enhance default model"
-              description="Used when you click Prompt Enhance in Studio. Change it in AI Models."
-            />
-            <SetupCapabilityCard
-              icon={<Cable className="size-3.5" />}
-              title="Recipe draft model"
-              description="Used when Media Studio writes the first draft of a Prompt Recipe. Change it in AI Models."
-            />
-            <SetupCapabilityCard
-              icon={<KeyRound className="size-3.5" />}
-              title="Graph node model"
-              description="Each graph prompt node chooses its own provider and model. Change it inside the workflow."
-            />
-          </div>
-        </section>
+        </SectionDisclosure>
       </div>
     </StudioAdminShell>
   );

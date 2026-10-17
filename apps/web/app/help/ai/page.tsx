@@ -10,6 +10,10 @@ export default function AiHelpPage() {
       <p>Claude models can be used when your connected provider offers them, for example through OpenRouter. Media Studio does not have a Claude subscription login integration. A Claude subscription and Claude API billing are separate; a subscription login is not an API key.</p>
       <a href="https://support.claude.com/en/articles/9876003-i-have-a-paid-claude-subscription-pro-max-team-or-enterprise-plans-why-is-claude-api-usage-billed-separately-from-my-paid-claude-plan" target="_blank" rel="noreferrer">Anthropic’s subscription and API billing explanation ↗</a>
     </Panel>
+    <Panel className="p-5" id="codex"><PanelHeader eyebrow="Machine connection" title="Codex sign-in" />
+      <p>Codex Local has its own row at the top of Connections. Ready means Media Studio can find Codex and its local login. Use Refresh Codex status after signing in; this reads readiness without saving credentials or running a generation.</p>
+      <p>If sign-in is needed, make sure Codex is installed on this machine, run <code>codex login</code> in a terminal and finish sign-in, then refresh the status. You do not paste an API key into this row. Once ready, choose a task model in AI Models.</p>
+    </Panel>
     <Panel className="p-5" id="models"><PanelHeader eyebrow="AI help" title="Select and test models" />
       <p>In Settings → AI Models, expand Prompt Enhance, Recipe draft model or Media Assistant. Select a connected provider, refresh its model list, choose a model and save that task. Refresh checks the catalog or endpoint; it does not prove generated output quality. The existing saved model remains visible if unavailable. Image / Video Models controls KIE generation models separately.</p>
     </Panel>

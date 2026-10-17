@@ -24,4 +24,17 @@ describe("ProviderConnections", () => {
     expect(screen.getByText(/Connection saved/)).toBeTruthy();
     window.removeEventListener("provider-connections-changed", changed);
   });
+  it("shows the machine-managed Codex connection and refreshes readiness without saving credentials", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ProviderConnections currentProjectId="project-one" connections={[{ provider_kind: "codex_local", configured: true, api_key_configured: false, credential_source: "codex_local_login", base_url: null }]} />);
+    expect(screen.getByText("Codex Local")).toBeTruthy();
+    expect(screen.getByText("Ready")).toBeTruthy();
+    expect(screen.queryByLabelText("API key")).toBeNull();
+    expect(screen.getByRole("link", { name: "Choose task models →" }).getAttribute("href")).toBe("/settings/llms?project=project-one");
+    expect(screen.getByRole("link", { name: "Codex sign-in help ↗" }).getAttribute("target")).toBe("_blank");
+    fireEvent.click(screen.getByRole("button", { name: "Refresh Codex status" }));
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
