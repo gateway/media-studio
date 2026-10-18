@@ -58,3 +58,23 @@ application import time within `app_modules`, then inspect the second bootstrap
 in TestClient startup. Initial conftest collection also bootstraps its own schema.
 No fixture lifetime or schema behavior is changed here: those paths protect
 migration and application startup contracts and require isolation evidence first.
+
+## Standalone unit bytecode policy
+
+Thirteen standalone unittest modules previously disabled bytecode writes during
+collection for the entire test process. Each now starts a `sys.dont_write_bytecode`
+patch at the beginning of `setUp` and registers its restoration before application
+imports or other cleanups. Unittest runs cleanup after setup/test/teardown failures;
+LIFO ordering keeps writes disabled through the case's remaining cleanup. The
+patch restores the incoming value, including an existing no-write policy. No
+application imports occur at module scope in these thirteen modules.
+
+`python -B scripts/test_ci_bytecode_policy.py` is a pure standalone regression
+check: it loads those module definitions without pytest, stops setup at the first
+application import, and probes both incoming values through success and setup,
+test, teardown and cleanup errors. Full application tests still belong in the
+disposable CI workspace. The case-scoped patch deliberately repeats the standard
+unittest idiom so standalone files need no shared import helper or fixture.
+
+This contains process state; runtime benefit requires comparable repeated CI
+profiles. Capped compilation samples alone do not establish a suite speedup.

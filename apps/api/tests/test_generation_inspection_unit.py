@@ -5,11 +5,13 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
-sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 class InspectionTests(unittest.TestCase):
     def setUp(self):
+        bytecode = patch.object(sys, "dont_write_bytecode", True)
+        bytecode.start()
+        self.addCleanup(bytecode.stop)
         from app.assistant.generation_inspection import InspectGenerationArguments
         from app.graph.schemas import GraphWorkflow
         self.Args = InspectGenerationArguments

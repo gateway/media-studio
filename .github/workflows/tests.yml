@@ -101,6 +101,9 @@ jobs:
       - name: Test CI timing recorder without application fixtures
         run: kie-api/.venv/bin/python -m unittest discover -s scripts -p 'test_ci_pytest_profile*.py'
 
+      - name: Test standalone unit bytecode policy without application imports
+        run: kie-api/.venv/bin/python -B scripts/test_ci_bytecode_policy.py
+
       - name: Install web dependencies
         run: npm ci
 

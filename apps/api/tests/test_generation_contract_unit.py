@@ -3,7 +3,6 @@ import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 def board(count=6):
@@ -12,6 +11,11 @@ def board(count=6):
         for i in range(1, count + 1))
 
 class GenerationContractTests(unittest.TestCase):
+    def setUp(self):
+        bytecode = patch.object(sys, "dont_write_bytecode", True)
+        bytecode.start()
+        self.addCleanup(bytecode.stop)
+
     def test_long_prompts_are_exact_under_limit(self):
         from app.graph.prompt_shaping import shape_kie_graph_prompt
         for kind in ("Product sheet", "Character reference", "Environment sheet"):
