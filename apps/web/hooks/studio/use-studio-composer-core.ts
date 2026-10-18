@@ -711,9 +711,7 @@ export function useStudioComposer({
       setModelKey(nextModelKey);
     }
 
-    const hasStructuredInputs =
-      ((targetPreset.input_schema_json as Array<Record<string, unknown>> | undefined)?.length ?? 0) > 0 ||
-      ((targetPreset.input_slots_json as Array<Record<string, unknown>> | undefined)?.length ?? 0) > 0;
+    const hasStructuredInputs = Boolean(targetPreset.input_schema_json?.length || targetPreset.input_slots_json?.length);
 
     setSelectedPresetId(targetPreset.preset_id ?? targetPreset.key);
     setPresetInputValues(Object.fromEntries(normalizeStructuredPresetTextFields(targetPreset).map((field) => [field.key, field.defaultValue])));
@@ -727,9 +725,7 @@ export function useStudioComposer({
       }
       setAttachments([]);
       clearSourceAsset();
-    }
-
-    if (!hasStructuredInputs && targetPreset.prompt_template?.trim()) {
+    } else if (targetPreset.prompt_template?.trim()) {
       setPrompt(targetPreset.prompt_template);
     }
 
