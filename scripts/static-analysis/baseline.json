@@ -27,7 +27,7 @@
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Ticket 10: remove the two recipe mapper complexity exemptions after CC 30 to 6 extraction; no added findings or metric increases.",
+  "reason": "Ticket23: remove no-empty and no-useless-assignment; reconcile seven existing callback/context identities, restore CC 44 to 43, no added debt",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -1183,17 +1183,6 @@
       "id": "22fa75ca3fe6e213fc142cc6b567984ddd9ed3c8c7ff3f58d1987f83b9297756"
     },
     {
-      "rule": "complexity",
-      "message": "Async arrow function has a complexity of 44. Maximum allowed is 15.",
-      "severity": 1,
-      "line": 1263,
-      "column": 66,
-      "metric": 44,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:447d2f284af3b33d51566a7c9d8f7bdaeb8a42eea124b7e51fa88bd5997c50fb",
-      "id": "2372dcc2c40c02ae4bff5e12a33ebf5df2897a6aa0aa069eedb106dd893000a1"
-    },
-    {
       "rule": "no-useless-escape",
       "message": "Unnecessary escape character: \\\".",
       "severity": 2,
@@ -1666,6 +1655,16 @@
       "id": "32941a7c8a3769ae7bc152c26e6879d83aa0da2be94213b726f0f046b7d48907"
     },
     {
+      "rule": "react-hooks/exhaustive-deps",
+      "message": "React Hook useCallback has missing dependencies: 'canvasHydrated' and 'setConsoleLines'. Either include them or remove the dependency array.",
+      "severity": 2,
+      "line": 1361,
+      "column": 5,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]",
+      "id": "3329c27e39501abea04ec881283ab036f4421cf0c0d166bc14822f4b80f4cd03"
+    },
+    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 93 to the 20 allowed.",
       "severity": 1,
@@ -1811,16 +1810,6 @@
       "file": "apps/web/components/media-models-console.tsx",
       "owner": "FunctionDeclaration:[\"MediaModelsConsole\"]",
       "id": "36f139165f77956a3d57f70707cef79ec80d8d698a67ac2f4371e634541c42d2"
-    },
-    {
-      "rule": "react-hooks/exhaustive-deps",
-      "message": "React Hook useCallback has missing dependencies: 'canvasHydrated' and 'run?.status'. Either include them or remove the dependency array.",
-      "severity": 2,
-      "line": 1239,
-      "column": 5,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"loadWorkflowRecord\"]",
-      "id": "3756d6a50d1a008889d1bada4f2cb00e3b3658710f8f5329723a1f7073af3a7f"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -2305,6 +2294,17 @@
     },
     {
       "rule": "sonarjs/cognitive-complexity",
+      "message": "Refactor this function to reduce its Cognitive Complexity from 24 to the 20 allowed.",
+      "severity": 1,
+      "line": 1263,
+      "column": 66,
+      "metric": 24,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:0c5e6115dcb4f6c6a4558a584976caffd5e3344fbb65ebb85243d657c1efcd01",
+      "id": "49b98c4049e89d4e0f019d1e585cfcd39ef6d9867806f922ea3ea8793fc4baad"
+    },
+    {
+      "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 41 to the 20 allowed.",
       "severity": 1,
       "line": 83,
@@ -2313,6 +2313,17 @@
       "file": "apps/web/lib/studio-pricing.ts",
       "owner": "FunctionDeclaration:[\"estimateFromPricingSnapshot\"]",
       "id": "49e18cea52828551bdfdd8ba0343f902a87e1160b177ef6d278ca2225dd9f393"
+    },
+    {
+      "rule": "complexity",
+      "message": "Async arrow function has a complexity of 43. Maximum allowed is 15.",
+      "severity": 1,
+      "line": 1263,
+      "column": 66,
+      "metric": 43,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:0c5e6115dcb4f6c6a4558a584976caffd5e3344fbb65ebb85243d657c1efcd01",
+      "id": "4a493484fa6047aa6f79ba6c16dda2455c4a0270319caed5f200d05757d624f4"
     },
     {
       "rule": "react-hooks/exhaustive-deps",
@@ -3313,16 +3324,6 @@
       "id": "6bf06f77b4fb7bcbd8b1f673a83c8c91b7bc82ce9a81bda5dd277a91fb1f6fa1"
     },
     {
-      "rule": "no-empty",
-      "message": "Empty block statement.",
-      "severity": 2,
-      "line": 1305,
-      "column": 17,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:447d2f284af3b33d51566a7c9d8f7bdaeb8a42eea124b7e51fa88bd5997c50fb",
-      "id": "6cd28ed2853aabe862fcdaf2597bece246ba423fb230688966c0ac3a02e52145"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'StudioReferenceLibrary' has a complexity of 17. Maximum allowed is 15.",
       "severity": 1,
@@ -3456,6 +3457,16 @@
       "file": "apps/web/hooks/studio/use-studio-gallery-feed.ts",
       "owner": "FunctionDeclaration:[\"useStudioGalleryFeed\"]/VariableDeclaration:[\"galleryScrollLoader\"]/PropertyAssignment:[\"onLoadMoreActiveGalleryAssets\"]/PropertyAccessExpression:[\"loadMoreActiveGalleryAssets\"]",
       "id": "714742e6ff83207142569e83ca97add6ac7c42e6ed977ad7e7a9e8c95771a06d"
+    },
+    {
+      "rule": "react-hooks/exhaustive-deps",
+      "message": "React Hook useCallback has missing dependencies: 'canvasHydrated' and 'setConsoleLines'. Either include them or remove the dependency array.",
+      "severity": 2,
+      "line": 1421,
+      "column": 5,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreLatestRunSnapshot\"]",
+      "id": "717263a32d7a221a2f45963f18f8e0b1e92f2d4e6053bb50dab9db410bae4764"
     },
     {
       "rule": "@typescript-eslint/no-explicit-any",
@@ -4008,17 +4019,6 @@
       "file": "apps/web/hooks/studio/use-studio-composer-submit.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposerSubmit\"]/FunctionDeclaration:[\"requestEnhancementPreview\"]",
       "id": "829062d4abd41786d15f74db942bad8969b5aa19644bb62e92bb38c527500504"
-    },
-    {
-      "rule": "sonarjs/cognitive-complexity",
-      "message": "Refactor this function to reduce its Cognitive Complexity from 24 to the 20 allowed.",
-      "severity": 1,
-      "line": 1263,
-      "column": 66,
-      "metric": 24,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:447d2f284af3b33d51566a7c9d8f7bdaeb8a42eea124b7e51fa88bd5997c50fb",
-      "id": "82b38307398cd25cd41d2b9c23deb38c0a4b0db2bb27129d11ecbcfcd30d4bfd"
     },
     {
       "rule": "complexity",
@@ -4600,6 +4600,16 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
+      "line": 1355,
+      "column": 9,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:0c5e6115dcb4f6c6a4558a584976caffd5e3344fbb65ebb85243d657c1efcd01",
+      "id": "9960f60e22f8aec8e0d209bf23f75e23611cd95a17b115726611541070f8637a"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
       "line": 114,
       "column": 5,
       "file": "apps/web/components/graph-studio/hooks/use-graph-toolbar-workflow-actions.ts",
@@ -4782,16 +4792,6 @@
       "column": 27,
       "owner": "ImportSpecifier:[\"MediaJobResponse\"]",
       "id": "a2abf954b78ed2e9d65d88e24c7e7acce039f04409fba9f70f3d0653414ff409"
-    },
-    {
-      "rule": "react-hooks/exhaustive-deps",
-      "message": "React Hook useCallback has missing dependencies: 'canvasHydrated' and 'setConsoleLines'. Either include them or remove the dependency array.",
-      "severity": 2,
-      "line": 1361,
-      "column": 5,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]",
-      "id": "a2b1c534906acca260394f5a9cacdf970695e28f7bbafbf74964565aa5bd152b"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -5072,6 +5072,16 @@
       "file": "apps/web/lib/media-studio-helpers-core.ts",
       "owner": "ImportSpecifier:[\"referencePlaybackUrl\"]",
       "id": "ab7375af9643edf7421d6bb317a1c1baf1df6abf1698ad8b5abc2623be86009e"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1357,
+      "column": 9,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:0c5e6115dcb4f6c6a4558a584976caffd5e3344fbb65ebb85243d657c1efcd01",
+      "id": "aba9f2bf29e5bbe0287bbc86940ec4911ed91c365b7230c8e608b1da6257e78d"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -5660,6 +5670,16 @@
       "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
       "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:9e0f9110bf51efbbdb2e33900bfb5f468525afcc487d04aa265c64525a656140",
       "id": "c29f3de101b99c55a6fe0887f514d3c99536695e2ef67f436864e422177e1611"
+    },
+    {
+      "rule": "react-hooks/exhaustive-deps",
+      "message": "React Hook useCallback has missing dependencies: 'canvasHydrated' and 'run?.status'. Either include them or remove the dependency array.",
+      "severity": 2,
+      "line": 1239,
+      "column": 5,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"loadWorkflowRecord\"]",
+      "id": "c2a6f50414385cdcb70fe1a9dc844acd09838496dc980c84fc68cb8a1e10397f"
     },
     {
       "rule": "complexity",
@@ -6345,16 +6365,6 @@
       "id": "d8124e120ae386f9890d5ff7636f859f204fd9569c3016bca1c47b000b68a28d"
     },
     {
-      "rule": "no-useless-assignment",
-      "message": "The value assigned to 'restoredSavedWorkflowSignature' is not used in subsequent statements.",
-      "severity": 2,
-      "line": 1272,
-      "column": 11,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:447d2f284af3b33d51566a7c9d8f7bdaeb8a42eea124b7e51fa88bd5997c50fb/VariableDeclaration:[\"restoredSavedWorkflowSignature\"]",
-      "id": "d9e704d50766f26b003d544b3fc94d22143e2d6d60f519d5c3858373a92ffdf3"
-    },
-    {
       "rule": "@typescript-eslint/no-explicit-any",
       "message": "Unexpected any. Specify a different type.",
       "severity": 1,
@@ -6571,16 +6581,6 @@
       "id": "e08c1cde52239ceeb8cf4a3cd76722bd5f0fe087f7615e1b91cf5e010724f51b"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1357,
-      "column": 9,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:447d2f284af3b33d51566a7c9d8f7bdaeb8a42eea124b7e51fa88bd5997c50fb",
-      "id": "e0f4078fa3ffa91e2beb1146f5a2ac10bde29ad9410e0261ed68678e04bbb56d"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 30 to the 20 allowed.",
       "severity": 1,
@@ -6600,16 +6600,6 @@
       "file": "apps/web/components/graph-studio/hooks/use-graph-tabs.ts",
       "owner": "FunctionDeclaration:[\"useGraphTabs\"]",
       "id": "e1fd335acfae0a5f5fe44a6682ac3f08e3f810bb2ea6a253ddbe6454d25a2484"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1355,
-      "column": 9,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:447d2f284af3b33d51566a7c9d8f7bdaeb8a42eea124b7e51fa88bd5997c50fb",
-      "id": "e20618218f8df7157174d21899aa7e7e3a3bf329d2da8b4248537472d8d15aa9"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -7239,16 +7229,6 @@
       "file": "apps/web/components/graph-studio/utils/graph-tabs.ts",
       "owner": "FunctionDeclaration:[\"normalizeTab\"]",
       "id": "f22a669347a180e78872dea422cc5625a228c655108895e9bb0592cc2d653e12"
-    },
-    {
-      "rule": "react-hooks/exhaustive-deps",
-      "message": "React Hook useCallback has missing dependencies: 'canvasHydrated' and 'setConsoleLines'. Either include them or remove the dependency array.",
-      "severity": 2,
-      "line": 1421,
-      "column": 5,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreLatestRunSnapshot\"]",
-      "id": "f24316586cf3fe2cd937c752bf85a160cf85285e99d9efbd5b436f28445fd189"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
