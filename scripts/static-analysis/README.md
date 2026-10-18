@@ -121,9 +121,7 @@ line shifts, renames/new files, replacement findings, tool/config failures and
 malformed/incomplete reports. It does not load the application test harness.
 
 `.github/workflows/static-analysis.yml` runs all four fixture suites and the combined gate
-on every PR and main push, retaining reports even on failure. Configure the
-`javascript-typescript-python` job as a required branch-protection/ruleset check after its
-first remote run. Committing a workflow alone does not enforce merges; remote CI
+on every PR and main push, retaining reports even on failure. Use the required-check policy below when configuring main branch protection. Committing a workflow alone does not enforce merges; remote CI
 execution and branch protection must be verified separately. No hooks are installed.
 # CSS checks
 
@@ -158,5 +156,20 @@ Quality/release commands require the same dedicated analyzer environment as lint
 they do not install it implicitly. Existing application-test and data safeguards
 remain in force. Static lint imports no application code, creates no application
 database and starts no services. Shell/PowerShell and runtime semantics remain
-outside these analyzers. Main currently has no required-check protection or
-enforcing ruleset; merge enforcement is pending.
+outside these analyzers. The main branch protection policy requires these always-run GitHub Actions checks:
+
+- `javascript-typescript-python`
+- `quality-gates`
+- `admin-theme`
+- `publication-safeguards`
+- `shared-python-onboarding (ubuntu-latest)`
+- `shared-python-onboarding (macos-latest)`
+- `shared-python-onboarding (windows-latest)`
+- `windows-onboarding`
+
+Require the branch to be up to date and apply checks to administrators too. Bind
+checks to the GitHub Actions app. Verify the live repository protection settings;
+this document and workflow files alone do not configure enforcement. The
+`mechanical-contract` assistant job has path-filtered triggers and is not a
+universal required check: requiring it on unrelated PRs would leave them waiting
+for a job that never runs. It remains active for its matching changes.
