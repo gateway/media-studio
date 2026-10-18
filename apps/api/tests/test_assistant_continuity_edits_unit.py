@@ -6,12 +6,14 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 class ContinuityEditsTests(unittest.TestCase):
     def setUp(self):
+        bytecode = patch.object(sys, "dont_write_bytecode", True)
+        bytecode.start()
+        self.addCleanup(bytecode.stop)
         from app.graph.schemas import GraphWorkflow, GraphNodeDefinition
         from app.assistant import graph_plan
         self.plan = graph_plan

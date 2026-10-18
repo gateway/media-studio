@@ -12,12 +12,14 @@ from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 
-sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 class RunHandoffTests(unittest.TestCase):
     def setUp(self):
+        bytecode = patch.object(sys, "dont_write_bytecode", True)
+        bytecode.start()
+        self.addCleanup(bytecode.stop)
         self.stack = ExitStack()
         self.addCleanup(self.stack.close)
         self.stack.enter_context(patch("sqlite3.connect", side_effect=AssertionError("Database access forbidden")))

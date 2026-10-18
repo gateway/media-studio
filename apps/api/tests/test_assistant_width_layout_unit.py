@@ -5,12 +5,14 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 class WidthLayoutTests(unittest.TestCase):
     def setUp(self):
+        bytecode = patch.object(sys, "dont_write_bytecode", True)
+        bytecode.start()
+        self.addCleanup(bytecode.stop)
         from app.assistant import workflow_layout
         from app.graph.schemas import GraphNodeDefinition, GraphWorkflow
         self.layout = workflow_layout

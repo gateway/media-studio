@@ -4,10 +4,14 @@ import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 class RecipeDiscoveryTests(unittest.TestCase):
+    def setUp(self):
+        bytecode = patch.object(sys, "dont_write_bytecode", True)
+        bytecode.start()
+        self.addCleanup(bytecode.stop)
+
     def test_search_exposes_constraints_and_requires_full_inspection(self):
         with patch("sqlite3.connect", side_effect=AssertionError("Database forbidden")), patch("socket.socket.connect", side_effect=AssertionError("Network forbidden")):
             from app.assistant import recipe_kernel
