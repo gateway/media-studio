@@ -174,7 +174,7 @@ it("keeps the freeform prompt when the selected preset template is blank", () =>
 });
 
 it("switches to a supported preferred model and applies that model's preset options", () => {
-  const other = { ...model, key: "other", defaults: { quality: "high" } };
+  const other = { ...model, key: "other" };
   const next = { ...detail, applies_to_models: [model.key, other.key], default_options_json: { quality: "high" } };
   const { result } = renderHook(() => useComposer([next], [model, other]));
   act(() => result.current.actions.applyPresetSelection("older", { preferredModelKey: other.key }));
