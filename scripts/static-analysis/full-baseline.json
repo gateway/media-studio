@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Integrate tickets07/09: preserve four frontend context-only mappings and four launcher context-only mappings plus the reviewed process clone reduction 53 to19 lines; no new clone debt",
+  "reason": "Ticket 10: remove two recipe record/draft clones; review five unchanged pairs with context-only changes in control-api.ts. No new fragments, endpoint content or metric increases.",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -1340,26 +1340,6 @@
       "format": "python"
     },
     {
-      "id": "3739c2cc6dbcc071d0c0b67a12b3bba14b6e157b4724f6cc3269436496c12f90",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 314,
-          "end": 327,
-          "context": "8a47b12b61a528a670dd8d5b6379f1c2f8c50301f5b02841fbf3a553428714cd"
-        },
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 357,
-          "end": 370,
-          "context": "dbd764600a81443a80b3798657d4d0bf717a3d7d6b13629067e5741c7504ce66"
-        }
-      ],
-      "tokens": 107,
-      "lines": 14,
-      "format": "typescript"
-    },
-    {
       "id": "376b6fe19279a706739aac250292de0d858dfc9bae7120b4fe9526ea02226f43",
       "endpoints": [
         {
@@ -1680,26 +1660,6 @@
       "format": "tsx"
     },
     {
-      "id": "43b315bb965de3af74588ba48834cb69d499392ca7015d12913ae7be0f21c87b",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 627,
-          "end": 633,
-          "context": "a1a3a780260e77df46314e81a8db67efb967a703dfe4f2ec4f2da248f59a236f"
-        },
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 479,
-          "end": 485,
-          "context": "b00fa3c8284b00674cd9262a2181748be1070b06d45ae62639d405ab35d7e796"
-        }
-      ],
-      "tokens": 52,
-      "lines": 7,
-      "format": "typescript"
-    },
-    {
       "id": "44ed9b4174fb1216e92595be6c0595ba52c6f4e4998e6bae9941580e0511ef4c",
       "endpoints": [
         {
@@ -1857,6 +1817,26 @@
       ],
       "tokens": 94,
       "lines": 17,
+      "format": "typescript"
+    },
+    {
+      "id": "4eaaab571d9d0acd2d20b4733e37d3bded81031b1e2fa9e7f5139881c54e2e22",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 314,
+          "end": 327,
+          "context": "a72ae703595291f8485a87975dcaaff0887c2ef146a4ae5b85cab3d0532463a6"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 357,
+          "end": 370,
+          "context": "c9bdcf2054585f7db60e4ebe59bdf323dd36f59195768d889167ffe546dbf167"
+        }
+      ],
+      "tokens": 107,
+      "lines": 14,
       "format": "typescript"
     },
     {
@@ -2740,6 +2720,26 @@
       "format": "tsx"
     },
     {
+      "id": "74924ba34ca1b054e0fb4ea20639870291585fa1ca193c7629f08418ce1590c2",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 708,
+          "end": 714,
+          "context": "89922f791160b782066b30f9c5355f496ca3a5f4f00b57f49ebaec4985aa1250"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 658,
+          "end": 664,
+          "context": "c26cf98c9352b732742d10176a580f8c85854e8f9f3d543090790002f9d6715a"
+        }
+      ],
+      "tokens": 65,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
       "id": "74a1c684149a9cd86353700bd23484110938a2fa8ba92190c98de67985158489",
       "endpoints": [
         {
@@ -2920,26 +2920,6 @@
       "format": "typescript"
     },
     {
-      "id": "7c57ac77e5bd071005a631e152766ab85c40913234da57490636d4a34900ff7c",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 1110,
-          "end": 1115,
-          "context": "67ebc31bba08d980cb306e38f6c9d8a7aeaba582c156e216aa076a104b3f2430"
-        },
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 1186,
-          "end": 1191,
-          "context": "aeaa927224acf8713aadf62f1f4542d3d7f501f8214b578010b929c6caf991c6"
-        }
-      ],
-      "tokens": 50,
-      "lines": 6,
-      "format": "typescript"
-    },
-    {
       "id": "7ded13b00ccdb66220ab9d157dfc2373d793003fbe7ad6a3985f75ef866aa554",
       "endpoints": [
         {
@@ -3018,26 +2998,6 @@
       "tokens": 51,
       "lines": 9,
       "format": "tsx"
-    },
-    {
-      "id": "8193263ec902a12c09fdc60f2a2d65416781a97f52eb118a997fc14455cecd1e",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 677,
-          "end": 683,
-          "context": "bf65a1be0c72dbc69dda454d7eb8c0b02d384bb89a5736433514e43513c8f260"
-        },
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 727,
-          "end": 733,
-          "context": "cb0287e9cebe939cafadd755e9fff2e233eb51aaaee7f771cd8245052b3366db"
-        }
-      ],
-      "tokens": 65,
-      "lines": 7,
-      "format": "typescript"
     },
     {
       "id": "843f02620de59b79afe92ef744eb8f4df7974e6804e99055a148e4178191eb9c",
@@ -3897,6 +3857,26 @@
       ],
       "tokens": 60,
       "lines": 13,
+      "format": "typescript"
+    },
+    {
+      "id": "ac0417060ac5754c0f07da2f4297661c1a0ca621726f672191fdc7da1f9ff1bb",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 460,
+          "end": 466,
+          "context": "3c5fb9a50d1eba2ce6897aaa991ce3988500a1101d1a25ccf9891ec4046fa166"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 608,
+          "end": 614,
+          "context": "a08ac2a9ea2bce5836a8e4a2a5438341c9dd1ef09e88e4e4b1d1a54f3c719fec"
+        }
+      ],
+      "tokens": 52,
+      "lines": 7,
       "format": "typescript"
     },
     {
@@ -4780,6 +4760,26 @@
       "format": "css"
     },
     {
+      "id": "d5db5827bb0b601d3dcc3f1f0e6646ad0dfca6ccf6356af5f007869207ddd35d",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api-media.ts",
+          "start": 9,
+          "end": 24,
+          "context": "09f8b26b1ff5a21efd144400a5623983ef0afc93df8e07789095bc0f841c4f1b"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 80,
+          "end": 97,
+          "context": "3214c7030bc948510f7aa994725fda921cecde34bb28d449e318a684dc88edd5"
+        }
+      ],
+      "tokens": 101,
+      "lines": 16,
+      "format": "typescript"
+    },
+    {
       "id": "d83d4a0faffb5ba3f01fb541d5c60d47e0b3d2b8cff9e326a36f55d010df7ab0",
       "endpoints": [
         {
@@ -4860,26 +4860,6 @@
       "format": "python"
     },
     {
-      "id": "daac3ddc9793e94f965588a15381ef6906cde28a9cc76942e9e4a83d6bf9f476",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/control-api-media.ts",
-          "start": 9,
-          "end": 24,
-          "context": "09f8b26b1ff5a21efd144400a5623983ef0afc93df8e07789095bc0f841c4f1b"
-        },
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 80,
-          "end": 97,
-          "context": "26a5c0bc5ef8671fc62e5a950e9d31d5b1036b31952f2d490378e7a4d46066e8"
-        }
-      ],
-      "tokens": 101,
-      "lines": 16,
-      "format": "typescript"
-    },
-    {
       "id": "daf8a9187636561664dc7b4e34ad12d1ca72c7a89738954bc9da77fd0496879f",
       "endpoints": [
         {
@@ -4920,6 +4900,26 @@
       "format": "typescript"
     },
     {
+      "id": "dc2e9d4e84cf2291def6e4d028aab13f3eb9eb5c5b2a8a327d2c2f139b6f57d8",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 1167,
+          "end": 1172,
+          "context": "55055236c955c33faa6903797b00bfc0965afdabb0220816cb1300f31d4fab10"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 1091,
+          "end": 1096,
+          "context": "dfad20cfdd9fac614d19c8284b4a10d4d16545f0f5103a47a9d27be937c986bf"
+        }
+      ],
+      "tokens": 50,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
       "id": "dca828c4c51a6eb7795ae1f1c53af0f962d9a57ed73831650ee5d60c9407652d",
       "endpoints": [
         {
@@ -4938,26 +4938,6 @@
       "tokens": 69,
       "lines": 11,
       "format": "python"
-    },
-    {
-      "id": "dcba2d622591b220f8825f747b7a94a1320acdd8fa9363f9525e1b47fee89a9c",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 386,
-          "end": 395,
-          "context": "794e4d689dc24ac0a681b3c4a2efea24397d72050bd6d9898786299fe602947e"
-        },
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 431,
-          "end": 440,
-          "context": "f5d7d61b5577c252eb49c02cc64aede60f36d464f7ea7e5ca44117363fd312d9"
-        }
-      ],
-      "tokens": 120,
-      "lines": 10,
-      "format": "typescript"
     },
     {
       "id": "e027ce566de19024fad4d879740197547c5c158cf8a6cdc5a23c3cc7e6fe3fd2",
@@ -5017,26 +4997,6 @@
       ],
       "tokens": 84,
       "lines": 12,
-      "format": "typescript"
-    },
-    {
-      "id": "e13e718efd143303b9572056fa88beae46b34ea004c60bb34018d69794bccb0d",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 445,
-          "end": 467,
-          "context": "0d634dd1f2e2d929ce1be88640166b095f810ac81cea21d655ae81e88f0749ea"
-        },
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 401,
-          "end": 423,
-          "context": "66be1b74615ce0dae48de481b4fa767937b7a06f38ab00496794cf6f07b60b0d"
-        }
-      ],
-      "tokens": 123,
-      "lines": 23,
       "format": "typescript"
     },
     {

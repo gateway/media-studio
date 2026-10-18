@@ -78,3 +78,51 @@ and malformed/valid JSON result behavior. Static-analysis CI runs this pure test
 Executable entrypoints are never imported; no process queries/actions or app data
 are needed. Raw before/after analyzer reports and exact pair comparisons are
 retained outside source; the final full gate remains authoritative.
+
+## Ticket 10 recipe mapping (2026-10-17)
+
+The first slice shares recipe record/draft fields within the existing server-only
+`control-api.ts` owner. Record/draft key, label, status, source-kind coercion,
+version and record-only metadata remain explicit. Snapshot assembly is unchanged.
+ESLint measures both public mappers at CC **30 → 6**; the structured-field and
+shared-field helpers measure **15** and **11**, with cognitive complexity zero.
+The snapshot remains CC **94**, cognitive **31**. Only the two resolved mapper
+complexity exemptions are removed: web findings **728 → 726**. No threshold,
+analyzer contract, configuration, dependency or other web exemption changes.
+
+Production clone pairs decrease **286 → 284**. These two recipe pairs are removed:
+
+| Original control-api.ts endpoints | Tokens | Lines |
+| --- | ---: | ---: |
+| 386–395 / 431–440 | 120 | 10 |
+| 401–423 / 445–467 | 123 | 23 |
+
+Of the 284 retained pairs, 279 fingerprints are identical. Five change only
+because `control-api.ts` context changes. Each raw fragment, endpoint source
+slice, token count and line count is unchanged; exact endpoint movement is:
+
+| Pair endpoints before → after | Tokens | Lines |
+| --- | ---: | ---: |
+| control-api-media 9–24; control-api 80–97 (both unchanged) | 101 | 16 |
+| control-api 314–327 / 357–370 (unchanged) | 107 | 14 |
+| control-api 479–485 / 627–633 → 460–466 / 608–614 | 52 | 7 |
+| control-api 677–683 / 727–733 → 658–664 / 708–714 | 65 | 7 |
+| control-api 1110–1115 / 1186–1191 → 1091–1096 / 1167–1172 | 50 | 6 |
+
+No new clone fragment or metric growth is accepted. Python findings remain 543,
+CSS findings 1,127, informational test clone pairs 555, and dependency violations
+zero. Raw reports and exact identity comparisons are retained outside source.
+An initial base scan overlapped editing during its slow coverage phase, producing
+mixed-context fingerprints; those findings are discarded. Its raw jscpd report
+was independently reconstructed against immutable `git show bdf8d5a` sources and
+matched all 286 original baseline identities exactly. Final verification runs on
+unchanged sources with the narrowly reviewed baseline updates.
+
+Characterization runs the inspected `control-api-recipes.test.ts`,
+`control-api-studio.test.ts` and `control-api-mappers.test.ts` through
+`npm run test:web:focused`: 14 tests pass before and after extraction. Coverage
+includes complete empty defaults, malformed scalar/structured fields, nullish
+alias precedence and reference identity, exact ordered 14-request Studio and
+19-request dashboard reads, and HTTP/network partial failures with successful
+sections retained. Fetch is mocked; no services, app data, provider calls or local
+pytest collection are used.

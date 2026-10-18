@@ -27,7 +27,7 @@
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Integrate tickets07/08: retain all reviewed unused-binding removals/context mappings and remove both resolved graphChangeCopy complexity exemptions",
+  "reason": "Ticket 10: remove the two recipe mapper complexity exemptions after CC 30 to 6 extraction; no added findings or metric increases.",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -1622,17 +1622,6 @@
       "column": 9,
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]/VariableDeclaration:[\"currentPresetSelectionKey\"]",
       "id": "30e124383c1e041179b8697f0fdf744f771aeee3cdae32ce0f277834d9dfbbe1"
-    },
-    {
-      "rule": "complexity",
-      "message": "Function 'mapPromptRecipeDraftPayload' has a complexity of 30. Maximum allowed is 15.",
-      "severity": 1,
-      "line": 431,
-      "column": 8,
-      "metric": 30,
-      "file": "apps/web/lib/control-api.ts",
-      "owner": "FunctionDeclaration:[\"mapPromptRecipeDraftPayload\"]",
-      "id": "30e32f14e7c4034416c10bcf9055dd3fe43eb04a6f8a4f2619c90d59339e9276"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -4124,17 +4113,6 @@
       "file": "apps/web/hooks/use-media-preset-pages.ts",
       "owner": "FunctionDeclaration:[\"useMediaPresetPages\"]/VariableDeclaration:[\"requests\"]",
       "id": "85fbee35bd1f3f8d50aa4621ec2c41046a17a6b916c68c89fac9a5465742d1a4"
-    },
-    {
-      "rule": "complexity",
-      "message": "Function 'mapPromptRecipeRecord' has a complexity of 30. Maximum allowed is 15.",
-      "severity": 1,
-      "line": 386,
-      "column": 8,
-      "metric": 30,
-      "file": "apps/web/lib/control-api.ts",
-      "owner": "FunctionDeclaration:[\"mapPromptRecipeRecord\"]",
-      "id": "864ae086e93803fa8222d08edd95d2851e9a1057eb689503495e572e67b62590"
     },
     {
       "rule": "complexity",
