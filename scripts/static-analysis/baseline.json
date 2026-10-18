@@ -27,7 +27,7 @@
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Integrate tickets07/08: retain all reviewed unused-binding removals/context mappings and remove both resolved graphChangeCopy complexity exemptions",
+  "reason": "Ticket 10: remove the two recipe mapper complexity exemptions after CC 30 to 6 extraction; no added findings or metric increases.",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -1624,17 +1624,6 @@
       "id": "30e124383c1e041179b8697f0fdf744f771aeee3cdae32ce0f277834d9dfbbe1"
     },
     {
-      "rule": "complexity",
-      "message": "Function 'mapPromptRecipeDraftPayload' has a complexity of 30. Maximum allowed is 15.",
-      "severity": 1,
-      "line": 431,
-      "column": 8,
-      "metric": 30,
-      "file": "apps/web/lib/control-api.ts",
-      "owner": "FunctionDeclaration:[\"mapPromptRecipeDraftPayload\"]",
-      "id": "30e32f14e7c4034416c10bcf9055dd3fe43eb04a6f8a4f2619c90d59339e9276"
-    },
-    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -2865,22 +2854,22 @@
     },
     {
       "rule": "complexity",
-      "message": "Async function 'buildMediaPayloadFromFormData' has a complexity of 64. Maximum allowed is 15.",
+      "message": "Async function 'buildMediaPayloadFromFormData' has a complexity of 61. Maximum allowed is 15.",
       "severity": 1,
-      "line": 126,
+      "line": 141,
       "column": 8,
-      "metric": 64,
+      "metric": 61,
       "file": "apps/web/app/api/control/media/shared.ts",
       "owner": "FunctionDeclaration:[\"buildMediaPayloadFromFormData\"]",
       "id": "5dc5d491d81ef5f11fbc7dda33f595f1c0e518c76363c504766acb1ce71cb8fc"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
-      "message": "Refactor this function to reduce its Cognitive Complexity from 75 to the 20 allowed.",
+      "message": "Refactor this function to reduce its Cognitive Complexity from 70 to the 20 allowed.",
       "severity": 1,
-      "line": 126,
+      "line": 141,
       "column": 23,
-      "metric": 75,
+      "metric": 70,
       "file": "apps/web/app/api/control/media/shared.ts",
       "owner": "FunctionDeclaration:[\"buildMediaPayloadFromFormData\"]",
       "id": "5ead71c469d84a9892fb8fdc1f480f8afbff458e9a30fed2cc99cff0525e9ffd"
@@ -4124,17 +4113,6 @@
       "file": "apps/web/hooks/use-media-preset-pages.ts",
       "owner": "FunctionDeclaration:[\"useMediaPresetPages\"]/VariableDeclaration:[\"requests\"]",
       "id": "85fbee35bd1f3f8d50aa4621ec2c41046a17a6b916c68c89fac9a5465742d1a4"
-    },
-    {
-      "rule": "complexity",
-      "message": "Function 'mapPromptRecipeRecord' has a complexity of 30. Maximum allowed is 15.",
-      "severity": 1,
-      "line": 386,
-      "column": 8,
-      "metric": 30,
-      "file": "apps/web/lib/control-api.ts",
-      "owner": "FunctionDeclaration:[\"mapPromptRecipeRecord\"]",
-      "id": "864ae086e93803fa8222d08edd95d2851e9a1057eb689503495e572e67b62590"
     },
     {
       "rule": "complexity",

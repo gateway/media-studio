@@ -98,6 +98,8 @@ jobs:
           kie-api/.venv/bin/pip install --upgrade pip
           kie-api/.venv/bin/pip install -e ./kie-api
           kie-api/.venv/bin/pip install -e ./apps/api[dev]
+      - name: Test CI timing recorder without application fixtures
+        run: kie-api/.venv/bin/python -m unittest discover -s scripts -p 'test_ci_pytest_profile*.py'
 
       - name: Install web dependencies
         run: npm ci
@@ -116,4 +118,13 @@ jobs:
       - name: Run quality gates
         env:
           MEDIA_STUDIO_KIE_API_REPO_PATH: ${{ github.workspace }}/kie-api
+          MEDIA_STUDIO_CI_PROFILE_DIR: ${{ runner.temp }}/quality-profile
         run: ./scripts/run-quality-gates
+
+      - name: Retain complete backend timings
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-runtime-profile
+          path: ${{ runner.temp }}/quality-profile
+          if-no-files-found: error
