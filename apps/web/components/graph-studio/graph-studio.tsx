@@ -1300,7 +1300,9 @@ function GraphStudioClient() {
               dirty: false,
             });
           }
-        } catch {}
+        } catch {
+          // Keep the tab snapshot when the saved record cannot be reloaded.
+        }
       }
 
       if (!workflow) return false;
