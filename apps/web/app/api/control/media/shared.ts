@@ -82,6 +82,21 @@ async function parseJsonRecord(value: FormDataEntryValue | null) {
   }
 }
 
+async function parsePresetSlotValues(value: FormDataEntryValue | null) {
+  const presetSlotValues = await parseJsonRecord(value);
+  const normalizedSlotValues: Record<string, Array<Record<string, unknown>>> = {};
+  for (const [slotKey, rawValue] of Object.entries(presetSlotValues)) {
+    if (!slotKey) continue;
+    const items = Array.isArray(rawValue) ? rawValue : [rawValue];
+    normalizedSlotValues[slotKey] = items.filter(
+      (item): item is Record<string, unknown> =>
+        typeof item === "object" && item !== null && !Array.isArray(item),
+    );
+  }
+
+  return normalizedSlotValues;
+}
+
 function normalizeOptionValue(key: string, value: unknown): unknown {
   if (typeof value !== "string") {
     return value;
@@ -139,7 +154,7 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
   const systemPromptIds = (await parseJson(formData.get("system_prompt_ids"), [])) as string[];
   const metadata = await parseJson(formData.get("metadata"), {});
   const presetInputs = await parseJsonRecord(formData.get("preset_inputs_json"));
-  const presetSlotValues = await parseJsonRecord(formData.get("preset_slot_values_json"));
+  const normalizedSlotValues = await parsePresetSlotValues(formData.get("preset_slot_values_json"));
   const attachmentManifest = await parseAttachmentManifest(formData.get("attachment_manifest"));
 
   const payload: Record<string, unknown> = {
@@ -176,16 +191,6 @@ export async function buildMediaPayloadFromFormData(formData: FormData) {
   }
   if (Object.keys(presetInputs).length) {
     payload.preset_text_values = presetInputs;
-  }
-
-  const normalizedSlotValues: Record<string, Array<Record<string, unknown>>> = {};
-  for (const [slotKey, rawValue] of Object.entries(presetSlotValues)) {
-    if (!slotKey) continue;
-    const items = Array.isArray(rawValue) ? rawValue : [rawValue];
-    normalizedSlotValues[slotKey] = items.filter(
-      (item): item is Record<string, unknown> =>
-        typeof item === "object" && item !== null && !Array.isArray(item),
-    );
   }
 
   const images: Array<{ path: string; role?: string; duration_seconds?: number }> = [];
