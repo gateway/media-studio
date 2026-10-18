@@ -47,10 +47,10 @@ const localWorkflow: GraphWorkflowPayload = {
   nodes: [{ id: "local-node", type: definition.type, position: { x: 10, y: 20 }, fields: {} }],
   edges: [],
 };
-const savedRecord: GraphWorkflowRecord = {
+const savedRecord = {
   workflow_id: "saved-a", name: "Saved record", updated_at: "2026-10-18T01:00:00Z",
   workflow_json: { ...localWorkflow, nodes: [{ ...localWorkflow.nodes[0], id: "saved-node" }] },
-};
+} satisfies GraphWorkflowRecord;
 const recordUrl = "/api/control/media/graph/workflows/saved-a";
 const reloadRecord = vi.fn<() => Promise<Response>>();
 const fetcher = vi.fn(async (url: string) => {
