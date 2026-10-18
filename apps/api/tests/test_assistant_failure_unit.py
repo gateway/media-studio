@@ -3,12 +3,15 @@ import sys, unittest
 from pathlib import Path
 from contextlib import ExitStack
 from unittest.mock import patch
-sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 class FailureTests(unittest.TestCase):
  def setUp(self):
-  self.stack = ExitStack(); self.addCleanup(self.stack.close)
+  bytecode = patch.object(sys, "dont_write_bytecode", True)
+  bytecode.start()
+  self.addCleanup(bytecode.stop)
+  self.stack = ExitStack()
+  self.addCleanup(self.stack.close)
   self.stack.enter_context(patch("sqlite3.connect", side_effect=AssertionError("No database")))
   self.stack.enter_context(patch("socket.socket.connect", side_effect=AssertionError("No network")))
   from app.assistant import kernel_route, schemas
@@ -96,4 +99,5 @@ class FailureTests(unittest.TestCase):
     self.assertEqual(messages[0]["content_text"], "Help me think through a graph.")
     self.assertEqual(messages[0]["content_json"]["turn_outcome"], caught.exception.detail)
 
-if __name__ == "__main__": unittest.main()
+if __name__ == "__main__":
+ unittest.main()

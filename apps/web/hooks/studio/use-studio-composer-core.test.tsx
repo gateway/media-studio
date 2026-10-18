@@ -133,3 +133,52 @@ it("uses the new model defaults for an explicit model change", () => {
   act(() => result.current.actions.setModelKey("other"));
   expect(result.current.state.optionValues.quality).toBe("medium");
 });
+
+it.each([
+  { name: "text fields", schema: detail.input_schema_json, slots: [], structured: true },
+  { name: "image slots", schema: [], slots: detail.input_slots_json, structured: true },
+  { name: "text fields and image slots", schema: detail.input_schema_json, slots: detail.input_slots_json, structured: true },
+  { name: "empty input lists", schema: [], slots: [], structured: false },
+  { name: "absent input lists", schema: undefined, slots: undefined, structured: false },
+])("switches to a preset with $name without mixing structured and freeform inputs", ({ schema, slots, structured }) => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Unexpected fetch")));
+  const next: MediaPreset = { ...detail, preset_id: "next", key: "next", prompt_template: "Next template",
+    input_schema_json: schema, input_slots_json: slots };
+  const selectionModels = [{ ...model, task_modes: ["text_to_image", "image_edit"],
+    image_inputs: { required_min: 0, required_max: 16 } }];
+  const { result } = renderHook(() => useComposer([detail, next], selectionModels));
+  act(() => result.current.actions.applyPresetSelection("older"));
+  act(() => {
+    result.current.actions.setPrompt("Keep my prompt");
+    result.current.actions.setPresetInputValues({ stale: "Previous value" });
+    result.current.actions.setPresetSlotStates({ stale: { assetId: "old-slot", previewUrl: "/old.png", file: null } });
+    result.current.actions.stageSourceAsset(asset);
+    result.current.actions.setAttachments([{ id: "reference", kind: "images", role: "reference", file: null,
+      previewUrl: "/reference.png", assetId: "reference-asset" }]);
+  });
+  act(() => result.current.actions.applyPresetSelection("next"));
+  expect(result.current.state.selectedPresetId).toBe("next");
+  expect(result.current.state.presetInputValues).toEqual(schema?.length ? { unit_code: "AX-17" } : {});
+  expect(result.current.state.presetSlotStates).toEqual({});
+  expect(result.current.state.prompt).toBe(structured ? "Keep my prompt" : "Next template");
+  expect(result.current.state.attachments.map(attachment => attachment.assetId)).toEqual(structured ? [] : ["reference-asset"]);
+  expect(result.current.derived.currentSourceAsset?.asset_id ?? null).toBe(structured ? null : "asset-1");
+});
+
+it("keeps the freeform prompt when the selected preset template is blank", () => {
+  const next = { ...detail, input_schema_json: [], input_slots_json: [], prompt_template: "  " };
+  const { result } = renderHook(() => useComposer([next]));
+  act(() => result.current.actions.setPrompt("Keep my prompt"));
+  act(() => result.current.actions.applyPresetSelection("older"));
+  expect(result.current.state.prompt).toBe("Keep my prompt");
+});
+
+it("switches to a supported preferred model and applies that model's preset options", () => {
+  const other = { ...model, key: "other" };
+  const next = { ...detail, applies_to_models: [model.key, other.key], default_options_json: { quality: "high" } };
+  const { result } = renderHook(() => useComposer([next], [model, other]));
+  act(() => result.current.actions.applyPresetSelection("older", { preferredModelKey: other.key }));
+  expect(result.current.state.modelKey).toBe("other");
+  expect(result.current.state.selectedPresetId).toBe("older");
+  expect(result.current.state.optionValues.quality).toBe("high");
+});

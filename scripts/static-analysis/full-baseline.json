@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Ticket 10: remove two recipe record/draft clones; review five unchanged pairs with context-only changes in control-api.ts. No new fragments, endpoint content or metric increases.",
+  "reason": "Tickets13/23: preserve all 284 clone pairs; reconcile only the two reviewed unchanged fragments after source context edits.",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -1040,26 +1040,6 @@
       "format": "tsx"
     },
     {
-      "id": "2c868e0de5ca3babef48ad380108257d9221673db342202ed04fd623f9579df7",
-      "endpoints": [
-        {
-          "file": "apps/web/components/graph-studio/graph-studio.tsx",
-          "start": 1383,
-          "end": 1390,
-          "context": "3fd75af5d61c05a967a84f46e197ddf791e863e96ef1bac648f344863c8d7e7b"
-        },
-        {
-          "file": "apps/web/components/graph-studio/graph-studio.tsx",
-          "start": 1328,
-          "end": 1335,
-          "context": "84486462fd065c3b6370db73f4cd9ed4c1e2effe2411be54ff1a7941579dff53"
-        }
-      ],
-      "tokens": 51,
-      "lines": 8,
-      "format": "tsx"
-    },
-    {
       "id": "2ca17d56a76df67af2ddd3a8a205c0819f8f399fa988a1db219fc26cc2e91a6d",
       "endpoints": [
         {
@@ -1680,6 +1660,26 @@
       "format": "typescript"
     },
     {
+      "id": "46787cafad870dd55ae0ce0c1a17d7d1f73cde8b08f750a20847f15eef056ea3",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/graph-studio.tsx",
+          "start": 1383,
+          "end": 1390,
+          "context": "245b77902947c63558e9107a4f4e7af314a10048502c6b215e8a64b5ce84b835"
+        },
+        {
+          "file": "apps/web/components/graph-studio/graph-studio.tsx",
+          "start": 1328,
+          "end": 1335,
+          "context": "dd231ac974e91070607bd20cf9b75e07eb1841d6e256eafb4d0f1cc39a7733d2"
+        }
+      ],
+      "tokens": 51,
+      "lines": 8,
+      "format": "tsx"
+    },
+    {
       "id": "4792dacec140205605e34d5d8ce0ed83f99f05f97670f7fba253d02ade24e36d",
       "endpoints": [
         {
@@ -2240,6 +2240,26 @@
       "format": "javascript"
     },
     {
+      "id": "6114447d5815a2da41572c320749d7013ab1649e118e520ae28fbbb6a80afa76",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
+          "start": 524,
+          "end": 550,
+          "context": "cfaf678fafa2ffad5ef9c8b0f4c758f5c6607c9f4cd993bc2669d70b738e52c3"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
+          "start": 63,
+          "end": 89,
+          "context": "039c4b1e99a8a4eba2458d44ecc61908358a5ad2f3ca5dbaf69f2e9d1563bc7a"
+        }
+      ],
+      "tokens": 52,
+      "lines": 27,
+      "format": "typescript"
+    },
+    {
       "id": "614540f1d79fc4d8e5e8a4202438a32c69a4c40d890d6bef68731883f7b0ed4e",
       "endpoints": [
         {
@@ -2737,26 +2757,6 @@
       ],
       "tokens": 65,
       "lines": 7,
-      "format": "typescript"
-    },
-    {
-      "id": "74a1c684149a9cd86353700bd23484110938a2fa8ba92190c98de67985158489",
-      "endpoints": [
-        {
-          "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-          "start": 524,
-          "end": 550,
-          "context": "12d88dd6782f690c53f2cbc0507f5c2aff8b578b889d7d590577e0c112e16efe"
-        },
-        {
-          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
-          "start": 63,
-          "end": 89,
-          "context": "039c4b1e99a8a4eba2458d44ecc61908358a5ad2f3ca5dbaf69f2e9d1563bc7a"
-        }
-      ],
-      "tokens": 52,
-      "lines": 27,
       "format": "typescript"
     },
     {
