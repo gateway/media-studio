@@ -1269,8 +1269,6 @@ function GraphStudioClient() {
       let restoredWorkflowName =
         activeTab.workflow_name || workflow?.name || "Untitled workflow";
       let restoredWorkflowUpdatedAt = activeTab.workflow_updated_at ?? null;
-      let restoredSavedWorkflowSignature =
-        activeTab.saved_workflow_signature ?? null;
       if (shouldReloadSavedWorkflowRecordOnRestore(activeTab)) {
         try {
           const record = await jsonFetch<GraphWorkflowRecord>(
@@ -1288,7 +1286,7 @@ function GraphStudioClient() {
             restoredWorkflowName =
               record.name || workflow.name || "Untitled workflow";
             restoredWorkflowUpdatedAt = record.updated_at ?? null;
-            restoredSavedWorkflowSignature =
+            const restoredSavedWorkflowSignature =
               graphWorkflowSnapshotSignature(workflow);
             updateActiveTab({
               workflowId: record.workflow_id,
