@@ -190,26 +190,22 @@ export function useStudioComposerGuardEffects({
       nextValues[field.key] = field.defaultValue ?? "";
     }
     setPresetInputValues((current) => ({ ...nextValues, ...current }));
-  }, [presetReady, currentPresetId, structuredPresetTextFields, setPresetInputValues]);
+  }, [presetReady, currentPresetId, structuredPresetTextFields]);
 
-  const previewResources = useRef({ attachments, presetSlotStates });
+  const previewUrls = useRef(new Set<string>());
   useEffect(() => {
-    previewResources.current = { attachments, presetSlotStates };
+    const currentUrls = new Set([...attachments, ...Object.values(presetSlotStates)]
+      .flatMap((resource) => resource?.file && resource.previewUrl ? [resource.previewUrl] : []));
+    for (const url of previewUrls.current) {
+      if (!currentUrls.has(url)) URL.revokeObjectURL(url);
+    }
+    previewUrls.current = currentUrls;
   }, [attachments, presetSlotStates]);
 
   useEffect(() => {
     return () => {
-      // Attachment edits release removed URLs themselves; retained URLs live until unmount.
-      for (const attachment of previewResources.current.attachments) {
-        if (attachment.previewUrl && attachment.file) {
-          URL.revokeObjectURL(attachment.previewUrl);
-        }
-      }
-      for (const state of Object.values(previewResources.current.presetSlotStates)) {
-        if (state?.previewUrl && state.file) {
-          URL.revokeObjectURL(state.previewUrl);
-        }
-      }
+      for (const url of previewUrls.current) URL.revokeObjectURL(url);
+      previewUrls.current.clear();
     };
   }, []);
 
@@ -255,5 +251,5 @@ export function useStudioComposerGuardEffects({
       }
       return changed ? next : current;
     });
-  }, [currentSourceAsset, maxAudioInputs, maxImageInputs, maxVideoInputs, setSourceAssetId, setAttachments, setStagedSourceAssetSnapshot]);
+  }, [currentSourceAsset, maxAudioInputs, maxImageInputs, maxVideoInputs, setSourceAssetId]);
 }
