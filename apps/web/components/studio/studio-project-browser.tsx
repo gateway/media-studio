@@ -251,6 +251,17 @@ export function StudioProjectBrowser({
     resetDialogState();
   }
 
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape" || event.defaultPrevented || coverPicker.open || busyAction) return;
+      event.preventDefault();
+      if (dialogOpen) closeDialog();
+      else onClose();
+    }
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  });
+
   function beginCreate() {
     setMode("create");
     resetDialogState();

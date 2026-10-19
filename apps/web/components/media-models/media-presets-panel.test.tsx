@@ -39,6 +39,17 @@ describe("MediaPresetsPanel scoped reads", () => {
     expect(screen.getByText("Showing 0 of 0")).toBeTruthy();
   });
 
+  it("distinguishes an empty search from an empty catalog", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => response([])));
+    render(<MediaPresetsPanel {...props} presets={[]} total={0} nextOffset={null} />);
+    expect(screen.getByText("No structured presets have been added yet.")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Search media presets"), { target: { value: "no-match" } });
+    await screen.findByText("No presets match your search.");
+    expect(screen.queryByText("No structured presets have been added yet.")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Search media presets"), { target: { value: "" } });
+    await screen.findByText("No structured presets have been added yet.");
+  });
+
   it("fetches one full page when the server seed is invalid, sharing Strict Mode reads", async () => {
     render(<StrictMode><MediaPresetsPanel {...props} seedValid={false} /></StrictMode>);
     await screen.findByRole("heading", { name: "remote preset" });

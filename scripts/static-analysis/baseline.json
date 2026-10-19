@@ -27,7 +27,7 @@
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Reviewed hydration fix: existing identities refreshed; restore complexity 43 to 39; cognitive finding removed; no new debt",
+  "reason": "Reviewed six UI fixes: existing identities refreshed; reference-library complexity reduced from 17 to 16; no new debt",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -200,7 +200,7 @@
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
-      "line": 629,
+      "line": 640,
       "column": 20,
       "file": "apps/web/components/studio/studio-project-browser.tsx",
       "owner": "FunctionDeclaration:[\"StudioProjectBrowser\"]/JsxAttribute:[\"onLoadMore\"]",
@@ -1049,6 +1049,16 @@
       "id": "1ec38d12b6a060051bcdc0588c0d963b8c58cdfb8481a94f45f8977732f84b77"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 189,
+      "column": 30,
+      "file": "apps/web/components/media-models/media-presets-panel.tsx",
+      "owner": "FunctionDeclaration:[\"MediaPresetsPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:d200ef0f1d6e3e4c2aebb266aca059249d16b88988b5f843eed732a1bf3665d3",
+      "id": "1f550a9b7e69fc32f31cccd8ead146b4997a2495d375345547fba22c7dfc2950"
+    },
+    {
       "file": "apps/web/components/prompt-recipes/prompt-recipe-editor-screen.tsx",
       "rule": "TS6133",
       "message": "'providerCatalogSearchPlaceholder' is declared but its value is never read.",
@@ -1616,7 +1626,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 448,
+      "line": 459,
       "column": 25,
       "file": "apps/web/components/studio/studio-project-browser.tsx",
       "owner": "FunctionDeclaration:[\"StudioProjectBrowser\"]/anonymous:1987dbee56f78adad6393f33866c1982d00d1525c14ea23bd11875e8dc3277cd/JsxAttribute:[\"onArchive\"]/anonymous:4bc9ae969a4d2193121ce86b99b5e4566314502cfc96529d46b3d55315a9b3ca",
@@ -2937,16 +2947,6 @@
       "id": "62099989718908193485b250549b92ded931d25e4a01c224e199cb38d7eb2b37"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 189,
-      "column": 30,
-      "file": "apps/web/components/media-models/media-presets-panel.tsx",
-      "owner": "FunctionDeclaration:[\"MediaPresetsPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:d200ef0f1d6e3e4c2aebb266aca059249d16b88988b5f843eed732a1bf3665d3",
-      "id": "62473e470982a8c0ad11571dff3a63d8892171313c90f7ab1056fa3d49ee1a3d"
-    },
-    {
       "file": "apps/web/components/media-preset-editor-screen.tsx",
       "rule": "TS6133",
       "message": "'variant' is declared but its value is never read.",
@@ -3044,7 +3044,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 478,
+      "line": 489,
       "column": 25,
       "file": "apps/web/components/studio/studio-project-browser.tsx",
       "owner": "FunctionDeclaration:[\"StudioProjectBrowser\"]/anonymous:df88a66dab35b035795ef03f904f50f10ddcef67d3f4ba5f420ba45aa0c35c94/JsxAttribute:[\"onRestore\"]/anonymous:539a4fde9ae0c781a91858da2615dca6805385d92a4730efdfa934903dfd76d6",
@@ -3450,7 +3450,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 481,
+      "line": 492,
       "column": 25,
       "file": "apps/web/components/studio/studio-project-browser.tsx",
       "owner": "FunctionDeclaration:[\"StudioProjectBrowser\"]/anonymous:df88a66dab35b035795ef03f904f50f10ddcef67d3f4ba5f420ba45aa0c35c94/JsxAttribute:[\"onDelete\"]/anonymous:979ae5cf441e7874cafb61e0db736cd6a773285a3b719c2603df188ac0813620",
@@ -6062,7 +6062,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 595,
+      "line": 606,
       "column": 36,
       "file": "apps/web/components/studio/studio-project-browser.tsx",
       "owner": "FunctionDeclaration:[\"StudioProjectBrowser\"]/JsxAttribute:[\"onClick\"]/anonymous:b7f59c8d1a7cd738e0e98e85fadbeff8f597fcce9d6ff195f77e9cc1a7060c15",
@@ -6129,17 +6129,6 @@
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"nodeHandlers\"]/anonymous:68b9f3ef5a2a3cf90f80e26487cfab73c84925fce461188c1cd8ce227518197c/PropertyAssignment:[\"onImageDrop\"]",
       "id": "cf5f9a77cef2c3f7e711722d87c8909b350bb2a999261ad972ca0a3ef109abb6"
-    },
-    {
-      "rule": "complexity",
-      "message": "Arrow function has a complexity of 17. Maximum allowed is 15.",
-      "severity": 1,
-      "line": 86,
-      "column": 57,
-      "metric": 17,
-      "file": "apps/web/hooks/studio/use-studio-reference-library.ts",
-      "owner": "FunctionDeclaration:[\"useStudioReferenceLibrary\"]/VariableDeclaration:[\"openContextualReferenceLibrary\"]/anonymous:84798be74a6b075ccde2a4f60bfaebbb5832ce6935bef48e1288cdc4fe074da5",
-      "id": "cffa061ccef4fcad1a6b05917a55b501eb9acc6a142346cc79c7b9fa3128c608"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -6423,6 +6412,17 @@
       "file": "apps/web/components/media-models/media-model-setup-panel.tsx",
       "owner": "ImportSpecifier:[\"Box\"]",
       "id": "dbef99025a2909075ba389897223b035b7a5414e3bb32385f6af13399efeb9c1"
+    },
+    {
+      "rule": "complexity",
+      "message": "Arrow function has a complexity of 16. Maximum allowed is 15.",
+      "severity": 1,
+      "line": 86,
+      "column": 57,
+      "metric": 16,
+      "file": "apps/web/hooks/studio/use-studio-reference-library.ts",
+      "owner": "FunctionDeclaration:[\"useStudioReferenceLibrary\"]/VariableDeclaration:[\"openContextualReferenceLibrary\"]/anonymous:65748683e204366aeb32a8c8419d2994ff4ba1abbc89eff2239882b59ebc736f",
+      "id": "dc5ee90e6a2552b7565108b567ee53985cce123a9daf52656d73f578902902ce"
     },
     {
       "rule": "complexity",

@@ -178,7 +178,7 @@ export function MediaPresetsPanel({
             ))
           ) : (
             <CalloutPanel tone="muted" className="text-sm leading-7 text-[var(--muted-strong)]">
-              No structured presets have been added yet.
+              {deferredQuery.trim() ? "No presets match your search." : "No structured presets have been added yet."}
             </CalloutPanel>
           )}
         </div>
