@@ -64,6 +64,41 @@ describe("StudioProjectBrowser project images", () => {
     vi.unstubAllGlobals();
   });
 
+  it("dismisses the browser with Escape and removes the listener on unmount", () => {
+    const props = makeProps();
+    const view = render(<StudioProjectBrowser {...props} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+    view.unmount();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("dismisses only the project editor before the browser without saving its draft", () => {
+    const props = makeProps();
+    render(<StudioProjectBrowser {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit Existing Project" }));
+    fireEvent.change(screen.getByTestId("studio-project-name-input"), { target: { value: "Unsaved draft" } });
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByTestId("studio-project-name-input")).toBeNull();
+    expect(props.onClose).not.toHaveBeenCalled();
+    expect(props.onUpdateProject).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Edit Existing Project" }));
+    expect((screen.getByTestId("studio-project-name-input") as HTMLInputElement).value).toBe("Existing Project");
+  });
+
+  it("does not dismiss the editor behind its image picker", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ok: true, assets: [], next_offset: null }))));
+    const props = makeProps();
+    render(<StudioProjectBrowser {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit Existing Project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Browse generated images" }));
+    await screen.findByRole("dialog", { name: "Generated image project covers" });
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByTestId("studio-project-name-input")).toBeTruthy();
+    expect(props.onClose).not.toHaveBeenCalled();
+  });
+
   it("uses the shared thumbnail field for create project upload and drag-drop", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

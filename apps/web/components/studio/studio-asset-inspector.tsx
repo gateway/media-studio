@@ -94,6 +94,7 @@ export function StudioAssetInspector({
               <button
                 type="button"
                 onClick={onClose}
+                aria-label="Close media details"
                 className="studio-inspector-close-button absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full transition"
               >
                 <X className="size-5" />

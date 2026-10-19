@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { GraphStudio } from "./graph-studio";
 import type { GraphCanvas } from "./graph-canvas";
 import type { GraphConsole } from "./graph-console";
+import type { GraphStudioDialogs } from "./graph-studio-dialogs";
 import type { GraphToolbar } from "./graph-toolbar";
 import type { GraphNodeDefinition, GraphWorkflowPayload, GraphWorkflowRecord } from "./types";
 import { __resetGraphStartupReadsForTests } from "./utils/graph-startup-reads";
@@ -16,10 +17,15 @@ import {
   writeGraphTabSession,
 } from "./utils/graph-tabs";
 
+let loadSavedWorkflow: ComponentProps<typeof GraphStudioDialogs>["onLoadWorkflow"];
+
 // Keep the real restore, tab, hydration and version coordination; replace visual surfaces only.
 vi.mock("./graph-canvas", () => ({
   GraphCanvas: ({ nodes }: ComponentProps<typeof GraphCanvas>) => (
-    <output data-testid="canvas">{nodes.map((node) => node.id).join(",")}</output>
+    <>
+      <output data-testid="canvas">{nodes.map((node) => node.id).join(",")}</output>
+      <button onClick={() => nodes[0]?.data.onFieldChange(nodes[0].id, "text", "Edited note")}>Edit node</button>
+    </>
   ),
 }));
 vi.mock("./graph-toolbar", () => ({
@@ -34,7 +40,12 @@ vi.mock("./graph-console", () => ({
   GraphConsole: ({ lines }: ComponentProps<typeof GraphConsole>) => <output data-testid="console">{lines.join("\n")}</output>,
 }));
 vi.mock("./graph-left-rail", () => ({ GraphLeftRail: () => null }));
-vi.mock("./graph-studio-dialogs", () => ({ GraphStudioDialogs: () => null }));
+vi.mock("./graph-studio-dialogs", () => ({
+  GraphStudioDialogs: ({ onLoadWorkflow }: ComponentProps<typeof GraphStudioDialogs>) => {
+    loadSavedWorkflow = onLoadWorkflow;
+    return null;
+  },
+}));
 vi.mock("./graph-preview-overlay", () => ({ GraphPreviewOverlay: () => null }));
 vi.mock("./graph-pricing-confirmation", () => ({ GraphPricingConfirmation: () => null }));
 
@@ -95,9 +106,7 @@ it("reloads a saved record and updates its name, timestamp and saved signature",
   const tab = readGraphTabSession("restore-test")?.tabs[0];
   expect(tab?.workflow_id).toBe(savedRecord.workflow_id);
   expect(tab?.workflow_updated_at).toBe(savedRecord.updated_at);
-  expect(tab?.saved_workflow_signature).toBe(graphWorkflowSnapshotSignature({
-    ...savedRecord.workflow_json, workflow_id: savedRecord.workflow_id, name: savedRecord.name,
-  }));
+  expect(tab?.saved_workflow_signature).toBe(graphWorkflowSnapshotSignature(tab?.workflow_json));
   expect(screen.getByTestId("console").textContent).toBe("Local console");
   expect(reloadRecord).toHaveBeenCalledTimes(1);
 });
@@ -162,4 +171,51 @@ it("tries latest-run and blank fallbacks when neither the record nor a tab workf
   expect(screen.getByRole("heading").textContent).toBe("New workflow");
   expect(screen.getByTestId("canvas").textContent).toBe("");
   expect(screen.getByTestId("console").textContent).toBe("Graph Studio ready.");
+});
+
+
+it.each([false, true])("keeps restored saved tabs clean unless edited (edited=%s)", async (edited) => {
+  render(<GraphStudio />);
+  await waitFor(() => expect(screen.getByTestId("canvas").textContent).toBe("saved-node"));
+  if (edited) fireEvent.click(screen.getByRole("button", { name: "Edit node" }));
+  fireEvent.click(screen.getByRole("button", { name: "New tab" }));
+  const savedTab = readGraphTabSession("restore-test")?.tabs.find((tab) => tab.workflow_id === "saved-a");
+  expect(savedTab?.dirty).toBe(edited);
+  if (edited) expect(savedTab?.workflow_json?.nodes[0].fields.text).toBe("Edited note");
+});
+
+
+it("keeps a saved workflow opened from the browser clean when switching tabs", async () => {
+  render(<GraphStudio />);
+  await waitFor(() => expect(screen.getByTestId("canvas").textContent).toBe("saved-node"));
+  fireEvent.click(screen.getByRole("button", { name: "New tab" }));
+  await act(async () => { await loadSavedWorkflow(savedRecord); });
+  await waitFor(() => expect(screen.getByTestId("canvas").textContent).toBe("saved-node"));
+  fireEvent.click(screen.getByRole("button", { name: "New tab" }));
+  const savedTab = readGraphTabSession("restore-test")?.tabs.find((tab) => tab.workflow_id === "saved-a");
+  expect(savedTab?.dirty).toBe(false);
+});
+
+it("keeps a reloaded empty saved workflow clean", async () => {
+  reloadRecord.mockResolvedValue(Response.json({
+    ...savedRecord, workflow_json: { ...savedRecord.workflow_json, nodes: [] },
+  }));
+  render(<GraphStudio />);
+  await waitFor(() => expect(screen.getByRole("heading").textContent).toBe("Saved record"));
+  fireEvent.click(screen.getByRole("button", { name: "New tab" }));
+  expect(readGraphTabSession("restore-test")?.tabs.find((tab) => tab.workflow_id === "saved-a")?.dirty).toBe(false);
+});
+
+
+it("does not accept a partially hydrated saved graph as clean", async () => {
+  reloadRecord.mockResolvedValue(Response.json({
+    ...savedRecord, workflow_json: {
+      ...savedRecord.workflow_json,
+      nodes: [...savedRecord.workflow_json.nodes, { id: "missing-node", type: "unavailable.node", position: { x: 0, y: 0 }, fields: {} }],
+    },
+  }));
+  render(<GraphStudio />);
+  await waitFor(() => expect(screen.getByTestId("canvas").textContent).toBe("saved-node"));
+  fireEvent.click(screen.getByRole("button", { name: "New tab" }));
+  expect(readGraphTabSession("restore-test")?.tabs.find((tab) => tab.workflow_id === "saved-a")?.dirty).toBe(true);
 });

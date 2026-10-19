@@ -152,9 +152,7 @@ export function useStudioReferenceLibrary({
     }
     openReferenceLibrary({
       type: "attachment",
-      title: dedicatedImageReferenceRailActive
-        ? "Pick a reusable image reference for Nano Banana."
-        : "Pick a reusable image from your reference library.",
+      title: "Pick a reusable image from your reference library.",
       role: dedicatedImageReferenceRailActive ? "reference" : undefined,
       allowedKinds: ["images"],
     });

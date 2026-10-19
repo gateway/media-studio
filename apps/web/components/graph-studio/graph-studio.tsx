@@ -139,7 +139,7 @@ import {
   graphWorkflowSnapshotSignature,
   shouldReloadSavedWorkflowRecordOnRestore,
 } from "./utils/graph-tabs";
-import { hydrateGraphWorkflowForCanvas } from "./utils/graph-workflow-hydration";
+import { hydrateGraphWorkflowForCanvas, savedGraphWorkflowSnapshot } from "./utils/graph-workflow-hydration";
 
 function selectedAssetId(fields: Record<string, unknown>) {
   const assetId = fields.asset_id;
@@ -1188,7 +1188,7 @@ function GraphStudioClient() {
           workflowId: record.workflow_id,
           workflowName: nextWorkflowName,
           workflow: savedWorkflow,
-          savedWorkflowSignature: graphWorkflowSnapshotSignature(savedWorkflow),
+          savedWorkflowSignature: graphWorkflowSnapshotSignature(savedGraphWorkflowSnapshot(savedWorkflow, savedCanvas)),
           workflowUpdatedAt: record.updated_at ?? null,
           runId: null,
           runStatus: null,
@@ -1269,6 +1269,7 @@ function GraphStudioClient() {
       let restoredWorkflowName =
         activeTab.workflow_name || workflow?.name || "Untitled workflow";
       let restoredWorkflowUpdatedAt = activeTab.workflow_updated_at ?? null;
+      let reloadedSavedWorkflow = false;
       if (shouldReloadSavedWorkflowRecordOnRestore(activeTab)) {
         try {
           const record = await jsonFetch<GraphWorkflowRecord>(
@@ -1286,46 +1287,15 @@ function GraphStudioClient() {
             restoredWorkflowName =
               record.name || workflow.name || "Untitled workflow";
             restoredWorkflowUpdatedAt = record.updated_at ?? null;
-            const restoredSavedWorkflowSignature =
-              graphWorkflowSnapshotSignature(workflow);
-            updateActiveTab({
-              workflowId: record.workflow_id,
-              workflowName: restoredWorkflowName,
-              workflow: workflow,
-              savedWorkflowSignature: restoredSavedWorkflowSignature,
-              workflowUpdatedAt: restoredWorkflowUpdatedAt,
-              runId: activeTab.run_id ?? null,
-              runStatus: activeTab.run_status ?? null,
-              consoleLines: activeTab.console_lines ?? ["Graph Studio ready."],
-              dirty: false,
-            });
+            reloadedSavedWorkflow = true;
           }
         } catch {
           // Keep the tab snapshot when the saved record cannot be reloaded.
         }
       }
 
-      if (!workflow) return false;
+      if (!workflow || !Array.isArray(workflow.nodes) || !Array.isArray(workflow.edges)) return false;
 
-      if (Array.isArray(workflow.nodes) && workflow.nodes.length === 0) {
-        if (!restoreVersionIsCurrent(restoreVersion)) return true;
-        setWorkflowId(restoredWorkflowId);
-        setWorkflowName(restoredWorkflowName || "New workflow");
-        setWorkflowUpdatedAt(restoredWorkflowUpdatedAt);
-        setRun(null);
-        setNodes([]);
-        setEdges([]);
-        setGroups([]);
-        setConsoleLines(
-          activeTab.console_lines?.length
-            ? activeTab.console_lines
-            : ["Graph Studio ready."],
-        );
-        canvasHydrated.current = true;
-        setHistoryReady(true);
-        return true;
-      }
-      if (!workflow?.nodes?.length) return false;
       const byType = new Map(
         items.map((definition) => [definition.type, definition]),
       );
@@ -1334,8 +1304,22 @@ function GraphStudioClient() {
         definitionsByType: byType,
         handlers: nodeHandlers,
       });
-      if (!restored.nodes.length) return false;
+      if (workflow.nodes.length && !restored.nodes.length) return false;
       if (!restoreVersionIsCurrent(restoreVersion)) return true;
+      if (reloadedSavedWorkflow) {
+        const savedCanvasWorkflow = savedGraphWorkflowSnapshot(workflow, restored);
+        updateActiveTab({
+          workflowId: restoredWorkflowId,
+          workflowName: restoredWorkflowName,
+          workflow: savedCanvasWorkflow,
+          savedWorkflowSignature: graphWorkflowSnapshotSignature(savedCanvasWorkflow),
+          workflowUpdatedAt: restoredWorkflowUpdatedAt,
+          runId: activeTab.run_id ?? null,
+          runStatus: activeTab.run_status ?? null,
+          consoleLines: activeTab.console_lines ?? ["Graph Studio ready."],
+          dirty: false,
+        });
+      }
       setWorkflowId(restoredWorkflowId);
       setWorkflowName(restoredWorkflowName || "Untitled workflow");
       setWorkflowUpdatedAt(restoredWorkflowUpdatedAt);
@@ -1351,6 +1335,7 @@ function GraphStudioClient() {
       canvasHydrated.current = true;
       setHistoryReady(true);
       if (!restoreVersionIsCurrent(restoreVersion)) return true;
+      if (!workflow.nodes.length) return true;
       if (activeTab.run_id) {
         void hydrateLastRun(activeTab.run_id);
       } else if (restoredWorkflowId && !activeTab.dirty) {

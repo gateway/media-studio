@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Composer state fix: reviewed unchanged clone spans and metrics; refresh three enclosing-context identities",
+  "reason": "Independent review: seven existing clone identities replaced, no new duplicated code; 284 to 283 pairs; equivalent CSS syntax reduces one pair by two tokens",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -720,26 +720,6 @@
       "format": "python"
     },
     {
-      "id": "256e0edec94927afbf50a7dc6ebb1ab587c7676fa1e5fafcfd0cbcf4cfdea4dc",
-      "endpoints": [
-        {
-          "file": "apps/web/app/globals.css",
-          "start": 217,
-          "end": 223,
-          "context": "03415349e336d8c578c499eac70992a3399ae55c03c4f0b92ecd15291809e01e"
-        },
-        {
-          "file": "apps/web/app/globals.css",
-          "start": 760,
-          "end": 766,
-          "context": "ecd460d77a2c4bf97eebb515cdc55475e3a496acda9e004de20c4466a70d009f"
-        }
-      ],
-      "tokens": 55,
-      "lines": 7,
-      "format": "css"
-    },
-    {
       "id": "26babb3b2f4c5f82e5b703e477e6dd6463dbf12f64b7986b2d16a07f3f867e09",
       "endpoints": [
         {
@@ -1000,26 +980,6 @@
       "format": "javascript"
     },
     {
-      "id": "2c1b80e36dc7079e285a2cf14965dde8d86ffc5e7350289b1aff62987835134d",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-asset-inspector.tsx",
-          "start": 275,
-          "end": 286,
-          "context": "318a71d47db4d803ba203cb15011c55e3d38a773132dea6e6cbc75ddef392b13"
-        },
-        {
-          "file": "apps/web/components/studio/studio-asset-inspector.tsx",
-          "start": 317,
-          "end": 328,
-          "context": "379a1a4375faa62437dd82a19778c50c25a20fb50936879a58304e9c47bd61d5"
-        }
-      ],
-      "tokens": 54,
-      "lines": 12,
-      "format": "tsx"
-    },
-    {
       "id": "2ca17d56a76df67af2ddd3a8a205c0819f8f399fa988a1db219fc26cc2e91a6d",
       "endpoints": [
         {
@@ -1178,6 +1138,26 @@
       "tokens": 85,
       "lines": 10,
       "format": "tsx"
+    },
+    {
+      "id": "3439b92f0547e4ef7f2940efd3bce50971cab984f4da4e59841a1dfa4bf84cde",
+      "endpoints": [
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1274,
+          "end": 1280,
+          "context": "1389e1d1179709d83338031c466205e033f3af11a40357b3414e93eb376167dc"
+        },
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1981,
+          "end": 1987,
+          "context": "27ca8c8204e8a816d801b90eb4d29fdb4d1a5376e905d9766c40061f7411cb07"
+        }
+      ],
+      "tokens": 50,
+      "lines": 7,
+      "format": "css"
     },
     {
       "id": "34c17f8dfc7794b4e02370a227ee60327af7d03ef8caf75ee95783974aa08885",
@@ -1658,26 +1638,6 @@
       "tokens": 78,
       "lines": 6,
       "format": "typescript"
-    },
-    {
-      "id": "46787cafad870dd55ae0ce0c1a17d7d1f73cde8b08f750a20847f15eef056ea3",
-      "endpoints": [
-        {
-          "file": "apps/web/components/graph-studio/graph-studio.tsx",
-          "start": 1383,
-          "end": 1390,
-          "context": "245b77902947c63558e9107a4f4e7af314a10048502c6b215e8a64b5ce84b835"
-        },
-        {
-          "file": "apps/web/components/graph-studio/graph-studio.tsx",
-          "start": 1328,
-          "end": 1335,
-          "context": "dd231ac974e91070607bd20cf9b75e07eb1841d6e256eafb4d0f1cc39a7733d2"
-        }
-      ],
-      "tokens": 51,
-      "lines": 8,
-      "format": "tsx"
     },
     {
       "id": "4792dacec140205605e34d5d8ce0ed83f99f05f97670f7fba253d02ade24e36d",
@@ -3860,6 +3820,26 @@
       "format": "typescript"
     },
     {
+      "id": "ab3047ca5f1abcf6c279d94c9146429b379e35e45ae0af51049b56b86c9124df",
+      "endpoints": [
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1376,
+          "end": 1385,
+          "context": "8c9adabf4e2fc12625ed22212ab8e2fc72f5c5f0623f27a722d97f9004564f6e"
+        },
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1391,
+          "end": 1400,
+          "context": "eba48b9bdc26f64907702bed0fd54a9de3eb7c875f4f94cfe2b30cc9f8cfd9bb"
+        }
+      ],
+      "tokens": 51,
+      "lines": 10,
+      "format": "css"
+    },
+    {
       "id": "ac0417060ac5754c0f07da2f4297661c1a0ca621726f672191fdc7da1f9ff1bb",
       "endpoints": [
         {
@@ -3938,6 +3918,26 @@
       "tokens": 54,
       "lines": 6,
       "format": "typescript"
+    },
+    {
+      "id": "ae8c92ffac280508e7f99769e2135a8f627acad732644cfd1d0cb3dbfb8a2793",
+      "endpoints": [
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 760,
+          "end": 766,
+          "context": "e3ec89ad24bf0b0059382e5bd2ef50a6ab755dbdc0e45a54bed4e1485150fa87"
+        },
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 217,
+          "end": 223,
+          "context": "e7d05f624ab999e3105b79acff0fc4f9d6d252a9115c80e66a049d08088cf8b1"
+        }
+      ],
+      "tokens": 55,
+      "lines": 7,
+      "format": "css"
     },
     {
       "id": "aee179e32f0aa0decae220c3eea613a2b06e21f5a1d193b15fcb8edc06ebdbc8",
@@ -4078,26 +4078,6 @@
       "tokens": 58,
       "lines": 10,
       "format": "tsx"
-    },
-    {
-      "id": "b431b3eeb76a27bba66ae493f47cfcb3472f2383d211e2a0d9ffc5347850c179",
-      "endpoints": [
-        {
-          "file": "apps/web/app/globals.css",
-          "start": 1339,
-          "end": 1350,
-          "context": "1cbd250aff73a3ba8c5834fa0e91f3b697723e77626f07962a418b65e6ff1352"
-        },
-        {
-          "file": "apps/web/app/globals.css",
-          "start": 1362,
-          "end": 1373,
-          "context": "4a40d1f0274c49c03d8ac15ff063b7799507a931e59f93c1c0aab3344bf4c971"
-        }
-      ],
-      "tokens": 58,
-      "lines": 12,
-      "format": "css"
     },
     {
       "id": "b4a2850e16cdd04e9f2ce2c2c5a9c1af3e9b4a6dbd61e9cc364776dc72699f67",
@@ -4260,26 +4240,6 @@
       "format": "python"
     },
     {
-      "id": "bd84be7a3c0f75839192731fffd30547fa277df5aa281111e8dbd58ee77dde9d",
-      "endpoints": [
-        {
-          "file": "apps/web/app/globals.css",
-          "start": 1262,
-          "end": 1268,
-          "context": "204ed596e7e071acf86a45d396be9c848f8d482949f26658ed197dbf75bffc1e"
-        },
-        {
-          "file": "apps/web/app/globals.css",
-          "start": 1969,
-          "end": 1975,
-          "context": "34c01f41a076438d0bc6481f854be2c2f21bb737c1a0a6b9001f13de11faab3f"
-        }
-      ],
-      "tokens": 52,
-      "lines": 7,
-      "format": "css"
-    },
-    {
       "id": "be7f63f257b82c12b93ff9653cf2318acb70d2dd3ff3c6274644ca6f99b4a14b",
       "endpoints": [
         {
@@ -4318,26 +4278,6 @@
       "tokens": 70,
       "lines": 12,
       "format": "typescript"
-    },
-    {
-      "id": "c06dd7de2728f4ac5bd64213869e7c9c80285a2503e704bd5081a86bf98ac4e9",
-      "endpoints": [
-        {
-          "file": "apps/web/app/globals.css",
-          "start": 996,
-          "end": 1002,
-          "context": "9dc09a893aa6d9282ce05d58ff17d01ea9e92c37f334ff9586b57381096cb4c2"
-        },
-        {
-          "file": "apps/web/app/globals.css",
-          "start": 1003,
-          "end": 1009,
-          "context": "cf9084f07956b0ce1f549f99b6a20afc5ad58ed2176fe0e6f71ea3c7502a60d8"
-        }
-      ],
-      "tokens": 52,
-      "lines": 7,
-      "format": "css"
     },
     {
       "id": "c15c9a076a47eb4cf9a14301367af8b18af00a4133f1bf307d7972aa6fb59797",
@@ -4560,6 +4500,26 @@
       "format": "tsx"
     },
     {
+      "id": "ca94d1e30aed2c56b7d73d40bb990bec099a547c302b007280e2edea091d0abb",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-asset-inspector.tsx",
+          "start": 318,
+          "end": 329,
+          "context": "55bf66d6cc70df6875ae78743d931c3927a2296ab47a264c79e06f8dc9a2dd2a"
+        },
+        {
+          "file": "apps/web/components/studio/studio-asset-inspector.tsx",
+          "start": 276,
+          "end": 287,
+          "context": "f505b161a9fce0b620e9c3006923121c3a7cf271cf1b449d2a57a06493a79830"
+        }
+      ],
+      "tokens": 54,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
       "id": "cab0d67b7fdbfe0e636d2c0e197e21760903d5614a0b9cdccf254f2089f3ccf0",
       "endpoints": [
         {
@@ -4720,26 +4680,6 @@
       "format": "python"
     },
     {
-      "id": "d5be71e87c5068e7708d1a91930a4164033f1837faf58045a53d424db360bbf0",
-      "endpoints": [
-        {
-          "file": "apps/web/app/globals.css",
-          "start": 862,
-          "end": 867,
-          "context": "38462180292a4acb397c9bbce654f3dd3b3f3a10139e2b25f31f36c7016e7c3a"
-        },
-        {
-          "file": "apps/web/app/globals.css",
-          "start": 840,
-          "end": 845,
-          "context": "5e38958c8cbcb6b8072057af43bc4eac988f6962933fc52f181fcbd4e3ab4625"
-        }
-      ],
-      "tokens": 50,
-      "lines": 6,
-      "format": "css"
-    },
-    {
       "id": "d5db5827bb0b601d3dcc3f1f0e6646ad0dfca6ccf6356af5f007869207ddd35d",
       "endpoints": [
         {
@@ -4758,6 +4698,26 @@
       "tokens": 101,
       "lines": 16,
       "format": "typescript"
+    },
+    {
+      "id": "d7c396f7a5c27471634a02d253b2ff1c1ff760a9596edf34aeaed1ea105ec40b",
+      "endpoints": [
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1374,
+          "end": 1385,
+          "context": "0d93672c51845f627ed99d794e713189e93d2e1af4ea70c58c408c24b6a54b33"
+        },
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1351,
+          "end": 1362,
+          "context": "864556026bffa16fa55f93779a51cdd34bc4b2e71fa7b891cab8840d2a55620c"
+        }
+      ],
+      "tokens": 58,
+      "lines": 12,
+      "format": "css"
     },
     {
       "id": "d83d4a0faffb5ba3f01fb541d5c60d47e0b3d2b8cff9e326a36f55d010df7ab0",
@@ -5180,6 +5140,26 @@
       "format": "tsx"
     },
     {
+      "id": "e80a0567202936d2c1521cedb7ba00b7fc158bb99b44277c5fc80780ffbec107",
+      "endpoints": [
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 996,
+          "end": 1002,
+          "context": "1720c7e8168ed0e6fb0ed3555eb74a3e424c0183212473787865e1be51484791"
+        },
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 1003,
+          "end": 1009,
+          "context": "b3b3287e3256100afe2e4d722cd5731240942a6ebe188e072a0e8c407476e535"
+        }
+      ],
+      "tokens": 52,
+      "lines": 7,
+      "format": "css"
+    },
+    {
       "id": "e8d76fec103393d95010abbe0bfb4f885971b79f933ef48a7aff3ee0faa7a43a",
       "endpoints": [
         {
@@ -5540,26 +5520,6 @@
       "format": "javascript"
     },
     {
-      "id": "f838a1610197eaf743dba5ec3c2ed44f4a4bdaf0d55a05878fa9dfa7dad676d7",
-      "endpoints": [
-        {
-          "file": "apps/web/app/globals.css",
-          "start": 1379,
-          "end": 1388,
-          "context": "aeb431c662a18a65a6e227449f32defc1f180af3122b8ab4c5e54cedc7cbf8bd"
-        },
-        {
-          "file": "apps/web/app/globals.css",
-          "start": 1364,
-          "end": 1373,
-          "context": "d50f560d4086be4ff36ee8afdc344f702adf6a23317b611f64f44fafcc5eda65"
-        }
-      ],
-      "tokens": 51,
-      "lines": 10,
-      "format": "css"
-    },
-    {
       "id": "f8474fda37c90a5d9087df86325fa12b57747d44f5db9d35abdbc45636a53a76",
       "endpoints": [
         {
@@ -5638,6 +5598,26 @@
       "tokens": 54,
       "lines": 6,
       "format": "typescript"
+    },
+    {
+      "id": "fb3022b6318d58bdc1c115d5832dd07f4b5a19ca0df401e427515a128ff4c9d6",
+      "endpoints": [
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 840,
+          "end": 845,
+          "context": "0ae7d9e3dda024be2db2f13c177101b9fd5e4742297e8d1583d92d1a901da4f2"
+        },
+        {
+          "file": "apps/web/app/globals.css",
+          "start": 862,
+          "end": 867,
+          "context": "edf338102e76445509280c0fd0b4ca70555d11526c884eaf8538c048edfd9a3e"
+        }
+      ],
+      "tokens": 50,
+      "lines": 6,
+      "format": "css"
     },
     {
       "id": "fb8a5d78c46dadea83bac2fe0d04fdb77277dcdbbe69eb209e0401574d7a2b65",

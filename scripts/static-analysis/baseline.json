@@ -27,7 +27,7 @@
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Reviewed composer expansion state fix: unchanged findings, refreshed context identities; no threshold changes",
+  "reason": "Reviewed six UI fixes: existing identities refreshed; reference-library complexity reduced from 17 to 16; no new debt",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -157,7 +157,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1957,
+      "line": 1942,
       "column": 15,
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/JsxAttribute:[\"onExportBundle\"]/anonymous:63ed356ef3b547577d1b6b50febe2b36908c9b5ff3fb0c23259a089fa63cbba8",
@@ -200,7 +200,7 @@
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
-      "line": 629,
+      "line": 640,
       "column": 20,
       "file": "apps/web/components/studio/studio-project-browser.tsx",
       "owner": "FunctionDeclaration:[\"StudioProjectBrowser\"]/JsxAttribute:[\"onLoadMore\"]",
@@ -1049,6 +1049,16 @@
       "id": "1ec38d12b6a060051bcdc0588c0d963b8c58cdfb8481a94f45f8977732f84b77"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 189,
+      "column": 30,
+      "file": "apps/web/components/media-models/media-presets-panel.tsx",
+      "owner": "FunctionDeclaration:[\"MediaPresetsPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:d200ef0f1d6e3e4c2aebb266aca059249d16b88988b5f843eed732a1bf3665d3",
+      "id": "1f550a9b7e69fc32f31cccd8ead146b4997a2495d375345547fba22c7dfc2950"
+    },
+    {
       "file": "apps/web/components/prompt-recipes/prompt-recipe-editor-screen.tsx",
       "rule": "TS6133",
       "message": "'providerCatalogSearchPlaceholder' is declared but its value is never read.",
@@ -1364,7 +1374,7 @@
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
-      "line": 1964,
+      "line": 1949,
       "column": 19,
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/JsxAttribute:[\"onRun\"]",
@@ -1616,7 +1626,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 448,
+      "line": 459,
       "column": 25,
       "file": "apps/web/components/studio/studio-project-browser.tsx",
       "owner": "FunctionDeclaration:[\"StudioProjectBrowser\"]/anonymous:1987dbee56f78adad6393f33866c1982d00d1525c14ea23bd11875e8dc3277cd/JsxAttribute:[\"onArchive\"]/anonymous:4bc9ae969a4d2193121ce86b99b5e4566314502cfc96529d46b3d55315a9b3ca",
@@ -1653,16 +1663,6 @@
       "file": "apps/web/components/media-prompts-console.tsx",
       "owner": "FunctionDeclaration:[\"MediaPromptsConsole\"]",
       "id": "32941a7c8a3769ae7bc152c26e6879d83aa0da2be94213b726f0f046b7d48907"
-    },
-    {
-      "rule": "react-hooks/exhaustive-deps",
-      "message": "React Hook useCallback has missing dependencies: 'canvasHydrated' and 'setConsoleLines'. Either include them or remove the dependency array.",
-      "severity": 2,
-      "line": 1361,
-      "column": 5,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]",
-      "id": "3329c27e39501abea04ec881283ab036f4421cf0c0d166bc14822f4b80f4cd03"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -1730,7 +1730,7 @@
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useEffect has a missing dependency: 'latestDefinitionsRevision'. Either include it or remove the dependency array.",
       "severity": 2,
-      "line": 1492,
+      "line": 1477,
       "column": 6,
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]",
@@ -2284,17 +2284,6 @@
     },
     {
       "rule": "sonarjs/cognitive-complexity",
-      "message": "Refactor this function to reduce its Cognitive Complexity from 24 to the 20 allowed.",
-      "severity": 1,
-      "line": 1263,
-      "column": 66,
-      "metric": 24,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:0c5e6115dcb4f6c6a4558a584976caffd5e3344fbb65ebb85243d657c1efcd01",
-      "id": "49b98c4049e89d4e0f019d1e585cfcd39ef6d9867806f922ea3ea8793fc4baad"
-    },
-    {
-      "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 41 to the 20 allowed.",
       "severity": 1,
       "line": 83,
@@ -2303,17 +2292,6 @@
       "file": "apps/web/lib/studio-pricing.ts",
       "owner": "FunctionDeclaration:[\"estimateFromPricingSnapshot\"]",
       "id": "49e18cea52828551bdfdd8ba0343f902a87e1160b177ef6d278ca2225dd9f393"
-    },
-    {
-      "rule": "complexity",
-      "message": "Async arrow function has a complexity of 43. Maximum allowed is 15.",
-      "severity": 1,
-      "line": 1263,
-      "column": 66,
-      "metric": 43,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:0c5e6115dcb4f6c6a4558a584976caffd5e3344fbb65ebb85243d657c1efcd01",
-      "id": "4a493484fa6047aa6f79ba6c16dda2455c4a0270319caed5f200d05757d624f4"
     },
     {
       "rule": "react-hooks/exhaustive-deps",
@@ -2969,16 +2947,6 @@
       "id": "62099989718908193485b250549b92ded931d25e4a01c224e199cb38d7eb2b37"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 189,
-      "column": 30,
-      "file": "apps/web/components/media-models/media-presets-panel.tsx",
-      "owner": "FunctionDeclaration:[\"MediaPresetsPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:d200ef0f1d6e3e4c2aebb266aca059249d16b88988b5f843eed732a1bf3665d3",
-      "id": "62473e470982a8c0ad11571dff3a63d8892171313c90f7ab1056fa3d49ee1a3d"
-    },
-    {
       "file": "apps/web/components/media-preset-editor-screen.tsx",
       "rule": "TS6133",
       "message": "'variant' is declared but its value is never read.",
@@ -3076,7 +3044,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 478,
+      "line": 489,
       "column": 25,
       "file": "apps/web/components/studio/studio-project-browser.tsx",
       "owner": "FunctionDeclaration:[\"StudioProjectBrowser\"]/anonymous:df88a66dab35b035795ef03f904f50f10ddcef67d3f4ba5f420ba45aa0c35c94/JsxAttribute:[\"onRestore\"]/anonymous:539a4fde9ae0c781a91858da2615dca6805385d92a4730efdfa934903dfd76d6",
@@ -3102,6 +3070,16 @@
       "column": 3,
       "owner": "ImportSpecifier:[\"isStudioPollingVisible\"]",
       "id": "65afac8a658861b1773be80da0498434fa894ef48c3cde1b3fa0bcb0aab13afe"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1340,
+      "column": 9,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:a9e06e4664cc1e282b5e5cdee7ca79ec12e304aa8d18d93dbc6085c5eb8f97ac",
+      "id": "65d0c9260c0298547d351e8febee7c323e5bf69948bb70cecf6d318d40890afc"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -3275,7 +3253,7 @@
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
-      "line": 1965,
+      "line": 1950,
       "column": 25,
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/JsxAttribute:[\"onCancelRun\"]",
@@ -3459,16 +3437,6 @@
       "id": "714742e6ff83207142569e83ca97add6ac7c42e6ed977ad7e7a9e8c95771a06d"
     },
     {
-      "rule": "react-hooks/exhaustive-deps",
-      "message": "React Hook useCallback has missing dependencies: 'canvasHydrated' and 'setConsoleLines'. Either include them or remove the dependency array.",
-      "severity": 2,
-      "line": 1421,
-      "column": 5,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreLatestRunSnapshot\"]",
-      "id": "717263a32d7a221a2f45963f18f8e0b1e92f2d4e6053bb50dab9db410bae4764"
-    },
-    {
       "rule": "@typescript-eslint/no-explicit-any",
       "message": "Unexpected any. Specify a different type.",
       "severity": 1,
@@ -3482,7 +3450,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 481,
+      "line": 492,
       "column": 25,
       "file": "apps/web/components/studio/studio-project-browser.tsx",
       "owner": "FunctionDeclaration:[\"StudioProjectBrowser\"]/anonymous:df88a66dab35b035795ef03f904f50f10ddcef67d3f4ba5f420ba45aa0c35c94/JsxAttribute:[\"onDelete\"]/anonymous:979ae5cf441e7874cafb61e0db736cd6a773285a3b719c2603df188ac0813620",
@@ -3664,6 +3632,17 @@
       "id": "792a017fdd04944650f885e658afbf442e988a41f719e9617077798355790f85"
     },
     {
+      "rule": "complexity",
+      "message": "Async arrow function has a complexity of 39. Maximum allowed is 15.",
+      "severity": 1,
+      "line": 1263,
+      "column": 66,
+      "metric": 39,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:a9e06e4664cc1e282b5e5cdee7ca79ec12e304aa8d18d93dbc6085c5eb8f97ac",
+      "id": "7954648dfede26e38154f78e446298f6a67eb6605fb71a1e68f232e7eb32024b"
+    },
+    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 28 to the 20 allowed.",
       "severity": 1,
@@ -3755,6 +3734,16 @@
       "file": "apps/web/components/graph-studio/graph-node-provider-model-field.tsx",
       "owner": "FunctionDeclaration:[\"GraphNodeProviderModelField\"]",
       "id": "7b020a7fe14a5262795da21d4a28c9842ca75225edb181407e049040997494a9"
+    },
+    {
+      "rule": "react-hooks/exhaustive-deps",
+      "message": "React Hook useCallback has missing dependencies: 'canvasHydrated' and 'setConsoleLines'. Either include them or remove the dependency array.",
+      "severity": 2,
+      "line": 1406,
+      "column": 5,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreLatestRunSnapshot\"]",
+      "id": "7bbff9dd51d4e3e123e30e772745d0cb9504d5df79eddae65da4ba0ef835cdb4"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -4600,16 +4589,6 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1355,
-      "column": 9,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:0c5e6115dcb4f6c6a4558a584976caffd5e3344fbb65ebb85243d657c1efcd01",
-      "id": "9960f60e22f8aec8e0d209bf23f75e23611cd95a17b115726611541070f8637a"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
       "line": 114,
       "column": 5,
       "file": "apps/web/components/graph-studio/hooks/use-graph-toolbar-workflow-actions.ts",
@@ -4725,7 +4704,7 @@
       "rule": "complexity",
       "message": "Async arrow function has a complexity of 17. Maximum allowed is 15.",
       "severity": 1,
-      "line": 1375,
+      "line": 1360,
       "column": 66,
       "metric": 17,
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
@@ -4752,6 +4731,16 @@
       "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
       "owner": "FunctionDeclaration:[\"StudioEnhancementSettingsPanel\"]/VariableDeclaration:[\"providerChrome\"]/JsxAttribute:[\"onSubmit\"]/anonymous:e310f1fc8606c4d2401f9a58281a3c84962b7762b2bab13ed7a112dd9c518174",
       "id": "9fb497d1deb909f70910b087f3f4a9d4d58b281d067695a7f32f3e99109e9aea"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1342,
+      "column": 9,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:a9e06e4664cc1e282b5e5cdee7ca79ec12e304aa8d18d93dbc6085c5eb8f97ac",
+      "id": "a0f02c04c9f92e18551d13750e49dc7cbf7d19ab000f19cd6c5a47f887f936ea"
     },
     {
       "file": "apps/web/components/studio/studio-composer-controls.tsx",
@@ -5077,16 +5066,6 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1357,
-      "column": 9,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]/anonymous:0c5e6115dcb4f6c6a4558a584976caffd5e3344fbb65ebb85243d657c1efcd01",
-      "id": "aba9f2bf29e5bbe0287bbc86940ec4911ed91c365b7230c8e608b1da6257e78d"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
       "line": 136,
       "column": 149,
       "file": "apps/web/components/graph-studio/graph-library-dialogs.tsx",
@@ -5117,7 +5096,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 2083,
+      "line": 2068,
       "column": 15,
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/JsxAttribute:[\"onChange\"]/anonymous:e5fa34cb9f36a8c7b5132dd45c6f5e7df78ab28762d1323d3d559fb7e7d71ccc",
@@ -5195,6 +5174,16 @@
       "file": "apps/web/hooks/studio/use-studio-poll-scheduler.ts",
       "owner": "FunctionDeclaration:[\"useStudioPollScheduler\"]/anonymous:f09d867f6317a95e978b5f05f062626245d39324cbbc1868251fd13b487c7da3/anonymous:880586e6c8f2f73b604f86e179daacded39d13147089b05079367a6f4f8b6ec9/PropertyAccessExpression:[\"values\"]/PropertyAccessExpression:[\"current\"]",
       "id": "afdc4a258ed89eac889ccfa88227643960b0aa1f705b48f51d69e902e78626a7"
+    },
+    {
+      "rule": "react-hooks/exhaustive-deps",
+      "message": "React Hook useCallback has missing dependencies: 'canvasHydrated' and 'setConsoleLines'. Either include them or remove the dependency array.",
+      "severity": 2,
+      "line": 1346,
+      "column": 5,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"restoreWorkspaceSnapshot\"]",
+      "id": "affe486528c5b47896624f573fca09b7f99915cfea3d35977d22f4453fbb4749"
     },
     {
       "rule": "sonarjs/no-all-duplicated-branches",
@@ -5590,6 +5579,16 @@
       "id": "c0328fba2dfe3517af4075e08134426d3112f04cc57187be4d33d655d926d545"
     },
     {
+      "rule": "react-hooks/exhaustive-deps",
+      "message": "React Hook useCallback has missing dependencies: 'canvasHydrated' and 'run?.status'. Either include them or remove the dependency array.",
+      "severity": 2,
+      "line": 1239,
+      "column": 5,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"loadWorkflowRecord\"]",
+      "id": "c03bc9444683beedbea7daafa289428b824d8a41a12aae32b6d13b9c2043aa0e"
+    },
+    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 33 to the 20 allowed.",
       "severity": 1,
@@ -5599,6 +5598,17 @@
       "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
       "owner": "FunctionDeclaration:[\"useCreativeAssistant\"]/VariableDeclaration:[\"sendContentMessage\"]/anonymous:6fd2fbfc787e2ef207aef673b30b42c22e627e1d34b44d4ae3e45a5e1f9298a2",
       "id": "c0da3fc5f491051eb104691e085e8fad3ecfa8035e1d9972efea73fa2c4fd74b"
+    },
+    {
+      "rule": "complexity",
+      "message": "Async arrow function has a complexity of 20. Maximum allowed is 15.",
+      "severity": 1,
+      "line": 1149,
+      "column": 89,
+      "metric": 20,
+      "file": "apps/web/components/graph-studio/graph-studio.tsx",
+      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"loadWorkflowRecord\"]/anonymous:977d03e3b5ee658925da40866b09938854e7421a4e92622f55a876acf4c1937c",
+      "id": "c0ea9aab313bd0bb6d86e1fb0fc849d03955166e99768ccbdfe3b362064373d1"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -5670,16 +5680,6 @@
       "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
       "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:9e0f9110bf51efbbdb2e33900bfb5f468525afcc487d04aa265c64525a656140",
       "id": "c29f3de101b99c55a6fe0887f514d3c99536695e2ef67f436864e422177e1611"
-    },
-    {
-      "rule": "react-hooks/exhaustive-deps",
-      "message": "React Hook useCallback has missing dependencies: 'canvasHydrated' and 'run?.status'. Either include them or remove the dependency array.",
-      "severity": 2,
-      "line": 1239,
-      "column": 5,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"loadWorkflowRecord\"]",
-      "id": "c2a6f50414385cdcb70fe1a9dc844acd09838496dc980c84fc68cb8a1e10397f"
     },
     {
       "rule": "complexity",
@@ -5780,7 +5780,7 @@
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
-      "line": 1900,
+      "line": 1885,
       "column": 16,
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/JsxAttribute:[\"onDrop\"]",
@@ -5891,17 +5891,6 @@
     },
     {
       "rule": "complexity",
-      "message": "Async arrow function has a complexity of 20. Maximum allowed is 15.",
-      "severity": 1,
-      "line": 1149,
-      "column": 89,
-      "metric": 20,
-      "file": "apps/web/components/graph-studio/graph-studio.tsx",
-      "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"loadWorkflowRecord\"]/anonymous:9f5292ced19676193cbe3f337b28877454092b4c5b3e02b2f597bff1f198863f",
-      "id": "c94d46344287ca1313544c4e581737ece07d8723d1a61964ba68765122b5695b"
-    },
-    {
-      "rule": "complexity",
       "message": "Arrow function has a complexity of 16. Maximum allowed is 15.",
       "severity": 1,
       "line": 45,
@@ -5956,7 +5945,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1498,
+      "line": 1483,
       "column": 5,
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/anonymous:d87e4f6679127f7992e0b706d8de7e1cdf0f9f0cf9524463a176c354afeb642b",
@@ -6073,7 +6062,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 595,
+      "line": 606,
       "column": 36,
       "file": "apps/web/components/studio/studio-project-browser.tsx",
       "owner": "FunctionDeclaration:[\"StudioProjectBrowser\"]/JsxAttribute:[\"onClick\"]/anonymous:b7f59c8d1a7cd738e0e98e85fadbeff8f597fcce9d6ff195f77e9cc1a7060c15",
@@ -6140,17 +6129,6 @@
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"nodeHandlers\"]/anonymous:68b9f3ef5a2a3cf90f80e26487cfab73c84925fce461188c1cd8ce227518197c/PropertyAssignment:[\"onImageDrop\"]",
       "id": "cf5f9a77cef2c3f7e711722d87c8909b350bb2a999261ad972ca0a3ef109abb6"
-    },
-    {
-      "rule": "complexity",
-      "message": "Arrow function has a complexity of 17. Maximum allowed is 15.",
-      "severity": 1,
-      "line": 86,
-      "column": 57,
-      "metric": 17,
-      "file": "apps/web/hooks/studio/use-studio-reference-library.ts",
-      "owner": "FunctionDeclaration:[\"useStudioReferenceLibrary\"]/VariableDeclaration:[\"openContextualReferenceLibrary\"]/anonymous:84798be74a6b075ccde2a4f60bfaebbb5832ce6935bef48e1288cdc4fe074da5",
-      "id": "cffa061ccef4fcad1a6b05917a55b501eb9acc6a142346cc79c7b9fa3128c608"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -6437,6 +6415,17 @@
     },
     {
       "rule": "complexity",
+      "message": "Arrow function has a complexity of 16. Maximum allowed is 15.",
+      "severity": 1,
+      "line": 86,
+      "column": 57,
+      "metric": 16,
+      "file": "apps/web/hooks/studio/use-studio-reference-library.ts",
+      "owner": "FunctionDeclaration:[\"useStudioReferenceLibrary\"]/VariableDeclaration:[\"openContextualReferenceLibrary\"]/anonymous:65748683e204366aeb32a8c8419d2994ff4ba1abbc89eff2239882b59ebc736f",
+      "id": "dc5ee90e6a2552b7565108b567ee53985cce123a9daf52656d73f578902902ce"
+    },
+    {
+      "rule": "complexity",
       "message": "Function 'DashboardActionsHarness' has a complexity of 16. Maximum allowed is 15.",
       "severity": 1,
       "line": 28,
@@ -6710,7 +6699,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1561,
+      "line": 1546,
       "column": 9,
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/anonymous:d7c4c2491640fcca9ebbd66f7d5f05eff2a34562881e46901f30c7913289e8b6/VariableDeclaration:[\"onNodeImageDrop\"]/function",

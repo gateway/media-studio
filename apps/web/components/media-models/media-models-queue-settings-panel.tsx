@@ -64,7 +64,7 @@ export function MediaModelsQueueSettingsPanel({
           description="Keep Studio processing queued generations in the background so new work starts automatically as space frees up."
           tone="media"
           defaultOpen={false}
-          badge={<StatusPill label={queueSettings?.queue_enabled ? "Running" : "Paused"} tone={queueSettings?.queue_enabled ? "healthy" : "warning"} />}
+          badge={<StatusPill label={queueSettings?.queue_enabled ? "Enabled" : "Disabled"} tone={queueSettings?.queue_enabled ? "healthy" : "warning"} />}
           className="px-5 py-5"
           summaryClassName="flex-col items-start gap-3 sm:flex-row sm:items-start"
           titleClassName="admin-label-muted flex items-center gap-2"

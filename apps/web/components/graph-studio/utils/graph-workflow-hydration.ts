@@ -9,7 +9,7 @@ import { inputGraphHandleId, outputGraphHandleId } from "./graph-port-handles";
 import { nodeUiFromMetadata } from "./graph-media-preview";
 import { graphNodeDataWithRunState } from "./graph-node-runtime";
 import { graphNormalizePromptProviderFields } from "./graph-prompt-provider";
-import { createGraphNode, nodeStyleFromMetadata, type GraphNodeHandlers } from "./graph-serialization";
+import { createGraphNode, nodeStyleFromMetadata, workflowFromCanvas, type GraphNodeHandlers } from "./graph-serialization";
 import { filterGraphWorkflowEdgesForCurrentContract } from "./graph-edge-contract";
 import { normalizeGraphWorkflowPayload } from "./graph-workflow-normalization";
 
@@ -123,4 +123,11 @@ export function hydrateGraphWorkflowForCanvas({
     };
   });
   return { nodes, edges, groups: readGraphGroupsFromWorkflow(normalizedWorkflow) };
+}
+
+
+export function savedGraphWorkflowSnapshot(workflow: GraphWorkflowPayload, canvas: HydratedGraphWorkflow): GraphWorkflowPayload {
+  // Do not accept missing node definitions or discarded connections as saved edits.
+  if (canvas.nodes.length !== workflow.nodes.length || canvas.edges.length !== workflow.edges.length) return workflow;
+  return workflowFromCanvas(workflow.workflow_id ?? null, workflow.name, canvas.nodes, canvas.edges, canvas.groups);
 }
