@@ -3,8 +3,8 @@ export type StudioComposerRevealOptions = {
   scroll?: boolean;
 };
 
-export function mobileComposerCollapsedForProgrammaticExpand(isCoarsePointer: boolean) {
-  return !isCoarsePointer;
+export function mobileComposerCollapsedForProgrammaticExpand(isCoarsePointer: boolean, currentlyCollapsed: boolean) {
+  return currentlyCollapsed && !isCoarsePointer;
 }
 
 type RevealComposerElements = {

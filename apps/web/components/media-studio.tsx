@@ -602,12 +602,12 @@ export function MediaStudio({
 
   const expandStudioComposer = useCallback(() => {
     setDesktopComposerCollapsed(false);
-    setMobileComposerCollapsed(mobileComposerCollapsedForProgrammaticExpand(isCoarsePointerDevice()));
+    setMobileComposerCollapsed((collapsed) => mobileComposerCollapsedForProgrammaticExpand(isCoarsePointerDevice(), collapsed));
   }, [setMobileComposerCollapsed]);
 
   function revealComposer(options: StudioComposerRevealOptions = {}) {
     setDesktopComposerCollapsed(false);
-    setMobileComposerCollapsed(mobileComposerCollapsedForProgrammaticExpand(isCoarsePointerDevice()));
+    setMobileComposerCollapsed((collapsed) => mobileComposerCollapsedForProgrammaticExpand(isCoarsePointerDevice(), collapsed));
 
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
@@ -788,7 +788,7 @@ export function MediaStudio({
         clearComposer();
         closeStudioOverlays();
         setDesktopComposerCollapsed(false);
-        setMobileComposerCollapsed(mobileComposerCollapsedForProgrammaticExpand(isCoarsePointerDevice()));
+        setMobileComposerCollapsed((collapsed) => mobileComposerCollapsedForProgrammaticExpand(isCoarsePointerDevice(), collapsed));
       },
       mountPromptReferencePicker: () => {
         const targetModel = findMultiImageModel();
