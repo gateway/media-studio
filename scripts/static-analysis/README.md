@@ -227,9 +227,10 @@ it is not a deletion policy or enforcement gate. Knip does not analyze Python/CS
 or prove dynamic/runtime consumers. Review each candidate before changing code.
 
 Knip's native OXC parser/resolver bindings must load after an install with lifecycle
-scripts disabled. Dedicated macOS/Windows jobs run the same fixtures and reporting
-command as Linux and retain separate artifacts. They require no Python setup or
-application runtime. Preserve optional platform variants in the lockfile.
+scripts disabled. A shared Ubuntu/macOS/Windows tooling matrix runs the Knip fixtures and report,
+then verifies Playwright exports and an in-memory Sharp PNG round trip after the
+same install. Each OS retains its own Knip artifact. These jobs require no Python
+setup, browser, application runtime or database. Preserve optional platform variants in the lockfile.
 
 The Knip addition changes the existing lockfile-hashed analyzer contracts. Its
 `jiti` and `tinyglobby` minimum versions also deduplicate existing lint/build/test

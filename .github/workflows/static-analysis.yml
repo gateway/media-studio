@@ -39,11 +39,11 @@ jobs:
           name: javascript-typescript-python-analysis
           path: ${{ runner.temp }}/static-analysis
           if-no-files-found: error
-  knip-platform:
+  web-tooling-platform:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
@@ -58,6 +58,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run test:static-analysis:knip
       - run: npm run lint:unused
+      - name: Verify Playwright exports and native image processing without services
+        run: npm run test:web:focused -- apps/web/lib/dependency-ownership.test.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

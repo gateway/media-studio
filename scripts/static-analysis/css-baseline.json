@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "contract": "914c613dc3e5992f31241508818dc0573dbdc0661647012b55b4af7d3fd6218d",
+  "contract": "d4b1aa327377fb18703a920deeee2c593d80a547b4cf774843891a8178c753bb",
   "metadata": {
     "versions": {
       "stylelint": "17.16.0",
@@ -15,13 +15,13 @@
     ],
     "files": {
       "stylelint.config.mjs": "450518f5b1f7892f36afbf5762730df8c1818f328b6c6d72576d20d02fc9d79a",
-      "package-lock.json": "a6209c9c9ce6a9a2659a3c929e3dc6ac2d3941f66022099515eacb7a0d6b5f8f",
+      "package-lock.json": "ae7080d206f195a71f44f4d4faddcaf5d2ee2adec4e6b972c41e2ec8b221a9f8",
       "scripts/static-analysis/css.mjs": "93277f0be38bf2e449636af9055f996f8cfb8efb6f9a416cc4eb707509ebc9ca",
       "scripts/static-analysis/css-policy.mjs": "244a770f9dfad9f20804acf5fdc3673e08e254b32d1e813092ca81bc79332c54",
       "scripts/check_style_drift.py": "697bdb704b862545c867b69113f9b2d369a742c47040b7d32494bf6c7c51545f"
     }
   },
-  "reason": "Ticket 27: pinned Knip reporting dependency; review unchanged CSS findings and lock-only contract delta",
+  "reason": "Integrate tickets 27-30: combined lockfile contract only; preserve all 1127 CSS baseline entries; 1121 measured findings and zero new debt.",
   "findings": [
     {
       "id": "0062e9af8543af7049929d03ac293b7ad56016f5146616ef52f21c3cfb764fef",
