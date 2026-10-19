@@ -126,3 +126,33 @@ alias precedence and reference identity, exact ordered 14-request Studio and
 19-request dashboard reads, and HTTP/network partial failures with successful
 sections retained. Fetch is mocked; no services, app data, provider calls or local
 pytest collection are used.
+
+## Ticket 29: module-local control API mappers (2026-10-19)
+
+Remove only export visibility from `mapModelRecord`,
+`mapExternalLlmUsageRecord`, `mapExternalLlmUsageSummaryRecord`,
+`mapReferenceMediaRecord`, `mapEnhancementConfigRecord` and
+`mapQueueSettingsRecord` in `apps/web/lib/control-api.ts`. Repository-wide
+symbol/import/re-export/test inspection finds only module-local callers for
+these six helpers. Keep all bodies, callers, endpoint helpers, public record
+types and test-consumed exports unchanged. Other export concentrations remain
+backlog.
+
+Knip 6.42.0 with the trial's configured default scan reports 134 → 128 unused
+exports (control-api: 30 → 24), with exactly those six symbols removed and no
+added findings. Six files, 83 types, one dependency, six unlisted references and
+one duplicate-export group remain unchanged; both scans exit 1 for existing
+findings. Production-mode findings are not used for removal decisions.
+
+The initial full lint passes web, Python and CSS gates, then reports five clone
+identity changes. Reconstructing the raw production clone report against
+immutable `git show d35169c` source matches all 283 prior baseline pairs and
+metrics. Every affected fragment is byte-identical before/after. Only the five
+existing pairs containing control-api endpoints receive new context hashes and
+IDs; the other 278 pairs, metrics, contract and baseline reason are unchanged.
+No new clone debt is accepted.
+
+The four existing control-api focused test files pass all 16 tests before and
+after this visibility-only change; fetch is mocked. Web typechecking passes.
+Final full lint verifies the reviewed identities. No application/runtime,
+provider calls, local Python fixtures, data or settings are involved.
