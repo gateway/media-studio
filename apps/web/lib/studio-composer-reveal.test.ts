@@ -15,8 +15,12 @@ function mockFocus(element: HTMLElement) {
 
 describe("revealStudioComposer", () => {
   it("keeps programmatic expansion docked on non-coarse pointer devices", () => {
-    expect(mobileComposerCollapsedForProgrammaticExpand(false)).toBe(true);
-    expect(mobileComposerCollapsedForProgrammaticExpand(true)).toBe(false);
+    expect(mobileComposerCollapsedForProgrammaticExpand(false, true)).toBe(true);
+    expect(mobileComposerCollapsedForProgrammaticExpand(true, true)).toBe(false);
+  });
+
+  it.each([false, true])("keeps an already-open composer expanded with coarse pointer %s", (coarsePointer) => {
+    expect(mobileComposerCollapsedForProgrammaticExpand(coarsePointer, false)).toBe(false);
   });
 
   it("scrolls and focuses the prompt by default", () => {

@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Tickets13/23: preserve all 284 clone pairs; reconcile only the two reviewed unchanged fragments after source context edits.",
+  "reason": "Composer state fix: reviewed unchanged clone spans and metrics; refresh three enclosing-context identities",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -960,26 +960,6 @@
       "format": "python"
     },
     {
-      "id": "2b75334ff1408913fe85b50a49d3c001083d6b46c4b8f80c5c6dab5937c0c086",
-      "endpoints": [
-        {
-          "file": "apps/web/components/media-studio.tsx",
-          "start": 1993,
-          "end": 1998,
-          "context": "f3c6630fecacbe6fec4dbcabe89d0b5f09c22e5e6ad24d1276b7f0561d2486ee"
-        },
-        {
-          "file": "apps/web/components/studio/studio-composer.tsx",
-          "start": 137,
-          "end": 141,
-          "context": "13ae1fcca54a66ff330b4dd05bbb06937167b0f78db428897758782d52c8bacd"
-        }
-      ],
-      "tokens": 54,
-      "lines": 6,
-      "format": "tsx"
-    },
-    {
       "id": "2b9ab0f79c2c9e4504a0c163038391f1031fcd47eb38438804075ce911699633",
       "endpoints": [
         {
@@ -1577,6 +1557,26 @@
       ],
       "tokens": 74,
       "lines": 20,
+      "format": "tsx"
+    },
+    {
+      "id": "3f403bed73737a6adc8e6457dc2a7a1d593daac4857f19e8dc1e3fe1478b1966",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1993,
+          "end": 1998,
+          "context": "d40513e4e941b772b6ae330431ca3746efbfed7513a7baf3e68c5ab7a73b3e06"
+        },
+        {
+          "file": "apps/web/components/studio/studio-composer.tsx",
+          "start": 137,
+          "end": 141,
+          "context": "13ae1fcca54a66ff330b4dd05bbb06937167b0f78db428897758782d52c8bacd"
+        }
+      ],
+      "tokens": 54,
+      "lines": 6,
       "format": "tsx"
     },
     {
@@ -3140,6 +3140,26 @@
       "format": "tsx"
     },
     {
+      "id": "89e39c1bef52c11af1a3210ebdd7d121242e3e425d54fb143a1a94d129930086",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1635,
+          "end": 1646,
+          "context": "6cde1b47e44a864864b4a811bd0bc6ab172b6316313f3d26c87d2d72b6ce0e2e"
+        },
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1706,
+          "end": 1717,
+          "context": "d37e1de8afcbcf4555d16355d6469f1f69c7d6ae16c3b7b6db0d9d3364aabf76"
+        }
+      ],
+      "tokens": 52,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
       "id": "8a7abebaab1609883403b9405a0f9090d558645e26f721cdcd9cd3bcce68b864",
       "endpoints": [
         {
@@ -3418,26 +3438,6 @@
       "tokens": 53,
       "lines": 7,
       "format": "typescript"
-    },
-    {
-      "id": "9c05975cfa6eefd2f512b64f57406c2c0cfec979c664d7a5b0cbfb451b97e1ce",
-      "endpoints": [
-        {
-          "file": "apps/web/components/media-studio.tsx",
-          "start": 1305,
-          "end": 1312,
-          "context": "718e37ecab0496c61c77050cf718669e6a9412be82868504dd108294e685b80d"
-        },
-        {
-          "file": "apps/web/components/media-studio.tsx",
-          "start": 1242,
-          "end": 1249,
-          "context": "e8f7a9204c3b18b7b83b2fa6b3fa032eae6633148e63c915a4f14b37599949eb"
-        }
-      ],
-      "tokens": 65,
-      "lines": 8,
-      "format": "tsx"
     },
     {
       "id": "9c0ee640e147bfa23e38a9ab6a4639f2affb88ed24a9a6d3da51217d2f9e6c49",
@@ -4640,26 +4640,6 @@
       "format": "typescript"
     },
     {
-      "id": "ce8b9d58b9e92b1e2b51092421d2d7feb67fb828467c2969c40e129b206b918b",
-      "endpoints": [
-        {
-          "file": "apps/web/components/media-studio.tsx",
-          "start": 1706,
-          "end": 1717,
-          "context": "0fd200a25641d034d57e43a319ad626f3a409c306ba1ac6281fc85c52b7840fb"
-        },
-        {
-          "file": "apps/web/components/media-studio.tsx",
-          "start": 1635,
-          "end": 1646,
-          "context": "17aafb19548a9657a0d4a63d152445c6aa678a852d1555b9ca8a1148ead831ea"
-        }
-      ],
-      "tokens": 52,
-      "lines": 12,
-      "format": "tsx"
-    },
-    {
       "id": "cfaaf83e7c2e39da784cd4a894eb2a9342405eb4cea39d5add2af831326eb47c",
       "endpoints": [
         {
@@ -5378,6 +5358,26 @@
       "tokens": 56,
       "lines": 7,
       "format": "python"
+    },
+    {
+      "id": "f0c868db312e4a5e349ae1f8e4e536bfe52a50854464c3ce2e64076e822cbaff",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1305,
+          "end": 1312,
+          "context": "df4307b015d9f4cb274b8491b4de67074785c696809896a1374433bffbe89088"
+        },
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1242,
+          "end": 1249,
+          "context": "f90ce69ee966bf71551788bb9f906dcc7b3b68dc4ae657d4720ce599da5fd189"
+        }
+      ],
+      "tokens": 65,
+      "lines": 8,
+      "format": "tsx"
     },
     {
       "id": "f18046bc7658af664716c4e290e4e13906c875518428846422cf79f1df399b20",

@@ -27,7 +27,7 @@
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Ticket23: remove no-empty and no-useless-assignment; reconcile seven existing callback/context identities, restore CC 44 to 43, no added debt",
+  "reason": "Reviewed composer expansion state fix: unchanged findings, refreshed context identities; no threshold changes",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -354,7 +354,7 @@
       "rule": "complexity",
       "message": "Async function 'loadMediaDashboardSnapshot' has a complexity of 94. Maximum allowed is 15.",
       "severity": 1,
-      "line": 786,
+      "line": 767,
       "column": 1,
       "metric": 94,
       "file": "apps/web/lib/control-api.ts",
@@ -1070,6 +1070,16 @@
       "id": "1fa1fb72917e801b6e5e7177ffebdc4b6b76a68dee680609e9540b8c37550ee6"
     },
     {
+      "file": "apps/web/components/media-studio.tsx",
+      "rule": "TS6133",
+      "message": "'initialAssetOffset' is declared but its value is never read.",
+      "severity": 2,
+      "line": 112,
+      "column": 3,
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"initialAssetOffset\"]",
+      "id": "20b079227be223ef0bb7ac5d5ac1820aef0738655081669d76cb56b8c5a1f826"
+    },
+    {
       "rule": "complexity",
       "message": "Function 'mergeRunStatus' has a complexity of 23. Maximum allowed is 15.",
       "severity": 1,
@@ -1306,16 +1316,6 @@
       "file": "scripts/prove_media_preset_style_browser.mjs",
       "owner": "FunctionDeclaration:[\"main\"]",
       "id": "26ca8dab862f403e047ece246f83b105f1f4e3f1ff2bf679fbc1614fa40e8561"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'initialAssetOffset' is declared but its value is never read.",
-      "severity": 2,
-      "line": 112,
-      "column": 3,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"initialAssetOffset\"]",
-      "id": "26e59961595403cf43e6092661c49ae28dca009bb0216ac10661dac37bc68e78"
     },
     {
       "rule": "complexity",
@@ -1563,7 +1563,7 @@
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 23 to the 20 allowed.",
       "severity": 1,
-      "line": 48,
+      "line": 55,
       "column": 10,
       "metric": 23,
       "file": "scripts/run_studio.mjs",
@@ -1907,7 +1907,7 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 812,
+      "line": 808,
       "column": 7,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]/anonymous:cce525d006c83f236870a8cbd6165206d45bb3d5a861291bac7bbf9736483e2c/anonymous:7879380ce6a1a848abae511c20121f59c9bc0c0beb9610491d66257f3d72e522",
@@ -2116,7 +2116,7 @@
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useEffect has missing dependencies: 'busyState', 'requestValidation', and 'setValidation'. Either include them or remove the dependency array.",
       "severity": 2,
-      "line": 819,
+      "line": 815,
       "column": 6,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]",
@@ -2126,22 +2126,12 @@
       "rule": "complexity",
       "message": "Function 'mapEnhancePreviewResponseRecord' has a complexity of 23. Maximum allowed is 15.",
       "severity": 1,
-      "line": 720,
+      "line": 701,
       "column": 8,
       "metric": 23,
       "file": "apps/web/lib/control-api.ts",
       "owner": "FunctionDeclaration:[\"mapEnhancePreviewResponseRecord\"]",
       "id": "4406a3361b7b4e02827d6b335cd6ca87d81b5f36967dc1bcb5e48dc98a30ae16"
-    },
-    {
-      "rule": "react-hooks/exhaustive-deps",
-      "message": "React Hook useEffect has a missing dependency: 'setReferenceLibraryTarget'. Either include it or remove the dependency array.",
-      "severity": 2,
-      "line": 1027,
-      "column": 6,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]",
-      "id": "44e28df95b1dbf5a399553b0986de45024415bc3df0efb8a434c6fea740dfb3a"
     },
     {
       "rule": "react-hooks/rules-of-hooks",
@@ -2697,6 +2687,16 @@
       "file": "apps/web/components/media-preset-editor-screen.tsx",
       "owner": "FunctionDeclaration:[\"MediaPresetEditorScreen\"]/JsxAttribute:[\"onSelectItem\"]/anonymous:07306e588354daac8c3ba909694259a05fe93a5ee8f90fc32382df0b2bd804bc",
       "id": "56d20aedaf9e6b033a5688e5f1f949a43cf0b7528a092dd78102aea259fecd87"
+    },
+    {
+      "rule": "react-hooks/exhaustive-deps",
+      "message": "React Hook useEffect has a missing dependency: 'setReferenceLibraryTarget'. Either include it or remove the dependency array.",
+      "severity": 2,
+      "line": 1027,
+      "column": 6,
+      "file": "apps/web/components/media-studio.tsx",
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]",
+      "id": "5769e104200de5610c4a6ff80b3cb9c5b4ba65799a8d51dfd3514c02f268e3d8"
     },
     {
       "rule": "complexity",
@@ -3264,7 +3264,7 @@
       "rule": "complexity",
       "message": "Async function 'resolveAvailablePorts' has a complexity of 18. Maximum allowed is 15.",
       "severity": 1,
-      "line": 671,
+      "line": 632,
       "column": 1,
       "metric": 18,
       "file": "scripts/run_studio.mjs",
@@ -3441,7 +3441,7 @@
       "rule": "complexity",
       "message": "Async function 'main' has a complexity of 21. Maximum allowed is 15.",
       "severity": 1,
-      "line": 720,
+      "line": 681,
       "column": 1,
       "metric": 21,
       "file": "scripts/run_studio.mjs",
@@ -3534,7 +3534,7 @@
       "rule": "complexity",
       "message": "Function 'mapEnhancementConfigRecord' has a complexity of 17. Maximum allowed is 15.",
       "severity": 1,
-      "line": 617,
+      "line": 598,
       "column": 8,
       "metric": 17,
       "file": "apps/web/lib/control-api.ts",
@@ -3739,7 +3739,7 @@
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.",
       "severity": 2,
-      "line": 829,
+      "line": 825,
       "column": 5,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]/PropertyAccessExpression:[\"stringify\"]",
@@ -4232,11 +4232,11 @@
     },
     {
       "rule": "complexity",
-      "message": "Function 'applyPresetSelection' has a complexity of 26. Maximum allowed is 15.",
+      "message": "Function 'applyPresetSelection' has a complexity of 23. Maximum allowed is 15.",
       "severity": 1,
       "line": 682,
       "column": 3,
-      "metric": 26,
+      "metric": 23,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]/FunctionDeclaration:[\"applyPresetSelection\"]",
       "id": "8a1fd388d03de3851dae66d79d94f574a86b4e164acf053aa1f712239893f2f1"
@@ -4267,7 +4267,7 @@
       "rule": "complexity",
       "message": "Function 'mapExternalLlmUsageRecord' has a complexity of 23. Maximum allowed is 15.",
       "severity": 1,
-      "line": 515,
+      "line": 496,
       "column": 8,
       "metric": 23,
       "file": "apps/web/lib/control-api.ts",
@@ -4298,7 +4298,7 @@
       "rule": "complexity",
       "message": "Function 'mapPricingResponseRecord' has a complexity of 18. Maximum allowed is 15.",
       "severity": 1,
-      "line": 693,
+      "line": 674,
       "column": 8,
       "metric": 18,
       "file": "apps/web/lib/control-api.ts",
@@ -5004,7 +5004,7 @@
       "rule": "complexity",
       "message": "Function 'mapReferenceMediaRecord' has a complexity of 26. Maximum allowed is 15.",
       "severity": 1,
-      "line": 585,
+      "line": 566,
       "column": 8,
       "metric": 26,
       "file": "apps/web/lib/control-api.ts",
@@ -5448,7 +5448,7 @@
       "rule": "preserve-caught-error",
       "message": "There is no `cause` attached to the symptom error being thrown.",
       "severity": 2,
-      "line": 521,
+      "line": 482,
       "column": 5,
       "file": "scripts/run_studio.mjs",
       "owner": "FunctionDeclaration:[\"migrationPreflight\"]",
@@ -6261,7 +6261,7 @@
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 31 to the 20 allowed.",
       "severity": 1,
-      "line": 786,
+      "line": 767,
       "column": 16,
       "metric": 31,
       "file": "apps/web/lib/control-api.ts",
@@ -6569,6 +6569,16 @@
       "file": "apps/web/app/jobs/runtime-controls.tsx",
       "owner": "FunctionDeclaration:[\"RuntimeControls\"]/anonymous:b8a7829bd3faaae32a324ee7f0360d4b85b76dd7ac3f424aa5b58b0a1fc16330",
       "id": "df6a7bb7a1938e008527eb9d4a7b1f30fc83b3ff2eaa7d94e4b55ee56b3bc5f7"
+    },
+    {
+      "file": "apps/web/components/media-studio.tsx",
+      "rule": "TS6133",
+      "message": "'closeHref' is declared but its value is never read.",
+      "severity": 2,
+      "line": 122,
+      "column": 3,
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"closeHref\"]",
+      "id": "df7664055de91d248c18b5985a00e9c73c104433561647d70bd153c563fc29e6"
     },
     {
       "rule": "react-hooks/rules-of-hooks",
@@ -6881,16 +6891,6 @@
       "id": "eacefa1d8d77e987cda6ea8e30c0f91d0f99948eb893f92512cc3e575ecfa8e2"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'closeHref' is declared but its value is never read.",
-      "severity": 2,
-      "line": 122,
-      "column": 3,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"closeHref\"]",
-      "id": "eae7df3128eb290690c06b15878713693d8c4ce66d8fb9594edc7991bcf5768c"
-    },
-    {
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
@@ -7029,7 +7029,7 @@
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.",
       "severity": 2,
-      "line": 830,
+      "line": 826,
       "column": 5,
       "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposer\"]/PropertyAccessExpression:[\"stringify\"]",
