@@ -206,9 +206,8 @@ The **web workspace only** ignores `server-only`: Next 16.3.3 aliases it to comp
 server/client markers, and the marker npm package is optional. Keep those boundary
 imports. See [Next server-only documentation](https://nextjs.org/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning).
 No application files, export names, `playwright` references or native dependencies
-are suppressed. Tickets 28/29 own source triage; ticket 30 owns Playwright/native
-runtime dependency fixes. Re-run the combined branches before integration;
-standalone counts are not the final source baseline.
+are suppressed. Source/dependency cleanup requires a separate consumer review
+and a fresh scan after changes.
 
 Each run creates a fresh `media-studio-knip-*` directory under
 `STATIC_ANALYSIS_OUTPUT` (or the OS temp directory). `execution.json` preserves the
@@ -227,7 +226,15 @@ database. Production mode excludes tooling/test entries and is exploratory only;
 it is not a deletion policy or enforcement gate. Knip does not analyze Python/CSS
 or prove dynamic/runtime consumers. Review each candidate before changing code.
 
-The Knip addition changes the existing lockfile-hashed analyzer contracts. Review
-[the Knip adoption review](KNIP_REVIEW.md) for the dependency delta and measured
-baseline reconciliation. Future blocking categories require explicit triage and
-reviewed entry coverage; do not baseline every warning or hide execution errors.
+Knip's native OXC parser/resolver bindings must load after an install with lifecycle
+scripts disabled. Dedicated macOS/Windows jobs run the same fixtures and reporting
+command as Linux and retain separate artifacts. They require no Python setup or
+application runtime. Preserve optional platform variants in the lockfile.
+
+The Knip addition changes the existing lockfile-hashed analyzer contracts. Its
+`jiti` and `tinyglobby` minimum versions also deduplicate existing lint/build/test
+consumers. Review the package-lock delta and raw analyzer evidence before updating
+contract metadata; keep unchanged finding records intact. Record session-specific
+counts and reconciliation evidence outside tracked source. Future blocking
+categories require explicit triage and reviewed entry coverage; do not baseline
+every warning or hide execution errors.
