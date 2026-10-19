@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "contract": "cb0e188a2a935fc8352dfe22ab5b570b8178b9ff6fcf6cc296569619ce1b3208",
+  "contract": "ec164b38f539b59fef88ec49c69a70794ce062fb60d47581f4cb8ae294978936",
   "metadata": {
     "versions": {
       "eslint": "10.13.0",
@@ -20,14 +20,14 @@
       "eslint.config.mjs": "1f9019cc6df69fc59f976a3a0382b7ae5dff679c4392556d2285e66ffc660f7a",
       "apps/web/tsconfig.json": "9d4f94ee8caca352f8d2bd015b926ed965becb47567ab794675ae2cbcbc947a7",
       "apps/web/tsconfig.lint.json": "affb7903fadd406f018291abf40821b7e88751276699181817eda5cc2322946a",
-      "package-lock.json": "ae7080d206f195a71f44f4d4faddcaf5d2ee2adec4e6b972c41e2ec8b221a9f8",
+      "package-lock.json": "a98a666af466b429b13d21085b158676002fdd42fd446c57f246db83794b23cc",
       "scripts/static-analysis/policy.mjs": "571a38fd87c9676a2e9f669ae561189e19b1081bf8e49c3a343dd7be9e37d9d4",
       "scripts/static-analysis/scan.mjs": "c9e5004a103c9668f437c6155f2b8dc831c1758112f634387807dc730ed07c38",
       "scripts/static-analysis/gate.mjs": "f5a67e490afe3d863838b4f3652323df973a2db5de332f16a6610e18b7f08c63",
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Integrate tickets 27-30: combined lock contract; remove three findings in deleted unused files; no new debt.",
+  "reason": "Ticket 31: add only pinned Prettier 3.9.10; lockfile contract hash updated. Preserve all existing findings, analyzer versions, rules, scopes and thresholds.",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
