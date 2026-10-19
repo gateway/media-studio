@@ -1,0 +1,27 @@
+{
+  "$schema": "https://unpkg.com/knip@6.42.0/schema-jsonc.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "dependency-cruiser.config.cjs",
+        "ops/ecosystem.config.cjs",
+        "scripts/assistant_conversation_probe.mjs",
+        "scripts/audit_media_assistant_prompt_quality.mjs",
+        "scripts/audit_media_assistant_style_matrix.mjs",
+        "scripts/prove_media_preset_style_browser.mjs",
+        "scripts/run_media_assistant_preset_loop_proof.mjs",
+        "scripts/**/*.test.mjs"
+      ],
+      // Invoked by literal node_modules binary paths in full-scan.mjs.
+      "ignoreDependencies": ["dependency-cruiser", "jscpd"],
+      // Existing platform commands, not npm package binaries.
+      "ignoreBinaries": ["pgrep", "xdg-open", "sqlite3"]
+    },
+    // Next and Vitest plugins add routes, framework configs and web tests.
+    "apps/web": {
+      // Next aliases this marker to its compiled server/client boundary modules.
+      // The npm package is optional; see the dependency review in the analysis README.
+      "ignoreDependencies": ["server-only"]
+    }
+  }
+}
