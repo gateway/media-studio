@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Ticket 12: remove metadata/finalization clones; preserve unchanged validation and thumbnail clone fragments with refreshed surrounding-context identities; no new or enlarged clones",
+  "reason": "Preview fix: rekey two unchanged clone pairs; source ranges/text/tokens/lines identical to e10488b; no added debt",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -298,6 +298,26 @@
       "tokens": 64,
       "lines": 8,
       "format": "tsx"
+    },
+    {
+      "id": "105be417b6c58da3b16c2efb9d583e4db13fa9562714f299562b6749f2fdecb4",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
+          "start": 524,
+          "end": 550,
+          "context": "cfaf678fafa2ffad5ef9c8b0f4c758f5c6607c9f4cd993bc2669d70b738e52c3"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
+          "start": 63,
+          "end": 89,
+          "context": "3e2864eb08a642523330fcf0e3d53ccf979abc3141aaffac3ff5620b85b12df3"
+        }
+      ],
+      "tokens": 52,
+      "lines": 27,
+      "format": "typescript"
     },
     {
       "id": "1156c87e68e84178b896726b27a2caec97d3adb4e9e7e02a9eecb1e7ffc08e26",
@@ -2200,26 +2220,6 @@
       "format": "javascript"
     },
     {
-      "id": "6114447d5815a2da41572c320749d7013ab1649e118e520ae28fbbb6a80afa76",
-      "endpoints": [
-        {
-          "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-          "start": 524,
-          "end": 550,
-          "context": "cfaf678fafa2ffad5ef9c8b0f4c758f5c6607c9f4cd993bc2669d70b738e52c3"
-        },
-        {
-          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
-          "start": 63,
-          "end": 89,
-          "context": "039c4b1e99a8a4eba2458d44ecc61908358a5ad2f3ca5dbaf69f2e9d1563bc7a"
-        }
-      ],
-      "tokens": 52,
-      "lines": 27,
-      "format": "typescript"
-    },
-    {
       "id": "614540f1d79fc4d8e5e8a4202438a32c69a4c40d890d6bef68731883f7b0ed4e",
       "endpoints": [
         {
@@ -3860,6 +3860,26 @@
       "format": "css"
     },
     {
+      "id": "abbd716b69f1df76579a962d9835b3c0f9ba473c53e0faa51e04cb786f2f07ec",
+      "endpoints": [
+        {
+          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
+          "start": 94,
+          "end": 105,
+          "context": "0ed931499936f7fb612bd0fa266f59d603a54e5e410b8746e5d15af5215c1bc5"
+        },
+        {
+          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
+          "start": 121,
+          "end": 132,
+          "context": "66fde63ee12537629e60745cd430f2a39a0267b1ee23b51f915858f580d0126d"
+        }
+      ],
+      "tokens": 83,
+      "lines": 12,
+      "format": "typescript"
+    },
+    {
       "id": "ac3e964b49de5cf1b627f231a09b0d9734239b47e34f949e2ddebe88697df6ce",
       "endpoints": [
         {
@@ -4558,26 +4578,6 @@
       "tokens": 61,
       "lines": 6,
       "format": "tsx"
-    },
-    {
-      "id": "cd48caa5247ab340f8af04be2a074022afdcea428f086d1d11e1ec73d5a94c87",
-      "endpoints": [
-        {
-          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
-          "start": 121,
-          "end": 132,
-          "context": "4a3e423367ccf62551de68d140e6e185f980d0c47a7f2ca1289d44294cc28181"
-        },
-        {
-          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
-          "start": 94,
-          "end": 105,
-          "context": "d9f9cc5efe5c10a6a177b2ff55c3f88d330346a4ffe862781058dcaa382b0238"
-        }
-      ],
-      "tokens": 83,
-      "lines": 12,
-      "format": "typescript"
     },
     {
       "id": "cdda528517f6ef51550fd2c1f9af32ac660f6a5e9b0abc9ce74e84fb81f93cdb",
