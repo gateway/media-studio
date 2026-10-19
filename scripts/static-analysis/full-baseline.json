@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "contract": "16fc75152456b07076888139d6c63652d6cf58b17187aa70ba23033170128f7f",
+  "contract": "5f36cc1f62e0f3f175810fd5bd386a6450ebe31e920c3040f683b876a11eec52",
   "metadata": {
     "files": {
-      "package-lock.json": "356718b90355279839153079de492b98ed4016df319e5e826e4454acc620b266",
+      "package-lock.json": "a6209c9c9ce6a9a2659a3c929e3dc6ac2d3941f66022099515eacb7a0d6b5f8f",
       "dependency-cruiser.config.cjs": "c35e33872173427b44dd540685de6e01ba5f545e40e28d208fa749144e765adf",
       "jscpd.config.json": "0bafba536df0d94f6de1ccf822d7354832b90293545ef622f9a2833c93136c49",
       "apps/web/tsconfig.json": "9d4f94ee8caca352f8d2bd015b926ed965becb47567ab794675ae2cbcbc947a7",
@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Independent review: seven existing clone identities replaced, no new duplicated code; 284 to 283 pairs; equivalent CSS syntax reduces one pair by two tokens",
+  "reason": "Ticket 27: reviewed Knip dependency lockfile; existing production clone exemptions unchanged",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
