@@ -251,36 +251,16 @@ def list_available_reference_media(
     return items
 
 
-def import_reference_media_bytes(
+def _finalize_reference_media_import(
     *,
-    source_bytes: bytes,
-    source_name: Optional[str] = None,
-    source_mime_type: Optional[str] = None,
+    stored_path: Path,
+    kind: str,
+    digest: str,
+    file_size_bytes: int,
+    source_name: Optional[str],
+    source_mime_type: Optional[str],
+    existing: Optional[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    if not source_bytes:
-        raise ServiceError("Choose a reference file to import.")
-
-    kind = _reference_kind_from_source(source_mime_type, source_name)
-    file_size_bytes = len(source_bytes)
-    if kind == "audio":
-        if file_size_bytes > AUDIO_MAX_FILE_BYTES:
-            raise ServiceError("Audio reference files must be 100 MB or smaller.")
-        if not audio_extension_supported(source_name, source_mime_type):
-            raise ServiceError("Audio reference files must be wav, mp3, m4a, or aac.")
-    digest = sha256(source_bytes).hexdigest()
-    existing = store.get_reference_media_by_hash(kind, digest, file_size_bytes)
-    if existing:
-        existing_path = settings.data_root / str(existing.get("stored_path") or "")
-        if existing.get("stored_path") and existing_path.exists():
-            return _ensure_video_reference_previews(store.mark_reference_media_used(str(existing["reference_id"])))
-
-    extension = _reference_extension_from_source(kind, source_name, source_mime_type)
-    root = _reference_root_for_kind(kind)
-    root.mkdir(parents=True, exist_ok=True)
-    stored_path = root / f"{digest}{extension}"
-    if not stored_path.exists():
-        stored_path.write_bytes(source_bytes)
-
     try:
         width, height, duration_seconds, metadata_json = _probe_reference_media_metadata(stored_path, kind)
     except ValueError as exc:
@@ -323,6 +303,47 @@ def import_reference_media_bytes(
     return store.create_or_reuse_reference_media(payload, increment_usage=True)
 
 
+def import_reference_media_bytes(
+    *,
+    source_bytes: bytes,
+    source_name: Optional[str] = None,
+    source_mime_type: Optional[str] = None,
+) -> Dict[str, Any]:
+    if not source_bytes:
+        raise ServiceError("Choose a reference file to import.")
+
+    kind = _reference_kind_from_source(source_mime_type, source_name)
+    file_size_bytes = len(source_bytes)
+    if kind == "audio":
+        if file_size_bytes > AUDIO_MAX_FILE_BYTES:
+            raise ServiceError("Audio reference files must be 100 MB or smaller.")
+        if not audio_extension_supported(source_name, source_mime_type):
+            raise ServiceError("Audio reference files must be wav, mp3, m4a, or aac.")
+    digest = sha256(source_bytes).hexdigest()
+    existing = store.get_reference_media_by_hash(kind, digest, file_size_bytes)
+    if existing:
+        existing_path = settings.data_root / str(existing.get("stored_path") or "")
+        if existing.get("stored_path") and existing_path.exists():
+            return _ensure_video_reference_previews(store.mark_reference_media_used(str(existing["reference_id"])))
+
+    extension = _reference_extension_from_source(kind, source_name, source_mime_type)
+    root = _reference_root_for_kind(kind)
+    root.mkdir(parents=True, exist_ok=True)
+    stored_path = root / f"{digest}{extension}"
+    if not stored_path.exists():
+        stored_path.write_bytes(source_bytes)
+
+    return _finalize_reference_media_import(
+        stored_path=stored_path,
+        kind=kind,
+        digest=digest,
+        file_size_bytes=file_size_bytes,
+        source_name=source_name,
+        source_mime_type=source_mime_type,
+        existing=existing,
+    )
+
+
 def import_reference_media_file(
     *,
     source_path: Path,
@@ -353,46 +374,15 @@ def import_reference_media_file(
     if not stored_path.exists():
         shutil.move(str(source_path), stored_path)
 
-    try:
-        width, height, duration_seconds, metadata_json = _probe_reference_media_metadata(stored_path, kind)
-    except ValueError as exc:
-        raise ServiceError(str(exc)) from exc
-    thumb_path = _write_reference_thumb(stored_path, source_digest) if kind == "image" else None
-    poster_path = None
-    if kind == "video":
-        thumb_path, poster_path = _write_reference_video_poster_and_thumb(stored_path, source_digest)
-    mime_type = source_mime_type or mimetypes.guess_type(source_name or stored_path.name)[0]
-
-    payload = {
-        "kind": kind,
-        "status": "active",
-        "original_filename": source_name or stored_path.name,
-        "stored_path": _relative_data_path(stored_path),
-        "mime_type": mime_type,
-        "file_size_bytes": source_size_bytes,
-        "sha256": source_digest,
-        "width": width,
-        "height": height,
-        "duration_seconds": duration_seconds,
-        "thumb_path": thumb_path,
-        "poster_path": poster_path,
-        "usage_count": 1,
-        "metadata_json": metadata_json,
-    }
-
-    if existing:
-        updated_existing = store.mark_reference_media_used(str(existing["reference_id"]))
-        return _ensure_video_reference_previews(store.create_or_update_reference_media(
-            {
-                **updated_existing,
-                **payload,
-                "reference_id": updated_existing["reference_id"],
-                "usage_count": updated_existing["usage_count"],
-                "last_used_at": updated_existing.get("last_used_at"),
-            }
-        ))
-
-    return store.create_or_reuse_reference_media(payload, increment_usage=True)
+    return _finalize_reference_media_import(
+        stored_path=stored_path,
+        kind=kind,
+        digest=source_digest,
+        file_size_bytes=source_size_bytes,
+        source_name=source_name,
+        source_mime_type=source_mime_type,
+        existing=existing,
+    )
 
 
 def import_reference_media_streamed_upload(

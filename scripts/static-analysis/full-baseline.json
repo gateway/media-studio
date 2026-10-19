@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Ticket 31: add only pinned Prettier 3.9.10; lockfile contract hash updated. Preserve all existing findings, analyzer versions, rules, scopes and thresholds.",
+  "reason": "Ticket 12: remove metadata/finalization clones; preserve unchanged validation and thumbnail clone fragments with refreshed surrounding-context identities; no new or enlarged clones",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -1040,6 +1040,26 @@
       "format": "python"
     },
     {
+      "id": "2cc31d62b36f5478b2c55de6e931d69799a14f96e4744ababca6dcb6fc01f120",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/image_ops.py",
+          "start": 85,
+          "end": 90,
+          "context": "1958709c62bec9a30c7ff8cd248e2cba3cf9f84daf8de1d393fe2a0d561e14e8"
+        },
+        {
+          "file": "apps/api/app/service_reference_media.py",
+          "start": 101,
+          "end": 106,
+          "context": "b105f35cf0c1c7249282454310416ba5aafa269c114c6a456f92fe6d9285501f"
+        }
+      ],
+      "tokens": 57,
+      "lines": 6,
+      "format": "python"
+    },
+    {
       "id": "2cc8327a7607c6814c13997e8917cda1b1c22d89dc5d42f53ca59b553e2a25b4",
       "endpoints": [
         {
@@ -1077,26 +1097,6 @@
       ],
       "tokens": 93,
       "lines": 6,
-      "format": "python"
-    },
-    {
-      "id": "2dec8c798085a6d52ad7dc80c32210870db14978cec1ff60b27acbafa4507a49",
-      "endpoints": [
-        {
-          "file": "apps/api/app/service_reference_media.py",
-          "start": 343,
-          "end": 352,
-          "context": "8b4f88c0a80a6367c2d645f28aec9c58ffa1fd5018f441cbbc8064ba56a6ebf4"
-        },
-        {
-          "file": "apps/api/app/service_reference_media.py",
-          "start": 271,
-          "end": 280,
-          "context": "e4bb64a4ba559b3dea70886c8b674411b945851223f8de348336f8a0d9259e94"
-        }
-      ],
-      "tokens": 84,
-      "lines": 10,
       "format": "python"
     },
     {
@@ -2680,26 +2680,6 @@
       "format": "python"
     },
     {
-      "id": "71af39ae178b74a857d11d692e079fee325c9568fa167aa220ff6a4814dd9b84",
-      "endpoints": [
-        {
-          "file": "apps/api/app/service_reference_media.py",
-          "start": 373,
-          "end": 398,
-          "context": "372ad37bf81e5932cb1a889b05016cee6a61c225db0cb9c56a93a28958b3337f"
-        },
-        {
-          "file": "apps/api/app/service_reference_media.py",
-          "start": 301,
-          "end": 326,
-          "context": "7d62e6c62125b2ba7ee20746dc11be02e75cdd5ecfe2a5e5cb1102dfc01ff428"
-        }
-      ],
-      "tokens": 101,
-      "lines": 26,
-      "format": "python"
-    },
-    {
       "id": "71f56e58d6a24eb2dc38eea540cacdc4b95c80362c3fe7ed00941aed1bdab1a9",
       "endpoints": [
         {
@@ -2918,6 +2898,26 @@
       "tokens": 60,
       "lines": 8,
       "format": "typescript"
+    },
+    {
+      "id": "7d3cf27392746f686bd59ce3b31be90b5e8ea88b1e94f3ad4029c4744645ef11",
+      "endpoints": [
+        {
+          "file": "apps/api/app/service_reference_media.py",
+          "start": 323,
+          "end": 332,
+          "context": "bb367c1ce09d546e839b348759c705e0bbef9d8fe12ae26652601e9dce5be04c"
+        },
+        {
+          "file": "apps/api/app/service_reference_media.py",
+          "start": 364,
+          "end": 373,
+          "context": "fedfda313902fd05cdf6e67bb79d3f916a47ef231636ed67f4a3fadf1310210f"
+        }
+      ],
+      "tokens": 84,
+      "lines": 10,
+      "format": "python"
     },
     {
       "id": "7ded13b00ccdb66220ab9d157dfc2373d793003fbe7ad6a3985f75ef866aa554",
@@ -5000,26 +5000,6 @@
       "format": "typescript"
     },
     {
-      "id": "e42f7dcb99d6f15195634b3a28bd3e066ddcbe054c6516f989669c3603f60ba1",
-      "endpoints": [
-        {
-          "file": "apps/api/app/graph/executors/image_ops.py",
-          "start": 85,
-          "end": 90,
-          "context": "1958709c62bec9a30c7ff8cd248e2cba3cf9f84daf8de1d393fe2a0d561e14e8"
-        },
-        {
-          "file": "apps/api/app/service_reference_media.py",
-          "start": 101,
-          "end": 106,
-          "context": "199bf84a55c970ff6d4be690886647f71d4bd1fd812a19adbde323efbaa01d10"
-        }
-      ],
-      "tokens": 57,
-      "lines": 6,
-      "format": "python"
-    },
-    {
       "id": "e48dc9859f4b9e55d717947893247f9344e2252f93a957eace87371577702962",
       "endpoints": [
         {
@@ -5538,26 +5518,6 @@
       "tokens": 52,
       "lines": 7,
       "format": "typescript"
-    },
-    {
-      "id": "f93ff5b3f599ba031ed2f783ef7bf3116bffa950692012a314570bf353300041",
-      "endpoints": [
-        {
-          "file": "apps/api/app/service_reference_media.py",
-          "start": 363,
-          "end": 372,
-          "context": "129d2a12801d09b06c832185407d0e7b09160b8dd2259608e4578db75fc47901"
-        },
-        {
-          "file": "apps/api/app/service_reference_media.py",
-          "start": 291,
-          "end": 300,
-          "context": "7f71d81f201ae10adea4627c3489551357570bc7e340c79aa7fc728ea09a666d"
-        }
-      ],
-      "tokens": 50,
-      "lines": 10,
-      "format": "python"
     },
     {
       "id": "fa617e4b6895e3120f058b4e6c693a79b34ab9c67620eb78cdb7cdc937e2acfc",
