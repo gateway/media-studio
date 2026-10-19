@@ -15,7 +15,8 @@ An existing dedicated environment can be selected with `STATIC_ANALYSIS_PYTHON`
 (absolute path to its Python executable). Missing environments fail; lint never
 installs dependencies. Python 3.11 is the verified local/CI analyzer runtime.
 
-`npm run lint` runs web, Python, CSS/theme, then full dependency/duplication gates.
+`npm run lint` runs web, Python, CSS/theme, then full dependency/duplication gates
+and informational unused-code reporting.
 `npm run lint:full` is the full-scope alias used in CI. `npm run lint:web` and the web workspace's
 `npm run lint` run only the web gate; `npm run lint:python` runs only Python.
 Use Node **22.22.0** to reproduce the dedicated CI job. The installed ESLint release
@@ -23,7 +24,8 @@ requires Node ^20.19.0, ^22.13.0 or >=24.0.0; older Node 20 installations must u
 The static-only CI install uses `npm ci --ignore-scripts` and needs no provider checkout,
 app server, database, credentials or paid generation.
 
-These gates check JS/TS, Python, CSS/theme, import architecture and duplication.
+These gates check JS/TS, Python, CSS/theme, import architecture and duplication;
+Knip reports unused-code candidates.
 Normal web builds run web lint/types before Next. Quality/release workflows run
 full static lint before their existing application tests.
 
@@ -120,7 +122,7 @@ Ruff/Radon, covering correctness, independent complexity metrics, nested methods
 line shifts, renames/new files, replacement findings, tool/config failures and
 malformed/incomplete reports. It does not load the application test harness.
 
-`.github/workflows/static-analysis.yml` runs all four fixture suites and the combined gate
+`.github/workflows/static-analysis.yml` runs all five fixture suites and the combined gate
 on every PR and main push, retaining reports even on failure. Use the required-check policy below when configuring main branch protection. Committing a workflow alone does not enforce merges; remote CI
 execution and branch protection must be verified separately. No hooks are installed.
 # CSS checks
@@ -173,3 +175,67 @@ this document and workflow files alone do not configure enforcement. The
 `mechanical-contract` assistant job has path-filtered triggers and is not a
 universal required check: requiring it on unrelated PRs would leave them waiting
 for a job that never runs. It remains active for its matching changes.
+
+## Knip unused-code reporting
+
+`npm run lint:unused` runs pinned **Knip 6.42.0** in default mode. Root `npm run lint`
+and `lint:full` include it; CI runs `test:static-analysis:knip` first. Findings are
+**informational** while triage remains open. No Knip finding category blocks CI yet,
+and there is no warning baseline. Execution failures, missing dependencies,
+invalid configuration/plugin loads, timeouts and missing/malformed JSON fail the
+command. The runner uses `--no-exit-code`, which suppresses finding exits while
+preserving Knip's execution-error status. Existing web/Python/CSS/architecture
+regression gates remain blocking.
+
+The scan uses `knip.jsonc` and automatic workspace plugins. Entry coverage is:
+
+- Next routes/pages/layouts and framework configs in `apps/web`, plus Vitest web
+  tests and their imports (the Next/Vitest plugins).
+- Root package-script commands and supported tool configs (automatic discovery).
+- Seven explicit root entries: Dependency Cruiser config, PM2 ecosystem config,
+  assistant conversation probe, prompt-quality audit, style-matrix audit, browser
+  preset-style proof and preset-loop proof. These are externally invoked configs
+  or operator CLIs, not dead files.
+- `scripts/**/*.test.mjs` explicitly retains Node test consumers. Helper modules
+  remain ordinary project source, so an unreachable helper can still be reported.
+
+Only reviewed non-source exceptions are configured. `dependency-cruiser` and
+`jscpd` are invoked through literal `node_modules` binary paths in `full-scan.mjs`.
+`pgrep`, `xdg-open` and `sqlite3` are OS commands, not missing npm packages.
+The **web workspace only** ignores `server-only`: Next 16.3.3 aliases it to compiled
+server/client markers, and the marker npm package is optional. Keep those boundary
+imports. See [Next server-only documentation](https://nextjs.org/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning).
+No application files, export names, `playwright` references or native dependencies
+are suppressed. Source/dependency cleanup requires a separate consumer review
+and a fresh scan after changes.
+
+Each run creates a fresh `media-studio-knip-*` directory under
+`STATIC_ANALYSIS_OUTPUT` (or the OS temp directory). `execution.json` preserves the
+exact command, exit status, signal/error and raw stdout/stderr; `knip.json` retains
+raw structured findings; `metadata.json` records tool/runtime versions, mode,
+policy and hashes of configuration, package manifests, lockfile and runner.
+`summary.json` counts categories, or `failure.json` records an execution/format
+failure. CI uploads these alongside existing analysis evidence even on failure.
+No previous report can satisfy a failed run.
+
+`npm run test:static-analysis:knip` uses disposable **source-only** fixtures with
+real installed Knip. It verifies Next config/routes, operator CLIs, web/Node test
+consumers, informational unused-file findings, config failures, missing Knip and
+malformed output. It never imports application code, starts services or creates a
+database. Production mode excludes tooling/test entries and is exploratory only;
+it is not a deletion policy or enforcement gate. Knip does not analyze Python/CSS
+or prove dynamic/runtime consumers. Review each candidate before changing code.
+
+Knip's native OXC parser/resolver bindings must load after an install with lifecycle
+scripts disabled. A shared Ubuntu/macOS/Windows tooling matrix runs the Knip fixtures and report,
+then verifies Playwright exports and an in-memory Sharp PNG round trip after the
+same install. Each OS retains its own Knip artifact. These jobs require no Python
+setup, browser, application runtime or database. Preserve optional platform variants in the lockfile.
+
+The Knip addition changes the existing lockfile-hashed analyzer contracts. Its
+`jiti` and `tinyglobby` minimum versions also deduplicate existing lint/build/test
+consumers. Review the package-lock delta and raw analyzer evidence before updating
+contract metadata; keep unchanged finding records intact. Record session-specific
+counts and reconciliation evidence outside tracked source. Future blocking
+categories require explicit triage and reviewed entry coverage; do not baseline
+every warning or hide execution errors.

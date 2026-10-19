@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "contract": "16fc75152456b07076888139d6c63652d6cf58b17187aa70ba23033170128f7f",
+  "contract": "096e7bd544288aef6e0fc57c0e3a0f926966304977dc8245bcd6627af7373492",
   "metadata": {
     "files": {
-      "package-lock.json": "356718b90355279839153079de492b98ed4016df319e5e826e4454acc620b266",
+      "package-lock.json": "ae7080d206f195a71f44f4d4faddcaf5d2ee2adec4e6b972c41e2ec8b221a9f8",
       "dependency-cruiser.config.cjs": "c35e33872173427b44dd540685de6e01ba5f545e40e28d208fa749144e765adf",
       "jscpd.config.json": "0bafba536df0d94f6de1ccf822d7354832b90293545ef622f9a2833c93136c49",
       "apps/web/tsconfig.json": "9d4f94ee8caca352f8d2bd015b926ed965becb47567ab794675ae2cbcbc947a7",
@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Independent review: seven existing clone identities replaced, no new duplicated code; 284 to 283 pairs; equivalent CSS syntax reduces one pair by two tokens",
+  "reason": "Integrate tickets 27-30: combined lock contract; remove one deleted-file clone and reconcile thirteen context-only identities; no new clone debt.",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -158,6 +158,26 @@
       "tokens": 61,
       "lines": 6,
       "format": "typescript"
+    },
+    {
+      "id": "06f90cb2f546b5dfc7ec5ddbe0b9b3ae3bc5b794f732dfdb51234201c06aecca",
+      "endpoints": [
+        {
+          "file": "scripts/assistant_conversation_probe.mjs",
+          "start": 289,
+          "end": 299,
+          "context": "2622e3ece4eeac3e2c0c323a84cd5124817612a5c6d89eaceb8f3619139803c1"
+        },
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 53,
+          "end": 63,
+          "context": "43230a1346055c107172fd7a50ca374e1a2e12467837d1bc6b426f9ce1197a8b"
+        }
+      ],
+      "tokens": 51,
+      "lines": 11,
+      "format": "javascript"
     },
     {
       "id": "09452df40e839b9840bae90a3932f679ecc76a7a5a44ebe7ad9744f73de56fe2",
@@ -440,6 +460,26 @@
       "format": "python"
     },
     {
+      "id": "1836d340a81a545693f50368f2001cc6ca1a62e66f1f725c60a91ceab6f65e7b",
+      "endpoints": [
+        {
+          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
+          "start": 20,
+          "end": 27,
+          "context": "6cb602d140cf8222c063dd4d358d652c42e0ac6bfc9d8d5573d037b83d7eceeb"
+        },
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 37,
+          "end": 44,
+          "context": "d17914634bc2743a48b03407c923fc3c0366d9feb216896e90c11aecaa890cf3"
+        }
+      ],
+      "tokens": 108,
+      "lines": 8,
+      "format": "javascript"
+    },
+    {
       "id": "192e16db2cb1d5fecae6cc6fdfb09181b5d2a1b8fc2d18317ac66b2442b38f40",
       "endpoints": [
         {
@@ -720,6 +760,26 @@
       "format": "python"
     },
     {
+      "id": "2594413f0a6eb9cdb1bce45afb2db33541e0743deabe8e76811bf61fdd52063b",
+      "endpoints": [
+        {
+          "file": "scripts/assistant_conversation_probe.mjs",
+          "start": 628,
+          "end": 640,
+          "context": "9f4782b50732405719e2a86f29eeddbcda2133c5f7813797507cb85b815be382"
+        },
+        {
+          "file": "scripts/smoke_studio_playwright.mjs",
+          "start": 221,
+          "end": 233,
+          "context": "9354e4313c94810adb43afa90a818358111506bd6d073c304dad19ae516299af"
+        }
+      ],
+      "tokens": 78,
+      "lines": 13,
+      "format": "javascript"
+    },
+    {
       "id": "26babb3b2f4c5f82e5b703e477e6dd6463dbf12f64b7986b2d16a07f3f867e09",
       "endpoints": [
         {
@@ -958,26 +1018,6 @@
       "tokens": 75,
       "lines": 8,
       "format": "css"
-    },
-    {
-      "id": "2c075f3f360f934952e162c3218232519ccd4a3039afaf3f10f4e64a6f7f32f2",
-      "endpoints": [
-        {
-          "file": "scripts/assistant_conversation_probe.mjs",
-          "start": 289,
-          "end": 299,
-          "context": "2622e3ece4eeac3e2c0c323a84cd5124817612a5c6d89eaceb8f3619139803c1"
-        },
-        {
-          "file": "scripts/prove_media_preset_style_browser.mjs",
-          "start": 53,
-          "end": 63,
-          "context": "9c694e1746f98f659d6ac34c97f28c2ecdc336f120b7c1193a8b561e91736935"
-        }
-      ],
-      "tokens": 51,
-      "lines": 11,
-      "format": "javascript"
     },
     {
       "id": "2ca17d56a76df67af2ddd3a8a205c0819f8f399fa988a1db219fc26cc2e91a6d",
@@ -1280,26 +1320,6 @@
       "format": "python"
     },
     {
-      "id": "376b6fe19279a706739aac250292de0d858dfc9bae7120b4fe9526ea02226f43",
-      "endpoints": [
-        {
-          "file": "apps/web/components/media-preset-editor-screen.tsx",
-          "start": 204,
-          "end": 209,
-          "context": "10fb61d23fb24d66f1e1977fa0aa052d493ba6d342c374ce07a1d9e0c38943c6"
-        },
-        {
-          "file": "apps/web/components/media-prompts-console.tsx",
-          "start": 137,
-          "end": 142,
-          "context": "ec3b9bad820ffea1ab0eaafe9c59a6585a3f54a6b32844214884eef72b6830d7"
-        }
-      ],
-      "tokens": 53,
-      "lines": 6,
-      "format": "tsx"
-    },
-    {
       "id": "37edebd3347284dc20a60a1c35b5f59eea76a7ba744409b196fdeefe3ff1bc26",
       "endpoints": [
         {
@@ -1580,26 +1600,6 @@
       "format": "python"
     },
     {
-      "id": "428f91b5bf89dfeba053b6e26f75291cdbe17c2dd3c5636702b97255e09ae2a4",
-      "endpoints": [
-        {
-          "file": "scripts/assistant_conversation_probe.mjs",
-          "start": 628,
-          "end": 640,
-          "context": "9f4782b50732405719e2a86f29eeddbcda2133c5f7813797507cb85b815be382"
-        },
-        {
-          "file": "scripts/smoke_studio_playwright.mjs",
-          "start": 221,
-          "end": 233,
-          "context": "7eb466ff038b9b9b44ff2851c24c49e2c3b31b9f24848281d1b54a8d3ae6fa73"
-        }
-      ],
-      "tokens": 78,
-      "lines": 13,
-      "format": "javascript"
-    },
-    {
       "id": "43915daa9b9d6f7518a440844c500eb9e00340179b15d706e23628adfc5dfe64",
       "endpoints": [
         {
@@ -1777,26 +1777,6 @@
       ],
       "tokens": 94,
       "lines": 17,
-      "format": "typescript"
-    },
-    {
-      "id": "4eaaab571d9d0acd2d20b4733e37d3bded81031b1e2fa9e7f5139881c54e2e22",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 314,
-          "end": 327,
-          "context": "a72ae703595291f8485a87975dcaaff0887c2ef146a4ae5b85cab3d0532463a6"
-        },
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 357,
-          "end": 370,
-          "context": "c9bdcf2054585f7db60e4ebe59bdf323dd36f59195768d889167ffe546dbf167"
-        }
-      ],
-      "tokens": 107,
-      "lines": 14,
       "format": "typescript"
     },
     {
@@ -2020,6 +2000,26 @@
       "format": "typescript"
     },
     {
+      "id": "5740dc0fe86817a04bb22a956c2f030e12c9a3a320677b5681b8667f70a307a3",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 608,
+          "end": 614,
+          "context": "a26ae822483855798105cb72c291b582aa78cd4cb5ac30c54f69cb9b772a560d"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 460,
+          "end": 466,
+          "context": "a94858d3eb6520d3ff234e3ffa23be4951acd3a027a04458d167729789133521"
+        }
+      ],
+      "tokens": 52,
+      "lines": 7,
+      "format": "typescript"
+    },
+    {
       "id": "584484fdb812856cf44ef4a9a5a502745e4ba4770926a7a7300a652333dbf604",
       "endpoints": [
         {
@@ -2120,6 +2120,26 @@
       "format": "typescript"
     },
     {
+      "id": "5e2546fdfecdcb1913dd7f0b6b28880a313cb86b710b930a906a0499e0e5e723",
+      "endpoints": [
+        {
+          "file": "scripts/assistant_conversation_probe.mjs",
+          "start": 609,
+          "end": 614,
+          "context": "7e7105f471c7d3fd6b448734342ddcdfcc44035039a4ec0c0612d599ff7e159d"
+        },
+        {
+          "file": "scripts/smoke_studio_playwright.mjs",
+          "start": 200,
+          "end": 205,
+          "context": "c50d1ec576d16746b8a3aee6d97a73b3fd3636a4fff215d46044f179fcfa62e7"
+        }
+      ],
+      "tokens": 51,
+      "lines": 6,
+      "format": "javascript"
+    },
+    {
       "id": "5f0ada5913b885db3a9008e2c3ce722754722fa73feaeb11142ddf115b7120f7",
       "endpoints": [
         {
@@ -2180,26 +2200,6 @@
       "format": "javascript"
     },
     {
-      "id": "5fecb3543058233f5ab6dc54af08d45891c03822de9eb142833c3938da190c04",
-      "endpoints": [
-        {
-          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
-          "start": 123,
-          "end": 133,
-          "context": "514739b42042e9a824e670055e9f3b05e5c314c41010ac47583cb36b05ad3070"
-        },
-        {
-          "file": "scripts/prove_media_preset_style_browser.mjs",
-          "start": 54,
-          "end": 64,
-          "context": "c899d9ce16b00aaaef7f2f3a25212fad4ea83ad49424ebe375598323a50509e2"
-        }
-      ],
-      "tokens": 54,
-      "lines": 11,
-      "format": "javascript"
-    },
-    {
       "id": "6114447d5815a2da41572c320749d7013ab1649e118e520ae28fbbb6a80afa76",
       "endpoints": [
         {
@@ -2238,6 +2238,26 @@
       "tokens": 112,
       "lines": 11,
       "format": "python"
+    },
+    {
+      "id": "6198e369cd9f5c354f29b7175c81b4413eac4bc8f464718dd3d186b2527db410",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api-media.ts",
+          "start": 9,
+          "end": 24,
+          "context": "09f8b26b1ff5a21efd144400a5623983ef0afc93df8e07789095bc0f841c4f1b"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 80,
+          "end": 97,
+          "context": "9e0f48feb8550cb55813aee3a4cf7466173519d3475e63894daad4b549ad6c28"
+        }
+      ],
+      "tokens": 101,
+      "lines": 16,
+      "format": "typescript"
     },
     {
       "id": "621de8c60aea257e243009cfcec3bddb8795bca862fccc961fcec325554838c2",
@@ -2318,6 +2338,26 @@
       "tokens": 122,
       "lines": 18,
       "format": "tsx"
+    },
+    {
+      "id": "6466026710072e9ae1c4bc07581368cc3dda50d5e2337c59e13a2192db7fbe14",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 708,
+          "end": 714,
+          "context": "7896fa6b5b96bd072428728b22691b8bbc5ade01a7adcf2eed2e6b80a345a3a4"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 658,
+          "end": 664,
+          "context": "db93d9be6a5f4451ea2c3dc586f98dfe417f2a18bd0597b7228cbfe6350c016c"
+        }
+      ],
+      "tokens": 65,
+      "lines": 7,
+      "format": "typescript"
     },
     {
       "id": "648c870b569afad436753e0cecc405eb6a375a582f385a149bc02a34c40d674a",
@@ -2700,46 +2740,6 @@
       "format": "tsx"
     },
     {
-      "id": "74924ba34ca1b054e0fb4ea20639870291585fa1ca193c7629f08418ce1590c2",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 708,
-          "end": 714,
-          "context": "89922f791160b782066b30f9c5355f496ca3a5f4f00b57f49ebaec4985aa1250"
-        },
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 658,
-          "end": 664,
-          "context": "c26cf98c9352b732742d10176a580f8c85854e8f9f3d543090790002f9d6715a"
-        }
-      ],
-      "tokens": 65,
-      "lines": 7,
-      "format": "typescript"
-    },
-    {
-      "id": "74c3c948f076a7191e4517ce3f353ada21a01d6201714927c603e9cf72d7f927",
-      "endpoints": [
-        {
-          "file": "scripts/prove_media_preset_style_browser.mjs",
-          "start": 222,
-          "end": 230,
-          "context": "09df28154599ba4a210d5702722b644bd4c9883cefe3ba9390b206e62e694b68"
-        },
-        {
-          "file": "scripts/prove_media_preset_style_browser.mjs",
-          "start": 210,
-          "end": 218,
-          "context": "ee6e48a51384e55f24cc958b27e995fc55c0849c483c4c6f8a4ae7f060e89b2e"
-        }
-      ],
-      "tokens": 64,
-      "lines": 9,
-      "format": "javascript"
-    },
-    {
       "id": "7515ce26db75233de5322b2da2e98fe21949e578ce302d0d74ff9a7d5313cf30",
       "endpoints": [
         {
@@ -2840,6 +2840,26 @@
       "format": "python"
     },
     {
+      "id": "7a1af7d088735553ed44dbedaccfd47eb47531a22c220b787cbcafe21cbdc8bb",
+      "endpoints": [
+        {
+          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
+          "start": 123,
+          "end": 133,
+          "context": "514739b42042e9a824e670055e9f3b05e5c314c41010ac47583cb36b05ad3070"
+        },
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 54,
+          "end": 64,
+          "context": "f4f0cd5d7a444a18611937ad79d3d83f33efe6e7c34ba992aa334b9e4d1c9671"
+        }
+      ],
+      "tokens": 54,
+      "lines": 11,
+      "format": "javascript"
+    },
+    {
       "id": "7a31797b8c38debccfad9ba196d3e92448948b288999f809a80ffaac20cf4eb1",
       "endpoints": [
         {
@@ -2858,6 +2878,26 @@
       "tokens": 109,
       "lines": 21,
       "format": "tsx"
+    },
+    {
+      "id": "7b6a000222e2faebb82a38372a6f5a32bfbc2c7e272947eb5fe8d1ed9edbbe8d",
+      "endpoints": [
+        {
+          "file": "scripts/assistant_conversation_probe.mjs",
+          "start": 112,
+          "end": 133,
+          "context": "5363c51a39434f89923c91c0a7cbca4c02d60b5803bd8973ad67b96f4b0ce531"
+        },
+        {
+          "file": "scripts/smoke_studio_playwright.mjs",
+          "start": 28,
+          "end": 49,
+          "context": "c88cc1bdb46c42bfbc0d412724bf0b54c029890c2a4c104753955475ba832164"
+        }
+      ],
+      "tokens": 135,
+      "lines": 22,
+      "format": "javascript"
     },
     {
       "id": "7bb3b1596139877f0b996de6aafa33a0596bc670dfd5406fb993a20bd3cc6080",
@@ -3220,6 +3260,26 @@
       "format": "tsx"
     },
     {
+      "id": "90f0283b546631802fe8fdf90a4a103bc74d3c089b866aa54fc93d04ff7d4297",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 314,
+          "end": 327,
+          "context": "6f94ede12de5814b2cd14a53cf8aa4e4e8b195b6b24568f0985d645c51fcf859"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 357,
+          "end": 370,
+          "context": "d05744c368e4b4c647dd4127cb9437fbc043ed13587d86596d16dca979d34db4"
+        }
+      ],
+      "tokens": 107,
+      "lines": 14,
+      "format": "typescript"
+    },
+    {
       "id": "91a08677038a8c8eddb652548ec68de62ccd30d08bcdd4cf31fa03a747ce8a05",
       "endpoints": [
         {
@@ -3500,26 +3560,6 @@
       "format": "python"
     },
     {
-      "id": "9e1a9f4f33def635dd3c643c7ed5b9b6bc43f0b293cf6ed2b68cdef0d6d1e24c",
-      "endpoints": [
-        {
-          "file": "scripts/assistant_conversation_probe.mjs",
-          "start": 609,
-          "end": 614,
-          "context": "7e7105f471c7d3fd6b448734342ddcdfcc44035039a4ec0c0612d599ff7e159d"
-        },
-        {
-          "file": "scripts/smoke_studio_playwright.mjs",
-          "start": 200,
-          "end": 205,
-          "context": "dc51889ac0283cff26c3a50322bd9e7d9329e0e04655c834e8d31f109af3d35d"
-        }
-      ],
-      "tokens": 51,
-      "lines": 6,
-      "format": "javascript"
-    },
-    {
       "id": "9eba231ba76de2e2fe16e86a7ba6d89544ca18d64139b82107944959bd2cab37",
       "endpoints": [
         {
@@ -3638,26 +3678,6 @@
       "tokens": 77,
       "lines": 8,
       "format": "python"
-    },
-    {
-      "id": "a438dd5693ef1449ac86e4429503951664f977934501426fadcbe4f59599f984",
-      "endpoints": [
-        {
-          "file": "scripts/audit_media_assistant_prompt_quality.mjs",
-          "start": 20,
-          "end": 27,
-          "context": "6cb602d140cf8222c063dd4d358d652c42e0ac6bfc9d8d5573d037b83d7eceeb"
-        },
-        {
-          "file": "scripts/prove_media_preset_style_browser.mjs",
-          "start": 37,
-          "end": 44,
-          "context": "7160ca3a28a380827c67a4c53becbe37760aca4a23bff9e1dfa09688321b97b9"
-        }
-      ],
-      "tokens": 108,
-      "lines": 8,
-      "format": "javascript"
     },
     {
       "id": "a5cc2965d3cf0bb659d00479d061b9edb1867e1b8645480851a2f53ed04e6bcd",
@@ -3840,26 +3860,6 @@
       "format": "css"
     },
     {
-      "id": "ac0417060ac5754c0f07da2f4297661c1a0ca621726f672191fdc7da1f9ff1bb",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 460,
-          "end": 466,
-          "context": "3c5fb9a50d1eba2ce6897aaa991ce3988500a1101d1a25ccf9891ec4046fa166"
-        },
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 608,
-          "end": 614,
-          "context": "a08ac2a9ea2bce5836a8e4a2a5438341c9dd1ef09e88e4e4b1d1a54f3c719fec"
-        }
-      ],
-      "tokens": 52,
-      "lines": 7,
-      "format": "typescript"
-    },
-    {
       "id": "ac3e964b49de5cf1b627f231a09b0d9734239b47e34f949e2ddebe88697df6ce",
       "endpoints": [
         {
@@ -4038,6 +4038,26 @@
       "tokens": 89,
       "lines": 14,
       "format": "typescript"
+    },
+    {
+      "id": "b3595b7594bf89831e277e3e74128552840c9469858159dec032525aeb8b3161",
+      "endpoints": [
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 222,
+          "end": 230,
+          "context": "a2986379282fc71d83b6fc3427ca89b8a83abb65de913930e7c30b05e3b3fe9a"
+        },
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 210,
+          "end": 218,
+          "context": "beeaaa8f6c7f5197cc8bb8bf13fdef582a9b1205af8732af7c732b649f5c89a8"
+        }
+      ],
+      "tokens": 64,
+      "lines": 9,
+      "format": "javascript"
     },
     {
       "id": "b3d3271b192c77067c23a535fe476b6bd204f837bc65e90cb8f98966d0d3c737",
@@ -4540,26 +4560,6 @@
       "format": "tsx"
     },
     {
-      "id": "ccc4e1b80469da84472c1d45eb5f0ca9f940a5662499247107efd039d8bbdcb4",
-      "endpoints": [
-        {
-          "file": "scripts/prove_media_preset_style_browser.mjs",
-          "start": 403,
-          "end": 409,
-          "context": "371a830ea1cea58e69a997f6e251256138d08e3b49b97cf8fe4e7761473832a4"
-        },
-        {
-          "file": "scripts/prove_media_preset_style_browser.mjs",
-          "start": 476,
-          "end": 482,
-          "context": "4bdb4078d0471c98a5a353217a6d7b14066f6a000e648f0f13c7871d314446ea"
-        }
-      ],
-      "tokens": 55,
-      "lines": 7,
-      "format": "javascript"
-    },
-    {
       "id": "cd48caa5247ab340f8af04be2a074022afdcea428f086d1d11e1ec73d5a94c87",
       "endpoints": [
         {
@@ -4678,26 +4678,6 @@
       "tokens": 64,
       "lines": 11,
       "format": "python"
-    },
-    {
-      "id": "d5db5827bb0b601d3dcc3f1f0e6646ad0dfca6ccf6356af5f007869207ddd35d",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/control-api-media.ts",
-          "start": 9,
-          "end": 24,
-          "context": "09f8b26b1ff5a21efd144400a5623983ef0afc93df8e07789095bc0f841c4f1b"
-        },
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 80,
-          "end": 97,
-          "context": "3214c7030bc948510f7aa994725fda921cecde34bb28d449e318a684dc88edd5"
-        }
-      ],
-      "tokens": 101,
-      "lines": 16,
-      "format": "typescript"
     },
     {
       "id": "d7c396f7a5c27471634a02d253b2ff1c1ff760a9596edf34aeaed1ea105ec40b",
@@ -4840,26 +4820,6 @@
       "format": "typescript"
     },
     {
-      "id": "dc2e9d4e84cf2291def6e4d028aab13f3eb9eb5c5b2a8a327d2c2f139b6f57d8",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 1167,
-          "end": 1172,
-          "context": "55055236c955c33faa6903797b00bfc0965afdabb0220816cb1300f31d4fab10"
-        },
-        {
-          "file": "apps/web/lib/control-api.ts",
-          "start": 1091,
-          "end": 1096,
-          "context": "dfad20cfdd9fac614d19c8284b4a10d4d16545f0f5103a47a9d27be937c986bf"
-        }
-      ],
-      "tokens": 50,
-      "lines": 6,
-      "format": "typescript"
-    },
-    {
       "id": "dca828c4c51a6eb7795ae1f1c53af0f962d9a57ed73831650ee5d60c9407652d",
       "endpoints": [
         {
@@ -4898,6 +4858,26 @@
       "tokens": 88,
       "lines": 11,
       "format": "typescript"
+    },
+    {
+      "id": "e0c96b1744c9f0a2da304811182c585a39bce3202e3d8a94173287fc60c5ce20",
+      "endpoints": [
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 476,
+          "end": 482,
+          "context": "22958f667c679786787812cbc4a3764166a236bbb6f7be4e7b12f5932b495e37"
+        },
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 403,
+          "end": 409,
+          "context": "f63459bb2b0ffcde3024179b31129555bb907a3f42c2c33adc62b13e951c0f88"
+        }
+      ],
+      "tokens": 55,
+      "lines": 7,
+      "format": "javascript"
     },
     {
       "id": "e0f95058a14a67a93e20086a889c71c4e9f84717af1b21e335d3a3c0aea578ef",
@@ -4998,26 +4978,6 @@
       "tokens": 64,
       "lines": 7,
       "format": "typescript"
-    },
-    {
-      "id": "e2e036feece23d6c3d043944cbbd7fc350fb47b28bc776193b9163be0a266030",
-      "endpoints": [
-        {
-          "file": "scripts/assistant_conversation_probe.mjs",
-          "start": 112,
-          "end": 133,
-          "context": "5363c51a39434f89923c91c0a7cbca4c02d60b5803bd8973ad67b96f4b0ce531"
-        },
-        {
-          "file": "scripts/smoke_studio_playwright.mjs",
-          "start": 28,
-          "end": 49,
-          "context": "7b319065532241d343c7dfaecc456500737ab7521dafc3aca9cf5278e23a3bfb"
-        }
-      ],
-      "tokens": 135,
-      "lines": 22,
-      "format": "javascript"
     },
     {
       "id": "e36d5dc81e9f35539529afc3ada5b9b894f4fd709c5d5eb2c205027af07b4c7d",
@@ -5378,6 +5338,26 @@
       "tokens": 81,
       "lines": 19,
       "format": "tsx"
+    },
+    {
+      "id": "f402c154099090a942e0fc2dc0beccbcaf75ff3c41ee4aa596fe3c9bceb5487c",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 1091,
+          "end": 1096,
+          "context": "293c493f91920b22d593597872c9ae5d6aa5c3ee292875d2586b0a91aa3c95eb"
+        },
+        {
+          "file": "apps/web/lib/control-api.ts",
+          "start": 1167,
+          "end": 1172,
+          "context": "f0fa26389b81005570da159b7cf0be882beab080b3aeff6e56492a7eccc1d252"
+        }
+      ],
+      "tokens": 50,
+      "lines": 6,
+      "format": "typescript"
     },
     {
       "id": "f40329e42fc65704b1421376cb3f2c61fb6ab70795ad9263b127229bcf3f19da",

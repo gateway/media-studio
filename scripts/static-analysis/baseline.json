@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "contract": "b47a39cba73f3ba88caf8cd6b7d40a336c47456dac494662d190a41aeae39a4a",
+  "contract": "cb0e188a2a935fc8352dfe22ab5b570b8178b9ff6fcf6cc296569619ce1b3208",
   "metadata": {
     "versions": {
       "eslint": "10.13.0",
@@ -20,14 +20,14 @@
       "eslint.config.mjs": "1f9019cc6df69fc59f976a3a0382b7ae5dff679c4392556d2285e66ffc660f7a",
       "apps/web/tsconfig.json": "9d4f94ee8caca352f8d2bd015b926ed965becb47567ab794675ae2cbcbc947a7",
       "apps/web/tsconfig.lint.json": "affb7903fadd406f018291abf40821b7e88751276699181817eda5cc2322946a",
-      "package-lock.json": "356718b90355279839153079de492b98ed4016df319e5e826e4454acc620b266",
+      "package-lock.json": "ae7080d206f195a71f44f4d4faddcaf5d2ee2adec4e6b972c41e2ec8b221a9f8",
       "scripts/static-analysis/policy.mjs": "571a38fd87c9676a2e9f669ae561189e19b1081bf8e49c3a343dd7be9e37d9d4",
       "scripts/static-analysis/scan.mjs": "c9e5004a103c9668f437c6155f2b8dc831c1758112f634387807dc730ed07c38",
       "scripts/static-analysis/gate.mjs": "f5a67e490afe3d863838b4f3652323df973a2db5de332f16a6610e18b7f08c63",
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Reviewed six UI fixes: existing identities refreshed; reference-library complexity reduced from 17 to 16; no new debt",
+  "reason": "Integrate tickets 27-30: combined lock contract; remove three findings in deleted unused files; no new debt.",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -1654,17 +1654,6 @@
       "id": "3213f0263c428897daf68c79bff87db9c472afcc99968a80b85fba6acfc662bb"
     },
     {
-      "rule": "complexity",
-      "message": "Function 'MediaPromptsConsole' has a complexity of 17. Maximum allowed is 15.",
-      "severity": 1,
-      "line": 60,
-      "column": 8,
-      "metric": 17,
-      "file": "apps/web/components/media-prompts-console.tsx",
-      "owner": "FunctionDeclaration:[\"MediaPromptsConsole\"]",
-      "id": "32941a7c8a3769ae7bc152c26e6879d83aa0da2be94213b726f0f046b7d48907"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 93 to the 20 allowed.",
       "severity": 1,
@@ -3218,16 +3207,6 @@
       "id": "699a8d2e9cf3abf5073532b629fa3cdbf96ccb7a4ed7ccc6efdb3c23d9c7bcc5"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 290,
-      "column": 59,
-      "file": "apps/web/components/media-prompts-console.tsx",
-      "owner": "FunctionDeclaration:[\"MediaPromptsConsole\"]/JsxAttribute:[\"onClick\"]/anonymous:6a8e9aba0bb9877d6f67c358eaf7da4b7df297bd8ad172c50b609db76bfd8c23",
-      "id": "6a9795495bad2697a50f2b0ae1084ff9e82546143e831349ec198636b1f2cf74"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'buildStudioRetryRestorePlan' has a complexity of 22. Maximum allowed is 15.",
       "severity": 1,
@@ -3503,7 +3482,7 @@
       "message": "Function 'mapEnhancementConfigRecord' has a complexity of 17. Maximum allowed is 15.",
       "severity": 1,
       "line": 598,
-      "column": 8,
+      "column": 1,
       "metric": 17,
       "file": "apps/web/lib/control-api.ts",
       "owner": "FunctionDeclaration:[\"mapEnhancementConfigRecord\"]",
@@ -4257,7 +4236,7 @@
       "message": "Function 'mapExternalLlmUsageRecord' has a complexity of 23. Maximum allowed is 15.",
       "severity": 1,
       "line": 496,
-      "column": 8,
+      "column": 1,
       "metric": 23,
       "file": "apps/web/lib/control-api.ts",
       "owner": "FunctionDeclaration:[\"mapExternalLlmUsageRecord\"]",
@@ -4994,7 +4973,7 @@
       "message": "Function 'mapReferenceMediaRecord' has a complexity of 26. Maximum allowed is 15.",
       "severity": 1,
       "line": 566,
-      "column": 8,
+      "column": 1,
       "metric": 26,
       "file": "apps/web/lib/control-api.ts",
       "owner": "FunctionDeclaration:[\"mapReferenceMediaRecord\"]",
@@ -5640,16 +5619,6 @@
       "file": "apps/web/app/api/control/media-assets/route.ts",
       "owner": "FunctionDeclaration:[\"GET\"]",
       "id": "c17a5d2b7169fa9974910d7fe3923f2a41d445f95a4251d95548cb250d959e9d"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 297,
-      "column": 78,
-      "file": "apps/web/components/media-prompts-console.tsx",
-      "owner": "FunctionDeclaration:[\"MediaPromptsConsole\"]/JsxAttribute:[\"onClick\"]/anonymous:c68336bc4bc9bfaf5b4338654c8e19876d828faeffd2c74998804d553db83fd2",
-      "id": "c19fb85ad522798f0cd143dfa170f7088018a0357a07613ad18a9588a13b7912"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -6533,7 +6502,7 @@
       "message": "Function 'mapModelRecord' has a complexity of 22. Maximum allowed is 15.",
       "severity": 1,
       "line": 254,
-      "column": 8,
+      "column": 1,
       "metric": 22,
       "file": "apps/web/lib/control-api.ts",
       "owner": "FunctionDeclaration:[\"mapModelRecord\"]",
