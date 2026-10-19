@@ -251,7 +251,7 @@ function deriveGenerationKind(model: ControlApiRawRecord) {
   return "image";
 }
 
-export function mapModelRecord(model: ControlApiRawRecord): MediaModelSummary {
+function mapModelRecord(model: ControlApiRawRecord): MediaModelSummary {
   const raw = toControlApiRawRecord(model.raw);
   const rawInputs = toControlApiRawRecord(raw.inputs);
   const dynamicOptions = Array.isArray(model.studio_dynamic_options) ? model.studio_dynamic_options : [];
@@ -493,7 +493,7 @@ export function mapMediaAssistantConfigRecord(config: ControlApiRawRecord): Medi
   };
 }
 
-export function mapExternalLlmUsageRecord(record: ControlApiRawRecord): ExternalLlmUsageRecord {
+function mapExternalLlmUsageRecord(record: ControlApiRawRecord): ExternalLlmUsageRecord {
   return {
     usage_event_id: String(record.usage_event_id ?? ""),
     provider_kind: String(record.provider_kind ?? ""),
@@ -520,7 +520,7 @@ export function mapExternalLlmUsageRecord(record: ControlApiRawRecord): External
   } as ExternalLlmUsageRecord;
 }
 
-export function mapExternalLlmUsageSummaryRecord(payload: ControlApiRawRecord): ExternalLlmUsageSummary {
+function mapExternalLlmUsageSummaryRecord(payload: ControlApiRawRecord): ExternalLlmUsageSummary {
   const mapTotals = (value: unknown) => {
     const record = (value && typeof value === "object" && !Array.isArray(value)) ? (value as ControlApiRawRecord) : {};
     return {
@@ -563,7 +563,7 @@ export function mapPromptRecord(prompt: ControlApiRawRecord): MediaSystemPrompt 
   } as MediaSystemPrompt;
 }
 
-export function mapReferenceMediaRecord(reference: ControlApiRawRecord): MediaReference {
+function mapReferenceMediaRecord(reference: ControlApiRawRecord): MediaReference {
   const storedPath = reference.stored_path ?? null;
   const thumbPath = reference.thumb_path ?? null;
   const posterPath = reference.poster_path ?? null;
@@ -595,7 +595,7 @@ export function mapReferenceMediaRecord(reference: ControlApiRawRecord): MediaRe
   } as MediaReference;
 }
 
-export function mapEnhancementConfigRecord(config: ControlApiRawRecord): MediaEnhancementConfig {
+function mapEnhancementConfigRecord(config: ControlApiRawRecord): MediaEnhancementConfig {
   return {
     config_id: String(config.config_id ?? config.model_key),
     model_key: String(config.model_key),
@@ -622,7 +622,7 @@ export function mapEnhancementConfigRecord(config: ControlApiRawRecord): MediaEn
   } as MediaEnhancementConfig;
 }
 
-export function mapQueueSettingsRecord(settings: ControlApiRawRecord): MediaQueueSettings {
+function mapQueueSettingsRecord(settings: ControlApiRawRecord): MediaQueueSettings {
   return {
     max_concurrent_jobs: settings.max_concurrent_jobs,
     queue_enabled: settings.queue_enabled,
