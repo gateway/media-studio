@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { GraphNodeDefinition, GraphWorkflowPayload } from "@/components/graph-studio/types";
-import { hydrateGraphWorkflowForCanvas } from "@/components/graph-studio/utils/graph-workflow-hydration";
+import { hydrateGraphWorkflowForCanvas, savedGraphWorkflowSnapshot } from "@/components/graph-studio/utils/graph-workflow-hydration";
 import { workflowFromCanvas, type GraphNodeHandlers } from "@/components/graph-studio/utils/graph-serialization";
 
 const handlers: GraphNodeHandlers = {
@@ -255,4 +255,13 @@ describe("hydrateGraphWorkflowForCanvas", () => {
       targetHandle: "in:slot__product",
     });
   });
+});
+
+
+it("retains the saved baseline when hydration drops a connection", () => {
+  const workflow: GraphWorkflowPayload = {
+    schema_version: 1, workflow_id: "saved", name: "Saved graph", nodes: [],
+    edges: [{ id: "edge", source: "missing", source_port: "image", target: "missing", target_port: "image" }],
+  };
+  expect(savedGraphWorkflowSnapshot(workflow, { nodes: [], edges: [], groups: [] })).toBe(workflow);
 });
