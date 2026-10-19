@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import type { AttachmentRecord, ComposerStatusMessage } from "@/lib/media-studio-contract";
 import {
@@ -190,22 +190,28 @@ export function useStudioComposerGuardEffects({
       nextValues[field.key] = field.defaultValue ?? "";
     }
     setPresetInputValues((current) => ({ ...nextValues, ...current }));
-  }, [presetReady, currentPresetId, structuredPresetTextFields]);
+  }, [presetReady, currentPresetId, structuredPresetTextFields, setPresetInputValues]);
+
+  const previewResources = useRef({ attachments, presetSlotStates });
+  useEffect(() => {
+    previewResources.current = { attachments, presetSlotStates };
+  }, [attachments, presetSlotStates]);
 
   useEffect(() => {
     return () => {
-      for (const attachment of attachments) {
+      // Attachment edits release removed URLs themselves; retained URLs live until unmount.
+      for (const attachment of previewResources.current.attachments) {
         if (attachment.previewUrl && attachment.file) {
           URL.revokeObjectURL(attachment.previewUrl);
         }
       }
-      for (const state of Object.values(presetSlotStates)) {
+      for (const state of Object.values(previewResources.current.presetSlotStates)) {
         if (state?.previewUrl && state.file) {
           URL.revokeObjectURL(state.previewUrl);
         }
       }
     };
-  }, [attachments, presetSlotStates]);
+  }, []);
 
   useEffect(() => {
     const sourceKind = currentSourceAsset?.generation_kind ?? null;
@@ -249,5 +255,5 @@ export function useStudioComposerGuardEffects({
       }
       return changed ? next : current;
     });
-  }, [currentSourceAsset, maxAudioInputs, maxImageInputs, maxVideoInputs, setSourceAssetId]);
+  }, [currentSourceAsset, maxAudioInputs, maxImageInputs, maxVideoInputs, setSourceAssetId, setAttachments, setStagedSourceAssetSnapshot]);
 }

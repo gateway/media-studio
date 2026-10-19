@@ -35,7 +35,26 @@ function savedDraft() {
     optionValues: { quality: "high" }, attachments: [], outputCount: 1, sourceAssetId: null, stagedSourceAssetSnapshot: null, lastNanoPresetModelKey: model.key });
 }
 
-afterEach(() => { cleanup(); writeStudioComposerDraft(null); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); writeStudioComposerDraft(null); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+it("keeps retained attachment URLs alive through attachment and slot edits, then releases them on unmount", () => {
+  const revoke = vi.fn();
+  vi.stubGlobal("URL", class extends URL { static revokeObjectURL = revoke; });
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Offline test")));
+  const { result, unmount } = renderHook(() => useComposer([]));
+  const first = { id: "first", kind: "images" as const, role: null,
+    file: new File(["first"], "first.png", { type: "image/png" }), previewUrl: "blob:first" };
+  const second = { ...first, id: "second", previewUrl: "blob:second" };
+  act(() => result.current.actions.setAttachments([first]));
+  act(() => result.current.actions.setAttachments([first, second]));
+  act(() => result.current.actions.setPresetSlotStates({}));
+  expect(revoke).not.toHaveBeenCalled();
+  act(() => result.current.actions.removeAttachment("second"));
+  expect(revoke).toHaveBeenCalledWith("blob:second");
+  expect(revoke).not.toHaveBeenCalledWith("blob:first");
+  unmount();
+  expect(revoke).toHaveBeenCalledWith("blob:first");
+});
 
 it("restores an older draft only after detail is available without erasing saved inputs/options", async () => {
   savedDraft();

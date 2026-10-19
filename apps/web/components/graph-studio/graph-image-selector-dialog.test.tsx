@@ -86,6 +86,22 @@ afterEach(() => {
   cleanup();
 });
 
+it.each(["video", "audio"] as const)("previews imported %s with native playback and the original media URL", (mediaType) => {
+  const item: MediaImagePickerItem = { id: "reference-media", mediaType, previewUrl: "/poster.webp",
+    fullUrl: `/reference.${mediaType === "video" ? "mp4" : "wav"}`, ariaLabel: "Use test reference", alt: "Test reference" };
+  const { props } = renderSelector({ mediaType, initialSource: "imported", imported: { ...emptySource, items: [item] } });
+  fireEvent.click(screen.getByRole("button", { name: `Preview ${mediaType} reference-media` }));
+  const dialog = screen.getByRole("dialog", { name: `${mediaType === "video" ? "Video" : "Audio"} preview` });
+  const player = dialog.querySelector(mediaType);
+  expect(player?.getAttribute("src")).toBe(item.fullUrl);
+  expect(player?.hasAttribute("controls")).toBe(true);
+  expect(dialog.querySelector("img")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: `Close ${mediaType} preview` }));
+  expect(dialog.isConnected).toBe(false);
+  expect(props.onAddNode).not.toHaveBeenCalled();
+  expect(props.onAttachToNode).not.toHaveBeenCalled();
+});
+
 describe("GraphImageSelectorDialog", () => {
   it("uses one tabbed grid and routes generated selection through add-node mode", () => {
     const { props } = renderSelector();

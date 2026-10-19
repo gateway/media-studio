@@ -20,8 +20,10 @@ export function MediaImagePickerPreview({
   item,
   onClose,
 }: MediaImagePickerPreviewProps) {
-  const imageUrl = item.fullUrl || item.previewUrl;
-  const label = item.alt || item.filename || "Selected image preview";
+  const mediaType = item.mediaType ?? "image";
+  const mediaLabel = mediaType[0].toUpperCase() + mediaType.slice(1);
+  const mediaUrl = item.fullUrl || (mediaType === "image" ? item.previewUrl : null);
+  const label = item.alt || item.filename || `Selected ${mediaType} preview`;
   const dimensions = dimensionsLabel(item);
 
   useEffect(() => {
@@ -40,16 +42,16 @@ export function MediaImagePickerPreview({
       className="media-image-picker-preview"
       role="dialog"
       aria-modal="false"
-      aria-label="Image preview"
+      aria-label={`${mediaLabel} preview`}
     >
       <div className="media-image-picker-preview-header">
         <div className="grid min-w-0 gap-1">
-          <div className="admin-label-accent">Image Preview</div>
+          <div className="admin-label-accent">{mediaLabel} Preview</div>
           <h3 className="truncate text-lg font-semibold text-[var(--foreground)]">
             {label}
           </h3>
           <p className="text-sm text-[var(--muted-strong)]">
-            {dimensions ? `${dimensions} · ` : ""}Review the full image before
+            {dimensions ? `${dimensions} · ` : ""}Review the full {mediaType} before
             selecting it.
           </p>
         </div>
@@ -57,15 +59,20 @@ export function MediaImagePickerPreview({
           variant="subtle"
           size="compact"
           onClick={onClose}
-          aria-label="Close image preview"
+          aria-label={`Close ${mediaType} preview`}
         >
           <X className="size-4" />
         </AdminButton>
       </div>
       <div className="media-image-picker-preview-body">
-        {imageUrl ? (
+        {mediaUrl ? mediaType === "video" ? (
+          <video src={mediaUrl} controls playsInline preload="metadata" aria-label={label}
+            className="max-h-full max-w-full object-contain" />
+        ) : mediaType === "audio" ? (
+          <audio src={mediaUrl} controls preload="metadata" aria-label={label} />
+        ) : (
           <img
-            src={imageUrl}
+            src={mediaUrl}
             alt={item.alt ?? ""}
             className="max-h-full max-w-full object-contain"
             loading="eager"
@@ -73,7 +80,7 @@ export function MediaImagePickerPreview({
           />
         ) : (
           <div className="text-sm text-[var(--muted-strong)]">
-            No preview is available for this image.
+            No preview is available for this {mediaType}.
           </div>
         )}
       </div>
