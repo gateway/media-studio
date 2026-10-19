@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "contract": "43a293bbc2c30a11d7d44cb26902f206ff2ecee76534999154bf3b1153f9c84d",
+  "contract": "b9eb7538c23685c1e2476d2858e64aba97fd7492cf3343078663db5192d28199",
   "metadata": {
     "versions": {
       "stylelint": "17.16.0",
@@ -15,13 +15,13 @@
     ],
     "files": {
       "stylelint.config.mjs": "450518f5b1f7892f36afbf5762730df8c1818f328b6c6d72576d20d02fc9d79a",
-      "package-lock.json": "356718b90355279839153079de492b98ed4016df319e5e826e4454acc620b266",
+      "package-lock.json": "6bd93285ad0d698f2bd1db83e16a63ba7c9497a2f9fd33532a7ac4d0797227ea",
       "scripts/static-analysis/css.mjs": "93277f0be38bf2e449636af9055f996f8cfb8efb6f9a416cc4eb707509ebc9ca",
       "scripts/static-analysis/css-policy.mjs": "244a770f9dfad9f20804acf5fdc3673e08e254b32d1e813092ca81bc79332c54",
       "scripts/check_style_drift.py": "697bdb704b862545c867b69113f9b2d369a742c47040b7d32494bf6c7c51545f"
     }
   },
-  "reason": "Reviewed ticket 04 analyzer lockfile and full-scope adoption; preserve existing application debt",
+  "reason": "Ticket 30: reviewed optional-only emnapi lock ownership; CSS findings unchanged",
   "findings": [
     {
       "id": "0062e9af8543af7049929d03ac293b7ad56016f5146616ef52f21c3cfb764fef",

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "contract": "b47a39cba73f3ba88caf8cd6b7d40a336c47456dac494662d190a41aeae39a4a",
+  "contract": "6ae8bac5ecd1f08927469948329290784aa34318e21a80c3d130563e3f7ceddd",
   "metadata": {
     "versions": {
       "eslint": "10.13.0",
@@ -20,14 +20,14 @@
       "eslint.config.mjs": "1f9019cc6df69fc59f976a3a0382b7ae5dff679c4392556d2285e66ffc660f7a",
       "apps/web/tsconfig.json": "9d4f94ee8caca352f8d2bd015b926ed965becb47567ab794675ae2cbcbc947a7",
       "apps/web/tsconfig.lint.json": "affb7903fadd406f018291abf40821b7e88751276699181817eda5cc2322946a",
-      "package-lock.json": "356718b90355279839153079de492b98ed4016df319e5e826e4454acc620b266",
+      "package-lock.json": "6bd93285ad0d698f2bd1db83e16a63ba7c9497a2f9fd33532a7ac4d0797227ea",
       "scripts/static-analysis/policy.mjs": "571a38fd87c9676a2e9f669ae561189e19b1081bf8e49c3a343dd7be9e37d9d4",
       "scripts/static-analysis/scan.mjs": "c9e5004a103c9668f437c6155f2b8dc831c1758112f634387807dc730ed07c38",
       "scripts/static-analysis/gate.mjs": "f5a67e490afe3d863838b4f3652323df973a2db5de332f16a6610e18b7f08c63",
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Reviewed six UI fixes: existing identities refreshed; reference-library complexity reduced from 17 to 16; no new debt",
+  "reason": "Ticket 30: reviewed Playwright public imports and optional-only emnapi lock ownership; no new findings",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",

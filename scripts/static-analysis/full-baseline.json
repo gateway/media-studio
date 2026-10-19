@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "contract": "16fc75152456b07076888139d6c63652d6cf58b17187aa70ba23033170128f7f",
+  "contract": "9887e3a38746e65b7ce01c5b48943d23f2216d8aec4f775b38dfe3ac8e8d9afd",
   "metadata": {
     "files": {
-      "package-lock.json": "356718b90355279839153079de492b98ed4016df319e5e826e4454acc620b266",
+      "package-lock.json": "6bd93285ad0d698f2bd1db83e16a63ba7c9497a2f9fd33532a7ac4d0797227ea",
       "dependency-cruiser.config.cjs": "c35e33872173427b44dd540685de6e01ba5f545e40e28d208fa749144e765adf",
       "jscpd.config.json": "0bafba536df0d94f6de1ccf822d7354832b90293545ef622f9a2833c93136c49",
       "apps/web/tsconfig.json": "9d4f94ee8caca352f8d2bd015b926ed965becb47567ab794675ae2cbcbc947a7",
@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Independent review: seven existing clone identities replaced, no new duplicated code; 284 to 283 pairs; equivalent CSS syntax reduces one pair by two tokens",
+  "reason": "Ticket 30: reviewed Playwright public imports and optional-only emnapi lock ownership; no new production clone debt",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -960,7 +960,7 @@
       "format": "css"
     },
     {
-      "id": "2c075f3f360f934952e162c3218232519ccd4a3039afaf3f10f4e64a6f7f32f2",
+      "id": "06f90cb2f546b5dfc7ec5ddbe0b9b3ae3bc5b794f732dfdb51234201c06aecca",
       "endpoints": [
         {
           "file": "scripts/assistant_conversation_probe.mjs",
@@ -972,7 +972,7 @@
           "file": "scripts/prove_media_preset_style_browser.mjs",
           "start": 53,
           "end": 63,
-          "context": "9c694e1746f98f659d6ac34c97f28c2ecdc336f120b7c1193a8b561e91736935"
+          "context": "43230a1346055c107172fd7a50ca374e1a2e12467837d1bc6b426f9ce1197a8b"
         }
       ],
       "tokens": 51,
@@ -1580,7 +1580,7 @@
       "format": "python"
     },
     {
-      "id": "428f91b5bf89dfeba053b6e26f75291cdbe17c2dd3c5636702b97255e09ae2a4",
+      "id": "2594413f0a6eb9cdb1bce45afb2db33541e0743deabe8e76811bf61fdd52063b",
       "endpoints": [
         {
           "file": "scripts/assistant_conversation_probe.mjs",
@@ -1592,7 +1592,7 @@
           "file": "scripts/smoke_studio_playwright.mjs",
           "start": 221,
           "end": 233,
-          "context": "7eb466ff038b9b9b44ff2851c24c49e2c3b31b9f24848281d1b54a8d3ae6fa73"
+          "context": "9354e4313c94810adb43afa90a818358111506bd6d073c304dad19ae516299af"
         }
       ],
       "tokens": 78,
@@ -2180,7 +2180,7 @@
       "format": "javascript"
     },
     {
-      "id": "5fecb3543058233f5ab6dc54af08d45891c03822de9eb142833c3938da190c04",
+      "id": "7a1af7d088735553ed44dbedaccfd47eb47531a22c220b787cbcafe21cbdc8bb",
       "endpoints": [
         {
           "file": "scripts/audit_media_assistant_prompt_quality.mjs",
@@ -2192,7 +2192,7 @@
           "file": "scripts/prove_media_preset_style_browser.mjs",
           "start": 54,
           "end": 64,
-          "context": "c899d9ce16b00aaaef7f2f3a25212fad4ea83ad49424ebe375598323a50509e2"
+          "context": "f4f0cd5d7a444a18611937ad79d3d83f33efe6e7c34ba992aa334b9e4d1c9671"
         }
       ],
       "tokens": 54,
@@ -2720,19 +2720,19 @@
       "format": "typescript"
     },
     {
-      "id": "74c3c948f076a7191e4517ce3f353ada21a01d6201714927c603e9cf72d7f927",
+      "id": "b3595b7594bf89831e277e3e74128552840c9469858159dec032525aeb8b3161",
       "endpoints": [
         {
           "file": "scripts/prove_media_preset_style_browser.mjs",
           "start": 222,
           "end": 230,
-          "context": "09df28154599ba4a210d5702722b644bd4c9883cefe3ba9390b206e62e694b68"
+          "context": "a2986379282fc71d83b6fc3427ca89b8a83abb65de913930e7c30b05e3b3fe9a"
         },
         {
           "file": "scripts/prove_media_preset_style_browser.mjs",
           "start": 210,
           "end": 218,
-          "context": "ee6e48a51384e55f24cc958b27e995fc55c0849c483c4c6f8a4ae7f060e89b2e"
+          "context": "beeaaa8f6c7f5197cc8bb8bf13fdef582a9b1205af8732af7c732b649f5c89a8"
         }
       ],
       "tokens": 64,
@@ -3500,7 +3500,7 @@
       "format": "python"
     },
     {
-      "id": "9e1a9f4f33def635dd3c643c7ed5b9b6bc43f0b293cf6ed2b68cdef0d6d1e24c",
+      "id": "5e2546fdfecdcb1913dd7f0b6b28880a313cb86b710b930a906a0499e0e5e723",
       "endpoints": [
         {
           "file": "scripts/assistant_conversation_probe.mjs",
@@ -3512,7 +3512,7 @@
           "file": "scripts/smoke_studio_playwright.mjs",
           "start": 200,
           "end": 205,
-          "context": "dc51889ac0283cff26c3a50322bd9e7d9329e0e04655c834e8d31f109af3d35d"
+          "context": "c50d1ec576d16746b8a3aee6d97a73b3fd3636a4fff215d46044f179fcfa62e7"
         }
       ],
       "tokens": 51,
@@ -3640,7 +3640,7 @@
       "format": "python"
     },
     {
-      "id": "a438dd5693ef1449ac86e4429503951664f977934501426fadcbe4f59599f984",
+      "id": "1836d340a81a545693f50368f2001cc6ca1a62e66f1f725c60a91ceab6f65e7b",
       "endpoints": [
         {
           "file": "scripts/audit_media_assistant_prompt_quality.mjs",
@@ -3652,7 +3652,7 @@
           "file": "scripts/prove_media_preset_style_browser.mjs",
           "start": 37,
           "end": 44,
-          "context": "7160ca3a28a380827c67a4c53becbe37760aca4a23bff9e1dfa09688321b97b9"
+          "context": "d17914634bc2743a48b03407c923fc3c0366d9feb216896e90c11aecaa890cf3"
         }
       ],
       "tokens": 108,
@@ -4540,19 +4540,19 @@
       "format": "tsx"
     },
     {
-      "id": "ccc4e1b80469da84472c1d45eb5f0ca9f940a5662499247107efd039d8bbdcb4",
+      "id": "e0c96b1744c9f0a2da304811182c585a39bce3202e3d8a94173287fc60c5ce20",
       "endpoints": [
-        {
-          "file": "scripts/prove_media_preset_style_browser.mjs",
-          "start": 403,
-          "end": 409,
-          "context": "371a830ea1cea58e69a997f6e251256138d08e3b49b97cf8fe4e7761473832a4"
-        },
         {
           "file": "scripts/prove_media_preset_style_browser.mjs",
           "start": 476,
           "end": 482,
-          "context": "4bdb4078d0471c98a5a353217a6d7b14066f6a000e648f0f13c7871d314446ea"
+          "context": "22958f667c679786787812cbc4a3764166a236bbb6f7be4e7b12f5932b495e37"
+        },
+        {
+          "file": "scripts/prove_media_preset_style_browser.mjs",
+          "start": 403,
+          "end": 409,
+          "context": "f63459bb2b0ffcde3024179b31129555bb907a3f42c2c33adc62b13e951c0f88"
         }
       ],
       "tokens": 55,
@@ -5000,7 +5000,7 @@
       "format": "typescript"
     },
     {
-      "id": "e2e036feece23d6c3d043944cbbd7fc350fb47b28bc776193b9163be0a266030",
+      "id": "7b6a000222e2faebb82a38372a6f5a32bfbc2c7e272947eb5fe8d1ed9edbbe8d",
       "endpoints": [
         {
           "file": "scripts/assistant_conversation_probe.mjs",
@@ -5012,7 +5012,7 @@
           "file": "scripts/smoke_studio_playwright.mjs",
           "start": 28,
           "end": 49,
-          "context": "7b319065532241d343c7dfaecc456500737ab7521dafc3aca9cf5278e23a3bfb"
+          "context": "c88cc1bdb46c42bfbc0d412724bf0b54c029890c2a4c104753955475ba832164"
         }
       ],
       "tokens": 135,
