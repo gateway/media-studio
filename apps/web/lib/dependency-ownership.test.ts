@@ -10,7 +10,9 @@ it("exposes Chromium from the declared Playwright dependency without launching a
 it("processes an image in memory with Sharp's installed platform dependencies", async () => {
   const buffer = await sharp({
     create: { width: 2, height: 3, channels: 3, background: "#123456" },
-  }).png().toBuffer();
+  })
+    .png()
+    .toBuffer();
   const metadata = await sharp(buffer).metadata();
   expect(metadata.width).toBe(2);
   expect(metadata.height).toBe(3);

@@ -15,7 +15,8 @@ An existing dedicated environment can be selected with `STATIC_ANALYSIS_PYTHON`
 (absolute path to its Python executable). Missing environments fail; lint never
 installs dependencies. Python 3.11 is the verified local/CI analyzer runtime.
 
-`npm run lint` runs web, Python, CSS/theme, then full dependency/duplication gates
+`npm run lint` first checks the [small Prettier rollout](FORMATTING.md), then runs
+web, Python, CSS/theme, and full dependency/duplication gates
 and informational unused-code reporting.
 `npm run lint:full` is the full-scope alias used in CI. `npm run lint:web` and the web workspace's
 `npm run lint` run only the web gate; `npm run lint:python` runs only Python.

@@ -38,7 +38,7 @@
     "stop:studio:linux": "./scripts/stop_studio_linux.sh",
     "stop:studio:windows": "powershell -ExecutionPolicy Bypass -File .\\scripts\\stop_studio.ps1",
     "build:web": "npm --workspace apps/web run build",
-    "lint": "npm run lint:web && npm run lint:python && npm run lint:css && npm run lint:architecture && npm run lint:unused",
+    "lint": "npm run format:check && npm run lint:web && npm run lint:python && npm run lint:css && npm run lint:architecture && npm run lint:unused",
     "lint:python": "node scripts/static-analysis/python.mjs",
     "lint:python:baseline": "node scripts/static-analysis/python.mjs --update-baseline",
     "test:static-analysis:python": "node scripts/static-analysis/python.mjs --test",
@@ -59,7 +59,9 @@
     "test:web:focused": "node scripts/test-focused-web.mjs",
     "test:focused-harness": "node --test scripts/test-focused-web.test.mjs",
     "lint:unused": "node scripts/static-analysis/knip.mjs",
-    "test:static-analysis:knip": "node --test scripts/static-analysis/knip.test.mjs"
+    "test:static-analysis:knip": "node --test scripts/static-analysis/knip.test.mjs",
+    "format": "prettier --write .prettierrc.json package.json apps/web/package.json apps/web/lib/dependency-ownership.test.ts scripts/static-analysis/FORMATTING.md",
+    "format:check": "prettier --check .prettierrc.json package.json apps/web/package.json apps/web/lib/dependency-ownership.test.ts scripts/static-analysis/FORMATTING.md"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -71,6 +73,7 @@
     "jscpd": "5.4.1",
     "knip": "6.42.0",
     "postcss": "8.5.26",
+    "prettier": "3.9.10",
     "stylelint": "17.16.0",
     "stylelint-config-standard": "40.0.0",
     "typescript": "5.9.3",

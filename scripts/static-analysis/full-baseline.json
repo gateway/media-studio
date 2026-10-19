@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "contract": "096e7bd544288aef6e0fc57c0e3a0f926966304977dc8245bcd6627af7373492",
+  "contract": "b08d2d32dec1489f3686c1b13d03316e2bdee5fc274cd89b317d2b08e2664676",
   "metadata": {
     "files": {
-      "package-lock.json": "ae7080d206f195a71f44f4d4faddcaf5d2ee2adec4e6b972c41e2ec8b221a9f8",
+      "package-lock.json": "a98a666af466b429b13d21085b158676002fdd42fd446c57f246db83794b23cc",
       "dependency-cruiser.config.cjs": "c35e33872173427b44dd540685de6e01ba5f545e40e28d208fa749144e765adf",
       "jscpd.config.json": "0bafba536df0d94f6de1ccf822d7354832b90293545ef622f9a2833c93136c49",
       "apps/web/tsconfig.json": "9d4f94ee8caca352f8d2bd015b926ed965becb47567ab794675ae2cbcbc947a7",
@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Integrate tickets 27-30: combined lock contract; remove one deleted-file clone and reconcile thirteen context-only identities; no new clone debt.",
+  "reason": "Ticket 31: add only pinned Prettier 3.9.10; lockfile contract hash updated. Preserve all existing findings, analyzer versions, rules, scopes and thresholds.",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",

@@ -1,0 +1,33 @@
+# Runtime, generated output, dependencies and private operator material.
+**/node_modules/
+**/.next/
+**/.venv/
+**/__pycache__/
+**/build/
+**/dist/
+**/coverage/
+**/test-results/
+**/playwright-report/
+**/data/
+/media/
+/uploads/
+/artifacts/
+/logs/
+**/.scratch/
+**/.agents/
+**/.codex/
+**/.aws/
+docs/
+**/evidence/
+**/.env
+**/.env.*
+**/*.db
+**/*.sqlite*
+
+# Generated locks and reviewed analysis evidence are not formatter-owned.
+**/package-lock.json
+**/npm-shrinkwrap.json
+**/yarn.lock
+**/pnpm-lock.yaml
+**/bun.lock*
+scripts/static-analysis/*baseline*.json
