@@ -396,7 +396,7 @@ describe("media-studio-helpers Seedance support", () => {
     });
   });
 
-  it("falls back to the generic attachment rail for multi-image edit models", () => {
+  it("leaves multi-image edit models to the dedicated image rail", () => {
     const layout = resolveStandardComposerSlots({
       model: {
         input_patterns: ["image_edit"],

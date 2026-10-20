@@ -100,26 +100,6 @@
       "format": "javascript"
     },
     {
-      "id": "0448227f92d21c580e75add675ad99f9d0fb076ad46f6fb90d9820f6eeddbeab",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-          "start": 432,
-          "end": 451,
-          "context": "b4e28b7e565d00b11400e35c7ccbd7ca75d994fcccc15d262d49774ffc33f6ed"
-        },
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 280,
-          "end": 299,
-          "context": "009160ca1d49f2bdd29e0587ca0f3f75d60242ca71800c52c32ed80aa4765a2f"
-        }
-      ],
-      "tokens": 112,
-      "lines": 20,
-      "format": "tsx"
-    },
-    {
       "id": "053ee7b242f08537df4d61064572df0e484097d853becc3e1b775f56865b3057",
       "endpoints": [
         {
@@ -460,23 +440,23 @@
       "format": "python"
     },
     {
-      "id": "16015b3b4273203b19866048d93cb3059663c86a13c16649142cc0a726236753",
+      "id": "16c0323947218f8df380390ce3d9613367a4df84e50b59a1954917d620fd1827",
       "endpoints": [
         {
           "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-          "start": 224,
-          "end": 241,
-          "context": "251d7becd95eed1b5a26a41eacafe5edf198eefef2b8d5d6e6cc0dea5d04fda4"
+          "start": 251,
+          "end": 260,
+          "context": "6c4794cfac5817b2ff192eabd7d69b35068760924a91c1db5324b1a29eb79cc5"
         },
         {
           "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 332,
-          "end": 349,
-          "context": "61acb2a43b2963b397790fe5649037bf8c82dbf6e2c0963e25a0b6a243a84a15"
+          "start": 335,
+          "end": 344,
+          "context": "a367c4061ebb87b72a4c82813758d4cfe9f5137daa8619b0b4be9836cbd23bb6"
         }
       ],
-      "tokens": 130,
-      "lines": 18,
+      "tokens": 51,
+      "lines": 10,
       "format": "tsx"
     },
     {
@@ -660,6 +640,26 @@
       "format": "typescript"
     },
     {
+      "id": "1f2b021c2284cb9836500c9bad96dd95dfe9bc4165cc68b82adc530bc34fc793",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/studio-model-support.ts",
+          "start": 116,
+          "end": 121,
+          "context": "fa18a7962ba713abc5a64e5d7600dc93c7e7073fa9a27134d5b8a3f9f42cd40e"
+        },
+        {
+          "file": "apps/web/lib/studio-options.ts",
+          "start": 64,
+          "end": 69,
+          "context": "a30bb2ba34288c7971eee6892df9223b8aebdcf8c68f037771e5ae730a11b3b1"
+        }
+      ],
+      "tokens": 82,
+      "lines": 6,
+      "format": "typescript"
+    },
+    {
       "id": "1f386c75d75c32d2f955a6f0405b2ad92477ba5e6000ffe15173392824545a76",
       "endpoints": [
         {
@@ -778,6 +778,26 @@
       "tokens": 78,
       "lines": 13,
       "format": "javascript"
+    },
+    {
+      "id": "25952500d4538886387fb8b972c64371b77e6ea84fffb93cbe1dcf5cb5b9b6f3",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 397,
+          "end": 416,
+          "context": "bf2115444d7e22e6fd5282befd930ca18e30a64b737caf1c024180f83b0eb7cc"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 251,
+          "end": 270,
+          "context": "852767c343ebd06aedb7bf32a1a98e8be80cb119c82475cb5a80503bcf5fe370"
+        }
+      ],
+      "tokens": 112,
+      "lines": 20,
+      "format": "tsx"
     },
     {
       "id": "26babb3b2f4c5f82e5b703e477e6dd6463dbf12f64b7986b2d16a07f3f867e09",
@@ -1160,26 +1180,6 @@
       "format": "python"
     },
     {
-      "id": "31e389842a065e9f178be200ca7c6fc857fe5c6372f1d2ce5b95ba81dec954a0",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-          "start": 474,
-          "end": 488,
-          "context": "b0656ba4c02d9fc1f10dda46d5f7263d29b4ae4da2acea5c8816df8a28b2492c"
-        },
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 430,
-          "end": 444,
-          "context": "e2e8a789430d5749a459f0a0257006194dfb6693fa9331e94b24558c9c358106"
-        }
-      ],
-      "tokens": 97,
-      "lines": 15,
-      "format": "tsx"
-    },
-    {
       "id": "342f7917a6c2e19932226853b22f118ab901696f3e23f7787c74d36cd9fe0ea5",
       "endpoints": [
         {
@@ -1238,6 +1238,26 @@
       "tokens": 67,
       "lines": 8,
       "format": "css"
+    },
+    {
+      "id": "34cb0b683c489f2a2edfed933f1a0e8dd1ea2ac553bcfd4c22ab7778de3e983c",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 139,
+          "end": 147,
+          "context": "3f9b39d6a8b2e14216912b6591827ab74733c150e9674971908e00a79cb58942"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 248,
+          "end": 256,
+          "context": "954a15de47e83538e2cd8a7a3a95e335fcdca2e9857e29db9b441b1ebdd6d2a4"
+        }
+      ],
+      "tokens": 56,
+      "lines": 9,
+      "format": "tsx"
     },
     {
       "id": "35ae73c0a41b667ee0253855bfbe050b93291ccdb2e247b6fe9aaaf8e24095bc",
@@ -1500,46 +1520,6 @@
       "format": "python"
     },
     {
-      "id": "3dbab01130fab1164dcf4d796b0ff358428525a811bba4817e5415c9da7b45ea",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/studio-model-support.ts",
-          "start": 99,
-          "end": 104,
-          "context": "09eb12788ff1be11f974f0e9e2a3191088def77e572a441f70e85ef5f6fc90b5"
-        },
-        {
-          "file": "apps/web/lib/studio-options.ts",
-          "start": 64,
-          "end": 69,
-          "context": "a30bb2ba34288c7971eee6892df9223b8aebdcf8c68f037771e5ae730a11b3b1"
-        }
-      ],
-      "tokens": 82,
-      "lines": 6,
-      "format": "typescript"
-    },
-    {
-      "id": "3f403bed73737a6adc8e6457dc2a7a1d593daac4857f19e8dc1e3fe1478b1966",
-      "endpoints": [
-        {
-          "file": "apps/web/components/media-studio.tsx",
-          "start": 1993,
-          "end": 1998,
-          "context": "d40513e4e941b772b6ae330431ca3746efbfed7513a7baf3e68c5ab7a73b3e06"
-        },
-        {
-          "file": "apps/web/components/studio/studio-composer.tsx",
-          "start": 137,
-          "end": 141,
-          "context": "13ae1fcca54a66ff330b4dd05bbb06937167b0f78db428897758782d52c8bacd"
-        }
-      ],
-      "tokens": 54,
-      "lines": 6,
-      "format": "tsx"
-    },
-    {
       "id": "41a9defcd89e0b6a5272b07d0eba1790eea54230051d70d80fdc7496f5066bef",
       "endpoints": [
         {
@@ -1558,46 +1538,6 @@
       "tokens": 59,
       "lines": 6,
       "format": "python"
-    },
-    {
-      "id": "421d539ab6459fa15d1e80a9259a1467fa5e7525e5065fd8f8c977f32eb2334c",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-          "start": 316,
-          "end": 324,
-          "context": "a5a2979d52ae3751099af920042cb4ff77dfeb1ff510e39f559b9bf974e77e50"
-        },
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 83,
-          "end": 91,
-          "context": "3c832b0ca2c34d550e699014cbe8d703d095d5ec2549fc1858c46ee886317868"
-        }
-      ],
-      "tokens": 51,
-      "lines": 9,
-      "format": "tsx"
-    },
-    {
-      "id": "429989a71aa3ffe1290e250f7b795aa38a10dd3c731d5e3e432a321e6172a123",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-          "start": 529,
-          "end": 540,
-          "context": "55b739ef4cb38995a9b1f99f83d464f5ed74ee6a0d8fa4f1474393a221e0622c"
-        },
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 483,
-          "end": 494,
-          "context": "bbd84f0c41d8acc30f438b29c97cc78a6f2d0908431408a77d3df60d093af1ce"
-        }
-      ],
-      "tokens": 72,
-      "lines": 12,
-      "format": "tsx"
     },
     {
       "id": "43915daa9b9d6f7518a440844c500eb9e00340179b15d706e23628adfc5dfe64",
@@ -1640,23 +1580,23 @@
       "format": "typescript"
     },
     {
-      "id": "4686f501e1c4b7b2d4603f4ca5c74efd7ee095e745a2e0f4fcfc6cafc5000fa0",
+      "id": "452b995ca1b34adb6bc806042f855ed1a097cc173e25ad91336b01985f66c4fc",
       "endpoints": [
         {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 277,
-          "end": 285,
-          "context": "5edc89f42c35d7bbb21cf045b52eddea33320f9c88d00e6866d9e9d73c65a26d"
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 7,
+          "end": 22,
+          "context": "1a714d3b4dfa1c16bf197ea0f3b5b8def19100c25b9cccb35aa8d10d103785f0"
         },
         {
           "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 168,
-          "end": 176,
-          "context": "cdc1538e8cb932c3143a53be6b791ed36e67565c9987e2a6aa0fc0dca27cb1ee"
+          "start": 6,
+          "end": 21,
+          "context": "fde8bfcdc047b8d67780b73ca3792241746a5729a73c0332c304136724dbcd62"
         }
       ],
-      "tokens": 56,
-      "lines": 9,
+      "tokens": 54,
+      "lines": 16,
       "format": "tsx"
     },
     {
@@ -1700,26 +1640,6 @@
       "format": "python"
     },
     {
-      "id": "497c3b28fe5bbb61b0787d9bde93cceb354aeb766aeb791039ca3e613ad4a1b4",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 480,
-          "end": 488,
-          "context": "74fea0aab45c41c2d6bf176fca0accf693ddc08b831a29c6390eb537e3f1b8c9"
-        },
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 168,
-          "end": 176,
-          "context": "cdc1538e8cb932c3143a53be6b791ed36e67565c9987e2a6aa0fc0dca27cb1ee"
-        }
-      ],
-      "tokens": 55,
-      "lines": 9,
-      "format": "tsx"
-    },
-    {
       "id": "4bbf1d9d0b85c44e15abfe216239df7f34c3ac22412cd74957e619808fee3a51",
       "endpoints": [
         {
@@ -1758,6 +1678,26 @@
       "tokens": 53,
       "lines": 6,
       "format": "typescript"
+    },
+    {
+      "id": "4c2d928c0d036501bf413eb8cdc540bc1647bc74d09dff615396da0568266b60",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 295,
+          "end": 304,
+          "context": "0e8e4b4f0ebe6f0c8964b3cf7428236cc6abb00945153eab456413fc5b712009"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 64,
+          "end": 73,
+          "context": "57bd484b7f10c8a0d43b590c408b8b2f1848719b53a73bb73df0a6305f96f007"
+        }
+      ],
+      "tokens": 63,
+      "lines": 10,
+      "format": "tsx"
     },
     {
       "id": "4d64cfef04c88a688861def9d99e4be16478574b3b530e4bda8bb67416662c04",
@@ -2320,26 +2260,6 @@
       "format": "tsx"
     },
     {
-      "id": "635032af1816c9608c0429275bbdbaf7f865d60bd37b07b04cbdf275764ea669",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-          "start": 7,
-          "end": 27,
-          "context": "0153c80e7f0a6120680712cda82dead0ddf9276ec97ce7ea16ce6a5044bfc3b3"
-        },
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 6,
-          "end": 26,
-          "context": "1403bbb8693acfc676f209d19a909a0e771622a76233e2bd25a07947a8b7188f"
-        }
-      ],
-      "tokens": 81,
-      "lines": 21,
-      "format": "tsx"
-    },
-    {
       "id": "63e8f7d87888d048c5871ce4905717f6c6630d1df5eb23dd2058395f55f04e6b",
       "endpoints": [
         {
@@ -2840,6 +2760,26 @@
       "format": "python"
     },
     {
+      "id": "7972de883d3af36158827350eb1499ac6de49af57a8a5405999457a27f57a2ed",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1192,
+          "end": 1198,
+          "context": "30a5dbb3830b141c7cb053a22452863a204f5bb12181f565973dfde42a9d2c63"
+        },
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1244,
+          "end": 1250,
+          "context": "c7d57048d9cd4c3d3c6d77815115a778df1c577292e3261513130d180681c5b6"
+        }
+      ],
+      "tokens": 60,
+      "lines": 7,
+      "format": "tsx"
+    },
+    {
       "id": "7a1af7d088735553ed44dbedaccfd47eb47531a22c220b787cbcafe21cbdc8bb",
       "endpoints": [
         {
@@ -3000,6 +2940,26 @@
       "format": "typescript"
     },
     {
+      "id": "8104792148e63ad98bf7cf672824007000c10eef95bd2758d560adb572105ad8",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 212,
+          "end": 218,
+          "context": "6d60b74a533a8002fd9c818338e7e795a16ebaccf2c94a64bb0ab3dbe67055fd"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 296,
+          "end": 302,
+          "context": "f7589615c605b5758e2430a89f4de4b42f2fd2683de231d6cfaa36082a21ea8b"
+        }
+      ],
+      "tokens": 51,
+      "lines": 7,
+      "format": "tsx"
+    },
+    {
       "id": "8487aad4524c3bc39fea5401c363aa68ab090fc5d1b668f4062af3b034f14e37",
       "endpoints": [
         {
@@ -3080,46 +3040,6 @@
       "format": "python"
     },
     {
-      "id": "87aa546fa9218a9a8517e2f1fae2b238ab9b747f962d71d7e6d5281a16707127",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-          "start": 302,
-          "end": 313,
-          "context": "42bab8a059fa34b2e08f39373dafcaf113495464e396176ed6ff4ed9bde2cfb5"
-        },
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 67,
-          "end": 78,
-          "context": "fac9f92567e608b935fc204c8532935ef76bb7350059cfa8a28cafd922cbbdaf"
-        }
-      ],
-      "tokens": 83,
-      "lines": 12,
-      "format": "tsx"
-    },
-    {
-      "id": "89e39c1bef52c11af1a3210ebdd7d121242e3e425d54fb143a1a94d129930086",
-      "endpoints": [
-        {
-          "file": "apps/web/components/media-studio.tsx",
-          "start": 1635,
-          "end": 1646,
-          "context": "6cde1b47e44a864864b4a811bd0bc6ab172b6316313f3d26c87d2d72b6ce0e2e"
-        },
-        {
-          "file": "apps/web/components/media-studio.tsx",
-          "start": 1706,
-          "end": 1717,
-          "context": "d37e1de8afcbcf4555d16355d6469f1f69c7d6ae16c3b7b6db0d9d3364aabf76"
-        }
-      ],
-      "tokens": 52,
-      "lines": 12,
-      "format": "tsx"
-    },
-    {
       "id": "8a7abebaab1609883403b9405a0f9090d558645e26f721cdcd9cd3bcce68b864",
       "endpoints": [
         {
@@ -3178,26 +3098,6 @@
       "tokens": 53,
       "lines": 8,
       "format": "typescript"
-    },
-    {
-      "id": "8bc6ec7a4acdc70d2b33e08aa486882b18df0a3c0178dd655aa45049364e4e36",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-          "start": 494,
-          "end": 506,
-          "context": "15df8f0608835ea10eb9639400f1d646b7af995818bd341d25f85814a8c9bf82"
-        },
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 450,
-          "end": 462,
-          "context": "5534f5bed21266c53defa1e236d7252dbf71b26bd321440a31ae085717930467"
-        }
-      ],
-      "tokens": 107,
-      "lines": 13,
-      "format": "tsx"
     },
     {
       "id": "8f5ef14d66b3c70af845e1c832ef2db34c6551320c64c60efaea871019339e25",
@@ -3378,26 +3278,6 @@
       "tokens": 60,
       "lines": 13,
       "format": "typescript"
-    },
-    {
-      "id": "99f17048a59550859870a6aa9dde3bae9ac99d7b26735f4b4f1fd5ecfa9d239e",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-          "start": 460,
-          "end": 471,
-          "context": "5b8ebbf13fa885e5b4959e31d14eb8fdc8e819c359db2ac27d470223c7c9b969"
-        },
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 397,
-          "end": 408,
-          "context": "daa13a809676c58523e264016b2316800ef235b33ea45ffec0f42d811d715fb3"
-        }
-      ],
-      "tokens": 91,
-      "lines": 12,
-      "format": "tsx"
     },
     {
       "id": "9b946754f1abc4aeb2ab92deb16a5bd8efd226f9bbc1569201ec4c19523c7f7f",
@@ -4020,6 +3900,26 @@
       "format": "typescript"
     },
     {
+      "id": "b3169953391be6e7ebfa83e94e7f0abf19a9b9a16febcf64d1bcb14c00ad4603",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 284,
+          "end": 294,
+          "context": "4b762a2b45e98994da32c8fcc7fa2bea707b8e0b9b34c54d7beb02e432f96ea3"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 51,
+          "end": 61,
+          "context": "241a1c4aab352269e8f3dd8b6112a7ac9643a7f8151d3d2c40dc87a1c026880b"
+        }
+      ],
+      "tokens": 79,
+      "lines": 11,
+      "format": "tsx"
+    },
+    {
       "id": "b3595b7594bf89831e277e3e74128552840c9469858159dec032525aeb8b3161",
       "endpoints": [
         {
@@ -4240,46 +4140,6 @@
       "format": "python"
     },
     {
-      "id": "bddec570972e92b9ff29fbbfdd6369c5c7a0ae8c73c0bbc711cecd01bf56fe03",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-          "start": 381,
-          "end": 389,
-          "context": "8c385dd700b3e2ceb51bd484f731c5b6e3cfbba45ade23a38fba05c375abcdb8"
-        },
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 252,
-          "end": 260,
-          "context": "05bc366e05d374fd99db4573767bed16a61a0e9cde31947b43342fa7b495632a"
-        }
-      ],
-      "tokens": 55,
-      "lines": 9,
-      "format": "tsx"
-    },
-    {
-      "id": "be6b179823cb003040622912b851fe2d2ba72d3abcae81753b742ce8d9bb14cb",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-          "start": 217,
-          "end": 223,
-          "context": "4cc0e98144f0a51dd332de77ed2726311faf1b18d32161281451c9ce9d76d046"
-        },
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 325,
-          "end": 331,
-          "context": "4b55a99b90d70bb9183c18564f7b84f5ca72083cf4bbf5e1e5ea4471e63422a5"
-        }
-      ],
-      "tokens": 51,
-      "lines": 7,
-      "format": "tsx"
-    },
-    {
       "id": "be7f63f257b82c12b93ff9653cf2318acb70d2dd3ff3c6274644ca6f99b4a14b",
       "endpoints": [
         {
@@ -4318,6 +4178,26 @@
       "tokens": 70,
       "lines": 12,
       "format": "typescript"
+    },
+    {
+      "id": "c08e1e1182eae32bbb818d2fe87ec9ac1f579e815365050b8810cf9b553f9770",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 346,
+          "end": 354,
+          "context": "efcba071f2598abcc281b6c1735ebd3fc77926775102d0786c13741103b55e02"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 223,
+          "end": 231,
+          "context": "c2f2ae7039f267def5e72545df8f0cdf0cddecebc1c3cc6d7974554d9ec25aca"
+        }
+      ],
+      "tokens": 55,
+      "lines": 9,
+      "format": "tsx"
     },
     {
       "id": "c15c9a076a47eb4cf9a14301367af8b18af00a4133f1bf307d7972aa6fb59797",
@@ -4360,6 +4240,26 @@
       "format": "python"
     },
     {
+      "id": "c1bca7dde3caf694bc2c158eeb9dd6e6e6b8b344b5bfc4e97b7a29063db66ba6",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1643,
+          "end": 1654,
+          "context": "1d58439e3eec7899e3d7722fcafb1cf1ccb945dd0cc63a2f8e53ee3bcf6b51c5"
+        },
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1572,
+          "end": 1583,
+          "context": "a7facacd83eedefdd29816934e9204528205745cc7cdeb0ffd3fc70590dc3f30"
+        }
+      ],
+      "tokens": 52,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
       "id": "c29916a4a077eb2893aac46fd54bdaea2e5a65d476dc93cdec5ac5478e5d2a1b",
       "endpoints": [
         {
@@ -4378,6 +4278,26 @@
       "tokens": 51,
       "lines": 8,
       "format": "typescript"
+    },
+    {
+      "id": "c3597cc0be1af00fd43e79b48f0900f7b4888973eda383efa875a90efffe6e49",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-studio.tsx",
+          "start": 1929,
+          "end": 1934,
+          "context": "d0b384d59d9c50b1c72114ffd4168ff44710a2d6cb7082b43ddb9069a7522732"
+        },
+        {
+          "file": "apps/web/components/studio/studio-composer.tsx",
+          "start": 137,
+          "end": 141,
+          "context": "13ae1fcca54a66ff330b4dd05bbb06937167b0f78db428897758782d52c8bacd"
+        }
+      ],
+      "tokens": 54,
+      "lines": 6,
+      "format": "tsx"
     },
     {
       "id": "c361cf6246f5e14785e86597d8f0b8d30536361eb6265cbd74514cebb80d0ab7",
@@ -4438,6 +4358,26 @@
       "tokens": 60,
       "lines": 9,
       "format": "typescript"
+    },
+    {
+      "id": "c6e0c7bbcde60c1d098b052da950e1f4bbbb6c4dbe97acce84d9b30f547d7e2a",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 219,
+          "end": 236,
+          "context": "bb7c1934c534bc1dbd3d3720f58b87914bfdb7b50f115307f00574d3f359d03d"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 303,
+          "end": 320,
+          "context": "cf3b0ebd9fe17982d9347d516580ed36c210363fa6d3e21101227d66418b0e40"
+        }
+      ],
+      "tokens": 130,
+      "lines": 18,
+      "format": "tsx"
     },
     {
       "id": "c8bc0d5d001dad068e80ad5f815230a3a195daeaf1846c70b845cfdbe314e966",
@@ -4578,26 +4518,6 @@
       "tokens": 91,
       "lines": 15,
       "format": "javascript"
-    },
-    {
-      "id": "cfb85015ab066adeb40b9fa4912502223a9b77824f4fe12d8d11ddf91e0203ff",
-      "endpoints": [
-        {
-          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-          "start": 256,
-          "end": 265,
-          "context": "00f0f1e98e1a8c5c1a79782663790986f478b94c88384579618b53c20679e1c4"
-        },
-        {
-          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-          "start": 364,
-          "end": 373,
-          "context": "3c8486083f2563e8caf2b6ccbe511f842bb030fd5c9874f0d0bc70215e43e7f1"
-        }
-      ],
-      "tokens": 51,
-      "lines": 10,
-      "format": "tsx"
     },
     {
       "id": "cfffa779557f53bb32cc94e025bdf8fde000f3659125ef9f2d80f6946d416ed1",
@@ -5100,6 +5020,26 @@
       "format": "typescript"
     },
     {
+      "id": "e90a49445b20521d5078dcd42781136ee2c4caf5cc8c9c43241fab5d5d532c25",
+      "endpoints": [
+        {
+          "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+          "start": 425,
+          "end": 436,
+          "context": "29b85fa68925cbd185791a5ecb6cfcbc601d6bda294f9126f7baa30c3934cd5b"
+        },
+        {
+          "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+          "start": 368,
+          "end": 379,
+          "context": "cfe0f87e4d51b5076892e8290aa608bf241b07d899bdb6d41d8379be7322907e"
+        }
+      ],
+      "tokens": 91,
+      "lines": 12,
+      "format": "tsx"
+    },
+    {
       "id": "ebc9461a3f1b73b615ce88e4f60b175dcb0fa03ee6ed3aaa7a9b5fd7d6e9bc4e",
       "endpoints": [
         {
@@ -5258,26 +5198,6 @@
       "tokens": 56,
       "lines": 7,
       "format": "python"
-    },
-    {
-      "id": "f0c868db312e4a5e349ae1f8e4e536bfe52a50854464c3ce2e64076e822cbaff",
-      "endpoints": [
-        {
-          "file": "apps/web/components/media-studio.tsx",
-          "start": 1305,
-          "end": 1312,
-          "context": "df4307b015d9f4cb274b8491b4de67074785c696809896a1374433bffbe89088"
-        },
-        {
-          "file": "apps/web/components/media-studio.tsx",
-          "start": 1242,
-          "end": 1249,
-          "context": "f90ce69ee966bf71551788bb9f906dcc7b3b68dc4ae657d4720ce599da5fd189"
-        }
-      ],
-      "tokens": 65,
-      "lines": 8,
-      "format": "tsx"
     },
     {
       "id": "f18046bc7658af664716c4e290e4e13906c875518428846422cf79f1df399b20",

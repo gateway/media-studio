@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveStudioComposerInputRail } from "@/lib/studio-model-support";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Coins, FolderPlus, X } from "lucide-react";
@@ -29,7 +30,6 @@ import { StudioReferenceLibrary } from "@/components/studio/studio-reference-lib
 import { StudioSettingsModal } from "@/components/studio/studio-settings-modal";
 import { StudioStructuredPresetComposer } from "@/components/studio/studio-structured-preset-composer";
 import {
-  buildStudioHarnessAsset,
   buildStudioHarnessAttachment,
   buildStudioHarnessMotionVideoAttachment,
   type StudioHarnessFixtureState,
@@ -454,8 +454,6 @@ export function MediaStudio({
     composerStatusMessage,
     imageLimitLabel,
     canAddMoreImages,
-    canAddMoreVideos,
-    canAddMoreAudios,
     seedanceFirstFrameAttachment,
     seedanceLastFrameAttachment,
     seedanceReferenceImages,
@@ -465,8 +463,6 @@ export function MediaStudio({
     maxImageInputs,
     maxVideoInputs,
     maxAudioInputs,
-    stagedVideoCount,
-    stagedAudioCount,
   } = composer.derived;
   const {
     promptInputRef,
@@ -676,13 +672,15 @@ export function MediaStudio({
     pollJobProxyRef.current = pollJob;
     pollBatchProxyRef.current = pollBatch;
   }, [pollBatch, pollJob]);
-  const dedicatedImageReferenceRailActive =
-    !structuredPresetActive &&
-    !seedanceComposer &&
-    !explicitVideoImageSlots &&
-    maxImageInputs > 1 &&
-    maxVideoInputs === 0 &&
-    maxAudioInputs === 0;
+  const composerInputRail = resolveStudioComposerInputRail({
+    structuredPresetActive,
+    seedanceComposer,
+    standardComposerUsesExplicitSlots: standardComposerLayout.usesExplicitSlots,
+    maxImageInputs,
+    maxVideoInputs,
+    maxAudioInputs,
+  });
+  const dedicatedImageReferenceRailActive = composerInputRail === "multi-image";
   const standardComposerSlots = standardComposerLayout.slots.filter((slot) => slot.visible);
   const standardComposerSectionTitle = standardComposerSlots.some((slot) => slot.role === "driving_video")
     ? "Motion inputs"
@@ -765,15 +763,6 @@ export function MediaStudio({
           modelInputLimit(model, "video_inputs") === 0 &&
           modelInputLimit(model, "audio_inputs") === 0 &&
           !model.key.startsWith("seedance"),
-      );
-    const findGenericInputModel = () =>
-      models.find(
-        (model) =>
-          model.studio_exposed !== false &&
-          !model.key.startsWith("seedance") &&
-          (modelInputLimit(model, "image_inputs") > 0 ||
-            modelInputLimit(model, "video_inputs") > 0 ||
-            modelInputLimit(model, "audio_inputs") > 0),
       );
     const findMotionControlModel = (preferredKey = "kling-3.0-motion") =>
       models.find((model) => model.studio_exposed !== false && model.key === preferredKey) ??
@@ -898,17 +887,6 @@ export function MediaStudio({
           setPrompt("Standard input fixture.");
           return { ok: true };
         }
-        if (mode === "generic") {
-          const targetModel = findGenericInputModel();
-          if (!targetModel) {
-            return { ok: false, reason: "No generic input Studio model is available." };
-          }
-          setModelKey(targetModel.key);
-          stageSourceAsset(buildStudioHarnessAsset(1));
-          setAttachments([buildStudioHarnessAttachment(1, "images")]);
-          setPrompt("Generic input fixture.");
-          return { ok: true };
-        }
         const targetModel = findMultiImageModel();
         if (!targetModel) {
           return { ok: false, reason: "No multi-image Studio model is available." };
@@ -950,7 +928,6 @@ export function MediaStudio({
     setSelectedPresetId,
     setSelectedPromptIds,
     setValidation,
-    stageSourceAsset,
     setReferenceLibraryTarget,
     setSelectedReferencePreview,
   ]);
@@ -1014,10 +991,6 @@ export function MediaStudio({
       }
       if (fixtureKey === "mobile-standard") {
         studioHarnessFixtures.mountMobileInputs("standard");
-        return;
-      }
-      if (fixtureKey === "mobile-generic") {
-        studioHarnessFixtures.mountMobileInputs("generic");
         return;
       }
       if (fixtureKey === "mobile-inputs") {
@@ -1128,14 +1101,6 @@ export function MediaStudio({
       onAddImageFilesToOrderedSlot={addImageFilesToOrderedSlot}
     />
   ) : null;
-  const genericSourceInputsAvailable =
-    !structuredPresetActive &&
-    !dedicatedImageReferenceRailActive &&
-    !seedanceComposer &&
-    !explicitVideoImageSlots &&
-    !explicitMotionControlSlots &&
-    (maxImageInputs > 0 || maxVideoInputs > 0 || maxAudioInputs > 0);
-  const genericSourceAddTileVisible = canAddMoreImages || canAddMoreVideos || canAddMoreAudios;
   const motionControlVideoAsset = currentSourceAsset?.generation_kind === "video" ? currentSourceAsset : null;
   const motionControlVideoAttachment =
     motionControlVideoAsset ? null : attachments.find((attachment) => attachment.kind === "videos") ?? null;
@@ -1215,33 +1180,17 @@ export function MediaStudio({
     }
   }
 
-  const sourceAttachmentStrip = !structuredPresetActive &&
-    !dedicatedImageReferenceRailActive &&
-    (seedanceComposer || standardComposerLayout.usesExplicitSlots || genericSourceInputsAvailable) ? (
+  const sourceAttachmentStrip = composerInputRail === "seedance" || composerInputRail === "standard" ? (
     <StudioSourceAttachmentStrip
-      seedanceComposer={seedanceComposer}
-      standardComposerUsesExplicitSlots={standardComposerLayout.usesExplicitSlots}
-      genericSourceInputsAvailable={genericSourceInputsAvailable}
+      inputRail={composerInputRail}
       isDragActive={isDragActive}
       seedanceFirstFrameAttachment={seedanceFirstFrameAttachment}
       seedanceLastFrameAttachment={seedanceLastFrameAttachment}
       standardComposerSlots={standardComposerSlots}
       orderedImageInputs={orderedImageInputs}
-      currentSourceAsset={currentSourceAsset}
-      canUseSourceAsset={canUseSourceAsset}
-      attachments={attachments}
-      genericSourceAddTileVisible={genericSourceAddTileVisible}
-      imageLimitLabel={imageLimitLabel}
-      maxVideoInputs={maxVideoInputs}
-      maxAudioInputs={maxAudioInputs}
-      explicitVideoImageSlots={explicitVideoImageSlots}
-      explicitMotionControlSlots={explicitMotionControlSlots}
-      stagedVideoCount={stagedVideoCount}
-      stagedAudioCount={stagedAudioCount}
       mobileAddTileClassName={mobileAddTileClassName}
       mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
       buildAttachmentPreview={buildAttachmentPreview}
-      buildAssetReferencePreview={buildAssetReferencePreview}
       standardComposerSlotPreview={standardComposerSlotPreview}
       standardComposerSlotVisual={standardComposerSlotVisual}
       onSetDragActive={setIsDragActive}
@@ -1249,7 +1198,6 @@ export function MediaStudio({
       onDropIntoSourceSlot={(event, slotIndex, slot) => void handleSourceTileDrop(event, slotIndex, slot)}
       onOpenPreview={openReferencePreview}
       onRemoveAttachment={removeAttachment}
-      onClearSourceAsset={clearSourceAsset}
       onClearStandardComposerSlot={clearStandardComposerSlot}
       onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
       onAddFiles={addFiles}
@@ -1277,10 +1225,7 @@ export function MediaStudio({
     ) : null;
   const mobileInputsSection = !structuredPresetActive ? (
     <StudioMobileInputsContent
-      dedicatedImageReferenceRailActive={dedicatedImageReferenceRailActive}
-      seedanceComposer={seedanceComposer}
-      standardComposerUsesExplicitSlots={standardComposerLayout.usesExplicitSlots}
-      sourceAttachmentStripVisible={Boolean(sourceAttachmentStrip)}
+      inputRail={composerInputRail}
       effectiveSeedanceMode={effectiveSeedanceMode}
       imageLimitLabel={imageLimitLabel}
       orderedImageInputs={orderedImageInputs}
@@ -1294,17 +1239,10 @@ export function MediaStudio({
       standardComposerSectionTitle={standardComposerSectionTitle}
       standardComposerSummaryLabel={standardComposerLayout.summaryLabel}
       standardComposerSlots={standardComposerSlots}
-      currentSourceAsset={currentSourceAsset}
-      canUseSourceAsset={canUseSourceAsset}
-      attachments={attachments}
-      genericSourceAddTileVisible={genericSourceAddTileVisible}
-      stagedVideoCount={stagedVideoCount}
-      stagedAudioCount={stagedAudioCount}
       mobileAddTileClassName={mobileAddTileClassName}
       mobileAddTilePlusIconClassName={mobileAddTilePlusIconClassName}
       buildOrderedImageInputPreview={orderedImageInputPreview}
       buildAttachmentPreview={buildAttachmentPreview}
-      buildAssetReferencePreview={buildAssetReferencePreview}
       standardComposerSlotPreview={standardComposerSlotPreview}
       standardComposerSlotVisual={standardComposerSlotVisual}
       onSetDragActive={setIsDragActive}
@@ -1313,7 +1251,6 @@ export function MediaStudio({
       onSeedanceReferenceDrop={(event, kind) => void handleSeedanceReferenceDrop(event, kind)}
       onOpenPreview={openReferencePreview}
       onClearOrderedImageInput={clearOrderedImageInput}
-      onClearSourceAsset={clearSourceAsset}
       onRemoveAttachment={removeAttachment}
       onClearStandardComposerSlot={clearStandardComposerSlot}
       onPickStandardComposerSlotFiles={addFilesToStandardComposerSlot}
@@ -1876,9 +1813,8 @@ export function MediaStudio({
       setFormMessage({ tone: "warning", text: `${asset.prompt_summary ? "Image" : "Selected asset"} assigned to ${nextSlot.label}.` });
       return;
     }
-    // Plain source-image flows keep one dedicated source asset outside the generic
-    // attachment strip so slot zero is not duplicated when explicit slot contracts
-    // later stage image attachments into ordered positions.
+    // Keep the gallery asset in ordered slot zero so subsequent image attachments
+    // are staged after it without duplicating the source.
     stageSourceAsset(asset);
     closeAssetInspector();
     // Desktop keeps the docked composer anchored to the viewport.

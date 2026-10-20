@@ -48,24 +48,6 @@ export function buildAttachmentPreview(
   };
 }
 
-function attachmentPreviewFallback(attachment: AttachmentRecord, label: string): StudioReferencePreview {
-  return {
-    key: `attachment:${attachment.id}`,
-    label,
-    url: attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
-    kind: attachment.kind,
-    posterUrl: attachment.referenceRecord?.poster_url ?? null,
-  };
-}
-
-export function buildStagedAttachmentPreview(
-  attachment: AttachmentRecord,
-  buildPreview: typeof buildAttachmentPreview,
-): StudioReferencePreview {
-  const label = attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference";
-  return buildPreview(attachment, label, attachment.id) ?? attachmentPreviewFallback(attachment, label);
-}
-
 export function buildAssetReferencePreview(
   asset: MediaAsset | null | undefined,
   label: string,

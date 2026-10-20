@@ -68,20 +68,6 @@ export function buildStudioHarnessAttachment(
   } satisfies AttachmentRecord;
 }
 
-export function buildStudioHarnessAsset(index: number) {
-  const previewUrl = studioHarnessFixtureImageDataUri(`Asset ${index}`, "deepskyblue");
-  return {
-    asset_id: `studio-fixture-asset-${index}`,
-    generation_kind: "image",
-    model_key: "studio-fixture",
-    prompt_summary: `Fixture source asset ${index}`,
-    hero_thumb_url: previewUrl,
-    thumb_url: previewUrl,
-    stored_url: previewUrl,
-    created_at: "2026-06-18T00:00:00.000Z",
-  } as MediaAsset;
-}
-
 export function buildStudioHarnessMotionVideoAttachment() {
   const posterUrl = studioHarnessFixtureImageDataUri("20.1s video", "crimson");
   const reference = buildStudioHarnessReference(1, "video", {
@@ -141,7 +127,7 @@ export type StudioTestFixtureControls = {
   mountContextPanels: () => StudioFixtureMountResult;
   mountGalleryEmptyState: () => StudioFixtureMountResult;
   mountMotionControlVideo: (modelKey?: string) => StudioFixtureMountResult;
-  mountMobileInputs: (mode?: "multi-image" | "seedance" | "standard" | "generic") => StudioFixtureMountResult;
+  mountMobileInputs: (mode?: "multi-image" | "seedance" | "standard") => StudioFixtureMountResult;
 };
 
 type StudioShellHandoffSnapshotParams = {

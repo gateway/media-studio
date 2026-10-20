@@ -51,6 +51,23 @@ export function supportedModelInputPatterns(model: MediaModelSummary | null) {
   return Array.from(new Set([...(model?.input_patterns ?? []), ...specInputPatterns(model)]));
 }
 
+export type StudioComposerInputRail = "none" | "multi-image" | "seedance" | "standard";
+
+export function resolveStudioComposerInputRail(input: {
+  structuredPresetActive: boolean;
+  seedanceComposer: boolean;
+  standardComposerUsesExplicitSlots: boolean;
+  maxImageInputs: number;
+  maxVideoInputs: number;
+  maxAudioInputs: number;
+}): StudioComposerInputRail {
+  if (input.structuredPresetActive) return "none";
+  if (input.seedanceComposer) return "seedance";
+  if (input.standardComposerUsesExplicitSlots) return "standard";
+  if (input.maxImageInputs > 1 && input.maxVideoInputs === 0 && input.maxAudioInputs === 0) return "multi-image";
+  return "none";
+}
+
 export function optionChoices(schema: Record<string, unknown>, currentValue: unknown) {
   let declared: unknown[] = [];
   if (Array.isArray(schema.allowed)) {
