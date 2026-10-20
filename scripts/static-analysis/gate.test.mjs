@@ -96,6 +96,15 @@ test('real analyzers and CLI reject regressions and failures without changing ba
     await writeFile(source, 'export const value: number = 1;\n');
     expectStatus(run(directory, ['--update-baseline', 'Disposable acceptance fixture']), 0);
     const savedBaseline = await readFile(baselineFile, 'utf8');
+    assert.ok(JSON.parse(savedBaseline).findings.some((finding) =>
+      finding.file.startsWith('scripts/static-analysis/') && finding.rule === 'complexity'));
+    const brokenTool = path.join(directory, 'scripts/static-analysis/broken.mjs');
+    await writeFile(brokenTool, 'export const value = missingToolValue;\n');
+    const rejected = run(directory, ['--update-baseline', 'Must reject tooling correctness']);
+    expectStatus(rejected, 1);
+    assert.match(rejected.stderr, /Gate correctness findings cannot be baselined/);
+    assert.equal(await readFile(baselineFile, 'utf8'), savedBaseline);
+    await rm(brokenTool);
     expectStatus(run(directory), 0);
     await writeFile(path.join(directory, 'ops/example.cjs'), 'module.exports = missingConfiguration;\n');
     const operational = run(directory);

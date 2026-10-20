@@ -99,6 +99,14 @@ class IntegrationTests(unittest.TestCase):
     def test_correctness_replacement_and_failures(self):
         self.source.write_text('import os\nraise RuntimeError("Never import application source")\n')
         saved = self.baseline()
+        self.assertTrue(any(item['file'].startswith('scripts/static-analysis/') and
+                            item['rule'] == 'radon/CC' for item in json.loads(saved)['findings']))
+        broken_tool = self.tooling / 'broken.py'
+        broken_tool.write_text('value = missing_tool_value\n')
+        rejected = self.run_gate(['--update-baseline', 'Must reject tooling correctness'], expected=1)
+        self.assertIn('Gate correctness findings cannot be baselined', rejected.stderr)
+        self.assertEqual((self.tooling / 'python-baseline.json').read_bytes(), saved)
+        broken_tool.unlink()
         self.run_gate()
         self.source.write_text('import sys\nraise RuntimeError("Never import application source")\n')
         self.assertIn('ruff/F401', self.run_gate(expected=1).stderr)
