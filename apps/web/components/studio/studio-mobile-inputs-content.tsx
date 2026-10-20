@@ -22,6 +22,7 @@ import {
   type StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
 import type { MediaAsset } from "@/lib/types";
+import { buildStagedAttachmentPreview } from "@/lib/studio-reference-previews";
 import { cn } from "@/lib/utils";
 
 const MOBILE_INPUT_TILE_CLASS = "h-[72px] w-[72px]";
@@ -449,19 +450,7 @@ export function StudioMobileInputsContent({
         {attachments.slice(0, 4).map((attachment) => (
           <StudioStagedMediaTile
             key={attachment.id}
-            preview={
-              buildAttachmentPreview(
-                attachment,
-                attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
-                attachment.id,
-              ) ?? {
-                key: `attachment:${attachment.id}`,
-                label: attachment.file?.name ?? attachment.referenceRecord?.original_filename ?? "Reference",
-                url: attachment.previewUrl ?? attachment.referenceRecord?.stored_url ?? "",
-                kind: attachment.kind,
-                posterUrl: attachment.referenceRecord?.poster_url ?? null,
-              }
-            }
+            preview={buildStagedAttachmentPreview(attachment, buildAttachmentPreview)}
             visualUrl={
               attachment.kind === "audios"
                 ? null
