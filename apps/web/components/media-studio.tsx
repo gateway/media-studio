@@ -1236,6 +1236,9 @@ export function MediaStudio({
       seedanceReferenceImages={seedanceReferenceImages}
       seedanceReferenceVideos={seedanceReferenceVideos}
       seedanceReferenceAudios={seedanceReferenceAudios}
+      maxImageReferences={maxImageInputs}
+      maxVideoReferences={maxVideoInputs}
+      maxAudioReferences={maxAudioInputs}
       standardComposerSectionTitle={standardComposerSectionTitle}
       standardComposerSummaryLabel={standardComposerLayout.summaryLabel}
       standardComposerSlots={standardComposerSlots}
