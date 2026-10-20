@@ -301,7 +301,8 @@
   -webkit-user-select: text;
   pointer-events: auto;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .graph-display-any-text-wrap {
