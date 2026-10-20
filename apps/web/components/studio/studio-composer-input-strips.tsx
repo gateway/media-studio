@@ -8,22 +8,17 @@ import { StudioMediaSlotAddTile, studioMediaSlotAddTileIcon } from "@/components
 import { StudioStagedMediaTile } from "@/components/studio/studio-staged-media-tile";
 import { StudioStandardSlotRail } from "@/components/studio/studio-standard-slot-rail";
 import type {
-  AssetPreviewBuilder,
   AttachmentPreviewBuilder,
   StudioAddFilesHandler,
 } from "@/components/studio/studio-composer-input-types";
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
 import {
-  mediaDisplayUrl,
-  mediaThumbnailUrl,
   orderedImageInputKey,
   orderedImageInputVisual,
   type OrderedImageInput,
   type StudioComposerSlot,
   type StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
-import type { MediaAsset } from "@/lib/types";
-import { buildStagedAttachmentPreview } from "@/lib/studio-reference-previews";
 import { cn } from "@/lib/utils";
 
 export { StudioMobileInputsContent } from "@/components/studio/studio-mobile-inputs-content";
@@ -279,29 +274,15 @@ export function StudioSeedanceReferenceStrip({
 }
 
 type StudioSourceAttachmentStripProps = {
-  seedanceComposer: boolean;
-  standardComposerUsesExplicitSlots: boolean;
-  genericSourceInputsAvailable: boolean;
+  inputRail: "seedance" | "standard";
   isDragActive: boolean;
   seedanceFirstFrameAttachment: AttachmentRecord | null;
   seedanceLastFrameAttachment: AttachmentRecord | null;
   standardComposerSlots: StudioComposerSlot[];
   orderedImageInputs: OrderedImageInput[];
-  currentSourceAsset: MediaAsset | null;
-  canUseSourceAsset: boolean;
-  attachments: AttachmentRecord[];
-  genericSourceAddTileVisible: boolean;
-  imageLimitLabel: string | null;
-  maxVideoInputs: number;
-  maxAudioInputs: number;
-  explicitVideoImageSlots: boolean;
-  explicitMotionControlSlots: boolean;
-  stagedVideoCount: number;
-  stagedAudioCount: number;
   mobileAddTileClassName: string;
   mobileAddTilePlusIconClassName: string;
   buildAttachmentPreview: AttachmentPreviewBuilder;
-  buildAssetReferencePreview: AssetPreviewBuilder;
   standardComposerSlotPreview: (slot: StudioComposerSlot, previewKey: string) => StudioReferencePreview | null;
   standardComposerSlotVisual: (slot: StudioComposerSlot) => string | null;
   onSetDragActive: (value: boolean) => void;
@@ -313,7 +294,6 @@ type StudioSourceAttachmentStripProps = {
   ) => void;
   onOpenPreview: (preview: StudioReferencePreview | null) => void;
   onRemoveAttachment: (attachmentId: string) => void;
-  onClearSourceAsset: () => void;
   onClearStandardComposerSlot: (slot: StudioComposerSlot) => void;
   onPickStandardComposerSlotFiles: (
     slot: StudioComposerSlot,
@@ -326,29 +306,15 @@ type StudioSourceAttachmentStripProps = {
 };
 
 export function StudioSourceAttachmentStrip({
-  seedanceComposer,
-  standardComposerUsesExplicitSlots,
-  genericSourceInputsAvailable,
+  inputRail,
   isDragActive,
   seedanceFirstFrameAttachment,
   seedanceLastFrameAttachment,
   standardComposerSlots,
   orderedImageInputs,
-  currentSourceAsset,
-  canUseSourceAsset,
-  attachments,
-  genericSourceAddTileVisible,
-  imageLimitLabel,
-  maxVideoInputs,
-  maxAudioInputs,
-  explicitVideoImageSlots,
-  explicitMotionControlSlots,
-  stagedVideoCount,
-  stagedAudioCount,
   mobileAddTileClassName,
   mobileAddTilePlusIconClassName,
   buildAttachmentPreview,
-  buildAssetReferencePreview,
   standardComposerSlotPreview,
   standardComposerSlotVisual,
   onSetDragActive,
@@ -356,7 +322,6 @@ export function StudioSourceAttachmentStrip({
   onDropIntoSourceSlot,
   onOpenPreview,
   onRemoveAttachment,
-  onClearSourceAsset,
   onClearStandardComposerSlot,
   onPickStandardComposerSlotFiles,
   onAddFiles,
@@ -364,7 +329,7 @@ export function StudioSourceAttachmentStrip({
 }: StudioSourceAttachmentStripProps) {
   return (
     <div className="flex flex-wrap gap-3">
-      {seedanceComposer ? (
+      {inputRail === "seedance" ? (
         <>
           {[
             { label: "Start frame", role: "first_frame" as const, attachment: seedanceFirstFrameAttachment },
@@ -454,7 +419,7 @@ export function StudioSourceAttachmentStrip({
             );
           })}
         </>
-      ) : standardComposerUsesExplicitSlots ? (
+      ) : (
         <StudioStandardSlotRail
           slots={standardComposerSlots}
           isDragActive={isDragActive}
@@ -469,97 +434,7 @@ export function StudioSourceAttachmentStrip({
           onClearSlot={onClearStandardComposerSlot}
           onPickFiles={onPickStandardComposerSlotFiles}
         />
-      ) : (
-        <>
-          {canUseSourceAsset && currentSourceAsset ? (
-            <StudioStagedMediaTile
-              preview={
-                buildAssetReferencePreview(currentSourceAsset, currentSourceAsset.prompt_summary ?? "Source asset") ?? {
-                  key: `asset:${currentSourceAsset.asset_id}`,
-                  label: currentSourceAsset.prompt_summary ?? "Source asset",
-                  url: mediaThumbnailUrl(currentSourceAsset) ?? "",
-                  kind: currentSourceAsset.generation_kind === "video" ? "videos" : "images",
-                  posterUrl: mediaThumbnailUrl(currentSourceAsset) ?? null,
-                }
-              }
-              visualUrl={mediaThumbnailUrl(currentSourceAsset) ?? mediaDisplayUrl(currentSourceAsset)}
-              onOpenPreview={onOpenPreview}
-              onRemove={onClearSourceAsset}
-              className={STUDIO_COMPOSER_TILE_CLASS_NAME}
-              tileClassName="studio-composer-accent-border"
-              testId="studio-source-asset-tile"
-            />
-          ) : null}
-
-          {attachments.slice(0, 4).map((attachment) => (
-            <StudioStagedMediaTile
-              key={attachment.id}
-              preview={buildStagedAttachmentPreview(attachment, buildAttachmentPreview)}
-              visualUrl={
-                attachment.kind === "audios"
-                  ? null
-                  : attachment.previewUrl ?? attachment.referenceRecord?.thumb_url ?? attachment.referenceRecord?.stored_url ?? null
-              }
-              footerLabel={attachment.kind === "images" ? "Image" : attachment.kind === "videos" ? "Video" : "Audio"}
-              onOpenPreview={onOpenPreview}
-              onRemove={() => onRemoveAttachment(attachment.id)}
-              className={STUDIO_COMPOSER_TILE_CLASS_NAME}
-              testId={`studio-attachment-tile-${attachment.id}`}
-            />
-          ))}
-
-          {attachments.length > 4 ? (
-            <div
-              className={cn(
-                "studio-composer-muted-tile flex items-center justify-center rounded-[24px] text-center text-[0.62rem] font-semibold uppercase tracking-[0.14em]",
-                STUDIO_COMPOSER_TILE_CLASS_NAME,
-              )}
-            >
-              +{attachments.length - 4} more
-            </div>
-          ) : null}
-
-          {genericSourceAddTileVisible ? (
-            <StudioMediaSlotAddTile
-              accept="image/*,video/*,audio/*"
-              multiple
-              disabled={!genericSourceAddTileVisible}
-              isDragActive={isDragActive}
-              testId="studio-source-input"
-              onDragOver={(event) => {
-                event.preventDefault();
-                onSetDragActive(true);
-              }}
-              onDragLeave={() => onSetDragActive(false)}
-              onDrop={(event) => onDropIntoSourceSlot(event)}
-              onPickFiles={(fileList, input) => {
-                onAddFiles(fileList);
-                onResetFileInput(input);
-              }}
-            />
-          ) : null}
-        </>
       )}
-      {(imageLimitLabel || maxVideoInputs > 0 || maxAudioInputs > 0) &&
-      !explicitVideoImageSlots &&
-      !explicitMotionControlSlots &&
-      !seedanceComposer ? (
-        <div className="studio-composer-muted-tile flex min-h-[82px] min-w-[120px] flex-col justify-center rounded-[24px] px-3 py-2">
-          {imageLimitLabel ? (
-            <div className="text-[0.62rem] font-semibold uppercase tracking-[0.14em]">{imageLimitLabel}</div>
-          ) : null}
-          {maxVideoInputs > 0 ? (
-            <div className="mt-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[var(--text-subtle)]">
-              {stagedVideoCount} / {maxVideoInputs} videos
-            </div>
-          ) : null}
-          {maxAudioInputs > 0 ? (
-            <div className="mt-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[var(--text-subtle)]">
-              {stagedAudioCount} / {maxAudioInputs} audio
-            </div>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }

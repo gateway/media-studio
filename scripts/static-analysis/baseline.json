@@ -1335,11 +1335,11 @@
     },
     {
       "rule": "sonarjs/cognitive-complexity",
-      "message": "Refactor this function to reduce its Cognitive Complexity from 86 to the 12 allowed.",
+      "message": "Refactor this function to reduce its Cognitive Complexity from 83 to the 12 allowed.",
       "severity": 1,
       "line": 99,
       "column": 17,
-      "metric": 86,
+      "metric": 83,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]",
       "id": "1972de95f5593e2de9e3a8bbceea701dd7a366115fa9cfd280eb87fd56f5b3f1"
@@ -1463,11 +1463,11 @@
     },
     {
       "rule": "complexity",
-      "message": "Function 'MediaStudio' has a complexity of 150. Maximum allowed is 8.",
+      "message": "Function 'MediaStudio' has a complexity of 133. Maximum allowed is 8.",
       "severity": 1,
       "line": 99,
       "column": 8,
-      "metric": 150,
+      "metric": 133,
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]",
       "id": "1b98b2ce6aa7625f4738ce115c14c5ef5ade4865747f0d5295ef7a03af3bdc83"
@@ -1598,6 +1598,16 @@
       "id": "1da6f692eb18f16e32762b16ec67a77b529eadfc8571399249d7f915980d9061"
     },
     {
+      "file": "apps/web/components/media-studio.tsx",
+      "rule": "TS6133",
+      "message": "'initialAssetOffset' is declared but its value is never read.",
+      "severity": 2,
+      "line": 112,
+      "column": 3,
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"initialAssetOffset\"]",
+      "id": "1de4a5f6f79c880e45454f9d0afa9a153de2dfebf3dbe2c31eda228105080479"
+    },
+    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 22 to the 12 allowed.",
       "severity": 1,
@@ -1715,16 +1725,6 @@
       "file": "apps/web/components/graph-studio/utils/graph-change-copy.ts",
       "owner": "FunctionDeclaration:[\"graphChangeCopy\"]",
       "id": "20abb675e72cc85bea24628d6dfbabe1df8a09bc4112c2ab0fffa79da4db797b"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'initialAssetOffset' is declared but its value is never read.",
-      "severity": 2,
-      "line": 112,
-      "column": 3,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"initialAssetOffset\"]",
-      "id": "20b079227be223ef0bb7ac5d5ac1820aef0738655081669d76cb56b8c5a1f826"
     },
     {
       "rule": "complexity",
@@ -2919,17 +2919,6 @@
       "id": "3ad04f785dbf768ecf2695676e485ae1e6bf1a3649e6f7d47095227bec9c2b18"
     },
     {
-      "rule": "complexity",
-      "message": "Arrow function has a complexity of 9. Maximum allowed is 8.",
-      "severity": 1,
-      "line": 494,
-      "column": 53,
-      "metric": 9,
-      "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-      "owner": "FunctionDeclaration:[\"StudioSourceAttachmentStrip\"]/anonymous:17adc72d919cccc5f792bc95adee96d744a8accd8a61b66a5a7db967795d9ac6",
-      "id": "3ae3c432bcfc2489cff26eb94f11f1befce1b8a352b9fab83512f2af22e8ca98"
-    },
-    {
       "rule": "@typescript-eslint/no-explicit-any",
       "message": "Unexpected any. Specify a different type.",
       "severity": 1,
@@ -2949,17 +2938,6 @@
       "file": "apps/web/components/graph-studio/utils/graph-tabs.ts",
       "owner": "FunctionDeclaration:[\"readGraphTabSession\"]",
       "id": "3b2bde3b5effaa8a36a65443ad223afa7882ba9f80b9b3e621748e0261908925"
-    },
-    {
-      "rule": "complexity",
-      "message": "Method 'mountMobileInputs' has a complexity of 9. Maximum allowed is 8.",
-      "severity": 1,
-      "line": 874,
-      "column": 7,
-      "metric": 9,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"studioHarnessFixtures\"]/anonymous:6a11e2d629f1aceeaae6bae44a55ea0a22419af32b9425af15b0ba5f85e4370b/PropertyAssignment:[\"mountMobileInputs\"]",
-      "id": "3b3f75d829b3a87c3bebeca8b00012ad46d5fbf1a5f54dd9631c5fa022b7c22c"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -3228,16 +3206,6 @@
       "id": "40abc2e68a5c8bc4482e0dec1fbf32dad5b750d1d609ef72ef02f4709cbe5aa3"
     },
     {
-      "rule": "@typescript-eslint/no-misused-promises",
-      "message": "Promise-returning function provided to attribute where a void return was expected.",
-      "severity": 2,
-      "line": 1274,
-      "column": 20,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"seedanceReferenceStrip\"]/JsxAttribute:[\"onAddFiles\"]",
-      "id": "40ae9453ff13413e0f7ee8a200053adfecd2fa392ed0887d15009d002d629e0a"
-    },
-    {
       "rule": "@typescript-eslint/no-explicit-any",
       "message": "Unexpected any. Specify a different type.",
       "severity": 1,
@@ -3464,11 +3432,11 @@
     },
     {
       "rule": "sonarjs/cognitive-complexity",
-      "message": "Refactor this function to reduce its Cognitive Complexity from 28 to the 12 allowed.",
+      "message": "Refactor this function to reduce its Cognitive Complexity from 18 to the 12 allowed.",
       "severity": 1,
-      "line": 96,
+      "line": 78,
       "column": 17,
-      "metric": 28,
+      "metric": 18,
       "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
       "owner": "FunctionDeclaration:[\"StudioMobileInputsContent\"]",
       "id": "4612f5dc129cb3fb8e7aed51f23c5d5bc0e1973e92c52712d134052e295966f0"
@@ -3760,6 +3728,16 @@
       "file": "apps/web/components/graph-studio/graph-canvas.test.tsx",
       "owner": "anonymous:51f4ea6d79af1193491768841cdfe072b021379eb83d76c239b425dadaebb14e/anonymous:b6af997ecbaedc2a4ab1a42941af6e42dd236d0151d8fb823e61274f210c174f/VariableDeclaration:[\"{\",\"getByText\",\"}\"]/JsxAttribute:[\"nodes\"]",
       "id": "4cb47781c8be277b6704be5ea6cda426218a658fbc4371b97c893e084a723b8f"
+    },
+    {
+      "rule": "@typescript-eslint/no-misused-promises",
+      "message": "Promise-returning function provided to attribute where a void return was expected.",
+      "severity": 2,
+      "line": 1222,
+      "column": 20,
+      "file": "apps/web/components/media-studio.tsx",
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"seedanceReferenceStrip\"]/JsxAttribute:[\"onAddFiles\"]",
+      "id": "4cb7510453dd501292035c77bfc0193c18876520eb761287be0766fd7aa4e51b"
     },
     {
       "rule": "complexity",
@@ -4173,14 +4151,14 @@
       "id": "56f979f6de81218492b746d5b4aad8a7a2789c3eeef8d6bfa1ea7a5cf6807eb1"
     },
     {
-      "rule": "react-hooks/exhaustive-deps",
-      "message": "React Hook useEffect has a missing dependency: 'setReferenceLibraryTarget'. Either include it or remove the dependency array.",
-      "severity": 2,
-      "line": 1027,
-      "column": 6,
       "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]",
-      "id": "5769e104200de5610c4a6ff80b3cb9c5b4ba65799a8d51dfd3514c02f268e3d8"
+      "rule": "TS6133",
+      "message": "'closeHref' is declared but its value is never read.",
+      "severity": 2,
+      "line": 122,
+      "column": 3,
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"closeHref\"]",
+      "id": "575e9aec3f12b29531efe3e5c5c605f41b898d9e246c576bb5f945a81f0e68ec"
     },
     {
       "rule": "complexity",
@@ -4437,16 +4415,6 @@
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"onDrop\"]/anonymous:f5d6eb12dc338711fec6482c4f6bdcc3addcb5c1217683fdca3270fec7f5ccb5",
       "id": "5c78e98b62f75d6936ef11cb2ba83ff9bdc8b0d8f66802f1234d016431bb0f06"
-    },
-    {
-      "rule": "@typescript-eslint/no-misused-promises",
-      "message": "Promise-returning function provided to attribute where a void return was expected.",
-      "severity": 2,
-      "line": 1320,
-      "column": 18,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"mobileInputsSection\"]/JsxAttribute:[\"onAddFiles\"]",
-      "id": "5cc4277ae82565b73a98269ef3394fa5900bb1e309baf363d40d7c87bf031a8b"
     },
     {
       "rule": "complexity",
@@ -4896,6 +4864,16 @@
       "file": "apps/web/lib/studio-gallery.ts",
       "owner": "FunctionDeclaration:[\"presetRequirementMessage\"]",
       "id": "64767aa5e88dc11656a2595c497f16ccdb2810236c020dc0c1e6d405bf95a5eb"
+    },
+    {
+      "rule": "@typescript-eslint/no-misused-promises",
+      "message": "Promise-returning function provided to attribute where a void return was expected.",
+      "severity": 2,
+      "line": 1203,
+      "column": 18,
+      "file": "apps/web/components/media-studio.tsx",
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"sourceAttachmentStrip\"]/JsxAttribute:[\"onAddFiles\"]",
+      "id": "648c82975438b3f1f955cf1e44b31de3db11ae73831bbf4d3f35718ff348965f"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -5595,16 +5573,6 @@
       "file": "apps/web/components/graph-studio/graph-node-field.tsx",
       "owner": "FunctionDeclaration:[\"GraphPresetLazyPicker\"]/anonymous:df3fd2a5953b43016e3fd353f62cbd3102c80c4fb70d6a0e898e90fecc8ea74e",
       "id": "74c9d1bb7b97e68f31d3f228876653306be3b7ed00a359c5e32b3ae0ababe14b"
-    },
-    {
-      "rule": "@typescript-eslint/no-misused-promises",
-      "message": "Promise-returning function provided to attribute where a void return was expected.",
-      "severity": 2,
-      "line": 1255,
-      "column": 18,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"sourceAttachmentStrip\"]/JsxAttribute:[\"onAddFiles\"]",
-      "id": "74d0cfedeb7ae8f619dedd2b049feadbe6ceae59ed1bc418d7da807f4bb3bc35"
     },
     {
       "rule": "@typescript-eslint/no-this-alias",
@@ -6577,17 +6545,6 @@
       "id": "87563a08ccf99a83057874b0c888dc8f838f19d537a470c6862973b576275ffa"
     },
     {
-      "rule": "sonarjs/cognitive-complexity",
-      "message": "Refactor this function to reduce its Cognitive Complexity from 25 to the 12 allowed.",
-      "severity": 1,
-      "line": 328,
-      "column": 17,
-      "metric": 25,
-      "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-      "owner": "FunctionDeclaration:[\"StudioSourceAttachmentStrip\"]",
-      "id": "875f675f201871c31dad669c4ac54903035349b0260fc6eeb1ae1270e80635c0"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'jobPhaseMessage' has a complexity of 11. Maximum allowed is 8.",
       "severity": 1,
@@ -6826,6 +6783,16 @@
       "id": "8cfc5660325a638d7fbfea55fd9c78a65a16eb801590476127f8d26e24049344"
     },
     {
+      "rule": "react-hooks/exhaustive-deps",
+      "message": "React Hook useEffect has a missing dependency: 'setReferenceLibraryTarget'. Either include it or remove the dependency array.",
+      "severity": 2,
+      "line": 1000,
+      "column": 6,
+      "file": "apps/web/components/media-studio.tsx",
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]",
+      "id": "8d2d68fcf3c30e9f8fc300f8ad260dfe3488ddff21efed6bfec993b857cb5dea"
+    },
+    {
       "rule": "complexity",
       "message": "Arrow function has a complexity of 13. Maximum allowed is 8.",
       "severity": 1,
@@ -6888,6 +6855,16 @@
       "file": "apps/web/components/studio/studio-prompt-composer-body.tsx",
       "owner": "FunctionDeclaration:[\"StudioPromptComposerBody\"]/JsxAttribute:[\"onKeyDown\"]/anonymous:4ae41134cfdc91d8cefd1effb2469d3f3dc85dba0fad7aab7dda9c7e17e45916",
       "id": "8e5949bc3e8ba88efa3cbd8e68a22c45f2cefe55895b7fff44c6bf307c15d509"
+    },
+    {
+      "rule": "@typescript-eslint/no-misused-promises",
+      "message": "Promise-returning function provided to attribute where a void return was expected.",
+      "severity": 2,
+      "line": 1257,
+      "column": 18,
+      "file": "apps/web/components/media-studio.tsx",
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"mobileInputsSection\"]/JsxAttribute:[\"onAddFiles\"]",
+      "id": "8ed2930d19f8e8db859f26653284ec00d394402c1ae8627e433f2879e91e919d"
     },
     {
       "rule": "@typescript-eslint/no-misused-promises",
@@ -7734,17 +7711,6 @@
       "id": "a1bb9f55ff1dec7286d5dc03d7ed515dcf651a1e014de66e33e474faf1f0702a"
     },
     {
-      "rule": "complexity",
-      "message": "Arrow function has a complexity of 9. Maximum allowed is 8.",
-      "severity": 1,
-      "line": 450,
-      "column": 51,
-      "metric": 9,
-      "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-      "owner": "FunctionDeclaration:[\"StudioMobileInputsContent\"]/anonymous:2e3b32ebb387e7f1b7ceb95bc82d5d38ef60f225ea89f8db4808e8f0fccdacbb",
-      "id": "a1cde51bc214455f35a0d953ea847948da6d76ab8ce3d6dff36d608f511ed156"
-    },
-    {
       "rule": "@typescript-eslint/no-unused-vars",
       "message": "'mediaThumbnailUrl' is defined but never used.",
       "severity": 1,
@@ -7925,6 +7891,17 @@
     },
     {
       "rule": "complexity",
+      "message": "Arrow function has a complexity of 12. Maximum allowed is 8.",
+      "severity": 1,
+      "line": 952,
+      "column": 37,
+      "metric": 12,
+      "file": "apps/web/components/media-studio.tsx",
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/anonymous:afe6b55ac891eb1c74b49dff92d949a02667421993f8ca7ef1a6987b8ffa9527/anonymous:23cecb04fc282edbdd0dbee6ec9d40106cdb20fa804e4390b016b46528824063",
+      "id": "a5910bae61e51e42ea82ae790f3caeedc61792efac63ca930112729d39caf506"
+    },
+    {
+      "rule": "complexity",
       "message": "Function 'normalizePresetEditorError' has a complexity of 11. Maximum allowed is 8.",
       "severity": 1,
       "line": 111,
@@ -8031,11 +8008,11 @@
     },
     {
       "rule": "complexity",
-      "message": "Function 'StudioMobileInputsContent' has a complexity of 25. Maximum allowed is 8.",
+      "message": "Function 'StudioMobileInputsContent' has a complexity of 10. Maximum allowed is 8.",
       "severity": 1,
-      "line": 96,
+      "line": 78,
       "column": 8,
-      "metric": 25,
+      "metric": 10,
       "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
       "owner": "FunctionDeclaration:[\"StudioMobileInputsContent\"]",
       "id": "a8151a0375ee1ff5d38fe3bc0b168ef001eef8ebe2455580e6da2070e2f363ae"
@@ -8070,17 +8047,6 @@
       "file": "apps/web/components/graph-studio/hooks/use-graph-run-lifecycle.test.tsx",
       "owner": "FunctionDeclaration:[\"Harness\"]/JsxAttribute:[\"onClick\"]/anonymous:a30a9b07614023e45172ca176a9624f2291127011ab85cc40ed71309ed3745a9",
       "id": "a8c1ffdb7674da651f2736105d9867e80c35e0eee064d02a204b5be1e7f63667"
-    },
-    {
-      "rule": "complexity",
-      "message": "Function 'StudioSourceAttachmentStrip' has a complexity of 23. Maximum allowed is 8.",
-      "severity": 1,
-      "line": 328,
-      "column": 8,
-      "metric": 23,
-      "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-      "owner": "FunctionDeclaration:[\"StudioSourceAttachmentStrip\"]",
-      "id": "a8e91c8bce1287fb2407e22a704ce449df90498ad4283df73621277c6b2d6b1a"
     },
     {
       "rule": "complexity",
@@ -8494,16 +8460,6 @@
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
       "id": "b0b7f84a111a6e7a3ce21427e54d05e0a58e0f844a16d1578129ba5d139e5c00"
-    },
-    {
-      "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-      "rule": "TS6133",
-      "message": "'genericSourceInputsAvailable' is declared but its value is never read.",
-      "severity": 2,
-      "line": 331,
-      "column": 3,
-      "owner": "FunctionDeclaration:[\"StudioSourceAttachmentStrip\"]/Parameter:[\"{\",\"seedanceComposer\",\",\",\"standardComposerUsesExplicitSlots\",\",\",\"genericSourceInputsAvailable\",\",\",\"isDragActive\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"standardComposerSlots\",\",\",\"orderedImageInputs\",\",\",\"currentSourceAsset\",\",\",\"canUseSourceAsset\",\",\",\"attachments\",\",\",\"genericSourceAddTileVisible\",\",\",\"imageLimitLabel\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"mobileAddTileClassName\",\",\",\"mobileAddTilePlusIconClassName\",\",\",\"buildAttachmentPreview\",\",\",\"buildAssetReferencePreview\",\",\",\"standardComposerSlotPreview\",\",\",\"standardComposerSlotVisual\",\",\",\"onSetDragActive\",\",\",\"onSetFormWarning\",\",\",\"onDropIntoSourceSlot\",\",\",\"onOpenPreview\",\",\",\"onRemoveAttachment\",\",\",\"onClearSourceAsset\",\",\",\"onClearStandardComposerSlot\",\",\",\"onPickStandardComposerSlotFiles\",\",\",\"onAddFiles\",\",\",\"onResetFileInput\",\",\",\"}\"]/BindingElement:[\"genericSourceInputsAvailable\"]",
-      "id": "b0c52a4b6a19f80d410b68788aa8322141f266ced429fb1aaf4a738ae1875a7e"
     },
     {
       "rule": "complexity",
@@ -9182,17 +9138,6 @@
       "file": "apps/web/hooks/studio/use-studio-reference-library.ts",
       "owner": "FunctionDeclaration:[\"useStudioReferenceLibrary\"]/VariableDeclaration:[\"openContextualReferenceLibrary\"]/anonymous:65748683e204366aeb32a8c8419d2994ff4ba1abbc89eff2239882b59ebc736f",
       "id": "c1c560a7768774bc998496e1d9204bb324d3071643275130982013a526d47f1c"
-    },
-    {
-      "rule": "complexity",
-      "message": "Arrow function has a complexity of 13. Maximum allowed is 8.",
-      "severity": 1,
-      "line": 975,
-      "column": 37,
-      "metric": 13,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/anonymous:fed77b0034fbb2ff71f0ddf6593435a201ae53014a5d85a0b4b1d6141729d044/anonymous:a690f8eaa8f8b314d681bced64806c618b37ee5f6df50ca0fecc35770f83630d",
-      "id": "c1c8bf7e15ebcddde7b30f218d46c2fd0029eff765e9b1968541cf521e2c0d7d"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -10618,16 +10563,6 @@
       "file": "apps/web/app/jobs/runtime-controls.tsx",
       "owner": "FunctionDeclaration:[\"RuntimeControls\"]/anonymous:b8a7829bd3faaae32a324ee7f0360d4b85b76dd7ac3f424aa5b58b0a1fc16330",
       "id": "df6a7bb7a1938e008527eb9d4a7b1f30fc83b3ff2eaa7d94e4b55ee56b3bc5f7"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'closeHref' is declared but its value is never read.",
-      "severity": 2,
-      "line": 122,
-      "column": 3,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"closeHref\"]",
-      "id": "df7664055de91d248c18b5985a00e9c73c104433561647d70bd153c563fc29e6"
     },
     {
       "rule": "react-hooks/rules-of-hooks",
