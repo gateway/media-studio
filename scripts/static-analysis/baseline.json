@@ -27,7 +27,7 @@
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Adopt CC 8 and cognitive 12; record unchanged existing complexity including tooling",
+  "reason": "Ticket 24 attachment preview extraction: ratchet each existing generic tile callback from 23 to 9; reconcile unchanged genericSourceInputsAvailable diagnostic after its enclosing body changes. No new debt.",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -1590,7 +1590,7 @@
       "rule": "complexity",
       "message": "Function 'buildAssetReferencePreview' has a complexity of 13. Maximum allowed is 8.",
       "severity": 1,
-      "line": 51,
+      "line": 69,
       "column": 8,
       "metric": 13,
       "file": "apps/web/lib/studio-reference-previews.ts",
@@ -2919,6 +2919,17 @@
       "id": "3ad04f785dbf768ecf2695676e485ae1e6bf1a3649e6f7d47095227bec9c2b18"
     },
     {
+      "rule": "complexity",
+      "message": "Arrow function has a complexity of 9. Maximum allowed is 8.",
+      "severity": 1,
+      "line": 494,
+      "column": 53,
+      "metric": 9,
+      "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+      "owner": "FunctionDeclaration:[\"StudioSourceAttachmentStrip\"]/anonymous:17adc72d919cccc5f792bc95adee96d744a8accd8a61b66a5a7db967795d9ac6",
+      "id": "3ae3c432bcfc2489cff26eb94f11f1befce1b8a352b9fab83512f2af22e8ca98"
+    },
+    {
       "rule": "@typescript-eslint/no-explicit-any",
       "message": "Unexpected any. Specify a different type.",
       "severity": 1,
@@ -3455,7 +3466,7 @@
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 28 to the 12 allowed.",
       "severity": 1,
-      "line": 95,
+      "line": 96,
       "column": 17,
       "metric": 28,
       "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
@@ -6505,7 +6516,7 @@
       "rule": "complexity",
       "message": "Arrow function has a complexity of 21. Maximum allowed is 8.",
       "severity": 1,
-      "line": 324,
+      "line": 325,
       "column": 87,
       "metric": 21,
       "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
@@ -6569,7 +6580,7 @@
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 25 to the 12 allowed.",
       "severity": 1,
-      "line": 327,
+      "line": 328,
       "column": 17,
       "metric": 25,
       "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
@@ -7048,17 +7059,6 @@
       "file": "apps/web/components/graph-studio/assistant-results.tsx",
       "owner": "FunctionDeclaration:[\"AssistantRequestedResult\"]",
       "id": "936c1f220611ccd756430278fed2fbf5236d4b23105fc9d0ada531f2b43b43ba"
-    },
-    {
-      "rule": "complexity",
-      "message": "Arrow function has a complexity of 23. Maximum allowed is 8.",
-      "severity": 1,
-      "line": 449,
-      "column": 51,
-      "metric": 23,
-      "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-      "owner": "FunctionDeclaration:[\"StudioMobileInputsContent\"]/anonymous:34735497bd78854110b9a2ca9c3081414815604a27be56aa23ec312e36669e32",
-      "id": "9379dd50167a26c184bfb763383ae8c3eccf4abddd4cb3babb71818cf03bbe9f"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -7734,6 +7734,17 @@
       "id": "a1bb9f55ff1dec7286d5dc03d7ed515dcf651a1e014de66e33e474faf1f0702a"
     },
     {
+      "rule": "complexity",
+      "message": "Arrow function has a complexity of 9. Maximum allowed is 8.",
+      "severity": 1,
+      "line": 450,
+      "column": 51,
+      "metric": 9,
+      "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+      "owner": "FunctionDeclaration:[\"StudioMobileInputsContent\"]/anonymous:2e3b32ebb387e7f1b7ceb95bc82d5d38ef60f225ea89f8db4808e8f0fccdacbb",
+      "id": "a1cde51bc214455f35a0d953ea847948da6d76ab8ce3d6dff36d608f511ed156"
+    },
+    {
       "rule": "@typescript-eslint/no-unused-vars",
       "message": "'mediaThumbnailUrl' is defined but never used.",
       "severity": 1,
@@ -8022,7 +8033,7 @@
       "rule": "complexity",
       "message": "Function 'StudioMobileInputsContent' has a complexity of 25. Maximum allowed is 8.",
       "severity": 1,
-      "line": 95,
+      "line": 96,
       "column": 8,
       "metric": 25,
       "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
@@ -8064,7 +8075,7 @@
       "rule": "complexity",
       "message": "Function 'StudioSourceAttachmentStrip' has a complexity of 23. Maximum allowed is 8.",
       "severity": 1,
-      "line": 327,
+      "line": 328,
       "column": 8,
       "metric": 23,
       "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
@@ -8483,6 +8494,16 @@
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
       "id": "b0b7f84a111a6e7a3ce21427e54d05e0a58e0f844a16d1578129ba5d139e5c00"
+    },
+    {
+      "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+      "rule": "TS6133",
+      "message": "'genericSourceInputsAvailable' is declared but its value is never read.",
+      "severity": 2,
+      "line": 331,
+      "column": 3,
+      "owner": "FunctionDeclaration:[\"StudioSourceAttachmentStrip\"]/Parameter:[\"{\",\"seedanceComposer\",\",\",\"standardComposerUsesExplicitSlots\",\",\",\"genericSourceInputsAvailable\",\",\",\"isDragActive\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"standardComposerSlots\",\",\",\"orderedImageInputs\",\",\",\"currentSourceAsset\",\",\",\"canUseSourceAsset\",\",\",\"attachments\",\",\",\"genericSourceAddTileVisible\",\",\",\"imageLimitLabel\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"mobileAddTileClassName\",\",\",\"mobileAddTilePlusIconClassName\",\",\",\"buildAttachmentPreview\",\",\",\"buildAssetReferencePreview\",\",\",\"standardComposerSlotPreview\",\",\",\"standardComposerSlotVisual\",\",\",\"onSetDragActive\",\",\",\"onSetFormWarning\",\",\",\"onDropIntoSourceSlot\",\",\",\"onOpenPreview\",\",\",\"onRemoveAttachment\",\",\",\"onClearSourceAsset\",\",\",\"onClearStandardComposerSlot\",\",\",\"onPickStandardComposerSlotFiles\",\",\",\"onAddFiles\",\",\",\"onResetFileInput\",\",\",\"}\"]/BindingElement:[\"genericSourceInputsAvailable\"]",
+      "id": "b0c52a4b6a19f80d410b68788aa8322141f266ced429fb1aaf4a738ae1875a7e"
     },
     {
       "rule": "complexity",
@@ -10916,7 +10937,7 @@
       "rule": "complexity",
       "message": "Arrow function has a complexity of 21. Maximum allowed is 8.",
       "severity": 1,
-      "line": 216,
+      "line": 217,
       "column": 83,
       "metric": 21,
       "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
@@ -11618,17 +11639,6 @@
       "id": "f3b731e08e61d41ac0d6489f17800df376e10a46bff64f9993d15627793118ec"
     },
     {
-      "rule": "complexity",
-      "message": "Arrow function has a complexity of 23. Maximum allowed is 8.",
-      "severity": 1,
-      "line": 493,
-      "column": 53,
-      "metric": 23,
-      "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-      "owner": "FunctionDeclaration:[\"StudioSourceAttachmentStrip\"]/anonymous:a1d79608e3fe19d08b2975a54af63c36e4cadb34e503599657c0eae1125e36e2",
-      "id": "f3c4ad0d4e7806fbd367576a844cd538245d5e06149a0cbe25ed355053389ec8"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 19 to the 12 allowed.",
       "severity": 1,
@@ -11977,16 +11987,6 @@
       "file": "apps/web/lib/prompt-recipes.ts",
       "owner": "FunctionDeclaration:[\"highestPromptRecipeImageReferenceIndex\"]",
       "id": "fe3dfe976b8b250f06318f4e5b60538de4c4768fa7262a4a6b4b64f7a7add5ac"
-    },
-    {
-      "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-      "rule": "TS6133",
-      "message": "'genericSourceInputsAvailable' is declared but its value is never read.",
-      "severity": 2,
-      "line": 330,
-      "column": 3,
-      "owner": "FunctionDeclaration:[\"StudioSourceAttachmentStrip\"]/Parameter:[\"{\",\"seedanceComposer\",\",\",\"standardComposerUsesExplicitSlots\",\",\",\"genericSourceInputsAvailable\",\",\",\"isDragActive\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"standardComposerSlots\",\",\",\"orderedImageInputs\",\",\",\"currentSourceAsset\",\",\",\"canUseSourceAsset\",\",\",\"attachments\",\",\",\"genericSourceAddTileVisible\",\",\",\"imageLimitLabel\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"mobileAddTileClassName\",\",\",\"mobileAddTilePlusIconClassName\",\",\",\"buildAttachmentPreview\",\",\",\"buildAssetReferencePreview\",\",\",\"standardComposerSlotPreview\",\",\",\"standardComposerSlotVisual\",\",\",\"onSetDragActive\",\",\",\"onSetFormWarning\",\",\",\"onDropIntoSourceSlot\",\",\",\"onOpenPreview\",\",\",\"onRemoveAttachment\",\",\",\"onClearSourceAsset\",\",\",\"onClearStandardComposerSlot\",\",\",\"onPickStandardComposerSlotFiles\",\",\",\"onAddFiles\",\",\",\"onResetFileInput\",\",\",\"}\"]/BindingElement:[\"genericSourceInputsAvailable\"]",
-      "id": "fe9bdc1a9145ade2fa029bb0751cbb43a78799e00d33558abb65cd787f2af42a"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
