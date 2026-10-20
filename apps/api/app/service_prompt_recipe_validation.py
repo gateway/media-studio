@@ -387,9 +387,9 @@ def validate_prompt_recipe_payload(payload: PromptRecipeUpsertRequest, recipe_id
         if field_type not in PROMPT_RECIPE_FIELD_TYPES:
             raise ServiceError("Custom field type is invalid for %s." % field_key)
         options = field.get("options") or []
-        if field_type == "select" and not [str(value).strip() for value in options if str(value).strip()]:
-            raise ServiceError("Select custom field %s must define options." % field_key)
         normalized_options = [str(value).strip() for value in options if str(value).strip()]
+        if field_type == "select" and not normalized_options:
+            raise ServiceError("Select custom field %s must define options." % field_key)
         if field_type == "select" and len(set(normalized_options)) != len(normalized_options):
             raise ServiceError("Select custom field %s has duplicate options." % field_key)
         field["key"] = field_key
