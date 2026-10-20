@@ -4595,9 +4595,9 @@
       "column": 1,
       "file": "apps/api/app/graph/validator.py",
       "id": "d66e15179179e680201eec6a4f1de4686d238ed2cff147ac20460f23d9cb1ccd",
-      "line": 284,
-      "message": "Radon CC 145 exceeds 15",
-      "metric": 145,
+      "line": 306,
+      "message": "Radon CC 130 exceeds 15",
+      "metric": 130,
       "owner": "validate_workflow",
       "rule": "radon/CC",
       "severity": 2
@@ -4977,9 +4977,9 @@
       "column": 5,
       "file": "apps/api/app/graph/validator.py",
       "id": "e2d05de804f79cfca74d7ca7398e700426c44498a6049cdb11b45546b8a643ba",
-      "line": 284,
-      "message": "`validate_workflow` is too complex (65 > 15)",
-      "metric": 65,
+      "line": 306,
+      "message": "`validate_workflow` is too complex (63 > 15)",
+      "metric": 63,
       "owner": "validate_workflow",
       "rule": "ruff/C901",
       "severity": 2
@@ -5699,6 +5699,6 @@
       "six": "1.17.0"
     }
   },
-  "reason": "Ticket 12: remove resolved Radon CC17 exemptions for bytes/file imports; shared finalizer CC8, callers CC10; no added findings",
+  "reason": "Ticket 15: lower validate_workflow Ruff 65 to 63 and Radon 145 to 130 after consolidating cache validation; no new exceptions",
   "schema": 1
 }

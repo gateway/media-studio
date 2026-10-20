@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Preview fix: rekey two unchanged clone pairs; source ranges/text/tokens/lines identical to e10488b; no added debt",
+  "reason": "Ticket15: four unchanged validator clone pairs reidentified by surrounding context; all fragments, locations and metrics identical",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -1960,26 +1960,6 @@
       "format": "typescript"
     },
     {
-      "id": "54df03068a8badf6307f24cd7874eb412b5286e4dcd09a07b96827fe269cb5ed",
-      "endpoints": [
-        {
-          "file": "apps/api/app/graph/validator_prompt_recipe.py",
-          "start": 48,
-          "end": 58,
-          "context": "d51058fa7fc360d055775a7ce38036b6202abc6c0a14e0c264740a56fe673088"
-        },
-        {
-          "file": "apps/api/app/graph/validator.py",
-          "start": 230,
-          "end": 240,
-          "context": "cb0b21af64fc953f452bf1f1876607427f175bcb94561365e32ef5a7fea4ee49"
-        }
-      ],
-      "tokens": 50,
-      "lines": 11,
-      "format": "python"
-    },
-    {
       "id": "5525efd71714facc350c890be44fc7b199bfd9ab6761546b3308110ee8edc2de",
       "endpoints": [
         {
@@ -2417,6 +2397,26 @@
       ],
       "tokens": 79,
       "lines": 13,
+      "format": "python"
+    },
+    {
+      "id": "6978edc0f57e6e2bfbd73327f13f7a09388b54ed4bda4f70c25f9d0a84ee63cb",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/validator_prompt_recipe.py",
+          "start": 36,
+          "end": 46,
+          "context": "d6425a1ac89c80c807a382bed046eedafc0ef9c8533af02d74e187fa3daf78cf"
+        },
+        {
+          "file": "apps/api/app/graph/validator.py",
+          "start": 219,
+          "end": 229,
+          "context": "69b0822a71f3625d1daf27a0d565145835207154281f2518d3b95271c178282d"
+        }
+      ],
+      "tokens": 90,
+      "lines": 11,
       "format": "python"
     },
     {
@@ -3000,7 +3000,7 @@
       "format": "tsx"
     },
     {
-      "id": "843f02620de59b79afe92ef744eb8f4df7974e6804e99055a148e4178191eb9c",
+      "id": "8487aad4524c3bc39fea5401c363aa68ab090fc5d1b668f4062af3b034f14e37",
       "endpoints": [
         {
           "file": "apps/api/app/graph/runtime.py",
@@ -3012,7 +3012,7 @@
           "file": "apps/api/app/graph/validator.py",
           "start": 213,
           "end": 219,
-          "context": "c925d87d9ba2a167e421b7ceedc44189910b625428e94045686a3459f8253312"
+          "context": "4d1137aa222b91461804010a22f7125cf123dc79f5e1fb914435127413e95c64"
         }
       ],
       "tokens": 58,
@@ -3058,26 +3058,6 @@
       "tokens": 121,
       "lines": 13,
       "format": "javascript"
-    },
-    {
-      "id": "863585c345ed1a48bf78c2b41e2cc63839b2ed6c8ca5891c7e04fc3be5ba341b",
-      "endpoints": [
-        {
-          "file": "apps/api/app/graph/validator_prompt_recipe.py",
-          "start": 36,
-          "end": 46,
-          "context": "d6425a1ac89c80c807a382bed046eedafc0ef9c8533af02d74e187fa3daf78cf"
-        },
-        {
-          "file": "apps/api/app/graph/validator.py",
-          "start": 219,
-          "end": 229,
-          "context": "3f15dc35d5339cbc8a8cc264ca9704dfcc1a0fc84ac96bbd00c46f958d9bb2dc"
-        }
-      ],
-      "tokens": 90,
-      "lines": 11,
-      "format": "python"
     },
     {
       "id": "8690a7c21dbb171bfee2c0975f4e294cd15b78ce54a9def45bb1554bcaae9260",
@@ -4640,6 +4620,26 @@
       "format": "typescript"
     },
     {
+      "id": "d0b00f7d5e33014ee7fff05d1aae850d8685e3606008b341175394fc3649e45f",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/executors/preset_ops.py",
+          "start": 116,
+          "end": 121,
+          "context": "bb748ce0f1319a1cf0f8b267fa209ef80b87e9227d3878309cc4f56983e19f89"
+        },
+        {
+          "file": "apps/api/app/graph/validator.py",
+          "start": 188,
+          "end": 193,
+          "context": "e40c84dfa830b69ccf67c41594a1bcf2bd5e234348d6ccf70417b2e7794feb62"
+        }
+      ],
+      "tokens": 88,
+      "lines": 6,
+      "format": "python"
+    },
+    {
       "id": "d1f2cee2c80049fc6241b81e06fb4f335d98f8e476aaf8ef43fd8d0ea1d40a44",
       "endpoints": [
         {
@@ -4718,26 +4718,6 @@
       "tokens": 69,
       "lines": 11,
       "format": "typescript"
-    },
-    {
-      "id": "d89eb9311ddd4ed20a64d77c4075ed89bfc84423542211ccca8c956b51d5c038",
-      "endpoints": [
-        {
-          "file": "apps/api/app/graph/executors/preset_ops.py",
-          "start": 116,
-          "end": 121,
-          "context": "bb748ce0f1319a1cf0f8b267fa209ef80b87e9227d3878309cc4f56983e19f89"
-        },
-        {
-          "file": "apps/api/app/graph/validator.py",
-          "start": 188,
-          "end": 193,
-          "context": "546c46dcdf4bce4c5126abee396cff472b70e2fa102f70d5d25f6bee93926d6c"
-        }
-      ],
-      "tokens": 88,
-      "lines": 6,
-      "format": "python"
     },
     {
       "id": "d8bd17b20a8d8d3d392447c6ea633301330baa180822a5c0ea479f16c3ad73a8",
@@ -5038,6 +5018,26 @@
       "tokens": 181,
       "lines": 25,
       "format": "tsx"
+    },
+    {
+      "id": "e6b3974256b734663aaf02ba19309ef946f9317aa9eb1a1b49d28a3bc002c7e5",
+      "endpoints": [
+        {
+          "file": "apps/api/app/graph/validator_prompt_recipe.py",
+          "start": 48,
+          "end": 58,
+          "context": "d51058fa7fc360d055775a7ce38036b6202abc6c0a14e0c264740a56fe673088"
+        },
+        {
+          "file": "apps/api/app/graph/validator.py",
+          "start": 230,
+          "end": 240,
+          "context": "c8b31d3ea1588e0eeb00e40c0f3e926a47ee73fa950e92188fcbf42c657f7785"
+        }
+      ],
+      "tokens": 50,
+      "lines": 11,
+      "format": "python"
     },
     {
       "id": "e70f870f0ce27ee04021406190c62ab2748742ebbf82b57396ba8b1f03875bf8",
