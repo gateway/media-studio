@@ -43,6 +43,9 @@ type StudioMobileInputsContentProps = {
   seedanceReferenceImages: AttachmentRecord[];
   seedanceReferenceVideos: AttachmentRecord[];
   seedanceReferenceAudios: AttachmentRecord[];
+  maxImageReferences: number;
+  maxVideoReferences: number;
+  maxAudioReferences: number;
   standardComposerSectionTitle: string;
   standardComposerSummaryLabel: string | null;
   standardComposerSlots: StudioComposerSlot[];
@@ -87,6 +90,9 @@ export function StudioMobileInputsContent({
   seedanceReferenceImages,
   seedanceReferenceVideos,
   seedanceReferenceAudios,
+  maxImageReferences,
+  maxVideoReferences,
+  maxAudioReferences,
   standardComposerSectionTitle,
   standardComposerSummaryLabel,
   standardComposerSlots,
@@ -163,7 +169,7 @@ export function StudioMobileInputsContent({
         tokenHint: "image@",
         attachments: seedanceReferenceImages,
         accept: "image/*",
-        maxLabel: "9",
+        maxLabel: maxImageReferences,
         tileClassName: MOBILE_INPUT_TILE_CLASS,
         addTileClassName: mobileAddTileClassName,
         plusIconClassName: mobileAddTilePlusIconClassName,
@@ -175,7 +181,7 @@ export function StudioMobileInputsContent({
         tokenHint: "video@",
         attachments: seedanceReferenceVideos,
         accept: "video/*",
-        maxLabel: "3",
+        maxLabel: maxVideoReferences,
         tileClassName: MOBILE_INPUT_TILE_CLASS,
         addTileClassName: mobileAddTileClassName,
         plusIconClassName: mobileAddTilePlusIconClassName,
@@ -187,7 +193,7 @@ export function StudioMobileInputsContent({
         tokenHint: "audio@",
         attachments: seedanceReferenceAudios,
         accept: "audio/*",
-        maxLabel: "3",
+        maxLabel: maxAudioReferences,
         tileClassName: MOBILE_INPUT_TILE_CLASS,
         addTileClassName: mobileAddTileClassName,
         plusIconClassName: mobileAddTilePlusIconClassName,
@@ -320,7 +326,7 @@ export function StudioMobileInputsContent({
                       testId={`studio-mobile-seedance-group-tile-${group.key}-${attachment.id}`}
                     />
                   ))}
-                  {group.attachments.length < Number(group.maxLabel) ? (
+                  {group.attachments.length < group.maxLabel ? (
                     <label className={cn(MOBILE_INPUT_INLINE_ADD_TILE_CLASS, group.addTileClassName)}>
                       {(() => {
                         const AddIcon = studioMediaSlotAddTileIcon(

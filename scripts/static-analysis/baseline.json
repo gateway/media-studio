@@ -1598,16 +1598,6 @@
       "id": "1da6f692eb18f16e32762b16ec67a77b529eadfc8571399249d7f915980d9061"
     },
     {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'initialAssetOffset' is declared but its value is never read.",
-      "severity": 2,
-      "line": 112,
-      "column": 3,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"initialAssetOffset\"]",
-      "id": "1de4a5f6f79c880e45454f9d0afa9a153de2dfebf3dbe2c31eda228105080479"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 22 to the 12 allowed.",
       "severity": 1,
@@ -2320,6 +2310,16 @@
       "file": "apps/web/components/graph-studio/assistant-results.tsx",
       "owner": "FunctionDeclaration:[\"useAssistantResults\"]",
       "id": "2c5b550bb5f059f9499c7f66bb3c8316f66176ae09c66331f01d41ef16505c06"
+    },
+    {
+      "rule": "@typescript-eslint/no-misused-promises",
+      "message": "Promise-returning function provided to attribute where a void return was expected.",
+      "severity": 2,
+      "line": 1260,
+      "column": 18,
+      "file": "apps/web/components/media-studio.tsx",
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"mobileInputsSection\"]/JsxAttribute:[\"onAddFiles\"]",
+      "id": "2c5bc404a6b83a678146ed3a8fa12ddf2f0425f2d374cce1f9fd856832f16cd8"
     },
     {
       "file": "apps/web/hooks/studio/use-studio-polling.ts",
@@ -3730,16 +3730,6 @@
       "id": "4cb47781c8be277b6704be5ea6cda426218a658fbc4371b97c893e084a723b8f"
     },
     {
-      "rule": "@typescript-eslint/no-misused-promises",
-      "message": "Promise-returning function provided to attribute where a void return was expected.",
-      "severity": 2,
-      "line": 1222,
-      "column": 20,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"seedanceReferenceStrip\"]/JsxAttribute:[\"onAddFiles\"]",
-      "id": "4cb7510453dd501292035c77bfc0193c18876520eb761287be0766fd7aa4e51b"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'optionShortLabel' has a complexity of 9. Maximum allowed is 8.",
       "severity": 1,
@@ -4149,16 +4139,6 @@
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"navigateSelectedGalleryAsset\"]/anonymous:e3642ad97fb06bbfc1aa23f1df8ac843e2f6b7ea9ce085dcf9ca1441e6f31c02",
       "id": "56f979f6de81218492b746d5b4aad8a7a2789c3eeef8d6bfa1ea7a5cf6807eb1"
-    },
-    {
-      "file": "apps/web/components/media-studio.tsx",
-      "rule": "TS6133",
-      "message": "'closeHref' is declared but its value is never read.",
-      "severity": 2,
-      "line": 122,
-      "column": 3,
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"closeHref\"]",
-      "id": "575e9aec3f12b29531efe3e5c5c605f41b898d9e246c576bb5f945a81f0e68ec"
     },
     {
       "rule": "complexity",
@@ -6482,17 +6462,6 @@
     },
     {
       "rule": "complexity",
-      "message": "Arrow function has a complexity of 21. Maximum allowed is 8.",
-      "severity": 1,
-      "line": 325,
-      "column": 87,
-      "metric": 21,
-      "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
-      "owner": "FunctionDeclaration:[\"StudioMobileInputsContent\"]/anonymous:b5ed2f1b9cccb465e7e245f86eb3642c99fdc74d9c11df4088fb01a0d5d0b569/anonymous:0c7aba379f0bae71acc7d42585880b6014467ca0b85c7e0927ab5567621cfff1",
-      "id": "867de9c2b62818871a3c2d7d5268795014cb427abcf451e8fac443b63578911d"
-    },
-    {
-      "rule": "complexity",
       "message": "Function 'deriveInputPatterns' has a complexity of 11. Maximum allowed is 8.",
       "severity": 1,
       "line": 228,
@@ -6793,6 +6762,16 @@
       "id": "8d2d68fcf3c30e9f8fc300f8ad260dfe3488ddff21efed6bfec993b857cb5dea"
     },
     {
+      "rule": "@typescript-eslint/no-misused-promises",
+      "message": "Promise-returning function provided to attribute where a void return was expected.",
+      "severity": 2,
+      "line": 1222,
+      "column": 20,
+      "file": "apps/web/components/media-studio.tsx",
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"seedanceReferenceStrip\"]/JsxAttribute:[\"onAddFiles\"]",
+      "id": "8d4deb4e11e6448fd9b9678e9f1848f46914d3453928e8d55f8b9be08291b1d8"
+    },
+    {
       "rule": "complexity",
       "message": "Arrow function has a complexity of 13. Maximum allowed is 8.",
       "severity": 1,
@@ -6855,16 +6834,6 @@
       "file": "apps/web/components/studio/studio-prompt-composer-body.tsx",
       "owner": "FunctionDeclaration:[\"StudioPromptComposerBody\"]/JsxAttribute:[\"onKeyDown\"]/anonymous:4ae41134cfdc91d8cefd1effb2469d3f3dc85dba0fad7aab7dda9c7e17e45916",
       "id": "8e5949bc3e8ba88efa3cbd8e68a22c45f2cefe55895b7fff44c6bf307c15d509"
-    },
-    {
-      "rule": "@typescript-eslint/no-misused-promises",
-      "message": "Promise-returning function provided to attribute where a void return was expected.",
-      "severity": 2,
-      "line": 1257,
-      "column": 18,
-      "file": "apps/web/components/media-studio.tsx",
-      "owner": "FunctionDeclaration:[\"MediaStudio\"]/VariableDeclaration:[\"mobileInputsSection\"]/JsxAttribute:[\"onAddFiles\"]",
-      "id": "8ed2930d19f8e8db859f26653284ec00d394402c1ae8627e433f2879e91e919d"
     },
     {
       "rule": "@typescript-eslint/no-misused-promises",
@@ -8337,6 +8306,17 @@
       "id": "ae04d9c75fb141ffa168c69b5aa3585a826bdfbe59366fbd08139a81faf774fe"
     },
     {
+      "rule": "complexity",
+      "message": "Arrow function has a complexity of 21. Maximum allowed is 8.",
+      "severity": 1,
+      "line": 302,
+      "column": 87,
+      "metric": 21,
+      "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
+      "owner": "FunctionDeclaration:[\"StudioMobileInputsContent\"]/anonymous:cfbb8da34c81369b233f4cc7388a1617b297efb709efdbbb32e22db7b0647c22/anonymous:0c7aba379f0bae71acc7d42585880b6014467ca0b85c7e0927ab5567621cfff1",
+      "id": "ae26f41d71f11544a97f890333f2cc58b3737c7416aa7472f46994f8059d4ac9"
+    },
+    {
       "rule": "@typescript-eslint/no-unused-vars",
       "message": "'GraphEstimateResponse' is defined but never used.",
       "severity": 1,
@@ -8439,6 +8419,16 @@
       "file": "apps/web/lib/utils.ts",
       "owner": "FunctionDeclaration:[\"formatUsdAmount\"]/VariableDeclaration:[\"resolvedMaximumFractionDigits\"]",
       "id": "b01a440e26eb01b51ec2f4fd2fcd6ea6bc4336299a732744b4d6dddd0f82d980"
+    },
+    {
+      "file": "apps/web/components/media-studio.tsx",
+      "rule": "TS6133",
+      "message": "'closeHref' is declared but its value is never read.",
+      "severity": 2,
+      "line": 122,
+      "column": 3,
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"closeHref\"]",
+      "id": "b030e5a50489bd2c60f5481c8b9a524426ff52c8ee2aeada6210e6b04996d68d"
     },
     {
       "rule": "complexity",
@@ -10246,6 +10236,16 @@
       "file": "apps/web/components/graph-studio/graph-studio.tsx",
       "owner": "FunctionDeclaration:[\"GraphStudioClient\"]/VariableDeclaration:[\"addDefinitionNodeFromSearch\"]/anonymous:52b661f39287cd68986c92f9e8aef399eda9c4e076cb6c3395ad65db6f39363e/anonymous:2e0d51e2c6773566ee42e8e831c9b0913d308966f45ef0e57c37d09470ff54f0",
       "id": "d8674721a0d7e91a4dd31e98e090e13af1eb1d72ab2ac4e798e74b247482b655"
+    },
+    {
+      "file": "apps/web/components/media-studio.tsx",
+      "rule": "TS6133",
+      "message": "'initialAssetOffset' is declared but its value is never read.",
+      "severity": 2,
+      "line": 112,
+      "column": 3,
+      "owner": "FunctionDeclaration:[\"MediaStudio\"]/Parameter:[\"{\",\"apiHealthy\",\",\",\"models\",\",\",\"presets\",\",\",\"prompts\",\",\",\"enhancementConfigs\",\",\",\"queueSettings\",\",\",\"queuePolicies\",\",\",\"projects\",\",\",\"batches\",\",\",\"jobs\",\",\",\"assets\",\",\",\"initialAssetLimit\",\"=\",\"INITIAL_ASSET_PAGE_SIZE\",\",\",\"initialAssetOffset\",\"=\",\"0\",\",\",\"initialAssetsHasMore\",\"=\",\"false\",\",\",\"initialAssetsNextOffset\",\"=\",\"null\",\",\",\"initialAssetsNextCursor\",\"=\",\"null\",\",\",\"latestAsset\",\",\",\"remainingCredits\",\",\",\"pricingSnapshot\",\",\",\"initialSelectedAssetId\",\"=\",\"null\",\",\",\"initialSelectedProjectId\",\"=\",\"null\",\",\",\"immersive\",\"=\",\"false\",\",\",\"closeHref\",\"=\",\"\\\"/media\\\"\",\",\",\"}\"]/BindingElement:[\"initialAssetOffset\"]",
+      "id": "d898ab0aff6213d6d5c748528b4487ca6e3a3b3b95e802f7cdac1c8d3f77ae26"
     },
     {
       "rule": "complexity",
