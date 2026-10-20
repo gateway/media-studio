@@ -35,7 +35,49 @@ function savedDraft() {
     optionValues: { quality: "high" }, attachments: [], outputCount: 1, sourceAssetId: null, stagedSourceAssetSnapshot: null, lastNanoPresetModelKey: model.key });
 }
 
-afterEach(() => { cleanup(); writeStudioComposerDraft(null); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); writeStudioComposerDraft(null); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+it("keeps retained attachment URLs alive through attachment and slot edits, then releases them on unmount", () => {
+  const revoke = vi.fn();
+  vi.stubGlobal("URL", class extends URL { static revokeObjectURL = revoke; });
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Offline test")));
+  const { result, unmount } = renderHook(() => useComposer([]));
+  const first = { id: "first", kind: "images" as const, role: null,
+    file: new File(["first"], "first.png", { type: "image/png" }), previewUrl: "blob:first" };
+  const second = { ...first, id: "second", previewUrl: "blob:second" };
+  act(() => result.current.actions.setAttachments([first]));
+  act(() => result.current.actions.setAttachments([first, second]));
+  act(() => result.current.actions.setPresetSlotStates({}));
+  expect(revoke).not.toHaveBeenCalled();
+  act(() => result.current.actions.removeAttachment("second"));
+  expect(revoke).toHaveBeenCalledWith("blob:second");
+  expect(revoke).not.toHaveBeenCalledWith("blob:first");
+  act(() => result.current.actions.setAttachments([{ ...first, previewUrl: "blob:replacement" }]));
+  expect(revoke).toHaveBeenCalledWith("blob:first");
+  expect(revoke).not.toHaveBeenCalledWith("blob:replacement");
+  unmount();
+  expect(revoke).toHaveBeenCalledWith("blob:replacement");
+});
+
+it("retains video while adding audio and releases audio when the model no longer supports it", () => {
+  const revoke = vi.fn();
+  vi.stubGlobal("URL", class extends URL { static revokeObjectURL = revoke; });
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Offline test")));
+  const mediaModel = { ...model, video_inputs: { required_max: 3 }, audio_inputs: { required_max: 3 } };
+  const videoModel = { ...mediaModel, key: "video-only", audio_inputs: { required_max: 0 } };
+  const { result } = renderHook(() => useComposer([], [mediaModel, videoModel]));
+  const video = { id: "video", kind: "videos" as const, role: null,
+    file: new File(["video"], "test.mp4", { type: "video/mp4" }), previewUrl: "blob:video" };
+  const audio = { id: "audio", kind: "audios" as const, role: null,
+    file: new File(["audio"], "test.wav", { type: "audio/wav" }), previewUrl: "blob:audio" };
+  act(() => result.current.actions.setAttachments([video]));
+  act(() => result.current.actions.setAttachments([video, audio]));
+  expect(revoke).not.toHaveBeenCalled();
+  act(() => result.current.actions.setModelKey("video-only"));
+  expect(result.current.state.attachments.map(item => item.id)).toEqual(["video"]);
+  expect(revoke).toHaveBeenCalledWith("blob:audio");
+  expect(revoke).not.toHaveBeenCalledWith("blob:video");
+});
 
 it("restores an older draft only after detail is available without erasing saved inputs/options", async () => {
   savedDraft();

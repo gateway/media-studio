@@ -27,7 +27,7 @@
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Ticket 31: add only pinned Prettier 3.9.10; lockfile contract hash updated. Preserve all existing findings, analyzer versions, rules, scopes and thresholds.",
+  "reason": "Preview lifecycle change: reconcile unchanged neighboring hook diagnostics only; no rules or thresholds changed",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -953,6 +953,16 @@
       "file": "apps/web/hooks/studio/use-studio-gallery-page-effects.ts",
       "owner": "FunctionDeclaration:[\"useStudioGalleryPageEffects\"]/anonymous:eae6b40dd293ee31dfe5472893b7366c3a84391563e55d8733f7343dc0e7f43f/VariableDeclaration:[\"timer\"]/anonymous:29dbf4659ee52fb4aebd1b8776dde090d632b5438ea321442997310872636a34",
       "id": "1b99dc86f53dd9fcf928c92f034a9a6af0fe0260b8bbf0e4c23ade691734327a"
+    },
+    {
+      "rule": "react-hooks/exhaustive-deps",
+      "message": "React Hook useEffect has a missing dependency: 'setPresetInputValues'. Either include it or remove the dependency array. If 'setPresetInputValues' changes too often, find the parent component that defines it and wrap that definition in useCallback.",
+      "severity": 2,
+      "line": 193,
+      "column": 6,
+      "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
+      "owner": "FunctionDeclaration:[\"useStudioComposerGuardEffects\"]",
+      "id": "1bc62876e8bc5274ace9caf2ce5d7789c3d3b39f95d16284cb7809e6df303cb7"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -3770,7 +3780,7 @@
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 29 to the 20 allowed.",
       "severity": 1,
-      "line": 216,
+      "line": 218,
       "column": 30,
       "metric": 29,
       "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
@@ -4092,16 +4102,6 @@
       "file": "apps/web/components/studio/studio-mobile-inputs-content.tsx",
       "owner": "FunctionDeclaration:[\"StudioMobileInputsContent\"]/anonymous:b5ed2f1b9cccb465e7e245f86eb3642c99fdc74d9c11df4088fb01a0d5d0b569/anonymous:0c7aba379f0bae71acc7d42585880b6014467ca0b85c7e0927ab5567621cfff1",
       "id": "867de9c2b62818871a3c2d7d5268795014cb427abcf451e8fac443b63578911d"
-    },
-    {
-      "rule": "react-hooks/exhaustive-deps",
-      "message": "React Hook useEffect has a missing dependency: 'setPresetInputValues'. Either include it or remove the dependency array. If 'setPresetInputValues' changes too often, find the parent component that defines it and wrap that definition in useCallback.",
-      "severity": 2,
-      "line": 193,
-      "column": 6,
-      "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
-      "owner": "FunctionDeclaration:[\"useStudioComposerGuardEffects\"]",
-      "id": "868772ac29716cfc59d7c07cb62e07b45c236243f3026f8331a46078240fc260"
     },
     {
       "rule": "@typescript-eslint/no-explicit-any",
@@ -5253,7 +5253,7 @@
       "rule": "complexity",
       "message": "Arrow function has a complexity of 16. Maximum allowed is 15.",
       "severity": 1,
-      "line": 216,
+      "line": 218,
       "column": 30,
       "metric": 16,
       "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
@@ -5734,6 +5734,16 @@
       "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
       "owner": "FunctionDeclaration:[\"StudioEnhancementSettingsPanel\"]",
       "id": "c4a9a0ce0b52faca02c0a3b689c5871671c2084f8d6a2c9b0734fe11ecf9076f"
+    },
+    {
+      "rule": "react-hooks/exhaustive-deps",
+      "message": "React Hook useEffect has missing dependencies: 'setAttachments' and 'setStagedSourceAssetSnapshot'. Either include them or remove the dependency array. If 'setAttachments' changes too often, find the parent component that defines it and wrap that definition in useCallback.",
+      "severity": 2,
+      "line": 254,
+      "column": 6,
+      "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
+      "owner": "FunctionDeclaration:[\"useStudioComposerGuardEffects\"]",
+      "id": "c5206d05c48b19e942e38a15f41f9caa5c7f0e1c891a3d22c80b91c0bcb8a0ea"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -6486,16 +6496,6 @@
       "file": "apps/web/components/graph-studio/hooks/use-graph-node-spacing.test.tsx",
       "owner": "anonymous:c7fbe15cde973110623ae1ea337e189f0ccba089fb4e06ee2219213edbdd292e/anonymous:9e77994aa78ad8c399e9a203cd0a2dd9598fc9f91bc3656cd3bdaac423163d37",
       "id": "ded2efc083ec1a4df4873a4e8b6e9334714bf3fd399ae9fee96720e3a807c4b3"
-    },
-    {
-      "rule": "react-hooks/exhaustive-deps",
-      "message": "React Hook useEffect has missing dependencies: 'setAttachments' and 'setStagedSourceAssetSnapshot'. Either include them or remove the dependency array. If 'setAttachments' changes too often, find the parent component that defines it and wrap that definition in useCallback.",
-      "severity": 2,
-      "line": 252,
-      "column": 6,
-      "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
-      "owner": "FunctionDeclaration:[\"useStudioComposerGuardEffects\"]",
-      "id": "dee7c766d4e7c94ace81e7ebcefe816d91e5820d9dfd2a66eb31f1cd6d5fcd48"
     },
     {
       "rule": "complexity",

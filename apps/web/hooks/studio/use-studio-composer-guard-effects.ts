@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import type { AttachmentRecord, ComposerStatusMessage } from "@/lib/media-studio-contract";
 import {
@@ -192,20 +192,22 @@ export function useStudioComposerGuardEffects({
     setPresetInputValues((current) => ({ ...nextValues, ...current }));
   }, [presetReady, currentPresetId, structuredPresetTextFields]);
 
+  const previewUrls = useRef(new Set<string>());
+  useEffect(() => {
+    const currentUrls = new Set([...attachments, ...Object.values(presetSlotStates)]
+      .flatMap((resource) => resource?.file && resource.previewUrl ? [resource.previewUrl] : []));
+    for (const url of previewUrls.current) {
+      if (!currentUrls.has(url)) URL.revokeObjectURL(url);
+    }
+    previewUrls.current = currentUrls;
+  }, [attachments, presetSlotStates]);
+
   useEffect(() => {
     return () => {
-      for (const attachment of attachments) {
-        if (attachment.previewUrl && attachment.file) {
-          URL.revokeObjectURL(attachment.previewUrl);
-        }
-      }
-      for (const state of Object.values(presetSlotStates)) {
-        if (state?.previewUrl && state.file) {
-          URL.revokeObjectURL(state.previewUrl);
-        }
-      }
+      for (const url of previewUrls.current) URL.revokeObjectURL(url);
+      previewUrls.current.clear();
     };
-  }, [attachments, presetSlotStates]);
+  }, []);
 
   useEffect(() => {
     const sourceKind = currentSourceAsset?.generation_kind ?? null;
