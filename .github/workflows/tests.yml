@@ -118,6 +118,9 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Verify Graph output text wrapping without application services
+        run: node --test scripts/graph_text_wrapping.test.mjs
+
       - name: Install media tooling
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 

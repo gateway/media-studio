@@ -141,15 +141,6 @@
       "message": "Expected \"context\" media feature range notation (media-feature-range-notation)"
     },
     {
-      "id": "0173e50d0605fc715f93f71f294c71b501e6f03ea38bf0bf21bb6d4b001e19c5",
-      "file": "apps/web/app/graph-studio/styles/nodes/media-display.css",
-      "line": 304,
-      "column": 15,
-      "rule": "declaration-property-value-keyword-no-deprecated",
-      "severity": "error",
-      "message": "Deprecated keyword \"break-word\" for property \"word-break\" (declaration-property-value-keyword-no-deprecated)"
-    },
-    {
       "id": "017f6565dec7aa70fa25dff46a61f6332c37097b60209c51e7dc446b5d3bf46b",
       "file": "apps/web/app/globals.css",
       "line": 2128,
@@ -8583,7 +8574,7 @@
       "message": "Expected modern color-function notation (color-function-notation)"
     },
     {
-      "id": "d74a3c14dd34b2e8dfa45b915197923a32a376875d8ebf0081bbd132575bd8d5",
+      "id": "19ce8959c174d2f54fcf640edb9b6b0eb2d57b8273c8948c35a4aeeaa8751843",
       "file": "apps/web/app/graph-studio/styles/nodes/media-display.css",
       "line": 301,
       "column": 3,
