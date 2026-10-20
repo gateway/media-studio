@@ -22,7 +22,7 @@ import {
   type StudioReferencePreview,
 } from "@/lib/media-studio-helpers";
 import type { MediaAsset } from "@/lib/types";
-import { buildStagedAttachmentPreview } from "@/lib/studio-reference-previews";
+import { buildSourceAssetPreview, buildStagedAttachmentPreview } from "@/lib/studio-reference-previews";
 import { cn } from "@/lib/utils";
 
 const MOBILE_INPUT_TILE_CLASS = "h-[72px] w-[72px]";
@@ -429,15 +429,7 @@ export function StudioMobileInputsContent({
       <div className="studio-mobile-input-rail">
         {canUseSourceAsset && currentSourceAsset ? (
           <StudioStagedMediaTile
-            preview={
-              buildAssetReferencePreview(currentSourceAsset, currentSourceAsset.prompt_summary ?? "Source asset") ?? {
-                key: `asset:${currentSourceAsset.asset_id}`,
-                label: currentSourceAsset.prompt_summary ?? "Source asset",
-                url: mediaThumbnailUrl(currentSourceAsset) ?? "",
-                kind: currentSourceAsset.generation_kind === "video" ? "videos" : "images",
-                posterUrl: mediaThumbnailUrl(currentSourceAsset) ?? null,
-              }
-            }
+            preview={buildSourceAssetPreview(currentSourceAsset, buildAssetReferencePreview)}
             visualUrl={mediaThumbnailUrl(currentSourceAsset) ?? mediaDisplayUrl(currentSourceAsset)}
             onOpenPreview={onOpenPreview}
             onRemove={onClearSourceAsset}

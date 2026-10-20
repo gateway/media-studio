@@ -6890,6 +6890,16 @@
       "id": "8e5949bc3e8ba88efa3cbd8e68a22c45f2cefe55895b7fff44c6bf307c15d509"
     },
     {
+      "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
+      "rule": "TS6133",
+      "message": "'genericSourceInputsAvailable' is declared but its value is never read.",
+      "severity": 2,
+      "line": 331,
+      "column": 3,
+      "owner": "FunctionDeclaration:[\"StudioSourceAttachmentStrip\"]/Parameter:[\"{\",\"seedanceComposer\",\",\",\"standardComposerUsesExplicitSlots\",\",\",\"genericSourceInputsAvailable\",\",\",\"isDragActive\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"standardComposerSlots\",\",\",\"orderedImageInputs\",\",\",\"currentSourceAsset\",\",\",\"canUseSourceAsset\",\",\",\"attachments\",\",\",\"genericSourceAddTileVisible\",\",\",\"imageLimitLabel\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"mobileAddTileClassName\",\",\",\"mobileAddTilePlusIconClassName\",\",\",\"buildAttachmentPreview\",\",\",\"buildAssetReferencePreview\",\",\",\"standardComposerSlotPreview\",\",\",\"standardComposerSlotVisual\",\",\",\"onSetDragActive\",\",\",\"onSetFormWarning\",\",\",\"onDropIntoSourceSlot\",\",\",\"onOpenPreview\",\",\",\"onRemoveAttachment\",\",\",\"onClearSourceAsset\",\",\",\"onClearStandardComposerSlot\",\",\",\"onPickStandardComposerSlotFiles\",\",\",\"onAddFiles\",\",\",\"onResetFileInput\",\",\",\"}\"]/BindingElement:[\"genericSourceInputsAvailable\"]",
+      "id": "8ecb95f5b0c3b5ff2f0f5c6deeaede3072f5d314c1ade4812bbaa22860d6d979"
+    },
+    {
       "rule": "@typescript-eslint/no-misused-promises",
       "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
@@ -8494,16 +8504,6 @@
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSourceTileDrop\"]",
       "id": "b0b7f84a111a6e7a3ce21427e54d05e0a58e0f844a16d1578129ba5d139e5c00"
-    },
-    {
-      "file": "apps/web/components/studio/studio-composer-input-strips.tsx",
-      "rule": "TS6133",
-      "message": "'genericSourceInputsAvailable' is declared but its value is never read.",
-      "severity": 2,
-      "line": 331,
-      "column": 3,
-      "owner": "FunctionDeclaration:[\"StudioSourceAttachmentStrip\"]/Parameter:[\"{\",\"seedanceComposer\",\",\",\"standardComposerUsesExplicitSlots\",\",\",\"genericSourceInputsAvailable\",\",\",\"isDragActive\",\",\",\"seedanceFirstFrameAttachment\",\",\",\"seedanceLastFrameAttachment\",\",\",\"standardComposerSlots\",\",\",\"orderedImageInputs\",\",\",\"currentSourceAsset\",\",\",\"canUseSourceAsset\",\",\",\"attachments\",\",\",\"genericSourceAddTileVisible\",\",\",\"imageLimitLabel\",\",\",\"maxVideoInputs\",\",\",\"maxAudioInputs\",\",\",\"explicitVideoImageSlots\",\",\",\"explicitMotionControlSlots\",\",\",\"stagedVideoCount\",\",\",\"stagedAudioCount\",\",\",\"mobileAddTileClassName\",\",\",\"mobileAddTilePlusIconClassName\",\",\",\"buildAttachmentPreview\",\",\",\"buildAssetReferencePreview\",\",\",\"standardComposerSlotPreview\",\",\",\"standardComposerSlotVisual\",\",\",\"onSetDragActive\",\",\",\"onSetFormWarning\",\",\",\"onDropIntoSourceSlot\",\",\",\"onOpenPreview\",\",\",\"onRemoveAttachment\",\",\",\"onClearSourceAsset\",\",\",\"onClearStandardComposerSlot\",\",\",\"onPickStandardComposerSlotFiles\",\",\",\"onAddFiles\",\",\",\"onResetFileInput\",\",\",\"}\"]/BindingElement:[\"genericSourceInputsAvailable\"]",
-      "id": "b0c52a4b6a19f80d410b68788aa8322141f266ced429fb1aaf4a738ae1875a7e"
     },
     {
       "rule": "complexity",

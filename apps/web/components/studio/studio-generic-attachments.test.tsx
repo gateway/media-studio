@@ -6,7 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { StudioMobileInputsContent, StudioSourceAttachmentStrip } from "@/components/studio/studio-composer-input-strips";
 import type { AttachmentRecord } from "@/lib/media-studio-contract";
-import { buildAttachmentPreview } from "@/lib/studio-reference-previews";
+import type { MediaAsset } from "@/lib/types";
+import { buildAttachmentPreview, buildAssetReferencePreview } from "@/lib/studio-reference-previews";
 
 function genericProps() {
   return {
@@ -145,5 +146,71 @@ describe.each([
     expect(screen.queryByTestId(`${prefix}image-5`)).toBeNull();
     expect(screen.getByTestId(`${prefix}image-4`)).toBeTruthy();
     expect(screen.getByText(/^\+1/)).toBeTruthy();
+  });
+});
+
+
+describe.each([
+  { name: "desktop", Component: StudioSourceAttachmentStrip, testId: "studio-source-asset-tile", size: "h-[82px]" },
+  { name: "mobile", Component: StudioMobileInputsContent, testId: "studio-mobile-source-asset-tile", size: "h-[72px]" },
+])("$name gallery source asset", ({ Component, testId, size }) => {
+  const asset: MediaAsset = {
+    asset_id: "gallery-1", created_at: "2026-10-20", generation_kind: "image", prompt_summary: "Gallery image",
+    hero_original_url: "/files/original.png", hero_thumb_url: "/files/thumb.png", hero_web_url: "/files/web.png",
+  };
+
+  it("preserves injected preview identity, original builder arguments, layout and removal callbacks", () => {
+    const props = genericProps();
+    const customPreview = { key: "custom", label: "Custom source", url: "/custom.png", kind: "images" as const };
+    const builder = vi.fn(() => customPreview);
+    render(<Component {...props} canUseSourceAsset currentSourceAsset={asset} buildAssetReferencePreview={builder} />);
+    const tile = screen.getByTestId(testId);
+    expect(tile.className).toContain(size);
+    expect(within(tile).getByRole("img").getAttribute("src")).toBe("/api/control/files/thumb.png");
+    fireEvent.click(within(tile).getByTitle("Custom source"));
+    expect(builder).toHaveBeenCalledExactlyOnceWith(asset, "Gallery image");
+    expect(props.onOpenPreview).toHaveBeenCalledExactlyOnceWith(customPreview);
+    expect(props.onOpenPreview.mock.calls[0][0]).toBe(customPreview);
+    fireEvent.click(within(tile).getByRole("button", { name: "Remove Custom source" }));
+    expect(props.onClearSourceAsset).toHaveBeenCalledExactlyOnceWith();
+    expect(props.onOpenPreview).toHaveBeenCalledTimes(1);
+    expect(props.onRemoveAttachment).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: "image", item: asset, label: "Gallery image", kind: "images", url: "/api/control/files/thumb.png", posterUrl: "/api/control/files/thumb.png" },
+    { name: "video", item: { ...asset, generation_kind: "video", hero_poster_url: "/files/poster.png" }, label: "Gallery image", kind: "videos", url: "/api/control/files/poster.png", posterUrl: "/api/control/files/poster.png" },
+    { name: "empty label", item: { ...asset, prompt_summary: "" }, label: "", kind: "images", url: "/api/control/files/thumb.png", posterUrl: "/api/control/files/thumb.png" },
+    { name: "missing media", item: { asset_id: 42, created_at: "2026-10-20", prompt_summary: null, generation_kind: "audio" }, label: "Source asset", kind: "images", url: "", posterUrl: null },
+  ])("retains null-builder fallback for $name", ({ item, label, kind, url, posterUrl }) => {
+    const props = genericProps();
+    const builder = vi.fn(() => null);
+    render(<Component {...props} canUseSourceAsset currentSourceAsset={item} buildAssetReferencePreview={builder} />);
+    fireEvent.click(within(screen.getByTestId(testId)).getByTitle(label));
+    expect(builder).toHaveBeenCalledExactlyOnceWith(item, label);
+    expect(props.onOpenPreview).toHaveBeenCalledExactlyOnceWith({ key: `asset:${item.asset_id}`, label, url, kind, posterUrl });
+  });
+
+  it.each([
+    { name: "image", item: asset, url: "/api/control/files/original.png?inline=1", kind: "images", posterUrl: null, visual: "/api/control/files/thumb.png" },
+    { name: "video", item: { ...asset, generation_kind: "video", hero_poster_url: "/files/poster.png", hero_web_url: "/files/play.mp4" }, url: "/api/control/files/play.mp4", kind: "videos", posterUrl: "/api/control/files/poster.png", visual: "/api/control/files/poster.png" },
+    { name: "display fallback", item: { ...asset, hero_thumb_url: null }, url: "/api/control/files/original.png?inline=1", kind: "images", posterUrl: null, visual: "/api/control/files/web.png" },
+  ])("preserves real $name playback and visual URL precedence", ({ item, url, kind, posterUrl, visual }) => {
+    const props = genericProps();
+    render(<Component {...props} canUseSourceAsset currentSourceAsset={item} buildAssetReferencePreview={buildAssetReferencePreview} />);
+    const tile = screen.getByTestId(testId);
+    expect(within(tile).getByRole("img").getAttribute("src")).toBe(visual);
+    fireEvent.click(within(tile).getByTitle("Gallery image"));
+    expect(props.onOpenPreview).toHaveBeenCalledExactlyOnceWith({ key: "asset:gallery-1", label: "Gallery image", url, kind, posterUrl });
+  });
+
+  it("does not build a source preview when unavailable or missing", () => {
+    const props = genericProps();
+    const builder = vi.fn(() => null);
+    const { rerender } = render(<Component {...props} currentSourceAsset={asset} buildAssetReferencePreview={builder} />);
+    expect(screen.queryByTestId(testId)).toBeNull();
+    rerender(<Component {...props} canUseSourceAsset buildAssetReferencePreview={builder} />);
+    expect(screen.queryByTestId(testId)).toBeNull();
+    expect(builder).not.toHaveBeenCalled();
   });
 });

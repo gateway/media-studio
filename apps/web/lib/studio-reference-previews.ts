@@ -98,6 +98,20 @@ export function buildAssetReferencePreview(
   };
 }
 
+export function buildSourceAssetPreview(
+  asset: MediaAsset,
+  buildPreview: typeof buildAssetReferencePreview,
+): StudioReferencePreview {
+  const label = asset.prompt_summary ?? "Source asset";
+  return buildPreview(asset, label) ?? {
+    key: `asset:${asset.asset_id}`,
+    label,
+    url: mediaThumbnailUrl(asset) ?? "",
+    kind: asset.generation_kind === "video" ? "videos" : "images",
+    posterUrl: mediaThumbnailUrl(asset) ?? null,
+  };
+}
+
 export function orderedImageInputPreview(
   slot: OrderedImageInput | null,
   label: string,
