@@ -281,6 +281,28 @@ def _validate_seedance_input_mode(
         )
 
 
+def _validate_cached_output(
+    workflow_id: str, node: GraphWorkflowNode, execution_mode: str, errors: List[GraphError],
+) -> Dict[str, Any] | None:
+    """Muted nodes discard unusable cache; frozen nodes retain it and report why."""
+    cached = cached_output_for_node(workflow_id, node) if workflow_id else None
+    if not cached:
+        return cached
+    cached_run_id = str(cached.get("run_id") or "")
+    if not cached_artifacts_available(node, cached_run_id):
+        code = "frozen_artifact_missing"
+        message = "Frozen node references cached artifacts that no longer exist."
+    elif not cached_output_media_available(cached.get("output_snapshot_json") or {}):
+        code = "frozen_media_missing"
+        message = "Frozen node references cached media that no longer exists."
+    else:
+        return cached
+    if execution_mode == "muted":
+        return None
+    errors.append(GraphError(code=code, message=message, node_id=node.id))
+    return cached
+
+
 def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
     workflow = materialize_workflow_defaults(workflow)
     definitions = registry.definitions_by_type()
@@ -311,36 +333,12 @@ def validate_workflow(workflow: GraphWorkflow) -> GraphValidationResult:
             errors.append(GraphError(code="missing_node_type", message=f"Unknown node type: {node.type}", node_id=node.id))
             continue
         execution_mode = _node_execution_mode(node)
-        if execution_mode == "muted":
-            cached = cached_output_for_node(workflow_id, node) if workflow_id else None
-            cached_run_id = str(cached.get("run_id") or "") if cached else None
-            muted_cache_by_node_id[node.id] = (
-                cached
-                if cached
-                and cached_artifacts_available(node, cached_run_id)
-                and cached_output_media_available(cached.get("output_snapshot_json") or {})
-                else None
-            )
-        if execution_mode == "frozen":
-            cached = cached_output_for_node(workflow_id, node) if workflow_id else None
-            frozen_cache_by_node_id[node.id] = cached
-            cached_run_id = str(cached.get("run_id") or "") if cached else None
-            if cached and not cached_artifacts_available(node, cached_run_id):
-                errors.append(
-                    GraphError(
-                        code="frozen_artifact_missing",
-                        message="Frozen node references cached artifacts that no longer exist.",
-                        node_id=node.id,
-                    )
-                )
-            elif cached and not cached_output_media_available(cached.get("output_snapshot_json") or {}):
-                errors.append(
-                    GraphError(
-                        code="frozen_media_missing",
-                        message="Frozen node references cached media that no longer exists.",
-                        node_id=node.id,
-                    )
-                )
+        if execution_mode in {"muted", "frozen"}:
+            cached = _validate_cached_output(workflow_id, node, execution_mode, errors)
+            if execution_mode == "muted":
+                muted_cache_by_node_id[node.id] = cached
+            else:
+                frozen_cache_by_node_id[node.id] = cached
         if execution_mode == "bypassed" and not isinstance(definition.execution.get("bypass_mode"), dict):
             errors.append(
                 GraphError(
