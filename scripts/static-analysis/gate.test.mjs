@@ -96,6 +96,15 @@ test('real analyzers and CLI reject regressions and failures without changing ba
     await writeFile(source, 'export const value: number = 1;\n');
     expectStatus(run(directory, ['--update-baseline', 'Disposable acceptance fixture']), 0);
     const savedBaseline = await readFile(baselineFile, 'utf8');
+    assert.ok(JSON.parse(savedBaseline).findings.some((finding) =>
+      finding.file.startsWith('scripts/static-analysis/') && finding.rule === 'complexity'));
+    const brokenTool = path.join(directory, 'scripts/static-analysis/broken.mjs');
+    await writeFile(brokenTool, 'export const value = missingToolValue;\n');
+    const rejected = run(directory, ['--update-baseline', 'Must reject tooling correctness']);
+    expectStatus(rejected, 1);
+    assert.match(rejected.stderr, /Gate correctness findings cannot be baselined/);
+    assert.equal(await readFile(baselineFile, 'utf8'), savedBaseline);
+    await rm(brokenTool);
     expectStatus(run(directory), 0);
     await writeFile(path.join(directory, 'ops/example.cjs'), 'module.exports = missingConfiguration;\n');
     const operational = run(directory);
@@ -141,6 +150,18 @@ test('real complexity baseline tolerates line shifts and rejects worsening or re
   const source = path.join(directory, 'apps/web/example.ts');
   const code = (count) => `export function existing(n: number) { ${Array.from({ length: count }, (_, i) => `if (n === ${i}) return ${i};`).join(' ')} return -1; }\n`;
   try {
+    await writeFile(source, code(7)); // Cyclomatic 8 is allowed.
+    expectStatus(run(directory, ['--update-baseline', 'At cyclomatic limit']), 0);
+    await writeFile(source, code(8));
+    const cyclomatic = run(directory);
+    expectStatus(cyclomatic, 1);
+    assert.match(cyclomatic.stderr, /complexity/);
+    await writeFile(source, code(12)); // Cognitive 12 is allowed; baseline cyclomatic debt.
+    expectStatus(run(directory, ['--update-baseline', 'At cognitive limit']), 0);
+    await writeFile(source, code(13));
+    const cognitive = run(directory);
+    expectStatus(cognitive, 1);
+    assert.match(cognitive.stderr, /sonarjs\/cognitive-complexity/);
     await writeFile(source, code(21));
     expectStatus(run(directory, ['--update-baseline', 'Existing complex fixture']), 0);
     await writeFile(source, '\n// Moved down\n' + code(21));

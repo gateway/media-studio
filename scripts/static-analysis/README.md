@@ -34,7 +34,7 @@ full static lint before their existing application tests.
 
 - ESLint 10.13.0 with @eslint/js 10.0.1 recommended rules,
   typescript-eslint 8.71.2 recommended rules and SonarJS 4.2.2 selected rules.
-  Cyclomatic complexity limit: **15**; cognitive complexity limit: **20**.
+  Cyclomatic complexity limit: **8**; cognitive complexity limit: **12**.
   Identical functions, duplicated branches and conditions, explicit any, unused
   variables and recommended correctness rules are enabled in `eslint.config.mjs`.
   React Hooks 7.1.1 enables rules-of-hooks and exhaustive-deps. Typed web lint enables
@@ -44,9 +44,9 @@ full static lint before their existing application tests.
   disabled, plus noUnusedLocals/noUnusedParameters. Real type/configuration errors
   always fail. Only unused diagnostics TS6133/6192/6196/6198 can enter the baseline.
 - The `scripts/lint_web.mjs` custom web checks, with stateless per-file predicates. Any nonzero exit fails.
-- Ruff 0.17.1 checks E4/E7/E9/F/B/C901; C901 limit 15. Radon 6.0.1 measures each
+- Ruff 0.17.1 checks E4/E7/E9/F/B/C901; C901 limit 8. Radon 6.0.1 measures each
   function with its native AST visitor, including methods of nested classes missed
-  by its ordinary CLI output. Independent Radon CC limit: 15. Radon CLI MI is
+  by its ordinary CLI output. Independent Radon CC limit: 8. Radon CLI MI is
   informational. Python source is parsed, never imported or executed.
 
 ESLint scans web source/tests, operational JS/TS under scripts/ and ops/, and root JS configs. It
@@ -98,7 +98,7 @@ Python has its own `python-baseline.json`. Refresh with
 `npm run lint:python:baseline -- "Explain the reviewed Python changes"`, inspect its
 diff, then run lint. Its contract includes pinned package versions, config, scope
 and runner code. Paths and text line endings are normalized for portability.
-Python syntax/tool errors and findings in the new gate cannot be baselined.
+Python syntax/tool errors and correctness findings in the gate cannot be baselined.
 The initial Python baseline contains 298 Ruff findings (30 C901) and 245 Radon
 functions above CC 15. These metrics remain independent; they are not combined
 into a complexity score. Existing debt is visible even when the regression gate passes.
@@ -240,3 +240,12 @@ contract metadata; keep unchanged finding records intact. Record session-specifi
 counts and reconciliation evidence outside tracked source. Future blocking
 categories require explicit triage and reviewed entry coverage; do not baseline
 every warning or hide execution errors.
+
+## Complexity limits (2026-10-20)
+
+Cyclomatic complexity is limited to 8 (ESLint, Ruff and Radon independently);
+SonarJS cognitive complexity is limited to 12. Existing findings, including
+complexity in analyzer tooling, are recorded at their measured scores. New
+findings and increased scores fail lint. Explicit baseline refreshes can record
+reviewed tooling complexity, but cannot accept tooling correctness findings.
+These lower limits do not require a bulk refactor of unchanged application code.

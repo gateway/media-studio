@@ -50,8 +50,9 @@ async function main() {
   uniqueFindings(findings);
   await save(output, 'findings.json', findings);
   if (refresh) {
-    if (findings.some((finding) => finding.file.startsWith('scripts/static-analysis/'))) {
-      throw new Error('New gate implementation must be clean; cannot baseline its findings');
+    if (findings.some((finding) => finding.file.startsWith('scripts/static-analysis/') &&
+        !['complexity', 'sonarjs/cognitive-complexity'].includes(finding.rule))) {
+      throw new Error('Gate correctness findings cannot be baselined');
     }
     await save(path.dirname(baselinePath), path.basename(baselinePath), { schema: 1, contract: hash, metadata, reason, findings });
     console.log(`Baseline explicitly updated: ${findings.length} findings. Review the diff before committing.`);
