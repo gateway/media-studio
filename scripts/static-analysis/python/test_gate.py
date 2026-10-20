@@ -121,23 +121,24 @@ class IntegrationTests(unittest.TestCase):
         def code(count):
             branches = ''.join(f'    if value == {number}:\n        return {number}\n' for number in range(count))
             return 'def existing(value):\n' + branches + '    return -1\n'
+        self.source.write_text(code(7))  # CC 8 is allowed.
         self.baseline()
-        self.source.write_text(code(16))
+        self.source.write_text(code(8))  # CC 9 must fail.
         failed = self.run_gate(expected=1)
         self.assertIn('ruff/C901', failed.stderr)
         self.assertIn('radon/CC', failed.stderr)
         self.baseline()
-        self.source.write_text('\n# moved down\n' + code(16))
+        self.source.write_text('\n# moved down\n' + code(8))
         self.run_gate()
-        self.source.write_text(code(17))
+        self.source.write_text(code(9))
         self.run_gate(expected=1)
-        self.source.write_text(code(16).replace('existing', 'renamed'))
+        self.source.write_text(code(8).replace('existing', 'renamed'))
         self.run_gate(expected=1)
-        self.source.write_text(code(16))
-        (self.source.parent / 'new.py').write_text(code(16))
+        self.source.write_text(code(8))
+        (self.source.parent / 'new.py').write_text(code(8))
         self.run_gate(expected=1)
         (self.source.parent / 'new.py').unlink()
-        nested = 'def outer():\n    class Inner:\n' + ''.join('        ' + line + '\n' for line in code(16).splitlines())
+        nested = 'def outer():\n    class Inner:\n' + ''.join('        ' + line + '\n' for line in code(8).splitlines())
         self.source.write_text(nested)
         self.assertIn('radon/CC', self.run_gate(expected=1).stderr)
 

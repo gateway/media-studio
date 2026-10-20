@@ -110,8 +110,9 @@ def run(root, output, reason=None):
     save(output, 'findings.json', findings)
     baseline_file = root / TOOLING / 'python-baseline.json'
     if reason:
-        if any(item['file'].startswith('scripts/static-analysis/') for item in findings):
-            raise ValueError('Gate implementation must be clean; cannot baseline its findings')
+        if any(item['file'].startswith('scripts/static-analysis/') and
+               item['rule'] not in ('ruff/C901', 'radon/CC') for item in findings):
+            raise ValueError('Gate correctness findings cannot be baselined')
         save(baseline_file.parent, baseline_file.name,
              dict(schema=1, contract=signature, metadata=metadata, reason=reason, findings=findings))
         print(f'Explicit Python baseline update: {len(findings)} findings; review the diff.')

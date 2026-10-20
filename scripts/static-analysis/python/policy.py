@@ -107,7 +107,7 @@ def normalize_ruff(data, root, sources):
         result = dict(file=file, rule='ruff/' + item['code'], message=item['message'],
                       severity=2, line=item['location']['row'], column=item['location']['column'])
         if item['code'] == 'C901':
-            match = re.search(r'\((\d+) > 15\)', item['message'])
+            match = re.search(r'\((\d+) > 8\)', item['message'])
             if not match:
                 raise ValueError('Unrecognized Ruff complexity message')
             result['metric'] = int(match[1])
@@ -135,11 +135,11 @@ def normalize_radon(data, sources):
         seen = set()
         for block in radon_blocks(data.get(file, [])):
             seen.add(block['lineno'])
-            if block['complexity'] <= 15:
+            if block['complexity'] <= 8:
                 continue
             item = source.identify(dict(file=file, rule='radon/CC', severity=2,
                                         line=block['lineno'], column=block['col_offset'] + 1,
-                                        metric=block['complexity'], message=f"Radon CC {block['complexity']} exceeds 15"))
+                                        metric=block['complexity'], message=f"Radon CC {block['complexity']} exceeds 8"))
             # --show-closures emits nested blocks both in parents and at top level.
             if item['id'] in findings and findings[item['id']] != item:
                 raise ValueError('Ambiguous Radon identity')

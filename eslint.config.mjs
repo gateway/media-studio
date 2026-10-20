@@ -11,7 +11,7 @@ export default ts.config(
  js.configs.recommended,
  ...ts.configs.recommended,
  {files:['**/*.{ts,tsx,js,mjs,cjs}'],languageOptions:{globals},plugins:{sonarjs:sonar},rules:{
-  complexity:['warn',15], 'sonarjs/cognitive-complexity':['warn',20],
+  complexity:['warn',8], 'sonarjs/cognitive-complexity':['warn',12],
   'sonarjs/no-identical-functions':'warn','sonarjs/no-duplicated-branches':'warn',
   'sonarjs/no-all-duplicated-branches':'warn','sonarjs/no-identical-conditions':'error',
   '@typescript-eslint/no-explicit-any':'warn','@typescript-eslint/no-unused-vars':['warn',{args:'none',ignoreRestSiblings:true}],

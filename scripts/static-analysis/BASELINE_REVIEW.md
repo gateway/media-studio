@@ -154,3 +154,25 @@ existing owners. Counts in the last column are unchanged before and after.
 | Composer / guard effects | composer 532–558 → 524–550; `hooks/studio/use-studio-composer-guard-effects.ts` 63–89 unchanged | `029267464370aacb7058ac86f052798700b8645362c3df4e44cb3ae0825ef232` → `74a1c684149a9cd86353700bd23484110938a2fa8ba92190c98de67985158489` | 52 / 27 |
 | Shell / shell | 1318–1325 → 1242–1249; 1381–1388 → 1305–1312 | `cc25e743bb7d7f36db6ed579a76245146ce205e5296ce91c45c524499adfaa96` → `9c05975cfa6eefd2f512b64f57406c2c0cfec979c664d7a5b0cbfb451b97e1ce` | 65 / 8 |
 | Shell / shell | 1711–1722 → 1635–1646; 1782–1793 → 1706–1717 | `3b712a9cece3eb03ec0323e94f5332c2bf2f890e65f432ddee88594ed99323aa` → `ce8b9d58b9e92b1e2b51092421d2d7feb67fb828467c2969c40e129b206b918b` | 52 / 12 |
+
+## Complexity limits: 2026-10-20
+
+User-requested limits are now ESLint cyclomatic 8, SonarJS cognitive 12, and
+Ruff/Radon cyclomatic 8 independently. No application source changed.
+The generated web baseline grows from 720 to 1,132 findings: 328 cyclomatic
+and 84 cognitive findings newly visible under these limits. Python grows from
+539 to 954: 91 Ruff C901 and 324 Radon CC findings. Counts overlap by function.
+No prior finding identities disappear and no prior measured scores increase.
+
+Existing analyzer-tooling complexity is included in this adoption. Explicit
+baseline updates may record its complexity, but still reject tooling correctness
+findings. Normal lint continues to reject new identities and increased metrics.
+Boundary fixtures exercise cyclomatic 8/9 and cognitive 12/13 using actual tools;
+existing line-shift, rename and worsening checks remain in place. Baseline files
+are generated evidence, not application rewrites.
+
+Validation: all 12 JavaScript analyzer tests and 5 standalone Python analyzer
+tests passed. Full `npm run lint` passed (format, web/types, Python, CSS/theme,
+dependency graph, duplication and Knip); production clone baseline stayed at
+280 pairs with zero regressions. No runtime, database or paid-provider checks
+were needed for this configuration-only change. CI remains a pre-merge gate.

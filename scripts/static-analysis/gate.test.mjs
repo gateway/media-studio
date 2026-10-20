@@ -141,6 +141,18 @@ test('real complexity baseline tolerates line shifts and rejects worsening or re
   const source = path.join(directory, 'apps/web/example.ts');
   const code = (count) => `export function existing(n: number) { ${Array.from({ length: count }, (_, i) => `if (n === ${i}) return ${i};`).join(' ')} return -1; }\n`;
   try {
+    await writeFile(source, code(7)); // Cyclomatic 8 is allowed.
+    expectStatus(run(directory, ['--update-baseline', 'At cyclomatic limit']), 0);
+    await writeFile(source, code(8));
+    const cyclomatic = run(directory);
+    expectStatus(cyclomatic, 1);
+    assert.match(cyclomatic.stderr, /complexity/);
+    await writeFile(source, code(12)); // Cognitive 12 is allowed; baseline cyclomatic debt.
+    expectStatus(run(directory, ['--update-baseline', 'At cognitive limit']), 0);
+    await writeFile(source, code(13));
+    const cognitive = run(directory);
+    expectStatus(cognitive, 1);
+    assert.match(cognitive.stderr, /sonarjs\/cognitive-complexity/);
     await writeFile(source, code(21));
     expectStatus(run(directory, ['--update-baseline', 'Existing complex fixture']), 0);
     await writeFile(source, '\n// Moved down\n' + code(21));
