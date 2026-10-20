@@ -104,6 +104,9 @@ jobs:
       - name: Test standalone unit bytecode policy without application imports
         run: kie-api/.venv/bin/python -B scripts/test_ci_bytecode_policy.py
 
+      - name: Test recipe validation without application startup or databases
+        run: kie-api/.venv/bin/python -B scripts/test_prompt_recipe_validation.py
+
       - name: Install web dependencies
         run: npm ci
 

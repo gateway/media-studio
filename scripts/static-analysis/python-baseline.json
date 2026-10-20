@@ -2499,8 +2499,8 @@
       "file": "apps/api/app/service_prompt_recipe_validation.py",
       "id": "3d5f44540012d78e2ddd0a81a5b349d7aadf2cc534c9a666d284294ced04010a",
       "line": 328,
-      "message": "Radon CC 86 exceeds 8",
-      "metric": 86,
+      "message": "Radon CC 84 exceeds 8",
+      "metric": 84,
       "owner": "validate_prompt_recipe_payload",
       "rule": "radon/CC",
       "severity": 2
