@@ -580,26 +580,6 @@
       "format": "python"
     },
     {
-      "id": "1c4ceb0c181fd5fa287573d974063f14d961ea5923912e6ead70c7553e6c8f39",
-      "endpoints": [
-        {
-          "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-          "start": 63,
-          "end": 68,
-          "context": "33605aa6ca2d1531c4e6cca2c78df7e7a4b90e11d56e606a4148c359724032f1"
-        },
-        {
-          "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-          "start": 77,
-          "end": 82,
-          "context": "9b394808b0f8f9163a7378868e0bc9b6225c6417fda216a64b0dd3ec130e080a"
-        }
-      ],
-      "tokens": 53,
-      "lines": 6,
-      "format": "tsx"
-    },
-    {
       "id": "1c5580a108cb94d461f9893ce562233921999676a4549175ae09db7399372f99",
       "endpoints": [
         {
@@ -5477,6 +5457,26 @@
       ],
       "tokens": 112,
       "lines": 20,
+      "format": "tsx"
+    },
+    {
+      "id": "fcbcc8866a0b193d55ededd59325c98f982bc4f8cc1879afacad213648b007c0",
+      "endpoints": [
+        {
+          "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+          "start": 62,
+          "end": 67,
+          "context": "26f5ef4906061c7bb508540f90a55d355c5ad7882687f3d7e89ac490933c4ded"
+        },
+        {
+          "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+          "start": 76,
+          "end": 81,
+          "context": "64deb6ce3c81499291803a7e9a1c2537c5964e1ad94a468a2d95667ab8e771b6"
+        }
+      ],
+      "tokens": 53,
+      "lines": 6,
       "format": "tsx"
     },
     {
