@@ -96,6 +96,28 @@ export function buildStudioGalleryAssetPageParams({
   return params;
 }
 
+function getOrCreateGalleryPageRequest(requestOwner: GalleryPageRequestOwner, requestKey: string): Promise<AssetPagePayload> {
+  let request = requestOwner.inFlight.get(requestKey);
+  if (!request) {
+    request = (async () => {
+      const response = await fetch(`/api/control/media-assets?${requestKey}`, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as AssetPagePayload;
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error ?? "Unable to load media assets from the dashboard.");
+      }
+      return payload;
+    })().finally(() => {
+      requestOwner.inFlight.delete(requestKey);
+    });
+    requestOwner.inFlight.set(requestKey, request);
+  }
+  return request;
+}
+
 export function createStudioGalleryPageActions({
   requestOwner,
   isCurrentQuery,
@@ -152,24 +174,7 @@ export function createStudioGalleryPageActions({
     });
 
     const requestKey = params.toString();
-    let request = requestOwner.inFlight.get(requestKey);
-    if (!request) {
-      request = (async () => {
-        const response = await fetch(`/api/control/media-assets?${requestKey}`, {
-          method: "GET",
-          headers: { Accept: "application/json" },
-          cache: "no-store",
-        });
-        const payload = (await response.json()) as AssetPagePayload;
-        if (!response.ok || !payload.ok) {
-          throw new Error(payload.error ?? "Unable to load media assets from the dashboard.");
-        }
-        return payload;
-      })().finally(() => {
-        requestOwner.inFlight.delete(requestKey);
-      });
-      requestOwner.inFlight.set(requestKey, request);
-    }
+    const request = getOrCreateGalleryPageRequest(requestOwner, requestKey);
     try {
       const payload = await request;
       if (!isCurrentQuery()) {
