@@ -180,7 +180,8 @@ export function shouldReloadSavedWorkflowRecordOnRestore(tab: GraphWorkspaceTab 
   if (!tab?.workflow_id) return false;
   const workflow = normalizeWorkflowPayload(tab.workflow_json ?? null);
   if (!workflow) return true;
-  if (!Array.isArray(workflow.nodes) || workflow.nodes.length === 0) return true;
+  // Legacy empty caches need a reload; baseline-bound dirty drafts preserve intentional deletions.
+  if (workflow.nodes.length === 0 && !tab.saved_workflow_signature) return true;
   if (tab.dirty) return false;
   if (tab.saved_workflow_signature) return true;
   const graphStudioOwned = workflow.metadata?.created_by === "graph-studio";
