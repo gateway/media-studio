@@ -367,16 +367,6 @@
       "id": "07f6369b0e7581bfbd94b9ae92ee338a05e4fa1ddc37ca227a5f467029e16404"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1561,
-      "column": 30,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:c363efec28cbbb519cc141bd760dd684e7d24dffbacf1584b47c9d08fd7185f8",
-      "id": "08179a569119343b57102f203c18ba21dcd7769f64ac2b674c18fae27334d63f"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 27 to the 12 allowed.",
       "severity": 1,
@@ -794,6 +784,17 @@
       "id": "10254ead697a1de6b5cbce5dc2aa9faa2eac15944cac77f1da29893a74e3fd9a"
     },
     {
+      "rule": "sonarjs/cognitive-complexity",
+      "message": "Refactor this function to reduce its Cognitive Complexity from 14 to the 12 allowed.",
+      "severity": 1,
+      "line": 10,
+      "column": 10,
+      "metric": 14,
+      "file": "apps/web/components/graph-studio/assistant-conversation-message-body.tsx",
+      "owner": "FunctionDeclaration:[\"kernelToolActivity\"]",
+      "id": "108d43ce92209ed25eb13c3a420830f8cea678d72a14e17c1519d8a62dac0074"
+    },
+    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -835,6 +836,16 @@
       "file": "apps/web/app/api/control/media-batches/route.ts",
       "owner": "FunctionDeclaration:[\"GET\"]",
       "id": "11193deb7d0aac0494376dcabfa6a402f375464590568164b0f5ee94137fecfd"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1474,
+      "column": 34,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:0682907e9d01c2147674745a9e935f0c3408ef66fbb978da323e6ea0c83dfb06",
+      "id": "111f768386eaac32d206032ce3afa8320879100472473e3aba7c1a212f5c0709"
     },
     {
       "rule": "complexity",
@@ -1420,17 +1431,6 @@
       "id": "1aece056dab293a763d7ad78d84d2ba739d13771abe9f6502a77fb2e62d7304e"
     },
     {
-      "rule": "sonarjs/cognitive-complexity",
-      "message": "Refactor this function to reduce its Cognitive Complexity from 14 to the 12 allowed.",
-      "severity": 1,
-      "line": 201,
-      "column": 10,
-      "metric": 14,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"kernelToolActivity\"]",
-      "id": "1b3320f3ad3ba6e5b88f6e45ee2aff8760189f1007357f80780f4f51b89bc122"
-    },
-    {
       "file": "apps/web/lib/studio-options.ts",
       "rule": "TS6133",
       "message": "'modelKey' is declared but its value is never read.",
@@ -1491,16 +1491,6 @@
       "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
       "owner": "FunctionDeclaration:[\"useStudioComposerGuardEffects\"]",
       "id": "1bc62876e8bc5274ace9caf2ce5d7789c3d3b39f95d16284cb7809e6df303cb7"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1355,
-      "column": 332,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:2e76d3b2d93b6d7e6d83edd8ca1732c15e88de65103c5e32dc96ac0a8f3152c8",
-      "id": "1bcf21b5982af0b8c6e1b26966fb956851b638fcb65f01e1c8e5636acb2e947b"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -1618,6 +1608,16 @@
       "file": "apps/web/lib/studio-options.ts",
       "owner": "FunctionDeclaration:[\"displayChoiceLabel\"]",
       "id": "1ec38d12b6a060051bcdc0588c0d963b8c58cdfb8481a94f45f8977732f84b77"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1226,
+      "column": 34,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:e6e9447a4f8e274c989d3ce59fa1e51cee0ba4d74aa35e725f3edfca825d0e59",
+      "id": "1f0fd07b07ed52fd3c5b59d78d5b2231967c85a1288d0716e8cb4c5e39cc2986"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -2098,6 +2098,16 @@
       "id": "26ca8dab862f403e047ece246f83b105f1f4e3f1ff2bf679fbc1614fa40e8561"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1516,
+      "column": 30,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:c363efec28cbbb519cc141bd760dd684e7d24dffbacf1584b47c9d08fd7185f8",
+      "id": "26eb6a5d3f90c5398bdf447b9162f361326908ab1f95900c4fb3fd9905d0c0c6"
+    },
+    {
       "rule": "complexity",
       "message": "Arrow function has a complexity of 18. Maximum allowed is 8.",
       "severity": 1,
@@ -2534,6 +2544,16 @@
       "id": "31427b83ac857b8d3f87975ee3085959658214f6be8f3e521991e78cb1f51d7c"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1507,
+      "column": 76,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:7ba3fce06d0b906c39dd5f422295519e427c3ebbd59906e8782b5c52be37ead3",
+      "id": "31a4b456a3c527e28fbdfff7fd951a8c45944491cabd6003587e723661e1012e"
+    },
+    {
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useEffect has a missing dependency: 'setSelectedReferencePreview'. Either include it or remove the dependency array.",
       "severity": 2,
@@ -2597,6 +2617,16 @@
       "file": "apps/web/components/studio/studio-inspector-actions.tsx",
       "owner": "FunctionDeclaration:[\"StudioInspectorActions\"]",
       "id": "32a3933326b6af6259971425a1d3d1ad3e0c3bbeec2f0d1b121a5535b4adb0ac"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1266,
+      "column": 34,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:ac8ef2e5fa99c8b0529fa1d3f4efd61738325e7c48756ea86e1a72c14a12c7d1",
+      "id": "32ad567c2eeb28a1b3c98972da396fef08e73ded0f3a2d3391169931b4fdc118"
     },
     {
       "rule": "complexity",
@@ -3036,17 +3066,6 @@
     },
     {
       "rule": "complexity",
-      "message": "Function 'kernelToolActivity' has a complexity of 16. Maximum allowed is 8.",
-      "severity": 1,
-      "line": 201,
-      "column": 1,
-      "metric": 16,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"kernelToolActivity\"]",
-      "id": "3ce822dbb88a0a3c419605aba227272042f024b544c5f56b7060d2f6d63e48b2"
-    },
-    {
-      "rule": "complexity",
       "message": "Async function 'fetchAssetPage' has a complexity of 14. Maximum allowed is 8.",
       "severity": 1,
       "line": 130,
@@ -3130,6 +3149,16 @@
       "id": "3f067ec5d30efad0e083d1fac8299f2d0b37dfd95669d94f06e442e7220d653c"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1310,
+      "column": 332,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:2e76d3b2d93b6d7e6d83edd8ca1732c15e88de65103c5e32dc96ac0a8f3152c8",
+      "id": "3f17545a84034fca0e47e1f50d2d9d9328728f526d6f733078b795b894249f8c"
+    },
+    {
       "rule": "complexity",
       "message": "Async function 'pollJob' has a complexity of 20. Maximum allowed is 8.",
       "severity": 1,
@@ -3206,6 +3235,16 @@
       "id": "40abc2e68a5c8bc4482e0dec1fbf32dad5b750d1d609ef72ef02f4709cbe5aa3"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1503,
+      "column": 76,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:c5139bc1de3103d15c76c5d702d0c68b4ce7c7fc801ff21b26f9f1aa779a5384",
+      "id": "40ac08cceb5744e366bacaeaa69a27ed6437e2195d35e59a58fe72c2f1ba7ae3"
+    },
+    {
       "rule": "@typescript-eslint/no-explicit-any",
       "message": "Unexpected any. Specify a different type.",
       "severity": 1,
@@ -3245,16 +3284,6 @@
       "file": "apps/web/lib/studio-composer-file-utils.ts",
       "owner": "FunctionDeclaration:[\"normalizeImageFileForUpload\"]",
       "id": "424a45bb6721313ca4d5c51eeeda5e61cad9f153d3c3293cada714006df15612"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1548,
-      "column": 76,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:c5139bc1de3103d15c76c5d702d0c68b4ce7c7fc801ff21b26f9f1aa779a5384",
-      "id": "4265105ae5f0219e2d0668fa0e9ec39d51f113945ebf873cd086419dcd842168"
     },
     {
       "rule": "complexity",
@@ -4123,6 +4152,16 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
+      "line": 1244,
+      "column": 34,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:9822c366e89faae938745e7ddad21aca1d1051c75c04cb3a16940e09d459fa68",
+      "id": "566613398d3719c870dbcdefabc99ec0ecbe5a950247d872614668e406668042"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
       "line": 404,
       "column": 36,
       "file": "apps/web/components/media-preset-editor-screen.tsx",
@@ -4610,6 +4649,16 @@
       "file": "apps/web/lib/control-api-media.ts",
       "owner": "FunctionDeclaration:[\"mapJobRecord\"]",
       "id": "6095db3823f4714e2df5943dc057fb4bbb385d173570463504a8d6d2d699a0eb"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 971,
+      "column": 39,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/anonymous:663343446aa16d130ae806a79f3c33c7d4c4e224f24ffdd0183b027747db9ee7/JsxAttribute:[\"onRemove\"]/anonymous:9158da078fbf53b8c2fdd304438599fb75c5b9bb8c2fb1d881fac58a4a41f876",
+      "id": "612f1f0eaf01e60c0d42d707ca25a475bc0efa972176a759cace281270996be2"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -5218,6 +5267,16 @@
       "id": "6bfd11ab9663c2b5369ffb6baf996c80d8c4cf5506da0d391c36d8b6ff2c027b"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1008,
+      "column": 119,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:113a69aa0cb420558bec5750a2c4c554f983e42c023a83cb12aa920c93f8471e",
+      "id": "6ca9b346c6822b5b2610ac10edece8b773ed8ca1ed957cbee60f8193c65956ef"
+    },
+    {
       "rule": "complexity",
       "message": "Function 'StudioReferenceLibrary' has a complexity of 17. Maximum allowed is 8.",
       "severity": 1,
@@ -5301,16 +5360,6 @@
       "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
       "owner": "FunctionDeclaration:[\"persistedPlanForWorkflow\"]",
       "id": "6ea4b9b5d497a5f7b06152412fe1c948dd64659274ff94f18a6385c62477169a"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1540,
-      "column": 78,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:c5139bc1de3103d15c76c5d702d0c68b4ce7c7fc801ff21b26f9f1aa779a5384",
-      "id": "6f0578134022e64a533e6e701b1764c0c562263aab925c9cd78b6a96568a1aab"
     },
     {
       "rule": "complexity",
@@ -5883,16 +5932,6 @@
       "id": "7bcdc430d1468a8821b43c7c517c64fd84ebd00c70447e03901d4815603c4ce6"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1193,
-      "column": 36,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/anonymous:c76a2e59d661112bf90cd4505e9c50a70421a2e5192b2e85400b3a75077844b9/JsxAttribute:[\"onClick\"]/anonymous:50482ebfe4b80261b2ca95074e90e18f48cdd370b5dc0d5609d947d00b4eb6aa",
-      "id": "7c006174b7624b0835bae6f5bac0c58c9b026b71494ab9057cdf45154a6d6c61"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'galleryTilePriority' has a complexity of 9. Maximum allowed is 8.",
       "severity": 1,
@@ -5989,16 +6028,6 @@
       "id": "7d2b4f75dedc526f6047f54659ef462fe5df64be6670c10e538b7b99a51aa737"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1612,
-      "column": 40,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onSelectItem\"]/anonymous:bee2ab230d2690417e28295007a866101745a168d57e99f71b173bdd4b9ad4e0",
-      "id": "7d8081dfc3f59292428033135e4c4788175b17b63ebbd866edacb853d4db2a8f"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 19 to the 12 allowed.",
       "severity": 1,
@@ -6040,16 +6069,6 @@
       "file": "apps/web/lib/allowed-dev-origins.ts",
       "owner": "FunctionDeclaration:[\"normalizeDevOrigin\"]",
       "id": "7de756950240c8d8990181fa12513c088a630ffbe713d442aaefa160a56bf93c"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1581,
-      "column": 32,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:753803151a6d1b1e4b23f06f9a0f2b5b3ef774398748e84e092421fd89aaf390",
-      "id": "7e2127423e623cd703d78df0d719638d09319a18b3b91846380827d19694edcb"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -6332,6 +6351,16 @@
       "id": "8392f3f7acb3d774dfdd4bb8db9a0fb6661b895aa999b891fb752a4f8dc15532"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1129,
+      "column": 34,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:9e0f9110bf51efbbdb2e33900bfb5f468525afcc487d04aa265c64525a656140",
+      "id": "83e260339209f4a5336e18f5fd87c107206b00f83e2cb3f113286864f9a9a763"
+    },
+    {
       "rule": "complexity",
       "message": "Function 'mediaDownloadName' has a complexity of 56. Maximum allowed is 8.",
       "severity": 1,
@@ -6480,16 +6509,6 @@
       "file": "apps/web/lib/graph-node-search.test.ts",
       "owner": "anonymous:20c0871ebe5a1efdf0979dcbfe7b39b1a54feac9de4a7031e19e3b97192fc4cc/anonymous:522b1f4279c0055460485fb83f99a8ed49eb0211ef39b207962000a958dcef3e/PropertyAccessExpression:[\"toBe\"]",
       "id": "874d55e625c09a156d32727b890d650daf1601f8dbf47b1f619b3b993993b2f8"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1031,
-      "column": 119,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:113a69aa0cb420558bec5750a2c4c554f983e42c023a83cb12aa920c93f8471e",
-      "id": "8751e6ff4c68b1879a2d9402b1ea6fecce27bd9968e93390d55599547d86ecdc"
     },
     {
       "rule": "complexity",
@@ -6791,16 +6810,6 @@
       "file": "apps/web/components/graph-studio/hooks/use-creative-assistant.ts",
       "owner": "FunctionDeclaration:[\"useCreativeAssistant\"]/anonymous:902ad9ec2586c0fa422060003b48e0b9f654854d6ec35dea17822c1140f571b3",
       "id": "8e00ea4747c56331f109a2702b6a68fe417b98addaebc7b728d415309ba0c3bb"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1552,
-      "column": 76,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:7ba3fce06d0b906c39dd5f422295519e427c3ebbd59906e8782b5c52be37ead3",
-      "id": "8e1447cf7bc6d9269c7888045309f32d1cd30bfe97438458af810143c9d6f8ae"
     },
     {
       "rule": "complexity",
@@ -7115,16 +7124,6 @@
       "id": "956d1b551f6e00418b8f7c724e1ad440b08fc7cc723ed731a2ec5c35f86fcf2a"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1329,
-      "column": 34,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:1835bec5c419693aa148c299e7151e7fb4f57010b2cbf3e27621eafdac8cee0f",
-      "id": "95a0f704209a6b145f3732fc67df39b89869e2cf3d507133344f12ec2e516485"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 24 to the 12 allowed.",
       "severity": 1,
@@ -7222,6 +7221,16 @@
       "id": "9764389b4b0359c8ef46ac14bfe312632a492da5394a24907f5293021f342ce6"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1284,
+      "column": 34,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:1835bec5c419693aa148c299e7151e7fb4f57010b2cbf3e27621eafdac8cee0f",
+      "id": "976a7d6ff89e11cc990eedd809db00db19536e98fafc91b090b787021fe51000"
+    },
+    {
       "rule": "complexity",
       "message": "Arrow function has a complexity of 12. Maximum allowed is 8.",
       "severity": 1,
@@ -7262,16 +7271,6 @@
       "file": "apps/web/components/prompt-recipes/prompt-recipe-editor-screen.tsx",
       "owner": "FunctionDeclaration:[\"PromptRecipeEditorScreen\"]/JsxAttribute:[\"onRetry\"]",
       "id": "97d0ebb0df90902522abb6915b0b9c4f0c0703143ce23c0454b936a32a0d93df"
-    },
-    {
-      "rule": "@typescript-eslint/no-misused-promises",
-      "message": "Promise-returning function provided to attribute where a void return was expected.",
-      "severity": 2,
-      "line": 1611,
-      "column": 20,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onLoadMore\"]",
-      "id": "97fa88444ce7b27a554abf2d71a49e04d251854df1f7da1c45e1149c6f1b0186"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -8242,16 +8241,6 @@
       "id": "ac5307b5ea25b5e7b29bf6513bd2046d22b67d1ea2d51914a350f850013bbba7"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 994,
-      "column": 39,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/anonymous:663343446aa16d130ae806a79f3c33c7d4c4e224f24ffdd0183b027747db9ee7/JsxAttribute:[\"onRemove\"]/anonymous:9158da078fbf53b8c2fdd304438599fb75c5b9bb8c2fb1d881fac58a4a41f876",
-      "id": "ac5becf139199a3af20b30fa103609a1b29461017c11510a77d9de68bc1d6bab"
-    },
-    {
       "rule": "complexity",
       "message": "Arrow function has a complexity of 11. Maximum allowed is 8.",
       "severity": 1,
@@ -8646,6 +8635,16 @@
       "id": "b46f893d7640de4300fe539f240cdec3226cce342af785de2e249a0cfe514a0e"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1148,
+      "column": 36,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/anonymous:c76a2e59d661112bf90cd4505e9c50a70421a2e5192b2e85400b3a75077844b9/JsxAttribute:[\"onClick\"]/anonymous:50482ebfe4b80261b2ca95074e90e18f48cdd370b5dc0d5609d947d00b4eb6aa",
+      "id": "b50a6da6171aeacdcbf15ef9b56b66dd48bc6c2d16a7adfb7e0faee146487c70"
+    },
+    {
       "rule": "@typescript-eslint/no-unused-vars",
       "message": "'defaultPromptRecipeImageInput' is defined but never used.",
       "severity": 1,
@@ -8739,6 +8738,17 @@
       "file": "apps/web/components/graph-studio/utils/graph-prompt-recipe.test.ts",
       "owner": "anonymous:99b94e4307dbd531916879a3a3ce241b26b1a688d21bf80e6a659cdb1e15374f/anonymous:8fdff7b5e618943df73dfe2339d890cbb97e206e3982ed19aeed78009f932553",
       "id": "b77e463e033f5491071e0f7e90fc769548bd1f966479d76801b93405042c1091"
+    },
+    {
+      "rule": "complexity",
+      "message": "Function 'kernelToolActivity' has a complexity of 16. Maximum allowed is 8.",
+      "severity": 1,
+      "line": 10,
+      "column": 1,
+      "metric": 16,
+      "file": "apps/web/components/graph-studio/assistant-conversation-message-body.tsx",
+      "owner": "FunctionDeclaration:[\"kernelToolActivity\"]",
+      "id": "b8418b7d03abf52a3df95f0d62870ab30803610a89a5d42029fb8cae274faefd"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -8855,6 +8865,16 @@
       "id": "bae210f6c75a8826fb5918a7a2ee6e3ec8b4aa04bd5cb56ed69c4bd6df003b2b"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1536,
+      "column": 32,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:753803151a6d1b1e4b23f06f9a0f2b5b3ef774398748e84e092421fd89aaf390",
+      "id": "bb0d38ff87738595846331bb5afa435f46231a6effdb5419d02771ea73546d03"
+    },
+    {
       "rule": "complexity",
       "message": "Function 'parseAspectRatioValue' has a complexity of 10. Maximum allowed is 8.",
       "severity": 1,
@@ -8874,16 +8894,6 @@
       "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
       "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onAction\"]/anonymous:0537f413028229527b5c651331369181cc976255e57faf442a0ba0e7ffa705b0",
       "id": "bb68a28d6e35f0939a81eab9fbf255a941667fc1f810abfe3b8b9cdb52bdfdd3"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1355,
-      "column": 103,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:80e14a1eb8e0786e3860b61638d77b6829b4ba8db8beb63946e2aa4e19282bfa",
-      "id": "bb8fae88ef27bf974fcf538963cdbaa9193cb5ff8c905f4823c18fc31861c925"
     },
     {
       "rule": "complexity",
@@ -9159,16 +9169,6 @@
       "file": "apps/web/hooks/studio/use-studio-poll-scheduler.ts",
       "owner": "FunctionDeclaration:[\"useStudioPollScheduler\"]/anonymous:f09d867f6317a95e978b5f05f062626245d39324cbbc1868251fd13b487c7da3/anonymous:880586e6c8f2f73b604f86e179daacded39d13147089b05079367a6f4f8b6ec9/PropertyAccessExpression:[\"clear\"]/PropertyAccessExpression:[\"current\"]",
       "id": "c2981b9b82d7f9c39058771eb440bac5b955bd9fc457a573f7703d7180df1a41"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1174,
-      "column": 34,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:9e0f9110bf51efbbdb2e33900bfb5f468525afcc487d04aa265c64525a656140",
-      "id": "c29f3de101b99c55a6fe0887f514d3c99536695e2ef67f436864e422177e1611"
     },
     {
       "rule": "complexity",
@@ -9704,16 +9704,6 @@
       "id": "cc4c9c992fd0599eaaefc75fbcd0df321ae29cce622f779beadfd2b5b1491b4b"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1311,
-      "column": 34,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:ac8ef2e5fa99c8b0529fa1d3f4efd61738325e7c48756ea86e1a72c14a12c7d1",
-      "id": "cc768284db4aacd23308d7a992b6977b1b20da0931b3fc4b968f397b6dfa7a60"
-    },
-    {
       "rule": "complexity",
       "message": "Arrow function has a complexity of 13. Maximum allowed is 8.",
       "severity": 1,
@@ -10066,16 +10056,6 @@
       "id": "d4b4bc94adebfb2ae22df1e7c81f13323fd2785d1853c1aeed68e2ecdd744aee"
     },
     {
-      "rule": "@typescript-eslint/no-misused-promises",
-      "message": "Promise-returning function provided to attribute where a void return was expected.",
-      "severity": 2,
-      "line": 1600,
-      "column": 17,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onRetry\"]",
-      "id": "d4b99362a79cbf6c07b473cf886bbedb6cfb414906e5288225f2c78348cb4bfe"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 31 to the 12 allowed.",
       "severity": 1,
@@ -10322,6 +10302,16 @@
       "id": "db21fbbb08ca57bc8cbae71e85be39d0f4fa209106646fcca170d079ad5d02bd"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1500,
+      "column": 89,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:dabffa99eb78633e71d4832ac286a97cbc229950bcf90dfed2d198b7e4637ad2",
+      "id": "db3578473a4327b7f999f580975ac7569a1cd332c000c6b018bcd51d2af9904a"
+    },
+    {
       "file": "apps/web/lib/control-api.ts",
       "rule": "TS6196",
       "message": "'MediaJobResponse' is declared but never used.",
@@ -10496,6 +10486,16 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
+      "line": 1495,
+      "column": 78,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:c5139bc1de3103d15c76c5d702d0c68b4ce7c7fc801ff21b26f9f1aa779a5384",
+      "id": "de1ccdb8d32eaf62d3048d225ceed4e063d4f2bfa1523e8ba36d69035d67a9b0"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
       "line": 88,
       "column": 5,
       "file": "apps/web/components/graph-studio/hooks/use-graph-tabs.ts",
@@ -10575,15 +10575,15 @@
       "id": "e08c1cde52239ceeb8cf4a3cd76722bd5f0fe087f7615e1b91cf5e010724f51b"
     },
     {
-      "rule": "sonarjs/cognitive-complexity",
-      "message": "Refactor this function to reduce its Cognitive Complexity from 30 to the 12 allowed.",
+      "rule": "complexity",
+      "message": "Arrow function has a complexity of 34. Maximum allowed is 8.",
       "severity": 1,
-      "line": 1091,
+      "line": 1068,
       "column": 50,
-      "metric": 30,
+      "metric": 34,
       "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/anonymous:73094b217e88acf6c442c9690a6889e40dad6c1faad6b9f6710d209299ba6ebb",
-      "id": "e199edc90722c2a073ae3dcebf7ac5fb881df4176cbc19c78f56c25de42bf686"
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/anonymous:694114993b3cc4ae184e44b00d34cffc1b597e725570b10d08faa5ffae2bce3b",
+      "id": "e1a1216b4394321e4134b7892e6dda9cbe3999f6b8c27406c3f42c878f3cd2fe"
     },
     {
       "rule": "complexity",
@@ -10912,6 +10912,17 @@
       "id": "e932e5fc6d429c0ddd4a6bde423ae8aacf17a42fcccd26ce527ce2c9da4cce78"
     },
     {
+      "rule": "sonarjs/cognitive-complexity",
+      "message": "Refactor this function to reduce its Cognitive Complexity from 17 to the 12 allowed.",
+      "severity": 1,
+      "line": 1068,
+      "column": 50,
+      "metric": 17,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/anonymous:694114993b3cc4ae184e44b00d34cffc1b597e725570b10d08faa5ffae2bce3b",
+      "id": "e990bdd435f2ae76d9941f2345064f79a05c08bffdd7b3fb0e4a559b91b164be"
+    },
+    {
       "file": "apps/web/lib/control-api.ts",
       "rule": "TS6196",
       "message": "'PromptRecipeDraftResponse' is declared but never used.",
@@ -11196,16 +11207,6 @@
       "id": "ee56bdc51534a4b573c1caedc060decd4cb38427601afc5d78ba5b23cc00b1ad"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1519,
-      "column": 34,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:0682907e9d01c2147674745a9e935f0c3408ef66fbb978da323e6ea0c83dfb06",
-      "id": "ee8de66c2c4e378885d8765a6f34c67accc6cf7d41a27ca2f0bf9612c492071a"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'CreativeAssistantPanel' has a complexity of 316. Maximum allowed is 8.",
       "severity": 1,
@@ -11215,17 +11216,6 @@
       "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
       "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]",
       "id": "eeefae14a8aaf23ed1b6edf154a82ed1e958f2a32b4ed0dceda97f85cf385c12"
-    },
-    {
-      "rule": "complexity",
-      "message": "Arrow function has a complexity of 43. Maximum allowed is 8.",
-      "severity": 1,
-      "line": 1091,
-      "column": 50,
-      "metric": 43,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/anonymous:73094b217e88acf6c442c9690a6889e40dad6c1faad6b9f6710d209299ba6ebb",
-      "id": "eef4155cb638cb823e75696719fb28f74e54ab480330aad0e853eab4537c12c9"
     },
     {
       "rule": "complexity",
@@ -11340,6 +11330,16 @@
       "file": "apps/web/components/graph-studio/hooks/use-graph-tab-workspace.ts",
       "owner": "FunctionDeclaration:[\"buildActiveGraphTabSnapshot\"]",
       "id": "f07eadf69f3e727d00e210c17ca50006901084ee539518b4b7febb093d382544"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1567,
+      "column": 40,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onSelectItem\"]/anonymous:bee2ab230d2690417e28295007a866101745a168d57e99f71b173bdd4b9ad4e0",
+      "id": "f11ad8992f397f036845d35d251cd69410ca6a19fbe551c83d664cb4b2804bef"
     },
     {
       "rule": "complexity",
@@ -11490,11 +11490,11 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1271,
+      "line": 1433,
       "column": 34,
       "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:e6e9447a4f8e274c989d3ce59fa1e51cee0ba4d74aa35e725f3edfca825d0e59",
-      "id": "f30fabcd082e3179dd85fdc21719699fcdc24d4f26e94a699b3eb1be15401390"
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:3edc13fa71af32fcdd277e5f72b46da8c93cd784c374fd8e6d1341cbef0fd044",
+      "id": "f31c3409e3fe8b23bd2af06c56ac6ad5863f3c65aa47dc917e69b7034d2e2934"
     },
     {
       "rule": "complexity",
@@ -11572,6 +11572,16 @@
       "file": "apps/web/lib/studio-enhancement-state.ts",
       "owner": "FunctionDeclaration:[\"deriveStudioEnhancementState\"]",
       "id": "f3b731e08e61d41ac0d6489f17800df376e10a46bff64f9993d15627793118ec"
+    },
+    {
+      "rule": "@typescript-eslint/no-misused-promises",
+      "message": "Promise-returning function provided to attribute where a void return was expected.",
+      "severity": 2,
+      "line": 1566,
+      "column": 20,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onLoadMore\"]",
+      "id": "f468bc60c57e358a29d239a9861ece5ff1fb655c138e82a177691b921d9b774a"
     },
     {
       "rule": "sonarjs/cognitive-complexity",
@@ -11808,6 +11818,16 @@
       "id": "faf5ec583e503e3f3db60c62b14ce1bcead23439f1ee50df551b3e0a7dd2f544"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 1310,
+      "column": 103,
+      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:80e14a1eb8e0786e3860b61638d77b6829b4ba8db8beb63946e2aa4e19282bfa",
+      "id": "fafe7667016a60578d58a4d69ec75de627bba987271d320f21e5024b85999ddc"
+    },
+    {
       "rule": "react-hooks/exhaustive-deps",
       "message": "React Hook useMemo has an unnecessary dependency: 'pathname'. Either exclude it or remove the dependency array.",
       "severity": 2,
@@ -11842,21 +11862,11 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
-      "line": 1289,
-      "column": 34,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:9822c366e89faae938745e7ddad21aca1d1051c75c04cb3a16940e09d459fa68",
-      "id": "fbfefd4fba9bc3417643dac9b489638da416ac0d1497a11adc6ac5e905bb98cf"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1070,
+      "line": 1047,
       "column": 97,
       "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
       "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:0c851e37aa94172c3a75def4655f62843bfa72b941275a131032a0443f3b3483",
-      "id": "fc6eb7f90e3f4f043b978f85da2f3abdde5867d15ca92f38cf8c97e26c1149a2"
+      "id": "fb78f7c5942bc5e2517dd59ae78f716ca5436a6e5a5e50e21595fbe58ba62a9d"
     },
     {
       "rule": "complexity",
@@ -11892,14 +11902,14 @@
       "id": "fcd0080fccc1292ead0a7fb75041f899267c2875dd9de0e586f34605b7fc1a58"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "rule": "@typescript-eslint/no-misused-promises",
+      "message": "Promise-returning function provided to attribute where a void return was expected.",
       "severity": 2,
-      "line": 1545,
-      "column": 89,
+      "line": 1555,
+      "column": 17,
       "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:dabffa99eb78633e71d4832ac286a97cbc229950bcf90dfed2d198b7e4637ad2",
-      "id": "fd82b9c7a78653b299c4a7d3dde34997847d2057da7b12de4883c275378e10f5"
+      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onRetry\"]",
+      "id": "fdae6dab1193a511ab9fdb83518a7b1edb6411b70f804dfd3c7b5a76aae1216c"
     },
     {
       "rule": "complexity",
@@ -11964,16 +11974,6 @@
       "file": "apps/web/components/media-studio.tsx",
       "owner": "FunctionDeclaration:[\"MediaStudio\"]/FunctionDeclaration:[\"handleSeedanceReferenceDrop\"]",
       "id": "ff40a969cab9bfedb7ae113a303d287c933a8b8bf6bb304fd59ba5866ea3bcb6"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 1478,
-      "column": 34,
-      "file": "apps/web/components/graph-studio/creative-assistant-panel.tsx",
-      "owner": "FunctionDeclaration:[\"CreativeAssistantPanel\"]/JsxAttribute:[\"onClick\"]/anonymous:3edc13fa71af32fcdd277e5f72b46da8c93cd784c374fd8e6d1341cbef0fd044",
-      "id": "ffa33ae9e6256ec173dcbf3a14dda2cf3d5f3008a476a8391e515010960bd24e"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",

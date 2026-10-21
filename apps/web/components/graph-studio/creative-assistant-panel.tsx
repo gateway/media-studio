@@ -3,7 +3,7 @@
 import { graphChangeCopy } from "./utils/graph-change-copy";
 import { assistantGraphContentIsOnCanvas } from "./utils/graph-assistant-canvas-state";
 import { AssistantMessageContent } from "./assistant-message-content";
-import { AssistantTurnOutcome } from "./assistant-turn-outcome";
+import { AssistantConversationMessageBody } from "./assistant-conversation-message-body";
 import type { useAssistantDock } from "./hooks/use-assistant-dock";
 import { AssistantPromptInput } from "./assistant-prompt-input";
 import { RecipeContinuationCard } from "./recipe-continuation-card";
@@ -32,8 +32,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ChangeEvent, DragEvent } from "react";
 
 import type { AssistantPlanResponse, GraphError, GraphEstimateResponse, GraphMediaPreview, GraphWorkflowPayload } from "./types";
-import { AssistantRunEvidence } from "./assistant-run-evidence";
-import { AssistantRequestedResult, requestedResultBindings, AssistantResults, AssistantResultAttachments, AssistantRunScope, useAssistantResults } from "./assistant-results";
+import { requestedResultBindings, AssistantResults, AssistantResultAttachments, AssistantRunScope, useAssistantResults } from "./assistant-results";
 import { type AssistantMode, useCreativeAssistant } from "./hooks/use-creative-assistant";
 import { isTextEntryTarget, previewFromReference } from "./utils/graph-media-preview";
 import { assistantPlanPricingLabel, graphEstimateToolbarLabel } from "./utils/graph-pricing";
@@ -198,25 +197,6 @@ function activityMessageTitle(message: AssistantSessionMessage) {
   }
 }
 
-function kernelToolActivity(message: AssistantSessionMessage) {
-  if (message.content_json?.mode !== "assistant_kernel") return null;
-  const kernelTurn = message.content_json.kernel_turn;
-  if (!kernelTurn || typeof kernelTurn !== "object") return null;
-  const trace = (kernelTurn as Record<string, unknown>).trace;
-  if (!trace || typeof trace !== "object") return null;
-  const toolCalls = (trace as Record<string, unknown>).tool_calls;
-  if (!Array.isArray(toolCalls)) return null;
-  for (let index = toolCalls.length - 1; index >= 0; index -= 1) {
-    const call = toolCalls[index];
-    if (!call || typeof call !== "object") continue;
-    const activity = (call as Record<string, unknown>).activity;
-    if (!activity || typeof activity !== "object") continue;
-    if ((activity as Record<string, unknown>).tone === "error") continue;
-    const label = (activity as Record<string, unknown>).label;
-    if (typeof label === "string" && label.trim()) return label;
-  }
-  return null;
-}
 
 function collapseActivityMessages(messages: AssistantSessionMessage[]) {
   const seen = new Set<string>();
@@ -391,9 +371,6 @@ function isSavedArtifactActivityMessage(message: AssistantSessionMessage) {
   return Boolean(savedArtifactLabel(message));
 }
 
-function displayMessageText(message: AssistantSessionMessage) {
-  return message.content_text || "";
-}
 
 function presetBuilderQuickReplies(proposal: PresetBuilderProposal | null): AssistantQuickReply[] {
   if (!proposal) return [];
@@ -1090,32 +1067,10 @@ export function CreativeAssistantPanel({
           {conversationalMessages.length ? (
             conversationalMessages.map((message) => (
               <div className={`graph-assistant-message graph-assistant-message-${message.role}`} key={message.assistant_message_id}>
-                <span>{message.role === "user" ? "You" : "Media Assistant"}</span>
-                <AssistantMessageContent
-                  text={displayMessageText(message)}
-                />
-                {message.role === "user" ? <AssistantTurnOutcome message={message}
+                <AssistantConversationMessageBody message={message} results={results} disabled={assistant.busy}
                   onEdit={!assistant.busy && !assistant.failedRequest && conversationalMessages.at(-1)?.assistant_message_id === message.assistant_message_id
-                    ? () => { assistant.setDraft(message.content_text); messageInputRef.current?.focus(); } : undefined} /> : null}
-                {message.role === "assistant" && typeof message.content_json?.run_review_assessment === "string" ? (
-                  <details aria-label="Assistant run assessment">
-                    <summary>Assistant assessment</summary>
-                    <p>Use the current run review for readiness and pricing.</p>
-                    <AssistantMessageContent text={message.content_json.run_review_assessment} />
-                  </details>
-                ) : null}
-                {message.role === "assistant" ? <AssistantRunEvidence content={message.content_json} /> : null}
-                {message.role === "assistant" ? requestedResultBindings(message.content_json).map((binding) => (
-                  <AssistantRequestedResult key={`${binding.run_id}:${binding.artifact_id}:${binding.version}`} binding={binding}
-                    results={results} disabled={assistant.busy} onOpenPreview={onOpenPreview}
-                    onAsk={() => { messageInputRef.current?.focus(); }} />
-                )) : null}
-                {message.role === "assistant" && kernelToolActivity(message) ? (
-                  <details className="graph-assistant-activity-item" aria-label="Completed assistant work">
-                    <summary>Completed work</summary>
-                    <span>{kernelToolActivity(message)}</span>
-                  </details>
-                ) : null}
+                    ? () => { assistant.setDraft(message.content_text); messageInputRef.current?.focus(); } : undefined}
+                  onOpenPreview={onOpenPreview} onAsk={() => { messageInputRef.current?.focus(); }} />
                 {message.role === "assistant" && presetBuilderProposal(message) && !referenceStyleBrief(message) ? (
                   <details className="graph-assistant-preset-proposal" aria-label="Suggested preset setup">
                     <summary>
