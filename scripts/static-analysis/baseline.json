@@ -3055,11 +3055,11 @@
     },
     {
       "rule": "complexity",
-      "message": "Async function 'fetchAssetPage' has a complexity of 14. Maximum allowed is 8.",
+      "message": "Async function 'fetchAssetPage' has a complexity of 13. Maximum allowed is 8.",
       "severity": 1,
-      "line": 130,
+      "line": 152,
       "column": 3,
-      "metric": 14,
+      "metric": 13,
       "file": "apps/web/hooks/studio/use-studio-gallery-page-actions.ts",
       "owner": "FunctionDeclaration:[\"createStudioGalleryPageActions\"]/FunctionDeclaration:[\"fetchAssetPage\"]",
       "id": "3cf777a9a404f3c14e3a4654f9cc40e640a52774edc6c6a353bc7b6846c5a74e"
@@ -6929,11 +6929,11 @@
     },
     {
       "rule": "sonarjs/cognitive-complexity",
-      "message": "Refactor this function to reduce its Cognitive Complexity from 14 to the 12 allowed.",
+      "message": "Refactor this function to reduce its Cognitive Complexity from 13 to the 12 allowed.",
       "severity": 1,
-      "line": 130,
+      "line": 152,
       "column": 18,
-      "metric": 14,
+      "metric": 13,
       "file": "apps/web/hooks/studio/use-studio-gallery-page-actions.ts",
       "owner": "FunctionDeclaration:[\"createStudioGalleryPageActions\"]/FunctionDeclaration:[\"fetchAssetPage\"]",
       "id": "91dc7c4ccfa2072e71efb8d7159064d6490ed624a2851774a583249d0d7b37b4"
