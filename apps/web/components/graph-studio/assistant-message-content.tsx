@@ -20,6 +20,23 @@ function renderInlineAssistantMarkdown(text: string, keyPrefix: string) {
   });
 }
 
+type AssistantListItem =
+  | { kind: "ul"; text: string }
+  | { kind: "ol"; text: string; number: number };
+
+function readAssistantListItem(line: string): AssistantListItem | null {
+  const unordered = line.match(/^[-*]\s+(.+)$/);
+  if (unordered) return { kind: "ul", text: unordered[1] };
+
+  const ordered = line.match(/^(\d+)[.)]\s+(.+)$/);
+  // Native list values are signed 32-bit integers; keep other labels as source.
+  const number = ordered ? Number(ordered[1]) : null;
+  if (ordered && number !== null && number <= 2147483647 && String(number) === ordered[1]) {
+    return { kind: "ol", text: ordered[2], number };
+  }
+  return null;
+}
+
 export function AssistantMessageContent({ text }: { text: string }) {
   const lines = text.split("\n");
   const blocks: ReactElement[] = [];
@@ -77,22 +94,19 @@ export function AssistantMessageContent({ text }: { text: string }) {
       flushList();
       return;
     }
-    const unordered = line.match(/^[-*]\s+(.+)$/);
-    const ordered = line.match(/^(\d+)[.)]\s+(.+)$/);
-    if (unordered) {
+    const item = readAssistantListItem(line);
+    if (item?.kind === "ul") {
       flushParagraph();
       if (listKind !== "ul") flushList();
       listKind = "ul";
-      listItems.push({ text: unordered[1] });
+      listItems.push({ text: item.text });
       return;
     }
-    // Native list values are signed 32-bit integers; keep other labels as source.
-    const number = ordered ? Number(ordered[1]) : null;
-    if (ordered && number !== null && number <= 2147483647 && String(number) === ordered[1]) {
+    if (item?.kind === "ol") {
       flushParagraph();
       if (listKind !== "ol") flushList();
       listKind = "ol";
-      listItems.push({ text: ordered[2], number });
+      listItems.push({ text: item.text, number: item.number });
       return;
     }
     flushList();

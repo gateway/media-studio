@@ -1938,17 +1938,6 @@
       "id": "24e51719e41e7a9f35b4a3eda38d696576efca2800c4f8f0cb44856c5f398cf7"
     },
     {
-      "rule": "sonarjs/cognitive-complexity",
-      "message": "Refactor this function to reduce its Cognitive Complexity from 14 to the 12 allowed.",
-      "severity": 1,
-      "line": 59,
-      "column": 27,
-      "metric": 14,
-      "file": "apps/web/components/graph-studio/assistant-message-content.tsx",
-      "owner": "FunctionDeclaration:[\"AssistantMessageContent\"]/anonymous:e0b20335768c979077787a375410718f4b243e87bc7d59b2100b380a10a81585",
-      "id": "250f3f866da52ae180a2219d358886d4bf723d43457ba46a11781b918333d086"
-    },
-    {
       "rule": "complexity",
       "message": "Function 'mapPromptRecipeStructuredFields' has a complexity of 15. Maximum allowed is 8.",
       "severity": 1,
@@ -6802,6 +6791,17 @@
       "id": "8ddb4fb28e65db276839391d2d9694f15b2a6181c733ff2441e5411765c26923"
     },
     {
+      "rule": "complexity",
+      "message": "Arrow function has a complexity of 12. Maximum allowed is 8.",
+      "severity": 1,
+      "line": 76,
+      "column": 27,
+      "metric": 12,
+      "file": "apps/web/components/graph-studio/assistant-message-content.tsx",
+      "owner": "FunctionDeclaration:[\"AssistantMessageContent\"]/anonymous:0b7d0a850affc70bb1f27cf4c1e3241c84207c31649285171ee50fe9ec1ddee1",
+      "id": "8dfe8955959a73ef338982307d46f7324386a687f7767eeb2546e008f26e84b1"
+    },
+    {
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
@@ -7646,17 +7646,6 @@
       "file": "apps/web/components/graph-studio/utils/graph-media-preset.ts",
       "owner": "FunctionDeclaration:[\"graphMediaPresetSelectedModel\"]",
       "id": "a10e97b7307c38701bd6148bd5ed6c19c308cbbf2b6f7347bbc77e35d587c2f8"
-    },
-    {
-      "rule": "complexity",
-      "message": "Arrow function has a complexity of 14. Maximum allowed is 8.",
-      "severity": 1,
-      "line": 59,
-      "column": 27,
-      "metric": 14,
-      "file": "apps/web/components/graph-studio/assistant-message-content.tsx",
-      "owner": "FunctionDeclaration:[\"AssistantMessageContent\"]/anonymous:e0b20335768c979077787a375410718f4b243e87bc7d59b2100b380a10a81585",
-      "id": "a139a5a0b4f1a2be7b00c16f3375f5deda45d8e09d056c185d2b623c0de65840"
     },
     {
       "file": "apps/web/components/studio/studio-composer-controls.tsx",
