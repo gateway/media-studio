@@ -5,6 +5,7 @@ import {
   render,
   screen,
   within,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { CreativeAssistantPanel } from "./creative-assistant-panel";
@@ -73,21 +74,22 @@ function mount(
         });
         selected = true;
       }
+      const items = url.includes("/new-run/")
+        ? [
+            {
+              ...original,
+              run_id: "new-run",
+              artifact_id: "current-artifact",
+              node_title: "Current board",
+              version: "v2",
+              url: "/current.png",
+            },
+          ]
+        : [original];
       return json({
-        run_id: binding.run_id,
+        run_id: items[0].run_id,
         status: "completed",
-        items: url.includes("/new-run/")
-          ? [
-              {
-                ...original,
-                run_id: "new-run",
-                artifact_id: "current-artifact",
-                node_title: "Current board",
-                version: "v2",
-                url: "/current.png",
-              },
-            ]
-          : [original],
+        items,
         selected_artifact_ids: selected ? [binding.artifact_id] : [],
         selected_result_bindings: selected
           ? { [binding.artifact_id]: binding }
@@ -246,7 +248,9 @@ it("keeps assistant-only evidence off user messages and preserves an empty reply
   await screen.findByText("user", { exact: true });
   const bodies = screen
     .getByRole("region", { name: "Assistant messages" })
-    .querySelectorAll(".graph-assistant-message");
+    .querySelectorAll(
+      ".graph-assistant-message:not(.graph-assistant-message-thinking)",
+    );
   expect(bodies).toHaveLength(2);
   expect(bodies[1].textContent).toBe("Media Assistant");
   expect(screen.queryByLabelText("Completed assistant work")).toBeNull();
@@ -312,7 +316,9 @@ it.each([false, true])(
     const select = screen.getByRole("button", {
       name: "Use in chat — Historical board",
     });
-    expect(select).toHaveProperty("disabled", active);
+    if (active)
+      await screen.findByRole("status", { name: "Assistant progress" });
+    await waitFor(() => expect(select).toHaveProperty("disabled", active));
     fireEvent.click(select);
     if (!active) {
       await screen.findByRole("button", {
@@ -342,11 +348,12 @@ it.each([false, true])(
       active,
     );
     await screen.findByText("latest request", { exact: true });
-    const edit = screen.queryByRole("button", { name: "Edit request" });
     if (active) {
-      expect(edit).toBeNull();
+      await screen.findByRole("status", { name: "Assistant progress" });
+      expect(screen.queryByRole("button", { name: "Edit request" })).toBeNull();
       return;
     }
+    const edit = await screen.findByRole("button", { name: "Edit request" });
     expect(
       screen.getAllByRole("button", { name: "Edit request" }),
     ).toHaveLength(1);
