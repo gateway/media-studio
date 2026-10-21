@@ -153,6 +153,23 @@ it("restores an empty saved workflow without trying the latest-run fallback", as
   expect(fetcher.mock.calls.some(([url]) => url.includes("/runs"))).toBe(false);
 });
 
+it("preserves an empty dirty draft with its saved baseline through restore", async () => {
+  const tab = readGraphTabSession("restore-test")!.tabs[0];
+  writeGraphTabSession("restore-test", tab.tab_id, [{
+    ...tab, workflow_json: { ...localWorkflow, nodes: [] }, dirty: true,
+  }]);
+
+  render(<GraphStudio />);
+  await waitFor(() => expect(screen.getByRole("heading").textContent).toBe("Local snapshot"));
+  expect(screen.getByTestId("canvas").textContent).toBe("");
+  const restored = readGraphTabSession("restore-test")!.tabs[0];
+  expect(restored.workflow_json?.nodes).toEqual([]);
+  expect(restored.dirty).toBe(true);
+  expect(restored.saved_workflow_signature).toBe(tab.saved_workflow_signature);
+  expect(reloadRecord).not.toHaveBeenCalled();
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/runs"))).toBe(false);
+});
+
 it("keeps an empty tab snapshot when the record reload fails", async () => {
   storeSnapshot({ ...localWorkflow, nodes: [] });
   reloadRecord.mockRejectedValue(new TypeError("Failed to fetch"));
