@@ -4382,6 +4382,16 @@
       "id": "5b81fc28e61a3d88e180b0cb0fe5e1c4ba5200ba58a5aa1f51d4a673e48daa00"
     },
     {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 94,
+      "column": 5,
+      "file": "apps/web/components/graph-studio/hooks/use-graph-toolbar-workflow-actions.ts",
+      "owner": "FunctionDeclaration:[\"useGraphToolbarWorkflowActions\"]/VariableDeclaration:[\"onSave\"]/anonymous:29084d2e5c351bed585b0c0062bcafdadb71bbbeaf59c8d5c83da5c589b26619",
+      "id": "5b9db9f749aa2041060fe612b45bfc94fa609370d1fce3848115ad2713b5bc24"
+    },
+    {
       "rule": "complexity",
       "message": "Function 'previewFromReference' has a complexity of 19. Maximum allowed is 8.",
       "severity": 1,
@@ -5254,6 +5264,16 @@
       "file": "apps/web/hooks/studio/use-studio-reference-library.ts",
       "owner": "FunctionDeclaration:[\"useStudioReferenceLibrary\"]/VariableDeclaration:[\"handleReferenceLibrarySelect\"]/anonymous:3215ba22dd3049e5b97dd08ecef79051bec69a663c307e458527d6838a872bdc",
       "id": "6bfd11ab9663c2b5369ffb6baf996c80d8c4cf5506da0d391c36d8b6ff2c027b"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 99,
+      "column": 5,
+      "file": "apps/web/components/graph-studio/hooks/use-graph-toolbar-workflow-actions.ts",
+      "owner": "FunctionDeclaration:[\"useGraphToolbarWorkflowActions\"]/VariableDeclaration:[\"onSaveAs\"]/anonymous:2bd865ce62485dd579fd680073bc09333a70d3153d94b3e12e76f536bf5c8577",
+      "id": "6c20b1f5f484fd5d725e939e319eb3b4b936598aa3007e34fb16e5ef599f0540"
     },
     {
       "rule": "@typescript-eslint/no-floating-promises",
@@ -7348,16 +7368,6 @@
       "id": "9932b4062a88ff5ccb9956a3ebd7bbdaec39425412e5cbe7c3a934747421857d"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 114,
-      "column": 5,
-      "file": "apps/web/components/graph-studio/hooks/use-graph-toolbar-workflow-actions.ts",
-      "owner": "FunctionDeclaration:[\"useGraphToolbarWorkflowActions\"]/VariableDeclaration:[\"onSaveAs\"]/anonymous:8dc1c799cc61a0308590269e2927fd45165713af321da61d03d38d3f25b96b65",
-      "id": "996c6c04e87ae53f77e0bd1ee0a2d9a4a8270b3fd858f2ad426adee9696487c8"
-    },
-    {
       "file": "apps/web/components/graph-studio/graph-node-field.tsx",
       "rule": "TS6133",
       "message": "'definition' is declared but its value is never read.",
@@ -8327,16 +8337,6 @@
       "id": "ae77d837a814f89c1db34f0f2194ced84c756f37aacdfec8f85ee5749f670004"
     },
     {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 129,
-      "column": 5,
-      "file": "apps/web/components/graph-studio/hooks/use-graph-toolbar-workflow-actions.ts",
-      "owner": "FunctionDeclaration:[\"useGraphToolbarWorkflowActions\"]/VariableDeclaration:[\"onCommitRename\"]/anonymous:04a99fa941ab31a81b577c599f530550a2675731b84ef11597b788b97dbf1c02",
-      "id": "af2c9daffcdd70a7ed08d1fb07cdf894cb1df77b8bd154e2f28e0f143f642c38"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "message": "Refactor this function to reduce its Cognitive Complexity from 14 to the 12 allowed.",
       "severity": 1,
@@ -8684,16 +8684,6 @@
       "file": "apps/web/components/graph-studio/hooks/use-graph-tabs.ts",
       "owner": "FunctionDeclaration:[\"useGraphTabs\"]/anonymous:723c3d9fb301364db0e0334cbdb6c8a17d8f52d8daa07b352e4c8bc23971963c",
       "id": "b6d844abc7e955c97c17ea3676d8bb4c81e95eb1c59207966076417b76d13124"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 103,
-      "column": 5,
-      "file": "apps/web/components/graph-studio/hooks/use-graph-toolbar-workflow-actions.ts",
-      "owner": "FunctionDeclaration:[\"useGraphToolbarWorkflowActions\"]/VariableDeclaration:[\"onSave\"]/anonymous:0a63ed22e9e1ae5c1d01bfa654f195b0e825959925fc24bf1adc6f4a383b6111",
-      "id": "b6da8405ebeed555493378d804a635d8f52328494eb5832f177df09531994fcb"
     },
     {
       "rule": "complexity",
@@ -10460,6 +10450,16 @@
       "file": "apps/web/components/graph-studio/utils/graph-prompt-recipe.ts",
       "owner": "FunctionDeclaration:[\"graphPromptRecipeFieldOverride\"]",
       "id": "dde5148eb0acff037e4e8e875e031c30077807fcd0f6c8c5818d89f476c45188"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
+      "line": 110,
+      "column": 5,
+      "file": "apps/web/components/graph-studio/hooks/use-graph-toolbar-workflow-actions.ts",
+      "owner": "FunctionDeclaration:[\"useGraphToolbarWorkflowActions\"]/VariableDeclaration:[\"onCommitRename\"]/anonymous:d84ab83bd7914ea99ec3698e11b98c01606b983c1caf37d8cb62b1f742ebb582",
+      "id": "de04a5d08c59b2883c78d835a6782f5306a09fd04cb5aa2d2ee5d39918cfb772"
     },
     {
       "rule": "react-hooks/rules-of-hooks",

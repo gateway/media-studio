@@ -1858,6 +1858,10 @@ function GraphStudioClient() {
     setAssistantWorkspaceResetVersion((current) => current + 1);
   }, [closeActiveWorkflow, markWorkspaceChanged]);
   const toolbarWorkflowActions = useGraphToolbarWorkflowActions({
+    appendConsole,
+    setRenameDialogOpen,
+    activeTabId,
+    tabs,
     commitRenameWorkflow,
     consoleLines,
     edges,
@@ -1868,8 +1872,10 @@ function GraphStudioClient() {
     saveWorkflow,
     saveWorkflowAs,
     setRenameDraft,
+    setWorkflowId,
+    setWorkflowName,
     setWorkflowUpdatedAt,
-    updateActiveTab,
+    updateTab,
     workflowFromCanvas,
     workflowId,
     workflowName,

@@ -32,7 +32,7 @@ function workflow(
 function setup(
   overrides: Partial<Parameters<typeof useGraphToolbarWorkflowActions>[0]> = {},
 ) {
-  const updateActiveTab = vi.fn();
+  const updateTab = vi.fn();
   const setWorkflowUpdatedAt = vi.fn();
   const closeWorkflowMenu = vi.fn();
   const workflowFromCanvas = vi.fn(
@@ -40,6 +40,10 @@ function setup(
       workflow(workflowId, workflowName),
   );
   const params: Parameters<typeof useGraphToolbarWorkflowActions>[0] = {
+    appendConsole: vi.fn(), setRenameDialogOpen: vi.fn(),
+    activeTabId: "tab-1",
+    tabs: [{ tab_id: "tab-1", workflow_id: "workflow-1", workflow_name: "Saved workflow", workflow_json: workflow("workflow-1", "Saved workflow"), dirty: false }],
+    setWorkflowId: vi.fn(), setWorkflowName: vi.fn(),
     commitRenameWorkflow: vi.fn(async () =>
       record("workflow-1", "Renamed workflow"),
     ),
@@ -55,7 +59,7 @@ function setup(
     ),
     setRenameDraft: vi.fn(),
     setWorkflowUpdatedAt,
-    updateActiveTab,
+    updateTab,
     workflowFromCanvas,
     workflowId: "workflow-1",
     workflowName: "Saved workflow",
@@ -66,7 +70,7 @@ function setup(
   return {
     ...renderHook(() => useGraphToolbarWorkflowActions(params)),
     params,
-    updateActiveTab,
+    updateTab,
     setWorkflowUpdatedAt,
     closeWorkflowMenu,
     workflowFromCanvas,
@@ -75,19 +79,19 @@ function setup(
 
 describe("useGraphToolbarWorkflowActions", () => {
   it("updates the active tab snapshot after save", async () => {
-    const { result, updateActiveTab, setWorkflowUpdatedAt, closeWorkflowMenu } =
+    const { result, updateTab, setWorkflowUpdatedAt, closeWorkflowMenu } =
       setup();
 
     act(() => {
       result.current.onSave();
     });
 
-    await waitFor(() => expect(updateActiveTab).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(updateTab).toHaveBeenCalledTimes(1));
     const savedWorkflow = workflow("workflow-1", "Saved workflow");
     expect(setWorkflowUpdatedAt).toHaveBeenCalledWith(
       "2026-06-10T02:00:00.000Z",
     );
-    expect(updateActiveTab).toHaveBeenCalledWith({
+    expect(updateTab).toHaveBeenCalledWith("tab-1", {
       workflowId: "workflow-1",
       workflowName: "Saved workflow",
       workflow: savedWorkflow,
@@ -102,7 +106,7 @@ describe("useGraphToolbarWorkflowActions", () => {
   });
 
   it("uses copy fallback naming after save-as when the record has no name", async () => {
-    const { result, updateActiveTab } = setup({
+    const { result, updateTab } = setup({
       saveWorkflowAs: vi.fn(async () => ({
         workflow_id: "workflow-copy",
         name: "",
@@ -114,8 +118,8 @@ describe("useGraphToolbarWorkflowActions", () => {
       result.current.onSaveAs();
     });
 
-    await waitFor(() => expect(updateActiveTab).toHaveBeenCalledTimes(1));
-    expect(updateActiveTab.mock.calls[0][0]).toMatchObject({
+    await waitFor(() => expect(updateTab).toHaveBeenCalledTimes(1));
+    expect(updateTab.mock.calls[0][1]).toMatchObject({
       workflowId: "workflow-copy",
       workflowName: "Saved workflow Copy",
       workflowUpdatedAt: "2026-06-10T03:00:00.000Z",
@@ -123,29 +127,15 @@ describe("useGraphToolbarWorkflowActions", () => {
     });
   });
 
-  it("updates local unsaved rename snapshots without requiring a saved record", async () => {
-    const { result, updateActiveTab } = setup({
-      commitRenameWorkflow: vi.fn(async () => null),
-      renameDraft: " Local Rename ",
-      workflowId: null,
-      workflowUpdatedAt: null,
-    });
-
-    act(() => {
-      result.current.onCommitRename();
-    });
-
-    await waitFor(() => expect(updateActiveTab).toHaveBeenCalledTimes(1));
-    expect(updateActiveTab.mock.calls[0][0]).toMatchObject({
-      workflowId: null,
-      workflowName: "Local Rename",
-      workflowUpdatedAt: null,
-      dirty: false,
-    });
+  it("leaves local unsaved rename to the synchronous workspace handler", async () => {
+    const { result, params, updateTab } = setup({ workflowId: null, renameDraft: " Local Rename " });
+    act(() => { result.current.onCommitRename(); });
+    await waitFor(() => expect(params.commitRenameWorkflow).toHaveBeenCalledTimes(1));
+    expect(updateTab).not.toHaveBeenCalled();
   });
 
   it("does not update the active tab when committing a blank rename", async () => {
-    const { result, params, updateActiveTab } = setup({
+    const { result, params, updateTab } = setup({
       renameDraft: "   ",
     });
 
@@ -153,10 +143,8 @@ describe("useGraphToolbarWorkflowActions", () => {
       result.current.onCommitRename();
     });
 
-    await waitFor(() =>
-      expect(params.commitRenameWorkflow).toHaveBeenCalledTimes(1),
-    );
-    expect(updateActiveTab).not.toHaveBeenCalled();
+    expect(params.commitRenameWorkflow).not.toHaveBeenCalled();
+    expect(updateTab).not.toHaveBeenCalled();
   });
 
   it("delegates rename opening with the current draft setter", () => {
