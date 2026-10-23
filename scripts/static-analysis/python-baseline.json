@@ -1411,6 +1411,17 @@
       "severity": 2
     },
     {
+      "column": 9,
+      "file": "apps/api/app/graph/runtime.py",
+      "id": "2390caca7ba0a2f38caecd7de5086494f9d44f34f0f6c645c7657227b980c6c4",
+      "line": 640,
+      "message": "`_execute_run` is too complex (21 > 8)",
+      "metric": 21,
+      "owner": "GraphRuntime/_execute_run",
+      "rule": "ruff/C901",
+      "severity": 2
+    },
+    {
       "column": 1,
       "file": "apps/api/app/graph/routes.py",
       "id": "23c5f9d36f30c83fd31ecc0c1b7a5b461b580568f797ae352d3eb08229e38913",
@@ -1761,17 +1772,6 @@
       "metric": 20,
       "owner": "test_graph_prompt_recipe_definitions_include_generic_node_catalog",
       "rule": "radon/CC",
-      "severity": 2
-    },
-    {
-      "column": 9,
-      "file": "apps/api/app/graph/runtime.py",
-      "id": "2a69d6f769d0e1ea8f7794d7697b52ae997a057397aeba3a9151cb0335ad01c6",
-      "line": 429,
-      "message": "`recover_run` is too complex (16 > 8)",
-      "metric": 16,
-      "owner": "GraphRuntime/recover_run",
-      "rule": "ruff/C901",
       "severity": 2
     },
     {
@@ -4148,6 +4148,17 @@
       "severity": 2
     },
     {
+      "column": 5,
+      "file": "apps/api/app/graph/runtime.py",
+      "id": "6943b3afe68243dd58003955cd58209cda8969914b68953b5e12f4c0c360f355",
+      "line": 640,
+      "message": "Radon CC 63 exceeds 8",
+      "metric": 63,
+      "owner": "GraphRuntime/_execute_run",
+      "rule": "radon/CC",
+      "severity": 2
+    },
+    {
       "column": 1,
       "file": "apps/api/tests/test_assistant_image_models.py",
       "id": "69ff595f36dacd77a35bc3190091d4b492e6fe6ec5a3d1983f2817ae4c286fde",
@@ -5091,17 +5102,6 @@
       "metric": 11,
       "owner": "_existing_graph_section_bounds",
       "rule": "radon/CC",
-      "severity": 2
-    },
-    {
-      "column": 9,
-      "file": "apps/api/app/graph/runtime.py",
-      "id": "7e638cd0228ec36a7b9ae2a49eae0fb6705e63a97a85c693f150fd909c1f70df",
-      "line": 598,
-      "message": "`execute_run` is too complex (22 > 8)",
-      "metric": 22,
-      "owner": "GraphRuntime/execute_run",
-      "rule": "ruff/C901",
       "severity": 2
     },
     {
@@ -6259,17 +6259,6 @@
       "severity": 2
     },
     {
-      "column": 5,
-      "file": "apps/api/app/graph/runtime.py",
-      "id": "9de158574bbde1ef906ca18a7c898ff021e473cfd05413d0171e2763eab028ed",
-      "line": 429,
-      "message": "Radon CC 35 exceeds 8",
-      "metric": 35,
-      "owner": "GraphRuntime/recover_run",
-      "rule": "radon/CC",
-      "severity": 2
-    },
-    {
       "column": 1,
       "file": "apps/api/app/assistant/run_confirmation.py",
       "id": "9e1b703a868c2aae1cce28b253bca4b0c37de07ca6fa7d2bf0e11ad2771882cd",
@@ -6947,6 +6936,17 @@
       "message": "Radon CC 10 exceeds 8",
       "metric": 10,
       "owner": "test_recipe_quality_contract_ignores_name_only_changes_and_rejects_creative_changes",
+      "rule": "radon/CC",
+      "severity": 2
+    },
+    {
+      "column": 5,
+      "file": "apps/api/app/graph/runtime.py",
+      "id": "ae1940c8f5d0cf571b1ad0013ae418bac067f49983fa826b14633b86ff5d5040",
+      "line": 471,
+      "message": "Radon CC 34 exceeds 8",
+      "metric": 34,
+      "owner": "GraphRuntime/_recover_run",
       "rule": "radon/CC",
       "severity": 2
     },
@@ -9509,14 +9509,14 @@
       "severity": 2
     },
     {
-      "column": 5,
+      "column": 9,
       "file": "apps/api/app/graph/runtime.py",
-      "id": "ec7fc36b6a0f1b7b20ffbf77f82730930a9639256109ee72a2ee5b404b76a7fb",
-      "line": 598,
-      "message": "Radon CC 72 exceeds 8",
-      "metric": 72,
-      "owner": "GraphRuntime/execute_run",
-      "rule": "radon/CC",
+      "id": "ec4fc426c38c24a8d71a7594ec1550bed1829eb869ed5fd8a035f0da7dc93888",
+      "line": 471,
+      "message": "`_recover_run` is too complex (14 > 8)",
+      "metric": 14,
+      "owner": "GraphRuntime/_recover_run",
+      "rule": "ruff/C901",
       "severity": 2
     },
     {
