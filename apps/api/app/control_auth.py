@@ -22,7 +22,7 @@ CONTROL_ROUTE_EXCEPTIONS = {
 def required_access_mode(path: str, method: str) -> str | None:
     if path in CONTROL_ROUTE_EXCEPTIONS:
         return None
-    if not path.startswith("/media"):
+    if not path.startswith("/media") and path != "/prompt-recipes" and not path.startswith("/prompt-recipes/"):
         return None
     if path.startswith("/media/files/"):
         return "read"
