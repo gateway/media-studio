@@ -97,10 +97,14 @@ it.each(["Save", "Save As", "Commit rename"])("keeps delayed %s completion with 
   fireEvent.click(screen.getByRole("button", { name: "Switch b", exact: true }));
   fireEvent.click(screen.getByRole("button", { name: "Edit node", exact: true }));
   const before = identity();
+  const activeBefore = session().tabs.find((tab) => tab.tab_id === "b")!;
   const savedId = action === "Save As" ? "copy-a" : "saved-a";
   const savedName = action === "Commit rename" ? "Renamed A" : action === "Save As" ? "A Copy" : "A";
   await settle(0, savedId, savedName);
   expect(identity()).toEqual(before);
+  const activeAfter = session().tabs.find((tab) => tab.tab_id === "b")!;
+  expect(activeAfter.workflow_id).toBe(activeBefore.workflow_id);
+  expect(activeAfter.workflow_updated_at).toBe(activeBefore.workflow_updated_at);
   expect(screen.getByTestId("canvas").textContent).toBe("node-b");
   const source = session().tabs.find((tab) => tab.tab_id === "a")!;
   expect(source.workflow_id).toBe(savedId);
@@ -154,10 +158,12 @@ it("ignores completion for a closed source tab", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Save As", exact: true }));
   fireEvent.click(screen.getByRole("button", { name: "Close a", exact: true }));
   const before = identity();
+  const activeBefore = session().tabs[0];
   await settle(0, "copy-a", "A Copy");
   expect(identity()).toEqual(before);
   expect(session().tabs.map((tab) => tab.tab_id)).toEqual(["b"]);
   expect(session().tabs[0].workflow_id).toBeNull();
+  expect(session().tabs[0].workflow_updated_at).toBe(activeBefore.workflow_updated_at);
 });
 
 it("does not roll back the latest Save As identity or baseline when responses arrive out of order", async () => {
