@@ -314,6 +314,8 @@ def _skip_queued_nodes_after_failure(
 
 class GraphRuntime:
     def __init__(self) -> None:
+        # Cancellation handlers and workers share finalization in this process.
+        self._cancellation_lock = threading.RLock()
         executors: List[GraphExecutor] = [
             PromptTextExecutor(),
             PromptConcatExecutor(),
@@ -595,6 +597,8 @@ class GraphRuntime:
             return
         eligible = ("queued", "running") if resume else ("queued",)
         if run.get("status") not in eligible:
+            if run.get("status") == "cancelling":
+                self._finish_cancelled_run_if_requested(run_id)
             return
         try:
             run_started_monotonic = time.perf_counter()
@@ -834,7 +838,7 @@ class GraphRuntime:
             )
         except Exception as exc:
             self._finalize_failed_run(
-                run_id, exc, source_status=run.get("status"),
+                run_id, exc,
                 workflow=workflow if "workflow" in locals() else GraphWorkflow(name="Failed graph", nodes=[], edges=[]),
                 context=context if "context" in locals() else None,
                 node_metrics_by_id=node_metrics_by_id if "node_metrics_by_id" in locals() else {},
@@ -848,7 +852,7 @@ class GraphRuntime:
         *, resume: bool, eligible: tuple[str, ...],
     ) -> GraphCompiledGraph | None:
         if not update_graph_run_if_status(run_id, {}, eligible, events=[{"event_type": "run.validating", "payload_json": {}}]):
-            self._finish_cancelled_run_if_requested(run_id, source_status=run.get("status"))
+            self._finish_cancelled_run_if_requested(run_id)
             return None
         validation = validate_workflow(workflow)
         if not validation.valid:
@@ -868,7 +872,7 @@ class GraphRuntime:
             ],
         )
         if not claimed:
-            self._finish_cancelled_run_if_requested(run_id, source_status=run.get("status"))
+            self._finish_cancelled_run_if_requested(run_id)
             return None
         return compiled
 
@@ -876,11 +880,10 @@ class GraphRuntime:
         self, run_id: str, context: GraphExecutionContext | None = None,
         node_metrics_by_id: Dict[str, Dict] | None = None,
         run_started_monotonic: float | None = None, active_node_id: str | None = None,
-        node_started_monotonic: float | None = None, *, source_status: str | None = None,
+        node_started_monotonic: float | None = None,
     ) -> bool:
         status = (store.get_graph_run(run_id) or {}).get("status")
-        # The cancel handler owns queued finalization; an active/resuming worker owns its running cancellation.
-        if status == "cancelling" and (context is not None or source_status == "running"):
+        if status == "cancelling":
             self._finalize_cancelled_run(run_id, context, node_metrics_by_id or {}, run_started_monotonic, active_node_id, node_started_monotonic)
         return status in {"cancelling", "cancelled"}
 
@@ -903,12 +906,12 @@ class GraphRuntime:
         emit(run_id, "node.failed", {"error": str(exc)}, node_id=node_id)
 
     def _finalize_failed_run(
-        self, run_id: str, exc: Exception, *, source_status: str | None,
+        self, run_id: str, exc: Exception, *,
         workflow: GraphWorkflow, context: GraphExecutionContext | None,
         node_metrics_by_id: Dict[str, Dict], run_started_monotonic: float | None,
         active_node_id: str | None, node_started_monotonic: float | None,
     ) -> None:
-        if self._finish_cancelled_run_if_requested(run_id, context, node_metrics_by_id, run_started_monotonic, active_node_id, node_started_monotonic, source_status=source_status):
+        if self._finish_cancelled_run_if_requested(run_id, context, node_metrics_by_id, run_started_monotonic, active_node_id, node_started_monotonic):
             return
         logger.exception("graph run failed", extra={"run_id": run_id})
         failed_metrics = {
@@ -929,22 +932,23 @@ class GraphRuntime:
             ("queued", "running"),
             events=[{"event_type": "run.failed", "payload_json": {"error": str(exc), "metrics": failed_metrics}}],
         ):
-            self._finish_cancelled_run_if_requested(run_id, context, node_metrics_by_id, run_started_monotonic, active_node_id, node_started_monotonic, source_status=source_status)
+            self._finish_cancelled_run_if_requested(run_id, context, node_metrics_by_id, run_started_monotonic, active_node_id, node_started_monotonic)
 
     def cancel_run(self, run_id: str) -> GraphRun:
-        current = store.get_graph_run(run_id)
-        if not current:
-            raise KeyError("graph run not found")
-        current_status = str(current.get("status") or "").strip()
-        if current_status in {"completed", "failed", "cancelled"}:
-            return self._shape_run(current)
-        run = store.update_graph_run(run_id, {"status": "cancelling"})
-        cancel_result = cancel_kie_jobs_for_run(run_id)
-        emit(run_id, "run.cancelling", cancel_result)
-        if current_status == "queued":
-            self._finalize_cancelled_run(run_id, None, {}, None, None, None)
-            return self._shape_run(store.get_graph_run(run_id) or run)
-        return self._shape_run(run)
+        with self._cancellation_lock:
+            current = store.get_graph_run(run_id)
+            if not current:
+                raise KeyError("graph run not found")
+            current_status = str(current.get("status") or "").strip()
+            if current_status in {"completed", "failed", "cancelled"}:
+                return self._shape_run(current)
+            run = store.update_graph_run(run_id, {"status": "cancelling"})
+            cancel_result = cancel_kie_jobs_for_run(run_id)
+            emit(run_id, "run.cancelling", cancel_result)
+            if current_status == "queued":
+                self._finalize_cancelled_run(run_id, None, {}, None, None, None)
+                return self._shape_run(store.get_graph_run(run_id) or run)
+            return self._shape_run(run)
 
     def _finalize_cancelled_run(
         self,
@@ -955,63 +959,63 @@ class GraphRuntime:
         active_node_id: str | None,
         node_started_monotonic: float | None,
     ) -> None:
-        cancel_result = cancel_kie_jobs_for_run(run_id)
-        for event in store.list_graph_run_events(run_id):
-            if str(event.get("event_type") or "").strip() != "run.cancelling":
-                continue
-            payload = event.get("payload_json") or {}
-            for batch_id in payload.get("batch_ids") or []:
-                clean = str(batch_id or "").strip()
-                if clean and clean not in (cancel_result.get("batch_ids") or []):
-                    cancel_result.setdefault("batch_ids", []).append(clean)
-            for job_id in payload.get("job_ids") or []:
-                clean = str(job_id or "").strip()
-                if clean and clean not in (cancel_result.get("job_ids") or []):
-                    cancel_result.setdefault("job_ids", []).append(clean)
-        cancelled_node_ids: List[str] = []
-        for run_node in store.list_graph_run_nodes(run_id):
-            status = str(run_node.get("status") or "").strip()
-            if status not in {"queued", "running"}:
-                continue
-            metrics = dict(run_node.get("metrics_json") or {})
-            if context:
-                metrics.update(context.node_metrics.get(str(run_node.get("node_id") or ""), {}))
-            if active_node_id and str(run_node.get("node_id") or "") == active_node_id and node_started_monotonic is not None:
-                metrics["duration_seconds"] = round(time.perf_counter() - node_started_monotonic, 4)
-            store.update_graph_run_node(
+        with self._cancellation_lock:
+            if (store.get_graph_run(run_id) or {}).get("status") != "cancelling":
+                return
+            cancel_result = cancel_kie_jobs_for_run(run_id)
+            for event in store.list_graph_run_events(run_id):
+                if str(event.get("event_type") or "").strip() != "run.cancelling":
+                    continue
+                payload = event.get("payload_json") or {}
+                for key in ("batch_ids", "job_ids"):
+                    for identifier in payload.get(key) or []:
+                        clean = str(identifier or "").strip()
+                        if clean and clean not in (cancel_result.get(key) or []):
+                            cancel_result.setdefault(key, []).append(clean)
+            cancelled_node_ids: List[str] = []
+            for run_node in store.list_graph_run_nodes(run_id):
+                status = str(run_node.get("status") or "").strip()
+                if status not in {"queued", "running"}:
+                    continue
+                metrics = dict(run_node.get("metrics_json") or {})
+                if context:
+                    metrics.update(context.node_metrics.get(str(run_node.get("node_id") or ""), {}))
+                if active_node_id and str(run_node.get("node_id") or "") == active_node_id and node_started_monotonic is not None:
+                    metrics["duration_seconds"] = round(time.perf_counter() - node_started_monotonic, 4)
+                store.update_graph_run_node(
+                    run_id,
+                    str(run_node["node_id"]),
+                    {
+                        "status": "cancelled",
+                        "progress": 1,
+                        "metrics_json": metrics,
+                        "finished_at": store.utcnow_iso(),
+                    },
+                )
+                cancelled_node_ids.append(str(run_node["node_id"]))
+            if active_node_id and active_node_id in cancelled_node_ids:
+                emit(run_id, "node.cancelled", {"message": GRAPH_RUN_CANCELLED_MESSAGE}, node_id=active_node_id)
+            cancelled_metrics = {
+                "duration_seconds": round(time.perf_counter() - run_started_monotonic, 4) if run_started_monotonic is not None else None,
+                "completed_node_count": len(node_metrics_by_id),
+                "cancelled_node_count": len(cancelled_node_ids),
+                "cancelled_node_ids": cancelled_node_ids,
+                "node_metrics": node_metrics_by_id,
+                "output_asset_ids": sorted({asset_id for metrics in node_metrics_by_id.values() for asset_id in metrics.get("output_asset_ids", [])}),
+                "cancelled_jobs": cancel_result.get("job_ids") or [],
+                "cancelled_batches": cancel_result.get("batch_ids") or [],
+                **_aggregate_usage_metrics(context.node_metrics if context else {}),
+            }
+            store.update_graph_run(
                 run_id,
-                str(run_node["node_id"]),
                 {
                     "status": "cancelled",
-                    "progress": 1,
-                    "metrics_json": metrics,
+                    "error": None,
+                    "metrics_json": cancelled_metrics,
                     "finished_at": store.utcnow_iso(),
                 },
             )
-            cancelled_node_ids.append(str(run_node["node_id"]))
-        if active_node_id and active_node_id in cancelled_node_ids:
-            emit(run_id, "node.cancelled", {"message": GRAPH_RUN_CANCELLED_MESSAGE}, node_id=active_node_id)
-        cancelled_metrics = {
-            "duration_seconds": round(time.perf_counter() - run_started_monotonic, 4) if run_started_monotonic is not None else None,
-            "completed_node_count": len(node_metrics_by_id),
-            "cancelled_node_count": len(cancelled_node_ids),
-            "cancelled_node_ids": cancelled_node_ids,
-            "node_metrics": node_metrics_by_id,
-            "output_asset_ids": sorted({asset_id for metrics in node_metrics_by_id.values() for asset_id in metrics.get("output_asset_ids", [])}),
-            "cancelled_jobs": cancel_result.get("job_ids") or [],
-            "cancelled_batches": cancel_result.get("batch_ids") or [],
-            **_aggregate_usage_metrics(context.node_metrics if context else {}),
-        }
-        store.update_graph_run(
-            run_id,
-            {
-                "status": "cancelled",
-                "error": None,
-                "metrics_json": cancelled_metrics,
-                "finished_at": store.utcnow_iso(),
-            },
-        )
-        emit(run_id, "run.cancelled", {"metrics": cancelled_metrics, **cancel_result})
+            emit(run_id, "run.cancelled", {"metrics": cancelled_metrics, **cancel_result})
 
     def _shape_run(self, record: Dict) -> GraphRun:
         return GraphRun(

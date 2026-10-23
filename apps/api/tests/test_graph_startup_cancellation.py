@@ -182,8 +182,6 @@ def test_queued_cancel_handler_keeps_finalization_ownership(client, app_modules,
     try:
         assert cancelling_emitted.wait(5)
         release_validation.set()
-        worker.join(5)
-        assert not worker.is_alive()
     finally:
         release_validation.set()
         release_cancel.set()
@@ -199,6 +197,48 @@ def test_queued_cancel_handler_keeps_finalization_ownership(client, app_modules,
         "cancelled_node_ids": final["run"]["metrics_json"]["cancelled_node_ids"],
         "terminal_events": [event["event_type"] for event in final["events"]].count("run.cancelled"),
     } == {"http_status": 200, "returned_status": "cancelled", "executor_calls": [], "cancelled_node_count": 1, "cancelled_node_ids": ["text"], "terminal_events": 1}
+
+
+def test_resuming_worker_waits_for_queued_cancel_handler(client, app_modules, monkeypatch):
+    runtime, run_id, calls = _queued_run(client, monkeypatch)
+    store = app_modules["store"]
+    module = importlib.import_module("app.graph.runtime")
+    cancelling_emitted, release_cancel, worker_read = threading.Event(), threading.Event(), threading.Event()
+    original_emit, original_read = module.emit, store.get_graph_run
+
+    def emit(*args, **kwargs):
+        result = original_emit(*args, **kwargs)
+        if args[1] == "run.cancelling":
+            cancelling_emitted.set()
+            assert release_cancel.wait(5)
+        return result
+
+    def read(current_id):
+        record = original_read(current_id)
+        if threading.current_thread() is worker and record["status"] == "cancelling":
+            worker_read.set()
+        return record
+
+    monkeypatch.setattr(module, "emit", emit)
+    monkeypatch.setattr(store, "get_graph_run", read)
+    responses = []
+    cancel = threading.Thread(target=lambda: responses.append(client.post(f"/media/graph/runs/{run_id}/cancel")))
+    worker = threading.Thread(target=lambda: runtime.execute_run(run_id, resume=True))
+    cancel.start()
+    try:
+        assert cancelling_emitted.wait(5)
+        worker.start()
+        assert worker_read.wait(5)
+    finally:
+        release_cancel.set()
+        cancel.join(5)
+        if worker.ident is not None:
+            worker.join(5)
+    assert not cancel.is_alive() and not worker.is_alive() and calls == []
+    assert responses[0].status_code == 200 and responses[0].json()["status"] == "cancelled"
+    final = _snapshot(store, run_id)
+    assert final["run"]["metrics_json"]["cancelled_node_count"] == 1
+    assert [event["event_type"] for event in final["events"]].count("run.cancelled") == 1
 
 
 def test_resuming_worker_finishes_cancellation_requested_during_validation(client, app_modules, monkeypatch):
@@ -228,6 +268,20 @@ def test_resuming_worker_finishes_cancellation_requested_during_validation(clien
     final = _snapshot(store, run_id)
     assert final["run"]["status"] == "cancelled"
     assert all(node["status"] == "cancelled" for node in final["nodes"])
+    assert [event["event_type"] for event in final["events"]].count("run.cancelled") == 1
+
+
+def test_resuming_worker_finishes_cancellation_requested_before_startup(client, app_modules, monkeypatch):
+    runtime, run_id, calls = _queued_run(client, monkeypatch)
+    store = app_modules["store"]
+    store.update_graph_run(run_id, {"status": "running"})
+    response = client.post(f"/media/graph/runs/{run_id}/cancel")
+    assert response.status_code == 200 and response.json()["status"] == "cancelling"
+    runtime.execute_run(run_id, resume=True)
+    final = _snapshot(store, run_id)
+    assert calls == [] and final["run"]["status"] == "cancelled"
+    assert all(node["status"] == "cancelled" for node in final["nodes"])
+    assert final["run"]["metrics_json"]["cancelled_node_count"] == 1
     assert [event["event_type"] for event in final["events"]].count("run.cancelled") == 1
 
 
