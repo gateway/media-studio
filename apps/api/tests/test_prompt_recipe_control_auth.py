@@ -68,6 +68,7 @@ def test_every_registered_recipe_route_has_authorization_matrix_coverage(app_mod
     actual = {
         (method, route.path)
         for route in app_modules["main"].app.routes
+        if hasattr(route, "path")
         if route.path == "/prompt-recipes" or route.path.startswith("/prompt-recipes/")
         for method in route.methods
     }
