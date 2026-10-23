@@ -225,6 +225,46 @@ def update_graph_run(run_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     return _upsert_table("graph_runs", "run_id", current)
 
 
+
+def _update_graph_row(connection, table: str, payload: Dict[str, Any], where: str, parameters: List[Any]) -> bool:
+    values = {**payload, "updated_at": utcnow_iso()}
+    columns = sorted(values)
+    assignments = ", ".join(f"{column} = ?" for column in columns)
+    result = connection.execute(
+        f"UPDATE {table} SET {assignments} WHERE {where}",
+        [*(_encode(values[column]) for column in columns), *parameters],
+    )
+    return result.rowcount == 1
+
+
+def update_graph_run_if_status(
+    run_id: str, payload: Dict[str, Any], expected_statuses: tuple[str, ...],
+    *, events: List[Dict[str, Any]],
+) -> bool:
+    """Commit an eligible lifecycle update and its events together."""
+    statuses = ", ".join("?" for _ in expected_statuses)
+    with get_connection() as connection:
+        updated = _update_graph_row(connection, "graph_runs", payload, f"run_id = ? AND status IN ({statuses})", [run_id, *expected_statuses])
+        if updated:
+            for event in events:
+                _append_graph_run_event(connection, run_id, event["event_type"], event["payload_json"])
+        return updated
+
+
+def skip_graph_run_node_if_pending(run_id: str, node_id: str, payload: Dict[str, Any], event_payload: Dict[str, Any]) -> bool:
+    """A late startup failure must not replace a cancelled node or append a stale event."""
+    with get_connection() as connection:
+        updated = _update_graph_row(
+            connection, "graph_run_nodes", payload,
+            "run_id = ? AND node_id = ? AND status = 'queued' AND EXISTS "
+            "(SELECT 1 FROM graph_runs WHERE graph_runs.run_id = graph_run_nodes.run_id AND graph_runs.status IN ('queued', 'running'))",
+            [run_id, node_id],
+        )
+        if updated:
+            _append_graph_run_event(connection, run_id, "node.skipped", event_payload, node_id=node_id)
+        return updated
+
+
 def mark_interrupted_graph_runs() -> int:
     now = utcnow_iso()
     message = "Graph run was interrupted before completion. Start a new run to retry."
@@ -312,7 +352,7 @@ def update_graph_run_node(run_id: str, node_id: str, payload: Dict[str, Any]) ->
     return _upsert_table("graph_run_nodes", "run_node_id", current)
 
 
-def append_graph_run_event(run_id: str, event_type: str, payload: Dict[str, Any], node_id: Optional[str] = None) -> Dict[str, Any]:
+def _append_graph_run_event(connection, run_id: str, event_type: str, payload: Dict[str, Any], node_id: Optional[str] = None) -> Dict[str, Any]:
     event_payload = {
         "event_id": new_id("grevent"),
         "run_id": run_id,
@@ -321,22 +361,26 @@ def append_graph_run_event(run_id: str, event_type: str, payload: Dict[str, Any]
         "payload_json": payload,
         "created_at": utcnow_iso(),
     }
-    with get_connection() as connection:
-        connection.execute(
-            """
-            INSERT INTO graph_run_events (event_id, run_id, node_id, event_type, payload_json, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                event_payload["event_id"],
-                event_payload["run_id"],
-                event_payload["node_id"],
-                event_payload["event_type"],
-                _encode(event_payload["payload_json"]),
-                event_payload["created_at"],
-            ),
-        )
+    connection.execute(
+        """
+        INSERT INTO graph_run_events (event_id, run_id, node_id, event_type, payload_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            event_payload["event_id"],
+            event_payload["run_id"],
+            event_payload["node_id"],
+            event_payload["event_type"],
+            _encode(event_payload["payload_json"]),
+            event_payload["created_at"],
+        ),
+    )
     return event_payload
+
+
+def append_graph_run_event(run_id: str, event_type: str, payload: Dict[str, Any], node_id: Optional[str] = None) -> Dict[str, Any]:
+    with get_connection() as connection:
+        return _append_graph_run_event(connection, run_id, event_type, payload, node_id)
 
 
 def list_graph_run_events(run_id: str, after_event_id: Optional[str] = None) -> List[Dict[str, Any]]:

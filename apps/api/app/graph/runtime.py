@@ -7,6 +7,7 @@ import time
 from typing import Dict, List, Mapping, Optional
 
 from .. import store
+from ..store_graph import skip_graph_run_node_if_pending, update_graph_run_if_status
 from .artifacts import output_payload_to_refs, register_output_artifacts
 from .cancellation import GRAPH_RUN_CANCELLED_MESSAGE, cancel_kie_jobs_for_run
 from .compiler import compile_workflow
@@ -45,7 +46,7 @@ from .executors.video_ops import (
     VideoTransformExecutor,
     VideoTrimExecutor,
 )
-from .schemas import GraphRun, GraphRunNode, GraphWorkflow
+from .schemas import GraphCompiledGraph, GraphRun, GraphRunNode, GraphWorkflow, GraphWorkflowNode
 from .validator import validate_workflow
 
 logger = logging.getLogger(__name__)
@@ -265,13 +266,34 @@ def _submitted_kie_events_by_node(run_id: str) -> Dict[str, Dict]:
     return submitted
 
 
+def _skipped_node_failure_payload(
+    workflow: GraphWorkflow, node: GraphWorkflowNode | None, node_id: str,
+    execution_mode: str, context: GraphExecutionContext | None, failed_node_id: str | None,
+) -> tuple[Dict, Dict]:
+    metrics = {
+        "execution_mode": execution_mode,
+        "skip_reason": "muted" if execution_mode == "muted" else "upstream_failed",
+        "blocked_by_node_id": failed_node_id,
+        "output_ref_count": 0,
+    }
+    output_payload = {}
+    if execution_mode == "muted":
+        cached_outputs, cached_run_id = _usable_cached_output_for_node(str(workflow.workflow_id or ""), node)
+        if cached_outputs:
+            output_payload = _output_payload(cached_outputs)
+            metrics.update(cached=True, carried_forward=True, cached_run_id=cached_run_id, output_ref_count=sum(len(value) for value in cached_outputs.values()))
+    payload = {
+        "status": "skipped", "progress": 1, "error": None,
+        "output_snapshot_json": output_payload, "metrics_json": metrics, "finished_at": store.utcnow_iso(),
+    }
+    if context and node_id in context.node_input_snapshots:
+        payload["input_snapshot_json"] = context.node_input_snapshots[node_id]
+    return metrics, payload
+
+
 def _skip_queued_nodes_after_failure(
-    *,
-    run_id: str,
-    workflow: GraphWorkflow,
-    failed_node_id: str | None,
-    context: GraphExecutionContext | None,
-    node_metrics_by_id: Dict[str, Dict],
+    *, run_id: str, workflow: GraphWorkflow, failed_node_id: str | None,
+    context: GraphExecutionContext | None, node_metrics_by_id: Dict[str, Dict],
 ) -> List[str]:
     nodes_by_id = {node.id: node for node in workflow.nodes}
     skipped_node_ids: List[str] = []
@@ -281,39 +303,11 @@ def _skip_queued_nodes_after_failure(
         node_id = str(run_node.get("node_id") or "")
         node = nodes_by_id.get(node_id)
         execution_mode = _node_execution_mode(node) if node else "enabled"
-        skip_reason = "muted" if execution_mode == "muted" else "upstream_failed"
-        metrics = {
-            "execution_mode": execution_mode,
-            "skip_reason": skip_reason,
-            "blocked_by_node_id": failed_node_id,
-            "output_ref_count": 0,
-        }
+        metrics, payload = _skipped_node_failure_payload(workflow, node, node_id, execution_mode, context, failed_node_id)
+        event_payload = {"execution_mode": metrics["execution_mode"], "reason": metrics["skip_reason"], "metrics": metrics}
+        if not skip_graph_run_node_if_pending(run_id, node_id, payload, event_payload):
+            continue
         node_metrics_by_id[node_id] = metrics
-        output_payload = {}
-        if node and execution_mode == "muted":
-            cached_outputs, cached_run_id = _usable_cached_output_for_node(str(workflow.workflow_id or ""), node)
-            if cached_outputs:
-                output_payload = _output_payload(cached_outputs)
-                metrics.update(
-                    {
-                        "cached": True,
-                        "carried_forward": True,
-                        "cached_run_id": cached_run_id,
-                        "output_ref_count": sum(len(value) for value in cached_outputs.values()),
-                    }
-                )
-        update_payload = {
-            "status": "skipped",
-            "progress": 1,
-            "error": None,
-            "output_snapshot_json": output_payload,
-            "metrics_json": metrics,
-            "finished_at": store.utcnow_iso(),
-        }
-        if context and node_id in context.node_input_snapshots:
-            update_payload["input_snapshot_json"] = context.node_input_snapshots[node_id]
-        store.update_graph_run_node(run_id, node_id, update_payload)
-        emit(run_id, "node.skipped", {"execution_mode": execution_mode, "reason": skip_reason, "metrics": metrics}, node_id=node_id)
         skipped_node_ids.append(node_id)
     return skipped_node_ids
 
@@ -599,26 +593,15 @@ class GraphRuntime:
         run = store.get_graph_run(run_id)
         if not run:
             return
+        eligible = ("queued", "running") if resume else ("queued",)
+        if run.get("status") not in eligible:
+            return
         try:
             run_started_monotonic = time.perf_counter()
             workflow = materialize_workflow_defaults(GraphWorkflow(**run["workflow_json"]))
-            emit(run_id, "run.validating")
-            validation = validate_workflow(workflow)
-            if not validation.valid:
-                raise ValueError("; ".join(error.message for error in validation.errors))
-            compiled = compile_workflow(workflow)
-            store.update_graph_run(
-                run_id,
-                {
-                    "status": "running",
-                    "error": None,
-                    "started_at": run.get("started_at") or store.utcnow_iso(),
-                    "finished_at": None,
-                    "compiled_graph_json": compiled.model_dump(mode="json"),
-                },
-            )
-            emit(run_id, "run.compiled", {"node_count": len(workflow.nodes), "edge_count": len(workflow.edges)})
-            emit(run_id, "run.resumed" if resume else "run.started", {"recovered": True} if resume else {})
+            compiled = self._compile_run_for_start(run_id, run, workflow, resume=resume, eligible=eligible)
+            if compiled is None:
+                return
             context = GraphExecutionContext(run_id=run_id, workflow=workflow)
             nodes_by_id = {node.id: node for node in workflow.nodes}
             existing_run_nodes = {str(item.get("node_id") or ""): item for item in store.list_graph_run_nodes(run_id)} if resume else {}
@@ -850,45 +833,103 @@ class GraphRuntime:
                 node_started_monotonic if "node_started_monotonic" in locals() else None,
             )
         except Exception as exc:
-            logger.exception("graph run failed", extra={"run_id": run_id})
-            failed_metrics = {
-                "duration_seconds": round(time.perf_counter() - run_started_monotonic, 4) if "run_started_monotonic" in locals() else None,
-                "failed_node_id": active_node_id if "active_node_id" in locals() else None,
-                "error": str(exc),
-                **_aggregate_usage_metrics(context.node_metrics if "context" in locals() else {}),
-            }
-            if "active_node_id" in locals() and active_node_id:
-                failed_node_update = {
-                    "status": "failed",
-                    "progress": 1,
-                    "error": str(exc),
-                    "metrics_json": {
-                        **(context.node_metrics.get(active_node_id, {}) if "context" in locals() else {}),
-                        "duration_seconds": round(time.perf_counter() - node_started_monotonic, 4) if "node_started_monotonic" in locals() else None,
-                        "error": str(exc),
-                    },
-                    "finished_at": store.utcnow_iso(),
-                }
-                if "context" in locals() and active_node_id in context.node_input_snapshots:
-                    failed_node_update["input_snapshot_json"] = context.node_input_snapshots[active_node_id]
-                store.update_graph_run_node(
-                    run_id,
-                    active_node_id,
-                    failed_node_update,
-                )
-                emit(run_id, "node.failed", {"error": str(exc)}, node_id=active_node_id)
-            skipped_after_failure = _skip_queued_nodes_after_failure(
-                run_id=run_id,
+            self._finalize_failed_run(
+                run_id, exc, source_status=run.get("status"),
                 workflow=workflow if "workflow" in locals() else GraphWorkflow(name="Failed graph", nodes=[], edges=[]),
-                failed_node_id=active_node_id if "active_node_id" in locals() else None,
                 context=context if "context" in locals() else None,
                 node_metrics_by_id=node_metrics_by_id if "node_metrics_by_id" in locals() else {},
+                run_started_monotonic=run_started_monotonic if "run_started_monotonic" in locals() else None,
+                active_node_id=active_node_id if "active_node_id" in locals() else None,
+                node_started_monotonic=node_started_monotonic if "node_started_monotonic" in locals() else None,
             )
-            if skipped_after_failure:
-                failed_metrics["skipped_node_count"] = len(skipped_after_failure)
-                failed_metrics["skipped_node_ids"] = skipped_after_failure
-            store.update_graph_run(run_id, {"status": "failed", "error": str(exc), "metrics_json": failed_metrics, "finished_at": store.utcnow_iso()})
-            emit(run_id, "run.failed", {"error": str(exc), "metrics": failed_metrics})
+
+    def _compile_run_for_start(
+        self, run_id: str, run: Dict, workflow: GraphWorkflow,
+        *, resume: bool, eligible: tuple[str, ...],
+    ) -> GraphCompiledGraph | None:
+        if not update_graph_run_if_status(run_id, {}, eligible, events=[{"event_type": "run.validating", "payload_json": {}}]):
+            self._finish_cancelled_run_if_requested(run_id, source_status=run.get("status"))
+            return None
+        validation = validate_workflow(workflow)
+        if not validation.valid:
+            raise ValueError("; ".join(error.message for error in validation.errors))
+        compiled = compile_workflow(workflow)
+        claimed = update_graph_run_if_status(
+            run_id,
+            {
+                "status": "running", "error": None,
+                "started_at": run.get("started_at") or store.utcnow_iso(), "finished_at": None,
+                "compiled_graph_json": compiled.model_dump(mode="json"),
+            },
+            eligible,
+            events=[
+                {"event_type": "run.compiled", "payload_json": {"node_count": len(workflow.nodes), "edge_count": len(workflow.edges)}},
+                {"event_type": "run.resumed" if resume else "run.started", "payload_json": {"recovered": True} if resume else {}},
+            ],
+        )
+        if not claimed:
+            self._finish_cancelled_run_if_requested(run_id, source_status=run.get("status"))
+            return None
+        return compiled
+
+    def _finish_cancelled_run_if_requested(
+        self, run_id: str, context: GraphExecutionContext | None = None,
+        node_metrics_by_id: Dict[str, Dict] | None = None,
+        run_started_monotonic: float | None = None, active_node_id: str | None = None,
+        node_started_monotonic: float | None = None, *, source_status: str | None = None,
+    ) -> bool:
+        status = (store.get_graph_run(run_id) or {}).get("status")
+        # The cancel handler owns queued finalization; an active/resuming worker owns its running cancellation.
+        if status == "cancelling" and (context is not None or source_status == "running"):
+            self._finalize_cancelled_run(run_id, context, node_metrics_by_id or {}, run_started_monotonic, active_node_id, node_started_monotonic)
+        return status in {"cancelling", "cancelled"}
+
+    def _finalize_failed_node(
+        self, run_id: str, node_id: str, exc: Exception,
+        context: GraphExecutionContext | None, node_started_monotonic: float | None,
+    ) -> None:
+        payload = {
+            "status": "failed", "progress": 1, "error": str(exc),
+            "metrics_json": {
+                **(context.node_metrics.get(node_id, {}) if context else {}),
+                "duration_seconds": round(time.perf_counter() - node_started_monotonic, 4) if node_started_monotonic is not None else None,
+                "error": str(exc),
+            },
+            "finished_at": store.utcnow_iso(),
+        }
+        if context and node_id in context.node_input_snapshots:
+            payload["input_snapshot_json"] = context.node_input_snapshots[node_id]
+        store.update_graph_run_node(run_id, node_id, payload)
+        emit(run_id, "node.failed", {"error": str(exc)}, node_id=node_id)
+
+    def _finalize_failed_run(
+        self, run_id: str, exc: Exception, *, source_status: str | None,
+        workflow: GraphWorkflow, context: GraphExecutionContext | None,
+        node_metrics_by_id: Dict[str, Dict], run_started_monotonic: float | None,
+        active_node_id: str | None, node_started_monotonic: float | None,
+    ) -> None:
+        if self._finish_cancelled_run_if_requested(run_id, context, node_metrics_by_id, run_started_monotonic, active_node_id, node_started_monotonic, source_status=source_status):
+            return
+        logger.exception("graph run failed", extra={"run_id": run_id})
+        failed_metrics = {
+            "duration_seconds": round(time.perf_counter() - run_started_monotonic, 4) if run_started_monotonic is not None else None,
+            "failed_node_id": active_node_id, "error": str(exc),
+            **_aggregate_usage_metrics(context.node_metrics if context else {}),
+        }
+        if active_node_id:
+            self._finalize_failed_node(run_id, active_node_id, exc, context, node_started_monotonic)
+        skipped = _skip_queued_nodes_after_failure(
+            run_id=run_id, workflow=workflow, failed_node_id=active_node_id,
+            context=context, node_metrics_by_id=node_metrics_by_id,
+        )
+        if skipped:
+            failed_metrics.update(skipped_node_count=len(skipped), skipped_node_ids=skipped)
+        if not update_graph_run_if_status(
+            run_id, {"status": "failed", "error": str(exc), "metrics_json": failed_metrics, "finished_at": store.utcnow_iso()},
+            ("queued", "running"),
+            events=[{"event_type": "run.failed", "payload_json": {"error": str(exc), "metrics": failed_metrics}}],
+        ):
+            self._finish_cancelled_run_if_requested(run_id, context, node_metrics_by_id, run_started_monotonic, active_node_id, node_started_monotonic, source_status=source_status)
 
     def cancel_run(self, run_id: str) -> GraphRun:
         current = store.get_graph_run(run_id)
