@@ -1789,14 +1789,22 @@ function GraphStudioClient() {
   const restoreRunFromHistory = useCallback(
     async (historyRun: GraphRunHistoryItem) => {
       markWorkspaceChanged();
+      const sourceTabId = activeTabIdRef.current;
+      const sourceVersion = workspaceRestoreVersionRef.current;
+      const sourceSignature = graphWorkflowSnapshotSignature(currentWorkflowPayload);
+      const ownsSource = () =>
+        activeTabIdRef.current === sourceTabId &&
+        workspaceRestoreVersionRef.current === sourceVersion &&
+        graphWorkflowSnapshotSignature(currentHistorySnapshotRef.current?.workflow) === sourceSignature;
       try {
-        const fullRun = historyRun.workflow_json?.nodes?.length
+        const fullRun = historyRun.workflow_json?.nodes.length
           ? (historyRun as GraphRun)
           : await jsonFetch<GraphRun>(
               `/api/control/media/graph/runs/${historyRun.run_id}`,
             );
+        if (!ownsSource()) return;
         const workflow = fullRun.workflow_json;
-        if (!workflow?.nodes?.length) {
+        if (!workflow?.nodes.length) {
           appendConsole(
             `Run ${historyRun.run_id} does not include a restorable workflow snapshot.`,
           );
@@ -1811,6 +1819,7 @@ function GraphStudioClient() {
         setSidebarDialog(null);
         appendConsole(`Restored graph run ${historyRun.run_id}.`);
       } catch (error) {
+        if (!ownsSource()) return;
         appendConsole(
           `Run ${historyRun.run_id} could not be restored: ${(error as Error).message}`,
         );
@@ -1818,6 +1827,7 @@ function GraphStudioClient() {
     },
     [
       appendConsole,
+      currentWorkflowPayload,
       hydrateWorkflowPayload,
       markWorkspaceChanged,
       workflowUpdatedAt,
