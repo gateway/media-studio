@@ -17,7 +17,7 @@ import {
 } from "./utils/graph-tabs";
 
 
-// Keep the real restore, tab, hydration and version coordination; replace visual surfaces only.
+// Keep the real save, tab, hydration and version coordination; replace visual surfaces only.
 vi.mock("./graph-canvas", () => ({
   GraphCanvas: ({ nodes }: ComponentProps<typeof GraphCanvas>) => (
     <>
@@ -27,10 +27,11 @@ vi.mock("./graph-canvas", () => ({
   ),
 }));
 vi.mock("./graph-toolbar", () => ({
-  GraphToolbar: ({ workflowName, tabs, activeTabId, onSave, onSaveAs, onSwitchTab, onCloseTab, onRenameDraftChange, onCommitRename }: ComponentProps<typeof GraphToolbar>) => (
+  GraphToolbar: ({ workflowName, tabs, activeTabId, onSave, onSaveAs, onSwitchTab, onCloseTab, onRenameDraftChange, onCommitRename, onRun }: ComponentProps<typeof GraphToolbar>) => (
     <>
       <output data-testid="identity">{JSON.stringify({ workflowName, activeTabId })}</output>
       <button onClick={onSave}>Save</button>
+      <button onClick={() => onRun()}>Run</button>
       <button onClick={onSaveAs}>Save As</button>
       <button onClick={() => onRenameDraftChange("Renamed A")}>Set rename</button>
       <button onClick={onCommitRename}>Commit rename</button>
@@ -57,6 +58,7 @@ function workflow(id: string | null, name: string, nodeId: string): GraphWorkflo
 }
 const requests: { url: string; method: string; payload: GraphWorkflowPayload; resolve: (value: Response) => void }[] = [];
 const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+  if (url.endsWith("/validate")) return Response.json({ valid: false, errors: [{ code: "missing_required_input", message: "Blocked by test" }], warnings: [] });
   if (url.includes("/graph/workflows") && init?.method) return new Promise<Response>((resolve) => requests.push({ url, method: init.method!, payload: JSON.parse(String(init.body)) as GraphWorkflowPayload, resolve }));
   if (url === "/api/control/health") return Response.json({ install_id: "save-owner-test" });
   if (url === "/api/control/media/graph/node-definitions") return Response.json({ items: [definition] });
@@ -197,4 +199,21 @@ it("keeps an ordinary unchanged save clean with the returned timestamp", async (
   expect(source.dirty).toBe(false);
   expect(source.workflow_updated_at).toBe("2026-10-23T01:00:00Z");
   expect(source.workflow_json?.nodes[0].id).toBe("node-a");
+});
+
+it("binds the existing Run auto-save before blocked validation so the next Save updates that record", async () => {
+  const initial = session();
+  const source = initial.tabs.find((tab) => tab.tab_id === "a")!;
+  source.workflow_id = null;
+  source.workflow_json!.workflow_id = null;
+  writeGraphTabSession("save-owner-test", "a", initial.tabs);
+  await ready();
+  fireEvent.click(screen.getByRole("button", { name: "Run", exact: true }));
+  await settle(0, "run-saved-a", "A");
+  await waitFor(() => expect(screen.getByTestId("console").textContent).toContain("Run blocked before spending credits"));
+  expect(session().tabs.find((tab) => tab.tab_id === "a")?.workflow_id).toBe("run-saved-a");
+  expect(fetcher.mock.calls.some(([url]) => url.endsWith("/runs"))).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Save", exact: true }));
+  expect(requests[1]).toMatchObject({ method: "PATCH", url: "/api/control/media/graph/workflows/run-saved-a" });
+  await settle(1, "run-saved-a", "A");
 });

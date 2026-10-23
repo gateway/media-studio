@@ -89,10 +89,16 @@ export function useGraphToolbarWorkflowActions(params: UseGraphToolbarWorkflowAc
     return false;
   }, []);
 
-  const onSave = useCallback(() => {
+  const saveOwnedWorkflow = useCallback(async () => {
     const request = beginSave(workflowId, workflowName);
-    void saveWorkflow().then((record) => completeSave(request, record));
+    const record = await saveWorkflow();
+    completeSave(request, record);
+    return record;
   }, [beginSave, completeSave, saveWorkflow, workflowId, workflowName]);
+
+  const onSave = useCallback(() => {
+    void saveOwnedWorkflow();
+  }, [saveOwnedWorkflow]);
 
   const onSaveAs = useCallback(() => {
     const request = beginSave(null, `${workflowName || "Workflow"} Copy`);
@@ -115,5 +121,5 @@ export function useGraphToolbarWorkflowActions(params: UseGraphToolbarWorkflowAc
     });
   }, [beginSave, commitRenameWorkflow, completeSave, renameDraft, workflowId]);
 
-  return { onSave, onSaveAs, onOpenRename, onCommitRename };
+  return { saveOwnedWorkflow, onSave, onSaveAs, onOpenRename, onCommitRename };
 }

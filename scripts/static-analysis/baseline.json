@@ -1869,6 +1869,16 @@
       "rule": "@typescript-eslint/no-floating-promises",
       "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
       "severity": 2,
+      "line": 100,
+      "column": 5,
+      "file": "apps/web/components/graph-studio/hooks/use-graph-toolbar-workflow-actions.ts",
+      "owner": "FunctionDeclaration:[\"useGraphToolbarWorkflowActions\"]/VariableDeclaration:[\"onSave\"]/anonymous:50f9af27f637b15d55259c94adb343856b555d557d0665753dbd1557650fd8d3",
+      "id": "22a563999ce76ff3321adce3e78b55188b7f847b22f4f92a59922749723696b8"
+    },
+    {
+      "rule": "@typescript-eslint/no-floating-promises",
+      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
+      "severity": 2,
       "line": 541,
       "column": 43,
       "file": "apps/web/components/settings/studio-enhancement-settings-panel.tsx",
@@ -4380,16 +4390,6 @@
       "file": "apps/web/lib/control-api.ts",
       "owner": "ImportSpecifier:[\"MediaJobResponse\"]",
       "id": "5b81fc28e61a3d88e180b0cb0fe5e1c4ba5200ba58a5aa1f51d4a673e48daa00"
-    },
-    {
-      "rule": "@typescript-eslint/no-floating-promises",
-      "message": "Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler.",
-      "severity": 2,
-      "line": 94,
-      "column": 5,
-      "file": "apps/web/components/graph-studio/hooks/use-graph-toolbar-workflow-actions.ts",
-      "owner": "FunctionDeclaration:[\"useGraphToolbarWorkflowActions\"]/VariableDeclaration:[\"onSave\"]/anonymous:29084d2e5c351bed585b0c0062bcafdadb71bbbeaf59c8d5c83da5c589b26619",
-      "id": "5b9db9f749aa2041060fe612b45bfc94fa609370d1fce3848115ad2713b5bc24"
     },
     {
       "rule": "complexity",
