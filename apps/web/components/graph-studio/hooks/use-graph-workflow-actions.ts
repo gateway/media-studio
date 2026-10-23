@@ -55,12 +55,9 @@ export function useGraphWorkflowActions({
         body: JSON.stringify(payload),
       },
     );
-    setWorkflowId(record.workflow_id);
-    setWorkflowName(nextName);
     refreshWorkflows().catch(() => undefined);
-    appendConsole(`Saved workflow ${record.workflow_id}.`);
     return record;
-  }, [appendConsole, edges, nodes, refreshWorkflows, setWorkflowId, setWorkflowName, workflowFromCanvas, workflowId, workflowName]);
+  }, [edges, nodes, refreshWorkflows, workflowFromCanvas, workflowId, workflowName]);
 
   const saveWorkflowAs = useCallback(async () => {
     const nextName = `${workflowName || "Workflow"} Copy`;
@@ -69,13 +66,9 @@ export function useGraphWorkflowActions({
       method: "POST",
       body: JSON.stringify(payload),
     });
-    setWorkflowName(nextName);
-    setWorkflowId(record.workflow_id);
     refreshWorkflows().catch(() => undefined);
-    appendConsole(`Saved workflow ${record.workflow_id}.`);
-    setWorkflowMenuOpen(false);
     return record;
-  }, [appendConsole, edges, nodes, refreshWorkflows, setWorkflowId, setWorkflowMenuOpen, setWorkflowName, workflowFromCanvas, workflowName]);
+  }, [edges, nodes, refreshWorkflows, workflowFromCanvas, workflowName]);
 
   const openRenameWorkflow = useCallback(
     (setRenameDraft: (value: string) => void) => {
@@ -90,10 +83,7 @@ export function useGraphWorkflowActions({
     const trimmedName = renameDraft.trim();
     if (!trimmedName) return null;
     if (workflowId) {
-      const record = await saveWorkflow(trimmedName, workflowId);
-      appendConsole(`Renamed workflow to ${trimmedName}.`);
-      setRenameDialogOpen(false);
-      return record;
+      return saveWorkflow(trimmedName, workflowId);
     } else {
       setWorkflowName(trimmedName);
       appendConsole(`Renamed workflow to ${trimmedName}.`);

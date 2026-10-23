@@ -451,6 +451,32 @@ function GraphStudioClient() {
     appendConsole,
   });
 
+  const toolbarWorkflowActions = useGraphToolbarWorkflowActions({
+    appendConsole,
+    setRenameDialogOpen,
+    activeTabId,
+    tabs,
+    commitRenameWorkflow,
+    consoleLines,
+    edges,
+    nodes,
+    openRenameWorkflow,
+    renameDraft,
+    run,
+    saveWorkflow,
+    saveWorkflowAs,
+    setRenameDraft,
+    setWorkflowId,
+    setWorkflowName,
+    setWorkflowUpdatedAt,
+    updateTab,
+    workflowFromCanvas,
+    workflowId,
+    workflowName,
+    workflowUpdatedAt,
+    closeWorkflowMenu,
+  });
+
   const resetNodeRunState = useCallback(() => {
     setNodes((current) => {
       let changed = false;
@@ -1624,7 +1650,7 @@ function GraphStudioClient() {
     workflowName,
     nodes,
     edges,
-    saveWorkflow,
+    saveWorkflow: toolbarWorkflowActions.saveOwnedWorkflow,
     workflowFromCanvas,
     resetNodeRunState,
     applyValidationErrorsToNodes,
@@ -1857,25 +1883,7 @@ function GraphStudioClient() {
     closeActiveWorkflow();
     setAssistantWorkspaceResetVersion((current) => current + 1);
   }, [closeActiveWorkflow, markWorkspaceChanged]);
-  const toolbarWorkflowActions = useGraphToolbarWorkflowActions({
-    commitRenameWorkflow,
-    consoleLines,
-    edges,
-    nodes,
-    openRenameWorkflow,
-    renameDraft,
-    run,
-    saveWorkflow,
-    saveWorkflowAs,
-    setRenameDraft,
-    setWorkflowUpdatedAt,
-    updateActiveTab,
-    workflowFromCanvas,
-    workflowId,
-    workflowName,
-    workflowUpdatedAt,
-    closeWorkflowMenu,
-  });
+
 
   const assistantDock = useAssistantDock(assistantOpen && assistantAvailability.status === "ready");
   return (
