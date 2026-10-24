@@ -316,6 +316,10 @@ class GraphRuntime:
     def __init__(self) -> None:
         # Cancellation handlers and workers share finalization in this process.
         self._cancellation_lock = threading.RLock()
+        # The supported installation has one API process. A restart drops these
+        # reservations so persisted orphaned runs can be recovered by its successor.
+        self._execution_lock = threading.Lock()
+        self._active_runs: set[str] = set()
         executors: List[GraphExecutor] = [
             PromptTextExecutor(),
             PromptConcatExecutor(),
@@ -396,13 +400,41 @@ class GraphRuntime:
         return self._shape_run(run)
 
     def start_run(self, run_id: str) -> None:
+        if not self._claim_run(run_id):
+            return
+        try:
+            self._start_run_worker(run_id)
+        except Exception:
+            self._release_run(run_id)
+            raise
+
+    def _claim_run(self, run_id: str) -> bool:
+        with self._execution_lock:
+            if run_id in self._active_runs:
+                return False
+            self._active_runs.add(run_id)
+            return True
+
+    def _release_run(self, run_id: str) -> None:
+        with self._execution_lock:
+            self._active_runs.remove(run_id)
+
+    def _start_run_worker(self, run_id: str, *, resume: bool = False, start: bool = True) -> None:
+        if not start:
+            return
         thread = threading.Thread(
-            target=self.execute_run,
-            args=(run_id,),
-            name=f"graph-run-{run_id}",
+            target=self._execute_owned_run,
+            kwargs={"run_id": run_id, "resume": resume},
+            name=f"graph-{'recover' if resume else 'run'}-{run_id}",
             daemon=True,
         )
         thread.start()
+
+    def _execute_owned_run(self, run_id: str, *, resume: bool = False) -> None:
+        try:
+            self._execute_run(run_id, resume=resume)
+        finally:
+            self._release_run(run_id)
 
     def recover_interrupted_runs(self, *, start: bool = True, limit: int = 100) -> int:
         recovered = 0
@@ -423,8 +455,22 @@ class GraphRuntime:
         return recovered
 
     def recover_run(self, run_id: str, *, start: bool = True) -> Dict[str, object]:
+        if not self._claim_run(run_id):
+            return {"recovered": False, "started": False, "run_id": run_id}
+        worker_started = False
+        try:
+            # Recovery preparation must not overwrite an acknowledged cancellation.
+            with self._cancellation_lock:
+                result = self._recover_run(run_id, start=start)
+            worker_started = bool(result["started"])
+            return result
+        finally:
+            if not worker_started:
+                self._release_run(run_id)
+
+    def _recover_run(self, run_id: str, *, start: bool) -> Dict[str, object]:
         run = store.get_graph_run(run_id)
-        if not run or not _is_interrupted_run(run):
+        if not run or not _is_interrupted_run(run) or self._finish_cancelled_run_if_requested(run_id):
             return {"recovered": False, "started": False, "run_id": run_id}
         workflow = materialize_workflow_defaults(GraphWorkflow(**run["workflow_json"]))
         compiled = compile_workflow(workflow)
@@ -527,9 +573,7 @@ class GraphRuntime:
 
         existing_recovery_metrics = run.get("metrics_json") if isinstance(run.get("metrics_json"), dict) else {}
         if not recovered_node_ids and not resumable_node_ids and existing_recovery_metrics.get("recovered_from_interruption") is True:
-            if start:
-                thread = threading.Thread(target=self.execute_run, kwargs={"run_id": run_id, "resume": True}, name=f"graph-recover-{run_id}", daemon=True)
-                thread.start()
+            self._start_run_worker(run_id, resume=True, start=start)
             return {
                 "recovered": True,
                 "started": start,
@@ -579,9 +623,7 @@ class GraphRuntime:
                 "terminal_provider_failures": terminal_provider_failures,
             },
         )
-        if start:
-            thread = threading.Thread(target=self.execute_run, kwargs={"run_id": run_id, "resume": True}, name=f"graph-recover-{run_id}", daemon=True)
-            thread.start()
+        self._start_run_worker(run_id, resume=True, start=start)
         return {
             "recovered": True,
             "started": start,
@@ -592,6 +634,10 @@ class GraphRuntime:
         }
 
     def execute_run(self, run_id: str, *, resume: bool = False) -> None:
+        if self._claim_run(run_id):
+            self._execute_owned_run(run_id, resume=resume)
+
+    def _execute_run(self, run_id: str, *, resume: bool) -> None:
         run = store.get_graph_run(run_id)
         if not run:
             return

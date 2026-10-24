@@ -115,6 +115,11 @@ jobs:
           python -m venv .venv/static-analysis
           .venv/static-analysis/bin/python -m pip install -r scripts/static-analysis/requirements.txt
 
+      - name: Use the Ubuntu archive for CI packages
+        run: |
+          # Avoid the stalled Azure mirror; retain APT's existing signing keys and suites.
+          printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
@@ -122,7 +127,11 @@ jobs:
         run: node --test scripts/graph_text_wrapping.test.mjs
 
       - name: Install media tooling
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+          ffprobe -version
 
       - name: Run quality gates
         env:

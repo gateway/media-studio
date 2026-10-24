@@ -17,6 +17,15 @@ Important:
 
 This means the correct production-style setup is to supervise the API process, not to expect the runner to resurrect its own parent process.
 
+Run one API process per installation/database, as the supplied launchers and
+supervisor configurations do. Graph execution and recovery share per-run
+ownership in that process; recovery requests for an owned run leave it untouched.
+The reservation covers worker scheduling, recovery preparation and execution,
+and is released when the worker finishes or fails. After the previous API process
+has stopped, its successor can recover persisted orphaned runs. Multiple API
+workers or overlapping API processes sharing a database are not supported by this
+ownership mechanism.
+
 ## What Happens On Restart
 
 On API startup, the runner:
