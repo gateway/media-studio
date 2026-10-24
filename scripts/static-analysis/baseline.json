@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "contract": "0dc11623cd4e4c4814a5c91ff5fc2628faf01b5f9b696d3c72aa5a6893096123",
+  "contract": "474e1ccb383499263bf18604735f7057ae2135107e8c80bf0677be9fb1c11109",
   "metadata": {
     "versions": {
       "eslint": "10.13.0",
@@ -20,14 +20,14 @@
       "eslint.config.mjs": "e7b04be24cce89b3097fd3fb0344646c91e89f3aec6b15b9868d65df52b1c568",
       "apps/web/tsconfig.json": "9d4f94ee8caca352f8d2bd015b926ed965becb47567ab794675ae2cbcbc947a7",
       "apps/web/tsconfig.lint.json": "affb7903fadd406f018291abf40821b7e88751276699181817eda5cc2322946a",
-      "package-lock.json": "a98a666af466b429b13d21085b158676002fdd42fd446c57f246db83794b23cc",
+      "package-lock.json": "f15651c8091fe34c17335a4b6a68ec34aa8147ed12cbefdd88e75be6d3a4ffff",
       "scripts/static-analysis/policy.mjs": "571a38fd87c9676a2e9f669ae561189e19b1081bf8e49c3a343dd7be9e37d9d4",
       "scripts/static-analysis/scan.mjs": "c9e5004a103c9668f437c6155f2b8dc831c1758112f634387807dc730ed07c38",
       "scripts/static-analysis/gate.mjs": "6b04ba0279a6d123010399880866de11760aabcbd37724931ffe867791234de1",
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Ticket 24 attachment preview extraction: ratchet each existing generic tile callback from 23 to 9; reconcile unchanged genericSourceInputsAvailable diagnostic after its enclosing body changes. No new debt.",
+  "reason": "Reviewed Next 16.4.3 / sharp 0.35.5 runtime lockfile update; analyzer versions, policies and all finding records unchanged.",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",

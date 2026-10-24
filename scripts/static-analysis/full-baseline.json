@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "contract": "b08d2d32dec1489f3686c1b13d03316e2bdee5fc274cd89b317d2b08e2664676",
+  "contract": "fd4c4caaf1d946a90c3351e3590dd7da2c4b67308fb7ad5277c7897d909a412e",
   "metadata": {
     "files": {
-      "package-lock.json": "a98a666af466b429b13d21085b158676002fdd42fd446c57f246db83794b23cc",
+      "package-lock.json": "f15651c8091fe34c17335a4b6a68ec34aa8147ed12cbefdd88e75be6d3a4ffff",
       "dependency-cruiser.config.cjs": "c35e33872173427b44dd540685de6e01ba5f545e40e28d208fa749144e765adf",
       "jscpd.config.json": "0bafba536df0d94f6de1ccf822d7354832b90293545ef622f9a2833c93136c49",
       "apps/web/tsconfig.json": "9d4f94ee8caca352f8d2bd015b926ed965becb47567ab794675ae2cbcbc947a7",
@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Ticket 24: generic desktop/mobile clone shrinks 25 to 13 lines; one repeated fallback clone disappears. Twelve unchanged pairs have new file-context identities; shared-helper import pair grows by one import only. Review reconciliation evidence; no layout or unrelated behavior changes.",
+  "reason": "Reviewed Next 16.4.3 / sharp 0.35.5 runtime lockfile update; analyzer versions, policies and all finding records unchanged.",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",

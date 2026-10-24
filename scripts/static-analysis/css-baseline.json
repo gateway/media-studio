@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "contract": "db1d9a63ced96f3f7b37f9dfd4a6ee2c3d516d39dcc07fe66b1bda45d2bc3ed3",
+  "contract": "8a61326ffc5eb8e39b70b747e9efa1c6b65acb3dc1237f56d853f414f4e2e828",
   "metadata": {
     "versions": {
       "stylelint": "17.16.0",
@@ -15,13 +15,13 @@
     ],
     "files": {
       "stylelint.config.mjs": "450518f5b1f7892f36afbf5762730df8c1818f328b6c6d72576d20d02fc9d79a",
-      "package-lock.json": "a98a666af466b429b13d21085b158676002fdd42fd446c57f246db83794b23cc",
+      "package-lock.json": "f15651c8091fe34c17335a4b6a68ec34aa8147ed12cbefdd88e75be6d3a4ffff",
       "scripts/static-analysis/css.mjs": "93277f0be38bf2e449636af9055f996f8cfb8efb6f9a416cc4eb707509ebc9ca",
       "scripts/static-analysis/css-policy.mjs": "244a770f9dfad9f20804acf5fdc3673e08e254b32d1e813092ca81bc79332c54",
       "scripts/check_style_drift.py": "697bdb704b862545c867b69113f9b2d369a742c47040b7d32494bf6c7c51545f"
     }
   },
-  "reason": "Ticket 31: add only pinned Prettier 3.9.10; lockfile contract hash updated. Preserve all existing findings, analyzer versions, rules, scopes and thresholds.",
+  "reason": "Reviewed Next 16.4.3 / sharp 0.35.5 runtime lockfile update; analyzer versions, policies and all finding records unchanged.",
   "findings": [
     {
       "id": "0062e9af8543af7049929d03ac293b7ad56016f5146616ef52f21c3cfb764fef",
