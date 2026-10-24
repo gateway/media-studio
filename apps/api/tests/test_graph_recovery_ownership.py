@@ -1,11 +1,17 @@
 """Recovery ownership through the real router/runtime/store; normal CI fixtures only."""
-from concurrent.futures import ThreadPoolExecutor
 import copy
 import importlib
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 import pytest
+
+
+def _image_output(node_id):
+    from app.graph.schemas import GraphOutputRef
+
+    return {"image": [GraphOutputRef(kind="value", media_type="image", value={"node_id": node_id})]}
 
 
 def _prepare(client, app_modules, monkeypatch, *, interrupted=True):
@@ -15,6 +21,10 @@ def _prepare(client, app_modules, monkeypatch, *, interrupted=True):
     workflow = GraphWorkflow(name="Recovery ownership", nodes=[
         {"id": "upstream", "type": "model.kie.nano_banana_pro", "fields": {"prompt": "Existing job", "resolution": "1K"}},
         {"id": "downstream", "type": "model.kie.nano_banana_pro", "fields": {"prompt": "One execution", "resolution": "1K"}},
+        {"id": "preview", "type": "preview.image"},
+    ], edges=[
+        {"id": "upstream-downstream", "source": "upstream", "source_port": "image", "target": "downstream", "target_port": "image_refs"},
+        {"id": "downstream-preview", "source": "downstream", "source_port": "image", "target": "preview", "target_port": "image"},
     ])
     saved = client.post("/media/graph/workflows", json=workflow.model_dump(mode="json"))
     assert saved.status_code == 200, saved.text
@@ -34,11 +44,11 @@ def _prepare(client, app_modules, monkeypatch, *, interrupted=True):
 
     def adopt(**kwargs):
         adoptions.append(kwargs["job_id"])
-        return {}
+        return _image_output("upstream")
 
     def execute(node, context):
         calls.append(node.id)
-        return {}
+        return _image_output(node.id)
 
     class Worker(threading.Thread):
         def __init__(self, *args, **kwargs):
@@ -77,6 +87,11 @@ def _assert_one_result(case):
     assert case.calls.count("downstream") == 1
     assert sum(event["event_type"] == "run.completed" for event in events) == 1
     assert sum(event["event_type"] == "node.completed" and event["node_id"] == "downstream" for event in events) == 1
+    downstream = case.store.get_graph_run_node(case.run_id, "downstream")
+    assert downstream["input_snapshot_json"]["image_refs"] == {"node_id": "upstream"}
+    preview = case.store.get_graph_run_node(case.run_id, "preview")
+    assert preview["status"] == "completed"
+    assert [ref["value"] for ref in preview["output_snapshot_json"]["image"]] == [{"node_id": "downstream"}]
 
 
 @pytest.mark.parametrize("phase", ["polling", "downstream"])
@@ -88,14 +103,14 @@ def test_repeated_and_concurrent_recovery_keeps_one_worker(client, app_modules, 
         if phase == "polling":
             case.entered.set()
             assert case.release.wait(10)
-        return {}
+        return _image_output("upstream")
 
     def execute(node, context):
         case.calls.append(node.id)
         if phase == "downstream":
             case.entered.set()
             assert case.release.wait(10)
-        return {}
+        return _image_output(node.id)
 
     monkeypatch.setattr(case.module, "wait_for_existing_kie_job", adopt)
     monkeypatch.setattr(case.runtime.executors["model.kie"], "execute", execute)
@@ -132,7 +147,7 @@ def test_recovery_does_not_touch_an_active_original_worker(client, app_modules, 
         if node.id == "upstream":
             case.entered.set()
             assert case.release.wait(10)
-        return {}
+        return _image_output(node.id)
 
     monkeypatch.setattr(case.runtime.executors["model.kie"], "execute", execute)
     try:
@@ -179,7 +194,7 @@ def test_direct_resume_cannot_compete_with_an_existing_worker(client, app_module
         case.adoptions.append(kwargs["job_id"])
         case.entered.set()
         assert case.release.wait(10)
-        return {}
+        return _image_output("upstream")
 
     monkeypatch.setattr(case.module, "wait_for_existing_kie_job", adopt)
     first = case.module.threading.Thread(target=lambda: case.runtime.execute_run(case.run_id, resume=True))
@@ -206,7 +221,7 @@ def test_direct_resume_cannot_compete_with_an_existing_worker(client, app_module
 def test_new_runtime_recovers_an_orphan_and_completed_retry_is_a_noop(client, app_modules, monkeypatch):
     case = _prepare(client, app_modules, monkeypatch)
     restarted = case.module.GraphRuntime()
-    monkeypatch.setattr(restarted.executors["model.kie"], "execute", lambda node, context: case.calls.append(node.id) or {})
+    monkeypatch.setattr(restarted.executors["model.kie"], "execute", lambda node, context: case.calls.append(node.id) or _image_output(node.id))
     result = restarted.recover_run(case.run_id, start=False)
     assert result["recovered"] and not result["started"]
     restarted.execute_run(case.run_id, resume=True)
