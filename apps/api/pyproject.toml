@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "media-studio-api"
 version = "0.1.0"
 description = "FastAPI backend for the standalone Media Studio product."
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115,<1.0",
   "uvicorn[standard]>=0.30,<1.0",
@@ -18,8 +18,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.0,<9.0",
-  "pytest-asyncio>=0.23,<1.0"
+  "pytest>=9.1.1,<10.0",
+  "pytest-asyncio>=1.4.0,<2.0"
 ]
 
 [tool.setuptools]
