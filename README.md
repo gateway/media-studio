@@ -10,10 +10,6 @@ Choose from GPT Image, Nano Banana, Seedance, Kling, and Suno through [Kie AI](h
 
 [Install](#install-and-start) · [Features](#make-more-with-your-media) · [Models](#supported-models) · [Graph Studio](#graph-studio-experimental) · [Media Assistant](#media-assistant-experimental)
 
-Developing the app? Run `npm run lint` before submitting JS/TS, Python or CSS changes. See the
-[static-analysis guide](scripts/static-analysis/README.md) for setup, existing-debt
-baselines, regression tests and CI coverage.
-
 ## Install and start
 
 Have **Git, Python 3, and Node.js LTS** installed. For live generation, you'll also need a [Kie AI account](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42), an API key, and credits. You can complete setup without a key and add it later.

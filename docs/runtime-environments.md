@@ -9,3 +9,5 @@ Run provider tests through the shared interpreter, excluding live smoke unless s
 Before retiring any checkout or environment, inspect processes, Git status and worktree history, and inventory databases/media/settings. Preserve uncommitted work and audit evidence. Remove only confirmed unused dependency environments or merged worktrees. A directory called `temp` can still contain valuable data. Do not delete databases, media, settings, history or backups as dependency housekeeping.
 
 After dependency updates, use Guardian with `--include-installed`; manifest-only scans do not establish installed-runtime security. Distinguish inactive backups, bundled package-manager tooling and the serving environment. Keep operational inventories outside tracked source.
+
+Run `npm run lint` before submitting JS/TS, Python or CSS changes. See the [static-analysis guide](../scripts/static-analysis/README.md) for setup, existing-debt baselines, regression tests and CI coverage.
