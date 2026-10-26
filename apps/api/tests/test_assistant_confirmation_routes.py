@@ -24,7 +24,7 @@ DRAFT_CASES = [
         "preset-drafts",
         "preset",
         "kernel_preset_draft",
-        {"key": "contract-preset", "label": "Contract preset"},
+        {"key": "contract-preset", "label": "Contract preset", "prompt_template": "A red teapot in soft window light."},
         "draft_media_preset",
         "/presets/new",
     ),
