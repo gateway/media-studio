@@ -221,7 +221,7 @@ class PresetUpsertRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_fixed_prompt(self):
-        if self.source_kind == "custom" and not self.input_schema_json and not (self.prompt_template or "").strip():
+        if not self.input_schema_json and not (self.prompt_template or "").strip():
             raise ValueError("A fixed-prompt preset requires complete prompt text.")
         return self
 

@@ -281,3 +281,16 @@ it("keeps required image slots for fixed prompts and still requires existing edi
   expect(result.current.derived.presetRequirementError).toContain("requires the text field Unit Code");
   expect(result.current.derived.canSubmit).toBe(false);
 });
+
+
+it.each(["requires_image", "requires_video", "requires_audio"] as const)("retains legacy %s requirements when a preset has no named input slots", (requirement) => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Unexpected fetch")));
+  const legacyModel = { ...model, task_modes: ["text_to_image", "image_edit"], image_inputs: { required_min: 0, required_max: 16 } };
+  const legacy = { ...detail, input_schema_json: [], input_slots_json: [], prompt_template: "A red teapot.", [requirement]: true };
+  const legacyPresets = [legacy], legacyModels = [legacyModel];
+  const { result } = renderHook(() => useComposer(legacyPresets, legacyModels));
+  act(() => result.current.actions.applyPresetSelection("older"));
+  expect(result.current.derived.structuredPresetActive).toBe(false);
+  expect(result.current.derived.presetRequirementError).toBeTruthy();
+  expect(result.current.derived.canSubmit).toBe(false);
+});

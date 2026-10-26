@@ -519,8 +519,11 @@ export function selectedPromptObjects(selectedPromptIds: string[], prompts: Medi
 
 export function isStructuredMediaPreset(preset: MediaPreset | null | undefined): boolean {
   if (!preset) return false;
-  if (preset.input_schema_json?.length || preset.input_slots_json?.length) return true;
-  return Array.isArray(preset.input_schema_json) && Array.isArray(preset.input_slots_json) && Boolean(preset.prompt_template);
+  const schemas = [preset.input_schema_json, preset.input_slots_json];
+  if (schemas.some(schema => schema?.length)) return true;
+  // Legacy media requirements without named slots still need the freeform composer.
+  const requiresLegacyMedia = [preset.requires_image, preset.requires_video, preset.requires_audio].some(Boolean);
+  return schemas.every(Array.isArray) && Boolean(preset.prompt_template) && !requiresLegacyMedia;
 }
 
 

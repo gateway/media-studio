@@ -31,9 +31,10 @@ class FixedPromptDraftTests(unittest.TestCase):
         self.assertEqual(self.draft.input_schema_json, [])
 
     def test_zero_fields_still_require_a_nonempty_prompt(self):
-        for prompt in (None, "", "  "):
-            with self.subTest(prompt=prompt), self.assertRaisesRegex(ValueError, "prompt"):
-                type(self.draft).model_validate({**self.draft.model_dump(), "prompt_template": prompt})
+        for source in ("custom", "imported", "builtin"):
+            for prompt in (None, "", "  "):
+                with self.subTest(source=source, prompt=prompt), self.assertRaisesRegex(ValueError, "prompt"):
+                    type(self.draft).model_validate({**self.draft.model_dump(), "source_kind": source, "prompt_template": prompt})
 
     def propose(self, draft, summary_changes=None):
         from app.assistant import preset_kernel
