@@ -180,7 +180,7 @@ it.each([
   { name: "text fields", schema: detail.input_schema_json, slots: [], structured: true },
   { name: "image slots", schema: [], slots: detail.input_slots_json, structured: true },
   { name: "text fields and image slots", schema: detail.input_schema_json, slots: detail.input_slots_json, structured: true },
-  { name: "empty input lists", schema: [], slots: [], structured: false },
+  { name: "empty input lists", schema: [], slots: [], structured: true },
   { name: "absent input lists", schema: undefined, slots: undefined, structured: false },
 ])("switches to a preset with $name without mixing structured and freeform inputs", ({ schema, slots, structured }) => {
   vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Unexpected fetch")));
@@ -223,4 +223,74 @@ it("switches to a supported preferred model and applies that model's preset opti
   expect(result.current.state.modelKey).toBe("other");
   expect(result.current.state.selectedPresetId).toBe("older");
   expect(result.current.state.optionValues.quality).toBe("high");
+});
+
+
+it("keeps a fixed prompt in preset mode with no editable fields and retains generation options", () => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Unexpected fetch")));
+  const t2i = { ...model, key: "text-model", task_modes: ["text_to_image"], input_patterns: ["prompt_only"],
+    image_inputs: { required_min: 0, required_max: 0 } };
+  const fixed = { ...detail, model_key: t2i.key, applies_to_models: [t2i.key],
+    prompt_template: "A red teapot in soft window light.", input_schema_json: [], input_slots_json: [] };
+  const fixedPresets = [fixed], fixedModels = [t2i];
+  const { result } = renderHook(() => useComposer(fixedPresets, fixedModels));
+  act(() => result.current.actions.applyPresetSelection("older"));
+  expect(result.current.derived.structuredPresetActive).toBe(true);
+  expect(result.current.derived.structuredPresetTextFields).toEqual([]);
+  expect(result.current.derived.structuredPresetPromptPreview).toBe("A red teapot in soft window light.");
+  expect(result.current.derived.presetRequirementError).toBeNull();
+  expect(result.current.derived.canSubmit).toBe(true);
+  act(() => result.current.actions.setOptionValues({ quality: "high" }));
+  expect(result.current.state.optionValues.quality).toBe("high");
+});
+
+
+it("validates the exact saved fixed prompt and preset identity with empty text values", async () => {
+  const fetch = vi.fn().mockResolvedValue(Response.json({ ok: true, validation: {} }));
+  vi.stubGlobal("fetch", fetch);
+  const t2i = { ...model, key: "text-model", task_modes: ["text_to_image"], input_patterns: ["prompt_only"],
+    image_inputs: { required_min: 0, required_max: 0 } };
+  const fixed = { ...detail, model_key: t2i.key, applies_to_models: [t2i.key],
+    prompt_template: "A red teapot in soft window light.", input_schema_json: [], input_slots_json: [] };
+  const fixedPresets = [fixed], fixedModels = [t2i];
+  const { result } = renderHook(() => useComposer(fixedPresets, fixedModels));
+  act(() => result.current.actions.setPrompt("Unrelated old freeform text"));
+  act(() => result.current.actions.applyPresetSelection("older"));
+  await act(async () => { await result.current.actions.requestValidation(); });
+  const [url, request] = fetch.mock.calls[0];
+  expect(url).toBe("/api/control/media");
+  expect(request.body.get("intent")).toBe("validate");
+  expect(request.body.get("preset_id")).toBe("older");
+  expect(request.body.get("prompt")).toBe("A red teapot in soft window light.");
+  expect(request.body.get("preset_inputs_json")).toBe("{}");
+});
+
+it("keeps required image slots for fixed prompts and still requires existing editable field values", () => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Unexpected fetch")));
+  const fixed = { ...detail, prompt_template: "Use [[personal_reference]] as the teapot source.", input_schema_json: [] };
+  const testPresets = [fixed, { ...detail, preset_id: "editable", key: "editable" }];
+  const { result } = renderHook(() => useComposer(testPresets));
+  act(() => result.current.actions.applyPresetSelection("older"));
+  expect(result.current.derived.structuredPresetActive).toBe(true);
+  expect(result.current.derived.presetRequirementError).toContain("requires the image slot Personal Reference");
+  expect(result.current.derived.canSubmit).toBe(false);
+  act(() => result.current.actions.setPresetSlotStates({ personal_reference: { assetId: "asset-1", previewUrl: "/existing.png", file: null } }));
+  expect(result.current.derived.presetRequirementError).toBeNull();
+  act(() => result.current.actions.applyPresetSelection("editable"));
+  act(() => result.current.actions.setPresetInputValues({ unit_code: "" }));
+  expect(result.current.derived.presetRequirementError).toContain("requires the text field Unit Code");
+  expect(result.current.derived.canSubmit).toBe(false);
+});
+
+
+it.each(["requires_image", "requires_video", "requires_audio"] as const)("retains legacy %s requirements when a preset has no named input slots", (requirement) => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Unexpected fetch")));
+  const legacyModel = { ...model, task_modes: ["text_to_image", "image_edit"], image_inputs: { required_min: 0, required_max: 16 } };
+  const legacy = { ...detail, input_schema_json: [], input_slots_json: [], prompt_template: "A red teapot.", [requirement]: true };
+  const legacyPresets = [legacy], legacyModels = [legacyModel];
+  const { result } = renderHook(() => useComposer(legacyPresets, legacyModels));
+  act(() => result.current.actions.applyPresetSelection("older"));
+  expect(result.current.derived.structuredPresetActive).toBe(false);
+  expect(result.current.derived.presetRequirementError).toBeTruthy();
+  expect(result.current.derived.canSubmit).toBe(false);
 });

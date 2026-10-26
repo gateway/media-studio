@@ -219,6 +219,12 @@ class PresetUpsertRequest(BaseModel):
     version: str = "v1"
     priority: int = 100
 
+    @model_validator(mode="after")
+    def validate_fixed_prompt(self):
+        if not self.input_schema_json and not (self.prompt_template or "").strip():
+            raise ValueError("A fixed-prompt preset requires complete prompt text.")
+        return self
+
     @model_validator(mode="before")
     @classmethod
     def normalize_scope_fields(cls, data: Any) -> Any:

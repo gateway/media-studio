@@ -517,6 +517,16 @@ export function selectedPromptObjects(selectedPromptIds: string[], prompts: Medi
   return prompts.filter((prompt) => selected.has(prompt.prompt_id));
 }
 
+export function isStructuredMediaPreset(preset: MediaPreset | null | undefined): boolean {
+  if (!preset) return false;
+  const schemas = [preset.input_schema_json, preset.input_slots_json];
+  if (schemas.some(schema => schema?.length)) return true;
+  // Legacy media requirements without named slots still need the freeform composer.
+  const requiresLegacyMedia = [preset.requires_image, preset.requires_video, preset.requires_audio].some(Boolean);
+  return schemas.every(Array.isArray) && Boolean(preset.prompt_template) && !requiresLegacyMedia;
+}
+
+
 export function presetRequirementMessage(
   preset: MediaPreset | null,
   attachments: AttachmentKindCarrier[],

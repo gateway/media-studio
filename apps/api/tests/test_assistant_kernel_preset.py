@@ -559,8 +559,8 @@ def test_text_to_image_preset_rejects_a_mixed_image_input_pattern(client) -> Non
     assert result.trace.error.code == "invalid_media_preset_slots"
 
 
-@pytest.mark.parametrize("field_count", [0, 4])
-def test_assistant_preset_draft_requires_one_to_three_fields(client, field_count) -> None:
+@pytest.mark.parametrize("field_count", [4])
+def test_assistant_preset_draft_rejects_more_than_three_fields(client, field_count) -> None:
     tools = importlib.import_module("app.assistant.kernel_tools")
     session = _session(client)
     fields = [

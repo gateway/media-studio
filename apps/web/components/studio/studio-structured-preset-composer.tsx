@@ -81,6 +81,7 @@ export function StudioStructuredPresetComposer({
         <div className="studio-panel-compact p-4">
           <div className="studio-field-label">Preset</div>
           <div className="mt-2 text-base font-semibold tracking-[-0.03em] text-[var(--text-primary)]">{preset?.label}</div>
+          {!textFields.length ? <p className="mt-3 text-sm text-[var(--text-muted)]">This preset uses a fixed prompt. No text input is needed.</p> : null}
           {preset?.description ? <p className="mt-3 text-sm leading-7 text-[var(--text-muted)]">{preset.description}</p> : null}
         </div>
 

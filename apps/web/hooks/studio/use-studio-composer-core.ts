@@ -40,7 +40,7 @@ import {
   studioValidationReady,
 } from "@/lib/media-studio-helpers";
 import { deriveStudioPricingOptions, estimateFromPricingSnapshot, resolveStudioPricingDisplay } from "@/lib/studio-pricing";
-import { findMediaAssetById, presetRequirementMessage, selectedPromptObjects } from "@/lib/studio-gallery";
+import { findMediaAssetById, isStructuredMediaPreset, presetRequirementMessage, selectedPromptObjects } from "@/lib/studio-gallery";
 import { readStudioComposerDraft, type StudioComposerDraft } from "@/lib/studio-composer-draft";
 import { resolveImageMaxBytes } from "@/lib/studio-composer-file-utils";
 import { deriveStudioEnhancementState } from "@/lib/studio-enhancement-state";
@@ -333,7 +333,7 @@ export function useStudioComposer({
   const structuredPresetActive =
     currentModelSupportsStructuredPresets &&
     currentPresetCompatibleWithModel &&
-    (structuredPresetTextFields.length > 0 || structuredPresetImageSlots.length > 0);
+    isStructuredMediaPreset(currentPreset);
   const structuredPresetImageInputCount = structuredPresetActive
     ? filledStructuredPresetImageSlotCount(presetSlotStates, structuredPresetImageSlots)
     : 0;
@@ -711,13 +711,13 @@ export function useStudioComposer({
       setModelKey(nextModelKey);
     }
 
-    const hasStructuredInputs = Boolean(targetPreset.input_schema_json?.length || targetPreset.input_slots_json?.length);
+    const structuredPreset = isStructuredMediaPreset(targetPreset);
 
     setSelectedPresetId(targetPreset.preset_id ?? targetPreset.key);
     setPresetInputValues(Object.fromEntries(normalizeStructuredPresetTextFields(targetPreset).map((field) => [field.key, field.defaultValue])));
     clearPresetSlotStateValues();
 
-    if (hasStructuredInputs) {
+    if (structuredPreset) {
       for (const attachment of attachments) {
         if (attachment.previewUrl && attachment.file) {
           URL.revokeObjectURL(attachment.previewUrl);

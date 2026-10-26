@@ -29,6 +29,7 @@ export type PresetFormState = {
   status: "active" | "inactive";
   appliesToModels: string[];
   promptTemplate: string;
+  defaultOptions: Record<string, unknown>;
   notes: string;
   inputFields: PresetFieldInput[];
   imageSlots: PresetImageSlotInput[];

@@ -180,24 +180,24 @@
       "format": "javascript"
     },
     {
-      "id": "09452df40e839b9840bae90a3932f679ecc76a7a5a44ebe7ad9744f73de56fe2",
+      "id": "07be475653e44e73c14328f344d317ffb2219b03488d655d8b75a14714c4aa45",
       "endpoints": [
         {
-          "file": "apps/api/app/schemas.py",
-          "start": 192,
-          "end": 207,
-          "context": "82273752e1840bbdb34d14dd0c7c59af384bc421ca54a857d49645e1fd2afcfa"
+          "file": "apps/web/components/studio/studio-structured-preset-composer.tsx",
+          "start": 146,
+          "end": 155,
+          "context": "610473681e0e471ce8bbdc0cae307b46a90bfb5915aaeaae1fb11552635eccbe"
         },
         {
-          "file": "apps/api/app/schemas.py",
-          "start": 239,
-          "end": 254,
-          "context": "bfebf180c74003a2d7d99f92c8bdce018af182c007fbbf31866c9163418b0a3c"
+          "file": "apps/web/components/studio/studio-structured-preset-composer.tsx",
+          "start": 123,
+          "end": 132,
+          "context": "6ca7dae0c5ccae60abacc199079eb59e80717ea0b6fda271d8d80e7685f655f8"
         }
       ],
-      "tokens": 139,
-      "lines": 16,
-      "format": "python"
+      "tokens": 58,
+      "lines": 10,
+      "format": "tsx"
     },
     {
       "id": "0960a14ec524a66e491c0356023b59ce9df69dd16e59412c962dbeb2f95b1675",
@@ -340,26 +340,6 @@
       "format": "tsx"
     },
     {
-      "id": "105be417b6c58da3b16c2efb9d583e4db13fa9562714f299562b6749f2fdecb4",
-      "endpoints": [
-        {
-          "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
-          "start": 524,
-          "end": 550,
-          "context": "cfaf678fafa2ffad5ef9c8b0f4c758f5c6607c9f4cd993bc2669d70b738e52c3"
-        },
-        {
-          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
-          "start": 63,
-          "end": 89,
-          "context": "3e2864eb08a642523330fcf0e3d53ccf979abc3141aaffac3ff5620b85b12df3"
-        }
-      ],
-      "tokens": 52,
-      "lines": 27,
-      "format": "typescript"
-    },
-    {
       "id": "1156c87e68e84178b896726b27a2caec97d3adb4e9e7e02a9eecb1e7ffc08e26",
       "endpoints": [
         {
@@ -480,6 +460,26 @@
       "format": "python"
     },
     {
+      "id": "168b4194ba4615599767e3abdc42aed1c9870fa72df07217fbd1d9295c47f3ae",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 623,
+          "end": 629,
+          "context": "004532ef6cc01851dcead307d939b03e7e49b7a5ab3d9c17265be38eeffddd2a"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 607,
+          "end": 613,
+          "context": "9ecf75a78da5575c0b7eb8d6eb1a01f9ee05dd603bdf7e26788251f5fc60d6f3"
+        }
+      ],
+      "tokens": 53,
+      "lines": 7,
+      "format": "python"
+    },
+    {
       "id": "1836d340a81a545693f50368f2001cc6ca1a62e66f1f725c60a91ceab6f65e7b",
       "endpoints": [
         {
@@ -498,6 +498,26 @@
       "tokens": 108,
       "lines": 8,
       "format": "javascript"
+    },
+    {
+      "id": "1899f19b6eab9dd0d0aa9a43b20eeb5141e220f1e16d8bfe0a467e609f1aa386",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-preset-editor-screen.tsx",
+          "start": 241,
+          "end": 251,
+          "context": "c04ac9f5b9cdf8092f99c51c484831d91582ce9fb410dc4b5dc6d11ea63b4901"
+        },
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipes-list.tsx",
+          "start": 123,
+          "end": 132,
+          "context": "ef781bfdf58549cbe4b58168b2207f9baa9a827d8e712f75f10ff90f7221e96e"
+        }
+      ],
+      "tokens": 76,
+      "lines": 11,
+      "format": "tsx"
     },
     {
       "id": "192e16db2cb1d5fecae6cc6fdfb09181b5d2a1b8fc2d18317ac66b2442b38f40",
@@ -520,26 +540,6 @@
       "format": "typescript"
     },
     {
-      "id": "19b80caef44954e0c36e1131e965c72d48315310a6ceccf12fa99ca93ab7af86",
-      "endpoints": [
-        {
-          "file": "apps/web/components/media-preset-editor-screen.tsx",
-          "start": 242,
-          "end": 252,
-          "context": "d2b5e14b93c4f8ddde8e0a20e49d08211055e5c922be2b96f38e8fe7cdd87402"
-        },
-        {
-          "file": "apps/web/components/prompt-recipes/prompt-recipes-list.tsx",
-          "start": 123,
-          "end": 132,
-          "context": "ef781bfdf58549cbe4b58168b2207f9baa9a827d8e712f75f10ff90f7221e96e"
-        }
-      ],
-      "tokens": 76,
-      "lines": 11,
-      "format": "tsx"
-    },
-    {
       "id": "19f596263ad6c6c7e7e39ddaa313957218947260822f709f575ada87aa10adca",
       "endpoints": [
         {
@@ -558,6 +558,26 @@
       "tokens": 54,
       "lines": 8,
       "format": "typescript"
+    },
+    {
+      "id": "1a0a332455287facaae2ad3436deda4a2c0b009030d51b3ad347fe6a6b0bc086",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 208,
+          "end": 219,
+          "context": "11af3ddea3e8d3cb8977c3499d4f7b11d50baa141e4ff286305441bd8a58f96b"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 261,
+          "end": 272,
+          "context": "7c7ac436de4b3358584c9863201ef98bef5dbbbedbe021027b6eebb9407c3f32"
+        }
+      ],
+      "tokens": 119,
+      "lines": 12,
+      "format": "python"
     },
     {
       "id": "1a97a68b5c9c620e339c6e13c79e286ad6ec8f7860d71f9cbf5c76ce8170966e",
@@ -1000,6 +1020,26 @@
       "format": "tsx"
     },
     {
+      "id": "2aa32a6854210434335155096d99e96fdb5d65ebce058b0eeaad60f4832f1a41",
+      "endpoints": [
+        {
+          "file": "apps/web/components/media-preset-editor-screen.tsx",
+          "start": 106,
+          "end": 119,
+          "context": "e14dba2a9329d52a6953f398319c5f65cacd50c4d7aea173cf0a8235fd5879da"
+        },
+        {
+          "file": "apps/web/components/prompt-recipes/prompt-recipe-editor-screen.tsx",
+          "start": 191,
+          "end": 204,
+          "context": "b0d1a937417984137bb9c5ff04177e23e4dcd60512cade50608133edd63dfe2c"
+        }
+      ],
+      "tokens": 64,
+      "lines": 14,
+      "format": "tsx"
+    },
+    {
       "id": "2aa3a0f7e8fa52ea66d7db5e9a2d683d86d09cbd1ba1467b2efce9469cbcb7f6",
       "endpoints": [
         {
@@ -1180,24 +1220,24 @@
       "format": "typescript"
     },
     {
-      "id": "30456ab5b28c3b5adb0163b97ee381c27184170d6d109ff09cd3d5257401cc7a",
+      "id": "31ea764826a0963a96127f72a4c8736e136423a5c44745905a9019032bb95ab6",
       "endpoints": [
         {
-          "file": "apps/api/app/schemas.py",
-          "start": 441,
-          "end": 451,
-          "context": "b68af08bf1e8ef763a1cb2cdc123b3d98a452c5ca96531c13c14b42d3d887baa"
+          "file": "apps/web/lib/studio-gallery.ts",
+          "start": 121,
+          "end": 129,
+          "context": "971909987d19e64952f945d44a37925acf4af817be711c1dad02afbc068a30c3"
         },
         {
-          "file": "apps/api/app/schemas.py",
-          "start": 386,
-          "end": 396,
-          "context": "ce07c2c4456c228d92e5f4bf4442a473f07cf8b008fac911177e7ca7a92dc77a"
+          "file": "apps/web/lib/studio-gallery.ts",
+          "start": 175,
+          "end": 182,
+          "context": "cd2a5e19a27e9961c58257072849f3bc609fe1763e79abcbd952496f51d9f5d7"
         }
       ],
-      "tokens": 117,
-      "lines": 11,
-      "format": "python"
+      "tokens": 73,
+      "lines": 9,
+      "format": "typescript"
     },
     {
       "id": "342f7917a6c2e19932226853b22f118ab901696f3e23f7787c74d36cd9fe0ea5",
@@ -1260,26 +1300,6 @@
       "format": "css"
     },
     {
-      "id": "35ae73c0a41b667ee0253855bfbe050b93291ccdb2e247b6fe9aaaf8e24095bc",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/studio-gallery.ts",
-          "start": 122,
-          "end": 129,
-          "context": "dc399e130b8763f97c035690b3cbb604051e33ef228a5e2db734eca871e7cb32"
-        },
-        {
-          "file": "apps/web/lib/studio-gallery.ts",
-          "start": 109,
-          "end": 116,
-          "context": "f554844707efc7af51bdf73a186f2ad0f7b22cc0940c469faf2bef2c5901c35a"
-        }
-      ],
-      "tokens": 61,
-      "lines": 8,
-      "format": "typescript"
-    },
-    {
       "id": "361cd22c9e07aee9a390c71793d6513c0f4d76d4c5f1591793e75687be5d7041",
       "endpoints": [
         {
@@ -1317,6 +1337,26 @@
       ],
       "tokens": 81,
       "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "36efe5024f60cad64611f299945c51ddfb6b704b8d05db8dab1e67036df554b8",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 447,
+          "end": 457,
+          "context": "714e6365653b88ff18966da41fd7de0af73cfbdb32e7106f5dbc97508e7f0e3e"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 392,
+          "end": 402,
+          "context": "eb1b7e3aa55b8a2469851d1af4d2fad8bd118c2eff88c4f055c9fe1446bd0d1d"
+        }
+      ],
+      "tokens": 117,
+      "lines": 11,
       "format": "python"
     },
     {
@@ -1500,6 +1540,26 @@
       "format": "tsx"
     },
     {
+      "id": "3b7bb9a9902f0ec07d0eb86cd1d5d28262800af537bb11758b6ae9c758619ab2",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 504,
+          "end": 511,
+          "context": "0b2ab63d220e8e3cadde87dae97638f9601f3075d70cc13b22d464ce7150882c"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 516,
+          "end": 523,
+          "context": "5d2d54af526a67a3d2ee7c851b5582c44762d242c507042d1870513800d783af"
+        }
+      ],
+      "tokens": 61,
+      "lines": 8,
+      "format": "python"
+    },
+    {
       "id": "3c8f1f4c74ee0e2aa7df0a5ecffa8bb2ff97a735b49fb9eeb8a51074e66eb5f4",
       "endpoints": [
         {
@@ -1578,6 +1638,26 @@
       "tokens": 78,
       "lines": 6,
       "format": "typescript"
+    },
+    {
+      "id": "46fdbfb3ef01716ac82f49ee6a733d7ab6ead944a1e19b71182c055f85479631",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 375,
+          "end": 386,
+          "context": "8e32f155e90c6b1e338d35955beec630c6a1cec5fb228dc4834e65c9e436a74d"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 430,
+          "end": 441,
+          "context": "9d52ca6040f4f4684158f8d7a645b32717db8a93e1ae84f2a2ef77a6f9ea171c"
+        }
+      ],
+      "tokens": 77,
+      "lines": 12,
+      "format": "python"
     },
     {
       "id": "4792dacec140205605e34d5d8ce0ed83f99f05f97670f7fba253d02ade24e36d",
@@ -1720,26 +1800,6 @@
       "format": "python"
     },
     {
-      "id": "4f5c140f023196f584dd8b12d9917cfd14655199e6cb9753d3e5632c92c9445a",
-      "endpoints": [
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 255,
-          "end": 266,
-          "context": "18daa76e5baf65858dfe966c90ea80b5d9e190ac7c9d9ff2440983efe298f44d"
-        },
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 208,
-          "end": 219,
-          "context": "54a79809cf8bec2404657e5e0243e1c7f2b8e7de98085f783d03ca0ea7efa4e8"
-        }
-      ],
-      "tokens": 119,
-      "lines": 12,
-      "format": "python"
-    },
-    {
       "id": "50b3d2c2c9d324c418d55fe5f0b2ddf0700d1d1e6282cc7c79a15342ee5b49e1",
       "endpoints": [
         {
@@ -1777,26 +1837,6 @@
       ],
       "tokens": 97,
       "lines": 11,
-      "format": "python"
-    },
-    {
-      "id": "51cb835517d8ab58c0d4e6d01fd61196ac3ab97c80b98e605a0e010f634c032b",
-      "endpoints": [
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 617,
-          "end": 623,
-          "context": "3b2d40389adc2f5bd49859d1436221502ccfb01c229775248019ec86e2274df6"
-        },
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 601,
-          "end": 607,
-          "context": "48442c1a57c722f77664c470c33c2726db27103eeb854c0bf5c7584850b50b34"
-        }
-      ],
-      "tokens": 53,
-      "lines": 7,
       "format": "python"
     },
     {
@@ -2600,26 +2640,6 @@
       "format": "javascript"
     },
     {
-      "id": "7007f2f58a062a4651f31081b7267e0e98870d1685a719ffd66ada7eaa2e5845",
-      "endpoints": [
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 498,
-          "end": 505,
-          "context": "9135dc91ab517c2c74ed3e52b9cf2f756cdacf01634b15cfe3a7cb038dad6cbe"
-        },
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 510,
-          "end": 517,
-          "context": "d5690d666e9333147c9de0c7869bd5b81434da526b33445b58932140012715c3"
-        }
-      ],
-      "tokens": 61,
-      "lines": 8,
-      "format": "python"
-    },
-    {
       "id": "702991981aefb910b2ec87b34de00026f4675823ab3874197927ef488b8d4f9c",
       "endpoints": [
         {
@@ -2900,26 +2920,6 @@
       "format": "python"
     },
     {
-      "id": "7e0bf6fea0f017557d9ce5707141d951d42834276c043c721294526e3c79d367",
-      "endpoints": [
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 458,
-          "end": 471,
-          "context": "2631db19a6ca4be61ca5c57c83a4174028ed1a3d32a580642cf2d95f3d0fed3d"
-        },
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 401,
-          "end": 414,
-          "context": "d077f44d2a631a43b12c7d6168489887e4206a71dd2ad6262d135fa9260c41d5"
-        }
-      ],
-      "tokens": 81,
-      "lines": 14,
-      "format": "python"
-    },
-    {
       "id": "7e87ec6a13fc056b8c318816fc4a88437911c377ef9d6866210bbba5e58d5c84",
       "endpoints": [
         {
@@ -3000,23 +3000,23 @@
       "format": "tsx"
     },
     {
-      "id": "86dcf253446013f7d47943d6afc586889ca3ee4f5607e19842de41c55d12ef36",
+      "id": "8987f1944265bb7a12afdce961f5e121f336905d6cc1d03e9d1713891dfbd545",
       "endpoints": [
         {
           "file": "apps/api/app/schemas.py",
-          "start": 369,
-          "end": 380,
-          "context": "72a7ac2cd3df4490a557abdc582ef9049416a42c96842f34c2e537a9a5bab933"
+          "start": 557,
+          "end": 565,
+          "context": "3d205eed9829b3cb39a201e077c9c9d6be70168da8aaf456c78fb022d0976f15"
         },
         {
           "file": "apps/api/app/schemas.py",
-          "start": 424,
-          "end": 435,
-          "context": "76360f2b17b1eb64f5aa998e5f8d0653b47cd18d6a753302fc0285bed8a46ffd"
+          "start": 536,
+          "end": 544,
+          "context": "e310032f2b0e593b1066ebb2d3b29b3eb025f3e5e5f382ea947c1e0673a1eb1b"
         }
       ],
-      "tokens": 77,
-      "lines": 12,
+      "tokens": 69,
+      "lines": 9,
       "format": "python"
     },
     {
@@ -3077,6 +3077,26 @@
       ],
       "tokens": 53,
       "lines": 8,
+      "format": "typescript"
+    },
+    {
+      "id": "8bf511834709da06c7d41dd1189d7ddde930e645c2b4570ab917d48592f4421e",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/studio-gallery.ts",
+          "start": 219,
+          "end": 224,
+          "context": "7373ad86fa4406b63a078763cef404958387d44fef6155ea7f1b47f198623b41"
+        },
+        {
+          "file": "apps/web/lib/studio-options.ts",
+          "start": 138,
+          "end": 143,
+          "context": "2c079f00447db4331f9dee04c1d8e68de2853a6227a2a91284afaba291d5c874"
+        }
+      ],
+      "tokens": 52,
+      "lines": 6,
       "format": "typescript"
     },
     {
@@ -3380,26 +3400,6 @@
       "format": "typescript"
     },
     {
-      "id": "9ca0fb555785a383a9c6998c7c841dcaad8cf51345a3d46cb6f253b27138fa1b",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/studio-gallery.ts",
-          "start": 219,
-          "end": 224,
-          "context": "0df487bb019da41eb320111d7924f1798dcb6ef504e934bb02a7f1317768d915"
-        },
-        {
-          "file": "apps/web/lib/studio-options.ts",
-          "start": 138,
-          "end": 143,
-          "context": "2c079f00447db4331f9dee04c1d8e68de2853a6227a2a91284afaba291d5c874"
-        }
-      ],
-      "tokens": 52,
-      "lines": 6,
-      "format": "typescript"
-    },
-    {
       "id": "9cea0092689bac859a0265a57a5c1f3aa250069f4716bdb39e312cd6af221baf",
       "endpoints": [
         {
@@ -3540,26 +3540,6 @@
       "format": "javascript"
     },
     {
-      "id": "a3129f5e1e2cfa50875fa52a3b711659aea4c15bb429d33e51b0c30c8ec33510",
-      "endpoints": [
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 696,
-          "end": 703,
-          "context": "0ce938a23a0809998c9f1f7a78bdf06765d0f0c675e332630992c6f9c7e44efb"
-        },
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 712,
-          "end": 719,
-          "context": "c51869eabb5ea780023b037ccbcf332dc53a8c7187ff6aa98900176ba6af07ef"
-        }
-      ],
-      "tokens": 77,
-      "lines": 8,
-      "format": "python"
-    },
-    {
       "id": "a5cc2965d3cf0bb659d00479d061b9edb1867e1b8645480851a2f53ed04e6bcd",
       "endpoints": [
         {
@@ -3617,26 +3597,6 @@
       ],
       "tokens": 54,
       "lines": 6,
-      "format": "typescript"
-    },
-    {
-      "id": "a8e1ff0013d155fa018ec991f9f43cac9d0832f60803b52b97ed0ccd12c6cbda",
-      "endpoints": [
-        {
-          "file": "apps/web/lib/studio-gallery.ts",
-          "start": 175,
-          "end": 182,
-          "context": "1959b2ad93ca39bb312127f5a1a56b9679f4f12a3dc234ba949d1b15bf2f0a81"
-        },
-        {
-          "file": "apps/web/lib/studio-gallery.ts",
-          "start": 121,
-          "end": 129,
-          "context": "cbcdf0d5f3df25a54b6fe44c48a9e4ea152cfd5c2c3135595a93d66d4b76f562"
-        }
-      ],
-      "tokens": 73,
-      "lines": 9,
       "format": "typescript"
     },
     {
@@ -3900,6 +3860,26 @@
       "format": "typescript"
     },
     {
+      "id": "afe3fbb3591beafbbf14cb4afdb2dbbf716291e42ddc1413312c9db4d691d5e9",
+      "endpoints": [
+        {
+          "file": "apps/web/lib/studio-gallery.ts",
+          "start": 122,
+          "end": 129,
+          "context": "4110c4d81d292c262f1e4095ad60f6bec904543d19cd24081f8953ee30bf39fb"
+        },
+        {
+          "file": "apps/web/lib/studio-gallery.ts",
+          "start": 109,
+          "end": 116,
+          "context": "fc1abee8170fb3a077bf2c306e649cab2caa08f5566f285def301157a007c534"
+        }
+      ],
+      "tokens": 61,
+      "lines": 8,
+      "format": "typescript"
+    },
+    {
       "id": "b1108dc0fabeb5bd7d483e958129e81d71add4449235af92c5545ba29adb011d",
       "endpoints": [
         {
@@ -3980,24 +3960,24 @@
       "format": "python"
     },
     {
-      "id": "b3e43d559014244f1fa9db6c7b2e25634dc79ca5e45b08eab2dfddf1fab79aaa",
+      "id": "b40c58260487b46f74b342f176edbfe065c8e7e2815b2740735ac75b3ca4a9b4",
       "endpoints": [
         {
-          "file": "apps/web/components/studio/studio-structured-preset-composer.tsx",
-          "start": 122,
-          "end": 131,
-          "context": "11722db3abbf3ff9df24872b23afeae50cb14816f42eea98a6fa1e96e3f2270b"
+          "file": "apps/web/hooks/studio/use-studio-composer-core.ts",
+          "start": 524,
+          "end": 550,
+          "context": "e27d1a0e2d3fb348ba6698f95fc9a267735be921f3e1ad4e8f794c21473aafc2"
         },
         {
-          "file": "apps/web/components/studio/studio-structured-preset-composer.tsx",
-          "start": 145,
-          "end": 154,
-          "context": "fbe90dfc64583dd5f8d7be570c1df2479bd37a1782f4a0906f3b7f071b57f31e"
+          "file": "apps/web/hooks/studio/use-studio-composer-guard-effects.ts",
+          "start": 63,
+          "end": 89,
+          "context": "3e2864eb08a642523330fcf0e3d53ccf979abc3141aaffac3ff5620b85b12df3"
         }
       ],
-      "tokens": 58,
-      "lines": 10,
-      "format": "tsx"
+      "tokens": 52,
+      "lines": 27,
+      "format": "typescript"
     },
     {
       "id": "b4a2850e16cdd04e9f2ce2c2c5a9c1af3e9b4a6dbd61e9cc364776dc72699f67",
@@ -4200,6 +4180,26 @@
       "format": "typescript"
     },
     {
+      "id": "c0beaffe5052dc3bf3c450b71c70dbd23ed4b1607dff292655e8cd4c6dc7160f",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 407,
+          "end": 420,
+          "context": "1c7c5b87e128b0cd09d8cdf43581e0f05d6bd5e0304c0b5e17160ad461f8c265"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 464,
+          "end": 477,
+          "context": "7b3785481f10125f409e55ac0df3c134735a810a7211ee8469cc79e60dcc24bf"
+        }
+      ],
+      "tokens": 81,
+      "lines": 14,
+      "format": "python"
+    },
+    {
       "id": "c15c9a076a47eb4cf9a14301367af8b18af00a4133f1bf307d7972aa6fb59797",
       "endpoints": [
         {
@@ -4318,6 +4318,46 @@
       "tokens": 60,
       "lines": 9,
       "format": "typescript"
+    },
+    {
+      "id": "c5425df595351922dd5b4e04f0f1357cdc5d6e7f80ebea1034667c9ac5b3feda",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 702,
+          "end": 709,
+          "context": "13acabb7add07f8cd65536b8c54456357fb80cc24319013297c6b5e4752a1234"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 718,
+          "end": 725,
+          "context": "521f7d25cfd2d87ca330744e391311079e6e9f4ed172bc319e6245d60d3c0d7b"
+        }
+      ],
+      "tokens": 77,
+      "lines": 8,
+      "format": "python"
+    },
+    {
+      "id": "c62255f66422e6b1108ee2371ec59ce0334d89edb57ae885ce0de20452a445c2",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 305,
+          "end": 315,
+          "context": "0b878ae7eae0f18625d52a4ca1d29df94e2f79c1205b3f38e8830b30e215c291"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 243,
+          "end": 253,
+          "context": "2ad645fa350b081bf06ead284ab41f58b5c74a9e5025169b2f71ba5f035331cd"
+        }
+      ],
+      "tokens": 64,
+      "lines": 11,
+      "format": "python"
     },
     {
       "id": "c8bc0d5d001dad068e80ad5f815230a3a195daeaf1846c70b845cfdbe314e966",
@@ -4518,26 +4558,6 @@
       "tokens": 63,
       "lines": 12,
       "format": "javascript"
-    },
-    {
-      "id": "d397b1315118fbf9fcae15f4e16d5887dd6f0321d7d858e7c86bf14e8e884ed4",
-      "endpoints": [
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 299,
-          "end": 309,
-          "context": "99e052fdd21e18eaa19e5bcabbf4595fdfce94ea456d0cc8419b30bfb4f2e81f"
-        },
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 237,
-          "end": 247,
-          "context": "a0c28d651683c81adfc1fee28c7b3b39cb6a77f081363999e327965950fa8668"
-        }
-      ],
-      "tokens": 64,
-      "lines": 11,
-      "format": "python"
     },
     {
       "id": "d7c396f7a5c27471634a02d253b2ff1c1ff760a9596edf34aeaed1ea105ec40b",
@@ -4760,26 +4780,6 @@
       "format": "typescript"
     },
     {
-      "id": "e18b641a0f2fea3e2edfc3065c7d53f02af5de2506af60f22badb7283246903d",
-      "endpoints": [
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 530,
-          "end": 538,
-          "context": "1195ee8f3c4f2d579083c14904aa37be6728877f702be1b5b9cfa3f0c53081b6"
-        },
-        {
-          "file": "apps/api/app/schemas.py",
-          "start": 551,
-          "end": 559,
-          "context": "43bc28444dcc007dd170d0df679ba93a6e62355d2401b8874c571948b30e2b57"
-        }
-      ],
-      "tokens": 69,
-      "lines": 9,
-      "format": "python"
-    },
-    {
       "id": "e1ce9e6bfed781820166f89fee520ec2301199f30f1039a001caa8548fdcf45e",
       "endpoints": [
         {
@@ -4977,6 +4977,26 @@
       ],
       "tokens": 64,
       "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "ebd1cbb62a38e8cadf3e0e8aff45701c7f013f575eb23f2ea6bba0fafd959ef9",
+      "endpoints": [
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 192,
+          "end": 207,
+          "context": "1d6605b468165526771b1f667ac1064400716282eb3a2b10401e7b73076919a9"
+        },
+        {
+          "file": "apps/api/app/schemas.py",
+          "start": 245,
+          "end": 260,
+          "context": "d7f3dc37396024d631e6e1408585fabc8e5cf39212214aebd75118b75759010d"
+        }
+      ],
+      "tokens": 139,
+      "lines": 16,
       "format": "python"
     },
     {
@@ -5258,26 +5278,6 @@
       "tokens": 58,
       "lines": 10,
       "format": "python"
-    },
-    {
-      "id": "f4a2c3e9f9929cd0fecae5cf5dce4322a0241cb0843680d318dc7cc90bb62618",
-      "endpoints": [
-        {
-          "file": "apps/web/components/media-preset-editor-screen.tsx",
-          "start": 107,
-          "end": 120,
-          "context": "ec2b9cec5f79ce05a5cd787c17448a3d4072c7e0ba1e70a83d150095b9b3b356"
-        },
-        {
-          "file": "apps/web/components/prompt-recipes/prompt-recipe-editor-screen.tsx",
-          "start": 191,
-          "end": 204,
-          "context": "b0d1a937417984137bb9c5ff04177e23e4dcd60512cade50608133edd63dfe2c"
-        }
-      ],
-      "tokens": 64,
-      "lines": 14,
-      "format": "tsx"
     },
     {
       "id": "f7f5c1b3cd25e15242118cd2dbb64b848851416f5b2edaf5e6ab35b701525d41",
