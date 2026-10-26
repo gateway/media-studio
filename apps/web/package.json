@@ -2,7 +2,7 @@
   "name": "media-studio-web",
   "private": true,
   "license": "SEE LICENSE IN ../../LICENSE",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "scripts": {
     "dev": "next dev",
     "build": "npm run lint && next build",

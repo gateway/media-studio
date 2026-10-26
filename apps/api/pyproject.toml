@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "media-studio-api"
-version = "0.1.0"
+version = "0.1.1"
 description = "FastAPI backend for the standalone Media Studio product."
 requires-python = ">=3.11"
 dependencies = [
