@@ -27,6 +27,12 @@ STORYBOARD_SUPPORTED_PANEL_COUNTS = (4, 6, 9)
 STORYBOARD_ART_SOURCE_GRIDS = {4: "2x2", 6: STORYBOARD_ART_SOURCE_GRID, 9: "3x3"}
 STORYBOARD_ART_SOURCE_ASPECT_RATIOS = {4: "square", 6: "4:3", 9: "square"}
 PRODUCTION_METADATA_KEYS = ("PROJECT", "SEQUENCE", "LOCATION", "DATE", "ARTIST")
+STORYBOARD_SECTION_LABELS = (
+    *PRODUCTION_METADATA_KEYS, "BOARD TITLE", "PRODUCTION METADATA",
+    "REFERENCE LOCKS", "REFERENCE ROLE LOCK", "REFERENCE AUTHORITY", "REFERENCE INPUTS AND PRIORITY",
+    "VISUAL CONTINUITY", "CHARACTER CONTINUITY", "WARDROBE CUES", "SUBJECT DESIGN CUES",
+    "PROP AND STATE CONTINUITY", "STYLE DIRECTION", "STYLE",
+)
 STORYBOARD_METADATA_DISPLAY_LIMITS = {
     "SHOT": 64,
     "CAMERA": 136,
@@ -148,9 +154,13 @@ def _last_directive(text: str, label: str) -> str:
 
 
 def _section(text: str, label: str) -> str:
+    known_labels = "|".join(re.escape(item) for item in STORYBOARD_SECTION_LABELS)
     match = re.search(
         rf"(?ims)^\s*{re.escape(label)}\s*:\s*(.*?)"
-        r"(?=^\s*[A-Z][A-Z0-9 /&_-]{2,}\s*:\s*|^\s*PANEL\s+\d{1,2}\s*:|\Z)",
+        # Prose such as "Images are supplied in this order:" stays in the body.
+        # Known headings remain case-insensitive; other headings must be uppercase.
+        rf"(?=^\s*(?:{known_labels}|(?-i:[A-Z][A-Z0-9 /&_-]{{2,}}))\s*:"
+        r"|^\s*PANEL\s+\d{1,2}\b|\Z)",
         text,
     )
     return _clean(match.group(1)) if match else ""
@@ -355,7 +365,8 @@ def storyboard_sheet_spec_from_recipe_result(value: Mapping[str, Any]) -> Storyb
     visual_context = {
         "reference": _section(raw_text, "REFERENCE LOCKS")
         or _section(raw_text, "REFERENCE ROLE LOCK")
-        or _section(raw_text, "REFERENCE AUTHORITY"),
+        or _section(raw_text, "REFERENCE AUTHORITY")
+        or _section(raw_text, "REFERENCE INPUTS AND PRIORITY"),
         "visual_continuity": _section(raw_text, "VISUAL CONTINUITY"),
         "character_continuity": _section(raw_text, "CHARACTER CONTINUITY"),
         "wardrobe": _section(raw_text, "WARDROBE CUES") or _last_directive(raw_text, "WARDROBE CUES"),
