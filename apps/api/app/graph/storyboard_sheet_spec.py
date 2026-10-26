@@ -13,6 +13,7 @@ from .storyboard_metadata_preflight import (
     storyboard_metadata_duplicate_pairs,
     storyboard_metadata_value_is_semantic_fragment,
     storyboard_shot_has_meaningful_description,
+    _raw_panel_matches,
 )
 from .prompt_shaping import compact_storyboard_display_value, positive_visual_directive
 
@@ -31,7 +32,7 @@ STORYBOARD_REFERENCE_SECTION_LABELS = (
     "REFERENCE LOCKS", "REFERENCE ROLE LOCK", "REFERENCE AUTHORITY", "REFERENCE INPUTS AND PRIORITY",
 )
 STORYBOARD_SECTION_LABELS = (
-    *PRODUCTION_METADATA_KEYS, "BOARD TITLE", "PRODUCTION METADATA",
+    *PRODUCTION_METADATA_KEYS, "BOARD TITLE", "PRODUCTION METADATA", "HANDOFF ADVANCE", "DIALOGUE CUES",
     *STORYBOARD_REFERENCE_SECTION_LABELS,
     "VISUAL CONTINUITY", "CHARACTER CONTINUITY", "WARDROBE CUES", "SUBJECT DESIGN CUES",
     "PROP AND STATE CONTINUITY", "STYLE DIRECTION", "STYLE",
@@ -162,11 +163,14 @@ def _section(text: str, label: str) -> str:
         rf"(?ims)^\s*{re.escape(label)}\s*:\s*(.*?)"
         # Prose such as "Images are supplied in this order:" stays in the body.
         # Known headings remain case-insensitive; other headings must be uppercase.
-        rf"(?=^\s*(?:{known_labels}|(?-i:[A-Z][A-Z0-9 /&_-]{{2,}}))\s*:"
-        r"|^\s*PANEL\s+\d{1,2}\b|\Z)",
+        rf"(?=^\s*(?:{known_labels}|(?-i:[A-Z][A-Z0-9 /&_-]{{2,}}))\s*:|\Z)",
         text,
     )
-    return _clean(match.group(1)) if match else ""
+    if not match:
+        return ""
+    body, panels = _raw_panel_matches(match.group(1))
+    # Use the canonical heading grammar so "Panel 03 uses ..." remains prose.
+    return _clean(body[:panels[0].start()] if panels else body)
 
 
 def _panel_cue_values(raw: object) -> dict[int, str]:

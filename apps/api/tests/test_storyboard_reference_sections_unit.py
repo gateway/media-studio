@@ -130,15 +130,28 @@ class StoryboardReferenceSectionsTests(unittest.TestCase):
             "Wardrobe Cues: Clothes remain unchanged.",
             "STYLE DIRECTION: Clay animation.",
             "PRODUCTION METADATA: PROJECT: Neutral",
+            "Handoff Advance: Move to the next scene.",
+            "Dialogue Cues: HOST — Keep this line.",
             "LOCATION: Studio",
             "UNRELATED SECTION: Do not absorb this section.",
             "PANEL 01:\nSHOT: Inspect the object",
             "PANEL 01 (0–1s)\nSHOT: Inspect the object",
+            "1. Panel 01 IMAGE AND METADATA (0–1s):\nSHOT: Inspect the object",
         )
         for boundary in boundaries:
             with self.subTest(boundary=boundary):
                 text = "REFERENCE AUTHORITY:\nKeep these roles:\n[image reference 1]: Original subject.\n\n" + boundary
                 self.assertEqual(_section(text, "REFERENCE AUTHORITY"), "Keep these roles: [image reference 1]: Original subject.")
+
+    def test_panel_reference_prose_does_not_truncate_the_authority_block(self):
+        from app.graph.storyboard_sheet_spec import _section
+
+        body = (
+            "Panel 03 uses [image reference 1] as packaging authority.\n"
+            "[image reference 2]: Supporting reconstruction only.\n"
+        )
+        text = "REFERENCE AUTHORITY:\n" + body + "\nPANEL 01 (0–1s):\nSHOT: Inspect the object"
+        self.assertEqual(_section(text, "REFERENCE AUTHORITY"), " ".join(body.split()))
 
 
 if __name__ == "__main__":
