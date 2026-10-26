@@ -4,14 +4,13 @@ import { useStudioPresetDetail } from "@/hooks/studio/use-studio-shell-catalog";
 import {
   mediaDisplayUrl,
   mediaPlaybackUrl,
-  mediaThumbnailUrl,
   mediaVariantUrl,
   normalizeStructuredPresetImageSlots,
   normalizeStructuredPresetTextFields,
-  structuredPresetSlotPreviewUrl,
 } from "@/lib/media-studio-helpers";
 import {
   findMediaAssetById,
+  isStructuredMediaPreset,
   mediaAssetPrompt,
   structuredPresetInputValues,
   structuredPresetInputValuesFromAsset,
@@ -142,7 +141,7 @@ export function useStudioSelection({
     return structuredPresetSlotValuesFromAsset(selectedAsset);
   }, [selectedAsset, selectedAssetJob]);
   const selectedAssetStructuredPresetActive =
-    Boolean(selectedAssetPreset) && (selectedAssetPresetFields.length > 0 || selectedAssetPresetSlots.length > 0);
+    isStructuredMediaPreset(selectedAssetPreset);
   const selectedAssetDisplayVisual = mediaDisplayUrl(selectedAsset);
   const selectedAssetPlaybackVisual = mediaPlaybackUrl(selectedAsset);
   const selectedAssetLightboxVisual =

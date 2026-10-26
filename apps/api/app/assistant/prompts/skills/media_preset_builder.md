@@ -20,7 +20,7 @@ Reference image analysis must be specific enough to compile a strong prompt with
 - Identify image-reference slots only when the user wants replaceable visual input.
 - Keep advanced knobs literal when exposing them would weaken the preset.
 - Prefer fewer, higher-signal fields over turning every adjective into a field.
-- Do not invent fallback fields. If the image analysis does not reveal useful editable fields, omit fields and ask one short clarification.
+- Do not invent fallback fields. For an intentional fixed prompt, use `input_schema_json: []`. If the user has not decided what should be editable, ask one short clarification.
 
 Planner decomposition rules:
 
@@ -44,7 +44,7 @@ Preset contract rules:
 - Generate a title, one-sentence description, `key`, and `workflow_key` from the analyzed style. Never reuse filenames, style numbers, old examples, or hardcoded character/style values.
 - Infer `preset_kind` as `generator`, `image_transform`, or `pipeline`.
 - Infer `input_mode` as `no_image`, `image_required`, or `image_optional`.
-- Keep fields to 1-3 high-signal controls unless the user asks for more.
+- Use zero editable text fields for an intentional complete fixed prompt, otherwise one to three high-signal controls. Zero text fields still requires a nonempty, self-contained prompt and preserves the requested image slots, lane, model and generation options.
 - Never use generic fields like `Subject Brief`, `Scene Brief`, `Style Notes`, `Detail Notes`, `Accent Palette`, or `Optional Notes` unless the user explicitly asks for that exact control and it is truly useful.
 - Use human field labels, not planner taxonomy. Prefer labels such as `Main Character`, `Main Subject`, `Featured Object`, `Main Prop`, `Scene / Setting`, `Destination`, `Poster Title`, `Headline`, `Year`, `Outfit Style`, `Vehicle Model`, `Product`, `Top Text`, `Bottom Text`, or `Graphic Symbol`. Avoid labels such as `Hero Archetype`, `Subject Archetype`, `Hero Brief`, `Subject Brief`, `Character Role`, `Scene Brief`, or `Style Notes`.
 - If the analyzed image has multiple distinct editable text/signage zones, suggest the strongest one or two separate text fields instead of collapsing them into one generic field. Examples of user-facing labels are `Top Title`, `Vertical Side Title`, `Poster Title`, `Headline`, `Subtitle`, `Track List`, `Route Name`, or `Badge Text`, chosen only when those zones are visible in the image analysis.
@@ -52,7 +52,7 @@ Preset contract rules:
 - Do not expose fixed style traits as fields. Palette, texture, lighting, typography hierarchy, camera/rendering style, and signature composition mechanics normally stay fixed.
 - Every recommended field must come from `replaceable_elements` or the detailed `visual_analysis`, not from a generic preset template.
 - Give every field a short user-facing `label`, a concrete `placeholder`, and `help_text` that says what visible outcome it changes.
-- For reference-based drafts, record `rules_json.field_evidence` as a field-keyed map. Each value must copy one exact `replaceable_elements` phrase from the latest analysis, or an exact field phrase the user explicitly requested. Preserve or update this map on revisions.
+- For reference-based drafts with editable text fields, record `rules_json.field_evidence` as a field-keyed map. Each value must copy one exact `replaceable_elements` phrase from the latest analysis, or an exact field phrase the user explicitly requested. Preserve or update this map on revisions.
 - Recommended fields should not invent `default_value`s. Include a `default_value` only when the user explicitly supplied that value in the conversation or the visible reference text unambiguously contains the exact value the user wants editable. Otherwise use an empty string. The test graph compiler will describe what each field controls without storing fake examples.
 - Create image slots only when the requested preset truly needs user-provided visual content.
 - Set `rules_json.preset_lane` to exactly `text_to_image` or `image_to_image`; never combine incompatible lanes in one executable preset.

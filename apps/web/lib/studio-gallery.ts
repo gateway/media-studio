@@ -517,6 +517,13 @@ export function selectedPromptObjects(selectedPromptIds: string[], prompts: Medi
   return prompts.filter((prompt) => selected.has(prompt.prompt_id));
 }
 
+export function isStructuredMediaPreset(preset: MediaPreset | null | undefined): boolean {
+  if (!preset) return false;
+  if (preset.input_schema_json?.length || preset.input_slots_json?.length) return true;
+  return Array.isArray(preset.input_schema_json) && Array.isArray(preset.input_slots_json) && Boolean(preset.prompt_template);
+}
+
+
 export function presetRequirementMessage(
   preset: MediaPreset | null,
   attachments: AttachmentKindCarrier[],

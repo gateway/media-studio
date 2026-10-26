@@ -80,8 +80,8 @@ def validate_assistant_preset_fields(
 ) -> Dict[str, Any]:
     replaceable_elements = tuple(replaceable_elements)
     issues: list[str] = []
-    if not 1 <= len(draft.input_schema_json) <= 3:
-        issues.append("Use between one and three concrete text fields.")
+    if not 0 <= len(draft.input_schema_json) <= 3:
+        issues.append("Use at most three concrete text fields, or none for a fixed prompt.")
     normalized_user_text = " ".join(_normalized_words(user_text))
     user_phrase_haystack = f" {normalized_user_text} "
     normalized_evidence = {
@@ -90,10 +90,7 @@ def validate_assistant_preset_fields(
         if _normalized_words(value)
     }
     field_evidence = draft.rules_json.get("field_evidence")
-    if normalized_evidence and not isinstance(field_evidence, dict):
-        issues.append(
-            "Reference-based fields need rules_json.field_evidence keyed by field key."
-        )
+    if not isinstance(field_evidence, dict):
         field_evidence = {}
     for field in draft.input_schema_json:
         key = str(field.get("key") or "").strip()
@@ -126,7 +123,7 @@ def validate_assistant_preset_fields(
             )
             if not evidence or not (grounded_by_reference or grounded_by_user):
                 issues.append(
-                    f'Field "{label}" needs exact complete reference evidence or its explicit user approval. '
+                    f'Field "{label}" needs rules_json.field_evidence with exact complete reference evidence or its explicit user approval. '
                     f'Eligible reference entries: {list(replaceable_elements)[:12]}; user source: {eligible_user[:800]}'
                 )
     if issues:

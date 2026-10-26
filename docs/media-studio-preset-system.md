@@ -91,7 +91,7 @@ These systems intentionally stay separate. Prompt Recipes are saved director tem
 
 ## Preset Fields
 
-Text fields are stored in `input_schema_json`.
+Text fields are stored in `input_schema_json`. An intentional fixed-prompt preset may use an empty list: its complete prompt remains saved, and Studio shows no editable text field. Image slots and generation settings remain independent. The editor still requires prompt text and exact field/slot placeholder definitions. Media Assistant accepts zero to three text fields; reference evidence is required only for configured fields.
 
 Current text field properties:
 

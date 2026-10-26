@@ -35,6 +35,14 @@ afterEach(() => {
 });
 
 describe("useStudioSelection", () => {
+  it("retains preset mode when inspecting a saved fixed-prompt preset", () => {
+    const asset = { asset_id: "fixed-asset", preset_key: "fixed", payload: {} } as MediaAsset;
+    const preset = { preset_id: "fixed-1", key: "fixed", label: "Fixed", applies_to_models: [],
+      prompt_template: "A red teapot.", input_schema_json: [], input_slots_json: [] } as MediaPreset;
+    const { result } = renderHook(() => useStudioSelection({ initialSelectedAssetId: "fixed-asset", localAssets: [asset], favoriteAssets: null, localJobs: [], presets: [preset] }));
+    expect(result.current.derived.selectedAssetStructuredPresetActive).toBe(true);
+    expect(result.current.derived.selectedAssetPresetFields).toEqual([]);
+  });
   it("hydrates a selected asset's preset schema to retain inspector fields", async () => {
     const asset = { asset_id: "asset-older", preset_key: "older", payload: { preset_text_values: { unit: "Saved unit" } } } as MediaAsset;
     const preset = { preset_id: "preset-older", key: "older", label: "Older", applies_to_models: [] } as unknown as MediaPreset;
