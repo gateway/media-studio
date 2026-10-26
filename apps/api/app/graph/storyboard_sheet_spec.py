@@ -15,9 +15,6 @@ from .storyboard_metadata_preflight import (
     storyboard_shot_has_meaningful_description,
     _raw_panel_matches,
 )
-from .prompt_shaping import compact_storyboard_display_value, positive_visual_directive
-
-
 STORYBOARD_SHEET_CONTRACT_ID = "storyboard_sheet_spec"
 STORYBOARD_SHEET_CONTRACT_VERSION = "1"
 STORYBOARD_LAYOUT_ID = "storyboard_v2_3x2_rows"
