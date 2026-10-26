@@ -27,9 +27,12 @@ STORYBOARD_SUPPORTED_PANEL_COUNTS = (4, 6, 9)
 STORYBOARD_ART_SOURCE_GRIDS = {4: "2x2", 6: STORYBOARD_ART_SOURCE_GRID, 9: "3x3"}
 STORYBOARD_ART_SOURCE_ASPECT_RATIOS = {4: "square", 6: "4:3", 9: "square"}
 PRODUCTION_METADATA_KEYS = ("PROJECT", "SEQUENCE", "LOCATION", "DATE", "ARTIST")
+STORYBOARD_REFERENCE_SECTION_LABELS = (
+    "REFERENCE LOCKS", "REFERENCE ROLE LOCK", "REFERENCE AUTHORITY", "REFERENCE INPUTS AND PRIORITY",
+)
 STORYBOARD_SECTION_LABELS = (
     *PRODUCTION_METADATA_KEYS, "BOARD TITLE", "PRODUCTION METADATA",
-    "REFERENCE LOCKS", "REFERENCE ROLE LOCK", "REFERENCE AUTHORITY", "REFERENCE INPUTS AND PRIORITY",
+    *STORYBOARD_REFERENCE_SECTION_LABELS,
     "VISUAL CONTINUITY", "CHARACTER CONTINUITY", "WARDROBE CUES", "SUBJECT DESIGN CUES",
     "PROP AND STATE CONTINUITY", "STYLE DIRECTION", "STYLE",
 )
@@ -363,10 +366,7 @@ def storyboard_sheet_spec_from_recipe_result(value: Mapping[str, Any]) -> Storyb
     )
     _validate_requested_dialogue(panels, value.get("dialogue_cues"))
     visual_context = {
-        "reference": _section(raw_text, "REFERENCE LOCKS")
-        or _section(raw_text, "REFERENCE ROLE LOCK")
-        or _section(raw_text, "REFERENCE AUTHORITY")
-        or _section(raw_text, "REFERENCE INPUTS AND PRIORITY"),
+        "reference": next(filter(None, (_section(raw_text, label) for label in STORYBOARD_REFERENCE_SECTION_LABELS)), ""),
         "visual_continuity": _section(raw_text, "VISUAL CONTINUITY"),
         "character_continuity": _section(raw_text, "CHARACTER CONTINUITY"),
         "wardrobe": _section(raw_text, "WARDROBE CUES") or _last_directive(raw_text, "WARDROBE CUES"),
