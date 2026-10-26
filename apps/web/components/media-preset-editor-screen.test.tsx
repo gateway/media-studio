@@ -114,8 +114,12 @@ describe("MediaPresetEditorScreen", () => {
 
   it("saves a fixed-prompt assistant draft with zero text fields and reopens it unchanged", async () => {
     const fixed: MediaPreset = { ...presets[0], preset_id: "fixed-1", key: "fixed_teapot", label: "Fixed Teapot",
-      prompt_template: "A red teapot in soft window light.", input_schema_json: [], input_slots_json: [] };
-    const fetchMock = vi.fn().mockResolvedValue(Response.json({ ok: true, preset: fixed }));
+      prompt_template: "A red teapot in soft window light.", input_schema_json: [], input_slots_json: [], default_options_json: { aspect_ratio: "4:3", resolution: "1K" } };
+    let saved = fixed;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, request: RequestInit) => {
+      saved = { ...fixed, ...JSON.parse(String(request.body)) };
+      return Response.json({ ok: true, preset: saved });
+    });
     vi.stubGlobal("fetch", fetchMock);
     const id = writeAssistantReviewDraft({ kind: "media_preset", draft: { ...fixed, preset_id: undefined }, validationWarnings: [], mediaSummary: [] });
     const view = render(<MediaPresetEditorScreen models={models} presets={[]} initialAssistantDraftId={id} />);
@@ -124,12 +128,15 @@ describe("MediaPresetEditorScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create preset", exact: true }));
     await screen.findByText("Preset created.");
     const [, request] = fetchMock.mock.calls[0];
-    expect(JSON.parse(request.body)).toMatchObject({ prompt_template: fixed.prompt_template, input_schema_json: [], input_slots_json: [] });
+    expect(JSON.parse(request.body)).toMatchObject({ prompt_template: fixed.prompt_template, input_schema_json: [], input_slots_json: [], default_options_json: { aspect_ratio: "4:3", resolution: "1K" } });
     view.unmount();
-    render(<MediaPresetEditorScreen models={models} presets={[fixed]} initialPresetId="fixed-1" />);
+    render(<MediaPresetEditorScreen models={models} presets={[saved]} initialPresetId="fixed-1" />);
     expect(screen.getByDisplayValue(fixed.prompt_template!)).toBeTruthy();
     expect(screen.getByText("No text fields configured yet.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Save preset", exact: true })).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Description", exact: true }), { target: { value: "Edited fixed preset" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save preset", exact: true }));
+    await screen.findByText("Preset updated.");
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ description: "Edited fixed preset", default_options_json: { aspect_ratio: "4:3", resolution: "1K" } });
   });
 
   it("loads an assistant Media Preset draft from a persisted review message", async () => {

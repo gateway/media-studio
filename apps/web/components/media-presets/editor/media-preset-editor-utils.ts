@@ -59,6 +59,7 @@ export function emptyPresetForm(defaultModelKey: string | null | undefined): Pre
     appliesToModels:
       defaultModelKey === "nano-banana-pro" ? ["nano-banana-pro"] : ["nano-banana-2"],
     promptTemplate: "",
+    defaultOptions: {},
     notes: "",
     inputFields: [],
     imageSlots: [],
@@ -86,6 +87,7 @@ export function buildPresetForm(preset: Partial<MediaPreset> | null | undefined,
         ? [preset.model_key]
         : ["nano-banana-2"],
     promptTemplate: preset.prompt_template ?? "",
+    defaultOptions: { ...preset.default_options_json },
     notes: preset.notes ?? "",
     inputFields: ((preset.input_schema_json as Array<Record<string, unknown>> | undefined) ?? []).map((field) => ({
       id: createLocalId("preset-field"),

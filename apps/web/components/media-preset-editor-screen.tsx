@@ -68,7 +68,6 @@ export function MediaPresetEditorScreen({
   initialAssistantDraftId = null,
   initialAssistantSessionId = null,
   initialAssistantMessageId = null,
-  variant = "studio",
 }: MediaPresetEditorScreenProps) {
   const router = useRouter();
   const selectedPreset = useMemo(
@@ -173,7 +172,7 @@ export function MediaPresetEditorScreen({
       applies_to_input_patterns: [],
       prompt_template: presetForm.promptTemplate.trim(),
       system_prompt_template: null,
-      default_options_json: {},
+      default_options_json: presetForm.defaultOptions,
       input_schema_json: presetForm.inputFields.map((field) => ({
         key: normalizePresetFieldKey(field.key),
         label: field.label.trim(),
