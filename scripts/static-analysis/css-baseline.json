@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "contract": "8a61326ffc5eb8e39b70b747e9efa1c6b65acb3dc1237f56d853f414f4e2e828",
+  "contract": "42d9b9995d6e86e473e7e000a2072d1adefb24c598ffe387a91afe4bd4ebba78",
   "metadata": {
     "versions": {
       "stylelint": "17.16.0",
@@ -15,13 +15,13 @@
     ],
     "files": {
       "stylelint.config.mjs": "450518f5b1f7892f36afbf5762730df8c1818f328b6c6d72576d20d02fc9d79a",
-      "package-lock.json": "f15651c8091fe34c17335a4b6a68ec34aa8147ed12cbefdd88e75be6d3a4ffff",
+      "package-lock.json": "b0ec31b955420239944cb63949e9f28f97f616a80b0fd2492f5be33f12bafcc5",
       "scripts/static-analysis/css.mjs": "93277f0be38bf2e449636af9055f996f8cfb8efb6f9a416cc4eb707509ebc9ca",
       "scripts/static-analysis/css-policy.mjs": "244a770f9dfad9f20804acf5fdc3673e08e254b32d1e813092ca81bc79332c54",
       "scripts/check_style_drift.py": "697bdb704b862545c867b69113f9b2d369a742c47040b7d32494bf6c7c51545f"
     }
   },
-  "reason": "Reviewed Next 16.4.3 / sharp 0.35.5 runtime lockfile update; analyzer versions, policies and all finding records unchanged.",
+  "reason": "Release 1.0.9: only root/workspace version fields in package-lock.json changed. Read-only analyzers confirm zero new or worsened findings. Existing findings and exemptions preserved exactly.",
   "findings": [
     {
       "id": "0062e9af8543af7049929d03ac293b7ad56016f5146616ef52f21c3cfb764fef",

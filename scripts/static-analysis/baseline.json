@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "contract": "474e1ccb383499263bf18604735f7057ae2135107e8c80bf0677be9fb1c11109",
+  "contract": "e67fbf6060573a041aeb779ffa9e28957d8b458ac3401455663da99b4e709c1d",
   "metadata": {
     "versions": {
       "eslint": "10.13.0",
@@ -20,14 +20,14 @@
       "eslint.config.mjs": "e7b04be24cce89b3097fd3fb0344646c91e89f3aec6b15b9868d65df52b1c568",
       "apps/web/tsconfig.json": "9d4f94ee8caca352f8d2bd015b926ed965becb47567ab794675ae2cbcbc947a7",
       "apps/web/tsconfig.lint.json": "affb7903fadd406f018291abf40821b7e88751276699181817eda5cc2322946a",
-      "package-lock.json": "f15651c8091fe34c17335a4b6a68ec34aa8147ed12cbefdd88e75be6d3a4ffff",
+      "package-lock.json": "b0ec31b955420239944cb63949e9f28f97f616a80b0fd2492f5be33f12bafcc5",
       "scripts/static-analysis/policy.mjs": "571a38fd87c9676a2e9f669ae561189e19b1081bf8e49c3a343dd7be9e37d9d4",
       "scripts/static-analysis/scan.mjs": "c9e5004a103c9668f437c6155f2b8dc831c1758112f634387807dc730ed07c38",
       "scripts/static-analysis/gate.mjs": "6b04ba0279a6d123010399880866de11760aabcbd37724931ffe867791234de1",
       "scripts/lint_web.mjs": "39a7b75729a0568ab0a0683285cf9674ef54e1c14bfc78a91c2b16cdea29876c"
     }
   },
-  "reason": "Reviewed Next 16.4.3 / sharp 0.35.5 runtime lockfile update; analyzer versions, policies and all finding records unchanged.",
+  "reason": "Release 1.0.9: only root/workspace version fields in package-lock.json changed. Read-only analyzers confirm zero new or worsened findings. Existing findings and exemptions preserved exactly.",
   "findings": [
     {
       "rule": "@typescript-eslint/no-floating-promises",
