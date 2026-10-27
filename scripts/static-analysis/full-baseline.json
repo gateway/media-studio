@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Release 1.0.9: only root/workspace version fields in package-lock.json changed. Read-only analyzers confirm zero new or worsened findings. Existing findings and exemptions preserved exactly.",
+  "reason": "Release 1.0.9: only root/workspace version fields in package-lock.json changed. Read-only analyzers confirm zero new or worsened findings. Existing findings and exemptions preserved exactly. PR77: independently reviewed ten context re-anchors after recipe/migration edits; 274 pairs and all metrics unchanged, nine endpoint pairs identical and one recipe-version literal updated. Other 264 records and analyzer contract preserved.",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -240,19 +240,19 @@
       "format": "typescript"
     },
     {
-      "id": "0af846a72578de3c66e8a321b9e104c157f1c39ede5a23af6e5688841a5ffa2c",
+      "id": "8e11563a195fc5628e0182acfe44ef9691ec2775a1757bd76f5f2b91f8d1f5b6",
       "endpoints": [
         {
           "file": "apps/api/app/store_schema.py",
           "start": 1150,
           "end": 1176,
-          "context": "844092d55ac5b75a819a9a433e51cf5e18567e2f87d5ea9820bb66b68e1bc32a"
+          "context": "3f013a7ce4e06caa049be1bc286ba17f470df15c1b1ca06391be5e23ea2090b4"
         },
         {
           "file": "apps/api/app/store_schema.py",
           "start": 643,
           "end": 669,
-          "context": "95db424e77b01efbad136a698c3f8759d6b962efb9f9a96d04764d0e56a9ae19"
+          "context": "878cabe665c71d1890572435974a53862e66edede562af70feccd6fba6f03b21"
         }
       ],
       "tokens": 157,
@@ -380,19 +380,19 @@
       "format": "python"
     },
     {
-      "id": "11c1b2a0b64d40aaa991484edc8aabfcc4d49c11baa280336bf716ceb65d39b0",
+      "id": "4d0f3bd53a818a7c44759505b1bb181935c1eae323c18a32b7a07aacfc640ffc",
       "endpoints": [
         {
           "file": "apps/api/app/store_schema.py",
           "start": 468,
           "end": 473,
-          "context": "c13b4cb703cc0a11cb612e22f3cc0153a760eb4f0462640d3851947092fed5f7"
+          "context": "57c3128b3c9848e1cb1b807c8a3aba3ab967ecb70e3a2b6cff27783b3f9e827d"
         },
         {
           "file": "apps/api/app/store_schema.py",
           "start": 368,
           "end": 373,
-          "context": "e41ea5e3df6dda59ea705028f84ab4d05c9acc758222b5a8b32142545edc6130"
+          "context": "7bcf0f97235535e43006b7015c21ecf6d1ef8e3e78bb41dec7994c4862a40b94"
         }
       ],
       "tokens": 60,
@@ -980,19 +980,19 @@
       "format": "typescript"
     },
     {
-      "id": "29a3b3f96180767c6a9b681ef5103ca6fef22a1329e415cda7487d5ab4c353a1",
+      "id": "65a5ae26b433507611dbd6e80d01a7b34cb3251008862aae80fe771b8050cfa7",
       "endpoints": [
         {
           "file": "apps/api/app/store_seed_prompt_recipes.py",
-          "start": 701,
-          "end": 713,
-          "context": "004f79e81113ade10becf3ecf7e19faafc56780004b0ca3a0ab1aea415d895d0"
+          "start": 857,
+          "end": 869,
+          "context": "4a986c316229c960c253e0e9c7816ea9181416a5f73947c1fbb30e917d1ec2b2"
         },
         {
           "file": "apps/api/app/store_seed_prompt_recipes.py",
-          "start": 825,
-          "end": 837,
-          "context": "efb427dbba53b06cae735d087b40b6b05a9178e64d718cd310417d61d597cb61"
+          "start": 733,
+          "end": 745,
+          "context": "5d1a2f139c0d3eac001d8bfe40a64c19184b0d53c3432c65040c8efe4691f682"
         }
       ],
       "tokens": 56,
@@ -1160,19 +1160,19 @@
       "format": "typescript"
     },
     {
-      "id": "2d7dd02fc0599ffbf791735efa7787f51e504cf5329b85b7930f71937e299559",
+      "id": "476c8db6b9f97c8c8d335240e89fe841bc5940a85b67d9e8c10308514ba00916",
       "endpoints": [
-        {
-          "file": "apps/api/app/store_schema.py",
-          "start": 474,
-          "end": 479,
-          "context": "4834c5a4e2673908a3aa2f3295d4c7db6167df84b7c53010b52fdc3582f3257e"
-        },
         {
           "file": "apps/api/app/store_schema.py",
           "start": 419,
           "end": 424,
-          "context": "932a8bf7411cd1c6184f632f2e32a62c2a4cc823c87c5afa3ce3f9ff24a67bda"
+          "context": "dfb2839cdb2c3afe7cf9dcaaccf94b0939772649c7c39164259aa54992e03ce2"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 474,
+          "end": 479,
+          "context": "f9264104d39e0c16c1803e4adb733f95745d2f90f545bdb04f5c4ae1c3ec3fbb"
         }
       ],
       "tokens": 93,
@@ -1820,19 +1820,19 @@
       "format": "typescript"
     },
     {
-      "id": "5179eb4d44f28978833260a51f22f277bee96af4e766d28f4ba31446d988b215",
+      "id": "3629ebbc54f3b7284f7419eaae052904d9695bee580024332f8f0d01c7e7f22e",
       "endpoints": [
         {
           "file": "apps/api/app/store_schema.py",
           "start": 514,
           "end": 524,
-          "context": "449df207426e06f13f506f4a94ab3558dca983db1e49f4d5107012bbf5f4974a"
+          "context": "9307ef172c9da2f6762cead00dd0c610784d8f8678fd13017d6e455aa8dbe09c"
         },
         {
           "file": "apps/api/app/store_schema.py",
           "start": 328,
           "end": 338,
-          "context": "c0bef922c217bf8a71f8a4a428ed128f5a4f48d2738c051120fc64ecfdac9d4e"
+          "context": "f552175c3c5d5f3735797ded7bb279e637f4d5e9921cec895eede8b76fe8776d"
         }
       ],
       "tokens": 97,
@@ -2660,19 +2660,19 @@
       "format": "python"
     },
     {
-      "id": "70d68caafd27dd4751140b8c4abe58a8f8ac2c3abc25a0fa1fc6601f66a9ab88",
+      "id": "da001373e451e0a1d2e37c9e75d7049097be1f6191e9682c54e779bf7c8936a2",
       "endpoints": [
-        {
-          "file": "apps/api/app/store_schema.py",
-          "start": 331,
-          "end": 340,
-          "context": "5c7622ef5607939196e205ea9448e8111421b45eb79e6b87af21b96d07bc6db8"
-        },
         {
           "file": "apps/api/app/store_schema.py",
           "start": 373,
           "end": 382,
-          "context": "c35a3b3df3f0165b9a47e03898cdd3b5d63e0554ede4f39c900590ff5eb5068d"
+          "context": "3e15b011a826c1cee24dcf94f403205bb05173ce90cb6cb62742486a8b05ad2f"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 331,
+          "end": 340,
+          "context": "90131047911453397ef883abe4431206960d102d17b0f621e162ef0ecf95dee7"
         }
       ],
       "tokens": 75,
@@ -3340,19 +3340,19 @@
       "format": "typescript"
     },
     {
-      "id": "9c0ee640e147bfa23e38a9ab6a4639f2affb88ed24a9a6d3da51217d2f9e6c49",
+      "id": "19c69310af3f845822e6eb27388eb8b93880992e9046a3eae5292970545f52e7",
       "endpoints": [
-        {
-          "file": "apps/api/app/store_schema.py",
-          "start": 332,
-          "end": 340,
-          "context": "f38229632a7cdb59853a7eafddde3ef2dd3e396fde6a4ff69b7a06e8684f9bc3"
-        },
         {
           "file": "apps/api/app/store_schema.py",
           "start": 294,
           "end": 302,
-          "context": "f9f526e757bc52c04801e85233026bccd9cb8b7ae744978713914d5bee09038f"
+          "context": "6474d4f2eaaf429e62d3e4ad9f4f434d4a262bb34da4aa246bde167262affb5e"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 332,
+          "end": 340,
+          "context": "e34b66ba90614904001b028541597f8f2e6200c8d60f12adcffd23111f892e2d"
         }
       ],
       "tokens": 61,
@@ -4120,19 +4120,19 @@
       "format": "python"
     },
     {
-      "id": "bb3d929cc133124478ba18da2c83986f004317a8e99a843d8624a1cb3d973b1b",
+      "id": "829cb2fca78fdd6d0726c93d31c334eb0155054350fc1b42c204c491f8d36994",
       "endpoints": [
-        {
-          "file": "apps/api/app/store_schema.py",
-          "start": 1606,
-          "end": 1631,
-          "context": "58f0b1b8dcdcc87a01847a97263a5d3551a527fe82fea1a09795bce5c7fc4e8f"
-        },
         {
           "file": "apps/api/app/store_schema.py",
           "start": 1661,
           "end": 1686,
-          "context": "c6559b31cf3d28ec5d49415af9d4466bc1112e2eb7ffacf8deb562340a7b0591"
+          "context": "c5537bf7ce6231a0c9f394cb4ab13abd51b2e5c716fbac726f2349af28591db0"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 1606,
+          "end": 1631,
+          "context": "edd514221c35b55fefbed37edac711a40f72cb96075e201be7ccacb3e3fee00e"
         }
       ],
       "tokens": 94,
@@ -4600,19 +4600,19 @@
       "format": "typescript"
     },
     {
-      "id": "d8bd17b20a8d8d3d392447c6ea633301330baa180822a5c0ea479f16c3ad73a8",
+      "id": "c2aff529388e19f7fc04020b2441980877ba61cd6af6c9788ad36435b329228e",
       "endpoints": [
-        {
-          "file": "apps/api/app/store_schema.py",
-          "start": 414,
-          "end": 419,
-          "context": "5a18c30d48af54eb2099c150eb795e532b6f6cd5a2b6a3dd22cb26fda2dd9ca6"
-        },
         {
           "file": "apps/api/app/store_schema.py",
           "start": 368,
           "end": 373,
-          "context": "e41ea5e3df6dda59ea705028f84ab4d05c9acc758222b5a8b32142545edc6130"
+          "context": "7bcf0f97235535e43006b7015c21ecf6d1ef8e3e78bb41dec7994c4862a40b94"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 414,
+          "end": 419,
+          "context": "e72436d6601821412e36ec7e368e9e2e85479ee03fedd72bf47bd67230b34e6a"
         }
       ],
       "tokens": 65,
@@ -5480,19 +5480,19 @@
       "format": "tsx"
     },
     {
-      "id": "ff0aef707c4923a198cab9757cb6cf8ed83072f01947128e7c277ba91e82ee6a",
+      "id": "b6c3df359fe37464edf856c6e1a2784ce8d1563466a730284e77521120da3ad6",
       "endpoints": [
-        {
-          "file": "apps/api/app/store_schema.py",
-          "start": 1638,
-          "end": 1660,
-          "context": "4da2e40e3bf5e4938a19f4bdaa2cee84044b166f5325fa0ef6b964cfc119cfbd"
-        },
         {
           "file": "apps/api/app/store_schema.py",
           "start": 1561,
           "end": 1583,
-          "context": "c2f9218e69a23d2564aabd8aae0e4f57e62f65e2bad33e903102d123217e8a21"
+          "context": "8dca1d65e261c06863808e2a64bed5d4ab6067dae67fac737afe79a837cb1577"
+        },
+        {
+          "file": "apps/api/app/store_schema.py",
+          "start": 1638,
+          "end": 1660,
+          "context": "b72dc8b214e0bcd52f59efc3eac79ab35fcd5808bdf9b7c0faaede4a5d5bda8a"
         }
       ],
       "tokens": 113,
