@@ -55,8 +55,8 @@ class StoryboardVisualContinuityTests(unittest.TestCase):
         rows = seeded_recipes(recipes)
         recipe = rows[RECIPE_ID]
         template = recipe["system_prompt_template"]
-        self.assertEqual(recipe["version"], "2.29")
         self.assertIn("include a VISUAL CONTINUITY: section", template)
+        self.assertEqual(recipe["version"], "2.29")
         self.assertIn("never use PANEL headings inside this section", template)
         self.assertIn("these frame states take precedence", template)
         self.assertIn("do not replace them with endpoint-only summaries", template)
