@@ -360,7 +360,7 @@ def test_bootstrap_schema_refreshes_storyboard_environment_sheet_lock_prompt_rec
         connection.close()
 
     assert recipe is not None
-    assert recipe[1] == "2.28"
+    assert recipe[1] == "2.29"
     assert "identity-like references control identity" in recipe[0]
     assert "use it for spatial continuity only" in recipe[0]
     assert "Treat PREVIOUS BOARD HANDOFF as private continuity state" in recipe[0]
@@ -409,7 +409,7 @@ def test_bootstrap_schema_refreshes_phase_16_storyboard_recipes_from_version_42(
         connection.close()
 
     assert versions == {
-        "prompt-recipe-storyboard-v2-gpt-image-2": "2.28",
+        "prompt-recipe-storyboard-v2-gpt-image-2": "2.29",
         "prompt-recipe-storyboard-continuation-v1": "1.21",
     }
     assert migration_count == 1
@@ -456,7 +456,7 @@ def test_bootstrap_schema_refreshes_user_owned_board_identity_fields_from_versio
         connection.close()
 
     by_id = {recipe_id: (version, json.loads(custom_fields_json)) for recipe_id, version, custom_fields_json in rows}
-    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.28"
+    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.29"
     assert by_id["prompt-recipe-storyboard-continuation-v1"][0] == "1.21"
     assert all(
         {"board_title", "production_metadata"}.issubset({field["key"] for field in fields})
@@ -506,7 +506,7 @@ def test_bootstrap_schema_refreshes_storyboard_six_row_metadata_from_version_44(
         connection.close()
 
     by_id = {recipe_id: (version, prompt) for recipe_id, version, prompt in rows}
-    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.28"
+    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.29"
     assert by_id["prompt-recipe-storyboard-continuation-v1"][0] == "1.21"
     assert all("five separate horizontal rows stacked vertically" in prompt for _, prompt in by_id.values())
     assert all("SHOT" in prompt and "heading above each image" in prompt for _, prompt in by_id.values())
@@ -556,7 +556,7 @@ def test_bootstrap_schema_requires_all_storyboard_metadata_rows_from_version_45(
         connection.close()
 
     by_id = {recipe_id: (version, prompt) for recipe_id, version, prompt in rows}
-    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.28"
+    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.29"
     assert by_id["prompt-recipe-storyboard-continuation-v1"][0] == "1.21"
     assert all("SHOT heading and all five row labels are mandatory" in prompt for _, prompt in by_id.values())
     assert all("Never omit a required heading or row label" in prompt for _, prompt in by_id.values())
@@ -608,7 +608,7 @@ def test_bootstrap_schema_requires_non_empty_storyboard_metadata_from_version_46
         recipe_id: (version, prompt, json.loads(output_contract_json))
         for recipe_id, version, prompt, output_contract_json in rows
     }
-    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.28"
+    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.29"
     assert by_id["prompt-recipe-storyboard-continuation-v1"][0] == "1.21"
     assert all("DIALOG alone may have a blank value" in prompt for _, prompt, _ in by_id.values())
     assert all(
@@ -663,7 +663,7 @@ def test_bootstrap_schema_aligns_storyboard_sheet_contracts_from_version_47(app_
     }
     storyboard = by_id["prompt-recipe-storyboard-v2-gpt-image-2"]
     continuation = by_id["prompt-recipe-storyboard-continuation-v1"]
-    assert storyboard[0] == "2.28"
+    assert storyboard[0] == "2.29"
     assert continuation[0] == "1.21"
     assert storyboard[1].count("IMMUTABLE STORYBOARD V2 SHEET CONTRACT") == 1
     assert continuation[1].count("IMMUTABLE STORYBOARD V2 SHEET CONTRACT") == 1
@@ -712,7 +712,7 @@ def test_bootstrap_schema_refreshes_distinct_storyboard_metadata_roles_from_vers
         connection.close()
 
     by_id = {recipe_id: (version, prompt) for recipe_id, version, prompt in rows}
-    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.28"
+    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.29"
     assert by_id["prompt-recipe-storyboard-continuation-v1"][0] == "1.21"
     assert all("Keep all three values semantically distinct" in prompt for _, prompt in by_id.values())
     assert all("Never omit a required value, copy one row into another" in prompt for _, prompt in by_id.values())
@@ -760,7 +760,7 @@ def test_bootstrap_schema_refreshes_storyboard_metadata_completion_audit_from_ve
         connection.close()
 
     by_id = {recipe_id: (version, prompt) for recipe_id, version, prompt in rows}
-    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.28"
+    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.29"
     assert by_id["prompt-recipe-storyboard-continuation-v1"][0] == "1.21"
     assert all("FINAL METADATA AUDIT" in prompt for _, prompt in by_id.values())
     assert all(
@@ -814,7 +814,7 @@ def test_bootstrap_schema_refreshes_storyboard_user_owned_panel_notes_from_versi
         recipe_id: (version, prompt, json.loads(custom_fields))
         for recipe_id, version, prompt, custom_fields in rows
     }
-    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.28"
+    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.29"
     assert by_id["prompt-recipe-storyboard-continuation-v1"][0] == "1.21"
     for _, prompt, custom_fields in by_id.values():
         assert "PANEL NOTES CUES" in prompt
@@ -867,7 +867,7 @@ def test_bootstrap_schema_refreshes_storyboard_concise_display_contract_from_ver
         recipe_id: (version, prompt, json.loads(contract))
         for recipe_id, version, prompt, contract in rows
     }
-    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.28"
+    assert by_id["prompt-recipe-storyboard-v2-gpt-image-2"][0] == "2.29"
     assert by_id["prompt-recipe-storyboard-continuation-v1"][0] == "1.21"
     contracts = []
     for _, prompt, contract in by_id.values():

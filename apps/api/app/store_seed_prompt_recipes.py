@@ -11,6 +11,37 @@ from .graph.storyboard_sheet_spec import STORYBOARD_METADATA_DISPLAY_LIMITS
 from .store_support import insert_or_update, utcnow_iso
 
 
+STORYBOARD_VISUAL_CONTINUITY_INSTRUCTION = (
+    "DEPICTED FRAME STATES:\n"
+    "Before the first PANEL block, include a VISUAL CONTINUITY: section with one concise sentence per requested frame, written as Frame NN shows ... . "
+    "These are image directions, not visible text or extra panels; never use PANEL headings inside this section. "
+    "Choose one depicted instant for each beat. When the user specifies a representative instant or endpoint, use that exact state; otherwise choose the instant that makes the beat readable. "
+    "For image composition, these frame states take precedence over the full action chronology in ACTION, MOTION, and NOTES. "
+    "Keep that complete chronology, exact timing, dialogue, and user-owned notes in their existing metadata rows; do not replace them with endpoint-only summaries. "
+    "Make clear which actions have already happened before the selected instant, rather than depicting multiple moments through duplicate subjects, props, insets, or overlays. "
+    "Carry required object, opening, pose, and wardrobe states into the affected later frames without inventing new reference observations or overriding typed reference roles."
+)
+
+
+def update_storyboard_visual_continuity_recipe(connection: sqlite3.Connection) -> None:
+    """Upgrade only the known built-in template, preserving other recipe settings."""
+    row = connection.execute(
+        "SELECT system_prompt_template, source_kind, version FROM prompt_recipes WHERE recipe_id = ?",
+        ("prompt-recipe-storyboard-v2-gpt-image-2",),
+    ).fetchone()
+    if not row or row["source_kind"] != "builtin" or row["version"] != "2.28":
+        return
+    anchor = "ACTION CLARITY:\n"
+    template = str(row["system_prompt_template"] or "")
+    if anchor not in template:
+        return
+    updated = template.replace(anchor, f"{STORYBOARD_VISUAL_CONTINUITY_INSTRUCTION}\n\n{anchor}", 1)
+    connection.execute(
+        "UPDATE prompt_recipes SET system_prompt_template = ?, version = ?, updated_at = ? WHERE recipe_id = ?",
+        (updated, "2.29", utcnow_iso(), "prompt-recipe-storyboard-v2-gpt-image-2"),
+    )
+
+
 def _prompt_recipe_variable(
     key: str,
     label: str,
@@ -663,6 +694,7 @@ def seed_default_prompt_recipes(connection: sqlite3.Connection) -> None:
                 "Maintain continuity of face, body, outfit, environment, lighting, and motion unless the prompt asks for progressive change. If an Environment Sheet is connected, preserve its room geography, landmarks, material palette, lighting logic, entrances/exits, action lanes, and set dressing across every panel without copying character identity from it.\n"
                 "If transformation is requested, make it grow clearly from shot to shot rather than appearing randomly.\n"
                 "Keep subject placement, camera direction, and scene geography understandable. Every cell should read as part of one continuous sequence.\n\n"
+                f"{STORYBOARD_VISUAL_CONTINUITY_INSTRUCTION}\n\n"
                 "ACTION CLARITY:\n"
                 "Each frame must communicate what is happening immediately. Use readable silhouettes, clear poses, directional motion, background cues, and strong composition. Avoid vague beauty shots unless USER STORY BRIEF specifically asks for a mood board rather than action beats.\n\n"
                 "TEXT RULES:\n"
@@ -710,7 +742,7 @@ def seed_default_prompt_recipes(connection: sqlite3.Connection) -> None:
             },
             "validation_warnings_json": [],
             "source_kind": "builtin",
-            "version": "2.28",
+            "version": "2.29",
             "priority": 462,
             "created_at": now,
             "updated_at": now,
