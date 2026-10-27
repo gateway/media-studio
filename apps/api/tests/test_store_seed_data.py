@@ -150,7 +150,7 @@ def test_bootstrap_schema_seeds_default_presets_and_prompt_recipes_from_split_mo
 
     storyboard_template = storyboard_v2["system_prompt_template"]
     storyboard_v2_variables = json.loads(storyboard_v2["input_variables_json"])
-    assert storyboard_v2["version"] == "2.28"
+    assert storyboard_v2["version"] == "2.29"
     storyboard_v2_image_input = json.loads(storyboard_v2["image_input_json"])
     assert storyboard_v2_image_input["mode"] == "direct_reference"
     assert storyboard_v2_image_input["reference_roles"] == ["character", "environment"]

@@ -12,7 +12,7 @@ MODULES = (
     'assistant_failure', 'assistant_planning_recovery', 'assistant_results',
     'assistant_run_handoff', 'assistant_width_layout', 'captioned_storyboard',
     'generation_contract', 'generation_inspection', 'recipe_discovery', 'storyboard_image_edit',
-    'storyboard_reference_sections',
+    'storyboard_reference_sections', 'storyboard_visual_continuity',
 )
 TESTS = Path(__file__).resolve().parents[1] / 'apps/api/tests'
 

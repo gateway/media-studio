@@ -258,7 +258,7 @@ Do not add tensor or latent types unless Media Studio adds local ML execution.
 - Inputs: canonical Prompt Recipe `result` JSON from Storyboard v2 or Storyboard Continuation.
 - Outputs: one art-only `prompt`, one typed `spec`, and six optional `panel_prompts` as JSON.
 - Purpose: normalize both storyboard recipes into `StoryboardSheetSpec` v1 while keeping campaign content in recipe/workflow inputs.
-- Guardrails: 4, 6, or 9 ordered panels; meaningful SHOT values; complete ACTION/MOTION/NOTES clauses; CAMERA angle/movement/lens contract; exact dialogue; art prompt preserved within the selected model's actual limit and free of production-sheet chrome. Reference role/priority blocks survive compilation, including introductory prose ending in a colon; actual section and panel headings bound the block.
+- Guardrails: 4, 6, or 9 ordered panels; meaningful SHOT values; complete ACTION/MOTION/NOTES clauses; CAMERA angle/movement/lens contract; exact dialogue; art prompt preserved within the selected model's actual limit and free of production-sheet chrome. Reference role/priority blocks survive compilation, including introductory prose ending in a colon; actual section and panel headings bound the block. Storyboard v2 recipe 2.29 authors selected still states in the existing `VISUAL CONTINUITY` section, using `Frame NN` prose rather than extra panel headings. Those image directions take precedence for composition while ACTION/MOTION/NOTES, timing and exact dialogue retain the full beat. This wording does not establish generated-image compliance.
 
 ### `image.storyboard_sheet`
 

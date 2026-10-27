@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
 from .store_seed_presets import seed_default_presets
-from .store_seed_prompt_recipes import seed_default_prompt_recipes
+from .store_seed_prompt_recipes import seed_default_prompt_recipes, update_storyboard_visual_continuity_recipe
 from .queue_limits import (
     QUEUE_DEFAULT_MAX_CONCURRENT_JOBS,
     QUEUE_DEFAULT_MAX_RETRY_ATTEMPTS,
@@ -2047,6 +2047,12 @@ MIGRATIONS = [
         version=56,
         description="Add independent provider connections and preserve legacy task overrides.",
         apply=_apply_provider_connections,
+    ),
+    SchemaMigration(
+        migration_id="20261027_057_storyboard_visual_continuity_recipe",
+        version=57,
+        description="Separate depicted frame states from beat chronology in the built-in Storyboard v2 recipe.",
+        apply=update_storyboard_visual_continuity_recipe,
     ),
 ]
 
