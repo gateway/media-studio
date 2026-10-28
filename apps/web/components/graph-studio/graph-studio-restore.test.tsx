@@ -117,6 +117,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   __resetGraphStartupReadsForTests();
   vi.unstubAllGlobals();
   window.localStorage.clear();
@@ -151,7 +152,7 @@ it("preserves overlapping dirty draft positions through measurement, tab selecti
   expect((readGraphTabSession("restore-test")?.tabs[0].workflow_json?.metadata?.groups as { bounds: unknown }[])[0].bounds).toEqual(draft.metadata.groups[0].bounds);
 });
 
-it("restores the active duplicate draft through the file input and preserves saved baselines through undo and redo", async () => {
+it.each([false, true])("restores the active duplicate draft and preserves baselines and pending edits through undo/redo (pending=%s)", async (pendingEdit) => {
   writeGraphTabSession("restore-test", "tab-a", ["tab-a", "tab-b"].map((tab_id) => ({
     tab_id, workflow_id: "saved-a", workflow_name: localWorkflow.name, workflow_json: localWorkflow,
     saved_workflow_signature: "original-saved-baseline", dirty: true, console_lines: ["Original console"],
@@ -161,6 +162,10 @@ it("restores the active duplicate draft through the file input and preserves sav
   await waitFor(() => expect(readGraphTabSession("restore-test")?.tabs[0].workflow_json?.nodes[0].metadata?.execution).toBeDefined());
   fireEvent.click(screen.getByText("Switch tab-b"));
   fireEvent.click(screen.getByText("Switch tab-a"));
+  if (pendingEdit) {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    fireEvent.click(screen.getByText("Edit node"));
+  }
   const before = readGraphTabSession("restore-test")!.tabs;
   const current = before[0].workflow_json!;
   const restored = JSON.parse(JSON.stringify(current)) as GraphWorkflowPayload;
@@ -171,10 +176,11 @@ it("restores the active duplicate draft through the file input and preserves sav
     nodes: [{ id: "local-node", position: { x: 50, y: 60 } }], groups: [],
   });
   fireEvent.change(screen.getByLabelText("Layout recovery backup"), { target: { files: [{ text: async () => text }] } });
-  await waitFor(() => expect(screen.getByTestId("console").textContent).toContain("Restored layout from backup"));
+  await vi.waitFor(() => expect(screen.getByTestId("console").textContent).toContain("Restored layout from backup"), { interval: 1 });
   expect(JSON.parse(screen.getByTestId("canvas-geometry").textContent!)[0].position).toEqual({ x: 50, y: 60 });
   fireEvent.click(screen.getByText("Undo"));
   expect(JSON.parse(screen.getByTestId("canvas-geometry").textContent!)[0].position).toEqual(localWorkflow.nodes[0].position);
+  expect(JSON.parse(screen.getByTestId("canvas-state").textContent!).nodes[0].fields).toEqual(current.nodes[0].fields);
   fireEvent.click(screen.getByText("Redo"));
   expect(JSON.parse(screen.getByTestId("canvas-geometry").textContent!)[0].position).toEqual({ x: 50, y: 60 });
   fireEvent.click(screen.getByText("Switch tab-b"));

@@ -1133,7 +1133,7 @@ function GraphStudioClient() {
       updateTab,
     ],
   );
-  const { canUndo, canRedo, undo, redo, commitSnapshot, replaceHistoryForTab } =
+  const { canUndo, canRedo, undo, redo, commitSnapshot, flushPendingForTab, replaceHistoryForTab } =
     useGraphUndoHistory({
       enabled: historyReady,
       activeTabId,
@@ -1621,6 +1621,7 @@ function GraphStudioClient() {
       if (!currentHistorySnapshot) return;
       stopAssistantLayout();
       markWorkspaceChanged();
+      flushPendingForTab(activeTabId);
       commitSnapshot({ ...currentHistorySnapshot, workflow });
       hydrateWorkflowPayload(workflow, { layoutOnly: true });
     },
