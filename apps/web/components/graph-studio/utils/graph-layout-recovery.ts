@@ -1,5 +1,6 @@
 import type { GraphWorkflowPayload } from "../types";
 import { graphWorkflowSnapshotSignature } from "./graph-tabs";
+import { sanitizeWorkflowForExport } from "./graph-workflow-transfer";
 
 type RecordValue = Record<string, unknown>;
 function record(value: unknown): RecordValue {
@@ -15,7 +16,9 @@ function coordinates(value: unknown, keys: string[]) {
 }
 
 export async function graphWorkflowLayoutHash(workflow: GraphWorkflowPayload) {
-  const signature = graphWorkflowSnapshotSignature(workflow);
+  // Recovery evidence is a normal UI export. Compare that same projection while
+  // applying positions/bounds to the live payload, retaining every omitted field.
+  const signature = graphWorkflowSnapshotSignature(sanitizeWorkflowForExport(workflow, []).workflow);
   if (!signature) throw new Error("This workflow cannot restore a layout.");
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(signature));
   return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, "0")).join("");

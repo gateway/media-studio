@@ -9,7 +9,7 @@ vi.mock("../utils/graph-layout-recovery", () => ({ restoreGraphLayout: vi.fn() }
 const workflow: GraphWorkflowPayload = { schema_version: 1, workflow_id: "saved", name: "Draft", nodes: [], edges: [] };
 
 describe("layout recovery ownership", () => {
-  it.each(["tab", "content", "run"])("refuses an async restore after the %s changes", async (change) => {
+  it.each(["tab", "content", "omitted export field", "run"])("refuses an async restore after the %s changes", async (change) => {
     let finish!: (text: string) => void;
     const file = { text: () => new Promise<string>((resolve) => { finish = resolve; }) } as File;
     vi.mocked(restoreGraphLayout).mockResolvedValue({ workflow, changed: true });
@@ -17,7 +17,7 @@ describe("layout recovery ownership", () => {
     const { result, rerender } = renderHook((props) => useGraphLayoutRecovery(props), { initialProps: owner });
     let pending!: Promise<void>;
     act(() => { pending = result.current.restoreFile(file); });
-    rerender({ ...owner, ...(change === "tab" ? { activeTabId: "two" } : change === "content" ? { workflow: { ...workflow, name: "Edited" } } : { runActive: true }) });
+    rerender({ ...owner, ...(change === "tab" ? { activeTabId: "two" } : change === "content" ? { workflow: { ...workflow, name: "Edited" } } : change === "omitted export field" ? { workflow: { ...workflow, metadata: { max_tokens: 8192 } } } : { runActive: true }) });
     await act(async () => { finish("backup"); await pending; });
     expect(owner.onRestore).not.toHaveBeenCalled();
     if (change === "tab") expect(owner.onMessage).not.toHaveBeenCalled();

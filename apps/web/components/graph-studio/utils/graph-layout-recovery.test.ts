@@ -60,4 +60,14 @@ describe("guarded layout recovery", () => {
   it("rejects malformed JSON", async () => {
     await expect(restoreGraphLayout("{", current)).rejects.toThrow();
   });
+
+  it("matches retained exports without replacing live fields omitted by export", async () => {
+    const live = JSON.parse(JSON.stringify(current)) as GraphWorkflowPayload;
+    live.nodes[0].fields.max_tokens = 8192;
+    const result = await restoreGraphLayout(JSON.stringify(await backup()), live);
+    expect(result.workflow.nodes[0].fields).toEqual({ text: "Keep this", max_tokens: 8192 });
+    expect(result.workflow.nodes[0].position).toEqual(original.nodes[0].position);
+    expect(graphLayoutContentSignature(result.workflow)).toBe(graphLayoutContentSignature(live));
+    expect(live.nodes[0].position).toEqual(current.nodes[0].position);
+  });
 });
