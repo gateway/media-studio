@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Release 1.0.9: only root/workspace version fields in package-lock.json changed. Read-only analyzers confirm zero new or worsened findings. Existing findings and exemptions preserved exactly. PR77: independently reviewed ten context re-anchors after recipe/migration edits; 274 pairs and all metrics unchanged, nine endpoint pairs identical and one recipe-version literal updated. Other 264 records and analyzer contract preserved.",
+  "reason": "Layout preservation: three existing clone pairs reanchored after context edits; endpoint source and token/line counts unchanged.",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -1460,13 +1460,13 @@
       "format": "javascript"
     },
     {
-      "id": "398d5d45ef5529552d6131a84e996135abd99b048b8edd0b63557c6b05518eef",
+      "id": "76185bff3643fec9c8fce5d023f2a6dfafddfa5cef642c49e2a98f7d5ab526aa",
       "endpoints": [
         {
           "file": "apps/web/components/graph-studio/utils/graph-groups.ts",
           "start": 70,
           "end": 75,
-          "context": "69eb883baa5b0c4f11aefd421a4a0fc899739cc23937adb4bdc892ae0ae48b76"
+          "context": "abc3366425403153e56a45955e3f7e16306a64138f7c82b3101cc8570f670ccb"
         },
         {
           "file": "apps/web/components/graph-studio/utils/graph-selection.ts",
@@ -2260,19 +2260,19 @@
       "format": "typescript"
     },
     {
-      "id": "6343a24abde0549a362d3740b81362e25777901c98f2642cf8adea842e3a91e1",
+      "id": "25f9b986e6ff7491d4e02fde2df075f1931930214c6ad087bce1d6aeb460c3a7",
       "endpoints": [
         {
           "file": "apps/web/components/graph-studio/graph-test-fixtures.tsx",
-          "start": 509,
-          "end": 529,
-          "context": "4f7a6087c67624a8392ee8969ef4f606aa2caa1df2b788e9a3c367ce6aeacf16"
+          "start": 543,
+          "end": 563,
+          "context": "5f15a99517e8b403ba3cecef9da54e66aaaf19b37fc1a3fa5f9d3f5a82b9734e"
         },
         {
           "file": "apps/web/components/graph-studio/graph-test-fixtures.tsx",
-          "start": 541,
-          "end": 561,
-          "context": "ff7ffd9722d5d365738ad29f5919f46af32f2c50e56c6935a0d0485618a1d5bd"
+          "start": 510,
+          "end": 530,
+          "context": "5f9e7b026c0c0ee1c27fb3bd85f43671bd62ab8675b4b94aca97779ba7394e36"
         }
       ],
       "tokens": 102,
@@ -4240,13 +4240,13 @@
       "format": "python"
     },
     {
-      "id": "c29916a4a077eb2893aac46fd54bdaea2e5a65d476dc93cdec5ac5478e5d2a1b",
+      "id": "989d1ee0ac4d69b8fca14ee2bb1957846e3afe80ea82e3e52fcb0ee19135bf77",
       "endpoints": [
         {
           "file": "apps/web/components/graph-studio/utils/graph-groups.ts",
           "start": 26,
           "end": 33,
-          "context": "f9f8896329c6eece55316b4373149dcd418ddce7e44f26d310efed0231cbfc60"
+          "context": "f502b74057ec87770511cbe87d743ee55659da44ff06764afcd1baf7aca9048b"
         },
         {
           "file": "apps/web/lib/preset-sharing.ts",

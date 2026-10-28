@@ -5,7 +5,7 @@ import type { GraphGroup, StudioNode } from "../types";
 import {
   applyExecutionModeToNodes,
   computeGraphGroupBounds,
-  graphGroupsForCanvas,
+  expandGraphGroupEnclosures,
   GRAPH_GROUP_MOVE_EVENT,
   GRAPH_GROUP_RENAME_EVENT,
   GRAPH_GROUP_RESIZE_EVENT,
@@ -30,6 +30,7 @@ export function useGraphGroups({
   setGroups,
   setNodes,
   appendConsole,
+  hasActiveLayout,
 }: {
   manualNodeMoveRef: MutableRefObject<boolean>;
   groups: GraphGroup[];
@@ -37,6 +38,7 @@ export function useGraphGroups({
   setGroups: SetGroups;
   setNodes: SetNodes;
   appendConsole: (line: string) => void;
+  hasActiveLayout: () => boolean;
 }) {
   const groupsRef = useRef(groups);
   const nodesRef = useRef(nodes);
@@ -78,10 +80,11 @@ export function useGraphGroups({
 
   useEffect(() => {
     if (manualNodeMoveRef.current) { manualNodeMoveRef.current = false; return; }
+    if (!hasActiveLayout()) return;
     // Content growth and Assistant reflow retain membership and enlarge bounds.
     // Manual node movement and group resizing explicitly reconcile membership.
-    setGroups((current) => graphGroupsForCanvas(current, nodes));
-  }, [manualNodeMoveRef, nodes, setGroups]);
+    setGroups((current) => expandGraphGroupEnclosures(current, nodes));
+  }, [hasActiveLayout, manualNodeMoveRef, nodes, setGroups]);
 
   const createGroupFromSelection = useCallback(() => {
     const nodeIds = selectedNodeIdsForGroup(nodes);

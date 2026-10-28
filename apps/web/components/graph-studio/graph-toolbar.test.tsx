@@ -62,6 +62,7 @@ function renderToolbar(run: GraphRun | null, overrides: Partial<ComponentProps<t
     onSaveAs: vi.fn(),
     onExportWorkflow: vi.fn(),
     onExportBundle: vi.fn(),
+    onRestoreLayout: vi.fn(),
     onOpenRename: vi.fn(),
     onCloseWorkflow: vi.fn(),
     onRenameDraftChange: vi.fn(),
@@ -75,6 +76,14 @@ function renderToolbar(run: GraphRun | null, overrides: Partial<ComponentProps<t
 }
 
 describe("GraphToolbar", () => {
+  it.each([false, true])("offers layout recovery and blocks it during a run (active=%s)", (active) => {
+    const onRestoreLayout = vi.fn();
+    renderToolbar(active ? makeRun() : null, { workflowMenuOpen: true, onRestoreLayout });
+    const action = screen.getByRole("menuitem", { name: "Restore layout from backup" });
+    expect((action as HTMLButtonElement).disabled).toBe(active);
+    fireEvent.click(action);
+    expect(onRestoreLayout).toHaveBeenCalledTimes(active ? 0 : 1);
+  });
   it("shows a cancel button while a run is active", () => {
     const onCancelRun = vi.fn();
     renderToolbar(makeRun(), { onCancelRun });

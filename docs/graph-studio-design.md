@@ -92,12 +92,17 @@ Menu actions:
 - `Save As`: creates a copied workflow record and switches to it.
 - `Export Workflow`: downloads structure-only `.media-studio-graph.json`.
 - `Export Workflow Bundle`: downloads `.media-studio-graph.zip` with referenced reference-media files.
+- `Restore layout from backup`: selects a guarded layout recovery JSON file and restores node positions and group bounds in the active tab. It preserves workflow content, tab identity, run state and the saved baseline; it does not save or run the workflow. Undo and Redo support the geometry change. Recovery is unavailable during an active run.
 - `Import Workflow`: loads JSON or ZIP into an unsaved `Imported:` workflow and remaps bundled media through reference-media import.
 - `Rename`: opens an in-app rename dialog. Do not use `window.prompt`.
 - `Close`: closes the active canvas session and returns to blank `New workflow`. Close does not delete the saved workflow.
 
 Workflow tabs are implemented as browser-session workspace state. Tabs preserve workflow JSON, workflow identity, dirty state, active run id, console lines, and latest preview provenance; saved workflows remain database-backed and closing a tab never deletes a workflow.
 The workflow action menu is anchored to the active tab shell, not to the left edge of the tab strip, so opening it from a right-side tab keeps the dropdown under that tab.
+
+Passive hydration, node measurement, tab selection and export preserve stored positions and group bounds. Automatic collision spacing and group enclosure growth are owned by an active, approved Assistant layout and stop when that layout ends or the user moves nodes.
+
+Layout recovery files use `kind: "media-studio.graph.layout-recovery"`, `schema_version: 1`, the matching `workflow_id`, `expected_workflow_sha256` and `restored_workflow_sha256`, plus `nodes: [{id, position: {x,y}}]` and `groups: [{id, bounds: {x,y,width,height}}]`. Hashes are SHA256 of the existing canonical snapshot signature of the structure-only export's `workflow`, using the normal export sanitizer. Fields omitted by export remain untouched in the live draft; historical hashes cannot compare those omitted fields. Only existing, unique node/group IDs and finite coordinates are accepted; group sizes must be positive. The current export projection must match the expected hash and the geometry-only result must match the restored hash. A payload already matching the restored hash is a no-op. The full live signature guards against content changes during file reading, including omitted fields. Tab changes or a newly active run also refuse recovery. Ordinary workflow exports are not recovery files.
 
 Important reload behavior:
 

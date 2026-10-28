@@ -959,16 +959,16 @@ describe("graph groups", () => {
         execution: { mode: "frozen" },
       },
     ];
-    expect(graphGroupsForCanvas(groups, nodes)[0].bounds).toEqual({ x: 0, y: 0, width: 696, height: 496 });
+    expect(graphGroupsForCanvas(groups, nodes)[0].bounds).toEqual(groups[0].bounds);
     const serialized = serializeGraphGroups(groups, nodes);
     expect(serialized).toEqual([
       {
         ...groups[0],
-        bounds: { x: 0, y: 0, width: 696, height: 496 },
+        bounds: groups[0].bounds,
       },
     ]);
     const reloaded = readGraphGroupsFromWorkflow({ schema_version: 1, name: "Reloaded", nodes: [], edges: [], metadata: { groups: serialized } });
-    expect(graphGroupsForCanvas(reloaded, nodes)[0].bounds).toEqual({ x: 0, y: 0, width: 696, height: 496 });
+    expect(graphGroupsForCanvas(reloaded, nodes)[0].bounds).toEqual(groups[0].bounds);
   });
 
   it("derives displayed and persisted group execution mode from member nodes", () => {

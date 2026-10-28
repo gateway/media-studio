@@ -63,7 +63,8 @@ import {
 } from "./hooks/use-graph-provider-model-catalog";
 import { useGraphRunHistory } from "./hooks/use-graph-run-history";
 import { useGraphStudioSupport } from "./hooks/use-graph-studio-support";
-import { useGraphNodeSpacing } from "./hooks/use-graph-node-spacing";
+import { graphLayoutRecoveryRunActive, useGraphLayoutRecovery } from "./hooks/use-graph-layout-recovery";
+import { graphLayoutContentSignature } from "./utils/graph-layout-recovery";
 import { useAssistantLayout } from "./hooks/use-assistant-layout";
 import { useGraphAssistantApplication } from "./hooks/use-graph-assistant-application";
 import { useGraphAssistantHistory } from "./hooks/use-graph-assistant-history";
@@ -301,8 +302,7 @@ function GraphStudioClient() {
   );
   const nodesRef = useRef<StudioNode[]>([]);
   const manualNodeMoveRef = useRef(false);
-  const { beginAssistantLayout, stopAssistantLayout } = useAssistantLayout({ nodes, setNodes, activeTabId });
-  useGraphNodeSpacing(nodes, setNodes);
+  const { beginAssistantLayout, stopAssistantLayout, hasActiveAssistantLayout } = useAssistantLayout({ nodes, setNodes, activeTabId });
   const onNodesChange = useCallback(
     (changes: Parameters<typeof applyNodesChange>[0]) => {
       const filteredChanges = filterGraphNodeNoopChanges(
@@ -685,6 +685,7 @@ function GraphStudioClient() {
     deleteGroup,
     setGroupExecutionMode,
   } = useGraphGroups({
+    hasActiveLayout: hasActiveAssistantLayout,
     manualNodeMoveRef,
     groups,
     nodes,
@@ -1059,10 +1060,15 @@ function GraphStudioClient() {
       canvasHydrated.current = true;
       setHistoryReady(true);
     },
-    [appendConsole, definitionsByType, nodeHandlers, setEdges, setNodes],
+    [appendConsole, canvasHydrated, definitionsByType, nodeHandlers, setEdges, setNodes],
   );
   const applyUndoHistorySnapshot = useCallback(
     (historySnapshot: GraphHistorySnapshot) => {
+      if (historySnapshot.layoutOnly || graphLayoutContentSignature(currentWorkflowPayload) === graphLayoutContentSignature(historySnapshot.workflow)) {
+        stopAssistantLayout();
+        hydrateWorkflowPayload(historySnapshot.workflow, { layoutOnly: true });
+        return;
+      }
       if (!historySnapshot.workflow.nodes.length) {
         const blankWorkflow = blankGraphWorkflowPayload(
           historySnapshot.workflowName ||
@@ -1093,7 +1099,6 @@ function GraphStudioClient() {
         return;
       }
       hydrateWorkflowPayload(historySnapshot.workflow, {
-        layoutOnly: historySnapshot.layoutOnly,
         workflowId: historySnapshot.workflowId,
         workflowName: historySnapshot.workflowName,
         workflowUpdatedAt: historySnapshot.workflowUpdatedAt ?? null,
@@ -1106,8 +1111,8 @@ function GraphStudioClient() {
           ? graphWorkflowSnapshotSignature(historySnapshot.workflow)
           : null,
         workflowUpdatedAt: historySnapshot.workflowUpdatedAt ?? null,
-        runId: historySnapshot.layoutOnly ? run?.run_id ?? null : null,
-        runStatus: historySnapshot.layoutOnly ? run?.status ?? null : null,
+        runId: null,
+        runStatus: null,
         consoleLines,
         dirty: Boolean(historySnapshot.workflowId),
       });
@@ -1120,13 +1125,15 @@ function GraphStudioClient() {
       closeContextMenus,
       closeWorkflowMenu,
       consoleLines,
+      currentWorkflowPayload,
       hydrateWorkflowPayload,
-      run,
       setConsoleLines,
+      setNodeSearch,
+      stopAssistantLayout,
       updateTab,
     ],
   );
-  const { canUndo, canRedo, undo, redo, commitSnapshot, replaceHistoryForTab } =
+  const { canUndo, canRedo, undo, redo, commitSnapshot, flushPendingForTab, replaceHistoryForTab } =
     useGraphUndoHistory({
       enabled: historyReady,
       activeTabId,
@@ -1607,6 +1614,19 @@ function GraphStudioClient() {
     setWorkflowMenuOpen,
     appendConsole,
   });
+  const layoutRecovery = useGraphLayoutRecovery({
+    activeTabId, workflow: currentWorkflowPayload,
+    runActive: graphLayoutRecoveryRunActive(run),
+    onRestore: (workflow) => {
+      if (!currentHistorySnapshot) return;
+      stopAssistantLayout();
+      markWorkspaceChanged();
+      flushPendingForTab(activeTabId);
+      commitSnapshot({ ...currentHistorySnapshot, workflow });
+      hydrateWorkflowPayload(workflow, { layoutOnly: true });
+    },
+    onMessage: (message) => { appendConsole(message); setConsoleOpen(true); },
+  });
 
   const startConsoleResize = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1956,6 +1976,7 @@ function GraphStudioClient() {
             onSave={toolbarWorkflowActions.onSave}
             onSaveAs={toolbarWorkflowActions.onSaveAs}
             onExportWorkflow={exportWorkflow}
+            onRestoreLayout={() => { closeWorkflowMenu(); layoutRecovery.inputRef.current?.click(); }}
             onExportBundle={() => {
               void exportWorkflowBundle();
             }}
@@ -2074,6 +2095,18 @@ function GraphStudioClient() {
             />
           </svg>
         ) : null}
+        <input
+          ref={layoutRecovery.inputRef}
+          type="file"
+          accept=".json,application/json"
+          aria-label="Layout recovery backup"
+          className="graph-hidden-file-input"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (file) layoutRecovery.restoreFile(file).catch((error) => appendConsole(`Could not read layout backup: ${(error as Error).message}`));
+          }}
+        />
         <input
           ref={importWorkflowInputRef}
           type="file"

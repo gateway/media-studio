@@ -53,6 +53,7 @@ export function GraphToolbar({
   onSaveAs,
   onExportWorkflow,
   onExportBundle,
+  onRestoreLayout,
   onOpenRename,
   onCloseWorkflow,
   onRenameDraftChange,
@@ -86,6 +87,7 @@ export function GraphToolbar({
   onSaveAs: () => void;
   onExportWorkflow: () => void;
   onExportBundle: () => void;
+  onRestoreLayout: () => void;
   onOpenRename: () => void;
   onCloseWorkflow: () => void;
   onRenameDraftChange: (value: string) => void;
@@ -203,6 +205,9 @@ export function GraphToolbar({
           </button>
           <button type="button" role="menuitem" onClick={onExportBundle}>
             Export Workflow Bundle
+          </button>
+          <button type="button" role="menuitem" onClick={onRestoreLayout} disabled={runActive}>
+            Restore layout from backup
           </button>
           <button type="button" role="menuitem" onClick={onOpenRename}>
             Rename

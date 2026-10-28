@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import type { GraphGroup, GraphWorkflowPayload, StudioNode } from "../types";
 import { spaceAssistantNodes } from "../utils/graph-assistant-layout";
-import { graphGroupsForCanvas, pruneGraphGroupMembership, serializeGraphGroups } from "../utils/graph-groups";
+import { expandGraphGroupEnclosures, graphGroupsForCanvas, pruneGraphGroupMembership, serializeGraphGroups } from "../utils/graph-groups";
 import { useGraphGroups } from "./use-graph-groups";
 import { useAssistantLayout } from "./use-assistant-layout";
 
@@ -50,7 +50,7 @@ describe("Assistant rendered layout", () => {
       const [groups, setGroups] = useState<GraphGroup[]>([{ id: "group", title: "Postcards", color: "blue", node_ids: ["preset", "preview"], bounds: { x: -96, y: -96, width: 612, height: 1328 } }]);
       const manualNodeMoveRef = useRef(false);
       const layout = useAssistantLayout({ nodes, setNodes, activeTabId: "one" });
-      useGraphGroups({ manualNodeMoveRef, groups, nodes, setGroups, setNodes, appendConsole: () => {} });
+      useGraphGroups({ manualNodeMoveRef, groups, nodes, setGroups, setNodes, appendConsole: () => {}, hasActiveLayout: layout.hasActiveAssistantLayout });
       return { nodes, groups, setNodes, setGroups, manualNodeMoveRef, ...layout };
     }, { wrapper: StrictMode });
     act(() => {
@@ -82,9 +82,11 @@ describe("Assistant rendered layout", () => {
     expect(next[1].position).toEqual({ x: 0, y: 913 });
     expect(spaceAssistantNodes(next, new Set(["preset", "preview"]))).toBe(next);
     const groups = [{ id: "group", title: "Postcards", color: "blue", node_ids: ["preset", "preview"], bounds: { x: -96, y: -96, width: 612, height: 1328 } }];
-    const rendered = graphGroupsForCanvas(groups, next);
+    const rendered = expandGraphGroupEnclosures(groups, next);
     expect(rendered[0].bounds).toEqual({ x: -96, y: -96, width: 612, height: 1755 });
-    expect(serializeGraphGroups(groups, next)[0].bounds).toEqual(rendered[0].bounds);
+    expect(serializeGraphGroups(rendered, next)[0].bounds).toEqual(rendered[0].bounds);
+    expect(graphGroupsForCanvas(groups, next)[0].bounds).toEqual(groups[0].bounds);
+    expect(serializeGraphGroups(groups, next)[0].bounds).toEqual(groups[0].bounds);
   });
 
   it("preserves existing nodes and moves only the added node away from obstacles", () => {

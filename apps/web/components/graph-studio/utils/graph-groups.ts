@@ -114,9 +114,17 @@ export function graphGroupsForCanvas(groups: GraphGroup[], nodes: Node[]): Graph
     .map((group) => ({
       ...group,
       color: graphGroupColorChoiceId(group.color),
-      bounds: expandGroupBoundsToFitNodes(group.bounds, nodes, group.node_ids),
+      bounds: group.bounds,
       execution: { mode: groupExecutionModeForNodes(nodes, group.node_ids, normalizeGraphExecutionMode(group.execution?.mode)) },
     }));
+}
+
+// Only an approved Assistant layout owns automatic enclosure growth.
+export function expandGraphGroupEnclosures(groups: GraphGroup[], nodes: Node[]): GraphGroup[] {
+  return graphGroupsForCanvas(groups, nodes).map((group) => ({
+    ...group,
+    bounds: expandGroupBoundsToFitNodes(group.bounds, nodes, group.node_ids),
+  }));
 }
 
 export function dispatchGraphGroupMove(detail: GraphGroupMoveDetail): void {
@@ -202,7 +210,7 @@ export function serializeGraphGroups(groups: GraphGroup[], nodes: StudioNode[]):
       title: group.title,
       color: graphGroupColorChoiceId(group.color),
       node_ids: memberIds,
-      bounds: expandGroupBoundsToFitNodes(group.bounds, nodes, memberIds),
+      bounds: { ...group.bounds },
       execution: { mode: groupExecutionModeForNodes(nodes, memberIds, normalizeGraphExecutionMode(group.execution?.mode)) },
     }];
   });
