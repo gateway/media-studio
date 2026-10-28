@@ -13,6 +13,7 @@ export function useAssistantLayout({ nodes, setNodes, activeTabId }: {
 }) {
   const scope = useRef<LayoutScope | null>(null);
   const stopAssistantLayout = useCallback(() => { scope.current = null; }, []);
+  const hasActiveAssistantLayout = useCallback(() => scope.current?.tabId === activeTabId && Boolean(scope.current.positions.size), [activeTabId]);
   const beginAssistantLayout = useCallback((workflow: GraphWorkflowPayload, base?: GraphWorkflowPayload, tabId = activeTabId, layoutOnly = false) => {
     const previous = new Map(base?.nodes.map((node) => [node.id, node.position]) ?? []);
     const baseById = new Map(base?.nodes.map((node) => [node.id, node]) ?? []);
@@ -61,5 +62,5 @@ export function useAssistantLayout({ nodes, setNodes, activeTabId }: {
     setNodes((current) => current === nodes ? next : current);
   }, [activeTabId, nodes, setNodes]);
 
-  return { beginAssistantLayout, stopAssistantLayout };
+  return { beginAssistantLayout, stopAssistantLayout, hasActiveAssistantLayout };
 }

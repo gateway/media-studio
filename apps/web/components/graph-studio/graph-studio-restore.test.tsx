@@ -2,6 +2,7 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
+import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { GraphStudio } from "./graph-studio";
@@ -11,6 +12,7 @@ import type { GraphStudioDialogs } from "./graph-studio-dialogs";
 import type { GraphToolbar } from "./graph-toolbar";
 import type { GraphNodeDefinition, GraphRun, GraphWorkflowPayload, GraphWorkflowRecord } from "./types";
 import { __resetGraphStartupReadsForTests } from "./utils/graph-startup-reads";
+import { graphWorkflowLayoutHash } from "./utils/graph-layout-recovery";
 import {
   graphWorkflowSnapshotSignature,
   readGraphTabSession,
@@ -22,21 +24,25 @@ let restoreHistoryRun: ComponentProps<typeof GraphStudioDialogs>["onRestoreRun"]
 
 // Keep the real restore, tab, hydration and version coordination; replace visual surfaces only.
 vi.mock("./graph-canvas", () => ({
-  GraphCanvas: ({ nodes, edges, groups = [] }: ComponentProps<typeof GraphCanvas>) => (
+  GraphCanvas: ({ nodes, edges, groups = [], onNodesChange }: ComponentProps<typeof GraphCanvas>) => (
     <>
       <output data-testid="canvas">{nodes.map((node) => node.id).join(",")}</output>
+      <output data-testid="canvas-geometry">{JSON.stringify(nodes.map(({ id, position }) => ({ id, position })))}</output>
+      <output data-testid="group-geometry">{JSON.stringify(groups.map(({ id, bounds }) => ({ id, bounds })))}</output>
+      <button onClick={() => onNodesChange(nodes.map(({ id }) => ({ id, type: "dimensions", dimensions: { width: 420, height: 200 } })))}>Measure nodes</button>
       <output data-testid="canvas-state">{JSON.stringify({ nodes: nodes.map((node) => ({ id: node.id, fields: node.data.fields })), edges: edges.map(({ id, source, target }) => ({ id, source, target })), groups: groups.map(({ id, node_ids }) => ({ id, node_ids })) })}</output>
       <button onClick={() => nodes[0]?.data.onFieldChange(nodes[0].id, "text", "Edited note")}>Edit node</button>
     </>
   ),
 }));
 vi.mock("./graph-toolbar", () => ({
-  GraphToolbar: ({ workflowName, activeTabId, tabs, run, onNewTab, onSwitchTab, onCloseTab, onUndo, canUndo }: ComponentProps<typeof GraphToolbar>) => (
+  GraphToolbar: ({ workflowName, activeTabId, tabs, run, onNewTab, onSwitchTab, onCloseTab, onUndo, canUndo, onRedo, canRedo }: ComponentProps<typeof GraphToolbar>) => (
     <>
       <h1>{workflowName}</h1>
       <output data-testid="identity">{JSON.stringify({ activeTabId, workflowName, runId: run?.run_id ?? null })}</output>
       <button onClick={onNewTab}>New tab</button>
       <button onClick={onUndo} disabled={!canUndo}>Undo</button>
+      <button onClick={onRedo} disabled={!canRedo}>Redo</button>
       {tabs?.map((tab) => <span key={tab.tab_id}>
         <button onClick={() => onSwitchTab?.(tab.tab_id)}>Switch {tab.tab_id}</button>
         <button onClick={() => onCloseTab?.(tab.tab_id)}>Close {tab.tab_id}</button>
@@ -101,6 +107,7 @@ beforeEach(() => {
   Object.defineProperty(window, "innerHeight", { configurable: true, value: 900 });
   vi.stubGlobal("ResizeObserver", vi.fn(() => ({ observe: vi.fn(), disconnect: vi.fn() })));
   vi.stubGlobal("fetch", fetcher);
+  vi.stubGlobal("crypto", webcrypto);
   fetcher.mockClear();
   historyRequests.length = 0;
   reloadRecord.mockReset();
@@ -113,6 +120,70 @@ afterEach(() => {
   __resetGraphStartupReadsForTests();
   vi.unstubAllGlobals();
   window.localStorage.clear();
+});
+
+it("preserves overlapping dirty draft positions through measurement, tab selection and reload", async () => {
+  const draft = { ...localWorkflow, nodes: [
+    { ...localWorkflow.nodes[0], id: "one", position: { x: 0, y: 0 } },
+    { ...localWorkflow.nodes[0], id: "two", position: { x: 0, y: 100 } },
+  ], metadata: { created_by: "graph-studio", groups: [{ id: "group", title: "Group", color: "blue", node_ids: ["one", "two"], bounds: { x: -96, y: -96, width: 300, height: 300 } }] } };
+  writeGraphTabSession("restore-test", "tab-a", ["tab-a", "tab-b"].map((tab_id) => ({
+    tab_id, workflow_id: "saved-a", workflow_name: draft.name, workflow_json: draft,
+    saved_workflow_signature: "original-saved-baseline", dirty: true, console_lines: ["Original console"],
+  })));
+  const expected = draft.nodes.map(({ id, position }) => ({ id, position }));
+  const mounted = render(<GraphStudio />);
+  await waitFor(() => expect(screen.getByTestId("canvas").textContent).toBe("one,two"));
+  fireEvent.click(screen.getByText("Measure nodes"));
+  expect(JSON.parse(screen.getByTestId("canvas-geometry").textContent!)).toEqual(expected);
+  expect(JSON.parse(screen.getByTestId("group-geometry").textContent!)[0].bounds).toEqual(draft.metadata.groups[0].bounds);
+  fireEvent.click(screen.getByText("Switch tab-b"));
+  fireEvent.click(screen.getByText("Measure nodes"));
+  fireEvent.click(screen.getByText("Switch tab-a"));
+  expect(JSON.parse(screen.getByTestId("canvas-geometry").textContent!)).toEqual(expected);
+  mounted.unmount();
+  render(<GraphStudio />);
+  await waitFor(() => expect(screen.getByTestId("canvas").textContent).toBe("one,two"));
+  fireEvent.click(screen.getByText("Measure nodes"));
+  expect(JSON.parse(screen.getByTestId("canvas-geometry").textContent!)).toEqual(expected);
+  expect(readGraphTabSession("restore-test")?.tabs).toHaveLength(2);
+  expect(readGraphTabSession("restore-test")?.tabs.every(tab => tab.saved_workflow_signature === "original-saved-baseline")).toBe(true);
+  expect((readGraphTabSession("restore-test")?.tabs[0].workflow_json?.metadata?.groups as { bounds: unknown }[])[0].bounds).toEqual(draft.metadata.groups[0].bounds);
+});
+
+it("restores the active duplicate draft through the file input and preserves saved baselines through undo and redo", async () => {
+  writeGraphTabSession("restore-test", "tab-a", ["tab-a", "tab-b"].map((tab_id) => ({
+    tab_id, workflow_id: "saved-a", workflow_name: localWorkflow.name, workflow_json: localWorkflow,
+    saved_workflow_signature: "original-saved-baseline", dirty: true, console_lines: ["Original console"],
+  })));
+  render(<GraphStudio />);
+  await waitFor(() => expect(screen.getByTestId("canvas").textContent).toBe("local-node"));
+  await waitFor(() => expect(readGraphTabSession("restore-test")?.tabs[0].workflow_json?.nodes[0].metadata?.execution).toBeDefined());
+  fireEvent.click(screen.getByText("Switch tab-b"));
+  fireEvent.click(screen.getByText("Switch tab-a"));
+  const before = readGraphTabSession("restore-test")!.tabs;
+  const current = before[0].workflow_json!;
+  const restored = JSON.parse(JSON.stringify(current)) as GraphWorkflowPayload;
+  restored.nodes[0].position = { x: 50, y: 60 };
+  const text = JSON.stringify({
+    kind: "media-studio.graph.layout-recovery", schema_version: 1, workflow_id: "saved-a",
+    expected_workflow_sha256: await graphWorkflowLayoutHash(current), restored_workflow_sha256: await graphWorkflowLayoutHash(restored),
+    nodes: [{ id: "local-node", position: { x: 50, y: 60 } }], groups: [],
+  });
+  fireEvent.change(screen.getByLabelText("Layout recovery backup"), { target: { files: [{ text: async () => text }] } });
+  await waitFor(() => expect(screen.getByTestId("console").textContent).toContain("Restored layout from backup"));
+  expect(JSON.parse(screen.getByTestId("canvas-geometry").textContent!)[0].position).toEqual({ x: 50, y: 60 });
+  fireEvent.click(screen.getByText("Undo"));
+  expect(JSON.parse(screen.getByTestId("canvas-geometry").textContent!)[0].position).toEqual(localWorkflow.nodes[0].position);
+  fireEvent.click(screen.getByText("Redo"));
+  expect(JSON.parse(screen.getByTestId("canvas-geometry").textContent!)[0].position).toEqual({ x: 50, y: 60 });
+  fireEvent.click(screen.getByText("Switch tab-b"));
+  expect(JSON.parse(screen.getByTestId("canvas-geometry").textContent!)[0].position).toEqual(localWorkflow.nodes[0].position);
+  const after = readGraphTabSession("restore-test")!.tabs;
+  expect(after.map(tab => tab.tab_id).sort()).toEqual(before.map(tab => tab.tab_id).sort());
+  expect(after.every(tab => tab.saved_workflow_signature === "original-saved-baseline")).toBe(true);
+  expect(after.find(tab => tab.tab_id === "tab-b")?.workflow_json).toEqual(before.find(tab => tab.tab_id === "tab-b")?.workflow_json);
+  expect(fetcher.mock.calls.every(([url]) => !url.endsWith("/run") && !url.endsWith("/save"))).toBe(true);
 });
 
 it("reloads a saved record and updates its name, timestamp and saved signature", async () => {

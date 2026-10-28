@@ -502,6 +502,7 @@ function ToolbarFixture() {
           workflowMenuOpen={false}
           renameDialogOpen={false}
           renameDraft="Fixture workflow"
+          onRestoreLayout={noop}
           run={runningRun}
           transportMetrics={transportMetrics}
           creditText="Credits unavailable"
@@ -534,6 +535,7 @@ function ToolbarFixture() {
           workflowMenuOpen={false}
           renameDialogOpen={false}
           renameDraft="Fixture workflow"
+          onRestoreLayout={noop}
           run={cancellingRun}
           transportMetrics={transportMetrics}
           creditText="12 credits"
