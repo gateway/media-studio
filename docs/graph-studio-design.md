@@ -15,6 +15,14 @@ This document locks down the UI and engineering rules we have learned from the f
 - Graph Studio submits model work through the existing Media Studio service/KIE path.
 - Workflow JSON stores durable ids and structured fields, not raw media blobs, base64, or browser filesystem paths.
 
+## Workflow Tab Persistence
+
+Graph tabs are stored in browser storage for the current origin and installation. Once verified, the selected workspace remains stable through backend outages and recovery. Without a verified installation binding, Graph Studio waits for a connection before enabling edits or draft persistence.
+
+Older offline drafts may exist separately from installation-scoped tabs. On first use, Graph Studio asks which workspace to open and remembers that choice for the installation. Selecting a workspace does not merge or delete either set. Other origins and browser profiles retain separate storage.
+
+Saved workflows in the application database and browser-local unsaved drafts have different lifecycles. This protection prevents availability-driven workspace switching; it does not recover drafts that were already removed, or provide cross-browser synchronization.
+
 <a id="current-v1-graph-shape"></a>
 
 ## Original V1 Graph Shape
