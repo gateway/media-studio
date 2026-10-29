@@ -1343,11 +1343,6 @@ def _turn_start_params(
     return params
 
 
-def _guide_turn_options(context: TurnGuideContext | None) -> Dict[str, Any]:
-    # Preserve the call contract for existing provider consumers without guides.
-    return {"guide_context": context} if context is not None else {}
-
-
 def run_codex_local_chat(
     *,
     model_id: str,
@@ -1382,6 +1377,15 @@ def run_codex_local_chat(
     prompt_bytes = 0
     actual_reasoning_effort: Optional[str] = None
     compaction: Dict[str, Any] | None = None
+    turn_options: Dict[str, Any] = {
+        "output_schema": output_schema,
+        "cancel_event": cancel_event,
+        "budget": budget,
+    }
+    if guide_context is not None:
+        turn_options["guide_context"] = guide_context
+    if client_user_message_id is not None:
+        turn_options["client_user_message_id"] = client_user_message_id
 
     if session_key:
         if force_new_codex_session:
@@ -1444,15 +1448,10 @@ def run_codex_local_chat(
                 turn_kwargs: Dict[str, Any] = {
                     "thread_id": managed.thread_id,
                     "input_items": input_items,
-                    "output_schema": output_schema,
-                    "cancel_event": cancel_event,
-                    "budget": budget,
-                    **_guide_turn_options(guide_context),
+                    **turn_options,
                 }
                 if actual_reasoning_effort is not None:
                     turn_kwargs["effort"] = actual_reasoning_effort
-                if client_user_message_id is not None:
-                    turn_kwargs["client_user_message_id"] = client_user_message_id
                 result = managed.session.run_turn(
                     **turn_kwargs,
                 )
@@ -1536,15 +1535,10 @@ def run_codex_local_chat(
                 turn_kwargs = {
                     "thread_id": thread_id,
                     "input_items": input_items,
-                    "output_schema": output_schema,
-                    "cancel_event": cancel_event,
-                    "budget": budget,
-                    **_guide_turn_options(guide_context),
+                    **turn_options,
                 }
                 if actual_reasoning_effort is not None:
                     turn_kwargs["effort"] = actual_reasoning_effort
-                if client_user_message_id is not None:
-                    turn_kwargs["client_user_message_id"] = client_user_message_id
                 result = session.run_turn(**turn_kwargs)
         finally:
             budget.finish_compaction()
