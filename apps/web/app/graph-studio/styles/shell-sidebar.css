@@ -347,3 +347,26 @@
   background: var(--graph-accent);
   outline: none;
 }
+
+/* Storage restoration is a full-page gate, not the editor's rail/canvas grid. */
+.graph-storage-restore {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  overflow: auto;
+}
+
+.graph-storage-restore button {
+  min-height: 42px;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--graph-border);
+  border-radius: 8px;
+  background: var(--graph-panel-raised);
+  color: var(--graph-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.graph-storage-restore button:hover,
+.graph-storage-restore button:focus-visible {
+  border-color: var(--graph-accent);
+}

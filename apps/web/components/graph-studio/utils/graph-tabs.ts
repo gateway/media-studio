@@ -280,9 +280,6 @@ function graphTabSessionPayload(
 export function writeGraphTabSession(scope: string | null | undefined, activeTabId: string, tabs: GraphWorkspaceTab[]): void {
   if (typeof window === "undefined") return;
   const storageKey = graphTabsStorageKey(scope);
-  if (scope) {
-    window.localStorage.removeItem(GRAPH_TABS_STORAGE_KEY);
-  }
   const variants: GraphTabWriteVariant[] = [
     { maxTabs: GRAPH_TABS_MAX_RESTORABLE_TABS, keepConsoleLines: true, keepInactiveConsoleLines: true },
     { maxTabs: 6, keepConsoleLines: true, keepInactiveConsoleLines: false },

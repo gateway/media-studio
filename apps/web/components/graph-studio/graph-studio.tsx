@@ -1,5 +1,7 @@
 "use client";
 
+import { GraphStorageRestore } from "./graph-storage-restore";
+
 import {
   useCallback,
   useEffect,
@@ -171,12 +173,21 @@ export function GraphStudio() {
   }
   return (
     <ReactFlowProvider>
-      <GraphStudioClient />
+      <GraphStudioStorage />
     </ReactFlowProvider>
   );
 }
 
-function GraphStudioClient() {
+function GraphStudioStorage() {
+  const tabState = useGraphTabs();
+  if (!tabState.storageScope) {
+    return <GraphStorageRestore choices={tabState.storageChoices} onChoose={tabState.chooseStorageScope}
+      error={tabState.storageRestoreError} onRetry={tabState.retryStorageRestore} canRetry={tabState.canRetryStorageRestore} />;
+  }
+  return <GraphStudioClient tabState={tabState} />;
+}
+
+function GraphStudioClient({ tabState }: { tabState: ReturnType<typeof useGraphTabs> }) {
   const { screenToFlowPosition } = useReactFlow<StudioNode, StudioEdge>();
   const graphFixture = useMemo(() => graphStudioFixtureKind(), []);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
@@ -197,7 +208,7 @@ function GraphStudioClient() {
     closeTab,
     closeOtherTabs,
     switchTab,
-  } = useGraphTabs();
+  } = tabState;
   const [run, setRun] = useState<GraphRun | null>(null);
   const [workflowUpdatedAt, setWorkflowUpdatedAt] = useState<string | null>(
     null,

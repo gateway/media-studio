@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { GraphWorkspaceTab } from "../types";
-import { readGraphStartup } from "../utils/graph-startup-reads";
+import { rememberGraphStorageBinding, resolveGraphStorageIdentity, type GraphStorageBinding, type GraphStorageChoice } from "../utils/graph-storage-identity";
 import {
   applyGraphTabSnapshot,
   blankGraphWorkflowPayload,
@@ -9,6 +9,7 @@ import {
   graphTabOpenWorkflowTarget,
   readGraphTabSession,
   type GraphTabSnapshot,
+  type GraphTabSessionState,
   writeGraphTabSession,
 } from "../utils/graph-tabs";
 
@@ -29,16 +30,6 @@ function newTab(name = "New workflow"): GraphWorkspaceTab {
 
 function newTabFromSnapshot(snapshot: GraphTabSnapshot): GraphWorkspaceTab {
   return applyGraphTabSnapshot(newTab(snapshot.workflowName), snapshot);
-}
-
-async function graphTabStorageScope(): Promise<string> {
-  try {
-    const payload = await readGraphStartup<{ install_id?: unknown }>("/api/control/health");
-    const installId = typeof payload.install_id === "string" ? payload.install_id.trim() : "";
-    return installId || "default";
-  } catch {
-    return "default";
-  }
 }
 
 function requestedGraphRestoreParamsFromLocation(): { tabId: string | null; assistantSessionId: string | null } {
@@ -68,6 +59,18 @@ function clearRequestedGraphRestoreParamsFromLocation() {
   }
 }
 
+function restoreTabSelection(restored: GraphTabSessionState) {
+  const requested = requestedGraphRestoreParamsFromLocation();
+  const requestedTab = restored.tabs.find((tab) => tab.tab_id === requested.tabId);
+  const activeTabId = requestedTab?.tab_id ?? restored.active_tab_id;
+  const tabs = requested.assistantSessionId
+    ? restored.tabs.map((tab) => tab.tab_id === activeTabId
+      ? { ...tab, assistant_session_id: requested.assistantSessionId } : tab)
+    : restored.tabs;
+  clearRequestedGraphRestoreParamsFromLocation();
+  return { tabs, activeTabId };
+}
+
 export function useGraphTabs() {
   const initial = (() => {
     const tab = newTab("New workflow");
@@ -76,8 +79,22 @@ export function useGraphTabs() {
   const tabMutationVersionRef = useRef(0);
   const [tabs, setTabs] = useState<GraphWorkspaceTab[]>(initial.tabs);
   const [activeTabId, setActiveTabId] = useState(initial.active_tab_id);
+  const initialActiveTabId = useRef(activeTabId);
   const [sessionRestored, setSessionRestored] = useState(Boolean(initial.restored));
   const [storageScope, setStorageScope] = useState<string | null>(null);
+  const [storageRestoreError, setStorageRestoreError] = useState<string | null>(null);
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
+  const [storageChoices, setStorageChoices] = useState<GraphStorageChoice[]>([]);
+  const [selectedBinding, setSelectedBinding] = useState<GraphStorageBinding | null>(null);
+  const chooseStorageScope = useCallback((scope: string) => {
+    const choice = storageChoices.find((item) => item.scope === scope);
+    if (choice && tabMutationVersionRef.current === 0) setSelectedBinding({ installId: choice.installId, scope: choice.scope });
+  }, [storageChoices]);
+  const retryStorageRestore = useCallback(() => {
+    if (tabMutationVersionRef.current !== 0) return;
+    setStorageRestoreError(null);
+    setRestoreAttempt((attempt) => attempt + 1);
+  }, []);
   const markTabsMutated = useCallback(() => {
     tabMutationVersionRef.current += 1;
   }, []);
@@ -85,46 +102,55 @@ export function useGraphTabs() {
   useEffect(() => {
     let cancelled = false;
     const restoreVersion = tabMutationVersionRef.current;
-    void graphTabStorageScope().then((scope) => {
+    const resolution = selectedBinding
+      ? Promise.resolve({ binding: selectedBinding, choices: [] })
+      : resolveGraphStorageIdentity(restoreAttempt > 0);
+    void resolution.then(({ binding, choices }) => {
       if (cancelled) return;
-      const restored = readGraphTabSession(scope);
-      setStorageScope(scope);
-      if (tabMutationVersionRef.current !== restoreVersion) {
-        setSessionRestored(false);
+      setStorageChoices(choices);
+      if (choices.length) return;
+      if (!binding) {
+        setStorageRestoreError("Connect to Media Studio to restore your workflows. Existing drafts have not been changed.");
         return;
       }
+      const scope = binding.scope;
+      const restored = readGraphTabSession(scope);
+      if (tabMutationVersionRef.current !== restoreVersion) {
+        setSessionRestored(false);
+        setStorageRestoreError("The workspace changed before restoration completed. Stored drafts have not been overwritten.");
+        return;
+      }
+      // Persist the binding before allowing any draft writes.
+      if (!rememberGraphStorageBinding(binding)) {
+        setStorageRestoreError("Browser storage is unavailable. Enable storage and retry to restore your workflows.");
+        return;
+      }
+      setStorageScope(scope);
+      setStorageRestoreError(null);
       if (restored) {
-        const requested = requestedGraphRestoreParamsFromLocation();
-        const requestedTab = requested.tabId ? restored.tabs.find((tab) => tab.tab_id === requested.tabId) : null;
-        const nextActiveTabId = requestedTab?.tab_id ?? restored.active_tab_id;
-        const tabsWithAssistantSession = requested.assistantSessionId
-          ? restored.tabs.map((tab) =>
-              tab.tab_id === nextActiveTabId
-                ? { ...tab, assistant_session_id: requested.assistantSessionId }
-                : tab,
-            )
-          : restored.tabs;
-        setTabs(tabsWithAssistantSession);
-        setActiveTabId(nextActiveTabId);
-        if (requested.tabId || requested.assistantSessionId) clearRequestedGraphRestoreParamsFromLocation();
+        const selection = restoreTabSelection(restored);
+        setTabs(selection.tabs);
+        setActiveTabId(selection.activeTabId);
         setSessionRestored(Boolean(restored.restored));
       } else {
         const requested = requestedGraphRestoreParamsFromLocation();
         if (requested.assistantSessionId) {
           setTabs((current) =>
             current.map((tab) =>
-              tab.tab_id === activeTabId ? { ...tab, assistant_session_id: requested.assistantSessionId } : tab,
+              tab.tab_id === initialActiveTabId.current ? { ...tab, assistant_session_id: requested.assistantSessionId } : tab,
             ),
           );
           clearRequestedGraphRestoreParamsFromLocation();
         }
         setSessionRestored(false);
       }
+    }).catch(() => {
+      if (!cancelled) setStorageRestoreError("Workflows could not be restored. Existing drafts have not been changed. Please retry.");
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [restoreAttempt, selectedBinding]);
 
   useEffect(() => {
     if (!storageScope) return;
@@ -243,5 +269,5 @@ export function useGraphTabs() {
     return tabs.find((tab) => tab.tab_id === tabId) ?? null;
   }, [markTabsMutated, tabs]);
 
-  return { tabs, activeTabId, sessionRestored, storageScope, updateTab, updateActiveTab, updateTabAssistantSession, openBlankTab, openWorkflowTab, closeTab, closeOtherTabs, switchTab };
+  return { tabs, activeTabId, sessionRestored, storageScope, storageChoices, chooseStorageScope, storageRestoreError, retryStorageRestore, canRetryStorageRestore: tabMutationVersionRef.current === 0, updateTab, updateActiveTab, updateTabAssistantSession, openBlankTab, openWorkflowTab, closeTab, closeOtherTabs, switchTab };
 }
