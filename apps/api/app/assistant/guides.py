@@ -5,8 +5,9 @@ import hashlib
 import json
 from typing import Any
 
+from pydantic import BaseModel, Field
+
 from . import prompt_assets
-from .kernel_tools import kernel_tool_catalog
 from .tool_limits import compact_tool_catalog
 
 
@@ -35,6 +36,7 @@ class TurnGuideContext:
         self._tools: dict[str, dict[str, Any]] = {}
 
     def load(self, guide_id: str) -> dict[str, Any]:
+        from .kernel_tools import kernel_tool_catalog
         if guide_id not in prompt_assets.KERNEL_CAPABILITY_PROMPTS:
             return _error("unknown_guide", "Choose a supported application guide ID; paths and source text are not accepted.")
         if guide_id in self._guides:
@@ -56,6 +58,12 @@ class TurnGuideContext:
         self._guides, self._tools = guides, merged_tools
         return self._reference(guide_id)
 
+    def versions(self) -> dict[str, str]:
+        return {guide_id: guide["version"] for guide_id, guide in self._guides.items()}
+
+    def assets(self) -> list[str]:
+        return [prompt_assets.KERNEL_CAPABILITY_PROMPTS[guide_id] for guide_id in self._guides]
+
     def _reference(self, guide_id: str) -> dict[str, Any]:
         guide = self._guides[guide_id]
         return {"guide_id": guide_id, "version": guide["version"],
@@ -74,3 +82,42 @@ class TurnGuideContext:
             return {}
         return {"media_studio_guides": {"kind": "application",
                 "value": _encoded(self._payload(self._guides, self._tools))}}
+
+
+class LoadApplicationGuideArguments(BaseModel):
+    guide_id: str = Field(min_length=1, max_length=64, description="One fixed capability guide ID from the application index; never a path or source text.")
+
+
+def load_application_guide(arguments: LoadApplicationGuideArguments, context: Any) -> dict[str, Any]:
+    from .kernel_tools import KernelToolFailure
+
+    if context.guide_context is None:
+        raise KernelToolFailure(code="guide_loader_unavailable", message="This turn already uses the full application guidance.")
+    result = context.guide_context.load(arguments.guide_id)
+    if "error" in result:
+        raise KernelToolFailure(**result["error"])
+    return result
+
+
+def guide_trace_context(context: TurnGuideContext | None) -> dict[str, Any]:
+    if context is None:
+        return {}
+    fragments = context.application_context()
+    return {"guide_versions": context.versions(),
+            "guide_context_bytes": sum(len(fragment["value"].encode("utf-8")) for fragment in fragments.values())}
+
+
+def loaded_guide_versions(steps: Any) -> dict[str, str]:
+    return {guide_id: version for step in steps for guide_id, version in step.guide_versions.items()}
+
+
+def restore_guide_checkpoint(context: TurnGuideContext | None, checkpoint: Any) -> Any:
+    if context is None or not checkpoint:
+        return checkpoint
+    versions = checkpoint.get("guide_versions") or {}
+    restored = {guide_id: context.load(guide_id).get("version") for guide_id in versions}
+    if restored == versions:
+        return checkpoint
+    # Keep the exact request/artifact owners, but refresh evidence tied to older contracts.
+    return {**checkpoint, "messages": [], "tool_evidence": [],
+            "remaining": "Application guidance changed. Refresh the required evidence before continuing."}

@@ -12,6 +12,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 class AssistantGuideTests(unittest.TestCase):
+    def test_checkpoint_reuses_current_guides_but_discards_evidence_after_version_change(self):
+        from app.assistant.guides import TurnGuideContext, restore_guide_checkpoint
+
+        first = TurnGuideContext()
+        first.load("story_builder")
+        checkpoint = {"guide_versions": first.versions(), "messages": [{"role": "tool", "content": "exact evidence"}], "tool_evidence": [{"version": "old"}], "request": "Keep all six shots."}
+        restored = TurnGuideContext()
+        self.assertEqual(restore_guide_checkpoint(restored, checkpoint), checkpoint)
+        self.assertEqual(restored.versions(), first.versions())
+        stale = {**checkpoint, "guide_versions": {"story_builder": "old-version"}}
+        refreshed = restore_guide_checkpoint(TurnGuideContext(), stale)
+        self.assertEqual(refreshed["messages"], [])
+        self.assertEqual(refreshed["tool_evidence"], [])
+        self.assertEqual(refreshed["request"], "Keep all six shots.")
+
     def test_known_guide_bundles_only_its_registered_contracts(self):
         from app.assistant.guides import TurnGuideContext
 

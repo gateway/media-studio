@@ -21,7 +21,7 @@ def _persist(session: dict[str, Any], recovery: dict[str, Any]) -> dict[str, Any
     return stored
 
 
-def record_planning_recovery(*, session, workflow, canvas_context, request, attachments, traces, messages, reason, prior=None, remaining=None):
+def record_planning_recovery(*, session, workflow, canvas_context, request, attachments, traces, messages, reason, prior=None, remaining=None, guide_versions=None):
     if workflow is None or not canvas_context.get("workspace_key"):
         return None
     prior = prior or {}
@@ -35,6 +35,7 @@ def record_planning_recovery(*, session, workflow, canvas_context, request, atta
         "completed": list(dict.fromkeys([*(prior.get("completed") or []), *[trace.activity.label if trace.activity else trace.tool_name for trace in traces if trace.error is None]])),
         "errors": [trace.error.model_dump(mode="json") for trace in traces if trace.error],
         "messages": messages,
+        "guide_versions": guide_versions,
         "tool_evidence": [*(prior.get("tool_evidence") or []), *[trace.evidence for trace in traces if trace.evidence]][-12:],
         "remaining": remaining or "Finish the graph proposal and validate its inputs and estimate. Review before applying or running.",
     }

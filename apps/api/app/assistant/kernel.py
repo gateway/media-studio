@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 from threading import Event
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -47,6 +48,7 @@ from .schemas import (
     AssistantKernelTurnResult,
     AssistantNextAction,
 )
+from .guides import TurnGuideContext, guide_trace_context, loaded_guide_versions, restore_guide_checkpoint
 from .completion import terminal_artifact_reply
 from .story_kernel import format_story_shot_list_reply
 
@@ -160,9 +162,10 @@ def _sync_kernel_prompt_thread(
     return session
 
 
-def _kernel_instruction() -> str:
+def _kernel_instruction(*, selective: bool = False) -> str:
     from .tool_limits import compact_tool_catalog
-    catalog = compact_tool_catalog(kernel_tool_catalog())
+    tools = kernel_tool_catalog()
+    catalog = compact_tool_catalog([tool for tool in tools if tool["name"] == "load_application_guide"] if selective else tools)
     return (
         "Select exactly one Media Assistant capability and one artifact_intent from the semantic request. Use "
         "quality_decision when the user approves, continues refining, or stops after an active output comparison. "
@@ -283,7 +286,28 @@ def _kernel_instruction() -> str:
         f"Capabilities: {', '.join(KERNEL_CAPABILITY_PROMPTS)}\n"
         f"Allowed artifact intents: {json.dumps({key: sorted(value) for key, value in KERNEL_ARTIFACT_INTENTS.items()}, separators=(',', ':'))}\n"
         f"Tools: {json.dumps(catalog, separators=(',', ':'))}"
+        + ("\nBefore using task tools, call load_application_guide with the selected capability ID. "
+           "The application supplies trusted guidance and complete contracts separately from untrusted tool evidence. "
+           "Select the correct capability and artifact_intent before loading and keep both unchanged. "
+           "Additional guides provide knowledge only. Use only contracts supplied by the application. "
+           "Answer simple general advice directly when no state or task tools are needed. "
+           "If a required guide fails to load, resolve the recoverable error or explain the blocker; do not invent tools."
+           if selective else "")
     )
+
+
+def _kernel_turn_context():
+    # Temporary rollout fallback, owned for retirement by CL-005. Never widens scope.
+    eager = os.getenv("MEDIA_STUDIO_ASSISTANT_EAGER_CONTEXT", "") == "1"
+    assembly = assistant_thread_prompt_assembly(
+        tuple(KERNEL_CAPABILITY_PROMPTS.values()) if eager else (),
+        developer_addendum=_kernel_instruction(selective=not eager),
+    )
+    return assembly, None if eager else TurnGuideContext()
+
+
+def _loaded_kernel_assets(assembly, context):
+    return list(dict.fromkeys([*assembly.loaded_assets, *(context.assets() if context else [])]))
 
 
 def _kernel_input_message(
@@ -822,6 +846,7 @@ def run_kernel_provider_step(
                 client_user_message_id=(
                     str(result.get("client_user_message_id") or "").strip() or None
                 ),
+                **guide_trace_context(guide_context),
                 compaction=(
                     dict(result.get("compaction"))
                     if isinstance(result.get("compaction"), dict)
@@ -932,10 +957,8 @@ def run_assistant_kernel_turn(
         )
     selected_capability: AssistantKernelCapability | None = None
     selected_artifact_intent: AssistantArtifactIntent | None = None
-    thread_assembly = assistant_thread_prompt_assembly(
-        tuple(KERNEL_CAPABILITY_PROMPTS.values()),
-        developer_addendum=_kernel_instruction(),
-    )
+    thread_assembly, guide_context = _kernel_turn_context()
+    planning_checkpoint = restore_guide_checkpoint(guide_context, planning_checkpoint)
     session = _sync_kernel_prompt_thread(session, thread_assembly)
     messages: List[Dict[str, Any]] = [
         _kernel_user_turn_message(
@@ -954,7 +977,7 @@ def run_assistant_kernel_turn(
         ))
     checkpoint_messages: List[Dict[str, Any]] = list((planning_checkpoint or {}).get("messages") or [])
     messages.extend(checkpoint_messages)
-    loaded_prompt_assets: List[str] = list(thread_assembly.loaded_assets)
+    loaded_prompt_assets: List[str] = _loaded_kernel_assets(thread_assembly, guide_context)
     provider_lifecycle: List[str] = []
     reset_reason = (session.get("state_snapshot_json") or {}).get("provider_thread_reset_reason")
     if not session.get("provider_thread_id") and reset_reason:
@@ -977,7 +1000,7 @@ def run_assistant_kernel_turn(
             recovery = record_planning_recovery(
                 session=session, workflow=workflow, canvas_context=canvas_context,
                 request=(planning_checkpoint or {}).get("request", user_text), attachments=list(attachments or []),
-                traces=tool_traces, messages=checkpoint_messages, reason=reason, prior=planning_checkpoint, remaining="The same operation or policy error repeated without progress.",
+                traces=tool_traces, messages=checkpoint_messages, reason=reason, prior=planning_checkpoint, guide_versions=loaded_guide_versions(provider_steps), remaining="The same operation or policy error repeated without progress.",
             )
         return AssistantKernelTurnResult(
             reply="Planning stopped because the same operation repeated without progress. "
@@ -1032,6 +1055,7 @@ def run_assistant_kernel_turn(
                 reasoning_effort=_kernel_reasoning_effort(selected_capability, tool_traces),
                 client_user_message_id=f"{client_user_message_id}:{provider_call_index}" if client_user_message_id else None,
                 compact_before_turn=provider_call_index == 1, on_compaction=on_compaction,
+                guide_context=guide_context,
             )
             if is_cancelled(cancel_event):
                 raise AssistantRequestCancelled("Assistant kernel turn was cancelled.", outcome="cancelled_after_provider")
@@ -1176,11 +1200,13 @@ def run_assistant_kernel_turn(
                         cancel_event=cancel_event,
                         timeout_seconds=None,
                         provider_steps=provider_steps,
+                        guide_context=guide_context,
                     ),
                 )
             except AssistantRequestCancelled as exc:
                 preserve_failure(exc)
                 raise
+            loaded_prompt_assets[:] = _loaded_kernel_assets(thread_assembly, guide_context)
             tool_steps += 1
             tool_traces.append(execution.trace)
             session_id = str(session.get("assistant_session_id") or "")

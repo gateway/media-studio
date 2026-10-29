@@ -1,5 +1,7 @@
 """Direct unittest only: database/network denied before app imports; no pytest collection."""
 import sys
+import json
+import os
 import unittest
 from contextlib import ExitStack
 from pathlib import Path
@@ -68,6 +70,45 @@ class CommunicationTests(unittest.TestCase):
         return SimpleNamespace(result=result, trace=self.schemas.AssistantKernelToolTrace(
             tool_name=name, arguments_hash='mock', duration_ms=1, result_size_bytes=100,
             activity={'kind': 'graph_check', 'label': 'Prepared graph changes for review', 'tone': 'error' if error else 'success'}, error=error))
+
+    def test_simple_advice_bootstrap_excludes_task_guides(self):
+        result = self.run_turn({'capability': 'general', 'artifact_intent': 'none',
+                                'reply': 'A Prompt Recipe shapes text; a Media Preset packages reusable media settings.'})
+        self.assertEqual(result.trace.loaded_prompt_assets, list(self.assets.SHARED_PROMPT_ASSETS))
+
+    def test_selective_bootstrap_exposes_only_loader_and_eager_fallback_is_explicit(self):
+        assembly, guides = self.kernel._kernel_turn_context()
+        catalog, _ = json.JSONDecoder().raw_decode(assembly.developer_instructions.split('Tools: ', 1)[1])
+        self.assertEqual([tool['name'] for tool in catalog['tools']], ['load_application_guide'])
+        self.assertEqual(guides.versions(), {})
+        with patch.dict(os.environ, {'MEDIA_STUDIO_ASSISTANT_EAGER_CONTEXT': '1'}):
+            eager, eager_guides = self.kernel._kernel_turn_context()
+        self.assertIsNone(eager_guides)
+        self.assertEqual(set(eager.loaded_assets), {*self.assets.SHARED_PROMPT_ASSETS, *self.kernel.KERNEL_CAPABILITY_PROMPTS.values()})
+
+    def test_story_request_loads_trusted_guide_and_finishes_typed_story_without_graph(self):
+        k = self.kernel
+        state = {'premise': 'A courier finds a lost parcel.', 'shots': [
+            {'shot_number': i, 'story_beat': f'Parcel beat {i}', 'prompt': f'Exact panel {i}',
+             'camera': 'Close-up' if i == 2 else 'Wide shot'} for i in range(1, 7)]}
+        steps = [
+            {'capability': 'story_builder', 'artifact_intent': 'update_story',
+             'tool_call': {'name': 'load_application_guide', 'arguments': '{"guide_id":"story_builder"}'}},
+            {'capability': 'story_builder', 'artifact_intent': 'update_story',
+             'tool_call': {'name': 'update_story_state', 'arguments': json.dumps({'state': state, 'update_kind': 'shot_list'})}},
+        ]
+        session = {'assistant_session_id': 'selective-story', 'provider_kind': 'codex_local', 'summary_json': {}}
+        with patch.object(k, '_sync_kernel_prompt_thread', side_effect=lambda value, _: value), patch.object(k, '_kernel_session_context', return_value={}), patch.object(k, 'resolve_assistant_provider_runtime', return_value=SimpleNamespace(provider_kind='codex_local')), patch.object(k, 'run_kernel_provider_step', side_effect=steps) as provider, patch.object(k.store_assistant, 'get_assistant_session', side_effect=lambda _: session), patch.object(k.store_assistant, 'create_or_update_assistant_session', side_effect=lambda value: value):
+            result = k.run_assistant_kernel_turn(session=session, user_text='Plan six panels; panel 2 is a close-up. Do not build or generate.', workflow=None, canvas_context={}, assistant_mode=None)
+        story = next(artifact.data['state'] for artifact in result.artifacts if artifact.kind == 'story_state')
+        self.assertEqual(len(story['shots']), 6)
+        self.assertEqual(story['shots'][1]['camera'], 'Close-up')
+        self.assertEqual(result.next_action.kind, 'none')
+        self.assertEqual(provider.call_count, 2)
+        self.assertEqual(set(result.trace.loaded_prompt_assets), {*self.assets.SHARED_PROMPT_ASSETS, k.KERNEL_CAPABILITY_PROMPTS['story_builder']})
+        calls = provider.call_args_list
+        self.assertEqual(calls[0].kwargs['thread_developer_instructions'], calls[1].kwargs['thread_developer_instructions'])
+        self.assertEqual(calls[1].kwargs['guide_context'].versions().keys(), {'story_builder'})
 
     def test_advice_and_satisfaction_do_not_create_actions_or_tools(self):
         for request, reply, state in [('Should I keep the existing framing?', 'Keep the 4:3 framing to preserve the composition.', 'unknown'), ('That is good enough.', 'The prepared direction is ready when you need it.', 'satisfied')]:

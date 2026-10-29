@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 
 from fastapi import HTTPException
 
+from .guides import loaded_guide_versions
 from .. import store, store_assistant
 from .cancellation import AssistantRequestCancelled, AssistantSessionBusy, track_session
 from .kernel import run_assistant_kernel_turn
@@ -296,6 +297,7 @@ def _create_tracked_kernel_message(
                 **summary,
                 "kernel_provider_usage": latest_usage or summary.get("kernel_provider_usage"),
                 "kernel_capability": result.capability,
+                "kernel_guide_versions": loaded_guide_versions(result.trace.provider_steps),
                 "kernel_proposal_id": result.next_action.proposal_id
                 or summary.get("kernel_proposal_id"),
                 "kernel_run_confirmation": run_confirmation,
