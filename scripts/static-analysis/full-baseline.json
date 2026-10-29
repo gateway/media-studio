@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "CL-002 delivery fix reviewed: reanchor four unchanged Codex transport-context clone identities; 274 pairs and 19861 tokens unchanged",
+  "reason": "CL-002 native context fix reviewed: reanchor one unchanged kernel clone pair, 58 tokens and 15 lines; all metrics and 274 pairs unchanged",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -1640,6 +1640,26 @@
       "format": "python"
     },
     {
+      "id": "4ba3ae24663b1fdd49be84edaa2e822c38484811cc59cdb885b63de286bc89cc",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/kernel.py",
+          "start": 1457,
+          "end": 1471,
+          "context": "af55edcf8f0fb271e35d45b29608a2da97cef40ad4631a9a4cf49551e9ab49ca"
+        },
+        {
+          "file": "apps/api/app/assistant/kernel.py",
+          "start": 1327,
+          "end": 1341,
+          "context": "e4ba94b62b2ed7f3f1e3630c4eefd4ebc2b998cc2719d4fb693a2163cdf07247"
+        }
+      ],
+      "tokens": 58,
+      "lines": 15,
+      "format": "python"
+    },
+    {
       "id": "4bbf1d9d0b85c44e15abfe216239df7f34c3ac22412cd74957e619808fee3a51",
       "endpoints": [
         {
@@ -1778,26 +1798,6 @@
       "tokens": 56,
       "lines": 8,
       "format": "typescript"
-    },
-    {
-      "id": "519a71b89b7bd1ca2e40c4d332eed040e99175beb0aeb2388ecd66d69c79f612",
-      "endpoints": [
-        {
-          "file": "apps/api/app/assistant/kernel.py",
-          "start": 1456,
-          "end": 1470,
-          "context": "8205a2514640b824e7f44d325be7eef0718c8461a904b166373d1026adc808e0"
-        },
-        {
-          "file": "apps/api/app/assistant/kernel.py",
-          "start": 1326,
-          "end": 1340,
-          "context": "87a805f7568b352a46750ed68faf27e07bb7c8aecb62aed8ed84b729993d63ee"
-        }
-      ],
-      "tokens": 58,
-      "lines": 15,
-      "format": "python"
     },
     {
       "id": "52bffdb4cdf2f5a405a0eb57d31d1273c70690d0bc717cfea7f1b1755e1f219d",
