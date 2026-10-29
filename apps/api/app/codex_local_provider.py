@@ -771,6 +771,7 @@ class _CodexAppServerSession:
         self.proc: subprocess.Popen[str] | None = None
         self._next_request_id = 1
         self._stderr = ""
+        self._stdout_buffer = b""
 
     def __enter__(self) -> "_CodexAppServerSession":
         binary = codex_command_path()
@@ -1192,25 +1193,35 @@ class _CodexAppServerSession:
     def _read_message(self, timeout_seconds: float, *, allow_timeout: bool = False) -> Dict[str, Any] | None:
         if not self.proc or not self.proc.stdout:
             raise CodexLocalProviderError("Codex Local App Server is not running.")
-        fileno = self.proc.stdout.fileno()
-        readable, _, _ = select.select([fileno], [], [], max(timeout_seconds, 0.0))
-        if not readable:
-            if allow_timeout:
-                return None
-            raise CodexLocalProviderError("Codex Local App Server did not respond.")
-        line = self.proc.stdout.readline()
-        if not line:
-            stderr_output = ""
-            if self.proc.stderr:
-                stderr_output = self.proc.stderr.read().strip()
-            raise CodexLocalProviderError(_clean_codex_error_message(stderr_output) or "Codex Local App Server closed unexpectedly.")
+        line = self._read_stdout_line(timeout_seconds, allow_timeout=allow_timeout)
+        if line is None:
+            return None
         try:
             parsed = json.loads(line)
-        except json.JSONDecodeError as exc:
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise CodexLocalProviderError("Codex Local App Server returned invalid JSON.") from exc
         if not isinstance(parsed, dict):
             raise CodexLocalProviderError("Codex Local App Server returned an invalid message.")
         return parsed
+
+    def _read_stdout_line(self, timeout_seconds: float, *, allow_timeout: bool) -> bytes | None:
+        # TextIO.readline can prefetch several messages and leave the OS pipe empty.
+        # Own the byte buffer so queued terminal events never wait for another write.
+        fileno = self.proc.stdout.fileno()
+        deadline = time.monotonic() + max(timeout_seconds, 0.0)
+        while b"\n" not in self._stdout_buffer:
+            readable, _, _ = select.select([fileno], [], [], max(deadline - time.monotonic(), 0.0))
+            if not readable:
+                if allow_timeout:
+                    return None
+                raise CodexLocalProviderError("Codex Local App Server did not respond.")
+            chunk = os.read(fileno, 65536)
+            if not chunk:
+                stderr_output = self.proc.stderr.read().strip() if self.proc.stderr else ""
+                raise CodexLocalProviderError(_clean_codex_error_message(stderr_output) or "Codex Local App Server closed unexpectedly.")
+            self._stdout_buffer += chunk
+        line, self._stdout_buffer = self._stdout_buffer.split(b"\n", 1)
+        return line
 
 
 def archive_codex_local_thread(*, session_key: str, thread_id: str) -> bool:
