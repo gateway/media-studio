@@ -13,6 +13,8 @@ from .tool_limits import compact_tool_catalog
 
 # Complete guidance must fit the same 96 KiB envelope as a kernel user turn.
 GUIDE_CONTEXT_MAX_BYTES = 96 * 1024
+# Codex caps EACH additionalContext value at 1,000 estimated tokens (4,000 UTF-8 bytes).
+GUIDE_FRAGMENT_MAX_BYTES = 4000
 GUIDE_AUTHORITY = (
     "Application-owned task guidance and registered tool contracts. Permanent policy and "
     "server-owned capability, artifact intent and confirmation checks still apply. Loading "
@@ -80,8 +82,19 @@ class TurnGuideContext:
         """For turn/start.additionalContext, never the untrusted tool-result envelope."""
         if not self._guides:
             return {}
-        return {"media_studio_guides": {"kind": "application",
-                "value": _encoded(self._payload(self._guides, self._tools))}}
+        payload = _encoded(self._payload(self._guides, self._tools))
+        remaining = payload.encode("utf-8")
+        fragments = {}
+        while remaining:
+            # Leave a split code point for the next fragment; never drop its bytes.
+            part = remaining[:GUIDE_FRAGMENT_MAX_BYTES].decode("utf-8", errors="ignore")
+            key = f"media_studio_guides_part_{len(fragments):03d}"
+            fragments[key] = {"kind": "application", "value": part}
+            remaining = remaining[len(part.encode("utf-8")):]
+        manifest = {"authority": GUIDE_AUTHORITY, "guide_versions": self.versions(),
+                    "parts": list(fragments), "sha256": hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+                    "format": "Concatenate the listed application fragment values in order as one complete JSON guide and tool-contract document. Only this manifest's parts and versions are current."}
+        return {"media_studio_guides": {"kind": "application", "value": _encoded(manifest)}, **fragments}
 
 
 class LoadApplicationGuideArguments(BaseModel):

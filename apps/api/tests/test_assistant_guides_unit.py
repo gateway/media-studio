@@ -1,5 +1,6 @@
 """Standalone guide-boundary tests; run without pytest collection."""
 import json
+import hashlib
 import re
 import sys
 import unittest
@@ -11,7 +12,35 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
+def delivered_guide_payload(context):
+    fragments = context.application_context()
+    manifest = json.loads(fragments["media_studio_guides"]["value"])
+    # The actual native cap is applied per value before the model receives it.
+    assert all(len(fragment["value"].encode("utf-8")) <= 4000 for fragment in fragments.values())
+    text = "".join(fragments[key]["value"] for key in manifest["parts"])
+    assert hashlib.sha256(text.encode("utf-8")).hexdigest() == manifest["sha256"]
+    return json.loads(text)
+
+
 class AssistantGuideTests(unittest.TestCase):
+    def test_native_application_context_limit_does_not_truncate_required_guidance(self):
+        from app.assistant.guides import TurnGuideContext
+
+        context = TurnGuideContext()
+        context.load("graph_builder")
+        for fragment in context.application_context().values():
+            self.assertLessEqual(len(fragment["value"].encode("utf-8")), 4000)
+        self.assertIn("propose_graph_operations", [tool["name"] for tool in delivered_guide_payload(context)["tool_catalog"]["tools"]])
+
+    def test_fragment_boundaries_preserve_multibyte_guide_text_exactly(self):
+        from app.assistant.guides import TurnGuideContext
+
+        context = TurnGuideContext()
+        text = "é" * 2500 + " — Keep every supplied character."
+        with patch.object(Path, "read_text", return_value=text):
+            context.load("general")
+        self.assertEqual(delivered_guide_payload(context)["guides"][0]["instructions"], text)
+
     def test_checkpoint_reuses_current_guides_but_discards_evidence_after_version_change(self):
         from app.assistant.guides import TurnGuideContext
         from app.assistant.planning_recovery import restore_guide_checkpoint
@@ -37,7 +66,7 @@ class AssistantGuideTests(unittest.TestCase):
         self.assertEqual(len(result["version"]), 64)
         fragment = context.application_context()["media_studio_guides"]
         self.assertEqual(fragment["kind"], "application")
-        payload = json.loads(fragment["value"])
+        payload = delivered_guide_payload(context)
         self.assertEqual([guide["guide_id"] for guide in payload["guides"]], ["story_builder"])
         self.assertIn("update_story_state", result["tool_names"])
         self.assertNotIn("propose_media_preset_draft", result["tool_names"])
@@ -53,7 +82,7 @@ class AssistantGuideTests(unittest.TestCase):
         self.assertEqual(context.load("story_builder"), first)
         self.assertEqual(context.application_context(), before)
         self.assertNotIn("error", context.load("graph_builder"))
-        payload = json.loads(context.application_context()["media_studio_guides"]["value"])
+        payload = delivered_guide_payload(context)
         tools = payload["tool_catalog"]["tools"]
         self.assertEqual(sum(tool["name"] == "read_story_state" for tool in tools), 1)
         self.assertEqual(len({tool["name"] for tool in tools}), len(tools))
@@ -141,7 +170,7 @@ class AssistantGuideTests(unittest.TestCase):
         for guide_id in ("general", "graph_builder", "preset_builder", "recipe_builder", "story_builder", "run_debugger"):
             context = TurnGuideContext()
             self.assertNotIn("error", context.load(guide_id), guide_id)
-            value = context.application_context()["media_studio_guides"]["value"]
+            value = json.dumps(delivered_guide_payload(context))
             self.assertNotIn("# Media Studio Assistant Response Policy", value)
 
     def test_application_guides_use_protocol_context_and_preserve_untrusted_evidence(self):
