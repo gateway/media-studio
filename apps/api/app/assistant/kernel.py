@@ -27,7 +27,7 @@ from .provenance import (
     workflow_fingerprint,
 )
 from .preset_approvals import record_preset_approvals
-from .planning_recovery import record_planning_recovery
+from .planning_recovery import record_planning_recovery, restore_guide_checkpoint
 from .prompt_assets import KERNEL_CAPABILITY_PROMPTS, assistant_thread_prompt_assembly
 from .provider_support import (
     AssistantProviderChatError,
@@ -48,7 +48,7 @@ from .schemas import (
     AssistantKernelTurnResult,
     AssistantNextAction,
 )
-from .guides import TurnGuideContext, guide_trace_context, loaded_guide_versions, restore_guide_checkpoint
+from .guides import TurnGuideContext, guide_trace_context, loaded_guide_versions
 from .completion import terminal_artifact_reply
 from .story_kernel import format_story_shot_list_reply
 
@@ -394,6 +394,7 @@ def _kernel_reasoning_effort(
     selected_capability: AssistantKernelCapability | None,
     tool_traces: List[Any],
 ) -> str:
+    tool_traces = [trace for trace in tool_traces if trace.tool_name != "load_application_guide"]
     if not tool_traces:
         return "medium"
     last_tool = tool_traces[-1].tool_name

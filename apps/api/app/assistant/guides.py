@@ -109,15 +109,3 @@ def guide_trace_context(context: TurnGuideContext | None) -> dict[str, Any]:
 
 def loaded_guide_versions(steps: Any) -> dict[str, str]:
     return {guide_id: version for step in steps for guide_id, version in step.guide_versions.items()}
-
-
-def restore_guide_checkpoint(context: TurnGuideContext | None, checkpoint: Any) -> Any:
-    if context is None or not checkpoint:
-        return checkpoint
-    versions = checkpoint.get("guide_versions") or {}
-    restored = {guide_id: context.load(guide_id).get("version") for guide_id in versions}
-    if restored == versions:
-        return checkpoint
-    # Keep the exact request/artifact owners, but refresh evidence tied to older contracts.
-    return {**checkpoint, "messages": [], "tool_evidence": [],
-            "remaining": "Application guidance changed. Refresh the required evidence before continuing."}

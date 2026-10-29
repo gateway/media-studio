@@ -13,7 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 class AssistantGuideTests(unittest.TestCase):
     def test_checkpoint_reuses_current_guides_but_discards_evidence_after_version_change(self):
-        from app.assistant.guides import TurnGuideContext, restore_guide_checkpoint
+        from app.assistant.guides import TurnGuideContext
+        from app.assistant.planning_recovery import restore_guide_checkpoint
 
         first = TurnGuideContext()
         first.load("story_builder")

@@ -75,3 +75,15 @@ def continue_planning(session, payload, attachments, invoke, cancel_event):
         complete = bool(plan and plan.get("assistant_session_id") == current["assistant_session_id"] and plan.get("status") == "validated")
         updated = _persist(updated, {**recovery, "id": secrets.token_urlsafe(24), "state": "completed" if complete else "offered"})
     return updated
+
+
+def restore_guide_checkpoint(context: Any, checkpoint: Any) -> Any:
+    if context is None or not checkpoint:
+        return checkpoint
+    versions = checkpoint.get("guide_versions") or {}
+    restored = {guide_id: context.load(guide_id).get("version") for guide_id in versions}
+    if restored == versions:
+        return checkpoint
+    # Keep the exact request/artifact owners, but refresh evidence tied to older contracts.
+    return {**checkpoint, "messages": [], "tool_evidence": [],
+            "remaining": "Application guidance changed. Refresh the required evidence before continuing."}

@@ -110,6 +110,16 @@ class CommunicationTests(unittest.TestCase):
         self.assertEqual(calls[0].kwargs['thread_developer_instructions'], calls[1].kwargs['thread_developer_instructions'])
         self.assertEqual(calls[1].kwargs['guide_context'].versions().keys(), {'story_builder'})
 
+    def test_loading_graph_guidance_keeps_the_existing_initial_reasoning_effort(self):
+        k = self.kernel
+        steps = [
+            {'capability': 'graph_builder', 'artifact_intent': 'none', 'tool_call': {'name': 'load_application_guide', 'arguments': '{"guide_id":"graph_builder"}'}},
+            {'capability': 'graph_builder', 'artifact_intent': 'none', 'reply': 'I can help plan the workflow.'},
+        ]
+        with patch.object(k, '_sync_kernel_prompt_thread', side_effect=lambda value, _: value), patch.object(k, '_kernel_session_context', return_value={}), patch.object(k, 'resolve_assistant_provider_runtime', return_value=SimpleNamespace(provider_kind='codex_local')), patch.object(k, 'run_kernel_provider_step', side_effect=steps) as provider:
+            k.run_assistant_kernel_turn(session={'summary_json': {}}, user_text='Explain the workflow planning options.', workflow=None, canvas_context={}, assistant_mode=None)
+        self.assertEqual([call.kwargs['reasoning_effort'] for call in provider.call_args_list], ['medium', 'medium'])
+
     def test_advice_and_satisfaction_do_not_create_actions_or_tools(self):
         for request, reply, state in [('Should I keep the existing framing?', 'Keep the 4:3 framing to preserve the composition.', 'unknown'), ('That is good enough.', 'The prepared direction is ready when you need it.', 'satisfied')]:
             with self.subTest(request=request):
