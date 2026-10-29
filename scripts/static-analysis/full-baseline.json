@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "CL-001 reviewed: 12 unchanged clone reanchors and required typed guide-context forwarding signature growth from 90 to 98 tokens; 274 pairs, no new executable duplicate blocks",
+  "reason": "CL-002 reviewed: reanchor exactly two unchanged kernel and kernel-tools/provenance clone pairs; 274 pairs and 19861 tokens unchanged",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -1100,26 +1100,6 @@
       "format": "css"
     },
     {
-      "id": "2bfeaef3f568b4c62dab65866853e71d554ada84a3f29db928f078c09aa4b989",
-      "endpoints": [
-        {
-          "file": "apps/api/app/assistant/kernel.py",
-          "start": 1299,
-          "end": 1313,
-          "context": "9dd2f504b4535ca3c828534cda2dcf827d11fe78ac9f4633dfecf0b979cb4d29"
-        },
-        {
-          "file": "apps/api/app/assistant/kernel.py",
-          "start": 1429,
-          "end": 1443,
-          "context": "f015e5fefd9b11f3aa938263820924b13996d21400f6f4d9b8735d08bdf51638"
-        }
-      ],
-      "tokens": 58,
-      "lines": 15,
-      "format": "python"
-    },
-    {
       "id": "2ca17d56a76df67af2ddd3a8a205c0819f8f399fa988a1db219fc26cc2e91a6d",
       "endpoints": [
         {
@@ -1800,6 +1780,26 @@
       "format": "typescript"
     },
     {
+      "id": "519a71b89b7bd1ca2e40c4d332eed040e99175beb0aeb2388ecd66d69c79f612",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/kernel.py",
+          "start": 1456,
+          "end": 1470,
+          "context": "8205a2514640b824e7f44d325be7eef0718c8461a904b166373d1026adc808e0"
+        },
+        {
+          "file": "apps/api/app/assistant/kernel.py",
+          "start": 1326,
+          "end": 1340,
+          "context": "87a805f7568b352a46750ed68faf27e07bb7c8aecb62aed8ed84b729993d63ee"
+        }
+      ],
+      "tokens": 58,
+      "lines": 15,
+      "format": "python"
+    },
+    {
       "id": "52bffdb4cdf2f5a405a0eb57d31d1273c70690d0bc717cfea7f1b1755e1f219d",
       "endpoints": [
         {
@@ -2396,26 +2396,6 @@
         }
       ],
       "tokens": 53,
-      "lines": 8,
-      "format": "python"
-    },
-    {
-      "id": "6ada4f429a3b4748bd885ade59b431db20cbac1d9e8006dcce0bc3b3318611bb",
-      "endpoints": [
-        {
-          "file": "apps/api/app/assistant/kernel_tools.py",
-          "start": 825,
-          "end": 832,
-          "context": "ccb39f98bbe40ef44880b8799291fb1b8a465d78df9b2d576f1cacc472c6c077"
-        },
-        {
-          "file": "apps/api/app/assistant/provenance.py",
-          "start": 141,
-          "end": 148,
-          "context": "1ab3584505fb499bba50fc2b07f9299bc55c8126602cda7132d398b7d691c150"
-        }
-      ],
-      "tokens": 51,
       "lines": 8,
       "format": "python"
     },
@@ -4138,6 +4118,26 @@
       "tokens": 53,
       "lines": 6,
       "format": "tsx"
+    },
+    {
+      "id": "ba384204d5de7bcb878eb14b6d683e9f7165bc6913c63805ec355ba3a141e9a6",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/kernel_tools.py",
+          "start": 829,
+          "end": 836,
+          "context": "9fcd5a1da7db58192ac3f9425d1846cb2e5e5665f015f8884c7c57fdc8892ac1"
+        },
+        {
+          "file": "apps/api/app/assistant/provenance.py",
+          "start": 141,
+          "end": 148,
+          "context": "1ab3584505fb499bba50fc2b07f9299bc55c8126602cda7132d398b7d691c150"
+        }
+      ],
+      "tokens": 51,
+      "lines": 8,
+      "format": "python"
     },
     {
       "id": "baa8f1c4b4ecaea31f66cb9279625b8d83234109a951b97b42dfcfc0e1a63874",
