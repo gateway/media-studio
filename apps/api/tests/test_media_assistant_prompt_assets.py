@@ -28,7 +28,7 @@ def test_thread_prompt_places_stable_assets_once_in_protocol_instructions() -> N
 
 
 def test_each_kernel_capability_loads_its_prompt_asset() -> None:
-    for capability, asset_path in KERNEL_CAPABILITY_PROMPTS.items():
+    for asset_path in KERNEL_CAPABILITY_PROMPTS.values():
         assembly = assistant_thread_prompt_assembly((asset_path,))
 
         assert prompt_asset(asset_path)
