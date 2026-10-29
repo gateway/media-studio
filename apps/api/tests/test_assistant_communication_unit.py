@@ -79,6 +79,66 @@ class CommunicationTests(unittest.TestCase):
                 self.assertEqual(result.trace.guidance.satisfaction_state, state)
                 self.assertNotIn('?', result.reply)
 
+    def test_supplemental_evidence_does_not_allow_a_mid_turn_capability_switch(self):
+        result = self.run_turn([
+            {'capability': 'story_builder', 'artifact_intent': 'none',
+             'tool_call': {'name': 'read_story_state', 'arguments': '{}'}},
+            {'capability': 'graph_builder', 'artifact_intent': 'none',
+             'tool_call': {'name': 'propose_graph_operations', 'arguments': '{}'}},
+            {'capability': 'story_builder', 'artifact_intent': 'none',
+             'reply': 'Here is the existing story; no workflow changes were prepared.'},
+        ], execution=self.execution('read_story_state', {'shots': []}))
+        # run_turn also asserts that only the first tool reached execution.
+        self.assertEqual(result.capability, 'story_builder')
+        self.assertEqual(result.next_action.kind, 'none')
+        self.assertEqual(result.artifacts, [])
+        self.assertEqual(result.trace.step_count, 1)
+
+    def test_active_session_rejects_another_turn_until_the_owner_exits(self):
+        p = self.progress
+        with p.track_session('context-baseline') as event:
+            with self.assertRaises(p.AssistantSessionBusy):
+                with p.track_session('context-baseline'):
+                    self.fail('A second turn must not take ownership')
+            self.assertTrue(p.cancel_session('context-baseline'))
+            self.assertTrue(event.is_set())
+            with self.assertRaises(p.AssistantSessionBusy):
+                with p.track_session('context-baseline'):
+                    self.fail('Cancellation does not release ownership early')
+        with p.track_session('context-baseline') as next_event:
+            self.assertFalse(next_event.is_set())
+
+    def test_stopped_turn_never_calls_provider_or_tools(self):
+        from threading import Event
+        k = self.kernel
+        event = Event()
+        event.set()
+        with patch.object(k, '_sync_kernel_prompt_thread', side_effect=lambda session, _: session), patch.object(k, '_kernel_session_context', return_value={}), patch.object(k, 'resolve_assistant_provider_runtime', return_value=SimpleNamespace(provider_kind='codex_local')), patch.object(k, 'run_kernel_provider_step') as provider, patch.object(k, 'execute_kernel_tool') as tool:
+            with self.assertRaises(self.progress.AssistantRequestCancelled):
+                k.run_assistant_kernel_turn(session={'assistant_session_id': 'stopped', 'summary_json': {}}, user_text='Explain this image.', workflow=None, canvas_context={}, assistant_mode=None, cancel_event=event)
+        provider.assert_not_called()
+        tool.assert_not_called()
+
+    def test_story_correction_preserves_other_shots_and_rejects_collateral_changes(self):
+        from app.assistant import story_kernel as owner
+        state = owner.KernelStoryState(premise='A courier finds a parcel.', shots=[
+            {'shot_number': i, 'story_beat': f'Beat {i}', 'prompt': f'Exact prompt {i}', 'camera': 'Close-up'}
+            for i in range(1, 4)
+        ])
+        session = {'assistant_session_id': 'story-fixture', 'summary_json': {'kernel_story_state': state.model_dump()}}
+        context = SimpleNamespace(session_id='story-fixture', session=session, user_text='Change only shot 2 to an overhead view.')
+        revised = state.model_copy(deep=True)
+        revised.shots[1].camera = 'Overhead'
+        with patch.object(owner.store_assistant, 'get_assistant_session', return_value=session), patch.object(owner.store_assistant, 'create_or_update_assistant_session', side_effect=lambda value: value) as save:
+            result = owner.update_story_state(owner.UpdateStoryStateArguments(state=revised, update_kind='shot_revision', revised_shot_numbers=[2]), context)
+            self.assertEqual(result['changed_shot_numbers'], [2])
+            self.assertEqual(result['state']['shots'][0], state.shots[0].model_dump())
+            self.assertEqual(result['state']['shots'][2], state.shots[2].model_dump())
+            revised.shots[0].prompt = 'Unrequested rewrite'
+            with self.assertRaises(owner.StoryKernelError):
+                owner.update_story_state(owner.UpdateStoryStateArguments(state=revised, update_kind='shot_revision', revised_shot_numbers=[2]), context)
+            self.assertEqual(save.call_count, 1)
+
     def test_narrow_edit_and_new_graph_keep_prepared_summary_and_exact_confirmation(self):
         for request, reply in [('Change only resolution to 2K.', 'Prepared the resolution change to 2K; the prompt and 4:3 framing are preserved.'), ('Prepare a new graph.', 'Prepared a prompt, image generator and preview for review.')]:
             with self.subTest(request=request):
