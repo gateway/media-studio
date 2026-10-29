@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "CL-002 reviewed: reanchor exactly two unchanged kernel and kernel-tools/provenance clone pairs; 274 pairs and 19861 tokens unchanged",
+  "reason": "CL-002 delivery fix reviewed: reanchor four unchanged Codex transport-context clone identities; 274 pairs and 19861 tokens unchanged",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -377,26 +377,6 @@
       ],
       "tokens": 60,
       "lines": 11,
-      "format": "python"
-    },
-    {
-      "id": "11da81bb92146277c66d23cd7bad8eef591dde1ce2062e066ca6f853ff443c69",
-      "endpoints": [
-        {
-          "file": "apps/api/app/codex_local_provider.py",
-          "start": 512,
-          "end": 520,
-          "context": "8cee010177dbe82c8bdcd246dab10478fe8aa2bbc3859ec273a9db2874affe8d"
-        },
-        {
-          "file": "apps/api/app/codex_local_provider.py",
-          "start": 1236,
-          "end": 1244,
-          "context": "9fdd0a73b5c34cf1e1a78b8364b756a732b727e56fab337e0c7335b0fedf9a59"
-        }
-      ],
-      "tokens": 88,
-      "lines": 9,
       "format": "python"
     },
     {
@@ -757,6 +737,26 @@
       ],
       "tokens": 60,
       "lines": 7,
+      "format": "python"
+    },
+    {
+      "id": "20375ae5cba872d5ecf20c506847f06e57ec83453429e0f16a65045773f6d66b",
+      "endpoints": [
+        {
+          "file": "apps/api/app/codex_local_provider.py",
+          "start": 1364,
+          "end": 1376,
+          "context": "605a28b1eb4a8716aae43ca60caa2b187ada0e5c522db6bb503a1de803a081a6"
+        },
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 712,
+          "end": 724,
+          "context": "b56405a17a30927b646fa7d0286dae8f6b2fd5046af9838fca43f3fe6d9ed5d6"
+        }
+      ],
+      "tokens": 98,
+      "lines": 13,
       "format": "python"
     },
     {
@@ -2400,6 +2400,26 @@
       "format": "python"
     },
     {
+      "id": "6b230a6092856deb3c5aaf8d25d56cba198b295c73a01dd62df555cfc211d887",
+      "endpoints": [
+        {
+          "file": "apps/api/app/codex_local_provider.py",
+          "start": 512,
+          "end": 520,
+          "context": "832855a0a08f159bcdfa3f00835f11a5f35bead8dd1d90c5eaf41ba4a3028ac9"
+        },
+        {
+          "file": "apps/api/app/codex_local_provider.py",
+          "start": 1247,
+          "end": 1255,
+          "context": "8a1e972c7ab9afd07648e638be4e5c5136e4e8025ab3ab8052cc5e6b3f39f94f"
+        }
+      ],
+      "tokens": 88,
+      "lines": 9,
+      "format": "python"
+    },
+    {
       "id": "6b5ead3f6d3e64dbfcd137e7af6e1dd0f55f2c6b9b8016adf1356b241ac19c34",
       "endpoints": [
         {
@@ -2597,26 +2617,6 @@
       ],
       "tokens": 89,
       "lines": 11,
-      "format": "python"
-    },
-    {
-      "id": "712c9558aa34c5cfb1358222a7f915295a6499f8c98878c22c20b1ea090d6027",
-      "endpoints": [
-        {
-          "file": "apps/api/app/codex_local_provider.py",
-          "start": 1353,
-          "end": 1365,
-          "context": "fce3b18838d5e6696c02ab76a89dd92962e6ca024e7db3aa6c98900cec894832"
-        },
-        {
-          "file": "apps/api/app/enhancement_provider.py",
-          "start": 712,
-          "end": 724,
-          "context": "b56405a17a30927b646fa7d0286dae8f6b2fd5046af9838fca43f3fe6d9ed5d6"
-        }
-      ],
-      "tokens": 98,
-      "lines": 13,
       "format": "python"
     },
     {
@@ -2957,26 +2957,6 @@
       ],
       "tokens": 51,
       "lines": 9,
-      "format": "python"
-    },
-    {
-      "id": "82763fa91b153f5902964f07077b4a381ddf58ec1bceee137a50e1600b98808b",
-      "endpoints": [
-        {
-          "file": "apps/api/app/codex_local_provider.py",
-          "start": 463,
-          "end": 477,
-          "context": "2768038ff2794cd11e1ef8fa86f73258056abf733336e4464fe4720c1f426bdb"
-        },
-        {
-          "file": "apps/api/app/codex_local_provider.py",
-          "start": 431,
-          "end": 445,
-          "context": "778b20e64fc0560994ec49bdeb6df2dff456a02412657e3b6a29ec8b34b866c6"
-        }
-      ],
-      "tokens": 55,
-      "lines": 15,
       "format": "python"
     },
     {
@@ -3780,6 +3760,26 @@
       "format": "typescript"
     },
     {
+      "id": "ae4a45970aff1dc1d3ee7aa2f1f75155b3e31dbc94304c04f402b3ecb8b131be",
+      "endpoints": [
+        {
+          "file": "apps/api/app/codex_local_provider.py",
+          "start": 1357,
+          "end": 1364,
+          "context": "14d79787540174a24b16da59ae7d00f5531672c1b346dbfd518eb064330a9212"
+        },
+        {
+          "file": "apps/api/app/enhancement_provider.py",
+          "start": 705,
+          "end": 712,
+          "context": "5396aa4eb85d38f554d6a2e11020e63d349e1f3b78223e705ca9e5ec171224a0"
+        }
+      ],
+      "tokens": 51,
+      "lines": 8,
+      "format": "python"
+    },
+    {
       "id": "ae8c92ffac280508e7f99769e2135a8f627acad732644cfd1d0cb3dbfb8a2793",
       "endpoints": [
         {
@@ -4157,26 +4157,6 @@
       ],
       "tokens": 79,
       "lines": 15,
-      "format": "python"
-    },
-    {
-      "id": "be53eaf2369b7472cb5009c89e32c5ffe8b42fd47977f1ee1280b66e7ed077d0",
-      "endpoints": [
-        {
-          "file": "apps/api/app/codex_local_provider.py",
-          "start": 1346,
-          "end": 1353,
-          "context": "bce12609e07d73bd30360f66d026e99b45314e9f9180b6a219603caa1407fa93"
-        },
-        {
-          "file": "apps/api/app/enhancement_provider.py",
-          "start": 705,
-          "end": 712,
-          "context": "5396aa4eb85d38f554d6a2e11020e63d349e1f3b78223e705ca9e5ec171224a0"
-        }
-      ],
-      "tokens": 51,
-      "lines": 8,
       "format": "python"
     },
     {
@@ -4757,6 +4737,26 @@
       ],
       "tokens": 69,
       "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "de26dfc6ed068fd20c7d389074d1f4ede2aad36414e8d3baf038687ddb9e851a",
+      "endpoints": [
+        {
+          "file": "apps/api/app/codex_local_provider.py",
+          "start": 431,
+          "end": 445,
+          "context": "13f86dfd13ac8f2a6f153df4150d2ee17e6adc43b54b67500dd66245c42e5947"
+        },
+        {
+          "file": "apps/api/app/codex_local_provider.py",
+          "start": 463,
+          "end": 477,
+          "context": "4dfc623cb4a5121c4ba59cf5596d5f4979fa19083de3d30ab6049f38f1da9a96"
+        }
+      ],
+      "tokens": 55,
+      "lines": 15,
       "format": "python"
     },
     {
