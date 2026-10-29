@@ -4,7 +4,7 @@ import hashlib
 import json
 import time
 from threading import Event
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from .graph_outcome import graph_confirmation_label
 from .. import enhancement_provider, external_llm_usage, store, store_assistant
@@ -27,7 +27,7 @@ from .provenance import (
 )
 from .preset_approvals import record_preset_approvals
 from .planning_recovery import record_planning_recovery
-from .prompt_assets import assistant_thread_prompt_assembly
+from .prompt_assets import KERNEL_CAPABILITY_PROMPTS, assistant_thread_prompt_assembly
 from .provider_support import (
     AssistantProviderChatError,
     assistant_codex_session_key,
@@ -51,16 +51,12 @@ from .completion import terminal_artifact_reply
 from .story_kernel import format_story_shot_list_reply
 
 
+if TYPE_CHECKING:
+    from .guides import TurnGuideContext
+
+
 KERNEL_USER_TURN_MAX_BYTES = 96 * 1024
 KERNEL_TOOL_INPUT_MAX_BYTES = KERNEL_TOOL_RESULT_MAX_BYTES + 4096
-KERNEL_CAPABILITY_PROMPTS: Dict[AssistantKernelCapability, str] = {
-    "general": "apps/api/app/assistant/prompts/skills/general_helper.md",
-    "graph_builder": "apps/api/app/assistant/prompts/skills/graph_workflow_builder.md",
-    "preset_builder": "apps/api/app/assistant/prompts/skills/media_preset_builder.md",
-    "recipe_builder": "apps/api/app/assistant/prompts/skills/prompt_recipe_builder.md",
-    "story_builder": "apps/api/app/assistant/prompts/skills/story_project.md",
-    "run_debugger": "apps/api/app/assistant/prompts/skills/run_debugger.md",
-}
 KERNEL_ARTIFACT_INTENTS: Dict[AssistantKernelCapability, frozenset[AssistantArtifactIntent]] = {
     "general": frozenset({"none", "display_image"}),
     "graph_builder": frozenset({"none", "display_image"}),
@@ -760,6 +756,7 @@ def run_kernel_provider_step(
     client_user_message_id: Optional[str] = None,
     compact_before_turn: bool = False,
     on_compaction=None,
+    guide_context: TurnGuideContext | None = None,
 ) -> Dict[str, Any]:
     runtime = resolve_assistant_provider_runtime(session)
     if runtime.provider_kind != "codex_local":
@@ -784,6 +781,7 @@ def run_kernel_provider_step(
             client_user_message_id=client_user_message_id,
             compact_before_turn=compact_before_turn,
             on_compaction=on_compaction,
+            guide_context=guide_context,
             resume_usage=(session.get("summary_json") or {}).get("kernel_provider_usage"),
         )
     except enhancement_provider.EnhancementProviderError as exc:

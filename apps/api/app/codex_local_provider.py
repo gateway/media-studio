@@ -13,9 +13,13 @@ import time
 import zlib
 from pathlib import Path
 from threading import Event, Lock, Thread
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 from .codex_turn_budget import CodexTurnBudget
+
+
+if TYPE_CHECKING:
+    from .assistant.guides import TurnGuideContext
 
 
 CODEX_APP_SERVER_TIMEOUT_SECONDS = 300
@@ -985,20 +989,14 @@ class _CodexAppServerSession:
         effort: Optional[str] = None,
         client_user_message_id: Optional[str] = None,
         budget: CodexTurnBudget | None = None,
+        guide_context: TurnGuideContext | None = None,
     ) -> Dict[str, Any]:
         budget = budget or CodexTurnBudget(self.timeout_seconds)
         budget.turn_id = None
         notifications: List[Dict[str, Any]] = []
-        params: Dict[str, Any] = {
-            "threadId": thread_id,
-            "input": input_items,
-        }
-        if output_schema is not None:
-            params["outputSchema"] = output_schema
-        if effort is not None:
-            params["effort"] = effort
-        if client_user_message_id is not None:
-            params["clientUserMessageId"] = client_user_message_id
+        params = _turn_start_params(
+            thread_id, input_items, output_schema, effort, client_user_message_id, guide_context,
+        )
         result = self._request(
             "turn/start", params, notifications=notifications,
             notification_handler=lambda message: budget.observe(message, thread_id),
@@ -1325,6 +1323,31 @@ def test_codex_local_connection(*, model_id: Optional[str] = None, require_image
     }
 
 
+def _turn_start_params(
+    thread_id: str, input_items: List[Dict[str, Any]], output_schema: Optional[Dict[str, Any]],
+    effort: Optional[str], client_user_message_id: Optional[str],
+    guide_context: TurnGuideContext | None,
+) -> Dict[str, Any]:
+    params: Dict[str, Any] = {
+        "threadId": thread_id,
+        "input": input_items,
+    }
+    if guide_context is not None:
+        params["additionalContext"] = guide_context.application_context()
+    if output_schema is not None:
+        params["outputSchema"] = output_schema
+    if effort is not None:
+        params["effort"] = effort
+    if client_user_message_id is not None:
+        params["clientUserMessageId"] = client_user_message_id
+    return params
+
+
+def _guide_turn_options(context: TurnGuideContext | None) -> Dict[str, Any]:
+    # Preserve the call contract for existing provider consumers without guides.
+    return {"guide_context": context} if context is not None else {}
+
+
 def run_codex_local_chat(
     *,
     model_id: str,
@@ -1343,6 +1366,7 @@ def run_codex_local_chat(
     compact_before_turn: bool = False,
     unbounded_turn: bool = False,
     resume_usage: Optional[Dict[str, Any]] = None,
+    guide_context: TurnGuideContext | None = None,
     on_compaction: Callable[[bool], None] | None = None,
 ) -> Dict[str, Any]:
     budget = CodexTurnBudget(None if unbounded_turn else timeout_seconds or CODEX_APP_SERVER_TIMEOUT_SECONDS, on_compaction)
@@ -1423,6 +1447,7 @@ def run_codex_local_chat(
                     "output_schema": output_schema,
                     "cancel_event": cancel_event,
                     "budget": budget,
+                    **_guide_turn_options(guide_context),
                 }
                 if actual_reasoning_effort is not None:
                     turn_kwargs["effort"] = actual_reasoning_effort
@@ -1514,6 +1539,7 @@ def run_codex_local_chat(
                     "output_schema": output_schema,
                     "cancel_event": cancel_event,
                     "budget": budget,
+                    **_guide_turn_options(guide_context),
                 }
                 if actual_reasoning_effort is not None:
                     turn_kwargs["effort"] = actual_reasoning_effort
