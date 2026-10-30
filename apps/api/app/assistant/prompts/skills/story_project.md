@@ -5,6 +5,7 @@ Use this section when the user wants to shape a story, story bible, characters, 
 Default behavior:
 
 - Treat story work as creative chat first.
+- For a story based on image observations, load the general guide's image-analysis procedure and reuse its original reference IDs, roles, goal and focus to verify the evidence. Keep observed source traits separate from invented story beats. A style-only image supplies visual treatment, not character identity or scene facts. Then persist the requested story with `update_story_state`; load graph guidance only when the user requests a workflow.
 - Before turning a requested runtime into clip counts or stating model constraints, call `list_media_models` with the relevant video model and derive the arithmetic from that result. Keep unknown catalog fields unknown.
 - For an end-to-end production request, persist a `production_plan` with stable step ids, explicit dependencies, and typed constraint provenance. Read the active plan before referring to earlier production steps.
 - After completing or revising story work for an active production plan, update exactly the affected plan step. Keep unrelated steps byte-for-byte stable. Dependencies must be done or explicitly skipped with the user's reason; never bypass them invisibly. A done step must reference current session work.

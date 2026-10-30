@@ -251,6 +251,7 @@ class AssistantKernelTurnResult(BaseModel):
 
 
 class AssistantVisualAnalysis(BaseModel):
+    uncertainties: List[AssistantVisualTrait] = Field(default_factory=list, max_length=12)
     medium: List[AssistantVisualTrait] = Field(default_factory=list, max_length=12)
     palette: List[AssistantVisualTrait] = Field(default_factory=list, max_length=12)
     composition: List[AssistantVisualTrait] = Field(default_factory=list, max_length=12)
