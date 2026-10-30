@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "CL-002 B03: reviewed exact unchanged 58-token kernel pair reanchor after four prompt lines; 274 pairs and 19861 tokens unchanged",
+  "reason": "CL-002 panel validation: independently reviewed unchanged 50-token 9-line error-type clone identity; 274 pairs and 19861 tokens unchanged",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -118,26 +118,6 @@
       "tokens": 77,
       "lines": 14,
       "format": "javascript"
-    },
-    {
-      "id": "0547bdfbdeca8577c2b999b3947ab68d28f01dadff182b7118e744a93b24d75a",
-      "endpoints": [
-        {
-          "file": "apps/api/app/assistant/preset_kernel.py",
-          "start": 28,
-          "end": 36,
-          "context": "5a28ab99be26648e868aaa022a4c19c3f6cf17af5a315edb7f9f8e9bd030f193"
-        },
-        {
-          "file": "apps/api/app/assistant/story_kernel.py",
-          "start": 11,
-          "end": 19,
-          "context": "48c0122cb9ce46190460355d658fe7efbd77cc7525dbc251e00835320c9f8da7"
-        }
-      ],
-      "tokens": 50,
-      "lines": 9,
-      "format": "python"
     },
     {
       "id": "06dcf7db5656c95a1f1c8f403d631f1434cd083bdbfe9130f191bc58a2862cef",
@@ -3998,6 +3978,26 @@
       "tokens": 63,
       "lines": 12,
       "format": "javascript"
+    },
+    {
+      "id": "b5894553ba0999a040fb9c4bf17db58c5ccbbd4d054d38bee34b1d9351bdcbc8",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/preset_kernel.py",
+          "start": 28,
+          "end": 36,
+          "context": "5a28ab99be26648e868aaa022a4c19c3f6cf17af5a315edb7f9f8e9bd030f193"
+        },
+        {
+          "file": "apps/api/app/assistant/story_kernel.py",
+          "start": 11,
+          "end": 19,
+          "context": "128b6a64f6cc148cf83b75d30c46b8f4a536eef519588431d6d5426a9ee0c371"
+        }
+      ],
+      "tokens": 50,
+      "lines": 9,
+      "format": "python"
     },
     {
       "id": "b681abbf77a7291e8850c49cb9e6feb12463b157e11de768d9d56d3d1a4138fb",
