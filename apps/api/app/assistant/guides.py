@@ -105,7 +105,7 @@ def load_application_guide(arguments: LoadApplicationGuideArguments, context: An
     from .kernel_tools import KernelToolFailure
 
     if context.guide_context is None:
-        raise KernelToolFailure(code="guide_loader_unavailable", message="This turn already uses the full application guidance.")
+        raise KernelToolFailure(code="guide_loader_unavailable", message="Application guidance is unavailable for this tool context.")
     result = context.guide_context.load(arguments.guide_id)
     if "error" in result:
         raise KernelToolFailure(**result["error"])

@@ -39,7 +39,7 @@ class CommunicationTests(unittest.TestCase):
 
     def test_changed_prompt_rotates_once_and_retains_typed_constraints_and_context(self):
         k = self.kernel
-        assembly = self.assets.assistant_thread_prompt_assembly(tuple(k.KERNEL_CAPABILITY_PROMPTS.values()), developer_addendum=k._kernel_instruction())
+        assembly, _ = k._kernel_turn_context()
         session = {'assistant_session_id': 'communication', 'provider_kind': 'codex_local', 'provider_thread_id': 'old',
                    'state_snapshot_json': {'provider_generation': 2}, 'summary_json': {'kernel_story_state': {'shots': ['keep all shots']}, 'selected_results': {'exact': 'version'}}}
         original_summary = session['summary_json'].copy()
@@ -76,15 +76,17 @@ class CommunicationTests(unittest.TestCase):
                                 'reply': 'A Prompt Recipe shapes text; a Media Preset packages reusable media settings.'})
         self.assertEqual(result.trace.loaded_prompt_assets, list(self.assets.SHARED_PROMPT_ASSETS))
 
-    def test_selective_bootstrap_exposes_only_loader_and_eager_fallback_is_explicit(self):
+    def test_bootstrap_exposes_only_loader_even_with_retired_eager_flag(self):
         assembly, guides = self.kernel._kernel_turn_context()
         catalog, _ = json.JSONDecoder().raw_decode(assembly.developer_instructions.split('Tools: ', 1)[1])
         self.assertEqual([tool['name'] for tool in catalog['tools']], ['load_application_guide'])
         self.assertEqual(guides.versions(), {})
+        self.assertEqual(assembly.loaded_assets, self.assets.SHARED_PROMPT_ASSETS)
         with patch.dict(os.environ, {'MEDIA_STUDIO_ASSISTANT_EAGER_CONTEXT': '1'}):
-            eager, eager_guides = self.kernel._kernel_turn_context()
-        self.assertIsNone(eager_guides)
-        self.assertEqual(set(eager.loaded_assets), {*self.assets.SHARED_PROMPT_ASSETS, *self.kernel.KERNEL_CAPABILITY_PROMPTS.values()})
+            repeated, repeated_guides = self.kernel._kernel_turn_context()
+        self.assertEqual(repeated, assembly)
+        self.assertIsNot(repeated_guides, guides)
+        self.assertEqual(repeated_guides.versions(), {})
 
     def test_story_request_loads_trusted_guide_and_finishes_typed_story_without_graph(self):
         k = self.kernel
@@ -369,8 +371,10 @@ class CommunicationTests(unittest.TestCase):
                     self.assertTrue(result.next_action.confirmation_token)
 
     def test_assembled_prompts_support_all_three_journeys_without_obsolete_budget(self):
-        assembly = self.assets.assistant_thread_prompt_assembly(tuple(self.kernel.KERNEL_CAPABILITY_PROMPTS.values()), developer_addendum=self.kernel._kernel_instruction())
-        prompt = (assembly.base_instructions + assembly.developer_instructions).lower()
+        assembly, guides = self.kernel._kernel_turn_context()
+        for capability in self.kernel.KERNEL_CAPABILITY_PROMPTS:
+            self.assertNotIn('error', guides.load(capability))
+        prompt = (assembly.base_instructions + assembly.developer_instructions + json.dumps(guides.application_context())).lower()
         self.assertIn('answer the immediate question first', prompt)
         self.assertIn('preserve unrelated prompts', prompt)
         self.assertIn('prepared for review, not applied or run', prompt)

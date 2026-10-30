@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import time
 from threading import Event
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from .graph_outcome import graph_confirmation_label
 from .. import enhancement_provider, external_llm_usage, store, store_assistant
@@ -51,10 +50,6 @@ from .schemas import (
 from .guides import TurnGuideContext, guide_trace_context, loaded_guide_versions
 from .completion import terminal_artifact_reply
 from .story_kernel import format_story_shot_list_reply
-
-
-if TYPE_CHECKING:
-    from .guides import TurnGuideContext
 
 
 KERNEL_USER_TURN_MAX_BYTES = 96 * 1024
@@ -162,10 +157,10 @@ def _sync_kernel_prompt_thread(
     return session
 
 
-def _kernel_instruction(*, selective: bool = False) -> str:
+def _kernel_instruction() -> str:
     from .tool_limits import compact_tool_catalog
     tools = kernel_tool_catalog()
-    catalog = compact_tool_catalog([tool for tool in tools if tool["name"] == "load_application_guide"] if selective else tools)
+    catalog = compact_tool_catalog([tool for tool in tools if tool["name"] == "load_application_guide"])
     return (
         "Select exactly one Media Assistant capability and one artifact_intent from the semantic request. Use "
         "quality_decision when the user approves, continues refining, or stops after an active output comparison. "
@@ -301,18 +296,15 @@ def _kernel_instruction(*, selective: bool = False) -> str:
            "does not by itself request its inspection, creation or revision. When actual pixels, current model limits, "
            "saved content or artifact work is needed, load the appropriate guide and use its registered tools. "
            "If a required guide fails to load, resolve the recoverable error or explain the blocker; do not invent tools."
-           if selective else "")
+           )
     )
 
 
 def _kernel_turn_context():
-    # Temporary rollout fallback, owned for retirement by CL-005. Never widens scope.
-    eager = os.getenv("MEDIA_STUDIO_ASSISTANT_EAGER_CONTEXT", "") == "1"
     assembly = assistant_thread_prompt_assembly(
-        tuple(KERNEL_CAPABILITY_PROMPTS.values()) if eager else (),
-        developer_addendum=_kernel_instruction(selective=not eager),
+        (), developer_addendum=_kernel_instruction(),
     )
-    return assembly, None if eager else TurnGuideContext()
+    return assembly, TurnGuideContext()
 
 
 def _loaded_kernel_assets(assembly, context):

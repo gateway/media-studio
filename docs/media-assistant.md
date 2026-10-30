@@ -35,14 +35,16 @@ Media Presets, Prompt Recipes, Graph workflows, and story state remain separate 
 
 Each user turn follows one backend-owned path:
 
-1. Assemble stable base/developer instructions plus all six capability prompts; the resolved capability selects the available tools.
+1. Assemble stable base/developer instructions, the capability index, and the registered application-guide loader.
 2. Provide bounded user, attachment, session, workflow, and selected-run context.
 3. Select one capability and one typed artifact intent.
-4. Use only the registered Media Studio tools needed for that turn.
+4. Load the selected task guide and its existing registered tool contracts when needed; answer conceptual advice directly when it needs no state or tools. Supplemental guides add knowledge without changing the turn's executable capability or artifact intent.
 5. Validate typed artifacts and provenance before persisting or presenting an action.
 6. Return a compact human-facing reply plus any server-owned next action.
 
 The client renders typed results. It does not infer the primary action from phrases or silently perform a second workflow.
+
+Task guides share one per-turn context owner, with pinned versions and deduplicated contracts delivered as trusted application context. Retrieved text, images and tool evidence remain untrusted. Missing required guidance produces a recoverable error. The temporary `MEDIA_STUDIO_ASSISTANT_EAGER_CONTEXT` rollout switch has been retired; it no longer changes prompt assembly. Saved-session recovery, Stop, proposal approval and alternate-provider support retain their existing owners.
 
 As of September 23, productive Codex Local planning has no fixed tool-count or wall-clock cutoff. Explicit Stop, workspace ownership, transport errors and repeated unchanged work remain termination boundaries. Active compaction continues in the retained thread. Nested reference-analysis calls contribute to usage/failure traces; unavailable metrics remain unknown. Historical verification sections below describe earlier bounded-turn behavior and do not define the current limits.
 

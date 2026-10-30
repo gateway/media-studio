@@ -23,6 +23,17 @@ def delivered_guide_payload(context):
 
 
 class AssistantGuideTests(unittest.TestCase):
+    def test_loader_without_turn_context_reports_unavailable_without_claiming_eager_guidance(self):
+        from app.assistant.kernel_tools import KernelToolContext, execute_kernel_tool
+
+        result = execute_kernel_tool(
+            tool_name="load_application_guide", arguments={"guide_id": "general"}, capability="general",
+            context=KernelToolContext(workflow=None, canvas_context={}),
+        )
+        self.assertEqual(result.trace.error.code, "guide_loader_unavailable")
+        self.assertIn("unavailable", result.trace.error.message)
+        self.assertNotIn("full application guidance", result.trace.error.message)
+
     def test_native_application_context_limit_does_not_truncate_required_guidance(self):
         from app.assistant.guides import TurnGuideContext
 
