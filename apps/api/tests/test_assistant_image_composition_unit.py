@@ -6,12 +6,14 @@ from threading import Event
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from app.assistant import reference_analysis as owner
-from app.assistant.cancellation import AssistantRequestCancelled
-
 
 class ImageCompositionTests(unittest.TestCase):
     def setUp(self):
+        # Fixture-driven tests can reload app modules after pytest collection.
+        from app.assistant import reference_analysis as owner
+        from app.assistant.cancellation import AssistantRequestCancelled
+        self.owner = owner
+        self.cancelled_error = AssistantRequestCancelled
         self.session = {"assistant_session_id": "owned", "summary_json": {}}
         self.context = SimpleNamespace(
             session_id="owned", session=self.session,
@@ -36,6 +38,7 @@ class ImageCompositionTests(unittest.TestCase):
         return self.session
 
     def analyze(self, **overrides):
+        owner = self.owner
         arguments = {"reference_ids": ["image"], "goal": "style_reference", "focus": "palette", "reference_roles": {"image": "style only"}, **overrides}
         return owner.analyze_reference_images(owner.AnalyzeReferenceImagesArguments(**arguments), self.context)
 
@@ -54,7 +57,7 @@ class ImageCompositionTests(unittest.TestCase):
         self.assertEqual(self.context.provider_steps[0].latency_ms, 31)
 
     def test_rejects_roles_for_unselected_references_before_analysis(self):
-        with self.assertRaises(owner.ReferenceAnalysisError) as error:
+        with self.assertRaises(self.owner.ReferenceAnalysisError) as error:
             self.analyze(reference_roles={"foreign-image": "style only"})
         self.assertEqual(error.exception.code, "reference_role_not_selected")
         self.provider.assert_not_called()
@@ -65,7 +68,7 @@ class ImageCompositionTests(unittest.TestCase):
         self.context.attachments[0]["assistant_attachment_id"] = "another-session-attachment"
         self.assertEqual(self.analyze()["cache_status"], "miss")
         self.context.attachments = []
-        with self.assertRaises(owner.ReferenceAnalysisError) as error:
+        with self.assertRaises(self.owner.ReferenceAnalysisError) as error:
             self.analyze()
         self.assertEqual(error.exception.code, "reference_not_attached")
         self.assertEqual(self.provider.call_count, 2)
@@ -78,7 +81,7 @@ class ImageCompositionTests(unittest.TestCase):
             return result
 
         self.provider.side_effect = stop_after_analysis
-        with self.assertRaises(AssistantRequestCancelled):
+        with self.assertRaises(self.cancelled_error):
             self.analyze()
         self.save.assert_not_called()
         self.assertEqual(self.session["summary_json"], {})
