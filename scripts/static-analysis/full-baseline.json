@@ -2600,6 +2600,26 @@
       "format": "css"
     },
     {
+      "id": "72a99902d5548a7328feab3dc16c42f20f7660f98e8094b308fcd16dc0e9c11a",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/kernel.py",
+          "start": 1457,
+          "end": 1471,
+          "context": "27471a39d6f2484bfa83051b39fa67d0c841d2fa2a242d0ffbd812ae062dc419"
+        },
+        {
+          "file": "apps/api/app/assistant/kernel.py",
+          "start": 1327,
+          "end": 1341,
+          "context": "bc71674d56239a1b0d76692be5b165405b56df7f14ea570ccf45b98f9c0de418"
+        }
+      ],
+      "tokens": 58,
+      "lines": 15,
+      "format": "python"
+    },
+    {
       "id": "7515ce26db75233de5322b2da2e98fe21949e578ce302d0d74ff9a7d5313cf30",
       "endpoints": [
         {
@@ -4477,26 +4497,6 @@
       ],
       "tokens": 75,
       "lines": 11,
-      "format": "python"
-    },
-    {
-      "id": "cda25710fe5f832a7d41cc202ffb421fa9a665ef64715f207425cc578274cf29",
-      "endpoints": [
-        {
-          "file": "apps/api/app/assistant/kernel.py",
-          "start": 1335,
-          "end": 1349,
-          "context": "acd56410e8ae0834bc626075b267ef18032f3d6760e129baadf763f28afaa5a4"
-        },
-        {
-          "file": "apps/api/app/assistant/kernel.py",
-          "start": 1465,
-          "end": 1479,
-          "context": "db57d45ece3b45421daa01eac8091ca1f770268d2052d53a2eee487e42188339"
-        }
-      ],
-      "tokens": 58,
-      "lines": 15,
       "format": "python"
     },
     {
