@@ -295,7 +295,11 @@ def _kernel_instruction(*, selective: bool = False) -> str:
            "The media_studio_guides manifest lists ordered bounded application fragments; read all listed parts as one complete JSON document. "
            "Select the correct capability and artifact_intent before loading and keep both unchanged. "
            "Additional guides provide knowledge only. Use only contracts supplied by the application. "
-           "Answer simple general advice directly when no state or task tools are needed. "
+           "For general conversation or conceptual advice that needs no state, artifact or tool result, reply directly "
+           "with artifact_intent none; do not call load_application_guide. A Prompt Recipe turns inputs into prompt text; "
+           "a Media Preset packages reusable media-generation inputs and settings. Naming an artifact in a question "
+           "does not by itself request its inspection, creation or revision. When actual pixels, current model limits, "
+           "saved content or artifact work is needed, load the appropriate guide and use its registered tools. "
            "If a required guide fails to load, resolve the recoverable error or explain the blocker; do not invent tools."
            if selective else "")
     )
