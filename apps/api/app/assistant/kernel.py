@@ -302,7 +302,7 @@ def _kernel_instruction() -> str:
 
 def _kernel_turn_context():
     assembly = assistant_thread_prompt_assembly(
-        (), developer_addendum=_kernel_instruction(),
+        developer_addendum=_kernel_instruction(),
     )
     return assembly, TurnGuideContext()
 

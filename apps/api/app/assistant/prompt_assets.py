@@ -56,13 +56,11 @@ def capability_prompt(guide_id: AssistantKernelCapability) -> str:
 
 
 def assistant_thread_prompt_assembly(
-    capability_prompt_assets: tuple[str, ...],
     *,
     developer_addendum: str = "",
 ) -> ThreadPromptAssembly:
     developer_sections = [
         prompt_asset("response_policy.md"),
-        *(prompt_asset(path) for path in capability_prompt_assets),
         (
             "Stay inside Media Studio. Infer whether the user wants a workflow, Prompt Recipe, "
             "Media Preset, repair, or explanation. Do not claim that you changed the graph, saved data, "
@@ -74,5 +72,5 @@ def assistant_thread_prompt_assembly(
     return ThreadPromptAssembly(
         base_instructions=prompt_asset("persona.md"),
         developer_instructions="\n\n".join(section for section in developer_sections if section),
-        loaded_assets=(*SHARED_PROMPT_ASSETS, *capability_prompt_assets),
+        loaded_assets=SHARED_PROMPT_ASSETS,
     )
