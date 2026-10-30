@@ -4,7 +4,6 @@ import { normalizeGraphWorkflowPayload } from "./graph-workflow-normalization";
 export const GRAPH_TABS_STORAGE_KEY = "media-studio:graph-studio:tabs";
 export const GRAPH_TABS_SCHEMA_VERSION = 5;
 export const GRAPH_TABS_SUPPORTED_SCHEMA_VERSIONS = new Set([2, 3, 4, GRAPH_TABS_SCHEMA_VERSION]);
-export const GRAPH_TABS_MAX_RESTORABLE_TABS = 8;
 export const GRAPH_TABS_MAX_CONSOLE_LINES = 120;
 export const GRAPH_TABS_MAX_CONSOLE_LINE_CHARS = 240;
 
@@ -28,7 +27,6 @@ export type GraphTabSessionState = {
 };
 
 type GraphTabWriteVariant = {
-  maxTabs: number;
   keepConsoleLines: boolean;
   keepInactiveConsoleLines: boolean;
 };
@@ -251,8 +249,7 @@ function compactTabsForWrite(
   const activeTab = tabs.find((tab) => tab.tab_id === activeTabId) ?? tabs[0] ?? null;
   const remaining = tabs
     .filter((tab) => tab.tab_id !== activeTab?.tab_id)
-    .sort((left, right) => graphTabTimestamp(right) - graphTabTimestamp(left))
-    .slice(0, Math.max(0, variant.maxTabs - (activeTab ? 1 : 0)));
+    .sort((left, right) => graphTabTimestamp(right) - graphTabTimestamp(left));
   const selected = activeTab ? [activeTab, ...remaining] : remaining;
   return selected.map((tab) => ({
     ...tab,
@@ -281,22 +278,22 @@ export function writeGraphTabSession(scope: string | null | undefined, activeTab
   if (typeof window === "undefined") return;
   const storageKey = graphTabsStorageKey(scope);
   const variants: GraphTabWriteVariant[] = [
-    { maxTabs: GRAPH_TABS_MAX_RESTORABLE_TABS, keepConsoleLines: true, keepInactiveConsoleLines: true },
-    { maxTabs: 6, keepConsoleLines: true, keepInactiveConsoleLines: false },
-    { maxTabs: 4, keepConsoleLines: false, keepInactiveConsoleLines: false },
+    { keepConsoleLines: true, keepInactiveConsoleLines: true },
+    { keepConsoleLines: true, keepInactiveConsoleLines: false },
+    { keepConsoleLines: false, keepInactiveConsoleLines: false },
   ];
-  for (const variant of variants) {
+  for (const [index, variant] of variants.entries()) {
     try {
       window.localStorage.setItem(
         storageKey,
         JSON.stringify(graphTabSessionPayload(activeTabId, tabs, variant)),
       );
       return;
-    } catch {
-      // fall through to smaller persistence variants
+    } catch (error) {
+      // Reduce console history only; never discard workflows or the previous session.
+      if (index === variants.length - 1) throw error;
     }
   }
-  window.localStorage.removeItem(storageKey);
 }
 
 export function graphTabCloseTarget(tabs: GraphWorkspaceTab[], activeTabId: string, tabId: string): GraphWorkspaceTab | null {
