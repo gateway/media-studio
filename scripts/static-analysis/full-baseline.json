@@ -37,7 +37,7 @@
     "minLines": 5,
     "mode": "mild"
   },
-  "reason": "Reanchor unchanged 93-token reference-analysis comparison clone; independently verified 273 common records and 274 pairs/19861 tokens unchanged",
+  "reason": "Reanchor unchanged 58-token kernel error fragment pair after conceptual-advice instruction lines; 273 common records and 274-pair/19861-token totals unchanged",
   "findings": [
     {
       "id": "018000aa7e94b7d2471a711835a3fe1a477ac09ca0e2399b91b5c24cc6db0347",
@@ -798,26 +798,6 @@
       "tokens": 102,
       "lines": 21,
       "format": "tsx"
-    },
-    {
-      "id": "2647b58b63f742cd61d024f40138fd4b794ac4dfe537ca2f90718394df007c84",
-      "endpoints": [
-        {
-          "file": "apps/api/app/assistant/kernel.py",
-          "start": 1461,
-          "end": 1475,
-          "context": "1eac4cd1d5a849d33e44ebcef6127dd3af4e8e9793b3f44847c730641ef07455"
-        },
-        {
-          "file": "apps/api/app/assistant/kernel.py",
-          "start": 1331,
-          "end": 1345,
-          "context": "45b9f05cf9982190878d6e2516b810d991afb96ac7db0276e16ade24f7b1babb"
-        }
-      ],
-      "tokens": 58,
-      "lines": 15,
-      "format": "python"
     },
     {
       "id": "26babb3b2f4c5f82e5b703e477e6dd6463dbf12f64b7986b2d16a07f3f867e09",
@@ -4497,6 +4477,26 @@
       ],
       "tokens": 75,
       "lines": 11,
+      "format": "python"
+    },
+    {
+      "id": "cda25710fe5f832a7d41cc202ffb421fa9a665ef64715f207425cc578274cf29",
+      "endpoints": [
+        {
+          "file": "apps/api/app/assistant/kernel.py",
+          "start": 1335,
+          "end": 1349,
+          "context": "acd56410e8ae0834bc626075b267ef18032f3d6760e129baadf763f28afaa5a4"
+        },
+        {
+          "file": "apps/api/app/assistant/kernel.py",
+          "start": 1465,
+          "end": 1479,
+          "context": "db57d45ece3b45421daa01eac8091ca1f770268d2052d53a2eee487e42188339"
+        }
+      ],
+      "tokens": 58,
+      "lines": 15,
       "format": "python"
     },
     {
