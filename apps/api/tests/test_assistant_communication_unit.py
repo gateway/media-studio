@@ -177,7 +177,7 @@ class CommunicationTests(unittest.TestCase):
             for i in range(1, 4)
         ])
         session = {'assistant_session_id': 'story-fixture', 'summary_json': {'kernel_story_state': state.model_dump()}}
-        context = SimpleNamespace(session_id='story-fixture', session=session, user_text='Change only shot 2 to an overhead view.')
+        context = SimpleNamespace(session_id='story-fixture', session=session, user_text='Change only panel 2 to an overhead view.')
         revised = state.model_copy(deep=True)
         revised.shots[1].camera = 'Overhead'
         with patch.object(owner.store_assistant, 'get_assistant_session', return_value=session), patch.object(owner.store_assistant, 'create_or_update_assistant_session', side_effect=lambda value: value) as save:
@@ -189,6 +189,19 @@ class CommunicationTests(unittest.TestCase):
             with self.assertRaises(owner.StoryKernelError):
                 owner.update_story_state(owner.UpdateStoryStateArguments(state=revised, update_kind='shot_revision', revised_shot_numbers=[2]), context)
             self.assertEqual(save.call_count, 1)
+
+    def test_story_panel_count_is_enforced_before_saving(self):
+        from app.assistant import story_kernel as owner
+        state = owner.KernelStoryState(premise='A courier finds a parcel.', shots=[
+            {'shot_number': 1, 'story_beat': 'Discovery', 'prompt': 'A courier finds a parcel.'}
+        ])
+        session = {'assistant_session_id': 'story-fixture', 'summary_json': {}}
+        context = SimpleNamespace(session_id='story-fixture', session=session, user_text='Plan a six-panel storyboard.')
+        with patch.object(owner.store_assistant, 'get_assistant_session', return_value=session), patch.object(owner.store_assistant, 'create_or_update_assistant_session') as save:
+            with self.assertRaises(owner.StoryKernelError) as failure:
+                owner.update_story_state(owner.UpdateStoryStateArguments(state=state, update_kind='shot_list'), context)
+            self.assertEqual(failure.exception.code, 'story_shot_count_mismatch')
+            save.assert_not_called()
 
     def test_narrow_edit_and_new_graph_keep_prepared_summary_and_exact_confirmation(self):
         for request, reply in [('Change only resolution to 2K.', 'Prepared the resolution change to 2K; the prompt and 4:3 framing are preserved.'), ('Prepare a new graph.', 'Prepared a prompt, image generator and preview for review.')]:
