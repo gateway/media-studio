@@ -105,6 +105,7 @@ export function PillSelect({
 
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        event.preventDefault();
         onClose();
       }
     }
@@ -195,6 +196,7 @@ export function PillSelect({
       <button
         type="button"
         data-testid={`studio-picker-${pickerId}`}
+        aria-expanded={open}
         onClick={onToggle}
         className={pillSelectButtonClassName(appearance)}
       >

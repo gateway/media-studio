@@ -1,7 +1,7 @@
 "use client";
 
-import { LoaderCircle, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { LoaderCircle, ScanLine, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 import { StudioImageLightbox } from "@/components/studio/studio-image-lightbox";
 import {
@@ -56,12 +56,21 @@ const fixtureReferenceItem: MediaReference = {
 function referenceLibraryFixtureEnabled() {
   if (typeof window === "undefined") return false;
   const params = new URLSearchParams(window.location.search);
-  if (params.get("studioTestHarness") !== "1" || params.get("studioFixture") !== "reference-library") return false;
+  if (
+    params.get("studioTestHarness") !== "1" ||
+    params.get("studioFixture") !== "reference-library"
+  )
+    return false;
   return (
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
     window.location.hostname === "::1"
   );
+}
+
+function referenceLibraryDescription(title: string, kind: string) {
+  if (title.toLowerCase() !== "reference library") return title;
+  return `Choose ${kind === "image" ? "an image" : "media"} to reuse in Studio.`;
 }
 
 export function StudioReferenceLibrary({
@@ -77,7 +86,9 @@ export function StudioReferenceLibrary({
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<MediaReference | null>(null);
-  const [deletingReferenceId, setDeletingReferenceId] = useState<string | null>(null);
+  const [deletingReferenceId, setDeletingReferenceId] = useState<string | null>(
+    null,
+  );
   const [backfilling, setBackfilling] = useState(false);
   const [backfillSummary, setBackfillSummary] = useState<{
     scanned: number;
@@ -87,7 +98,6 @@ export function StudioReferenceLibrary({
     duration_seconds: number;
   } | null>(null);
 
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const fetchItems = useCallback(async (offset: number, signal?: AbortSignal): Promise<ReferenceLibraryPage> => {
     if (referenceLibraryFixtureEnabled()) {
@@ -123,15 +133,18 @@ export function StudioReferenceLibrary({
     };
   }, [kind]);
 
-  const loadItems = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true);
-    setError(null);
-    setNextOffset(null);
-    const page = await fetchItems(0, signal);
-    setItems(page.items);
-    setNextOffset(page.next_offset);
-    setLoading(false);
-  }, [fetchItems]);
+  const loadItems = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      setNextOffset(null);
+      const page = await fetchItems(0, signal);
+      setItems(page.items);
+      setNextOffset(page.next_offset);
+      setLoading(false);
+    },
+    [fetchItems],
+  );
 
   useEffect(() => {
     let active = true;
@@ -140,7 +153,11 @@ export function StudioReferenceLibrary({
       if (!active || controller.signal.aborted) {
         return;
       }
-      setError(loadError instanceof Error ? loadError.message : "Unable to load the reference library.");
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Unable to load the reference library.",
+      );
       setNextOffset(null);
       setLoading(false);
     });
@@ -159,27 +176,17 @@ export function StudioReferenceLibrary({
       setItems((current) => [...current, ...page.items]);
       setNextOffset(page.next_offset);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load more reference media.");
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Unable to load more reference media.",
+      );
     } finally {
       setLoadingMore(false);
     }
   }, [fetchItems, loading, loadingMore, nextOffset]);
 
-  useEffect(() => {
-    if (nextOffset == null || loading || loadingMore || typeof IntersectionObserver === "undefined") return;
-    const element = loadMoreRef.current;
-    if (!element) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          void loadMoreItems();
-        }
-      },
-      { rootMargin: "420px 0px" },
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [loadMoreItems, loading, loadingMore, nextOffset]);
+
 
   async function triggerBackfill() {
     setBackfilling(true);
@@ -210,7 +217,11 @@ export function StudioReferenceLibrary({
       });
       await loadItems();
     } catch (backfillError) {
-      setError(backfillError instanceof Error ? backfillError.message : "Unable to scan existing uploads.");
+      setError(
+        backfillError instanceof Error
+          ? backfillError.message
+          : "Unable to scan existing uploads.",
+      );
     } finally {
       setBackfilling(false);
     }
@@ -220,18 +231,32 @@ export function StudioReferenceLibrary({
     setDeletingReferenceId(referenceId);
     setError(null);
     try {
-      const response = await fetch(`/api/control/reference-media/${referenceId}`, {
-        method: "DELETE",
-        credentials: "same-origin",
-      });
-      const payload = (await response.json()) as { ok?: boolean; error?: string };
+      const response = await fetch(
+        `/api/control/reference-media/${referenceId}`,
+        {
+          method: "DELETE",
+          credentials: "same-origin",
+        },
+      );
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+      };
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error ?? "Unable to remove the library item.");
       }
-      setItems((current) => current.filter((item) => item.reference_id !== referenceId));
-      setPreviewItem((current) => (current?.reference_id === referenceId ? null : current));
+      setItems((current) =>
+        current.filter((item) => item.reference_id !== referenceId),
+      );
+      setPreviewItem((current) =>
+        current?.reference_id === referenceId ? null : current,
+      );
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Unable to remove the library item.");
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Unable to remove the library item.",
+      );
     } finally {
       setDeletingReferenceId(null);
     }
@@ -242,18 +267,22 @@ export function StudioReferenceLibrary({
       <StudioBrowserOverlay
         testId="studio-reference-library"
         zIndexClassName="z-[119]"
-        eyebrow="Reference Library"
-        title="Reference Library"
-        description={title}
-        actions={(
+        onClose={onClose}
+        suspended={previewItem != null}
+        title="Reference library"
+        description={referenceLibraryDescription(title, kind)}
+        actions={
           <div className="flex items-center gap-2">
             <Button
               data-testid="studio-reference-library-scan"
-              onClick={() => void triggerBackfill()}
+              onClick={() => {
+                triggerBackfill().catch((error: unknown) =>
+                  setError(String(error)),
+                );
+              }}
               disabled={backfilling}
               variant="subtle"
-              size="compact"
-              className="h-10 gap-2 rounded-full text-[0.68rem] tracking-[0.14em]"
+              appearance="admin"
             >
               {backfilling ? (
                 <>
@@ -261,19 +290,35 @@ export function StudioReferenceLibrary({
                   Scanning
                 </>
               ) : (
-                "Scan uploads"
+                <>
+                  <ScanLine className="size-4" /> Scan uploads
+                </>
               )}
             </Button>
             <IconButton
               icon={X}
               onClick={onClose}
               aria-label="Close reference library"
-              className="h-10 w-10"
+              appearance="admin"
+              quiet
             />
           </div>
-        )}
+        }
       >
-        <StudioBrowserToolbar countLabel={`Showing ${items.length} reference ${items.length === 1 ? "item" : "items"}`} />
+        <StudioBrowserToolbar
+          countLabel={`Showing ${items.length} reference ${items.length === 1 ? "item" : "items"}`}
+        >
+          <h3 className="studio-browser-section-title">
+            {
+              {
+                image: "Reference images",
+                video: "Reference videos",
+                audio: "Reference audio",
+                all: "Reference media",
+              }[kind]
+            }
+          </h3>
+        </StudioBrowserToolbar>
         {backfillSummary ? (
           <ToastBanner
             data-testid="studio-reference-library-backfill-summary"
@@ -284,12 +329,17 @@ export function StudioReferenceLibrary({
           />
         ) : null}
         {loading ? (
-          <div className="flex min-h-[240px] items-center justify-center text-white/62">
-            <LoaderCircle className="mr-3 size-5 animate-spin text-[rgba(208,255,72,0.88)]" />
+          <div className="studio-browser-state">
+            <LoaderCircle className="size-5 animate-spin" />
             Loading reference media...
           </div>
         ) : error ? (
-          <ToastBanner tone="danger" title="Library error" message={error} className="rounded-[26px] px-5 py-5" />
+          <ToastBanner
+            tone="danger"
+            title="Library error"
+            message={error}
+            className="rounded-[26px] px-5 py-5"
+          />
         ) : items.length ? (
           <>
             <StudioBrowserGrid>
@@ -302,13 +352,18 @@ export function StudioReferenceLibrary({
                   deleting={deletingReferenceId === item.reference_id}
                   onPreview={setPreviewItem}
                   onSelect={onSelect}
-                  onDelete={(referenceId) => void deleteItem(referenceId)}
+                  onDelete={(referenceId) => {
+                    deleteItem(referenceId).catch((error: unknown) =>
+                      setError(String(error)),
+                    );
+                  }}
                 />
               ))}
             </StudioBrowserGrid>
             {nextOffset != null ? (
               <StudioBrowserLoadSentinel
-                ref={loadMoreRef}
+                onLoadMore={loadMoreItems}
+              disabled={loading}
                 loading={loadingMore}
                 label="Loading more reference media..."
               />
@@ -319,14 +374,17 @@ export function StudioReferenceLibrary({
             tone="muted"
             title="No reference media is available yet."
             description="Upload and run an image first, or scan your existing uploads to populate the library."
-            action={(
+            action={
               <Button
                 data-testid="studio-reference-library-scan-empty"
-                onClick={() => void triggerBackfill()}
+                onClick={() => {
+                  triggerBackfill().catch((error: unknown) =>
+                    setError(String(error)),
+                  );
+                }}
                 disabled={backfilling}
                 variant="primary"
-                size="compact"
-                className="h-10 rounded-full text-[0.68rem] tracking-[0.12em] text-[#172200]"
+                appearance="admin"
               >
                 {backfilling ? (
                   <>
@@ -337,7 +395,7 @@ export function StudioReferenceLibrary({
                   "Scan existing uploads"
                 )}
               </Button>
-            )}
+            }
             className="rounded-[26px] py-8"
           />
         )}
@@ -346,7 +404,13 @@ export function StudioReferenceLibrary({
         <StudioImageLightbox
           src={previewItem.stored_url ?? previewItem.thumb_url ?? ""}
           alt={previewItem.original_filename ?? previewItem.reference_id}
-          kind={previewItem.kind === "video" ? "videos" : previewItem.kind === "audio" ? "audios" : "images"}
+          kind={
+            previewItem.kind === "video"
+              ? "videos"
+              : previewItem.kind === "audio"
+                ? "audios"
+                : "images"
+          }
           posterSrc={previewItem.poster_url}
           onClose={() => setPreviewItem(null)}
         />

@@ -64,6 +64,27 @@ describe("StudioProjectBrowser project images", () => {
     vi.unstubAllGlobals();
   });
 
+  it("opens active and archived rows without firing management actions", () => {
+    const props = makeProps({ projects: [existingProject, { ...existingProject, project_id: "archived", name: "Archived Project", status: "archived" }] });
+    render(<StudioProjectBrowser {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open Existing Project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Archived Project" }));
+    expect(props.onSelectProject.mock.calls).toEqual([["project-1"], ["archived"]]);
+    expect(props.onUnarchiveProject).not.toHaveBeenCalled();
+    expect(props.onArchiveProject).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Edit Existing Project" }));
+    expect(props.onSelectProject).toHaveBeenCalledTimes(2);
+  });
+
+  it("filters project names and clears a no-match result without changing the collection", () => {
+    const props = makeProps(); render(<StudioProjectBrowser {...props} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Search projects by name" }), { target: { value: "missing" } });
+    expect(screen.queryByRole("button", { name: "Open Existing Project" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByRole("button", { name: "Open Existing Project" })).toBeTruthy();
+    expect(props.projects).toEqual([existingProject]);
+  });
+
   it("dismisses the browser with Escape and removes the listener on unmount", () => {
     const props = makeProps();
     const view = render(<StudioProjectBrowser {...props} />);
@@ -95,6 +116,7 @@ describe("StudioProjectBrowser project images", () => {
     fireEvent.click(screen.getByRole("button", { name: "Browse generated images" }));
     await screen.findByRole("dialog", { name: "Generated image project covers" });
     fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Generated image project covers" })).toBeNull();
     expect(screen.getByTestId("studio-project-name-input")).toBeTruthy();
     expect(props.onClose).not.toHaveBeenCalled();
   });

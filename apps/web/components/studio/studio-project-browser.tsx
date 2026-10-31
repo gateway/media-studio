@@ -1,21 +1,16 @@
 "use client";
 
-import {
-  Archive,
-  Folder,
-  FolderOpen,
-  LoaderCircle,
-  Pencil,
-  Plus,
-  RotateCcw,
-  Trash2,
-  X,
-} from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { LoaderCircle, Plus, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useDialogFocus } from "@/components/ui/use-dialog-focus";
 import { IconButton } from "@/components/ui/icon-button";
-import { CalloutPanel, MediaBrowserCard, OverlayHeader, OverlayShell, SurfaceInputShell } from "@/components/ui/surface-primitives";
+import {
+  CalloutPanel,
+  OverlayHeader,
+  OverlayShell,
+} from "@/components/ui/surface-primitives";
 import {
   GeneratedThumbnailPickerDialog,
   type GeneratedThumbnailPickerItem,
@@ -26,9 +21,15 @@ import {
 } from "@/components/media/media-image-picker-sources";
 import { useMediaImagePickerPagination } from "@/components/media/use-media-image-picker-pagination";
 import { ThumbnailField } from "@/components/media/thumbnail-field";
-import { StudioStatusCallout } from "@/components/studio/studio-status-callout";
 import type { MediaAssetPickerItem, MediaProject } from "@/lib/types";
-import { cn, formatDateTime } from "@/lib/utils";
+import {
+  AdminInput,
+  AdminTextarea,
+  AdminToggleRow,
+} from "@/components/admin-controls";
+
+import { StudioBrowserOverlay } from "./studio-browser-surface";
+import { StudioProjectBrowserContents } from "./studio-project-browser-contents";
 
 type ProjectDraft = {
   name: string;
@@ -58,129 +59,6 @@ function projectCoverUrl(project: MediaProject) {
   return project.cover_thumb_url ?? project.cover_image_url ?? null;
 }
 
-function ProjectCard({
-  project,
-  selected,
-  busy,
-  archived = false,
-  onOpen,
-  onEdit,
-  onArchive,
-  onRestore,
-  onDelete,
-}: {
-  project: MediaProject;
-  selected: boolean;
-  busy: string | null;
-  archived?: boolean;
-  onOpen: () => void;
-  onEdit?: () => void;
-  onArchive?: () => void;
-  onRestore?: () => void;
-  onDelete?: () => void;
-}) {
-  const coverUrl = projectCoverUrl(project);
-
-  return (
-    <MediaBrowserCard
-      data-testid={`studio-project-card-${project.project_id}`}
-      appearance="studio"
-      selected={selected && !archived}
-      muted={archived}
-      className="studio-project-card-shadow"
-    >
-      <button
-        type="button"
-        onClick={onOpen}
-        className="media-browser-card-thumbnail group relative aspect-square text-left"
-      >
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={project.name}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-[var(--text-subtle)]">
-            <Folder className="size-8" />
-          </div>
-        )}
-      </button>
-      <div className="media-browser-card-copy">
-        <div className="media-browser-card-title truncate">{project.name}</div>
-        <div className="media-browser-card-description line-clamp-2 min-h-[2rem]">
-          {project.description?.trim() || "No description yet."}
-        </div>
-      </div>
-      <div className="media-browser-card-meta">
-        Updated {project.updated_at ? formatDateTime(project.updated_at) : "recently"}
-      </div>
-      {project.hidden_from_global_gallery ? (
-        <div className="media-browser-card-meta studio-project-hidden-note font-semibold uppercase tracking-[0.14em]">
-          Hidden from main gallery
-        </div>
-      ) : null}
-      <div className="media-browser-card-actions">
-        <Button
-          onClick={onOpen}
-          variant="primary"
-          size="compact"
-          className="studio-project-primary-text h-8 min-w-0 rounded-full px-3 text-[0.62rem] tracking-[0.12em]"
-        >
-          <FolderOpen className="mr-1.5 size-3.5" />
-          Open
-        </Button>
-        <div className="flex items-center gap-2">
-          {archived ? (
-            <>
-              <IconButton
-                icon={busy === `restore:${project.project_id}` ? LoaderCircle : RotateCcw}
-                onClick={onRestore}
-                disabled={busy === `restore:${project.project_id}`}
-                iconClassName={busy === `restore:${project.project_id}` ? "animate-spin" : undefined}
-                className="h-8 w-8 rounded-full"
-                aria-label={`Restore ${project.name}`}
-                title="Restore project"
-              />
-              <IconButton
-                icon={busy === `delete:${project.project_id}` ? LoaderCircle : Trash2}
-                onClick={onDelete}
-                disabled={busy === `delete:${project.project_id}`}
-                tone="danger"
-                iconClassName={busy === `delete:${project.project_id}` ? "animate-spin" : undefined}
-                className="studio-danger-icon-button h-8 w-8 rounded-full"
-                aria-label={`Delete ${project.name}`}
-                title="Delete permanently"
-              />
-            </>
-          ) : (
-            <>
-              <IconButton
-                icon={Pencil}
-                onClick={onEdit}
-                className="h-8 w-8 rounded-full"
-                aria-label={`Edit ${project.name}`}
-                title="Edit project"
-              />
-              <IconButton
-                icon={busy === `archive:${project.project_id}` ? LoaderCircle : Archive}
-                onClick={onArchive}
-                disabled={busy === `archive:${project.project_id}`}
-                iconClassName={busy === `archive:${project.project_id}` ? "animate-spin" : undefined}
-                className="h-8 w-8 rounded-full"
-                aria-label={`Archive ${project.name}`}
-                title="Archive project"
-              />
-            </>
-          )}
-        </div>
-      </div>
-    </MediaBrowserCard>
-  );
-}
-
 export function StudioProjectBrowser({
   projects,
   selectedProjectId,
@@ -201,7 +79,9 @@ export function StudioProjectBrowser({
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [clearCover, setClearCover] = useState(false);
-  const [coverAssetSelectionId, setCoverAssetSelectionId] = useState<string | null>(null);
+  const [coverAssetSelectionId, setCoverAssetSelectionId] = useState<
+    string | null
+  >(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const coverPicker = useMediaImagePickerPagination<MediaAssetPickerItem>({
     fetchPage: fetchGeneratedImagePickerPage,
@@ -209,18 +89,15 @@ export function StudioProjectBrowser({
     onError: setError,
   });
 
-  const activeProjects = useMemo(
-    () => projects.filter((project) => project.status !== "archived"),
-    [projects],
-  );
-  const archivedProjects = useMemo(
-    () => projects.filter((project) => project.status === "archived"),
-    [projects],
-  );
   const coverPickerItems: GeneratedThumbnailPickerItem[] = coverPicker.items
     .map((asset) => {
       const item = generatedImagePickerItem(asset);
-      return item ? { ...item, ariaLabel: `Use generated image ${item.id} as project image` } : null;
+      return item
+        ? {
+            ...item,
+            ariaLabel: `Use generated image ${item.id} as project image`,
+          }
+        : null;
     })
     .filter((item): item is GeneratedThumbnailPickerItem => Boolean(item));
 
@@ -251,16 +128,9 @@ export function StudioProjectBrowser({
     resetDialogState();
   }
 
-  useEffect(() => {
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key !== "Escape" || event.defaultPrevented || coverPicker.open || busyAction) return;
-      event.preventDefault();
-      if (dialogOpen) closeDialog();
-      else onClose();
-    }
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  });
+  const editorRef = useDialogFocus(() => {
+    if (!busyAction) closeDialog();
+  }, !dialogOpen || coverPicker.open);
 
   function beginCreate() {
     setMode("create");
@@ -343,7 +213,11 @@ export function StudioProjectBrowser({
       }
       closeDialog();
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to save the project.");
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Unable to save the project.",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -364,7 +238,11 @@ export function StudioProjectBrowser({
 
   function removeCover() {
     setCoverFile(null);
-    setDraft((current) => ({ ...current, coverAssetId: null, coverReferenceId: null }));
+    setDraft((current) => ({
+      ...current,
+      coverAssetId: null,
+      coverReferenceId: null,
+    }));
     setClearCover(true);
     if (coverPreviewUrl && coverPreviewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(coverPreviewUrl);
@@ -373,8 +251,11 @@ export function StudioProjectBrowser({
   }
 
   function applyCoverFromAsset(assetId: string | number) {
-    const selectedAsset = coverPicker.items.find((asset) => String(asset.asset_id) === String(assetId));
-    const previewUrl = generatedImagePickerItem(selectedAsset)?.previewUrl ?? null;
+    const selectedAsset = coverPicker.items.find(
+      (asset) => String(asset.asset_id) === String(assetId),
+    );
+    const previewUrl =
+      generatedImagePickerItem(selectedAsset)?.previewUrl ?? null;
     setCoverAssetSelectionId(String(assetId));
     setCoverFile(null);
     setClearCover(false);
@@ -391,238 +272,226 @@ export function StudioProjectBrowser({
     setCoverAssetSelectionId(null);
   }
 
-  async function runProjectAction(actionKey: string, callback: () => Promise<void>) {
+  async function runProjectAction(
+    actionKey: string,
+    callback: () => Promise<void>,
+  ) {
     setError(null);
     try {
       setBusyAction(actionKey);
       await callback();
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : "Unable to update the project.");
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Unable to update the project.",
+      );
     } finally {
       setBusyAction(null);
     }
   }
 
   return (
-    <OverlayShell
-      backdropClassName="z-[121]"
-      panelClassName="flex min-h-dvh min-w-0 flex-col lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:max-h-[calc(100dvh-3rem)] lg:overflow-hidden"
-    >
-        <div className="flex min-h-dvh min-w-0 flex-col">
-          <div className="studio-project-header-row flex items-center justify-between gap-3 px-4 py-4 md:px-6">
-            <OverlayHeader
-              appearance="studio"
-              eyebrow="Projects"
-              title="Projects"
-              description="Create a workspace, enter it, and keep its outputs and attached references grouped together."
-              actions={(
-                <div className="flex items-center gap-2">
-                  <Button
-                    data-testid="studio-project-create-button"
-                    variant="subtle"
-                    size="compact"
-                    onClick={beginCreate}
-                    className="h-10 rounded-full px-4 text-[0.68rem] tracking-[0.12em]"
-                  >
-                    <Plus className="mr-1.5 size-3.5" />
-                    Create Project
-                  </Button>
-                  <IconButton icon={X} onClick={onClose} aria-label="Close projects" className="h-10 w-10" />
-                </div>
-              )}
-              className="w-full border-0 pb-0"
+    <>
+      <StudioBrowserOverlay
+        testId="studio-project-browser"
+        zIndexClassName="z-[121]"
+        layout="list"
+        title="Projects"
+        description="Your workspaces, outputs, and references."
+        onClose={() => {
+          if (!busyAction) onClose();
+        }}
+        suspended={dialogOpen}
+        actions={
+          <>
+            <Button
+              appearance="admin"
+              data-testid="studio-project-create-button"
+              variant="primary"
+              onClick={beginCreate}
+            >
+              <Plus className="mr-2 size-4" />
+              Create project
+            </Button>
+            <IconButton
+              appearance="admin"
+              quiet
+              icon={X}
+              onClick={onClose}
+              aria-label="Close projects"
             />
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 md:px-6 md:py-6">
-            {error ? (
-              <CalloutPanel tone="danger" className="mb-4 rounded-[18px] px-4 py-3 text-sm">
-                {error}
-              </CalloutPanel>
-            ) : null}
-
-            <section className="mb-5">
-              <div className="studio-meta-label mb-3">
-                Active Projects
-              </div>
-              {activeProjects.length ? (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-                  {activeProjects.map((project) => (
-                    <ProjectCard
-                      key={project.project_id}
-                      project={project}
-                      selected={project.project_id === selectedProjectId}
-                      busy={busyAction}
-                      onOpen={() => onSelectProject(project.project_id)}
-                      onEdit={() => beginEdit(project)}
-                      onArchive={() =>
-                        void runProjectAction(`archive:${project.project_id}`, () => onArchiveProject(project.project_id))
-                      }
-                    />
-                  ))}
-                </div>
-              ) : (
-                <StudioStatusCallout
-                  tone="muted"
-                  title="No projects yet."
-                  description="Create one and Studio will start assigning new work to it."
-                  className="rounded-[20px] py-8"
-                />
-              )}
-            </section>
-
-            {archivedProjects.length ? (
-              <section>
-                <div className="studio-meta-label mb-3">
-                  Archived
-                </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-                  {archivedProjects.map((project) => (
-                    <ProjectCard
-                      key={project.project_id}
-                      project={project}
-                      selected={false}
-                      busy={busyAction}
-                      archived
-                      onOpen={() => {}}
-                      onRestore={() =>
-                        void runProjectAction(`restore:${project.project_id}`, () => onUnarchiveProject(project.project_id))
-                      }
-                      onDelete={() =>
-                        void runProjectAction(`delete:${project.project_id}`, () => onDeleteProject(project.project_id))
-                      }
-                    />
-                  ))}
-                </div>
-              </section>
-            ) : null}
-          </div>
-        </div>
+          </>
+        }
+      >
+        {error ? (
+          <CalloutPanel tone="danger" className="mb-4">
+            {error}
+          </CalloutPanel>
+        ) : null}
+        <StudioProjectBrowserContents
+          projects={projects}
+          selectedProjectId={selectedProjectId}
+          busyAction={busyAction}
+          onSelectProject={onSelectProject}
+          onEdit={beginEdit}
+          onAction={(action, id) => {
+            const callbacks = {
+              archive: onArchiveProject,
+              restore: onUnarchiveProject,
+              delete: onDeleteProject,
+            };
+            runProjectAction(`${action}:${id}`, () =>
+              callbacks[action](id),
+            ).catch((error: unknown) => setError(String(error)));
+          }}
+        />
+      </StudioBrowserOverlay>
 
       {dialogOpen ? (
-        <OverlayShell backdropClassName="z-[122]" innerClassName="flex min-h-dvh items-center justify-center p-4" panelClassName="w-full max-w-[36rem] p-5 md:p-6">
-              <OverlayHeader
-                appearance="studio"
-                eyebrow={mode === "create" ? "Create Project" : "Edit Project"}
-                title={mode === "create" ? "Create Project" : "Edit Project"}
-                description="Add a name, a description, and an optional image to make the workspace easier to recognize."
-                actions={<IconButton icon={X} onClick={closeDialog} aria-label="Close project dialog" className="h-10 w-10" />}
-                className="mb-5 border-0 pb-0"
-              />
+        <OverlayShell
+          backdropClassName="admin-theme-root studio-browser-theme z-[122]"
+          innerClassName="flex min-h-dvh items-center justify-center p-4"
+          panelClassName="w-full max-w-[36rem] p-5 md:p-6"
+        >
+          <div
+            ref={editorRef}
+            role="dialog"
+            aria-modal={!coverPicker.open || undefined}
+            aria-label={mode === "create" ? "Create project" : "Edit project"}
+            tabIndex={-1}
+            inert={coverPicker.open || undefined}
+          >
+            <OverlayHeader
+              appearance="admin"
+              eyebrow={mode === "create" ? "Create Project" : "Edit Project"}
+              title={mode === "create" ? "Create Project" : "Edit Project"}
+              description="Add a name, a description, and an optional image to make the workspace easier to recognize."
+              actions={
+                <IconButton
+                  appearance="admin"
+                  quiet
+                  icon={X}
+                  onClick={closeDialog}
+                  aria-label="Close project dialog"
+                  className="h-10 w-10"
+                />
+              }
+              className="mb-5 border-0 pb-0"
+            />
 
-              <div className="grid gap-4">
-                <label className="grid gap-2">
-                  <span className="studio-field-label">Name</span>
-                  <SurfaceInputShell className="px-4">
-                    <input
-                      data-testid="studio-project-name-input"
-                      value={draft.name}
-                      onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                      className="surface-input-control h-11 text-sm"
-                      placeholder="Campaign launch, client brief, concept board..."
-                    />
-                  </SurfaceInputShell>
-                </label>
-                <label className="grid gap-2">
-                  <span className="studio-field-label">Description</span>
-                  <SurfaceInputShell className="px-4 py-3">
-                    <textarea
-                      data-testid="studio-project-description-input"
-                      value={draft.description}
-                      onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
-                      rows={5}
-                      className="surface-input-control resize-none text-sm leading-6"
-                      placeholder="What content belongs in this workspace, what references it uses, and what the goal is."
-                    />
-                  </SurfaceInputShell>
-                </label>
+            <div className="grid gap-4">
+              <label className="grid gap-2">
+                <span className="studio-field-label">Name</span>
 
-                <button
-                  type="button"
-                  data-testid="studio-project-hide-global-toggle"
-                  onClick={() =>
+                <AdminInput
+                  data-testid="studio-project-name-input"
+                  value={draft.name}
+                  onChange={(event) =>
                     setDraft((current) => ({
                       ...current,
-                      hiddenFromGlobalGallery: !current.hiddenFromGlobalGallery,
+                      name: event.target.value,
                     }))
                   }
-                  className="studio-project-toggle-row flex items-start justify-between gap-4 rounded-[18px] px-4 py-4 text-left transition"
-                >
-                  <div>
-                    <div className="text-sm font-medium text-[var(--text-primary)]">Hide from main gallery</div>
-                    <div className="mt-1 text-sm leading-6 text-[var(--text-muted)]">
-                      Keep this project and its media out of the global gallery and global filters. It will only show inside the project workspace.
-                    </div>
-                  </div>
-                  <div
-                    className={cn(
-                      "mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full border transition",
-                      draft.hiddenFromGlobalGallery
-                        ? "studio-project-toggle-active"
-                        : "studio-project-toggle",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "m-[2px] h-5 w-5 rounded-full transition",
-                        draft.hiddenFromGlobalGallery
-                          ? "studio-project-toggle-thumb-active translate-x-[20px]"
-                          : "studio-project-toggle-thumb translate-x-0",
-                      )}
-                    />
-                  </div>
-                </button>
+                  placeholder="Campaign launch, client brief, concept board..."
+                />
+              </label>
+              <label className="grid gap-2">
+                <span className="studio-field-label">Description</span>
 
-                <CalloutPanel tone="default" className="rounded-[18px] p-4">
-                  <ThumbnailField
-                    label="Image (optional)"
-                    imageUrl={coverPreviewUrl}
-                    imageAlt="Project cover preview"
-                    emptyLabel="No project image"
-                    chooseLabel="Choose from generated images"
-                    browseLabel="Browse generated images"
-                    uploadLabel={coverPreviewUrl ? "Replace image" : "Upload image"}
-                    removeLabel="Remove image"
-                    appearance="studio"
-                    aspect="square"
-                    surface={false}
-                    inputRef={fileInputRef}
-                    isBrowsing={coverPicker.loading}
-                    onChoose={coverPicker.openPicker}
-                    onUploadFile={handleCoverFileChange}
-                    onRemove={removeCover}
-                  />
-                  <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
-                    Add an image to make this project easier to recognize.
-                  </p>
+                <AdminTextarea
+                  data-testid="studio-project-description-input"
+                  value={draft.description}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      description: event.target.value,
+                    }))
+                  }
+                  rows={5}
+                  placeholder="What content belongs in this workspace, what references it uses, and what the goal is."
+                />
+              </label>
+
+              <AdminToggleRow
+                title="Hide from main gallery"
+                ariaLabel="Hide from main gallery"
+                description="Keep this project and its media out of the global gallery and global filters. It will only show inside the project workspace."
+                checked={Boolean(draft.hiddenFromGlobalGallery)}
+                onToggle={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    hiddenFromGlobalGallery: !current.hiddenFromGlobalGallery,
+                  }))
+                }
+              />
+
+              <CalloutPanel tone="default" className="rounded-[18px] p-4">
+                <ThumbnailField
+                  label="Image (optional)"
+                  imageUrl={coverPreviewUrl}
+                  imageAlt="Project cover preview"
+                  emptyLabel="No project image"
+                  chooseLabel="Choose from generated images"
+                  browseLabel="Browse generated images"
+                  uploadLabel={
+                    coverPreviewUrl ? "Replace image" : "Upload image"
+                  }
+                  removeLabel="Remove image"
+                  appearance="admin"
+                  aspect="square"
+                  surface={false}
+                  inputRef={fileInputRef}
+                  isBrowsing={coverPicker.loading}
+                  onChoose={coverPicker.openPicker}
+                  onUploadFile={handleCoverFileChange}
+                  onRemove={removeCover}
+                />
+                <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
+                  Add an image to make this project easier to recognize.
+                </p>
+              </CalloutPanel>
+
+              {error ? (
+                <CalloutPanel tone="danger" className="text-sm">
+                  {error}
                 </CalloutPanel>
-
-                {error ? <CalloutPanel tone="danger" className="text-sm">{error}</CalloutPanel> : null}
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    data-testid={mode === "create" ? "studio-project-submit-create" : "studio-project-submit-save"}
-                    variant="primary"
-                    size="compact"
-                    onClick={() => void handleSubmit()}
-                    disabled={busyAction != null}
-                    className="studio-project-primary-text h-10 rounded-full px-4 text-[0.68rem] tracking-[0.12em]"
-                  >
-                    {busyAction === "create" || busyAction?.startsWith("save:") ? (
-                      <LoaderCircle className="mr-1.5 size-3.5 animate-spin" />
-                    ) : null}
-                    {mode === "create" ? "Create project" : "Save changes"}
-                  </Button>
-                  <Button
-                    variant="subtle"
-                    size="compact"
-                    onClick={closeDialog}
-                    disabled={busyAction != null}
-                    className="h-10 rounded-full px-4 text-[0.68rem] tracking-[0.12em]"
-                  >
-                    Cancel
-                  </Button>
-                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  appearance="admin"
+                  data-testid={
+                    mode === "create"
+                      ? "studio-project-submit-create"
+                      : "studio-project-submit-save"
+                  }
+                  variant="primary"
+                  size="compact"
+                  onClick={() => {
+                    handleSubmit().catch((error: unknown) =>
+                      setError(String(error)),
+                    );
+                  }}
+                  disabled={busyAction != null}
+                >
+                  {busyAction === "create" ||
+                  busyAction?.startsWith("save:") ? (
+                    <LoaderCircle className="mr-1.5 size-3.5 animate-spin" />
+                  ) : null}
+                  {mode === "create" ? "Create project" : "Save changes"}
+                </Button>
+                <Button
+                  appearance="admin"
+                  variant="subtle"
+                  size="compact"
+                  onClick={closeDialog}
+                  disabled={busyAction != null}
+                >
+                  Cancel
+                </Button>
               </div>
+            </div>
+          </div>
         </OverlayShell>
       ) : null}
 
@@ -637,9 +506,13 @@ export function StudioProjectBrowser({
         nextOffset={coverPicker.nextOffset}
         selectionId={coverAssetSelectionId}
         onClose={coverPicker.closePicker}
-        onLoadMore={coverPicker.loadNextPage}
+        onLoadMore={() => {
+          coverPicker
+            .loadNextPage()
+            .catch((error: unknown) => setError(String(error)));
+        }}
         onSelectItem={applyCoverFromAsset}
       />
-    </OverlayShell>
+    </>
   );
 }

@@ -91,3 +91,24 @@ test("admin import traversal includes shared/re-exported/dynamic helpers and new
     assert.equal(findings.find((item) => item.rule === "admin-shell").file, "apps/web/app/pricing/page.tsx");
   } finally { await rm(root, {recursive:true,force:true}); }
 });
+
+
+test("Studio browser compositions and their stylesheet obey the shared theme contract", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "studio-theme-source-"));
+  try {
+    const files = {
+      "apps/web/components/studio/studio-project-browser.tsx": '<Button className="bg-red-500 rounded-xl" />',
+      "apps/web/components/media/media-browser-item.tsx": '<div className="text-white/60" />',
+      "apps/web/app/studio-browsers.css": '.studio-browser-panel { background: #abcdef; }',
+      "apps/web/components/studio/unrelated.tsx": '<div className="text-white" />',
+    };
+    for (const [file, source] of Object.entries(files)) {
+      await mkdir(path.dirname(path.join(root, file)), { recursive: true });
+      await writeFile(path.join(root, file), source);
+    }
+    const { findings } = await inspectRepo(root);
+    assert.equal(findings.filter((item) => item.rule === "literal-color").length, 3);
+    assert.equal(findings.filter((item) => item.rule === "control-override").length, 2);
+    assert.equal(findings.some((item) => item.rule === "admin-shell"), false);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

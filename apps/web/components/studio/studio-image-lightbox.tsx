@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect } from "react";
+import { useDialogFocus } from "@/components/ui/use-dialog-focus";
 
 type StudioImageLightboxProps = {
   src: string;
@@ -11,23 +11,27 @@ type StudioImageLightboxProps = {
   onClose: () => void;
 };
 
-export function StudioImageLightbox({ src, alt, kind = "images", posterSrc, onClose }: StudioImageLightboxProps) {
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+export function StudioImageLightbox({
+  src,
+  alt,
+  kind = "images",
+  posterSrc,
+  onClose,
+}: StudioImageLightboxProps) {
+  const panelRef = useDialogFocus(onClose);
 
   return (
     <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Preview ${alt}`}
+      tabIndex={-1}
       data-testid="studio-image-lightbox"
       className="studio-lightbox-root studio-reference-lightbox-root"
-      onClick={onClose}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
       <button
         type="button"
@@ -37,7 +41,10 @@ export function StudioImageLightbox({ src, alt, kind = "images", posterSrc, onCl
       >
         <X className="size-5" />
       </button>
-      <div className="studio-lightbox-swipe-surface" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="studio-lightbox-swipe-surface"
+        onClick={(event) => event.stopPropagation()}
+      >
         {kind === "videos" ? (
           <video
             src={src}
@@ -50,9 +57,17 @@ export function StudioImageLightbox({ src, alt, kind = "images", posterSrc, onCl
           />
         ) : kind === "audios" ? (
           <div className="studio-reference-lightbox-audio-panel">
-            <div className="studio-reference-lightbox-audio-kicker">Audio Reference</div>
+            <div className="studio-reference-lightbox-audio-kicker">
+              Audio Reference
+            </div>
             <div className="studio-reference-lightbox-audio-title">{alt}</div>
-            <audio src={src} controls autoPlay preload="metadata" className="studio-reference-lightbox-audio-control" />
+            <audio
+              src={src}
+              controls
+              autoPlay
+              preload="metadata"
+              className="studio-reference-lightbox-audio-control"
+            />
           </div>
         ) : (
           <img

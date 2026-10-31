@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { IBM_Plex_Mono, Sora } from "next/font/google";
 import "./globals.css";
 import "./admin.css";
+import "./studio-browsers.css";
 
 const sora = Sora({
   subsets: ["latin"],

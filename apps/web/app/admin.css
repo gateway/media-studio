@@ -351,4 +351,80 @@
   .admin-theme-root .admin-pricing-source-details > summary, .admin-theme-root .admin-pricing-catalog-details > summary { min-height: 44px; }
 }
 
-.admin-theme-root .admin-pricing-usage { border-top: 1px solid var(--border-soft); padding-top: 24px; }
+.admin-theme-root .admin-pricing-usage {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 24px;
+}
+
+/* Shared icon controls and hover/focus help for admin and browser surfaces. */
+.admin-icon-control {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.admin-icon-control-compact {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 6px;
+}
+
+.admin-icon-control-danger {
+  margin-left: 6px;
+}
+
+.admin-icon-control-danger::before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  left: -5px;
+  border-left: 1px solid var(--border-soft);
+}
+
+.admin-icon-control-danger:hover {
+  color: var(--danger);
+  background: var(--action-danger-surface-hover);
+}
+
+.control-tooltip {
+  pointer-events: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: max-content;
+  max-width: 192px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-control);
+  background: var(--surface-overlay-panel);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  opacity: 0;
+  box-shadow: var(--shadow-overlay);
+}
+
+.admin-icon-control > .control-tooltip {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+:is(button, .control-help):hover > .control-tooltip,
+:is(button, .control-help):focus-visible > .control-tooltip {
+  opacity: 1;
+}
+
+.admin-icon-control-accent:hover,
+.admin-icon-control-accent:focus-visible {
+  color: var(--accent-strong);
+}
